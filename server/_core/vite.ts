@@ -48,14 +48,30 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "../..", "dist");
+  // En Render, los archivos compilados están en dist/public
+  const distPath = path.resolve(import.meta.dirname, "../..", "dist", "public");
   
+  console.log(`[serveStatic] Intentando servir desde: ${distPath}`);
+  console.log(`[serveStatic] Directorio existe: ${fs.existsSync(distPath)}`);
+
   if (!fs.existsSync(distPath)) {
     console.error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
     );
-    // Fallback: servir desde client si dist no existe
+    // Fallback: servir desde dist raíz si dist/public no existe
+    const distRootPath = path.resolve(import.meta.dirname, "../..", "dist");
+    if (fs.existsSync(distRootPath)) {
+      console.log(`[serveStatic] Usando fallback: ${distRootPath}`);
+      app.use(express.static(distRootPath));
+      app.use("*", (_req, res) => {
+        res.sendFile(path.resolve(distRootPath, "index.html"));
+      });
+      return;
+    }
+    
+    // Último fallback: servir desde client
     const clientPath = path.resolve(import.meta.dirname, "../..", "client");
+    console.log(`[serveStatic] Último fallback: ${clientPath}`);
     app.use(express.static(clientPath));
     app.use("*", (_req, res) => {
       res.sendFile(path.resolve(clientPath, "index.html"));
