@@ -35,9 +35,12 @@ const startServer = async () => {
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   }
-  const port = process.env.PORT || 3000;
-  server.listen(port, () => {
-    console.log(`Servidor corriendo en http://localhost:${port}/`);
+  const port = parseInt(process.env.PORT || "3000", 10);
+  const host = "0.0.0.0";
+  
+  // ✅ IMPORTANTE: Escuchar en 0.0.0.0 para que Render pueda detectar el puerto
+  server.listen(port, host, () => {
+    console.log(`Servidor corriendo en http://${host}:${port}/ - CWD: ${process.cwd( )}`);
   });
 };
 
