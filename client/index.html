@@ -1,33 +1,54 @@
-<!doctype html>
-<html lang="es">
-  <head>
-    <title>
-      Laboratorio de Patología Veterinaria VETNEB | Histopatología y Citología
-    </title>
-    <meta
-      name="description"
-      content="Servicio de diagnóstico histopatológico y citopatológico veterinario. Informes profesionales para clínicas veterinarias en Argentina."
-    />
-    <meta name="robots" content="index, follow" />
-    <meta name="author" content="VETNEB" />
-    <meta
-      property="og:title"
-      content="Laboratorio de Patología Veterinaria VETNEB"
-    />
-    <meta
-      property="og:description"
-      content="Diagnóstico histopatológico y citopatológico veterinario."
-    />
-    <meta property="og:type" content="website" />
-    <meta
-      property="og:url"
-      content="https://servicio-patologico-vetneb.web.app/"
-    />
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+import "dotenv/config";
+import express from "express";
+import { createServer } from "http";
+import { createExpressMiddleware } from "@trpc/server/adapters/express";
+import { registerOAuthRoutes } from "./oauth";
+import { appRouter } from "../routers";
+import { createContext } from "./context";
+import { serveStatic, setupVite } from "./vite";
+
+// 1. Inicializar la aplicación Express
+const app = express();
+
+// 2. Configurar middlewares
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// 3. Middleware para headers de seguridad (sin CSP restrictivo)
+app.use((req, res, next) => {
+  // Permitir que los recursos se carguen correctamente
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  // NO establecer CSP restrictivo que bloquee recursos
+  next();
+});
+
+// 4. Registrar rutas de la API
+registerOAuthRoutes(app);
+app.use(
+  "/api/trpc",
+  createExpressMiddleware({
+    router: appRouter,
+    createContext,
+  }),
+);
+
+// 5. Servir archivos estáticos en producción
+if (process.env.NODE_ENV !== "development") {
+  serveStatic(app);
+}
+
+// 6. EJECUCIÓN DEL SERVIDOR
+const startServer = async () => {
+  const server = createServer(app);
+  if (process.env.NODE_ENV === "development") {
+    await setupVite(app, server);
+  }
+  const port = process.env.PORT || 3000;
+  server.listen(port, () => {
+    console.log(`Servidor corriendo en http://localhost:${port}/`);
+  });
+};
+
+startServer().catch(console.error);
