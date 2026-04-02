@@ -31,11 +31,9 @@ const GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserI
 
 class OAuthService {
   constructor(private client: ReturnType<typeof axios.create>) {
-    console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
-    if (!ENV.oAuthServerUrl) {
-      console.warn(
-        "[OAuth] WARNING: OAUTH_SERVER_URL is not configured. OAuth features will be disabled.",
-      );
+    // Solo log si OAuth está configurado
+    if (ENV.oAuthServerUrl) {
+      console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
     }
   }
 
@@ -48,10 +46,6 @@ class OAuthService {
     code: string,
     state: string,
   ): Promise<ExchangeTokenResponse> {
-    if (!ENV.oAuthServerUrl) {
-      throw new Error("[OAuth] OAuth server URL not configured");
-    }
-
     const payload: ExchangeTokenRequest = {
       clientId: ENV.appId,
       grantType: "authorization_code",
@@ -70,10 +64,6 @@ class OAuthService {
   async getUserInfoByToken(
     token: ExchangeTokenResponse,
   ): Promise<GetUserInfoResponse> {
-    if (!ENV.oAuthServerUrl) {
-      throw new Error("[OAuth] OAuth server URL not configured");
-    }
-
     const { data } = await this.client.post<GetUserInfoResponse>(
       GET_USER_INFO_PATH,
       {
@@ -281,7 +271,7 @@ class SDKServer {
   async authenticateRequest(req: Request): Promise<User> {
     // Si OAuth no está habilitado, crear un usuario por defecto
     if (!this.isOAuthEnabled) {
-      console.warn("[Auth] OAuth is disabled. Using fallback authentication.");
+      console.log("[Auth] OAuth is disabled. Using fallback authentication.");
       
       // Buscar o crear usuario por defecto
       let user = await db.getUserByOpenId("default-user");
