@@ -3,8 +3,13 @@ import fs from "fs";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
 import path from "path";
+import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
+
+// Obtener __dirname en módulos ES
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
@@ -26,7 +31,7 @@ export async function setupVite(app: Express, server: Server) {
 
     try {
       const clientTemplate = path.resolve(
-        import.meta.dirname,
+        __dirname,
         "../..",
         "client",
         "index.html"
@@ -48,69 +53,31 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  // Obtener el directorio raíz del proyecto
-  // import.meta.dirname es: /opt/render/project/src/server/_core
-  // Necesitamos: /opt/render/project
-  const projectRoot = path.resolve(import.meta.dirname, "../..", "..");
+  // __dirname es: /opt/render/project/src/dist (después de compilar con esbuild)
+  // Necesitamos: /opt/render/project/src/dist/public
+  const publicDir = path.resolve(__dirname, "public");
   
-  // Rutas posibles donde pueden estar los archivos compilados
-  const possiblePaths = [
-    path.resolve(projectRoot, "dist", "public"),      // dist/public (salida de Vite)
-    path.resolve(projectRoot, "dist"),                // dist (fallback)
-    path.resolve(projectRoot, "client", "dist"),      // client/dist (alternativa)
-  ];
-
-  console.log(`[serveStatic] Project root: ${projectRoot}`);
-  console.log(`[serveStatic] Buscando archivos compilados en:`);
-  possiblePaths.forEach((p, i) => {
-    console.log(`  ${i + 1}. ${p} - Existe: ${fs.existsSync(p)}`);
-  });
-
-  // Encontrar el primer directorio que existe
-  let distPath: string | null = null;
-  for (const possiblePath of possiblePaths) {
-    if (fs.existsSync(possiblePath)) {
-      distPath = possiblePath;
-      console.log(`[serveStatic] ✅ Usando: ${distPath}`);
-      break;
-    }
+  console.log(`[serveStatic] __dirname: ${__dirname}`);
+  console.log(`[serveStatic] publicDir: ${publicDir}`);
+  console.log(`[serveStatic] Existe: ${fs.existsSync(publicDir)}`);
+  
+  if (fs.existsSync(publicDir)) {
+    const files = fs.readdirSync(publicDir);
+    console.log(`[serveStatic] ✅ Archivos encontrados: ${files.join(", ")}`);
+  } else {
+    console.error(`[serveStatic] ❌ publicDir no existe`);
+    console.error(`[serveStatic] Contenido de __dirname:`, fs.readdirSync(__dirname));
   }
 
-  // Si no encontramos ninguno, usar el primero y mostrar error
-  if (!distPath) {
-    distPath = possiblePaths[0];
-    console.error(
-      `[serveStatic] ⚠️ ADVERTENCIA: No se encontró directorio de compilación en ninguna de las rutas esperadas`
-    );
-    console.error(`[serveStatic] Usando fallback: ${distPath}`);
-    
-    // Intentar servir desde client como último recurso
-    const clientPath = path.resolve(projectRoot, "client");
-    if (fs.existsSync(clientPath)) {
-      console.log(`[serveStatic] Sirviendo desde cliente: ${clientPath}`);
-      app.use(express.static(clientPath));
-      app.use("*", (_req, res) => {
-        const indexPath = path.resolve(clientPath, "index.html");
-        if (fs.existsSync(indexPath)) {
-          res.sendFile(indexPath);
-        } else {
-          res.status(404).send("index.html not found");
-        }
-      });
-      return;
-    }
-  }
-
-  // Servir archivos estáticos desde el directorio encontrado
-  console.log(`[serveStatic] Configurando express.static para: ${distPath}`);
-  app.use(express.static(distPath));
+  // Servir archivos estáticos
+  app.use(express.static(publicDir));
 
   // Fallback: servir index.html para rutas no encontradas (SPA)
   app.use("*", (_req, res) => {
-    const indexPath = path.resolve(distPath, "index.html");
-    console.log(`[serveStatic] Sirviendo SPA fallback: ${indexPath}`);
+    const indexPath = path.resolve(publicDir, "index.html");
     
     if (fs.existsSync(indexPath)) {
+      console.log(`[serveStatic] Sirviendo SPA: ${indexPath}`);
       res.sendFile(indexPath);
     } else {
       console.error(`[serveStatic] ❌ index.html no encontrado en: ${indexPath}`);
