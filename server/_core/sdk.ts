@@ -14,6 +14,7 @@ import type {
   GetUserInfoWithJwtRequest,
   GetUserInfoWithJwtResponse,
 } from "./types/authTypes";
+
 // Utility function
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
@@ -32,8 +33,8 @@ class OAuthService {
   constructor(private client: ReturnType<typeof axios.create>) {
     console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
     if (!ENV.oAuthServerUrl) {
-      console.error(
-        "[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.",
+      console.warn(
+        "[OAuth] WARNING: OAUTH_SERVER_URL is not configured. OAuth features will be disabled.",
       );
     }
   }
@@ -47,6 +48,10 @@ class OAuthService {
     code: string,
     state: string,
   ): Promise<ExchangeTokenResponse> {
+    if (!ENV.oAuthServerUrl) {
+      throw new Error("[OAuth] OAuth server URL not configured");
+    }
+
     const payload: ExchangeTokenRequest = {
       clientId: ENV.appId,
       grantType: "authorization_code",
@@ -65,6 +70,10 @@ class OAuthService {
   async getUserInfoByToken(
     token: ExchangeTokenResponse,
   ): Promise<GetUserInfoResponse> {
+    if (!ENV.oAuthServerUrl) {
+      throw new Error("[OAuth] OAuth server URL not configured");
+    }
+
     const { data } = await this.client.post<GetUserInfoResponse>(
       GET_USER_INFO_PATH,
       {
@@ -78,17 +87,19 @@ class OAuthService {
 
 const createOAuthHttpClient = (): AxiosInstance =>
   axios.create({
-    baseURL: ENV.oAuthServerUrl,
+    baseURL: ENV.oAuthServerUrl || "http://localhost:3001",
     timeout: AXIOS_TIMEOUT_MS,
   });
 
 class SDKServer {
   private readonly client: AxiosInstance;
   private readonly oauthService: OAuthService;
+  private readonly isOAuthEnabled: boolean;
 
   constructor(client: AxiosInstance = createOAuthHttpClient()) {
     this.client = client;
     this.oauthService = new OAuthService(this.client);
+    this.isOAuthEnabled = !!ENV.oAuthServerUrl;
   }
 
   private deriveLoginMethod(
@@ -122,6 +133,9 @@ class SDKServer {
     code: string,
     state: string,
   ): Promise<ExchangeTokenResponse> {
+    if (!this.isOAuthEnabled) {
+      throw new Error("[OAuth] OAuth is not enabled. Configure OAUTH_SERVER_URL.");
+    }
     return this.oauthService.getTokenByCode(code, state);
   }
 
@@ -131,6 +145,10 @@ class SDKServer {
    * const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
    */
   async getUserInfo(accessToken: string): Promise<GetUserInfoResponse> {
+    if (!this.isOAuthEnabled) {
+      throw new Error("[OAuth] OAuth is not enabled. Configure OAUTH_SERVER_URL.");
+    }
+
     const data = await this.oauthService.getUserInfoByToken({
       accessToken,
     } as ExchangeTokenResponse);
@@ -235,6 +253,10 @@ class SDKServer {
   async getUserInfoWithJwt(
     jwtToken: string,
   ): Promise<GetUserInfoWithJwtResponse> {
+    if (!this.isOAuthEnabled) {
+      throw new Error("[OAuth] OAuth is not enabled. Configure OAUTH_SERVER_URL.");
+    }
+
     const payload: GetUserInfoWithJwtRequest = {
       jwtToken,
       projectId: ENV.appId,
@@ -257,6 +279,30 @@ class SDKServer {
   }
 
   async authenticateRequest(req: Request): Promise<User> {
+    // Si OAuth no está habilitado, crear un usuario por defecto
+    if (!this.isOAuthEnabled) {
+      console.warn("[Auth] OAuth is disabled. Using fallback authentication.");
+      
+      // Buscar o crear usuario por defecto
+      let user = await db.getUserByOpenId("default-user");
+      if (!user) {
+        await db.upsertUser({
+          openId: "default-user",
+          name: "Default User",
+          email: "default@vetneb.local",
+          loginMethod: "local",
+          lastSignedIn: new Date(),
+        });
+        user = await db.getUserByOpenId("default-user");
+      }
+
+      if (!user) {
+        throw ForbiddenError("Failed to create default user");
+      }
+
+      return user;
+    }
+
     // Regular authentication flow
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
