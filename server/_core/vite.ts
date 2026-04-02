@@ -56,28 +56,31 @@ export function serveStatic(app: Express) {
   // __dirname es: /opt/render/project/src/dist (después de compilar con esbuild)
   // Necesitamos: /opt/render/project/src/dist/public
   const publicDir = path.resolve(__dirname, "public");
+  const indexPath = path.resolve(publicDir, "index.html");
   
   console.log(`[serveStatic] __dirname: ${__dirname}`);
   console.log(`[serveStatic] publicDir: ${publicDir}`);
-  console.log(`[serveStatic] Existe: ${fs.existsSync(publicDir)}`);
+  console.log(`[serveStatic] indexPath: ${indexPath}`);
+  console.log(`[serveStatic] publicDir existe: ${fs.existsSync(publicDir)}`);
+  console.log(`[serveStatic] index.html existe: ${fs.existsSync(indexPath)}`);
   
   if (fs.existsSync(publicDir)) {
     const files = fs.readdirSync(publicDir);
-    console.log(`[serveStatic] ✅ Archivos encontrados: ${files.join(", ")}`);
-  } else {
-    console.error(`[serveStatic] ❌ publicDir no existe`);
-    console.error(`[serveStatic] Contenido de __dirname:`, fs.readdirSync(__dirname));
+    console.log(`[serveStatic] ✅ Archivos en publicDir: ${files.join(", ")}`);
   }
 
-  // Servir archivos estáticos
-  app.use(express.static(publicDir));
+  // Servir archivos estáticos (CSS, JS, imágenes, etc.)
+  app.use(express.static(publicDir, {
+    // No servir index.html como archivo estático
+    index: false,
+  }));
 
-  // Fallback: servir index.html para rutas no encontradas (SPA)
+  // Fallback: servir index.html para TODAS las rutas (SPA)
+  // Esto debe ir DESPUÉS de express.static para que los archivos estáticos se sirvan primero
   app.use("*", (_req, res) => {
-    const indexPath = path.resolve(publicDir, "index.html");
-    
     if (fs.existsSync(indexPath)) {
-      console.log(`[serveStatic] Sirviendo SPA: ${indexPath}`);
+      console.log(`[serveStatic] Sirviendo SPA fallback: ${indexPath}`);
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.sendFile(indexPath);
     } else {
       console.error(`[serveStatic] ❌ index.html no encontrado en: ${indexPath}`);
