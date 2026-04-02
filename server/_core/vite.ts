@@ -53,11 +53,14 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  // __dirname es: /opt/render/project/src/dist (después de compilar con esbuild)
-  // Necesitamos: /opt/render/project/src/dist/public
+  // CONFIGURACIÓN CRÍTICA PARA PRODUCCIÓN
+  // __dirname es: /opt/render/project/src/dist (donde está index.js después de compilar)
+  // publicDir es: /opt/render/project/src/dist/public (donde están los archivos del cliente compilados)
+  
   const publicDir = path.resolve(__dirname, "public");
   const indexPath = path.resolve(publicDir, "index.html");
   
+  console.log(`[serveStatic] === CONFIGURACIÓN DE PRODUCCIÓN ===`);
   console.log(`[serveStatic] __dirname: ${__dirname}`);
   console.log(`[serveStatic] publicDir: ${publicDir}`);
   console.log(`[serveStatic] indexPath: ${indexPath}`);
@@ -67,24 +70,41 @@ export function serveStatic(app: Express) {
   if (fs.existsSync(publicDir)) {
     const files = fs.readdirSync(publicDir);
     console.log(`[serveStatic] ✅ Archivos en publicDir: ${files.join(", ")}`);
+  } else {
+    console.error(`[serveStatic] ❌ publicDir NO EXISTE: ${publicDir}`);
   }
 
-  // Servir archivos estáticos (CSS, JS, imágenes, etc.)
+  // PASO 1: Servir archivos estáticos SOLO desde publicDir
+  // CRÍTICO: NO servir index.html como archivo estático
+  // Esto previene que Express sirva index.html cuando accedes a /index.html
+  // pero permitimos que se sirva para rutas específicas como /assets/*, /favicon.ico, etc.
   app.use(express.static(publicDir, {
-    // No servir index.html como archivo estático
+    // NO servir index.html automáticamente
     index: false,
+    // Permitir que los navegadores cacheen archivos estáticos por 1 año
+    maxAge: "1y",
+    // Permitir que los navegadores compriman respuestas
+    dotfiles: "ignore",
   }));
 
-  // Fallback: servir index.html para TODAS las rutas (SPA)
-  // Esto debe ir DESPUÉS de express.static para que los archivos estáticos se sirvan primero
+  // PASO 2: Manejo de rutas de API (si las hay)
+  // Esto es importante para que las rutas de API no sean interceptadas por el fallback SPA
+  // Si tienes rutas de API en /api/*, asegúrate de que estén registradas ANTES de este middleware
+
+  // PASO 3: Fallback SPA - DEBE ir al final
+  // Cualquier ruta que no sea un archivo estático debe servir index.html
+  // Esto permite que React Router maneje el enrutamiento en el cliente
   app.use("*", (_req, res) => {
     if (fs.existsSync(indexPath)) {
-      console.log(`[serveStatic] Sirviendo SPA fallback: ${indexPath}`);
+      console.log(`[serveStatic] Sirviendo SPA fallback desde: ${indexPath}`);
       res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       res.sendFile(indexPath);
     } else {
-      console.error(`[serveStatic] ❌ index.html no encontrado en: ${indexPath}`);
-      res.status(404).send("index.html not found");
+      console.error(`[serveStatic] ❌ CRÍTICO: index.html no encontrado en: ${indexPath}`);
+      console.error(`[serveStatic] Contenido de publicDir:`, 
+        fs.existsSync(publicDir) ? fs.readdirSync(publicDir) : "DIR NO EXISTE");
+      res.status(404).send("index.html not found - SPA fallback failed");
     }
   });
 }

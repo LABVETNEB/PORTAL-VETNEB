@@ -1,29 +1,34 @@
-import { describe, expect, it, beforeAll } from "vitest";
+import { describe, expect, it } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
-import * as crypto from "crypto";
+import type { Response } from "express";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
 function createPublicContext(): { ctx: TrpcContext } {
+  // Crear un mock de Response que sea compatible con Express
+  const mockRes = {
+    cookie: (
+      name: string,
+      value: string,
+      options?: Record<string, unknown>,
+    ): Response => {
+      // Mock cookie setting - retorna this para chainable API
+      return mockRes as unknown as Response;
+    },
+    clearCookie: (name: string, options?: Record<string, unknown>): Response => {
+      // Mock cookie clearing - retorna this para chainable API
+      return mockRes as unknown as Response;
+    },
+  } as unknown as TrpcContext["res"];
+
   const ctx: TrpcContext = {
     user: null,
     req: {
       protocol: "https",
       headers: {},
     } as TrpcContext["req"],
-    res: {
-      cookie: (
-        name: string,
-        value: string,
-        options: Record<string, unknown>,
-      ) => {
-        // Mock cookie setting
-      },
-      clearCookie: (name: string, options: Record<string, unknown>) => {
-        // Mock cookie clearing
-      },
-    } as TrpcContext["res"],
+    res: mockRes,
   };
 
   return { ctx };
@@ -67,11 +72,17 @@ describe("auth.logout", () => {
     const { ctx } = createPublicContext();
     const clearedCookies: Array<{
       name: string;
-      options: Record<string, unknown>;
+      options?: Record<string, unknown>;
     }> = [];
 
-    ctx.res.clearCookie = (name: string, options: Record<string, unknown>) => {
+    // Sobrescribir clearCookie para rastrear llamadas
+    const originalClearCookie = ctx.res.clearCookie;
+    ctx.res.clearCookie = (
+      name: string,
+      options?: Record<string, unknown>,
+    ): Response => {
       clearedCookies.push({ name, options });
+      return ctx.res as unknown as Response;
     };
 
     const caller = appRouter.createCaller(ctx);
