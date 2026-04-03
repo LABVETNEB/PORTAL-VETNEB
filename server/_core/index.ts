@@ -18,10 +18,10 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 registerOAuthRoutes(app);
 app.use(
   "/api/trpc",
-  createExpressMiddleware({
-    router: appRouter,
-    createContext,
-  }),
+ createExpressMiddleware({
+   router: appRouter,
+   createContext,
+ }),
 );
 
 // 4. Servir archivos estáticos en producción
