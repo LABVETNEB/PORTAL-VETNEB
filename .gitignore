@@ -39,3 +39,6 @@ temp/
 
 # TypeScript
 *.tsbuildinfo
+
+node_modules/
+ignore_node_module*/
