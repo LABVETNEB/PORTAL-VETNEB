@@ -1,7 +1,14 @@
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
-  dialect: "sqlite",
   schema: "./drizzle/schema.ts",
-  out: "./drizzle",
+  out: "./drizzle/migrations",
+  dialect: "mysql",
+  dbCredentials: {
+    host: "localhost",
+    port: 3306,
+    user: "vetneb",
+    password: "31731490neb",
+    database: "vetneb",
+  },
 });

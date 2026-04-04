@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "678724eb-1622-454c-9e8d-79120f6514e9",
-  "prevId": "7045ff64-af53-43dd-b2a1-13e1e8c899de",
+  "id": "081f1856-9295-4041-91b6-66b1d62816cd",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "active_sessions": {
       "name": "active_sessions",
@@ -30,14 +30,14 @@
         },
         "last_access": {
           "name": "last_access",
-          "type": "timestamp",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "expires_at": {
           "name": "expires_at",
-          "type": "timestamp",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -56,16 +56,19 @@
       "compositePrimaryKeys": {
         "active_sessions_id": {
           "name": "active_sessions_id",
-          "columns": ["id"]
+          "columns": [
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {
         "active_sessions_token_unique": {
           "name": "active_sessions_token_unique",
-          "columns": ["token"]
+          "columns": [
+            "token"
+          ]
         }
-      },
-      "checkConstraint": {}
+      }
     },
     "clinic_users": {
       "name": "clinic_users",
@@ -119,16 +122,19 @@
       "compositePrimaryKeys": {
         "clinic_users_id": {
           "name": "clinic_users_id",
-          "columns": ["id"]
+          "columns": [
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {
         "clinic_users_username_unique": {
           "name": "clinic_users_username_unique",
-          "columns": ["username"]
+          "columns": [
+            "username"
+          ]
         }
-      },
-      "checkConstraint": {}
+      }
     },
     "clinics": {
       "name": "clinics",
@@ -192,16 +198,19 @@
       "compositePrimaryKeys": {
         "clinics_id": {
           "name": "clinics_id",
-          "columns": ["id"]
+          "columns": [
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {
         "clinics_clinic_id_unique": {
           "name": "clinics_clinic_id_unique",
-          "columns": ["clinic_id"]
+          "columns": [
+            "clinic_id"
+          ]
         }
-      },
-      "checkConstraint": {}
+      }
     },
     "reports": {
       "name": "reports",
@@ -222,7 +231,7 @@
         },
         "upload_date": {
           "name": "upload_date",
-          "type": "timestamp",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -292,16 +301,19 @@
       "compositePrimaryKeys": {
         "reports_id": {
           "name": "reports_id",
-          "columns": ["id"]
+          "columns": [
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {
         "reports_drive_file_id_unique": {
           "name": "reports_drive_file_id_unique",
-          "columns": ["drive_file_id"]
+          "columns": [
+            "drive_file_id"
+          ]
         }
-      },
-      "checkConstraint": {}
+      }
     },
     "users": {
       "name": "users",
@@ -380,19 +392,21 @@
       "compositePrimaryKeys": {
         "users_id": {
           "name": "users_id",
-          "columns": ["id"]
+          "columns": [
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {
         "users_openId_unique": {
           "name": "users_openId_unique",
-          "columns": ["openId"]
+          "columns": [
+            "openId"
+          ]
         }
-      },
-      "checkConstraint": {}
+      }
     }
   },
-  "views": {},
   "_meta": {
     "schemas": {},
     "tables": {},
