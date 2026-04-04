@@ -18,10 +18,10 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 registerOAuthRoutes(app);
 app.use(
   "/api/trpc",
- createExpressMiddleware({
-   router: appRouter,
-   createContext,
- }),
+  createExpressMiddleware({
+    router: appRouter,
+    createContext,
+  }),
 );
 
 // 4. Servir archivos estáticos en producción
@@ -32,15 +32,16 @@ if (process.env.NODE_ENV !== "development") {
 // 5. EJECUCIÓN DEL SERVIDOR
 const startServer = async () => {
   const server = createServer(app);
+
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   }
-  const port = parseInt(process.env.PORT || "3000", 10);
+
+  const port = Number(process.env.PORT) || 3000;
   const host = "0.0.0.0";
-  
-  // ✅ IMPORTANTE: Escuchar en 0.0.0.0 para que Render pueda detectar el puerto
+
   server.listen(port, host, () => {
-    console.log(`Servidor corriendo en http://${host}:${port}/ - CWD: ${process.cwd( )}`);
+    console.log(`Servidor corriendo en http://${host}:${port}/ - CWD: ${process.cwd()}`);
   });
 };
 
