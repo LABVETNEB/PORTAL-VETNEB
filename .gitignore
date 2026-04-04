@@ -1,44 +1,9 @@
-# Dependencies
-node_modules/
-pnpm-lock.yaml
-package-lock.json
-yarn.lock
-
-# Environment variables
+node_modules
+dist
 .env
-.env.local
-.env.*.local
-
-# Build outputs
-dist/
-build/
-out/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Logs
-*.log
+pnpm-lock.yaml
 npm-debug.log*
-pnpm-debug.log*
 yarn-debug.log*
-yarn-error.log*
-
-# OS
-Thumbs.db
+pnpm-debug.log*
 .DS_Store
-
-# Temporary files
-.tmp/
-temp/
-
-# TypeScript
-*.tsbuildinfo
-
-node_modules/
-ignore_node_module*/
+Thumbs.db
