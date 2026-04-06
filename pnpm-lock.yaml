@@ -39,7 +39,7 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       postgres:
-        specifier: ^3.4.4
+        specifier: ^3.4.9
         version: 3.4.9
       superjson:
         specifier: ^2.2.6
@@ -49,7 +49,7 @@ importers:
         version: 3.25.76
     devDependencies:
       '@types/cors':
-        specifier: ^2.8.17
+        specifier: ^2.8.19
         version: 2.8.19
       '@types/express':
         specifier: ^4.17.25
