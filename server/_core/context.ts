@@ -1,47 +1,39 @@
-import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
-import type { User } from "../../drizzle/schema";
-import { sdk } from "./sdk";
-import { COOKIE_NAME } from "@shared/const";
-import * as db from "../db";
+import type { Request, Response } from "express";
+import {
+  getActiveSessionByToken,
+  getClinicUserById,
+  updateSessionLastAccess,
+} from "../db";
 
-export type TrpcContext = {
-  req: CreateExpressContextOptions["req"];
-  res: CreateExpressContextOptions["res"];
-  user: User | null;
-  clinicId?: number;
-  clinicUserId?: number;
+const COOKIE_NAME = "app_session_id";
+
+type ContextOptions = {
+  req: Request;
+  res: Response;
 };
 
-export async function createContext(
-  opts: CreateExpressContextOptions,
-): Promise<TrpcContext> {
-  let user: User | null = null;
+export async function createContext(opts: ContextOptions) {
+  let user = null;
   let clinicId: number | undefined;
   let clinicUserId: number | undefined;
 
   try {
-    user = await sdk.authenticateRequest(opts.req);
-  } catch (error) {
-    // Authentication is optional for public procedures.
-    user = null;
-  }
-
-  // Obtener sesión de clínica desde cookie
-  try {
     const cookies = opts.req.headers.cookie || "";
     const cookieMatch = cookies
       .split(";")
-      .find((c) => c.trim().startsWith(COOKIE_NAME));
+      .find((c: string) => c.trim().startsWith(`${COOKIE_NAME}=`));
 
     if (cookieMatch) {
       const token = cookieMatch.split("=")[1]?.trim();
-      if (token) {
-        const session = await db.getActiveSessionByToken(token);
-        if (session) {
-          // Actualizar último acceso
-          await db.updateSessionLastAccess(token);
 
-          const clinicUser = await db.getClinicUserById(session.clinicUserId);
+      if (token) {
+        const session = await getActiveSessionByToken(token);
+
+        if (session) {
+          await updateSessionLastAccess(token);
+
+          const clinicUser = await getClinicUserById(session.clinicUserId);
+
           if (clinicUser) {
             clinicId = clinicUser.clinicId;
             clinicUserId = clinicUser.id;
@@ -49,8 +41,8 @@ export async function createContext(
         }
       }
     }
-  } catch (error) {
-    // Sesión de clínica es opcional
+  } catch {
+    // ignorar errores de contexto
   }
 
   return {
@@ -61,3 +53,5 @@ export async function createContext(
     clinicUserId,
   };
 }
+
+export type AppContext = Awaited<ReturnType<typeof createContext>>;

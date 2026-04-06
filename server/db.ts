@@ -1,126 +1,87 @@
-import { eq, and, desc, like, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import dotenv from "dotenv";
+dotenv.config({ override: true });
+
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+
 import {
-  InsertUser,
-  users,
-  clinics,
-  clinicUsers,
-  reports,
   activeSessions,
+  clinicUsers,
+  clinics,
+  reports,
+  users,
+  type ActiveSession,
   type Clinic,
   type ClinicUser,
+  type InsertUser,
   type Report,
-  type ActiveSession,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+const client = postgres(ENV.databaseUrl, {
+  prepare: false,
+  max: 10,
+});
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
+export const db = drizzle(client);
+
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
-    }
-  }
-  return _db;
+  return db;
 }
 
+// USERS
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) {
     throw new Error("User openId is required for upsert");
   }
 
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
-  }
+  const values: InsertUser = {
+    openId: user.openId,
+    name: user.name ?? null,
+    email: user.email ?? null,
+    loginMethod: user.loginMethod ?? null,
+    lastSignedIn: user.lastSignedIn ?? new Date(),
+    role: user.role ?? (user.openId === ENV.ownerOpenId ? "admin" : "user"),
+  };
 
-  try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = "admin";
-      updateSet.role = "admin";
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet,
+  await db
+    .insert(users)
+    .values(values)
+    .onConflictDoUpdate({
+      target: users.openId,
+      set: {
+        name: values.name,
+        email: values.email,
+        loginMethod: values.loginMethod,
+        lastSignedIn: values.lastSignedIn,
+        role: values.role,
+        updatedAt: new Date(),
+      },
     });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
-  }
 }
 
 export async function getUserByOpenId(openId: string) {
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
-  }
-
   const result = await db
     .select()
     .from(users)
     .where(eq(users.openId, openId))
     .limit(1);
 
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
-// ============================================
-// CLÍNICAS
-// ============================================
-
+// CLINICS
 export async function getClinicByClinicId(
   clinicId: string,
 ): Promise<Clinic | undefined> {
-  const db = await getDb();
-  if (!db) return undefined;
-
   const result = await db
     .select()
     .from(clinics)
     .where(eq(clinics.clinicId, clinicId))
     .limit(1);
 
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
 export async function upsertClinic(clinic: {
@@ -129,67 +90,56 @@ export async function upsertClinic(clinic: {
   driveFolderId?: string;
   status?: "active" | "inactive";
 }): Promise<Clinic> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const existing = await getClinicByClinicId(clinic.clinicId);
-
-  if (existing) {
-    const updated = await db
-      .update(clinics)
-      .set({
-        name: clinic.name,
-        driveFolderId: clinic.driveFolderId,
-        status: clinic.status || "active",
-        updatedAt: new Date(),
-      })
-      .where(eq(clinics.clinicId, clinic.clinicId));
-
-    return (await getClinicByClinicId(clinic.clinicId))!;
-  } else {
-    await db.insert(clinics).values({
+  await db
+    .insert(clinics)
+    .values({
       clinicId: clinic.clinicId,
       name: clinic.name,
       driveFolderId: clinic.driveFolderId,
-      status: clinic.status || "active",
+      status: clinic.status ?? "active",
+    })
+    .onConflictDoUpdate({
+      target: clinics.clinicId,
+      set: {
+        name: clinic.name,
+        driveFolderId: clinic.driveFolderId,
+        status: clinic.status ?? "active",
+        updatedAt: new Date(),
+      },
     });
 
-    return (await getClinicByClinicId(clinic.clinicId))!;
-  }
+  const result = await db
+    .select()
+    .from(clinics)
+    .where(eq(clinics.clinicId, clinic.clinicId))
+    .limit(1);
+
+  return result[0]!;
 }
 
-// ============================================
-// USUARIOS DE CLÍNICAS
-// ============================================
-
+// CLINIC USERS
 export async function getClinicUserByUsername(
   username: string,
 ): Promise<ClinicUser | undefined> {
-  const db = await getDb();
-  if (!db) return undefined;
-
   const result = await db
     .select()
     .from(clinicUsers)
     .where(eq(clinicUsers.username, username))
     .limit(1);
 
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
 export async function getClinicUserById(
   id: number,
 ): Promise<ClinicUser | undefined> {
-  const db = await getDb();
-  if (!db) return undefined;
-
   const result = await db
     .select()
     .from(clinicUsers)
     .where(eq(clinicUsers.id, id))
     .limit(1);
 
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
 export async function createClinicUser(user: {
@@ -198,11 +148,8 @@ export async function createClinicUser(user: {
   passwordHash: string;
   authProId?: string;
 }): Promise<ClinicUser> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(clinicUsers).values(user);
-  return (await getClinicUserById(Number(result[0].insertId)))!;
+  const created = await db.insert(clinicUsers).values(user).returning();
+  return created[0]!;
 }
 
 export async function upsertClinicUser(user: {
@@ -211,38 +158,33 @@ export async function upsertClinicUser(user: {
   passwordHash: string;
   authProId?: string;
 }): Promise<ClinicUser> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const existing = await getClinicUserByUsername(user.username);
-
-  if (existing) {
-    await db
-      .update(clinicUsers)
-      .set({
+  await db
+    .insert(clinicUsers)
+    .values(user)
+    .onConflictDoUpdate({
+      target: clinicUsers.username,
+      set: {
+        clinicId: user.clinicId,
         passwordHash: user.passwordHash,
         authProId: user.authProId,
-      })
-      .where(eq(clinicUsers.id, existing.id));
+      },
+    });
 
-    return (await getClinicUserById(existing.id))!;
-  } else {
-    return await createClinicUser(user);
-  }
+  const result = await db
+    .select()
+    .from(clinicUsers)
+    .where(eq(clinicUsers.username, user.username))
+    .limit(1);
+
+  return result[0]!;
 }
 
-// ============================================
-// INFORMES
-// ============================================
-
+// REPORTS
 export async function getReportsByClinicId(
   clinicId: number,
   limit = 100,
   offset = 0,
 ): Promise<Report[]> {
-  const db = await getDb();
-  if (!db) return [];
-
   return await db
     .select()
     .from(reports)
@@ -254,23 +196,23 @@ export async function getReportsByClinicId(
 
 export async function searchReports(
   clinicId: number,
-  query: string,
+  query?: string,
   studyType?: string,
   limit = 100,
   offset = 0,
 ): Promise<Report[]> {
-  const db = await getDb();
-  if (!db) return [];
-
   const conditions = [eq(reports.clinicId, clinicId)];
 
-  if (query) {
+  if (query?.trim()) {
     conditions.push(
-      sql`MATCH(${reports.patientName}) AGAINST(${query} IN BOOLEAN MODE) OR ${reports.fileName} LIKE ${`%${query}%`}`,
+      or(
+        ilike(reports.patientName, `%${query}%`),
+        ilike(reports.fileName, `%${query}%`),
+      )!,
     );
   }
 
-  if (studyType) {
+  if (studyType?.trim()) {
     conditions.push(eq(reports.studyType, studyType));
   }
 
@@ -285,154 +227,117 @@ export async function searchReports(
 
 export async function upsertReport(report: {
   clinicId: number;
-  uploadDate?: Date;
-  studyType?: string;
-  patientName?: string;
-  fileName?: string;
-  driveFileId?: string;
-  previewUrl?: string;
-  downloadUrl?: string;
+  uploadDate?: Date | null;
+  studyType?: string | null;
+  patientName?: string | null;
+  fileName?: string | null;
+  driveFileId: string;
+  previewUrl?: string | null;
+  downloadUrl?: string | null;
 }): Promise<Report> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  await db
+    .insert(reports)
+    .values({
+      clinicId: report.clinicId,
+      uploadDate: report.uploadDate ?? null,
+      studyType: report.studyType ?? null,
+      patientName: report.patientName ?? null,
+      fileName: report.fileName ?? null,
+      driveFileId: report.driveFileId,
+      previewUrl: report.previewUrl ?? null,
+      downloadUrl: report.downloadUrl ?? null,
+    })
+    .onConflictDoUpdate({
+      target: reports.driveFileId,
+      set: {
+        uploadDate: report.uploadDate ?? null,
+        studyType: report.studyType ?? null,
+        patientName: report.patientName ?? null,
+        fileName: report.fileName ?? null,
+        previewUrl: report.previewUrl ?? null,
+        downloadUrl: report.downloadUrl ?? null,
+        updatedAt: new Date(),
+      },
+    });
 
-  if (!report.driveFileId) {
-    throw new Error("driveFileId is required for upsert");
-  }
-
-  const existing = await db
+  const result = await db
     .select()
     .from(reports)
     .where(eq(reports.driveFileId, report.driveFileId))
     .limit(1);
 
-  if (existing.length > 0) {
-    await db
-      .update(reports)
-      .set({
-        uploadDate: report.uploadDate,
-        studyType: report.studyType,
-        patientName: report.patientName,
-        fileName: report.fileName,
-        previewUrl: report.previewUrl,
-        downloadUrl: report.downloadUrl,
-        updatedAt: new Date(),
-      })
-      .where(eq(reports.driveFileId, report.driveFileId));
-
-    const updated = await db
-      .select()
-      .from(reports)
-      .where(eq(reports.driveFileId, report.driveFileId))
-      .limit(1);
-
-    return updated[0]!;
-  } else {
-    await db.insert(reports).values(report);
-
-    const created = await db
-      .select()
-      .from(reports)
-      .where(eq(reports.driveFileId, report.driveFileId))
-      .limit(1);
-
-    return created[0]!;
-  }
+  return result[0]!;
 }
 
 export async function getReportById(id: number): Promise<Report | undefined> {
-  const db = await getDb();
-  if (!db) return undefined;
-
   const result = await db
     .select()
     .from(reports)
     .where(eq(reports.id, id))
     .limit(1);
 
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
-// ============================================
-// SESIONES ACTIVAS
-// ============================================
+export async function getStudyTypes(clinicId: number): Promise<string[]> {
+  const result = await db
+    .selectDistinct({
+      studyType: reports.studyType,
+    })
+    .from(reports)
+    .where(and(eq(reports.clinicId, clinicId), sql`${reports.studyType} IS NOT NULL`));
 
+  return result
+    .map((item) => item.studyType)
+    .filter((value): value is string => Boolean(value));
+}
+
+// ACTIVE SESSIONS
 export async function createActiveSession(session: {
   clinicUserId: number;
   token: string;
   expiresAt: Date;
 }): Promise<ActiveSession> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const created = await db
+    .insert(activeSessions)
+    .values({
+      clinicUserId: session.clinicUserId,
+      token: session.token,
+      expiresAt: session.expiresAt,
+      lastAccess: new Date(),
+    })
+    .returning();
 
-  await db.insert(activeSessions).values({
-    clinicUserId: session.clinicUserId,
-    token: session.token,
-    expiresAt: session.expiresAt,
-    lastAccess: new Date(),
-  });
-
-  const result = await db
-    .select()
-    .from(activeSessions)
-    .where(eq(activeSessions.token, session.token))
-    .limit(1);
-
-  return result[0]!;
+  return created[0]!;
 }
 
 export async function getActiveSessionByToken(
   token: string,
 ): Promise<ActiveSession | undefined> {
-  const db = await getDb();
-  if (!db) return undefined;
-
   const result = await db
     .select()
     .from(activeSessions)
     .where(eq(activeSessions.token, token))
     .limit(1);
 
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
 export async function updateSessionLastAccess(token: string): Promise<void> {
-  const db = await getDb();
-  if (!db) return;
-
   await db
     .update(activeSessions)
-    .set({ lastAccess: new Date() })
+    .set({
+      lastAccess: new Date(),
+    })
     .where(eq(activeSessions.token, token));
 }
 
 export async function deleteActiveSession(token: string): Promise<void> {
-  const db = await getDb();
-  if (!db) return;
-
   await db.delete(activeSessions).where(eq(activeSessions.token, token));
 }
 
-export async function cleanupExpiredSessions(): Promise<void> {
-  const db = await getDb();
-  if (!db) return;
-
-  await db.delete(activeSessions).where(sql`expires_at < NOW()`);
-}
-
-export async function getStudyTypes(clinicId: number): Promise<string[]> {
-  const db = await getDb();
-  if (!db) return [];
-
-  const result = await db
-    .selectDistinct({ studyType: reports.studyType })
-    .from(reports)
-    .where(
-      and(
-        eq(reports.clinicId, clinicId),
-        sql`${reports.studyType} IS NOT NULL`,
-      ),
-    );
-
-  return result.map((r) => r.studyType).filter(Boolean) as string[];
+export async function deleteExpiredSessions(): Promise<void> {
+  await db
+    .delete(activeSessions)
+    .where(sql`${activeSessions.expiresAt} < NOW()`);
 }
