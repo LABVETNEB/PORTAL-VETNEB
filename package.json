@@ -1,28 +1,25 @@
 {
   "name": "portal-vetneb-backend",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.8.1",
   "scripts": {
-    "dev": "tsx server/_core/index.ts",
-    "build": "esbuild server/_core/index.ts --bundle --platform=node --outfile=dist/index.js",
+    "dev": "tsx server/index.ts",
+    "build": "esbuild server/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js",
     "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.1",
-    "@trpc/server": "^11.16.0",
-    "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "drizzle-orm": "^0.31.4",
     "express": "^4.22.1",
-    "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "postgres": "^3.4.9",
-    "superjson": "^2.2.6",
     "zod": "^3.25.76"
   },
   "devDependencies": {

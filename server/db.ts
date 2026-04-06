@@ -1,6 +1,3 @@
-import dotenv from "dotenv";
-dotenv.config({ override: true });
-
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -17,7 +14,7 @@ import {
   type InsertUser,
   type Report,
 } from "../drizzle/schema";
-import { ENV } from "./_core/env";
+import { ENV } from "./lib/env";
 
 const client = postgres(ENV.databaseUrl, {
   prepare: false,
@@ -87,7 +84,7 @@ export async function getClinicByClinicId(
 export async function upsertClinic(clinic: {
   clinicId: string;
   name: string;
-  driveFolderId?: string;
+  storageFolderPath?: string;
   status?: "active" | "inactive";
 }): Promise<Clinic> {
   await db
@@ -95,14 +92,14 @@ export async function upsertClinic(clinic: {
     .values({
       clinicId: clinic.clinicId,
       name: clinic.name,
-      driveFolderId: clinic.driveFolderId,
+      storageFolderPath: clinic.storageFolderPath,
       status: clinic.status ?? "active",
     })
     .onConflictDoUpdate({
       target: clinics.clinicId,
       set: {
         name: clinic.name,
-        driveFolderId: clinic.driveFolderId,
+        storageFolderPath: clinic.storageFolderPath,
         status: clinic.status ?? "active",
         updatedAt: new Date(),
       },
@@ -231,7 +228,7 @@ export async function upsertReport(report: {
   studyType?: string | null;
   patientName?: string | null;
   fileName?: string | null;
-  driveFileId: string;
+  storagePath: string;
   previewUrl?: string | null;
   downloadUrl?: string | null;
 }): Promise<Report> {
@@ -243,12 +240,12 @@ export async function upsertReport(report: {
       studyType: report.studyType ?? null,
       patientName: report.patientName ?? null,
       fileName: report.fileName ?? null,
-      driveFileId: report.driveFileId,
+      storagePath: report.storagePath,
       previewUrl: report.previewUrl ?? null,
       downloadUrl: report.downloadUrl ?? null,
     })
     .onConflictDoUpdate({
-      target: reports.driveFileId,
+      target: reports.storagePath,
       set: {
         uploadDate: report.uploadDate ?? null,
         studyType: report.studyType ?? null,
@@ -263,7 +260,7 @@ export async function upsertReport(report: {
   const result = await db
     .select()
     .from(reports)
-    .where(eq(reports.driveFileId, report.driveFileId))
+    .where(eq(reports.storagePath, report.storagePath))
     .limit(1);
 
   return result[0]!;
