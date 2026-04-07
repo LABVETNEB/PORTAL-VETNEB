@@ -6,42 +6,34 @@ import {
   getClinicUserById,
   updateSessionLastAccess,
 } from "../db";
+import { hashSessionToken } from "../lib/auth-security";
 import { ENV } from "../lib/env";
 import { asyncHandler } from "../utils/async-handler";
+
+type AuthenticatedUser = {
+  id: number;
+  clinicId: number;
+  username: string;
+  sessionToken: string;
+};
 
 declare global {
   namespace Express {
     interface Request {
-      auth?: {
-        sessionToken: string;
-        clinicUserId: number;
-        clinicId: number;
-        username: string;
-      };
+      auth?: AuthenticatedUser;
     }
   }
 }
 
-function getBearerToken(authorizationHeader: string | undefined): string | undefined {
-  if (!authorizationHeader) {
-    return undefined;
-  }
-
-  const [scheme, token] = authorizationHeader.split(" ");
-
-  if (scheme?.toLowerCase() !== "bearer" || !token?.trim()) {
-    return undefined;
-  }
-
-  return token.trim();
-}
-
 function getSessionToken(req: Request): string | undefined {
-  if (typeof req.cookies?.[ENV.cookieName] === "string") {
-    return req.cookies[ENV.cookieName];
+  const raw = req.cookies?.[ENV.cookieName];
+
+  if (typeof raw !== "string") {
+    return undefined;
   }
 
-  return getBearerToken(req.headers.authorization);
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 export const requireAuth = asyncHandler(
@@ -51,11 +43,12 @@ export const requireAuth = asyncHandler(
     if (!token) {
       return res.status(401).json({
         success: false,
-        error: "Sesión no encontrada",
+        error: "No autenticado",
       });
     }
 
-    const session = await getActiveSessionByToken(token);
+    const tokenHash = hashSessionToken(token);
+    const session = await getActiveSessionByToken(tokenHash);
 
     if (!session) {
       return res.status(401).json({
@@ -65,13 +58,13 @@ export const requireAuth = asyncHandler(
     }
 
     if (session.expiresAt && session.expiresAt.getTime() <= Date.now()) {
-      await deleteActiveSession(token);
+      await deleteActiveSession(tokenHash);
 
       res.clearCookie(ENV.cookieName, {
         httpOnly: true,
         path: "/",
-        sameSite: ENV.isProduction ? "none" : "lax",
-        secure: ENV.isProduction,
+        sameSite: ENV.cookieSameSite,
+        secure: ENV.cookieSecure,
       });
 
       return res.status(401).json({
@@ -83,7 +76,14 @@ export const requireAuth = asyncHandler(
     const clinicUser = await getClinicUserById(session.clinicUserId);
 
     if (!clinicUser) {
-      await deleteActiveSession(token);
+      await deleteActiveSession(tokenHash);
+
+      res.clearCookie(ENV.cookieName, {
+        httpOnly: true,
+        path: "/",
+        sameSite: ENV.cookieSameSite,
+        secure: ENV.cookieSecure,
+      });
 
       return res.status(401).json({
         success: false,
@@ -91,13 +91,13 @@ export const requireAuth = asyncHandler(
       });
     }
 
-    await updateSessionLastAccess(token);
+    await updateSessionLastAccess(tokenHash);
 
     req.auth = {
-      sessionToken: token,
-      clinicUserId: clinicUser.id,
+      id: clinicUser.id,
       clinicId: clinicUser.clinicId,
       username: clinicUser.username,
+      sessionToken: token,
     };
 
     next();

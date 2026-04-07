@@ -1,103 +1,98 @@
-import { randomUUID } from "node:crypto";
-
 import { createClient } from "@supabase/supabase-js";
-
 import { ENV } from "./env";
 
-const ALLOWED_MIME_TYPES = [
+export const ALLOWED_MIME_TYPES = [
   "application/pdf",
   "image/jpeg",
   "image/png",
   "image/webp",
 ] as const;
 
+export type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
+
 export const supabase = createClient(
   ENV.supabaseUrl,
   ENV.supabaseServiceRoleKey,
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  },
 );
 
-function sanitizePathSegment(value: string) {
-  return (
-    value
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9._-]+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^[-.]+|[-.]+$/g, "") || "archivo"
-  );
+function sanitizeFileName(fileName: string): string {
+  return fileName
+    .normalize("NFKD")
+    .replace(/[^\w.\-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
-function getFileExtension(fileName: string) {
-  const normalized = fileName.trim().toLowerCase();
-  const lastDotIndex = normalized.lastIndexOf(".");
+function buildReportStoragePath(clinicId: number, fileName: string): string {
+  const safeName = sanitizeFileName(fileName || "report");
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).slice(2, 10);
 
-  if (lastDotIndex <= 0 || lastDotIndex === normalized.length - 1) {
-    return "bin";
-  }
-
-  return sanitizePathSegment(normalized.slice(lastDotIndex + 1));
+  return `clinics/${clinicId}/${timestamp}-${random}-${safeName}`;
 }
 
-function buildStoragePath(clinicId: number, fileName: string) {
-  const extension = getFileExtension(fileName);
-  const safeBaseName = sanitizePathSegment(fileName.replace(/\.[^.]+$/, ""));
-  const safeClinicId = sanitizePathSegment(String(clinicId));
-  const date = new Date().toISOString().slice(0, 10);
-
-  return `clinics/${safeClinicId}/reports/${date}/${randomUUID()}-${safeBaseName}.${extension}`;
-}
-
+/**
+ * Asegura que el bucket exista.
+ * Se usa al iniciar el servidor.
+ */
 export async function ensureStorageBucketExists() {
-  const { data, error } = await supabase.storage.getBucket(
-    ENV.supabaseStorageBucket,
-  );
+  const { data: existingBucket, error: getBucketError } =
+    await supabase.storage.getBucket(ENV.supabaseStorageBucket);
 
-  if (!error && data) {
-    return data;
+  if (!getBucketError && existingBucket) {
+    return existingBucket;
   }
 
-  const { data: createdBucket, error: createError } =
+  const { data: createdBucket, error: createBucketError } =
     await supabase.storage.createBucket(ENV.supabaseStorageBucket, {
       public: false,
-      fileSizeLimit: `${ENV.maxUploadFileSizeMb}MB`,
-      allowedMimeTypes: [...ALLOWED_MIME_TYPES],
     });
 
-  if (createError) {
-    throw createError;
+  if (createBucketError) {
+    throw createBucketError;
   }
 
   return createdBucket;
 }
 
+/**
+ * Healthcheck de storage.
+ * No crea ni modifica nada.
+ */
+export async function checkStorageHealth() {
+  const { data, error } = await supabase.storage.getBucket(
+    ENV.supabaseStorageBucket,
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Sube un archivo de informe al bucket y devuelve el storagePath persistible.
+ */
 export async function uploadReport(params: {
   file: Buffer;
-  clinicId: number;
   fileName: string;
-  mimeType?: string;
-}) {
-  await ensureStorageBucketExists();
+  clinicId: number;
+  mimeType: string;
+}): Promise<string> {
+  const { file, fileName, clinicId, mimeType } = params;
 
-  const storagePath = buildStoragePath(params.clinicId, params.fileName);
+  if (!ALLOWED_MIME_TYPES.includes(mimeType as AllowedMimeType)) {
+    throw new Error(`Tipo de archivo no permitido: ${mimeType}`);
+  }
+
+  const storagePath = buildReportStoragePath(clinicId, fileName);
 
   const { error } = await supabase.storage
     .from(ENV.supabaseStorageBucket)
-    .upload(storagePath, params.file, {
+    .upload(storagePath, file, {
+      contentType: mimeType,
       upsert: false,
-      contentType: params.mimeType || "application/octet-stream",
-      cacheControl: "3600",
-      metadata: {
-        originalFileName: params.fileName,
-        clinicId: String(params.clinicId),
-      },
     });
 
   if (error) {
@@ -107,49 +102,39 @@ export async function uploadReport(params: {
   return storagePath;
 }
 
+/**
+ * Genera una signed URL para visualización / preview.
+ */
 export async function createSignedReportUrl(
   storagePath: string,
-  expiresInSeconds = ENV.signedUrlExpiresInSeconds,
-) {
+): Promise<string> {
   const { data, error } = await supabase.storage
     .from(ENV.supabaseStorageBucket)
-    .createSignedUrl(storagePath, expiresInSeconds, {
-      download: false,
-    });
+    .createSignedUrl(storagePath, ENV.signedUrlExpiresInSeconds);
 
-  if (error) {
-    throw error;
+  if (error || !data?.signedUrl) {
+    throw error ?? new Error("No se pudo generar la URL firmada del informe");
   }
 
   return data.signedUrl;
 }
 
+/**
+ * Genera una signed URL para descarga forzada.
+ */
 export async function createSignedReportDownloadUrl(
   storagePath: string,
-  fileName?: string | null,
-  expiresInSeconds = ENV.signedUrlExpiresInSeconds,
-) {
+  downloadFileName?: string,
+): Promise<string> {
   const { data, error } = await supabase.storage
     .from(ENV.supabaseStorageBucket)
-    .createSignedUrl(storagePath, expiresInSeconds, {
-      download: fileName || true,
+    .createSignedUrl(storagePath, ENV.signedUrlExpiresInSeconds, {
+      download: downloadFileName || true,
     });
 
-  if (error) {
-    throw error;
+  if (error || !data?.signedUrl) {
+    throw error ?? new Error("No se pudo generar la URL firmada de descarga");
   }
 
   return data.signedUrl;
 }
-
-export async function removeReport(storagePath: string) {
-  const { error } = await supabase.storage
-    .from(ENV.supabaseStorageBucket)
-    .remove([storagePath]);
-
-  if (error) {
-    throw error;
-  }
-}
-
-export { ALLOWED_MIME_TYPES };

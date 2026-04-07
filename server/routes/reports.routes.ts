@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 
+import type { Report } from "../../drizzle/schema";
 import {
   getReportById,
   getReportsByClinicId,
@@ -8,7 +9,6 @@ import {
   searchReports,
   upsertReport,
 } from "../db";
-import type { Report } from "../../drizzle/schema";
 import { ENV } from "../lib/env";
 import {
   ALLOWED_MIME_TYPES,
@@ -44,7 +44,7 @@ const upload = multer({
 function parsePositiveInt(value: unknown, fallback: number, max?: number) {
   const parsed = Number(value);
 
-  if (!Number.isInteger(parsed) || parsed < 0) {
+  if (!Number.isInteger(parsed) || parsed <= 0) {
     return fallback;
   }
 
@@ -55,15 +55,36 @@ function parsePositiveInt(value: unknown, fallback: number, max?: number) {
   return parsed;
 }
 
+function parseOffset(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
 function normalizeSearchText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function parseOptionalDate(value: unknown): Date | undefined {
+  if (typeof value !== "string" || !value.trim()) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
 function toClinicId(reqClinicId: unknown, authClinicId: number) {
   const requestedClinicId = Number(reqClinicId);
+
   if (Number.isInteger(requestedClinicId) && requestedClinicId > 0) {
     return requestedClinicId;
   }
+
   return authClinicId;
 }
 
@@ -71,7 +92,7 @@ async function serializeReport(report: Report) {
   const previewUrl = await createSignedReportUrl(report.storagePath);
   const downloadUrl = await createSignedReportDownloadUrl(
     report.storagePath,
-    report.fileName,
+    report.fileName ?? undefined,
   );
 
   return {
@@ -117,8 +138,15 @@ router.post(
       mimeType: req.file.mimetype,
     });
 
+    const patientName = normalizeSearchText(req.body?.patientName);
+    const studyType = normalizeSearchText(req.body?.studyType);
+    const uploadDate = parseOptionalDate(req.body?.uploadDate);
+
     const report = await upsertReport({
       clinicId,
+      patientName: patientName ?? null,
+      studyType: studyType ?? null,
+      uploadDate: uploadDate ?? null,
       fileName: req.file.originalname,
       storagePath,
     });
@@ -136,7 +164,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const clinicId = toClinicId(req.query.clinicId, req.auth!.clinicId);
     const limit = parsePositiveInt(req.query.limit, 50, 100);
-    const offset = parsePositiveInt(req.query.offset, 0);
+    const offset = parseOffset(req.query.offset, 0);
 
     if (clinicId !== req.auth!.clinicId) {
       return res.status(403).json({
@@ -166,7 +194,7 @@ router.get(
     const query = normalizeSearchText(req.query.query);
     const studyType = normalizeSearchText(req.query.studyType);
     const limit = parsePositiveInt(req.query.limit, 50, 100);
-    const offset = parsePositiveInt(req.query.offset, 0);
+    const offset = parseOffset(req.query.offset, 0);
 
     if (clinicId !== req.auth!.clinicId) {
       return res.status(403).json({
@@ -287,7 +315,7 @@ router.get(
 
     const downloadUrl = await createSignedReportDownloadUrl(
       report.storagePath,
-      report.fileName,
+      report.fileName ?? undefined,
     );
 
     return res.json({

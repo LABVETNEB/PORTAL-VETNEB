@@ -1,28 +1,38 @@
-﻿import crypto from "node:crypto";
-
-import { Router } from "express";
+﻿import { Router } from "express";
+import rateLimit from "express-rate-limit";
 
 import {
   createActiveSession,
   deleteActiveSession,
   getClinicUserByUsername,
+  upsertClinicUser,
 } from "../db";
+import {
+  generateSessionToken,
+  hashPassword,
+  hashSessionToken,
+  verifyPassword,
+} from "../lib/auth-security";
 import { ENV } from "../lib/env";
 import { requireAuth } from "../middlewares/auth";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
 
-function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password).digest("hex");
-}
-
-function generateToken(): string {
-  return crypto.randomBytes(32).toString("hex");
-}
+const loginRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Demasiados intentos de inicio de sesión. Intente más tarde.",
+  },
+});
 
 router.post(
   "/login",
+  loginRateLimit,
   asyncHandler(async (req, res) => {
     const username =
       typeof req.body?.username === "string" ? req.body.username.trim() : "";
@@ -38,29 +48,50 @@ router.post(
 
     const clinicUser = await getClinicUserByUsername(username);
 
-    if (!clinicUser || clinicUser.passwordHash !== hashPassword(password)) {
+    if (!clinicUser) {
       return res.status(401).json({
         success: false,
         error: "Usuario o contraseña inválidos",
       });
     }
 
-    const token = generateToken();
+    const passwordCheck = await verifyPassword(password, clinicUser.passwordHash);
+
+    if (!passwordCheck.valid) {
+      return res.status(401).json({
+        success: false,
+        error: "Usuario o contraseña inválidos",
+      });
+    }
+
+    if (passwordCheck.needsRehash) {
+      const newHash = await hashPassword(password);
+
+      await upsertClinicUser({
+        clinicId: clinicUser.clinicId,
+        username: clinicUser.username,
+        passwordHash: newHash,
+        authProId: clinicUser.authProId ?? null,
+      });
+    }
+
+    const token = generateSessionToken();
+    const tokenHash = hashSessionToken(token);
     const expiresAt = new Date(
       Date.now() + ENV.sessionTtlHours * 60 * 60 * 1000,
     );
 
     await createActiveSession({
       clinicUserId: clinicUser.id,
-      token,
+      tokenHash,
       expiresAt,
     });
 
     res.cookie(ENV.cookieName, token, {
       httpOnly: true,
       path: "/",
-      sameSite: ENV.isProduction ? "none" : "lax",
-      secure: ENV.isProduction,
+      sameSite: ENV.cookieSameSite,
+      secure: ENV.cookieSecure,
       maxAge: ENV.sessionTtlHours * 60 * 60 * 1000,
     });
 
@@ -90,13 +121,14 @@ router.post(
   "/logout",
   requireAuth,
   asyncHandler(async (req, res) => {
-    await deleteActiveSession(req.auth!.sessionToken);
+    const tokenHash = hashSessionToken(req.auth!.sessionToken);
+    await deleteActiveSession(tokenHash);
 
     res.clearCookie(ENV.cookieName, {
       httpOnly: true,
       path: "/",
-      sameSite: ENV.isProduction ? "none" : "lax",
-      secure: ENV.isProduction,
+      sameSite: ENV.cookieSameSite,
+      secure: ENV.cookieSecure,
     });
 
     return res.json({
