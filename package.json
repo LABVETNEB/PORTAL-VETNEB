@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "smoke:test": "node smoke-test.mjs"
+    "smoke:test": "node smoke-test.mjs",
+    "smoke:upload": "node smoke-upload.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",
