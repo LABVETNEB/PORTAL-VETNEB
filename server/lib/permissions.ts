@@ -19,6 +19,16 @@ export function normalizeUserRole(value: unknown): UserRole | null {
   return isValidUserRole(normalized) ? normalized : null;
 }
 
+export function assertValidUserRole(value: unknown): UserRole {
+  const role = normalizeUserRole(value);
+
+  if (!role) {
+    throw new Error("Rol de usuario inválido");
+  }
+
+  return role;
+}
+
 export function canUploadReports(input: { role?: unknown }): boolean {
   const role = normalizeUserRole(input.role);
   return role === USER_ROLES.LAB;
