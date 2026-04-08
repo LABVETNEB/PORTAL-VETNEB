@@ -8,12 +8,15 @@ import {
 } from "../db";
 import { hashSessionToken } from "../lib/auth-security";
 import { ENV } from "../lib/env";
+import { canUploadReports } from "../lib/permissions";
 import { asyncHandler } from "../utils/async-handler";
 
 type AuthenticatedUser = {
   id: number;
   clinicId: number;
   username: string;
+  authProId: string | null;
+  canUploadReports: boolean;
   sessionToken: string;
 };
 
@@ -97,6 +100,11 @@ export const requireAuth = asyncHandler(
       id: clinicUser.id,
       clinicId: clinicUser.clinicId,
       username: clinicUser.username,
+      authProId: clinicUser.authProId ?? null,
+      canUploadReports: canUploadReports({
+        username: clinicUser.username,
+        authProId: clinicUser.authProId ?? null,
+      }),
       sessionToken: token,
     };
 

@@ -35,6 +35,10 @@ const envSchema = z.object({
   CORS_ORIGIN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   TRUST_PROXY: z.coerce.number().int().min(0).max(10).optional(),
   OWNER_OPEN_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  LAB_UPLOAD_USERNAMES: z.preprocess(
+    emptyToUndefined,
+    z.string().min(1).optional(),
+  ),
 
   MAX_UPLOAD_FILE_SIZE_MB: z.coerce.number().positive().optional(),
   SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS: z.coerce.number().int().positive().optional(),
@@ -73,6 +77,7 @@ export const ENV = {
   cookieSameSite: nodeEnv === "production" ? "none" : "lax",
 
   ownerOpenId: rawEnv.OWNER_OPEN_ID ?? "",
+  labUploadUsernames: parseCsvList(rawEnv.LAB_UPLOAD_USERNAMES),
   maxUploadFileSizeMb: rawEnv.MAX_UPLOAD_FILE_SIZE_MB ?? 20,
   signedUrlExpiresInSeconds:
     rawEnv.SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS ?? 60 * 15,
