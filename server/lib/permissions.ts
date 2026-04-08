@@ -1,54 +1,30 @@
-﻿import { ENV } from "./env";
+﻿export const USER_ROLES = {
+  ADMIN: "admin",
+  LAB: "lab",
+} as const;
 
-type UploadPermissionInput = {
-  username: string;
-  authProId?: string | null;
-  role?: string | null;
-};
+export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES];
 
-function normalize(value: string | null | undefined): string | null {
+export function isValidUserRole(value: unknown): value is UserRole {
+  return value === USER_ROLES.ADMIN || value === USER_ROLES.LAB;
+}
+
+export function normalizeUserRole(value: unknown): UserRole | null {
   if (typeof value !== "string") {
     return null;
   }
 
-  const trimmed = value.trim().toLowerCase();
-  return trimmed.length > 0 ? trimmed : null;
+  const normalized = value.trim().toLowerCase();
+
+  return isValidUserRole(normalized) ? normalized : null;
 }
 
-function legacyCanUploadReports({
-  username,
-  authProId,
-}: Omit<UploadPermissionInput, "role">): boolean {
-  const normalizedUsername = normalize(username);
-  const normalizedAuthProId = normalize(authProId);
-  const normalizedOwnerOpenId = normalize(ENV.ownerOpenId);
-
-  if (normalizedOwnerOpenId && normalizedAuthProId === normalizedOwnerOpenId) {
-    return true;
-  }
-
-  return ENV.labUploadUsernames
-    .map((value) => normalize(value))
-    .some((value) => value !== null && value === normalizedUsername);
+export function canUploadReports(input: { role?: unknown }): boolean {
+  const role = normalizeUserRole(input.role);
+  return role === USER_ROLES.LAB;
 }
 
-export function canUploadReports({
-  username,
-  authProId,
-  role,
-}: UploadPermissionInput): boolean {
-  const normalizedRole = normalize(role);
-
-  if (normalizedRole === "owner" || normalizedRole === "lab") {
-    return true;
-  }
-
-  if (normalizedRole === "clinic") {
-    return false;
-  }
-
-  return legacyCanUploadReports({
-    username,
-    authProId,
-  });
+export function canManageUsers(input: { role?: unknown }): boolean {
+  const role = normalizeUserRole(input.role);
+  return role === USER_ROLES.ADMIN;
 }

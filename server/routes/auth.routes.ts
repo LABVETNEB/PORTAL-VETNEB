@@ -14,7 +14,7 @@ import {
   verifyPassword,
 } from "../lib/auth-security";
 import { ENV } from "../lib/env";
-import { canUploadReports } from "../lib/permissions";
+import { canUploadReports, normalizeUserRole } from "../lib/permissions";
 import { requireAuth } from "../middlewares/auth";
 import { asyncHandler } from "../utils/async-handler";
 
@@ -76,6 +76,8 @@ router.post(
       });
     }
 
+    const role = normalizeUserRole(clinicUser.role);
+
     const token = generateSessionToken();
     const tokenHash = hashSessionToken(token);
     const expiresAt = new Date(
@@ -102,14 +104,10 @@ router.post(
         id: clinicUser.id,
         clinicId: clinicUser.clinicId,
         username: clinicUser.username,
-        role: clinicUser.role ?? null,
+        role,
       },
       permissions: {
-        canUploadReports: canUploadReports({
-          username: clinicUser.username,
-          authProId: clinicUser.authProId ?? null,
-          role: clinicUser.role ?? null,
-        }),
+        canUploadReports: canUploadReports({ role }),
       },
     });
   }),
@@ -127,7 +125,7 @@ router.get(
         id: auth.id,
         clinicId: auth.clinicId,
         username: auth.username,
-        role: auth.role ?? null,
+        role: auth.role,
       },
       permissions: {
         canUploadReports: auth.canUploadReports,
