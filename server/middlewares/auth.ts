@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response } from "express";
+﻿import type { NextFunction, Request, Response } from "express";
 
 import {
   deleteActiveSession,
@@ -18,6 +18,7 @@ type AuthenticatedUser = {
   authProId: string | null;
   canUploadReports: boolean;
   sessionToken: string;
+  role?: string | null;
 };
 
 declare global {
@@ -105,6 +106,7 @@ export const requireAuth = asyncHandler(
         username: clinicUser.username,
         authProId: clinicUser.authProId ?? null,
       }),
+      role: clinicUser.role ?? null,
       sessionToken: token,
     };
 

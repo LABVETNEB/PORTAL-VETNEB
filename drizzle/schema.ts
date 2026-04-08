@@ -26,6 +26,7 @@ export const clinicUsers = pgTable("clinic_users", {
   username: varchar("username", { length: 100 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   authProId: varchar("auth_pro_id", { length: 100 }),
+  role: text("role"),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
