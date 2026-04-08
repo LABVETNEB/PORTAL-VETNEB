@@ -78,14 +78,69 @@ function parseOptionalDate(value: unknown): Date | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
-function toClinicId(reqClinicId: unknown, authClinicId: number) {
-  const requestedClinicId = Number(reqClinicId);
+function parseClinicId(value: unknown): number | undefined {
+  const parsed = Number(value);
 
-  if (Number.isInteger(requestedClinicId) && requestedClinicId > 0) {
-    return requestedClinicId;
+  if (Number.isInteger(parsed) && parsed > 0) {
+    return parsed;
   }
 
-  return authClinicId;
+  return undefined;
+}
+
+function getReadClinicScope(reqClinicId: unknown, authClinicId: number) {
+  const requestedClinicId = parseClinicId(reqClinicId);
+
+  if (requestedClinicId && requestedClinicId !== authClinicId) {
+    return {
+      clinicId: authClinicId,
+      isForbidden: true,
+    };
+  }
+
+  return {
+    clinicId: authClinicId,
+    isForbidden: false,
+  };
+}
+
+function parseReportId(value: unknown): number | undefined {
+  const reportId = Number(value);
+  return Number.isInteger(reportId) && reportId > 0 ? reportId : undefined;
+}
+
+async function getAuthorizedReport(
+  reportId: number,
+  clinicId: number,
+  unauthorizedMessage: string,
+): Promise<
+  | {
+      report: Report;
+    }
+  | {
+      status: 403 | 404;
+      error: string;
+    }
+> {
+  const report = await getReportById(reportId);
+
+  if (!report) {
+    return {
+      status: 404,
+      error: "Informe no encontrado",
+    } as const;
+  }
+
+  if (report.clinicId !== clinicId) {
+    return {
+      status: 403,
+      error: unauthorizedMessage,
+    } as const;
+  }
+
+  return {
+    report,
+  } as const;
 }
 
 async function serializeReport(report: Report) {
@@ -131,10 +186,9 @@ router.post(
       });
     }
 
-    const clinicId = toClinicId(
-      req.body?.clinicId ?? req.query.clinicId,
-      req.auth!.clinicId,
-    );
+    const clinicId =
+      parseClinicId(req.body?.clinicId ?? req.query.clinicId) ??
+      req.auth!.clinicId;
 
     const storagePath = await uploadReport({
       file: req.file.buffer,
@@ -167,17 +221,18 @@ router.post(
 router.get(
   "/",
   asyncHandler(async (req, res) => {
-    const clinicId = toClinicId(req.query.clinicId, req.auth!.clinicId);
+    const scope = getReadClinicScope(req.query.clinicId, req.auth!.clinicId);
     const limit = parsePositiveInt(req.query.limit, 50, 100);
     const offset = parseOffset(req.query.offset, 0);
 
-    if (clinicId !== req.auth!.clinicId) {
+    if (scope.isForbidden) {
       return res.status(403).json({
         success: false,
         error: "No autorizado para consultar otra clínica",
       });
     }
 
+    const clinicId = scope.clinicId;
     const reports = await getReportsByClinicId(clinicId, limit, offset);
 
     return res.json({
@@ -195,19 +250,20 @@ router.get(
 router.get(
   "/search",
   asyncHandler(async (req, res) => {
-    const clinicId = toClinicId(req.query.clinicId, req.auth!.clinicId);
+    const scope = getReadClinicScope(req.query.clinicId, req.auth!.clinicId);
     const query = normalizeSearchText(req.query.query);
     const studyType = normalizeSearchText(req.query.studyType);
     const limit = parsePositiveInt(req.query.limit, 50, 100);
     const offset = parseOffset(req.query.offset, 0);
 
-    if (clinicId !== req.auth!.clinicId) {
+    if (scope.isForbidden) {
       return res.status(403).json({
         success: false,
         error: "No autorizado para consultar otra clínica",
       });
     }
 
+    const clinicId = scope.clinicId;
     const reports = await searchReports(
       clinicId,
       query,
@@ -235,15 +291,16 @@ router.get(
 router.get(
   "/study-types",
   asyncHandler(async (req, res) => {
-    const clinicId = toClinicId(req.query.clinicId, req.auth!.clinicId);
+    const scope = getReadClinicScope(req.query.clinicId, req.auth!.clinicId);
 
-    if (clinicId !== req.auth!.clinicId) {
+    if (scope.isForbidden) {
       return res.status(403).json({
         success: false,
         error: "No autorizado para consultar otra clínica",
       });
     }
 
+    const clinicId = scope.clinicId;
     const studyTypes = await getStudyTypes(clinicId);
 
     return res.json({
@@ -256,32 +313,31 @@ router.get(
 router.get(
   "/:reportId/preview-url",
   asyncHandler(async (req, res) => {
-    const reportId = Number(req.params.reportId);
+    const reportId = parseReportId(req.params.reportId);
 
-    if (!Number.isInteger(reportId) || reportId <= 0) {
+    if (typeof reportId !== "number") {
       return res.status(400).json({
         success: false,
         error: "reportId inválido",
       });
     }
 
-    const report = await getReportById(reportId);
+    const reportResult = await getAuthorizedReport(
+      reportId,
+      req.auth!.clinicId,
+      "No autorizado para previsualizar este informe",
+    );
 
-    if (!report) {
-      return res.status(404).json({
+    if (!("report" in reportResult)) {
+      return res.status(reportResult.status).json({
         success: false,
-        error: "Informe no encontrado",
+        error: reportResult.error,
       });
     }
 
-    if (report.clinicId !== req.auth!.clinicId) {
-      return res.status(403).json({
-        success: false,
-        error: "No autorizado para previsualizar este informe",
-      });
-    }
-
-    const previewUrl = await createSignedReportUrl(report.storagePath);
+    const previewUrl = await createSignedReportUrl(
+      reportResult.report.storagePath,
+    );
 
     return res.json({
       success: true,
@@ -293,34 +349,31 @@ router.get(
 router.get(
   "/:reportId/download-url",
   asyncHandler(async (req, res) => {
-    const reportId = Number(req.params.reportId);
+    const reportId = parseReportId(req.params.reportId);
 
-    if (!Number.isInteger(reportId) || reportId <= 0) {
+    if (typeof reportId !== "number") {
       return res.status(400).json({
         success: false,
         error: "reportId inválido",
       });
     }
 
-    const report = await getReportById(reportId);
+    const reportResult = await getAuthorizedReport(
+      reportId,
+      req.auth!.clinicId,
+      "No autorizado para descargar este informe",
+    );
 
-    if (!report) {
-      return res.status(404).json({
+    if (!("report" in reportResult)) {
+      return res.status(reportResult.status).json({
         success: false,
-        error: "Informe no encontrado",
-      });
-    }
-
-    if (report.clinicId !== req.auth!.clinicId) {
-      return res.status(403).json({
-        success: false,
-        error: "No autorizado para descargar este informe",
+        error: reportResult.error,
       });
     }
 
     const downloadUrl = await createSignedReportDownloadUrl(
-      report.storagePath,
-      report.fileName ?? undefined,
+      reportResult.report.storagePath,
+      reportResult.report.fileName ?? undefined,
     );
 
     return res.json({
