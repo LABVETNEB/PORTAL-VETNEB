@@ -9,7 +9,9 @@ import {
   searchReports,
   upsertReport,
 } from "../db";
+import { auditError, auditInfo, auditWarn } from "../lib/audit";
 import { ENV } from "../lib/env";
+import { USER_ROLES } from "../lib/permissions";
 import {
   ALLOWED_MIME_TYPES,
   createSignedReportDownloadUrl,
@@ -18,7 +20,6 @@ import {
 } from "../lib/supabase";
 import { requireAuth } from "../middlewares/auth";
 import { requireRole } from "../middlewares/require-role";
-import { USER_ROLES } from "../lib/permissions";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
@@ -167,23 +168,26 @@ async function serializeReports(reports: Report[]) {
 
 router.use(requireAuth);
 
-const requireUploadPermission = asyncHandler(async (req, res, next) => {
-  if (!req.auth?.canUploadReports) {
-    return res.status(403).json({
-      success: false,
-      error: "No autorizado para subir informes",
-    });
-  }
-
-  next();
-});
-
 router.post(
   "/upload",
-  requireUploadPermission,
+  requireRole(USER_ROLES.LAB),
   upload.single("file"),
   asyncHandler(async (req, res) => {
+    auditInfo(req, "report.upload.started", {
+      requestedClinicId:
+        typeof req.body?.clinicId === "string" ||
+        typeof req.body?.clinicId === "number"
+          ? req.body.clinicId
+          : typeof req.query?.clinicId === "string" ||
+              typeof req.query?.clinicId === "number"
+            ? req.query.clinicId
+            : null,
+      fileName: req.file?.originalname ?? null,
+    });
+
     if (!req.file) {
+      auditWarn(req, "report.upload.missing_file");
+
       return res.status(400).json({
         success: false,
         error: "No se proporciono ningun archivo",
@@ -194,31 +198,64 @@ router.post(
       parseClinicId(req.body?.clinicId ?? req.query.clinicId) ??
       req.auth!.clinicId;
 
-    const storagePath = await uploadReport({
-      file: req.file.buffer,
-      fileName: req.file.originalname,
-      clinicId,
-      mimeType: req.file.mimetype,
-    });
+    if (!Number.isInteger(clinicId) || clinicId <= 0) {
+      auditWarn(req, "report.upload.invalid_clinic_id", {
+        clinicId,
+      });
+
+      return res.status(400).json({
+        success: false,
+        error: "clinicId inválido",
+      });
+    }
 
     const patientName = normalizeSearchText(req.body?.patientName);
     const studyType = normalizeSearchText(req.body?.studyType);
     const uploadDate = parseOptionalDate(req.body?.uploadDate);
+    const fileName = req.file.originalname;
+    const mimeType = req.file.mimetype;
 
-    const report = await upsertReport({
-      clinicId,
-      patientName: patientName ?? null,
-      studyType: studyType ?? null,
-      uploadDate: uploadDate ?? null,
-      fileName: req.file.originalname,
-      storagePath,
-    });
+    try {
+      const storagePath = await uploadReport({
+        file: req.file.buffer,
+        fileName,
+        clinicId,
+        mimeType,
+      });
 
-    return res.status(201).json({
-      success: true,
-      message: "Archivo subido correctamente",
-      report: await serializeReport(report),
-    });
+      const report = await upsertReport({
+        clinicId,
+        patientName: patientName ?? null,
+        studyType: studyType ?? null,
+        uploadDate: uploadDate ?? null,
+        fileName,
+        storagePath,
+      });
+
+      auditInfo(req, "report.upload.success", {
+        clinicId,
+        reportId: report.id,
+        fileName,
+        storagePath,
+        mimeType,
+        sizeBytes: req.file.size ?? null,
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "Archivo subido correctamente",
+        report: await serializeReport(report),
+      });
+    } catch (error) {
+      auditError(req, "report.upload.failed", error, {
+        clinicId,
+        fileName,
+        mimeType,
+        sizeBytes: req.file.size ?? null,
+      });
+
+      throw error;
+    }
   }),
 );
 
@@ -236,20 +273,7 @@ router.get(
       });
     }
 
-    const clinicId =
-  typeof req.body?.clinicId === "string" && req.body.clinicId.trim() !== ""
-    ? Number(req.body.clinicId)
-    : typeof req.body?.clinicId === "number"
-      ? req.body.clinicId
-      : req.auth!.clinicId;
-
-if (!Number.isInteger(clinicId) || clinicId <= 0) {
-  return res.status(400).json({
-    success: false,
-    error: "clinicId inválido",
-  });
-}
-    const reports = await getReportsByClinicId(clinicId, limit, offset);
+    const reports = await getReportsByClinicId(scope.clinicId, limit, offset);
 
     return res.json({
       success: true,
@@ -279,21 +303,8 @@ router.get(
       });
     }
 
-    const clinicId =
-  typeof req.body?.clinicId === "string" && req.body.clinicId.trim() !== ""
-    ? Number(req.body.clinicId)
-    : typeof req.body?.clinicId === "number"
-      ? req.body.clinicId
-      : req.auth!.clinicId;
-
-if (!Number.isInteger(clinicId) || clinicId <= 0) {
-  return res.status(400).json({
-    success: false,
-    error: "clinicId inválido",
-  });
-}
     const reports = await searchReports(
-      clinicId,
+      scope.clinicId,
       query,
       studyType,
       limit,
@@ -328,20 +339,7 @@ router.get(
       });
     }
 
-    const clinicId =
-  typeof req.body?.clinicId === "string" && req.body.clinicId.trim() !== ""
-    ? Number(req.body.clinicId)
-    : typeof req.body?.clinicId === "number"
-      ? req.body.clinicId
-      : req.auth!.clinicId;
-
-if (!Number.isInteger(clinicId) || clinicId <= 0) {
-  return res.status(400).json({
-    success: false,
-    error: "clinicId inválido",
-  });
-}
-    const studyTypes = await getStudyTypes(clinicId);
+    const studyTypes = await getStudyTypes(scope.clinicId);
 
     return res.json({
       success: true,
@@ -424,8 +422,3 @@ router.get(
 );
 
 export default router;
-
-
-
-
-
