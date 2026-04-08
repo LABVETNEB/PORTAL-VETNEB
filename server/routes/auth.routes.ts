@@ -43,7 +43,7 @@ router.post(
     if (!username || !password) {
       return res.status(400).json({
         success: false,
-        error: "username y password son obligatorios",
+        error: "Usuario y contrasena son obligatorios",
       });
     }
 

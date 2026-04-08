@@ -184,7 +184,7 @@ router.post(
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        error: "No file provided",
+        error: "No se proporciono ningun archivo",
       });
     }
 
@@ -230,7 +230,7 @@ router.get(
     if (scope.isForbidden) {
       return res.status(403).json({
         success: false,
-        error: "No autorizado para consultar otra clínica",
+        error: "No autorizado para consultar otra clinica",
       });
     }
 
@@ -261,7 +261,7 @@ router.get(
     if (scope.isForbidden) {
       return res.status(403).json({
         success: false,
-        error: "No autorizado para consultar otra clínica",
+        error: "No autorizado para consultar otra clinica",
       });
     }
 
@@ -298,7 +298,7 @@ router.get(
     if (scope.isForbidden) {
       return res.status(403).json({
         success: false,
-        error: "No autorizado para consultar otra clínica",
+        error: "No autorizado para consultar otra clinica",
       });
     }
 
@@ -320,7 +320,7 @@ router.get(
     if (typeof reportId !== "number") {
       return res.status(400).json({
         success: false,
-        error: "reportId inválido",
+        error: "ID de informe invalido",
       });
     }
 
@@ -356,7 +356,7 @@ router.get(
     if (typeof reportId !== "number") {
       return res.status(400).json({
         success: false,
-        error: "reportId inválido",
+        error: "ID de informe invalido",
       });
     }
 

@@ -74,7 +74,7 @@ export function errorHandler(
 
   res.status(status).json({
     success: false,
-    error: status >= 500 ? "Internal Server Error" : message,
+    error: status >= 500 ? "Error interno del servidor" : message,
     details: status >= 500 ? undefined : message,
     path: req.originalUrl,
   });
