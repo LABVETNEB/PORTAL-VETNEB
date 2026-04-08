@@ -144,11 +144,13 @@ async function getAuthorizedReport(
 }
 
 async function serializeReport(report: Report) {
-  const previewUrl = await createSignedReportUrl(report.storagePath);
-  const downloadUrl = await createSignedReportDownloadUrl(
-    report.storagePath,
-    report.fileName ?? undefined,
-  );
+  const [previewUrl, downloadUrl] = await Promise.all([
+    createSignedReportUrl(report.storagePath),
+    createSignedReportDownloadUrl(
+      report.storagePath,
+      report.fileName ?? undefined,
+    ),
+  ]);
 
   return {
     ...report,
