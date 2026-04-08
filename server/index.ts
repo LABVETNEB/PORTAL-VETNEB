@@ -1,4 +1,4 @@
-import type { Server } from "node:http";
+﻿import type { Server } from "node:http";
 import { sql } from "drizzle-orm";
 
 import { app } from "./app";
@@ -68,3 +68,4 @@ async function bootstrap() {
 }
 
 void bootstrap();
+
