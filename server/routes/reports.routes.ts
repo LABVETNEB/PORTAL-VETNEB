@@ -1,4 +1,4 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import multer from "multer";
 
 import type { Report } from "../../drizzle/schema";
@@ -234,7 +234,19 @@ router.get(
       });
     }
 
-    const clinicId = scope.clinicId;
+    const clinicId =
+  typeof req.body?.clinicId === "string" && req.body.clinicId.trim() !== ""
+    ? Number(req.body.clinicId)
+    : typeof req.body?.clinicId === "number"
+      ? req.body.clinicId
+      : req.auth!.clinicId;
+
+if (!Number.isInteger(clinicId) || clinicId <= 0) {
+  return res.status(400).json({
+    success: false,
+    error: "clinicId inválido",
+  });
+}
     const reports = await getReportsByClinicId(clinicId, limit, offset);
 
     return res.json({
@@ -265,7 +277,19 @@ router.get(
       });
     }
 
-    const clinicId = scope.clinicId;
+    const clinicId =
+  typeof req.body?.clinicId === "string" && req.body.clinicId.trim() !== ""
+    ? Number(req.body.clinicId)
+    : typeof req.body?.clinicId === "number"
+      ? req.body.clinicId
+      : req.auth!.clinicId;
+
+if (!Number.isInteger(clinicId) || clinicId <= 0) {
+  return res.status(400).json({
+    success: false,
+    error: "clinicId inválido",
+  });
+}
     const reports = await searchReports(
       clinicId,
       query,
@@ -302,7 +326,19 @@ router.get(
       });
     }
 
-    const clinicId = scope.clinicId;
+    const clinicId =
+  typeof req.body?.clinicId === "string" && req.body.clinicId.trim() !== ""
+    ? Number(req.body.clinicId)
+    : typeof req.body?.clinicId === "number"
+      ? req.body.clinicId
+      : req.auth!.clinicId;
+
+if (!Number.isInteger(clinicId) || clinicId <= 0) {
+  return res.status(400).json({
+    success: false,
+    error: "clinicId inválido",
+  });
+}
     const studyTypes = await getStudyTypes(clinicId);
 
     return res.json({
@@ -386,3 +422,4 @@ router.get(
 );
 
 export default router;
+

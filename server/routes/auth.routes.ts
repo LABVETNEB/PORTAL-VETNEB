@@ -105,7 +105,11 @@ router.post(
         role: clinicUser.role ?? null,
       },
       permissions: {
-        canUploadReports: canUploadReports({`r`n          username: clinicUser.username,`r`n          authProId: clinicUser.authProId ?? null,`r`n          role: clinicUser.role ?? null,`r`n        }),
+        canUploadReports: canUploadReports({
+          username: clinicUser.username,
+          authProId: clinicUser.authProId ?? null,
+          role: clinicUser.role ?? null,
+        }),
       },
     });
   }),
@@ -123,6 +127,7 @@ router.get(
         id: auth.id,
         clinicId: auth.clinicId,
         username: auth.username,
+        role: auth.role ?? null,
       },
       permissions: {
         canUploadReports: auth.canUploadReports,
@@ -153,5 +158,3 @@ router.post(
 );
 
 export default router;
-
-
