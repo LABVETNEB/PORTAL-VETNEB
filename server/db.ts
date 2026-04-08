@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, isNotNull, lte, or } from "drizzle-orm";
+﻿import { and, desc, eq, ilike, isNotNull, lte, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -13,6 +13,7 @@ import {
   type Report,
 } from "../drizzle/schema";
 import { ENV } from "./lib/env";
+import { normalizeUserRole } from "./lib/permissions";
 
 const client = postgres(ENV.databaseUrl, {
   prepare: false,
@@ -29,7 +30,12 @@ export async function closeDbConnection(): Promise<void> {
 ========================= */
 
 export async function getClinicById(id: number): Promise<Clinic | undefined> {
-  const result = await db.select().from(clinics).where(eq(clinics.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(clinics)
+    .where(eq(clinics.id, id))
+    .limit(1);
+
   return result[0];
 }
 
@@ -61,29 +67,41 @@ export async function getClinicUserByUsername(
   return result[0];
 }
 
-export async function upsertClinicUser(user: {
+export async function upsertClinicUser(input: {
   clinicId: number;
   username: string;
   passwordHash: string;
   authProId?: string | null;
+  role?: string | null;
 }): Promise<ClinicUser> {
   const now = new Date();
+
+  const normalizedRole =
+    input.role === undefined ? undefined : normalizeUserRole(input.role);
+
+  if (input.role !== undefined && input.role !== null && !normalizedRole) {
+    throw new Error("Rol de usuario inválido");
+  }
 
   const result = await db
     .insert(clinicUsers)
     .values({
-      clinicId: user.clinicId,
-      username: user.username.trim(),
-      passwordHash: user.passwordHash,
-      authProId: user.authProId ?? null,
+      clinicId: input.clinicId,
+      username: input.username.trim(),
+      passwordHash: input.passwordHash,
+      authProId: input.authProId ?? null,
+      role: normalizedRole ?? null,
       updatedAt: now,
     })
     .onConflictDoUpdate({
       target: clinicUsers.username,
       set: {
-        clinicId: user.clinicId,
-        passwordHash: user.passwordHash,
-        authProId: user.authProId ?? null,
+        clinicId: input.clinicId,
+        passwordHash: input.passwordHash,
+        authProId: input.authProId ?? null,
+        ...(input.role !== undefined
+          ? { role: normalizedRole ?? null }
+          : {}),
         updatedAt: now,
       },
     })
@@ -157,7 +175,12 @@ export async function deleteExpiredSessions(): Promise<number> {
 ========================= */
 
 export async function getReportById(id: number): Promise<Report | undefined> {
-  const result = await db.select().from(reports).where(eq(reports.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(reports)
+    .where(eq(reports.id, id))
+    .limit(1);
+
   return result[0];
 }
 
