@@ -14,6 +14,7 @@ import {
   verifyPassword,
 } from "../lib/auth-security";
 import { ENV } from "../lib/env";
+import { canUploadReports } from "../lib/permissions";
 import { requireAuth } from "../middlewares/auth";
 import { asyncHandler } from "../utils/async-handler";
 
@@ -102,6 +103,12 @@ router.post(
         clinicId: clinicUser.clinicId,
         username: clinicUser.username,
       },
+      permissions: {
+        canUploadReports: canUploadReports({
+          username: clinicUser.username,
+          authProId: clinicUser.authProId ?? null,
+        }),
+      },
     });
   }),
 );
@@ -110,9 +117,18 @@ router.get(
   "/me",
   requireAuth,
   asyncHandler(async (req, res) => {
+    const auth = req.auth!;
+
     return res.json({
       success: true,
-      clinicUser: req.auth,
+      clinicUser: {
+        id: auth.id,
+        clinicId: auth.clinicId,
+        username: auth.username,
+      },
+      permissions: {
+        canUploadReports: auth.canUploadReports,
+      },
     });
   }),
 );

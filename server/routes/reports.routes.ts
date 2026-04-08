@@ -108,8 +108,20 @@ async function serializeReports(reports: Report[]) {
 
 router.use(requireAuth);
 
+const requireUploadPermission = asyncHandler(async (req, res, next) => {
+  if (!req.auth?.canUploadReports) {
+    return res.status(403).json({
+      success: false,
+      error: "No autorizado para subir informes",
+    });
+  }
+
+  next();
+});
+
 router.post(
   "/upload",
+  requireUploadPermission,
   upload.single("file"),
   asyncHandler(async (req, res) => {
     if (!req.file) {
@@ -123,13 +135,6 @@ router.post(
       req.body?.clinicId ?? req.query.clinicId,
       req.auth!.clinicId,
     );
-
-    if (clinicId !== req.auth!.clinicId) {
-      return res.status(403).json({
-        success: false,
-        error: "No autorizado para subir informes a otra clínica",
-      });
-    }
 
     const storagePath = await uploadReport({
       file: req.file.buffer,
