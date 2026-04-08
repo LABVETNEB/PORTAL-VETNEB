@@ -1,4 +1,4 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import rateLimit from "express-rate-limit";
 
 import {
@@ -27,7 +27,7 @@ const loginRateLimit = rateLimit({
   legacyHeaders: false,
   message: {
     success: false,
-    error: "Demasiados intentos de inicio de sesi�n. Intente m�s tarde.",
+    error: "Demasiados intentos de inicio de sesión. Intente más tarde.",
   },
 });
 
@@ -52,7 +52,7 @@ router.post(
     if (!clinicUser) {
       return res.status(401).json({
         success: false,
-        error: "Usuario o contrase�a inv�lidos",
+        error: "Usuario o contraseña inválidos",
       });
     }
 
@@ -61,7 +61,7 @@ router.post(
     if (!passwordCheck.valid) {
       return res.status(401).json({
         success: false,
-        error: "Usuario o contrase�a inv�lidos",
+        error: "Usuario o contraseña inválidos",
       });
     }
 
@@ -105,10 +105,7 @@ router.post(
         role: clinicUser.role ?? null,
       },
       permissions: {
-        canUploadReports: canUploadReports({
-          username: clinicUser.username,
-          authProId: clinicUser.authProId ?? null,
-        }),
+        canUploadReports: canUploadReports({`r`n          username: clinicUser.username,`r`n          authProId: clinicUser.authProId ?? null,`r`n          role: clinicUser.role ?? null,`r`n        }),
       },
     });
   }),
@@ -150,10 +147,11 @@ router.post(
 
     return res.json({
       success: true,
-      message: "Sesi�n cerrada correctamente",
+      message: "Sesión cerrada correctamente",
     });
   }),
 );
 
 export default router;
+
 

@@ -102,10 +102,7 @@ export const requireAuth = asyncHandler(
       clinicId: clinicUser.clinicId,
       username: clinicUser.username,
       authProId: clinicUser.authProId ?? null,
-      canUploadReports: canUploadReports({
-        username: clinicUser.username,
-        authProId: clinicUser.authProId ?? null,
-      }),
+      canUploadReports: canUploadReports({`r`n        username: clinicUser.username,`r`n        authProId: clinicUser.authProId ?? null,`r`n        role: clinicUser.role ?? null,`r`n      }),
       role: clinicUser.role ?? null,
       sessionToken: token,
     };
@@ -113,3 +110,4 @@ export const requireAuth = asyncHandler(
     next();
   },
 );
+

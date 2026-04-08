@@ -1,26 +1,54 @@
-import { ENV } from "./env";
+﻿import { ENV } from "./env";
 
-function normalize(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-const labUploadUsernames = new Set(
-  ENV.labUploadUsernames.map((username) => normalize(username)),
-);
-
-export function canUploadReports(user: {
+type UploadPermissionInput = {
   username: string;
   authProId?: string | null;
-}): boolean {
-  const normalizedUsername = normalize(user.username);
+  role?: string | null;
+};
 
-  if (labUploadUsernames.has(normalizedUsername)) {
+function normalize(value: string | null | undefined): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim().toLowerCase();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function legacyCanUploadReports({
+  username,
+  authProId,
+}: Omit<UploadPermissionInput, "role">): boolean {
+  const normalizedUsername = normalize(username);
+  const normalizedAuthProId = normalize(authProId);
+  const normalizedOwnerOpenId = normalize(ENV.ownerOpenId);
+
+  if (normalizedOwnerOpenId && normalizedAuthProId === normalizedOwnerOpenId) {
     return true;
   }
 
-  if (ENV.ownerOpenId && typeof user.authProId === "string") {
-    return user.authProId === ENV.ownerOpenId;
+  return ENV.labUploadUsernames
+    .map((value) => normalize(value))
+    .some((value) => value !== null && value === normalizedUsername);
+}
+
+export function canUploadReports({
+  username,
+  authProId,
+  role,
+}: UploadPermissionInput): boolean {
+  const normalizedRole = normalize(role);
+
+  if (normalizedRole === "owner" || normalizedRole === "lab") {
+    return true;
   }
 
-  return false;
+  if (normalizedRole === "clinic") {
+    return false;
+  }
+
+  return legacyCanUploadReports({
+    username,
+    authProId,
+  });
 }
