@@ -14,7 +14,11 @@ import {
   verifyPassword,
 } from "../lib/auth-security";
 import { ENV } from "../lib/env";
-import { canUploadReports, normalizeUserRole } from "../lib/permissions";
+import {
+  canManageUsers,
+  canUploadReports,
+  normalizeUserRole,
+} from "../lib/permissions";
 import { requireAuth } from "../middlewares/auth";
 import { asyncHandler } from "../utils/async-handler";
 
@@ -73,6 +77,7 @@ router.post(
         username: clinicUser.username,
         passwordHash: newHash,
         authProId: clinicUser.authProId ?? null,
+        role: clinicUser.role ?? null,
       });
     }
 
@@ -108,6 +113,7 @@ router.post(
       },
       permissions: {
         canUploadReports: canUploadReports({ role }),
+        canManageUsers: canManageUsers({ role }),
       },
     });
   }),
@@ -129,6 +135,7 @@ router.get(
       },
       permissions: {
         canUploadReports: auth.canUploadReports,
+        canManageUsers: auth.canManageUsers,
       },
     });
   }),

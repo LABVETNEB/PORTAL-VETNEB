@@ -2,7 +2,12 @@
 
 import { getActiveSessionByToken, getClinicUserById } from "../db";
 import { hashSessionToken } from "../lib/auth-security";
-import { canUploadReports, normalizeUserRole, type UserRole } from "../lib/permissions";
+import {
+  canManageUsers,
+  canUploadReports,
+  normalizeUserRole,
+  type UserRole,
+} from "../lib/permissions";
 import { ENV } from "../lib/env";
 
 export interface AuthContext {
@@ -13,6 +18,7 @@ export interface AuthContext {
   authProId: string | null;
   sessionToken: string;
   canUploadReports: boolean;
+  canManageUsers: boolean;
 }
 
 declare global {
@@ -67,6 +73,7 @@ export const requireAuth = async (
       authProId: clinicUser.authProId ?? null,
       sessionToken: token,
       canUploadReports: canUploadReports({ role }),
+      canManageUsers: canManageUsers({ role }),
     };
 
     return next();

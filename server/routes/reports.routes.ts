@@ -17,6 +17,8 @@ import {
   uploadReport,
 } from "../lib/supabase";
 import { requireAuth } from "../middlewares/auth";
+import { requireRole } from "../middlewares/require-role";
+import { USER_ROLES } from "../lib/permissions";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
@@ -422,4 +424,6 @@ router.get(
 );
 
 export default router;
+
+
 
