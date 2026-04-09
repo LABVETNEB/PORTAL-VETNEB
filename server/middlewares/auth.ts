@@ -1,47 +1,42 @@
-import type { NextFunction, Request, Response } from "express";
+﻿import { Request, Response, NextFunction } from "express";
 
-import {
-  deleteActiveSession,
-  getActiveSessionByToken,
-  getClinicUserById,
-  updateSessionLastAccess,
-} from "../db";
+import { getActiveSessionByToken, getClinicUserById } from "../db";
 import { hashSessionToken } from "../lib/auth-security";
+import {
+  canManageUsers,
+  canUploadReports,
+  normalizeUserRole,
+  USER_ROLES,
+  type UserRole,
+} from "../lib/permissions";
 import { ENV } from "../lib/env";
-import { canUploadReports } from "../lib/permissions";
-import { asyncHandler } from "../utils/async-handler";
 
-type AuthenticatedUser = {
+export interface AuthContext {
   id: number;
   clinicId: number;
   username: string;
+  role: UserRole;
   authProId: string | null;
-  canUploadReports: boolean;
   sessionToken: string;
-};
+  canUploadReports: boolean;
+  canManageUsers: boolean;
+}
 
 declare global {
   namespace Express {
     interface Request {
-      auth?: AuthenticatedUser;
+      auth?: AuthContext;
     }
   }
 }
 
-function getSessionToken(req: Request): string | undefined {
-  const raw = req.cookies?.[ENV.cookieName];
-
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-
-  const trimmed = raw.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-export const requireAuth = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const token = getSessionToken(req);
+export const requireAuth = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const token = req.cookies?.[ENV.cookieName];
 
     if (!token) {
       return res.status(401).json({
@@ -53,61 +48,42 @@ export const requireAuth = asyncHandler(
     const tokenHash = hashSessionToken(token);
     const session = await getActiveSessionByToken(tokenHash);
 
-    if (!session) {
+    if (!session || !session.expiresAt || session.expiresAt < new Date()) {
       return res.status(401).json({
         success: false,
-        error: "Sesión inválida",
-      });
-    }
-
-    if (session.expiresAt && session.expiresAt.getTime() <= Date.now()) {
-      await deleteActiveSession(tokenHash);
-
-      res.clearCookie(ENV.cookieName, {
-        httpOnly: true,
-        path: "/",
-        sameSite: ENV.cookieSameSite,
-        secure: ENV.cookieSecure,
-      });
-
-      return res.status(401).json({
-        success: false,
-        error: "Sesión expirada",
+        error: "Sesion invalida o expirada",
       });
     }
 
     const clinicUser = await getClinicUserById(session.clinicUserId);
 
     if (!clinicUser) {
-      await deleteActiveSession(tokenHash);
-
-      res.clearCookie(ENV.cookieName, {
-        httpOnly: true,
-        path: "/",
-        sameSite: ENV.cookieSameSite,
-        secure: ENV.cookieSecure,
-      });
-
       return res.status(401).json({
         success: false,
-        error: "Usuario de sesión no encontrado",
+        error: "Usuario no encontrado",
       });
     }
 
-    await updateSessionLastAccess(tokenHash);
+    const role = normalizeUserRole(clinicUser.role) ?? USER_ROLES.LAB;
 
     req.auth = {
       id: clinicUser.id,
       clinicId: clinicUser.clinicId,
       username: clinicUser.username,
+      role,
       authProId: clinicUser.authProId ?? null,
-      canUploadReports: canUploadReports({
-        username: clinicUser.username,
-        authProId: clinicUser.authProId ?? null,
-      }),
       sessionToken: token,
+      canUploadReports: canUploadReports({ role }),
+      canManageUsers: canManageUsers({ role }),
     };
 
-    next();
-  },
-);
+    return next();
+  } catch (error) {
+    console.error("Auth middleware error:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "Error interno de autenticacion",
+    });
+  }
+};

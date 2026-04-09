@@ -1,26 +1,40 @@
-import { ENV } from "./env";
+﻿export const USER_ROLES = {
+  ADMIN: "admin",
+  LAB: "lab",
+} as const;
 
-function normalize(value: string): string {
-  return value.trim().toLowerCase();
+export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES];
+
+export function isValidUserRole(value: unknown): value is UserRole {
+  return value === USER_ROLES.ADMIN || value === USER_ROLES.LAB;
 }
 
-const labUploadUsernames = new Set(
-  ENV.labUploadUsernames.map((username) => normalize(username)),
-);
-
-export function canUploadReports(user: {
-  username: string;
-  authProId?: string | null;
-}): boolean {
-  const normalizedUsername = normalize(user.username);
-
-  if (labUploadUsernames.has(normalizedUsername)) {
-    return true;
+export function normalizeUserRole(value: unknown): UserRole | null {
+  if (typeof value !== "string") {
+    return null;
   }
 
-  if (ENV.ownerOpenId && typeof user.authProId === "string") {
-    return user.authProId === ENV.ownerOpenId;
+  const normalized = value.trim().toLowerCase();
+
+  return isValidUserRole(normalized) ? normalized : null;
+}
+
+export function assertValidUserRole(value: unknown): UserRole {
+  const role = normalizeUserRole(value);
+
+  if (!role) {
+    throw new Error("Rol de usuario inválido");
   }
 
-  return false;
+  return role;
+}
+
+export function canUploadReports(input: { role?: unknown }): boolean {
+  const role = normalizeUserRole(input.role);
+  return role === USER_ROLES.LAB;
+}
+
+export function canManageUsers(input: { role?: unknown }): boolean {
+  const role = normalizeUserRole(input.role);
+  return role === USER_ROLES.ADMIN;
 }
