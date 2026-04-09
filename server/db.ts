@@ -1,19 +1,24 @@
-﻿import { and, desc, eq, ilike, isNotNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, ilike, isNotNull, lte, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import {
   activeSessions,
+  adminUsers,
   clinicUsers,
   clinics,
+  paymentLinks,
+  paymentTransactions,
   reports,
   type ActiveSession,
+  type AdminUser,
   type Clinic,
   type ClinicUser,
+  type PaymentLink,
+  type PaymentTransaction,
   type Report,
 } from "../drizzle/schema";
 import { ENV } from "./lib/env";
-import { normalizeUserRole } from "./lib/permissions";
 
 const client = postgres(ENV.databaseUrl, {
   prepare: false,
@@ -30,13 +35,12 @@ export async function closeDbConnection(): Promise<void> {
 ========================= */
 
 export async function getClinicById(id: number): Promise<Clinic | undefined> {
-  const result = await db
-    .select()
-    .from(clinics)
-    .where(eq(clinics.id, id))
-    .limit(1);
-
+  const result = await db.select().from(clinics).where(eq(clinics.id, id)).limit(1);
   return result[0];
+}
+
+export async function listClinics(): Promise<Clinic[]> {
+  return db.select().from(clinics).orderBy(clinics.name);
 }
 
 /* =========================
@@ -67,47 +71,57 @@ export async function getClinicUserByUsername(
   return result[0];
 }
 
-export async function upsertClinicUser(input: {
+export async function upsertClinicUser(user: {
   clinicId: number;
   username: string;
   passwordHash: string;
   authProId?: string | null;
-  role?: string | null;
 }): Promise<ClinicUser> {
   const now = new Date();
-
-  const normalizedRole =
-    input.role === undefined ? undefined : normalizeUserRole(input.role);
-
-  if (input.role !== undefined && input.role !== null && !normalizedRole) {
-    throw new Error("Rol de usuario inválido");
-  }
 
   const result = await db
     .insert(clinicUsers)
     .values({
-      clinicId: input.clinicId,
-      username: input.username.trim(),
-      passwordHash: input.passwordHash,
-      authProId: input.authProId ?? null,
-      role: normalizedRole ?? null,
+      clinicId: user.clinicId,
+      username: user.username.trim(),
+      passwordHash: user.passwordHash,
+      authProId: user.authProId ?? null,
       updatedAt: now,
     })
     .onConflictDoUpdate({
       target: clinicUsers.username,
       set: {
-        clinicId: input.clinicId,
-        passwordHash: input.passwordHash,
-        authProId: input.authProId ?? null,
-        ...(input.role !== undefined
-          ? { role: normalizedRole ?? null }
-          : {}),
+        clinicId: user.clinicId,
+        passwordHash: user.passwordHash,
+        authProId: user.authProId ?? null,
         updatedAt: now,
       },
     })
     .returning();
 
   return result[0];
+}
+
+/* =========================
+   ADMIN USERS
+========================= */
+
+export async function getAdminUserByEmail(
+  email: string,
+): Promise<AdminUser | undefined> {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const result = await db
+    .select()
+    .from(adminUsers)
+    .where(eq(adminUsers.email, normalizedEmail))
+    .limit(1);
+
+  return result[0];
+}
+
+export async function listAdminUsers(): Promise<AdminUser[]> {
+  return db.select().from(adminUsers).orderBy(adminUsers.email);
 }
 
 /* =========================
@@ -175,12 +189,7 @@ export async function deleteExpiredSessions(): Promise<number> {
 ========================= */
 
 export async function getReportById(id: number): Promise<Report | undefined> {
-  const result = await db
-    .select()
-    .from(reports)
-    .where(eq(reports.id, id))
-    .limit(1);
-
+  const result = await db.select().from(reports).where(eq(reports.id, id)).limit(1);
   return result[0];
 }
 
@@ -278,4 +287,188 @@ export async function getStudyTypes(clinicId: number): Promise<string[]> {
   return result
     .map((r) => r.studyType)
     .filter((v): v is string => !!v);
+}
+
+/* =========================
+   PAYMENT LINKS
+========================= */
+
+export async function createPaymentLink(input: {
+  clinicId: number;
+  createdByAdminUserId?: number | null;
+  token: string;
+  patientName?: string | null;
+  patientEmail?: string | null;
+  description?: string | null;
+  amountInCents: number;
+  currency?: string | null;
+  status?: string | null;
+  expiresAt?: Date | null;
+}): Promise<PaymentLink> {
+  const now = new Date();
+
+  const result = await db
+    .insert(paymentLinks)
+    .values({
+      clinicId: input.clinicId,
+      createdByAdminUserId: input.createdByAdminUserId ?? null,
+      token: input.token,
+      patientName: input.patientName ?? null,
+      patientEmail: input.patientEmail ?? null,
+      description: input.description ?? null,
+      amountInCents: input.amountInCents,
+      currency: input.currency ?? "ARS",
+      status: input.status ?? "pending",
+      expiresAt: input.expiresAt ?? null,
+      updatedAt: now,
+    })
+    .returning();
+
+  return result[0];
+}
+
+export async function getPaymentLinkById(
+  id: number,
+): Promise<PaymentLink | undefined> {
+  const result = await db
+    .select()
+    .from(paymentLinks)
+    .where(eq(paymentLinks.id, id))
+    .limit(1);
+
+  return result[0];
+}
+
+export async function getPaymentLinkByToken(
+  token: string,
+): Promise<PaymentLink | undefined> {
+  const result = await db
+    .select()
+    .from(paymentLinks)
+    .where(eq(paymentLinks.token, token))
+    .limit(1);
+
+  return result[0];
+}
+
+export async function listPaymentLinks(filters?: {
+  clinicId?: number;
+  status?: string;
+}): Promise<PaymentLink[]> {
+  const whereFilters = [];
+
+  if (typeof filters?.clinicId === "number") {
+    whereFilters.push(eq(paymentLinks.clinicId, filters.clinicId));
+  }
+
+  if (filters?.status) {
+    whereFilters.push(eq(paymentLinks.status, filters.status));
+  }
+
+  if (whereFilters.length > 0) {
+    return db
+      .select()
+      .from(paymentLinks)
+      .where(and(...whereFilters))
+      .orderBy(desc(paymentLinks.createdAt));
+  }
+
+  return db.select().from(paymentLinks).orderBy(desc(paymentLinks.createdAt));
+}
+
+export async function updatePaymentLinkStatus(input: {
+  paymentLinkId: number;
+  status: string;
+  paidAt?: Date | null;
+}): Promise<PaymentLink | undefined> {
+  const result = await db
+    .update(paymentLinks)
+    .set({
+      status: input.status,
+      paidAt: input.paidAt ?? null,
+      updatedAt: new Date(),
+    })
+    .where(eq(paymentLinks.id, input.paymentLinkId))
+    .returning();
+
+  return result[0];
+}
+
+/* =========================
+   PAYMENT TRANSACTIONS
+========================= */
+
+export async function createPaymentTransaction(input: {
+  paymentLinkId: number;
+  provider?: string | null;
+  providerReference?: string | null;
+  status: string;
+  amountInCents: number;
+  currency?: string | null;
+  rawPayload?: string | null;
+}): Promise<PaymentTransaction> {
+  const now = new Date();
+
+  const result = await db
+    .insert(paymentTransactions)
+    .values({
+      paymentLinkId: input.paymentLinkId,
+      provider: input.provider ?? "manual",
+      providerReference: input.providerReference ?? null,
+      status: input.status,
+      amountInCents: input.amountInCents,
+      currency: input.currency ?? "ARS",
+      rawPayload: input.rawPayload ?? null,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning();
+
+  return result[0];
+}
+
+export async function listPaymentTransactions(filters?: {
+  clinicId?: number;
+  paymentLinkId?: number;
+}): Promise<
+  Array<
+    PaymentTransaction & {
+      paymentLinkToken: string;
+      clinicId: number;
+    }
+  >
+> {
+  const whereFilters = [];
+
+  if (typeof filters?.clinicId === "number") {
+    whereFilters.push(eq(paymentLinks.clinicId, filters.clinicId));
+  }
+
+  if (typeof filters?.paymentLinkId === "number") {
+    whereFilters.push(eq(paymentTransactions.paymentLinkId, filters.paymentLinkId));
+  }
+
+  const query = db
+    .select({
+      id: paymentTransactions.id,
+      paymentLinkId: paymentTransactions.paymentLinkId,
+      provider: paymentTransactions.provider,
+      providerReference: paymentTransactions.providerReference,
+      status: paymentTransactions.status,
+      amountInCents: paymentTransactions.amountInCents,
+      currency: paymentTransactions.currency,
+      rawPayload: paymentTransactions.rawPayload,
+      createdAt: paymentTransactions.createdAt,
+      updatedAt: paymentTransactions.updatedAt,
+      paymentLinkToken: paymentLinks.token,
+      clinicId: paymentLinks.clinicId,
+    })
+    .from(paymentTransactions)
+    .innerJoin(paymentLinks, eq(paymentTransactions.paymentLinkId, paymentLinks.id));
+
+  if (whereFilters.length > 0) {
+    return query.where(and(...whereFilters)).orderBy(desc(paymentTransactions.createdAt));
+  }
+
+  return query.orderBy(desc(paymentTransactions.createdAt));
 }

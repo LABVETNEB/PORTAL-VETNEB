@@ -15,6 +15,13 @@
       "when": 1775735739101,
       "tag": "0001_youthful_dreadnoughts",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775750381795,
+      "tag": "0002_shallow_misty_knight",
+      "breakpoints": true
     }
   ]
 }
