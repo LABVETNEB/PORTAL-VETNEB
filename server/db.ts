@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, isNotNull, lte, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNotNull, lte, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -19,6 +19,7 @@ import {
   type Report,
 } from "../drizzle/schema";
 import { ENV } from "./lib/env";
+import { normalizeUserRole, USER_ROLES } from "./lib/permissions";
 
 const client = postgres(ENV.databaseUrl, {
   prepare: false,
@@ -76,8 +77,10 @@ export async function upsertClinicUser(user: {
   username: string;
   passwordHash: string;
   authProId?: string | null;
+  role?: string | null;
 }): Promise<ClinicUser> {
   const now = new Date();
+  const normalizedRole = normalizeUserRole(user.role) ?? USER_ROLES.LAB;
 
   const result = await db
     .insert(clinicUsers)
@@ -86,6 +89,7 @@ export async function upsertClinicUser(user: {
       username: user.username.trim(),
       passwordHash: user.passwordHash,
       authProId: user.authProId ?? null,
+      role: normalizedRole,
       updatedAt: now,
     })
     .onConflictDoUpdate({
@@ -94,6 +98,7 @@ export async function upsertClinicUser(user: {
         clinicId: user.clinicId,
         passwordHash: user.passwordHash,
         authProId: user.authProId ?? null,
+        role: normalizedRole,
         updatedAt: now,
       },
     })
@@ -212,8 +217,6 @@ export async function upsertReport(input: {
       patientName: input.patientName ?? null,
       fileName: input.fileName ?? null,
       storagePath: input.storagePath,
-      previewUrl: null,
-      downloadUrl: null,
       createdAt: now,
       updatedAt: now,
     })
@@ -354,6 +357,8 @@ export async function getPaymentLinkByToken(
 export async function listPaymentLinks(filters?: {
   clinicId?: number;
   status?: string;
+  limit?: number;
+  offset?: number;
 }): Promise<PaymentLink[]> {
   const whereFilters = [];
 
@@ -365,15 +370,64 @@ export async function listPaymentLinks(filters?: {
     whereFilters.push(eq(paymentLinks.status, filters.status));
   }
 
-  if (whereFilters.length > 0) {
+  const whereClause = whereFilters.length > 0 ? and(...whereFilters) : undefined;
+  const hasPagination =
+    typeof filters?.limit === "number" || typeof filters?.offset === "number";
+
+  if (hasPagination) {
+    const limit = typeof filters?.limit === "number" ? filters.limit : 20;
+    const offset = typeof filters?.offset === "number" ? filters.offset : 0;
+
+    if (whereClause) {
+      return db
+        .select()
+        .from(paymentLinks)
+        .where(whereClause)
+        .orderBy(desc(paymentLinks.createdAt))
+        .limit(limit)
+        .offset(offset);
+    }
+
     return db
       .select()
       .from(paymentLinks)
-      .where(and(...whereFilters))
+      .orderBy(desc(paymentLinks.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  if (whereClause) {
+    return db
+      .select()
+      .from(paymentLinks)
+      .where(whereClause)
       .orderBy(desc(paymentLinks.createdAt));
   }
 
   return db.select().from(paymentLinks).orderBy(desc(paymentLinks.createdAt));
+}
+
+export async function countPaymentLinks(filters?: {
+  clinicId?: number;
+  status?: string;
+}): Promise<number> {
+  const whereFilters = [];
+
+  if (typeof filters?.clinicId === "number") {
+    whereFilters.push(eq(paymentLinks.clinicId, filters.clinicId));
+  }
+
+  if (filters?.status) {
+    whereFilters.push(eq(paymentLinks.status, filters.status));
+  }
+
+  const whereClause = whereFilters.length > 0 ? and(...whereFilters) : undefined;
+
+  const result = whereClause
+    ? await db.select({ count: count() }).from(paymentLinks).where(whereClause)
+    : await db.select({ count: count() }).from(paymentLinks);
+
+  return Number(result[0]?.count ?? 0);
 }
 
 export async function updatePaymentLinkStatus(input: {
@@ -402,6 +456,7 @@ export async function createPaymentTransaction(input: {
   paymentLinkId: number;
   provider?: string | null;
   providerReference?: string | null;
+  idempotencyKey?: string | null;
   status: string;
   amountInCents: number;
   currency?: string | null;
@@ -415,6 +470,7 @@ export async function createPaymentTransaction(input: {
       paymentLinkId: input.paymentLinkId,
       provider: input.provider ?? "manual",
       providerReference: input.providerReference ?? null,
+      idempotencyKey: input.idempotencyKey ?? null,
       status: input.status,
       amountInCents: input.amountInCents,
       currency: input.currency ?? "ARS",
@@ -427,9 +483,68 @@ export async function createPaymentTransaction(input: {
   return result[0];
 }
 
+export async function getPendingPaymentTransactionByLinkId(
+  paymentLinkId: number,
+): Promise<PaymentTransaction | undefined> {
+  const result = await db
+    .select()
+    .from(paymentTransactions)
+    .where(
+      and(
+        eq(paymentTransactions.paymentLinkId, paymentLinkId),
+        eq(paymentTransactions.status, "pending"),
+      ),
+    )
+    .orderBy(desc(paymentTransactions.createdAt))
+    .limit(1);
+
+  return result[0];
+}
+
+export async function getApprovedPaymentTransactionByLinkId(
+  paymentLinkId: number,
+): Promise<PaymentTransaction | undefined> {
+  const result = await db
+    .select()
+    .from(paymentTransactions)
+    .where(
+      and(
+        eq(paymentTransactions.paymentLinkId, paymentLinkId),
+        eq(paymentTransactions.status, "approved"),
+      ),
+    )
+    .orderBy(desc(paymentTransactions.createdAt))
+    .limit(1);
+
+  return result[0];
+}
+
+export async function approvePaymentTransaction(input: {
+  transactionId: number;
+  provider: string;
+  providerReference?: string | null;
+  rawPayload?: string | null;
+}): Promise<PaymentTransaction | undefined> {
+  const result = await db
+    .update(paymentTransactions)
+    .set({
+      status: "approved",
+      provider: input.provider,
+      providerReference: input.providerReference ?? null,
+      rawPayload: input.rawPayload ?? null,
+      updatedAt: new Date(),
+    })
+    .where(eq(paymentTransactions.id, input.transactionId))
+    .returning();
+
+  return result[0];
+}
+
 export async function listPaymentTransactions(filters?: {
   clinicId?: number;
   paymentLinkId?: number;
+  limit?: number;
+  offset?: number;
 }): Promise<
   Array<
     PaymentTransaction & {
@@ -454,6 +569,7 @@ export async function listPaymentTransactions(filters?: {
       paymentLinkId: paymentTransactions.paymentLinkId,
       provider: paymentTransactions.provider,
       providerReference: paymentTransactions.providerReference,
+      idempotencyKey: paymentTransactions.idempotencyKey,
       status: paymentTransactions.status,
       amountInCents: paymentTransactions.amountInCents,
       currency: paymentTransactions.currency,
@@ -466,8 +582,26 @@ export async function listPaymentTransactions(filters?: {
     .from(paymentTransactions)
     .innerJoin(paymentLinks, eq(paymentTransactions.paymentLinkId, paymentLinks.id));
 
+  const hasPagination =
+    typeof filters?.limit === "number" || typeof filters?.offset === "number";
+
   if (whereFilters.length > 0) {
+    if (hasPagination) {
+      return query
+        .where(and(...whereFilters))
+        .orderBy(desc(paymentTransactions.createdAt))
+        .limit(typeof filters?.limit === "number" ? filters.limit : 20)
+        .offset(typeof filters?.offset === "number" ? filters.offset : 0);
+    }
+
     return query.where(and(...whereFilters)).orderBy(desc(paymentTransactions.createdAt));
+  }
+
+  if (hasPagination) {
+    return query
+      .orderBy(desc(paymentTransactions.createdAt))
+      .limit(typeof filters?.limit === "number" ? filters.limit : 20)
+      .offset(typeof filters?.offset === "number" ? filters.offset : 0);
   }
 
   return query.orderBy(desc(paymentTransactions.createdAt));

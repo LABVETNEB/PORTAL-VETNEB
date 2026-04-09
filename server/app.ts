@@ -1,10 +1,11 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express, { type Request, type Response } from "express";
+import helmet from "helmet";
 
 import { ENV } from "./lib/env";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler";
-import { requestLogger } from "./middlewares/request-logger";
+import { requestContext } from "./middlewares/request-context";
 import adminRoutes from "./routes/admin.routes";
 import authRoutes from "./routes/auth.routes";
 import healthRoutes from "./routes/health.routes";
@@ -14,17 +15,29 @@ import reportsRoutes from "./routes/reports.routes";
 
 export const app = express();
 
+app.set("trust proxy", ENV.trustProxy);
+
+const corsAllowedOrigins = new Set(ENV.corsOrigins);
+
 app.use(
   cors({
-    origin: true,
-    credentials: true,
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      callback(null, corsAllowedOrigins.has(origin));
+    },
+    credentials: ENV.corsAllowCredentials,
   }),
 );
 
+app.use(helmet());
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(requestLogger);
+app.use(requestContext);
 
 app.get("/", (_req: Request, res: Response) => {
   res.status(200).json({

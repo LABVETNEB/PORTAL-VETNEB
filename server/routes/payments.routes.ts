@@ -9,24 +9,12 @@ import {
   listPaymentTransactions,
   updatePaymentLinkStatus,
 } from "../db";
+import { zodValidationResponse } from "../lib/validation";
+import { paymentLinkCreateBodySchema, paymentLinksQuerySchema } from "../schemas/payments";
 import { requireAuth } from "../middlewares/auth";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
-
-function parsePositiveInt(value: unknown): number | undefined {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-}
-
-function parseOptionalDate(value: unknown): Date | undefined {
-  if (typeof value !== "string" || !value.trim()) {
-    return undefined;
-  }
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date;
-}
 
 function createPaymentToken() {
   return randomBytes(24).toString("hex");
@@ -37,38 +25,23 @@ router.use(requireAuth);
 router.post(
   "/links",
   asyncHandler(async (req, res) => {
-    const amountInCents = parsePositiveInt(req.body?.amountInCents);
+    const parsedBody = paymentLinkCreateBodySchema.safeParse(req.body ?? {});
 
-    if (!amountInCents) {
-      return res.status(400).json({
-        success: false,
-        error: "amountInCents debe ser un entero positivo",
-      });
+    if (!parsedBody.success) {
+      return res.status(400).json(zodValidationResponse(parsedBody.error));
     }
 
     const paymentLink = await createPaymentLink({
       clinicId: req.auth!.clinicId,
       createdByAdminUserId: null,
       token: createPaymentToken(),
-      patientName:
-        typeof req.body?.patientName === "string" && req.body.patientName.trim()
-          ? req.body.patientName.trim()
-          : null,
-      patientEmail:
-        typeof req.body?.patientEmail === "string" && req.body.patientEmail.trim()
-          ? req.body.patientEmail.trim()
-          : null,
-      description:
-        typeof req.body?.description === "string" && req.body.description.trim()
-          ? req.body.description.trim()
-          : null,
-      amountInCents,
-      currency:
-        typeof req.body?.currency === "string" && req.body.currency.trim()
-          ? req.body.currency.trim().toUpperCase()
-          : "ARS",
+      patientName: parsedBody.data.patientName,
+      patientEmail: parsedBody.data.patientEmail,
+      description: parsedBody.data.description,
+      amountInCents: parsedBody.data.amountInCents,
+      currency: parsedBody.data.currency,
       status: "pending",
-      expiresAt: parseOptionalDate(req.body?.expiresAt) ?? null,
+      expiresAt: parsedBody.data.expiresAt,
     });
 
     return res.status(201).json({
@@ -83,14 +56,15 @@ router.post(
 router.get(
   "/links",
   asyncHandler(async (req, res) => {
-    const status =
-      typeof req.query.status === "string" && req.query.status.trim()
-        ? req.query.status.trim()
-        : undefined;
+    const parsedQuery = paymentLinksQuerySchema.safeParse(req.query ?? {});
+
+    if (!parsedQuery.success) {
+      return res.status(400).json(zodValidationResponse(parsedQuery.error));
+    }
 
     const paymentLinks = await listPaymentLinks({
       clinicId: req.auth!.clinicId,
-      status,
+      status: parsedQuery.data.status,
     });
 
     return res.json({
@@ -98,7 +72,7 @@ router.get(
       count: paymentLinks.length,
       paymentLinks,
       filters: {
-        status: status ?? null,
+        status: parsedQuery.data.status ?? null,
       },
     });
   }),

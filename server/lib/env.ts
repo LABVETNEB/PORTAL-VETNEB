@@ -16,6 +16,28 @@ function parseCsvList(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+function parseBoolean(value: unknown) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return undefined;
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).optional(),
   PORT: z.coerce.number().int().positive().optional(),
@@ -32,7 +54,23 @@ const envSchema = z.object({
   ),
 
   COOKIE_NAME: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  ADMIN_COOKIE_NAME: z.preprocess(
+    emptyToUndefined,
+    z.string().min(1).optional(),
+  ),
+  ADMIN_JWT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32)),
+  ADMIN_JWT_TTL_MINUTES: z.coerce.number().int().positive().max(24 * 60).optional(),
+  ADMIN_JWT_ISSUER: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  ADMIN_JWT_AUDIENCE: z.preprocess(
+    emptyToUndefined,
+    z.string().min(1).optional(),
+  ),
+
   CORS_ORIGIN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  CORS_ALLOW_CREDENTIALS: z.preprocess(
+    parseBoolean,
+    z.boolean().optional(),
+  ),
   TRUST_PROXY: z.coerce.number().int().min(0).max(10).optional(),
   OWNER_OPEN_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   LAB_UPLOAD_USERNAMES: z.preprocess(
@@ -71,7 +109,14 @@ export const ENV = {
   supabaseStorageBucket: rawEnv.SUPABASE_STORAGE_BUCKET ?? "reports",
 
   cookieName: rawEnv.COOKIE_NAME ?? "app_session_id",
+  adminCookieName: rawEnv.ADMIN_COOKIE_NAME ?? "admin_session_token",
+  adminJwtSecret: rawEnv.ADMIN_JWT_SECRET,
+  adminJwtTtlMinutes: rawEnv.ADMIN_JWT_TTL_MINUTES ?? 60,
+  adminJwtIssuer: rawEnv.ADMIN_JWT_ISSUER ?? "portal-vetneb-api",
+  adminJwtAudience: rawEnv.ADMIN_JWT_AUDIENCE ?? "portal-vetneb-admin",
+
   corsOrigins,
+  corsAllowCredentials: rawEnv.CORS_ALLOW_CREDENTIALS ?? true,
   trustProxy: rawEnv.TRUST_PROXY ?? 1,
   cookieSecure: nodeEnv === "production",
   cookieSameSite: nodeEnv === "production" ? "none" : "lax",

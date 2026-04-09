@@ -65,5 +65,4 @@ CREATE INDEX IF NOT EXISTS "payment_links_status_idx" ON "payment_links" USING b
 CREATE INDEX IF NOT EXISTS "payment_links_expires_at_idx" ON "payment_links" USING btree ("expires_at");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "payment_transactions_payment_link_id_idx" ON "payment_transactions" USING btree ("payment_link_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "payment_transactions_provider_reference_idx" ON "payment_transactions" USING btree ("provider_reference");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "payment_transactions_status_idx" ON "payment_transactions" USING btree ("status");--> statement-breakpoint
-ALTER TABLE "clinic_users" DROP COLUMN IF EXISTS "role";
+CREATE INDEX IF NOT EXISTS "payment_transactions_status_idx" ON "payment_transactions" USING btree ("status");

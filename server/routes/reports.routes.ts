@@ -1,4 +1,5 @@
-﻿import { Router } from "express";
+import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import multer from "multer";
 
 import type { Report } from "../../drizzle/schema";
@@ -18,12 +19,30 @@ import {
   createSignedReportUrl,
   uploadReport,
 } from "../lib/supabase";
+import { zodValidationResponse } from "../lib/validation";
 import { requireAuth } from "../middlewares/auth";
 import { requireRole } from "../middlewares/require-role";
+import {
+  reportIdParamsSchema,
+  reportUploadBodySchema,
+  reportsListQuerySchema,
+  reportsSearchQuerySchema,
+} from "../schemas/reports";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
 const allowedMimeTypes = new Set(ALLOWED_MIME_TYPES);
+
+const uploadRateLimit = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Demasiadas subidas de reportes. Intente mas tarde.",
+  },
+});
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -44,43 +63,6 @@ const upload = multer({
   },
 });
 
-function parsePositiveInt(value: unknown, fallback: number, max?: number) {
-  const parsed = Number(value);
-
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    return fallback;
-  }
-
-  if (typeof max === "number") {
-    return Math.min(parsed, max);
-  }
-
-  return parsed;
-}
-
-function parseOffset(value: unknown, fallback = 0) {
-  const parsed = Number(value);
-
-  if (!Number.isInteger(parsed) || parsed < 0) {
-    return fallback;
-  }
-
-  return parsed;
-}
-
-function normalizeSearchText(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function parseOptionalDate(value: unknown): Date | undefined {
-  if (typeof value !== "string" || !value.trim()) {
-    return undefined;
-  }
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date;
-}
-
 function parseClinicId(value: unknown): number | undefined {
   const parsed = Number(value);
 
@@ -91,10 +73,8 @@ function parseClinicId(value: unknown): number | undefined {
   return undefined;
 }
 
-function getReadClinicScope(reqClinicId: unknown, authClinicId: number) {
-  const requestedClinicId = parseClinicId(reqClinicId);
-
-  if (requestedClinicId && requestedClinicId !== authClinicId) {
+function getReadClinicScope(reqClinicId: number | undefined, authClinicId: number) {
+  if (reqClinicId && reqClinicId !== authClinicId) {
     return {
       clinicId: authClinicId,
       isForbidden: true,
@@ -105,11 +85,6 @@ function getReadClinicScope(reqClinicId: unknown, authClinicId: number) {
     clinicId: authClinicId,
     isForbidden: false,
   };
-}
-
-function parseReportId(value: unknown): number | undefined {
-  const reportId = Number(value);
-  return Number.isInteger(reportId) && reportId > 0 ? reportId : undefined;
 }
 
 async function getAuthorizedReport(
@@ -170,18 +145,13 @@ router.use(requireAuth);
 
 router.post(
   "/upload",
+  uploadRateLimit,
   requireRole(USER_ROLES.LAB),
   upload.single("file"),
   asyncHandler(async (req, res) => {
     auditInfo(req, "report.upload.started", {
-      requestedClinicId:
-        typeof req.body?.clinicId === "string" ||
-        typeof req.body?.clinicId === "number"
-          ? req.body.clinicId
-          : typeof req.query?.clinicId === "string" ||
-              typeof req.query?.clinicId === "number"
-            ? req.query.clinicId
-            : null,
+      requestedClinicIdBody: req.body?.clinicId ?? null,
+      requestedClinicIdQuery: req.query?.clinicId ?? null,
       fileName: req.file?.originalname ?? null,
     });
 
@@ -194,24 +164,37 @@ router.post(
       });
     }
 
-    const clinicId =
-      parseClinicId(req.body?.clinicId ?? req.query.clinicId) ??
-      req.auth!.clinicId;
+    const parsedBody = reportUploadBodySchema.safeParse(req.body ?? {});
 
-    if (!Number.isInteger(clinicId) || clinicId <= 0) {
-      auditWarn(req, "report.upload.invalid_clinic_id", {
-        clinicId,
+    if (!parsedBody.success) {
+      return res.status(400).json(zodValidationResponse(parsedBody.error));
+    }
+
+    const requestedClinicIdByQuery = parseClinicId(req.query?.clinicId);
+    const requestedClinicIdByBody = parsedBody.data.clinicId;
+
+    if (
+      (typeof requestedClinicIdByQuery === "number" &&
+        requestedClinicIdByQuery !== req.auth!.clinicId) ||
+      (typeof requestedClinicIdByBody === "number" &&
+        requestedClinicIdByBody !== req.auth!.clinicId)
+    ) {
+      auditWarn(req, "report.upload.cross_clinic_blocked", {
+        requestedClinicIdByQuery: requestedClinicIdByQuery ?? null,
+        requestedClinicIdByBody: requestedClinicIdByBody ?? null,
+        authClinicId: req.auth!.clinicId,
       });
 
-      return res.status(400).json({
+      return res.status(403).json({
         success: false,
-        error: "clinicId inválido",
+        error: "No autorizado para subir reportes en otra clinica",
       });
     }
 
-    const patientName = normalizeSearchText(req.body?.patientName);
-    const studyType = normalizeSearchText(req.body?.studyType);
-    const uploadDate = parseOptionalDate(req.body?.uploadDate);
+    const clinicId = req.auth!.clinicId;
+    const patientName = parsedBody.data.patientName;
+    const studyType = parsedBody.data.studyType;
+    const uploadDate = parsedBody.data.uploadDate;
     const fileName = req.file.originalname;
     const mimeType = req.file.mimetype;
 
@@ -225,9 +208,9 @@ router.post(
 
       const report = await upsertReport({
         clinicId,
-        patientName: patientName ?? null,
-        studyType: studyType ?? null,
-        uploadDate: uploadDate ?? null,
+        patientName,
+        studyType,
+        uploadDate,
         fileName,
         storagePath,
       });
@@ -262,9 +245,13 @@ router.post(
 router.get(
   "/",
   asyncHandler(async (req, res) => {
-    const scope = getReadClinicScope(req.query.clinicId, req.auth!.clinicId);
-    const limit = parsePositiveInt(req.query.limit, 50, 100);
-    const offset = parseOffset(req.query.offset, 0);
+    const parsedQuery = reportsListQuerySchema.safeParse(req.query ?? {});
+
+    if (!parsedQuery.success) {
+      return res.status(400).json(zodValidationResponse(parsedQuery.error));
+    }
+
+    const scope = getReadClinicScope(parsedQuery.data.clinicId, req.auth!.clinicId);
 
     if (scope.isForbidden) {
       return res.status(403).json({
@@ -273,15 +260,19 @@ router.get(
       });
     }
 
-    const reports = await getReportsByClinicId(scope.clinicId, limit, offset);
+    const reports = await getReportsByClinicId(
+      scope.clinicId,
+      parsedQuery.data.limit,
+      parsedQuery.data.offset,
+    );
 
     return res.json({
       success: true,
       count: reports.length,
       reports: await serializeReports(reports),
       pagination: {
-        limit,
-        offset,
+        limit: parsedQuery.data.limit,
+        offset: parsedQuery.data.offset,
       },
     });
   }),
@@ -290,11 +281,13 @@ router.get(
 router.get(
   "/search",
   asyncHandler(async (req, res) => {
-    const scope = getReadClinicScope(req.query.clinicId, req.auth!.clinicId);
-    const query = normalizeSearchText(req.query.query);
-    const studyType = normalizeSearchText(req.query.studyType);
-    const limit = parsePositiveInt(req.query.limit, 50, 100);
-    const offset = parseOffset(req.query.offset, 0);
+    const parsedQuery = reportsSearchQuerySchema.safeParse(req.query ?? {});
+
+    if (!parsedQuery.success) {
+      return res.status(400).json(zodValidationResponse(parsedQuery.error));
+    }
+
+    const scope = getReadClinicScope(parsedQuery.data.clinicId, req.auth!.clinicId);
 
     if (scope.isForbidden) {
       return res.status(403).json({
@@ -305,10 +298,10 @@ router.get(
 
     const reports = await searchReports(
       scope.clinicId,
-      query,
-      studyType,
-      limit,
-      offset,
+      parsedQuery.data.query,
+      parsedQuery.data.studyType,
+      parsedQuery.data.limit,
+      parsedQuery.data.offset,
     );
 
     return res.json({
@@ -316,12 +309,12 @@ router.get(
       count: reports.length,
       reports: await serializeReports(reports),
       filters: {
-        query: query ?? null,
-        studyType: studyType ?? null,
+        query: parsedQuery.data.query ?? null,
+        studyType: parsedQuery.data.studyType ?? null,
       },
       pagination: {
-        limit,
-        offset,
+        limit: parsedQuery.data.limit,
+        offset: parsedQuery.data.offset,
       },
     });
   }),
@@ -330,7 +323,13 @@ router.get(
 router.get(
   "/study-types",
   asyncHandler(async (req, res) => {
-    const scope = getReadClinicScope(req.query.clinicId, req.auth!.clinicId);
+    const parsedQuery = reportsListQuerySchema.safeParse(req.query ?? {});
+
+    if (!parsedQuery.success) {
+      return res.status(400).json(zodValidationResponse(parsedQuery.error));
+    }
+
+    const scope = getReadClinicScope(parsedQuery.data.clinicId, req.auth!.clinicId);
 
     if (scope.isForbidden) {
       return res.status(403).json({
@@ -351,17 +350,14 @@ router.get(
 router.get(
   "/:reportId/preview-url",
   asyncHandler(async (req, res) => {
-    const reportId = parseReportId(req.params.reportId);
+    const parsedParams = reportIdParamsSchema.safeParse(req.params ?? {});
 
-    if (typeof reportId !== "number") {
-      return res.status(400).json({
-        success: false,
-        error: "ID de informe invalido",
-      });
+    if (!parsedParams.success) {
+      return res.status(400).json(zodValidationResponse(parsedParams.error));
     }
 
     const reportResult = await getAuthorizedReport(
-      reportId,
+      parsedParams.data.reportId,
       req.auth!.clinicId,
       "No autorizado para previsualizar este informe",
     );
@@ -387,17 +383,14 @@ router.get(
 router.get(
   "/:reportId/download-url",
   asyncHandler(async (req, res) => {
-    const reportId = parseReportId(req.params.reportId);
+    const parsedParams = reportIdParamsSchema.safeParse(req.params ?? {});
 
-    if (typeof reportId !== "number") {
-      return res.status(400).json({
-        success: false,
-        error: "ID de informe invalido",
-      });
+    if (!parsedParams.success) {
+      return res.status(400).json(zodValidationResponse(parsedParams.error));
     }
 
     const reportResult = await getAuthorizedReport(
-      reportId,
+      parsedParams.data.reportId,
       req.auth!.clinicId,
       "No autorizado para descargar este informe",
     );

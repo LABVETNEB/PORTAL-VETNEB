@@ -6,6 +6,7 @@ import {
   canManageUsers,
   canUploadReports,
   normalizeUserRole,
+  USER_ROLES,
   type UserRole,
 } from "../lib/permissions";
 import { ENV } from "../lib/env";
@@ -14,7 +15,7 @@ export interface AuthContext {
   id: number;
   clinicId: number;
   username: string;
-  role: UserRole | null;
+  role: UserRole;
   authProId: string | null;
   sessionToken: string;
   canUploadReports: boolean;
@@ -50,7 +51,7 @@ export const requireAuth = async (
     if (!session || !session.expiresAt || session.expiresAt < new Date()) {
       return res.status(401).json({
         success: false,
-        error: "Sesión inválida o expirada",
+        error: "Sesion invalida o expirada",
       });
     }
 
@@ -63,7 +64,7 @@ export const requireAuth = async (
       });
     }
 
-    const role = normalizeUserRole(clinicUser.role);
+    const role = normalizeUserRole(clinicUser.role) ?? USER_ROLES.LAB;
 
     req.auth = {
       id: clinicUser.id,
@@ -82,7 +83,7 @@ export const requireAuth = async (
 
     return res.status(500).json({
       success: false,
-      error: "Error interno de autenticación",
+      error: "Error interno de autenticacion",
     });
   }
 };

@@ -38,6 +38,8 @@ export function requestContext(
       clinicId: req.auth?.clinicId ?? null,
       username: req.auth?.username ?? null,
       role: req.auth?.role ?? null,
+      adminUserId: req.admin?.adminUser.id ?? null,
+      adminEmail: req.admin?.adminUser.email ?? null,
       ip: req.ip,
       userAgent: req.get("user-agent") ?? null,
     });

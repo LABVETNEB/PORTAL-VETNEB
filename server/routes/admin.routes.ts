@@ -1,48 +1,20 @@
 import { Router } from "express";
 
 import {
-  getAdminUserByEmail,
+  countPaymentLinks,
   listAdminUsers,
   listClinics,
   listPaymentLinks,
   listPaymentTransactions,
 } from "../db";
+import { zodValidationResponse } from "../lib/validation";
+import { requireAdminAuth } from "../middlewares/admin-auth";
+import { adminPaymentLinksQuerySchema } from "../schemas/payments";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
 
-const requireAdmin = asyncHandler(async (req, res, next) => {
-  const rawEmail = req.header("x-admin-email");
-
-  if (!rawEmail || !rawEmail.trim()) {
-    return res.status(401).json({
-      success: false,
-      error: "Header x-admin-email requerido",
-    });
-  }
-
-  const adminUser = await getAdminUserByEmail(rawEmail);
-
-  if (!adminUser || !adminUser.isActive) {
-    return res.status(403).json({
-      success: false,
-      error: "Admin no autorizado",
-    });
-  }
-
-  req.admin = adminUser;
-  next();
-});
-
-declare global {
-  namespace Express {
-    interface Request {
-      admin?: Awaited<ReturnType<typeof getAdminUserByEmail>>;
-    }
-  }
-}
-
-router.use(requireAdmin);
+router.use(requireAdminAuth);
 
 router.get(
   "/health",
@@ -84,19 +56,36 @@ router.get(
 router.get(
   "/payment-links",
   asyncHandler(async (req, res) => {
-    const status =
-      typeof req.query.status === "string" && req.query.status.trim()
-        ? req.query.status.trim()
-        : undefined;
+    const parsedQuery = adminPaymentLinksQuerySchema.safeParse(req.query ?? {});
 
-    const paymentLinks = await listPaymentLinks({ status });
+    if (!parsedQuery.success) {
+      return res.status(400).json(zodValidationResponse(parsedQuery.error));
+    }
+
+    const { status, page, pageSize } = parsedQuery.data;
+    const offset = (page - 1) * pageSize;
+
+    const [paymentLinks, total] = await Promise.all([
+      listPaymentLinks({
+        status,
+        limit: pageSize,
+        offset,
+      }),
+      countPaymentLinks({ status }),
+    ]);
 
     return res.json({
       success: true,
       count: paymentLinks.length,
+      total,
       paymentLinks,
       filters: {
         status: status ?? null,
+      },
+      pagination: {
+        page,
+        pageSize,
+        totalPages: total > 0 ? Math.ceil(total / pageSize) : 0,
       },
     });
   }),
