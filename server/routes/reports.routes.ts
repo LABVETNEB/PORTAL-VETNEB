@@ -1,6 +1,5 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import multer from "multer";
-
 import type { Report } from "../../drizzle/schema";
 import {
   getReportById,
@@ -20,6 +19,7 @@ import { requireAuth } from "../middlewares/auth";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
+
 const allowedMimeTypes = new Set(ALLOWED_MIME_TYPES);
 
 const upload = multer({
@@ -113,34 +113,26 @@ async function getAuthorizedReport(
   reportId: number,
   clinicId: number,
   unauthorizedMessage: string,
-): Promise<
-  | {
-      report: Report;
-    }
-  | {
-      status: 403 | 404;
-      error: string;
-    }
-> {
+): Promise<{ report: Report } | { status: 403 | 404; error: string }> {
   const report = await getReportById(reportId);
 
   if (!report) {
     return {
       status: 404,
       error: "Informe no encontrado",
-    } as const;
+    };
   }
 
   if (report.clinicId !== clinicId) {
     return {
       status: 403,
       error: unauthorizedMessage,
-    } as const;
+    };
   }
 
   return {
     report,
-  } as const;
+  };
 }
 
 async function serializeReport(report: Report) {
@@ -188,9 +180,7 @@ router.post(
       });
     }
 
-    const clinicId =
-      parseClinicId(req.body?.clinicId ?? req.query.clinicId) ??
-      req.auth!.clinicId;
+    const clinicId = req.auth!.clinicId;
 
     const storagePath = await uploadReport({
       file: req.file.buffer,
