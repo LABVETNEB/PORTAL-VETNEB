@@ -7,6 +7,17 @@ const emptyToUndefined = (value: unknown) => {
   return trimmed.length === 0 ? undefined : trimmed;
 };
 
+const parseBooleanishEnv = (value: unknown) => {
+  if (typeof value !== "string") return value;
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized.length === 0) return undefined;
+  if (["true", "1", "yes", "si", "sÃ­"].includes(normalized)) return true;
+  if (["false", "0", "no"].includes(normalized)) return false;
+
+  return value;
+};
+
 function parseCsvList(value: string | undefined): string[] {
   if (!value) return [];
   return value
@@ -50,6 +61,12 @@ const envSchema = z.object({
     .positive()
     .optional(),
   SESSION_TTL_HOURS: z.coerce.number().positive().optional(),
+  SMTP_HOST: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  SMTP_PORT: z.coerce.number().int().positive().optional(),
+  SMTP_SECURE: z.preprocess(parseBooleanishEnv, z.boolean().optional()),
+  SMTP_USER: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  SMTP_PASS: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  SMTP_FROM: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
 });
 
 const rawEnv = envSchema.parse(process.env);
@@ -63,6 +80,14 @@ if (!databaseUrl) {
 }
 
 const corsOrigins = parseCsvList(rawEnv.CORS_ORIGIN);
+
+const smtpEnabled = Boolean(
+  rawEnv.SMTP_HOST &&
+    rawEnv.SMTP_PORT &&
+    rawEnv.SMTP_USER &&
+    rawEnv.SMTP_PASS &&
+    rawEnv.SMTP_FROM,
+);
 
 export const ENV = {
   nodeEnv,
@@ -90,4 +115,13 @@ export const ENV = {
   signedUrlExpiresInSeconds:
     rawEnv.SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS ?? 60 * 15,
   sessionTtlHours: rawEnv.SESSION_TTL_HOURS ?? 24,
+  smtp: {
+    enabled: smtpEnabled,
+    host: rawEnv.SMTP_HOST ?? "",
+    port: rawEnv.SMTP_PORT ?? 587,
+    secure: rawEnv.SMTP_SECURE ?? false,
+    user: rawEnv.SMTP_USER ?? "",
+    pass: rawEnv.SMTP_PASS ?? "",
+    from: rawEnv.SMTP_FROM ?? "",
+  },
 } as const;

@@ -226,6 +226,123 @@ export const clinicPublicSearch = pgTable(
   }),
 );
 
+export const studyTrackingCases = pgTable(
+  "study_tracking_cases",
+  {
+    id: serial("id").primaryKey(),
+    clinicId: integer("clinic_id")
+      .notNull()
+      .references(() => clinics.id, { onDelete: "cascade" }),
+    reportId: integer("report_id")
+      .unique()
+      .references(() => reports.id, { onDelete: "set null" }),
+    particularTokenId: integer("particular_token_id")
+      .unique()
+      .references(() => particularTokens.id, { onDelete: "set null" }),
+    createdByAdminId: integer("created_by_admin_id").references(
+      () => adminUsers.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    createdByClinicUserId: integer("created_by_clinic_user_id").references(
+      () => clinicUsers.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    receptionAt: timestamp("reception_at", { mode: "date" }).notNull(),
+    estimatedDeliveryAt: timestamp("estimated_delivery_at", {
+      mode: "date",
+    }).notNull(),
+    estimatedDeliveryAutoCalculatedAt: timestamp(
+      "estimated_delivery_auto_calculated_at",
+      { mode: "date" },
+    ).notNull(),
+    estimatedDeliveryWasManuallyAdjusted: boolean(
+      "estimated_delivery_was_manually_adjusted",
+    )
+      .default(false)
+      .notNull(),
+    currentStage: varchar("current_stage", { length: 40 })
+      .default("reception")
+      .notNull(),
+    processingAt: timestamp("processing_at", { mode: "date" }),
+    evaluationAt: timestamp("evaluation_at", { mode: "date" }),
+    reportDevelopmentAt: timestamp("report_development_at", {
+      mode: "date",
+    }),
+    deliveredAt: timestamp("delivered_at", { mode: "date" }),
+    specialStainRequired: boolean("special_stain_required")
+      .default(false)
+      .notNull(),
+    specialStainNotifiedAt: timestamp("special_stain_notified_at", {
+      mode: "date",
+    }),
+    paymentUrl: text("payment_url"),
+    adminContactEmail: varchar("admin_contact_email", { length: 255 }),
+    adminContactPhone: varchar("admin_contact_phone", { length: 50 }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    clinicIdIdx: index("study_tracking_cases_clinic_id_idx").on(table.clinicId),
+    currentStageIdx: index("study_tracking_cases_current_stage_idx").on(
+      table.currentStage,
+    ),
+    estimatedDeliveryIdx: index(
+      "study_tracking_cases_estimated_delivery_at_idx",
+    ).on(table.estimatedDeliveryAt),
+    createdAtIdx: index("study_tracking_cases_created_at_idx").on(
+      table.createdAt,
+    ),
+  }),
+);
+
+export const studyTrackingNotifications = pgTable(
+  "study_tracking_notifications",
+  {
+    id: serial("id").primaryKey(),
+    studyTrackingCaseId: integer("study_tracking_case_id")
+      .notNull()
+      .references(() => studyTrackingCases.id, { onDelete: "cascade" }),
+    clinicId: integer("clinic_id")
+      .notNull()
+      .references(() => clinics.id, { onDelete: "cascade" }),
+    reportId: integer("report_id").references(() => reports.id, {
+      onDelete: "set null",
+    }),
+    particularTokenId: integer("particular_token_id").references(
+      () => particularTokens.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    type: varchar("type", { length: 80 }).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    message: text("message").notNull(),
+    isRead: boolean("is_read").default(false).notNull(),
+    readAt: timestamp("read_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    studyTrackingCaseIdIdx: index(
+      "study_tracking_notifications_case_id_idx",
+    ).on(table.studyTrackingCaseId),
+    clinicIdIdx: index("study_tracking_notifications_clinic_id_idx").on(
+      table.clinicId,
+    ),
+    particularTokenIdIdx: index(
+      "study_tracking_notifications_particular_token_id_idx",
+    ).on(table.particularTokenId),
+    unreadIdx: index("study_tracking_notifications_unread_idx").on(
+      table.isRead,
+      table.createdAt,
+    ),
+  }),
+);
+
 export const particularSessions = pgTable(
   "particular_sessions",
   {
@@ -274,6 +391,16 @@ export type NewClinicPublicProfile = InferInsertModel<typeof clinicPublicProfile
 
 export type ClinicPublicSearch = InferSelectModel<typeof clinicPublicSearch>;
 export type NewClinicPublicSearch = InferInsertModel<typeof clinicPublicSearch>;
+
+export type StudyTrackingCase = InferSelectModel<typeof studyTrackingCases>;
+export type NewStudyTrackingCase = InferInsertModel<typeof studyTrackingCases>;
+
+export type StudyTrackingNotification = InferSelectModel<
+  typeof studyTrackingNotifications
+>;
+export type NewStudyTrackingNotification = InferInsertModel<
+  typeof studyTrackingNotifications
+>;
 
 export type ParticularSession = InferSelectModel<typeof particularSessions>;
 export type NewParticularSession = InferInsertModel<typeof particularSessions>;

@@ -8,6 +8,10 @@ import {
   searchReports,
   upsertReport,
 } from "../db";
+import {
+  getClinicScopedStudyTrackingCase,
+  updateStudyTrackingCase,
+} from "../db-study-tracking";
 import { ENV } from "../lib/env";
 import {
   ALLOWED_MIME_TYPES,
@@ -192,6 +196,21 @@ router.post(
     const patientName = normalizeSearchText(req.body?.patientName);
     const studyType = normalizeSearchText(req.body?.studyType);
     const uploadDate = parseOptionalDate(req.body?.uploadDate);
+    const trackingCaseId = parseReportId(req.body?.trackingCaseId);
+
+    if (typeof trackingCaseId === "number") {
+      const trackingCase = await getClinicScopedStudyTrackingCase(
+        trackingCaseId,
+        clinicId,
+      );
+
+      if (!trackingCase) {
+        return res.status(404).json({
+          success: false,
+          error: "Seguimiento no encontrado para la clínica autenticada",
+        });
+      }
+    }
 
     const report = await upsertReport({
       clinicId,
@@ -201,6 +220,12 @@ router.post(
       fileName: req.file.originalname,
       storagePath,
     });
+
+    if (typeof trackingCaseId === "number") {
+      await updateStudyTrackingCase(trackingCaseId, {
+        reportId: report.id,
+      });
+    }
 
     return res.status(201).json({
       success: true,
