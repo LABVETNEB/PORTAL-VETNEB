@@ -2,7 +2,13 @@ import type { Server } from "node:http";
 import { sql } from "drizzle-orm";
 
 import { app } from "./app";
-import { closeDbConnection, db, deleteExpiredSessions } from "./db";
+import {
+  closeDbConnection,
+  db,
+  deleteExpiredAdminSessions,
+  deleteExpiredSessions,
+} from "./db";
+import { deleteExpiredParticularSessions } from "./db-particular";
 import { ENV } from "./lib/env";
 import { ensureStorageBucketExists } from "./lib/supabase";
 
@@ -12,11 +18,21 @@ async function bootstrap() {
   try {
     await db.execute(sql`select 1`);
     await ensureStorageBucketExists();
-    const deletedSessions = await deleteExpiredSessions();
+
+    const [deletedClinicSessions, deletedAdminSessions, deletedParticularSessions] =
+      await Promise.all([
+        deleteExpiredSessions(),
+        deleteExpiredAdminSessions(),
+        deleteExpiredParticularSessions(),
+      ]);
 
     server = app.listen(ENV.port, () => {
       console.log(`API listening on http://localhost:${ENV.port}`);
-      console.log(`Expired sessions cleaned: ${deletedSessions}`);
+      console.log(`Expired clinic sessions cleaned: ${deletedClinicSessions}`);
+      console.log(`Expired admin sessions cleaned: ${deletedAdminSessions}`);
+      console.log(
+        `Expired particular sessions cleaned: ${deletedParticularSessions}`,
+      );
     });
 
     const shutdown = async (signal: string) => {

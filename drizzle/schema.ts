@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   integer,
   pgTable,
@@ -26,6 +27,14 @@ export const clinicUsers = pgTable("clinic_users", {
   username: varchar("username", { length: 100 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   authProId: varchar("auth_pro_id", { length: 100 }),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const adminUsers = pgTable("admin_users", {
+  id: serial("id").primaryKey(),
+  username: varchar("username", { length: 100 }).notNull().unique(),
+  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
@@ -80,14 +89,191 @@ export const activeSessions = pgTable(
   }),
 );
 
+export const adminSessions = pgTable(
+  "admin_sessions",
+  {
+    id: serial("id").primaryKey(),
+    adminUserId: integer("admin_user_id")
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: "cascade" }),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+    lastAccess: timestamp("last_access", { mode: "date" }),
+    expiresAt: timestamp("expires_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    tokenHashIdx: index("admin_sessions_token_hash_idx").on(table.tokenHash),
+    adminUserIdIdx: index("admin_sessions_admin_user_id_idx").on(
+      table.adminUserId,
+    ),
+  }),
+);
+
+export const particularTokens = pgTable(
+  "particular_tokens",
+  {
+    id: serial("id").primaryKey(),
+    clinicId: integer("clinic_id")
+      .notNull()
+      .references(() => clinics.id, { onDelete: "cascade" }),
+    reportId: integer("report_id").references(() => reports.id, {
+      onDelete: "set null",
+    }),
+    createdByAdminId: integer("created_by_admin_id").references(
+      () => adminUsers.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    createdByClinicUserId: integer("created_by_clinic_user_id").references(
+      () => clinicUsers.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+    tokenLast4: varchar("token_last4", { length: 4 }).notNull(),
+    tutorLastName: varchar("tutor_last_name", { length: 255 }).notNull(),
+    petName: varchar("pet_name", { length: 255 }).notNull(),
+    petAge: varchar("pet_age", { length: 100 }).notNull(),
+    petBreed: varchar("pet_breed", { length: 255 }).notNull(),
+    petSex: varchar("pet_sex", { length: 50 }).notNull(),
+    petSpecies: varchar("pet_species", { length: 100 }).notNull(),
+    sampleLocation: text("sample_location").notNull(),
+    sampleEvolution: text("sample_evolution").notNull(),
+    detailsLesion: text("details_lesion"),
+    extractionDate: timestamp("extraction_date", { mode: "date" }).notNull(),
+    shippingDate: timestamp("shipping_date", { mode: "date" }).notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    lastLoginAt: timestamp("last_login_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    tokenHashIdx: index("particular_tokens_token_hash_idx").on(table.tokenHash),
+    clinicIdIdx: index("particular_tokens_clinic_id_idx").on(table.clinicId),
+    reportIdIdx: index("particular_tokens_report_id_idx").on(table.reportId),
+    clinicCreatedAtIdx: index("particular_tokens_clinic_created_at_idx").on(
+      table.clinicId,
+      table.createdAt,
+    ),
+  }),
+);
+
+export const clinicPublicProfiles = pgTable(
+  "clinic_public_profiles",
+  {
+    clinicId: integer("clinic_id")
+      .primaryKey()
+      .references(() => clinics.id, { onDelete: "cascade" }),
+    displayName: varchar("display_name", { length: 255 }),
+    avatarStoragePath: varchar("avatar_storage_path", { length: 512 }),
+    aboutText: text("about_text"),
+    specialtyText: text("specialty_text"),
+    servicesText: text("services_text"),
+    email: varchar("email", { length: 255 }),
+    phone: varchar("phone", { length: 50 }),
+    locality: varchar("locality", { length: 255 }),
+    country: varchar("country", { length: 255 }),
+    isPublic: boolean("is_public").default(false).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    isPublicIdx: index("clinic_public_profiles_is_public_idx").on(
+      table.isPublic,
+    ),
+    countryIdx: index("clinic_public_profiles_country_idx").on(table.country),
+    localityIdx: index("clinic_public_profiles_locality_idx").on(table.locality),
+  }),
+);
+
+export const clinicPublicSearch = pgTable(
+  "clinic_public_search",
+  {
+    clinicId: integer("clinic_id")
+      .primaryKey()
+      .references(() => clinics.id, { onDelete: "cascade" }),
+    displayName: varchar("display_name", { length: 255 }).notNull(),
+    avatarStoragePath: varchar("avatar_storage_path", { length: 512 }),
+    aboutText: text("about_text"),
+    specialtyText: text("specialty_text"),
+    servicesText: text("services_text"),
+    email: varchar("email", { length: 255 }),
+    phone: varchar("phone", { length: 50 }),
+    locality: varchar("locality", { length: 255 }),
+    country: varchar("country", { length: 255 }),
+    isPublic: boolean("is_public").default(false).notNull(),
+    hasRequiredPublicFields: boolean("has_required_public_fields")
+      .default(false)
+      .notNull(),
+    isSearchEligible: boolean("is_search_eligible").default(false).notNull(),
+    profileQualityScore: integer("profile_quality_score").default(0).notNull(),
+    searchText: text("search_text").notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    isPublicIdx: index("clinic_public_search_is_public_idx").on(table.isPublic),
+    isSearchEligibleIdx: index("clinic_public_search_is_search_eligible_idx").on(
+      table.isSearchEligible,
+    ),
+    qualityScoreIdx: index("clinic_public_search_profile_quality_score_idx").on(
+      table.profileQualityScore,
+    ),
+    updatedAtIdx: index("clinic_public_search_updated_at_idx").on(
+      table.updatedAt,
+    ),
+  }),
+);
+
+export const particularSessions = pgTable(
+  "particular_sessions",
+  {
+    id: serial("id").primaryKey(),
+    particularTokenId: integer("particular_token_id")
+      .notNull()
+      .references(() => particularTokens.id, { onDelete: "cascade" }),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+    lastAccess: timestamp("last_access", { mode: "date" }),
+    expiresAt: timestamp("expires_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    tokenHashIdx: index("particular_sessions_token_hash_idx").on(
+      table.tokenHash,
+    ),
+    particularTokenIdIdx: index("particular_sessions_particular_token_id_idx").on(
+      table.particularTokenId,
+    ),
+  }),
+);
+
 export type Clinic = InferSelectModel<typeof clinics>;
 export type NewClinic = InferInsertModel<typeof clinics>;
 
 export type ClinicUser = InferSelectModel<typeof clinicUsers>;
 export type NewClinicUser = InferInsertModel<typeof clinicUsers>;
 
+export type AdminUser = InferSelectModel<typeof adminUsers>;
+export type NewAdminUser = InferInsertModel<typeof adminUsers>;
+
 export type Report = InferSelectModel<typeof reports>;
 export type NewReport = InferInsertModel<typeof reports>;
 
 export type ActiveSession = InferSelectModel<typeof activeSessions>;
 export type NewActiveSession = InferInsertModel<typeof activeSessions>;
+
+export type AdminSession = InferSelectModel<typeof adminSessions>;
+export type NewAdminSession = InferInsertModel<typeof adminSessions>;
+
+export type ParticularToken = InferSelectModel<typeof particularTokens>;
+export type NewParticularToken = InferInsertModel<typeof particularTokens>;
+
+export type ClinicPublicProfile = InferSelectModel<typeof clinicPublicProfiles>;
+export type NewClinicPublicProfile = InferInsertModel<typeof clinicPublicProfiles>;
+
+export type ClinicPublicSearch = InferSelectModel<typeof clinicPublicSearch>;
+export type NewClinicPublicSearch = InferInsertModel<typeof clinicPublicSearch>;
+
+export type ParticularSession = InferSelectModel<typeof particularSessions>;
+export type NewParticularSession = InferInsertModel<typeof particularSessions>;

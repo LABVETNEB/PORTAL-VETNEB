@@ -16,6 +16,7 @@ import {
 import { ENV } from "../lib/env";
 import { canUploadReports } from "../lib/permissions";
 import { requireAuth } from "../middlewares/auth";
+import { requireTrustedOrigin } from "../middlewares/trusted-origin";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
@@ -33,6 +34,7 @@ const loginRateLimit = rateLimit({
 
 router.post(
   "/login",
+  requireTrustedOrigin,
   loginRateLimit,
   asyncHandler(async (req, res) => {
     const username =
@@ -135,6 +137,7 @@ router.get(
 
 router.post(
   "/logout",
+  requireTrustedOrigin,
   requireAuth,
   asyncHandler(async (req, res) => {
     const tokenHash = hashSessionToken(req.auth!.sessionToken);

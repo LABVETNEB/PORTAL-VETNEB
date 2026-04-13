@@ -1,16 +1,13 @@
-import { and, desc, eq, ilike, isNotNull, lte, or } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-
+import { drizzle } from "drizzle-orm/postgres-js";
+import { and, desc, eq, ilike, isNotNull, lte, or } from "drizzle-orm";
 import {
   activeSessions,
+  adminSessions,
+  adminUsers,
   clinicUsers,
   clinics,
   reports,
-  type ActiveSession,
-  type Clinic,
-  type ClinicUser,
-  type Report,
 } from "../drizzle/schema";
 import { ENV } from "./lib/env";
 
@@ -18,28 +15,28 @@ const client = postgres(ENV.databaseUrl, {
   prepare: false,
 });
 
+export const pgClient = client;
 export const db = drizzle(client);
 
 export async function closeDbConnection(): Promise<void> {
   await client.end();
 }
 
-/* =========================
-   CLINICS
-========================= */
+/* ========================= CLINICS ========================= */
 
-export async function getClinicById(id: number): Promise<Clinic | undefined> {
-  const result = await db.select().from(clinics).where(eq(clinics.id, id)).limit(1);
+export async function getClinicById(id: number) {
+  const result = await db
+    .select()
+    .from(clinics)
+    .where(eq(clinics.id, id))
+    .limit(1);
+
   return result[0];
 }
 
-/* =========================
-   USERS
-========================= */
+/* ========================= CLINIC USERS ========================= */
 
-export async function getClinicUserById(
-  id: number,
-): Promise<ClinicUser | undefined> {
+export async function getClinicUserById(id: number) {
   const result = await db
     .select()
     .from(clinicUsers)
@@ -49,9 +46,7 @@ export async function getClinicUserById(
   return result[0];
 }
 
-export async function getClinicUserByUsername(
-  username: string,
-): Promise<ClinicUser | undefined> {
+export async function getClinicUserByUsername(username: string) {
   const result = await db
     .select()
     .from(clinicUsers)
@@ -66,7 +61,7 @@ export async function upsertClinicUser(user: {
   username: string;
   passwordHash: string;
   authProId?: string | null;
-}): Promise<ClinicUser> {
+}) {
   const now = new Date();
 
   const result = await db
@@ -92,15 +87,35 @@ export async function upsertClinicUser(user: {
   return result[0];
 }
 
-/* =========================
-   SESSIONS
-========================= */
+/* ========================= ADMIN USERS ========================= */
+
+export async function getAdminUserById(id: number) {
+  const result = await db
+    .select()
+    .from(adminUsers)
+    .where(eq(adminUsers.id, id))
+    .limit(1);
+
+  return result[0];
+}
+
+export async function getAdminUserByUsername(username: string) {
+  const result = await db
+    .select()
+    .from(adminUsers)
+    .where(eq(adminUsers.username, username.trim()))
+    .limit(1);
+
+  return result[0];
+}
+
+/* ========================= CLINIC SESSIONS ========================= */
 
 export async function createActiveSession(session: {
   clinicUserId: number;
   tokenHash: string;
   expiresAt: Date;
-}): Promise<ActiveSession> {
+}) {
   const result = await db
     .insert(activeSessions)
     .values({
@@ -114,9 +129,7 @@ export async function createActiveSession(session: {
   return result[0];
 }
 
-export async function getActiveSessionByToken(
-  tokenHash: string,
-): Promise<ActiveSession | undefined> {
+export async function getActiveSessionByToken(tokenHash: string) {
   const result = await db
     .select()
     .from(activeSessions)
@@ -126,9 +139,7 @@ export async function getActiveSessionByToken(
   return result[0];
 }
 
-export async function updateSessionLastAccess(
-  tokenHash: string,
-): Promise<void> {
+export async function updateSessionLastAccess(tokenHash: string): Promise<void> {
   await db
     .update(activeSessions)
     .set({ lastAccess: new Date() })
@@ -152,12 +163,71 @@ export async function deleteExpiredSessions(): Promise<number> {
   return result.length;
 }
 
-/* =========================
-   REPORTS
-========================= */
+/* ========================= ADMIN SESSIONS ========================= */
 
-export async function getReportById(id: number): Promise<Report | undefined> {
-  const result = await db.select().from(reports).where(eq(reports.id, id)).limit(1);
+export async function createAdminSession(session: {
+  adminUserId: number;
+  tokenHash: string;
+  expiresAt: Date;
+}) {
+  const result = await db
+    .insert(adminSessions)
+    .values({
+      adminUserId: session.adminUserId,
+      tokenHash: session.tokenHash,
+      expiresAt: session.expiresAt,
+      lastAccess: new Date(),
+    })
+    .returning();
+
+  return result[0];
+}
+
+export async function getAdminSessionByToken(tokenHash: string) {
+  const result = await db
+    .select()
+    .from(adminSessions)
+    .where(eq(adminSessions.tokenHash, tokenHash))
+    .limit(1);
+
+  return result[0];
+}
+
+export async function updateAdminSessionLastAccess(
+  tokenHash: string,
+): Promise<void> {
+  await db
+    .update(adminSessions)
+    .set({ lastAccess: new Date() })
+    .where(eq(adminSessions.tokenHash, tokenHash));
+}
+
+export async function deleteAdminSession(tokenHash: string): Promise<void> {
+  await db
+    .delete(adminSessions)
+    .where(eq(adminSessions.tokenHash, tokenHash));
+}
+
+export async function deleteExpiredAdminSessions(): Promise<number> {
+  const now = new Date();
+
+  const result = await db
+    .delete(adminSessions)
+    .where(lte(adminSessions.expiresAt, now))
+    .returning({ id: adminSessions.id });
+
+  return result.length;
+}
+
+/* ========================= REPORTS ========================= */
+
+export async function getReportById(id: number) {
+  const result = await db
+    .select()
+    .from(reports)
+    .where(eq(reports.id, id))
+    .limit(1);
+
   return result[0];
 }
 
@@ -168,7 +238,7 @@ export async function upsertReport(input: {
   patientName?: string | null;
   fileName?: string | null;
   storagePath: string;
-}): Promise<Report> {
+}) {
   const now = new Date();
 
   const result = await db
@@ -204,7 +274,7 @@ export async function getReportsByClinicId(
   clinicId: number,
   limit = 50,
   offset = 0,
-): Promise<Report[]> {
+) {
   return db
     .select()
     .from(reports)
@@ -220,7 +290,7 @@ export async function searchReports(
   studyType?: string,
   limit = 50,
   offset = 0,
-): Promise<Report[]> {
+) {
   const filters = [eq(reports.clinicId, clinicId)];
 
   if (studyType) {
@@ -230,9 +300,9 @@ export async function searchReports(
   if (query) {
     filters.push(
       or(
-        ilike(reports.patientName, `%${query}%`),
-        ilike(reports.fileName, `%${query}%`),
-        ilike(reports.studyType, `%${query}%`),
+        ilike(reports.patientName, "%" + query + "%"),
+        ilike(reports.fileName, "%" + query + "%"),
+        ilike(reports.studyType, "%" + query + "%"),
       )!,
     );
   }
@@ -246,7 +316,7 @@ export async function searchReports(
     .offset(offset);
 }
 
-export async function getStudyTypes(clinicId: number): Promise<string[]> {
+export async function getStudyTypes(clinicId: number) {
   const result = await db
     .selectDistinct({ studyType: reports.studyType })
     .from(reports)

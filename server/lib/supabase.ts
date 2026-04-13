@@ -8,6 +8,12 @@ export const ALLOWED_MIME_TYPES = [
   "image/webp",
 ] as const;
 
+export const ALLOWED_AVATAR_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
+
 export type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
 
 export const supabase = createClient(
@@ -29,6 +35,14 @@ function buildReportStoragePath(clinicId: number, fileName: string): string {
   const random = Math.random().toString(36).slice(2, 10);
 
   return `clinics/${clinicId}/${timestamp}-${random}-${safeName}`;
+}
+
+function buildClinicAvatarStoragePath(clinicId: number, fileName: string): string {
+  const safeName = sanitizeFileName(fileName || "avatar");
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).slice(2, 10);
+
+  return `clinic-avatars/${clinicId}/${timestamp}-${random}-${safeName}`;
 }
 
 /**
@@ -105,7 +119,7 @@ export async function uploadReport(params: {
 /**
  * Genera una signed URL para visualización / preview.
  */
-export async function createSignedReportUrl(
+export async function createSignedStorageUrl(
   storagePath: string,
 ): Promise<string> {
   const { data, error } = await supabase.storage
@@ -113,10 +127,16 @@ export async function createSignedReportUrl(
     .createSignedUrl(storagePath, ENV.signedUrlExpiresInSeconds);
 
   if (error || !data?.signedUrl) {
-    throw error ?? new Error("No se pudo generar la URL firmada del informe");
+    throw error ?? new Error("No se pudo generar la URL firmada del archivo");
   }
 
   return data.signedUrl;
+}
+
+export async function createSignedReportUrl(
+  storagePath: string,
+): Promise<string> {
+  return createSignedStorageUrl(storagePath);
 }
 
 /**
@@ -137,4 +157,41 @@ export async function createSignedReportDownloadUrl(
   }
 
   return data.signedUrl;
+}
+export async function uploadClinicAvatar(params: {
+  file: Buffer;
+  fileName: string;
+  clinicId: number;
+  mimeType: string;
+}): Promise<string> {
+  const { file, fileName, clinicId, mimeType } = params;
+
+  if (!ALLOWED_AVATAR_MIME_TYPES.includes(mimeType as (typeof ALLOWED_AVATAR_MIME_TYPES)[number])) {
+    throw new Error(`Tipo de avatar no permitido: ${mimeType}`);
+  }
+
+  const storagePath = buildClinicAvatarStoragePath(clinicId, fileName);
+
+  const { error } = await supabase.storage
+    .from(ENV.supabaseStorageBucket)
+    .upload(storagePath, file, {
+      contentType: mimeType,
+      upsert: false,
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  return storagePath;
+}
+
+export async function deleteStorageObject(storagePath: string): Promise<void> {
+  const { error } = await supabase.storage
+    .from(ENV.supabaseStorageBucket)
+    .remove([storagePath]);
+
+  if (error) {
+    throw error;
+  }
 }
