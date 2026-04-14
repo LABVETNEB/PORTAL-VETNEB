@@ -8,25 +8,20 @@ import {
 } from "../db";
 import { hashSessionToken } from "../lib/auth-security";
 import { ENV } from "../lib/env";
-import { canUploadReports } from "../lib/permissions";
+import { getClinicPermissions, normalizeClinicUserRole } from "../lib/permissions";
 import { asyncHandler } from "../utils/async-handler";
 
-type AuthenticatedUser = {
+export type AuthenticatedUser = {
   id: number;
   clinicId: number;
   username: string;
   authProId: string | null;
+  role: import("../../drizzle/schema").ClinicUserRole;
+  permissions: import("../lib/permissions").ClinicPermissions;
   canUploadReports: boolean;
+  canManageClinicUsers: boolean;
   sessionToken: string;
 };
-
-declare global {
-  namespace Express {
-    interface Request {
-      auth?: AuthenticatedUser;
-    }
-  }
-}
 
 function getSessionToken(req: Request): string | undefined {
   const raw = req.cookies?.[ENV.cookieName];
@@ -96,15 +91,18 @@ export const requireAuth = asyncHandler(
 
     await updateSessionLastAccess(tokenHash);
 
+    const role = normalizeClinicUserRole(clinicUser.role, "clinic_staff");
+    const permissions = getClinicPermissions(role);
+
     req.auth = {
       id: clinicUser.id,
       clinicId: clinicUser.clinicId,
       username: clinicUser.username,
       authProId: clinicUser.authProId ?? null,
-      canUploadReports: canUploadReports({
-        username: clinicUser.username,
-        authProId: clinicUser.authProId ?? null,
-      }),
+      role,
+      permissions,
+      canUploadReports: permissions.canUploadReports,
+      canManageClinicUsers: permissions.canManageClinicUsers,
       sessionToken: token,
     };
 

@@ -10,6 +10,9 @@ import {
 } from "drizzle-orm/pg-core";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
+export const CLINIC_USER_ROLES = ["clinic_owner", "clinic_staff"] as const;
+export type ClinicUserRole = (typeof CLINIC_USER_ROLES)[number];
+
 export const clinics = pgTable("clinics", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -19,17 +22,31 @@ export const clinics = pgTable("clinics", {
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
 
-export const clinicUsers = pgTable("clinic_users", {
-  id: serial("id").primaryKey(),
-  clinicId: integer("clinic_id")
-    .notNull()
-    .references(() => clinics.id, { onDelete: "cascade" }),
-  username: varchar("username", { length: 100 }).notNull().unique(),
-  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
-  authProId: varchar("auth_pro_id", { length: 100 }),
-  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
-});
+export const clinicUsers = pgTable(
+  "clinic_users",
+  {
+    id: serial("id").primaryKey(),
+    clinicId: integer("clinic_id")
+      .notNull()
+      .references(() => clinics.id, { onDelete: "cascade" }),
+    username: varchar("username", { length: 100 }).notNull().unique(),
+    passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+    authProId: varchar("auth_pro_id", { length: 100 }),
+    role: varchar("role", { length: 32 })
+      .$type<ClinicUserRole>()
+      .notNull()
+      .default("clinic_staff"),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    clinicIdIdx: index("clinic_users_clinic_id_idx").on(table.clinicId),
+    clinicIdRoleIdx: index("clinic_users_clinic_id_role_idx").on(
+      table.clinicId,
+      table.role,
+    ),
+  }),
+);
 
 export const adminUsers = pgTable("admin_users", {
   id: serial("id").primaryKey(),

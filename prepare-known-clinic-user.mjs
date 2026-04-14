@@ -28,7 +28,7 @@ try {
   `;
 
   if (clinicRows.length === 0) {
-    throw new Error(`No existe la clínica ${clinicId}`);
+    throw new Error(`No existe la clÃ­nica ${clinicId}`);
   }
 
   const existing = await sql`
@@ -47,7 +47,7 @@ try {
         clinic_id = ${clinicId},
         password_hash = ${passwordHash},
         updated_at = now(),
-        role = 'clinic_staff'
+        role = 'clinic_owner'
       where id = ${existing[0].id}
       returning id, clinic_id, username, updated_at
     `;
@@ -79,7 +79,7 @@ try {
         null,
         now(),
         now(),
-        'clinic_staff'
+        'clinic_owner'
       )
       returning id, clinic_id, username, created_at, updated_at
     `;

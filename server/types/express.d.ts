@@ -1,5 +1,8 @@
 import "express";
 
+import type { ClinicUserRole } from "../../drizzle/schema";
+import type { ClinicPermissions } from "../lib/permissions";
+
 declare global {
   namespace Express {
     interface Request {
@@ -9,7 +12,10 @@ declare global {
         clinicId: number;
         username: string;
         authProId: string | null;
+        role: ClinicUserRole;
+        permissions: ClinicPermissions;
         canUploadReports: boolean;
+        canManageClinicUsers: boolean;
         sessionToken: string;
       };
       adminAuth?: {

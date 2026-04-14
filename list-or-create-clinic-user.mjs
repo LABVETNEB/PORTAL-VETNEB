@@ -42,7 +42,7 @@ try {
     `;
 
     if (clinics.length === 0) {
-      throw new Error("No existe ninguna clínica en la base");
+      throw new Error("No existe ninguna clÃ­nica en la base");
     }
 
     const clinic = clinics[0];
@@ -67,7 +67,7 @@ try {
         null,
         now(),
         now(),
-        'clinic_staff'
+        'clinic_owner'
       )
       returning
         id,
