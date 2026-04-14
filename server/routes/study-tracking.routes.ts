@@ -163,7 +163,7 @@ router.post(
 
     const delivery = applyEstimatedDeliveryRules({
       receptionAt: parsed.data.receptionAt,
-      manualEstimatedDeliveryAt: parsed.data.estimatedDeliveryAt,
+      manualEstimatedDeliveryAt: undefined,
     });
 
     const created = await createStudyTrackingCase({

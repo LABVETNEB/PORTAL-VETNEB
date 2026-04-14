@@ -1,1 +1,83 @@
-{"version":"7","dialect":"postgresql","entries":[{"idx":0,"version":"7","when":1775436899197,"tag":"0000_silly_shocker","breakpoints":true},{"idx":1,"version":"7","when":1775436900001,"tag":"0001_add_clinic_users_role","breakpoints":true},{"idx":2,"version":"7","when":1775436900002,"tag":"0002_storage_standardization","breakpoints":true},{"idx":3,"version":"7","when":1775436900003,"tag":"0003_auth_sessions_hardening","breakpoints":true},{"idx":4,"version":"7","when":1775436900004,"tag":"0004_reports_indexes","breakpoints":true},{"idx":5,"version":"7","when":1775436900005,"tag":"0005_runtime_schema_reconciliation","breakpoints":true},{"idx":6,"version":"7","when":1775436900006,"tag":"0006_particular_tokens","breakpoints":true},{"idx":7,"version":"7","when":1775436900007,"tag":"0007_clinic_public_profiles_search","breakpoints":true},{"idx":8,"version":"7","when":1775436900008,"tag":"0008_public_profiles_quality_and_ranking","breakpoints":true},{"idx":9,"version":"7","when":1776078000009,"tag":"0009_study_tracking","breakpoints":true}]}
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1775436899197,
+      "tag": "0000_silly_shocker",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775436900001,
+      "tag": "0001_add_clinic_users_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775436900002,
+      "tag": "0002_storage_standardization",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775436900003,
+      "tag": "0003_auth_sessions_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775436900004,
+      "tag": "0004_reports_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775436900005,
+      "tag": "0005_runtime_schema_reconciliation",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775436900006,
+      "tag": "0006_particular_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775436900007,
+      "tag": "0007_clinic_public_profiles_search",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775436900008,
+      "tag": "0008_public_profiles_quality_and_ranking",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1776078000009,
+      "tag": "0009_study_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1776178279540,
+      "tag": "0010_nervous_captain_stacy",
+      "breakpoints": true
+    }
+  ]
+}
