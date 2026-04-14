@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import rateLimit from "express-rate-limit";
 
 import {
@@ -14,7 +14,7 @@ import {
   verifyPassword,
 } from "../lib/auth-security";
 import { ENV } from "../lib/env";
-import { canUploadReports } from "../lib/permissions";
+import { getClinicPermissions, normalizeClinicUserRole } from "../lib/permissions";
 import { requireAuth } from "../middlewares/auth";
 import { requireTrustedOrigin } from "../middlewares/trusted-origin";
 import { asyncHandler } from "../utils/async-handler";
@@ -67,6 +67,8 @@ router.post(
       });
     }
 
+    const role = normalizeClinicUserRole(clinicUser.role, "clinic_staff");
+
     if (passwordCheck.needsRehash) {
       const newHash = await hashPassword(password);
 
@@ -75,6 +77,7 @@ router.post(
         username: clinicUser.username,
         passwordHash: newHash,
         authProId: clinicUser.authProId ?? null,
+        role,
       });
     }
 
@@ -104,13 +107,10 @@ router.post(
         id: clinicUser.id,
         clinicId: clinicUser.clinicId,
         username: clinicUser.username,
+        authProId: clinicUser.authProId ?? null,
+        role,
       },
-      permissions: {
-        canUploadReports: canUploadReports({
-          username: clinicUser.username,
-          authProId: clinicUser.authProId ?? null,
-        }),
-      },
+      permissions: getClinicPermissions(role),
     });
   }),
 );
@@ -127,10 +127,10 @@ router.get(
         id: auth.id,
         clinicId: auth.clinicId,
         username: auth.username,
+        authProId: auth.authProId,
+        role: auth.role,
       },
-      permissions: {
-        canUploadReports: auth.canUploadReports,
-      },
+      permissions: auth.permissions,
     });
   }),
 );

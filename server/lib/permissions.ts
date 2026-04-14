@@ -1,26 +1,43 @@
-import { ENV } from "./env";
+import type { ClinicUserRole } from "../../drizzle/schema";
 
-function normalize(value: string): string {
-  return value.trim().toLowerCase();
+export function isClinicUserRole(value: unknown): value is ClinicUserRole {
+  return value === "clinic_owner" || value === "clinic_staff";
 }
 
-const labUploadUsernames = new Set(
-  ENV.labUploadUsernames.map((username) => normalize(username)),
-);
-
-export function canUploadReports(user: {
-  username: string;
-  authProId?: string | null;
-}): boolean {
-  const normalizedUsername = normalize(user.username);
-
-  if (labUploadUsernames.has(normalizedUsername)) {
-    return true;
+export function normalizeClinicUserRole(
+  value: unknown,
+  fallback: ClinicUserRole = "clinic_staff",
+): ClinicUserRole {
+  if (typeof value !== "string") {
+    return fallback;
   }
 
-  if (ENV.ownerOpenId && typeof user.authProId === "string") {
-    return user.authProId === ENV.ownerOpenId;
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === "clinic_owner" || normalized === "clinic_staff") {
+    return normalized;
   }
 
-  return false;
+  return fallback;
+}
+
+export type ClinicPermissions = {
+  canUploadReports: boolean;
+  canManageClinicUsers: boolean;
+};
+
+export function getClinicPermissions(role: ClinicUserRole): ClinicPermissions {
+  switch (role) {
+    case "clinic_owner":
+      return {
+        canUploadReports: true,
+        canManageClinicUsers: true,
+      };
+    case "clinic_staff":
+    default:
+      return {
+        canUploadReports: true,
+        canManageClinicUsers: false,
+      };
+  }
 }

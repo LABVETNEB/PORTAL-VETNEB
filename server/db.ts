@@ -1,4 +1,4 @@
-import postgres from "postgres";
+﻿import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { and, desc, eq, ilike, isNotNull, lte, or } from "drizzle-orm";
 import {
@@ -8,8 +8,10 @@ import {
   clinicUsers,
   clinics,
   reports,
+  type ClinicUserRole,
 } from "../drizzle/schema";
 import { ENV } from "./lib/env";
+import { normalizeClinicUserRole } from "./lib/permissions";
 
 const client = postgres(ENV.databaseUrl, {
   prepare: false,
@@ -61,8 +63,10 @@ export async function upsertClinicUser(user: {
   username: string;
   passwordHash: string;
   authProId?: string | null;
+  role?: ClinicUserRole;
 }) {
   const now = new Date();
+  const normalizedRole = normalizeClinicUserRole(user.role, "clinic_staff");
 
   const result = await db
     .insert(clinicUsers)
@@ -71,6 +75,7 @@ export async function upsertClinicUser(user: {
       username: user.username.trim(),
       passwordHash: user.passwordHash,
       authProId: user.authProId ?? null,
+      role: normalizedRole,
       updatedAt: now,
     })
     .onConflictDoUpdate({
@@ -79,6 +84,7 @@ export async function upsertClinicUser(user: {
         clinicId: user.clinicId,
         passwordHash: user.passwordHash,
         authProId: user.authProId ?? null,
+        role: normalizedRole,
         updatedAt: now,
       },
     })
@@ -326,3 +332,4 @@ export async function getStudyTypes(clinicId: number) {
     .map((r) => r.studyType)
     .filter((v): v is string => !!v);
 }
+
