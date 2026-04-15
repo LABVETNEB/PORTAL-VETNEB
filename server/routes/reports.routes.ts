@@ -1,17 +1,24 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import multer from "multer";
-import type { Report } from "../../drizzle/schema";
+import type { Report, ReportStatus } from "../../drizzle/schema";
 import {
   getReportById,
+  getReportStatusHistory,
   getReportsByClinicId,
   getStudyTypes,
   searchReports,
+  updateReportStatus,
   upsertReport,
 } from "../db";
 import {
   getClinicScopedStudyTrackingCase,
   updateStudyTrackingCase,
 } from "../db-study-tracking";
+import {
+  REPORT_STATUSES,
+  canTransitionReportStatus,
+  normalizeReportStatus,
+} from "../lib/report-status";
 import { ENV } from "../lib/env";
 import {
   ALLOWED_MIME_TYPES,
@@ -20,6 +27,7 @@ import {
   uploadReport,
 } from "../lib/supabase";
 import { requireAuth } from "../middlewares/auth";
+import { requireTrustedOrigin } from "../middlewares/trusted-origin";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
@@ -73,6 +81,15 @@ function normalizeSearchText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function normalizeOptionalNote(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.slice(0, 2000) : null;
+}
+
 function parseOptionalDate(value: unknown): Date | undefined {
   if (typeof value !== "string" || !value.trim()) {
     return undefined;
@@ -90,6 +107,10 @@ function parseClinicId(value: unknown): number | undefined {
   }
 
   return undefined;
+}
+
+function parseReportStatus(value: unknown): ReportStatus | undefined {
+  return normalizeReportStatus(value);
 }
 
 function getReadClinicScope(reqClinicId: unknown, authClinicId: number) {
@@ -172,6 +193,17 @@ const requireUploadPermission = asyncHandler(async (req, res, next) => {
   next();
 });
 
+const requireReportStatusWritePermission = asyncHandler(async (req, res, next) => {
+  if (!req.auth?.canManageClinicUsers) {
+    return res.status(403).json({
+      success: false,
+      error: "No autorizado para cambiar el estado de informes",
+    });
+  }
+
+  next();
+});
+
 router.post(
   "/upload",
   requireUploadPermission,
@@ -219,6 +251,7 @@ router.post(
       uploadDate: uploadDate ?? null,
       fileName: req.file.originalname,
       storagePath,
+      createdByClinicUserId: req.auth!.id,
     });
 
     if (typeof trackingCaseId === "number") {
@@ -239,6 +272,7 @@ router.get(
   "/",
   asyncHandler(async (req, res) => {
     const scope = getReadClinicScope(req.query.clinicId, req.auth!.clinicId);
+    const currentStatus = parseReportStatus(req.query.status);
     const limit = parsePositiveInt(req.query.limit, 50, 100);
     const offset = parseOffset(req.query.offset, 0);
 
@@ -249,13 +283,29 @@ router.get(
       });
     }
 
+    if (typeof req.query.status !== "undefined" && !currentStatus) {
+      return res.status(400).json({
+        success: false,
+        error: "Estado de informe invalido",
+        allowedStatuses: REPORT_STATUSES,
+      });
+    }
+
     const clinicId = scope.clinicId;
-    const reports = await getReportsByClinicId(clinicId, limit, offset);
+    const reports = await getReportsByClinicId(
+      clinicId,
+      limit,
+      offset,
+      currentStatus,
+    );
 
     return res.json({
       success: true,
       count: reports.length,
       reports: await serializeReports(reports),
+      filters: {
+        status: currentStatus ?? null,
+      },
       pagination: {
         limit,
         offset,
@@ -270,6 +320,7 @@ router.get(
     const scope = getReadClinicScope(req.query.clinicId, req.auth!.clinicId);
     const query = normalizeSearchText(req.query.query);
     const studyType = normalizeSearchText(req.query.studyType);
+    const currentStatus = parseReportStatus(req.query.status);
     const limit = parsePositiveInt(req.query.limit, 50, 100);
     const offset = parseOffset(req.query.offset, 0);
 
@@ -280,6 +331,14 @@ router.get(
       });
     }
 
+    if (typeof req.query.status !== "undefined" && !currentStatus) {
+      return res.status(400).json({
+        success: false,
+        error: "Estado de informe invalido",
+        allowedStatuses: REPORT_STATUSES,
+      });
+    }
+
     const clinicId = scope.clinicId;
     const reports = await searchReports(
       clinicId,
@@ -287,6 +346,7 @@ router.get(
       studyType,
       limit,
       offset,
+      currentStatus,
     );
 
     return res.json({
@@ -296,6 +356,7 @@ router.get(
       filters: {
         query: query ?? null,
         studyType: studyType ?? null,
+        status: currentStatus ?? null,
       },
       pagination: {
         limit,
@@ -323,6 +384,119 @@ router.get(
     return res.json({
       success: true,
       studyTypes,
+    });
+  }),
+);
+
+router.get(
+  "/:reportId/history",
+  asyncHandler(async (req, res) => {
+    const reportId = parseReportId(req.params.reportId);
+
+    if (typeof reportId !== "number") {
+      return res.status(400).json({
+        success: false,
+        error: "ID de informe invalido",
+      });
+    }
+
+    const reportResult = await getAuthorizedReport(
+      reportId,
+      req.auth!.clinicId,
+      "No autorizado para consultar el historial de este informe",
+    );
+
+    if (!("report" in reportResult)) {
+      return res.status(reportResult.status).json({
+        success: false,
+        error: reportResult.error,
+      });
+    }
+
+    const history = await getReportStatusHistory(reportId);
+
+    return res.json({
+      success: true,
+      reportId,
+      currentStatus: reportResult.report.currentStatus,
+      count: history.length,
+      history,
+    });
+  }),
+);
+
+router.patch(
+  "/:reportId/status",
+  requireTrustedOrigin,
+  requireReportStatusWritePermission,
+  asyncHandler(async (req, res) => {
+    const reportId = parseReportId(req.params.reportId);
+    const nextStatus = parseReportStatus(req.body?.status);
+    const note = normalizeOptionalNote(req.body?.note);
+
+    if (typeof reportId !== "number") {
+      return res.status(400).json({
+        success: false,
+        error: "ID de informe invalido",
+      });
+    }
+
+    if (!nextStatus) {
+      return res.status(400).json({
+        success: false,
+        error: "Estado de informe invalido",
+        allowedStatuses: REPORT_STATUSES,
+      });
+    }
+
+    const reportResult = await getAuthorizedReport(
+      reportId,
+      req.auth!.clinicId,
+      "No autorizado para cambiar el estado de este informe",
+    );
+
+    if (!("report" in reportResult)) {
+      return res.status(reportResult.status).json({
+        success: false,
+        error: reportResult.error,
+      });
+    }
+
+    if (reportResult.report.currentStatus === nextStatus) {
+      return res.status(400).json({
+        success: false,
+        error: "El informe ya se encuentra en ese estado",
+      });
+    }
+
+    if (!canTransitionReportStatus(reportResult.report.currentStatus, nextStatus)) {
+      return res.status(400).json({
+        success: false,
+        error: "La transición de estado no está permitida",
+        currentStatus: reportResult.report.currentStatus,
+        requestedStatus: nextStatus,
+        allowedStatuses: REPORT_STATUSES,
+      });
+    }
+
+    const updated = await updateReportStatus({
+      reportId,
+      toStatus: nextStatus,
+      note,
+      changedByClinicUserId: req.auth!.id,
+    });
+
+    if (!updated) {
+      return res.status(404).json({
+        success: false,
+        error: "Informe no encontrado",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Estado de informe actualizado correctamente",
+      report: await serializeReport(updated),
     });
   }),
 );
