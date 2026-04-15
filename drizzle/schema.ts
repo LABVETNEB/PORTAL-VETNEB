@@ -13,6 +13,14 @@ import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 export const CLINIC_USER_ROLES = ["clinic_owner", "clinic_staff"] as const;
 export type ClinicUserRole = (typeof CLINIC_USER_ROLES)[number];
 
+export const REPORT_STATUSES = [
+  "uploaded",
+  "processing",
+  "ready",
+  "delivered",
+] as const;
+export type ReportStatus = (typeof REPORT_STATUSES)[number];
+
 export const clinics = pgTable("clinics", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -70,6 +78,21 @@ export const reports = pgTable(
     storagePath: varchar("storage_path", { length: 255 }).notNull().unique(),
     previewUrl: text("preview_url"),
     downloadUrl: text("download_url"),
+    currentStatus: varchar("current_status", { length: 32 })
+      .$type<ReportStatus>()
+      .notNull()
+      .default("uploaded"),
+    statusChangedAt: timestamp("status_changed_at", { mode: "date" })
+      .defaultNow()
+      .notNull(),
+    statusChangedByClinicUserId: integer("status_changed_by_clinic_user_id").references(
+      () => clinicUsers.id,
+      { onDelete: "set null" },
+    ),
+    statusChangedByAdminUserId: integer("status_changed_by_admin_user_id").references(
+      () => adminUsers.id,
+      { onDelete: "set null" },
+    ),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
   },
@@ -83,6 +106,44 @@ export const reports = pgTable(
       table.clinicId,
       table.studyType,
     ),
+    clinicCurrentStatusIdx: index("reports_clinic_current_status_idx").on(
+      table.clinicId,
+      table.currentStatus,
+    ),
+    statusChangedAtIdx: index("reports_status_changed_at_idx").on(
+      table.statusChangedAt,
+    ),
+  }),
+);
+
+export const reportStatusHistory = pgTable(
+  "report_status_history",
+  {
+    id: serial("id").primaryKey(),
+    reportId: integer("report_id")
+      .notNull()
+      .references(() => reports.id, { onDelete: "cascade" }),
+    fromStatus: varchar("from_status", { length: 32 }).$type<ReportStatus>(),
+    toStatus: varchar("to_status", { length: 32 })
+      .$type<ReportStatus>()
+      .notNull(),
+    changedByClinicUserId: integer("changed_by_clinic_user_id").references(
+      () => clinicUsers.id,
+      { onDelete: "set null" },
+    ),
+    changedByAdminUserId: integer("changed_by_admin_user_id").references(
+      () => adminUsers.id,
+      { onDelete: "set null" },
+    ),
+    note: text("note"),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    reportIdCreatedAtIdx: index("report_status_history_report_id_created_at_idx").on(
+      table.reportId,
+      table.createdAt,
+    ),
+    toStatusIdx: index("report_status_history_to_status_idx").on(table.toStatus),
   }),
 );
 
@@ -393,6 +454,9 @@ export type NewAdminUser = InferInsertModel<typeof adminUsers>;
 
 export type Report = InferSelectModel<typeof reports>;
 export type NewReport = InferInsertModel<typeof reports>;
+
+export type ReportStatusHistory = InferSelectModel<typeof reportStatusHistory>;
+export type NewReportStatusHistory = InferInsertModel<typeof reportStatusHistory>;
 
 export type ActiveSession = InferSelectModel<typeof activeSessions>;
 export type NewActiveSession = InferInsertModel<typeof activeSessions>;
