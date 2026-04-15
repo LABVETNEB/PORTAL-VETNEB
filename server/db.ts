@@ -1,6 +1,6 @@
-import postgres from "postgres";
+﻿import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { and, desc, eq, ilike, isNotNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, ilike, isNotNull, lte, or, sql } from "drizzle-orm";
 import {
   activeSessions,
   adminSessions,
@@ -304,15 +304,66 @@ export async function upsertReport(input: {
 
     const report = inserted[0];
 
-    await tx.insert(reportStatusHistory).values({
-      reportId: report.id,
-      fromStatus: null,
-      toStatus: "uploaded",
-      changedByClinicUserId: input.createdByClinicUserId ?? null,
-      changedByAdminUserId: input.createdByAdminUserId ?? null,
-      note: "Informe cargado inicialmente",
-      createdAt: now,
-    });
+    const initialChangedBy =
+      input.createdByClinicUserId ?? input.createdByAdminUserId ?? null;
+    const initialChangedByType =
+      input.createdByClinicUserId != null
+        ? "clinic_user"
+        : input.createdByAdminUserId != null
+          ? "admin_user"
+          : "system";
+
+    try {
+      await tx.execute(sql`
+        INSERT INTO "report_status_history" (
+          "report_id",
+          "status",
+          "previous_status",
+          "changed_by",
+          "changed_by_type",
+          "notes",
+          "created_at",
+          "from_status",
+          "to_status",
+          "changed_by_clinic_user_id",
+          "changed_by_admin_user_id",
+          "note"
+        )
+        VALUES (
+          ${report.id},
+          ${"uploaded"},
+          ${null},
+          ${initialChangedBy},
+          ${initialChangedByType},
+          ${"Informe cargado inicialmente"},
+          ${now.toISOString()},
+          ${null},
+          ${"uploaded"},
+          ${input.createdByClinicUserId ?? null},
+          ${input.createdByAdminUserId ?? null},
+          ${"Informe cargado inicialmente"}
+        )
+      `);
+    } catch (error) {
+      if (
+        typeof error !== "object" ||
+        error === null ||
+        !("code" in error) ||
+        error.code !== "42703"
+      ) {
+        throw error;
+      }
+
+      await tx.insert(reportStatusHistory).values({
+        reportId: report.id,
+        fromStatus: null,
+        toStatus: "uploaded",
+        changedByClinicUserId: input.createdByClinicUserId ?? null,
+        changedByAdminUserId: input.createdByAdminUserId ?? null,
+        note: "Informe cargado inicialmente",
+        createdAt: now,
+      });
+    }
 
     return report;
   });
@@ -352,15 +403,66 @@ export async function updateReportStatus(input: {
       .where(eq(reports.id, input.reportId))
       .returning();
 
-    await tx.insert(reportStatusHistory).values({
-      reportId: report.id,
-      fromStatus: report.currentStatus,
-      toStatus: input.toStatus,
-      changedByClinicUserId: input.changedByClinicUserId ?? null,
-      changedByAdminUserId: input.changedByAdminUserId ?? null,
-      note: input.note ?? null,
-      createdAt: now,
-    });
+    const changedBy =
+      input.changedByClinicUserId ?? input.changedByAdminUserId ?? null;
+    const changedByType =
+      input.changedByClinicUserId != null
+        ? "clinic_user"
+        : input.changedByAdminUserId != null
+          ? "admin_user"
+          : "system";
+
+    try {
+      await tx.execute(sql`
+        INSERT INTO "report_status_history" (
+          "report_id",
+          "status",
+          "previous_status",
+          "changed_by",
+          "changed_by_type",
+          "notes",
+          "created_at",
+          "from_status",
+          "to_status",
+          "changed_by_clinic_user_id",
+          "changed_by_admin_user_id",
+          "note"
+        )
+        VALUES (
+          ${report.id},
+          ${input.toStatus},
+          ${report.currentStatus},
+          ${changedBy},
+          ${changedByType},
+          ${input.note ?? null},
+          ${now.toISOString()},
+          ${report.currentStatus},
+          ${input.toStatus},
+          ${input.changedByClinicUserId ?? null},
+          ${input.changedByAdminUserId ?? null},
+          ${input.note ?? null}
+        )
+      `);
+    } catch (error) {
+      if (
+        typeof error !== "object" ||
+        error === null ||
+        !("code" in error) ||
+        error.code !== "42703"
+      ) {
+        throw error;
+      }
+
+      await tx.insert(reportStatusHistory).values({
+        reportId: report.id,
+        fromStatus: report.currentStatus,
+        toStatus: input.toStatus,
+        changedByClinicUserId: input.changedByClinicUserId ?? null,
+        changedByAdminUserId: input.changedByAdminUserId ?? null,
+        note: input.note ?? null,
+        createdAt: now,
+      });
+    }
 
     return updated[0];
   });
@@ -434,4 +536,5 @@ export async function getStudyTypes(clinicId: number) {
     .map((r) => r.studyType)
     .filter((v): v is string => !!v);
 }
+
 
