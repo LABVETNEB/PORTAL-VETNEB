@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "smoke:test": "node smoke-test.mjs",
-    "smoke:upload": "node smoke-upload.mjs"
+    "smoke:upload": "node smoke-upload.mjs",
+    "test": "node --experimental-strip-types --experimental-specifier-resolution=node --test test/**/*.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",

@@ -147,6 +147,53 @@ export const reportStatusHistory = pgTable(
   }),
 );
 
+export const reportAccessTokens = pgTable(
+  "report_access_tokens",
+  {
+    id: serial("id").primaryKey(),
+    clinicId: integer("clinic_id")
+      .notNull()
+      .references(() => clinics.id, { onDelete: "cascade" }),
+    reportId: integer("report_id")
+      .notNull()
+      .references(() => reports.id, { onDelete: "cascade" }),
+    createdByClinicUserId: integer("created_by_clinic_user_id").references(
+      () => clinicUsers.id,
+      { onDelete: "set null" },
+    ),
+    createdByAdminUserId: integer("created_by_admin_user_id").references(
+      () => adminUsers.id,
+      { onDelete: "set null" },
+    ),
+    revokedByClinicUserId: integer("revoked_by_clinic_user_id").references(
+      () => clinicUsers.id,
+      { onDelete: "set null" },
+    ),
+    revokedByAdminUserId: integer("revoked_by_admin_user_id").references(
+      () => adminUsers.id,
+      { onDelete: "set null" },
+    ),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+    tokenLast4: varchar("token_last4", { length: 4 }).notNull(),
+    accessCount: integer("access_count").default(0).notNull(),
+    lastAccessAt: timestamp("last_access_at", { mode: "date" }),
+    expiresAt: timestamp("expires_at", { mode: "date" }),
+    revokedAt: timestamp("revoked_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    tokenHashIdx: index("report_access_tokens_token_hash_idx").on(table.tokenHash),
+    clinicIdIdx: index("report_access_tokens_clinic_id_idx").on(table.clinicId),
+    reportIdIdx: index("report_access_tokens_report_id_idx").on(table.reportId),
+    clinicReportCreatedAtIdx: index(
+      "report_access_tokens_clinic_report_created_at_idx",
+    ).on(table.clinicId, table.reportId, table.createdAt),
+    expiresAtIdx: index("report_access_tokens_expires_at_idx").on(table.expiresAt),
+    revokedAtIdx: index("report_access_tokens_revoked_at_idx").on(table.revokedAt),
+  }),
+);
+
 export const activeSessions = pgTable(
   "active_sessions",
   {
@@ -457,6 +504,9 @@ export type NewReport = InferInsertModel<typeof reports>;
 
 export type ReportStatusHistory = InferSelectModel<typeof reportStatusHistory>;
 export type NewReportStatusHistory = InferInsertModel<typeof reportStatusHistory>;
+
+export type ReportAccessToken = InferSelectModel<typeof reportAccessTokens>;
+export type NewReportAccessToken = InferInsertModel<typeof reportAccessTokens>;
 
 export type ActiveSession = InferSelectModel<typeof activeSessions>;
 export type NewActiveSession = InferInsertModel<typeof activeSessions>;
