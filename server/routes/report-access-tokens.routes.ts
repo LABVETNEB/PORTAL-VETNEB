@@ -20,6 +20,7 @@ import {
   serializeReportAccessToken,
   serializeReportAccessTokenDetail,
 } from "../lib/report-access-token";
+import { AUDIT_EVENTS, writeAuditLog } from "../lib/audit";
 import { requireAuth } from "../middlewares/auth";
 import { requireTrustedOrigin } from "../middlewares/trusted-origin";
 import { asyncHandler } from "../utils/async-handler";
@@ -77,6 +78,18 @@ router.post(
       createdByAdminUserId: null,
       revokedByClinicUserId: null,
       revokedByAdminUserId: null,
+    });
+
+    await writeAuditLog(req, {
+      event: AUDIT_EVENTS.REPORT_ACCESS_TOKEN_CREATED,
+      clinicId: reportAccessToken.clinicId,
+      reportId: reportAccessToken.reportId,
+      targetReportAccessTokenId: reportAccessToken.id,
+      metadata: {
+        tokenLast4: reportAccessToken.tokenLast4,
+        expiresAt: reportAccessToken.expiresAt,
+        createdVia: "clinic",
+      },
     });
 
     return res.status(201).json({
@@ -178,6 +191,20 @@ router.patch(
     });
 
     const report = revoked ? await getReportById(revoked.reportId) : null;
+
+    if (revoked) {
+      await writeAuditLog(req, {
+        event: AUDIT_EVENTS.REPORT_ACCESS_TOKEN_REVOKED,
+        clinicId: revoked.clinicId,
+        reportId: revoked.reportId,
+        targetReportAccessTokenId: revoked.id,
+        metadata: {
+          tokenLast4: revoked.tokenLast4,
+          revokedAt: revoked.revokedAt,
+          revokedVia: "clinic",
+        },
+      });
+    }
 
     return res.json({
       success: true,

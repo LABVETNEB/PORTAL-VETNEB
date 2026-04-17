@@ -13,6 +13,7 @@ import {
   hashSessionToken,
   verifyPassword,
 } from "../lib/auth-security";
+import { AUDIT_EVENTS, writeAuditLog } from "../lib/audit";
 import { ENV } from "../lib/env";
 import { getClinicPermissions, normalizeClinicUserRole } from "../lib/permissions";
 import { requireAuth } from "../middlewares/auth";
@@ -91,6 +92,21 @@ router.post(
       clinicUserId: clinicUser.id,
       tokenHash,
       expiresAt,
+    });
+
+    await writeAuditLog(req, {
+      event: AUDIT_EVENTS.CLINIC_LOGIN_SUCCEEDED,
+      clinicId: clinicUser.clinicId,
+      targetClinicUserId: clinicUser.id,
+      metadata: {
+        username: clinicUser.username,
+        role,
+        sessionExpiresAt: expiresAt,
+      },
+      actor: {
+        type: "clinic_user",
+        clinicUserId: clinicUser.id,
+      },
     });
 
     res.cookie(ENV.cookieName, token, {

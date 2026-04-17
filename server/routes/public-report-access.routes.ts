@@ -3,6 +3,7 @@ import {
   getReportAccessTokenWithReportByTokenHash,
   recordReportAccessTokenAccess,
 } from "../db-report-access";
+import { buildPublicReportAccessTokenActor, AUDIT_EVENTS, writeAuditLog } from "../lib/audit";
 import { hashSessionToken } from "../lib/auth-security";
 import {
   canAccessReportPublicly,
@@ -72,6 +73,19 @@ router.get(
         record.report.fileName ?? undefined,
       ),
     ]);
+
+    await writeAuditLog(req, {
+      event: AUDIT_EVENTS.REPORT_PUBLIC_ACCESSED,
+      clinicId: record.token.clinicId,
+      reportId: record.token.reportId,
+      targetReportAccessTokenId: record.token.id,
+      actor: buildPublicReportAccessTokenActor(record.token.id),
+      metadata: {
+        tokenLast4: record.token.tokenLast4,
+        accessCount: updatedToken?.accessCount ?? record.token.accessCount + 1,
+        lastAccessAt: updatedToken?.lastAccessAt ?? new Date(),
+      },
+    });
 
     return res.json({
       success: true,
