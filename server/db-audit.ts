@@ -1,8 +1,11 @@
+import type { AuditActorType, AuditEvent } from "../drizzle/schema";
+import type { AdminAuditListFilters } from "./lib/admin-audit";
+import { serializeAuditLogListItem } from "./lib/admin-audit";
 import { pgClient } from "./db";
 
 type CreateAuditLogInput = {
-  event: string;
-  actorType: string;
+  event: AuditEvent;
+  actorType: AuditActorType;
   actorAdminUserId?: number | null;
   actorClinicUserId?: number | null;
   actorReportAccessTokenId?: number | null;
@@ -23,6 +26,7 @@ type CreateAuditLogInput = {
 };
 
 type InsertValue = string | number | null;
+type QueryValue = string | number | Date;
 
 type ColumnSpec = {
   column: string;
@@ -44,9 +48,7 @@ async function getAuditLogColumns(): Promise<Set<string>> {
       and table_name = 'audit_log'
   `;
 
-  auditLogColumnsCache = new Set(
-    rows.map((row) => String(row.column_name))
-  );
+  auditLogColumnsCache = new Set(rows.map((row) => String(row.column_name)));
 
   return auditLogColumnsCache;
 }
@@ -56,25 +58,11 @@ function deriveLegacyEntity(input: CreateAuditLogInput): string {
     return input.entity;
   }
 
-  if (input.event.startsWith("auth.admin.")) {
-    return "admin_user";
-  }
-
-  if (input.event.startsWith("auth.clinic.")) {
-    return "clinic_user";
-  }
-
-  if (input.event.startsWith("report_access_token.")) {
-    return "report_access_token";
-  }
-
-  if (input.event === "report.public_accessed") {
-    return "report_access_token";
-  }
-
-  if (input.event.startsWith("report.")) {
-    return "report";
-  }
+  if (input.event.startsWith("auth.admin.")) return "admin_user";
+  if (input.event.startsWith("auth.clinic.")) return "clinic_user";
+  if (input.event.startsWith("report_access_token.")) return "report_access_token";
+  if (input.event === "report.public_accessed") return "report_access_token";
+  if (input.event.startsWith("report.")) return "report";
 
   return "audit_log";
 }
@@ -97,6 +85,53 @@ function deriveLegacyEntityId(input: CreateAuditLogInput): number | null {
   );
 }
 
+function buildAuditLogWhere(filters: AdminAuditListFilters): {
+  whereSql: string;
+  values: QueryValue[];
+} {
+  const clauses: string[] = [];
+  const values: QueryValue[] = [];
+
+  const addClause = (sqlFragment: string, value: QueryValue) => {
+    values.push(value);
+    clauses.push(`${sqlFragment} $${values.length}`);
+  };
+
+  if (filters.event) addClause(`"event" =`, filters.event);
+  if (filters.actorType) addClause(`"actor_type" =`, filters.actorType);
+  if (typeof filters.clinicId === "number") addClause(`"clinic_id" =`, filters.clinicId);
+  if (typeof filters.reportId === "number") addClause(`"report_id" =`, filters.reportId);
+  if (typeof filters.actorAdminUserId === "number") {
+    addClause(`"actor_admin_user_id" =`, filters.actorAdminUserId);
+  }
+  if (typeof filters.actorClinicUserId === "number") {
+    addClause(`"actor_clinic_user_id" =`, filters.actorClinicUserId);
+  }
+  if (typeof filters.actorReportAccessTokenId === "number") {
+    addClause(`"actor_report_access_token_id" =`, filters.actorReportAccessTokenId);
+  }
+  if (typeof filters.targetReportAccessTokenId === "number") {
+    addClause(`"target_report_access_token_id" =`, filters.targetReportAccessTokenId);
+  }
+  if (filters.from instanceof Date) addClause(`"created_at" >=`, filters.from);
+  if (filters.to instanceof Date) addClause(`"created_at" <=`, filters.to);
+
+  return {
+    whereSql: clauses.length > 0 ? `where ${clauses.join(" and ")}` : "",
+    values,
+  };
+}
+
+function buildOptionalSelect(
+  columnsPresent: Set<string>,
+  column: string,
+  fallbackSql: string,
+): string {
+  return columnsPresent.has(column)
+    ? `"${column}"`
+    : `${fallbackSql} as "${column}"`;
+}
+
 export async function createAuditLog(input: CreateAuditLogInput) {
   const columnsPresent = await getAuditLogColumns();
   const metadataJson =
@@ -107,145 +142,114 @@ export async function createAuditLog(input: CreateAuditLogInput) {
   const specs: ColumnSpec[] = [];
 
   if (columnsPresent.has("event")) {
-    specs.push({
-      column: "event",
-      value: input.event
-    });
+    specs.push({ column: "event", value: input.event });
   }
 
   if (columnsPresent.has("action")) {
-    specs.push({
-      column: "action",
-      value: input.action ?? input.event
-    });
+    specs.push({ column: "action", value: input.action ?? input.event });
   }
 
   if (columnsPresent.has("entity")) {
-    specs.push({
-      column: "entity",
-      value: deriveLegacyEntity(input)
-    });
+    specs.push({ column: "entity", value: deriveLegacyEntity(input) });
   }
 
   if (columnsPresent.has("entity_id")) {
-    specs.push({
-      column: "entity_id",
-      value: deriveLegacyEntityId(input)
-    });
+    specs.push({ column: "entity_id", value: deriveLegacyEntityId(input) });
   }
 
   if (columnsPresent.has("actor_type")) {
-    specs.push({
-      column: "actor_type",
-      value: input.actorType
-    });
+    specs.push({ column: "actor_type", value: input.actorType });
   }
 
   if (columnsPresent.has("actor_admin_user_id")) {
     specs.push({
       column: "actor_admin_user_id",
-      value: input.actorAdminUserId ?? null
+      value: input.actorAdminUserId ?? null,
     });
   }
 
   if (columnsPresent.has("actor_clinic_user_id")) {
     specs.push({
       column: "actor_clinic_user_id",
-      value: input.actorClinicUserId ?? null
+      value: input.actorClinicUserId ?? null,
     });
   }
 
   if (columnsPresent.has("actor_report_access_token_id")) {
     specs.push({
       column: "actor_report_access_token_id",
-      value: input.actorReportAccessTokenId ?? null
+      value: input.actorReportAccessTokenId ?? null,
     });
   }
 
   if (columnsPresent.has("clinic_id")) {
-    specs.push({
-      column: "clinic_id",
-      value: input.clinicId ?? null
-    });
+    specs.push({ column: "clinic_id", value: input.clinicId ?? null });
   }
 
   if (columnsPresent.has("report_id")) {
-    specs.push({
-      column: "report_id",
-      value: input.reportId ?? null
-    });
+    specs.push({ column: "report_id", value: input.reportId ?? null });
   }
 
   if (columnsPresent.has("target_admin_user_id")) {
     specs.push({
       column: "target_admin_user_id",
-      value: input.targetAdminUserId ?? null
+      value: input.targetAdminUserId ?? null,
     });
   }
 
   if (columnsPresent.has("target_clinic_user_id")) {
     specs.push({
       column: "target_clinic_user_id",
-      value: input.targetClinicUserId ?? null
+      value: input.targetClinicUserId ?? null,
     });
   }
 
   if (columnsPresent.has("target_report_access_token_id")) {
     specs.push({
       column: "target_report_access_token_id",
-      value: input.targetReportAccessTokenId ?? null
+      value: input.targetReportAccessTokenId ?? null,
     });
   }
 
   if (columnsPresent.has("request_id")) {
-    specs.push({
-      column: "request_id",
-      value: input.requestId ?? null
-    });
+    specs.push({ column: "request_id", value: input.requestId ?? null });
   }
 
   if (columnsPresent.has("request_method")) {
     specs.push({
       column: "request_method",
-      value: input.requestMethod ?? null
+      value: input.requestMethod ?? null,
     });
   }
 
   if (columnsPresent.has("request_path")) {
-    specs.push({
-      column: "request_path",
-      value: input.requestPath ?? null
-    });
+    specs.push({ column: "request_path", value: input.requestPath ?? null });
   }
 
   if (columnsPresent.has("ip_address")) {
-    specs.push({
-      column: "ip_address",
-      value: input.ipAddress ?? null
-    });
+    specs.push({ column: "ip_address", value: input.ipAddress ?? null });
   }
 
   if (columnsPresent.has("user_agent")) {
-    specs.push({
-      column: "user_agent",
-      value: input.userAgent ?? null
-    });
+    specs.push({ column: "user_agent", value: input.userAgent ?? null });
   }
 
   if (columnsPresent.has("metadata")) {
     specs.push({
       column: "metadata",
       value: metadataJson,
-      cast: "jsonb"
+      cast: "jsonb",
     });
   }
 
   const query = `
     insert into "audit_log" (${specs.map((spec) => `"${spec.column}"`).join(", ")})
-    values (${specs.map((spec, index) => {
-      const placeholder = `$${index + 1}`;
-      return spec.cast ? `${placeholder}::${spec.cast}` : placeholder;
-    }).join(", ")})
+    values (${specs
+      .map((spec, index) => {
+        const placeholder = `$${index + 1}`;
+        return spec.cast ? `${placeholder}::${spec.cast}` : placeholder;
+      })
+      .join(", ")})
     returning *
   `;
 
@@ -253,4 +257,66 @@ export async function createAuditLog(input: CreateAuditLogInput) {
   const result = await pgClient.unsafe(query, values);
 
   return result[0];
+}
+
+export async function listAuditLog(filters: AdminAuditListFilters) {
+  const columnsPresent = await getAuditLogColumns();
+  const { whereSql, values } = buildAuditLogWhere(filters);
+
+  const selectAction = buildOptionalSelect(columnsPresent, "action", "null::text");
+  const selectEntity = buildOptionalSelect(columnsPresent, "entity", "null::text");
+  const selectEntityId = buildOptionalSelect(
+    columnsPresent,
+    "entity_id",
+    "null::integer",
+  );
+
+  const rows = await pgClient.unsafe(
+    `
+      select
+        "id",
+        "event",
+        ${selectAction},
+        ${selectEntity},
+        ${selectEntityId},
+        "actor_type",
+        "actor_admin_user_id",
+        "actor_clinic_user_id",
+        "actor_report_access_token_id",
+        "clinic_id",
+        "report_id",
+        "target_admin_user_id",
+        "target_clinic_user_id",
+        "target_report_access_token_id",
+        "request_id",
+        "request_method",
+        "request_path",
+        "ip_address",
+        "user_agent",
+        "metadata",
+        "created_at"
+      from "audit_log"
+      ${whereSql}
+      order by "created_at" desc, "id" desc
+      limit $${values.length + 1}
+      offset $${values.length + 2}
+    `,
+    [...values, filters.limit, filters.offset],
+  );
+
+  const countRows = await pgClient.unsafe(
+    `
+      select count(*)::int as count
+      from "audit_log"
+      ${whereSql}
+    `,
+    values,
+  );
+
+  return {
+    items: rows.map((row) =>
+      serializeAuditLogListItem(row as Record<string, unknown>),
+    ),
+    total: Number(countRows[0]?.count ?? 0),
+  };
 }
