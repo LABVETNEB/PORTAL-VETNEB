@@ -1,4 +1,4 @@
-export const ADMIN_AUDIT_ACTOR_TYPES = [
+﻿export const ADMIN_AUDIT_ACTOR_TYPES = [
   "system",
   "admin_user",
   "clinic_user",
@@ -61,6 +61,30 @@ export type AuditLogListItem = {
   metadata: Record<string, unknown> | null;
   createdAt: Date | string | null;
 };
+
+export const AUDIT_LOG_CSV_HEADERS = [
+  "id",
+  "event",
+  "action",
+  "entity",
+  "entityId",
+  "actorType",
+  "actorAdminUserId",
+  "actorClinicUserId",
+  "actorReportAccessTokenId",
+  "clinicId",
+  "reportId",
+  "targetAdminUserId",
+  "targetClinicUserId",
+  "targetReportAccessTokenId",
+  "requestId",
+  "requestMethod",
+  "requestPath",
+  "ipAddress",
+  "userAgent",
+  "metadata",
+  "createdAt",
+] as const;
 
 function isBlank(value: unknown): boolean {
   return (
@@ -159,6 +183,67 @@ function toNullableNumber(value: unknown): number | null {
 
 function toNullableString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
+}
+
+function serializeCsvPrimitive(value: unknown): string {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+
+  return String(value);
+}
+
+function escapeCsvCell(value: unknown): string {
+  const serialized = serializeCsvPrimitive(value);
+
+  if (/[",\r\n]/.test(serialized)) {
+    return `"${serialized.replace(/"/g, '""')}"`;
+  }
+
+  return serialized;
+}
+
+function parseAuditTimestampString(value: string): Date | null {
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const normalizedSqlTimestamp = trimmed.replace(" ", "T");
+
+  if (
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(
+      normalizedSqlTimestamp,
+    )
+  ) {
+    const parsed = new Date(`${normalizedSqlTimestamp}Z`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatAuditCsvCreatedAt(value: AuditLogListItem["createdAt"]): string {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const parsed = parseAuditTimestampString(value);
+  return parsed ? parsed.toISOString() : value;
 }
 
 export function normalizeAuditListMetadata(
@@ -276,6 +361,7 @@ export function buildAdminAuditListFilters(
     },
   };
 }
+
 export function buildClinicAuditListFilters(
   query: Record<string, unknown>,
   clinicId: number,
@@ -290,4 +376,42 @@ export function buildClinicAuditListFilters(
       actorAdminUserId: undefined,
     },
   };
+}
+
+export function buildAdminAuditCsv(items: AuditLogListItem[]): string {
+  const headerRow = AUDIT_LOG_CSV_HEADERS.join(",");
+  const rows = items.map((item) => {
+    const values = [
+      item.id,
+      item.event,
+      item.action,
+      item.entity,
+      item.entityId,
+      item.actorType,
+      item.actorAdminUserId,
+      item.actorClinicUserId,
+      item.actorReportAccessTokenId,
+      item.clinicId,
+      item.reportId,
+      item.targetAdminUserId,
+      item.targetClinicUserId,
+      item.targetReportAccessTokenId,
+      item.requestId,
+      item.requestMethod,
+      item.requestPath,
+      item.ipAddress,
+      item.userAgent,
+      item.metadata,
+      formatAuditCsvCreatedAt(item.createdAt),
+    ];
+
+    return values.map((value) => escapeCsvCell(value)).join(",");
+  });
+
+  return `\uFEFF${[headerRow, ...rows].join("\n")}`;
+}
+
+export function buildAdminAuditCsvFilename(now = new Date()): string {
+  const timestamp = now.toISOString().replace(/[:.]/g, "-");
+  return `admin-audit-log-${timestamp}.csv`;
 }
