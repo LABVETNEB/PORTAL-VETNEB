@@ -1,4 +1,4 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { getReportById } from "../db";
 import {
   createReportAccessToken,
@@ -21,11 +21,14 @@ import {
   serializeReportAccessTokenDetail,
 } from "../lib/report-access-token";
 import { AUDIT_EVENTS, writeAuditLog } from "../lib/audit";
+import { createReportAccessTokenMutationRateLimit } from "../lib/report-access-token-rate-limit";
 import { requireAuth } from "../middlewares/auth";
 import { requireTrustedOrigin } from "../middlewares/trusted-origin";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
+const reportAccessTokenMutationRateLimit =
+  createReportAccessTokenMutationRateLimit();
 
 router.use(requireAuth);
 
@@ -45,6 +48,7 @@ const requireReportAccessTokenManagementPermission = asyncHandler(
 router.post(
   "/",
   requireTrustedOrigin,
+  reportAccessTokenMutationRateLimit,
   requireReportAccessTokenManagementPermission,
   asyncHandler(async (req, res) => {
     const parsed = clinicCreateReportAccessTokenSchema.safeParse(req.body);
@@ -164,6 +168,7 @@ router.get(
 router.patch(
   "/:tokenId/revoke",
   requireTrustedOrigin,
+  reportAccessTokenMutationRateLimit,
   requireReportAccessTokenManagementPermission,
   asyncHandler(async (req, res) => {
     const tokenId = parseEntityId(req.params.tokenId);
