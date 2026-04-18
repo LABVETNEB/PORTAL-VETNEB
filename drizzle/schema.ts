@@ -2,6 +2,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
@@ -20,6 +21,24 @@ export const REPORT_STATUSES = [
   "delivered",
 ] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
+export const AUDIT_ACTOR_TYPES = [
+  "system",
+  "admin_user",
+  "clinic_user",
+  "public_report_access_token",
+] as const;
+export type AuditActorType = (typeof AUDIT_ACTOR_TYPES)[number];
+
+export const AUDIT_EVENTS = [
+  "auth.admin.login.succeeded",
+  "auth.clinic.login.succeeded",
+  "report.status.changed",
+  "report_access_token.created",
+  "report_access_token.revoked",
+  "report.public_accessed",
+] as const;
+export type AuditEvent = (typeof AUDIT_EVENTS)[number];
+
 
 export const clinics = pgTable("clinics", {
   id: serial("id").primaryKey(),
@@ -191,6 +210,74 @@ export const reportAccessTokens = pgTable(
     ).on(table.clinicId, table.reportId, table.createdAt),
     expiresAtIdx: index("report_access_tokens_expires_at_idx").on(table.expiresAt),
     revokedAtIdx: index("report_access_tokens_revoked_at_idx").on(table.revokedAt),
+  }),
+);
+
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: serial("id").primaryKey(),
+    event: varchar("event", { length: 120 }).$type<AuditEvent>().notNull(),
+    actorType: varchar("actor_type", { length: 40 })
+      .$type<AuditActorType>()
+      .notNull()
+      .default("system"),
+    actorAdminUserId: integer("actor_admin_user_id").references(
+      () => adminUsers.id,
+      { onDelete: "set null" },
+    ),
+    actorClinicUserId: integer("actor_clinic_user_id").references(
+      () => clinicUsers.id,
+      { onDelete: "set null" },
+    ),
+    actorReportAccessTokenId: integer("actor_report_access_token_id").references(
+      () => reportAccessTokens.id,
+      { onDelete: "set null" },
+    ),
+    clinicId: integer("clinic_id").references(() => clinics.id, {
+      onDelete: "set null",
+    }),
+    reportId: integer("report_id").references(() => reports.id, {
+      onDelete: "set null",
+    }),
+    targetAdminUserId: integer("target_admin_user_id").references(
+      () => adminUsers.id,
+      { onDelete: "set null" },
+    ),
+    targetClinicUserId: integer("target_clinic_user_id").references(
+      () => clinicUsers.id,
+      { onDelete: "set null" },
+    ),
+    targetReportAccessTokenId: integer("target_report_access_token_id").references(
+      () => reportAccessTokens.id,
+      { onDelete: "set null" },
+    ),
+    requestId: varchar("request_id", { length: 64 }),
+    requestMethod: varchar("request_method", { length: 16 }),
+    requestPath: text("request_path"),
+    ipAddress: varchar("ip_address", { length: 64 }),
+    userAgent: text("user_agent"),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    eventIdx: index("audit_log_event_idx").on(table.event),
+    createdAtIdx: index("audit_log_created_at_idx").on(table.createdAt),
+    actorTypeIdx: index("audit_log_actor_type_idx").on(table.actorType),
+    actorAdminUserIdIdx: index("audit_log_actor_admin_user_id_idx").on(
+      table.actorAdminUserId,
+    ),
+    actorClinicUserIdIdx: index("audit_log_actor_clinic_user_id_idx").on(
+      table.actorClinicUserId,
+    ),
+    actorReportAccessTokenIdIdx: index(
+      "audit_log_actor_report_access_token_id_idx",
+    ).on(table.actorReportAccessTokenId),
+    clinicIdIdx: index("audit_log_clinic_id_idx").on(table.clinicId),
+    reportIdIdx: index("audit_log_report_id_idx").on(table.reportId),
+    targetReportAccessTokenIdIdx: index(
+      "audit_log_target_report_access_token_id_idx",
+    ).on(table.targetReportAccessTokenId),
   }),
 );
 
@@ -507,6 +594,9 @@ export type NewReportStatusHistory = InferInsertModel<typeof reportStatusHistory
 
 export type ReportAccessToken = InferSelectModel<typeof reportAccessTokens>;
 export type NewReportAccessToken = InferInsertModel<typeof reportAccessTokens>;
+
+export type AuditLog = InferSelectModel<typeof auditLog>;
+export type NewAuditLog = InferInsertModel<typeof auditLog>;
 
 export type ActiveSession = InferSelectModel<typeof activeSessions>;
 export type NewActiveSession = InferInsertModel<typeof activeSessions>;

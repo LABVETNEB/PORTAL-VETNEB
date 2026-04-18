@@ -19,6 +19,7 @@ import {
   canTransitionReportStatus,
   normalizeReportStatus,
 } from "../lib/report-status";
+import { AUDIT_EVENTS, writeAuditLog } from "../lib/audit";
 import { ENV } from "../lib/env";
 import {
   ALLOWED_MIME_TYPES,
@@ -492,6 +493,17 @@ router.patch(
         error: "Informe no encontrado",
       });
     }
+
+    await writeAuditLog(req, {
+      event: AUDIT_EVENTS.REPORT_STATUS_CHANGED,
+      clinicId: updated.clinicId,
+      reportId: updated.id,
+      metadata: {
+        fromStatus: reportResult.report.currentStatus,
+        toStatus: nextStatus,
+        note,
+      },
+    });
 
     return res.json({
       success: true,

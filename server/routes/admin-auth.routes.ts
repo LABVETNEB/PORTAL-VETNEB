@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import {
   createAdminSession,
   deleteAdminSession,
@@ -9,6 +9,7 @@ import {
   hashSessionToken,
   verifyPassword,
 } from "../lib/auth-security";
+import { AUDIT_EVENTS, writeAuditLog } from "../lib/audit";
 import { ENV } from "../lib/env";
 import { requireAdminAuth } from "../middlewares/admin-auth";
 import { requireTrustedOrigin } from "../middlewares/trusted-origin";
@@ -61,6 +62,19 @@ router.post(
       adminUserId: admin.id,
       tokenHash,
       expiresAt,
+    });
+
+    await writeAuditLog(req, {
+      event: AUDIT_EVENTS.ADMIN_LOGIN_SUCCEEDED,
+      targetAdminUserId: admin.id,
+      metadata: {
+        username: admin.username,
+        sessionExpiresAt: expiresAt,
+      },
+      actor: {
+        type: "admin_user",
+        adminUserId: admin.id,
+      },
     });
 
     res.cookie(ENV.adminCookieName, token, {
