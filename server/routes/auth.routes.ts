@@ -1,5 +1,4 @@
-import { Router } from "express";
-import rateLimit from "express-rate-limit";
+﻿import { Router } from "express";
 
 import {
   createActiveSession,
@@ -15,23 +14,14 @@ import {
 } from "../lib/auth-security";
 import { AUDIT_EVENTS, writeAuditLog } from "../lib/audit";
 import { ENV } from "../lib/env";
+import { createLoginRateLimit } from "../lib/login-rate-limit";
 import { getClinicPermissions, normalizeClinicUserRole } from "../lib/permissions";
 import { requireAuth } from "../middlewares/auth";
 import { requireTrustedOrigin } from "../middlewares/trusted-origin";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
-
-const loginRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: "Demasiados intentos de inicio de sesión. Intente más tarde.",
-  },
-});
+const loginRateLimit = createLoginRateLimit();
 
 router.post(
   "/login",
