@@ -2,6 +2,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
+import adminAuditRoutes from "./routes/admin-audit.routes";
 import adminAuthRoutes from "./routes/admin-auth.routes";
 import adminParticularTokensRoutes from "./routes/admin-particular-tokens.routes";
 import adminReportAccessTokensRoutes from "./routes/admin-report-access-tokens.routes";
@@ -95,7 +96,7 @@ app.use(
 
       return res.status(400).json({
         success: false,
-        error: "JSON inv√°lido",
+        error: "JSON inv·lido",
       });
     }
 
@@ -116,6 +117,7 @@ app.use("/api/health", healthRoutes);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin/auth", adminAuthRoutes);
+app.use("/api/admin/audit-log", adminAuditRoutes);
 app.use("/api/clinic/profile", clinicPublicProfileRoutes);
 app.use("/api/admin/particular/tokens", adminParticularTokensRoutes);
 app.use("/api/admin/report-access-tokens", adminReportAccessTokensRoutes);
