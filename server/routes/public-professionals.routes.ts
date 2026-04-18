@@ -1,13 +1,16 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 
 import {
   getPublicProfessionalByClinicId,
   searchPublicProfessionals,
 } from "../db-public-professionals";
+import { createPublicProfessionalsSearchRateLimit } from "../lib/public-professionals-rate-limit";
 import { createSignedStorageUrl } from "../lib/supabase";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
+const publicProfessionalsSearchRateLimit =
+  createPublicProfessionalsSearchRateLimit();
 
 function normalizeText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -82,6 +85,7 @@ async function serializeProfessional(row: {
 
 router.get(
   "/search",
+  publicProfessionalsSearchRateLimit,
   asyncHandler(async (req, res) => {
     const query = normalizeText(req.query.q ?? req.query.query);
     const locality = normalizeText(req.query.locality);
