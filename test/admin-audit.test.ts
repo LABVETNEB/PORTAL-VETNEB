@@ -1,6 +1,8 @@
-import test from "node:test";
+﻿import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildAdminAuditCsv,
+  buildAdminAuditCsvFilename,
   buildAdminAuditListFilters,
   normalizeAuditListMetadata,
   serializeAuditLogListItem,
@@ -92,4 +94,51 @@ test("serializeAuditLogListItem mapea snake_case y metadata", () => {
     accessCount: 2,
   });
   assert.equal(item.requestPath, "/api/public/report-access/[REDACTED]");
+});
+
+test("buildAdminAuditCsv genera cabecera, escapa valores y serializa metadata", () => {
+  const csv = buildAdminAuditCsv([
+    {
+      id: 16,
+      event: "report.public_accessed",
+      action: "report.public_accessed",
+      entity: "report_access_token",
+      entityId: 1,
+      actorType: "public_report_access_token",
+      actorAdminUserId: null,
+      actorClinicUserId: null,
+      actorReportAccessTokenId: 5,
+      clinicId: 4,
+      reportId: 1,
+      targetAdminUserId: null,
+      targetClinicUserId: null,
+      targetReportAccessTokenId: 5,
+      requestId: "req-123",
+      requestMethod: "GET",
+      requestPath: "/api/admin/audit-log/export.csv?event=report.public_accessed",
+      ipAddress: "127.0.0.1",
+      userAgent: 'Mozilla/5.0 "Windows"',
+      metadata: {
+        tokenLast4: "43de",
+        note: "linea 1\nlinea 2",
+      },
+      createdAt: "2026-04-17 17:10:58.921445",
+    },
+  ]);
+
+  const lines = csv.split("\n");
+
+  assert.match(lines[0], /^\uFEFFid,event,action,entity,entityId,/);
+  assert.match(lines[1], /report\.public_accessed/);
+  assert.match(lines[1], /"Mozilla\/5\.0 ""Windows"""/);
+  assert.match(lines[1], /"\{""tokenLast4"":""43de"",""note"":""linea 1\\nlinea 2""\}"/);
+  assert.match(lines[1], /2026-04-17T17:10:58\.921Z$/);
+});
+
+test("buildAdminAuditCsvFilename genera nombre estable y seguro", () => {
+  const filename = buildAdminAuditCsvFilename(
+    new Date("2026-04-18T13:22:33.456Z"),
+  );
+
+  assert.equal(filename, "admin-audit-log-2026-04-18T13-22-33-456Z.csv");
 });

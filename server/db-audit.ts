@@ -1,4 +1,4 @@
-import type { AuditActorType, AuditEvent } from "../drizzle/schema";
+﻿import type { AuditActorType, AuditEvent } from "../drizzle/schema";
 import type { AdminAuditListFilters } from "./lib/admin-audit";
 import { serializeAuditLogListItem } from "./lib/admin-audit";
 import { pgClient } from "./db";
@@ -26,7 +26,7 @@ type CreateAuditLogInput = {
 };
 
 type InsertValue = string | number | null;
-type QueryValue = string | number | Date;
+type QueryValue = string | number;
 
 type ColumnSpec = {
   column: string;
@@ -97,6 +97,11 @@ function buildAuditLogWhere(filters: AdminAuditListFilters): {
     clauses.push(`${sqlFragment} $${values.length}`);
   };
 
+  const addUtcDateClause = (sqlFragment: string, value: Date) => {
+    values.push(value.toISOString());
+    clauses.push(`${sqlFragment} ($${values.length}::timestamptz AT TIME ZONE 'UTC')`);
+  };
+
   if (filters.event) addClause(`"event" =`, filters.event);
   if (filters.actorType) addClause(`"actor_type" =`, filters.actorType);
   if (typeof filters.clinicId === "number") addClause(`"clinic_id" =`, filters.clinicId);
@@ -113,8 +118,12 @@ function buildAuditLogWhere(filters: AdminAuditListFilters): {
   if (typeof filters.targetReportAccessTokenId === "number") {
     addClause(`"target_report_access_token_id" =`, filters.targetReportAccessTokenId);
   }
-  if (filters.from instanceof Date) addClause(`"created_at" >=`, filters.from);
-  if (filters.to instanceof Date) addClause(`"created_at" <=`, filters.to);
+  if (filters.from instanceof Date) {
+    addUtcDateClause(`"created_at" >=`, filters.from);
+  }
+  if (filters.to instanceof Date) {
+    addUtcDateClause(`"created_at" <=`, filters.to);
+  }
 
   return {
     whereSql: clauses.length > 0 ? `where ${clauses.join(" and ")}` : "",
