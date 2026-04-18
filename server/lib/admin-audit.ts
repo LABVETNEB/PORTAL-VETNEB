@@ -276,3 +276,18 @@ export function buildAdminAuditListFilters(
     },
   };
 }
+export function buildClinicAuditListFilters(
+  query: Record<string, unknown>,
+  clinicId: number,
+): AdminAuditListFilterBuildResult {
+  const { filters, errors } = buildAdminAuditListFilters(query);
+
+  return {
+    errors,
+    filters: {
+      ...filters,
+      clinicId,
+      actorAdminUserId: undefined,
+    },
+  };
+}

@@ -9,6 +9,7 @@ import adminReportAccessTokensRoutes from "./routes/admin-report-access-tokens.r
 import adminStudyTrackingRoutes from "./routes/admin-study-tracking.routes";
 import authRoutes from "./routes/auth.routes";
 import clinicPublicProfileRoutes from "./routes/clinic-public-profile.routes";
+import clinicAuditRoutes from "./routes/clinic-audit.routes";
 import healthRoutes from "./routes/health.routes";
 import particularAuthRoutes from "./routes/particular-auth.routes";
 import particularStudyTrackingRoutes from "./routes/particular-study-tracking.routes";
@@ -119,6 +120,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin/auth", adminAuthRoutes);
 app.use("/api/admin/audit-log", adminAuditRoutes);
 app.use("/api/clinic/profile", clinicPublicProfileRoutes);
+app.use("/api/clinic/audit-log", clinicAuditRoutes);
 app.use("/api/admin/particular/tokens", adminParticularTokensRoutes);
 app.use("/api/admin/report-access-tokens", adminReportAccessTokensRoutes);
 app.use("/api/admin/study-tracking", adminStudyTrackingRoutes);
