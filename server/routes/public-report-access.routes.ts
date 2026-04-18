@@ -1,10 +1,15 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import {
   getReportAccessTokenWithReportByTokenHash,
   recordReportAccessTokenAccess,
 } from "../db-report-access";
-import { buildPublicReportAccessTokenActor, AUDIT_EVENTS, writeAuditLog } from "../lib/audit";
+import {
+  buildPublicReportAccessTokenActor,
+  AUDIT_EVENTS,
+  writeAuditLog,
+} from "../lib/audit";
 import { hashSessionToken } from "../lib/auth-security";
+import { createPublicReportAccessRateLimit } from "../lib/public-report-access-rate-limit";
 import {
   canAccessReportPublicly,
   getReportAccessTokenState,
@@ -18,9 +23,11 @@ import {
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
+const publicReportAccessRateLimit = createPublicReportAccessRateLimit();
 
 router.get(
   "/:token",
+  publicReportAccessRateLimit,
   asyncHandler(async (req, res) => {
     const parsed = reportAccessTokenRawTokenSchema.safeParse(req.params.token);
 
