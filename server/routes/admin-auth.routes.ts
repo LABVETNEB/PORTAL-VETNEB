@@ -1,4 +1,4 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import {
   createAdminSession,
   deleteAdminSession,
@@ -11,15 +11,18 @@ import {
 } from "../lib/auth-security";
 import { AUDIT_EVENTS, writeAuditLog } from "../lib/audit";
 import { ENV } from "../lib/env";
+import { createLoginRateLimit } from "../lib/login-rate-limit";
 import { requireAdminAuth } from "../middlewares/admin-auth";
 import { requireTrustedOrigin } from "../middlewares/trusted-origin";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
+const loginRateLimit = createLoginRateLimit();
 
 router.post(
   "/login",
   requireTrustedOrigin,
+  loginRateLimit,
   asyncHandler(async (req, res) => {
     const username =
       typeof req.body?.username === "string" ? req.body.username.trim() : "";

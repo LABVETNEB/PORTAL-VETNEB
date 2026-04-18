@@ -1,5 +1,4 @@
-import { Router } from "express";
-import rateLimit from "express-rate-limit";
+﻿import { Router } from "express";
 import { getReportById } from "../db";
 import {
   createParticularSession,
@@ -13,6 +12,7 @@ import {
   hashSessionToken,
 } from "../lib/auth-security";
 import { ENV } from "../lib/env";
+import { createLoginRateLimit } from "../lib/login-rate-limit";
 import { serializeParticularTokenDetail } from "../lib/particular-token";
 import {
   createSignedReportDownloadUrl,
@@ -23,17 +23,7 @@ import { requireTrustedOrigin } from "../middlewares/trusted-origin";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
-
-const loginRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: "Demasiados intentos de inicio de sesión. Intente más tarde.",
-  },
-});
+const loginRateLimit = createLoginRateLimit();
 
 async function buildParticularResponse(tokenId: number) {
   const particularToken = await getParticularTokenById(tokenId);
