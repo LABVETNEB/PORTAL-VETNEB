@@ -15,6 +15,7 @@ test("buildLoginRateLimitOptions expone configuracion esperada", () => {
   assert.equal(options.max, 10);
   assert.equal(options.standardHeaders, true);
   assert.equal(options.legacyHeaders, false);
+  assert.equal(options.skipSuccessfulRequests, true);
   assert.deepEqual(options.message, {
     success: false,
     error: "Demasiados intentos de inicio de sesión. Intente más tarde.",
