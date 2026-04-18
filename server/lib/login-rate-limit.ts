@@ -11,6 +11,7 @@ export function buildLoginRateLimitOptions(): Partial<Options> {
     max: LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
     standardHeaders: true,
     legacyHeaders: false,
+    skipSuccessfulRequests: true,
     message: {
       success: false,
       error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
