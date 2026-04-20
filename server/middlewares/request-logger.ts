@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response } from "express";
+﻿import type { NextFunction, Request, Response } from "express";
 
 export function sanitizeUrlForLogs(url: string): string {
   return url
@@ -9,6 +9,24 @@ export function sanitizeUrlForLogs(url: string): string {
     .replace(/([?&](?:token|reportAccessToken)=)([^&#]+)/gi, "$1[REDACTED]");
 }
 
+export function buildRequestLogLine(input: {
+  timestamp: string;
+  method: string;
+  url: string;
+  statusCode: number;
+  durationMs: number;
+}) {
+  const baseLine =
+    `[${input.timestamp}] ${input.method} ${input.url} ` +
+    `${input.statusCode} ${input.durationMs.toFixed(1)}ms`;
+
+  if (input.statusCode === 429) {
+    return `${baseLine} RATE_LIMITED`;
+  }
+
+  return baseLine;
+}
+
 export function requestLogger(req: Request, res: Response, next: NextFunction) {
   const startTime = process.hrtime.bigint();
 
@@ -17,7 +35,13 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
     const safeUrl = sanitizeUrlForLogs(req.originalUrl);
 
     console.log(
-      `[${new Date().toISOString()}] ${req.method} ${safeUrl} ${res.statusCode} ${durationMs.toFixed(1)}ms`,
+      buildRequestLogLine({
+        timestamp: new Date().toISOString(),
+        method: req.method,
+        url: safeUrl,
+        statusCode: res.statusCode,
+        durationMs,
+      }),
     );
   });
 
