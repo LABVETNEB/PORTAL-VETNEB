@@ -10,6 +10,7 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "types": ["node", "express"],
     "outDir": "dist"
   },

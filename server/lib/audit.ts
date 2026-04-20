@@ -1,7 +1,7 @@
 import type { Request } from "express";
 import type { AuditActorType, AuditEvent } from "../../drizzle/schema";
-import { sanitizeUrlForLogs } from "../middlewares/request-logger";
-import { logError, logInfo, serializeError } from "./logger";
+import { sanitizeUrlForLogs } from "../middlewares/request-logger.ts";
+import { logError, logInfo, serializeError } from "./logger.ts";
 
 export const AUDIT_EVENTS = {
   ADMIN_LOGIN_SUCCEEDED: "auth.admin.login.succeeded",
@@ -188,7 +188,7 @@ export async function writeAuditLog(
 ): Promise<void> {
   try {
     const payload = buildAuditLogInsert(req as RequestWithContext, input);
-    const { createAuditLog } = await import("../db-audit");
+    const { createAuditLog } = await import("../db-audit.ts");
 
     await createAuditLog(payload);
 
