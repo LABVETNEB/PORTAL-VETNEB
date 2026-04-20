@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { ENV } from "./env";
+import { ENV } from "./env.ts";
 
 export const ALLOWED_MIME_TYPES = [
   "application/pdf",
@@ -117,7 +117,7 @@ export async function uploadReport(params: {
 }
 
 /**
- * Genera una signed URL para visualización / preview.
+ * Genera una signed URL para visualizaciÃ³n / preview.
  */
 export async function createSignedStorageUrl(
   storagePath: string,
