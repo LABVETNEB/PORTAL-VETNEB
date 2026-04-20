@@ -1,5 +1,5 @@
 import nodemailer, { type Transporter } from "nodemailer";
-import { ENV } from "./env";
+import { ENV } from "./env.ts";
 
 let cachedTransporter: Transporter | null = null;
 
@@ -74,10 +74,10 @@ function buildSpecialStainRequiredText(input: {
   const lines = [
     `Hola,`,
     ``,
-    `Te informamos que el estudio #${input.trackingCaseId} de la clÃ­nica ${input.clinicName} requiere tinciÃ³n especial.`,
+    `Te informamos que el estudio #${input.trackingCaseId} de la clÃƒÂ­nica ${input.clinicName} requiere tinciÃƒÂ³n especial.`,
     ``,
     `Estado actual: ${input.currentStage}`,
-    `RecepciÃ³n de muestra: ${formatDateTime(input.receptionAt)}`,
+    `RecepciÃƒÂ³n de muestra: ${formatDateTime(input.receptionAt)}`,
     `Fecha estimada de entrega: ${formatDateTime(input.estimatedDeliveryAt)}`,
   ];
 
@@ -94,12 +94,12 @@ function buildSpecialStainRequiredText(input: {
   }
 
   if (input.adminContactPhone) {
-    lines.push(`TelÃ©fono de contacto administrativo: ${input.adminContactPhone}`);
+    lines.push(`TelÃƒÂ©fono de contacto administrativo: ${input.adminContactPhone}`);
   }
 
   lines.push(
     ``,
-    `IngresÃ¡ al portal para revisar el seguimiento y continuar la gestiÃ³n.`,
+    `IngresÃƒÂ¡ al portal para revisar el seguimiento y continuar la gestiÃƒÂ³n.`,
     ``,
     `Equipo VETNEB`,
   );
@@ -143,7 +143,7 @@ export async function sendSpecialStainRequiredEmail(input: {
   const info = await transporter.sendMail({
     from: ENV.smtp.from,
     to: recipients.join(", "),
-    subject: `[VETNEB] Estudio #${input.trackingCaseId}: requiere tinciÃ³n especial`,
+    subject: `[VETNEB] Estudio #${input.trackingCaseId}: requiere tinciÃƒÂ³n especial`,
     text: buildSpecialStainRequiredText(input),
   });
 
