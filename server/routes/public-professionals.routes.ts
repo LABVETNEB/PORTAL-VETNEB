@@ -4,13 +4,18 @@ import {
   getPublicProfessionalByClinicId,
   searchPublicProfessionals,
 } from "../db-public-professionals";
-import { createPublicProfessionalsSearchRateLimit } from "../lib/public-professionals-rate-limit";
+import {
+  createPublicProfessionalDetailRateLimit,
+  createPublicProfessionalsSearchRateLimit,
+} from "../lib/public-professionals-rate-limit";
 import { createSignedStorageUrl } from "../lib/supabase";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
 const publicProfessionalsSearchRateLimit =
   createPublicProfessionalsSearchRateLimit();
+const publicProfessionalDetailRateLimit =
+  createPublicProfessionalDetailRateLimit();
 
 function normalizeText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -125,6 +130,7 @@ router.get(
 
 router.get(
   "/:clinicId",
+  publicProfessionalDetailRateLimit,
   asyncHandler(async (req, res) => {
     const clinicId = parseClinicId(req.params.clinicId);
 
