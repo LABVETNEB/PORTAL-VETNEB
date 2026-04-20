@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 import type {
   StudyTrackingCase,
   StudyTrackingNotification,
@@ -33,7 +33,7 @@ const optionalTrimmedText = (max: number, label: string) =>
     );
 
 const optionalDateSchema = z
-  .union([z.coerce.date(), z.undefined(), z.null()])
+  .union([z.null(), z.undefined(), z.coerce.date()])
   .transform((value) => {
     if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
       return undefined;
@@ -116,7 +116,7 @@ export const updateStudyTrackingSchema = z.object({
     z.undefined(),
   ]),
   receptionAt: optionalDateSchema,
-  estimatedDeliveryAt: z.union([z.coerce.date(), z.null(), z.undefined()]).transform((value) => {
+  estimatedDeliveryAt: z.union([z.null(), z.undefined(), z.coerce.date()]).transform((value) => {
     if (value === null) {
       return null;
     }
@@ -128,7 +128,7 @@ export const updateStudyTrackingSchema = z.object({
     return value;
   }),
   currentStage: stageSchema.optional(),
-  processingAt: z.union([z.coerce.date(), z.null(), z.undefined()]).transform((value) => {
+  processingAt: z.union([z.null(), z.undefined(), z.coerce.date()]).transform((value) => {
     if (value === null) {
       return null;
     }
@@ -139,7 +139,7 @@ export const updateStudyTrackingSchema = z.object({
 
     return value;
   }),
-  evaluationAt: z.union([z.coerce.date(), z.null(), z.undefined()]).transform((value) => {
+  evaluationAt: z.union([z.null(), z.undefined(), z.coerce.date()]).transform((value) => {
     if (value === null) {
       return null;
     }
@@ -150,7 +150,7 @@ export const updateStudyTrackingSchema = z.object({
 
     return value;
   }),
-  reportDevelopmentAt: z.union([z.coerce.date(), z.null(), z.undefined()]).transform((value) => {
+  reportDevelopmentAt: z.union([z.null(), z.undefined(), z.coerce.date()]).transform((value) => {
     if (value === null) {
       return null;
     }
@@ -161,7 +161,7 @@ export const updateStudyTrackingSchema = z.object({
 
     return value;
   }),
-  deliveredAt: z.union([z.coerce.date(), z.null(), z.undefined()]).transform((value) => {
+  deliveredAt: z.union([z.null(), z.undefined(), z.coerce.date()]).transform((value) => {
     if (value === null) {
       return null;
     }
