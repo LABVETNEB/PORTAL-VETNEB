@@ -11,6 +11,7 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "allowImportingTsExtensions": true,
+    "noEmit": true,
     "types": ["node", "express"],
     "outDir": "dist"
   },
