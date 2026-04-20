@@ -1,5 +1,5 @@
-﻿import type { NextFunction, Request, Response } from "express";
-import { ENV } from "../lib/env";
+import type { NextFunction, Request, Response } from "express";
+import { ENV } from "../lib/env.ts";
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
