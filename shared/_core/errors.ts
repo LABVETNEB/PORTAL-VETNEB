@@ -1,14 +1,17 @@
-/**
+﻿/**
  * Base HTTP error class with status code.
  * Throw this from route handlers to send specific HTTP errors.
  */
 export class HttpError extends Error {
+  public statusCode: number;
+
   constructor(
-    public statusCode: number,
+    statusCode: number,
     message: string,
   ) {
     super(message);
     this.name = "HttpError";
+    this.statusCode = statusCode;
   }
 }
 
