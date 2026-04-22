@@ -20,6 +20,7 @@ import {
   serializeParticularTokenDetail,
   updateParticularTokenReportSchema,
 } from "../lib/particular-token";
+import { requireClinicManagementPermission } from "../middlewares/clinic-permissions";
 import { requireAuth } from "../middlewares/auth";
 import { requireTrustedOrigin } from "../middlewares/trusted-origin";
 import { asyncHandler } from "../utils/async-handler";
@@ -31,6 +32,7 @@ router.use(requireAuth);
 router.post(
   "/",
   requireTrustedOrigin,
+  requireClinicManagementPermission,
   asyncHandler(async (req, res) => {
     const parsed = clinicCreateParticularTokenSchema.safeParse(req.body);
 
@@ -154,6 +156,7 @@ router.get(
 router.patch(
   "/:tokenId/report",
   requireTrustedOrigin,
+  requireClinicManagementPermission,
   asyncHandler(async (req, res) => {
     const tokenId = parseEntityId(req.params.tokenId);
 

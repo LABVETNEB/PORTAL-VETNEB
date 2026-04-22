@@ -26,3 +26,4 @@
 - Confirmed database migration flow with Drizzle after environment completion.
 - Public report access tokens are stored hashed and no longer leak through request logs.
 - Trusted origin enforcement is now applied at router level before cookie auth in clinic public profile and reports routes, including report upload mutations.
+- Clinic management permission is now enforced on sensitive clinic mutations for public profile, particular tokens and study tracking.

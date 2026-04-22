@@ -18,6 +18,7 @@ import {
   deleteStorageObject,
   uploadClinicAvatar,
 } from "../lib/supabase";
+import { requireClinicManagementPermission } from "../middlewares/clinic-permissions";
 import { requireAuth } from "../middlewares/auth";
 import { requireTrustedOrigin } from "../middlewares/trusted-origin";
 import { asyncHandler } from "../utils/async-handler";
@@ -140,6 +141,7 @@ router.get(
 
 router.patch(
   "/",
+  requireClinicManagementPermission,
   asyncHandler(async (req, res) => {
     const clinicId = req.auth!.clinicId;
     const clinic = await getClinicById(clinicId);
@@ -210,6 +212,7 @@ router.patch(
 
 router.post(
   "/avatar",
+  requireClinicManagementPermission,
   upload.single("avatar"),
   asyncHandler(async (req, res) => {
     const clinicId = req.auth!.clinicId;
@@ -266,6 +269,7 @@ router.post(
 
 router.delete(
   "/avatar",
+  requireClinicManagementPermission,
   asyncHandler(async (req, res) => {
     const clinicId = req.auth!.clinicId;
     const clinic = await getClinicById(clinicId);

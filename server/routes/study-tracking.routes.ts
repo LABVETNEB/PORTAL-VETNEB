@@ -24,6 +24,7 @@ import {
   serializeStudyTrackingCase,
   serializeStudyTrackingNotification,
 } from "../lib/study-tracking";
+import { requireClinicManagementPermission } from "../middlewares/clinic-permissions";
 import { requireAuth } from "../middlewares/auth";
 import { requireTrustedOrigin } from "../middlewares/trusted-origin";
 import { asyncHandler } from "../utils/async-handler";
@@ -106,6 +107,7 @@ router.get(
 router.post(
   "/",
   requireTrustedOrigin,
+  requireClinicManagementPermission,
   asyncHandler(async (req, res) => {
     const parsed = clinicCreateStudyTrackingSchema.safeParse(req.body);
 
