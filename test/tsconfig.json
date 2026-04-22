@@ -1,0 +1,14 @@
+﻿{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "express"],
+    "noEmit": true,
+    "rootDir": ".."
+  },
+  "include": [
+    "./**/*.ts",
+    "../server/**/*.ts",
+    "../drizzle/**/*.ts",
+    "../*.ts"
+  ]
+}
