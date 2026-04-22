@@ -1,4 +1,4 @@
-# CHANGELOG
+﻿# CHANGELOG
 
 ## [Unreleased]
 
@@ -9,6 +9,7 @@
 - `report_access_tokens` lifecycle support with clinic/admin creation, revocation, expiration and access counters.
 - Public report access endpoint backed by hashed tokens and signed Supabase URLs.
 - Node test baseline for report access token rules and log redaction.
+- HTTP bootstrap test coverage with injected dependencies to prepare the Fastify migration.
 
 ### Changed
 - Local backend baseline stabilized for Windows + pnpm.
@@ -17,6 +18,7 @@
 - Backend CI now executes `pnpm test` in addition to typecheck and build.
 - Request logging now redacts public report access tokens from URLs before writing to logs.
 - Drizzle migration metadata now tracks both the PR4 legacy compatibility migration and the new PR5 token migration.
+- Express app construction is now separated from HTTP bootstrap to prepare the migration to Fastify.
 
 ### Removed
 - `server/app.ts.bak` from the tracked repository state.

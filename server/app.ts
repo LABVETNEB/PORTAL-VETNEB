@@ -1,4 +1,9 @@
-import express, { type NextFunction, type Request, type Response } from "express";
+﻿import express, {
+  type Express,
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
@@ -23,10 +28,6 @@ import { ENV } from "./lib/env";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler";
 import { requestLogger } from "./middlewares/request-logger";
 
-const app = express();
-
-app.set("trust proxy", ENV.trustProxy);
-
 function getAllowedOrigins(): string[] {
   const configuredOrigins = ENV.corsOrigins.map((origin) =>
     origin.trim().toLowerCase(),
@@ -50,90 +51,99 @@ function getAllowedOrigins(): string[] {
   return [];
 }
 
-const allowedOrigins = new Set(getAllowedOrigins());
+export function createExpressApp(): Express {
+  const app = express();
+  const allowedOrigins = new Set(getAllowedOrigins());
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) {
-        callback(null, true);
-        return;
+  app.set("trust proxy", ENV.trustProxy);
+
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+
+        const normalizedOrigin = origin.trim().toLowerCase();
+
+        if (allowedOrigins.has(normalizedOrigin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error("Origen no permitido por CORS"));
+      },
+      credentials: true,
+    }),
+  );
+
+  app.use(cookieParser());
+  app.use(
+    express.json({
+      strict: true,
+    }),
+  );
+  app.use(express.urlencoded({ extended: true }));
+  app.use(requestLogger);
+
+  app.use(
+    (err: unknown, _req: Request, res: Response, next: NextFunction) => {
+      const isJsonSyntaxError =
+        err instanceof SyntaxError &&
+        typeof err === "object" &&
+        err !== null &&
+        "body" in err &&
+        "status" in err &&
+        (err as { status?: number }).status === 400;
+
+      if (isJsonSyntaxError) {
+        console.error("JSON PARSE ERROR:", (err as Error).message);
+
+        return res.status(400).json({
+          success: false,
+          error: "JSON inválido",
+        });
       }
 
-      const normalizedOrigin = origin.trim().toLowerCase();
-
-      if (allowedOrigins.has(normalizedOrigin)) {
-        callback(null, true);
-        return;
-      }
-
-      callback(new Error("Origen no permitido por CORS"));
+      next(err);
     },
-    credentials: true,
-  }),
-);
+  );
 
-app.use(cookieParser());
-app.use(
-  express.json({
-    strict: true,
-  }),
-);
-app.use(express.urlencoded({ extended: true }));
-app.use(requestLogger);
-
-app.use(
-  (err: unknown, _req: Request, res: Response, next: NextFunction) => {
-    const isJsonSyntaxError =
-      err instanceof SyntaxError &&
-      typeof err === "object" &&
-      err !== null &&
-      "body" in err &&
-      "status" in err &&
-      (err as { status?: number }).status === 400;
-
-    if (isJsonSyntaxError) {
-      console.error("JSON PARSE ERROR:", (err as Error).message);
-
-      return res.status(400).json({
-        success: false,
-        error: "JSON inv�lido",
-      });
-    }
-
-    next(err);
-  },
-);
-
-app.get("/", (_req: Request, res: Response) => {
-  res.status(200).json({
-    success: true,
-    service: "portal-vetneb-api",
-    environment: ENV.nodeEnv,
+  app.get("/", (_req: Request, res: Response) => {
+    res.status(200).json({
+      success: true,
+      service: "portal-vetneb-api",
+      environment: ENV.nodeEnv,
+    });
   });
-});
 
-app.use("/health", healthRoutes);
-app.use("/api/health", healthRoutes);
+  app.use("/health", healthRoutes);
+  app.use("/api/health", healthRoutes);
 
-app.use("/api/auth", authRoutes);
-app.use("/api/admin/auth", adminAuthRoutes);
-app.use("/api/admin/audit-log", adminAuditRoutes);
-app.use("/api/clinic/profile", clinicPublicProfileRoutes);
-app.use("/api/clinic/audit-log", clinicAuditRoutes);
-app.use("/api/admin/particular/tokens", adminParticularTokensRoutes);
-app.use("/api/admin/report-access-tokens", adminReportAccessTokensRoutes);
-app.use("/api/admin/study-tracking", adminStudyTrackingRoutes);
-app.use("/api/particular/tokens", particularTokensRoutes);
-app.use("/api/particular/auth", particularAuthRoutes);
-app.use("/api/particular/study-tracking", particularStudyTrackingRoutes);
-app.use("/api/public/professionals", publicProfessionalsRoutes);
-app.use("/api/public/report-access", publicReportAccessRoutes);
-app.use("/api/report-access-tokens", reportAccessTokensRoutes);
-app.use("/api/reports", reportsRoutes);
-app.use("/api/study-tracking", studyTrackingRoutes);
+  app.use("/api/auth", authRoutes);
+  app.use("/api/admin/auth", adminAuthRoutes);
+  app.use("/api/admin/audit-log", adminAuditRoutes);
+  app.use("/api/clinic/profile", clinicPublicProfileRoutes);
+  app.use("/api/clinic/audit-log", clinicAuditRoutes);
+  app.use("/api/admin/particular/tokens", adminParticularTokensRoutes);
+  app.use("/api/admin/report-access-tokens", adminReportAccessTokensRoutes);
+  app.use("/api/admin/study-tracking", adminStudyTrackingRoutes);
+  app.use("/api/particular/tokens", particularTokensRoutes);
+  app.use("/api/particular/auth", particularAuthRoutes);
+  app.use("/api/particular/study-tracking", particularStudyTrackingRoutes);
+  app.use("/api/public/professionals", publicProfessionalsRoutes);
+  app.use("/api/public/report-access", publicReportAccessRoutes);
+  app.use("/api/report-access-tokens", reportAccessTokensRoutes);
+  app.use("/api/reports", reportsRoutes);
+  app.use("/api/study-tracking", studyTrackingRoutes);
 
-app.use(notFoundHandler);
-app.use(errorHandler);
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+
+  return app;
+}
+
+const app = createExpressApp();
 
 export { app };
