@@ -44,34 +44,34 @@ function createMockProcessApi() {
   };
 }
 
-function createMockServer(options?: { closeError?: Error }) {
+function createMockHandle(options?: { closeError?: Error }) {
   let closeCalls = 0;
 
-  const server = {
-    close: (callback: (error?: Error | undefined) => void) => {
-      closeCalls += 1;
-      callback(options?.closeError);
-      return server as any;
-    },
-  };
-
   return {
-    server: server as any,
+    handle: {
+      close: async () => {
+        closeCalls += 1;
+
+        if (options?.closeError) {
+          throw options.closeError;
+        }
+      },
+    },
     getCloseCalls: () => closeCalls,
   };
 }
 
 test(
-  "createGracefulShutdown cierra server y recursos y sale con codigo 0",
+  "createGracefulShutdown cierra handle y recursos y sale con codigo 0",
   async () => {
     const { logger, logs, errors } = createMockLogger();
-    const { server, getCloseCalls } = createMockServer();
+    const { handle, getCloseCalls } = createMockHandle();
 
     let closeResourcesCalls = 0;
     const exitCodes: number[] = [];
 
     const shutdown = createGracefulShutdown({
-      getServer: () => server,
+      getHandle: () => handle,
       closeResources: async () => {
         closeResourcesCalls += 1;
       },
@@ -94,17 +94,17 @@ test(
 );
 
 test(
-  "bootstrapHttpServer ejecuta preflight listen y registra senales",
+  "bootstrapHttpServer ejecuta preflight startServer y registra senales",
   async () => {
     const { logger, logs, errors } = createMockLogger();
     const { processApi, handlers, exitCodes } = createMockProcessApi();
-    const { server } = createMockServer();
+    const { handle, getCloseCalls } = createMockHandle();
 
     let preflightCalls = 0;
     let closeResourcesCalls = 0;
-    const listenPorts: number[] = [];
+    const startedPorts: number[] = [];
 
-    const startedServer = await bootstrapHttpServer({
+    const startedHandle = await bootstrapHttpServer({
       port: 3000,
       preflight: async () => {
         preflightCalls += 1;
@@ -115,10 +115,13 @@ test(
           deletedParticularSessions: 1,
         };
       },
-      listen: (port, onListening) => {
-        listenPorts.push(port);
-        onListening();
-        return server;
+      startServer: async (port) => {
+        startedPorts.push(port);
+
+        return {
+          address: "http://127.0.0.1:3000",
+          handle,
+        };
       },
       closeResources: async () => {
         closeResourcesCalls += 1;
@@ -127,17 +130,18 @@ test(
       processApi: processApi as any,
     });
 
-    assert.equal(startedServer, server);
+    assert.equal(startedHandle, handle);
     assert.equal(preflightCalls, 1);
     assert.equal(closeResourcesCalls, 0);
-    assert.deepEqual(listenPorts, [3000]);
+    assert.equal(getCloseCalls(), 0);
+    assert.deepEqual(startedPorts, [3000]);
     assert.ok(handlers.has("SIGINT"));
     assert.ok(handlers.has("SIGTERM"));
     assert.deepEqual(exitCodes, []);
     assert.equal(errors.length, 0);
 
     assert.deepEqual(logs, [
-      ["API listening on http://localhost:3000"],
+      ["API listening on http://127.0.0.1:3000"],
       ["Expired clinic sessions cleaned: 4"],
       ["Expired admin sessions cleaned: 2"],
       ["Expired particular sessions cleaned: 1"],
@@ -153,7 +157,7 @@ test(
     const { processApi, exitCodes } = createMockProcessApi();
 
     let closeResourcesCalls = 0;
-    let listenCalls = 0;
+    let startServerCalls = 0;
 
     await assert.rejects(
       () =>
@@ -162,9 +166,13 @@ test(
           preflight: async () => {
             throw expectedError;
           },
-          listen: (_port, _onListening) => {
-            listenCalls += 1;
-            return createMockServer().server;
+          startServer: async (_port) => {
+            startServerCalls += 1;
+
+            return {
+              address: "http://127.0.0.1:3000",
+              handle: createMockHandle().handle,
+            };
           },
           closeResources: async () => {
             closeResourcesCalls += 1;
@@ -175,7 +183,7 @@ test(
       expectedError,
     );
 
-    assert.equal(listenCalls, 0);
+    assert.equal(startServerCalls, 0);
     assert.equal(closeResourcesCalls, 1);
     assert.deepEqual(exitCodes, [1]);
     assert.deepEqual(errors[0], ["Failed to start server:", expectedError]);

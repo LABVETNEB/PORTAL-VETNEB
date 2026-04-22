@@ -25,6 +25,8 @@ test("ENV expone un contrato base consistente", () => {
     ENV.cookieSameSite,
     ENV.isProduction ? "none" : "lax",
   );
+
+  assert.ok(["express", "fastify"].includes(ENV.httpRuntime));
 });
 
 test("ENV expone colecciones limpias y strings no vacíos donde corresponde", () => {
