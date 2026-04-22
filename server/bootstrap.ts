@@ -1,9 +1,11 @@
-﻿import type { Server } from "node:http";
-
-export type StartupCleanupSummary = {
+﻿export type StartupCleanupSummary = {
   deletedClinicSessions: number;
   deletedAdminSessions: number;
   deletedParticularSessions: number;
+};
+
+export type HttpServerHandle = {
+  close: () => Promise<void>;
 };
 
 type LoggerLike = Pick<Console, "log" | "error">;
@@ -12,14 +14,19 @@ type ProcessLike = Pick<NodeJS.Process, "on" | "exit">;
 export type BootstrapHttpServerDeps = {
   port: number;
   preflight: () => Promise<StartupCleanupSummary>;
-  listen: (port: number, onListening: () => void) => Server;
+  startServer: (
+    port: number,
+  ) => Promise<{
+    handle: HttpServerHandle;
+    address?: string;
+  }>;
   closeResources: () => Promise<void>;
   logger?: LoggerLike;
   processApi?: ProcessLike;
 };
 
 export function createGracefulShutdown(deps: {
-  getServer: () => Server | undefined;
+  getHandle: () => HttpServerHandle | undefined;
   closeResources: () => Promise<void>;
   logger?: LoggerLike;
   exit?: (code: number) => void;
@@ -31,23 +38,11 @@ export function createGracefulShutdown(deps: {
     logger.log(`Received ${signal}. Shutting down gracefully...`);
 
     try {
-      await new Promise<void>((resolve, reject) => {
-        const server = deps.getServer();
+      const handle = deps.getHandle();
 
-        if (!server) {
-          resolve();
-          return;
-        }
-
-        server.close((error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-
-          resolve();
-        });
-      });
+      if (handle) {
+        await handle.close();
+      }
 
       await deps.closeResources();
       exit(0);
@@ -60,30 +55,33 @@ export function createGracefulShutdown(deps: {
 
 export async function bootstrapHttpServer(
   deps: BootstrapHttpServerDeps,
-): Promise<Server> {
+): Promise<HttpServerHandle> {
   const logger = deps.logger ?? console;
   const processApi = deps.processApi ?? process;
 
-  let server: Server | undefined;
+  let handle: HttpServerHandle | undefined;
 
   try {
     const cleanupSummary = await deps.preflight();
 
-    server = deps.listen(deps.port, () => {
-      logger.log(`API listening on http://localhost:${deps.port}`);
-      logger.log(
-        `Expired clinic sessions cleaned: ${cleanupSummary.deletedClinicSessions}`,
-      );
-      logger.log(
-        `Expired admin sessions cleaned: ${cleanupSummary.deletedAdminSessions}`,
-      );
-      logger.log(
-        `Expired particular sessions cleaned: ${cleanupSummary.deletedParticularSessions}`,
-      );
-    });
+    const started = await deps.startServer(deps.port);
+    handle = started.handle;
+
+    logger.log(
+      `API listening on ${started.address ?? `http://localhost:${deps.port}`}`,
+    );
+    logger.log(
+      `Expired clinic sessions cleaned: ${cleanupSummary.deletedClinicSessions}`,
+    );
+    logger.log(
+      `Expired admin sessions cleaned: ${cleanupSummary.deletedAdminSessions}`,
+    );
+    logger.log(
+      `Expired particular sessions cleaned: ${cleanupSummary.deletedParticularSessions}`,
+    );
 
     const shutdown = createGracefulShutdown({
-      getServer: () => server,
+      getHandle: () => handle,
       closeResources: deps.closeResources,
       logger,
       exit: (code) => {
@@ -99,7 +97,7 @@ export async function bootstrapHttpServer(
       void shutdown("SIGTERM");
     });
 
-    return server;
+    return handle;
   } catch (error) {
     logger.error("Failed to start server:", error);
 

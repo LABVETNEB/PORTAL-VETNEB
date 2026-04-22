@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 import { z } from "zod";
 
 const emptyToUndefined = (value: unknown) => {
@@ -12,7 +12,7 @@ const parseBooleanishEnv = (value: unknown) => {
   const normalized = value.trim().toLowerCase();
 
   if (normalized.length === 0) return undefined;
-  if (["true", "1", "yes", "si", "sÃ­"].includes(normalized)) return true;
+  if (["true", "1", "yes", "si", "sí"].includes(normalized)) return true;
   if (["false", "0", "no"].includes(normalized)) return false;
 
   return value;
@@ -29,6 +29,7 @@ function parseCsvList(value: string | undefined): string[] {
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).optional(),
   PORT: z.coerce.number().int().positive().optional(),
+  HTTP_RUNTIME: z.enum(["express", "fastify"]).optional(),
   DATABASE_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SUPABASE_DB_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SUPABASE_URL: z.preprocess(emptyToUndefined, z.string().url()),
@@ -94,6 +95,7 @@ export const ENV = {
   isDevelopment: nodeEnv === "development",
   isProduction: nodeEnv === "production",
   port,
+  httpRuntime: rawEnv.HTTP_RUNTIME ?? "express",
   databaseUrl,
   supabaseUrl: rawEnv.SUPABASE_URL,
   supabaseAnonKey: rawEnv.SUPABASE_ANON_KEY,

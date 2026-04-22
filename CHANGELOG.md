@@ -10,6 +10,7 @@
 - Public report access endpoint backed by hashed tokens and signed Supabase URLs.
 - Node test baseline for report access token rules and log redaction.
 - HTTP bootstrap test coverage with injected dependencies to prepare the Fastify migration.
+- Fastify runtime bootstrap path behind feature flag using the official Express compatibility bridge.
 
 ### Changed
 - Local backend baseline stabilized for Windows + pnpm.
@@ -19,6 +20,7 @@
 - Request logging now redacts public report access tokens from URLs before writing to logs.
 - Drizzle migration metadata now tracks both the PR4 legacy compatibility migration and the new PR5 token migration.
 - Express app construction is now separated from HTTP bootstrap to prepare the migration to Fastify.
+- HTTP runtime can now switch between Express and Fastify through environment configuration.
 
 ### Removed
 - `server/app.ts.bak` from the tracked repository state.
