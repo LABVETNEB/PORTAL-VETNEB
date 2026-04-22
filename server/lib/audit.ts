@@ -1,7 +1,6 @@
-import type { Request } from "express";
+﻿import type { Request } from "express";
 import type { AuditActorType, AuditEvent } from "../../drizzle/schema";
 import { sanitizeUrlForLogs } from "../middlewares/request-logger.ts";
-import { logError, logInfo, serializeError } from "./logger.ts";
 
 export const AUDIT_EVENTS = {
   ADMIN_LOGIN_SUCCEEDED: "auth.admin.login.succeeded",
@@ -182,27 +181,65 @@ export function buildAuditLogInsert(
   };
 }
 
-export async function writeAuditLog(
-  req: Request,
-  input: AuditWriteInput,
-): Promise<void> {
-  try {
-    const payload = buildAuditLogInsert(req as RequestWithContext, input);
-    const { createAuditLog } = await import("../db-audit.ts");
+type AuditLogInsert = ReturnType<typeof buildAuditLogInsert>;
 
-    await createAuditLog(payload);
+type WriteAuditLogDeps = {
+  createAuditLog: (payload: AuditLogInsert) => Promise<unknown>;
+  logInfo: (message: string, data?: unknown) => void;
+  logError: (message: string, data?: unknown) => void;
+  serializeError: (error: unknown) => unknown;
+};
 
-    logInfo("AUDIT_LOG_WRITTEN", {
-      event: payload.event,
-      actorType: payload.actorType,
-      clinicId: payload.clinicId,
-      reportId: payload.reportId,
-      targetReportAccessTokenId: payload.targetReportAccessTokenId,
-    });
-  } catch (error) {
-    logError("AUDIT_LOG_WRITE_ERROR", {
-      event: input.event,
-      error: serializeError(error),
-    });
+let defaultWriteAuditLogDepsPromise: Promise<WriteAuditLogDeps> | undefined;
+
+async function loadWriteAuditLogDeps(): Promise<WriteAuditLogDeps> {
+  if (!defaultWriteAuditLogDepsPromise) {
+    defaultWriteAuditLogDepsPromise = (async (): Promise<WriteAuditLogDeps> => {
+      const dbAudit = await import("../db-audit.ts");
+      const logger = await import("./logger.ts");
+
+      return {
+        createAuditLog: async (payload) => {
+          await dbAudit.createAuditLog(payload);
+        },
+        logInfo: logger.logInfo,
+        logError: logger.logError,
+        serializeError: logger.serializeError,
+      };
+    })();
   }
+
+  return defaultWriteAuditLogDepsPromise;
 }
+
+export function createWriteAuditLog(
+  injectedDeps?: WriteAuditLogDeps,
+) {
+  return async function writeAuditLog(
+    req: Request,
+    input: AuditWriteInput,
+  ): Promise<void> {
+    const deps = injectedDeps ?? (await loadWriteAuditLogDeps());
+
+    try {
+      const payload = buildAuditLogInsert(req as RequestWithContext, input);
+
+      await deps.createAuditLog(payload);
+
+      deps.logInfo("AUDIT_LOG_WRITTEN", {
+        event: payload.event,
+        actorType: payload.actorType,
+        clinicId: payload.clinicId,
+        reportId: payload.reportId,
+        targetReportAccessTokenId: payload.targetReportAccessTokenId,
+      });
+    } catch (error) {
+      deps.logError("AUDIT_LOG_WRITE_ERROR", {
+        event: input.event,
+        error: deps.serializeError(error),
+      });
+    }
+  };
+}
+
+export const writeAuditLog = createWriteAuditLog();
