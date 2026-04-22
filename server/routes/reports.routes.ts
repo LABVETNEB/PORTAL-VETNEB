@@ -181,6 +181,7 @@ async function serializeReports(reports: Report[]) {
   return Promise.all(reports.map((report) => serializeReport(report)));
 }
 
+router.use(requireTrustedOrigin);
 router.use(requireAuth);
 
 const requireUploadPermission = asyncHandler(async (req, res, next) => {
@@ -428,7 +429,6 @@ router.get(
 
 router.patch(
   "/:reportId/status",
-  requireTrustedOrigin,
   requireReportStatusWritePermission,
   asyncHandler(async (req, res) => {
     const reportId = parseReportId(req.params.reportId);

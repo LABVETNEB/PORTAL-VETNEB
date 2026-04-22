@@ -19,6 +19,7 @@ import {
   uploadClinicAvatar,
 } from "../lib/supabase";
 import { requireAuth } from "../middlewares/auth";
+import { requireTrustedOrigin } from "../middlewares/trusted-origin";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
@@ -95,6 +96,7 @@ function buildPatchInput(body: Record<string, unknown> | undefined): UpsertClini
   };
 }
 
+router.use(requireTrustedOrigin);
 router.use(requireAuth);
 
 router.get(
