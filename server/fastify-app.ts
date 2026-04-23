@@ -1,25 +1,102 @@
-﻿import Fastify, { type FastifyInstance } from "fastify";
+﻿import Fastify, {
+  type FastifyInstance,
+  type FastifyReply,
+  type FastifyRequest,
+} from "fastify";
 import fastifyExpress from "@fastify/express";
 
 import { ENV } from "./lib/env.ts";
 
-type LegacyAppFactory = () => unknown | Promise<unknown>;
+type HealthCheckResponse = {
+  statusCode: number;
+  payload: Record<string, unknown>;
+};
+
+type LegacyExpressHandler = (
+  req: unknown,
+  res: unknown,
+  next: (error?: unknown) => void,
+) => unknown;
+
+type LegacyAppFactory =
+  () => LegacyExpressHandler | Promise<LegacyExpressHandler>;
+type HealthCheckFactory = () => Promise<HealthCheckResponse>;
+type ServiceInfoFactory = () => Record<string, unknown>;
+
+export type CreateFastifyAppOptions = {
+  createLegacyApp?: LegacyAppFactory;
+  getNativeHealthCheckResponse?: HealthCheckFactory;
+  getServiceInfoPayload?: ServiceInfoFactory;
+};
+
+function shouldBypassLegacyApi(url: unknown) {
+  if (typeof url !== "string") {
+    return false;
+  }
+
+  const path = url.split("?")[0];
+  return path === "/health" || path === "/health/";
+}
 
 export async function createFastifyApp(
-  createLegacyApp?: LegacyAppFactory,
+  options: CreateFastifyAppOptions = {},
 ): Promise<FastifyInstance> {
   const app = Fastify({
     logger: false,
     trustProxy: ENV.trustProxy,
   });
+  const getNativeHealthCheckResponse =
+    options.getNativeHealthCheckResponse ??
+    (async () => (await import("./lib/http-runtime.ts")).getHealthCheckResponse());
+
+  const getServiceInfoPayload =
+    options.getServiceInfoPayload ??
+    (() => ({
+      success: true,
+      service: "portal-vetneb-api",
+      environment: ENV.nodeEnv,
+    }));
+
+  app.get("/", async (_request: FastifyRequest, reply: FastifyReply) => {
+    const payload = JSON.stringify(getServiceInfoPayload());
+
+    reply.code(200);
+    reply.header("content-type", "application/json; charset=utf-8");
+    reply.raw.end(payload);
+  });
+
+  const nativeHealthHandler = async (
+    _request: FastifyRequest,
+    reply: FastifyReply,
+  ) => {
+    const health = await getNativeHealthCheckResponse();
+    const payload = JSON.stringify(health.payload);
+
+    reply.code(health.statusCode);
+    reply.header("content-type", "application/json; charset=utf-8");
+    reply.raw.end(payload);
+  };
+
+  app.get("/health", nativeHealthHandler);
+  app.get("/api/health", nativeHealthHandler);
 
   await app.register(fastifyExpress);
 
-  const legacyExpressApp = createLegacyApp
-    ? await createLegacyApp()
-    : (await import("./app.ts")).createExpressApp();
+  const legacyExpressApp = options.createLegacyApp
+    ? await options.createLegacyApp()
+    : ((await import("./app.ts")).createExpressApp({
+        apiBasePath: "",
+        includeRootRoute: false,
+        includeHealthRoutes: false,
+      }) as unknown as LegacyExpressHandler);
+  app.use("/api", (req, res, next) => {
+    if (shouldBypassLegacyApi((req as { url?: unknown }).url)) {
+      next();
+      return;
+    }
 
-  app.use(legacyExpressApp as any);
+    legacyExpressApp(req, res, next);
+  });
 
   return app;
 }

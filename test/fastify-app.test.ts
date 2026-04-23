@@ -11,30 +11,75 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 const { createFastifyApp } = await import("../server/fastify-app.ts");
 
 test(
-  "createFastifyApp monta una app Express mediante la capa de compatibilidad",
+  "createFastifyApp expone root y health nativos y mantiene el bridge Express bajo /api",
   async () => {
-    const app = await createFastifyApp(() => {
-      const legacyApp = express();
+    const app = await createFastifyApp({
+      createLegacyApp: () => {
+        const legacyApp = express();
 
-      legacyApp.get("/", (_req, res) => {
-        res.setHeader("x-legacy-bridge", "ok");
-        res.status(204).end();
-      });
+        legacyApp.get("/bridge", (_req, res) => {
+          res.setHeader("x-legacy-bridge", "ok");
+          res.status(204).end();
+        });
 
-      return legacyApp;
+        return legacyApp as any;
+      },
+      getServiceInfoPayload: () => ({
+        success: true,
+        service: "portal-vetneb-api",
+        environment: "test",
+      }),
+      getNativeHealthCheckResponse: async () => ({
+        statusCode: 200,
+        payload: {
+          success: true,
+          status: "ok",
+          checks: {
+            database: "up",
+            storage: "up",
+          },
+          uptimeSeconds: 123,
+          responseTimeMs: 1,
+          timestamp: "2026-04-22T00:00:00.000Z",
+        },
+      }),
     });
 
     try {
-      const response = await app.inject({
+      const rootResponse = await app.inject({
         method: "GET",
         url: "/",
       });
 
-      assert.equal(response.statusCode, 204);
-      assert.equal(response.headers["x-legacy-bridge"], "ok");
-      assert.equal(response.body, "");
+      assert.equal(rootResponse.statusCode, 200);
+
+      const healthResponse = await app.inject({
+        method: "GET",
+        url: "/health",
+      });
+      assert.equal(healthResponse.statusCode, 200);
+      assert.equal(healthResponse.headers["x-legacy-bridge"], undefined);
+
+      const apiHealthResponse = await app.inject({
+        method: "GET",
+        url: "/api/health",
+      });
+
+      assert.equal(apiHealthResponse.statusCode, 200);
+      assert.equal(apiHealthResponse.headers["x-legacy-bridge"], undefined);
+
+      const legacyResponse = await app.inject({
+        method: "GET",
+        url: "/api/bridge",
+      });
+
+      assert.equal(legacyResponse.statusCode, 204);
+      assert.equal(legacyResponse.headers["x-legacy-bridge"], "ok");
+      assert.equal(legacyResponse.body, "");
     } finally {
       await app.close();
     }
   },
 );
+
+
