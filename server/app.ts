@@ -25,8 +25,15 @@ import reportAccessTokensRoutes from "./routes/report-access-tokens.routes";
 import reportsRoutes from "./routes/reports.routes";
 import studyTrackingRoutes from "./routes/study-tracking.routes";
 import { ENV } from "./lib/env";
+import { buildServiceInfoPayload } from "./lib/http-runtime";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler";
 import { requestLogger } from "./middlewares/request-logger";
+
+export type CreateExpressAppOptions = {
+  apiBasePath?: string;
+  includeRootRoute?: boolean;
+  includeHealthRoutes?: boolean;
+};
 
 function getAllowedOrigins(): string[] {
   const configuredOrigins = ENV.corsOrigins.map((origin) =>
@@ -51,9 +58,22 @@ function getAllowedOrigins(): string[] {
   return [];
 }
 
-export function createExpressApp(): Express {
+function buildMountedPath(basePath: string, suffix: string) {
+  return basePath ? `${basePath}${suffix}` : suffix;
+}
+
+export function createExpressApp(
+  options: CreateExpressAppOptions = {},
+): Express {
   const app = express();
   const allowedOrigins = new Set(getAllowedOrigins());
+  const apiBasePath = options.apiBasePath ?? "/api";
+  const includeRootRoute = options.includeRootRoute ?? true;
+  const includeHealthRoutes = options.includeHealthRoutes ?? true;
+
+  const mountApiRoute = (suffix: string, router: any) => {
+    app.use(buildMountedPath(apiBasePath, suffix), router);
+  };
 
   app.set("trust proxy", ENV.trustProxy);
 
@@ -86,7 +106,6 @@ export function createExpressApp(): Express {
   );
   app.use(express.urlencoded({ extended: true }));
   app.use(requestLogger);
-
   app.use(
     (err: unknown, _req: Request, res: Response, next: NextFunction) => {
       const isJsonSyntaxError =
@@ -110,33 +129,32 @@ export function createExpressApp(): Express {
     },
   );
 
-  app.get("/", (_req: Request, res: Response) => {
-    res.status(200).json({
-      success: true,
-      service: "portal-vetneb-api",
-      environment: ENV.nodeEnv,
+  if (includeRootRoute) {
+    app.get("/", (_req: Request, res: Response) => {
+      res.status(200).json(buildServiceInfoPayload());
     });
-  });
+  }
 
-  app.use("/health", healthRoutes);
-  app.use("/api/health", healthRoutes);
-
-  app.use("/api/auth", authRoutes);
-  app.use("/api/admin/auth", adminAuthRoutes);
-  app.use("/api/admin/audit-log", adminAuditRoutes);
-  app.use("/api/clinic/profile", clinicPublicProfileRoutes);
-  app.use("/api/clinic/audit-log", clinicAuditRoutes);
-  app.use("/api/admin/particular/tokens", adminParticularTokensRoutes);
-  app.use("/api/admin/report-access-tokens", adminReportAccessTokensRoutes);
-  app.use("/api/admin/study-tracking", adminStudyTrackingRoutes);
-  app.use("/api/particular/tokens", particularTokensRoutes);
-  app.use("/api/particular/auth", particularAuthRoutes);
-  app.use("/api/particular/study-tracking", particularStudyTrackingRoutes);
-  app.use("/api/public/professionals", publicProfessionalsRoutes);
-  app.use("/api/public/report-access", publicReportAccessRoutes);
-  app.use("/api/report-access-tokens", reportAccessTokensRoutes);
-  app.use("/api/reports", reportsRoutes);
-  app.use("/api/study-tracking", studyTrackingRoutes);
+  if (includeHealthRoutes) {
+    app.use("/health", healthRoutes);
+    mountApiRoute("/health", healthRoutes);
+  }
+  mountApiRoute("/auth", authRoutes);
+  mountApiRoute("/admin/auth", adminAuthRoutes);
+  mountApiRoute("/admin/audit-log", adminAuditRoutes);
+  mountApiRoute("/clinic/profile", clinicPublicProfileRoutes);
+  mountApiRoute("/clinic/audit-log", clinicAuditRoutes);
+  mountApiRoute("/admin/particular/tokens", adminParticularTokensRoutes);
+  mountApiRoute("/admin/report-access-tokens", adminReportAccessTokensRoutes);
+  mountApiRoute("/admin/study-tracking", adminStudyTrackingRoutes);
+  mountApiRoute("/particular/tokens", particularTokensRoutes);
+  mountApiRoute("/particular/auth", particularAuthRoutes);
+  mountApiRoute("/particular/study-tracking", particularStudyTrackingRoutes);
+  mountApiRoute("/public/professionals", publicProfessionalsRoutes);
+  mountApiRoute("/public/report-access", publicReportAccessRoutes);
+  mountApiRoute("/report-access-tokens", reportAccessTokensRoutes);
+  mountApiRoute("/reports", reportsRoutes);
+  mountApiRoute("/study-tracking", studyTrackingRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
