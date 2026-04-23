@@ -6,6 +6,10 @@
 import fastifyExpress from "@fastify/express";
 
 import { ENV } from "./lib/env.ts";
+import {
+  publicProfessionalsNativeRoutes,
+  type PublicProfessionalsNativeRoutesOptions,
+} from "./routes/public-professionals.fastify.ts";
 
 type HealthCheckResponse = {
   statusCode: number;
@@ -27,7 +31,13 @@ export type CreateFastifyAppOptions = {
   createLegacyApp?: LegacyAppFactory;
   getNativeHealthCheckResponse?: HealthCheckFactory;
   getServiceInfoPayload?: ServiceInfoFactory;
+  publicProfessionalsRoutes?: PublicProfessionalsNativeRoutesOptions;
 };
+
+const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
+  "/health",
+  "/public/professionals",
+];
 
 function shouldBypassLegacyApi(url: unknown) {
   if (typeof url !== "string") {
@@ -35,7 +45,14 @@ function shouldBypassLegacyApi(url: unknown) {
   }
 
   const path = url.split("?")[0];
-  return path === "/health" || path === "/health/";
+
+  return NATIVE_API_BRIDGE_BYPASS_PREFIXES.some((prefix) => {
+    return (
+      path === prefix ||
+      path === `${prefix}/` ||
+      path.startsWith(`${prefix}/`)
+    );
+  });
 }
 
 export async function createFastifyApp(
@@ -80,6 +97,11 @@ export async function createFastifyApp(
   app.get("/health", nativeHealthHandler);
   app.get("/api/health", nativeHealthHandler);
 
+  await app.register(publicProfessionalsNativeRoutes, {
+    prefix: "/api/public/professionals",
+    ...(options.publicProfessionalsRoutes ?? {}),
+  });
+
   await app.register(fastifyExpress);
 
   const legacyExpressApp = options.createLegacyApp
@@ -89,6 +111,7 @@ export async function createFastifyApp(
         includeRootRoute: false,
         includeHealthRoutes: false,
       }) as unknown as LegacyExpressHandler);
+
   app.use("/api", (req, res, next) => {
     if (shouldBypassLegacyApi((req as { url?: unknown }).url)) {
       next();
