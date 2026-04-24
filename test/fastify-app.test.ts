@@ -12,6 +12,29 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 const { ENV } = await import("../server/lib/env.ts");
 const { createFastifyApp } = await import("../server/fastify-app.ts");
 
+function buildAdminAuditRouteStubs() {
+  return {
+    deleteAdminSession: async () => {},
+    getAdminSessionByToken: async () => null,
+    getAdminUserById: async () => null,
+    updateAdminSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    listAuditLog: async () => ({
+      items: [],
+      total: 0,
+    }),
+    buildAdminAuditListFilters: (_query: Record<string, unknown>) => ({
+      filters: {
+        limit: 50,
+        offset: 0,
+      },
+      errors: [],
+    }),
+    buildAdminAuditCsv: () => "id,event",
+    buildAdminAuditCsvFilename: () => "admin-audit-log-test.csv",
+  };
+}
+
 function buildAdminAuthRouteStubs() {
   return {
     createAdminSession: async () => {},
@@ -204,6 +227,7 @@ test(
           timestamp: "2026-04-22T00:00:00.000Z",
         },
       }),
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
@@ -260,6 +284,114 @@ test(
 );
 
 test(
+  "createFastifyApp despacha /api/admin/audit-log al router nativo antes del bridge Express",
+  async () => {
+    const app = await createFastifyApp({
+      createLegacyApp: () => {
+        const legacyApp = express();
+
+        legacyApp.get("/admin/audit-log", (_req, res) => {
+          res.setHeader("x-legacy-bridge", "should-not-run");
+          res.status(418).json({
+            success: false,
+          });
+        });
+
+        return legacyApp as any;
+      },
+      adminAuditRoutes: {
+        ...buildAdminAuditRouteStubs(),
+        getAdminSessionByToken: async () => ({
+          adminUserId: 1,
+          expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+        }),
+        getAdminUserById: async () => ({
+          id: 1,
+          username: "ADMIN",
+        }),
+        listAuditLog: async () => ({
+          items: [
+            {
+              id: 201,
+              event: "auth.admin.login.succeeded",
+              action: "auth.admin.login.succeeded",
+              entity: "admin_user",
+              entityId: 1,
+              actorType: "admin_user",
+              actorAdminUserId: 1,
+              actorClinicUserId: null,
+              actorReportAccessTokenId: null,
+              clinicId: 3,
+              reportId: null,
+              targetAdminUserId: 1,
+              targetClinicUserId: null,
+              targetReportAccessTokenId: null,
+              requestId: "req-admin-1",
+              requestMethod: "POST",
+              requestPath: "/api/admin/auth/login",
+              ipAddress: "127.0.0.1",
+              userAgent: "test-agent",
+              metadata: {
+                username: "ADMIN",
+              },
+              createdAt: new Date("2026-04-24T00:00:00.000Z"),
+            },
+          ],
+          total: 1,
+        }),
+        buildAdminAuditListFilters: (_query: Record<string, unknown>) => ({
+          filters: {
+            limit: 50,
+            offset: 0,
+          },
+          errors: [],
+        }),
+      },
+      adminAuthRoutes: buildAdminAuthRouteStubs(),
+      clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      clinicAuditRoutes: buildClinicAuditRouteStubs(),
+      clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuthRoutes: buildParticularAuthRouteStubs(),
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async () => ({
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        }),
+        getPublicProfessionalByClinicId: async () => null,
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+      publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/audit-log",
+        headers: {
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(response.statusCode, 418);
+      assert.ok([200, 401].includes(response.statusCode));
+
+      if (response.statusCode === 200 && response.body) {
+        const body = JSON.parse(response.body);
+        assert.equal(body.success, true);
+        assert.equal(body.count, 1);
+        assert.equal(body.pagination.total, 1);
+      }
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
   "createFastifyApp despacha /api/admin/auth al router nativo antes del bridge Express",
   async () => {
     const app = await createFastifyApp({
@@ -275,6 +407,7 @@ test(
 
         return legacyApp as any;
       },
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: {
         ...buildAdminAuthRouteStubs(),
         getAdminSessionByToken: async () => ({
@@ -349,6 +482,7 @@ test(
 
         return legacyApp as any;
       },
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: {
         ...buildClinicAuthRouteStubs(),
@@ -432,6 +566,7 @@ test(
 
         return legacyApp as any;
       },
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: {
@@ -545,6 +680,7 @@ test(
 
         return legacyApp as any;
       },
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
@@ -642,6 +778,7 @@ test(
 
         return legacyApp as any;
       },
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
@@ -744,6 +881,7 @@ test(
 
         return legacyApp as any;
       },
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
@@ -813,6 +951,7 @@ test(
 
         return legacyApp as any;
       },
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),

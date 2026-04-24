@@ -7,6 +7,10 @@ import fastifyExpress from "@fastify/express";
 
 import { ENV } from "./lib/env.ts";
 import {
+  adminAuditNativeRoutes,
+  type AdminAuditNativeRoutesOptions,
+} from "./routes/admin-audit.fastify.ts";
+import {
   adminAuthNativeRoutes,
   type AdminAuthNativeRoutesOptions,
 } from "./routes/admin-auth.fastify.ts";
@@ -55,6 +59,7 @@ export type CreateFastifyAppOptions = {
   createLegacyApp?: LegacyAppFactory;
   getNativeHealthCheckResponse?: HealthCheckFactory;
   getServiceInfoPayload?: ServiceInfoFactory;
+  adminAuditRoutes?: AdminAuditNativeRoutesOptions;
   adminAuthRoutes?: AdminAuthNativeRoutesOptions;
   clinicAuthRoutes?: AuthNativeRoutesOptions;
   clinicAuditRoutes?: ClinicAuditNativeRoutesOptions;
@@ -66,6 +71,7 @@ export type CreateFastifyAppOptions = {
 
 const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
   "/health",
+  "/admin/audit-log",
   "/admin/auth",
   "/auth",
   "/clinic/audit-log",
@@ -134,6 +140,11 @@ export async function createFastifyApp(
 
   app.get("/health", nativeHealthHandler);
   app.get("/api/health", nativeHealthHandler);
+
+  await app.register(adminAuditNativeRoutes, {
+    prefix: "/api/admin/audit-log",
+    ...(options.adminAuditRoutes ?? {}),
+  });
 
   await app.register(adminAuthNativeRoutes, {
     prefix: "/api/admin/auth",
