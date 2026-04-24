@@ -22,6 +22,10 @@ import {
   publicProfessionalsNativeRoutes,
   type PublicProfessionalsNativeRoutesOptions,
 } from "./routes/public-professionals.fastify.ts";
+import {
+  publicReportAccessNativeRoutes,
+  type PublicReportAccessNativeRoutesOptions,
+} from "./routes/public-report-access.fastify.ts";
 
 type HealthCheckResponse = {
   statusCode: number;
@@ -47,6 +51,7 @@ export type CreateFastifyAppOptions = {
   clinicAuthRoutes?: AuthNativeRoutesOptions;
   particularAuthRoutes?: ParticularAuthNativeRoutesOptions;
   publicProfessionalsRoutes?: PublicProfessionalsNativeRoutesOptions;
+  publicReportAccessRoutes?: PublicReportAccessNativeRoutesOptions;
 };
 
 const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
@@ -55,6 +60,7 @@ const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
   "/auth",
   "/particular/auth",
   "/public/professionals",
+  "/public/report-access",
 ];
 
 function shouldBypassLegacyApi(url: unknown) {
@@ -135,6 +141,11 @@ export async function createFastifyApp(
   await app.register(publicProfessionalsNativeRoutes, {
     prefix: "/api/public/professionals",
     ...(options.publicProfessionalsRoutes ?? {}),
+  });
+
+  await app.register(publicReportAccessNativeRoutes, {
+    prefix: "/api/public/report-access",
+    ...(options.publicReportAccessRoutes ?? {}),
   });
 
   await app.register(fastifyExpress);

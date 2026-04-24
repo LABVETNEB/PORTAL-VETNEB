@@ -70,6 +70,20 @@ function buildParticularAuthRouteStubs() {
   };
 }
 
+function buildPublicReportAccessRouteStubs() {
+  return {
+    getReportAccessTokenWithReportByTokenHash: async () => null,
+    recordReportAccessTokenAccess: async () => null,
+    createSignedReportUrl: async (storagePath: string) => `signed-preview:${storagePath}`,
+    createSignedReportDownloadUrl: async (
+      storagePath: string,
+      fileName?: string,
+    ) => `signed-download:${storagePath}:${fileName ?? ""}`,
+    hashSessionToken: (token: string) => `hash:${token}`,
+    writeAuditLog: async () => {},
+  };
+}
+
 test(
   "createFastifyApp expone root y health nativos y mantiene el bridge Express bajo /api",
   async () => {
@@ -116,6 +130,7 @@ test(
         getPublicProfessionalByClinicId: async () => null,
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
+      publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
     });
 
     try {
@@ -196,6 +211,7 @@ test(
         getPublicProfessionalByClinicId: async () => null,
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
+      publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
     });
 
     try {
@@ -269,6 +285,7 @@ test(
         getPublicProfessionalByClinicId: async () => null,
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
+      publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
     });
 
     try {
@@ -377,6 +394,7 @@ test(
         getPublicProfessionalByClinicId: async () => null,
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
+      publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
     });
 
     try {
@@ -434,6 +452,7 @@ test(
         getPublicProfessionalByClinicId: async () => null,
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
+      publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
     });
 
     try {
@@ -468,3 +487,116 @@ test(
     }
   },
 );
+
+test(
+  "createFastifyApp despacha /api/public/report-access al router nativo antes del bridge Express",
+  async () => {
+    const rawToken = "a".repeat(64);
+
+    const app = await createFastifyApp({
+      createLegacyApp: () => {
+        const legacyApp = express();
+
+        legacyApp.get("/public/report-access/:token", (_req, res) => {
+          res.setHeader("x-legacy-bridge", "should-not-run");
+          res.status(418).json({
+            success: false,
+          });
+        });
+
+        return legacyApp as any;
+      },
+      adminAuthRoutes: buildAdminAuthRouteStubs(),
+      clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      particularAuthRoutes: buildParticularAuthRouteStubs(),
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async () => ({
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        }),
+        getPublicProfessionalByClinicId: async () => null,
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+      publicReportAccessRoutes: {
+        ...buildPublicReportAccessRouteStubs(),
+        getReportAccessTokenWithReportByTokenHash: async () => ({
+          token: {
+            id: 9,
+            clinicId: 3,
+            reportId: 55,
+            tokenLast4: "ABCD",
+            accessCount: 2,
+            lastAccessAt: new Date("2026-04-22T10:00:00.000Z"),
+            expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+            revokedAt: null,
+            createdAt: new Date("2026-04-20T12:00:00.000Z"),
+            updatedAt: new Date("2026-04-22T12:00:00.000Z"),
+            createdByClinicUserId: 5,
+            createdByAdminUserId: null,
+            revokedByClinicUserId: null,
+            revokedByAdminUserId: null,
+          },
+          report: {
+            id: 55,
+            clinicId: 3,
+            uploadDate: new Date("2026-04-22T09:00:00.000Z"),
+            studyType: "Histopatología",
+            patientName: "Luna",
+            fileName: "luna-report.pdf",
+            currentStatus: "ready",
+            statusChangedAt: new Date("2026-04-22T09:30:00.000Z"),
+            createdAt: new Date("2026-04-22T09:00:00.000Z"),
+            updatedAt: new Date("2026-04-22T09:30:00.000Z"),
+            storagePath: "reports/report-55.pdf",
+          },
+        }),
+        recordReportAccessTokenAccess: async () => ({
+          id: 9,
+          clinicId: 3,
+          reportId: 55,
+          tokenLast4: "ABCD",
+          accessCount: 3,
+          lastAccessAt: new Date("2026-04-24T00:00:00.000Z"),
+          expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+          revokedAt: null,
+          createdAt: new Date("2026-04-20T12:00:00.000Z"),
+          updatedAt: new Date("2026-04-22T12:00:00.000Z"),
+          createdByClinicUserId: 5,
+          createdByAdminUserId: null,
+          revokedByClinicUserId: null,
+          revokedByAdminUserId: null,
+        }),
+        createSignedReportUrl: async () => "https://signed.example/preview",
+        createSignedReportDownloadUrl: async () =>
+          "https://signed.example/download",
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/public/report-access/${rawToken}`,
+      });
+
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(response.statusCode, 418);
+      assert.ok([200, 404, 410, 409].includes(response.statusCode));
+
+      if (response.statusCode === 200 && response.body) {
+        const body = JSON.parse(response.body);
+        assert.equal(body.success, true);
+        assert.equal(body.report.id, 55);
+        assert.equal(body.report.previewUrl, "https://signed.example/preview");
+        assert.equal(
+          body.report.downloadUrl,
+          "https://signed.example/download",
+        );
+      }
+    } finally {
+      await app.close();
+    }
+  },
+);
+
