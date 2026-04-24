@@ -9,7 +9,28 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
+const { ENV } = await import("../server/lib/env.ts");
 const { createFastifyApp } = await import("../server/fastify-app.ts");
+
+function buildClinicAuthRouteStubs() {
+  return {
+    createActiveSession: async () => {},
+    deleteActiveSession: async () => {},
+    getActiveSessionByToken: async () => null,
+    getClinicUserById: async () => null,
+    getClinicUserByUsername: async () => null,
+    updateSessionLastAccess: async () => {},
+    upsertClinicUser: async () => {},
+    generateSessionToken: () => "session-token",
+    hashPassword: async () => "rehash-password",
+    hashSessionToken: (token: string) => `hash:${token}`,
+    verifyPassword: async () => ({
+      valid: false,
+      needsRehash: false,
+    }),
+    writeAuditLog: async () => {},
+  };
+}
 
 test(
   "createFastifyApp expone root y health nativos y mantiene el bridge Express bajo /api",
@@ -44,6 +65,7 @@ test(
           timestamp: "2026-04-22T00:00:00.000Z",
         },
       }),
+      clinicAuthRoutes: buildClinicAuthRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -109,6 +131,7 @@ test(
 
         return legacyApp as any;
       },
+      clinicAuthRoutes: buildClinicAuthRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -153,3 +176,85 @@ test(
     }
   },
 );
+
+
+
+
+test(
+  "createFastifyApp despacha /api/auth al router nativo antes del bridge Express",
+  async () => {
+    const app = await createFastifyApp({
+      createLegacyApp: () => {
+        const legacyApp = express();
+
+        legacyApp.get("/auth/me", (_req, res) => {
+          res.setHeader("x-legacy-bridge", "should-not-run");
+          res.status(418).json({
+            success: false,
+          });
+        });
+
+        return legacyApp as any;
+      },
+      clinicAuthRoutes: {
+        ...buildClinicAuthRouteStubs(),
+        getActiveSessionByToken: async () => ({
+          clinicUserId: 9,
+          expiresAt: new Date(Date.UTC(2026, 3, 23, 1, 0, 0)),
+        }),
+        getClinicUserById: async () => ({
+          id: 9,
+          clinicId: 5,
+          username: "doctor",
+          authProId: null,
+          role: "clinic_staff",
+        }),
+        updateSessionLastAccess: async () => {},
+      },
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async () => ({
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        }),
+        getPublicProfessionalByClinicId: async () => null,
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/auth/me",
+        headers: {
+          cookie: `${ENV.cookieName}=session-token`,
+        },
+      });
+
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(response.statusCode, 418);
+      assert.ok([200, 401].includes(response.statusCode));
+
+      if (response.statusCode === 200) {
+        assert.deepEqual(JSON.parse(response.body), {
+          success: true,
+          clinicUser: {
+            id: 9,
+            clinicId: 5,
+            username: "doctor",
+            authProId: null,
+            role: "clinic_staff",
+          },
+          permissions: {
+            canManageClinicUsers: false,
+            canUploadReports: true,
+          },
+        });
+      }
+    } finally {
+      await app.close();
+    }
+  },
+);
+
