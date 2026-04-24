@@ -73,12 +73,12 @@ function buildAdminParticularTokensRouteStubs() {
       tokenLast4: "aaaa",
       tutorLastName: "Gomez",
       petName: "Luna",
-      petAge: "8 años",
+      petAge: "8 aÃ±os",
       petBreed: "Caniche",
       petSex: "Hembra",
       petSpecies: "Canina",
-      sampleLocation: "Pabellón auricular",
-      sampleEvolution: "15 días",
+      sampleLocation: "PabellÃ³n auricular",
+      sampleEvolution: "15 dÃ­as",
       detailsLesion: null,
       extractionDate: new Date("2026-04-20T00:00:00.000Z"),
       shippingDate: new Date("2026-04-21T00:00:00.000Z"),
@@ -125,6 +125,27 @@ function buildAdminReportAccessTokensRouteStubs() {
     listReportAccessTokens: async () => [],
     revokeReportAccessToken: async () => null,
     writeAuditLog: async () => {},
+  };
+}
+function buildAdminStudyTrackingRouteStubs() {
+  return {
+    deleteAdminSession: async () => {},
+    getAdminSessionByToken: async () => null,
+    getAdminUserById: async () => null,
+    updateAdminSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    getClinicById: async () => null,
+    getReportById: async () => null,
+    getParticularTokenById: async () => null,
+    updateParticularTokenReport: async () => null,
+    createStudyTrackingCase: async () => ({} as any),
+    updateStudyTrackingCase: async () => null,
+    getClinicScopedStudyTrackingCase: async () => null,
+    getStudyTrackingCaseById: async () => null,
+    listStudyTrackingCases: async () => [],
+    createStudyTrackingNotification: async () => ({} as any),
+    listStudyTrackingNotifications: async () => [],
+    sendSpecialStainRequiredEmail: async () => ({ sent: true }),
   };
 }
 function buildClinicAuthRouteStubs() {
@@ -272,12 +293,12 @@ function buildParticularTokensRouteStubs() {
       tokenLast4: "aaaa",
       tutorLastName: "Gomez",
       petName: "Luna",
-      petAge: "8 años",
+      petAge: "8 aÃ±os",
       petBreed: "Caniche",
       petSex: "Hembra",
       petSpecies: "Canina",
-      sampleLocation: "Pabellón auricular",
-      sampleEvolution: "15 días",
+      sampleLocation: "PabellÃ³n auricular",
+      sampleEvolution: "15 dÃ­as",
       detailsLesion: null,
       extractionDate: new Date("2026-04-20T00:00:00.000Z"),
       shippingDate: new Date("2026-04-21T00:00:00.000Z"),
@@ -403,6 +424,7 @@ test(
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -528,6 +550,7 @@ test(
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -605,6 +628,7 @@ test(
       },
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -673,6 +697,7 @@ test(
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
       clinicAuthRoutes: {
         ...buildClinicAuthRouteStubs(),
         getActiveSessionByToken: async () => ({
@@ -762,6 +787,7 @@ test(
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: {
         ...buildClinicAuditRouteStubs(),
@@ -881,6 +907,7 @@ test(
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: {
@@ -984,6 +1011,7 @@ test(
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1001,13 +1029,13 @@ test(
           tokenLast4: "ABCD",
           tutorLastName: "Gomez",
           petName: "Luna",
-          petAge: "8 años",
+          petAge: "8 aÃ±os",
           petBreed: "Caniche",
           petSex: "Hembra",
           petSpecies: "Canina",
-          sampleLocation: "Pabellón auricular",
-          sampleEvolution: "15 días",
-          detailsLesion: "Lesión nodular pequeña",
+          sampleLocation: "PabellÃ³n auricular",
+          sampleEvolution: "15 dÃ­as",
+          detailsLesion: "LesiÃ³n nodular pequeÃ±a",
           extractionDate: new Date("2026-04-20T00:00:00.000Z"),
           shippingDate: new Date("2026-04-21T00:00:00.000Z"),
           isActive: true,
@@ -1023,7 +1051,7 @@ test(
           clinicId: 3,
           storagePath: "reports/report-55.pdf",
           uploadDate: new Date("2026-04-22T09:00:00.000Z"),
-          studyType: "Histopatología",
+          studyType: "HistopatologÃ­a",
           patientName: "Luna",
           fileName: "luna-report.pdf",
           createdAt: new Date("2026-04-22T09:00:00.000Z"),
@@ -1092,6 +1120,7 @@ test(
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1167,6 +1196,7 @@ test(
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1205,7 +1235,7 @@ test(
             id: 55,
             clinicId: 3,
             uploadDate: new Date("2026-04-22T09:00:00.000Z"),
-            studyType: "Histopatología",
+            studyType: "HistopatologÃ­a",
             patientName: "Luna",
             fileName: "luna-report.pdf",
             currentStatus: "ready",
@@ -1285,6 +1315,7 @@ test(
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1414,6 +1445,7 @@ test(
           },
         ],
       },
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1500,12 +1532,12 @@ test(
             tokenLast4: "aaaa",
             tutorLastName: "Gomez",
             petName: "Luna",
-            petAge: "8 años",
+            petAge: "8 aÃ±os",
             petBreed: "Caniche",
             petSex: "Hembra",
             petSpecies: "Canina",
-            sampleLocation: "Pabellón auricular",
-            sampleEvolution: "15 días",
+            sampleLocation: "PabellÃ³n auricular",
+            sampleEvolution: "15 dÃ­as",
             detailsLesion: null,
             extractionDate: new Date("2026-04-20T00:00:00.000Z"),
             shippingDate: new Date("2026-04-21T00:00:00.000Z"),
@@ -1519,6 +1551,7 @@ test(
         ],
       },
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1582,6 +1615,7 @@ test(
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1611,4 +1645,84 @@ test(
     }
   },
 );
+
+
+test(
+  "createFastifyApp despacha /api/admin/study-tracking al router nativo antes del bridge Express",
+  async () => {
+    const app = await createFastifyApp({
+      createLegacyApp: () => {
+        const legacyApp = express();
+
+        legacyApp.get("/admin/study-tracking", (_req, res) => {
+          res.setHeader("x-legacy-bridge", "should-not-run");
+          res.status(418).json({
+            success: false,
+          });
+        });
+
+        return legacyApp as any;
+      },
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
+      adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
+      adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: {
+        ...buildAdminStudyTrackingRouteStubs(),
+        getAdminSessionByToken: async () => ({
+          adminUserId: 1,
+          expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+        }),
+        getAdminUserById: async () => ({
+          id: 1,
+          username: "VETNEB",
+        }),
+        listStudyTrackingCases: async () => [],
+      },
+      clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      clinicAuditRoutes: buildClinicAuditRouteStubs(),
+      clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async () => ({
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        }),
+        getPublicProfessionalByClinicId: async () => null,
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+      publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/study-tracking?clinicId=3",
+        headers: {
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(response.statusCode, 418);
+      assert.ok([200, 401].includes(response.statusCode));
+
+      if (response.statusCode === 200 && response.body) {
+        const body = JSON.parse(response.body);
+        assert.equal(body.success, true);
+        assert.equal(body.count, 0);
+      }
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+
 
