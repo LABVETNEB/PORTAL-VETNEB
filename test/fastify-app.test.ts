@@ -50,6 +50,26 @@ function buildClinicAuthRouteStubs() {
   };
 }
 
+function buildParticularAuthRouteStubs() {
+  return {
+    createParticularSession: async () => {},
+    deleteParticularSession: async () => {},
+    getParticularSessionByToken: async () => null,
+    getParticularTokenById: async () => null,
+    getParticularTokenByTokenHash: async () => null,
+    updateParticularSessionLastAccess: async () => {},
+    updateParticularTokenLastLogin: async () => {},
+    getReportById: async () => null,
+    createSignedReportUrl: async (storagePath: string) => `signed-preview:${storagePath}`,
+    createSignedReportDownloadUrl: async (
+      storagePath: string,
+      fileName?: string,
+    ) => `signed-download:${storagePath}:${fileName ?? ""}`,
+    generateSessionToken: () => "particular-session-token",
+    hashSessionToken: (token: string) => `hash:${token}`,
+  };
+}
+
 test(
   "createFastifyApp expone root y health nativos y mantiene el bridge Express bajo /api",
   async () => {
@@ -85,6 +105,7 @@ test(
       }),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      particularAuthRoutes: buildParticularAuthRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -164,6 +185,7 @@ test(
         updateAdminSessionLastAccess: async () => {},
       },
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      particularAuthRoutes: buildParticularAuthRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -236,6 +258,7 @@ test(
         }),
         updateSessionLastAccess: async () => {},
       },
+      particularAuthRoutes: buildParticularAuthRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -284,6 +307,105 @@ test(
 );
 
 test(
+  "createFastifyApp despacha /api/particular/auth al router nativo antes del bridge Express",
+  async () => {
+    const app = await createFastifyApp({
+      createLegacyApp: () => {
+        const legacyApp = express();
+
+        legacyApp.get("/particular/auth/me", (_req, res) => {
+          res.setHeader("x-legacy-bridge", "should-not-run");
+          res.status(418).json({
+            success: false,
+          });
+        });
+
+        return legacyApp as any;
+      },
+      adminAuthRoutes: buildAdminAuthRouteStubs(),
+      clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      particularAuthRoutes: {
+        ...buildParticularAuthRouteStubs(),
+        getParticularSessionByToken: async () => ({
+          particularTokenId: 7,
+          expiresAt: new Date(Date.UTC(2026, 3, 24, 1, 0, 0)),
+          lastAccess: new Date(Date.UTC(2026, 3, 23, 23, 0, 0)),
+        }),
+        getParticularTokenById: async () => ({
+          id: 7,
+          clinicId: 3,
+          reportId: 55,
+          tokenLast4: "ABCD",
+          tutorLastName: "Gomez",
+          petName: "Luna",
+          petAge: "8 años",
+          petBreed: "Caniche",
+          petSex: "Hembra",
+          petSpecies: "Canina",
+          sampleLocation: "Pabellón auricular",
+          sampleEvolution: "15 días",
+          detailsLesion: "Lesión nodular pequeña",
+          extractionDate: new Date("2026-04-20T00:00:00.000Z"),
+          shippingDate: new Date("2026-04-21T00:00:00.000Z"),
+          isActive: true,
+          lastLoginAt: new Date("2026-04-22T10:00:00.000Z"),
+          createdAt: new Date("2026-04-20T12:00:00.000Z"),
+          updatedAt: new Date("2026-04-22T12:00:00.000Z"),
+          createdByAdminId: 1,
+          createdByClinicUserId: null,
+        }),
+        updateParticularSessionLastAccess: async () => {},
+        getReportById: async () => ({
+          id: 55,
+          clinicId: 3,
+          storagePath: "reports/report-55.pdf",
+          uploadDate: new Date("2026-04-22T09:00:00.000Z"),
+          studyType: "Histopatología",
+          patientName: "Luna",
+          fileName: "luna-report.pdf",
+          createdAt: new Date("2026-04-22T09:00:00.000Z"),
+          updatedAt: new Date("2026-04-22T09:30:00.000Z"),
+        }),
+      },
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async () => ({
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        }),
+        getPublicProfessionalByClinicId: async () => null,
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/particular/auth/me",
+        headers: {
+          cookie: `${ENV.particularCookieName}=particular-session-token`,
+        },
+      });
+
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(response.statusCode, 418);
+      assert.ok([200, 401].includes(response.statusCode));
+
+      if (response.statusCode === 200) {
+        const body = JSON.parse(response.body);
+        assert.equal(body.success, true);
+        assert.equal(body.particular.id, 7);
+        assert.equal(body.particular.clinicId, 3);
+        assert.equal(body.particular.report.id, 55);
+      }
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
   "createFastifyApp despacha /api/public/professionals al router nativo antes del bridge Express",
   async () => {
     const app = await createFastifyApp({
@@ -301,6 +423,7 @@ test(
       },
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      particularAuthRoutes: buildParticularAuthRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
