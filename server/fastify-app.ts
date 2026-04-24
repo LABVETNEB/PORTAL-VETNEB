@@ -54,6 +54,10 @@ import {
   reportAccessTokensNativeRoutes,
   type ReportAccessTokensNativeRoutesOptions,
 } from "./routes/report-access-tokens.fastify.ts";
+import {
+  studyTrackingNativeRoutes,
+  type StudyTrackingNativeRoutesOptions,
+} from "./routes/study-tracking.fastify.ts";
 
 type HealthCheckResponse = {
   statusCode: number;
@@ -87,6 +91,7 @@ export type CreateFastifyAppOptions = {
   publicProfessionalsRoutes?: PublicProfessionalsNativeRoutesOptions;
   publicReportAccessRoutes?: PublicReportAccessNativeRoutesOptions;
   reportAccessTokensRoutes?: ReportAccessTokensNativeRoutesOptions;
+  studyTrackingRoutes?: StudyTrackingNativeRoutesOptions;
 };
 
 const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
@@ -103,6 +108,7 @@ const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
   "/public/professionals",
   "/public/report-access",
   "/report-access-tokens",
+  "/study-tracking",
 ];
 
 function shouldBypassLegacyApi(url: unknown) {
@@ -223,6 +229,11 @@ export async function createFastifyApp(
   await app.register(reportAccessTokensNativeRoutes, {
     prefix: "/api/report-access-tokens",
     ...(options.reportAccessTokensRoutes ?? {}),
+  });
+
+  await app.register(studyTrackingNativeRoutes, {
+    prefix: "/api/study-tracking",
+    ...(options.studyTrackingRoutes ?? {}),
   });
 
   await app.register(fastifyExpress);
