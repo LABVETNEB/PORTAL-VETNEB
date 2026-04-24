@@ -54,6 +54,46 @@ function buildAdminAuthRouteStubs() {
 }
 
 
+
+function buildAdminParticularTokensRouteStubs() {
+  return {
+    deleteAdminSession: async () => {},
+    getAdminSessionByToken: async () => null,
+    getAdminUserById: async () => null,
+    updateAdminSessionLastAccess: async () => {},
+    generateSessionToken: () => "a".repeat(64),
+    hashSessionToken: (token: string) => `hash:${token}`,
+    getClinicById: async () => null,
+    getReportById: async () => null,
+    createParticularToken: async () => ({
+      id: 7,
+      clinicId: 3,
+      reportId: null,
+      tokenHash: `hash:${"a".repeat(64)}`,
+      tokenLast4: "aaaa",
+      tutorLastName: "Gomez",
+      petName: "Luna",
+      petAge: "8 años",
+      petBreed: "Caniche",
+      petSex: "Hembra",
+      petSpecies: "Canina",
+      sampleLocation: "Pabellón auricular",
+      sampleEvolution: "15 días",
+      detailsLesion: null,
+      extractionDate: new Date("2026-04-20T00:00:00.000Z"),
+      shippingDate: new Date("2026-04-21T00:00:00.000Z"),
+      isActive: true,
+      lastLoginAt: null,
+      createdAt: new Date("2026-04-20T12:00:00.000Z"),
+      updatedAt: new Date("2026-04-22T12:00:00.000Z"),
+      createdByAdminId: 1,
+      createdByClinicUserId: null,
+    }),
+    getParticularTokenById: async () => null,
+    listParticularTokens: async () => [],
+    updateParticularTokenReport: async () => null,
+  };
+}
 function buildAdminReportAccessTokensRouteStubs() {
   return {
     deleteAdminSession: async () => {},
@@ -301,6 +341,7 @@ test(
       }),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
@@ -423,6 +464,7 @@ test(
         }),
       },
       adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
@@ -497,6 +539,7 @@ test(
         }),
         updateAdminSessionLastAccess: async () => {},
       },
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
@@ -562,6 +605,7 @@ test(
       },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       clinicAuthRoutes: {
         ...buildClinicAuthRouteStubs(),
@@ -648,6 +692,7 @@ test(
       },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: {
@@ -764,6 +809,7 @@ test(
       },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
@@ -864,6 +910,7 @@ test(
       },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
@@ -969,6 +1016,7 @@ test(
       },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
@@ -1041,6 +1089,7 @@ test(
       },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
@@ -1156,6 +1205,7 @@ test(
       },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
@@ -1252,6 +1302,7 @@ test(
       },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
       adminReportAccessTokensRoutes: {
         ...buildAdminReportAccessTokensRouteStubs(),
         getAdminSessionByToken: async () => ({
@@ -1327,4 +1378,101 @@ test(
     }
   },
 );
+
+
+test(
+  "createFastifyApp despacha /api/admin/particular-tokens al router nativo antes del bridge Express",
+  async () => {
+    const app = await createFastifyApp({
+      createLegacyApp: () => {
+        const legacyApp = express();
+
+        legacyApp.get("/admin/particular-tokens", (_req, res) => {
+          res.setHeader("x-legacy-bridge", "should-not-run");
+          res.status(418).json({
+            success: false,
+          });
+        });
+
+        return legacyApp as any;
+      },
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
+      adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: {
+        ...buildAdminParticularTokensRouteStubs(),
+        getAdminSessionByToken: async () => ({
+          adminUserId: 1,
+          expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+        }),
+        getAdminUserById: async () => ({
+          id: 1,
+          username: "ADMIN",
+        }),
+        listParticularTokens: async () => [
+          {
+            id: 7,
+            clinicId: 3,
+            reportId: 55,
+            tokenHash: `hash:${"a".repeat(64)}`,
+            tokenLast4: "aaaa",
+            tutorLastName: "Gomez",
+            petName: "Luna",
+            petAge: "8 años",
+            petBreed: "Caniche",
+            petSex: "Hembra",
+            petSpecies: "Canina",
+            sampleLocation: "Pabellón auricular",
+            sampleEvolution: "15 días",
+            detailsLesion: null,
+            extractionDate: new Date("2026-04-20T00:00:00.000Z"),
+            shippingDate: new Date("2026-04-21T00:00:00.000Z"),
+            isActive: true,
+            lastLoginAt: null,
+            createdAt: new Date("2026-04-20T12:00:00.000Z"),
+            updatedAt: new Date("2026-04-22T12:00:00.000Z"),
+            createdByAdminId: 1,
+            createdByClinicUserId: null,
+          },
+        ],
+      },
+      adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      clinicAuditRoutes: buildClinicAuditRouteStubs(),
+      clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuthRoutes: buildParticularAuthRouteStubs(),
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async () => ({
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        }),
+        getPublicProfessionalByClinicId: async () => null,
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+      publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/particular-tokens?clinicId=3&limit=5&offset=2",
+        headers: {
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(response.statusCode, 418);
+      assert.equal(response.statusCode, 200);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+
+
 
