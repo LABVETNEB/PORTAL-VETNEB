@@ -7,6 +7,10 @@ import fastifyExpress from "@fastify/express";
 
 import { ENV } from "./lib/env.ts";
 import {
+  clinicAuthNativeRoutes,
+  type AuthNativeRoutesOptions,
+} from "./routes/auth.fastify.ts";
+import {
   publicProfessionalsNativeRoutes,
   type PublicProfessionalsNativeRoutesOptions,
 } from "./routes/public-professionals.fastify.ts";
@@ -31,11 +35,13 @@ export type CreateFastifyAppOptions = {
   createLegacyApp?: LegacyAppFactory;
   getNativeHealthCheckResponse?: HealthCheckFactory;
   getServiceInfoPayload?: ServiceInfoFactory;
+  clinicAuthRoutes?: AuthNativeRoutesOptions;
   publicProfessionalsRoutes?: PublicProfessionalsNativeRoutesOptions;
 };
 
 const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
   "/health",
+  "/auth",
   "/public/professionals",
 ];
 
@@ -64,7 +70,8 @@ export async function createFastifyApp(
   });
   const getNativeHealthCheckResponse =
     options.getNativeHealthCheckResponse ??
-    (async () => (await import("./lib/http-runtime.ts")).getHealthCheckResponse());
+    (async () =>
+      (await import("./lib/http-runtime.ts")).getHealthCheckResponse());
 
   const getServiceInfoPayload =
     options.getServiceInfoPayload ??
@@ -96,6 +103,11 @@ export async function createFastifyApp(
 
   app.get("/health", nativeHealthHandler);
   app.get("/api/health", nativeHealthHandler);
+
+  await app.register(clinicAuthNativeRoutes, {
+    prefix: "/api/auth",
+    ...(options.clinicAuthRoutes ?? {}),
+  });
 
   await app.register(publicProfessionalsNativeRoutes, {
     prefix: "/api/public/professionals",
