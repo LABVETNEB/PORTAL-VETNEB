@@ -12,6 +12,24 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 const { ENV } = await import("../server/lib/env.ts");
 const { createFastifyApp } = await import("../server/fastify-app.ts");
 
+function buildAdminAuthRouteStubs() {
+  return {
+    createAdminSession: async () => {},
+    deleteAdminSession: async () => {},
+    getAdminSessionByToken: async () => null,
+    getAdminUserById: async () => null,
+    getAdminUserByUsername: async () => null,
+    updateAdminSessionLastAccess: async () => {},
+    generateSessionToken: () => "admin-session-token",
+    hashSessionToken: (token: string) => `hash:${token}`,
+    verifyPassword: async () => ({
+      valid: false,
+      needsRehash: false,
+    }),
+    writeAuditLog: async () => {},
+  };
+}
+
 function buildClinicAuthRouteStubs() {
   return {
     createActiveSession: async () => {},
@@ -65,6 +83,7 @@ test(
           timestamp: "2026-04-22T00:00:00.000Z",
         },
       }),
+      adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
@@ -116,13 +135,13 @@ test(
 );
 
 test(
-  "createFastifyApp despacha /api/public/professionals al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/admin/auth al router nativo antes del bridge Express",
   async () => {
     const app = await createFastifyApp({
       createLegacyApp: () => {
         const legacyApp = express();
 
-        legacyApp.get("/public/professionals/search", (_req, res) => {
+        legacyApp.get("/admin/auth/me", (_req, res) => {
           res.setHeader("x-legacy-bridge", "should-not-run");
           res.status(418).json({
             success: false,
@@ -130,6 +149,19 @@ test(
         });
 
         return legacyApp as any;
+      },
+      adminAuthRoutes: {
+        ...buildAdminAuthRouteStubs(),
+        getAdminSessionByToken: async () => ({
+          adminUserId: 7,
+          expiresAt: new Date(Date.UTC(2026, 3, 24, 1, 0, 0)),
+          lastAccess: new Date(Date.UTC(2026, 3, 23, 23, 0, 0)),
+        }),
+        getAdminUserById: async () => ({
+          id: 7,
+          username: "ADMIN",
+        }),
+        updateAdminSessionLastAccess: async () => {},
       },
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       publicProfessionalsRoutes: {
@@ -147,27 +179,22 @@ test(
     try {
       const response = await app.inject({
         method: "GET",
-        url: "/api/public/professionals/search",
+        url: "/api/admin/auth/me",
+        headers: {
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
       });
 
-      assert.equal(response.statusCode, 200);
       assert.equal(response.headers["x-legacy-bridge"], undefined);
       assert.notEqual(response.statusCode, 418);
+      assert.ok([200, 401].includes(response.statusCode));
 
-      if (response.body) {
+      if (response.statusCode === 200) {
         assert.deepEqual(JSON.parse(response.body), {
           success: true,
-          count: 0,
-          total: 0,
-          professionals: [],
-          filters: {
-            query: null,
-            locality: null,
-            country: null,
-          },
-          pagination: {
-            limit: 20,
-            offset: 0,
+          admin: {
+            id: 7,
+            username: "ADMIN",
           },
         });
       }
@@ -176,9 +203,6 @@ test(
     }
   },
 );
-
-
-
 
 test(
   "createFastifyApp despacha /api/auth al router nativo antes del bridge Express",
@@ -196,6 +220,7 @@ test(
 
         return legacyApp as any;
       },
+      adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: {
         ...buildClinicAuthRouteStubs(),
         getActiveSessionByToken: async () => ({
@@ -258,3 +283,65 @@ test(
   },
 );
 
+test(
+  "createFastifyApp despacha /api/public/professionals al router nativo antes del bridge Express",
+  async () => {
+    const app = await createFastifyApp({
+      createLegacyApp: () => {
+        const legacyApp = express();
+
+        legacyApp.get("/public/professionals/search", (_req, res) => {
+          res.setHeader("x-legacy-bridge", "should-not-run");
+          res.status(418).json({
+            success: false,
+          });
+        });
+
+        return legacyApp as any;
+      },
+      adminAuthRoutes: buildAdminAuthRouteStubs(),
+      clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async () => ({
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        }),
+        getPublicProfessionalByClinicId: async () => null,
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(response.statusCode, 418);
+
+      if (response.body) {
+        assert.deepEqual(JSON.parse(response.body), {
+          success: true,
+          count: 0,
+          total: 0,
+          professionals: [],
+          filters: {
+            query: null,
+            locality: null,
+            country: null,
+          },
+          pagination: {
+            limit: 20,
+            offset: 0,
+          },
+        });
+      }
+    } finally {
+      await app.close();
+    }
+  },
+);
