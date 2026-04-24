@@ -254,6 +254,45 @@ function buildParticularAuthRouteStubs() {
   };
 }
 
+
+function buildParticularTokensRouteStubs() {
+  return {
+    deleteActiveSession: async () => {},
+    getActiveSessionByToken: async () => null,
+    getClinicUserById: async () => null,
+    updateSessionLastAccess: async () => {},
+    generateSessionToken: () => "a".repeat(64),
+    hashSessionToken: (token: string) => `hash:${token}`,
+    getReportById: async () => null,
+    createParticularToken: async () => ({
+      id: 7,
+      clinicId: 3,
+      reportId: null,
+      tokenHash: `hash:${"a".repeat(64)}`,
+      tokenLast4: "aaaa",
+      tutorLastName: "Gomez",
+      petName: "Luna",
+      petAge: "8 años",
+      petBreed: "Caniche",
+      petSex: "Hembra",
+      petSpecies: "Canina",
+      sampleLocation: "Pabellón auricular",
+      sampleEvolution: "15 días",
+      detailsLesion: null,
+      extractionDate: new Date("2026-04-20T00:00:00.000Z"),
+      shippingDate: new Date("2026-04-21T00:00:00.000Z"),
+      isActive: true,
+      lastLoginAt: null,
+      createdAt: new Date("2026-04-20T12:00:00.000Z"),
+      updatedAt: new Date("2026-04-22T12:00:00.000Z"),
+      createdByAdminId: null,
+      createdByClinicUserId: 9,
+    }),
+    getClinicScopedParticularToken: async () => null,
+    listParticularTokens: async () => [],
+    updateParticularTokenReport: async () => null,
+  };
+}
 function buildPublicReportAccessRouteStubs() {
   return {
     getReportAccessTokenWithReportByTokenHash: async () => null,
@@ -347,6 +386,7 @@ test(
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -470,6 +510,7 @@ test(
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -545,6 +586,7 @@ test(
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -625,6 +667,7 @@ test(
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -751,6 +794,7 @@ test(
       },
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -852,6 +896,7 @@ test(
         }),
       },
       particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -958,6 +1003,7 @@ test(
           updatedAt: new Date("2026-04-22T09:30:00.000Z"),
         }),
       },
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -1022,6 +1068,7 @@ test(
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -1095,6 +1142,7 @@ test(
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -1211,6 +1259,7 @@ test(
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -1338,6 +1387,7 @@ test(
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -1441,6 +1491,7 @@ test(
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
           rows: [],
@@ -1472,6 +1523,8 @@ test(
     }
   },
 );
+
+
 
 
 
