@@ -194,6 +194,44 @@ function buildPublicReportAccessRouteStubs() {
   };
 }
 
+function buildReportAccessTokensRouteStubs() {
+  return {
+    deleteActiveSession: async () => {},
+    getActiveSessionByToken: async () => null,
+    getClinicUserById: async () => null,
+    updateSessionLastAccess: async () => {},
+    generateSessionToken: () => "a".repeat(64),
+    hashPassword: async () => "unused",
+    hashSessionToken: (token: string) => `hash:${token}`,
+    verifyPassword: async () => ({
+      valid: false,
+      needsRehash: false,
+    }),
+    getReportById: async () => null,
+    createReportAccessToken: async () => ({
+      id: 9,
+      clinicId: 3,
+      reportId: 55,
+      tokenHash: `hash:${"a".repeat(64)}`,
+      tokenLast4: "aaaa",
+      accessCount: 0,
+      lastAccessAt: null,
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      revokedAt: null,
+      createdAt: new Date("2026-04-20T12:00:00.000Z"),
+      updatedAt: new Date("2026-04-22T12:00:00.000Z"),
+      createdByClinicUserId: 9,
+      createdByAdminUserId: null,
+      revokedByClinicUserId: null,
+      revokedByAdminUserId: null,
+    }),
+    getClinicScopedReportAccessToken: async () => null,
+    listReportAccessTokens: async () => [],
+    revokeReportAccessToken: async () => null,
+    writeAuditLog: async () => {},
+  };
+}
+
 test(
   "createFastifyApp expone root y health nativos y mantiene el bridge Express bajo /api",
   async () => {
@@ -244,6 +282,7 @@ test(
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
     });
 
     try {
@@ -364,6 +403,7 @@ test(
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
     });
 
     try {
@@ -436,6 +476,7 @@ test(
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
     });
 
     try {
@@ -513,6 +554,7 @@ test(
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
     });
 
     try {
@@ -636,6 +678,7 @@ test(
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
     });
 
     try {
@@ -734,6 +777,7 @@ test(
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
     });
 
     try {
@@ -837,6 +881,7 @@ test(
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
     });
 
     try {
@@ -898,6 +943,7 @@ test(
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
     });
 
     try {
@@ -1020,6 +1066,7 @@ test(
         createSignedReportDownloadUrl: async () =>
           "https://signed.example/download",
       },
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
     });
 
     try {
@@ -1041,6 +1088,101 @@ test(
           body.report.downloadUrl,
           "https://signed.example/download",
         );
+      }
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "createFastifyApp despacha /api/report-access-tokens al router nativo antes del bridge Express",
+  async () => {
+    const app = await createFastifyApp({
+      createLegacyApp: () => {
+        const legacyApp = express();
+
+        legacyApp.get("/report-access-tokens", (_req, res) => {
+          res.setHeader("x-legacy-bridge", "should-not-run");
+          res.status(418).json({
+            success: false,
+          });
+        });
+
+        return legacyApp as any;
+      },
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
+      adminAuthRoutes: buildAdminAuthRouteStubs(),
+      clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      clinicAuditRoutes: buildClinicAuditRouteStubs(),
+      clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuthRoutes: buildParticularAuthRouteStubs(),
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async () => ({
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        }),
+        getPublicProfessionalByClinicId: async () => null,
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+      publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: {
+        ...buildReportAccessTokensRouteStubs(),
+        getActiveSessionByToken: async () => ({
+          clinicUserId: 9,
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+        }),
+        getClinicUserById: async () => ({
+          id: 9,
+          clinicId: 3,
+          username: "doctor",
+          authProId: null,
+          role: "clinic_owner",
+        }),
+        listReportAccessTokens: async () => [
+          {
+            id: 9,
+            clinicId: 3,
+            reportId: 55,
+            tokenHash: `hash:${"a".repeat(64)}`,
+            tokenLast4: "aaaa",
+            accessCount: 0,
+            lastAccessAt: null,
+            expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+            revokedAt: null,
+            createdAt: new Date("2026-04-20T12:00:00.000Z"),
+            updatedAt: new Date("2026-04-22T12:00:00.000Z"),
+            createdByClinicUserId: 9,
+            createdByAdminUserId: null,
+            revokedByClinicUserId: null,
+            revokedByAdminUserId: null,
+          },
+        ],
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/report-access-tokens?reportId=55",
+        headers: {
+          cookie: `${ENV.cookieName}=session-token`,
+        },
+      });
+
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(response.statusCode, 418);
+      assert.ok([200, 401].includes(response.statusCode));
+
+      if (response.statusCode === 200 && response.body) {
+        const body = JSON.parse(response.body);
+        assert.equal(body.success, true);
+        assert.equal(body.count, 1);
+        assert.equal(body.filters.reportId, 55);
+        assert.equal(body.reportAccessTokens[0].id, 9);
       }
     } finally {
       await app.close();
