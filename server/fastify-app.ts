@@ -15,6 +15,10 @@ import {
   type AdminAuthNativeRoutesOptions,
 } from "./routes/admin-auth.fastify.ts";
 import {
+  adminReportAccessTokensNativeRoutes,
+  type AdminReportAccessTokensNativeRoutesOptions,
+} from "./routes/admin-report-access-tokens.fastify.ts";
+import {
   clinicAuthNativeRoutes,
   type AuthNativeRoutesOptions,
 } from "./routes/auth.fastify.ts";
@@ -65,6 +69,7 @@ export type CreateFastifyAppOptions = {
   getServiceInfoPayload?: ServiceInfoFactory;
   adminAuditRoutes?: AdminAuditNativeRoutesOptions;
   adminAuthRoutes?: AdminAuthNativeRoutesOptions;
+  adminReportAccessTokensRoutes?: AdminReportAccessTokensNativeRoutesOptions;
   clinicAuthRoutes?: AuthNativeRoutesOptions;
   clinicAuditRoutes?: ClinicAuditNativeRoutesOptions;
   clinicPublicProfileRoutes?: ClinicPublicProfileNativeRoutesOptions;
@@ -78,6 +83,7 @@ const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
   "/health",
   "/admin/audit-log",
   "/admin/auth",
+  "/admin/report-access-tokens",
   "/auth",
   "/clinic/audit-log",
   "/clinic/profile",
@@ -155,6 +161,11 @@ export async function createFastifyApp(
   await app.register(adminAuthNativeRoutes, {
     prefix: "/api/admin/auth",
     ...(options.adminAuthRoutes ?? {}),
+  });
+
+  await app.register(adminReportAccessTokensNativeRoutes, {
+    prefix: "/api/admin/report-access-tokens",
+    ...(options.adminReportAccessTokensRoutes ?? {}),
   });
 
   await app.register(clinicAuthNativeRoutes, {
