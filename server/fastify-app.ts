@@ -38,6 +38,10 @@ import {
   publicReportAccessNativeRoutes,
   type PublicReportAccessNativeRoutesOptions,
 } from "./routes/public-report-access.fastify.ts";
+import {
+  reportAccessTokensNativeRoutes,
+  type ReportAccessTokensNativeRoutesOptions,
+} from "./routes/report-access-tokens.fastify.ts";
 
 type HealthCheckResponse = {
   statusCode: number;
@@ -67,6 +71,7 @@ export type CreateFastifyAppOptions = {
   particularAuthRoutes?: ParticularAuthNativeRoutesOptions;
   publicProfessionalsRoutes?: PublicProfessionalsNativeRoutesOptions;
   publicReportAccessRoutes?: PublicReportAccessNativeRoutesOptions;
+  reportAccessTokensRoutes?: ReportAccessTokensNativeRoutesOptions;
 };
 
 const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
@@ -79,6 +84,7 @@ const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
   "/particular/auth",
   "/public/professionals",
   "/public/report-access",
+  "/report-access-tokens",
 ];
 
 function shouldBypassLegacyApi(url: unknown) {
@@ -179,6 +185,11 @@ export async function createFastifyApp(
   await app.register(publicReportAccessNativeRoutes, {
     prefix: "/api/public/report-access",
     ...(options.publicReportAccessRoutes ?? {}),
+  });
+
+  await app.register(reportAccessTokensNativeRoutes, {
+    prefix: "/api/report-access-tokens",
+    ...(options.reportAccessTokensRoutes ?? {}),
   });
 
   await app.register(fastifyExpress);
