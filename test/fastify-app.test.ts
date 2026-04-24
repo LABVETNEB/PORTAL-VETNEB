@@ -50,6 +50,67 @@ function buildClinicAuthRouteStubs() {
   };
 }
 
+function buildClinicPublicProfileRouteStubs() {
+  return {
+    deleteActiveSession: async () => {},
+    getActiveSessionByToken: async () => null,
+    getClinicUserById: async () => null,
+    updateSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    getClinicById: async () => null,
+    getClinicPublicProfileByClinicId: async () => null,
+    buildClinicPublicProfileResponse: (input: {
+      clinic: Record<string, unknown>;
+      profile: Record<string, unknown> | null;
+      avatarUrl: string | null;
+    }) => ({
+      clinicId: input.clinic.id,
+      clinicName: input.clinic.name,
+      avatarUrl: input.avatarUrl,
+      displayName: input.profile?.displayName ?? null,
+      isPublic: input.profile?.isPublic ?? false,
+    }),
+    evaluateClinicPublicProfilePublication: () => ({
+      isPublic: false,
+      hasRequiredPublicFields: true,
+      hasQualitySupplement: true,
+      qualityScore: 80,
+      isSearchEligible: true,
+      missingRequiredFields: [],
+      missingRecommendedFields: [],
+      publicationErrors: [],
+    }),
+    minPublicProfileQualityScore: 60,
+    patchClinicPublicProfile: async () => ({
+      clinicId: 3,
+      displayName: "Clinica Centro",
+      avatarStoragePath: "avatars/3/avatar.png",
+      isPublic: true,
+    }),
+    removeClinicPublicAvatar: async () => ({
+      previousAvatarStoragePath: "avatars/3/avatar.png",
+      profile: {
+        clinicId: 3,
+        displayName: "Clinica Centro",
+        avatarStoragePath: null,
+        isPublic: true,
+      },
+    }),
+    syncClinicPublicSearch: async () => ({
+      clinicId: 3,
+      isPublic: true,
+      hasRequiredPublicFields: true,
+      isSearchEligible: true,
+      profileQualityScore: 80,
+      updatedAt: new Date("2026-04-22T12:00:00.000Z"),
+      searchText: "clinica centro",
+    }),
+    createSignedStorageUrl: async (storagePath: string) => `signed:${storagePath}`,
+    uploadClinicAvatar: async () => "avatars/3/avatar-new.png",
+    deleteStorageObject: async () => {},
+  };
+}
+
 function buildParticularAuthRouteStubs() {
   return {
     createParticularSession: async () => {},
@@ -119,6 +180,7 @@ test(
       }),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
@@ -200,6 +262,7 @@ test(
         updateAdminSessionLastAccess: async () => {},
       },
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
@@ -274,6 +337,7 @@ test(
         }),
         updateSessionLastAccess: async () => {},
       },
+      clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
@@ -324,6 +388,102 @@ test(
 );
 
 test(
+  "createFastifyApp despacha /api/clinic/profile al router nativo antes del bridge Express",
+  async () => {
+    const app = await createFastifyApp({
+      createLegacyApp: () => {
+        const legacyApp = express();
+
+        legacyApp.get("/clinic/profile", (_req, res) => {
+          res.setHeader("x-legacy-bridge", "should-not-run");
+          res.status(418).json({
+            success: false,
+          });
+        });
+
+        return legacyApp as any;
+      },
+      adminAuthRoutes: buildAdminAuthRouteStubs(),
+      clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      clinicPublicProfileRoutes: {
+        ...buildClinicPublicProfileRouteStubs(),
+        getActiveSessionByToken: async () => ({
+          clinicUserId: 9,
+          expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+        }),
+        getClinicUserById: async () => ({
+          id: 9,
+          clinicId: 3,
+          username: "doctor",
+          authProId: null,
+          role: "clinic_owner",
+        }),
+        getClinicPublicProfileByClinicId: async () => ({
+          clinic: {
+            id: 3,
+            name: "Clinica Centro",
+            contactEmail: "clinic@example.com",
+            contactPhone: "3410000000",
+          },
+          profile: {
+            clinicId: 3,
+            displayName: "Clinica Centro",
+            avatarStoragePath: "avatars/3/avatar.png",
+            isPublic: true,
+          },
+          search: {
+            clinicId: 3,
+            isPublic: true,
+            hasRequiredPublicFields: true,
+            isSearchEligible: true,
+            profileQualityScore: 80,
+            updatedAt: new Date("2026-04-22T12:00:00.000Z"),
+            searchText: "clinica centro",
+          },
+        }),
+      },
+      particularAuthRoutes: buildParticularAuthRouteStubs(),
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async () => ({
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        }),
+        getPublicProfessionalByClinicId: async () => null,
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+      publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/clinic/profile",
+        headers: {
+          cookie: `${ENV.cookieName}=session-token`,
+        },
+      });
+
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(response.statusCode, 418);
+      assert.ok([200, 401, 404].includes(response.statusCode));
+
+      if (response.statusCode === 200 && response.body) {
+        const body = JSON.parse(response.body);
+        assert.equal(body.success, true);
+        assert.equal(body.profile.clinicId, 3);
+        assert.equal(body.profile.clinicName, "Clinica Centro");
+        assert.equal(body.profile.avatarUrl, "signed:avatars/3/avatar.png");
+      }
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
   "createFastifyApp despacha /api/particular/auth al router nativo antes del bridge Express",
   async () => {
     const app = await createFastifyApp({
@@ -341,6 +501,7 @@ test(
       },
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: {
         ...buildParticularAuthRouteStubs(),
         getParticularSessionByToken: async () => ({
@@ -441,6 +602,7 @@ test(
       },
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
@@ -508,6 +670,7 @@ test(
       },
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       publicProfessionalsRoutes: {
         searchPublicProfessionals: async () => ({
@@ -599,4 +762,3 @@ test(
     }
   },
 );
-
