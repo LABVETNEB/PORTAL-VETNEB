@@ -162,7 +162,7 @@ export type StudyTrackingNativeRoutesOptions = {
     adminContactEmail: string | null;
     adminContactPhone: string | null;
     notes: string | null;
-  }) => Promise<void>;
+  }) => Promise<unknown>;
   now?: () => number;
   createDate?: () => Date;
 };
@@ -232,7 +232,13 @@ async function loadDefaultDeps(): Promise<NativeStudyTrackingDeps> {
     })();
   }
 
-  return defaultDepsPromise;
+  const depsPromise = defaultDepsPromise;
+
+  if (!depsPromise) {
+    throw new Error("No se pudieron cargar las dependencias de study tracking");
+  }
+
+  return depsPromise;
 }
 
 function getAllowedOrigins(): string[] {
