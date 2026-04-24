@@ -293,6 +293,27 @@ function buildParticularTokensRouteStubs() {
     updateParticularTokenReport: async () => null,
   };
 }
+function buildStudyTrackingRouteStubs() {
+  return {
+    deleteActiveSession: async () => {},
+    getActiveSessionByToken: async () => null,
+    getClinicUserById: async () => null,
+    updateSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    getClinicById: async () => null,
+    getReportById: async () => null,
+    getParticularTokenById: async () => null,
+    updateParticularTokenReport: async () => null,
+    createStudyTrackingCase: async () => ({} as any),
+    updateStudyTrackingCase: async () => null,
+    getClinicScopedStudyTrackingCase: async () => null,
+    listStudyTrackingCases: async () => [],
+    createStudyTrackingNotification: async () => ({} as any),
+    listStudyTrackingNotifications: async () => [],
+    sendSpecialStainRequiredEmail: async () => ({ sent: true }),
+  };
+}
+
 function buildPublicReportAccessRouteStubs() {
   return {
     getReportAccessTokenWithReportByTokenHash: async () => null,
@@ -399,6 +420,7 @@ test(
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
     });
 
     try {
@@ -523,6 +545,7 @@ test(
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
     });
 
     try {
@@ -599,6 +622,7 @@ test(
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
     });
 
     try {
@@ -680,6 +704,7 @@ test(
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
     });
 
     try {
@@ -807,6 +832,7 @@ test(
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
     });
 
     try {
@@ -909,6 +935,7 @@ test(
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
     });
 
     try {
@@ -1016,6 +1043,7 @@ test(
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
     });
 
     try {
@@ -1081,6 +1109,7 @@ test(
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
     });
 
     try {
@@ -1207,6 +1236,7 @@ test(
           "https://signed.example/download",
       },
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
     });
 
     try {
@@ -1271,6 +1301,7 @@ test(
         createSignedStorageUrl: async (path: string) => `signed:${path}`,
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
       reportAccessTokensRoutes: {
         ...buildReportAccessTokensRouteStubs(),
         getActiveSessionByToken: async () => ({
@@ -1400,6 +1431,7 @@ test(
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
     });
 
     try {
@@ -1504,6 +1536,7 @@ test(
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
     });
 
     try {
@@ -1528,4 +1561,54 @@ test(
 
 
 
+
+
+
+test(
+  "createFastifyApp despacha /api/study-tracking al router nativo antes del bridge Express",
+  async () => {
+    const app = await createFastifyApp({
+      createLegacyApp: () => {
+        const legacyApp = express();
+
+        legacyApp.get("/study-tracking", (_req, res) => {
+          res.setHeader("x-legacy-bridge", "should-not-run");
+          res.status(418).json({ success: false });
+        });
+
+        return legacyApp as any;
+      },
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
+      adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
+      adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      clinicAuditRoutes: buildClinicAuditRouteStubs(),
+      clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async () => ({ rows: [], total: 0, limit: 20, offset: 0 }),
+        getPublicProfessionalByClinicId: async () => null,
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+      publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/study-tracking",
+      });
+
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(response.statusCode, 418);
+      assert.equal(response.statusCode, 401);
+    } finally {
+      await app.close();
+    }
+  },
+);
 
