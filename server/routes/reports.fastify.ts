@@ -11,6 +11,7 @@ import {
   normalizeSearchText,
   parseOffset,
   parsePositiveInt,
+  parseReportId,
   parseReportStatus,
 } from "../lib/reports.ts";
 import { REPORT_STATUSES } from "../lib/report-status.ts";
@@ -74,6 +75,8 @@ export type ReportsNativeRoutesOptions = {
     currentStatus?: ReportStatus,
   ) => Promise<Report[]>;
   getStudyTypes?: (clinicId: number) => Promise<string[]>;
+  getReportById?: (reportId: number) => Promise<Report | null>;
+  getReportStatusHistory?: (reportId: number) => Promise<unknown[]>;
   createSignedReportUrl?: (storagePath: string) => Promise<string>;
   createSignedReportDownloadUrl?: (
     storagePath: string,
@@ -100,6 +103,8 @@ type NativeReportsDeps = Required<
     | "getReportsByClinicId"
     | "searchReports"
     | "getStudyTypes"
+    | "getReportById"
+    | "getReportStatusHistory"
     | "createSignedReportUrl"
     | "createSignedReportDownloadUrl"
   >
@@ -123,6 +128,8 @@ async function loadDefaultDeps(): Promise<NativeReportsDeps> {
         getReportsByClinicId: db.getReportsByClinicId,
         searchReports: db.searchReports,
         getStudyTypes: db.getStudyTypes,
+        getReportById: db.getReportById,
+        getReportStatusHistory: db.getReportStatusHistory,
         createSignedReportUrl: storage.createSignedReportUrl,
         createSignedReportDownloadUrl: storage.createSignedReportDownloadUrl,
       };
@@ -142,6 +149,8 @@ function hasAllInjectedDeps(options: ReportsNativeRoutesOptions) {
     !!options.getReportsByClinicId &&
     !!options.searchReports &&
     !!options.getStudyTypes &&
+    !!options.getReportById &&
+    !!options.getReportStatusHistory &&
     !!options.createSignedReportUrl &&
     !!options.createSignedReportDownloadUrl
   );
@@ -167,6 +176,9 @@ async function resolveDeps(
       options.getReportsByClinicId ?? defaultDeps!.getReportsByClinicId,
     searchReports: options.searchReports ?? defaultDeps!.searchReports,
     getStudyTypes: options.getStudyTypes ?? defaultDeps!.getStudyTypes,
+    getReportById: options.getReportById ?? defaultDeps!.getReportById,
+    getReportStatusHistory:
+      options.getReportStatusHistory ?? defaultDeps!.getReportStatusHistory,
     createSignedReportUrl:
       options.createSignedReportUrl ?? defaultDeps!.createSignedReportUrl,
     createSignedReportDownloadUrl:
@@ -454,6 +466,33 @@ async function serializeReports(reports: Report[], deps: NativeReportsDeps) {
   return Promise.all(reports.map((report) => serializeReport(report, deps)));
 }
 
+async function getAuthorizedReport(
+  reportId: number,
+  clinicId: number,
+  unauthorizedMessage: string,
+  deps: NativeReportsDeps,
+): Promise<{ report: Report } | { status: 403 | 404; error: string }> {
+  const report = await deps.getReportById(reportId);
+
+  if (!report) {
+    return {
+      status: 404,
+      error: "Informe no encontrado",
+    };
+  }
+
+  if (report.clinicId !== clinicId) {
+    return {
+      status: 403,
+      error: unauthorizedMessage,
+    };
+  }
+
+  return {
+    report,
+  };
+}
+
 function validateStatusQuery(status: unknown, currentStatus: ReportStatus | undefined) {
   return typeof status === "undefined" || !!currentStatus;
 }
@@ -520,6 +559,9 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
     app.options("/", optionsHandler);
     app.options("/search", optionsHandler);
     app.options("/study-types", optionsHandler);
+    app.options("/:reportId/history", optionsHandler);
+    app.options("/:reportId/preview-url", optionsHandler);
+    app.options("/:reportId/download-url", optionsHandler);
 
     app.get<{
       Querystring: {
@@ -667,6 +709,143 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
       return reply.code(200).send({
         success: true,
         studyTypes,
+      });
+    });
+
+    app.get<{
+      Params: {
+        reportId?: unknown;
+      };
+    }>("/:reportId/history", async (request, reply) => {
+      const deps = await resolveDeps(options);
+      const auth = await authenticateClinicUser(request, reply, deps, now);
+
+      if (!auth) {
+        return reply;
+      }
+
+      const reportId = parseReportId(request.params.reportId);
+
+      if (typeof reportId !== "number") {
+        return reply.code(400).send({
+          success: false,
+          error: "ID de informe invalido",
+        });
+      }
+
+      const reportResult = await getAuthorizedReport(
+        reportId,
+        auth.clinicId,
+        "No autorizado para consultar el historial de este informe",
+        deps,
+      );
+
+      if (!("report" in reportResult)) {
+        return reply.code(reportResult.status).send({
+          success: false,
+          error: reportResult.error,
+        });
+      }
+
+      const history = await deps.getReportStatusHistory(reportId);
+
+      return reply.code(200).send({
+        success: true,
+        reportId,
+        currentStatus: reportResult.report.currentStatus,
+        count: history.length,
+        history,
+      });
+    });
+
+    app.get<{
+      Params: {
+        reportId?: unknown;
+      };
+    }>("/:reportId/preview-url", async (request, reply) => {
+      const deps = await resolveDeps(options);
+      const auth = await authenticateClinicUser(request, reply, deps, now);
+
+      if (!auth) {
+        return reply;
+      }
+
+      const reportId = parseReportId(request.params.reportId);
+
+      if (typeof reportId !== "number") {
+        return reply.code(400).send({
+          success: false,
+          error: "ID de informe invalido",
+        });
+      }
+
+      const reportResult = await getAuthorizedReport(
+        reportId,
+        auth.clinicId,
+        "No autorizado para previsualizar este informe",
+        deps,
+      );
+
+      if (!("report" in reportResult)) {
+        return reply.code(reportResult.status).send({
+          success: false,
+          error: reportResult.error,
+        });
+      }
+
+      const previewUrl = await deps.createSignedReportUrl(
+        reportResult.report.storagePath,
+      );
+
+      return reply.code(200).send({
+        success: true,
+        previewUrl,
+      });
+    });
+
+    app.get<{
+      Params: {
+        reportId?: unknown;
+      };
+    }>("/:reportId/download-url", async (request, reply) => {
+      const deps = await resolveDeps(options);
+      const auth = await authenticateClinicUser(request, reply, deps, now);
+
+      if (!auth) {
+        return reply;
+      }
+
+      const reportId = parseReportId(request.params.reportId);
+
+      if (typeof reportId !== "number") {
+        return reply.code(400).send({
+          success: false,
+          error: "ID de informe invalido",
+        });
+      }
+
+      const reportResult = await getAuthorizedReport(
+        reportId,
+        auth.clinicId,
+        "No autorizado para descargar este informe",
+        deps,
+      );
+
+      if (!("report" in reportResult)) {
+        return reply.code(reportResult.status).send({
+          success: false,
+          error: reportResult.error,
+        });
+      }
+
+      const downloadUrl = await deps.createSignedReportDownloadUrl(
+        reportResult.report.storagePath,
+        reportResult.report.fileName ?? undefined,
+      );
+
+      return reply.code(200).send({
+        success: true,
+        downloadUrl,
       });
     });
   };
