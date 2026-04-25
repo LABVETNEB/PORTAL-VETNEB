@@ -33,6 +33,20 @@ function createReportFixture(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function createStatusHistoryFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 101,
+    reportId: 55,
+    fromStatus: "processing",
+    toStatus: "ready",
+    note: "Informe listo",
+    changedByClinicUserId: 9,
+    changedByAdminUserId: null,
+    createdAt: new Date("2026-04-21T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
 function createAuthStubs(overrides: Record<string, unknown> = {}) {
   return {
     deleteActiveSession: async () => {},
@@ -63,6 +77,8 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     getReportsByClinicId: async () => [createReportFixture()],
     searchReports: async () => [createReportFixture({ id: 56 })],
     getStudyTypes: async () => ["Histopatología", "Citología"],
+    getReportById: async () => createReportFixture(),
+    getReportStatusHistory: async () => [createStatusHistoryFixture()],
     createSignedReportUrl: async (storagePath: string) => `preview:${storagePath}`,
     createSignedReportDownloadUrl: async (
       storagePath: string,
@@ -196,6 +212,158 @@ test("reportsNativeRoutes expone GET /study-types clinic-scoped", async () => {
     assert.deepEqual(JSON.parse(response.body), {
       success: true,
       studyTypes: ["Histopatología", "Citología"],
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes expone GET /:reportId/history con historial clinic-scoped", async () => {
+  const getReportCalls: number[] = [];
+  const historyCalls: number[] = [];
+  const app = await createTestApp({
+    getReportById: async (reportId: number) => {
+      getReportCalls.push(reportId);
+      return createReportFixture({ id: reportId });
+    },
+    getReportStatusHistory: async (reportId: number) => {
+      historyCalls.push(reportId);
+      return [createStatusHistoryFixture({ reportId })];
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/reports/55/history",
+      headers: {
+        cookie: `${ENV.cookieName}=session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(getReportCalls, [55]);
+    assert.deepEqual(historyCalls, [55]);
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.success, true);
+    assert.equal(body.reportId, 55);
+    assert.equal(body.currentStatus, "ready");
+    assert.equal(body.count, 1);
+    assert.equal(body.history[0].toStatus, "ready");
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes expone GET /:reportId/preview-url clinic-scoped", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/reports/55/preview-url",
+      headers: {
+        cookie: `${ENV.cookieName}=session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: true,
+      previewUrl: "preview:reports/3/luna.pdf",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes expone GET /:reportId/download-url clinic-scoped", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/reports/55/download-url",
+      headers: {
+        cookie: `${ENV.cookieName}=session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: true,
+      downloadUrl: "download:reports/3/luna.pdf:luna.pdf",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes bloquea reportId inválido en rutas parametrizadas", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/reports/abc/history",
+      headers: {
+        cookie: `${ENV.cookieName}=session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "ID de informe invalido",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes bloquea informe ajeno en rutas parametrizadas", async () => {
+  const app = await createTestApp({
+    getReportById: async () => createReportFixture({ clinicId: 99 }),
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/reports/55/download-url",
+      headers: {
+        cookie: `${ENV.cookieName}=session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "No autorizado para descargar este informe",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes devuelve 404 cuando el informe no existe en rutas parametrizadas", async () => {
+  const app = await createTestApp({
+    getReportById: async () => null,
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/reports/55/preview-url",
+      headers: {
+        cookie: `${ENV.cookieName}=session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Informe no encontrado",
     });
   } finally {
     await app.close();
