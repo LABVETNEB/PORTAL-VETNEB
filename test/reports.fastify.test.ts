@@ -79,6 +79,18 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     getStudyTypes: async () => ["Histopatología", "Citología"],
     getReportById: async () => createReportFixture(),
     getReportStatusHistory: async () => [createStatusHistoryFixture()],
+    getClinicScopedStudyTrackingCase: async () => ({
+      id: 77,
+      clinicId: 3,
+    }),
+    updateStudyTrackingCase: async () => {},
+    uploadReport: async () => "reports/3/luna-new.pdf",
+    upsertReport: async () =>
+      createReportFixture({
+        id: 88,
+        currentStatus: "uploaded",
+        storagePath: "reports/3/luna-new.pdf",
+      }),
     createSignedReportUrl: async (storagePath: string) => `preview:${storagePath}`,
     createSignedReportDownloadUrl: async (
       storagePath: string,
@@ -90,6 +102,199 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
 
   return app;
 }
+
+function buildMultipartReportPayload(options: { includeFile?: boolean } = {}) {
+  const boundary = "----vetneb-report-boundary";
+  const includeFile = options.includeFile ?? true;
+  const chunks = [
+    `--${boundary}\r\n`,
+    'Content-Disposition: form-data; name="patientName"\r\n\r\n',
+    "Luna Gomez",
+    `\r\n--${boundary}\r\n`,
+    'Content-Disposition: form-data; name="studyType"\r\n\r\n',
+    "Histopatologia",
+    `\r\n--${boundary}\r\n`,
+    'Content-Disposition: form-data; name="uploadDate"\r\n\r\n',
+    "2026-04-25T10:30:00.000Z",
+    `\r\n--${boundary}\r\n`,
+    'Content-Disposition: form-data; name="trackingCaseId"\r\n\r\n',
+    "77",
+  ];
+
+  if (includeFile) {
+    chunks.push(
+      `\r\n--${boundary}\r\n`,
+      'Content-Disposition: form-data; name="file"; filename="luna.pdf"\r\n',
+      "Content-Type: application/pdf\r\n\r\n",
+      "PDFDATA",
+    );
+  }
+
+  chunks.push(`\r\n--${boundary}--\r\n`);
+
+  return {
+    boundary,
+    payload: Buffer.from(chunks.join(""), "utf8"),
+  };
+}
+
+test("reportsNativeRoutes expone POST /upload con multipart y tracking", async () => {
+  const uploadCalls: Array<Record<string, unknown>> = [];
+  const trackingCalls: Array<Record<string, unknown>> = [];
+  const updateTrackingCalls: Array<Record<string, unknown>> = [];
+  const upsertCalls: Array<Record<string, unknown>> = [];
+  const multipart = buildMultipartReportPayload();
+
+  const app = await createTestApp({
+    uploadReport: async (input: {
+      file: Buffer;
+      fileName: string;
+      clinicId: number;
+      mimeType: string;
+    }) => {
+      uploadCalls.push({
+        clinicId: input.clinicId,
+        fileName: input.fileName,
+        mimeType: input.mimeType,
+        file: input.file.toString("utf8"),
+      });
+
+      return "reports/3/luna-new.pdf";
+    },
+    getClinicScopedStudyTrackingCase: async (
+      trackingCaseId: number,
+      clinicId: number,
+    ) => {
+      trackingCalls.push({ trackingCaseId, clinicId });
+      return {
+        id: trackingCaseId,
+        clinicId,
+      };
+    },
+    updateStudyTrackingCase: async (
+      trackingCaseId: number,
+      input: { reportId: number },
+    ) => {
+      updateTrackingCalls.push({ trackingCaseId, input });
+    },
+    upsertReport: async (input: Record<string, unknown>) => {
+      upsertCalls.push(input);
+
+      return createReportFixture({
+        id: 88,
+        clinicId: input.clinicId,
+        patientName: input.patientName,
+        studyType: input.studyType,
+        uploadDate: input.uploadDate,
+        fileName: input.fileName,
+        storagePath: input.storagePath,
+        currentStatus: "uploaded",
+        createdByClinicUserId: input.createdByClinicUserId,
+      });
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports/upload",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.cookieName}=session-token`,
+        "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+      },
+      payload: multipart.payload,
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.deepEqual(uploadCalls, [
+      {
+        clinicId: 3,
+        fileName: "luna.pdf",
+        mimeType: "application/pdf",
+        file: "PDFDATA",
+      },
+    ]);
+    assert.deepEqual(trackingCalls, [
+      {
+        trackingCaseId: 77,
+        clinicId: 3,
+      },
+    ]);
+    assert.deepEqual(updateTrackingCalls, [
+      {
+        trackingCaseId: 77,
+        input: {
+          reportId: 88,
+        },
+      },
+    ]);
+
+    assert.equal(upsertCalls.length, 1);
+    assert.equal(upsertCalls[0].clinicId, 3);
+    assert.equal(upsertCalls[0].patientName, "Luna Gomez");
+    assert.equal(upsertCalls[0].studyType, "Histopatologia");
+    assert.equal(
+      (upsertCalls[0].uploadDate as Date).toISOString(),
+      "2026-04-25T10:30:00.000Z",
+    );
+    assert.equal(upsertCalls[0].fileName, "luna.pdf");
+    assert.equal(upsertCalls[0].storagePath, "reports/3/luna-new.pdf");
+    assert.equal(upsertCalls[0].createdByClinicUserId, 9);
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.success, true);
+    assert.equal(body.message, "Archivo subido correctamente");
+    assert.equal(body.report.id, 88);
+    assert.equal(body.report.clinicId, 3);
+    assert.equal(body.report.patientName, "Luna Gomez");
+    assert.equal(body.report.studyType, "Histopatologia");
+    assert.equal(body.report.uploadDate, "2026-04-25T10:30:00.000Z");
+    assert.equal(body.report.fileName, "luna.pdf");
+    assert.equal(body.report.storagePath, "reports/3/luna-new.pdf");
+    assert.equal(body.report.previewUrl, "preview:reports/3/luna-new.pdf");
+    assert.equal(
+      body.report.downloadUrl,
+      "download:reports/3/luna-new.pdf:luna.pdf",
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes bloquea POST /upload sin archivo", async () => {
+  const multipart = buildMultipartReportPayload({ includeFile: false });
+  let uploadCalled = false;
+
+  const app = await createTestApp({
+    uploadReport: async () => {
+      uploadCalled = true;
+      return "reports/3/luna-new.pdf";
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports/upload",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.cookieName}=session-token`,
+        "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+      },
+      payload: multipart.payload,
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(uploadCalled, false);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "No se proporciono ningun archivo",
+    });
+  } finally {
+    await app.close();
+  }
+});
 
 test("reportsNativeRoutes expone GET / con lista clinic-scoped", async () => {
   const calls: Array<Record<string, unknown>> = [];

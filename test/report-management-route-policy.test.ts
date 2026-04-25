@@ -34,6 +34,35 @@ test("reports protege PATCH /:reportId/status con management permission", () => 
   );
 });
 
+test("reports expone POST /upload nativo con permiso de upload, no management", () => {
+  const legacySource = readRouteSource("server/routes/reports.routes.ts");
+  const nativeSource = readRouteSource("server/routes/reports.fastify.ts");
+
+  assert.doesNotMatch(
+    legacySource,
+    /router\.post\(\s*"\/upload"/s,
+    "POST /upload ya no debe existir en el router Express legacy",
+  );
+
+  assert.match(
+    nativeSource,
+    /app\.post\(\s*"\/upload"/s,
+  );
+  assert.match(
+    nativeSource,
+    /if \(!auth\.canUploadReports\)/,
+  );
+  assert.match(
+    nativeSource,
+    /error: "No autorizado para subir informes"/,
+  );
+  assert.doesNotMatch(
+    nativeSource,
+    /app\.post\(\s*"\/upload"[\s\S]*?canManageClinicUsers/s,
+    "POST /upload no debe exigir permiso de management de clinica",
+  );
+});
+
 test("report-access-tokens protege mutaciones con management permission", () => {
   const source = readRouteSource("server/routes/report-access-tokens.routes.ts");
 
