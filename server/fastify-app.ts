@@ -67,6 +67,10 @@ import {
   type ReportsNativeRoutesOptions,
 } from "./routes/reports.fastify.ts";
 import {
+  reportsStatusNativeRoutes,
+  type ReportsStatusNativeRoutesOptions,
+} from "./routes/reports-status.fastify.ts";
+import {
   studyTrackingNativeRoutes,
   type StudyTrackingNativeRoutesOptions,
 } from "./routes/study-tracking.fastify.ts";
@@ -106,6 +110,7 @@ export type CreateFastifyAppOptions = {
   publicReportAccessRoutes?: PublicReportAccessNativeRoutesOptions;
   reportAccessTokensRoutes?: ReportAccessTokensNativeRoutesOptions;
   reportsRoutes?: ReportsNativeRoutesOptions;
+  reportsStatusRoutes?: ReportsStatusNativeRoutesOptions;
   studyTrackingRoutes?: StudyTrackingNativeRoutesOptions;
 };
 
@@ -274,6 +279,11 @@ export async function createFastifyApp(
   await app.register(reportsNativeRoutes, {
     prefix: "/api/reports",
     ...(options.reportsRoutes ?? {}),
+  });
+
+  await app.register(reportsStatusNativeRoutes, {
+    prefix: "/api/reports",
+    ...(options.reportsStatusRoutes ?? {}),
   });
 
   await app.register(studyTrackingNativeRoutes, {
