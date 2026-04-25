@@ -63,6 +63,10 @@ import {
   type ReportAccessTokensNativeRoutesOptions,
 } from "./routes/report-access-tokens.fastify.ts";
 import {
+  reportsNativeRoutes,
+  type ReportsNativeRoutesOptions,
+} from "./routes/reports.fastify.ts";
+import {
   studyTrackingNativeRoutes,
   type StudyTrackingNativeRoutesOptions,
 } from "./routes/study-tracking.fastify.ts";
@@ -101,6 +105,7 @@ export type CreateFastifyAppOptions = {
   publicProfessionalsRoutes?: PublicProfessionalsNativeRoutesOptions;
   publicReportAccessRoutes?: PublicReportAccessNativeRoutesOptions;
   reportAccessTokensRoutes?: ReportAccessTokensNativeRoutesOptions;
+  reportsRoutes?: ReportsNativeRoutesOptions;
   studyTrackingRoutes?: StudyTrackingNativeRoutesOptions;
 };
 
@@ -122,6 +127,7 @@ const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
   "/public/professionals",
   "/public/report-access",
   "/report-access-tokens",
+  "/reports",
   "/study-tracking",
 ];
 
@@ -263,6 +269,11 @@ export async function createFastifyApp(
   await app.register(reportAccessTokensNativeRoutes, {
     prefix: "/api/report-access-tokens",
     ...(options.reportAccessTokensRoutes ?? {}),
+  });
+
+  await app.register(reportsNativeRoutes, {
+    prefix: "/api/reports",
+    ...(options.reportsRoutes ?? {}),
   });
 
   await app.register(studyTrackingNativeRoutes, {
