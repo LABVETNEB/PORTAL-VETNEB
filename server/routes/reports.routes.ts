@@ -1,5 +1,4 @@
 import { Router } from "express";
-import multer from "multer";
 import type { Report, ReportStatus } from "../../drizzle/schema";
 import {
   getReportById,
@@ -8,51 +7,22 @@ import {
   getStudyTypes,
   searchReports,
   updateReportStatus,
-  upsertReport,
 } from "../db";
-import {
-  getClinicScopedStudyTrackingCase,
-  updateStudyTrackingCase,
-} from "../db-study-tracking";
 import {
   REPORT_STATUSES,
   canTransitionReportStatus,
   normalizeReportStatus,
 } from "../lib/report-status";
 import { AUDIT_EVENTS, writeAuditLog } from "../lib/audit";
-import { ENV } from "../lib/env";
 import {
-  ALLOWED_MIME_TYPES,
   createSignedReportDownloadUrl,
   createSignedReportUrl,
-  uploadReport,
 } from "../lib/supabase";
 import { requireAuth } from "../middlewares/auth";
 import { requireTrustedOrigin } from "../middlewares/trusted-origin";
 import { asyncHandler } from "../utils/async-handler";
 
 const router = Router();
-
-const allowedMimeTypes = new Set(ALLOWED_MIME_TYPES);
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: ENV.maxUploadFileSizeMb * 1024 * 1024,
-  },
-  fileFilter: (_req, file, cb) => {
-    if (
-      !allowedMimeTypes.has(
-        file.mimetype as (typeof ALLOWED_MIME_TYPES)[number],
-      )
-    ) {
-      cb(new Error("Tipo de archivo no permitido"));
-      return;
-    }
-
-    cb(null, true);
-  },
-});
 
 function parsePositiveInt(value: unknown, fallback: number, max?: number) {
   const parsed = Number(value);
@@ -89,15 +59,6 @@ function normalizeOptionalNote(value: unknown) {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed.slice(0, 2000) : null;
-}
-
-function parseOptionalDate(value: unknown): Date | undefined {
-  if (typeof value !== "string" || !value.trim()) {
-    return undefined;
-  }
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 function parseClinicId(value: unknown): number | undefined {
@@ -184,17 +145,6 @@ async function serializeReports(reports: Report[]) {
 router.use(requireTrustedOrigin);
 router.use(requireAuth);
 
-const requireUploadPermission = asyncHandler(async (req, res, next) => {
-  if (!req.auth?.canUploadReports) {
-    return res.status(403).json({
-      success: false,
-      error: "No autorizado para subir informes",
-    });
-  }
-
-  next();
-});
-
 const requireReportStatusWritePermission = asyncHandler(async (req, res, next) => {
   if (!req.auth?.canManageClinicUsers) {
     return res.status(403).json({
@@ -205,70 +155,6 @@ const requireReportStatusWritePermission = asyncHandler(async (req, res, next) =
 
   next();
 });
-
-router.post(
-  "/upload",
-  requireUploadPermission,
-  upload.single("file"),
-  asyncHandler(async (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: "No se proporciono ningun archivo",
-      });
-    }
-
-    const clinicId = req.auth!.clinicId;
-
-    const storagePath = await uploadReport({
-      file: req.file.buffer,
-      fileName: req.file.originalname,
-      clinicId,
-      mimeType: req.file.mimetype,
-    });
-
-    const patientName = normalizeSearchText(req.body?.patientName);
-    const studyType = normalizeSearchText(req.body?.studyType);
-    const uploadDate = parseOptionalDate(req.body?.uploadDate);
-    const trackingCaseId = parseReportId(req.body?.trackingCaseId);
-
-    if (typeof trackingCaseId === "number") {
-      const trackingCase = await getClinicScopedStudyTrackingCase(
-        trackingCaseId,
-        clinicId,
-      );
-
-      if (!trackingCase) {
-        return res.status(404).json({
-          success: false,
-          error: "Seguimiento no encontrado para la clínica autenticada",
-        });
-      }
-    }
-
-    const report = await upsertReport({
-      clinicId,
-      patientName: patientName ?? null,
-      studyType: studyType ?? null,
-      uploadDate: uploadDate ?? null,
-      fileName: req.file.originalname,
-      storagePath,
-      createdByClinicUserId: req.auth!.id,
-    });
-
-    if (typeof trackingCaseId === "number") {
-      await updateStudyTrackingCase(trackingCaseId, {
-        reportId: report.id,
-      });
-    }
-
-    return res.status(201).json({
-      success: true,
-      message: "Archivo subido correctamente",
-      report: await serializeReport(report),
-    });
-  }),
-);
 
 router.get(
   "/",
