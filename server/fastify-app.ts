@@ -1,4 +1,4 @@
-﻿import Fastify, {
+import Fastify, {
   type FastifyInstance,
   type FastifyReply,
   type FastifyRequest,
@@ -42,6 +42,10 @@ import {
   particularAuthNativeRoutes,
   type ParticularAuthNativeRoutesOptions,
 } from "./routes/particular-auth.fastify.ts";
+import {
+  particularStudyTrackingNativeRoutes,
+  type ParticularStudyTrackingNativeRoutesOptions,
+} from "./routes/particular-study-tracking.fastify.ts";
 import {
   particularTokensNativeRoutes,
   type ParticularTokensNativeRoutesOptions,
@@ -92,6 +96,7 @@ export type CreateFastifyAppOptions = {
   clinicAuditRoutes?: ClinicAuditNativeRoutesOptions;
   clinicPublicProfileRoutes?: ClinicPublicProfileNativeRoutesOptions;
   particularAuthRoutes?: ParticularAuthNativeRoutesOptions;
+  particularStudyTrackingRoutes?: ParticularStudyTrackingNativeRoutesOptions;
   particularTokensRoutes?: ParticularTokensNativeRoutesOptions;
   publicProfessionalsRoutes?: PublicProfessionalsNativeRoutesOptions;
   publicReportAccessRoutes?: PublicReportAccessNativeRoutesOptions;
@@ -110,6 +115,7 @@ const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
   "/clinic/audit-log",
   "/clinic/profile",
   "/particular/auth",
+  "/particular/study-tracking",
   "/particular-tokens",
   "/public/professionals",
   "/public/report-access",
@@ -222,6 +228,11 @@ export async function createFastifyApp(
     ...(options.particularAuthRoutes ?? {}),
   });
 
+  await app.register(particularStudyTrackingNativeRoutes, {
+    prefix: "/api/particular/study-tracking",
+    ...(options.particularStudyTrackingRoutes ?? {}),
+  });
+
   await app.register(particularTokensNativeRoutes, {
     prefix: "/api/particular-tokens",
     ...(options.particularTokensRoutes ?? {}),
@@ -268,4 +279,3 @@ export async function createFastifyApp(
 
   return app;
 }
-
