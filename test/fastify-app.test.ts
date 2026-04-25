@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 
@@ -1726,3 +1726,75 @@ test(
 
 
 
+
+test(
+  "createFastifyApp despacha aliases legacy de particular tokens al router nativo antes del bridge Express",
+  async () => {
+    const app = await createFastifyApp({
+      createLegacyApp: () => {
+        const legacyApp = express();
+
+        legacyApp.get("/admin/particular/tokens", (_req, res) => {
+          res.setHeader("x-legacy-bridge", "should-not-run");
+          res.status(418).json({
+            success: false,
+          });
+        });
+
+        legacyApp.get("/particular/tokens", (_req, res) => {
+          res.setHeader("x-legacy-bridge", "should-not-run");
+          res.status(418).json({
+            success: false,
+          });
+        });
+
+        return legacyApp as any;
+      },
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
+      adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
+      adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+      clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      clinicAuditRoutes: buildClinicAuditRouteStubs(),
+      clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async () => ({
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        }),
+        getPublicProfessionalByClinicId: async () => null,
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+      publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    });
+
+    try {
+      const adminAliasResponse = await app.inject({
+        method: "GET",
+        url: "/api/admin/particular/tokens",
+      });
+
+      assert.equal(adminAliasResponse.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(adminAliasResponse.statusCode, 418);
+      assert.equal(adminAliasResponse.statusCode, 401);
+
+      const clinicAliasResponse = await app.inject({
+        method: "GET",
+        url: "/api/particular/tokens",
+      });
+
+      assert.equal(clinicAliasResponse.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(clinicAliasResponse.statusCode, 418);
+      assert.equal(clinicAliasResponse.statusCode, 401);
+    } finally {
+      await app.close();
+    }
+  },
+);
