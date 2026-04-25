@@ -19,7 +19,7 @@ function createReportFixture(overrides: Record<string, unknown> = {}) {
     id: 55,
     clinicId: 3,
     patientName: "Luna Gomez",
-    studyType: "Histopatología",
+    studyType: "Histopatolog\u00eda",
     uploadDate: new Date("2026-04-20T00:00:00.000Z"),
     fileName: "luna.pdf",
     storagePath: "reports/3/luna.pdf",
@@ -117,7 +117,7 @@ test("reportsStatusNativeRoutes actualiza PATCH /:reportId/status y escribe audi
     ]);
 
     assert.equal(auditCalls.length, 1);
-    assert.equal(auditCalls[0].event, "report.status_changed");
+    assert.equal(auditCalls[0].event, "report.status.changed");
     assert.equal(auditCalls[0].clinicId, 3);
     assert.equal(auditCalls[0].reportId, 55);
     assert.deepEqual(auditCalls[0].metadata, {
@@ -173,7 +173,7 @@ test("reportsStatusNativeRoutes bloquea PATCH /:reportId/status sin management p
   }
 });
 
-test("reportsStatusNativeRoutes valida reportId y status inválidos", async () => {
+test("reportsStatusNativeRoutes valida reportId y status invalidos", async () => {
   const app = await createTestApp();
 
   try {
@@ -267,7 +267,7 @@ test("reportsStatusNativeRoutes bloquea informe ajeno o inexistente", async () =
   }
 });
 
-test("reportsStatusNativeRoutes rechaza status repetido o transición inválida", async () => {
+test("reportsStatusNativeRoutes rechaza status repetido o transicion invalida", async () => {
   const sameStatusApp = await createTestApp({
     getReportById: async () => createReportFixture({ currentStatus: "ready" }),
   });
@@ -312,7 +312,7 @@ test("reportsStatusNativeRoutes rechaza status repetido o transición inválida"
     assert.equal(response.statusCode, 400);
     const body = JSON.parse(response.body);
     assert.equal(body.success, false);
-    assert.equal(body.error, "La transición de estado no está permitida");
+    assert.equal(body.error, "La transici\u00f3n de estado no est\u00e1 permitida");
     assert.equal(body.currentStatus, "delivered");
     assert.equal(body.requestedStatus, "processing");
   } finally {
