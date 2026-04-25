@@ -79,7 +79,7 @@ export type ReportsStatusNativeRoutesOptions = {
     note: string | null;
     changedByClinicUserId?: number | null;
     changedByAdminUserId?: number | null;
-  }) => Promise<Report | null>;
+  }) => Promise<Report | null | undefined>;
   createSignedReportUrl?: (storagePath: string) => Promise<string>;
   createSignedReportDownloadUrl?: (
     storagePath: string,
@@ -141,7 +141,7 @@ async function loadDefaultDeps(): Promise<NativeReportsStatusDeps> {
     })();
   }
 
-  return defaultDepsPromise;
+  return defaultDepsPromise!;
 }
 
 function hasAllInjectedDeps(options: ReportsStatusNativeRoutesOptions) {
