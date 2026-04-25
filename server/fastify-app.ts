@@ -108,6 +108,7 @@ const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
   "/health",
   "/admin/audit-log",
   "/admin/auth",
+  "/admin/particular/tokens",
   "/admin/particular-tokens",
   "/admin/report-access-tokens",
   "/admin/study-tracking",
@@ -116,6 +117,7 @@ const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
   "/clinic/profile",
   "/particular/auth",
   "/particular/study-tracking",
+  "/particular/tokens",
   "/particular-tokens",
   "/public/professionals",
   "/public/report-access",
@@ -198,6 +200,11 @@ export async function createFastifyApp(
     ...(options.adminParticularTokensRoutes ?? {}),
   });
 
+  await app.register(adminParticularTokensNativeRoutes, {
+    prefix: "/api/admin/particular/tokens",
+    ...(options.adminParticularTokensRoutes ?? {}),
+  });
+
   await app.register(adminReportAccessTokensNativeRoutes, {
     prefix: "/api/admin/report-access-tokens",
     ...(options.adminReportAccessTokensRoutes ?? {}),
@@ -235,6 +242,11 @@ export async function createFastifyApp(
 
   await app.register(particularTokensNativeRoutes, {
     prefix: "/api/particular-tokens",
+    ...(options.particularTokensRoutes ?? {}),
+  });
+
+  await app.register(particularTokensNativeRoutes, {
+    prefix: "/api/particular/tokens",
     ...(options.particularTokensRoutes ?? {}),
   });
 
