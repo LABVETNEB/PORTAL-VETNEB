@@ -9,7 +9,6 @@ import cors from "cors";
 
 import adminAuthRoutes from "./routes/admin-auth.routes";
 import adminParticularTokensRoutes from "./routes/admin-particular-tokens.routes";
-import adminReportAccessTokensRoutes from "./routes/admin-report-access-tokens.routes";
 import adminStudyTrackingRoutes from "./routes/admin-study-tracking.routes";
 import authRoutes from "./routes/auth.routes";
 import clinicPublicProfileRoutes from "./routes/clinic-public-profile.routes";
@@ -138,7 +137,6 @@ export function createExpressApp(
   mountApiRoute("/admin/auth", adminAuthRoutes);
   mountApiRoute("/clinic/profile", clinicPublicProfileRoutes);
   mountApiRoute("/admin/particular/tokens", adminParticularTokensRoutes);
-  mountApiRoute("/admin/report-access-tokens", adminReportAccessTokensRoutes);
   mountApiRoute("/admin/study-tracking", adminStudyTrackingRoutes);
   mountApiRoute("/particular/tokens", particularTokensRoutes);
   mountApiRoute("/particular/auth", particularAuthRoutes);
