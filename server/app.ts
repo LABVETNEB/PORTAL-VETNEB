@@ -7,7 +7,6 @@
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
-import adminAuditRoutes from "./routes/admin-audit.routes";
 import adminAuthRoutes from "./routes/admin-auth.routes";
 import adminParticularTokensRoutes from "./routes/admin-particular-tokens.routes";
 import adminReportAccessTokensRoutes from "./routes/admin-report-access-tokens.routes";
@@ -140,7 +139,6 @@ export function createExpressApp(
   }
   mountApiRoute("/auth", authRoutes);
   mountApiRoute("/admin/auth", adminAuthRoutes);
-  mountApiRoute("/admin/audit-log", adminAuditRoutes);
   mountApiRoute("/clinic/profile", clinicPublicProfileRoutes);
   mountApiRoute("/clinic/audit-log", clinicAuditRoutes);
   mountApiRoute("/admin/particular/tokens", adminParticularTokensRoutes);
