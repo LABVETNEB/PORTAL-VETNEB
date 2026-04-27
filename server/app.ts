@@ -15,7 +15,6 @@ import clinicPublicProfileRoutes from "./routes/clinic-public-profile.routes";
 import healthRoutes from "./routes/health.routes";
 import particularAuthRoutes from "./routes/particular-auth.routes";
 import particularStudyTrackingRoutes from "./routes/particular-study-tracking.routes";
-import particularTokensRoutes from "./routes/particular-tokens.routes";
 import studyTrackingRoutes from "./routes/study-tracking.routes";
 import { ENV } from "./lib/env";
 import { buildServiceInfoPayload } from "./lib/http-runtime";
@@ -137,7 +136,6 @@ export function createExpressApp(
   mountApiRoute("/clinic/profile", clinicPublicProfileRoutes);
   mountApiRoute("/admin/particular/tokens", adminParticularTokensRoutes);
   mountApiRoute("/admin/study-tracking", adminStudyTrackingRoutes);
-  mountApiRoute("/particular/tokens", particularTokensRoutes);
   mountApiRoute("/particular/auth", particularAuthRoutes);
   mountApiRoute("/particular/study-tracking", particularStudyTrackingRoutes);
   mountApiRoute("/study-tracking", studyTrackingRoutes);
