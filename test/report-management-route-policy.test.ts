@@ -60,39 +60,65 @@ test("reports expone POST /upload nativo con permiso de upload, no management", 
   );
 });
 
-test("report-access-tokens protege mutaciones con management permission", () => {
-  const source = readRouteSource("server/routes/report-access-tokens.routes.ts");
+test("report-access-tokens protege mutaciones nativas con management permission", () => {
+  const source = readRouteSource("server/routes/report-access-tokens.fastify.ts");
 
-  assert.match(
-    source,
-    /const requireReportAccessTokenManagementPermission = asyncHandler\(/,
-  );
-  assert.match(
-    source,
-    /if \(!req\.auth\?\.canManageClinicUsers\)/,
-  );
-  assert.match(
-    source,
-    /error: "No autorizado para administrar tokens p.blicos de informes"/,
+  assert.equal(
+    routeExists("server/routes/report-access-tokens.routes.ts"),
+    false,
+    "server/routes/report-access-tokens.routes.ts ya no debe existir",
   );
 
   assert.match(
     source,
-    /router\.post\(\s*"\/",\s*requireTrustedOrigin,\s*reportAccessTokenMutationRateLimit,\s*requireReportAccessTokenManagementPermission,/s,
+    /function requireReportAccessTokenManagementPermission\(/,
   );
   assert.match(
     source,
-    /router\.patch\(\s*"\/:tokenId\/revoke",\s*requireTrustedOrigin,\s*reportAccessTokenMutationRateLimit,\s*requireReportAccessTokenManagementPermission,/s,
+    /if \(auth\.canManageClinicUsers\) \{\s*return true;/s,
+  );
+  assert.match(
+    source,
+    /error: "No autorizado para administrar tokens públicos de informes"/,
   );
 
-  assert.doesNotMatch(
+  assert.match(
     source,
-    /router\.get\(\s*"\/",\s*requireReportAccessTokenManagementPermission,/s,
+    /app\.post<[\s\S]*?>\(\s*"\/"[\s\S]*?requireReportAccessTokenManagementPermission\(auth, reply\)/s,
+  );
+  assert.match(
+    source,
+    /app\.patch<[\s\S]*?>\(\s*"\/:tokenId\/revoke"[\s\S]*?requireReportAccessTokenManagementPermission\(auth, reply\)/s,
+  );
+
+  const listRouteStart = source.indexOf('app.get<{');
+  const detailRouteStart = source.indexOf('app.get<{', listRouteStart + 1);
+  const revokeRouteStart = source.indexOf('app.patch<{');
+
+  assert.notEqual(listRouteStart, -1, "GET / debe existir en el router nativo");
+  assert.notEqual(
+    detailRouteStart,
+    -1,
+    "GET /:tokenId debe existir en el router nativo",
+  );
+  assert.notEqual(
+    revokeRouteStart,
+    -1,
+    "PATCH /:tokenId/revoke debe existir en el router nativo",
+  );
+
+  assert.equal(
+    source
+      .slice(listRouteStart, detailRouteStart)
+      .includes("requireReportAccessTokenManagementPermission"),
+    false,
     "GET / no debe exigir permiso de mutacion",
   );
-  assert.doesNotMatch(
-    source,
-    /router\.get\(\s*"\/:tokenId",\s*requireReportAccessTokenManagementPermission,/s,
+  assert.equal(
+    source
+      .slice(detailRouteStart, revokeRouteStart)
+      .includes("requireReportAccessTokenManagementPermission"),
+    false,
     "GET /:tokenId no debe exigir permiso de mutacion",
   );
 });
