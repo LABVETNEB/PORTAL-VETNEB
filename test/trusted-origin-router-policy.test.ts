@@ -34,14 +34,18 @@ test("clinic-public-profile usa trusted-origin antes de auth en politica de rout
   assertTrustedOriginRunsBeforeAuth(source, routePath);
 });
 
-test("reports usa trusted-origin antes de auth y evita duplicacion por ruta", () => {
-  const routePath = "server/routes/reports.routes.ts";
-  const source = readRouteSource(routePath);
+test("reports nativos validan origin antes de auth en mutaciones", () => {
+  const reportsSource = readRouteSource("server/routes/reports.fastify.ts");
+  const reportsStatusSource = readRouteSource(
+    "server/routes/reports-status.fastify.ts",
+  );
 
-  assertTrustedOriginRunsBeforeAuth(source, routePath);
-  assert.doesNotMatch(
-    source,
-    /router\.patch\(\s*"\/:reportId\/status"\s*,\s*requireTrustedOrigin/s,
-    "reports.routes.ts no debe duplicar requireTrustedOrigin en PATCH /:reportId/status",
+  assert.match(
+    reportsSource,
+    /app\.post\(\s*"\/upload"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateClinicUser/s,
+  );
+  assert.match(
+    reportsStatusSource,
+    /app\.patch<[\s\S]*?>\(\s*"\/:reportId\/status"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateClinicUser/s,
   );
 });
