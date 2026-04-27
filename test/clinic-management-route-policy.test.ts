@@ -47,8 +47,30 @@ test("particular-tokens exige management permission nativa en create y report li
     /app\.patch<[\s\S]*?>\(\s*"\/:tokenId\/report"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?requireParticularTokenManagementPermission\(auth, reply\)/s,
   );
 });
-test("study-tracking exige management permission al crear casos", () => {
-  const source = readRouteSource("server/routes/study-tracking.routes.ts");
-  assert.match(source, /import \{ requireClinicManagementPermission \} from "\.\.\/middlewares\/clinic-permissions";/);
-  assert.match(source, /router\.post\(\s*"\/",\s*requireTrustedOrigin,\s*requireClinicManagementPermission,/s);
+test("study-tracking exige management permission nativa al crear casos", () => {
+  const source = readRouteSource("server/routes/study-tracking.fastify.ts");
+
+  assert.equal(
+    routeExists("server/routes/study-tracking.routes.ts"),
+    false,
+    "server/routes/study-tracking.routes.ts ya no debe existir",
+  );
+
+  assert.match(
+    source,
+    /function requireStudyTrackingManagementPermission\(/,
+  );
+  assert.match(
+    source,
+    /if \(auth\.canManageClinicUsers\) \{\s*return true;/s,
+  );
+  assert.match(
+    source,
+    /error: "No autorizado para administrar recursos de la clinica"/,
+  );
+
+  assert.match(
+    source,
+    /app\.post<[\s\S]*?>\(\s*"\/"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?requireStudyTrackingManagementPermission\(auth, reply\)/s,
+  );
 });
