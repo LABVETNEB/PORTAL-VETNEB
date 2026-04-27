@@ -13,7 +13,6 @@ import adminReportAccessTokensRoutes from "./routes/admin-report-access-tokens.r
 import adminStudyTrackingRoutes from "./routes/admin-study-tracking.routes";
 import authRoutes from "./routes/auth.routes";
 import clinicPublicProfileRoutes from "./routes/clinic-public-profile.routes";
-import clinicAuditRoutes from "./routes/clinic-audit.routes";
 import healthRoutes from "./routes/health.routes";
 import particularAuthRoutes from "./routes/particular-auth.routes";
 import particularStudyTrackingRoutes from "./routes/particular-study-tracking.routes";
@@ -140,7 +139,6 @@ export function createExpressApp(
   mountApiRoute("/auth", authRoutes);
   mountApiRoute("/admin/auth", adminAuthRoutes);
   mountApiRoute("/clinic/profile", clinicPublicProfileRoutes);
-  mountApiRoute("/clinic/audit-log", clinicAuditRoutes);
   mountApiRoute("/admin/particular/tokens", adminParticularTokensRoutes);
   mountApiRoute("/admin/report-access-tokens", adminReportAccessTokensRoutes);
   mountApiRoute("/admin/study-tracking", adminStudyTrackingRoutes);
