@@ -8,7 +8,6 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 
 import adminAuthRoutes from "./routes/admin-auth.routes";
-import adminParticularTokensRoutes from "./routes/admin-particular-tokens.routes";
 import adminStudyTrackingRoutes from "./routes/admin-study-tracking.routes";
 import authRoutes from "./routes/auth.routes";
 import clinicPublicProfileRoutes from "./routes/clinic-public-profile.routes";
@@ -134,7 +133,6 @@ export function createExpressApp(
   mountApiRoute("/auth", authRoutes);
   mountApiRoute("/admin/auth", adminAuthRoutes);
   mountApiRoute("/clinic/profile", clinicPublicProfileRoutes);
-  mountApiRoute("/admin/particular/tokens", adminParticularTokensRoutes);
   mountApiRoute("/admin/study-tracking", adminStudyTrackingRoutes);
   mountApiRoute("/particular/auth", particularAuthRoutes);
   mountApiRoute("/particular/study-tracking", particularStudyTrackingRoutes);
