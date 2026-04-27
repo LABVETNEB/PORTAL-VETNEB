@@ -1,22 +1,26 @@
 ﻿import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 function readRouteSource(relativeRoutePath: string) {
   return readFileSync(resolve(process.cwd(), relativeRoutePath), "utf8");
 }
 
+function routeExists(relativeRoutePath: string) {
+  return existsSync(resolve(process.cwd(), relativeRoutePath));
+}
+
 test("reports protege PATCH /:reportId/status con management permission", () => {
-  const source = readRouteSource("server/routes/reports.routes.ts");
+  const source = readRouteSource("server/routes/reports-status.fastify.ts");
 
   assert.match(
     source,
-    /const requireReportStatusWritePermission = asyncHandler\(/,
+    /function requireReportStatusWritePermission\(/,
   );
   assert.match(
     source,
-    /if \(!req\.auth\?\.canManageClinicUsers\)/,
+    /if \(auth\.canManageClinicUsers\) \{\s*return true;/s,
   );
   assert.match(
     source,
@@ -24,24 +28,17 @@ test("reports protege PATCH /:reportId/status con management permission", () => 
   );
   assert.match(
     source,
-    /router\.patch\(\s*"\/:reportId\/status",\s*requireReportStatusWritePermission,/s,
-  );
-
-  assert.doesNotMatch(
-    source,
-    /router\.post\(\s*"\/upload",\s*requireReportStatusWritePermission,/s,
-    "POST /upload no debe exigir permiso de management de clinica",
+    /app\.patch<[\s\S]*?>\(\s*"\/:reportId\/status"/s,
   );
 });
 
 test("reports expone POST /upload nativo con permiso de upload, no management", () => {
-  const legacySource = readRouteSource("server/routes/reports.routes.ts");
   const nativeSource = readRouteSource("server/routes/reports.fastify.ts");
 
-  assert.doesNotMatch(
-    legacySource,
-    /router\.post\(\s*"\/upload"/s,
-    "POST /upload ya no debe existir en el router Express legacy",
+  assert.equal(
+    routeExists("server/routes/reports.routes.ts"),
+    false,
+    "server/routes/reports.routes.ts ya no debe existir",
   );
 
   assert.match(
