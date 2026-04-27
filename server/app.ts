@@ -18,7 +18,6 @@ import particularAuthRoutes from "./routes/particular-auth.routes";
 import particularStudyTrackingRoutes from "./routes/particular-study-tracking.routes";
 import particularTokensRoutes from "./routes/particular-tokens.routes";
 import publicProfessionalsRoutes from "./routes/public-professionals.routes";
-import reportAccessTokensRoutes from "./routes/report-access-tokens.routes";
 import studyTrackingRoutes from "./routes/study-tracking.routes";
 import { ENV } from "./lib/env";
 import { buildServiceInfoPayload } from "./lib/http-runtime";
@@ -145,7 +144,6 @@ export function createExpressApp(
   mountApiRoute("/particular/auth", particularAuthRoutes);
   mountApiRoute("/particular/study-tracking", particularStudyTrackingRoutes);
   mountApiRoute("/public/professionals", publicProfessionalsRoutes);
-  mountApiRoute("/report-access-tokens", reportAccessTokensRoutes);
   mountApiRoute("/study-tracking", studyTrackingRoutes);
 
   app.use(notFoundHandler);
