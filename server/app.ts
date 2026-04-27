@@ -11,7 +11,6 @@ import adminAuthRoutes from "./routes/admin-auth.routes";
 import authRoutes from "./routes/auth.routes";
 import clinicPublicProfileRoutes from "./routes/clinic-public-profile.routes";
 import healthRoutes from "./routes/health.routes";
-import particularAuthRoutes from "./routes/particular-auth.routes";
 import { ENV } from "./lib/env";
 import { buildServiceInfoPayload } from "./lib/http-runtime";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler";
@@ -130,7 +129,6 @@ export function createExpressApp(
   mountApiRoute("/auth", authRoutes);
   mountApiRoute("/admin/auth", adminAuthRoutes);
   mountApiRoute("/clinic/profile", clinicPublicProfileRoutes);
-  mountApiRoute("/particular/auth", particularAuthRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
