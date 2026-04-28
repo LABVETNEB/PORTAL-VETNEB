@@ -1,5 +1,12 @@
 BEGIN;
 
+CREATE TABLE IF NOT EXISTS admin_users (
+  id serial PRIMARY KEY,
+  username varchar(100) NOT NULL UNIQUE,
+  password_hash varchar(255) NOT NULL,
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS particular_tokens (
   id serial PRIMARY KEY,
   clinic_id integer NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
