@@ -9,7 +9,6 @@ import cors from "cors";
 
 import adminAuthRoutes from "./routes/admin-auth.routes";
 import authRoutes from "./routes/auth.routes";
-import clinicPublicProfileRoutes from "./routes/clinic-public-profile.routes";
 import healthRoutes from "./routes/health.routes";
 import { ENV } from "./lib/env";
 import { buildServiceInfoPayload } from "./lib/http-runtime";
@@ -126,9 +125,9 @@ export function createExpressApp(
     app.use("/health", healthRoutes);
     mountApiRoute("/health", healthRoutes);
   }
+
   mountApiRoute("/auth", authRoutes);
   mountApiRoute("/admin/auth", adminAuthRoutes);
-  mountApiRoute("/clinic/profile", clinicPublicProfileRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
