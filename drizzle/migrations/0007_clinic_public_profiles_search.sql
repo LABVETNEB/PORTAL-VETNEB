@@ -97,13 +97,13 @@ SELECT
   NULL,
   NULL,
   NULL,
-  c.contact_email,
-  c.contact_phone,
+  NULL::varchar,
+  NULL::varchar,
   NULL,
   NULL,
   false,
   trim(
-    concat_ws(' ', c.name, c.contact_email, c.contact_phone)
+    concat_ws(' ', c.name)
   ),
   now()
 FROM clinics c
