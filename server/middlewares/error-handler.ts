@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response } from "express";
+﻿import type { NextFunction, Request, Response } from "../lib/http-types.ts";
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -79,3 +79,4 @@ export function errorHandler(
     path: req.originalUrl,
   });
 }
+

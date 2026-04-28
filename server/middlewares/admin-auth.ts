@@ -1,4 +1,4 @@
-﻿import type { NextFunction, Request, Response } from "express";
+﻿import type { NextFunction, Request, Response } from "../lib/http-types.ts";
 
 type AuthenticatedAdmin = {
   id: number;
@@ -176,3 +176,4 @@ export function createRequireAdminAuth(
 }
 
 export const requireAdminAuth = createRequireAdminAuth();
+

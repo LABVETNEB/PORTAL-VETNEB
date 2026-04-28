@@ -1,7 +1,5 @@
-﻿import type { Server } from "node:http";
-import { sql } from "drizzle-orm";
+﻿import { sql } from "drizzle-orm";
 
-import { createExpressApp } from "./app";
 import { bootstrapHttpServer, type HttpServerHandle } from "./bootstrap";
 import { closeDbConnection, db, deleteExpiredAdminSessions, deleteExpiredSessions } from "./db";
 import { deleteExpiredParticularSessions } from "./db-particular";
@@ -31,34 +29,6 @@ async function closeResources() {
   await closeDbConnection();
 }
 
-async function startExpressServer(
-  port: number,
-): Promise<{ handle: HttpServerHandle; address: string }> {
-  const app = createExpressApp();
-
-  const server = await new Promise<Server>((resolve, reject) => {
-    const candidate = app.listen(port, () => resolve(candidate));
-    candidate.on("error", reject);
-  });
-
-  return {
-    address: `http://localhost:${port}`,
-    handle: {
-      close: () =>
-        new Promise<void>((resolve, reject) => {
-          server.close((error) => {
-            if (error) {
-              reject(error);
-              return;
-            }
-
-            resolve();
-          });
-        }),
-    },
-  };
-}
-
 async function startFastifyServer(
   port: number,
 ): Promise<{ handle: HttpServerHandle; address: string }> {
@@ -79,16 +49,11 @@ async function startFastifyServer(
 }
 
 async function bootstrap() {
-  const startServer =
-    ENV.httpRuntime === "fastify"
-      ? startFastifyServer
-      : startExpressServer;
-
   await bootstrapHttpServer({
     port: ENV.port,
     preflight,
     closeResources,
-    startServer,
+    startServer: startFastifyServer,
   });
 }
 

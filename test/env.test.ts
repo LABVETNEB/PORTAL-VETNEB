@@ -26,7 +26,6 @@ test("ENV expone un contrato base consistente", () => {
     ENV.isProduction ? "none" : "lax",
   );
 
-  assert.ok(["express", "fastify"].includes(ENV.httpRuntime));
 });
 
 test("ENV expone colecciones limpias y strings no vacíos donde corresponde", () => {
@@ -73,3 +72,4 @@ test("ENV.smtp mantiene tipos e invariantes esperadas", () => {
     assert.equal(ENV.smtp.from.length > 0, true);
   }
 });
+

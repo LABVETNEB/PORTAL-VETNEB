@@ -1,10 +1,8 @@
-import Fastify, {
+﻿import Fastify, {
   type FastifyInstance,
   type FastifyReply,
   type FastifyRequest,
 } from "fastify";
-import fastifyExpress from "@fastify/express";
-
 import { ENV } from "./lib/env.ts";
 import {
   adminAuditNativeRoutes,
@@ -80,19 +78,10 @@ type HealthCheckResponse = {
   payload: Record<string, unknown>;
 };
 
-type LegacyExpressHandler = (
-  req: unknown,
-  res: unknown,
-  next: (error?: unknown) => void,
-) => unknown;
-
-type LegacyAppFactory =
-  () => LegacyExpressHandler | Promise<LegacyExpressHandler>;
 type HealthCheckFactory = () => Promise<HealthCheckResponse>;
 type ServiceInfoFactory = () => Record<string, unknown>;
 
 export type CreateFastifyAppOptions = {
-  createLegacyApp?: LegacyAppFactory;
   getNativeHealthCheckResponse?: HealthCheckFactory;
   getServiceInfoPayload?: ServiceInfoFactory;
   adminAuditRoutes?: AdminAuditNativeRoutesOptions;
@@ -113,44 +102,6 @@ export type CreateFastifyAppOptions = {
   reportsStatusRoutes?: ReportsStatusNativeRoutesOptions;
   studyTrackingRoutes?: StudyTrackingNativeRoutesOptions;
 };
-
-const NATIVE_API_BRIDGE_BYPASS_PREFIXES = [
-  "/health",
-  "/admin/audit-log",
-  "/admin/auth",
-  "/admin/particular/tokens",
-  "/admin/particular-tokens",
-  "/admin/report-access-tokens",
-  "/admin/study-tracking",
-  "/auth",
-  "/clinic/audit-log",
-  "/clinic/profile",
-  "/particular/auth",
-  "/particular/study-tracking",
-  "/particular/tokens",
-  "/particular-tokens",
-  "/public/professionals",
-  "/public/report-access",
-  "/report-access-tokens",
-  "/reports",
-  "/study-tracking",
-];
-
-function shouldBypassLegacyApi(url: unknown) {
-  if (typeof url !== "string") {
-    return false;
-  }
-
-  const path = url.split("?")[0];
-
-  return NATIVE_API_BRIDGE_BYPASS_PREFIXES.some((prefix) => {
-    return (
-      path === prefix ||
-      path === `${prefix}/` ||
-      path.startsWith(`${prefix}/`)
-    );
-  });
-}
 
 export async function createFastifyApp(
   options: CreateFastifyAppOptions = {},
@@ -291,24 +242,6 @@ export async function createFastifyApp(
     ...(options.studyTrackingRoutes ?? {}),
   });
 
-  await app.register(fastifyExpress);
-
-  const legacyExpressApp = options.createLegacyApp
-    ? await options.createLegacyApp()
-    : ((await import("./app.ts")).createExpressApp({
-        apiBasePath: "",
-        includeRootRoute: false,
-        includeHealthRoutes: false,
-      }) as unknown as LegacyExpressHandler);
-
-  app.use("/api", (req, res, next) => {
-    if (shouldBypassLegacyApi((req as { url?: unknown }).url)) {
-      next();
-      return;
-    }
-
-    legacyExpressApp(req, res, next);
-  });
-
   return app;
 }
+

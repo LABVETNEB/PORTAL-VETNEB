@@ -1,4 +1,4 @@
-﻿import type { NextFunction, Request, Response } from "express";
+﻿import type { NextFunction, Request, Response } from "../lib/http-types.ts";
 
 export function sanitizeUrlForLogs(url: string): string {
   return url
@@ -47,3 +47,4 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 
   next();
 }
+

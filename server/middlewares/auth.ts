@@ -1,4 +1,4 @@
-﻿import type { NextFunction, Request, Response } from "express";
+﻿import type { NextFunction, Request, Response } from "../lib/http-types.ts";
 import type { ClinicUserRole } from "../../drizzle/schema";
 import type { ClinicPermissions } from "../lib/permissions.ts";
 
@@ -169,4 +169,5 @@ export function createRequireAuth(
 }
 
 export const requireAuth = createRequireAuth();
+
 
