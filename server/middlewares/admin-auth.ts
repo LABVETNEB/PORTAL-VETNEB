@@ -6,13 +6,6 @@ type AuthenticatedAdmin = {
   sessionToken: string;
 };
 
-declare global {
-  namespace Express {
-    interface Request {
-      adminAuth?: AuthenticatedAdmin;
-    }
-  }
-}
 
 const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
