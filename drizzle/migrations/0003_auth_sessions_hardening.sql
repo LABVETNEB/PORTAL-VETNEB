@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 ALTER TABLE clinic_users
 ADD COLUMN IF NOT EXISTS updated_at timestamp DEFAULT now() NOT NULL;
 
