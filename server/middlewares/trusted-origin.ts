@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response } from "express";
+﻿import type { NextFunction, Request, Response } from "../lib/http-types.ts";
 import { ENV } from "../lib/env.ts";
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -79,3 +79,4 @@ export function requireTrustedOrigin(
     error: "Origen no permitido",
   });
 }
+

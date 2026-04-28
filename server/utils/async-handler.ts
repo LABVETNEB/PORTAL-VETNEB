@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response, RequestHandler } from "express";
+﻿import type { NextFunction, Request, Response, RequestHandler } from "../lib/http-types.ts";
 
 export function asyncHandler(
   handler: (req: Request, res: Response, next: NextFunction) => Promise<unknown>,
@@ -7,3 +7,4 @@ export function asyncHandler(
     void Promise.resolve(handler(req, res, next)).catch(next);
   };
 }
+

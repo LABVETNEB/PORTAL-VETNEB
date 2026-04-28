@@ -1,4 +1,4 @@
-﻿import type { Request } from "express";
+﻿import type { Request } from "./http-types.ts";
 import type { AuditActorType, AuditEvent } from "../../drizzle/schema";
 import { sanitizeUrlForLogs } from "../middlewares/request-logger.ts";
 
@@ -243,3 +243,4 @@ export function createWriteAuditLog(
 }
 
 export const writeAuditLog = createWriteAuditLog();
+

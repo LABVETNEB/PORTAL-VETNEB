@@ -1,4 +1,4 @@
-﻿import type { NextFunction, Request, Response } from "express";
+﻿import type { NextFunction, Request, Response } from "../lib/http-types.ts";
 
 const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
@@ -171,3 +171,4 @@ export function createRequireParticularAuth(
 }
 
 export const requireParticularAuth = createRequireParticularAuth();
+

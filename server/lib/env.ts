@@ -29,7 +29,6 @@ function parseCsvList(value: string | undefined): string[] {
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).optional(),
   PORT: z.coerce.number().int().positive().optional(),
-  HTTP_RUNTIME: z.enum(["express", "fastify"]).optional(),
   DATABASE_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SUPABASE_DB_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SUPABASE_URL: z.preprocess(emptyToUndefined, z.string().url()),
@@ -95,7 +94,6 @@ export const ENV = {
   isDevelopment: nodeEnv === "development",
   isProduction: nodeEnv === "production",
   port,
-  httpRuntime: rawEnv.HTTP_RUNTIME ?? "express",
   databaseUrl,
   supabaseUrl: rawEnv.SUPABASE_URL,
   supabaseAnonKey: rawEnv.SUPABASE_ANON_KEY,
@@ -127,3 +125,4 @@ export const ENV = {
     from: rawEnv.SMTP_FROM ?? "",
   },
 } as const;
+

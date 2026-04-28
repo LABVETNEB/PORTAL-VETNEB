@@ -1,4 +1,4 @@
-﻿import type { NextFunction, Request, Response } from "express";
+﻿import type { NextFunction, Request, Response } from "../lib/http-types.ts";
 export function requireClinicManagementPermission(
   req: Request,
   res: Response,
@@ -12,3 +12,4 @@ export function requireClinicManagementPermission(
   }
   next();
 }
+

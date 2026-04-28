@@ -1,6 +1,5 @@
-import test from "node:test";
+﻿import test from "node:test";
 import assert from "node:assert/strict";
-import express from "express";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -73,12 +72,12 @@ function buildAdminParticularTokensRouteStubs() {
       tokenLast4: "aaaa",
       tutorLastName: "Gomez",
       petName: "Luna",
-      petAge: "8 aÃ±os",
+      petAge: "8 aÃƒÂ±os",
       petBreed: "Caniche",
       petSex: "Hembra",
       petSpecies: "Canina",
-      sampleLocation: "PabellÃ³n auricular",
-      sampleEvolution: "15 dÃ­as",
+      sampleLocation: "PabellÃƒÂ³n auricular",
+      sampleEvolution: "15 dÃƒÂ­as",
       detailsLesion: null,
       extractionDate: new Date("2026-04-20T00:00:00.000Z"),
       shippingDate: new Date("2026-04-21T00:00:00.000Z"),
@@ -293,12 +292,12 @@ function buildParticularTokensRouteStubs() {
       tokenLast4: "aaaa",
       tutorLastName: "Gomez",
       petName: "Luna",
-      petAge: "8 aÃ±os",
+      petAge: "8 aÃƒÂ±os",
       petBreed: "Caniche",
       petSex: "Hembra",
       petSpecies: "Canina",
-      sampleLocation: "PabellÃ³n auricular",
-      sampleEvolution: "15 dÃ­as",
+      sampleLocation: "PabellÃƒÂ³n auricular",
+      sampleEvolution: "15 dÃƒÂ­as",
       detailsLesion: null,
       extractionDate: new Date("2026-04-20T00:00:00.000Z"),
       shippingDate: new Date("2026-04-21T00:00:00.000Z"),
@@ -388,19 +387,9 @@ function buildReportAccessTokensRouteStubs() {
 }
 
 test(
-  "createFastifyApp expone root y health nativos y mantiene el bridge Express bajo /api",
+  "createFastifyApp expone root y health nativos",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/bridge", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "ok");
-          res.status(204).end();
-        });
-
-        return legacyApp as any;
-      },
       getServiceInfoPayload: () => ({
         success: true,
         service: "portal-vetneb-api",
@@ -467,15 +456,6 @@ test(
 
       assert.equal(apiHealthResponse.statusCode, 200);
       assert.equal(apiHealthResponse.headers["x-legacy-bridge"], undefined);
-
-      const legacyResponse = await app.inject({
-        method: "GET",
-        url: "/api/bridge",
-      });
-
-      assert.equal(legacyResponse.statusCode, 204);
-      assert.equal(legacyResponse.headers["x-legacy-bridge"], "ok");
-      assert.equal(legacyResponse.body, "");
     } finally {
       await app.close();
     }
@@ -483,21 +463,9 @@ test(
 );
 
 test(
-  "createFastifyApp despacha /api/admin/audit-log al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/admin/audit-log al router nativo",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/admin/audit-log", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: {
         ...buildAdminAuditRouteStubs(),
         getAdminSessionByToken: async () => ({
@@ -597,21 +565,9 @@ test(
 );
 
 test(
-  "createFastifyApp despacha /api/admin/auth al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/admin/auth al router nativo",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/admin/auth/me", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: {
         ...buildAdminAuthRouteStubs(),
@@ -678,21 +634,9 @@ test(
 );
 
 test(
-  "createFastifyApp despacha /api/auth al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/auth al router nativo",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/auth/me", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -768,21 +712,9 @@ test(
 );
 
 test(
-  "createFastifyApp despacha /api/clinic/audit-log al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/clinic/audit-log al router nativo",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/clinic/audit-log", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -888,21 +820,9 @@ test(
 );
 
 test(
-  "createFastifyApp despacha /api/clinic/profile al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/clinic/profile al router nativo",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/clinic/profile", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -992,21 +912,9 @@ test(
 );
 
 test(
-  "createFastifyApp despacha /api/particular/auth al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/particular/auth al router nativo",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/particular/auth/me", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1029,13 +937,13 @@ test(
           tokenLast4: "ABCD",
           tutorLastName: "Gomez",
           petName: "Luna",
-          petAge: "8 aÃ±os",
+          petAge: "8 aÃƒÂ±os",
           petBreed: "Caniche",
           petSex: "Hembra",
           petSpecies: "Canina",
-          sampleLocation: "PabellÃ³n auricular",
-          sampleEvolution: "15 dÃ­as",
-          detailsLesion: "LesiÃ³n nodular pequeÃ±a",
+          sampleLocation: "PabellÃƒÂ³n auricular",
+          sampleEvolution: "15 dÃƒÂ­as",
+          detailsLesion: "LesiÃƒÂ³n nodular pequeÃƒÂ±a",
           extractionDate: new Date("2026-04-20T00:00:00.000Z"),
           shippingDate: new Date("2026-04-21T00:00:00.000Z"),
           isActive: true,
@@ -1051,7 +959,7 @@ test(
           clinicId: 3,
           storagePath: "reports/report-55.pdf",
           uploadDate: new Date("2026-04-22T09:00:00.000Z"),
-          studyType: "HistopatologÃ­a",
+          studyType: "HistopatologÃƒÂ­a",
           patientName: "Luna",
           fileName: "luna-report.pdf",
           createdAt: new Date("2026-04-22T09:00:00.000Z"),
@@ -1101,21 +1009,9 @@ test(
 );
 
 test(
-  "createFastifyApp despacha /api/public/professionals al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/public/professionals al router nativo",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/public/professionals/search", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1175,23 +1071,11 @@ test(
 );
 
 test(
-  "createFastifyApp despacha /api/public/report-access al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/public/report-access al router nativo",
   async () => {
     const rawToken = "a".repeat(64);
 
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/public/report-access/:token", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1235,7 +1119,7 @@ test(
             id: 55,
             clinicId: 3,
             uploadDate: new Date("2026-04-22T09:00:00.000Z"),
-            studyType: "HistopatologÃ­a",
+            studyType: "HistopatologÃƒÂ­a",
             patientName: "Luna",
             fileName: "luna-report.pdf",
             currentStatus: "ready",
@@ -1296,21 +1180,9 @@ test(
 );
 
 test(
-  "createFastifyApp despacha /api/report-access-tokens al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/report-access-tokens al router nativo",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/report-access-tokens", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1396,21 +1268,9 @@ test(
 );
 
 test(
-  "createFastifyApp despacha /api/admin/report-access-tokens al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/admin/report-access-tokens al router nativo",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/admin/report-access-tokens", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1495,21 +1355,9 @@ test(
 
 
 test(
-  "createFastifyApp despacha /api/admin/particular-tokens al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/admin/particular-tokens al router nativo",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/admin/particular-tokens", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: {
@@ -1532,12 +1380,12 @@ test(
             tokenLast4: "aaaa",
             tutorLastName: "Gomez",
             petName: "Luna",
-            petAge: "8 aÃ±os",
+            petAge: "8 aÃƒÂ±os",
             petBreed: "Caniche",
             petSex: "Hembra",
             petSpecies: "Canina",
-            sampleLocation: "PabellÃ³n auricular",
-            sampleEvolution: "15 dÃ­as",
+            sampleLocation: "PabellÃƒÂ³n auricular",
+            sampleEvolution: "15 dÃƒÂ­as",
             detailsLesion: null,
             extractionDate: new Date("2026-04-20T00:00:00.000Z"),
             shippingDate: new Date("2026-04-21T00:00:00.000Z"),
@@ -1598,19 +1446,9 @@ test(
 
 
 test(
-  "createFastifyApp despacha /api/study-tracking al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/study-tracking al router nativo",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/study-tracking", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({ success: false });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1648,21 +1486,9 @@ test(
 
 
 test(
-  "createFastifyApp despacha /api/admin/study-tracking al router nativo antes del bridge Express",
+  "createFastifyApp despacha /api/admin/study-tracking al router nativo",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/admin/study-tracking", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1728,28 +1554,9 @@ test(
 
 
 test(
-  "createFastifyApp despacha aliases legacy de particular tokens al router nativo antes del bridge Express",
+  "createFastifyApp despacha aliases legacy de particular tokens al router nativo",
   async () => {
     const app = await createFastifyApp({
-      createLegacyApp: () => {
-        const legacyApp = express();
-
-        legacyApp.get("/admin/particular/tokens", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        legacyApp.get("/particular/tokens", (_req, res) => {
-          res.setHeader("x-legacy-bridge", "should-not-run");
-          res.status(418).json({
-            success: false,
-          });
-        });
-
-        return legacyApp as any;
-      },
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1798,3 +1605,4 @@ test(
     }
   },
 );
+

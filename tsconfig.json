@@ -1,4 +1,4 @@
-{
+﻿{
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
@@ -12,7 +12,7 @@
     "isolatedModules": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "types": ["node", "express"],
+    "types": ["node"],
     "outDir": "dist"
   },
   "include": [
@@ -27,3 +27,4 @@
     "legacy"
   ]
 }
+
