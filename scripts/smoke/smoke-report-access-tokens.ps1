@@ -4,7 +4,7 @@ param(
 )
 
 if ($null -eq $Credential) {
-  $Credential = Get-Credential -UserName 'publicdemo' -Message 'Credenciales para smoke PR5 report access tokens'
+  $Credential = Get-Credential -UserName 'publicdemo' -Message 'Credenciales para smoke report access tokens'
 }
 
 $ErrorActionPreference = 'Stop'
@@ -44,7 +44,7 @@ $reportsJson = $reportsResponse.Content | ConvertFrom-Json
 $reportsJson | ConvertTo-Json -Depth 10
 
 if (-not $reportsJson.reports -or $reportsJson.reports.Count -eq 0) {
-  throw 'No hay reportes disponibles para smoke de PR5'
+  throw 'No hay reportes disponibles para smoke de report access tokens'
 }
 
 $report = $reportsJson.reports[0]
@@ -192,7 +192,7 @@ catch {
 }
 
 Write-Host ''
-Write-Host '=== SMOKE PR5 COMPLETADO OK ==='
+Write-Host '=== SMOKE REPORT ACCESS TOKENS COMPLETADO OK ==='
 Write-Host "reportId: $reportId"
 Write-Host "tokenId: $tokenId"
 Write-Host "publicUrl probado y revocado correctamente"
