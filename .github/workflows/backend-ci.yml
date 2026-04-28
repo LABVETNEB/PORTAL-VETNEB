@@ -11,6 +11,9 @@ on:
       - feat/**
       - fix/**
       - refactor/**
+      - ci/**
+      - test/**
+      - codex/**
 
 jobs:
   validate-backend:
