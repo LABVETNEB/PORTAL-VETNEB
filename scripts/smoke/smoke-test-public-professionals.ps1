@@ -1,9 +1,12 @@
 param(
   [string]$BaseUrl = "http://localhost:3000",
-  [string]$Username = "publicdemo",
-  [string]$Password = "demo1234",
+  [pscredential]$Credential,
   [int]$ExpectedClinicId = 4
 )
+
+if ($null -eq $Credential) {
+  $Credential = Get-Credential -UserName "publicdemo" -Message "Credenciales para smoke public professionals"
+}
 
 $ErrorActionPreference = "Stop"
 
@@ -62,12 +65,12 @@ try {
     -Uri "$BaseUrl/api/auth/login" `
     -WebSession $clinicSession `
     -BodyObject @{
-      username = $Username
-      password = $Password
+      username = $Credential.UserName
+      password = $Credential.GetNetworkCredential().Password
     }
 
   $login | ConvertTo-Json -Depth 10
-  Assert-True ($login.success -eq $true) "Login de clínica exitoso"
+  Assert-True ($login.success -eq $true) "Login de clinica exitoso"
   Assert-True ($null -ne $login.clinicUser) "La respuesta incluye clinicUser"
   Assert-True ([int]$login.clinicUser.clinicId -eq $ExpectedClinicId) "clinicId esperado = $ExpectedClinicId"
 
@@ -160,7 +163,7 @@ try {
   Write-Host "SMOKE TEST COMPLETO OK" -ForegroundColor Green
   Write-Host "BaseUrl: $BaseUrl"
   Write-Host "ClinicId validado: $ExpectedClinicId"
-  Write-Host "Usuario validado: $Username"
+  Write-Host "Usuario validado: $($Credential.UserName)"
 }
 catch {
   Write-Host ""

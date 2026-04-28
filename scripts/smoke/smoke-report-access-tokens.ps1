@@ -1,8 +1,11 @@
 param(
   [string]$BaseUrl = 'http://localhost:3000',
-  [string]$Username = 'publicdemo',
-  [string]$Password = 'demo1234'
+  [pscredential]$Credential
 )
+
+if ($null -eq $Credential) {
+  $Credential = Get-Credential -UserName 'publicdemo' -Message 'Credenciales para smoke report access tokens'
+}
 
 $ErrorActionPreference = 'Stop'
 
@@ -19,8 +22,8 @@ $loginResponse = Invoke-WebRequest `
   -ContentType 'application/json' `
   -Headers @{ Origin = $origin } `
   -Body (@{
-    username = $Username
-    password = $Password
+    username = $Credential.UserName
+    password = $Credential.GetNetworkCredential().Password
   } | ConvertTo-Json -Compress)
 
 $loginJson = $loginResponse.Content | ConvertFrom-Json
@@ -41,7 +44,7 @@ $reportsJson = $reportsResponse.Content | ConvertFrom-Json
 $reportsJson | ConvertTo-Json -Depth 10
 
 if (-not $reportsJson.reports -or $reportsJson.reports.Count -eq 0) {
-  throw 'No hay reportes disponibles para smoke de PR5'
+  throw 'No hay reportes disponibles para smoke de report access tokens'
 }
 
 $report = $reportsJson.reports[0]
@@ -172,7 +175,7 @@ try {
   throw 'El acceso pÃºblico siguiÃ³ funcionando despuÃ©s de la revocaciÃ³n'
 }
 catch {
-  if ($_.Exception.Response -eq $null) {
+  if ($null -eq $_.Exception.Response) {
     throw
   }
 
@@ -189,7 +192,7 @@ catch {
 }
 
 Write-Host ''
-Write-Host '=== SMOKE PR5 COMPLETADO OK ==='
+Write-Host '=== SMOKE REPORT ACCESS TOKENS COMPLETADO OK ==='
 Write-Host "reportId: $reportId"
 Write-Host "tokenId: $tokenId"
 Write-Host "publicUrl probado y revocado correctamente"
