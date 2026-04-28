@@ -223,3 +223,31 @@ test(
     }
   },
 );
+
+test(
+  "publicProfessionalsNativeRoutes devuelve 403 cuando origin no esta permitido",
+  async () => {
+    const app = await createTestApp();
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        headers: {
+          origin: "https://evil.example.com",
+        },
+      });
+
+      assert.equal(response.statusCode, 403);
+      assert.equal(response.headers["access-control-allow-origin"], undefined);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: "Origin no permitido",
+        path: "/api/public/professionals/search",
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+

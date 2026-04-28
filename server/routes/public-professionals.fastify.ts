@@ -179,9 +179,9 @@ function applyCorsHeaders(
   const origin = rawOrigin.trim();
 
   if (!allowedOrigins.has(normalizeOrigin(origin))) {
-    reply.code(500).send({
+    reply.code(403).send({
       success: false,
-      error: "Error interno del servidor",
+      error: "Origin no permitido",
       path: request.url,
     });
     return false;
@@ -443,3 +443,4 @@ export const publicProfessionalsNativeRoutes: FastifyPluginAsync<
     },
   );
 };
+
