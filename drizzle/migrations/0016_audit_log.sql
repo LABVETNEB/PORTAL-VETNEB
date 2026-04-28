@@ -27,7 +27,10 @@ SET
   "actor_type" = COALESCE("actor_type", 'system'),
   "created_at" = COALESCE("created_at", now());
 
-ALTER TABLE "audit_log"`r`n  ALTER COLUMN "event" TYPE varchar(120),`r`n  ALTER COLUMN "actor_type" TYPE varchar(40),`r`n  ALTER COLUMN "event" SET NOT NULL,
+ALTER TABLE "audit_log"
+  ALTER COLUMN "event" TYPE varchar(120),
+  ALTER COLUMN "actor_type" TYPE varchar(40),
+  ALTER COLUMN "event" SET NOT NULL,
   ALTER COLUMN "actor_type" SET NOT NULL,
   ALTER COLUMN "created_at" SET NOT NULL;
 
