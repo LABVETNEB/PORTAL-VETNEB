@@ -1606,3 +1606,100 @@ test(
   },
 );
 
+
+test(
+  "createFastifyApp usa handlers globales para 404 y errores no capturados",
+  async () => {
+    const app = await createFastifyApp({
+      getServiceInfoPayload: () => ({
+        success: true,
+        service: "portal-vetneb-api",
+        environment: "test",
+      }),
+      getNativeHealthCheckResponse: async () => ({
+        statusCode: 200,
+        payload: {
+          success: true,
+          status: "ok",
+        },
+      }),
+      adminAuditRoutes: buildAdminAuditRouteStubs(),
+      adminAuthRoutes: buildAdminAuthRouteStubs(),
+      adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
+      adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+      adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+      clinicAuthRoutes: buildClinicAuthRouteStubs(),
+      clinicAuditRoutes: buildClinicAuditRouteStubs(),
+      clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuthRoutes: buildParticularAuthRouteStubs(),
+      particularTokensRoutes: buildParticularTokensRouteStubs(),
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async () => ({
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        }),
+        getPublicProfessionalByClinicId: async () => null,
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+      publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+      reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+      studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    });
+
+    try {
+      app.get("/__test/internal-error", async () => {
+        throw new Error("detalle interno sensible");
+      });
+
+      app.get("/__test/bad-request", async () => {
+        const error = new Error("Payload invalido") as Error & {
+          statusCode: number;
+        };
+        error.statusCode = 400;
+        throw error;
+      });
+
+      const notFoundResponse = await app.inject({
+        method: "GET",
+        url: "/api/no-existe",
+      });
+
+      assert.equal(notFoundResponse.statusCode, 404);
+      assert.deepEqual(JSON.parse(notFoundResponse.body), {
+        success: false,
+        error: "Ruta no encontrada",
+        path: "/api/no-existe",
+      });
+
+      const internalResponse = await app.inject({
+        method: "GET",
+        url: "/__test/internal-error",
+      });
+
+      assert.equal(internalResponse.statusCode, 500);
+      assert.deepEqual(JSON.parse(internalResponse.body), {
+        success: false,
+        error: "Error interno del servidor",
+        path: "/__test/internal-error",
+      });
+      assert.doesNotMatch(internalResponse.body, /detalle interno sensible/);
+
+      const badRequestResponse = await app.inject({
+        method: "GET",
+        url: "/__test/bad-request",
+      });
+
+      assert.equal(badRequestResponse.statusCode, 400);
+      assert.deepEqual(JSON.parse(badRequestResponse.body), {
+        success: false,
+        error: "Payload invalido",
+        details: "Payload invalido",
+        path: "/__test/bad-request",
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
