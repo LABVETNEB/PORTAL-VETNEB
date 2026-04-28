@@ -587,8 +587,14 @@ function requireClinicManagementPermission(
   return false;
 }
 
+type UploadedMultipartFile = {
+  buffer: Buffer;
+  originalname: string;
+  mimetype: string;
+};
+
 type RawRequestWithFile = FastifyRequest["raw"] & {
-  file?: Express.Multer.File;
+  file?: UploadedMultipartFile;
 };
 
 const upload = multer({
@@ -609,7 +615,7 @@ const upload = multer({
 function runAvatarUpload(
   request: FastifyRequest,
   reply: FastifyReply,
-): Promise<Express.Multer.File | undefined> {
+): Promise<UploadedMultipartFile | undefined> {
   return new Promise((resolve, reject) => {
     upload.single("avatar")(
       request.raw as any,
@@ -927,7 +933,7 @@ export const clinicPublicProfileNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    let file: Express.Multer.File | undefined;
+    let file: UploadedMultipartFile | undefined;
 
     try {
       file = await runAvatarUpload(request, reply);

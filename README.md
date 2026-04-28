@@ -1,6 +1,6 @@
 # PORTAL VETNEB Backend
 
-Backend auditado y endurecido para despliegue con **Supabase + Storage privado + Express + Drizzle**.
+Backend auditado y endurecido para despliegue con **Supabase + Storage privado + Fastify + Drizzle**.
 
 ## Qué quedó resuelto
 
@@ -18,7 +18,7 @@ Backend auditado y endurecido para despliegue con **Supabase + Storage privado +
 
 - Node.js
 - pnpm
-- Express
+- Fastify
 - TypeScript
 - Drizzle ORM
 - PostgreSQL / Supabase

@@ -59,8 +59,14 @@ type UpsertReportInput = {
   createdByClinicUserId?: number | null;
 };
 
+type UploadedMultipartFile = {
+  buffer: Buffer;
+  originalname: string;
+  mimetype: string;
+};
+
 type RawRequestWithFile = FastifyRequest["raw"] & {
-  file?: Express.Multer.File;
+  file?: UploadedMultipartFile;
   body?: Record<string, unknown>;
 };
 
@@ -463,7 +469,7 @@ function buildClearSessionCookie() {
 function runReportUpload(
   request: FastifyRequest,
   reply: FastifyReply,
-): Promise<Express.Multer.File | undefined> {
+): Promise<UploadedMultipartFile | undefined> {
   return new Promise((resolve, reject) => {
     upload.single("file")(
       request.raw as any,
@@ -718,7 +724,7 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
         });
       }
 
-      let file: Express.Multer.File | undefined;
+      let file: UploadedMultipartFile | undefined;
 
       try {
         file = await runReportUpload(request, reply);
