@@ -386,6 +386,96 @@ function buildReportAccessTokensRouteStubs() {
   };
 }
 
+function buildParticularStudyTrackingRouteStubs() {
+  return {
+    deleteParticularSession: async () => {},
+    getParticularSessionByToken: async () => null,
+    getParticularTokenById: async () => null,
+    updateParticularSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    getParticularStudyTrackingCase: async () => null,
+    listStudyTrackingNotifications: async () => [],
+  };
+}
+
+function buildPublicProfessionalsRouteStubs() {
+  return {
+    searchPublicProfessionals: async () => ({
+      rows: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    }),
+    getPublicProfessionalByClinicId: async () => null,
+    createSignedStorageUrl: async (path: string) => `signed:${path}`,
+  };
+}
+
+function buildReportsRouteStubs() {
+  return {
+    deleteActiveSession: async () => {},
+    getActiveSessionByToken: async () => null,
+    getClinicUserById: async () => null,
+    updateSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    getReportsByClinicId: async () => [],
+    searchReports: async () => [],
+    getStudyTypes: async () => [],
+    getReportById: async () => null,
+    getReportStatusHistory: async () => [],
+    getClinicScopedStudyTrackingCase: async () => null,
+    updateStudyTrackingCase: async () => null,
+    uploadReport: async () => "reports/test.pdf",
+    upsertReport: async () => ({} as any),
+    createSignedReportUrl: async (storagePath: string) =>
+      `signed-preview:${storagePath}`,
+    createSignedReportDownloadUrl: async (
+      storagePath: string,
+      fileName?: string,
+    ) => `signed-download:${storagePath}:${fileName ?? ""}`,
+  };
+}
+
+function buildReportsStatusRouteStubs() {
+  return {
+    deleteActiveSession: async () => {},
+    getActiveSessionByToken: async () => null,
+    getClinicUserById: async () => null,
+    updateSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    getReportById: async () => null,
+    updateReportStatus: async () => null,
+    createSignedReportUrl: async (storagePath: string) =>
+      `signed-preview:${storagePath}`,
+    createSignedReportDownloadUrl: async (
+      storagePath: string,
+      fileName?: string,
+    ) => `signed-download:${storagePath}:${fileName ?? ""}`,
+    writeAuditLog: async () => {},
+  };
+}
+
+function buildFastifyDispatchRouteStubs() {
+  return {
+    adminAuditRoutes: buildAdminAuditRouteStubs(),
+    adminAuthRoutes: buildAdminAuthRouteStubs(),
+    adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
+    adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
+    adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    clinicAuthRoutes: buildClinicAuthRouteStubs(),
+    clinicAuditRoutes: buildClinicAuditRouteStubs(),
+    clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+    particularAuthRoutes: buildParticularAuthRouteStubs(),
+    particularStudyTrackingRoutes: buildParticularStudyTrackingRouteStubs(),
+    particularTokensRoutes: buildParticularTokensRouteStubs(),
+    publicProfessionalsRoutes: buildPublicProfessionalsRouteStubs(),
+    publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
+    reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
+    reportsRoutes: buildReportsRouteStubs(),
+    reportsStatusRoutes: buildReportsStatusRouteStubs(),
+    studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+  };
+}
 test(
   "createFastifyApp expone root y health nativos",
   async () => {
@@ -1606,6 +1696,56 @@ test(
   },
 );
 
+
+test(
+  "createFastifyApp despacha rutas nativas restantes al router nativo",
+  async () => {
+    const app = await createFastifyApp(buildFastifyDispatchRouteStubs());
+
+    try {
+      const reportsResponse = await app.inject({
+        method: "GET",
+        url: "/api/reports",
+      });
+
+      assert.equal(reportsResponse.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(reportsResponse.statusCode, 418);
+      assert.equal(reportsResponse.statusCode, 401);
+
+      const reportStatusResponse = await app.inject({
+        method: "PATCH",
+        url: "/api/reports/55/status",
+      });
+
+      assert.equal(reportStatusResponse.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(reportStatusResponse.statusCode, 418);
+      assert.equal(reportStatusResponse.statusCode, 401);
+
+      const particularTokensResponse = await app.inject({
+        method: "GET",
+        url: "/api/particular-tokens",
+      });
+
+      assert.equal(particularTokensResponse.headers["x-legacy-bridge"], undefined);
+      assert.notEqual(particularTokensResponse.statusCode, 418);
+      assert.equal(particularTokensResponse.statusCode, 401);
+
+      const particularStudyTrackingResponse = await app.inject({
+        method: "GET",
+        url: "/api/particular/study-tracking/me",
+      });
+
+      assert.equal(
+        particularStudyTrackingResponse.headers["x-legacy-bridge"],
+        undefined,
+      );
+      assert.notEqual(particularStudyTrackingResponse.statusCode, 418);
+      assert.equal(particularStudyTrackingResponse.statusCode, 401);
+    } finally {
+      await app.close();
+    }
+  },
+);
 
 test(
   "createFastifyApp usa handlers globales para 404 y errores no capturados",
