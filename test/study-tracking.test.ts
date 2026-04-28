@@ -34,11 +34,11 @@ test("adminCreateStudyTrackingSchema normaliza booleanos, textos y fechas", () =
     notes: "  Caso prioritario  ",
   });
 
-  assert.equal(parsed.success, true);
-
   if (!parsed.success) {
-    throw parsed.error;
+    assert.fail(parsed.error.message);
   }
+
+  assert.equal(parsed.success, true);
 
   assert.equal(parsed.data.clinicId, 4);
   assert.equal(parsed.data.reportId, 12);
@@ -67,11 +67,11 @@ test("updateStudyTrackingSchema permite limpiar campos opcionales con null", () 
     notes: null,
   });
 
-  assert.equal(parsed.success, true);
-
   if (!parsed.success) {
-    throw parsed.error;
+    assert.fail(parsed.error.message);
   }
+
+  assert.equal(parsed.success, true);
 
   assert.equal(parsed.data.reportId, null);
   assert.equal(parsed.data.particularTokenId, 18);
@@ -109,12 +109,11 @@ test("buildValidationError devuelve el primer error de study-tracking", () => {
     receptionAt: "fecha-invalida",
   });
 
-  assert.equal(parsed.success, false);
-
   if (parsed.success) {
-    throw new Error("La validación debió fallar");
+    assert.fail("La validacion debio fallar");
   }
 
+  assert.equal(parsed.success, false);
   assert.equal(buildValidationError(parsed.error), "clinicId es obligatorio");
 });
 

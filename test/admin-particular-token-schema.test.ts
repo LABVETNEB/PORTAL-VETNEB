@@ -21,11 +21,11 @@ test("adminCreateParticularTokenSchema requiere clinicId válido y normaliza cam
     reportId: null,
   });
 
-  assert.equal(parsed.success, true);
-
   if (!parsed.success) {
-    throw parsed.error;
+    assert.fail(parsed.error.message);
   }
+
+  assert.equal(parsed.success, true);
 
   assert.equal(parsed.data.clinicId, 5);
   assert.equal(parsed.data.detailsLesion, undefined);
@@ -92,11 +92,11 @@ test("adminCreateParticularTokenSchema conserva detailsLesion cuando viene con t
     reportId: null,
   });
 
-  assert.equal(parsed.success, true);
-
   if (!parsed.success) {
-    throw parsed.error;
+    assert.fail(parsed.error.message);
   }
+
+  assert.equal(parsed.success, true);
 
   assert.equal(parsed.data.clinicId, 8);
   assert.equal(parsed.data.detailsLesion, "Lesión nodular");

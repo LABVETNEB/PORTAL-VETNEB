@@ -23,12 +23,12 @@ test("reportAccessTokenRawTokenSchema rechaza caracteres no hex y acepta upperca
   const upper = reportAccessTokenRawTokenSchema.safeParse("A".repeat(64));
 
   assert.equal(invalid.success, false);
-  assert.equal(upper.success, true);
 
   if (!upper.success) {
     assert.fail(upper.error.message);
   }
 
+  assert.equal(upper.success, true);
   assert.equal(upper.data, "A".repeat(64));
 });
 
@@ -42,6 +42,7 @@ test("clinicCreateReportAccessTokenSchema acepta expiresAt vacío y conserva rep
     assert.fail(parsed.error.message);
   }
 
+  assert.equal(parsed.success, true);
   assert.equal(parsed.data.reportId, 12);
   assert.equal(parsed.data.expiresAt, undefined);
 });

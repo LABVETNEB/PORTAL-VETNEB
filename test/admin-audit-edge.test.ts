@@ -131,7 +131,9 @@ test("serializeAuditLogListItem convierte campos numericos y limpia metadata o s
   assert.equal(item.ipAddress, "127.0.0.1");
   assert.equal(item.userAgent, null);
   assert.equal(item.metadata, null);
-  assert.equal(item.createdAt?.toISOString(), "2026-04-22T12:34:56.789Z");
+  const createdAtValue = item.createdAt;
+  assert.ok(createdAtValue instanceof Date);
+  assert.equal(createdAtValue.toISOString(), "2026-04-22T12:34:56.789Z");
 });
 
 test("buildAdminAuditCsv escapa comas y comillas y maneja createdAt vacio o invalido", () => {

@@ -27,11 +27,11 @@ test("clinicCreateParticularTokenSchema normaliza detailsLesion vacío y reportI
     reportId: null,
   });
 
-  assert.equal(parsed.success, true);
-
   if (!parsed.success) {
-    throw parsed.error;
+    assert.fail(parsed.error.message);
   }
+
+  assert.equal(parsed.success, true);
 
   assert.equal(parsed.data.detailsLesion, undefined);
   assert.equal(parsed.data.reportId, null);

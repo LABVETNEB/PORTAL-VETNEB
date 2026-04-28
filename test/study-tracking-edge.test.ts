@@ -147,11 +147,11 @@ test("adminCreateStudyTrackingSchema rechaza email invalido y paymentUrl demasia
     paymentUrl: "x".repeat(2001),
   });
 
-  assert.equal(parsed.success, false);
-
   if (parsed.success) {
-    throw new Error("La validación debió fallar");
+    assert.fail("La validacion debio fallar");
   }
+
+  assert.equal(parsed.success, false);
 
   const messages = parsed.error.issues.map((issue) => issue.message);
 
@@ -166,11 +166,11 @@ test("updateStudyTrackingSchema trimea textos y convierte blancos a null", () =>
     notes: "   observacion interna   ",
   });
 
-  assert.equal(parsed.success, true);
-
   if (!parsed.success) {
-    throw parsed.error;
+    assert.fail(parsed.error.message);
   }
+
+  assert.equal(parsed.success, true);
 
   assert.equal(parsed.data.paymentUrl, "https://example.com/pago/44");
   assert.equal(parsed.data.adminContactPhone, null);
@@ -182,12 +182,11 @@ test("updateStudyTrackingSchema rechaza adminContactEmail invalido", () => {
     adminContactEmail: "mail-invalido",
   });
 
-  assert.equal(parsed.success, false);
-
   if (parsed.success) {
-    throw new Error("La validación debió fallar");
+    assert.fail("La validacion debio fallar");
   }
 
+  assert.equal(parsed.success, false);
   assert.equal(parsed.error.issues[0]?.message, "adminContactEmail invÃ¡lido");
 });
 
@@ -197,11 +196,11 @@ test("updateStudyTrackingSchema rechaza adminContactPhone y notes fuera de limit
     notes: "a".repeat(10001),
   });
 
-  assert.equal(parsed.success, false);
-
   if (parsed.success) {
-    throw new Error("La validación debió fallar");
+    assert.fail("La validacion debio fallar");
   }
+
+  assert.equal(parsed.success, false);
 
   const messages = parsed.error.issues.map((issue) => issue.message);
 
