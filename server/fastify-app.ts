@@ -81,6 +81,61 @@ type HealthCheckResponse = {
 type HealthCheckFactory = () => Promise<HealthCheckResponse>;
 type ServiceInfoFactory = () => Record<string, unknown>;
 
+function getFastifyErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return "Unexpected error";
+}
+
+function getFastifyErrorStatus(error: unknown) {
+  if (
+    error &&
+    typeof error === "object" &&
+    "status" in error &&
+    typeof (error as { status?: number }).status === "number"
+  ) {
+    return normalizeFastifyErrorStatus((error as { status: number }).status);
+  }
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "statusCode" in error &&
+    typeof (error as { statusCode?: number }).statusCode === "number"
+  ) {
+    return normalizeFastifyErrorStatus(
+      (error as { statusCode: number }).statusCode,
+    );
+  }
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    typeof (error as { code?: string }).code === "string"
+  ) {
+    const code = (error as { code: string }).code;
+
+    if (["23505", "23503", "22P02", "42703"].includes(code)) {
+      return 400;
+    }
+  }
+
+  return 500;
+}
+
+function normalizeFastifyErrorStatus(status: number) {
+  return Number.isInteger(status) && status >= 400 && status <= 599
+    ? status
+    : 500;
+}
+
 export type CreateFastifyAppOptions = {
   getNativeHealthCheckResponse?: HealthCheckFactory;
   getServiceInfoPayload?: ServiceInfoFactory;
@@ -109,6 +164,34 @@ export async function createFastifyApp(
   const app = Fastify({
     logger: false,
     trustProxy: ENV.trustProxy,
+  });
+
+  app.setNotFoundHandler((request, reply) => {
+    return reply.code(404).send({
+      success: false,
+      error: "Ruta no encontrada",
+      path: request.url,
+    });
+  });
+
+  app.setErrorHandler((error, request, reply) => {
+    const status = getFastifyErrorStatus(error);
+    const message = getFastifyErrorMessage(error);
+
+    console.error("[API ERROR]", {
+      method: request.method,
+      path: request.url,
+      status,
+      message,
+      error,
+    });
+
+    return reply.code(status).send({
+      success: false,
+      error: status >= 500 ? "Error interno del servidor" : message,
+      details: status >= 500 ? undefined : message,
+      path: request.url,
+    });
   });
 
   const getNativeHealthCheckResponse =
@@ -244,4 +327,5 @@ export async function createFastifyApp(
 
   return app;
 }
+
 
