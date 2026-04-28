@@ -1,4 +1,4 @@
-﻿# Baseline técnico — PR 1
+# Baseline técnico — PR 1
 
 Fecha de baseline: 2026-04-14
 
@@ -13,7 +13,7 @@ Validaciones confirmadas en entorno local:
 - `pnpm build`
 - `pnpm db:generate`
 - `pnpm db:migrate`
-- `node .\prepare-known-clinic-user.mjs`
+- `node .\scripts\db\prepare-known-clinic-user.mjs`
 - `pnpm dev`
 - login/logout clínica
 - login/logout admin
