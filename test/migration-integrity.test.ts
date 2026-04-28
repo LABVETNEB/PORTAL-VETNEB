@@ -50,6 +50,10 @@ test("drizzle SQL migrations do not contain corrupted markers", () => {
       label: "PowerShell literal newline marker",
     },
     {
+      pattern: /\uFEFF/,
+      label: "UTF-8 byte order mark",
+    },
+    {
       pattern: /\u0000/,
       label: "NUL byte",
     },
