@@ -1,8 +1,11 @@
 param(
   [string]$BaseUrl = 'http://localhost:3000',
-  [string]$Username = 'publicdemo',
-  [string]$Password = 'demo1234'
+  [pscredential]$Credential
 )
+
+if ($null -eq $Credential) {
+  $Credential = Get-Credential -UserName 'publicdemo' -Message 'Credenciales para smoke PR5 report access tokens'
+}
 
 $ErrorActionPreference = 'Stop'
 
@@ -19,8 +22,8 @@ $loginResponse = Invoke-WebRequest `
   -ContentType 'application/json' `
   -Headers @{ Origin = $origin } `
   -Body (@{
-    username = $Username
-    password = $Password
+    username = $Credential.UserName
+    password = $Credential.GetNetworkCredential().Password
   } | ConvertTo-Json -Compress)
 
 $loginJson = $loginResponse.Content | ConvertFrom-Json
@@ -172,7 +175,7 @@ try {
   throw 'El acceso pÃºblico siguiÃ³ funcionando despuÃ©s de la revocaciÃ³n'
 }
 catch {
-  if ($_.Exception.Response -eq $null) {
+  if ($null -eq $_.Exception.Response) {
     throw
   }
 
