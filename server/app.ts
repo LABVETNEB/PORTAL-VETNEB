@@ -8,7 +8,6 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 
 import adminAuthRoutes from "./routes/admin-auth.routes";
-import authRoutes from "./routes/auth.routes";
 import healthRoutes from "./routes/health.routes";
 import { ENV } from "./lib/env";
 import { buildServiceInfoPayload } from "./lib/http-runtime";
@@ -126,7 +125,6 @@ export function createExpressApp(
     mountApiRoute("/health", healthRoutes);
   }
 
-  mountApiRoute("/auth", authRoutes);
   mountApiRoute("/admin/auth", adminAuthRoutes);
 
   app.use(notFoundHandler);
@@ -138,3 +136,4 @@ export function createExpressApp(
 const app = createExpressApp();
 
 export { app };
+
