@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildPublicProfessionalFixtureRow,
@@ -57,16 +57,30 @@ test("public professionals route stubs son determinísticos y sin DB ni storage 
     now: () => 25_000,
   });
 
-  assert.deepEqual(await stubs.searchPublicProfessionals(), {
+  const searchResult = await stubs.searchPublicProfessionals();
+  const searchRow = searchResult.rows[0];
+
+  assert.ok(searchRow);
+  assert.deepEqual(searchResult, {
     rows: [row],
     total: 1,
     limit: 20,
     offset: 0,
   });
+  assert.notEqual(searchRow, row);
+  assert.notEqual(searchRow.updatedAt, row.updatedAt);
 
-  assert.equal(await stubs.getPublicProfessionalByClinicId(456), row);
+  const detailResult = await stubs.getPublicProfessionalByClinicId(456);
+
+  assert.deepEqual(detailResult, row);
+  assert.notEqual(detailResult, row);
+  assert.notEqual(detailResult?.updatedAt, row.updatedAt);
+
   assert.equal(await stubs.getPublicProfessionalByClinicId(999), null);
-  assert.equal(await stubs.createSignedStorageUrl("avatars/456.webp"), "signed:avatars/456.webp");
+  assert.equal(
+    await stubs.createSignedStorageUrl("avatars/456.webp"),
+    "signed:avatars/456.webp",
+  );
 
   assert.equal(stubs.searchRateLimitWindowMs, 60_000);
   assert.equal(stubs.searchRateLimitMaxAttempts, 3);
