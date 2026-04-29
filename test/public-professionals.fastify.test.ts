@@ -968,3 +968,313 @@ test(
     }
   },
 );
+test(
+  "publicProfessionalsNativeRoutes usa helpers inyectados de search y signing sin tocar detail",
+  async () => {
+    let searchCalls = 0;
+    let detailCalls = 0;
+    const signedPaths: string[] = [];
+
+    const app = await createTestApp({
+      searchPublicProfessionals: async (input: {
+        query?: string;
+        locality?: string;
+        country?: string;
+        limit: number;
+        offset: number;
+      }) => {
+        searchCalls += 1;
+
+        assert.deepEqual(input, {
+          query: "Histo",
+          locality: undefined,
+          country: undefined,
+          limit: 2,
+          offset: 1,
+        });
+
+        return {
+          rows: [
+            {
+              clinicId: 101,
+              displayName: "Clinica Search Inyectada",
+              avatarStoragePath: "avatars/101.webp",
+              aboutText: "Resultado desde helper inyectado",
+              specialtyText: "Histopatologia",
+              servicesText: "Biopsias",
+              email: "search-injected@example.com",
+              phone: "3411010101",
+              locality: "Rosario",
+              country: "AR",
+              updatedAt: new Date("2026-04-29T17:00:00.000Z"),
+              profileQualityScore: 0.94,
+              rank: 0.5,
+              similarity: 0.4,
+              score: 0.9,
+            },
+            {
+              clinicId: 102,
+              displayName: "Clinica Sin Avatar",
+              avatarStoragePath: null,
+              aboutText: "Resultado sin firma de avatar",
+              specialtyText: "Histopatologia",
+              servicesText: "Citologias",
+              email: "no-avatar@example.com",
+              phone: "3412020202",
+              locality: "Cordoba",
+              country: "AR",
+              updatedAt: new Date("2026-04-29T17:30:00.000Z"),
+              profileQualityScore: 0.82,
+              rank: 0.3,
+              similarity: 0.2,
+              score: 0.5,
+            },
+          ],
+          total: 2,
+          limit: input.limit,
+          offset: input.offset,
+        };
+      },
+      getPublicProfessionalByClinicId: async () => {
+        detailCalls += 1;
+        throw new Error("search no debe tocar detail helper");
+      },
+      createSignedStorageUrl: async (path: string) => {
+        signedPaths.push(path);
+        return `signed:${path}`;
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search?q=%20Histo%20&limit=2&offset=1",
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(searchCalls, 1);
+      assert.equal(detailCalls, 0);
+      assert.deepEqual(signedPaths, ["avatars/101.webp"]);
+
+      assert.deepEqual(JSON.parse(response.body), {
+        success: true,
+        count: 2,
+        total: 2,
+        professionals: [
+          {
+            clinicId: 101,
+            displayName: "Clinica Search Inyectada",
+            avatarUrl: "signed:avatars/101.webp",
+            specialtyText: "Histopatologia",
+            servicesText: "Biopsias",
+            email: "search-injected@example.com",
+            phone: "3411010101",
+            locality: "Rosario",
+            country: "AR",
+            aboutText: "Resultado desde helper inyectado",
+            updatedAt: "2026-04-29T17:00:00.000Z",
+            relevance: {
+              rank: 0.5,
+              similarity: 0.4,
+              score: 0.9,
+            },
+            profileQualityScore: 0.94,
+          },
+          {
+            clinicId: 102,
+            displayName: "Clinica Sin Avatar",
+            avatarUrl: null,
+            specialtyText: "Histopatologia",
+            servicesText: "Citologias",
+            email: "no-avatar@example.com",
+            phone: "3412020202",
+            locality: "Cordoba",
+            country: "AR",
+            aboutText: "Resultado sin firma de avatar",
+            updatedAt: "2026-04-29T17:30:00.000Z",
+            relevance: {
+              rank: 0.3,
+              similarity: 0.2,
+              score: 0.5,
+            },
+            profileQualityScore: 0.82,
+          },
+        ],
+        filters: {
+          query: "Histo",
+          locality: null,
+          country: null,
+        },
+        pagination: {
+          limit: 2,
+          offset: 1,
+        },
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "publicProfessionalsNativeRoutes usa helper inyectado de detail sin tocar search ni firmar avatar ausente",
+  async () => {
+    let searchCalls = 0;
+    let detailCalls = 0;
+    let signCalls = 0;
+
+    const app = await createTestApp({
+      searchPublicProfessionals: async () => {
+        searchCalls += 1;
+        throw new Error("detail no debe tocar search helper");
+      },
+      getPublicProfessionalByClinicId: async (clinicId: number) => {
+        detailCalls += 1;
+        assert.equal(clinicId, 303);
+
+        return {
+          clinicId,
+          displayName: "Clinica Detail Inyectada",
+          avatarStoragePath: null,
+          aboutText: "Detalle desde helper inyectado",
+          specialtyText: "Histopatologia",
+          servicesText: "Biopsias y citologias",
+          email: "detail-injected@example.com",
+          phone: "3413030303",
+          locality: "Rosario",
+          country: "AR",
+          updatedAt: new Date("2026-04-29T18:00:00.000Z"),
+          profileQualityScore: 0.86,
+        };
+      },
+      createSignedStorageUrl: async () => {
+        signCalls += 1;
+        throw new Error("avatarStoragePath null no debe firmarse");
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/303",
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(searchCalls, 0);
+      assert.equal(detailCalls, 1);
+      assert.equal(signCalls, 0);
+
+      assert.deepEqual(JSON.parse(response.body), {
+        success: true,
+        professional: {
+          clinicId: 303,
+          displayName: "Clinica Detail Inyectada",
+          avatarUrl: null,
+          specialtyText: "Histopatologia",
+          servicesText: "Biopsias y citologias",
+          email: "detail-injected@example.com",
+          phone: "3413030303",
+          locality: "Rosario",
+          country: "AR",
+          aboutText: "Detalle desde helper inyectado",
+          updatedAt: "2026-04-29T18:00:00.000Z",
+          relevance: {
+            rank: 0,
+            similarity: 0,
+            score: 0,
+          },
+          profileQualityScore: 0.86,
+        },
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "publicProfessionalsNativeRoutes mantiene defaults mínimos del test app sin overrides",
+  async () => {
+    const app = await createTestApp();
+
+    try {
+      const searchResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+      });
+
+      const detailResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/404",
+      });
+
+      assert.equal(searchResponse.statusCode, 200);
+      assert.deepEqual(JSON.parse(searchResponse.body), {
+        success: true,
+        count: 0,
+        total: 0,
+        professionals: [],
+        filters: {
+          query: null,
+          locality: null,
+          country: null,
+        },
+        pagination: {
+          limit: 20,
+          offset: 0,
+        },
+      });
+
+      assert.equal(detailResponse.statusCode, 404);
+      assert.deepEqual(JSON.parse(detailResponse.body), {
+        success: false,
+        error: "Perfil publico no encontrado",
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "publicProfessionalsNativeRoutes deja errores de helpers al handler de Fastify sin payload público manual",
+  async () => {
+    const app = await createTestApp({
+      searchPublicProfessionals: async () => {
+        throw new Error("search helper exploded");
+      },
+      getPublicProfessionalByClinicId: async () => {
+        throw new Error("detail helper exploded");
+      },
+    });
+
+    try {
+      const searchResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+      });
+
+      const detailResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/505",
+      });
+
+      assert.equal(searchResponse.statusCode, 500);
+      assert.deepEqual(JSON.parse(searchResponse.body), {
+        statusCode: 500,
+        error: "Internal Server Error",
+        message: "search helper exploded",
+      });
+
+      assert.equal(detailResponse.statusCode, 500);
+      assert.deepEqual(JSON.parse(detailResponse.body), {
+        statusCode: 500,
+        error: "Internal Server Error",
+        message: "detail helper exploded",
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
