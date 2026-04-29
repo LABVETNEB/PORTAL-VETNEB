@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import Fastify from "fastify";
 
@@ -306,3 +306,65 @@ test(
     }
   },
 );
+test("clinicAuthNativeRoutes responde preflight OPTIONS permitido sin autenticar", async () => {
+  const app = await createTestApp({
+    getActiveSessionByToken: async () => {
+      throw new Error("preflight OPTIONS no debe autenticar sesión clinic");
+    },
+  });
+
+  try {
+    for (const url of ["/api/auth/login", "/api/auth/me", "/api/auth/logout"]) {
+      const response = await app.inject({
+        method: "OPTIONS",
+        url,
+        headers: {
+          origin: "http://localhost:3000",
+          "access-control-request-headers": "content-type,x-requested-with",
+        },
+      });
+
+      assert.equal(response.statusCode, 204);
+      assert.equal(response.body, "");
+      assert.equal(
+        response.headers["access-control-allow-origin"],
+        "http://localhost:3000",
+      );
+      assert.equal(response.headers["access-control-allow-credentials"], "true");
+      assert.equal(
+        response.headers["access-control-allow-methods"],
+        "GET,POST,OPTIONS",
+      );
+      assert.equal(
+        response.headers["access-control-allow-headers"],
+        "content-type,x-requested-with",
+      );
+    }
+  } finally {
+    await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes bloquea preflight OPTIONS con origin no permitido", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/auth/login",
+      headers: {
+        origin: "https://evil.example",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.headers["access-control-allow-origin"], undefined);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Origen no permitido",
+    });
+  } finally {
+    await app.close();
+  }
+});
