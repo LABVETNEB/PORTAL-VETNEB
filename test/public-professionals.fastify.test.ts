@@ -392,3 +392,173 @@ test(
     }
   },
 );
+test(
+  "publicProfessionalsNativeRoutes mantiene headers RateLimit separados para search y detail",
+  async () => {
+    const app = await createTestApp({
+      now: () => 1_000,
+      searchRateLimitWindowMs: 30_000,
+      searchRateLimitMaxAttempts: 2,
+      detailRateLimitWindowMs: 45_000,
+      detailRateLimitMaxAttempts: 3,
+      getPublicProfessionalByClinicId: async (clinicId: number) => ({
+        clinicId,
+        displayName: "Clinica Rate Limit",
+        avatarStoragePath: null,
+        aboutText: "Detalle publico para rate limit",
+        specialtyText: "Histopatologia",
+        servicesText: "Diagnostico histopatologico",
+        email: "rate@example.com",
+        phone: "3414444444",
+        locality: "Rosario",
+        country: "AR",
+        updatedAt: new Date("2026-04-27T12:00:00.000Z"),
+        profileQualityScore: 0.88,
+      }),
+    });
+
+    try {
+      const searchResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        remoteAddress: "198.51.100.10",
+      });
+
+      const detailResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/11",
+        remoteAddress: "198.51.100.10",
+      });
+
+      assert.equal(searchResponse.statusCode, 200);
+      assert.equal(searchResponse.headers["ratelimit-policy"], "2;w=30");
+      assert.equal(searchResponse.headers["ratelimit-limit"], "2");
+      assert.equal(searchResponse.headers["ratelimit-remaining"], "1");
+      assert.equal(searchResponse.headers["ratelimit-reset"], "30");
+
+      assert.equal(detailResponse.statusCode, 200);
+      assert.equal(detailResponse.headers["ratelimit-policy"], "3;w=45");
+      assert.equal(detailResponse.headers["ratelimit-limit"], "3");
+      assert.equal(detailResponse.headers["ratelimit-remaining"], "2");
+      assert.equal(detailResponse.headers["ratelimit-reset"], "45");
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "publicProfessionalsNativeRoutes no comparte bucket de rate limit entre search y detail",
+  async () => {
+    let now = 10_000;
+    let searchCalls = 0;
+    let detailCalls = 0;
+
+    const app = await createTestApp({
+      now: () => now,
+      searchRateLimitWindowMs: 60_000,
+      searchRateLimitMaxAttempts: 1,
+      detailRateLimitWindowMs: 90_000,
+      detailRateLimitMaxAttempts: 1,
+      searchPublicProfessionals: async () => {
+        searchCalls += 1;
+
+        return {
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        };
+      },
+      getPublicProfessionalByClinicId: async (clinicId: number) => {
+        detailCalls += 1;
+
+        return {
+          clinicId,
+          displayName: "Clinica Bucket Separado",
+          avatarStoragePath: null,
+          aboutText: "Detalle publico con bucket separado",
+          specialtyText: "Histopatologia",
+          servicesText: "Diagnostico histopatologico",
+          email: "bucket@example.com",
+          phone: "3415555555",
+          locality: "Cordoba",
+          country: "AR",
+          updatedAt: new Date("2026-04-28T12:00:00.000Z"),
+          profileQualityScore: 0.92,
+        };
+      },
+    });
+
+    try {
+      const firstSearch = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        remoteAddress: "203.0.113.122",
+      });
+
+      const secondSearch = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        remoteAddress: "203.0.113.122",
+      });
+
+      const firstDetail = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/22",
+        remoteAddress: "203.0.113.122",
+      });
+
+      const secondDetail = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/22",
+        remoteAddress: "203.0.113.122",
+      });
+
+      assert.equal(firstSearch.statusCode, 200);
+      assert.equal(firstSearch.headers["ratelimit-policy"], "1;w=60");
+      assert.equal(firstSearch.headers["ratelimit-limit"], "1");
+      assert.equal(firstSearch.headers["ratelimit-remaining"], "0");
+
+      assert.equal(secondSearch.statusCode, 429);
+      assert.equal(secondSearch.headers["ratelimit-policy"], "1;w=60");
+      assert.equal(secondSearch.headers["ratelimit-limit"], "1");
+      assert.equal(secondSearch.headers["ratelimit-remaining"], "0");
+      assert.deepEqual(JSON.parse(secondSearch.body), {
+        success: false,
+        error: "Demasiadas consultas al directorio público. Intente más tarde.",
+      });
+
+      assert.equal(firstDetail.statusCode, 200);
+      assert.equal(firstDetail.headers["ratelimit-policy"], "1;w=90");
+      assert.equal(firstDetail.headers["ratelimit-limit"], "1");
+      assert.equal(firstDetail.headers["ratelimit-remaining"], "0");
+
+      assert.equal(secondDetail.statusCode, 429);
+      assert.equal(secondDetail.headers["ratelimit-policy"], "1;w=90");
+      assert.equal(secondDetail.headers["ratelimit-limit"], "1");
+      assert.equal(secondDetail.headers["ratelimit-remaining"], "0");
+      assert.deepEqual(JSON.parse(secondDetail.body), {
+        success: false,
+        error: "Demasiadas consultas al perfil público. Intente más tarde.",
+      });
+
+      assert.equal(searchCalls, 1);
+      assert.equal(detailCalls, 1);
+
+      now = 101_000;
+
+      const detailAfterReset = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/22",
+        remoteAddress: "203.0.113.122",
+      });
+
+      assert.equal(detailAfterReset.statusCode, 200);
+      assert.equal(detailAfterReset.headers["ratelimit-remaining"], "0");
+      assert.equal(detailCalls, 2);
+    } finally {
+      await app.close();
+    }
+  },
+);
