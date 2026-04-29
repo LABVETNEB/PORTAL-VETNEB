@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import Fastify from "fastify";
+import {
+  buildPublicProfessionalFixtureRow,
+  buildPublicProfessionalsRouteFixtureStubs,
+} from "./helpers/public-professionals-fixtures.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -45,20 +49,6 @@ function extractRegisteredMethods(source: string): Array<{
   }));
 }
 
-function buildPublicProfessionalsRouteStubs() {
-  return {
-    searchPublicProfessionals: async () => ({
-      rows: [],
-      total: 0,
-      limit: 20,
-      offset: 0,
-    }),
-    getPublicProfessionalByClinicId: async () => null,
-    createSignedStorageUrl: async (path: string) => `signed:${path}`,
-    searchRateLimitMaxAttempts: 1_000,
-    detailRateLimitMaxAttempts: 1_000,
-  };
-}
 
 async function buildSurfaceApp() {
   const app = Fastify({
@@ -75,7 +65,14 @@ async function buildSurfaceApp() {
 
   await app.register(publicProfessionalsNativeRoutes, {
     prefix: "/api/public/professionals",
-    ...buildPublicProfessionalsRouteStubs(),
+    ...buildPublicProfessionalsRouteFixtureStubs({
+      row: buildPublicProfessionalFixtureRow({
+        clinicId: 999,
+      }),
+      searchRows: [],
+      searchRateLimitMaxAttempts: 1_000,
+      detailRateLimitMaxAttempts: 1_000,
+    }),
   });
 
   return app;
