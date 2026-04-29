@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -271,5 +271,96 @@ test("uploadClinicAvatar propaga error de upload cuando mimeType es válido", as
     );
   } finally {
     (supabase.storage as any).from = originalFrom;
+  }
+});
+test("uploadReport neutraliza path traversal y separadores de ruta en fileName", async () => {
+  const originalFrom = supabase.storage.from;
+  const originalDateNow = Date.now;
+  const originalMathRandom = Math.random;
+
+  let capturedPath: string | null = null;
+
+  Date.now = () => 1710000000100;
+  Math.random = () => 0.123456789;
+
+  (supabase.storage as any).from = () => ({
+    upload: async (path: string) => {
+      capturedPath = path;
+
+      return {
+        error: null,
+      };
+    },
+  });
+
+  try {
+    const result = await uploadReport({
+      file: Buffer.from("pdf-content"),
+      fileName: "..\\../Luna final #1.pdf",
+      clinicId: 17,
+      mimeType: "application/pdf",
+    });
+
+    assert.equal(
+      result,
+      "clinics/17/1710000000100-4fzzzxjy-Luna_final_1.pdf",
+    );
+    assert.equal(capturedPath, result);
+    assert.equal(result.split("/").length, 3);
+    assert.equal(result.includes(".."), false);
+    assert.equal(result.includes("\\"), false);
+    assert.equal(result.includes(" "), false);
+    assert.equal(result.startsWith("http://"), false);
+    assert.equal(result.startsWith("https://"), false);
+  } finally {
+    (supabase.storage as any).from = originalFrom;
+    Date.now = originalDateNow;
+    Math.random = originalMathRandom;
+  }
+});
+
+test("uploadClinicAvatar neutraliza path traversal y separadores de ruta en fileName", async () => {
+  const originalFrom = supabase.storage.from;
+  const originalDateNow = Date.now;
+  const originalMathRandom = Math.random;
+
+  let capturedPath: string | null = null;
+
+  Date.now = () => 1710000000101;
+  Math.random = () => 0.123456789;
+
+  (supabase.storage as any).from = () => ({
+    upload: async (path: string) => {
+      capturedPath = path;
+
+      return {
+        error: null,
+      };
+    },
+  });
+
+  try {
+    const result = await uploadClinicAvatar({
+      file: Buffer.from("avatar-content"),
+      fileName: "../avatar final.png",
+      clinicId: 21,
+      mimeType: "image/png",
+    });
+
+    assert.equal(
+      result,
+      "clinic-avatars/21/1710000000101-4fzzzxjy-avatar_final.png",
+    );
+    assert.equal(capturedPath, result);
+    assert.equal(result.split("/").length, 3);
+    assert.equal(result.includes(".."), false);
+    assert.equal(result.includes("\\"), false);
+    assert.equal(result.includes(" "), false);
+    assert.equal(result.startsWith("http://"), false);
+    assert.equal(result.startsWith("https://"), false);
+  } finally {
+    (supabase.storage as any).from = originalFrom;
+    Date.now = originalDateNow;
+    Math.random = originalMathRandom;
   }
 });

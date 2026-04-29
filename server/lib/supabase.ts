@@ -21,16 +21,19 @@ export const supabase = createClient(
   ENV.supabaseServiceRoleKey,
 );
 
-function sanitizeFileName(fileName: string): string {
-  return fileName
+function sanitizeFileName(fileName: string, fallback: string): string {
+  const sanitized = fileName
     .normalize("NFKD")
     .replace(/[^\w.\-]+/g, "_")
+    .replace(/\.+/g, ".")
     .replace(/_+/g, "_")
-    .replace(/^_+|_+$/g, "");
+    .replace(/^[._-]+|[._-]+$/g, "");
+
+  return sanitized || fallback;
 }
 
 function buildReportStoragePath(clinicId: number, fileName: string): string {
-  const safeName = sanitizeFileName(fileName || "report");
+  const safeName = sanitizeFileName(fileName, "report");
   const timestamp = Date.now();
   const random = Math.random().toString(36).slice(2, 10);
 
@@ -38,7 +41,7 @@ function buildReportStoragePath(clinicId: number, fileName: string): string {
 }
 
 function buildClinicAvatarStoragePath(clinicId: number, fileName: string): string {
-  const safeName = sanitizeFileName(fileName || "avatar");
+  const safeName = sanitizeFileName(fileName, "avatar");
   const timestamp = Date.now();
   const random = Math.random().toString(36).slice(2, 10);
 
