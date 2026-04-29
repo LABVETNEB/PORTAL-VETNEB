@@ -1277,4 +1277,217 @@ test(
     }
   },
 );
+test(
+  "publicProfessionalsNativeRoutes harness reinicia rate limit store por instancia de app",
+  async () => {
+    const appA = await createTestApp({
+      now: () => 10_000,
+      searchRateLimitWindowMs: 60_000,
+      searchRateLimitMaxAttempts: 1,
+    });
 
+    const appB = await createTestApp({
+      now: () => 10_000,
+      searchRateLimitWindowMs: 60_000,
+      searchRateLimitMaxAttempts: 1,
+    });
+
+    try {
+      const firstA = await appA.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        remoteAddress: "198.51.100.126",
+      });
+
+      const secondA = await appA.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        remoteAddress: "198.51.100.126",
+      });
+
+      const firstB = await appB.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        remoteAddress: "198.51.100.126",
+      });
+
+      assert.equal(firstA.statusCode, 200);
+      assert.equal(firstA.headers["ratelimit-limit"], "1");
+      assert.equal(firstA.headers["ratelimit-remaining"], "0");
+
+      assert.equal(secondA.statusCode, 429);
+      assert.equal(secondA.headers["ratelimit-limit"], "1");
+      assert.equal(secondA.headers["ratelimit-remaining"], "0");
+
+      assert.equal(firstB.statusCode, 200);
+      assert.equal(firstB.headers["ratelimit-limit"], "1");
+      assert.equal(firstB.headers["ratelimit-remaining"], "0");
+    } finally {
+      await appA.close();
+      await appB.close();
+    }
+  },
+);
+
+test(
+  "publicProfessionalsNativeRoutes harness respeta now inyectado en RateLimit-Reset",
+  async () => {
+    let now = 10_000;
+
+    const app = await createTestApp({
+      now: () => now,
+      searchRateLimitWindowMs: 60_000,
+      searchRateLimitMaxAttempts: 3,
+    });
+
+    try {
+      const first = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        remoteAddress: "198.51.100.127",
+      });
+
+      now = 25_000;
+
+      const second = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        remoteAddress: "198.51.100.127",
+      });
+
+      assert.equal(first.statusCode, 200);
+      assert.equal(first.headers["ratelimit-policy"], "3;w=60");
+      assert.equal(first.headers["ratelimit-reset"], "60");
+
+      assert.equal(second.statusCode, 200);
+      assert.equal(second.headers["ratelimit-policy"], "3;w=60");
+      assert.equal(second.headers["ratelimit-reset"], "45");
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "publicProfessionalsNativeRoutes harness no filtra overrides entre apps",
+  async () => {
+    const appA = await createTestApp({
+      searchPublicProfessionals: async () => ({
+        rows: [
+          {
+            clinicId: 601,
+            displayName: "Clinica Harness A",
+            avatarStoragePath: null,
+            aboutText: "Resultado aislado del app A",
+            specialtyText: "Histopatologia",
+            servicesText: "Biopsias",
+            email: "harness-a@example.com",
+            phone: "3416010601",
+            locality: "Rosario",
+            country: "AR",
+            updatedAt: new Date("2026-04-29T19:00:00.000Z"),
+            profileQualityScore: 0.81,
+            rank: 0.2,
+            similarity: 0.3,
+            score: 0.5,
+          },
+        ],
+        total: 1,
+        limit: 20,
+        offset: 0,
+      }),
+    });
+
+    const appB = await createTestApp();
+
+    try {
+      const responseA = await appA.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+      });
+
+      const responseB = await appB.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+      });
+
+      assert.equal(responseA.statusCode, 200);
+      assert.equal(JSON.parse(responseA.body).professionals[0].displayName, "Clinica Harness A");
+
+      assert.equal(responseB.statusCode, 200);
+      assert.deepEqual(JSON.parse(responseB.body), {
+        success: true,
+        count: 0,
+        total: 0,
+        professionals: [],
+        filters: {
+          query: null,
+          locality: null,
+          country: null,
+        },
+        pagination: {
+          limit: 20,
+          offset: 0,
+        },
+      });
+    } finally {
+      await appA.close();
+      await appB.close();
+    }
+  },
+);
+
+test(
+  "publicProfessionalsNativeRoutes harness permite cerrar app tras error y crear una app limpia",
+  async () => {
+    const failingApp = await createTestApp({
+      searchPublicProfessionals: async () => {
+        throw new Error("harness injected failure");
+      },
+    });
+
+    try {
+      const failed = await failingApp.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+      });
+
+      assert.equal(failed.statusCode, 500);
+      assert.deepEqual(JSON.parse(failed.body), {
+        statusCode: 500,
+        error: "Internal Server Error",
+        message: "harness injected failure",
+      });
+    } finally {
+      await failingApp.close();
+    }
+
+    const cleanApp = await createTestApp();
+
+    try {
+      const clean = await cleanApp.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+      });
+
+      assert.equal(clean.statusCode, 200);
+      assert.deepEqual(JSON.parse(clean.body), {
+        success: true,
+        count: 0,
+        total: 0,
+        professionals: [],
+        filters: {
+          query: null,
+          locality: null,
+          country: null,
+        },
+        pagination: {
+          limit: 20,
+          offset: 0,
+        },
+      });
+    } finally {
+      await cleanApp.close();
+    }
+  },
+);
