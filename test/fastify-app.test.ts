@@ -1855,3 +1855,193 @@ test(
     }
   },
 );
+test(
+  "createFastifyApp mantiene search de profesionales públicos montado en el router nativo",
+  async () => {
+    let receivedSearchInput:
+      | {
+          query?: string;
+          locality?: string;
+          country?: string;
+          limit: number;
+          offset: number;
+        }
+      | null = null;
+    let detailHelperWasCalled = false;
+
+    const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async (input: {
+          query?: string;
+          locality?: string;
+          country?: string;
+          limit: number;
+          offset: number;
+        }) => {
+          receivedSearchInput = input;
+
+          return {
+            rows: [
+              {
+                clinicId: 23,
+                displayName: "Clinica Publica Integrada",
+                avatarStoragePath: "avatars/23.webp",
+                aboutText: "Servicio publico de histopatologia veterinaria",
+                specialtyText: "Histopatologia",
+                servicesText: "Biopsias, citologias y seguimiento",
+                email: "publica@example.com",
+                phone: "3412222222",
+                locality: "Cordoba",
+                country: "AR",
+                updatedAt: new Date("2026-04-25T12:00:00.000Z"),
+                profileQualityScore: 0.97,
+                rank: 0.8,
+                similarity: 0.7,
+                score: 1.6,
+              },
+            ],
+            total: 1,
+            limit: input.limit,
+            offset: input.offset,
+          };
+        },
+        getPublicProfessionalByClinicId: async () => {
+          detailHelperWasCalled = true;
+          throw new Error(
+            "search dispatch must not call getPublicProfessionalByClinicId",
+          );
+        },
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search?q=%20Histo%20&locality=%20Cordoba%20&country=%20AR%20&limit=7&offset=3",
+      });
+
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.equal(response.statusCode, 200);
+      assert.equal(detailHelperWasCalled, false);
+      assert.deepEqual(receivedSearchInput, {
+        query: "Histo",
+        locality: "Cordoba",
+        country: "AR",
+        limit: 7,
+        offset: 3,
+      });
+
+      const body = JSON.parse(response.body);
+
+      assert.equal(body.success, true);
+      assert.equal(body.count, 1);
+      assert.equal(body.total, 1);
+      assert.deepEqual(body.filters, {
+        query: "Histo",
+        locality: "Cordoba",
+        country: "AR",
+      });
+      assert.deepEqual(body.pagination, {
+        limit: 7,
+        offset: 3,
+      });
+      assert.deepEqual(body.professionals[0], {
+        clinicId: 23,
+        displayName: "Clinica Publica Integrada",
+        avatarUrl: "signed:avatars/23.webp",
+        specialtyText: "Histopatologia",
+        servicesText: "Biopsias, citologias y seguimiento",
+        email: "publica@example.com",
+        phone: "3412222222",
+        locality: "Cordoba",
+        country: "AR",
+        aboutText: "Servicio publico de histopatologia veterinaria",
+        updatedAt: "2026-04-25T12:00:00.000Z",
+        relevance: {
+          rank: 0.8,
+          similarity: 0.7,
+          score: 1.6,
+        },
+        profileQualityScore: 0.97,
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "createFastifyApp mantiene detail de profesionales públicos montado en el router nativo",
+  async () => {
+    let receivedClinicId: number | null = null;
+    let searchHelperWasCalled = false;
+
+    const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
+      publicProfessionalsRoutes: {
+        searchPublicProfessionals: async () => {
+          searchHelperWasCalled = true;
+          throw new Error("detail dispatch must not call searchPublicProfessionals");
+        },
+        getPublicProfessionalByClinicId: async (clinicId: number) => {
+          receivedClinicId = clinicId;
+
+          return {
+            clinicId,
+            displayName: "Clinica Detail Integrada",
+            avatarStoragePath: null,
+            aboutText: "Detalle publico servido desde createFastifyApp",
+            specialtyText: "Histopatologia",
+            servicesText: "Diagnostico histopatologico",
+            email: "detail@example.com",
+            phone: "3413333333",
+            locality: "Rosario",
+            country: "AR",
+            updatedAt: new Date("2026-04-26T12:00:00.000Z"),
+            profileQualityScore: 0.91,
+          };
+        },
+        createSignedStorageUrl: async (path: string) => `signed:${path}`,
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/23",
+      });
+
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.equal(response.statusCode, 200);
+      assert.equal(searchHelperWasCalled, false);
+      assert.equal(receivedClinicId, 23);
+
+      assert.deepEqual(JSON.parse(response.body), {
+        success: true,
+        professional: {
+          clinicId: 23,
+          displayName: "Clinica Detail Integrada",
+          avatarUrl: null,
+          specialtyText: "Histopatologia",
+          servicesText: "Diagnostico histopatologico",
+          email: "detail@example.com",
+          phone: "3413333333",
+          locality: "Rosario",
+          country: "AR",
+          aboutText: "Detalle publico servido desde createFastifyApp",
+          updatedAt: "2026-04-26T12:00:00.000Z",
+          relevance: {
+            rank: 0,
+            similarity: 0,
+            score: 0,
+          },
+          profileQualityScore: 0.91,
+        },
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
