@@ -250,4 +250,145 @@ test(
     }
   },
 );
+test(
+  "publicProfessionalsNativeRoutes responde detail con payload estable y helper público",
+  async () => {
+    let requestedClinicId: number | null = null;
+    let signedPath: string | null = null;
 
+    const app = await createTestApp({
+      searchPublicProfessionals: async () => {
+        throw new Error("detail route must not call searchPublicProfessionals");
+      },
+      getPublicProfessionalByClinicId: async (clinicId: number) => {
+        requestedClinicId = clinicId;
+
+        return {
+          clinicId,
+          displayName: "Clinica Sur",
+          avatarStoragePath: "avatars/11.webp",
+          aboutText: "Histopatologia veterinaria avanzada",
+          specialtyText: "Histopatologia",
+          servicesText: "Biopsias y citologias",
+          email: "sur@example.com",
+          phone: "3411111111",
+          locality: "Rosario",
+          country: "AR",
+          updatedAt: new Date("2026-04-24T12:00:00.000Z"),
+          profileQualityScore: 0.95,
+        };
+      },
+      createSignedStorageUrl: async (path: string) => {
+        signedPath = path;
+        return `signed:${path}`;
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/11",
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(requestedClinicId, 11);
+      assert.equal(signedPath, "avatars/11.webp");
+
+      assert.deepEqual(JSON.parse(response.body), {
+        success: true,
+        professional: {
+          clinicId: 11,
+          displayName: "Clinica Sur",
+          avatarUrl: "signed:avatars/11.webp",
+          specialtyText: "Histopatologia",
+          servicesText: "Biopsias y citologias",
+          email: "sur@example.com",
+          phone: "3411111111",
+          locality: "Rosario",
+          country: "AR",
+          aboutText: "Histopatologia veterinaria avanzada",
+          updatedAt: "2026-04-24T12:00:00.000Z",
+          relevance: {
+            rank: 0,
+            similarity: 0,
+            score: 0,
+          },
+          profileQualityScore: 0.95,
+        },
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "publicProfessionalsNativeRoutes search normaliza filtros y no llama helper de detail",
+  async () => {
+    let receivedInput:
+      | {
+          query?: string;
+          locality?: string;
+          country?: string;
+          limit: number;
+          offset: number;
+        }
+      | null = null;
+
+    const app = await createTestApp({
+      searchPublicProfessionals: async (input: {
+        query?: string;
+        locality?: string;
+        country?: string;
+        limit: number;
+        offset: number;
+      }) => {
+        receivedInput = input;
+
+        return {
+          rows: [],
+          total: 0,
+          limit: input.limit,
+          offset: input.offset,
+        };
+      },
+      getPublicProfessionalByClinicId: async () => {
+        throw new Error("search route must not call getPublicProfessionalByClinicId");
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search?q=%20Histo%20&query=ignored&locality=%20Cordoba%20&country=%20AR%20&limit=999&offset=-10",
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(receivedInput, {
+        query: "Histo",
+        locality: "Cordoba",
+        country: "AR",
+        limit: 50,
+        offset: 0,
+      });
+
+      assert.deepEqual(JSON.parse(response.body), {
+        success: true,
+        count: 0,
+        total: 0,
+        professionals: [],
+        filters: {
+          query: "Histo",
+          locality: "Cordoba",
+          country: "AR",
+        },
+        pagination: {
+          limit: 50,
+          offset: 0,
+        },
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
