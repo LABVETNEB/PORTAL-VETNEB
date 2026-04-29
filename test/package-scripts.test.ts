@@ -17,7 +17,7 @@ const requiredScripts: Record<string, string> = {
   typecheck: "tsc --noEmit",
   "typecheck:test": "tsc -p ./test/tsconfig.json --noEmit",
   test: "node --experimental-strip-types --experimental-specifier-resolution=node --test test/**/*.test.ts",
-  build: "esbuild server/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js",
+  build: "esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/index.js",
   "validate:local": "pnpm typecheck && pnpm typecheck:test && pnpm test && pnpm build",
 };
 
