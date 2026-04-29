@@ -1,4 +1,4 @@
-﻿export type PublicProfessionalFixtureRow = {
+export type PublicProfessionalFixtureRow = {
   clinicId: number;
   displayName: string;
   avatarStoragePath: string | null;
@@ -34,10 +34,19 @@ export type PublicProfessionalsRouteFixtureStubs = {
   now: () => number;
 };
 
+function clonePublicProfessionalFixtureRow(
+  row: PublicProfessionalFixtureRow,
+): PublicProfessionalFixtureRow {
+  return {
+    ...row,
+    updatedAt: new Date(row.updatedAt.getTime()),
+  };
+}
+
 export function buildPublicProfessionalFixtureRow(
   overrides: Partial<PublicProfessionalFixtureRow> = {},
 ): PublicProfessionalFixtureRow {
-  return {
+  return clonePublicProfessionalFixtureRow({
     clinicId: 123,
     displayName: "Clinica Publica Fixture",
     avatarStoragePath: null,
@@ -54,7 +63,7 @@ export function buildPublicProfessionalFixtureRow(
     similarity: 0.3,
     score: 0.7,
     ...overrides,
-  };
+  });
 }
 
 export function buildPublicProfessionalsRouteFixtureStubs(
@@ -70,18 +79,30 @@ export function buildPublicProfessionalsRouteFixtureStubs(
     now?: () => number;
   } = {},
 ): PublicProfessionalsRouteFixtureStubs {
-  const row = options.row ?? buildPublicProfessionalFixtureRow();
-  const searchRows = options.searchRows ?? [row];
+  const detailRow = clonePublicProfessionalFixtureRow(
+    options.row ?? buildPublicProfessionalFixtureRow(),
+  );
+  const searchRows = (options.searchRows ?? [detailRow]).map((row) =>
+    clonePublicProfessionalFixtureRow(row),
+  );
 
   return {
-    searchPublicProfessionals: async () => ({
-      rows: searchRows,
-      total: searchRows.length,
-      limit: options.limit ?? 20,
-      offset: options.offset ?? 0,
-    }),
+    searchPublicProfessionals: async () => {
+      const rows = searchRows.map((row) =>
+        clonePublicProfessionalFixtureRow(row),
+      );
+
+      return {
+        rows,
+        total: rows.length,
+        limit: options.limit ?? 20,
+        offset: options.offset ?? 0,
+      };
+    },
     getPublicProfessionalByClinicId: async (clinicId: number) =>
-      clinicId === row.clinicId ? row : null,
+      clinicId === detailRow.clinicId
+        ? clonePublicProfessionalFixtureRow(detailRow)
+        : null,
     createSignedStorageUrl: async (path: string) => `signed:${path}`,
     searchRateLimitWindowMs: options.searchRateLimitWindowMs ?? 60_000,
     searchRateLimitMaxAttempts: options.searchRateLimitMaxAttempts ?? 1,
