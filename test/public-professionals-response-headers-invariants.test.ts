@@ -1,6 +1,9 @@
 ﻿import test from "node:test";
 import assert from "node:assert/strict";
 import Fastify from "fastify";
+import {
+  buildPublicProfessionalsRouteFixtureStubs,
+} from "./helpers/public-professionals-fixtures.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -14,45 +17,6 @@ const { publicProfessionalsNativeRoutes } = await import(
 );
 
 const allowedOrigin = "http://localhost:3000";
-
-function buildProfessionalRow() {
-  return {
-    clinicId: 123,
-    displayName: "Clinica Headers",
-    avatarStoragePath: null,
-    aboutText: "Perfil publico para headers",
-    specialtyText: "Histopatologia",
-    servicesText: "Biopsias",
-    email: "headers@example.com",
-    phone: "3411234567",
-    locality: "Rosario",
-    country: "AR",
-    updatedAt: new Date("2026-04-29T20:00:00.000Z"),
-    profileQualityScore: 0.9,
-    rank: 0.4,
-    similarity: 0.3,
-    score: 0.7,
-  };
-}
-
-function buildPublicProfessionalsRouteStubs() {
-  return {
-    searchPublicProfessionals: async () => ({
-      rows: [buildProfessionalRow()],
-      total: 1,
-      limit: 20,
-      offset: 0,
-    }),
-    getPublicProfessionalByClinicId: async (clinicId: number) =>
-      clinicId === 123 ? buildProfessionalRow() : null,
-    createSignedStorageUrl: async (path: string) => `signed:${path}`,
-    searchRateLimitWindowMs: 60_000,
-    searchRateLimitMaxAttempts: 1,
-    detailRateLimitWindowMs: 60_000,
-    detailRateLimitMaxAttempts: 1,
-    now: () => 10_000,
-  };
-}
 
 async function buildHeaderApp() {
   const app = Fastify({
@@ -69,7 +33,7 @@ async function buildHeaderApp() {
 
   await app.register(publicProfessionalsNativeRoutes, {
     prefix: "/api/public/professionals",
-    ...buildPublicProfessionalsRouteStubs(),
+    ...buildPublicProfessionalsRouteFixtureStubs(),
   });
 
   return app;
@@ -391,3 +355,4 @@ test("profesionales públicos no setea cookies en 429 ni aliases 404", async () 
     await app.close();
   }
 });
+

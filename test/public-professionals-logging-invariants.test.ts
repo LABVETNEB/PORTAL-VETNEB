@@ -1,6 +1,11 @@
 ﻿import test from "node:test";
 import assert from "node:assert/strict";
 import Fastify from "fastify";
+import {
+  buildPublicProfessionalFixtureRow,
+  buildPublicProfessionalsRouteFixtureStubs,
+  type PublicProfessionalsRouteFixtureStubs,
+} from "./helpers/public-professionals-fixtures.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -13,47 +18,8 @@ const { publicProfessionalsNativeRoutes } = await import(
   "../server/routes/public-professionals.fastify.ts"
 );
 
-function buildProfessionalRow() {
-  return {
-    clinicId: 130,
-    displayName: "Clinica Logging",
-    avatarStoragePath: null,
-    aboutText: "Perfil publico para logging",
-    specialtyText: "Histopatologia",
-    servicesText: "Biopsias",
-    email: "logging@example.com",
-    phone: "3411300130",
-    locality: "Rosario",
-    country: "AR",
-    updatedAt: new Date("2026-04-29T21:00:00.000Z"),
-    profileQualityScore: 0.91,
-    rank: 0.4,
-    similarity: 0.3,
-    score: 0.7,
-  };
-}
-
-function buildPublicProfessionalsRouteStubs() {
-  return {
-    searchPublicProfessionals: async () => ({
-      rows: [buildProfessionalRow()],
-      total: 1,
-      limit: 20,
-      offset: 0,
-    }),
-    getPublicProfessionalByClinicId: async (clinicId: number) =>
-      clinicId === 130 ? buildProfessionalRow() : null,
-    createSignedStorageUrl: async (path: string) => `signed:${path}`,
-    searchRateLimitWindowMs: 60_000,
-    searchRateLimitMaxAttempts: 1,
-    detailRateLimitWindowMs: 60_000,
-    detailRateLimitMaxAttempts: 1,
-    now: () => 10_000,
-  };
-}
-
 async function buildLoggingApp(
-  overrides: Partial<ReturnType<typeof buildPublicProfessionalsRouteStubs>> = {},
+  overrides: Partial<PublicProfessionalsRouteFixtureStubs> = {},
 ) {
   const app = Fastify({
     logger: false,
@@ -61,7 +27,17 @@ async function buildLoggingApp(
 
   await app.register(publicProfessionalsNativeRoutes, {
     prefix: "/api/public/professionals",
-    ...buildPublicProfessionalsRouteStubs(),
+    ...buildPublicProfessionalsRouteFixtureStubs({
+      row: buildPublicProfessionalFixtureRow({
+        clinicId: 130,
+        displayName: "Clinica Logging",
+        aboutText: "Perfil publico para logging",
+        email: "logging@example.com",
+        phone: "3411300130",
+        updatedAt: new Date("2026-04-29T21:00:00.000Z"),
+        profileQualityScore: 0.91,
+      }),
+    }),
     ...overrides,
   });
 
@@ -298,3 +274,4 @@ test("public professionals logging registra CORS bloqueado sin headers ni payloa
     await app.close();
   }
 });
+
