@@ -72,6 +72,13 @@ const FIXTURE_GUARDRAIL_REGISTRY: readonly FixtureGuardrailRegistryEntry[] = [
     protects: ["registry", "documentation", "coverage-map"],
   },
   {
+    path: "test/public-professionals-fixture-suite-completeness-invariants.test.ts",
+    slug: "suite-completeness",
+    intent:
+      "Verifica que la suite de guardrails de fixtures públicos cierre categorías, referencias y cobertura mínima esperada.",
+    protects: ["suite-completeness", "category-coverage", "cross-guardrails"],
+  },
+  {
     path: "test/public-professionals-fixtures-invariants.test.ts",
     slug: "base-fixtures",
     intent:
@@ -236,6 +243,7 @@ test("fixture registry cubre las categorías conocidas del bloque de fixtures", 
     "isolation",
     "naming-consistency",
     "registry",
+    "suite-completeness",
     "base-fixtures",
   ]);
 
