@@ -745,3 +745,226 @@ test(
     }
   },
 );
+test(
+  "publicProfessionalsNativeRoutes conserva contrato de errores 400 y 404 en detail",
+  async () => {
+    let detailCalls = 0;
+
+    const app = await createTestApp({
+      getPublicProfessionalByClinicId: async (clinicId: number) => {
+        detailCalls += 1;
+        assert.equal(clinicId, 44);
+        return null;
+      },
+    });
+
+    try {
+      const invalidIdResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/not-a-number",
+      });
+
+      assert.equal(invalidIdResponse.statusCode, 400);
+      assert.deepEqual(JSON.parse(invalidIdResponse.body), {
+        success: false,
+        error: "ID de clinica invalido",
+      });
+      assert.equal(detailCalls, 0);
+
+      const notFoundResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/44",
+      });
+
+      assert.equal(notFoundResponse.statusCode, 404);
+      assert.deepEqual(JSON.parse(notFoundResponse.body), {
+        success: false,
+        error: "Perfil publico no encontrado",
+      });
+      assert.equal(detailCalls, 1);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "publicProfessionalsNativeRoutes mantiene errores publicos sin campos internos",
+  async () => {
+    const assertPublicErrorBody = (
+      body: Record<string, unknown>,
+      expected: Record<string, unknown>,
+    ) => {
+      assert.deepEqual(body, expected);
+
+      for (const forbiddenKey of [
+        "message",
+        "stack",
+        "statusCode",
+        "code",
+        "details",
+        "cause",
+        "professional",
+        "professionals",
+        "filters",
+        "pagination",
+      ]) {
+        assert.equal(
+          Object.prototype.hasOwnProperty.call(body, forbiddenKey),
+          false,
+          `el error publico no debe exponer ${forbiddenKey}`,
+        );
+      }
+    };
+
+    const app = await createTestApp({
+      now: () => 5_000,
+      searchRateLimitWindowMs: 60_000,
+      searchRateLimitMaxAttempts: 1,
+      detailRateLimitWindowMs: 60_000,
+      detailRateLimitMaxAttempts: 1,
+      getPublicProfessionalByClinicId: async (clinicId: number) => ({
+        clinicId,
+        displayName: "Clinica Error Contract",
+        avatarStoragePath: null,
+        aboutText: "Perfil publico para contrato de errores",
+        specialtyText: "Histopatologia",
+        servicesText: "Diagnostico histopatologico",
+        email: "errors@example.com",
+        phone: "3419999999",
+        locality: "Rosario",
+        country: "AR",
+        updatedAt: new Date("2026-04-29T15:00:00.000Z"),
+        profileQualityScore: 0.91,
+      }),
+    });
+
+    try {
+      const corsBlocked = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        headers: {
+          origin: "https://evil.example.com",
+        },
+      });
+
+      const searchOk = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        remoteAddress: "198.51.100.124",
+      });
+
+      const searchLimited = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        remoteAddress: "198.51.100.124",
+      });
+
+      const detailOk = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/55",
+        remoteAddress: "198.51.100.125",
+      });
+
+      const detailLimited = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/55",
+        remoteAddress: "198.51.100.125",
+      });
+
+      assert.equal(corsBlocked.statusCode, 403);
+      assertPublicErrorBody(JSON.parse(corsBlocked.body), {
+        success: false,
+        error: "Origin no permitido",
+        path: "/api/public/professionals/search",
+      });
+
+      assert.equal(searchOk.statusCode, 200);
+      assert.equal(searchLimited.statusCode, 429);
+      assertPublicErrorBody(JSON.parse(searchLimited.body), {
+        success: false,
+        error: "Demasiadas consultas al directorio público. Intente más tarde.",
+      });
+
+      assert.equal(detailOk.statusCode, 200);
+      assert.equal(detailLimited.statusCode, 429);
+      assertPublicErrorBody(JSON.parse(detailLimited.body), {
+        success: false,
+        error: "Demasiadas consultas al perfil público. Intente más tarde.",
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "publicProfessionalsNativeRoutes no ejecuta helpers cuando la respuesta publica se corta por validacion o CORS",
+  async () => {
+    let searchCalls = 0;
+    let detailCalls = 0;
+
+    const app = await createTestApp({
+      searchPublicProfessionals: async () => {
+        searchCalls += 1;
+
+        return {
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        };
+      },
+      getPublicProfessionalByClinicId: async (clinicId: number) => {
+        detailCalls += 1;
+
+        return {
+          clinicId,
+          displayName: "Clinica Short Circuit",
+          avatarStoragePath: null,
+          aboutText: "No debe usarse en errores previos",
+          specialtyText: "Histopatologia",
+          servicesText: "Diagnostico histopatologico",
+          email: "short-circuit@example.com",
+          phone: "3411234567",
+          locality: "Rosario",
+          country: "AR",
+          updatedAt: new Date("2026-04-29T16:00:00.000Z"),
+          profileQualityScore: 0.87,
+        };
+      },
+    });
+
+    try {
+      const blockedSearch = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        headers: {
+          origin: "https://evil.example.com",
+        },
+      });
+
+      const blockedDetail = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/77",
+        headers: {
+          origin: "https://evil.example.com",
+        },
+      });
+
+      const invalidDetail = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/invalid",
+      });
+
+      assert.equal(blockedSearch.statusCode, 403);
+      assert.equal(blockedDetail.statusCode, 403);
+      assert.equal(invalidDetail.statusCode, 400);
+
+      assert.equal(searchCalls, 0);
+      assert.equal(detailCalls, 0);
+    } finally {
+      await app.close();
+    }
+  },
+);
