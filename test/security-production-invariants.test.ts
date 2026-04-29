@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -25,6 +25,11 @@ const authRouteFiles = [
   "server/routes/auth.fastify.ts",
   "server/routes/admin-auth.fastify.ts",
   "server/routes/particular-auth.fastify.ts",
+] as const;
+
+const clinicSessionCookieRouteFiles = [
+  "server/routes/auth.fastify.ts",
+  "server/routes/clinic-audit.fastify.ts",
 ] as const;
 
 test("ENV mantiene cookies de sesión separadas y política productiva segura", () => {
@@ -80,6 +85,23 @@ test("las rutas de auth serializan cookies HttpOnly, Path=/, SameSite y Secure c
     );
   }
 });
+test("rutas clinic-scoped que limpian sesión usan contrato central ENV", () => {
+  for (const file of clinicSessionCookieRouteFiles) {
+    const source = read(file);
+
+    assertContains(source, 'import { ENV } from "../lib/env.ts";', file);
+    assertContains(source, "function serializeCookie(input:", file);
+    assertContains(source, '"Path=/"', file);
+    assertContains(source, '"HttpOnly"', file);
+    assertContains(source, "`SameSite=${ENV.cookieSameSite}`", file);
+    assertContains(source, "if (ENV.cookieSecure)", file);
+    assertContains(source, 'parts.push("Secure");', file);
+    assertContains(source, 'expires: "Thu, 01 Jan 1970 00:00:00 GMT"', file);
+    assertNotContains(source, "process.env.COOKIE_NAME", file);
+    assertNotContains(source, "process.env.COOKIE_SAME_SITE", file);
+    assertNotContains(source, "process.env.COOKIE_SECURE", file);
+  }
+});
 
 test("cada dominio de sesión lee y escribe únicamente su cookie correspondiente", () => {
   const clinicAuth = read("server/routes/auth.fastify.ts");
@@ -94,6 +116,33 @@ test("cada dominio de sesión lee y escribe únicamente su cookie correspondient
     clinicAuth,
     "cookies[ENV.particularCookieName]",
     "auth.fastify.ts",
+  );
+
+  const clinicAudit = read("server/routes/clinic-audit.fastify.ts");
+  assertContains(
+    clinicAudit,
+    "cookies[ENV.cookieName]",
+    "clinic-audit.fastify.ts",
+  );
+  assertContains(
+    clinicAudit,
+    "name: ENV.cookieName",
+    "clinic-audit.fastify.ts",
+  );
+  assertNotContains(
+    clinicAudit,
+    "cookies[ENV.adminCookieName]",
+    "clinic-audit.fastify.ts",
+  );
+  assertNotContains(
+    clinicAudit,
+    "cookies[ENV.particularCookieName]",
+    "clinic-audit.fastify.ts",
+  );
+  assertNotContains(
+    clinicAudit,
+    '"vetneb_session"',
+    "clinic-audit.fastify.ts",
   );
 
   const adminAuth = read("server/routes/admin-auth.fastify.ts");
@@ -225,4 +274,3 @@ test("logs de request sanitizan tokens y accesos públicos antes de escribir con
     assertContains(source, "buildRequestLogLine({", file);
   }
 });
-
