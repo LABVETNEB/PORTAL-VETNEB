@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import Fastify from "fastify";
 
@@ -8,10 +8,9 @@ process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
-process.env.COOKIE_NAME ??= "vetneb_session";
-process.env.COOKIE_SAME_SITE ??= "Lax";
-process.env.COOKIE_SECURE ??= "false";
+process.env.COOKIE_NAME = "app_session_id";
 
+const { ENV } = await import("../server/lib/env.ts");
 const {
   clinicAuditNativeRoutes,
 } = await import("../server/routes/clinic-audit.fastify.ts");
@@ -141,7 +140,7 @@ test(
         method: "GET",
         url: "/api/clinic/audit-log?event=report.public_accessed&limit=25&offset=5",
         headers: {
-          cookie: "vetneb_session=session-token",
+          cookie: `${ENV.cookieName}=session-token`,
         },
       });
 
@@ -201,7 +200,7 @@ test(
         method: "GET",
         url: "/api/clinic/audit-log/export.csv",
         headers: {
-          cookie: "vetneb_session=session-token",
+          cookie: `${ENV.cookieName}=session-token`,
         },
       });
 
@@ -243,7 +242,7 @@ test(
         method: "GET",
         url: "/api/clinic/audit-log?event=bad",
         headers: {
-          cookie: "vetneb_session=session-token",
+          cookie: `${ENV.cookieName}=session-token`,
         },
       });
 
@@ -273,7 +272,7 @@ test(
         method: "GET",
         url: "/api/clinic/audit-log/export.csv",
         headers: {
-          cookie: "vetneb_session=session-token",
+          cookie: `${ENV.cookieName}=session-token`,
         },
       });
 
@@ -288,4 +287,91 @@ test(
     }
   },
 );
+test(
+  "clinicAuditNativeRoutes usa ENV.cookieName y rechaza cookie legacy vetneb_session",
+  async () => {
+    const hashCalls: string[] = [];
+    const app = await createTestApp({
+      hashSessionToken: (token: string) => {
+        hashCalls.push(token);
+        return `hash:${token}`;
+      },
+    });
 
+    try {
+      const legacyResponse = await app.inject({
+        method: "GET",
+        url: "/api/clinic/audit-log",
+        headers: {
+          cookie: "vetneb_session=session-token",
+        },
+      });
+
+      assert.equal(legacyResponse.statusCode, 401);
+      assert.deepEqual(JSON.parse(legacyResponse.body), {
+        success: false,
+        error: "No autenticado",
+      });
+      assert.deepEqual(hashCalls, []);
+
+      const envCookieResponse = await app.inject({
+        method: "GET",
+        url: "/api/clinic/audit-log",
+        headers: {
+          cookie: `${ENV.cookieName}=session-token`,
+        },
+      });
+
+      assert.equal(envCookieResponse.statusCode, 200);
+      assert.deepEqual(hashCalls, ["session-token"]);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicAuditNativeRoutes limpia cookie de sesión con contrato ENV cuando expira",
+  async () => {
+    const deletedSessions: string[] = [];
+    const app = await createTestApp({
+      getActiveSessionByToken: async () => ({
+        clinicUserId: 9,
+        expiresAt: new Date("2026-04-01T00:00:00.000Z"),
+        lastAccess: new Date("2026-03-31T00:00:00.000Z"),
+      }),
+      deleteActiveSession: async (tokenHash: string) => {
+        deletedSessions.push(tokenHash);
+      },
+      now: () => new Date("2026-04-29T00:00:00.000Z").getTime(),
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/clinic/audit-log",
+        headers: {
+          cookie: `${ENV.cookieName}=session-token`,
+        },
+      });
+
+      assert.equal(response.statusCode, 401);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: "Sesión expirada",
+      });
+      assert.deepEqual(deletedSessions, ["hash:session-token"]);
+
+      const setCookie = String(response.headers["set-cookie"] ?? "");
+      assert.ok(setCookie.startsWith("app_session_id=;"));
+      assert.match(setCookie, /Path=\//);
+      assert.match(setCookie, /HttpOnly/);
+      assert.match(setCookie, /SameSite=lax/);
+      assert.match(setCookie, /Max-Age=0/);
+      assert.match(setCookie, /Expires=Thu, 01 Jan 1970 00:00:00 GMT/);
+      assert.equal(setCookie.includes("vetneb_session"), false);
+    } finally {
+      await app.close();
+    }
+  },
+);

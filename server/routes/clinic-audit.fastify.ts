@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   FastifyPluginAsync,
   FastifyReply,
   FastifyRequest,
@@ -10,6 +10,7 @@ import {
   type AdminAuditListFilters,
   type AuditLogListItem,
 } from "../lib/admin-audit.ts";
+import { ENV } from "../lib/env.ts";
 import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
@@ -163,8 +164,7 @@ function getSessionToken(request: FastifyRequest) {
       : undefined;
 
   const cookies = parseCookies(cookieHeader);
-  const envCookieName = process.env.COOKIE_NAME?.trim() || "vetneb_session";
-  const raw = cookies[envCookieName];
+  const raw = cookies[ENV.cookieName];
 
   if (typeof raw !== "string") {
     return undefined;
@@ -180,18 +180,14 @@ function serializeCookie(input: {
   maxAgeSeconds?: number;
   expires?: string;
 }) {
-  const sameSite = process.env.COOKIE_SAME_SITE?.trim() || "Lax";
-  const secure =
-    (process.env.COOKIE_SECURE?.trim() || "").toLowerCase() === "true";
-
   const parts = [
     `${input.name}=${encodeURIComponent(input.value)}`,
     "Path=/",
     "HttpOnly",
-    `SameSite=${sameSite}`,
+    `SameSite=${ENV.cookieSameSite}`,
   ];
 
-  if (secure) {
+  if (ENV.cookieSecure) {
     parts.push("Secure");
   }
 
@@ -207,10 +203,8 @@ function serializeCookie(input: {
 }
 
 function buildClearSessionCookie() {
-  const envCookieName = process.env.COOKIE_NAME?.trim() || "vetneb_session";
-
   return serializeCookie({
-    name: envCookieName,
+    name: ENV.cookieName,
     value: "",
     maxAgeSeconds: 0,
     expires: "Thu, 01 Jan 1970 00:00:00 GMT",
