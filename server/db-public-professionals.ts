@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db, pgClient } from "./db";
 import {
@@ -13,6 +13,27 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 export const MIN_PUBLIC_PROFILE_QUALITY_SCORE = 75;
 
+const RECENT_HISTOPATHOLOGY_REPORTS_SQL = `EXISTS (
+  SELECT 1
+  FROM reports recent_histopathology_reports
+  WHERE recent_histopathology_reports.clinic_id = clinic_public_search.clinic_id
+    AND immutable_unaccent(COALESCE(recent_histopathology_reports.study_type, '')) ILIKE '%histopat%'
+    AND COALESCE(
+      recent_histopathology_reports.upload_date,
+      recent_histopathology_reports.created_at
+    ) >= NOW() - INTERVAL '3 months'
+)`;
+
+const RECENT_HISTOPATHOLOGY_REPORT_DRIZZLE_SQL = sql`EXISTS (
+  SELECT 1
+  FROM reports recent_histopathology_reports
+  WHERE recent_histopathology_reports.clinic_id = clinic_public_search.clinic_id
+    AND immutable_unaccent(COALESCE(recent_histopathology_reports.study_type, '')) ILIKE '%histopat%'
+    AND COALESCE(
+      recent_histopathology_reports.upload_date,
+      recent_histopathology_reports.created_at
+    ) >= NOW() - INTERVAL '3 months'
+)`;
 export type UpsertClinicPublicProfileInput = {
   displayName?: string | null;
   avatarStoragePath?: string | null;
@@ -467,6 +488,7 @@ export async function getPublicProfessionalByClinicId(clinicId: number) {
         eq(clinicPublicSearch.clinicId, clinicId),
         eq(clinicPublicSearch.isPublic, true),
         eq(clinicPublicSearch.isSearchEligible, true),
+        RECENT_HISTOPATHOLOGY_REPORT_DRIZZLE_SQL,
       ),
     )
     .limit(1);
@@ -511,7 +533,11 @@ export async function searchPublicProfessionals(
   const offset = normalizeOffset(params.offset);
 
   const values: Array<string | number> = [];
-  const conditions = ["is_public = true", "is_search_eligible = true"];
+  const conditions = [
+    "is_public = true",
+    "is_search_eligible = true",
+    RECENT_HISTOPATHOLOGY_REPORTS_SQL,
+  ];
 
   let queryIndex: number | null = null;
   let localityIndex: number | null = null;
