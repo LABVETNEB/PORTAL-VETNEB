@@ -637,3 +637,74 @@ test("reportsNativeRoutes bloquea GET / sin sesión", async () => {
     await app.close();
   }
 });
+test("reportsNativeRoutes responde preflight OPTIONS permitido sin autenticar", async () => {
+  const app = await createTestApp({
+    getActiveSessionByToken: async () => {
+      throw new Error("preflight OPTIONS no debe autenticar sesión clinic");
+    },
+  });
+
+  try {
+    for (const url of [
+      "/api/reports",
+      "/api/reports/upload",
+      "/api/reports/search",
+      "/api/reports/study-types",
+      "/api/reports/55/history",
+      "/api/reports/55/preview-url",
+      "/api/reports/55/download-url",
+    ]) {
+      const response = await app.inject({
+        method: "OPTIONS",
+        url,
+        headers: {
+          origin: "http://localhost:3000",
+          "access-control-request-headers": "content-type,x-requested-with",
+        },
+      });
+
+      assert.equal(response.statusCode, 204);
+      assert.equal(response.body, "");
+      assert.equal(
+        response.headers["access-control-allow-origin"],
+        "http://localhost:3000",
+      );
+      assert.equal(response.headers["access-control-allow-credentials"], "true");
+      assert.equal(
+        response.headers["access-control-allow-methods"],
+        "GET,POST,OPTIONS",
+      );
+      assert.equal(
+        response.headers["access-control-allow-headers"],
+        "content-type,x-requested-with",
+      );
+      assert.equal(response.headers["set-cookie"], undefined);
+    }
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes bloquea preflight OPTIONS con origin no permitido", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/reports/upload",
+      headers: {
+        origin: "https://evil.example",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.headers["access-control-allow-origin"], undefined);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Origen no permitido",
+    });
+  } finally {
+    await app.close();
+  }
+});
