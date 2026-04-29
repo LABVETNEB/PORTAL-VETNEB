@@ -562,3 +562,186 @@ test(
     }
   },
 );
+test(
+  "publicProfessionalsNativeRoutes aplica CORS permitido de forma consistente en search y detail",
+  async () => {
+    const app = await createTestApp({
+      getPublicProfessionalByClinicId: async (clinicId: number) => ({
+        clinicId,
+        displayName: "Clinica CORS",
+        avatarStoragePath: null,
+        aboutText: "Perfil publico para CORS",
+        specialtyText: "Histopatologia",
+        servicesText: "Diagnostico histopatologico",
+        email: "cors@example.com",
+        phone: "3416666666",
+        locality: "Rosario",
+        country: "AR",
+        updatedAt: new Date("2026-04-29T12:00:00.000Z"),
+        profileQualityScore: 0.93,
+      }),
+    });
+
+    try {
+      const searchResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        headers: {
+          origin: "http://localhost:3000",
+        },
+      });
+
+      const detailResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/31",
+        headers: {
+          origin: "http://localhost:3000",
+        },
+      });
+
+      for (const response of [searchResponse, detailResponse]) {
+        assert.equal(response.statusCode, 200);
+        assert.equal(
+          response.headers["access-control-allow-origin"],
+          "http://localhost:3000",
+        );
+        assert.equal(response.headers["access-control-allow-credentials"], "true");
+        assert.equal(response.headers.vary, "Origin");
+        assert.equal(
+          response.headers["access-control-expose-headers"],
+          "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset",
+        );
+        assert.notEqual(response.headers["ratelimit-policy"], undefined);
+        assert.notEqual(response.headers["ratelimit-limit"], undefined);
+        assert.notEqual(response.headers["ratelimit-remaining"], undefined);
+        assert.notEqual(response.headers["ratelimit-reset"], undefined);
+      }
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "publicProfessionalsNativeRoutes bloquea origin no permitido en search y detail sin headers permisivos",
+  async () => {
+    let searchCalls = 0;
+    let detailCalls = 0;
+
+    const app = await createTestApp({
+      searchPublicProfessionals: async () => {
+        searchCalls += 1;
+
+        return {
+          rows: [],
+          total: 0,
+          limit: 20,
+          offset: 0,
+        };
+      },
+      getPublicProfessionalByClinicId: async (clinicId: number) => {
+        detailCalls += 1;
+
+        return {
+          clinicId,
+          displayName: "Clinica Bloqueada",
+          avatarStoragePath: null,
+          aboutText: "No debe ejecutarse con origin bloqueado",
+          specialtyText: "Histopatologia",
+          servicesText: "Diagnostico histopatologico",
+          email: "blocked@example.com",
+          phone: "3417777777",
+          locality: "Cordoba",
+          country: "AR",
+          updatedAt: new Date("2026-04-29T13:00:00.000Z"),
+          profileQualityScore: 0.9,
+        };
+      },
+    });
+
+    try {
+      const searchResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+        headers: {
+          origin: "https://evil.example.com",
+        },
+      });
+
+      const detailResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/31",
+        headers: {
+          origin: "https://evil.example.com",
+        },
+      });
+
+      assert.equal(searchCalls, 0);
+      assert.equal(detailCalls, 0);
+
+      assert.equal(searchResponse.statusCode, 403);
+      assert.equal(detailResponse.statusCode, 403);
+
+      for (const response of [searchResponse, detailResponse]) {
+        assert.equal(response.headers["access-control-allow-origin"], undefined);
+        assert.equal(response.headers["access-control-allow-credentials"], undefined);
+        assert.equal(response.headers["access-control-expose-headers"], undefined);
+        assert.equal(response.headers["ratelimit-policy"], undefined);
+        assert.deepEqual(JSON.parse(response.body), {
+          success: false,
+          error: "Origin no permitido",
+          path:
+            response === searchResponse
+              ? "/api/public/professionals/search"
+              : "/api/public/professionals/31",
+        });
+      }
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "publicProfessionalsNativeRoutes permite requests sin Origin sin headers CORS permisivos",
+  async () => {
+    const app = await createTestApp({
+      getPublicProfessionalByClinicId: async (clinicId: number) => ({
+        clinicId,
+        displayName: "Clinica Sin Origin",
+        avatarStoragePath: null,
+        aboutText: "Request server-to-server sin Origin",
+        specialtyText: "Histopatologia",
+        servicesText: "Diagnostico histopatologico",
+        email: "no-origin@example.com",
+        phone: "3418888888",
+        locality: "Rosario",
+        country: "AR",
+        updatedAt: new Date("2026-04-29T14:00:00.000Z"),
+        profileQualityScore: 0.89,
+      }),
+    });
+
+    try {
+      const searchResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+      });
+
+      const detailResponse = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/31",
+      });
+
+      for (const response of [searchResponse, detailResponse]) {
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.headers["access-control-allow-origin"], undefined);
+        assert.equal(response.headers["access-control-allow-credentials"], undefined);
+        assert.equal(response.headers["access-control-expose-headers"], undefined);
+        assert.notEqual(response.headers["ratelimit-policy"], undefined);
+      }
+    } finally {
+      await app.close();
+    }
+  },
+);
