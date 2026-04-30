@@ -217,6 +217,53 @@ test(
   },
 );
 
+
+test(
+  "publicReportAccessNativeRoutes devuelve 410 cuando el token expiró",
+  async () => {
+    const rawToken = "e".repeat(64);
+    const report = createReportFixture();
+    const token = createReportAccessTokenFixture({
+      expiresAt: new Date("2026-04-23T00:00:00.000Z"),
+    });
+
+    const app = await createTestApp({
+      now: () => Date.UTC(2026, 3, 24, 0, 0, 0),
+      getReportAccessTokenWithReportByTokenHash: async (tokenHash: string) => {
+        assert.equal(tokenHash, `hash:${rawToken}`);
+        return { token, report };
+      },
+      recordReportAccessTokenAccess: async () => {
+        throw new Error("un token expirado no debe registrar acceso");
+      },
+      createSignedReportUrl: async () => {
+        throw new Error("un token expirado no debe firmar previewUrl");
+      },
+      createSignedReportDownloadUrl: async () => {
+        throw new Error("un token expirado no debe firmar downloadUrl");
+      },
+      writeAuditLog: async () => {
+        throw new Error("un token expirado no debe escribir auditoría de acceso");
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/public/report-access/${rawToken}`,
+      });
+
+      assert.equal(response.statusCode, 410);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: "El token público de informe expiró",
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
 test(
   "publicReportAccessNativeRoutes devuelve 409 cuando el informe no está disponible públicamente",
   async () => {
