@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -60,6 +60,54 @@ test("reports expone POST /upload nativo con permiso de upload, no management", 
   );
 });
 
+test("reports upload usa permisos persistentes derivados de role y no allowlist ENV legacy", () => {
+  const nativeSource = readRouteSource("server/routes/reports.fastify.ts");
+  const permissionsSource = readRouteSource("server/lib/permissions.ts");
+
+  const uploadRouteStart = nativeSource.indexOf('app.post("/upload"');
+  const uploadRouteEnd = nativeSource.indexOf('app.get<{', uploadRouteStart);
+
+  assert.notEqual(uploadRouteStart, -1, "POST /upload debe existir");
+  assert.notEqual(uploadRouteEnd, -1, "Debe existir una ruta posterior a POST /upload");
+
+  const uploadRouteBlock = nativeSource.slice(uploadRouteStart, uploadRouteEnd);
+
+  assert.match(
+    nativeSource,
+    /const role = normalizeClinicUserRole\(clinicUser\.role, "clinic_staff"\);[\s\S]*const permissions = getClinicPermissions\(role\);[\s\S]*canUploadReports: permissions\.canUploadReports/s,
+    "La autenticacion de reports debe derivar canUploadReports desde el role persistente",
+  );
+
+  assert.match(
+    permissionsSource,
+    /export function getClinicPermissions\(role: ClinicUserRole\): ClinicPermissions/,
+    "Debe existir un resolver central de permisos por role persistente",
+  );
+
+  assert.match(
+    permissionsSource,
+    /case "clinic_owner":[\s\S]*canUploadReports: true,[\s\S]*canManageClinicUsers: true,/s,
+    "clinic_owner debe conservar permiso de upload y management",
+  );
+
+  assert.match(
+    permissionsSource,
+    /case "clinic_staff":[\s\S]*canUploadReports: true,[\s\S]*canManageClinicUsers: false,/s,
+    "clinic_staff debe conservar permiso de upload sin management",
+  );
+
+  assert.match(
+    uploadRouteBlock,
+    /if \(!auth\.canUploadReports\)/,
+    "POST /upload debe depender de auth.canUploadReports",
+  );
+
+  assert.doesNotMatch(
+    uploadRouteBlock,
+    /LAB_UPLOAD_USERNAMES|labUploadUsernames|ENV\.labUploadUsernames/,
+    "POST /upload no debe depender de allowlists ENV legacy para autorizar uploads",
+  );
+});
 test("report-access-tokens protege mutaciones nativas con management permission", () => {
   const source = readRouteSource("server/routes/report-access-tokens.fastify.ts");
 
