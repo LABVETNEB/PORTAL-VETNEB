@@ -36,6 +36,29 @@ test("sanitizeUrlForLogs redacts path y query params sensibles de forma case-ins
   );
 });
 
+test("sanitizeUrlForLogs redacts public report path token and sensitive query tokens together", () => {
+  const rawPathToken = "a".repeat(64);
+  const rawQueryToken = "query-secret-token";
+  const rawReportAccessToken = "query-report-access-secret";
+
+  const sanitized = sanitizeUrlForLogs(
+    "/api/public/report-access/" +
+      rawPathToken +
+      "?token=" +
+      rawQueryToken +
+      "&reportAccessToken=" +
+      rawReportAccessToken +
+      "&safe=1",
+  );
+
+  assert.equal(
+    sanitized,
+    "/api/public/report-access/[REDACTED]?token=[REDACTED]&reportAccessToken=[REDACTED]&safe=1",
+  );
+  assert.doesNotMatch(sanitized, new RegExp(rawPathToken));
+  assert.doesNotMatch(sanitized, new RegExp(rawQueryToken));
+  assert.doesNotMatch(sanitized, new RegExp(rawReportAccessToken));
+});
 test("sanitizeUrlForLogs preserva fragments mientras redacts token query params", () => {
   const rawUrl = "/api/anything?token=abc123#section-2";
   const sanitized = sanitizeUrlForLogs(rawUrl);
