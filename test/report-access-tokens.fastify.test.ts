@@ -551,6 +551,95 @@ test(
     }
   },
 );
+
+test(
+  "reportAccessTokensNativeRoutes oculta detalle de token ajeno con 404",
+  async () => {
+    let getReportCalled = false;
+
+    const app = await createTestApp({
+      getClinicScopedReportAccessToken: async (
+        tokenId: number,
+        clinicId: number,
+      ) => {
+        assert.equal(tokenId, 9);
+        assert.equal(clinicId, 3);
+        return null;
+      },
+      getReportById: async () => {
+        getReportCalled = true;
+        return createReportFixture();
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/report-access-tokens/9",
+        headers: {
+          cookie: ENV.cookieName + "=session-token",
+        },
+      });
+
+      assert.equal(response.statusCode, 404);
+      assert.equal(getReportCalled, false);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: "Token público de informe no encontrado",
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "reportAccessTokensNativeRoutes oculta revocacion de token ajeno antes de mutar",
+  async () => {
+    let revokeCalled = false;
+    let auditCalled = false;
+
+    const app = await createTestApp({
+      getClinicScopedReportAccessToken: async (
+        tokenId: number,
+        clinicId: number,
+      ) => {
+        assert.equal(tokenId, 9);
+        assert.equal(clinicId, 3);
+        return null;
+      },
+      revokeReportAccessToken: async () => {
+        revokeCalled = true;
+        return null;
+      },
+      writeAuditLog: async () => {
+        auditCalled = true;
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/report-access-tokens/9/revoke",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: ENV.cookieName + "=session-token",
+        },
+      });
+
+      assert.equal(response.statusCode, 404);
+      assert.equal(revokeCalled, false);
+      assert.equal(auditCalled, false);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: "Token público de informe no encontrado",
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
 test("reportAccessTokensNativeRoutes responde preflight OPTIONS permitido sin autenticar", async () => {
   const app = await createTestApp({
     getActiveSessionByToken: async () => {
