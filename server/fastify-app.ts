@@ -21,6 +21,10 @@ import {
   type AdminReportAccessTokensNativeRoutesOptions,
 } from "./routes/admin-report-access-tokens.fastify.ts";
 import {
+  adminReportsNativeRoutes,
+  type AdminReportsNativeRoutesOptions,
+} from "./routes/admin-reports.fastify.ts";
+import {
   adminStudyTrackingNativeRoutes,
   type AdminStudyTrackingNativeRoutesOptions,
 } from "./routes/admin-study-tracking.fastify.ts";
@@ -142,6 +146,7 @@ export type CreateFastifyAppOptions = {
   adminAuditRoutes?: AdminAuditNativeRoutesOptions;
   adminAuthRoutes?: AdminAuthNativeRoutesOptions;
   adminParticularTokensRoutes?: AdminParticularTokensNativeRoutesOptions;
+  adminReportsRoutes?: AdminReportsNativeRoutesOptions;
   adminReportAccessTokensRoutes?: AdminReportAccessTokensNativeRoutesOptions;
   adminStudyTrackingRoutes?: AdminStudyTrackingNativeRoutesOptions;
   clinicAuthRoutes?: AuthNativeRoutesOptions;
@@ -248,6 +253,11 @@ export async function createFastifyApp(
   await app.register(adminParticularTokensNativeRoutes, {
     prefix: "/api/admin/particular/tokens",
     ...(options.adminParticularTokensRoutes ?? {}),
+  });
+
+  await app.register(adminReportsNativeRoutes, {
+    prefix: "/api/admin/reports",
+    ...(options.adminReportsRoutes ?? {}),
   });
 
   await app.register(adminReportAccessTokensNativeRoutes, {
