@@ -7,6 +7,7 @@ import multer from "multer";
 
 import type { Report } from "../../drizzle/schema";
 import type { Multer } from "multer";
+import { AUDIT_EVENTS } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import { ALLOWED_MIME_TYPES } from "../lib/supabase.ts";
 import {
@@ -68,6 +69,17 @@ type AuthenticatedAdminUser = {
   sessionToken: string;
 };
 
+type AuditWriteInput = {
+  event: string;
+  clinicId?: number | null;
+  reportId?: number | null;
+  metadata?: Record<string, unknown>;
+  actor?: {
+    type: string;
+    adminUserId?: number | null;
+  };
+};
+
 export type AdminReportsNativeRoutesOptions = {
   deleteAdminSession?: (tokenHash: string) => Promise<void>;
   getAdminSessionByToken?: (
@@ -84,6 +96,7 @@ export type AdminReportsNativeRoutesOptions = {
     storagePath: string,
     fileName?: string,
   ) => Promise<string>;
+  writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
   now?: () => number;
 };
 
@@ -129,6 +142,7 @@ type NativeAdminReportsDeps = Required<
     | "upsertReport"
     | "createSignedReportUrl"
     | "createSignedReportDownloadUrl"
+    | "writeAuditLog"
   >
 >;
 
@@ -140,6 +154,7 @@ async function loadDefaultDeps(): Promise<NativeAdminReportsDeps> {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const storage = await import("../lib/supabase.ts");
+      const audit = await import("../lib/audit.ts");
 
       return {
         deleteAdminSession: db.deleteAdminSession,
@@ -152,6 +167,10 @@ async function loadDefaultDeps(): Promise<NativeAdminReportsDeps> {
         upsertReport: db.upsertReport,
         createSignedReportUrl: storage.createSignedReportUrl,
         createSignedReportDownloadUrl: storage.createSignedReportDownloadUrl,
+        writeAuditLog: audit.writeAuditLog as (
+          req: unknown,
+          input: AuditWriteInput,
+        ) => Promise<void>,
       };
     })();
   }
@@ -170,7 +189,8 @@ function hasAllInjectedDeps(options: AdminReportsNativeRoutesOptions) {
     !!options.uploadReport &&
     !!options.upsertReport &&
     !!options.createSignedReportUrl &&
-    !!options.createSignedReportDownloadUrl
+    !!options.createSignedReportDownloadUrl &&
+    !!options.writeAuditLog
   );
 }
 
@@ -199,6 +219,7 @@ async function resolveDeps(
     createSignedReportDownloadUrl:
       options.createSignedReportDownloadUrl ??
       defaultDeps!.createSignedReportDownloadUrl,
+    writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
   };
 }
 
@@ -505,6 +526,22 @@ function getMultipartBody(request: FastifyRequest) {
   return body;
 }
 
+function createAuditRequestLike(
+  request: FastifyRequest,
+  admin: Pick<AuthenticatedAdminUser, "id" | "username">,
+) {
+  return {
+    method: request.method,
+    originalUrl: request.url,
+    ip: request.ip,
+    headers: request.headers,
+    adminAuth: {
+      id: admin.id,
+      username: admin.username,
+    },
+  };
+}
+
 async function serializeReport(report: Report, deps: NativeAdminReportsDeps) {
   const [previewUrl, downloadUrl] = await Promise.all([
     deps.createSignedReportUrl(report.storagePath),
@@ -659,6 +696,21 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       fileName: file.originalname,
       storagePath,
       createdByAdminUserId: admin.id,
+    });
+
+    await deps.writeAuditLog(createAuditRequestLike(request, admin), {
+      event: AUDIT_EVENTS.REPORT_UPLOADED,
+      clinicId: report.clinicId,
+      reportId: report.id,
+      metadata: {
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        storagePath,
+        patientName: patientName ?? null,
+        studyType: studyType ?? null,
+        uploadDate: uploadDate ?? null,
+        uploadedVia: "admin",
+      },
     });
 
     return reply.code(201).send({

@@ -33,6 +33,7 @@ export const AUDIT_EVENTS = [
   "auth.admin.login.succeeded",
   "auth.clinic.login.succeeded",
   "report.status.changed",
+  "report.uploaded",
   "report_access_token.created",
   "report_access_token.revoked",
   "report.public_accessed",

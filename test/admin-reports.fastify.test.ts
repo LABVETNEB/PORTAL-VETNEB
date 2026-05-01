@@ -64,6 +64,7 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
       storagePath: string,
       fileName?: string,
     ) => `signed-download:${storagePath}:${fileName ?? ""}`,
+    writeAuditLog: async () => {},
     ...overrides,
   });
 
@@ -107,6 +108,7 @@ test("adminReportsNativeRoutes crea POST /upload con clinicId explicito y metada
   const uploadCalls: Array<Record<string, unknown>> = [];
   const upsertCalls: Array<Record<string, unknown>> = [];
   const clinicCalls: number[] = [];
+  const auditCalls: Array<Record<string, unknown>> = [];
 
   const app = await createTestApp({
     getClinicById: async (clinicId: number) => {
@@ -138,6 +140,9 @@ test("adminReportsNativeRoutes crea POST /upload con clinicId explicito y metada
         fileName: input.fileName,
         storagePath: input.storagePath,
       });
+    },
+    writeAuditLog: async (req: unknown, input: Record<string, unknown>) => {
+      auditCalls.push({ req, input });
     },
   });
 
@@ -184,6 +189,63 @@ test("adminReportsNativeRoutes crea POST /upload con clinicId explicito y metada
       },
     );
 
+    assert.equal(auditCalls.length, 1);
+    assert.deepEqual(
+      auditCalls.map((call) => {
+        const input = call.input as Record<string, unknown>;
+        const metadata = input.metadata as Record<string, unknown> | undefined;
+
+        return {
+          req: call.req,
+          input: {
+            ...input,
+            metadata: {
+            ...(metadata ?? {}),
+            uploadDate:
+              metadata?.uploadDate instanceof Date
+                ? metadata.uploadDate.toISOString()
+                : metadata?.uploadDate,
+          },
+        },
+      };
+      }),
+      [
+        {
+          req: {
+            method: "POST",
+            originalUrl: "/api/admin/reports/upload",
+            ip: "127.0.0.1",
+            headers: {
+              origin: "http://localhost:3000",
+              cookie: `${ENV.adminCookieName}=admin-session-token`,
+              "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+              "user-agent": "lightMyRequest",
+              host: "localhost:80",
+              "content-length": String(multipart.payload.length),
+            },
+            adminAuth: {
+              id: 1,
+              username: "ADMIN",
+            },
+          },
+          input: {
+            event: "report.uploaded",
+            clinicId: 3,
+            reportId: 88,
+            metadata: {
+              fileName: "luna-report.pdf",
+              mimeType: "application/pdf",
+              storagePath: "reports/3/luna-report.pdf",
+              patientName: "Luna",
+              studyType: "Histopatologia",
+              uploadDate: "2026-04-22T09:00:00.000Z",
+              uploadedVia: "admin",
+            },
+          },
+        },
+      ],
+    );
+
     const body = JSON.parse(response.body);
     assert.equal(body.success, true);
     assert.equal(body.message, "Informe subido correctamente");
@@ -210,6 +272,9 @@ test("adminReportsNativeRoutes bloquea POST /upload con origin no permitido ante
     },
     uploadReport: async () => {
       throw new Error("origin no permitido no debe subir archivo");
+    },
+    writeAuditLog: async () => {
+      throw new Error("origin no permitido no debe auditar upload");
     },
     upsertReport: async () => {
       throw new Error("origin no permitido no debe persistir informe");
@@ -248,6 +313,9 @@ test("adminReportsNativeRoutes bloquea POST /upload sin sesion admin antes de st
       uploadCalls += 1;
       return "reports/3/luna-report.pdf";
     },
+    writeAuditLog: async () => {
+      throw new Error("sin sesion admin no debe auditar upload");
+    },
   });
 
   try {
@@ -285,6 +353,9 @@ test("adminReportsNativeRoutes requiere clinicId valido antes de storage", async
     upsertReport: async () => {
       upsertCalls += 1;
       return createReportFixture();
+    },
+    writeAuditLog: async () => {
+      throw new Error("clinicId invalido no debe auditar upload");
     },
   });
 

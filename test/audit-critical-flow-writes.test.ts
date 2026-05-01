@@ -267,10 +267,35 @@ test("rutas críticas auditadas mantienen writeAuditLog inyectable y default rea
   }
 });
 
-test("admin report upload aún no declara evento auditado dedicado", () => {
+test("admin report upload audita creación exitosa de informe por admin", () => {
   const source = readSource("server/routes/admin-reports.fastify.ts");
 
-  assert.match(source, /createdByAdminUserId: admin\.id/);
-  assert.doesNotMatch(source, /AUDIT_EVENTS/);
-  assert.doesNotMatch(source, /writeAuditLog/);
+  assertContainsAll(
+    source,
+    [
+      "writeAuditLog?:",
+      "writeAuditLog: audit.writeAuditLog",
+      "createdByAdminUserId: admin.id",
+      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
+      "event: AUDIT_EVENTS.REPORT_UPLOADED",
+      "clinicId: report.clinicId",
+      "reportId: report.id",
+      "fileName: file.originalname",
+      "mimeType: file.mimetype",
+      "storagePath,",
+      "uploadedVia: \"admin\"",
+    ],
+    "admin report upload audit payload",
+  );
+
+  assertContainsInOrder(
+    source,
+    [
+      "const storagePath = await deps.uploadReport({",
+      "const report = await deps.upsertReport({",
+      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
+      "return reply.code(201).send({",
+    ],
+    "admin report upload audit order",
+  );
 });
