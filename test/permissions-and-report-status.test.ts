@@ -28,12 +28,12 @@ test("normalizeClinicUserRole normaliza strings y aplica fallback", () => {
 
 test("getClinicPermissions devuelve permisos consistentes por rol", () => {
   assert.deepEqual(getClinicPermissions("clinic_owner"), {
-    canUploadReports: true,
+    canUploadReports: false,
     canManageClinicUsers: true,
   });
 
   assert.deepEqual(getClinicPermissions("clinic_staff"), {
-    canUploadReports: true,
+    canUploadReports: false,
     canManageClinicUsers: false,
   });
 });

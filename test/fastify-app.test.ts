@@ -560,7 +560,7 @@ test(
         ...buildAdminAuditRouteStubs(),
         getAdminSessionByToken: async () => ({
           adminUserId: 1,
-          expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
           lastAccess: new Date("2026-04-23T00:00:00.000Z"),
         }),
         getAdminUserById: async () => ({
@@ -815,7 +815,7 @@ test(
         ...buildClinicAuditRouteStubs(),
         getActiveSessionByToken: async () => ({
           clinicUserId: 9,
-          expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
           lastAccess: new Date("2026-04-23T00:00:00.000Z"),
         }),
         getClinicUserById: async () => ({
@@ -924,7 +924,7 @@ test(
         ...buildClinicPublicProfileRouteStubs(),
         getActiveSessionByToken: async () => ({
           clinicUserId: 9,
-          expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
           lastAccess: new Date("2026-04-23T00:00:00.000Z"),
         }),
         getClinicUserById: async () => ({
@@ -1203,7 +1203,7 @@ test(
             tokenHash: "hash:ABCD",
             accessCount: 2,
             lastAccessAt: new Date("2026-04-22T10:00:00.000Z"),
-            expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+            expiresAt: new Date("2099-01-01T00:00:00.000Z"),
             revokedAt: null,
             createdAt: new Date("2026-04-20T12:00:00.000Z"),
             updatedAt: new Date("2026-04-22T12:00:00.000Z"),
@@ -1238,7 +1238,7 @@ test(
           tokenHash: "hash:ABCD",
           accessCount: 3,
           lastAccessAt: new Date("2026-04-24T00:00:00.000Z"),
-          expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
           revokedAt: null,
           createdAt: new Date("2026-04-20T12:00:00.000Z"),
           updatedAt: new Date("2026-04-22T12:00:00.000Z"),
@@ -1466,7 +1466,7 @@ test(
         ...buildAdminParticularTokensRouteStubs(),
         getAdminSessionByToken: async () => ({
           adminUserId: 1,
-          expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
           lastAccess: new Date("2026-04-23T00:00:00.000Z"),
         }),
         getAdminUserById: async () => ({
@@ -1599,7 +1599,7 @@ test(
         ...buildAdminStudyTrackingRouteStubs(),
         getAdminSessionByToken: async () => ({
           adminUserId: 1,
-          expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
           lastAccess: new Date("2026-04-23T00:00:00.000Z"),
         }),
         getAdminUserById: async () => ({

@@ -372,7 +372,7 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const tokenState = getReportAccessTokenState(record.token);
+    const tokenState = getReportAccessTokenState(record.token, new Date(currentTime));
 
     if (tokenState === "revoked") {
       return reply.code(410).send({

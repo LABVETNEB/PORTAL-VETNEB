@@ -30,13 +30,13 @@ export function getClinicPermissions(role: ClinicUserRole): ClinicPermissions {
   switch (role) {
     case "clinic_owner":
       return {
-        canUploadReports: true,
+        canUploadReports: false,
         canManageClinicUsers: true,
       };
     case "clinic_staff":
     default:
       return {
-        canUploadReports: true,
+        canUploadReports: false,
         canManageClinicUsers: false,
       };
   }

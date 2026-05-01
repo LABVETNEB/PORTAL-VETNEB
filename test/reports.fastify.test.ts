@@ -138,161 +138,78 @@ function buildMultipartReportPayload(options: { includeFile?: boolean } = {}) {
   };
 }
 
-test("reportsNativeRoutes expone POST /upload con multipart y tracking", async () => {
-  const uploadCalls: Array<Record<string, unknown>> = [];
-  const trackingCalls: Array<Record<string, unknown>> = [];
-  const updateTrackingCalls: Array<Record<string, unknown>> = [];
-  const upsertCalls: Array<Record<string, unknown>> = [];
-  const multipart = buildMultipartReportPayload();
+test("reportsNativeRoutes bloquea POST /upload para roles clinic", async () => {
+  for (const role of ["clinic_owner", "clinic_staff"] as const) {
+    const multipart = buildMultipartReportPayload();
+    const calls = {
+      uploadReport: 0,
+      upsertReport: 0,
+      getClinicScopedStudyTrackingCase: 0,
+      updateStudyTrackingCase: 0,
+    };
 
-  const app = await createTestApp({
-    uploadReport: async (input: {
-      file: Buffer;
-      fileName: string;
-      clinicId: number;
-      mimeType: string;
-    }) => {
-      uploadCalls.push({
-        clinicId: input.clinicId,
-        fileName: input.fileName,
-        mimeType: input.mimeType,
-        file: input.file.toString("utf8"),
-      });
-
-      return "reports/3/luna-new.pdf";
-    },
-    getClinicScopedStudyTrackingCase: async (
-      trackingCaseId: number,
-      clinicId: number,
-    ) => {
-      trackingCalls.push({ trackingCaseId, clinicId });
-      return {
-        id: trackingCaseId,
-        clinicId,
-      };
-    },
-    updateStudyTrackingCase: async (
-      trackingCaseId: number,
-      input: { reportId: number },
-    ) => {
-      updateTrackingCalls.push({ trackingCaseId, input });
-    },
-    upsertReport: async (input: Record<string, unknown>) => {
-      upsertCalls.push(input);
-
-      return createReportFixture({
-        id: 88,
-        clinicId: input.clinicId,
-        patientName: input.patientName,
-        studyType: input.studyType,
-        uploadDate: input.uploadDate,
-        fileName: input.fileName,
-        storagePath: input.storagePath,
-        currentStatus: "uploaded",
-        createdByClinicUserId: input.createdByClinicUserId,
-      });
-    },
-  });
-
-  try {
-    const response = await app.inject({
-      method: "POST",
-      url: "/api/reports/upload",
-      headers: {
-        origin: "http://localhost:3000",
-        cookie: `${ENV.cookieName}=session-token`,
-        "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+    const app = await createTestApp({
+      getClinicUserById: async () => ({
+        id: 9,
+        clinicId: 3,
+        username: "doctor",
+        authProId: null,
+        role,
+      }),
+      uploadReport: async () => {
+        calls.uploadReport += 1;
+        return "reports/3/luna-new.pdf";
       },
-      payload: multipart.payload,
+      upsertReport: async () => {
+        calls.upsertReport += 1;
+        return createReportFixture({ id: 88 });
+      },
+      getClinicScopedStudyTrackingCase: async () => {
+        calls.getClinicScopedStudyTrackingCase += 1;
+        return {
+          id: 77,
+          clinicId: 3,
+        };
+      },
+      updateStudyTrackingCase: async () => {
+        calls.updateStudyTrackingCase += 1;
+      },
     });
 
-    assert.equal(response.statusCode, 201);
-    assert.deepEqual(uploadCalls, [
-      {
-        clinicId: 3,
-        fileName: "luna.pdf",
-        mimeType: "application/pdf",
-        file: "PDFDATA",
-      },
-    ]);
-    assert.deepEqual(trackingCalls, [
-      {
-        trackingCaseId: 77,
-        clinicId: 3,
-      },
-    ]);
-    assert.deepEqual(updateTrackingCalls, [
-      {
-        trackingCaseId: 77,
-        input: {
-          reportId: 88,
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/reports/upload",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
         },
-      },
-    ]);
+        payload: multipart.payload,
+      });
 
-    assert.equal(upsertCalls.length, 1);
-    assert.equal(upsertCalls[0].clinicId, 3);
-    assert.equal(upsertCalls[0].patientName, "Luna Gomez");
-    assert.equal(upsertCalls[0].studyType, "Histopatologia");
-    assert.equal(
-      (upsertCalls[0].uploadDate as Date).toISOString(),
-      "2026-04-25T10:30:00.000Z",
-    );
-    assert.equal(upsertCalls[0].fileName, "luna.pdf");
-    assert.equal(upsertCalls[0].storagePath, "reports/3/luna-new.pdf");
-    assert.equal(upsertCalls[0].createdByClinicUserId, 9);
-
-    const body = JSON.parse(response.body);
-    assert.equal(body.success, true);
-    assert.equal(body.message, "Archivo subido correctamente");
-    assert.equal(body.report.id, 88);
-    assert.equal(body.report.clinicId, 3);
-    assert.equal(body.report.patientName, "Luna Gomez");
-    assert.equal(body.report.studyType, "Histopatologia");
-    assert.equal(body.report.uploadDate, "2026-04-25T10:30:00.000Z");
-    assert.equal(body.report.fileName, "luna.pdf");
-    assert.equal(body.report.storagePath, "reports/3/luna-new.pdf");
-    assert.equal(body.report.previewUrl, "preview:reports/3/luna-new.pdf");
-    assert.equal(
-      body.report.downloadUrl,
-      "download:reports/3/luna-new.pdf:luna.pdf",
-    );
-  } finally {
-    await app.close();
-  }
-});
-
-test("reportsNativeRoutes bloquea POST /upload sin archivo", async () => {
-  const multipart = buildMultipartReportPayload({ includeFile: false });
-  let uploadCalled = false;
-
-  const app = await createTestApp({
-    uploadReport: async () => {
-      uploadCalled = true;
-      return "reports/3/luna-new.pdf";
-    },
-  });
-
-  try {
-    const response = await app.inject({
-      method: "POST",
-      url: "/api/reports/upload",
-      headers: {
-        origin: "http://localhost:3000",
-        cookie: `${ENV.cookieName}=session-token`,
-        "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
-      },
-      payload: multipart.payload,
-    });
-
-    assert.equal(response.statusCode, 400);
-    assert.equal(uploadCalled, false);
-    assert.deepEqual(JSON.parse(response.body), {
-      success: false,
-      error: "No se proporciono ningun archivo",
-    });
-  } finally {
-    await app.close();
+      assert.equal(response.statusCode, 403, role);
+      assert.deepEqual(
+        JSON.parse(response.body),
+        {
+          success: false,
+          error: "No autorizado para subir informes",
+        },
+        role,
+      );
+      assert.deepEqual(
+        calls,
+        {
+          uploadReport: 0,
+          upsertReport: 0,
+          getClinicScopedStudyTrackingCase: 0,
+          updateStudyTrackingCase: 0,
+        },
+        role,
+      );
+    } finally {
+      await app.close();
+    }
   }
 });
 
@@ -637,17 +554,16 @@ test("reportsNativeRoutes bloquea GET / sin sesión", async () => {
     await app.close();
   }
 });
-test("reportsNativeRoutes responde preflight OPTIONS permitido sin autenticar", async () => {
+test("reportsNativeRoutes responde preflight OPTIONS para superficie clinic read-only sin autenticar", async () => {
   const app = await createTestApp({
     getActiveSessionByToken: async () => {
-      throw new Error("preflight OPTIONS no debe autenticar sesión clinic");
+      throw new Error("preflight OPTIONS no debe autenticar sesion clinic");
     },
   });
 
   try {
     for (const url of [
       "/api/reports",
-      "/api/reports/upload",
       "/api/reports/search",
       "/api/reports/study-types",
       "/api/reports/55/history",
@@ -672,7 +588,7 @@ test("reportsNativeRoutes responde preflight OPTIONS permitido sin autenticar", 
       assert.equal(response.headers["access-control-allow-credentials"], "true");
       assert.equal(
         response.headers["access-control-allow-methods"],
-        "GET,POST,OPTIONS",
+        "GET,OPTIONS",
       );
       assert.equal(
         response.headers["access-control-allow-headers"],
@@ -685,13 +601,38 @@ test("reportsNativeRoutes responde preflight OPTIONS permitido sin autenticar", 
   }
 });
 
+test("reportsNativeRoutes no anuncia POST /upload en preflight clinic", async () => {
+  const app = await createTestApp({
+    getActiveSessionByToken: async () => {
+      throw new Error("preflight OPTIONS /upload no debe autenticar sesion clinic");
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/reports/upload",
+      headers: {
+        origin: "http://localhost:3000",
+        "access-control-request-headers": "content-type,x-requested-with",
+      },
+    });
+
+    assert.notEqual(response.statusCode, 204);
+    assert.equal(response.headers["access-control-allow-methods"], undefined);
+    assert.equal(response.headers["set-cookie"], undefined);
+  } finally {
+    await app.close();
+  }
+});
+
 test("reportsNativeRoutes bloquea preflight OPTIONS con origin no permitido", async () => {
   const app = await createTestApp();
 
   try {
     const response = await app.inject({
       method: "OPTIONS",
-      url: "/api/reports/upload",
+      url: "/api/reports/search",
       headers: {
         origin: "https://evil.example",
         "access-control-request-headers": "content-type",

@@ -48,7 +48,7 @@ function createAuthStubs(overrides: Record<string, unknown> = {}) {
     deleteAdminSession: async () => {},
     getAdminSessionByToken: async () => ({
       adminUserId: 1,
-      expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
       lastAccess: new Date("2026-04-23T00:00:00.000Z"),
     }),
     getAdminUserById: async () => ({
