@@ -1,0 +1,205 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+function readSource(relativePath: string): string {
+  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
+    /\r\n/g,
+    "\n",
+  );
+}
+
+function assertContainsInOrder(
+  source: string,
+  markers: readonly string[],
+  context: string,
+): void {
+  let lastIndex = -1;
+
+  for (const marker of markers) {
+    const index = source.indexOf(marker);
+
+    assert.notEqual(index, -1, `${context} debe contener marker: ${marker}`);
+    assert.ok(
+      index > lastIndex,
+      `${context} debe conservar orden esperado para marker: ${marker}`,
+    );
+
+    lastIndex = index;
+  }
+}
+
+function extractRegisterBlock(source: string, routeName: string): string {
+  const marker = `await app.register(${routeName}, {`;
+  const start = source.indexOf(marker);
+
+  assert.notEqual(start, -1, `Debe existir registro de ${routeName}`);
+
+  const nextRegister = source.indexOf("\n  await app.register(", start + marker.length);
+  const end = nextRegister === -1 ? source.length : nextRegister;
+
+  return source.slice(start, end);
+}
+
+test("audit surfaces quedan montadas por dominio sin aliases cruzados", () => {
+  const source = readSource("server/fastify-app.ts");
+
+  assertContainsInOrder(
+    source,
+    [
+      'adminAuditNativeRoutes, {',
+      'prefix: "/api/admin/audit-log"',
+      'clinicAuditNativeRoutes, {',
+      'prefix: "/api/clinic/audit-log"',
+    ],
+    "createFastifyApp audit surfaces",
+  );
+
+  assert.match(
+    source,
+    /import\s+\{\s*adminAuditNativeRoutes,\s*type AdminAuditNativeRoutesOptions,\s*\}\s+from "\.\/routes\/admin-audit\.fastify\.ts";/s,
+  );
+  assert.match(
+    source,
+    /import\s+\{\s*clinicAuditNativeRoutes,\s*type ClinicAuditNativeRoutesOptions,\s*\}\s+from "\.\/routes\/clinic-audit\.fastify\.ts";/s,
+  );
+
+  const adminAuditRegister = extractRegisterBlock(source, "adminAuditNativeRoutes");
+  const clinicAuditRegister = extractRegisterBlock(source, "clinicAuditNativeRoutes");
+
+  assert.match(adminAuditRegister, /prefix: "\/api\/admin\/audit-log"/);
+  assert.doesNotMatch(
+    adminAuditRegister,
+    /prefix: "\/api\/clinic\/audit-log"/,
+    "admin audit no debe montarse en superficie clinic",
+  );
+
+  assert.match(clinicAuditRegister, /prefix: "\/api\/clinic\/audit-log"/);
+  assert.doesNotMatch(
+    clinicAuditRegister,
+    /prefix: "\/api\/admin\/audit-log"/,
+    "clinic audit no debe montarse en superficie admin",
+  );
+  assert.doesNotMatch(
+    source,
+    /prefix: "\/api\/particular\/audit-log"/,
+    "particular audit aún no debe existir como alias accidental de admin o clinic",
+  );
+});
+
+test("admin audit mantiene superficie global y cookie admin exclusiva", () => {
+  const source = readSource("server/routes/admin-audit.fastify.ts");
+
+  assert.match(source, /export type AdminAuditNativeRoutesOptions/);
+  assert.match(source, /getAdminSessionToken\(request: FastifyRequest\)/);
+  assert.match(source, /cookies\[ENV\.adminCookieName\]/);
+  assert.match(source, /authenticateAdminUser\(request, reply, deps, now\)/);
+  assert.match(source, /app\.get<[\s\S]*?>\("\/export\.csv"/);
+  assert.match(source, /app\.get<[\s\S]*?>\("\/"/);
+
+  assert.match(
+    source,
+    /listAuditLog: dbAudit\.listAuditLog/,
+    "admin audit debe consultar el log global",
+  );
+  assert.match(
+    source,
+    /buildAdminAuditListFilters: defaultBuildAdminAuditListFilters/,
+    "admin audit debe usar filtros globales",
+  );
+
+  assert.doesNotMatch(source, /cookies\[ENV\.cookieName\]/);
+  assert.doesNotMatch(source, /cookies\[ENV\.particularCookieName\]/);
+  assert.doesNotMatch(source, /buildClinicAuditListFilters/);
+});
+
+test("clinic audit mantiene superficie clinic-scoped y cookie clinic exclusiva", () => {
+  const source = readSource("server/routes/clinic-audit.fastify.ts");
+
+  assert.match(source, /export type ClinicAuditNativeRoutesOptions/);
+  assert.match(source, /getSessionToken\(request: FastifyRequest\)/);
+  assert.match(source, /cookies\[ENV\.cookieName\]/);
+  assert.match(source, /authenticateClinicUser\(request, reply, deps, now\)/);
+  assert.match(source, /app\.get<[\s\S]*?>\("\/export\.csv"/);
+  assert.match(source, /app\.get<[\s\S]*?>\("\/"/);
+
+  assert.match(
+    source,
+    /buildClinicAuditListFilters: defaultBuildClinicAuditListFilters/,
+    "clinic audit debe usar filtros clinic-scoped",
+  );
+  assert.match(
+    source,
+    /request\.query \?\? \{\},\s*auth\.clinicId/s,
+    "clinic audit debe forzar clinicId desde la sesión",
+  );
+  assert.match(
+    source,
+    /clinicId: auth\.clinicId/,
+    "payload de filtros debe exponer clinicId autenticado",
+  );
+
+  assert.doesNotMatch(source, /cookies\[ENV\.adminCookieName\]/);
+  assert.doesNotMatch(source, /cookies\[ENV\.particularCookieName\]/);
+  assert.doesNotMatch(source, /buildAdminAuditListFilters/);
+});
+
+test("audit filter helpers separan admin global de clinic scoped", () => {
+  const source = readSource("server/lib/admin-audit.ts");
+
+  assert.match(source, /export function buildAdminAuditListFilters/);
+  assert.match(source, /export function buildClinicAuditListFilters/);
+
+  const adminStart = source.indexOf("export function buildAdminAuditListFilters");
+  const clinicStart = source.indexOf("export function buildClinicAuditListFilters");
+
+  assert.ok(adminStart >= 0);
+  assert.ok(clinicStart > adminStart);
+
+  const adminBlock = source.slice(adminStart, clinicStart);
+  const clinicBlock = source.slice(clinicStart);
+
+  assert.match(adminBlock, /actorAdminUserId/);
+  assert.match(adminBlock, /clinicId: clinicId \?\? undefined/);
+
+  assert.match(
+    clinicBlock,
+    /const \{ filters, errors \} = buildAdminAuditListFilters\(query\);/,
+    "clinic puede reutilizar parser base",
+  );
+  assert.match(
+    clinicBlock,
+    /clinicId,/,
+    "clinic debe sobrescribir clinicId con el de sesión",
+  );
+  assert.match(
+    clinicBlock,
+    /actorAdminUserId: undefined/,
+    "clinic no debe poder filtrar actorAdminUserId",
+  );
+});
+
+test("particular audit queda reservado para una ruta propia no mezclada", () => {
+  const fastifyApp = readSource("server/fastify-app.ts");
+  const adminAudit = readSource("server/routes/admin-audit.fastify.ts");
+  const clinicAudit = readSource("server/routes/clinic-audit.fastify.ts");
+
+  for (const [file, source] of [
+    ["server/fastify-app.ts", fastifyApp],
+    ["server/routes/admin-audit.fastify.ts", adminAudit],
+    ["server/routes/clinic-audit.fastify.ts", clinicAudit],
+  ] as const) {
+    assert.doesNotMatch(
+      source,
+      /particularAuditNativeRoutes|ParticularAuditNativeRoutesOptions/,
+      `${file} no debe declarar particular audit mezclado con admin/clinic`,
+    );
+  }
+
+  assert.doesNotMatch(
+    fastifyApp,
+    /\/api\/particular\/audit-log/,
+    "la ruta particular audit debe agregarse en PR separado",
+  );
+});
