@@ -1,3 +1,4 @@
+import { parseReportStudyType } from "../lib/report-study-types.ts";
 import type {
   FastifyPluginAsync,
   FastifyReply,
@@ -391,7 +392,7 @@ async function authenticateClinicUser(
   if (!session) {
     reply.code(401).send({
       success: false,
-      error: "Sesión inválida",
+      error: "SesiÃƒÆ’Ã‚Â³n invÃƒÆ’Ã‚Â¡lida",
     });
     return null;
   }
@@ -402,7 +403,7 @@ async function authenticateClinicUser(
     reply.header("set-cookie", buildClearSessionCookie());
     reply.code(401).send({
       success: false,
-      error: "Sesión expirada",
+      error: "SesiÃƒÆ’Ã‚Â³n expirada",
     });
     return null;
   }
@@ -415,7 +416,7 @@ async function authenticateClinicUser(
     reply.header("set-cookie", buildClearSessionCookie());
     reply.code(401).send({
       success: false,
-      error: "Usuario de sesión no encontrado",
+      error: "Usuario de sesiÃƒÆ’Ã‚Â³n no encontrado",
     });
     return null;
   }
@@ -627,7 +628,7 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
 
       const scope = getReadClinicScope(request.query.clinicId, auth.clinicId);
       const query = normalizeSearchText(request.query.query);
-      const studyType = normalizeSearchText(request.query.studyType);
+      const studyType = parseReportStudyType(request.query.studyType);
       const currentStatus = parseReportStatus(request.query.status);
       const limit = parsePositiveInt(request.query.limit, 50, 100);
       const offset = parseOffset(request.query.offset, 0);
@@ -650,7 +651,7 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
       const reports = await deps.searchReports(
         scope.clinicId,
         query,
-        studyType,
+        studyType ?? undefined,
         limit,
         offset,
         currentStatus,

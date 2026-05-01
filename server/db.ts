@@ -1,4 +1,5 @@
-﻿import postgres from "postgres";
+import { getReportStudyTypes as getCanonicalReportStudyTypes, REPORT_STUDY_TYPE_LABELS } from "./lib/report-study-types.ts";
+import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { and, desc, eq, ilike, isNotNull, lte, or, sql } from "drizzle-orm";
 import {
@@ -526,15 +527,11 @@ export async function searchReports(
     .offset(offset);
 }
 
-export async function getStudyTypes(clinicId: number) {
-  const result = await db
-    .selectDistinct({ studyType: reports.studyType })
-    .from(reports)
-    .where(and(eq(reports.clinicId, clinicId), isNotNull(reports.studyType)));
-
-  return result
-    .map((r) => r.studyType)
-    .filter((v): v is string => !!v);
+export async function getReportStudyTypes(_clinicId: number) {
+  void REPORT_STUDY_TYPE_LABELS;
+  return getCanonicalReportStudyTypes();
 }
+
+export const getStudyTypes = getReportStudyTypes;
 
 
