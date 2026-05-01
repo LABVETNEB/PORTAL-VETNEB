@@ -136,6 +136,7 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     createStudyTrackingNotification: async () => createNotificationFixture(),
     listStudyTrackingNotifications: async () => [createNotificationFixture()],
     sendSpecialStainRequiredEmail: async () => ({ sent: true }),
+    writeAuditLog: async () => {},
     now: () => new Date("2026-04-24T00:00:00.000Z").getTime(),
     createDate: () => new Date("2026-04-20T13:30:00.000Z"),
     ...overrides,
