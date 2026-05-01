@@ -272,10 +272,10 @@ test("requireAuth autentica owner y actualiza lastAccess", async () => {
     authProId: "authpro-1",
     role: "clinic_owner",
     permissions: {
-      canUploadReports: true,
+      canUploadReports: false,
       canManageClinicUsers: true,
     },
-    canUploadReports: true,
+    canUploadReports: false,
     canManageClinicUsers: true,
     sessionToken: "token-valido",
   });
@@ -330,10 +330,10 @@ test("requireAuth normaliza role inválido a clinic_staff", async () => {
     authProId: null,
     role: "clinic_staff",
     permissions: {
-      canUploadReports: true,
+      canUploadReports: false,
       canManageClinicUsers: false,
     },
-    canUploadReports: true,
+    canUploadReports: false,
     canManageClinicUsers: false,
     sessionToken: "token-reciente",
   });

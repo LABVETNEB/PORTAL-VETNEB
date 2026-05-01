@@ -89,7 +89,6 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         path: "server/routes/reports.fastify.ts",
         markers: [
           'app.options("/", optionsHandler)',
-          'app.options("/upload", optionsHandler)',
           'app.options("/search", optionsHandler)',
         ],
       },
@@ -120,7 +119,8 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
       {
         path: "test/reports.fastify.test.ts",
         markers: [
-          "reportsNativeRoutes responde preflight OPTIONS permitido sin autenticar",
+          "reportsNativeRoutes responde preflight OPTIONS para superficie clinic read-only sin autenticar",
+          "reportsNativeRoutes no anuncia POST /upload en preflight clinic",
           "reportsNativeRoutes bloquea preflight OPTIONS con origin no permitido",
         ],
       },

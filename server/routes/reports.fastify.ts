@@ -686,7 +686,7 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
       }
 
       applyCorsHeaders(request, reply, allowedOrigins);
-      reply.header("access-control-allow-methods", "GET,POST,OPTIONS");
+      reply.header("access-control-allow-methods", "GET,OPTIONS");
 
       const requestedHeaders =
         typeof request.headers["access-control-request-headers"] === "string"
@@ -698,7 +698,6 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
     };
 
     app.options("/", optionsHandler);
-    app.options("/upload", optionsHandler);
     app.options("/search", optionsHandler);
     app.options("/study-types", optionsHandler);
     app.options("/:reportId/history", optionsHandler);

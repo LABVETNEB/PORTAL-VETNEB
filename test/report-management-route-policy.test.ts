@@ -32,7 +32,7 @@ test("reports protege PATCH /:reportId/status con management permission", () => 
   );
 });
 
-test("reports expone POST /upload nativo con permiso de upload, no management", () => {
+test("reports mantiene POST /upload nativo bloqueado por permiso de upload deshabilitado", () => {
   const nativeSource = readRouteSource("server/routes/reports.fastify.ts");
 
   assert.equal(
@@ -60,7 +60,7 @@ test("reports expone POST /upload nativo con permiso de upload, no management", 
   );
 });
 
-test("reports upload usa permisos persistentes derivados de role y no allowlist ENV legacy", () => {
+test("reports upload usa permisos persistentes read-only derivados de role y no allowlist ENV legacy", () => {
   const nativeSource = readRouteSource("server/routes/reports.fastify.ts");
   const permissionsSource = readRouteSource("server/lib/permissions.ts");
 
@@ -86,14 +86,14 @@ test("reports upload usa permisos persistentes derivados de role y no allowlist 
 
   assert.match(
     permissionsSource,
-    /case "clinic_owner":[\s\S]*canUploadReports: true,[\s\S]*canManageClinicUsers: true,/s,
-    "clinic_owner debe conservar permiso de upload y management",
+    /case "clinic_owner":[\s\S]*canUploadReports: false,[\s\S]*canManageClinicUsers: true,/s,
+    "clinic_owner debe conservar management sin permiso de upload",
   );
 
   assert.match(
     permissionsSource,
-    /case "clinic_staff":[\s\S]*canUploadReports: true,[\s\S]*canManageClinicUsers: false,/s,
-    "clinic_staff debe conservar permiso de upload sin management",
+    /case "clinic_staff":[\s\S]*canUploadReports: false,[\s\S]*canManageClinicUsers: false,/s,
+    "clinic_staff debe permanecer read-only sin upload ni management",
   );
 
   assert.match(

@@ -42,7 +42,7 @@ function createReportAccessTokenFixture(overrides: Record<string, unknown> = {})
     tokenLast4: "ABCD",
     accessCount: 2,
     lastAccessAt: new Date("2026-04-22T10:00:00.000Z"),
-    expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+    expiresAt: new Date("2099-01-01T00:00:00.000Z"),
     revokedAt: null,
     createdAt: new Date("2026-04-20T12:00:00.000Z"),
     updatedAt: new Date("2026-04-22T12:00:00.000Z"),
