@@ -378,6 +378,30 @@ export function buildClinicAuditListFilters(
   };
 }
 
+export function buildParticularAuditListFilters(
+  query: Record<string, unknown>,
+): AdminAuditListFilterBuildResult {
+  const { filters, errors } = buildAdminAuditListFilters(query);
+
+  return {
+    errors,
+    filters: {
+      event: filters.event,
+      actorType: filters.actorType,
+      reportId: filters.reportId,
+      from: filters.from,
+      to: filters.to,
+      limit: filters.limit,
+      offset: filters.offset,
+      clinicId: undefined,
+      actorAdminUserId: undefined,
+      actorClinicUserId: undefined,
+      actorReportAccessTokenId: undefined,
+      targetReportAccessTokenId: undefined,
+    },
+  };
+}
+
 export function buildAdminAuditCsv(items: AuditLogListItem[]): string {
   const headerRow = AUDIT_LOG_CSV_HEADERS.join(",");
   const rows = items.map((item) => {
@@ -414,4 +438,9 @@ export function buildAdminAuditCsv(items: AuditLogListItem[]): string {
 export function buildAdminAuditCsvFilename(now = new Date()): string {
   const timestamp = now.toISOString().replace(/[:.]/g, "-");
   return `admin-audit-log-${timestamp}.csv`;
+}
+
+export function buildParticularAuditCsvFilename(now = new Date()): string {
+  const timestamp = now.toISOString().replace(/[:.]/g, "-");
+  return `particular-audit-log-${timestamp}.csv`;
 }

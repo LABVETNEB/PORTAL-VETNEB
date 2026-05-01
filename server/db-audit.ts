@@ -329,3 +329,85 @@ export async function listAuditLog(filters: AdminAuditListFilters) {
     total: Number(countRows[0]?.count ?? 0),
   };
 }
+
+export async function listParticularAuditLog(
+  filters: AdminAuditListFilters,
+  particularTokenId: number,
+) {
+  const columnsPresent = await getAuditLogColumns();
+  const scopedFilters: AdminAuditListFilters = {
+    ...filters,
+    clinicId: undefined,
+    actorAdminUserId: undefined,
+    actorClinicUserId: undefined,
+    actorReportAccessTokenId: undefined,
+    targetReportAccessTokenId: undefined,
+  };
+  const { whereSql: baseWhereSql, values: baseValues } =
+    buildAuditLogWhere(scopedFilters);
+
+  const scopePlaceholder = baseValues.length + 1;
+  const scopeClause =
+    `("actor_report_access_token_id" = $${scopePlaceholder} or "target_report_access_token_id" = $${scopePlaceholder + 1})`;
+  const whereSql = baseWhereSql
+    ? `${baseWhereSql} and ${scopeClause}`
+    : `where ${scopeClause}`;
+  const values = [...baseValues, particularTokenId, particularTokenId];
+
+  const selectAction = buildOptionalSelect(columnsPresent, "action", "null::text");
+  const selectEntity = buildOptionalSelect(columnsPresent, "entity", "null::text");
+  const selectEntityId = buildOptionalSelect(
+    columnsPresent,
+    "entity_id",
+    "null::integer",
+  );
+
+  const rows = await pgClient.unsafe(
+    `
+      select
+        "id",
+        "event",
+        ${selectAction},
+        ${selectEntity},
+        ${selectEntityId},
+        "actor_type",
+        "actor_admin_user_id",
+        "actor_clinic_user_id",
+        "actor_report_access_token_id",
+        "clinic_id",
+        "report_id",
+        "target_admin_user_id",
+        "target_clinic_user_id",
+        "target_report_access_token_id",
+        "request_id",
+        "request_method",
+        "request_path",
+        "ip_address",
+        "user_agent",
+        "metadata",
+        "created_at"
+      from "audit_log"
+      ${whereSql}
+      order by "created_at" desc, "id" desc
+      limit $${values.length + 1}
+      offset $${values.length + 2}
+    `,
+    [...values, filters.limit, filters.offset],
+  );
+
+  const countRows = await pgClient.unsafe(
+    `
+      select count(*)::int as count
+      from "audit_log"
+      ${whereSql}
+    `,
+    values,
+  );
+
+  return {
+    items: rows.map((row) =>
+      serializeAuditLogListItem(row as Record<string, unknown>),
+    ),
+    total: Number(countRows[0]?.count ?? 0),
+  };
+}

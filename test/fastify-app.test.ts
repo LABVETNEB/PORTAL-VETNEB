@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 
 process.env.NODE_ENV ??= "development";
@@ -285,6 +285,30 @@ function buildClinicPublicProfileRouteStubs() {
   };
 }
 
+function buildParticularAuditRouteStubs() {
+  return {
+    deleteParticularSession: async () => {},
+    getParticularSessionByToken: async () => null,
+    getParticularTokenById: async () => null,
+    updateParticularSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    listParticularAuditLog: async () => ({
+      items: [],
+      total: 0,
+    }),
+    buildParticularAuditListFilters: (_query: Record<string, unknown>) => ({
+      filters: {
+        limit: 50,
+        offset: 0,
+      },
+      errors: [],
+    }),
+    buildAuditCsv: () => "id,event",
+    buildParticularAuditCsvFilename: () =>
+      "particular-audit-log-test.csv",
+  };
+}
+
 function buildParticularAuthRouteStubs() {
   return {
     createParticularSession: async () => {},
@@ -497,6 +521,7 @@ function buildFastifyDispatchRouteStubs() {
     clinicAuthRoutes: buildClinicAuthRouteStubs(),
     clinicAuditRoutes: buildClinicAuditRouteStubs(),
     clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+    particularAuditRoutes: buildParticularAuditRouteStubs(),
     particularAuthRoutes: buildParticularAuthRouteStubs(),
     particularStudyTrackingRoutes: buildParticularStudyTrackingRouteStubs(),
     particularTokensRoutes: buildParticularTokensRouteStubs(),
@@ -540,6 +565,7 @@ test(
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -646,6 +672,7 @@ test(
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -713,6 +740,7 @@ test(
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -785,6 +813,7 @@ test(
       },
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -903,6 +932,7 @@ test(
         }),
       },
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -996,6 +1026,7 @@ test(
           },
         }),
       },
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -1052,6 +1083,7 @@ test(
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: {
         ...buildParticularAuthRouteStubs(),
         getParticularSessionByToken: async () => ({
@@ -1156,6 +1188,7 @@ test(
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -1221,6 +1254,7 @@ test(
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -1335,6 +1369,7 @@ test(
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -1495,6 +1530,7 @@ test(
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -1590,6 +1626,7 @@ test(
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -1645,6 +1682,7 @@ test(
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -1698,6 +1736,7 @@ test(
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -1755,6 +1794,7 @@ test(
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {
@@ -1872,6 +1912,7 @@ test(
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
+      particularAuditRoutes: buildParticularAuditRouteStubs(),
       particularAuthRoutes: buildParticularAuthRouteStubs(),
       particularTokensRoutes: buildParticularTokensRouteStubs(),
       publicProfessionalsRoutes: {

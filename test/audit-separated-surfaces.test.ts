@@ -52,6 +52,8 @@ test("audit surfaces quedan montadas por dominio sin aliases cruzados", () => {
       'prefix: "/api/admin/audit-log"',
       'clinicAuditNativeRoutes, {',
       'prefix: "/api/clinic/audit-log"',
+      'particularAuditNativeRoutes, {',
+      'prefix: "/api/particular/audit-log"',
     ],
     "createFastifyApp audit surfaces",
   );
@@ -81,10 +83,16 @@ test("audit surfaces quedan montadas por dominio sin aliases cruzados", () => {
     /prefix: "\/api\/admin\/audit-log"/,
     "clinic audit no debe montarse en superficie admin",
   );
-  assert.doesNotMatch(
+  const particularAuditRegister = extractRegisterBlock(
     source,
-    /prefix: "\/api\/particular\/audit-log"/,
-    "particular audit aún no debe existir como alias accidental de admin o clinic",
+    "particularAuditNativeRoutes",
+  );
+
+  assert.match(particularAuditRegister, /prefix: "\/api\/particular\/audit-log"/);
+  assert.doesNotMatch(
+    particularAuditRegister,
+    /prefix: "\/api\/admin\/audit-log"|prefix: "\/api\/clinic\/audit-log"/,
+    "particular audit no debe montarse en superficie admin o clinic",
   );
 });
 
@@ -180,26 +188,19 @@ test("audit filter helpers separan admin global de clinic scoped", () => {
   );
 });
 
-test("particular audit queda reservado para una ruta propia no mezclada", () => {
+test("particular audit mantiene superficie propia y cookie particular exclusiva", () => {
   const fastifyApp = readSource("server/fastify-app.ts");
-  const adminAudit = readSource("server/routes/admin-audit.fastify.ts");
-  const clinicAudit = readSource("server/routes/clinic-audit.fastify.ts");
+  const source = readSource("server/routes/particular-audit.fastify.ts");
 
-  for (const [file, source] of [
-    ["server/fastify-app.ts", fastifyApp],
-    ["server/routes/admin-audit.fastify.ts", adminAudit],
-    ["server/routes/clinic-audit.fastify.ts", clinicAudit],
-  ] as const) {
-    assert.doesNotMatch(
-      source,
-      /particularAuditNativeRoutes|ParticularAuditNativeRoutesOptions/,
-      `${file} no debe declarar particular audit mezclado con admin/clinic`,
-    );
-  }
+  assert.match(fastifyApp, /particularAuditNativeRoutes/);
+  assert.match(fastifyApp, /prefix: "\/api\/particular\/audit-log"/);
+  assert.match(source, /export type ParticularAuditNativeRoutesOptions/);
+  assert.match(source, /cookies\[ENV\.particularCookieName\]/);
+  assert.match(source, /authenticateParticularUser\(\s*request,\s*reply,\s*deps,\s*now,?\s*\)/s);
+  assert.match(source, /listParticularAuditLog\(\s*filters,\s*particular\.tokenId/s);
+  assert.match(source, /listParticularAuditLog\(\s*exportFilters,\s*particular\.tokenId/s);
+  assert.match(source, /particularTokenId: particular\.tokenId/);
 
-  assert.doesNotMatch(
-    fastifyApp,
-    /\/api\/particular\/audit-log/,
-    "la ruta particular audit debe agregarse en PR separado",
-  );
+  assert.doesNotMatch(source, /cookies\[ENV\.adminCookieName\]/);
+  assert.doesNotMatch(source, /cookies\[ENV\.cookieName\]/);
 });
