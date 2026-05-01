@@ -1,25 +1,25 @@
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
 
 const CANONICAL_REPORT_STUDY_TYPES = [
-  { value: "citologia", label: "Citología" },
-  { value: "histopatologia", label: "Histopatología" },
-  { value: "hemoparasitos", label: "Hemoparásitos" },
+  { value: "citologia", label: "Citolog\u00eda" },
+  { value: "histopatologia", label: "Histopatolog\u00eda" },
+  { value: "hemoparasitos", label: "Hemopar\u00e1sitos" },
 ] as const;
 
 const FORBIDDEN_FREE_TEXT_STUDY_TYPES = [
   "Histo",
   "Histopatologia",
-  "Histopatología",
+  "Histopatolog\u00eda",
   "Citologia",
-  "Citología",
+  "Citolog\u00eda",
   "Hemoparasitos",
-  "Hemoparásitos",
+  "Hemopar\u00e1sitos",
 ];
 
 function readSource(relativePath: string): string {
@@ -48,7 +48,7 @@ function listSourceFiles(relativeDir: string): string[] {
 
   walk(root);
 
-  return files.map((file) => file.replace(REPO_ROOT + "\\", "").replaceAll("\\", "/"));
+  return files.map((file) => relative(REPO_ROOT, file).replaceAll("\\", "/"));
 }
 
 function assertContains(source: string, marker: string, context: string) {
@@ -59,14 +59,14 @@ function assertNotContains(source: string, marker: string, context: string) {
   assert.equal(source.includes(marker), false, `${context} no debe contener: ${marker}`);
 }
 
-test("report study types tienen catálogo canónico interno y labels públicos", () => {
+test("report study types have canonical internal catalog and public labels", () => {
   const catalogPath = "server/lib/report-study-types.ts";
   const absoluteCatalogPath = resolve(REPO_ROOT, catalogPath);
 
   assert.equal(
     existsSync(absoluteCatalogPath),
     true,
-    "debe existir server/lib/report-study-types.ts con el catálogo canónico",
+    "server/lib/report-study-types.ts must exist with canonical catalog",
   );
 
   const source = readSource(catalogPath);
@@ -82,7 +82,7 @@ test("report study types tienen catálogo canónico interno y labels públicos",
   }
 });
 
-test("report study types bloquean valores libres o legacy como tipo interno", () => {
+test("report study types block free-text or legacy values as internal types", () => {
   const catalogPath = "server/lib/report-study-types.ts";
   const source = readSource(catalogPath);
 
@@ -100,7 +100,7 @@ test("report study types bloquean valores libres o legacy como tipo interno", ()
   }
 });
 
-test("rutas de informes usan parser canónico para upload y filtros", () => {
+test("report routes use canonical parser for upload and filters", () => {
   const adminReportsSource = readSource("server/routes/admin-reports.fastify.ts");
   const reportsSource = readSource("server/routes/reports.fastify.ts");
 
@@ -127,7 +127,7 @@ test("rutas de informes usan parser canónico para upload y filtros", () => {
   );
 });
 
-test("DB expone study types desde catálogo y no desde valores libres persistidos", () => {
+test("DB exposes study types from catalog and not persisted free-text values", () => {
   const dbSource = readSource("server/db.ts");
 
   assertContains(dbSource, "REPORT_STUDY_TYPE_LABELS", "server/db.ts");
@@ -136,7 +136,7 @@ test("DB expone study types desde catálogo y no desde valores libres persistido
   assertNotContains(dbSource, "selectDistinct({ studyType: reports.studyType })", "server/db.ts");
 });
 
-test("tests críticos de informes dejan de usar studyType libre o abreviado", () => {
+test("critical report tests stop using free-text or abbreviated studyType", () => {
   const criticalTestFiles = listSourceFiles("test").filter((file) =>
     [
       "test/admin-reports.fastify.test.ts",
@@ -168,7 +168,7 @@ test("tests críticos de informes dejan de usar studyType libre o abreviado", ()
       CANONICAL_REPORT_STUDY_TYPES.some((studyType) =>
         source.includes(`"${studyType.value}"`),
       ),
-      `${file} debe usar al menos un studyType canónico interno`,
+      `${file} must use at least one canonical internal studyType`,
     );
   }
 });
