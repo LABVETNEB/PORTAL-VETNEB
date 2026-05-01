@@ -10,6 +10,7 @@ import type {
   StudyTrackingCase,
   StudyTrackingNotification,
 } from "../../drizzle/schema";
+import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
   applyEstimatedDeliveryRules,
@@ -163,6 +164,7 @@ export type StudyTrackingNativeRoutesOptions = {
     adminContactPhone: string | null;
     notes: string | null;
   }) => Promise<unknown>;
+  writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
   now?: () => number;
   createDate?: () => Date;
 };
@@ -194,6 +196,7 @@ type NativeStudyTrackingDeps = Required<
     | "createStudyTrackingNotification"
     | "listStudyTrackingNotifications"
     | "sendSpecialStainRequiredEmail"
+    | "writeAuditLog"
   >
 >;
 
@@ -207,6 +210,7 @@ async function loadDefaultDeps(): Promise<NativeStudyTrackingDeps> {
       const dbStudyTracking = await import("../db-study-tracking.ts");
       const dbParticular = await import("../db-particular.ts");
       const email = await import("../lib/email.ts");
+      const audit = await import("../lib/audit.ts");
 
       return {
         deleteActiveSession: db.deleteActiveSession,
@@ -228,6 +232,10 @@ async function loadDefaultDeps(): Promise<NativeStudyTrackingDeps> {
         listStudyTrackingNotifications:
           dbStudyTracking.listStudyTrackingNotifications,
         sendSpecialStainRequiredEmail: email.sendSpecialStainRequiredEmail,
+        writeAuditLog: audit.writeAuditLog as (
+          req: unknown,
+          input: AuditWriteInput,
+        ) => Promise<void>,
       };
     })();
   }
@@ -543,6 +551,24 @@ function requireStudyTrackingManagementPermission(
   return false;
 }
 
+function createAuditRequestLike(
+  request: FastifyRequest,
+  auth: Pick<AuthenticatedClinicUser, "id" | "clinicId" | "username" | "role">,
+) {
+  return {
+    method: request.method,
+    originalUrl: request.url,
+    ip: request.ip,
+    headers: request.headers,
+    auth: {
+      id: auth.id,
+      clinicId: auth.clinicId,
+      username: auth.username,
+      role: auth.role,
+    },
+  };
+}
+
 async function notifySpecialStainByEmail(
   trackingCase: StudyTrackingEmailInput,
   deps: NativeStudyTrackingDeps,
@@ -598,7 +624,8 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
     !!options.listStudyTrackingCases &&
     !!options.createStudyTrackingNotification &&
     !!options.listStudyTrackingNotifications &&
-    !!options.sendSpecialStainRequiredEmail;
+    !!options.sendSpecialStainRequiredEmail &&
+    !!options.writeAuditLog;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -638,6 +665,7 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
     sendSpecialStainRequiredEmail:
       options.sendSpecialStainRequiredEmail ??
       defaultDeps!.sendSpecialStainRequiredEmail,
+    writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
   };
 
   const now = options.now ?? (() => Date.now());
@@ -868,10 +896,12 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
 
     let finalCase = created;
 
+    let studyTrackingNotification: StudyTrackingNotification | null = null;
+
     if (created.specialStainRequired) {
       const notifiedAt = createDate();
 
-      await deps.createStudyTrackingNotification({
+      studyTrackingNotification = await deps.createStudyTrackingNotification({
         studyTrackingCaseId: created.id,
         clinicId: created.clinicId,
         reportId: created.reportId ?? null,
@@ -890,6 +920,39 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
         })) ?? created;
 
       await notifySpecialStainByEmail(finalCase, deps);
+    }
+
+    await deps.writeAuditLog(createAuditRequestLike(request, auth), {
+      event: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED,
+      clinicId: finalCase.clinicId,
+      reportId: finalCase.reportId ?? null,
+      metadata: {
+        trackingCaseId: finalCase.id,
+        particularTokenId: finalCase.particularTokenId ?? null,
+        currentStage: finalCase.currentStage,
+        specialStainRequired: finalCase.specialStainRequired,
+        specialStainNotifiedAt: finalCase.specialStainNotifiedAt ?? null,
+        estimatedDeliveryAt: finalCase.estimatedDeliveryAt,
+        estimatedDeliveryWasManuallyAdjusted:
+          finalCase.estimatedDeliveryWasManuallyAdjusted,
+        createdVia: "clinic",
+      },
+    });
+
+    if (studyTrackingNotification) {
+      await deps.writeAuditLog(createAuditRequestLike(request, auth), {
+        event: AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED,
+        clinicId: studyTrackingNotification.clinicId,
+        reportId: studyTrackingNotification.reportId ?? null,
+        metadata: {
+          trackingCaseId: studyTrackingNotification.studyTrackingCaseId,
+          notificationId: studyTrackingNotification.id,
+          particularTokenId: studyTrackingNotification.particularTokenId ?? null,
+          type: studyTrackingNotification.type,
+          title: studyTrackingNotification.title,
+          createdVia: "clinic",
+        },
+      });
     }
 
     return reply.code(201).send({

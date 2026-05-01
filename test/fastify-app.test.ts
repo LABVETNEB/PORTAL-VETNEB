@@ -72,12 +72,12 @@ function buildAdminParticularTokensRouteStubs() {
       tokenLast4: "aaaa",
       tutorLastName: "Gomez",
       petName: "Luna",
-      petAge: "8 aÃƒÂ±os",
+      petAge: "8 aÃƒÆ’Ã‚Â±os",
       petBreed: "Caniche",
       petSex: "Hembra",
       petSpecies: "Canina",
-      sampleLocation: "PabellÃƒÂ³n auricular",
-      sampleEvolution: "15 dÃƒÂ­as",
+      sampleLocation: "PabellÃƒÆ’Ã‚Â³n auricular",
+      sampleEvolution: "15 dÃƒÆ’Ã‚Â­as",
       detailsLesion: null,
       extractionDate: new Date("2026-04-20T00:00:00.000Z"),
       shippingDate: new Date("2026-04-21T00:00:00.000Z"),
@@ -175,6 +175,7 @@ function buildAdminStudyTrackingRouteStubs() {
     listStudyTrackingCases: async () => [],
     createStudyTrackingNotification: async () => ({} as any),
     listStudyTrackingNotifications: async () => [],
+    writeAuditLog: async () => {},
     sendSpecialStainRequiredEmail: async () => ({ sent: true }),
   };
 }
@@ -347,12 +348,12 @@ function buildParticularTokensRouteStubs() {
       tokenLast4: "aaaa",
       tutorLastName: "Gomez",
       petName: "Luna",
-      petAge: "8 aÃƒÂ±os",
+      petAge: "8 aÃƒÆ’Ã‚Â±os",
       petBreed: "Caniche",
       petSex: "Hembra",
       petSpecies: "Canina",
-      sampleLocation: "PabellÃƒÂ³n auricular",
-      sampleEvolution: "15 dÃƒÂ­as",
+      sampleLocation: "PabellÃƒÆ’Ã‚Â³n auricular",
+      sampleEvolution: "15 dÃƒÆ’Ã‚Â­as",
       detailsLesion: null,
       extractionDate: new Date("2026-04-20T00:00:00.000Z"),
       shippingDate: new Date("2026-04-21T00:00:00.000Z"),
@@ -385,6 +386,7 @@ function buildStudyTrackingRouteStubs() {
     listStudyTrackingCases: async () => [],
     createStudyTrackingNotification: async () => ({} as any),
     listStudyTrackingNotifications: async () => [],
+    writeAuditLog: async () => {},
     sendSpecialStainRequiredEmail: async () => ({ sent: true }),
   };
 }
@@ -1098,13 +1100,13 @@ test(
           tokenLast4: "ABCD",
           tutorLastName: "Gomez",
           petName: "Luna",
-          petAge: "8 aÃƒÂ±os",
+          petAge: "8 aÃƒÆ’Ã‚Â±os",
           petBreed: "Caniche",
           petSex: "Hembra",
           petSpecies: "Canina",
-          sampleLocation: "PabellÃƒÂ³n auricular",
-          sampleEvolution: "15 dÃƒÂ­as",
-          detailsLesion: "LesiÃƒÂ³n nodular pequeÃƒÂ±a",
+          sampleLocation: "PabellÃƒÆ’Ã‚Â³n auricular",
+          sampleEvolution: "15 dÃƒÆ’Ã‚Â­as",
+          detailsLesion: "LesiÃƒÆ’Ã‚Â³n nodular pequeÃƒÆ’Ã‚Â±a",
           extractionDate: new Date("2026-04-20T00:00:00.000Z"),
           shippingDate: new Date("2026-04-21T00:00:00.000Z"),
           isActive: true,
@@ -1120,7 +1122,7 @@ test(
           clinicId: 3,
           storagePath: "reports/report-55.pdf",
           uploadDate: new Date("2026-04-22T09:00:00.000Z"),
-          studyType: "HistopatologÃƒÂ­a",
+          studyType: "HistopatologÃƒÆ’Ã‚Â­a",
           patientName: "Luna",
           fileName: "luna-report.pdf",
           currentStatus: "ready",
@@ -1291,7 +1293,7 @@ test(
             id: 55,
             clinicId: 3,
             uploadDate: new Date("2026-04-22T09:00:00.000Z"),
-            studyType: "HistopatologÃƒÂ­a",
+            studyType: "HistopatologÃƒÆ’Ã‚Â­a",
             patientName: "Luna",
             fileName: "luna-report.pdf",
             currentStatus: "ready",
@@ -1602,12 +1604,12 @@ test(
             tokenLast4: "aaaa",
             tutorLastName: "Gomez",
             petName: "Luna",
-            petAge: "8 aÃƒÂ±os",
+            petAge: "8 aÃƒÆ’Ã‚Â±os",
             petBreed: "Caniche",
             petSex: "Hembra",
             petSpecies: "Canina",
-            sampleLocation: "PabellÃƒÂ³n auricular",
-            sampleEvolution: "15 dÃƒÂ­as",
+            sampleLocation: "PabellÃƒÆ’Ã‚Â³n auricular",
+            sampleEvolution: "15 dÃƒÆ’Ã‚Â­as",
             detailsLesion: null,
             extractionDate: new Date("2026-04-20T00:00:00.000Z"),
             shippingDate: new Date("2026-04-21T00:00:00.000Z"),
@@ -1986,7 +1988,7 @@ test(
   },
 );
 test(
-  "createFastifyApp mantiene search de profesionales públicos montado en el router nativo",
+  "createFastifyApp mantiene search de profesionales pÃºblicos montado en el router nativo",
   async () => {
     let receivedSearchInput:
       | {
@@ -2103,7 +2105,7 @@ test(
 );
 
 test(
-  "createFastifyApp mantiene detail de profesionales públicos montado en el router nativo",
+  "createFastifyApp mantiene detail de profesionales pÃºblicos montado en el router nativo",
   async () => {
     let receivedClinicId: number | null = null;
     let searchHelperWasCalled = false;

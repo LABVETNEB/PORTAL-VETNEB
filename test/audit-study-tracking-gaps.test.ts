@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -20,20 +20,6 @@ function assertContainsAll(
   }
 }
 
-function assertNotContainsAny(
-  source: string,
-  markers: readonly string[],
-  context: string,
-): void {
-  for (const marker of markers) {
-    assert.equal(
-      source.includes(marker),
-      false,
-      `${context} no debe contener todavía: ${marker}`,
-    );
-  }
-}
-
 function assertContainsInOrder(
   source: string,
   markers: readonly string[],
@@ -45,27 +31,21 @@ function assertContainsInOrder(
     const index = source.indexOf(marker, lastIndex + 1);
 
     assert.notEqual(index, -1, `${context} debe contener: ${marker}`);
-    assert.ok(
-      index > lastIndex,
-      `${context} debe conservar orden para: ${marker}`,
-    );
+    assert.ok(index > lastIndex, `${context} debe conservar orden para: ${marker}`);
 
     lastIndex = index;
   }
 }
 
-test("audit registry aún no declara eventos dedicados para study tracking", () => {
+test("audit registry declara eventos dedicados para study tracking", () => {
   const auditSource = readSource("server/lib/audit.ts");
   const auditLogSource = readSource("server/lib/audit-log.ts");
   const schemaSource = readSource("drizzle/schema.ts");
 
   for (const source of [auditSource, auditLogSource, schemaSource]) {
-    assertNotContainsAny(
+    assertContainsAll(
       source,
       [
-        "STUDY_TRACKING_CASE_CREATED",
-        "STUDY_TRACKING_CASE_UPDATED",
-        "STUDY_TRACKING_NOTIFICATION_CREATED",
         "study_tracking.case.created",
         "study_tracking.case.updated",
         "study_tracking.notification.created",
@@ -73,138 +53,96 @@ test("audit registry aún no declara eventos dedicados para study tracking", () 
       "audit event registry",
     );
   }
+
+  assertContainsAll(
+    auditSource,
+    [
+      "STUDY_TRACKING_CASE_CREATED",
+      "STUDY_TRACKING_CASE_UPDATED",
+      "STUDY_TRACKING_NOTIFICATION_CREATED",
+    ],
+    "AUDIT_EVENTS study tracking",
+  );
 });
 
-test("clinic study tracking crea actividad operativa sin auditoría dedicada", () => {
+test("clinic study tracking audita creación de caso y notificación especial", () => {
   const source = readSource("server/routes/study-tracking.fastify.ts");
 
   assertContainsAll(
     source,
     [
-      "export const studyTrackingNativeRoutes",
-      "createStudyTrackingCase?:",
-      "updateStudyTrackingCase?:",
-      "createStudyTrackingNotification?:",
-      "updateParticularTokenReport?:",
-      "createdByAdminId: null",
-      "createdByClinicUserId: auth.id",
-      "await deps.createStudyTrackingCase({",
-      "await deps.updateParticularTokenReport(",
-      "await deps.createStudyTrackingNotification({",
-      "specialStainNotifiedAt: notifiedAt",
+      "writeAuditLog?:",
+      "writeAuditLog: audit.writeAuditLog",
+      "createAuditRequestLike",
+      "event: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED",
+      "event: AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED",
+      "createdVia: \"clinic\"",
+      "trackingCaseId: finalCase.id",
+      "notificationId: studyTrackingNotification.id",
     ],
-    "clinic study tracking operational writes",
+    "clinic study tracking audit",
   );
 
   assertContainsInOrder(
     source,
     [
-      "if (!enforceTrustedOrigin(request, reply, allowedOrigins))",
-      "const auth = await authenticateClinicUser(request, reply, deps, now);",
-      "if (!requireStudyTrackingManagementPermission(auth, reply))",
       "const created = await deps.createStudyTrackingCase({",
+      "await deps.writeAuditLog(createAuditRequestLike(request, auth), {",
+      "event: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED",
     ],
-    "clinic study tracking create protection order",
-  );
-
-  assertNotContainsAny(
-    source,
-    [
-      "AUDIT_EVENTS",
-      "writeAuditLog",
-      "createAuditRequestLike",
-      "REPORT_UPLOADED",
-      "STUDY_TRACKING_CASE_CREATED",
-      "study_tracking.case.created",
-    ],
-    "clinic study tracking audit gap",
+    "clinic case created audit order",
   );
 });
 
-test("admin study tracking crea y actualiza actividad operativa sin auditoría dedicada", () => {
+test("admin study tracking audita creación, actualización y notificación especial", () => {
   const source = readSource("server/routes/admin-study-tracking.fastify.ts");
 
   assertContainsAll(
     source,
     [
-      "export const adminStudyTrackingNativeRoutes",
-      "createStudyTrackingCase?:",
-      "updateStudyTrackingCase?:",
-      "getStudyTrackingCaseById?:",
-      "createStudyTrackingNotification?:",
-      "updateParticularTokenReport?:",
-      "createdByAdminId: admin.id",
-      "createdByClinicUserId: null",
-      "await deps.createStudyTrackingCase({",
-      "await deps.updateParticularTokenReport(",
-      "await deps.createStudyTrackingNotification({",
-      "app.patch<",
-      "await deps.updateStudyTrackingCase(",
-    ],
-    "admin study tracking operational writes",
-  );
-
-  assertContainsInOrder(
-    source,
-    [
-      "if (!enforceTrustedOrigin(request, reply, allowedOrigins))",
-      "const admin = await authenticateAdminUser(request, reply, deps, now);",
-      "const created = await deps.createStudyTrackingCase({",
-      "return reply.code(201).send({",
-    ],
-    "admin study tracking create protection order",
-  );
-
-  assertContainsInOrder(
-    source,
-    [
-      'app.patch<',
-      "if (!enforceTrustedOrigin(request, reply, allowedOrigins))",
-      "const admin = await authenticateAdminUser(request, reply, deps, now);",
-      "const current =",
-      "const parsed = updateStudyTrackingSchema.safeParse(body);",
-    ],
-    "admin study tracking update protection order",
-  );
-
-  assertNotContainsAny(
-    source,
-    [
-      "AUDIT_EVENTS",
-      "writeAuditLog",
+      "writeAuditLog?:",
+      "writeAuditLog: audit.writeAuditLog",
       "createAuditRequestLike",
-      "STUDY_TRACKING_CASE_CREATED",
-      "STUDY_TRACKING_CASE_UPDATED",
-      "study_tracking.case.created",
-      "study_tracking.case.updated",
+      "event: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED",
+      "event: AUDIT_EVENTS.STUDY_TRACKING_CASE_UPDATED",
+      "event: AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED",
+      "createdVia: \"admin\"",
+      "updatedVia: \"admin\"",
     ],
-    "admin study tracking audit gap",
+    "admin study tracking audit",
+  );
+
+  assertContainsInOrder(
+    source,
+    [
+      "const created = await deps.createStudyTrackingCase({",
+      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
+      "event: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED",
+    ],
+    "admin case created audit order",
+  );
+
+  assertContainsInOrder(
+    source,
+    [
+      "const updated = await deps.updateStudyTrackingCase(",
+      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
+      "event: AUDIT_EVENTS.STUDY_TRACKING_CASE_UPDATED",
+    ],
+    "admin case updated audit order",
   );
 });
 
-test("study tracking gap queda separado de los flujos críticos ya auditados", () => {
+test("study tracking queda integrado en flujos críticos auditados", () => {
   const criticalSource = readSource("test/audit-critical-flow-writes.test.ts");
 
   assertContainsAll(
     criticalSource,
     [
-      "REPORT_UPLOADED",
-      "REPORT_STATUS_CHANGED",
-      "REPORT_ACCESS_TOKEN_CREATED",
-      "REPORT_ACCESS_TOKEN_REVOKED",
-      "REPORT_PUBLIC_ACCESSED",
-    ],
-    "critical audited flows guardrail",
-  );
-
-  assertNotContainsAny(
-    criticalSource,
-    [
       "STUDY_TRACKING_CASE_CREATED",
       "STUDY_TRACKING_CASE_UPDATED",
-      "study_tracking.case.created",
-      "study_tracking.case.updated",
+      "STUDY_TRACKING_NOTIFICATION_CREATED",
     ],
-    "study tracking gap should remain explicit",
+    "critical audited flows guardrail",
   );
 });

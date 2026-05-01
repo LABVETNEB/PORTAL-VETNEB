@@ -1,4 +1,4 @@
-Ôªøimport type {
+import type {
   FastifyPluginAsync,
   FastifyReply,
   FastifyRequest,
@@ -10,6 +10,7 @@ import type {
   StudyTrackingCase,
   StudyTrackingNotification,
 } from "../../drizzle/schema";
+import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
   adminCreateStudyTrackingSchema,
@@ -154,6 +155,7 @@ export type AdminStudyTrackingNativeRoutesOptions = {
     adminContactPhone: string | null;
     notes: string | null;
   }) => Promise<unknown>;
+  writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
   now?: () => number;
   createDate?: () => Date;
 };
@@ -186,6 +188,7 @@ type NativeAdminStudyTrackingDeps = Required<
     | "createStudyTrackingNotification"
     | "listStudyTrackingNotifications"
     | "sendSpecialStainRequiredEmail"
+    | "writeAuditLog"
   >
 >;
 
@@ -199,6 +202,7 @@ async function loadDefaultDeps(): Promise<NativeAdminStudyTrackingDeps> {
       const dbStudyTracking = await import("../db-study-tracking.ts");
       const dbParticular = await import("../db-particular.ts");
       const email = await import("../lib/email.ts");
+      const audit = await import("../lib/audit.ts");
 
       return {
         deleteAdminSession: db.deleteAdminSession,
@@ -221,6 +225,10 @@ async function loadDefaultDeps(): Promise<NativeAdminStudyTrackingDeps> {
         listStudyTrackingNotifications:
           dbStudyTracking.listStudyTrackingNotifications,
         sendSpecialStainRequiredEmail: email.sendSpecialStainRequiredEmail,
+        writeAuditLog: audit.writeAuditLog as (
+          req: unknown,
+          input: AuditWriteInput,
+        ) => Promise<void>,
       };
     })();
   }
@@ -465,7 +473,7 @@ async function authenticateAdminUser(
   if (!session) {
     reply.code(401).send({
       success: false,
-      error: "Sesi√≥n admin inv√°lida",
+      error: "SesiÛn admin inv·lida",
     });
     return null;
   }
@@ -476,7 +484,7 @@ async function authenticateAdminUser(
     reply.header("set-cookie", buildClearAdminSessionCookie());
     reply.code(401).send({
       success: false,
-      error: "Sesi√≥n admin expirada",
+      error: "SesiÛn admin expirada",
     });
     return null;
   }
@@ -489,7 +497,7 @@ async function authenticateAdminUser(
     reply.header("set-cookie", buildClearAdminSessionCookie());
     reply.code(401).send({
       success: false,
-      error: "Usuario admin de sesi√≥n no encontrado",
+      error: "Usuario admin de sesiÛn no encontrado",
     });
     return null;
   }
@@ -502,6 +510,22 @@ async function authenticateAdminUser(
     id: adminUser.id,
     username: adminUser.username,
     sessionToken: token,
+  };
+}
+
+function createAuditRequestLike(
+  request: FastifyRequest,
+  admin: Pick<AuthenticatedAdminUser, "id" | "username">,
+) {
+  return {
+    method: request.method,
+    originalUrl: request.url,
+    ip: request.ip,
+    headers: request.headers,
+    adminAuth: {
+      id: admin.id,
+      username: admin.username,
+    },
   };
 }
 
@@ -561,7 +585,8 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     !!options.listStudyTrackingCases &&
     !!options.createStudyTrackingNotification &&
     !!options.listStudyTrackingNotifications &&
-    !!options.sendSpecialStainRequiredEmail;
+    !!options.sendSpecialStainRequiredEmail &&
+    !!options.writeAuditLog;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -604,6 +629,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     sendSpecialStainRequiredEmail:
       options.sendSpecialStainRequiredEmail ??
       defaultDeps!.sendSpecialStainRequiredEmail,
+    writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
   };
 
   const now = options.now ?? (() => Date.now());
@@ -734,7 +760,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     if (!clinic) {
       return reply.code(404).send({
         success: false,
-        error: "Cl√≠nica no encontrada",
+        error: "ClÌnica no encontrada",
       });
     }
 
@@ -751,7 +777,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       if (report.clinicId !== parsed.data.clinicId) {
         return reply.code(400).send({
           success: false,
-          error: "El informe no pertenece a la cl√≠nica indicada",
+          error: "El informe no pertenece a la clÌnica indicada",
         });
       }
     }
@@ -771,7 +797,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       if (particularToken.clinicId !== parsed.data.clinicId) {
         return reply.code(400).send({
           success: false,
-          error: "El token particular no pertenece a la cl√≠nica indicada",
+          error: "El token particular no pertenece a la clÌnica indicada",
         });
       }
     }
@@ -818,18 +844,20 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
 
     let finalCase = created;
 
+    let studyTrackingNotification: StudyTrackingNotification | null = null;
+
     if (created.specialStainRequired) {
       const notifiedAt = createDate();
 
-      await deps.createStudyTrackingNotification({
+      studyTrackingNotification = await deps.createStudyTrackingNotification({
         studyTrackingCaseId: created.id,
         clinicId: created.clinicId,
         reportId: created.reportId ?? null,
         particularTokenId: created.particularTokenId ?? null,
         type: "special_stain_required",
-        title: "Se requiere tinci√≥n especial",
+        title: "Se requiere tinciÛn especial",
         message:
-          "El estudio ingres√≥ a evaluaci√≥n y requiere tinci√≥n especial para continuar.",
+          "El estudio ingresÛ a evaluaciÛn y requiere tinciÛn especial para continuar.",
         isRead: false,
         readAt: null,
       });
@@ -840,6 +868,39 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
         })) ?? created;
 
       await notifySpecialStainByEmail(finalCase, deps);
+    }
+
+    await deps.writeAuditLog(createAuditRequestLike(request, admin), {
+      event: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED,
+      clinicId: finalCase.clinicId,
+      reportId: finalCase.reportId ?? null,
+      metadata: {
+        trackingCaseId: finalCase.id,
+        particularTokenId: finalCase.particularTokenId ?? null,
+        currentStage: finalCase.currentStage,
+        specialStainRequired: finalCase.specialStainRequired,
+        specialStainNotifiedAt: finalCase.specialStainNotifiedAt ?? null,
+        estimatedDeliveryAt: finalCase.estimatedDeliveryAt,
+        estimatedDeliveryWasManuallyAdjusted:
+          finalCase.estimatedDeliveryWasManuallyAdjusted,
+        createdVia: "admin",
+      },
+    });
+
+    if (studyTrackingNotification) {
+      await deps.writeAuditLog(createAuditRequestLike(request, admin), {
+        event: AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED,
+        clinicId: studyTrackingNotification.clinicId,
+        reportId: studyTrackingNotification.reportId ?? null,
+        metadata: {
+          trackingCaseId: studyTrackingNotification.studyTrackingCaseId,
+          notificationId: studyTrackingNotification.id,
+          particularTokenId: studyTrackingNotification.particularTokenId ?? null,
+          type: studyTrackingNotification.type,
+          title: studyTrackingNotification.title,
+          createdVia: "admin",
+        },
+      });
     }
 
     return reply.code(201).send({
@@ -910,7 +971,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     if (typeof trackingCaseId !== "number") {
       return reply.code(400).send({
         success: false,
-        error: "ID de seguimiento inv√°lido",
+        error: "ID de seguimiento inv·lido",
       });
     }
 
@@ -957,7 +1018,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     if (typeof trackingCaseId !== "number") {
       return reply.code(400).send({
         success: false,
-        error: "ID de seguimiento inv√°lido",
+        error: "ID de seguimiento inv·lido",
       });
     }
 
@@ -999,7 +1060,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       if (report.clinicId !== current.clinicId) {
         return reply.code(400).send({
           success: false,
-          error: "El informe no pertenece a la cl√≠nica del seguimiento",
+          error: "El informe no pertenece a la clÌnica del seguimiento",
         });
       }
     }
@@ -1019,7 +1080,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       if (particularToken.clinicId !== current.clinicId) {
         return reply.code(400).send({
           success: false,
-          error: "El token particular no pertenece a la cl√≠nica del seguimiento",
+          error: "El token particular no pertenece a la clÌnica del seguimiento",
         });
       }
     }
@@ -1058,6 +1119,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
           ? undefined
           : parsed.data.deliveredAt,
     });
+    let updateNotification: StudyTrackingNotification | null = null;
 
     const updated = await deps.updateStudyTrackingCase(trackingCaseId, {
       reportId:
@@ -1126,15 +1188,15 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     ) {
       const notifiedAt = createDate();
 
-      await deps.createStudyTrackingNotification({
+      updateNotification = await deps.createStudyTrackingNotification({
         studyTrackingCaseId: updated.id,
         clinicId: updated.clinicId,
         reportId: updated.reportId ?? null,
         particularTokenId: updated.particularTokenId ?? null,
         type: "special_stain_required",
-        title: "Se requiere tinci√≥n especial",
+        title: "Se requiere tinciÛn especial",
         message:
-          "El estudio requiere tinci√≥n especial. Revis√° el seguimiento para continuar la gesti√≥n.",
+          "El estudio requiere tinciÛn especial. Revis· el seguimiento para continuar la gestiÛn.",
         isRead: false,
         readAt: null,
       });
@@ -1145,6 +1207,37 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
         })) ?? updated;
 
       await notifySpecialStainByEmail(finalCase, deps);
+    }
+
+    await deps.writeAuditLog(createAuditRequestLike(request, admin), {
+      event: AUDIT_EVENTS.STUDY_TRACKING_CASE_UPDATED,
+      clinicId: finalCase.clinicId,
+      reportId: finalCase.reportId ?? null,
+      metadata: {
+        trackingCaseId: finalCase.id,
+        particularTokenId: finalCase.particularTokenId ?? null,
+        fromStage: current.currentStage,
+        toStage: finalCase.currentStage,
+        specialStainRequired: finalCase.specialStainRequired,
+        specialStainNotifiedAt: finalCase.specialStainNotifiedAt ?? null,
+        updatedVia: "admin",
+      },
+    });
+
+    if (updateNotification) {
+      await deps.writeAuditLog(createAuditRequestLike(request, admin), {
+        event: AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED,
+        clinicId: updateNotification.clinicId,
+        reportId: updateNotification.reportId ?? null,
+        metadata: {
+          trackingCaseId: updateNotification.studyTrackingCaseId,
+          notificationId: updateNotification.id,
+          particularTokenId: updateNotification.particularTokenId ?? null,
+          type: updateNotification.type,
+          title: updateNotification.title,
+          createdVia: "admin",
+        },
+      });
     }
 
     return reply.code(200).send({

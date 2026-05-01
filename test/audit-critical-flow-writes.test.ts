@@ -299,3 +299,27 @@ test("admin report upload audita creación exitosa de informe por admin", () => 
     "admin report upload audit order",
   );
 });
+
+test("study tracking queda cubierto por guardrails de flujos criticos auditados", async () => {
+  const { readFileSync } = await import("node:fs");
+
+  const clinicSource = readFileSync(
+    new URL("../server/routes/study-tracking.fastify.ts", import.meta.url),
+    "utf8",
+  );
+  const adminSource = readFileSync(
+    new URL("../server/routes/admin-study-tracking.fastify.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(clinicSource, /writeAuditLog\?:/);
+  assert.match(clinicSource, /writeAuditLog: audit\.writeAuditLog/);
+  assert.match(clinicSource, /AUDIT_EVENTS\.STUDY_TRACKING_CASE_CREATED/);
+  assert.match(clinicSource, /AUDIT_EVENTS\.STUDY_TRACKING_NOTIFICATION_CREATED/);
+
+  assert.match(adminSource, /writeAuditLog\?:/);
+  assert.match(adminSource, /writeAuditLog: audit\.writeAuditLog/);
+  assert.match(adminSource, /AUDIT_EVENTS\.STUDY_TRACKING_CASE_CREATED/);
+  assert.match(adminSource, /AUDIT_EVENTS\.STUDY_TRACKING_CASE_UPDATED/);
+  assert.match(adminSource, /AUDIT_EVENTS\.STUDY_TRACKING_NOTIFICATION_CREATED/);
+});
