@@ -139,6 +139,7 @@ async function createAdminReportUploadApp(overrides: Record<string, unknown> = {
       storagePath: string,
       fileName?: string,
     ) => `signed-download:${storagePath}:${fileName ?? ""}`,
+    writeAuditLog: async () => {},
     now: () => new Date("2026-04-24T00:00:00.000Z").getTime(),
     ...overrides,
   });

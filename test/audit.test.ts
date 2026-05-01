@@ -13,6 +13,7 @@ test("AUDIT_EVENTS conserva los eventos públicos esperados", () => {
     ADMIN_LOGIN_SUCCEEDED: "auth.admin.login.succeeded",
     CLINIC_LOGIN_SUCCEEDED: "auth.clinic.login.succeeded",
     REPORT_STATUS_CHANGED: "report.status.changed",
+    REPORT_UPLOADED: "report.uploaded",
     REPORT_ACCESS_TOKEN_CREATED: "report_access_token.created",
     REPORT_ACCESS_TOKEN_REVOKED: "report_access_token.revoked",
     REPORT_PUBLIC_ACCESSED: "report.public_accessed",
