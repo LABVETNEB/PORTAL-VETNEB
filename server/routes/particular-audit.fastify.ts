@@ -5,12 +5,12 @@ import type {
 } from "fastify";
 
 import {
-  buildAdminAuditCsv as defaultBuildAuditCsv,
+  buildAuditCsv as defaultBuildAuditCsv,
   buildParticularAuditCsvFilename as defaultBuildParticularAuditCsvFilename,
   buildParticularAuditListFilters as defaultBuildParticularAuditListFilters,
-  type AdminAuditListFilters,
+  type AuditListFilters as AdminAuditListFilters,
   type AuditLogListItem,
-} from "../lib/admin-audit.ts";
+} from "../lib/particular-audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
   buildRequestLogLine,

@@ -153,38 +153,37 @@ test("clinic audit mantiene superficie clinic-scoped y cookie clinic exclusiva",
   assert.doesNotMatch(source, /buildAdminAuditListFilters/);
 });
 
-test("audit filter helpers separan admin global de clinic scoped", () => {
-  const source = readSource("server/lib/admin-audit.ts");
+test("audit filter helpers separan core neutral de facades por dominio", () => {
+  const core = readSource("server/lib/audit-log.ts");
+  const admin = readSource("server/lib/admin-audit.ts");
+  const clinic = readSource("server/lib/clinic-audit.ts");
+  const particular = readSource("server/lib/particular-audit.ts");
 
-  assert.match(source, /export function buildAdminAuditListFilters/);
-  assert.match(source, /export function buildClinicAuditListFilters/);
+  assert.match(core, /export function buildAuditListFilters/);
+  assert.match(core, /export function buildClinicAuditListFilters/);
+  assert.match(core, /export function buildParticularAuditListFilters/);
+  assert.match(core, /export function buildAuditCsv/);
 
-  const adminStart = source.indexOf("export function buildAdminAuditListFilters");
-  const clinicStart = source.indexOf("export function buildClinicAuditListFilters");
+  assert.match(admin, /buildAuditListFilters as buildAdminAuditListFilters/);
+  assert.match(admin, /buildAuditCsv as buildAdminAuditCsv/);
+  assert.match(admin, /buildGlobalAuditCsvFilename as buildAdminAuditCsvFilename/);
 
-  assert.ok(adminStart >= 0);
-  assert.ok(clinicStart > adminStart);
+  assert.match(clinic, /buildClinicAuditListFilters/);
+  assert.match(clinic, /buildAuditCsv/);
+  assert.match(clinic, /clinic-audit-log-/);
 
-  const adminBlock = source.slice(adminStart, clinicStart);
-  const clinicBlock = source.slice(clinicStart);
+  assert.match(particular, /buildParticularAuditListFilters/);
+  assert.match(particular, /buildParticularAuditCsvFilename/);
 
-  assert.match(adminBlock, /actorAdminUserId/);
-  assert.match(adminBlock, /clinicId: clinicId \?\? undefined/);
-
-  assert.match(
-    clinicBlock,
-    /const \{ filters, errors \} = buildAdminAuditListFilters\(query\);/,
-    "clinic puede reutilizar parser base",
+  assert.doesNotMatch(
+    readSource("server/routes/clinic-audit.fastify.ts"),
+    /\.\.\/lib\/admin-audit\.ts/,
+    "clinic audit route no debe importar helpers desde admin-audit",
   );
-  assert.match(
-    clinicBlock,
-    /clinicId,/,
-    "clinic debe sobrescribir clinicId con el de sesión",
-  );
-  assert.match(
-    clinicBlock,
-    /actorAdminUserId: undefined/,
-    "clinic no debe poder filtrar actorAdminUserId",
+  assert.doesNotMatch(
+    readSource("server/routes/particular-audit.fastify.ts"),
+    /\.\.\/lib\/admin-audit\.ts/,
+    "particular audit route no debe importar helpers desde admin-audit",
   );
 });
 

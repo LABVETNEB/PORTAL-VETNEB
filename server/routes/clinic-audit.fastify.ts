@@ -5,11 +5,12 @@ import type {
 } from "fastify";
 
 import {
-  buildAdminAuditCsv as defaultBuildAdminAuditCsv,
+  buildAuditCsv as defaultBuildAdminAuditCsv,
+  buildClinicAuditCsvFilename,
   buildClinicAuditListFilters as defaultBuildClinicAuditListFilters,
-  type AdminAuditListFilters,
+  type AuditListFilters as AdminAuditListFilters,
   type AuditLogListItem,
-} from "../lib/admin-audit.ts";
+} from "../lib/clinic-audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
   buildRequestLogLine,
@@ -118,11 +119,6 @@ async function loadDefaultDeps(): Promise<NativeClinicAuditDeps> {
   }
 
   return defaultDepsPromise!;
-}
-
-function buildClinicAuditCsvFilename(now = new Date()): string {
-  const timestamp = now.toISOString().replace(/[:.]/g, "-");
-  return `clinic-audit-log-${timestamp}.csv`;
 }
 
 function parseCookies(cookieHeader: string | undefined) {

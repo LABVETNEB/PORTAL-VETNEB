@@ -1,6 +1,6 @@
 ﻿import type { AuditActorType, AuditEvent } from "../drizzle/schema";
-import type { AdminAuditListFilters } from "./lib/admin-audit";
-import { serializeAuditLogListItem } from "./lib/admin-audit";
+import type { AuditListFilters } from "./lib/audit-log.ts";
+import { serializeAuditLogListItem } from "./lib/audit-log.ts";
 import { pgClient } from "./db";
 
 type CreateAuditLogInput = {
@@ -85,7 +85,7 @@ function deriveLegacyEntityId(input: CreateAuditLogInput): number | null {
   );
 }
 
-function buildAuditLogWhere(filters: AdminAuditListFilters): {
+function buildAuditLogWhere(filters: AuditListFilters): {
   whereSql: string;
   values: QueryValue[];
 } {
@@ -268,7 +268,7 @@ export async function createAuditLog(input: CreateAuditLogInput) {
   return result[0];
 }
 
-export async function listAuditLog(filters: AdminAuditListFilters) {
+export async function listAuditLog(filters: AuditListFilters) {
   const columnsPresent = await getAuditLogColumns();
   const { whereSql, values } = buildAuditLogWhere(filters);
 
@@ -331,11 +331,11 @@ export async function listAuditLog(filters: AdminAuditListFilters) {
 }
 
 export async function listParticularAuditLog(
-  filters: AdminAuditListFilters,
+  filters: AuditListFilters,
   particularTokenId: number,
 ) {
   const columnsPresent = await getAuditLogColumns();
-  const scopedFilters: AdminAuditListFilters = {
+  const scopedFilters: AuditListFilters = {
     ...filters,
     clinicId: undefined,
     actorAdminUserId: undefined,
