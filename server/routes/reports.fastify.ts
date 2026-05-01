@@ -3,26 +3,19 @@ import type {
   FastifyReply,
   FastifyRequest,
 } from "fastify";
-import multer from "multer";
 
 import type { Report, ReportStatus } from "../../drizzle/schema";
-import type { Multer } from "multer";
 import { ENV } from "../lib/env.ts";
-import { ALLOWED_MIME_TYPES } from "../lib/supabase.ts";
 import {
   getReadClinicScope,
   normalizeSearchText,
   parseOffset,
-  parseOptionalDate,
   parsePositiveInt,
   parseReportId,
   parseReportStatus,
 } from "../lib/reports.ts";
 import { REPORT_STATUSES } from "../lib/report-status.ts";
-import {
-  getClinicPermissions,
-  normalizeClinicUserRole,
-} from "../lib/permissions.ts";
+import { normalizeClinicUserRole } from "../lib/permissions.ts";
 import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
@@ -42,43 +35,12 @@ type ActiveSessionRecord = {
   lastAccess?: Date | null;
 };
 
-type ReportUploadInput = {
-  file: Buffer;
-  fileName: string;
-  clinicId: number;
-  mimeType: string;
-};
-
-type UpsertReportInput = {
-  clinicId: number;
-  patientName: string | null;
-  studyType: string | null;
-  uploadDate: Date | null;
-  fileName: string;
-  storagePath: string;
-  createdByClinicUserId?: number | null;
-};
-
-type UploadedMultipartFile = {
-  buffer: Buffer;
-  originalname: string;
-  mimetype: string;
-};
-
-type RawRequestWithFile = FastifyRequest["raw"] & {
-  file?: UploadedMultipartFile;
-  body?: Record<string, unknown>;
-};
-
 type AuthenticatedClinicUser = {
   id: number;
   clinicId: number;
   username: string;
   authProId: string | null;
   role: ReturnType<typeof normalizeClinicUserRole>;
-  permissions: ReturnType<typeof getClinicPermissions>;
-  canUploadReports: boolean;
-  canManageClinicUsers: boolean;
   sessionToken: string;
 };
 
@@ -109,16 +71,6 @@ export type ReportsNativeRoutesOptions = {
   getStudyTypes?: (clinicId: number) => Promise<string[]>;
   getReportById?: (reportId: number) => Promise<Report | null>;
   getReportStatusHistory?: (reportId: number) => Promise<unknown[]>;
-  getClinicScopedStudyTrackingCase?: (
-    trackingCaseId: number,
-    clinicId: number,
-  ) => Promise<unknown | null>;
-  updateStudyTrackingCase?: (
-    trackingCaseId: number,
-    input: { reportId: number },
-  ) => Promise<unknown>;
-  uploadReport?: (input: ReportUploadInput) => Promise<string>;
-  upsertReport?: (input: UpsertReportInput) => Promise<Report>;
   createSignedReportUrl?: (storagePath: string) => Promise<string>;
   createSignedReportDownloadUrl?: (
     storagePath: string,
@@ -134,27 +86,6 @@ type ReportsFastifyRequest = FastifyRequest & {
   [REQUEST_START_TIME_KEY]?: bigint;
 };
 
-const allowedMimeTypes = new Set(ALLOWED_MIME_TYPES);
-
-const upload: Multer = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: ENV.maxUploadFileSizeMb * 1024 * 1024,
-  },
-  fileFilter: (_req, file, cb) => {
-    if (
-      !allowedMimeTypes.has(
-        file.mimetype as (typeof ALLOWED_MIME_TYPES)[number],
-      )
-    ) {
-      cb(new Error("Tipo de archivo no permitido"));
-      return;
-    }
-
-    cb(null, true);
-  },
-});
-
 type NativeReportsDeps = Required<
   Pick<
     ReportsNativeRoutesOptions,
@@ -168,10 +99,6 @@ type NativeReportsDeps = Required<
     | "getStudyTypes"
     | "getReportById"
     | "getReportStatusHistory"
-    | "getClinicScopedStudyTrackingCase"
-    | "updateStudyTrackingCase"
-    | "uploadReport"
-    | "upsertReport"
     | "createSignedReportUrl"
     | "createSignedReportDownloadUrl"
   >
@@ -183,7 +110,6 @@ async function loadDefaultDeps(): Promise<NativeReportsDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
-      const studyTracking = await import("../db-study-tracking.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const storage = await import("../lib/supabase.ts");
 
@@ -198,11 +124,6 @@ async function loadDefaultDeps(): Promise<NativeReportsDeps> {
         getStudyTypes: db.getStudyTypes,
         getReportById: db.getReportById,
         getReportStatusHistory: db.getReportStatusHistory,
-        getClinicScopedStudyTrackingCase:
-          studyTracking.getClinicScopedStudyTrackingCase,
-        updateStudyTrackingCase: studyTracking.updateStudyTrackingCase,
-        uploadReport: storage.uploadReport,
-        upsertReport: db.upsertReport,
         createSignedReportUrl: storage.createSignedReportUrl,
         createSignedReportDownloadUrl: storage.createSignedReportDownloadUrl,
       };
@@ -224,10 +145,6 @@ function hasAllInjectedDeps(options: ReportsNativeRoutesOptions) {
     !!options.getStudyTypes &&
     !!options.getReportById &&
     !!options.getReportStatusHistory &&
-    !!options.getClinicScopedStudyTrackingCase &&
-    !!options.updateStudyTrackingCase &&
-    !!options.uploadReport &&
-    !!options.upsertReport &&
     !!options.createSignedReportUrl &&
     !!options.createSignedReportDownloadUrl
   );
@@ -256,13 +173,6 @@ async function resolveDeps(
     getReportById: options.getReportById ?? defaultDeps!.getReportById,
     getReportStatusHistory:
       options.getReportStatusHistory ?? defaultDeps!.getReportStatusHistory,
-    getClinicScopedStudyTrackingCase:
-      options.getClinicScopedStudyTrackingCase ??
-      defaultDeps!.getClinicScopedStudyTrackingCase,
-    updateStudyTrackingCase:
-      options.updateStudyTrackingCase ?? defaultDeps!.updateStudyTrackingCase,
-    uploadReport: options.uploadReport ?? defaultDeps!.uploadReport,
-    upsertReport: options.upsertReport ?? defaultDeps!.upsertReport,
     createSignedReportUrl:
       options.createSignedReportUrl ?? defaultDeps!.createSignedReportUrl,
     createSignedReportDownloadUrl:
@@ -362,24 +272,6 @@ function applyCorsHeaders(
   reply.header("access-control-allow-credentials", "true");
 }
 
-function enforceTrustedOrigin(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  allowedOrigins: ReadonlySet<string>,
-) {
-  const requestOrigin = getRequestOrigin(request);
-
-  if (requestOrigin && !allowedOrigins.has(requestOrigin)) {
-    reply.code(403).send({
-      success: false,
-      error: "Origen no permitido",
-    });
-    return false;
-  }
-
-  return true;
-}
-
 function parseCookies(cookieHeader: string | undefined) {
   const result: Record<string, string> = {};
 
@@ -466,36 +358,6 @@ function buildClearSessionCookie() {
   });
 }
 
-function runReportUpload(
-  request: FastifyRequest,
-  reply: FastifyReply,
-): Promise<UploadedMultipartFile | undefined> {
-  return new Promise((resolve, reject) => {
-    upload.single("file")(
-      request.raw as any,
-      reply.raw as any,
-      (error: unknown) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve((request.raw as RawRequestWithFile).file);
-      },
-    );
-  });
-}
-
-function getMultipartBody(request: FastifyRequest) {
-  const body = (request.raw as RawRequestWithFile).body;
-
-  if (!body || typeof body !== "object") {
-    return {};
-  }
-
-  return body;
-}
-
 function shouldRefreshSessionLastAccess(
   lastAccess: Date | null | undefined,
   nowMs: number,
@@ -563,17 +425,12 @@ async function authenticateClinicUser(
   }
 
   const role = normalizeClinicUserRole(clinicUser.role, "clinic_staff");
-  const permissions = getClinicPermissions(role);
-
   return {
     id: clinicUser.id,
     clinicId: clinicUser.clinicId,
     username: clinicUser.username,
     authProId: clinicUser.authProId ?? null,
     role,
-    permissions,
-    canUploadReports: permissions.canUploadReports,
-    canManageClinicUsers: permissions.canManageClinicUsers,
     sessionToken: token,
   };
 }
@@ -633,15 +490,6 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
   async (app, options) => {
     const now = options.now ?? (() => Date.now());
     const allowedOrigins = new Set(getAllowedOrigins());
-
-    if (!app.hasContentTypeParser("multipart/form-data")) {
-      app.addContentTypeParser(
-        "multipart/form-data",
-        (_request, _payload, done) => {
-          done(null, undefined);
-        },
-      );
-    }
 
     app.addHook("onRequest", async (request, reply) => {
       (request as ReportsFastifyRequest)[REQUEST_START_TIME_KEY] =
@@ -703,97 +551,6 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
     app.options("/:reportId/history", optionsHandler);
     app.options("/:reportId/preview-url", optionsHandler);
     app.options("/:reportId/download-url", optionsHandler);
-
-    app.post("/upload", async (request, reply) => {
-      if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
-        return reply;
-      }
-
-      const deps = await resolveDeps(options);
-      const auth = await authenticateClinicUser(request, reply, deps, now);
-
-      if (!auth) {
-        return reply;
-      }
-
-      if (!auth.canUploadReports) {
-        return reply.code(403).send({
-          success: false,
-          error: "No autorizado para subir informes",
-        });
-      }
-
-      let file: UploadedMultipartFile | undefined;
-
-      try {
-        file = await runReportUpload(request, reply);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Error al procesar archivo";
-
-        return reply.code(400).send({
-          success: false,
-          error: message,
-        });
-      }
-
-      if (!file) {
-        return reply.code(400).send({
-          success: false,
-          error: "No se proporciono ningun archivo",
-        });
-      }
-
-      const clinicId = auth.clinicId;
-      const body = getMultipartBody(request);
-      const storagePath = await deps.uploadReport({
-        file: file.buffer,
-        fileName: file.originalname,
-        clinicId,
-        mimeType: file.mimetype,
-      });
-
-      const patientName = normalizeSearchText(body.patientName);
-      const studyType = normalizeSearchText(body.studyType);
-      const uploadDate = parseOptionalDate(body.uploadDate);
-      const trackingCaseId = parseReportId(body.trackingCaseId);
-
-      if (typeof trackingCaseId === "number") {
-        const trackingCase = await deps.getClinicScopedStudyTrackingCase(
-          trackingCaseId,
-          clinicId,
-        );
-
-        if (!trackingCase) {
-          return reply.code(404).send({
-            success: false,
-            error: "Seguimiento no encontrado para la clinica autenticada",
-          });
-        }
-      }
-
-      const report = await deps.upsertReport({
-        clinicId,
-        patientName: patientName ?? null,
-        studyType: studyType ?? null,
-        uploadDate: uploadDate ?? null,
-        fileName: file.originalname,
-        storagePath,
-        createdByClinicUserId: auth.id,
-      });
-
-      if (typeof trackingCaseId === "number") {
-        await deps.updateStudyTrackingCase(trackingCaseId, {
-          reportId: report.id,
-        });
-      }
-
-      return reply.code(201).send({
-        success: true,
-        message: "Archivo subido correctamente",
-        report: await serializeReport(report, deps),
-      });
-    });
 
     app.get<{
       Querystring: {

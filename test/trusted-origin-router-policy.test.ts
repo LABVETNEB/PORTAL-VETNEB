@@ -24,15 +24,16 @@ test("clinic-public-profile nativo valida origin antes de auth en mutaciones", (
   );
 });
 
-test("reports nativos validan origin antes de auth en mutaciones", () => {
+test("reports clinic read-only no declara mutaciones y status valida origin antes de auth", () => {
   const reportsSource = readRouteSource("server/routes/reports.fastify.ts");
   const reportsStatusSource = readRouteSource(
     "server/routes/reports-status.fastify.ts",
   );
 
-  assert.match(
+  assert.doesNotMatch(
     reportsSource,
-    /app\.post\(\s*"\/upload"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateClinicUser/s,
+    /app\.(post|patch|delete)(?:<[\s\S]*?>)?\(/,
+    "reports clinic debe quedar sin rutas mutantes",
   );
   assert.match(
     reportsStatusSource,
