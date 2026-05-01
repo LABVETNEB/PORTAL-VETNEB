@@ -13,18 +13,6 @@ type SensitiveMutationRoute = {
 
 const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
   {
-    file: "server/routes/reports.fastify.ts",
-    method: "post",
-    path: "/upload",
-    permissionGuard: "auth.canUploadReports",
-    protectedCalls: [
-      "runReportUpload",
-      "deps.uploadReport",
-      "deps.upsertReport",
-      "deps.updateStudyTrackingCase",
-    ],
-  },
-  {
     file: "server/routes/reports-status.fastify.ts",
     method: "patch",
     path: "/:reportId/status",
@@ -269,22 +257,27 @@ test("permission helpers devuelven 403 estable antes de mutaciones sensibles", (
   }
 });
 
-test("reports upload conserva permiso de carga antes de storage y DB", () => {
-  const route = SENSITIVE_MUTATION_ROUTES.find(
-    (candidate) =>
-      candidate.file === "server/routes/reports.fastify.ts" &&
-      candidate.method === "post" &&
-      candidate.path === "/upload",
+test("reports clinic read-only no declara rutas mutantes ni storage upload", () => {
+  const source = readSource("server/routes/reports.fastify.ts");
+
+  assert.deepEqual(
+    extractActualMutatingRoutes("server/routes/reports.fastify.ts"),
+    [],
+    "reports clinic debe quedar limitado a rutas read-only",
   );
 
-  assert.ok(route);
-
-  const block = extractRouteBlock(route);
-
-  assertContains(block, "if (!auth.canUploadReports)", "reports upload");
-  assertContains(block, "No autorizado para subir informes", "reports upload");
-
-  for (const protectedCall of route.protectedCalls) {
-    assertBefore(block, "if (!auth.canUploadReports)", protectedCall, "reports upload");
+  for (const forbiddenMarker of [
+    "app.post(\"/upload\"",
+    "runReportUpload",
+    "auth.canUploadReports",
+    "deps.uploadReport",
+    "deps.upsertReport",
+    "deps.updateStudyTrackingCase",
+  ]) {
+    assert.equal(
+      source.includes(forbiddenMarker),
+      false,
+      `reports clinic read-only no debe contener marker: ${forbiddenMarker}`,
+    );
   }
 });

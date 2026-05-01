@@ -140,10 +140,6 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
       "Mutaciones clinic-scoped sensibles preservan origin, sesión y permiso antes de DB/storage/audit.",
     runtimeFiles: [
       {
-        path: "server/routes/reports.fastify.ts",
-        markers: ["auth.canUploadReports", "deps.uploadReport"],
-      },
-      {
         path: "server/routes/reports-status.fastify.ts",
         markers: ["requireReportStatusWritePermission", "deps.updateReportStatus"],
       },

@@ -79,18 +79,6 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     getStudyTypes: async () => ["Histopatología", "Citología"],
     getReportById: async () => createReportFixture(),
     getReportStatusHistory: async () => [createStatusHistoryFixture()],
-    getClinicScopedStudyTrackingCase: async () => ({
-      id: 77,
-      clinicId: 3,
-    }),
-    updateStudyTrackingCase: async () => {},
-    uploadReport: async () => "reports/3/luna-new.pdf",
-    upsertReport: async () =>
-      createReportFixture({
-        id: 88,
-        currentStatus: "uploaded",
-        storagePath: "reports/3/luna-new.pdf",
-      }),
     createSignedReportUrl: async (storagePath: string) => `preview:${storagePath}`,
     createSignedReportDownloadUrl: async (
       storagePath: string,
@@ -103,113 +91,28 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
   return app;
 }
 
-function buildMultipartReportPayload(options: { includeFile?: boolean } = {}) {
-  const boundary = "----vetneb-report-boundary";
-  const includeFile = options.includeFile ?? true;
-  const chunks = [
-    `--${boundary}\r\n`,
-    'Content-Disposition: form-data; name="patientName"\r\n\r\n',
-    "Luna Gomez",
-    `\r\n--${boundary}\r\n`,
-    'Content-Disposition: form-data; name="studyType"\r\n\r\n',
-    "Histopatologia",
-    `\r\n--${boundary}\r\n`,
-    'Content-Disposition: form-data; name="uploadDate"\r\n\r\n',
-    "2026-04-25T10:30:00.000Z",
-    `\r\n--${boundary}\r\n`,
-    'Content-Disposition: form-data; name="trackingCaseId"\r\n\r\n',
-    "77",
-  ];
+test("reportsNativeRoutes no registra POST /upload en superficie clinic read-only", async () => {
+  const app = await createTestApp({
+    getActiveSessionByToken: async () => {
+      throw new Error("POST /upload clinic no debe autenticar sesion");
+    },
+  });
 
-  if (includeFile) {
-    chunks.push(
-      `\r\n--${boundary}\r\n`,
-      'Content-Disposition: form-data; name="file"; filename="luna.pdf"\r\n',
-      "Content-Type: application/pdf\r\n\r\n",
-      "PDFDATA",
-    );
-  }
-
-  chunks.push(`\r\n--${boundary}--\r\n`);
-
-  return {
-    boundary,
-    payload: Buffer.from(chunks.join(""), "utf8"),
-  };
-}
-
-test("reportsNativeRoutes bloquea POST /upload para roles clinic", async () => {
-  for (const role of ["clinic_owner", "clinic_staff"] as const) {
-    const multipart = buildMultipartReportPayload();
-    const calls = {
-      uploadReport: 0,
-      upsertReport: 0,
-      getClinicScopedStudyTrackingCase: 0,
-      updateStudyTrackingCase: 0,
-    };
-
-    const app = await createTestApp({
-      getClinicUserById: async () => ({
-        id: 9,
-        clinicId: 3,
-        username: "doctor",
-        authProId: null,
-        role,
-      }),
-      uploadReport: async () => {
-        calls.uploadReport += 1;
-        return "reports/3/luna-new.pdf";
-      },
-      upsertReport: async () => {
-        calls.upsertReport += 1;
-        return createReportFixture({ id: 88 });
-      },
-      getClinicScopedStudyTrackingCase: async () => {
-        calls.getClinicScopedStudyTrackingCase += 1;
-        return {
-          id: 77,
-          clinicId: 3,
-        };
-      },
-      updateStudyTrackingCase: async () => {
-        calls.updateStudyTrackingCase += 1;
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports/upload",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.cookieName}=session-token`,
       },
     });
 
-    try {
-      const response = await app.inject({
-        method: "POST",
-        url: "/api/reports/upload",
-        headers: {
-          origin: "http://localhost:3000",
-          cookie: `${ENV.cookieName}=session-token`,
-          "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
-        },
-        payload: multipart.payload,
-      });
-
-      assert.equal(response.statusCode, 403, role);
-      assert.deepEqual(
-        JSON.parse(response.body),
-        {
-          success: false,
-          error: "No autorizado para subir informes",
-        },
-        role,
-      );
-      assert.deepEqual(
-        calls,
-        {
-          uploadReport: 0,
-          upsertReport: 0,
-          getClinicScopedStudyTrackingCase: 0,
-          updateStudyTrackingCase: 0,
-        },
-        role,
-      );
-    } finally {
-      await app.close();
-    }
+    assert.equal(response.statusCode, 404);
+    assert.equal(response.headers["set-cookie"], undefined);
+    assert.match(response.body, /POST:\/api\/reports\/upload|Route/);
+  } finally {
+    await app.close();
   }
 });
 
