@@ -1,4 +1,5 @@
-﻿import type {
+import { parseReportStudyType } from "../lib/report-study-types.ts";
+import type {
   FastifyPluginAsync,
   FastifyReply,
   FastifyRequest,
@@ -685,7 +686,7 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
     });
 
     const patientName = normalizeSearchText(body.patientName);
-    const studyType = normalizeSearchText(body.studyType);
+    const studyType = parseReportStudyType(body.studyType);
     const uploadDate = parseOptionalDate(body.uploadDate);
 
     const report = await deps.upsertReport({

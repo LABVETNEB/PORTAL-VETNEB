@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import Fastify from "fastify";
 
@@ -19,7 +19,7 @@ function createReportFixture(overrides: Record<string, unknown> = {}) {
     id: 88,
     clinicId: 3,
     uploadDate: new Date("2026-04-22T09:00:00.000Z"),
-    studyType: "Histopatologia",
+    studyType: "histopatologia",
     patientName: "Luna",
     fileName: "luna-report.pdf",
     currentStatus: "uploaded",
@@ -75,7 +75,7 @@ function buildMultipartReportPayload(
   fields: Record<string, string> = {
     clinicId: "3",
     patientName: " Luna ",
-    studyType: " Histopatologia ",
+    studyType: " histopatologia ",
     uploadDate: "2026-04-22T09:00:00.000Z",
   },
 ) {
@@ -181,7 +181,7 @@ test("adminReportsNativeRoutes crea POST /upload con clinicId explicito y metada
       {
         clinicId: 3,
         patientName: "Luna",
-        studyType: "Histopatologia",
+        studyType: "histopatologia",
         uploadDate: "2026-04-22T09:00:00.000Z",
         fileName: "luna-report.pdf",
         storagePath: "reports/3/luna-report.pdf",
@@ -237,7 +237,7 @@ test("adminReportsNativeRoutes crea POST /upload con clinicId explicito y metada
               mimeType: "application/pdf",
               storagePath: "reports/3/luna-report.pdf",
               patientName: "Luna",
-              studyType: "Histopatologia",
+              studyType: "histopatologia",
               uploadDate: "2026-04-22T09:00:00.000Z",
               uploadedVia: "admin",
             },
@@ -252,7 +252,7 @@ test("adminReportsNativeRoutes crea POST /upload con clinicId explicito y metada
     assert.equal(body.report.id, 88);
     assert.equal(body.report.clinicId, 3);
     assert.equal(body.report.patientName, "Luna");
-    assert.equal(body.report.studyType, "Histopatologia");
+    assert.equal(body.report.studyType, "histopatologia");
     assert.equal(body.report.previewUrl, "signed-preview:reports/3/luna-report.pdf");
     assert.equal(
       body.report.downloadUrl,
@@ -340,7 +340,7 @@ test("adminReportsNativeRoutes bloquea POST /upload sin sesion admin antes de st
 test("adminReportsNativeRoutes requiere clinicId valido antes de storage", async () => {
   const multipart = buildMultipartReportPayload({
     patientName: "Luna",
-    studyType: "Histopatologia",
+    studyType: "histopatologia",
   });
   let uploadCalls = 0;
   let upsertCalls = 0;

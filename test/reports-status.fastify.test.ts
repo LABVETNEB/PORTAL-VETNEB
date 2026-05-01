@@ -19,7 +19,7 @@ function createReportFixture(overrides: Record<string, unknown> = {}) {
     id: 55,
     clinicId: 3,
     patientName: "Luna Gomez",
-    studyType: "Histopatolog\u00eda",
+    studyType: "histopatologia",
     uploadDate: new Date("2026-04-20T00:00:00.000Z"),
     fileName: "luna.pdf",
     storagePath: "reports/3/luna.pdf",

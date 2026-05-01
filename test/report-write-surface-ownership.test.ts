@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -81,7 +81,7 @@ function assertBefore(
   assert.notEqual(
     laterIndex,
     -1,
-    `${context} debe contener operación protegida: ${later}`,
+    `${context} debe contener operacion protegida: ${later}`,
   );
   assert.ok(
     earlierIndex < laterIndex,
@@ -94,7 +94,7 @@ function createReportFixture(overrides: Record<string, unknown> = {}) {
     id: 88,
     clinicId: 3,
     uploadDate: new Date("2026-04-22T09:00:00.000Z"),
-    studyType: "Histopatologia",
+    studyType: "histopatologia",
     patientName: "Luna",
     fileName: "luna-report.pdf",
     currentStatus: "uploaded",
@@ -158,7 +158,7 @@ function buildMultipartReportPayload() {
     "Luna",
     `\r\n--${boundary}\r\n`,
     'Content-Disposition: form-data; name="studyType"\r\n\r\n',
-    "Histopatologia",
+    "histopatologia",
     `\r\n--${boundary}\r\n`,
     'Content-Disposition: form-data; name="uploadDate"\r\n\r\n',
     "2026-04-22T09:00:00.000Z",

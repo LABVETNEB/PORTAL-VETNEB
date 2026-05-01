@@ -17,7 +17,7 @@ function createReportFixture(overrides: Record<string, unknown> = {}) {
     id: 55,
     clinicId: 3,
     patientName: "Luna Gomez",
-    studyType: "Histopatología",
+    studyType: "HistopatologÃ­a",
     uploadDate: new Date("2026-04-20T00:00:00.000Z"),
     fileName: "luna.pdf",
     storagePath: "reports/3/luna.pdf",
@@ -76,7 +76,7 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     ...createAuthStubs(),
     getReportsByClinicId: async () => [createReportFixture()],
     searchReports: async () => [createReportFixture({ id: 56 })],
-    getStudyTypes: async () => ["Histopatología", "Citología"],
+    getStudyTypes: async () => ["HistopatologÃ­a", "CitologÃ­a"],
     getReportById: async () => createReportFixture(),
     getReportStatusHistory: async () => [createStatusHistoryFixture()],
     createSignedReportUrl: async (storagePath: string) => `preview:${storagePath}`,
@@ -185,7 +185,7 @@ test("reportsNativeRoutes expone GET /search con filtros normalizados", async ()
   try {
     const response = await app.inject({
       method: "GET",
-      url: "/api/reports/search?query= Luna &studyType= Histo &status=ready&limit=10&offset=4",
+      url: "/api/reports/search?query= Luna &studyType= histopatologia &status=ready&limit=10&offset=4",
       headers: {
         cookie: `${ENV.cookieName}=session-token`,
       },
@@ -196,7 +196,7 @@ test("reportsNativeRoutes expone GET /search con filtros normalizados", async ()
       {
         clinicId: 3,
         query: "Luna",
-        studyType: "Histo",
+        studyType: "histopatologia",
         limit: 10,
         offset: 4,
         currentStatus: "ready",
@@ -207,7 +207,7 @@ test("reportsNativeRoutes expone GET /search con filtros normalizados", async ()
     assert.equal(body.success, true);
     assert.equal(body.reports[0].id, 56);
     assert.equal(body.filters.query, "Luna");
-    assert.equal(body.filters.studyType, "Histo");
+    assert.equal(body.filters.studyType, "histopatologia");
     assert.equal(body.filters.status, "ready");
   } finally {
     await app.close();
@@ -219,7 +219,7 @@ test("reportsNativeRoutes expone GET /study-types clinic-scoped", async () => {
   const app = await createTestApp({
     getStudyTypes: async (clinicId: number) => {
       calls.push(clinicId);
-      return ["Histopatología", "Citología"];
+      return ["HistopatologÃ­a", "CitologÃ­a"];
     },
   });
 
@@ -236,7 +236,7 @@ test("reportsNativeRoutes expone GET /study-types clinic-scoped", async () => {
     assert.deepEqual(calls, [3]);
     assert.deepEqual(JSON.parse(response.body), {
       success: true,
-      studyTypes: ["Histopatología", "Citología"],
+      studyTypes: ["HistopatologÃ­a", "CitologÃ­a"],
     });
   } finally {
     await app.close();
@@ -325,7 +325,7 @@ test("reportsNativeRoutes expone GET /:reportId/download-url clinic-scoped", asy
   }
 });
 
-test("reportsNativeRoutes bloquea reportId inválido en rutas parametrizadas", async () => {
+test("reportsNativeRoutes bloquea reportId invÃ¡lido en rutas parametrizadas", async () => {
   const app = await createTestApp();
 
   try {
@@ -417,7 +417,7 @@ test("reportsNativeRoutes bloquea clinicId ajeno", async () => {
   }
 });
 
-test("reportsNativeRoutes valida status inválido", async () => {
+test("reportsNativeRoutes valida status invÃ¡lido", async () => {
   const app = await createTestApp();
 
   try {
@@ -439,7 +439,7 @@ test("reportsNativeRoutes valida status inválido", async () => {
   }
 });
 
-test("reportsNativeRoutes bloquea GET / sin sesión", async () => {
+test("reportsNativeRoutes bloquea GET / sin sesiÃ³n", async () => {
   const app = await createTestApp();
 
   try {
