@@ -27,6 +27,7 @@ const adminFiles = [
 ] as const;
 
 const particularFiles = [
+  "server/routes/particular-audit.fastify.ts",
   "server/routes/particular-auth.fastify.ts",
   "server/routes/particular-study-tracking.fastify.ts",
 ] as const;
@@ -124,6 +125,7 @@ test("cross auth surface registry keeps every protected route family explicit", 
       "server/routes/admin-particular-tokens.fastify.ts",
       "server/routes/admin-report-access-tokens.fastify.ts",
       "server/routes/admin-study-tracking.fastify.ts",
+      "server/routes/particular-audit.fastify.ts",
       "server/routes/particular-auth.fastify.ts",
       "server/routes/particular-study-tracking.fastify.ts",
       "server/routes/public-report-access.fastify.ts",

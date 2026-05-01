@@ -41,6 +41,10 @@ import {
   type ClinicPublicProfileNativeRoutesOptions,
 } from "./routes/clinic-public-profile.fastify.ts";
 import {
+  particularAuditNativeRoutes,
+  type ParticularAuditNativeRoutesOptions,
+} from "./routes/particular-audit.fastify.ts";
+import {
   particularAuthNativeRoutes,
   type ParticularAuthNativeRoutesOptions,
 } from "./routes/particular-auth.fastify.ts";
@@ -152,6 +156,7 @@ export type CreateFastifyAppOptions = {
   clinicAuthRoutes?: AuthNativeRoutesOptions;
   clinicAuditRoutes?: ClinicAuditNativeRoutesOptions;
   clinicPublicProfileRoutes?: ClinicPublicProfileNativeRoutesOptions;
+  particularAuditRoutes?: ParticularAuditNativeRoutesOptions;
   particularAuthRoutes?: ParticularAuthNativeRoutesOptions;
   particularStudyTrackingRoutes?: ParticularStudyTrackingNativeRoutesOptions;
   particularTokensRoutes?: ParticularTokensNativeRoutesOptions;
@@ -283,6 +288,11 @@ export async function createFastifyApp(
   await app.register(clinicPublicProfileNativeRoutes, {
     prefix: "/api/clinic/profile",
     ...(options.clinicPublicProfileRoutes ?? {}),
+  });
+
+  await app.register(particularAuditNativeRoutes, {
+    prefix: "/api/particular/audit-log",
+    ...(options.particularAuditRoutes ?? {}),
   });
 
   await app.register(particularAuthNativeRoutes, {
