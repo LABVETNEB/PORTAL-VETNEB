@@ -141,6 +141,13 @@
                         "when":  1776442203571,
                         "tag":  "0019_logistics_route_plans_stops",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  20,
+                        "version":  "7",
+                        "when":  1776442203572,
+                        "tag":  "0020_logistics_route_events",
+                        "breakpoints":  true
                     }
                 ]
 }
