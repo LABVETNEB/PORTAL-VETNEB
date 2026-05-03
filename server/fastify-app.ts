@@ -1,4 +1,4 @@
-﻿import Fastify, {
+import Fastify, {
   type FastifyInstance,
   type FastifyReply,
   type FastifyRequest,
@@ -80,6 +80,10 @@ import {
   studyTrackingNativeRoutes,
   type StudyTrackingNativeRoutesOptions,
 } from "./routes/study-tracking.fastify.ts";
+import {
+  logisticsFieldVisitsNativeRoutes,
+  type LogisticsFieldVisitsNativeRoutesOptions,
+} from "./routes/logistics-field-visits.fastify.ts";
 
 type HealthCheckResponse = {
   statusCode: number;
@@ -166,6 +170,7 @@ export type CreateFastifyAppOptions = {
   reportsRoutes?: ReportsNativeRoutesOptions;
   reportsStatusRoutes?: ReportsStatusNativeRoutesOptions;
   studyTrackingRoutes?: StudyTrackingNativeRoutesOptions;
+  logisticsFieldVisitsRoutes?: LogisticsFieldVisitsNativeRoutesOptions;
 };
 
 export async function createFastifyApp(
@@ -343,6 +348,11 @@ export async function createFastifyApp(
   await app.register(studyTrackingNativeRoutes, {
     prefix: "/api/study-tracking",
     ...(options.studyTrackingRoutes ?? {}),
+  });
+
+  await app.register(logisticsFieldVisitsNativeRoutes, {
+    prefix: "/api/logistics/field-visits",
+    ...(options.logisticsFieldVisitsRoutes ?? {}),
   });
 
   return app;

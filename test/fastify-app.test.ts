@@ -512,6 +512,18 @@ function buildReportsStatusRouteStubs() {
   };
 }
 
+function buildLogisticsFieldVisitsRouteStubs() {
+  return {
+    deleteActiveSession: async () => {},
+    getActiveSessionByToken: async () => null,
+    getClinicUserById: async () => null,
+    updateSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    createFieldVisit: async () => null,
+    listClinicFieldVisits: async () => [],
+    updateClinicScopedFieldVisit: async () => null,
+  };
+}
 function buildFastifyDispatchRouteStubs() {
   return {
     adminAuditRoutes: buildAdminAuditRouteStubs(),
@@ -533,12 +545,14 @@ function buildFastifyDispatchRouteStubs() {
     reportsRoutes: buildReportsRouteStubs(),
     reportsStatusRoutes: buildReportsStatusRouteStubs(),
     studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
   };
 }
 test(
   "createFastifyApp expone root y health nativos",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       getServiceInfoPayload: () => ({
         success: true,
         service: "portal-vetneb-api",
@@ -583,6 +597,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -617,6 +632,7 @@ test(
   "createFastifyApp despacha /api/admin/audit-log al router nativo",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: {
         ...buildAdminAuditRouteStubs(),
         getAdminSessionByToken: async () => ({
@@ -690,6 +706,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -721,6 +738,7 @@ test(
   "createFastifyApp despacha /api/admin/auth al router nativo",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: {
         ...buildAdminAuthRouteStubs(),
@@ -758,6 +776,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -792,6 +811,7 @@ test(
   "createFastifyApp despacha /api/auth al router nativo",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -831,6 +851,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -872,6 +893,7 @@ test(
   "createFastifyApp despacha /api/clinic/audit-log al router nativo",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -950,6 +972,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -982,6 +1005,7 @@ test(
   "createFastifyApp despacha /api/clinic/profile al router nativo",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1044,6 +1068,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -1076,6 +1101,7 @@ test(
   "createFastifyApp despacha /api/particular/auth al router nativo",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1149,6 +1175,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -1181,6 +1208,7 @@ test(
   "createFastifyApp despacha /api/public/professionals al router nativo",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1206,6 +1234,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -1247,6 +1276,7 @@ test(
     const rawToken = "a".repeat(64);
 
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1330,6 +1360,7 @@ test(
       },
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -1362,6 +1393,7 @@ test(
   "createFastifyApp despacha /api/report-access-tokens al router nativo",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1386,6 +1418,7 @@ test(
       },
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
       reportAccessTokensRoutes: {
         ...buildReportAccessTokensRouteStubs(),
         getActiveSessionByToken: async () => ({
@@ -1493,6 +1526,7 @@ test(
   "createFastifyApp despacha /api/admin/report-access-tokens al router nativo",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1548,6 +1582,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -1582,6 +1617,7 @@ test(
   "createFastifyApp despacha /api/admin/particular-tokens al router nativo",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: {
@@ -1644,6 +1680,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -1675,6 +1712,7 @@ test(
   "createFastifyApp despacha /api/study-tracking al router nativo",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1695,6 +1733,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -1717,6 +1756,7 @@ test(
   "createFastifyApp despacha /api/admin/study-tracking al router nativo",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1754,6 +1794,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -1787,6 +1828,7 @@ test(
   "createFastifyApp despacha aliases legacy de particular tokens al router nativo",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       adminAuditRoutes: buildAdminAuditRouteStubs(),
       adminAuthRoutes: buildAdminAuthRouteStubs(),
       adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
@@ -1812,6 +1854,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
@@ -1893,6 +1936,7 @@ test(
   "createFastifyApp usa handlers globales para 404 y errores no capturados",
   async () => {
     const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
       getServiceInfoPayload: () => ({
         success: true,
         service: "portal-vetneb-api",
@@ -1930,6 +1974,7 @@ test(
       publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
       reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
       studyTrackingRoutes: buildStudyTrackingRouteStubs(),
+    logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     });
 
     try {
