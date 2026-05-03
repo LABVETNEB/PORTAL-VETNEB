@@ -134,6 +134,54 @@ export type UpdateRouteStopInput = Partial<
   }
 >;
 
+export const ROUTE_PLAN_LIFECYCLE_ACTIONS = [
+  "release",
+  "start",
+  "complete",
+  "cancel",
+] as const;
+
+export type RoutePlanLifecycleAction =
+  (typeof ROUTE_PLAN_LIFECYCLE_ACTIONS)[number];
+
+export type RoutePlanLifecycleTransition = {
+  from: RoutePlanStatus[];
+  to: RoutePlanStatus;
+};
+
+export const ROUTE_PLAN_LIFECYCLE_TRANSITIONS: Record<
+  RoutePlanLifecycleAction,
+  RoutePlanLifecycleTransition
+> = {
+  release: {
+    from: ["draft", "planned"],
+    to: "released",
+  },
+  start: {
+    from: ["released"],
+    to: "in_progress",
+  },
+  complete: {
+    from: ["in_progress"],
+    to: "completed",
+  },
+  cancel: {
+    from: ["draft", "planned", "released", "in_progress"],
+    to: "canceled",
+  },
+};
+
+export type RoutePlanLifecycleTransitionResult =
+  | {
+      routePlan: RoutePlan;
+      reason?: undefined;
+    }
+  | {
+      routePlan?: undefined;
+      reason: "not_found" | "invalid_transition";
+      currentStatus?: RoutePlanStatus;
+    };
+
 export function normalizeLogisticsLimit(
   value: number | null | undefined,
   defaultLimit = LOGISTICS_DEFAULT_LIMIT,
@@ -621,3 +669,68 @@ export async function updateClinicScopedRouteStop(
   });
 }
 
+
+
+export async function transitionClinicScopedRoutePlanStatus(
+  id: number,
+  clinicId: number,
+  action: RoutePlanLifecycleAction,
+): Promise<RoutePlanLifecycleTransitionResult> {
+  const transition = ROUTE_PLAN_LIFECYCLE_TRANSITIONS[action];
+
+  return db.transaction(async (tx) => {
+    const current = await tx
+      .select()
+      .from(routePlans)
+      .where(
+        and(
+          eq(routePlans.id, id),
+          eq(routePlans.clinicId, clinicId),
+        ),
+      )
+      .limit(1);
+
+    const routePlan = current[0];
+
+    if (!routePlan) {
+      return {
+        reason: "not_found",
+      };
+    }
+
+    if (!transition.from.includes(routePlan.status)) {
+      return {
+        reason: "invalid_transition",
+        currentStatus: routePlan.status,
+      };
+    }
+
+    const updated = await tx
+      .update(routePlans)
+      .set({
+        status: transition.to,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(routePlans.id, id),
+          eq(routePlans.clinicId, clinicId),
+          eq(routePlans.status, routePlan.status),
+        ),
+      )
+      .returning();
+
+    const updatedRoutePlan = updated[0];
+
+    if (!updatedRoutePlan) {
+      return {
+        reason: "invalid_transition",
+        currentStatus: routePlan.status,
+      };
+    }
+
+    return {
+      routePlan: updatedRoutePlan,
+    };
+  });
+}

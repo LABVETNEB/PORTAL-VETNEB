@@ -92,3 +92,23 @@ test("logistics DB helpers keep route stops clinic scoped through route plans", 
   assert.match(dbLogisticsSource, /eq\(routePlans\.clinicId, clinicId\)/);
   assert.match(dbLogisticsSource, /eq\(routeStops\.id, id\)/);
 });
+
+
+test("logistics DB helpers define guarded route plan lifecycle transitions", () => {
+  assert.match(dbLogisticsSource, /export const ROUTE_PLAN_LIFECYCLE_ACTIONS/);
+  assert.match(dbLogisticsSource, /export const ROUTE_PLAN_LIFECYCLE_TRANSITIONS/);
+  assert.match(dbLogisticsSource, /release:\s*{\s*from: \["draft", "planned"\],\s*to: "released"/);
+  assert.match(dbLogisticsSource, /start:\s*{\s*from: \["released"\],\s*to: "in_progress"/);
+  assert.match(dbLogisticsSource, /complete:\s*{\s*from: \["in_progress"\],\s*to: "completed"/);
+  assert.match(dbLogisticsSource, /cancel:\s*{\s*from: \["draft", "planned", "released", "in_progress"\],\s*to: "canceled"/);
+});
+
+test("logistics DB helpers transition route plan status only inside clinic scope", () => {
+  assert.match(dbLogisticsSource, /export async function transitionClinicScopedRoutePlanStatus/);
+  assert.match(dbLogisticsSource, /db\.transaction\(async \(tx\) =>/);
+  assert.match(dbLogisticsSource, /eq\(routePlans\.id, id\)/);
+  assert.match(dbLogisticsSource, /eq\(routePlans\.clinicId, clinicId\)/);
+  assert.match(dbLogisticsSource, /eq\(routePlans\.status, routePlan\.status\)/);
+  assert.match(dbLogisticsSource, /reason: "invalid_transition"/);
+  assert.match(dbLogisticsSource, /reason: "not_found"/);
+});
