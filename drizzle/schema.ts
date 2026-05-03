@@ -82,6 +82,29 @@ export const ROUTE_STOP_STATUSES = [
   "canceled",
 ] as const;
 export type RouteStopStatus = (typeof ROUTE_STOP_STATUSES)[number];
+export const ROUTE_EVENT_TYPES = [
+  "route.created",
+  "route.released",
+  "route.started",
+  "stop.arrived",
+  "stop.departed",
+  "stop.skipped",
+  "stop.no_show",
+  "route.completed",
+  "route.canceled",
+  "route.replanned",
+] as const;
+export type RouteEventType = (typeof ROUTE_EVENT_TYPES)[number];
+
+export const ROUTE_EVENT_SOURCES = [
+  "system",
+  "admin",
+  "clinic",
+  "mobile",
+] as const;
+export type RouteEventSource = (typeof ROUTE_EVENT_SOURCES)[number];
+
+export type RouteEventPayload = Record<string, unknown>;
 export const AUDIT_ACTOR_TYPES = [
   "system",
   "admin_user",
@@ -810,6 +833,48 @@ export const routeStops = pgTable(
     ),
   }),
 );
+export const routeEvents = pgTable(
+  "route_events",
+  {
+    id: serial("id").primaryKey(),
+    clinicId: integer("clinic_id")
+      .notNull()
+      .references(() => clinics.id, { onDelete: "cascade" }),
+    routePlanId: integer("route_plan_id").references(() => routePlans.id, {
+      onDelete: "cascade",
+    }),
+    routeStopId: integer("route_stop_id").references(() => routeStops.id, {
+      onDelete: "cascade",
+    }),
+    eventType: varchar("event_type", { length: 64 })
+      .$type<RouteEventType>()
+      .notNull(),
+    eventTime: timestamp("event_time", { mode: "date" }).notNull(),
+    payload: jsonb("payload").$type<RouteEventPayload>(),
+    lat: real("lat"),
+    lng: real("lng"),
+    source: varchar("source", { length: 32 })
+      .$type<RouteEventSource>()
+      .notNull()
+      .default("system"),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    clinicIdIdx: index("route_events_clinic_id_idx").on(table.clinicId),
+    clinicEventTimeIdx: index("route_events_clinic_event_time_idx").on(
+      table.clinicId,
+      table.eventTime,
+    ),
+    clinicRoutePlanEventTimeIdx: index(
+      "route_events_clinic_route_plan_event_time_idx",
+    ).on(table.clinicId, table.routePlanId, table.eventTime),
+    routeStopEventTimeIdx: index("route_events_route_stop_event_time_idx").on(
+      table.routeStopId,
+      table.eventTime,
+    ),
+    eventTypeIdx: index("route_events_event_type_idx").on(table.eventType),
+  }),
+);
 export const particularSessions = pgTable(
   "particular_sessions",
   {
@@ -873,6 +938,8 @@ export type NewRoutePlan = InferInsertModel<typeof routePlans>;
 
 export type RouteStop = InferSelectModel<typeof routeStops>;
 export type NewRouteStop = InferInsertModel<typeof routeStops>;
+export type RouteEvent = InferSelectModel<typeof routeEvents>;
+export type NewRouteEvent = InferInsertModel<typeof routeEvents>;
 
 export type ClinicPublicProfile = InferSelectModel<typeof clinicPublicProfiles>;
 export type NewClinicPublicProfile = InferInsertModel<typeof clinicPublicProfiles>;
