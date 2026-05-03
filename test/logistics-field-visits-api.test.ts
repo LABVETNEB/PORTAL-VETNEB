@@ -103,3 +103,45 @@ test("logistics field visit API keeps location writes behind trusted-origin chec
   assert.match(routeSource, /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)/);
   assert.match(routeSource, /auth\.clinicId/);
 });
+
+
+test("logistics field visit API exposes clinic-scoped time-window endpoints", () => {
+  assert.match(routeSource, /app\.get<[\s\S]*>\("\/:fieldVisitId\/time-windows", async/);
+  assert.match(routeSource, /app\.post<[\s\S]*>\("\/:fieldVisitId\/time-windows", async/);
+  assert.match(routeSource, /app\.options\("\/:fieldVisitId\/time-windows", optionsHandler\)/);
+  assert.match(routeSource, /GET,POST,PUT,PATCH,OPTIONS/);
+});
+
+test("logistics field visit API wires time-window DB helpers through injectable deps", () => {
+  assert.match(routeSource, /createTimeWindowForClinicVisit\?:/);
+  assert.match(routeSource, /listTimeWindowsForClinicVisit\?:/);
+  assert.match(routeSource, /dbLogistics\.createTimeWindowForClinicVisit/);
+  assert.match(routeSource, /dbLogistics\.listTimeWindowsForClinicVisit/);
+  assert.match(routeSource, /deps\.listTimeWindowsForClinicVisit\(\s*fieldVisitId,\s*auth\.clinicId,\s*\)/);
+  assert.match(routeSource, /deps\.createTimeWindowForClinicVisit\(parsed\.input\)/);
+});
+
+test("logistics field visit API validates time-window payload before create", () => {
+  assert.match(routeSource, /function buildCreateTimeWindowInput/);
+  assert.match(routeSource, /parseDateField\(body\.windowStart, "windowStart"\)/);
+  assert.match(routeSource, /parseDateField\(body\.windowEnd, "windowEnd"\)/);
+  assert.match(routeSource, /windowStart debe ser anterior a windowEnd/);
+  assert.match(routeSource, /normalizeOptionalText\(body\.timezone\)/);
+  assert.match(routeSource, /parseOptionalBooleanField\(body\.isHard, "isHard"\)/);
+});
+
+test("logistics field visit API serializes time windows with stable public shape", () => {
+  assert.match(routeSource, /function serializeTimeWindow/);
+  assert.match(routeSource, /windowStart: serializeDate\(timeWindow\.windowStart\)/);
+  assert.match(routeSource, /windowEnd: serializeDate\(timeWindow\.windowEnd\)/);
+  assert.match(routeSource, /timezone: timeWindow\.timezone/);
+  assert.match(routeSource, /isHard: timeWindow\.isHard/);
+  assert.match(routeSource, /createdAt: serializeDate\(timeWindow\.createdAt\)/);
+  assert.match(routeSource, /updatedAt: serializeDate\(timeWindow\.updatedAt\)/);
+});
+
+test("logistics field visit API keeps time-window writes behind trusted-origin checks", () => {
+  assert.match(routeSource, /app\.post<[\s\S]*>\("\/:fieldVisitId\/time-windows", async/);
+  assert.match(routeSource, /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)/);
+  assert.match(routeSource, /auth\.clinicId/);
+});

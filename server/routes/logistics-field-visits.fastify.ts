@@ -15,7 +15,9 @@ import {
 import type {
   CreateFieldVisitInput,
   FieldVisit,
+  CreateTimeWindowInput,
   ListFieldVisitsParams,
+  TimeWindow,
   UpdateFieldVisitInput,
   UpsertVisitLocationInput,
   VisitLocation,
@@ -71,6 +73,13 @@ export type LogisticsFieldVisitsNativeRoutesOptions = {
   upsertVisitLocationForClinicVisit?: (
     input: UpsertVisitLocationInput,
   ) => Promise<VisitLocation | null | undefined>;
+  createTimeWindowForClinicVisit?: (
+    input: CreateTimeWindowInput,
+  ) => Promise<TimeWindow | null | undefined>;
+  listTimeWindowsForClinicVisit?: (
+    fieldVisitId: number,
+    clinicId: number,
+  ) => Promise<TimeWindow[]>;
   now?: () => number;
 };
 
@@ -87,6 +96,8 @@ type NativeLogisticsFieldVisitsDeps = Required<
     | "updateClinicScopedFieldVisit"
     | "getVisitLocationForClinicVisit"
     | "upsertVisitLocationForClinicVisit"
+    | "createTimeWindowForClinicVisit"
+    | "listTimeWindowsForClinicVisit"
   >
 >;
 
@@ -116,6 +127,10 @@ async function loadDefaultDeps(): Promise<NativeLogisticsFieldVisitsDeps> {
           dbLogistics.getVisitLocationForClinicVisit,
         upsertVisitLocationForClinicVisit:
           dbLogistics.upsertVisitLocationForClinicVisit,
+        createTimeWindowForClinicVisit:
+          dbLogistics.createTimeWindowForClinicVisit,
+        listTimeWindowsForClinicVisit:
+          dbLogistics.listTimeWindowsForClinicVisit,
       };
     })();
   }
@@ -861,6 +876,115 @@ function serializeVisitLocation(
   };
 }
 
+
+
+function parseDateField(
+  value: unknown,
+  fieldName: string,
+): { value?: Date; error?: string } {
+  if (typeof value !== "string" && typeof value !== "number") {
+    return { error: `${fieldName} debe ser una fecha valida` };
+  }
+
+  const parsed = new Date(value);
+
+  if (!Number.isFinite(parsed.getTime())) {
+    return { error: `${fieldName} debe ser una fecha valida` };
+  }
+
+  return { value: parsed };
+}
+
+function parseOptionalBooleanField(
+  value: unknown,
+  fieldName: string,
+): { value?: boolean; error?: string } {
+  if (value == null || value === "") {
+    return {};
+  }
+
+  if (typeof value === "boolean") {
+    return { value };
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+
+    if (["true", "1", "yes", "si", "sí"].includes(normalized)) {
+      return { value: true };
+    }
+
+    if (["false", "0", "no"].includes(normalized)) {
+      return { value: false };
+    }
+  }
+
+  return { error: `${fieldName} debe ser booleano` };
+}
+
+function buildCreateTimeWindowInput(
+  body: unknown,
+  fieldVisitId: number,
+  clinicId: number,
+): { input?: CreateTimeWindowInput; error?: string } {
+  if (!isRecord(body)) {
+    return { error: "Body invalido" };
+  }
+
+  const windowStart = parseDateField(body.windowStart, "windowStart");
+
+  if (windowStart.error || !windowStart.value) {
+    return { error: windowStart.error ?? "windowStart invalido" };
+  }
+
+  const windowEnd = parseDateField(body.windowEnd, "windowEnd");
+
+  if (windowEnd.error || !windowEnd.value) {
+    return { error: windowEnd.error ?? "windowEnd invalido" };
+  }
+
+  if (windowStart.value.getTime() >= windowEnd.value.getTime()) {
+    return { error: "windowStart debe ser anterior a windowEnd" };
+  }
+
+  const timezone = normalizeOptionalText(body.timezone);
+
+  if (timezone === undefined) {
+    return { error: "timezone debe ser texto o null" };
+  }
+
+  const isHard = parseOptionalBooleanField(body.isHard, "isHard");
+
+  if (isHard.error) {
+    return { error: isHard.error };
+  }
+
+  return {
+    input: {
+      fieldVisitId,
+      clinicId,
+      windowStart: windowStart.value,
+      windowEnd: windowEnd.value,
+      timezone,
+      isHard: isHard.value,
+    },
+  };
+}
+
+function serializeTimeWindow(timeWindow: TimeWindow): Record<string, unknown> {
+  return {
+    id: timeWindow.id,
+    fieldVisitId: timeWindow.fieldVisitId,
+    windowStart: serializeDate(timeWindow.windowStart),
+    windowEnd: serializeDate(timeWindow.windowEnd),
+    timezone: timeWindow.timezone,
+    isHard: timeWindow.isHard,
+    createdAt: serializeDate(timeWindow.createdAt),
+    updatedAt: serializeDate(timeWindow.updatedAt),
+  };
+}
+
+
 function serializeDate(value: Date | null | undefined): string | null {
   if (!(value instanceof Date)) {
     return null;
@@ -898,7 +1022,9 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
     !!options.listClinicFieldVisits &&
     !!options.updateClinicScopedFieldVisit &&
     !!options.getVisitLocationForClinicVisit &&
-    !!options.upsertVisitLocationForClinicVisit;
+    !!options.upsertVisitLocationForClinicVisit &&
+    !!options.createTimeWindowForClinicVisit &&
+    !!options.listTimeWindowsForClinicVisit;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -926,6 +1052,12 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
     upsertVisitLocationForClinicVisit:
       options.upsertVisitLocationForClinicVisit ??
       defaultDeps!.upsertVisitLocationForClinicVisit,
+    createTimeWindowForClinicVisit:
+      options.createTimeWindowForClinicVisit ??
+      defaultDeps!.createTimeWindowForClinicVisit,
+    listTimeWindowsForClinicVisit:
+      options.listTimeWindowsForClinicVisit ??
+      defaultDeps!.listTimeWindowsForClinicVisit,
   };
 
   const now = options.now ?? (() => Date.now());
@@ -964,6 +1096,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
   app.options("/", optionsHandler);
   app.options("/:fieldVisitId", optionsHandler);
   app.options("/:fieldVisitId/location", optionsHandler);
+  app.options("/:fieldVisitId/time-windows", optionsHandler);
 
   app.get<{
     Querystring: {
@@ -1207,6 +1340,95 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       success: true,
       message: "Ubicacion de visita guardada correctamente",
       location: serializeVisitLocation(location),
+    });
+  });
+
+
+  app.get<{
+    Params: {
+      fieldVisitId: string;
+    };
+  }>("/:fieldVisitId/time-windows", async (request, reply) => {
+    const auth = await authenticateClinicUser(request, reply, deps, now);
+
+    if (!auth) {
+      return reply;
+    }
+
+    const fieldVisitId = parseEntityId(request.params.fieldVisitId);
+
+    if (!fieldVisitId) {
+      return reply.code(400).send({
+        success: false,
+        error: "fieldVisitId invalido",
+      });
+    }
+
+    const timeWindows = await deps.listTimeWindowsForClinicVisit(
+      fieldVisitId,
+      auth.clinicId,
+    );
+
+    return reply.code(200).send({
+      success: true,
+      count: timeWindows.length,
+      timeWindows: timeWindows.map((timeWindow) =>
+        serializeTimeWindow(timeWindow),
+      ),
+    });
+  });
+
+  app.post<{
+    Params: {
+      fieldVisitId: string;
+    };
+    Body: unknown;
+  }>("/:fieldVisitId/time-windows", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const auth = await authenticateClinicUser(request, reply, deps, now);
+
+    if (!auth) {
+      return reply;
+    }
+
+    const fieldVisitId = parseEntityId(request.params.fieldVisitId);
+
+    if (!fieldVisitId) {
+      return reply.code(400).send({
+        success: false,
+        error: "fieldVisitId invalido",
+      });
+    }
+
+    const parsed = buildCreateTimeWindowInput(
+      request.body,
+      fieldVisitId,
+      auth.clinicId,
+    );
+
+    if (!parsed.input) {
+      return reply.code(400).send({
+        success: false,
+        error: parsed.error ?? "Body invalido",
+      });
+    }
+
+    const timeWindow = await deps.createTimeWindowForClinicVisit(parsed.input);
+
+    if (!timeWindow) {
+      return reply.code(404).send({
+        success: false,
+        error: "Visita de campo no encontrada",
+      });
+    }
+
+    return reply.code(201).send({
+      success: true,
+      message: "Ventana horaria creada correctamente",
+      timeWindow: serializeTimeWindow(timeWindow),
     });
   });
 
