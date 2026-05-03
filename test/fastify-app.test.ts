@@ -512,6 +512,23 @@ function buildReportsStatusRouteStubs() {
   };
 }
 
+function buildLogisticsRoutePlansRouteStubs() {
+  return {
+    deleteActiveSession: async () => {},
+    getActiveSessionByToken: async () => null,
+    getClinicUserById: async () => null,
+    updateSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    createRoutePlan: async () => null,
+    getClinicScopedRoutePlan: async () => null,
+    listClinicRoutePlans: async () => [],
+    updateClinicScopedRoutePlan: async () => null,
+    createRouteStopForClinicRoutePlan: async () => null,
+    listRouteStopsForClinicRoutePlan: async () => [],
+    updateClinicScopedRouteStop: async () => null,
+  };
+}
+
 function buildLogisticsFieldVisitsRouteStubs() {
   return {
     deleteActiveSession: async () => {},
@@ -550,6 +567,7 @@ function buildFastifyDispatchRouteStubs() {
     reportsStatusRoutes: buildReportsStatusRouteStubs(),
     studyTrackingRoutes: buildStudyTrackingRouteStubs(),
     logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
+    logisticsRoutePlansRoutes: buildLogisticsRoutePlansRouteStubs(),
   };
 }
 test(
