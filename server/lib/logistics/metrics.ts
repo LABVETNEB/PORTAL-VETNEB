@@ -467,3 +467,196 @@ export function summarizeSlaCompliance(
     resolvedLateCount,
   };
 }
+
+export interface RouteEventMetricInput {
+  routePlanId?: number | null;
+  routeStopId?: number | null;
+  eventType: string;
+  source?: string | null;
+  eventTime: Date;
+}
+
+export interface RouteEventBoundary {
+  eventType: string;
+  eventTime: Date;
+  routePlanId: number | null;
+  routeStopId: number | null;
+}
+
+export interface RouteEventAggregationSummary {
+  totalCount: number;
+  byEventType: Record<string, number>;
+  bySource: Record<string, number>;
+  firstEvent: RouteEventBoundary | null;
+  lastEvent: RouteEventBoundary | null;
+}
+
+export interface RouteEventDurationResult {
+  durationMin: number | null;
+  missingEvents: string[];
+}
+
+function isValidRouteEvent(event: RouteEventMetricInput): boolean {
+  return (
+    typeof event.eventType === "string" &&
+    event.eventType.trim().length > 0 &&
+    event.eventTime instanceof Date &&
+    Number.isFinite(event.eventTime.getTime())
+  );
+}
+
+function toRouteEventBoundary(
+  event: RouteEventMetricInput,
+): RouteEventBoundary {
+  return {
+    eventType: event.eventType,
+    eventTime: event.eventTime,
+    routePlanId:
+      typeof event.routePlanId === "number" && Number.isInteger(event.routePlanId)
+        ? event.routePlanId
+        : null,
+    routeStopId:
+      typeof event.routeStopId === "number" && Number.isInteger(event.routeStopId)
+        ? event.routeStopId
+        : null,
+  };
+}
+
+function sortRouteEvents(
+  events: readonly RouteEventMetricInput[],
+): RouteEventMetricInput[] {
+  return events
+    .filter(isValidRouteEvent)
+    .slice()
+    .sort((left, right) => left.eventTime.getTime() - right.eventTime.getTime());
+}
+
+export function summarizeRouteEvents(
+  events: readonly RouteEventMetricInput[],
+): RouteEventAggregationSummary {
+  const sortedEvents = sortRouteEvents(events);
+  const byEventType: Record<string, number> = {};
+  const bySource: Record<string, number> = {};
+
+  for (const event of sortedEvents) {
+    byEventType[event.eventType] = (byEventType[event.eventType] ?? 0) + 1;
+
+    const source = event.source?.trim() || "unknown";
+    bySource[source] = (bySource[source] ?? 0) + 1;
+  }
+
+  const first = sortedEvents[0] ?? null;
+  const last = sortedEvents.length > 0 ? sortedEvents[sortedEvents.length - 1] : null;
+
+  return {
+    totalCount: sortedEvents.length,
+    byEventType,
+    bySource,
+    firstEvent: first ? toRouteEventBoundary(first) : null,
+    lastEvent: last ? toRouteEventBoundary(last) : null,
+  };
+}
+
+export function getRouteEventBoundariesByRoutePlan(
+  events: readonly RouteEventMetricInput[],
+): Record<number, { firstEvent: RouteEventBoundary; lastEvent: RouteEventBoundary }> {
+  const grouped: Record<number, RouteEventMetricInput[]> = {};
+
+  for (const event of sortRouteEvents(events)) {
+    if (typeof event.routePlanId !== "number" || !Number.isInteger(event.routePlanId)) {
+      continue;
+    }
+
+    grouped[event.routePlanId] = grouped[event.routePlanId] ?? [];
+    grouped[event.routePlanId].push(event);
+  }
+
+  const result: Record<
+    number,
+    { firstEvent: RouteEventBoundary; lastEvent: RouteEventBoundary }
+  > = {};
+
+  for (const [routePlanId, routeEvents] of Object.entries(grouped)) {
+    const first = routeEvents[0];
+    const last = routeEvents.length > 0 ? routeEvents[routeEvents.length - 1] : undefined;
+
+    if (first && last) {
+      result[Number(routePlanId)] = {
+        firstEvent: toRouteEventBoundary(first),
+        lastEvent: toRouteEventBoundary(last),
+      };
+    }
+  }
+
+  return result;
+}
+
+export function getRouteEventBoundariesByRouteStop(
+  events: readonly RouteEventMetricInput[],
+): Record<number, { firstEvent: RouteEventBoundary; lastEvent: RouteEventBoundary }> {
+  const grouped: Record<number, RouteEventMetricInput[]> = {};
+
+  for (const event of sortRouteEvents(events)) {
+    if (typeof event.routeStopId !== "number" || !Number.isInteger(event.routeStopId)) {
+      continue;
+    }
+
+    grouped[event.routeStopId] = grouped[event.routeStopId] ?? [];
+    grouped[event.routeStopId].push(event);
+  }
+
+  const result: Record<
+    number,
+    { firstEvent: RouteEventBoundary; lastEvent: RouteEventBoundary }
+  > = {};
+
+  for (const [routeStopId, routeEvents] of Object.entries(grouped)) {
+    const first = routeEvents[0];
+    const last = routeEvents.length > 0 ? routeEvents[routeEvents.length - 1] : undefined;
+
+    if (first && last) {
+      result[Number(routeStopId)] = {
+        firstEvent: toRouteEventBoundary(first),
+        lastEvent: toRouteEventBoundary(last),
+      };
+    }
+  }
+
+  return result;
+}
+
+export function calculateDurationBetweenRouteEvents(
+  events: readonly RouteEventMetricInput[],
+  startEventType: string,
+  endEventType: string,
+): RouteEventDurationResult {
+  const sortedEvents = sortRouteEvents(events);
+  const start = sortedEvents.find((event) => event.eventType === startEventType);
+  const end = sortedEvents.find(
+    (event) =>
+      event.eventType === endEventType &&
+      (!start || event.eventTime.getTime() >= start.eventTime.getTime()),
+  );
+
+  const missingEvents: string[] = [];
+
+  if (!start) {
+    missingEvents.push(startEventType);
+  }
+
+  if (!end) {
+    missingEvents.push(endEventType);
+  }
+
+  if (!start || !end) {
+    return { durationMin: null, missingEvents };
+  }
+
+  return {
+    durationMin: calculateMinuteDelta(
+      start.eventTime.getTime(),
+      end.eventTime.getTime(),
+    ),
+    missingEvents,
+  };
+}
