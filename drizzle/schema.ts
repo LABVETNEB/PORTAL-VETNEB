@@ -4,12 +4,13 @@ import {
   integer,
   jsonb,
   pgTable,
+  real,
   serial,
   text,
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
-import { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 export const CLINIC_USER_ROLES = ["clinic_owner", "clinic_staff"] as const;
 export type ClinicUserRole = (typeof CLINIC_USER_ROLES)[number];
@@ -21,6 +22,31 @@ export const REPORT_STATUSES = [
   "delivered",
 ] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
+export const FIELD_VISIT_SOURCE_TYPES = [
+  "report",
+  "study_tracking_case",
+  "manual",
+] as const;
+export type FieldVisitSourceType = (typeof FIELD_VISIT_SOURCE_TYPES)[number];
+
+export const FIELD_VISIT_STATUSES = [
+  "pending",
+  "scheduled",
+  "in_progress",
+  "done",
+  "canceled",
+  "no_show",
+] as const;
+export type FieldVisitStatus = (typeof FIELD_VISIT_STATUSES)[number];
+
+export const VISIT_LOCATION_GEO_QUALITIES = [
+  "exact",
+  "approx",
+  "missing",
+  "ambiguous",
+] as const;
+export type VisitLocationGeoQuality =
+  (typeof VISIT_LOCATION_GEO_QUALITIES)[number];
 export const AUDIT_ACTOR_TYPES = [
   "system",
   "admin_user",
@@ -559,6 +585,80 @@ export const studyTrackingNotifications = pgTable(
   }),
 );
 
+export const fieldVisits = pgTable(
+  "field_visits",
+  {
+    id: serial("id").primaryKey(),
+    clinicId: integer("clinic_id")
+      .notNull()
+      .references(() => clinics.id, { onDelete: "cascade" }),
+    sourceType: varchar("source_type", { length: 40 })
+      .$type<FieldVisitSourceType>()
+      .notNull()
+      .default("manual"),
+    sourceId: integer("source_id"),
+    status: varchar("status", { length: 32 })
+      .$type<FieldVisitStatus>()
+      .notNull()
+      .default("pending"),
+    priority: integer("priority").default(0).notNull(),
+    criticality: varchar("criticality", { length: 32 }),
+    serviceDurationMin: integer("service_duration_min").default(0).notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    clinicIdIdx: index("field_visits_clinic_id_idx").on(table.clinicId),
+    clinicStatusIdx: index("field_visits_clinic_status_idx").on(
+      table.clinicId,
+      table.status,
+    ),
+    clinicPriorityCreatedAtIdx: index(
+      "field_visits_clinic_priority_created_at_idx",
+    ).on(table.clinicId, table.priority, table.createdAt),
+    clinicSourceIdx: index("field_visits_clinic_source_idx").on(
+      table.clinicId,
+      table.sourceType,
+      table.sourceId,
+    ),
+    createdAtIdx: index("field_visits_created_at_idx").on(table.createdAt),
+  }),
+);
+
+export const visitLocations = pgTable(
+  "visit_locations",
+  {
+    id: serial("id").primaryKey(),
+    fieldVisitId: integer("field_visit_id")
+      .notNull()
+      .references(() => fieldVisits.id, { onDelete: "cascade" }),
+    addressRaw: text("address_raw").notNull(),
+    addressNormalized: text("address_normalized"),
+    locality: varchar("locality", { length: 255 }),
+    country: varchar("country", { length: 255 }),
+    lat: real("lat"),
+    lng: real("lng"),
+    geoQuality: varchar("geo_quality", { length: 32 })
+      .$type<VisitLocationGeoQuality>()
+      .notNull()
+      .default("missing"),
+    geocodeSource: varchar("geocode_source", { length: 100 }),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    fieldVisitIdIdx: index("visit_locations_field_visit_id_idx").on(
+      table.fieldVisitId,
+    ),
+    geoQualityIdx: index("visit_locations_geo_quality_idx").on(
+      table.geoQuality,
+    ),
+    localityCountryIdx: index("visit_locations_locality_country_idx").on(
+      table.locality,
+      table.country,
+    ),
+  }),
+);
 export const particularSessions = pgTable(
   "particular_sessions",
   {
@@ -610,6 +710,11 @@ export type NewAdminSession = InferInsertModel<typeof adminSessions>;
 
 export type ParticularToken = InferSelectModel<typeof particularTokens>;
 export type NewParticularToken = InferInsertModel<typeof particularTokens>;
+export type FieldVisit = InferSelectModel<typeof fieldVisits>;
+export type NewFieldVisit = InferInsertModel<typeof fieldVisits>;
+
+export type VisitLocation = InferSelectModel<typeof visitLocations>;
+export type NewVisitLocation = InferInsertModel<typeof visitLocations>;
 
 export type ClinicPublicProfile = InferSelectModel<typeof clinicPublicProfiles>;
 export type NewClinicPublicProfile = InferInsertModel<typeof clinicPublicProfiles>;
