@@ -54,3 +54,41 @@ test("logistics DB helpers keep field visit queries paginated and deterministic"
   assert.match(dbLogisticsSource, /normalizeLogisticsOffset\(params\.offset\)/);
   assert.match(dbLogisticsSource, /orderBy\(desc\(fieldVisits\.createdAt\), desc\(fieldVisits\.id\)\)/);
 });
+
+
+test("logistics DB helpers expose tenant-scoped route plan operations", () => {
+  assert.match(dbLogisticsSource, /export type CreateRoutePlanInput/);
+  assert.match(dbLogisticsSource, /export type ListRoutePlansParams/);
+  assert.match(dbLogisticsSource, /export async function createRoutePlan/);
+  assert.match(dbLogisticsSource, /export async function getClinicScopedRoutePlan/);
+  assert.match(dbLogisticsSource, /export async function listClinicRoutePlans/);
+  assert.match(dbLogisticsSource, /export async function updateClinicScopedRoutePlan/);
+
+  assert.match(dbLogisticsSource, /eq\(routePlans\.clinicId, clinicId\)/);
+  assert.match(dbLogisticsSource, /eq\(routePlans\.clinicId, params\.clinicId\)/);
+  assert.match(dbLogisticsSource, /orderBy\(desc\(routePlans\.serviceDate\), desc\(routePlans\.id\)\)/);
+});
+
+test("logistics DB helpers expose clinic-owned route stop operations", () => {
+  assert.match(dbLogisticsSource, /export type CreateRouteStopInput/);
+  assert.match(dbLogisticsSource, /export type UpdateRouteStopInput/);
+  assert.match(dbLogisticsSource, /export async function createRouteStopForClinicRoutePlan/);
+  assert.match(dbLogisticsSource, /export async function listRouteStopsForClinicRoutePlan/);
+  assert.match(dbLogisticsSource, /export async function updateClinicScopedRouteStop/);
+});
+
+test("logistics DB helpers verify clinic ownership before route stop writes", () => {
+  assert.match(dbLogisticsSource, /db\.transaction\(async \(tx\) =>/);
+  assert.match(dbLogisticsSource, /eq\(routePlans\.id, input\.routePlanId\)/);
+  assert.match(dbLogisticsSource, /eq\(routePlans\.clinicId, input\.clinicId\)/);
+  assert.match(dbLogisticsSource, /eq\(fieldVisits\.id, input\.fieldVisitId\)/);
+  assert.match(dbLogisticsSource, /eq\(fieldVisits\.clinicId, input\.clinicId\)/);
+  assert.match(dbLogisticsSource, /return undefined/);
+});
+
+test("logistics DB helpers keep route stops clinic scoped through route plans", () => {
+  assert.match(dbLogisticsSource, /innerJoin\(\s*routePlans,\s*eq\(routeStops\.routePlanId, routePlans\.id\),\s*\)/);
+  assert.match(dbLogisticsSource, /eq\(routeStops\.routePlanId, routePlanId\)/);
+  assert.match(dbLogisticsSource, /eq\(routePlans\.clinicId, clinicId\)/);
+  assert.match(dbLogisticsSource, /eq\(routeStops\.id, id\)/);
+});
