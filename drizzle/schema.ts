@@ -105,6 +105,25 @@ export const ROUTE_EVENT_SOURCES = [
 export type RouteEventSource = (typeof ROUTE_EVENT_SOURCES)[number];
 
 export type RouteEventPayload = Record<string, unknown>;
+export const SLA_POLICY_SCOPES = ["global", "clinic"] as const;
+export type SlaPolicyScope = (typeof SLA_POLICY_SCOPES)[number];
+
+export const SLA_TARGET_TYPES = [
+  "field_visit",
+  "route_plan",
+  "route_stop",
+  "study_tracking_case",
+] as const;
+export type SlaTargetType = (typeof SLA_TARGET_TYPES)[number];
+
+export const SLA_INSTANCE_STATUSES = [
+  "active",
+  "paused",
+  "breached",
+  "resolved",
+  "canceled",
+] as const;
+export type SlaInstanceStatus = (typeof SLA_INSTANCE_STATUSES)[number];
 export const AUDIT_ACTOR_TYPES = [
   "system",
   "admin_user",
@@ -875,6 +894,86 @@ export const routeEvents = pgTable(
     eventTypeIdx: index("route_events_event_type_idx").on(table.eventType),
   }),
 );
+export const slaPolicies = pgTable(
+  "sla_policies",
+  {
+    id: serial("id").primaryKey(),
+    clinicId: integer("clinic_id").references(() => clinics.id, {
+      onDelete: "cascade",
+    }),
+    name: varchar("name", { length: 255 }).notNull(),
+    scope: varchar("scope", { length: 32 })
+      .$type<SlaPolicyScope>()
+      .notNull()
+      .default("global"),
+    targetType: varchar("target_type", { length: 64 })
+      .$type<SlaTargetType>()
+      .notNull(),
+    dueMinutes: integer("due_minutes").notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    clinicIdIdx: index("sla_policies_clinic_id_idx").on(table.clinicId),
+    scopeTargetTypeIdx: index("sla_policies_scope_target_type_idx").on(
+      table.scope,
+      table.targetType,
+    ),
+    clinicTargetTypeIdx: index("sla_policies_clinic_target_type_idx").on(
+      table.clinicId,
+      table.targetType,
+    ),
+    activeIdx: index("sla_policies_active_idx").on(table.isActive),
+  }),
+);
+
+export const slaInstances = pgTable(
+  "sla_instances",
+  {
+    id: serial("id").primaryKey(),
+    clinicId: integer("clinic_id")
+      .notNull()
+      .references(() => clinics.id, { onDelete: "cascade" }),
+    policyId: integer("policy_id").references(() => slaPolicies.id, {
+      onDelete: "set null",
+    }),
+    targetType: varchar("target_type", { length: 64 })
+      .$type<SlaTargetType>()
+      .notNull(),
+    targetId: integer("target_id").notNull(),
+    status: varchar("status", { length: 32 })
+      .$type<SlaInstanceStatus>()
+      .notNull()
+      .default("active"),
+    startedAt: timestamp("started_at", { mode: "date" }).notNull(),
+    dueAt: timestamp("due_at", { mode: "date" }).notNull(),
+    pausedAt: timestamp("paused_at", { mode: "date" }),
+    breachedAt: timestamp("breached_at", { mode: "date" }),
+    resolvedAt: timestamp("resolved_at", { mode: "date" }),
+    canceledAt: timestamp("canceled_at", { mode: "date" }),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    clinicIdIdx: index("sla_instances_clinic_id_idx").on(table.clinicId),
+    clinicStatusIdx: index("sla_instances_clinic_status_idx").on(
+      table.clinicId,
+      table.status,
+    ),
+    clinicDueAtIdx: index("sla_instances_clinic_due_at_idx").on(
+      table.clinicId,
+      table.dueAt,
+    ),
+    clinicTargetIdx: index("sla_instances_clinic_target_idx").on(
+      table.clinicId,
+      table.targetType,
+      table.targetId,
+    ),
+    policyIdIdx: index("sla_instances_policy_id_idx").on(table.policyId),
+  }),
+);
 export const particularSessions = pgTable(
   "particular_sessions",
   {
@@ -940,6 +1039,11 @@ export type RouteStop = InferSelectModel<typeof routeStops>;
 export type NewRouteStop = InferInsertModel<typeof routeStops>;
 export type RouteEvent = InferSelectModel<typeof routeEvents>;
 export type NewRouteEvent = InferInsertModel<typeof routeEvents>;
+export type SlaPolicy = InferSelectModel<typeof slaPolicies>;
+export type NewSlaPolicy = InferInsertModel<typeof slaPolicies>;
+
+export type SlaInstance = InferSelectModel<typeof slaInstances>;
+export type NewSlaInstance = InferInsertModel<typeof slaInstances>;
 
 export type ClinicPublicProfile = InferSelectModel<typeof clinicPublicProfiles>;
 export type NewClinicPublicProfile = InferInsertModel<typeof clinicPublicProfiles>;
