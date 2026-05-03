@@ -295,3 +295,175 @@ export function calculateBasicRouteComplianceMetrics(
     windows: summarizeWindowCompliance(input.windowStatuses ?? []),
   };
 }
+export type SlaComplianceStatus =
+  | "active"
+  | "paused"
+  | "breached"
+  | "resolved"
+  | "canceled"
+  | "missing_due_date";
+
+export interface SlaComplianceInput {
+  now?: Date | null;
+  dueAt?: Date | null;
+  pausedAt?: Date | null;
+  breachedAt?: Date | null;
+  resolvedAt?: Date | null;
+  canceledAt?: Date | null;
+}
+
+export interface SlaComplianceResult {
+  status: SlaComplianceStatus;
+  isBreached: boolean | null;
+  overdueMin: number | null;
+  remainingMin: number | null;
+  resolvedLateMin: number | null;
+}
+
+export interface SlaComplianceSummary {
+  totalCount: number;
+  evaluatedCount: number;
+  activeCount: number;
+  pausedCount: number;
+  breachedCount: number;
+  resolvedCount: number;
+  canceledCount: number;
+  missingDueDateCount: number;
+  breachRate: number | null;
+  resolvedLateCount: number;
+}
+
+function calculateMinuteDelta(fromMs: number, toMs: number): number {
+  return roundMetric((toMs - fromMs) / 60000);
+}
+
+export function classifySlaCompliance(
+  input: SlaComplianceInput,
+): SlaComplianceResult {
+  const nowMs = getDateMs(input.now) ?? Date.now();
+  const dueAtMs = getDateMs(input.dueAt);
+  const pausedAtMs = getDateMs(input.pausedAt);
+  const breachedAtMs = getDateMs(input.breachedAt);
+  const resolvedAtMs = getDateMs(input.resolvedAt);
+  const canceledAtMs = getDateMs(input.canceledAt);
+
+  if (dueAtMs === null) {
+    return {
+      status: "missing_due_date",
+      isBreached: null,
+      overdueMin: null,
+      remainingMin: null,
+      resolvedLateMin: null,
+    };
+  }
+
+  if (canceledAtMs !== null) {
+    return {
+      status: "canceled",
+      isBreached: false,
+      overdueMin: null,
+      remainingMin: null,
+      resolvedLateMin: null,
+    };
+  }
+
+  if (resolvedAtMs !== null) {
+    const resolvedLateMin = calculateMinuteDelta(dueAtMs, resolvedAtMs);
+    const isBreached = resolvedLateMin > 0 || breachedAtMs !== null;
+
+    return {
+      status: isBreached ? "breached" : "resolved",
+      isBreached,
+      overdueMin: null,
+      remainingMin: null,
+      resolvedLateMin: isBreached ? Math.max(resolvedLateMin, 0) : 0,
+    };
+  }
+
+  if (pausedAtMs !== null) {
+    const overdueMin = calculateMinuteDelta(dueAtMs, pausedAtMs);
+    const isBreached = overdueMin > 0 || breachedAtMs !== null;
+
+    return {
+      status: isBreached ? "breached" : "paused",
+      isBreached,
+      overdueMin: isBreached ? Math.max(overdueMin, 0) : null,
+      remainingMin: isBreached
+        ? null
+        : Math.max(calculateMinuteDelta(pausedAtMs, dueAtMs), 0),
+      resolvedLateMin: null,
+    };
+  }
+
+  const overdueMin = calculateMinuteDelta(dueAtMs, nowMs);
+  const isBreached = overdueMin > 0 || breachedAtMs !== null;
+
+  if (isBreached) {
+    return {
+      status: "breached",
+      isBreached: true,
+      overdueMin: Math.max(overdueMin, 0),
+      remainingMin: null,
+      resolvedLateMin: null,
+    };
+  }
+
+  return {
+    status: "active",
+    isBreached: false,
+    overdueMin: null,
+    remainingMin: Math.max(calculateMinuteDelta(nowMs, dueAtMs), 0),
+    resolvedLateMin: null,
+  };
+}
+
+export function summarizeSlaCompliance(
+  results: readonly SlaComplianceResult[],
+): SlaComplianceSummary {
+  let activeCount = 0;
+  let pausedCount = 0;
+  let breachedCount = 0;
+  let resolvedCount = 0;
+  let canceledCount = 0;
+  let missingDueDateCount = 0;
+  let resolvedLateCount = 0;
+
+  for (const result of results) {
+    if (result.status === "active") {
+      activeCount += 1;
+    } else if (result.status === "paused") {
+      pausedCount += 1;
+    } else if (result.status === "breached") {
+      breachedCount += 1;
+    } else if (result.status === "resolved") {
+      resolvedCount += 1;
+    } else if (result.status === "canceled") {
+      canceledCount += 1;
+    } else if (result.status === "missing_due_date") {
+      missingDueDateCount += 1;
+    }
+
+    if ((result.resolvedLateMin ?? 0) > 0) {
+      resolvedLateCount += 1;
+    }
+  }
+
+  const evaluatedCount =
+    activeCount + pausedCount + breachedCount + resolvedCount + canceledCount;
+
+  return {
+    totalCount: results.length,
+    evaluatedCount,
+    activeCount,
+    pausedCount,
+    breachedCount,
+    resolvedCount,
+    canceledCount,
+    missingDueDateCount,
+    breachRate:
+      evaluatedCount > 0
+        ? roundMetric((breachedCount / evaluatedCount) * 100)
+        : null,
+    resolvedLateCount,
+  };
+}
