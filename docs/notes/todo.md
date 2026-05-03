@@ -86,7 +86,8 @@
 - [x] Implementar SLA básico (`sla_policies`, `sla_instances`)
 - [x] Implementar métricas básicas de cumplimiento
 - [x] Implementar API de visitas de campo y ventanas horarias
-- [ ] Implementar API de planes de ruta y ciclo de release
+- [x] Implementar API de planes de ruta y paradas
+- [ ] Implementar ciclo de release de planes de ruta
 - [ ] Implementar API de eventos logísticos y polling incremental
 - [ ] Evaluar heurística determinista simple
 - [ ] Evaluar optimización avanzada solo con volumen/ROI justificado
