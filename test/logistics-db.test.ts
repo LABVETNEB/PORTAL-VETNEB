@@ -112,3 +112,36 @@ test("logistics DB helpers transition route plan status only inside clinic scope
   assert.match(dbLogisticsSource, /reason: "invalid_transition"/);
   assert.match(dbLogisticsSource, /reason: "not_found"/);
 });
+
+
+test("logistics DB helpers expose route event append-only operations", () => {
+  assert.match(dbLogisticsSource, /export type CreateRouteEventInput/);
+  assert.match(dbLogisticsSource, /export type ListRouteEventsParams/);
+  assert.match(dbLogisticsSource, /export async function createRouteEvent/);
+  assert.match(dbLogisticsSource, /export async function listClinicRouteEvents/);
+  assert.match(dbLogisticsSource, /export async function listRouteEventsForClinicRoutePlan/);
+  assert.match(dbLogisticsSource, /export async function listIncrementalClinicRouteEvents/);
+});
+
+test("logistics DB helpers verify clinic ownership before route event writes", () => {
+  assert.match(dbLogisticsSource, /eq\(routePlans\.id, input\.routePlanId\)/);
+  assert.match(dbLogisticsSource, /eq\(routePlans\.clinicId, input\.clinicId\)/);
+  assert.match(dbLogisticsSource, /innerJoin\(\s*routePlans,\s*eq\(routeStops\.routePlanId, routePlans\.id\),\s*\)/);
+  assert.match(dbLogisticsSource, /eq\(routeStops\.id, input\.routeStopId\)/);
+  assert.match(dbLogisticsSource, /eq\(routePlans\.clinicId, input\.clinicId\)/);
+  assert.match(dbLogisticsSource, /return undefined/);
+});
+
+test("logistics DB helpers keep route event reads clinic scoped and incremental", () => {
+  assert.match(dbLogisticsSource, /eq\(routeEvents\.clinicId, params\.clinicId\)/);
+  assert.match(dbLogisticsSource, /gt\(routeEvents\.id, params\.afterId\)/);
+  assert.match(dbLogisticsSource, /orderBy\(asc\(routeEvents\.id\)\)/);
+  assert.match(dbLogisticsSource, /normalizeLogisticsLimit\(params\.limit\)/);
+  assert.match(dbLogisticsSource, /listClinicRouteEvents\(\{\s*clinicId,\s*afterId,\s*limit,\s*offset: 0,\s*\}\)/);
+});
+
+test("logistics DB helpers support route event route-plan scoped reads", () => {
+  assert.match(dbLogisticsSource, /const routePlan = await getClinicScopedRoutePlan\(routePlanId, clinicId\)/);
+  assert.match(dbLogisticsSource, /if \(!routePlan\) \{\s*return \[\];\s*\}/);
+  assert.match(dbLogisticsSource, /routePlanId,/);
+});

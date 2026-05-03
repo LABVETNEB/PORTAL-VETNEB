@@ -1,13 +1,17 @@
-﻿import { and, desc, eq } from "drizzle-orm";
+﻿import { and, asc, desc, eq, gt } from "drizzle-orm";
 import { db } from "./db";
 import {
   fieldVisits,
+  routeEvents,
   routePlans,
   routeStops,
   timeWindows,
   visitLocations,
   type FieldVisitSourceType,
   type FieldVisitStatus,
+  type RouteEventPayload,
+  type RouteEventSource,
+  type RouteEventType,
   type RoutePlanCreatedByType,
   type RoutePlanObjective,
   type RoutePlanningMode,
@@ -33,6 +37,8 @@ export type RoutePlan = typeof routePlans.$inferSelect;
 export type NewRoutePlan = typeof routePlans.$inferInsert;
 export type RouteStop = typeof routeStops.$inferSelect;
 export type NewRouteStop = typeof routeStops.$inferInsert;
+export type RouteEvent = typeof routeEvents.$inferSelect;
+export type NewRouteEvent = typeof routeEvents.$inferInsert;
 
 export type CreateFieldVisitInput = {
   clinicId: number;
@@ -133,6 +139,28 @@ export type UpdateRouteStopInput = Partial<
     actualKmFromPrev: number | null;
   }
 >;
+
+export type CreateRouteEventInput = {
+  clinicId: number;
+  routePlanId?: number | null;
+  routeStopId?: number | null;
+  eventType: RouteEventType;
+  eventTime?: Date;
+  payload?: RouteEventPayload | null;
+  lat?: number | null;
+  lng?: number | null;
+  source?: RouteEventSource;
+};
+
+export type ListRouteEventsParams = {
+  clinicId: number;
+  routePlanId?: number;
+  routeStopId?: number;
+  eventType?: RouteEventType;
+  afterId?: number;
+  limit?: number;
+  offset?: number;
+};
 
 export const ROUTE_PLAN_LIFECYCLE_ACTIONS = [
   "release",
@@ -732,5 +760,133 @@ export async function transitionClinicScopedRoutePlanStatus(
     return {
       routePlan: updatedRoutePlan,
     };
+  });
+}
+
+
+export async function createRouteEvent(
+  input: CreateRouteEventInput,
+): Promise<RouteEvent | undefined> {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    if (typeof input.routePlanId === "number") {
+      const routePlan = await tx
+        .select()
+        .from(routePlans)
+        .where(
+          and(
+            eq(routePlans.id, input.routePlanId),
+            eq(routePlans.clinicId, input.clinicId),
+          ),
+        )
+        .limit(1);
+
+      if (!routePlan[0]) {
+        return undefined;
+      }
+    }
+
+    if (typeof input.routeStopId === "number") {
+      const routeStop = await tx
+        .select({ routeStop: routeStops })
+        .from(routeStops)
+        .innerJoin(
+          routePlans,
+          eq(routeStops.routePlanId, routePlans.id),
+        )
+        .where(
+          and(
+            eq(routeStops.id, input.routeStopId),
+            eq(routePlans.clinicId, input.clinicId),
+          ),
+        )
+        .limit(1);
+
+      if (!routeStop[0]) {
+        return undefined;
+      }
+    }
+
+    const result = await tx
+      .insert(routeEvents)
+      .values({
+        clinicId: input.clinicId,
+        routePlanId: input.routePlanId ?? null,
+        routeStopId: input.routeStopId ?? null,
+        eventType: input.eventType,
+        eventTime: input.eventTime ?? now,
+        payload: input.payload ?? null,
+        lat: input.lat ?? null,
+        lng: input.lng ?? null,
+        source: input.source ?? "system",
+        createdAt: now,
+      })
+      .returning();
+
+    return result[0];
+  });
+}
+
+export async function listClinicRouteEvents(
+  params: ListRouteEventsParams,
+): Promise<RouteEvent[]> {
+  const filters = [eq(routeEvents.clinicId, params.clinicId)];
+  const limit = normalizeLogisticsLimit(params.limit);
+  const offset = normalizeLogisticsOffset(params.offset);
+
+  if (typeof params.routePlanId === "number") {
+    filters.push(eq(routeEvents.routePlanId, params.routePlanId));
+  }
+
+  if (typeof params.routeStopId === "number") {
+    filters.push(eq(routeEvents.routeStopId, params.routeStopId));
+  }
+
+  if (params.eventType) {
+    filters.push(eq(routeEvents.eventType, params.eventType));
+  }
+
+  if (typeof params.afterId === "number") {
+    filters.push(gt(routeEvents.id, params.afterId));
+  }
+
+  return db
+    .select()
+    .from(routeEvents)
+    .where(and(...filters))
+    .orderBy(asc(routeEvents.id))
+    .limit(limit)
+    .offset(offset);
+}
+
+export async function listRouteEventsForClinicRoutePlan(
+  routePlanId: number,
+  clinicId: number,
+  params: Omit<ListRouteEventsParams, "clinicId" | "routePlanId"> = {},
+): Promise<RouteEvent[]> {
+  const routePlan = await getClinicScopedRoutePlan(routePlanId, clinicId);
+
+  if (!routePlan) {
+    return [];
+  }
+
+  return listClinicRouteEvents({
+    ...params,
+    clinicId,
+    routePlanId,
+  });
+}
+
+export async function listIncrementalClinicRouteEvents(
+  clinicId: number,
+  afterId: number,
+  limit?: number,
+): Promise<RouteEvent[]> {
+  return listClinicRouteEvents({
+    clinicId,
+    afterId,
+    limit,
+    offset: 0,
   });
 }
