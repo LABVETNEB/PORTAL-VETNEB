@@ -659,6 +659,33 @@ export const visitLocations = pgTable(
     ),
   }),
 );
+export const timeWindows = pgTable(
+  "time_windows",
+  {
+    id: serial("id").primaryKey(),
+    fieldVisitId: integer("field_visit_id")
+      .notNull()
+      .references(() => fieldVisits.id, { onDelete: "cascade" }),
+    windowStart: timestamp("window_start", { mode: "date" }).notNull(),
+    windowEnd: timestamp("window_end", { mode: "date" }).notNull(),
+    timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
+    isHard: boolean("is_hard").default(true).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    fieldVisitIdIdx: index("time_windows_field_visit_id_idx").on(
+      table.fieldVisitId,
+    ),
+    windowStartIdx: index("time_windows_window_start_idx").on(
+      table.windowStart,
+    ),
+    windowEndIdx: index("time_windows_window_end_idx").on(table.windowEnd),
+    fieldVisitWindowStartIdx: index(
+      "time_windows_field_visit_window_start_idx",
+    ).on(table.fieldVisitId, table.windowStart),
+  }),
+);
 export const particularSessions = pgTable(
   "particular_sessions",
   {
@@ -715,6 +742,8 @@ export type NewFieldVisit = InferInsertModel<typeof fieldVisits>;
 
 export type VisitLocation = InferSelectModel<typeof visitLocations>;
 export type NewVisitLocation = InferInsertModel<typeof visitLocations>;
+export type TimeWindow = InferSelectModel<typeof timeWindows>;
+export type NewTimeWindow = InferInsertModel<typeof timeWindows>;
 
 export type ClinicPublicProfile = InferSelectModel<typeof clinicPublicProfiles>;
 export type NewClinicPublicProfile = InferInsertModel<typeof clinicPublicProfiles>;
