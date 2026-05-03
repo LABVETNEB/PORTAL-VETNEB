@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  uniqueIndex,
   integer,
   jsonb,
   pgTable,
@@ -47,6 +48,40 @@ export const VISIT_LOCATION_GEO_QUALITIES = [
 ] as const;
 export type VisitLocationGeoQuality =
   (typeof VISIT_LOCATION_GEO_QUALITIES)[number];
+export const ROUTE_PLAN_STATUSES = [
+  "draft",
+  "planned",
+  "released",
+  "in_progress",
+  "completed",
+  "canceled",
+] as const;
+export type RoutePlanStatus = (typeof ROUTE_PLAN_STATUSES)[number];
+
+export const ROUTE_PLANNING_MODES = ["manual", "heuristic"] as const;
+export type RoutePlanningMode = (typeof ROUTE_PLANNING_MODES)[number];
+
+export const ROUTE_PLAN_OBJECTIVES = ["distance", "time", "sla"] as const;
+export type RoutePlanObjective = (typeof ROUTE_PLAN_OBJECTIVES)[number];
+
+export const ROUTE_PLAN_CREATED_BY_TYPES = [
+  "system",
+  "admin",
+  "clinic",
+] as const;
+export type RoutePlanCreatedByType =
+  (typeof ROUTE_PLAN_CREATED_BY_TYPES)[number];
+
+export const ROUTE_STOP_STATUSES = [
+  "pending",
+  "arrived",
+  "departed",
+  "skipped",
+  "done",
+  "no_show",
+  "canceled",
+] as const;
+export type RouteStopStatus = (typeof ROUTE_STOP_STATUSES)[number];
 export const AUDIT_ACTOR_TYPES = [
   "system",
   "admin_user",
@@ -686,6 +721,95 @@ export const timeWindows = pgTable(
     ).on(table.fieldVisitId, table.windowStart),
   }),
 );
+export const routePlans = pgTable(
+  "route_plans",
+  {
+    id: serial("id").primaryKey(),
+    clinicId: integer("clinic_id")
+      .notNull()
+      .references(() => clinics.id, { onDelete: "cascade" }),
+    serviceDate: timestamp("service_date", { mode: "date" }).notNull(),
+    status: varchar("status", { length: 32 })
+      .$type<RoutePlanStatus>()
+      .notNull()
+      .default("draft"),
+    planningMode: varchar("planning_mode", { length: 32 })
+      .$type<RoutePlanningMode>()
+      .notNull()
+      .default("manual"),
+    objective: varchar("objective", { length: 32 })
+      .$type<RoutePlanObjective>()
+      .notNull()
+      .default("distance"),
+    totalPlannedKm: real("total_planned_km").default(0).notNull(),
+    totalPlannedMin: integer("total_planned_min").default(0).notNull(),
+    createdByType: varchar("created_by_type", { length: 32 })
+      .$type<RoutePlanCreatedByType>()
+      .notNull()
+      .default("system"),
+    createdById: integer("created_by_id"),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    clinicIdIdx: index("route_plans_clinic_id_idx").on(table.clinicId),
+    clinicServiceDateIdx: index("route_plans_clinic_service_date_idx").on(
+      table.clinicId,
+      table.serviceDate,
+    ),
+    clinicStatusIdx: index("route_plans_clinic_status_idx").on(
+      table.clinicId,
+      table.status,
+    ),
+    clinicPlanningModeIdx: index("route_plans_clinic_planning_mode_idx").on(
+      table.clinicId,
+      table.planningMode,
+    ),
+  }),
+);
+
+export const routeStops = pgTable(
+  "route_stops",
+  {
+    id: serial("id").primaryKey(),
+    routePlanId: integer("route_plan_id")
+      .notNull()
+      .references(() => routePlans.id, { onDelete: "cascade" }),
+    fieldVisitId: integer("field_visit_id")
+      .notNull()
+      .references(() => fieldVisits.id, { onDelete: "cascade" }),
+    sequence: integer("sequence").notNull(),
+    etaStart: timestamp("eta_start", { mode: "date" }),
+    etaEnd: timestamp("eta_end", { mode: "date" }),
+    plannedKmFromPrev: real("planned_km_from_prev").default(0).notNull(),
+    plannedMinFromPrev: integer("planned_min_from_prev").default(0).notNull(),
+    actualArrival: timestamp("actual_arrival", { mode: "date" }),
+    actualDeparture: timestamp("actual_departure", { mode: "date" }),
+    actualKmFromPrev: real("actual_km_from_prev"),
+    status: varchar("status", { length: 32 })
+      .$type<RouteStopStatus>()
+      .notNull()
+      .default("pending"),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    routePlanIdIdx: index("route_stops_route_plan_id_idx").on(
+      table.routePlanId,
+    ),
+    routePlanSequenceIdx: uniqueIndex("route_stops_route_plan_sequence_idx").on(
+      table.routePlanId,
+      table.sequence,
+    ),
+    fieldVisitIdIdx: index("route_stops_field_visit_id_idx").on(
+      table.fieldVisitId,
+    ),
+    routePlanStatusIdx: index("route_stops_route_plan_status_idx").on(
+      table.routePlanId,
+      table.status,
+    ),
+  }),
+);
 export const particularSessions = pgTable(
   "particular_sessions",
   {
@@ -744,6 +868,11 @@ export type VisitLocation = InferSelectModel<typeof visitLocations>;
 export type NewVisitLocation = InferInsertModel<typeof visitLocations>;
 export type TimeWindow = InferSelectModel<typeof timeWindows>;
 export type NewTimeWindow = InferInsertModel<typeof timeWindows>;
+export type RoutePlan = InferSelectModel<typeof routePlans>;
+export type NewRoutePlan = InferInsertModel<typeof routePlans>;
+
+export type RouteStop = InferSelectModel<typeof routeStops>;
+export type NewRouteStop = InferInsertModel<typeof routeStops>;
 
 export type ClinicPublicProfile = InferSelectModel<typeof clinicPublicProfiles>;
 export type NewClinicPublicProfile = InferInsertModel<typeof clinicPublicProfiles>;
