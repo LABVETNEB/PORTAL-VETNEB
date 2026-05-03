@@ -19,6 +19,8 @@ import type {
   CreateRouteStopInput,
   ListRoutePlansParams,
   RoutePlan,
+  RoutePlanLifecycleAction,
+  RoutePlanLifecycleTransitionResult,
   RouteStop,
   UpdateRoutePlanInput,
   UpdateRouteStopInput,
@@ -83,6 +85,11 @@ export type LogisticsRoutePlansNativeRoutesOptions = {
     clinicId: number,
     input: UpdateRouteStopInput,
   ) => Promise<RouteStop | null | undefined>;
+  transitionClinicScopedRoutePlanStatus?: (
+    id: number,
+    clinicId: number,
+    action: RoutePlanLifecycleAction,
+  ) => Promise<RoutePlanLifecycleTransitionResult>;
   now?: () => number;
 };
 
@@ -101,6 +108,7 @@ type NativeLogisticsRoutePlansDeps = Required<
     | "createRouteStopForClinicRoutePlan"
     | "listRouteStopsForClinicRoutePlan"
     | "updateClinicScopedRouteStop"
+    | "transitionClinicScopedRoutePlanStatus"
   >
 >;
 
@@ -132,6 +140,8 @@ async function loadDefaultDeps(): Promise<NativeLogisticsRoutePlansDeps> {
           dbLogistics.listRouteStopsForClinicRoutePlan,
         updateClinicScopedRouteStop:
           dbLogistics.updateClinicScopedRouteStop,
+        transitionClinicScopedRoutePlanStatus:
+          dbLogistics.transitionClinicScopedRoutePlanStatus,
       };
     })();
   }
@@ -1019,6 +1029,32 @@ function buildUpdateRouteStopInput(
   return { input };
 }
 
+
+
+function getLifecycleActionError(
+  result: RoutePlanLifecycleTransitionResult,
+): { statusCode: number; error: string } {
+  if (result.reason === "not_found") {
+    return {
+      statusCode: 404,
+      error: "Plan de ruta no encontrado",
+    };
+  }
+
+  if (result.reason === "invalid_transition") {
+    return {
+      statusCode: 409,
+      error: "Transicion de estado no permitida",
+    };
+  }
+
+  return {
+    statusCode: 500,
+    error: "No se pudo cambiar el estado del plan de ruta",
+  };
+}
+
+
 function serializeDate(value: Date | null | undefined): string | null {
   if (!(value instanceof Date)) {
     return null;
@@ -1078,7 +1114,8 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     !!options.updateClinicScopedRoutePlan &&
     !!options.createRouteStopForClinicRoutePlan &&
     !!options.listRouteStopsForClinicRoutePlan &&
-    !!options.updateClinicScopedRouteStop;
+    !!options.updateClinicScopedRouteStop &&
+    !!options.transitionClinicScopedRoutePlanStatus;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -1111,6 +1148,9 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     updateClinicScopedRouteStop:
       options.updateClinicScopedRouteStop ??
       defaultDeps!.updateClinicScopedRouteStop,
+    transitionClinicScopedRoutePlanStatus:
+      options.transitionClinicScopedRoutePlanStatus ??
+      defaultDeps!.transitionClinicScopedRoutePlanStatus,
   };
 
   const now = options.now ?? (() => Date.now());
@@ -1150,6 +1190,10 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
   app.options("/:routePlanId", optionsHandler);
   app.options("/:routePlanId/stops", optionsHandler);
   app.options("/:routePlanId/stops/:routeStopId", optionsHandler);
+  app.options("/:routePlanId/release", optionsHandler);
+  app.options("/:routePlanId/start", optionsHandler);
+  app.options("/:routePlanId/complete", optionsHandler);
+  app.options("/:routePlanId/cancel", optionsHandler);
 
   app.get<{
     Querystring: {
@@ -1502,4 +1546,89 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       routeStop: serializeRouteStop(routeStop),
     });
   });
+
+  async function handleRoutePlanLifecycleAction(
+    action: RoutePlanLifecycleAction,
+    request: FastifyRequest<{
+      Params: {
+        routePlanId: string;
+      };
+    }>,
+    reply: FastifyReply,
+  ) {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const auth = await authenticateClinicUser(request, reply, deps, now);
+
+    if (!auth) {
+      return reply;
+    }
+
+    const routePlanId = parseEntityId(request.params.routePlanId);
+
+    if (!routePlanId) {
+      return reply.code(400).send({
+        success: false,
+        error: "routePlanId invalido",
+      });
+    }
+
+    const result = await deps.transitionClinicScopedRoutePlanStatus(
+      routePlanId,
+      auth.clinicId,
+      action,
+    );
+
+    if (!result.routePlan) {
+      const error = getLifecycleActionError(result);
+
+      return reply.code(error.statusCode).send({
+        success: false,
+        error: error.error,
+        currentStatus: result.currentStatus,
+      });
+    }
+
+    return reply.code(200).send({
+      success: true,
+      message: "Estado del plan de ruta actualizado correctamente",
+      action,
+      routePlan: serializeRoutePlan(result.routePlan),
+    });
+  }
+
+  app.post<{
+    Params: {
+      routePlanId: string;
+    };
+  }>("/:routePlanId/release", async (request, reply) =>
+    handleRoutePlanLifecycleAction("release", request, reply),
+  );
+
+  app.post<{
+    Params: {
+      routePlanId: string;
+    };
+  }>("/:routePlanId/start", async (request, reply) =>
+    handleRoutePlanLifecycleAction("start", request, reply),
+  );
+
+  app.post<{
+    Params: {
+      routePlanId: string;
+    };
+  }>("/:routePlanId/complete", async (request, reply) =>
+    handleRoutePlanLifecycleAction("complete", request, reply),
+  );
+
+  app.post<{
+    Params: {
+      routePlanId: string;
+    };
+  }>("/:routePlanId/cancel", async (request, reply) =>
+    handleRoutePlanLifecycleAction("cancel", request, reply),
+  );
+
 };

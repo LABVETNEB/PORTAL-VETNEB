@@ -526,6 +526,9 @@ function buildLogisticsRoutePlansRouteStubs() {
     createRouteStopForClinicRoutePlan: async () => null,
     listRouteStopsForClinicRoutePlan: async () => [],
     updateClinicScopedRouteStop: async () => null,
+    transitionClinicScopedRoutePlanStatus: async () => ({
+      reason: "not_found" as const,
+    }),
   };
 }
 

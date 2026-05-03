@@ -106,3 +106,30 @@ test("logistics route plans API keeps unsafe methods behind trusted-origin check
   assert.match(routeSource, /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)/);
   assert.match(routeSource, /Origen no permitido/);
 });
+
+
+test("logistics route plans API exposes release lifecycle endpoints", () => {
+  assert.match(routeSource, /app\.post<[\s\S]*>\("\/:routePlanId\/release", async/);
+  assert.match(routeSource, /app\.post<[\s\S]*>\("\/:routePlanId\/start", async/);
+  assert.match(routeSource, /app\.post<[\s\S]*>\("\/:routePlanId\/complete", async/);
+  assert.match(routeSource, /app\.post<[\s\S]*>\("\/:routePlanId\/cancel", async/);
+  assert.match(routeSource, /app\.options\("\/:routePlanId\/release", optionsHandler\)/);
+  assert.match(routeSource, /app\.options\("\/:routePlanId\/cancel", optionsHandler\)/);
+});
+
+test("logistics route plans API wires lifecycle transition helper through injectable deps", () => {
+  assert.match(routeSource, /transitionClinicScopedRoutePlanStatus\?:/);
+  assert.match(routeSource, /RoutePlanLifecycleAction/);
+  assert.match(routeSource, /RoutePlanLifecycleTransitionResult/);
+  assert.match(routeSource, /dbLogistics\.transitionClinicScopedRoutePlanStatus/);
+  assert.match(routeSource, /deps\.transitionClinicScopedRoutePlanStatus\(\s*routePlanId,\s*auth\.clinicId,\s*action,\s*\)/);
+});
+
+test("logistics route plans API keeps lifecycle writes clinic scoped and trusted-origin protected", () => {
+  assert.match(routeSource, /function getLifecycleActionError/);
+  assert.match(routeSource, /async function handleRoutePlanLifecycleAction/);
+  assert.match(routeSource, /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)/);
+  assert.match(routeSource, /auth\.clinicId/);
+  assert.match(routeSource, /currentStatus: result\.currentStatus/);
+  assert.match(routeSource, /Transicion de estado no permitida/);
+});
