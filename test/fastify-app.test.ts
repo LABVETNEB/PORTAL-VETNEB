@@ -522,6 +522,8 @@ function buildLogisticsFieldVisitsRouteStubs() {
     createFieldVisit: async () => null,
     listClinicFieldVisits: async () => [],
     updateClinicScopedFieldVisit: async () => null,
+    getVisitLocationForClinicVisit: async () => null,
+    upsertVisitLocationForClinicVisit: async () => null,
   };
 }
 function buildFastifyDispatchRouteStubs() {
