@@ -2,10 +2,17 @@
 import { db } from "./db";
 import {
   fieldVisits,
+  routePlans,
+  routeStops,
   timeWindows,
   visitLocations,
   type FieldVisitSourceType,
   type FieldVisitStatus,
+  type RoutePlanCreatedByType,
+  type RoutePlanObjective,
+  type RoutePlanningMode,
+  type RoutePlanStatus,
+  type RouteStopStatus,
   type VisitLocationGeoQuality,
 } from "../drizzle/schema";
 import {
@@ -22,6 +29,10 @@ export type VisitLocation = typeof visitLocations.$inferSelect;
 export type NewVisitLocation = typeof visitLocations.$inferInsert;
 export type TimeWindow = typeof timeWindows.$inferSelect;
 export type NewTimeWindow = typeof timeWindows.$inferInsert;
+export type RoutePlan = typeof routePlans.$inferSelect;
+export type NewRoutePlan = typeof routePlans.$inferInsert;
+export type RouteStop = typeof routeStops.$inferSelect;
+export type NewRouteStop = typeof routeStops.$inferInsert;
 
 export type CreateFieldVisitInput = {
   clinicId: number;
@@ -71,6 +82,57 @@ export type CreateTimeWindowInput = {
   timezone?: string | null;
   isHard?: boolean;
 };
+
+export type CreateRoutePlanInput = {
+  clinicId: number;
+  serviceDate: Date;
+  status?: RoutePlanStatus;
+  planningMode?: RoutePlanningMode;
+  objective?: RoutePlanObjective;
+  totalPlannedKm?: number;
+  totalPlannedMin?: number;
+  createdByType?: RoutePlanCreatedByType;
+  createdById?: number | null;
+};
+
+export type UpdateRoutePlanInput = Partial<
+  Omit<
+    CreateRoutePlanInput,
+    "clinicId" | "createdByType" | "createdById"
+  >
+>;
+
+export type ListRoutePlansParams = {
+  clinicId: number;
+  status?: RoutePlanStatus;
+  planningMode?: RoutePlanningMode;
+  objective?: RoutePlanObjective;
+  limit?: number;
+  offset?: number;
+};
+
+export type CreateRouteStopInput = {
+  routePlanId: number;
+  clinicId: number;
+  fieldVisitId: number;
+  sequence: number;
+  etaStart?: Date | null;
+  etaEnd?: Date | null;
+  plannedKmFromPrev?: number;
+  plannedMinFromPrev?: number;
+  status?: RouteStopStatus;
+};
+
+export type UpdateRouteStopInput = Partial<
+  Omit<
+    CreateRouteStopInput,
+    "routePlanId" | "clinicId" | "fieldVisitId"
+  > & {
+    actualArrival: Date | null;
+    actualDeparture: Date | null;
+    actualKmFromPrev: number | null;
+  }
+>;
 
 export function normalizeLogisticsLimit(
   value: number | null | undefined,
@@ -348,3 +410,214 @@ export async function listTimeWindowsForClinicVisit(
 
   return result.map((row) => row.timeWindow);
 }
+
+
+export async function createRoutePlan(
+  input: CreateRoutePlanInput,
+): Promise<RoutePlan | undefined> {
+  const now = new Date();
+
+  const result = await db
+    .insert(routePlans)
+    .values({
+      clinicId: input.clinicId,
+      serviceDate: input.serviceDate,
+      status: input.status ?? "draft",
+      planningMode: input.planningMode ?? "manual",
+      objective: input.objective ?? "distance",
+      totalPlannedKm: input.totalPlannedKm ?? 0,
+      totalPlannedMin: input.totalPlannedMin ?? 0,
+      createdByType: input.createdByType ?? "system",
+      createdById: input.createdById ?? null,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning();
+
+  return result[0];
+}
+
+export async function getClinicScopedRoutePlan(
+  id: number,
+  clinicId: number,
+): Promise<RoutePlan | undefined> {
+  const result = await db
+    .select()
+    .from(routePlans)
+    .where(
+      and(
+        eq(routePlans.id, id),
+        eq(routePlans.clinicId, clinicId),
+      ),
+    )
+    .limit(1);
+
+  return result[0];
+}
+
+export async function listClinicRoutePlans(
+  params: ListRoutePlansParams,
+): Promise<RoutePlan[]> {
+  const filters = [eq(routePlans.clinicId, params.clinicId)];
+  const limit = normalizeLogisticsLimit(params.limit);
+  const offset = normalizeLogisticsOffset(params.offset);
+
+  if (params.status) {
+    filters.push(eq(routePlans.status, params.status));
+  }
+
+  if (params.planningMode) {
+    filters.push(eq(routePlans.planningMode, params.planningMode));
+  }
+
+  if (params.objective) {
+    filters.push(eq(routePlans.objective, params.objective));
+  }
+
+  return db
+    .select()
+    .from(routePlans)
+    .where(and(...filters))
+    .orderBy(desc(routePlans.serviceDate), desc(routePlans.id))
+    .limit(limit)
+    .offset(offset);
+}
+
+export async function updateClinicScopedRoutePlan(
+  id: number,
+  clinicId: number,
+  input: UpdateRoutePlanInput,
+): Promise<RoutePlan | undefined> {
+  const result = await db
+    .update(routePlans)
+    .set({
+      ...input,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(routePlans.id, id),
+        eq(routePlans.clinicId, clinicId),
+      ),
+    )
+    .returning();
+
+  return result[0];
+}
+
+export async function createRouteStopForClinicRoutePlan(
+  input: CreateRouteStopInput,
+): Promise<RouteStop | undefined> {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const routePlan = await tx
+      .select()
+      .from(routePlans)
+      .where(
+        and(
+          eq(routePlans.id, input.routePlanId),
+          eq(routePlans.clinicId, input.clinicId),
+        ),
+      )
+      .limit(1);
+
+    if (!routePlan[0]) {
+      return undefined;
+    }
+
+    const fieldVisit = await tx
+      .select()
+      .from(fieldVisits)
+      .where(
+        and(
+          eq(fieldVisits.id, input.fieldVisitId),
+          eq(fieldVisits.clinicId, input.clinicId),
+        ),
+      )
+      .limit(1);
+
+    if (!fieldVisit[0]) {
+      return undefined;
+    }
+
+    const result = await tx
+      .insert(routeStops)
+      .values({
+        routePlanId: input.routePlanId,
+        fieldVisitId: input.fieldVisitId,
+        sequence: input.sequence,
+        etaStart: input.etaStart ?? null,
+        etaEnd: input.etaEnd ?? null,
+        plannedKmFromPrev: input.plannedKmFromPrev ?? 0,
+        plannedMinFromPrev: input.plannedMinFromPrev ?? 0,
+        status: input.status ?? "pending",
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    return result[0];
+  });
+}
+
+export async function listRouteStopsForClinicRoutePlan(
+  routePlanId: number,
+  clinicId: number,
+): Promise<RouteStop[]> {
+  const result = await db
+    .select({ routeStop: routeStops })
+    .from(routeStops)
+    .innerJoin(
+      routePlans,
+      eq(routeStops.routePlanId, routePlans.id),
+    )
+    .where(
+      and(
+        eq(routeStops.routePlanId, routePlanId),
+        eq(routePlans.clinicId, clinicId),
+      ),
+    )
+    .orderBy(routeStops.sequence, routeStops.id);
+
+  return result.map((row) => row.routeStop);
+}
+
+export async function updateClinicScopedRouteStop(
+  id: number,
+  clinicId: number,
+  input: UpdateRouteStopInput,
+): Promise<RouteStop | undefined> {
+  return db.transaction(async (tx) => {
+    const existing = await tx
+      .select({ routeStop: routeStops })
+      .from(routeStops)
+      .innerJoin(
+        routePlans,
+        eq(routeStops.routePlanId, routePlans.id),
+      )
+      .where(
+        and(
+          eq(routeStops.id, id),
+          eq(routePlans.clinicId, clinicId),
+        ),
+      )
+      .limit(1);
+
+    if (!existing[0]) {
+      return undefined;
+    }
+
+    const result = await tx
+      .update(routeStops)
+      .set({
+        ...input,
+        updatedAt: new Date(),
+      })
+      .where(eq(routeStops.id, id))
+      .returning();
+
+    return result[0];
+  });
+}
+
