@@ -88,6 +88,10 @@ import {
   logisticsRoutePlansNativeRoutes,
   type LogisticsRoutePlansNativeRoutesOptions,
 } from "./routes/logistics-route-plans.fastify.ts";
+import {
+  logisticsRouteEventsNativeRoutes,
+  type LogisticsRouteEventsNativeRoutesOptions,
+} from "./routes/logistics-route-events.fastify.ts";
 
 type HealthCheckResponse = {
   statusCode: number;
@@ -176,6 +180,7 @@ export type CreateFastifyAppOptions = {
   studyTrackingRoutes?: StudyTrackingNativeRoutesOptions;
   logisticsFieldVisitsRoutes?: LogisticsFieldVisitsNativeRoutesOptions;
   logisticsRoutePlansRoutes?: LogisticsRoutePlansNativeRoutesOptions;
+  logisticsRouteEventsRoutes?: LogisticsRouteEventsNativeRoutesOptions;
 };
 
 export async function createFastifyApp(
@@ -363,6 +368,11 @@ export async function createFastifyApp(
   await app.register(logisticsRoutePlansNativeRoutes, {
     prefix: "/api/logistics/route-plans",
     ...(options.logisticsRoutePlansRoutes ?? {}),
+  });
+
+  await app.register(logisticsRouteEventsNativeRoutes, {
+    prefix: "/api/logistics/route-events",
+    ...(options.logisticsRouteEventsRoutes ?? {}),
   });
 
   return app;
