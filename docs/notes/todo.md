@@ -78,12 +78,15 @@
 - [x] Definir contrato de dominio MVP de logística (`docs/logistics/MVP_DOMAIN.md`)
 - [x] Definir contrato de seguridad logística (`docs/logistics/SECURITY_CONTRACT.md`)
 - [x] Definir roadmap incremental de logística (`docs/logistics/ROLLING_ROADMAP.md`)
-- [ ] Implementar modelo base de visitas de campo (`field_visits`)
-- [ ] Implementar ubicaciones de visita (`visit_locations`)
-- [ ] Implementar ventanas horarias (`time_windows`)
-- [ ] Implementar planes de ruta y paradas (`route_plans`, `route_stops`)
-- [ ] Implementar eventos logísticos y polling incremental (`route_events`)
-- [ ] Implementar SLA básico (`sla_policies`, `sla_instances`)
-- [ ] Implementar métricas básicas de cumplimiento
+- [x] Implementar modelo base de visitas de campo (`field_visits`)
+- [x] Implementar ubicaciones de visita (`visit_locations`)
+- [x] Implementar ventanas horarias (`time_windows`)
+- [x] Implementar planes de ruta y paradas (`route_plans`, `route_stops`)
+- [x] Implementar modelo de eventos logísticos (`route_events`)
+- [x] Implementar SLA básico (`sla_policies`, `sla_instances`)
+- [x] Implementar métricas básicas de cumplimiento
+- [ ] Implementar API de visitas de campo y ventanas horarias
+- [ ] Implementar API de planes de ruta y ciclo de release
+- [ ] Implementar API de eventos logísticos y polling incremental
 - [ ] Evaluar heurística determinista simple
 - [ ] Evaluar optimización avanzada solo con volumen/ROI justificado
