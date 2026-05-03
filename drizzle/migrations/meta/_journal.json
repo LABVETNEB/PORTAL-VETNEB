@@ -134,6 +134,13 @@
                         "when":  1776442203570,
                         "tag":  "0018_logistics_time_windows",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  19,
+                        "version":  "7",
+                        "when":  1776442203571,
+                        "tag":  "0019_logistics_route_plans_stops",
+                        "breakpoints":  true
                     }
                 ]
 }
