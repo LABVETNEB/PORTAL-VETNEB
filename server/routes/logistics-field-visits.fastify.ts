@@ -7,14 +7,18 @@ import type {
 import {
   FIELD_VISIT_SOURCE_TYPES,
   FIELD_VISIT_STATUSES,
+  VISIT_LOCATION_GEO_QUALITIES,
   type FieldVisitSourceType,
   type FieldVisitStatus,
+  type VisitLocationGeoQuality,
 } from "../../drizzle/schema.ts";
 import type {
   CreateFieldVisitInput,
   FieldVisit,
   ListFieldVisitsParams,
   UpdateFieldVisitInput,
+  UpsertVisitLocationInput,
+  VisitLocation,
 } from "../db-logistics.ts";
 import { ENV } from "../lib/env.ts";
 
@@ -60,6 +64,13 @@ export type LogisticsFieldVisitsNativeRoutesOptions = {
     clinicId: number,
     input: UpdateFieldVisitInput,
   ) => Promise<FieldVisit | null | undefined>;
+  getVisitLocationForClinicVisit?: (
+    fieldVisitId: number,
+    clinicId: number,
+  ) => Promise<VisitLocation | null | undefined>;
+  upsertVisitLocationForClinicVisit?: (
+    input: UpsertVisitLocationInput,
+  ) => Promise<VisitLocation | null | undefined>;
   now?: () => number;
 };
 
@@ -74,6 +85,8 @@ type NativeLogisticsFieldVisitsDeps = Required<
     | "createFieldVisit"
     | "listClinicFieldVisits"
     | "updateClinicScopedFieldVisit"
+    | "getVisitLocationForClinicVisit"
+    | "upsertVisitLocationForClinicVisit"
   >
 >;
 
@@ -99,6 +112,10 @@ async function loadDefaultDeps(): Promise<NativeLogisticsFieldVisitsDeps> {
         listClinicFieldVisits: dbLogistics.listClinicFieldVisits,
         updateClinicScopedFieldVisit:
           dbLogistics.updateClinicScopedFieldVisit,
+        getVisitLocationForClinicVisit:
+          dbLogistics.getVisitLocationForClinicVisit,
+        upsertVisitLocationForClinicVisit:
+          dbLogistics.upsertVisitLocationForClinicVisit,
       };
     })();
   }
@@ -704,6 +721,146 @@ function buildUpdateFieldVisitInput(
   return { input };
 }
 
+
+function parseOptionalNumberField(
+  value: unknown,
+  fieldName: string,
+): { value?: number | null; error?: string } {
+  if (value == null || value === "") {
+    return { value: null };
+  }
+
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+
+  if (!Number.isFinite(parsed)) {
+    return {
+      error: `${fieldName} debe ser numerico o null`,
+    };
+  }
+
+  return { value: parsed };
+}
+
+function parseVisitLocationGeoQuality(
+  value: unknown,
+): { value?: VisitLocationGeoQuality; error?: string } {
+  if (value == null || value === "") {
+    return {};
+  }
+
+  if (typeof value !== "string") {
+    return { error: "geoQuality invalido" };
+  }
+
+  const normalized = value.trim();
+
+  if (
+    VISIT_LOCATION_GEO_QUALITIES.includes(
+      normalized as VisitLocationGeoQuality,
+    )
+  ) {
+    return { value: normalized as VisitLocationGeoQuality };
+  }
+
+  return { error: "geoQuality invalido" };
+}
+
+function buildUpsertVisitLocationInput(
+  body: unknown,
+  fieldVisitId: number,
+  clinicId: number,
+): { input?: UpsertVisitLocationInput; error?: string } {
+  if (!isRecord(body)) {
+    return { error: "Body invalido" };
+  }
+
+  const addressRaw = normalizeOptionalText(body.addressRaw);
+
+  if (!addressRaw) {
+    return { error: "addressRaw es obligatorio" };
+  }
+
+  const addressNormalized = normalizeOptionalText(body.addressNormalized);
+
+  if (addressNormalized === undefined) {
+    return { error: "addressNormalized debe ser texto o null" };
+  }
+
+  const locality = normalizeOptionalText(body.locality);
+
+  if (locality === undefined) {
+    return { error: "locality debe ser texto o null" };
+  }
+
+  const country = normalizeOptionalText(body.country);
+
+  if (country === undefined) {
+    return { error: "country debe ser texto o null" };
+  }
+
+  const lat = parseOptionalNumberField(body.lat, "lat");
+
+  if (lat.error) {
+    return { error: lat.error };
+  }
+
+  const lng = parseOptionalNumberField(body.lng, "lng");
+
+  if (lng.error) {
+    return { error: lng.error };
+  }
+
+  const geoQuality = parseVisitLocationGeoQuality(body.geoQuality);
+
+  if (geoQuality.error) {
+    return { error: geoQuality.error };
+  }
+
+  const geocodeSource = normalizeOptionalText(body.geocodeSource);
+
+  if (geocodeSource === undefined) {
+    return { error: "geocodeSource debe ser texto o null" };
+  }
+
+  return {
+    input: {
+      fieldVisitId,
+      clinicId,
+      addressRaw,
+      addressNormalized,
+      locality,
+      country,
+      lat: lat.value,
+      lng: lng.value,
+      geoQuality: geoQuality.value,
+      geocodeSource,
+    },
+  };
+}
+
+function serializeVisitLocation(
+  location: VisitLocation,
+): Record<string, unknown> {
+  return {
+    id: location.id,
+    fieldVisitId: location.fieldVisitId,
+    addressRaw: location.addressRaw,
+    addressNormalized: location.addressNormalized,
+    locality: location.locality,
+    country: location.country,
+    lat: location.lat,
+    lng: location.lng,
+    geoQuality: location.geoQuality,
+    geocodeSource: location.geocodeSource,
+    updatedAt: serializeDate(location.updatedAt),
+  };
+}
+
 function serializeDate(value: Date | null | undefined): string | null {
   if (!(value instanceof Date)) {
     return null;
@@ -739,7 +896,9 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
     !!options.hashSessionToken &&
     !!options.createFieldVisit &&
     !!options.listClinicFieldVisits &&
-    !!options.updateClinicScopedFieldVisit;
+    !!options.updateClinicScopedFieldVisit &&
+    !!options.getVisitLocationForClinicVisit &&
+    !!options.upsertVisitLocationForClinicVisit;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -761,6 +920,12 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
     updateClinicScopedFieldVisit:
       options.updateClinicScopedFieldVisit ??
       defaultDeps!.updateClinicScopedFieldVisit,
+    getVisitLocationForClinicVisit:
+      options.getVisitLocationForClinicVisit ??
+      defaultDeps!.getVisitLocationForClinicVisit,
+    upsertVisitLocationForClinicVisit:
+      options.upsertVisitLocationForClinicVisit ??
+      defaultDeps!.upsertVisitLocationForClinicVisit,
   };
 
   const now = options.now ?? (() => Date.now());
@@ -785,7 +950,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
     }
 
     applyCorsHeaders(request, reply, allowedOrigins);
-    reply.header("access-control-allow-methods", "GET,POST,PATCH,OPTIONS");
+    reply.header("access-control-allow-methods", "GET,POST,PUT,PATCH,OPTIONS");
 
     const requestedHeaders =
       typeof request.headers["access-control-request-headers"] === "string"
@@ -798,6 +963,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
 
   app.options("/", optionsHandler);
   app.options("/:fieldVisitId", optionsHandler);
+  app.options("/:fieldVisitId/location", optionsHandler);
 
   app.get<{
     Querystring: {
@@ -951,4 +1117,97 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       fieldVisit: serializeFieldVisit(updated),
     });
   });
+
+  app.get<{
+    Params: {
+      fieldVisitId: string;
+    };
+  }>("/:fieldVisitId/location", async (request, reply) => {
+    const auth = await authenticateClinicUser(request, reply, deps, now);
+
+    if (!auth) {
+      return reply;
+    }
+
+    const fieldVisitId = parseEntityId(request.params.fieldVisitId);
+
+    if (!fieldVisitId) {
+      return reply.code(400).send({
+        success: false,
+        error: "fieldVisitId invalido",
+      });
+    }
+
+    const location = await deps.getVisitLocationForClinicVisit(
+      fieldVisitId,
+      auth.clinicId,
+    );
+
+    if (!location) {
+      return reply.code(404).send({
+        success: false,
+        error: "Ubicacion de visita no encontrada",
+      });
+    }
+
+    return reply.code(200).send({
+      success: true,
+      location: serializeVisitLocation(location),
+    });
+  });
+
+  app.put<{
+    Params: {
+      fieldVisitId: string;
+    };
+    Body: unknown;
+  }>("/:fieldVisitId/location", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const auth = await authenticateClinicUser(request, reply, deps, now);
+
+    if (!auth) {
+      return reply;
+    }
+
+    const fieldVisitId = parseEntityId(request.params.fieldVisitId);
+
+    if (!fieldVisitId) {
+      return reply.code(400).send({
+        success: false,
+        error: "fieldVisitId invalido",
+      });
+    }
+
+    const parsed = buildUpsertVisitLocationInput(
+      request.body,
+      fieldVisitId,
+      auth.clinicId,
+    );
+
+    if (!parsed.input) {
+      return reply.code(400).send({
+        success: false,
+        error: parsed.error ?? "Body invalido",
+      });
+    }
+
+    const location = await deps.upsertVisitLocationForClinicVisit(parsed.input);
+
+    if (!location) {
+      return reply.code(404).send({
+        success: false,
+        error: "Visita de campo no encontrada",
+      });
+    }
+
+    return reply.code(200).send({
+      success: true,
+      message: "Ubicacion de visita guardada correctamente",
+      location: serializeVisitLocation(location),
+    });
+  });
+
 };

@@ -63,3 +63,43 @@ test("logistics field visit API keeps unsafe methods behind trusted-origin check
   assert.match(routeSource, /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)/);
   assert.match(routeSource, /Origen no permitido/);
 });
+
+
+test("logistics field visit API exposes clinic-scoped location endpoints", () => {
+  assert.match(routeSource, /app\.get<[\s\S]*>\("\/:fieldVisitId\/location", async/);
+  assert.match(routeSource, /app\.put<[\s\S]*>\("\/:fieldVisitId\/location", async/);
+  assert.match(routeSource, /app\.options\("\/:fieldVisitId\/location", optionsHandler\)/);
+  assert.match(routeSource, /GET,POST,PUT,PATCH,OPTIONS/);
+});
+
+test("logistics field visit API wires visit location DB helpers through injectable deps", () => {
+  assert.match(routeSource, /getVisitLocationForClinicVisit\?:/);
+  assert.match(routeSource, /upsertVisitLocationForClinicVisit\?:/);
+  assert.match(routeSource, /dbLogistics\.getVisitLocationForClinicVisit/);
+  assert.match(routeSource, /dbLogistics\.upsertVisitLocationForClinicVisit/);
+  assert.match(routeSource, /deps\.getVisitLocationForClinicVisit\(\s*fieldVisitId,\s*auth\.clinicId,\s*\)/);
+  assert.match(routeSource, /deps\.upsertVisitLocationForClinicVisit\(parsed\.input\)/);
+});
+
+test("logistics field visit API validates visit location payload before upsert", () => {
+  assert.match(routeSource, /function buildUpsertVisitLocationInput/);
+  assert.match(routeSource, /addressRaw es obligatorio/);
+  assert.match(routeSource, /parseOptionalNumberField\(body\.lat, "lat"\)/);
+  assert.match(routeSource, /parseOptionalNumberField\(body\.lng, "lng"\)/);
+  assert.match(routeSource, /VISIT_LOCATION_GEO_QUALITIES/);
+  assert.match(routeSource, /parseVisitLocationGeoQuality\(body\.geoQuality\)/);
+});
+
+test("logistics field visit API serializes visit location without exposing non-schema fields", () => {
+  assert.match(routeSource, /function serializeVisitLocation/);
+  assert.match(routeSource, /addressRaw: location\.addressRaw/);
+  assert.match(routeSource, /geoQuality: location\.geoQuality/);
+  assert.match(routeSource, /updatedAt: serializeDate\(location\.updatedAt\)/);
+  assert.doesNotMatch(routeSource, /createdAt: serializeDate\(location\.createdAt\)/);
+});
+
+test("logistics field visit API keeps location writes behind trusted-origin checks", () => {
+  assert.match(routeSource, /app\.put<[\s\S]*>\("\/:fieldVisitId\/location", async/);
+  assert.match(routeSource, /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)/);
+  assert.match(routeSource, /auth\.clinicId/);
+});
