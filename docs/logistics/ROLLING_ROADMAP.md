@@ -322,6 +322,23 @@ Required tests:
 
 ### PR 4.1 — SLA schema
 
+Status: completed.
+
+Implemented scope:
+
+- SLA policies and instances schema.
+- SLA policy scopes and target types.
+- SLA instance lifecycle statuses: active, paused, breached, resolved and canceled.
+- Tenant-first indexes and ownership foreign keys.
+- SLA compliance helpers in `server/lib/logistics/metrics.ts`.
+- Schema and compliance coverage in `test/logistics-sla-schema.test.ts` and `test/logistics-sla-compliance.test.ts`.
+
+Current boundary:
+
+- No dedicated SLA API routes are implemented yet.
+- No SLA notifications or escalation runtime is implemented yet.
+- SLA compliance helpers are available as library-level metrics.
+
 Suggested title:
 
 `feat(logistics-sla): add SLA policies and instances`
@@ -345,7 +362,7 @@ Expected files:
 - `drizzle/schema.ts`
 - `drizzle/migrations/*`
 - `server/db-logistics.ts`
-- `server/lib/logistics/sla.ts`
+- `server/lib/logistics/metrics.ts`
 - `test/*logistics*`
 
 Required tests:
