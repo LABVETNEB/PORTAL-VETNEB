@@ -145,3 +145,25 @@ test("logistics DB helpers support route event route-plan scoped reads", () => {
   assert.match(dbLogisticsSource, /if \(!routePlan\) \{\s*return \[\];\s*\}/);
   assert.match(dbLogisticsSource, /routePlanId,/);
 });
+
+test("logistics DB helpers generate heuristic route plans transactionally", () => {
+  assert.match(dbLogisticsSource, /buildHeuristicRoutePlan/);
+  assert.match(dbLogisticsSource, /export type GenerateHeuristicRoutePlanInput/);
+  assert.match(dbLogisticsSource, /export type GenerateHeuristicRoutePlanResult/);
+  assert.match(dbLogisticsSource, /export async function generateHeuristicRoutePlan/);
+  assert.match(dbLogisticsSource, /normalizeGenerateHeuristicFieldVisitIds/);
+  assert.match(dbLogisticsSource, /inArray\(fieldVisits\.id, fieldVisitIds\)/);
+  assert.match(dbLogisticsSource, /leftJoin\(\s*visitLocations,\s*eq\(visitLocations\.fieldVisitId, fieldVisits\.id\),\s*\)/);
+  assert.match(dbLogisticsSource, /inArray\(timeWindows\.fieldVisitId, fieldVisitIds\)/);
+  assert.match(dbLogisticsSource, /planningMode: "heuristic"/);
+  assert.match(dbLogisticsSource, /status: "planned"/);
+  assert.match(dbLogisticsSource, /tx\s*\.\s*insert\(routePlans\)/);
+  assert.match(dbLogisticsSource, /tx\s*\.\s*insert\(routeStops\)/);
+});
+
+test("logistics DB heuristic generation reports invalid clinic-scoped inputs without partial writes", () => {
+  assert.match(dbLogisticsSource, /reason: "no_visits"/);
+  assert.match(dbLogisticsSource, /reason: "field_visits_not_found"/);
+  assert.match(dbLogisticsSource, /missingFieldVisitIds/);
+  assert.match(dbLogisticsSource, /reason: "route_plan_not_created"/);
+});

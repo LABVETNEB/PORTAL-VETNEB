@@ -133,3 +133,37 @@ test("logistics route plans API keeps lifecycle writes clinic scoped and trusted
   assert.match(routeSource, /currentStatus: result\.currentStatus/);
   assert.match(routeSource, /Transicion de estado no permitida/);
 });
+
+test("logistics route plans API exposes heuristic generation endpoint", () => {
+  assert.match(routeSource, /app\.options\("\/heuristic", optionsHandler\)/);
+  assert.match(routeSource, /app\.post<[\s\S]*>\("\/heuristic", async/);
+  assert.match(routeSource, /buildGenerateHeuristicRoutePlanInput/);
+  assert.match(routeSource, /deps\.generateHeuristicRoutePlan\(parsed\.input\)/);
+  assert.match(routeSource, /planning:\s*{\s*mode: "heuristic"/);
+});
+
+test("logistics route plans API wires heuristic generation through injectable deps", () => {
+  assert.match(routeSource, /GenerateHeuristicRoutePlanInput/);
+  assert.match(routeSource, /GenerateHeuristicRoutePlanResult/);
+  assert.match(routeSource, /generateHeuristicRoutePlan\?:/);
+  assert.match(routeSource, /dbLogistics\.generateHeuristicRoutePlan/);
+  assert.match(routeSource, /options\.generateHeuristicRoutePlan/);
+});
+
+test("logistics route plans API validates heuristic generation input before DB calls", () => {
+  assert.match(routeSource, /parseFieldVisitIds/);
+  assert.match(routeSource, /fieldVisitIds debe incluir al menos una visita/);
+  assert.match(routeSource, /parseOptionalRoutePlanningPoint/);
+  assert.match(routeSource, /startLocation debe incluir lat\/lng validos/);
+  assert.match(routeSource, /parseOptionalPositiveNumberField/);
+  assert.match(routeSource, /travelSpeedKmh/);
+  assert.match(routeSource, /fallbackLegMinutes/);
+});
+
+test("logistics route plans API keeps heuristic generation clinic scoped and trusted-origin protected", () => {
+  assert.match(routeSource, /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)/);
+  assert.match(routeSource, /auth\.clinicId/);
+  assert.match(routeSource, /createdByType: "clinic"/);
+  assert.match(routeSource, /createdById,/);
+  assert.match(routeSource, /missingFieldVisitIds/);
+});
