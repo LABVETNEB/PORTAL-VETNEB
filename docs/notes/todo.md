@@ -89,5 +89,5 @@
 - [x] Implementar API de planes de ruta y paradas
 - [x] Implementar ciclo de release de planes de ruta
 - [x] Implementar API de eventos logísticos y polling incremental
-- [ ] Evaluar heurística determinista simple
+- [x] Evaluar heurística determinista simple
 - [ ] Evaluar optimización avanzada solo con volumen/ROI justificado
