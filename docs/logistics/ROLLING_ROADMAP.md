@@ -1,4 +1,4 @@
-﻿# Logistics Rolling Roadmap
+﻿﻿# Logistics Rolling Roadmap
 
 ## Purpose
 
@@ -441,6 +441,8 @@ Required tests:
 ## Phase 6 — Advanced optimization evaluation
 
 Advanced optimization must remain gated until production data justifies it.
+
+Discovery guardrails are documented in `docs/logistics/ADVANCED_OPTIMIZATION_GUARDRAILS.md`.
 
 Candidates:
 
