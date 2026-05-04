@@ -1,0 +1,142 @@
+import type { Metadata } from "next";
+import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MOCK_REPORTS } from "@/lib/mock-data";
+import {
+  getReportStatusLabel,
+  getReportStatusVariant,
+  formatDate,
+} from "@/lib/utils";
+
+export const metadata: Metadata = {
+  title: "Informes — Portal VETNEB",
+  robots: { index: false, follow: false },
+};
+
+const statusOptions = [
+  { value: "", label: "Todos los estados" },
+  { value: "uploaded", label: "Subido" },
+  { value: "processing", label: "Procesando" },
+  { value: "ready", label: "Listo" },
+  { value: "delivered", label: "Entregado" },
+];
+
+export default function InformesPage() {
+  return (
+    <>
+      <DashboardTopbar
+        title="Informes"
+        subtitle="Gestión de informes médicos veterinarios"
+      />
+      <main className="flex-1 p-6 space-y-6">
+        {/* Banner mock */}
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-xs text-amber-700">
+          <strong>Mock data:</strong> Los datos mostrados son de ejemplo. Se
+          conectarán con <code>GET /api/reports</code> y{" "}
+          <code>GET /api/reports/search</code>.
+        </div>
+
+        {/* Filtros */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-gray-500">
+              Filtros
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Input
+                placeholder="Buscar por paciente o tipo de estudio..."
+                className="sm:max-w-xs"
+                aria-label="Buscar informes"
+              />
+              <select
+                className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label="Filtrar por estado"
+              >
+                {statusOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tabla de informes */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Informes ({MOCK_REPORTS.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Paciente</TableHead>
+                  <TableHead>Tipo de estudio</TableHead>
+                  <TableHead>Clínica</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {MOCK_REPORTS.map((report) => (
+                  <TableRow key={report.id}>
+                    <TableCell className="font-mono text-xs text-gray-400">
+                      #{report.id}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {report.patientName ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-gray-600">
+                      {report.studyType ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-gray-600 text-sm">
+                      {report.clinicName ?? `Clínica #${report.clinicId}`}
+                    </TableCell>
+                    <TableCell className="text-gray-500 text-sm">
+                      {formatDate(report.uploadDate)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getReportStatusVariant(report.status)}>
+                        {getReportStatusLabel(report.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <button
+                        className="text-xs text-primary hover:underline disabled:opacity-40"
+                        disabled={!report.storagePath}
+                        title={
+                          report.storagePath
+                            ? "Descargar informe"
+                            : "Informe no disponible aún"
+                        }
+                      >
+                        {report.storagePath ? "Descargar" : "No disponible"}
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </main>
+    </>
+  );
+}
