@@ -85,6 +85,7 @@
 - [x] Implementar modelo de eventos logísticos (`route_events`)
 - [x] Implementar SLA básico (`sla_policies`, `sla_instances`)
 - [x] Implementar métricas básicas de cumplimiento
+- [x] Implementar API de métricas de cumplimiento de planes de ruta
 - [x] Implementar API de visitas de campo y ventanas horarias
 - [x] Implementar API de planes de ruta y paradas
 - [x] Implementar ciclo de release de planes de ruta
