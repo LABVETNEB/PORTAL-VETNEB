@@ -146,3 +146,26 @@ Los endpoints de logística y admin usan mock data mientras se confirman los con
 | `feat/mobile-nav` | Menú hamburguesa para navegación móvil | Media |
 | `feat/dashboard-auth-guard` | Middleware Next.js para proteger rutas `/dashboard/*` | Alta |
 | `feat/report-upload` | Interfaz de carga de informes con `POST /api/reports/upload` | Media |
+
+
+## Validacion local
+
+Desde la raiz del frontend:
+
+    pnpm install
+    pnpm typecheck
+    pnpm build
+
+Tambien se puede ejecutar desde la raiz del repositorio apuntando al directorio del frontend:
+
+    pnpm --dir frontend install
+    pnpm --dir frontend typecheck
+    pnpm --dir frontend build
+
+Validacion ejecutada para este PR:
+
+    pnpm --dir frontend install
+    pnpm --dir frontend typecheck
+    pnpm --dir frontend build
+
+Nota: no se usa pnpm --dir frontend lint como validacion local de este PR porque el script actual invoca next lint, que solicita configuracion interactiva de ESLint.
