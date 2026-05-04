@@ -4,6 +4,7 @@ import {
   calculateBasicRouteComplianceMetrics,
   calculateKmPerCompletedVisit,
   calculateRouteDistanceCompliance,
+  calculateRouteStopComplianceMetrics,
   classifyTimeWindowCompliance,
   summarizeWindowCompliance,
 } from "../server/lib/logistics/metrics.ts";
@@ -224,4 +225,84 @@ test("calculateBasicRouteComplianceMetrics combines distance stop and window sum
       },
     },
   );
+});
+
+test("calculateRouteStopComplianceMetrics summarizes stop-level compliance deterministically", () => {
+  const result = calculateRouteStopComplianceMetrics([
+    {
+      routeStopId: 102,
+      fieldVisitId: 20,
+      sequence: 2,
+      plannedKmFromPrev: 8,
+      actualKmFromPrev: 11,
+      distanceTolerancePercent: 20,
+      plannedMinFromPrev: 30,
+      actualArrival: new Date("2026-05-03T10:50:00.000Z"),
+      windowStart: new Date("2026-05-03T10:30:00.000Z"),
+      windowEnd: new Date("2026-05-03T11:00:00.000Z"),
+      toleranceMin: 5,
+      timeToleranceMin: 10,
+    },
+    {
+      routeStopId: 101,
+      fieldVisitId: 10,
+      sequence: 1,
+      plannedKmFromPrev: 4,
+      actualKmFromPrev: 4.2,
+      distanceTolerancePercent: 20,
+      plannedMinFromPrev: 0,
+      actualArrival: new Date("2026-05-03T10:00:00.000Z"),
+      windowStart: new Date("2026-05-03T09:45:00.000Z"),
+      windowEnd: new Date("2026-05-03T10:15:00.000Z"),
+      toleranceMin: 5,
+      timeToleranceMin: 10,
+    },
+  ]);
+
+  assert.equal(result.totalStops, 2);
+  assert.equal(result.distanceDeviationCount, 1);
+  assert.equal(result.timeDeviationCount, 1);
+  assert.equal(result.outOfSequenceCount, 0);
+  assert.equal(result.windowSummary.complianceRate, 100);
+  assert.deepEqual(
+    result.stopMetrics.map((metric) => metric.fieldVisitId),
+    [10, 20],
+  );
+  assert.equal(result.stopMetrics[1]?.distance.deltaPercent, 37.5);
+  assert.equal(result.stopMetrics[1]?.actualMinFromPrev, 50);
+  assert.equal(result.stopMetrics[1]?.minDeltaFromPlan, 20);
+  assert.equal(result.stopMetrics[1]?.withinTimeTolerance, false);
+});
+
+test("calculateRouteStopComplianceMetrics detects out-of-sequence and missing actual arrivals", () => {
+  const result = calculateRouteStopComplianceMetrics([
+    {
+      fieldVisitId: 10,
+      sequence: 1,
+      actualArrival: new Date("2026-05-03T11:00:00.000Z"),
+      windowStart: new Date("2026-05-03T10:00:00.000Z"),
+      windowEnd: new Date("2026-05-03T11:30:00.000Z"),
+    },
+    {
+      fieldVisitId: 20,
+      sequence: 2,
+      actualArrival: new Date("2026-05-03T10:30:00.000Z"),
+      windowStart: new Date("2026-05-03T10:00:00.000Z"),
+      windowEnd: new Date("2026-05-03T11:30:00.000Z"),
+    },
+    {
+      fieldVisitId: 30,
+      sequence: 3,
+      actualArrival: null,
+      windowStart: new Date("2026-05-03T12:00:00.000Z"),
+      windowEnd: new Date("2026-05-03T12:30:00.000Z"),
+    },
+  ]);
+
+  assert.equal(result.totalStops, 3);
+  assert.equal(result.outOfSequenceCount, 1);
+  assert.equal(result.missingActualArrivalCount, 1);
+  assert.equal(result.windowSummary.missingActualCount, 1);
+  assert.equal(result.stopMetrics[1]?.isOutOfSequence, true);
+  assert.equal(result.stopMetrics[2]?.window.status, "missing_actual");
 });

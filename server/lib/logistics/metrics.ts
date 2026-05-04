@@ -660,3 +660,170 @@ export function calculateDurationBetweenRouteEvents(
     missingEvents,
   };
 }
+
+export interface RouteStopComplianceInput {
+  routeStopId?: number | null;
+  fieldVisitId: number;
+  sequence: number;
+  plannedKmFromPrev?: NumericMetricInput;
+  actualKmFromPrev?: NumericMetricInput;
+  plannedMinFromPrev?: NumericMetricInput;
+  actualArrival?: Date | null;
+  windowStart?: Date | null;
+  windowEnd?: Date | null;
+  toleranceMin?: NumericMetricInput;
+  distanceTolerancePercent?: NumericMetricInput;
+  timeToleranceMin?: NumericMetricInput;
+}
+
+export interface RouteStopComplianceMetric {
+  routeStopId: number | null;
+  fieldVisitId: number;
+  sequence: number;
+  distance: RouteDistanceComplianceMetrics;
+  actualMinFromPrev: number | null;
+  plannedMinFromPrev: number | null;
+  minDeltaFromPlan: number | null;
+  withinTimeTolerance: boolean | null;
+  window: TimeWindowComplianceResult;
+  isOutOfSequence: boolean;
+}
+
+export interface RouteStopComplianceSummary {
+  totalStops: number;
+  outOfSequenceCount: number;
+  distanceDeviationCount: number;
+  timeDeviationCount: number;
+  missingActualArrivalCount: number;
+  windowSummary: WindowComplianceSummary;
+  stopMetrics: RouteStopComplianceMetric[];
+}
+
+function normalizeRouteStopId(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
+    return null;
+  }
+
+  return value;
+}
+
+function calculateActualMinutesFromPreviousArrival(
+  previousArrival: Date | null,
+  actualArrival: Date | null,
+): number | null {
+  const previousArrivalMs = getDateMs(previousArrival);
+  const actualArrivalMs = getDateMs(actualArrival);
+
+  if (previousArrivalMs === null || actualArrivalMs === null) {
+    return null;
+  }
+
+  return roundMetric((actualArrivalMs - previousArrivalMs) / 60000);
+}
+
+export function calculateRouteStopComplianceMetrics(
+  stops: readonly RouteStopComplianceInput[],
+): RouteStopComplianceSummary {
+  const sortedStops = stops
+    .slice()
+    .sort((left, right) => {
+      const sequenceDiff = left.sequence - right.sequence;
+
+      if (sequenceDiff !== 0) {
+        return sequenceDiff;
+      }
+
+      return left.fieldVisitId - right.fieldVisitId;
+    });
+
+  const stopMetrics: RouteStopComplianceMetric[] = [];
+  const windowStatuses: TimeWindowComplianceStatus[] = [];
+
+  let previousActualArrival: Date | null = null;
+  let outOfSequenceCount = 0;
+  let distanceDeviationCount = 0;
+  let timeDeviationCount = 0;
+  let missingActualArrivalCount = 0;
+
+  for (const stop of sortedStops) {
+    const actualArrivalMs = getDateMs(stop.actualArrival);
+    const actualArrival =
+      actualArrivalMs === null ? null : new Date(actualArrivalMs);
+    const plannedMinFromPrev = normalizeNonNegativeNumber(
+      stop.plannedMinFromPrev,
+    );
+    const actualMinFromPrev = calculateActualMinutesFromPreviousArrival(
+      previousActualArrival,
+      actualArrival,
+    );
+    const minDeltaFromPlan =
+      actualMinFromPrev !== null && plannedMinFromPrev !== null
+        ? roundMetric(actualMinFromPrev - plannedMinFromPrev)
+        : null;
+    const timeToleranceMin = normalizeNonNegativeNumber(stop.timeToleranceMin);
+    const withinTimeTolerance =
+      minDeltaFromPlan !== null && timeToleranceMin !== null
+        ? Math.abs(minDeltaFromPlan) <= timeToleranceMin
+        : null;
+    const window = classifyTimeWindowCompliance({
+      windowStart: stop.windowStart,
+      windowEnd: stop.windowEnd,
+      actualArrival,
+      toleranceMin: stop.toleranceMin,
+    });
+    const distance = calculateRouteDistanceCompliance({
+      plannedKm: stop.plannedKmFromPrev,
+      actualKm: stop.actualKmFromPrev,
+      tolerancePercent: stop.distanceTolerancePercent,
+    });
+    const isOutOfSequence =
+      previousActualArrival !== null &&
+      actualArrival !== null &&
+      actualArrival < previousActualArrival;
+
+    if (isOutOfSequence) {
+      outOfSequenceCount += 1;
+    }
+
+    if (distance.withinTolerance === false) {
+      distanceDeviationCount += 1;
+    }
+
+    if (withinTimeTolerance === false) {
+      timeDeviationCount += 1;
+    }
+
+    if (window.status === "missing_actual") {
+      missingActualArrivalCount += 1;
+    }
+
+    windowStatuses.push(window.status);
+
+    stopMetrics.push({
+      routeStopId: normalizeRouteStopId(stop.routeStopId),
+      fieldVisitId: stop.fieldVisitId,
+      sequence: stop.sequence,
+      distance,
+      actualMinFromPrev,
+      plannedMinFromPrev,
+      minDeltaFromPlan,
+      withinTimeTolerance,
+      window,
+      isOutOfSequence,
+    });
+
+    if (actualArrival !== null) {
+      previousActualArrival = actualArrival;
+    }
+  }
+
+  return {
+    totalStops: sortedStops.length,
+    outOfSequenceCount,
+    distanceDeviationCount,
+    timeDeviationCount,
+    missingActualArrivalCount,
+    windowSummary: summarizeWindowCompliance(windowStatuses),
+    stopMetrics,
+  };
+}
