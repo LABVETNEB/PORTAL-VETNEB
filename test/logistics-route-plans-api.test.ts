@@ -167,3 +167,22 @@ test("logistics route plans API keeps heuristic generation clinic scoped and tru
   assert.match(routeSource, /createdById,/);
   assert.match(routeSource, /missingFieldVisitIds/);
 });
+
+test("logistics route plans API exposes route compliance metrics endpoint", () => {
+  assert.match(routeSource, /calculateRouteStopComplianceMetrics/);
+  assert.match(routeSource, /RouteStopComplianceInput/);
+  assert.match(routeSource, /buildRouteStopComplianceInputs/);
+  assert.match(routeSource, /"\/:routePlanId\/metrics"/);
+  assert.match(routeSource, /deps\.getClinicScopedRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*\)/);
+  assert.match(routeSource, /deps\.listRouteStopsForClinicRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*\)/);
+  assert.match(routeSource, /metrics: calculateRouteStopComplianceMetrics\(metricInputs\.inputs\)/);
+});
+
+test("logistics route plans API validates route compliance metrics tolerances", () => {
+  assert.match(routeSource, /distanceTolerancePercent/);
+  assert.match(routeSource, /timeToleranceMin/);
+  assert.match(routeSource, /toleranceMin/);
+  assert.match(routeSource, /parseOptionalPositiveNumberField\(\s*query\.distanceTolerancePercent/);
+  assert.match(routeSource, /parseOptionalPositiveNumberField\(\s*query\.timeToleranceMin/);
+  assert.match(routeSource, /parseOptionalPositiveNumberField\(\s*query\.toleranceMin/);
+});

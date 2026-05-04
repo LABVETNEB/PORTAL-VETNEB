@@ -28,6 +28,10 @@ import type {
   UpdateRouteStopInput,
 } from "../db-logistics.ts";
 import { ENV } from "../lib/env.ts";
+import {
+  calculateRouteStopComplianceMetrics,
+  type RouteStopComplianceInput,
+} from "../lib/logistics/metrics.ts";
 
 type ActiveSessionRecord = {
   clinicUserId: number;
@@ -1245,6 +1249,60 @@ function getGenerateHeuristicRoutePlanError(
 }
 
 
+function buildRouteStopComplianceInputs(
+  routeStops: readonly RouteStop[],
+  query: {
+    distanceTolerancePercent?: unknown;
+    timeToleranceMin?: unknown;
+    toleranceMin?: unknown;
+  },
+): { inputs?: RouteStopComplianceInput[]; error?: string } {
+  const distanceTolerancePercent = parseOptionalPositiveNumberField(
+    query.distanceTolerancePercent,
+    "distanceTolerancePercent",
+  );
+
+  if (distanceTolerancePercent.error) {
+    return { error: distanceTolerancePercent.error };
+  }
+
+  const timeToleranceMin = parseOptionalPositiveNumberField(
+    query.timeToleranceMin,
+    "timeToleranceMin",
+  );
+
+  if (timeToleranceMin.error) {
+    return { error: timeToleranceMin.error };
+  }
+
+  const toleranceMin = parseOptionalPositiveNumberField(
+    query.toleranceMin,
+    "toleranceMin",
+  );
+
+  if (toleranceMin.error) {
+    return { error: toleranceMin.error };
+  }
+
+  return {
+    inputs: routeStops.map((routeStop) => ({
+      routeStopId: routeStop.id,
+      fieldVisitId: routeStop.fieldVisitId,
+      sequence: routeStop.sequence,
+      plannedKmFromPrev: routeStop.plannedKmFromPrev,
+      actualKmFromPrev: routeStop.actualKmFromPrev,
+      plannedMinFromPrev: routeStop.plannedMinFromPrev,
+      actualArrival: routeStop.actualArrival,
+      windowStart: routeStop.etaStart,
+      windowEnd: routeStop.etaEnd,
+      distanceTolerancePercent: distanceTolerancePercent.value,
+      timeToleranceMin: timeToleranceMin.value,
+      toleranceMin: toleranceMin.value,
+    })),
+  };
+}
+
+
 function getLifecycleActionError(
   result: RoutePlanLifecycleTransitionResult,
 ): { statusCode: number; error: string } {
@@ -1409,6 +1467,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
   app.options("/", optionsHandler);
   app.options("/heuristic", optionsHandler);
   app.options("/:routePlanId", optionsHandler);
+  app.options("/:routePlanId/metrics", optionsHandler);
   app.options("/:routePlanId/stops", optionsHandler);
   app.options("/:routePlanId/stops/:routeStopId", optionsHandler);
   app.options("/:routePlanId/release", optionsHandler);
@@ -1675,6 +1734,63 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     });
   });
 
+  app.get<{
+    Params: { routePlanId: string };
+    Querystring: {
+      distanceTolerancePercent?: unknown;
+      timeToleranceMin?: unknown;
+      toleranceMin?: unknown;
+    };
+  }>("/:routePlanId/metrics", async (request, reply) => {
+    const auth = await authenticateClinicUser(request, reply, deps, now);
+
+    if (!auth) {
+      return reply;
+    }
+
+    const routePlanId = parseEntityId(request.params.routePlanId);
+
+    if (!routePlanId) {
+      return reply.code(400).send({
+        success: false,
+        error: "routePlanId invalido",
+      });
+    }
+
+    const routePlan = await deps.getClinicScopedRoutePlan(
+      routePlanId,
+      auth.clinicId,
+    );
+
+    if (!routePlan) {
+      return reply.code(404).send({
+        success: false,
+        error: "Plan de ruta no encontrado",
+      });
+    }
+
+    const routeStops = await deps.listRouteStopsForClinicRoutePlan(
+      routePlanId,
+      auth.clinicId,
+    );
+    const metricInputs = buildRouteStopComplianceInputs(
+      routeStops,
+      request.query,
+    );
+
+    if (!metricInputs.inputs) {
+      return reply.code(400).send({
+        success: false,
+        error: metricInputs.error ?? "Query invalida",
+      });
+    }
+
+    return reply.send({
+      success: true,
+      routePlan: serializeRoutePlan(routePlan),
+      metrics: calculateRouteStopComplianceMetrics(metricInputs.inputs),
+    });
+  });
   app.get<{
     Params: {
       routePlanId: string;
