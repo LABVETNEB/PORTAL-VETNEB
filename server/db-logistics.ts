@@ -1,4 +1,4 @@
-﻿import { and, asc, desc, eq, gt } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray } from "drizzle-orm";
 import { db } from "./db";
 import {
   fieldVisits,
@@ -23,6 +23,11 @@ import {
   assertValidTimeWindowRange,
   normalizeTimeWindowTimezone,
 } from "./lib/logistics/time-window.ts";
+import {
+  buildHeuristicRoutePlan,
+  type RoutePlanningPoint,
+  type RoutePlanningVisit,
+} from "./lib/logistics/route-planning.ts";
 
 export const LOGISTICS_DEFAULT_LIMIT = 50;
 export const LOGISTICS_MAX_LIMIT = 100;
@@ -161,6 +166,38 @@ export type ListRouteEventsParams = {
   limit?: number;
   offset?: number;
 };
+
+export type GenerateHeuristicRoutePlanInput = {
+  clinicId: number;
+  serviceDate: Date;
+  fieldVisitIds: number[];
+  routeStart?: Date;
+  startLocation?: RoutePlanningPoint | null;
+  objective?: RoutePlanObjective;
+  travelSpeedKmh?: number;
+  fallbackLegMinutes?: number;
+  createdByType?: RoutePlanCreatedByType;
+  createdById?: number | null;
+};
+
+export type GenerateHeuristicRoutePlanResult =
+  | {
+      routePlan: RoutePlan;
+      routeStops: RouteStop[];
+      warnings: string[];
+      reason?: undefined;
+      missingFieldVisitIds?: undefined;
+    }
+  | {
+      routePlan?: undefined;
+      routeStops?: undefined;
+      warnings?: undefined;
+      reason:
+        | "no_visits"
+        | "field_visits_not_found"
+        | "route_plan_not_created";
+      missingFieldVisitIds?: number[];
+    };
 
 export const ROUTE_PLAN_LIFECYCLE_ACTIONS = [
   "release",
@@ -759,6 +796,221 @@ export async function transitionClinicScopedRoutePlanStatus(
 
     return {
       routePlan: updatedRoutePlan,
+    };
+  });
+}
+
+
+function normalizeGenerateHeuristicFieldVisitIds(ids: number[]): number[] {
+  const result: number[] = [];
+  const seen = new Set<number>();
+
+  for (const id of ids) {
+    if (!Number.isInteger(id) || id <= 0 || seen.has(id)) {
+      continue;
+    }
+
+    seen.add(id);
+    result.push(id);
+  }
+
+  return result;
+}
+
+function toRoutePlanningPoint(
+  location: VisitLocation | null | undefined,
+): RoutePlanningPoint | null {
+  if (
+    !location ||
+    typeof location.lat !== "number" ||
+    typeof location.lng !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    lat: location.lat,
+    lng: location.lng,
+  };
+}
+
+export async function generateHeuristicRoutePlan(
+  input: GenerateHeuristicRoutePlanInput,
+): Promise<GenerateHeuristicRoutePlanResult> {
+  const fieldVisitIds = normalizeGenerateHeuristicFieldVisitIds(
+    input.fieldVisitIds,
+  );
+
+  if (fieldVisitIds.length === 0) {
+    return {
+      reason: "no_visits",
+    };
+  }
+
+  return db.transaction(async (tx) => {
+    const visitRows = await tx
+      .select({
+        fieldVisit: fieldVisits,
+        location: visitLocations,
+      })
+      .from(fieldVisits)
+      .leftJoin(
+        visitLocations,
+        eq(visitLocations.fieldVisitId, fieldVisits.id),
+      )
+      .where(
+        and(
+          eq(fieldVisits.clinicId, input.clinicId),
+          inArray(fieldVisits.id, fieldVisitIds),
+        ),
+      );
+
+    const visitById = new Map<
+      number,
+      {
+        fieldVisit: FieldVisit;
+        location: VisitLocation | null;
+      }
+    >();
+
+    for (const row of visitRows) {
+      visitById.set(row.fieldVisit.id, {
+        fieldVisit: row.fieldVisit,
+        location: row.location,
+      });
+    }
+
+    const missingFieldVisitIds = fieldVisitIds.filter(
+      (fieldVisitId) => !visitById.has(fieldVisitId),
+    );
+
+    if (missingFieldVisitIds.length > 0) {
+      return {
+        reason: "field_visits_not_found",
+        missingFieldVisitIds,
+      };
+    }
+
+    const timeWindowRows = await tx
+      .select({
+        timeWindow: timeWindows,
+      })
+      .from(timeWindows)
+      .innerJoin(
+        fieldVisits,
+        eq(timeWindows.fieldVisitId, fieldVisits.id),
+      )
+      .where(
+        and(
+          eq(fieldVisits.clinicId, input.clinicId),
+          inArray(timeWindows.fieldVisitId, fieldVisitIds),
+        ),
+      )
+      .orderBy(timeWindows.windowStart, timeWindows.id);
+
+    const timeWindowsByVisitId = new Map<number, TimeWindow[]>();
+
+    for (const row of timeWindowRows) {
+      const existing = timeWindowsByVisitId.get(row.timeWindow.fieldVisitId);
+
+      if (existing) {
+        existing.push(row.timeWindow);
+      } else {
+        timeWindowsByVisitId.set(row.timeWindow.fieldVisitId, [
+          row.timeWindow,
+        ]);
+      }
+    }
+
+    const planningVisits: RoutePlanningVisit[] = fieldVisitIds.map(
+      (fieldVisitId) => {
+        const visitRow = visitById.get(fieldVisitId);
+
+        if (!visitRow) {
+          throw new Error("field visit ownership check drifted");
+        }
+
+        return {
+          fieldVisitId,
+          priority: visitRow.fieldVisit.priority,
+          serviceDurationMin: visitRow.fieldVisit.serviceDurationMin,
+          location: toRoutePlanningPoint(visitRow.location),
+          timeWindows: (timeWindowsByVisitId.get(fieldVisitId) ?? []).map(
+            (timeWindow) => ({
+              windowStart: timeWindow.windowStart,
+              windowEnd: timeWindow.windowEnd,
+              isHard: timeWindow.isHard,
+            }),
+          ),
+        };
+      },
+    );
+
+    const heuristicPlan = buildHeuristicRoutePlan(planningVisits, {
+      routeStart: input.routeStart ?? input.serviceDate,
+      startLocation: input.startLocation,
+      objective: input.objective ?? "distance",
+      travelSpeedKmh: input.travelSpeedKmh,
+      fallbackLegMinutes: input.fallbackLegMinutes,
+    });
+
+    const now = new Date();
+
+    const routePlanResult = await tx
+      .insert(routePlans)
+      .values({
+        clinicId: input.clinicId,
+        serviceDate: input.serviceDate,
+        status: "planned",
+        planningMode: "heuristic",
+        objective: heuristicPlan.objective,
+        totalPlannedKm: heuristicPlan.totalPlannedKm,
+        totalPlannedMin: heuristicPlan.totalPlannedMin,
+        createdByType: input.createdByType ?? "system",
+        createdById: input.createdById ?? null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    const routePlan = routePlanResult[0];
+
+    if (!routePlan) {
+      return {
+        reason: "route_plan_not_created",
+      };
+    }
+
+    const routeStopResults: RouteStop[] = [];
+
+    for (const plannedStop of heuristicPlan.stops) {
+      const routeStopResult = await tx
+        .insert(routeStops)
+        .values({
+          routePlanId: routePlan.id,
+          fieldVisitId: plannedStop.fieldVisitId,
+          sequence: plannedStop.sequence,
+          etaStart: plannedStop.etaStart,
+          etaEnd: plannedStop.etaEnd,
+          plannedKmFromPrev: plannedStop.plannedKmFromPrev,
+          plannedMinFromPrev: plannedStop.plannedMinFromPrev,
+          status: "pending",
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning();
+
+      const routeStop = routeStopResult[0];
+
+      if (routeStop) {
+        routeStopResults.push(routeStop);
+      }
+    }
+
+    return {
+      routePlan,
+      routeStops: routeStopResults,
+      warnings: heuristicPlan.warnings,
     };
   });
 }

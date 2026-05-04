@@ -17,6 +17,8 @@ import {
 import type {
   CreateRoutePlanInput,
   CreateRouteStopInput,
+  GenerateHeuristicRoutePlanInput,
+  GenerateHeuristicRoutePlanResult,
   ListRoutePlansParams,
   RoutePlan,
   RoutePlanLifecycleAction,
@@ -90,6 +92,9 @@ export type LogisticsRoutePlansNativeRoutesOptions = {
     clinicId: number,
     action: RoutePlanLifecycleAction,
   ) => Promise<RoutePlanLifecycleTransitionResult>;
+  generateHeuristicRoutePlan?: (
+    input: GenerateHeuristicRoutePlanInput,
+  ) => Promise<GenerateHeuristicRoutePlanResult>;
   now?: () => number;
 };
 
@@ -109,6 +114,7 @@ type NativeLogisticsRoutePlansDeps = Required<
     | "listRouteStopsForClinicRoutePlan"
     | "updateClinicScopedRouteStop"
     | "transitionClinicScopedRoutePlanStatus"
+    | "generateHeuristicRoutePlan"
   >
 >;
 
@@ -142,6 +148,7 @@ async function loadDefaultDeps(): Promise<NativeLogisticsRoutePlansDeps> {
           dbLogistics.updateClinicScopedRouteStop,
         transitionClinicScopedRoutePlanStatus:
           dbLogistics.transitionClinicScopedRoutePlanStatus,
+        generateHeuristicRoutePlan: dbLogistics.generateHeuristicRoutePlan,
       };
     })();
   }
@@ -1031,6 +1038,213 @@ function buildUpdateRouteStopInput(
 
 
 
+function parsePositiveNumberField(
+  value: unknown,
+  fieldName: string,
+): { value?: number; error?: string } {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return { error: `${fieldName} debe ser numerico mayor a cero` };
+  }
+
+  return { value: parsed };
+}
+
+function parseOptionalPositiveNumberField(
+  value: unknown,
+  fieldName: string,
+): { value?: number; error?: string } {
+  if (value == null || value === "") {
+    return {};
+  }
+
+  return parsePositiveNumberField(value, fieldName);
+}
+
+function parseFieldVisitIds(value: unknown): {
+  value?: number[];
+  error?: string;
+} {
+  if (!Array.isArray(value)) {
+    return { error: "fieldVisitIds debe ser un array" };
+  }
+
+  const result: number[] = [];
+  const seen = new Set<number>();
+
+  for (const rawId of value) {
+    const parsed =
+      typeof rawId === "number"
+        ? rawId
+        : typeof rawId === "string"
+          ? Number(rawId)
+          : Number.NaN;
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return { error: "fieldVisitIds debe contener enteros positivos" };
+    }
+
+    if (!seen.has(parsed)) {
+      seen.add(parsed);
+      result.push(parsed);
+    }
+  }
+
+  if (result.length === 0) {
+    return { error: "fieldVisitIds debe incluir al menos una visita" };
+  }
+
+  return { value: result };
+}
+
+function parseOptionalRoutePlanningPoint(value: unknown): {
+  value?: GenerateHeuristicRoutePlanInput["startLocation"];
+  error?: string;
+} {
+  if (value == null || value === "") {
+    return {};
+  }
+
+  if (!isRecord(value)) {
+    return { error: "startLocation debe ser objeto o null" };
+  }
+
+  const lat =
+    typeof value.lat === "number"
+      ? value.lat
+      : typeof value.lat === "string"
+        ? Number(value.lat)
+        : Number.NaN;
+  const lng =
+    typeof value.lng === "number"
+      ? value.lng
+      : typeof value.lng === "string"
+        ? Number(value.lng)
+        : Number.NaN;
+
+  if (
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    lat < -90 ||
+    lat > 90 ||
+    lng < -180 ||
+    lng > 180
+  ) {
+    return { error: "startLocation debe incluir lat/lng validos" };
+  }
+
+  return {
+    value: {
+      lat,
+      lng,
+    },
+  };
+}
+
+function buildGenerateHeuristicRoutePlanInput(
+  body: unknown,
+  clinicId: number,
+  createdById: number,
+): { input?: GenerateHeuristicRoutePlanInput; error?: string } {
+  if (!isRecord(body)) {
+    return { error: "Body invalido" };
+  }
+
+  const serviceDate = parseDateField(body.serviceDate, "serviceDate");
+
+  if (serviceDate.error || !serviceDate.value) {
+    return { error: serviceDate.error ?? "serviceDate invalido" };
+  }
+
+  const fieldVisitIds = parseFieldVisitIds(body.fieldVisitIds);
+
+  if (fieldVisitIds.error || !fieldVisitIds.value) {
+    return { error: fieldVisitIds.error ?? "fieldVisitIds invalido" };
+  }
+
+  const routeStart = parseOptionalDateField(body.routeStart, "routeStart");
+
+  if (routeStart.error) {
+    return { error: routeStart.error };
+  }
+
+  const startLocation = parseOptionalRoutePlanningPoint(body.startLocation);
+
+  if (startLocation.error) {
+    return { error: startLocation.error };
+  }
+
+  const objective = parseRoutePlanObjective(body.objective);
+
+  if (objective.error) {
+    return { error: objective.error };
+  }
+
+  const travelSpeedKmh = parseOptionalPositiveNumberField(
+    body.travelSpeedKmh,
+    "travelSpeedKmh",
+  );
+
+  if (travelSpeedKmh.error) {
+    return { error: travelSpeedKmh.error };
+  }
+
+  const fallbackLegMinutes = parseOptionalPositiveNumberField(
+    body.fallbackLegMinutes,
+    "fallbackLegMinutes",
+  );
+
+  if (fallbackLegMinutes.error) {
+    return { error: fallbackLegMinutes.error };
+  }
+
+  return {
+    input: {
+      clinicId,
+      serviceDate: serviceDate.value,
+      fieldVisitIds: fieldVisitIds.value,
+      routeStart: routeStart.value ?? undefined,
+      startLocation: startLocation.value,
+      objective: objective.value,
+      travelSpeedKmh: travelSpeedKmh.value,
+      fallbackLegMinutes: fallbackLegMinutes.value,
+      createdByType: "clinic",
+      createdById,
+    },
+  };
+}
+
+function getGenerateHeuristicRoutePlanError(
+  result: GenerateHeuristicRoutePlanResult,
+): { statusCode: number; error: string; missingFieldVisitIds?: number[] } {
+  if (result.reason === "no_visits") {
+    return {
+      statusCode: 400,
+      error: "Debe incluir al menos una visita para planificar",
+    };
+  }
+
+  if (result.reason === "field_visits_not_found") {
+    return {
+      statusCode: 404,
+      error: "Una o mas visitas no existen para la clinica",
+      missingFieldVisitIds: result.missingFieldVisitIds,
+    };
+  }
+
+  return {
+    statusCode: 500,
+    error: "No se pudo generar el plan heuristico",
+  };
+}
+
+
 function getLifecycleActionError(
   result: RoutePlanLifecycleTransitionResult,
 ): { statusCode: number; error: string } {
@@ -1151,6 +1365,12 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     transitionClinicScopedRoutePlanStatus:
       options.transitionClinicScopedRoutePlanStatus ??
       defaultDeps!.transitionClinicScopedRoutePlanStatus,
+    generateHeuristicRoutePlan:
+      options.generateHeuristicRoutePlan ??
+      defaultDeps?.generateHeuristicRoutePlan ??
+      (async () => ({
+        reason: "route_plan_not_created" as const,
+      })),
   };
 
   const now = options.now ?? (() => Date.now());
@@ -1187,6 +1407,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
   };
 
   app.options("/", optionsHandler);
+  app.options("/heuristic", optionsHandler);
   app.options("/:routePlanId", optionsHandler);
   app.options("/:routePlanId/stops", optionsHandler);
   app.options("/:routePlanId/stops/:routeStopId", optionsHandler);
@@ -1195,6 +1416,66 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
   app.options("/:routePlanId/complete", optionsHandler);
   app.options("/:routePlanId/cancel", optionsHandler);
 
+  app.post<{
+    Body: {
+      serviceDate?: unknown;
+      fieldVisitIds?: unknown;
+      routeStart?: unknown;
+      startLocation?: unknown;
+      objective?: unknown;
+      travelSpeedKmh?: unknown;
+      fallbackLegMinutes?: unknown;
+    };
+  }>("/heuristic", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const auth = await authenticateClinicUser(request, reply, deps, now);
+
+    if (!auth) {
+      return reply;
+    }
+
+    const parsed = buildGenerateHeuristicRoutePlanInput(
+      request.body,
+      auth.clinicId,
+      auth.id,
+    );
+
+    if (!parsed.input) {
+      return reply.code(400).send({
+        success: false,
+        error: parsed.error ?? "Body invalido",
+      });
+    }
+
+    const result = await deps.generateHeuristicRoutePlan(parsed.input);
+
+    if (result.reason) {
+      const error = getGenerateHeuristicRoutePlanError(result);
+
+      return reply.code(error.statusCode).send({
+        success: false,
+        error: error.error,
+        missingFieldVisitIds: error.missingFieldVisitIds,
+      });
+    }
+
+    return reply.code(201).send({
+      success: true,
+      routePlan: serializeRoutePlan(result.routePlan),
+      routeStops: result.routeStops.map((routeStop) =>
+        serializeRouteStop(routeStop),
+      ),
+      planning: {
+        mode: "heuristic",
+        objective: result.routePlan.objective,
+        fieldVisitCount: result.routeStops.length,
+        warnings: result.warnings,
+      },
+    });
+  });
   app.get<{
     Querystring: {
       status?: unknown;
