@@ -60,6 +60,53 @@ Advanced optimization discovery may start only when the team has production evid
 | Cost pressure | Expected cost of external providers or heavier compute |
 | ROI | Business value that justifies implementation and operating cost |
 
+
+## Readiness checklist
+
+Do not start advanced optimization discovery until all checklist items are explicitly answered.
+
+Required evidence:
+
+- At least one completed production route-planning period is available for review.
+- Active clinic count is known.
+- Daily route count and peak route count are known.
+- Median, p95 and maximum stops per route are known.
+- Manual reorder frequency is known.
+- Route recalculation frequency is known.
+- Current heuristic latency is measured.
+- Current heuristic failure or fallback rate is measured.
+- Late arrivals, hard-window misses or SLA-risk cases are quantified.
+- Planner time spent manually correcting routes is estimated.
+- Provider or compute cost assumptions are documented.
+- Expected business value is documented.
+
+Blocking answers:
+
+- If active usage is too low, keep deterministic heuristic only.
+- If routes are small, keep deterministic heuristic only.
+- If SLA impact is not measurable, keep deterministic heuristic only.
+- If planner correction effort is low, keep deterministic heuristic only.
+- If latency is already acceptable, keep deterministic heuristic only.
+- If provider costs exceed expected value, keep deterministic heuristic only.
+- If historical fixtures are unavailable, do not implement runtime optimization.
+- If tenant isolation cannot be proven, do not implement runtime optimization.
+
+Proceeding answers:
+
+- If route size and correction effort are material, evaluate offline.
+- If SLA impact is measurable, compare candidate algorithms against historical data.
+- If current heuristic latency is high, evaluate bounded async processing.
+- If provider costs are justified, draft provider-specific retention and fallback plans.
+- If improvement is reproducible offline, draft an architecture decision record.
+
+Minimum readiness output:
+
+- A short metrics summary.
+- A recommendation: keep heuristic, improve heuristic, prototype offline, or design runtime optimization.
+- A list of risks and mitigations.
+- A rollback/fallback plan.
+- A clear owner for the next discovery step.
+
 ## Required pre-implementation artifacts
 
 Before implementing any advanced optimizer, create or update:

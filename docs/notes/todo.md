@@ -93,4 +93,5 @@
 - [x] Implementar API de eventos logísticos y polling incremental
 - [x] Evaluar heurística determinista simple
 - [x] Consolidar cierre documental de Phase 4/5 logística
+- [x] Definir readiness checklist de optimización avanzada
 - [ ] Evaluar optimización avanzada solo con volumen/ROI justificado
