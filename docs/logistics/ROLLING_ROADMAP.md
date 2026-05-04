@@ -507,7 +507,9 @@ Remaining boundary:
 
 Advanced optimization must remain gated until production data justifies it.
 
-Discovery guardrails are documented in `docs/logistics/ADVANCED_OPTIMIZATION_GUARDRAILS.md`.
+Status: readiness guardrails documented; runtime optimization remains out of scope.
+
+Discovery guardrails and readiness checklist are documented in `docs/logistics/ADVANCED_OPTIMIZATION_GUARDRAILS.md`.
 
 Candidates:
 
