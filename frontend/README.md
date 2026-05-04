@@ -153,19 +153,19 @@ Los endpoints de logística y admin usan mock data mientras se confirman los con
 Desde la raiz del frontend:
 
     pnpm install
+    pnpm lint
     pnpm typecheck
     pnpm build
 
 Tambien se puede ejecutar desde la raiz del repositorio apuntando al directorio del frontend:
 
     pnpm --dir frontend install
+    pnpm --dir frontend lint
     pnpm --dir frontend typecheck
     pnpm --dir frontend build
 
-Validacion ejecutada para este PR:
+Validacion recomendada para cambios frontend:
 
-    pnpm --dir frontend install
+    pnpm --dir frontend lint
     pnpm --dir frontend typecheck
     pnpm --dir frontend build
-
-Nota: no se usa pnpm --dir frontend lint como validacion local de este PR porque el script actual invoca next lint, que solicita configuracion interactiva de ESLint.
