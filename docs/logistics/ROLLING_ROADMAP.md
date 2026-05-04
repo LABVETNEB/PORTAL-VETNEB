@@ -359,6 +359,14 @@ Required tests:
 
 ### PR 4.2 — Basic compliance metrics
 
+Status: completed in PR #218 and PR #219.
+
+Implemented scope:
+
+- Route stop-level compliance metrics baseline.
+- Clinic-scoped route plan compliance metrics API.
+- Runtime and source coverage for success, not-found and query validation paths.
+
 Suggested title:
 
 `feat(logistics-metrics): add basic route compliance metrics`
@@ -380,7 +388,7 @@ Out of scope:
 Expected files:
 
 - `server/lib/logistics/metrics.ts`
-- `server/routes/logistics-route-metrics.fastify.ts`
+- `server/routes/logistics-route-plans.fastify.ts`
 - `server/db-logistics.ts`
 - `server/fastify-app.ts`
 - `test/*logistics*`
