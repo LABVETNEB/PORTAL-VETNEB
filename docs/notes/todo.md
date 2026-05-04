@@ -88,6 +88,6 @@
 - [x] Implementar API de visitas de campo y ventanas horarias
 - [x] Implementar API de planes de ruta y paradas
 - [x] Implementar ciclo de release de planes de ruta
-- [ ] Implementar API de eventos logísticos y polling incremental
+- [x] Implementar API de eventos logísticos y polling incremental
 - [ ] Evaluar heurística determinista simple
 - [ ] Evaluar optimización avanzada solo con volumen/ROI justificado
