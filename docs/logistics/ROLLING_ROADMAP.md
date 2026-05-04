@@ -426,6 +426,22 @@ Required tests:
 
 ### PR 5.1 — Heuristic route ordering
 
+Status: completed in PR #213, PR #214, PR #215 and PR #216.
+
+Implemented scope:
+
+- Deterministic heuristic route planning baseline.
+- Clinic-scoped heuristic route plan generation API.
+- Runtime coverage for the heuristic API path.
+- Checklist update after heuristic validation.
+
+Current boundary:
+
+- No VRP/TSP/A*/Dijkstra/ACO implementation.
+- No external distance matrix or geocoding provider.
+- No heavy optimization in request handlers.
+- Advanced optimization remains gated by production volume and ROI evidence.
+
 Suggested title:
 
 `feat(logistics-planning): add deterministic route ordering heuristic`
@@ -463,6 +479,30 @@ Required tests:
 - Batch size limit.
 - No cross-tenant inputs.
 
+## Phase 4/5 closure status
+
+Phase 4 and Phase 5 are closed for the current MVP baseline.
+
+Completed Phase 4 scope:
+
+- SLA policies and instances schema.
+- SLA compliance helpers and coverage.
+- Basic route compliance metrics.
+- Clinic-scoped route plan compliance metrics API.
+
+Completed Phase 5 scope:
+
+- Deterministic heuristic route planning baseline.
+- Heuristic route plan generation API integration.
+- Runtime coverage for heuristic generation.
+- Checklist alignment after implementation.
+
+Remaining boundary:
+
+- SLA does not yet expose dedicated API routes.
+- SLA notifications and escalation runtime remain out of scope.
+- Advanced optimization remains discovery-only until production volume and ROI justify it.
+- External routing, distance matrix, geocoding and heavy optimization providers remain out of scope.
 ## Phase 6 — Advanced optimization evaluation
 
 Advanced optimization must remain gated until production data justifies it.

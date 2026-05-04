@@ -92,4 +92,5 @@
 - [x] Implementar ciclo de release de planes de ruta
 - [x] Implementar API de eventos logísticos y polling incremental
 - [x] Evaluar heurística determinista simple
+- [x] Consolidar cierre documental de Phase 4/5 logística
 - [ ] Evaluar optimización avanzada solo con volumen/ROI justificado
