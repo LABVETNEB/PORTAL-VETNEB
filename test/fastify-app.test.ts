@@ -562,6 +562,18 @@ function buildLogisticsFieldVisitsRouteStubs() {
     listTimeWindowsForClinicVisit: async () => [],
   };
 }
+
+function buildLogisticsSlaRouteStubs() {
+  return {
+    deleteActiveSession: async () => {},
+    getActiveSessionByToken: async () => null,
+    getClinicUserById: async () => null,
+    updateSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    listActiveClinicSlaPolicies: async () => [],
+    listClinicSlaInstances: async () => [],
+  };
+}
 function buildFastifyDispatchRouteStubs() {
   return {
     adminAuditRoutes: buildAdminAuditRouteStubs(),
@@ -586,6 +598,7 @@ function buildFastifyDispatchRouteStubs() {
     logisticsFieldVisitsRoutes: buildLogisticsFieldVisitsRouteStubs(),
     logisticsRoutePlansRoutes: buildLogisticsRoutePlansRouteStubs(),
     logisticsRouteEventsRoutes: buildLogisticsRouteEventsRouteStubs(),
+    logisticsSlaRoutes: buildLogisticsSlaRouteStubs(),
   };
 }
 test(
