@@ -1,4 +1,7 @@
+import { createRequire } from "node:module";
 import type { Config } from "tailwindcss";
+
+const require = createRequire(import.meta.url);
 
 const config: Config = {
   darkMode: "class",
