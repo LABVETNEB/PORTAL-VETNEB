@@ -4,13 +4,18 @@ Frontend Next.js App Router para Portal VETNEB. Sitio público con SEO fuerte y 
 
 ## Stack
 
-| Tecnología | Versión | Propósito |
+| Tecnologia | Version | Proposito |
 |---|---|---|
 | Next.js | 15.x (App Router) | Framework principal |
 | React | 19.x | UI |
-| TypeScript | 5.x | Tipado estático |
-| Tailwind CSS | 3.x | Estilos |
-| shadcn/ui (Radix UI) | — | Componentes UI |
+| TypeScript | 5.x | Tipado estatico |
+| Tailwind CSS | 3.x (v4 pendiente) | Estilos |
+| shadcn/ui (Radix UI) | - | Componentes UI |
+| TanStack Query | 5.x | Server state y cache cliente |
+| TanStack Table | 8.x | Tablas de datos |
+| React Hook Form | 7.x | Formularios |
+| Zod | 4.x | Validacion de schemas |
+| ECharts | 6.x | Graficos y visualizacion |
 | pnpm | 10.x | Gestor de paquetes |
 
 ## Instalación
