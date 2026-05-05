@@ -10,6 +10,14 @@ const workflowPath = resolve(
   "frontend-ci.yml",
 );
 
+const frontendPathFilters = [
+  "      - 'frontend/**'",
+  "      - 'pnpm-lock.yaml'",
+  "      - 'pnpm-workspace.yaml'",
+  "      - 'package.json'",
+  "      - '.github/workflows/frontend-ci.yml'",
+] as const;
+
 function readWorkflow(): string {
   return readFileSync(workflowPath, "utf8").replace(/\r\n/g, "\n");
 }
@@ -37,24 +45,47 @@ function assertOrdered(source: string, expectedItems: readonly string[]): void {
   }
 }
 
+function getEventBlock(source: string, eventName: string): string {
+  const eventHeader = `  ${eventName}:\n`;
+  const eventStart = source.indexOf(eventHeader);
+
+  assert.notEqual(
+    eventStart,
+    -1,
+    `frontend-ci.yml debe contener el evento: ${eventName}`,
+  );
+
+  const afterEventHeader = eventStart + eventHeader.length;
+  const nextEventMatch = source.slice(afterEventHeader).match(/\n  [a-z_]+:\n/);
+  const eventEnd = nextEventMatch
+    ? afterEventHeader + nextEventMatch.index + 1
+    : source.length;
+
+  return source.slice(eventStart, eventEnd);
+}
+
+function assertEventPathFilters(source: string, eventName: string): void {
+  const eventBlock = getEventBlock(source, eventName);
+
+  assertContains(eventBlock, "    branches:");
+  assertContains(eventBlock, "      - main");
+  assertContains(eventBlock, "    paths:");
+
+  for (const pathPattern of frontendPathFilters) {
+    assertContains(eventBlock, pathPattern);
+  }
+}
+
 test("Frontend CI dispara en push y pull_request para rutas de frontend", () => {
   const source = readWorkflow();
 
   assertContains(source, "on:");
   assertContains(source, "push:");
   assertContains(source, "pull_request:");
-  assertContains(source, "branches:");
   assertContains(source, "  contents: read");
 
-  for (const pathPattern of [
-    "      - 'frontend/**'",
-    "      - 'pnpm-lock.yaml'",
-    "      - 'pnpm-workspace.yaml'",
-    "      - 'package.json'",
-    "      - '.github/workflows/frontend-ci.yml'",
-  ]) {
-    assertContains(source, pathPattern);
-  }
+  assertEventPathFilters(source, "push");
+  assertEventPathFilters(source, "pull_request");
 });
 
 test("Frontend CI define toolchain y cache de pnpm esperados", () => {
