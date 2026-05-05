@@ -1,11 +1,12 @@
 import "dotenv/config";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
-const BASE_URL = process.env.SMOKE_BASE_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
 const USERNAME = process.env.SMOKE_USERNAME ?? "admin";
 const PASSWORD = process.env.SMOKE_PASSWORD ?? "admin123";
-const TMP_DIR = process.env.SMOKE_TMP_DIR ?? "C:\\PORTAL-VETNEB\\tmp";
+const TMP_DIR = process.env.SMOKE_TMP_DIR ?? path.join(os.tmpdir(), "portal-vetneb-smoke");
 const PDF_PATH = path.join(TMP_DIR, "smoke-test.pdf");
 
 function fail(message, error) {
@@ -131,7 +132,7 @@ async function run() {
   form.append("studyType", "PDF_PRUEBA");
   form.append("uploadDate", "2026-04-07");
 
-  const uploadRes = await fetchOrExplain(`${BASE_URL}/api/reports/upload`, {
+  const uploadRes = await fetchOrExplain(`${BASE_URL}/api/admin/reports/upload`, {
     method: "POST",
     headers: {
       Cookie: setCookie,
@@ -157,7 +158,7 @@ async function run() {
   assert(uploadJson?.report?.previewUrl, "UPLOAD NO DEVOLVIO previewUrl");
   assert(uploadJson?.report?.downloadUrl, "UPLOAD NO DEVOLVIO downloadUrl");
 
-  console.log("OK /api/reports/upload");
+  console.log("OK /api/admin/reports/upload");
   console.log(`REPORT ID: ${uploadJson.report.id}`);
 
   const reportsRes = await fetchOrExplain(`${BASE_URL}/api/reports`, {

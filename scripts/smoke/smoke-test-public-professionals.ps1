@@ -1,5 +1,5 @@
 param(
-  [string]$BaseUrl = "http://localhost:3000",
+  [string]$BaseUrl = "http://127.0.0.1:3000",
   [pscredential]$Credential,
   [int]$ExpectedClinicId = 4
 )
