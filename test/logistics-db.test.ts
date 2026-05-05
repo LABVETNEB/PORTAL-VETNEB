@@ -167,3 +167,24 @@ test("logistics DB heuristic generation reports invalid clinic-scoped inputs wit
   assert.match(dbLogisticsSource, /missingFieldVisitIds/);
   assert.match(dbLogisticsSource, /reason: "route_plan_not_created"/);
 });
+
+test("logistics DB helpers expose tenant-scoped SLA read helpers", () => {
+  assert.ok(dbLogisticsSource.includes("export type ListActiveClinicSlaPoliciesParams"));
+  assert.ok(dbLogisticsSource.includes("export type ListClinicSlaInstancesParams"));
+  assert.ok(dbLogisticsSource.includes("export type SlaPolicy = typeof slaPolicies.$inferSelect"));
+  assert.ok(dbLogisticsSource.includes("export type SlaInstance = typeof slaInstances.$inferSelect"));
+  assert.ok(dbLogisticsSource.includes("export async function listActiveClinicSlaPolicies"));
+  assert.ok(dbLogisticsSource.includes("export async function listClinicSlaInstances"));
+});
+
+test("logistics DB SLA reads stay clinic scoped, active and paginated", () => {
+  assert.ok(dbLogisticsSource.includes("eq(slaPolicies.isActive, true)"));
+  assert.ok(dbLogisticsSource.includes("eq(slaPolicies.clinicId, params.clinicId)"));
+  assert.ok(dbLogisticsSource.includes("eq(slaInstances.clinicId, params.clinicId)"));
+  assert.ok(dbLogisticsSource.includes("eq(slaInstances.status, params.status)"));
+  assert.ok(dbLogisticsSource.includes("eq(slaInstances.targetType, params.targetType)"));
+  assert.ok(dbLogisticsSource.includes("eq(slaInstances.targetId, params.targetId)"));
+  assert.ok(dbLogisticsSource.includes("normalizeLogisticsLimit(params.limit)"));
+  assert.ok(dbLogisticsSource.includes("normalizeLogisticsOffset(params.offset)"));
+  assert.ok(dbLogisticsSource.includes("orderBy(asc(slaInstances.dueAt), asc(slaInstances.id))"));
+});

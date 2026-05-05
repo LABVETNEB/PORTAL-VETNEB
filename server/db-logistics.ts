@@ -1,10 +1,12 @@
-import { and, asc, desc, eq, gt, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, or } from "drizzle-orm";
 import { db } from "./db";
 import {
   fieldVisits,
   routeEvents,
   routePlans,
   routeStops,
+  slaInstances,
+  slaPolicies,
   timeWindows,
   visitLocations,
   type FieldVisitSourceType,
@@ -17,6 +19,8 @@ import {
   type RoutePlanningMode,
   type RoutePlanStatus,
   type RouteStopStatus,
+  type SlaInstanceStatus,
+  type SlaTargetType,
   type VisitLocationGeoQuality,
 } from "../drizzle/schema";
 import {
@@ -44,6 +48,8 @@ export type RouteStop = typeof routeStops.$inferSelect;
 export type NewRouteStop = typeof routeStops.$inferInsert;
 export type RouteEvent = typeof routeEvents.$inferSelect;
 export type NewRouteEvent = typeof routeEvents.$inferInsert;
+export type SlaPolicy = typeof slaPolicies.$inferSelect;
+export type SlaInstance = typeof slaInstances.$inferSelect;
 
 export type CreateFieldVisitInput = {
   clinicId: number;
@@ -163,6 +169,22 @@ export type ListRouteEventsParams = {
   routeStopId?: number;
   eventType?: RouteEventType;
   afterId?: number;
+  limit?: number;
+  offset?: number;
+};
+
+export type ListActiveClinicSlaPoliciesParams = {
+  clinicId: number;
+  targetType?: SlaTargetType;
+  limit?: number;
+  offset?: number;
+};
+
+export type ListClinicSlaInstancesParams = {
+  clinicId: number;
+  status?: SlaInstanceStatus;
+  targetType?: SlaTargetType;
+  targetId?: number;
   limit?: number;
   offset?: number;
 };
@@ -1141,4 +1163,55 @@ export async function listIncrementalClinicRouteEvents(
     limit,
     offset: 0,
   });
+}
+
+export async function listActiveClinicSlaPolicies(
+  params: ListActiveClinicSlaPoliciesParams,
+): Promise<SlaPolicy[]> {
+  const filters = [
+    eq(slaPolicies.isActive, true),
+    or(eq(slaPolicies.scope, "global"), eq(slaPolicies.clinicId, params.clinicId))!,
+  ];
+  const limit = normalizeLogisticsLimit(params.limit);
+  const offset = normalizeLogisticsOffset(params.offset);
+
+  if (params.targetType) {
+    filters.push(eq(slaPolicies.targetType, params.targetType));
+  }
+
+  return db
+    .select()
+    .from(slaPolicies)
+    .where(and(...filters))
+    .orderBy(asc(slaPolicies.targetType), asc(slaPolicies.scope), desc(slaPolicies.id))
+    .limit(limit)
+    .offset(offset);
+}
+
+export async function listClinicSlaInstances(
+  params: ListClinicSlaInstancesParams,
+): Promise<SlaInstance[]> {
+  const filters = [eq(slaInstances.clinicId, params.clinicId)];
+  const limit = normalizeLogisticsLimit(params.limit);
+  const offset = normalizeLogisticsOffset(params.offset);
+
+  if (params.status) {
+    filters.push(eq(slaInstances.status, params.status));
+  }
+
+  if (params.targetType) {
+    filters.push(eq(slaInstances.targetType, params.targetType));
+  }
+
+  if (typeof params.targetId === "number") {
+    filters.push(eq(slaInstances.targetId, params.targetId));
+  }
+
+  return db
+    .select()
+    .from(slaInstances)
+    .where(and(...filters))
+    .orderBy(asc(slaInstances.dueAt), asc(slaInstances.id))
+    .limit(limit)
+    .offset(offset);
 }
