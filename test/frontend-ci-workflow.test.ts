@@ -57,9 +57,12 @@ function getEventBlock(source: string, eventName: string): string {
 
   const afterEventHeader = eventStart + eventHeader.length;
   const nextEventMatch = source.slice(afterEventHeader).match(/\n  [a-z_]+:\n/);
-  const eventEnd = nextEventMatch
-    ? afterEventHeader + nextEventMatch.index + 1
-    : source.length;
+  const nextEventIndex =
+    nextEventMatch && typeof nextEventMatch.index === "number"
+      ? nextEventMatch.index
+      : -1;
+  const eventEnd =
+    nextEventIndex >= 0 ? afterEventHeader + nextEventIndex + 1 : source.length;
 
   return source.slice(eventStart, eventEnd);
 }
