@@ -19,6 +19,27 @@ type TimedResult = {
   durationMs: number;
 };
 
+type CapacityBudget = {
+  totalRequests: number;
+  totalDurationMs: number;
+  p95Ms: number;
+  averageMs: number;
+};
+
+const PUBLIC_SEARCH_CAPACITY_BUDGET: CapacityBudget = {
+  totalRequests: 120,
+  totalDurationMs: 10_000,
+  p95Ms: 1_000,
+  averageMs: 500,
+};
+
+const PUBLIC_DETAIL_CAPACITY_BUDGET: CapacityBudget = {
+  totalRequests: 80,
+  totalDurationMs: 10_000,
+  p95Ms: 1_000,
+  averageMs: 500,
+};
+
 function percentile(values: number[], percentileValue: number) {
   assert.ok(values.length > 0, "percentile requiere valores");
 
@@ -35,6 +56,39 @@ function average(values: number[]) {
   assert.ok(values.length > 0, "average requiere valores");
 
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function assertCapacityBudget(input: {
+  surface: "search" | "detail";
+  results: TimedResult[];
+  totalDurationMs: number;
+  budget: CapacityBudget;
+}) {
+  const durations = input.results.map((result) => result.durationMs);
+  const p95Ms = percentile(durations, 95);
+  const averageMs = average(durations);
+
+  assert.equal(input.results.length, input.budget.totalRequests);
+  assert.equal(
+    input.results.every((result) => result.statusCode === 200),
+    true,
+    `todos los requests ${input.surface} deben responder 200`,
+  );
+
+  assert.ok(
+    input.totalDurationMs < input.budget.totalDurationMs,
+    `${input.surface} load smoke totalDurationMs=${input.totalDurationMs.toFixed(2)} debe ser menor a ${input.budget.totalDurationMs}ms`,
+  );
+
+  assert.ok(
+    p95Ms < input.budget.p95Ms,
+    `${input.surface} load smoke p95Ms=${p95Ms.toFixed(2)} debe ser menor a ${input.budget.p95Ms}ms`,
+  );
+
+  assert.ok(
+    averageMs < input.budget.averageMs,
+    `${input.surface} load smoke averageMs=${averageMs.toFixed(2)} debe ser menor a ${input.budget.averageMs}ms`,
+  );
 }
 
 async function createPerformanceApp() {
@@ -108,11 +162,10 @@ test("performance smoke mantiene search publico estable bajo carga concurrente",
   const app = await createPerformanceApp();
 
   try {
-    const totalRequests = 120;
     const startedAt = performance.now();
 
     const results = await Promise.all(
-      Array.from({ length: totalRequests }, (_, index) =>
+      Array.from({ length: PUBLIC_SEARCH_CAPACITY_BUDGET.totalRequests }, (_, index) =>
         timedRequest(() =>
           app.inject({
             method: "GET",
@@ -123,32 +176,12 @@ test("performance smoke mantiene search publico estable bajo carga concurrente",
       ),
     );
 
-    const totalDurationMs = performance.now() - startedAt;
-    const durations = results.map((result) => result.durationMs);
-    const p95Ms = percentile(durations, 95);
-    const averageMs = average(durations);
-
-    assert.equal(results.length, totalRequests);
-    assert.equal(
-      results.every((result) => result.statusCode === 200),
-      true,
-      "todos los requests search deben responder 200",
-    );
-
-    assert.ok(
-      totalDurationMs < 10_000,
-      `search load smoke totalDurationMs=${totalDurationMs.toFixed(2)} debe ser menor a 10000ms`,
-    );
-
-    assert.ok(
-      p95Ms < 1_000,
-      `search load smoke p95Ms=${p95Ms.toFixed(2)} debe ser menor a 1000ms`,
-    );
-
-    assert.ok(
-      averageMs < 500,
-      `search load smoke averageMs=${averageMs.toFixed(2)} debe ser menor a 500ms`,
-    );
+    assertCapacityBudget({
+      surface: "search",
+      results,
+      totalDurationMs: performance.now() - startedAt,
+      budget: PUBLIC_SEARCH_CAPACITY_BUDGET,
+    });
   } finally {
     await app.close();
   }
@@ -158,11 +191,10 @@ test("performance smoke mantiene detail publico estable bajo carga concurrente",
   const app = await createPerformanceApp();
 
   try {
-    const totalRequests = 80;
     const startedAt = performance.now();
 
     const results = await Promise.all(
-      Array.from({ length: totalRequests }, (_, index) =>
+      Array.from({ length: PUBLIC_DETAIL_CAPACITY_BUDGET.totalRequests }, (_, index) =>
         timedRequest(() =>
           app.inject({
             method: "GET",
@@ -173,32 +205,12 @@ test("performance smoke mantiene detail publico estable bajo carga concurrente",
       ),
     );
 
-    const totalDurationMs = performance.now() - startedAt;
-    const durations = results.map((result) => result.durationMs);
-    const p95Ms = percentile(durations, 95);
-    const averageMs = average(durations);
-
-    assert.equal(results.length, totalRequests);
-    assert.equal(
-      results.every((result) => result.statusCode === 200),
-      true,
-      "todos los requests detail deben responder 200",
-    );
-
-    assert.ok(
-      totalDurationMs < 10_000,
-      `detail load smoke totalDurationMs=${totalDurationMs.toFixed(2)} debe ser menor a 10000ms`,
-    );
-
-    assert.ok(
-      p95Ms < 1_000,
-      `detail load smoke p95Ms=${p95Ms.toFixed(2)} debe ser menor a 1000ms`,
-    );
-
-    assert.ok(
-      averageMs < 500,
-      `detail load smoke averageMs=${averageMs.toFixed(2)} debe ser menor a 500ms`,
-    );
+    assertCapacityBudget({
+      surface: "detail",
+      results,
+      totalDurationMs: performance.now() - startedAt,
+      budget: PUBLIC_DETAIL_CAPACITY_BUDGET,
+    });
   } finally {
     await app.close();
   }
