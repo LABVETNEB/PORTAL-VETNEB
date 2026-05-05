@@ -264,6 +264,32 @@ test("clinic study tracking create validates body before linked lookups writes n
   );
 });
 
+test("logistics heuristic route validates fieldVisitIds bound before planning execution", () => {
+  const source = readSource("server/routes/logistics-route-plans.fastify.ts");
+  const heuristicRoute = sliceFrom(
+    source,
+    'app.post<{\n    Body: {\n      serviceDate?: unknown;',
+    "logistics heuristic route",
+  );
+
+  assertContainsInOrder(
+    heuristicRoute,
+    [
+      "const parsed = buildGenerateHeuristicRoutePlanInput(",
+      "if (!parsed.input) {",
+      "return reply.code(400).send({",
+      "const result = await deps.generateHeuristicRoutePlan(parsed.input);",
+    ],
+    "logistics heuristic validation cut-off",
+  );
+
+  assertContains(
+    source,
+    "fieldVisitIds no puede incluir mas de",
+    "logistics heuristic fieldVisitIds bound validation",
+  );
+});
+
 test("audit list and export filters return 400 before listing or exporting data", () => {
   for (const scenario of [
     {

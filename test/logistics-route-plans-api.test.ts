@@ -152,12 +152,25 @@ test("logistics route plans API wires heuristic generation through injectable de
 
 test("logistics route plans API validates heuristic generation input before DB calls", () => {
   assert.match(routeSource, /parseFieldVisitIds/);
+  assert.match(routeSource, /const MAX_ROUTE_PLAN_FIELD_VISIT_IDS = 100/);
+  assert.match(routeSource, /if \(value\.length > MAX_ROUTE_PLAN_FIELD_VISIT_IDS\)/);
+  assert.match(
+    routeSource,
+    /fieldVisitIds no puede incluir mas de \$\{MAX_ROUTE_PLAN_FIELD_VISIT_IDS\} visitas/,
+  );
   assert.match(routeSource, /fieldVisitIds debe incluir al menos una visita/);
   assert.match(routeSource, /parseOptionalRoutePlanningPoint/);
   assert.match(routeSource, /startLocation debe incluir lat\/lng validos/);
   assert.match(routeSource, /parseOptionalPositiveNumberField/);
   assert.match(routeSource, /travelSpeedKmh/);
   assert.match(routeSource, /fallbackLegMinutes/);
+});
+
+test("logistics route plans API keeps heuristic planning call behind 400 validation cut-off", () => {
+  assert.match(
+    routeSource,
+    /const parsed = buildGenerateHeuristicRoutePlanInput\([\s\S]*?if \(!parsed\.input\) {[\s\S]*?return reply\.code\(400\)\.send\({[\s\S]*?}\);\s*}\s*const result = await deps\.generateHeuristicRoutePlan\(parsed\.input\);/,
+  );
 });
 
 test("logistics route plans API keeps heuristic generation clinic scoped and trusted-origin protected", () => {

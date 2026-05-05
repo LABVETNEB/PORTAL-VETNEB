@@ -124,6 +124,7 @@ type NativeLogisticsRoutePlansDeps = Required<
 
 const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const MAX_ROUTE_PLAN_FIELD_VISIT_IDS = 100;
 
 let defaultDepsPromise: Promise<NativeLogisticsRoutePlansDeps> | undefined;
 
@@ -1077,6 +1078,12 @@ function parseFieldVisitIds(value: unknown): {
 } {
   if (!Array.isArray(value)) {
     return { error: "fieldVisitIds debe ser un array" };
+  }
+
+  if (value.length > MAX_ROUTE_PLAN_FIELD_VISIT_IDS) {
+    return {
+      error: `fieldVisitIds no puede incluir mas de ${MAX_ROUTE_PLAN_FIELD_VISIT_IDS} visitas`,
+    };
   }
 
   const result: number[] = [];
