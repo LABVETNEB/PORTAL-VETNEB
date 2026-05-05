@@ -134,7 +134,7 @@ await fetch("/api/reports/search?query=juan&studyType=rx", {
 const formData = new FormData();
 formData.append("file", file);
 
-await fetch("/api/reports/upload", {
+await fetch("/api/admin/reports/upload", {
   method: "POST",
   credentials: "include",
   body: formData,
