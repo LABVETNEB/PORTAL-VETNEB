@@ -48,7 +48,7 @@ Copiar `.env.example` a `.env` y completar valores reales.
 - `POST /api/auth/login`
 - `GET /api/auth/me`
 - `POST /api/auth/logout`
-- `POST /api/reports/upload`
+- `POST /api/admin/reports/upload`
 - `GET /api/reports`
 - `GET /api/reports/search`
 - `GET /api/reports/study-types`
@@ -61,7 +61,7 @@ Copiar `.env.example` a `.env` y completar valores reales.
 3. pedir sesión con `GET /api/auth/me`
 4. listar informes con `GET /api/reports`
 5. buscar con `GET /api/reports/search`
-6. subir archivos con `POST /api/reports/upload`
+6. subir archivos con `POST /api/admin/reports/upload`
 7. descargar con `GET /api/reports/:reportId/download-url`
 
 ## Notas de implementación

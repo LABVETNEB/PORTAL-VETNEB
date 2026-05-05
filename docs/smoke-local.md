@@ -23,12 +23,14 @@ pnpm dev
 Antes de ejecutar los smoke tests, configurar credenciales clinic validas para el entorno local:
 
 ```powershell
-$env:SMOKE_BASE_URL = "http://localhost:3000"
+$env:SMOKE_BASE_URL = "http://127.0.0.1:3000"
 $env:SMOKE_USERNAME = "<clinic-user>"
 $env:SMOKE_PASSWORD = "<clinic-password>"
 ```
 
 No usar los defaults internos `admin` / `admin123` salvo que existan explicitamente en la base local.
+
+Usar `127.0.0.1` evita diferencias locales de resolucion IPv6 de `localhost`.
 
 ## Smoke basico
 
@@ -41,7 +43,7 @@ Valida health, login clinic, sesion, reports, study-types, logout y sesion inval
 ## Smoke upload
 
 ```powershell
-$env:SMOKE_TMP_DIR = "C:\PORTAL-VETNEB\tmp"
+$env:SMOKE_TMP_DIR = "$env:TEMP\portal-vetneb-smoke"
 pnpm smoke:upload
 ```
 
