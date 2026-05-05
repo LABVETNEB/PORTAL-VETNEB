@@ -130,6 +130,8 @@ await fetch("/api/reports/search?query=juan&studyType=rx", {
 
 ### Upload
 
+Este endpoint pertenece a la superficie admin.
+
 ```ts
 const formData = new FormData();
 formData.append("file", file);
