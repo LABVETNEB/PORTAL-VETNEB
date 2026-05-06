@@ -211,7 +211,11 @@ test("auth login rate limits keep separate in-memory stores per auth domain", ()
       'from "../lib/login-rate-limit.ts"',
       `${file} login rate limit import`,
     );
-    if (file === "server/routes/auth.fastify.ts") {
+    if (
+      file === "server/routes/auth.fastify.ts" ||
+      file === "server/routes/admin-auth.fastify.ts" ||
+      file === "server/routes/particular-auth.fastify.ts"
+    ) {
       assertContains(
         source,
         "loginRateLimitStore?: RateLimitStore;",
