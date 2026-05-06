@@ -75,6 +75,7 @@ async function createIntegrationApp() {
   const app = Fastify();
   const policyCalls: SlaPolicyCall[] = [];
   const instanceCalls: SlaInstanceCall[] = [];
+  const summaryCalls: number[] = [];
   const deletedSessionHashes: string[] = [];
   const updatedSessionHashes: string[] = [];
 
@@ -119,21 +120,45 @@ async function createIntegrationApp() {
       instanceCalls.push(params);
       return [createSlaInstanceFixture() as any];
     },
+    getClinicSlaSummary: async (clinicId: number) => {
+      summaryCalls.push(clinicId);
+      return {
+        clinicId,
+        total: 5,
+        active: 2,
+        paused: 1,
+        breached: 1,
+        resolved: 1,
+        canceled: 0,
+      };
+    },
   });
 
   return {
     app,
     policyCalls,
     instanceCalls,
+    summaryCalls,
     deletedSessionHashes,
     updatedSessionHashes,
   };
 }
 
 test("logistics SLA integration rejects unauthenticated reads before DB helpers", async () => {
-  const { app, policyCalls, instanceCalls } = await createIntegrationApp();
+  const { app, policyCalls, instanceCalls, summaryCalls } = await createIntegrationApp();
 
   try {
+    const summaryResponse = await app.inject({
+      method: "GET",
+      url: "/api/logistics/sla/summary",
+    });
+
+    assert.equal(summaryResponse.statusCode, 401);
+    assert.deepEqual(JSON.parse(summaryResponse.body), {
+      success: false,
+      error: "No autenticado",
+    });
+
     const policiesResponse = await app.inject({
       method: "GET",
       url: "/api/logistics/sla/policies",
@@ -158,6 +183,42 @@ test("logistics SLA integration rejects unauthenticated reads before DB helpers"
 
     assert.deepEqual(policyCalls, []);
     assert.deepEqual(instanceCalls, []);
+    assert.deepEqual(summaryCalls, []);
+  } finally {
+    await app.close();
+  }
+});
+
+
+test("logistics SLA integration returns clinic-scoped summary", async () => {
+  const { app, summaryCalls } = await createIntegrationApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/logistics/sla/summary",
+      headers: {
+        cookie: createCookie(),
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+    assert.deepEqual(body, {
+      success: true,
+      summary: {
+        clinicId: 3,
+        total: 5,
+        active: 2,
+        paused: 1,
+        breached: 1,
+        resolved: 1,
+        canceled: 0,
+      },
+    });
+
+    assert.deepEqual(summaryCalls, [3]);
   } finally {
     await app.close();
   }
