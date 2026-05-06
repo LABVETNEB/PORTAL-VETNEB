@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MOCK_REPORTS } from "@/lib/mock-data";
+import { getReports } from "@/lib/api";
 import {
   getReportStatusLabel,
   getReportStatusVariant,
@@ -31,7 +32,18 @@ const statusOptions = [
   { value: "delivered", label: "Entregado" },
 ];
 
-export default function InformesPage() {
+async function getReportsRequestOptions(): Promise<RequestInit> {
+  const cookieHeader = (await cookies()).toString();
+
+  return {
+    cache: "no-store",
+    headers: cookieHeader ? { Cookie: cookieHeader } : {},
+  };
+}
+
+export default async function InformesPage() {
+  const reports = await getReports(await getReportsRequestOptions());
+
   return (
     <>
       <DashboardTopbar
@@ -39,14 +51,10 @@ export default function InformesPage() {
         subtitle="Gestión de informes médicos veterinarios"
       />
       <main className="flex-1 p-6 space-y-6">
-        {/* Banner mock */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-xs text-amber-700">
-          <strong>Mock data:</strong> Los datos mostrados son de ejemplo. Se
-          conectarán con <code>GET /api/reports</code> y{" "}
-          <code>GET /api/reports/search</code>.
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700">
+          Lectura conectada a <code>GET /api/reports</code>.
         </div>
 
-        {/* Filtros */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-gray-500">
@@ -74,11 +82,10 @@ export default function InformesPage() {
           </CardContent>
         </Card>
 
-        {/* Tabla de informes */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Informes ({MOCK_REPORTS.length})
+              Informes ({reports.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -95,7 +102,7 @@ export default function InformesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {MOCK_REPORTS.map((report) => (
+                {reports.map((report) => (
                   <TableRow key={report.id}>
                     <TableCell className="font-mono text-xs text-gray-400">
                       #{report.id}
