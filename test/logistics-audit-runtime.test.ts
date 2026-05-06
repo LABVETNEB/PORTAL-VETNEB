@@ -109,7 +109,7 @@ function sharedAuthDeps() {
             id: 9,
             clinicId: 7,
             username: "clinic-user",
-            role: "clinic_owner",
+            role: "clinic_owner" as const,
             authProId: null,
           }
         : null,
