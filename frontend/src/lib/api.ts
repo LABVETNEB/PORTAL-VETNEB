@@ -69,10 +69,6 @@ async function apiFetch<T>(
 
 // ─── Autenticación (endpoints confirmados en backend) ─────────────────────────
 
-/**
- * Iniciar sesión como usuario de clínica.
- * POST /api/auth/login
- */
 export async function loginClinic(
   credentials: LoginCredentials,
 ): Promise<AuthUser> {
@@ -82,10 +78,6 @@ export async function loginClinic(
   });
 }
 
-/**
- * Obtener sesión activa del usuario de clínica.
- * GET /api/auth/me
- */
 export async function getClinicSession(): Promise<AuthUser | null> {
   try {
     return await apiFetch<AuthUser>("/api/auth/me");
@@ -94,26 +86,24 @@ export async function getClinicSession(): Promise<AuthUser | null> {
   }
 }
 
-/**
- * Cerrar sesión.
- * POST /api/auth/logout
- */
 export async function logout(): Promise<void> {
   await apiFetch<void>("/api/auth/logout", { method: "POST" });
 }
 
-// ─── Informes (endpoints confirmados en backend) ──────────────────────────────
+// ─── Informes ─────────────────────────────────────────────────────────────────
 
 /**
  * Obtener lista de informes de la clínica autenticada.
  * GET /api/reports
+ *
+ * Endpoint confirmado en backend. Acepta RequestInit para lectura server-side
+ * dinámica con cookies reenviadas desde Next.
  */
-export async function getReports(): Promise<Report[]> {
+export async function getReports(options?: RequestInit): Promise<Report[]> {
   try {
-    const res = await apiFetch<{ reports: Report[] }>("/api/reports");
+    const res = await apiFetch<{ reports: Report[] }>("/api/reports", options);
     return res.reports ?? [];
   } catch {
-    // @mock — Fallback a mock data si el backend no está disponible
     console.warn("[API] getReports: usando mock data");
     return MOCK_REPORTS;
   }
@@ -122,12 +112,18 @@ export async function getReports(): Promise<Report[]> {
 /**
  * Buscar informes con filtros.
  * GET /api/reports/search
+ *
+ * Endpoint confirmado en backend. Acepta RequestInit para lectura server-side
+ * dinámica con cookies reenviadas desde Next.
  */
-export async function searchReports(params: {
-  query?: string;
-  status?: string;
-  studyType?: string;
-}): Promise<Report[]> {
+export async function searchReports(
+  params: {
+    query?: string;
+    status?: string;
+    studyType?: string;
+  },
+  options?: RequestInit,
+): Promise<Report[]> {
   try {
     const qs = new URLSearchParams(
       Object.fromEntries(
@@ -136,19 +132,15 @@ export async function searchReports(params: {
     ).toString();
     const res = await apiFetch<{ reports: Report[] }>(
       `/api/reports/search${qs ? `?${qs}` : ""}`,
+      options,
     );
     return res.reports ?? [];
   } catch {
-    // @mock
     console.warn("[API] searchReports: usando mock data");
     return MOCK_REPORTS;
   }
 }
 
-/**
- * Obtener URL firmada para descargar un informe.
- * GET /api/reports/:reportId/download-url
- */
 export async function getReportDownloadUrl(
   reportId: number,
 ): Promise<string | null> {
@@ -164,13 +156,6 @@ export async function getReportDownloadUrl(
 
 // ─── Logística — Visitas de campo ─────────────────────────────────────────────
 
-/**
- * Obtener visitas de campo.
- * GET /api/logistics/field-visits
- *
- * Endpoint confirmado en backend. Acepta RequestInit para lectura server-side
- * dinámica con cookies reenviadas desde Next.
- */
 export async function getLogisticsFieldVisits(
   options?: RequestInit,
 ): Promise<FieldVisit[]> {
@@ -188,13 +173,6 @@ export async function getLogisticsFieldVisits(
 
 // ─── Logística — Planes de ruta ───────────────────────────────────────────────
 
-/**
- * Obtener planes de ruta.
- * GET /api/logistics/route-plans
- *
- * Endpoint confirmado en backend. Acepta RequestInit para lectura server-side
- * dinámica con cookies reenviadas desde Next.
- */
 export async function getRoutePlans(
   options?: RequestInit,
 ): Promise<RoutePlan[]> {
@@ -210,13 +188,6 @@ export async function getRoutePlans(
   }
 }
 
-/**
- * Obtener métricas de cumplimiento de planes de ruta.
- * GET /api/logistics/route-plans/:id/metrics
- *
- * Endpoint confirmado en backend. Acepta RequestInit para lectura server-side
- * dinámica con cookies reenviadas desde Next.
- */
 export async function getRoutePlanMetrics(
   planId?: number,
   options?: RequestInit,
@@ -242,13 +213,6 @@ export async function getRoutePlanMetrics(
 
 // ─── Admin — Auditoría ────────────────────────────────────────────────────────
 
-/**
- * Obtener entradas del log de auditoría.
- * GET /api/admin/audit-log
- *
- * Endpoint confirmado en backend. Acepta RequestInit para lectura server-side
- * dinámica con cookies reenviadas desde Next.
- */
 export async function getAuditEntries(
   options?: RequestInit,
 ): Promise<AuditEntry[]> {
@@ -266,12 +230,6 @@ export async function getAuditEntries(
 
 // ─── Dashboard — Estadísticas resumen (@mock) ─────────────────────────────────
 
-/**
- * Obtener estadísticas resumen del dashboard.
- *
- * @mock — No existe un endpoint específico. Se calcula en el cliente
- * o se puede agregar un endpoint /api/dashboard/stats en el backend.
- */
 export async function getDashboardStats(): Promise<DashboardStats> {
   console.warn("[API] getDashboardStats: usando mock data");
   return MOCK_DASHBOARD_STATS;
