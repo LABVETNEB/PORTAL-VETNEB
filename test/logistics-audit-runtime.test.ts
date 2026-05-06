@@ -25,6 +25,7 @@ const { logisticsRoutePlansNativeRoutes } = await import(
 const { logisticsRouteEventsNativeRoutes } = await import(
   "../server/routes/logistics-route-events.fastify.ts"
 );
+const { createWriteAuditLog } = await import("../server/lib/audit.ts");
 
 const VALID_ORIGIN = "http://localhost:3000";
 const SESSION_TOKEN = "clinic-session-token";
@@ -89,6 +90,37 @@ function buildRouteEvent(overrides: Partial<RouteEvent> = {}): RouteEvent {
     source: "clinic",
     createdAt: new Date("2026-05-05T13:01:00.000Z"),
     ...overrides,
+  };
+}
+
+type LogisticsAuditWriter = (
+  req: unknown,
+  input: Parameters<ReturnType<typeof createWriteAuditLog>>[1],
+) => Promise<void>;
+
+function createFailingLogisticsAuditWriter(
+  auditWriteErrors: unknown[],
+): LogisticsAuditWriter {
+  const auditWriter = createWriteAuditLog({
+    createAuditLog: async () => {
+      throw new Error("audit db unavailable");
+    },
+    logInfo: () => {},
+    logError: (_message, data) => {
+      auditWriteErrors.push(data);
+    },
+    serializeError: (error) =>
+      error instanceof Error
+        ? {
+            message: error.message,
+          }
+        : {
+            message: String(error),
+          },
+  });
+
+  return async (req, input) => {
+    await auditWriter(req as Parameters<typeof auditWriter>[0], input);
   };
 }
 
@@ -296,6 +328,135 @@ test("logistics route events runtime writes audit metadata after successful even
     assert.equal(metadata.routeStopId, 701);
     assert.equal(metadata.eventType, "route.released");
     assert.equal(metadata.source, "clinic");
+  } finally {
+    await app.close();
+  }
+});
+test("logistics route plan lifecycle runtime isolates audit writer failures", async () => {
+  const app = Fastify();
+  const auditWriteErrors: unknown[] = [];
+
+  await app.register(logisticsRoutePlansNativeRoutes, {
+    prefix: "/api/logistics/route-plans",
+    ...sharedAuthDeps(),
+    createRoutePlan: async () => null,
+    getClinicScopedRoutePlan: async () => null,
+    listClinicRoutePlans: async () => [],
+    updateClinicScopedRoutePlan: async () => null,
+    createRouteStopForClinicRoutePlan: async () => null,
+    listRouteStopsForClinicRoutePlan: async () => [],
+    updateClinicScopedRouteStop: async () => null,
+    transitionClinicScopedRoutePlanStatus: async (routePlanId, clinicId) => ({
+      routePlan: buildRoutePlan({
+        id: routePlanId,
+        clinicId,
+        status: "released",
+      }),
+    }),
+    generateHeuristicRoutePlan: async (
+      _input: GenerateHeuristicRoutePlanInput,
+    ): Promise<GenerateHeuristicRoutePlanResult> => ({
+      reason: "no_visits",
+    }),
+    writeAuditLog: createFailingLogisticsAuditWriter(auditWriteErrors),
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/logistics/route-plans/501/release",
+      headers: {
+        cookie: SESSION_COOKIE,
+        origin: VALID_ORIGIN,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+
+    assert.equal(body.success, true);
+    assert.equal(body.routePlan.id, 501);
+    assert.equal(body.routePlan.status, "released");
+
+    assert.equal(auditWriteErrors.length, 1);
+
+    const auditError = asRecord(auditWriteErrors[0]);
+
+    assert.equal(
+      auditError.event,
+      "logistics.route_plan.lifecycle_changed",
+    );
+    assert.deepEqual(auditError.error, {
+      message: "audit db unavailable",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("logistics route events runtime isolates audit writer failures", async () => {
+  const app = Fastify();
+  const auditWriteErrors: unknown[] = [];
+
+  await app.register(logisticsRouteEventsNativeRoutes, {
+    prefix: "/api/logistics/route-events",
+    ...sharedAuthDeps(),
+    createRouteEvent: async (input) =>
+      buildRouteEvent({
+        clinicId: input.clinicId,
+        routePlanId: input.routePlanId ?? null,
+        routeStopId: input.routeStopId ?? null,
+        eventType: input.eventType,
+        eventTime: input.eventTime ?? new Date("2026-05-05T13:00:00.000Z"),
+        payload: input.payload ?? null,
+        lat: input.lat ?? null,
+        lng: input.lng ?? null,
+        source: input.source ?? "system",
+      }),
+    listClinicRouteEvents: async () => [],
+    listRouteEventsForClinicRoutePlan: async () => [],
+    listIncrementalClinicRouteEvents: async () => [],
+    writeAuditLog: createFailingLogisticsAuditWriter(auditWriteErrors),
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/logistics/route-events/",
+      headers: {
+        cookie: SESSION_COOKIE,
+        origin: VALID_ORIGIN,
+        "content-type": "application/json",
+      },
+      payload: JSON.stringify({
+        routePlanId: 501,
+        routeStopId: 701,
+        eventType: "route.released",
+        eventTime: "2026-05-05T13:00:00.000Z",
+        payload: {
+          note: "released by clinic",
+        },
+        source: "clinic",
+      }),
+    });
+
+    assert.equal(response.statusCode, 201);
+
+    const body = JSON.parse(response.body);
+
+    assert.equal(body.success, true);
+    assert.equal(body.routeEvent.id, 900);
+    assert.equal(body.routeEvent.eventType, "route.released");
+
+    assert.equal(auditWriteErrors.length, 1);
+
+    const auditError = asRecord(auditWriteErrors[0]);
+
+    assert.equal(auditError.event, "logistics.route_event.created");
+    assert.deepEqual(auditError.error, {
+      message: "audit db unavailable",
+    });
   } finally {
     await app.close();
   }
