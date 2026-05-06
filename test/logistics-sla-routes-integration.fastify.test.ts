@@ -289,6 +289,38 @@ test("logistics SLA integration defaults overdue cutoff to now", async () => {
   }
 });
 
+test("logistics SLA integration caps overdue pagination limit and defaults invalid offset", async () => {
+  const { app, overdueCalls } = await createIntegrationApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/logistics/sla/overdue?limit=1000&offset=-1",
+      headers: {
+        cookie: createCookie(),
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.success, true);
+    assert.deepEqual(body.pagination, {
+      limit: 100,
+      offset: 0,
+    });
+
+    assert.equal(overdueCalls.length, 1);
+    assert.equal(overdueCalls[0].clinicId, 3);
+    assert.equal(overdueCalls[0].dueAtOrBefore.toISOString(), "2026-05-05T00:00:00.000Z");
+    assert.equal(overdueCalls[0].targetType, undefined);
+    assert.equal(overdueCalls[0].limit, 100);
+    assert.equal(overdueCalls[0].offset, 0);
+  } finally {
+    await app.close();
+  }
+});
+
 test("logistics SLA integration rejects invalid overdue filters before DB reads", async () => {
   const { app, overdueCalls } = await createIntegrationApp();
 
@@ -497,3 +529,4 @@ test("logistics SLA integration rejects invalid filters before DB reads", async 
     await app.close();
   }
 });
+
