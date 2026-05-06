@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MOCK_ROUTE_PLANS } from "@/lib/mock-data";
+import { getRoutePlans } from "@/lib/api";
 import {
   getRoutePlanStatusLabel,
   getRoutePlanStatusVariant,
@@ -22,7 +23,18 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function RutasPage() {
+async function getLogisticsRequestOptions(): Promise<RequestInit> {
+  const cookieHeader = (await cookies()).toString();
+
+  return {
+    cache: "no-store",
+    headers: cookieHeader ? { Cookie: cookieHeader } : {},
+  };
+}
+
+export default async function RutasPage() {
+  const routePlans = await getRoutePlans(await getLogisticsRequestOptions());
+
   return (
     <>
       <DashboardTopbar
@@ -30,12 +42,10 @@ export default function RutasPage() {
         subtitle="Planificación y gestión de rutas de entrega"
       />
       <main className="flex-1 p-6 space-y-6">
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-xs text-amber-700">
-          <strong>Mock data:</strong> Se conectará con{" "}
-          <code>GET /api/logistics/route-plans</code>.
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700">
+          Lectura conectada a <code>GET /api/logistics/route-plans</code>.
         </div>
 
-        {/* Resumen por estado */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {(
             [
@@ -45,9 +55,7 @@ export default function RutasPage() {
               { status: "completed", label: "Completados" },
             ] as const
           ).map(({ status, label }) => {
-            const count = MOCK_ROUTE_PLANS.filter(
-              (p) => p.status === status,
-            ).length;
+            const count = routePlans.filter((p) => p.status === status).length;
             return (
               <Card key={status} className="border-gray-100">
                 <CardContent className="pt-4">
@@ -59,11 +67,10 @@ export default function RutasPage() {
           })}
         </div>
 
-        {/* Tabla */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Planes de ruta ({MOCK_ROUTE_PLANS.length})
+              Planes de ruta ({routePlans.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -79,7 +86,7 @@ export default function RutasPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {MOCK_ROUTE_PLANS.map((plan) => {
+                {routePlans.map((plan) => {
                   const progress =
                     plan.totalStops > 0
                       ? Math.round(
