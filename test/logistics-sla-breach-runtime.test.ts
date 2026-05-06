@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   markOverdueSlaBreaches,
+  markOverdueSlaBreachesWithDb,
   type MarkOverdueSlaBreachesDeps,
 } from "../server/lib/logistics/sla-breach.ts";
 
@@ -151,4 +152,8 @@ test("SLA breach runtime rejects invalid clinic ids and invalid dates before DB 
   }, /breachedAt invalido/);
 
   assert.equal(writes, 0);
+});
+
+test("SLA breach runtime exposes DB-wired entrypoint", () => {
+  assert.equal(typeof markOverdueSlaBreachesWithDb, "function");
 });

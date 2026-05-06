@@ -25,6 +25,10 @@ export type MarkOverdueSlaBreachesResult = {
   breachedAt: Date;
 };
 
+export type MarkOverdueSlaBreachesWithDbOptions = {
+  now?: () => Date;
+};
+
 function assertValidDate(value: Date, fieldName: string): void {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
     throw new Error(`${fieldName} invalido`);
@@ -67,4 +71,18 @@ export async function markOverdueSlaBreaches(
     dueAtOrBefore,
     breachedAt,
   };
+}
+
+export async function markOverdueSlaBreachesWithDb(
+  input: MarkOverdueSlaBreachesInput,
+  options: MarkOverdueSlaBreachesWithDbOptions = {},
+): Promise<MarkOverdueSlaBreachesResult> {
+  const { markOverdueActiveClinicSlaInstancesBreached } = await import(
+    "../../db-logistics.ts"
+  );
+
+  return markOverdueSlaBreaches(input, {
+    markOverdueActiveClinicSlaInstancesBreached,
+    now: options.now,
+  });
 }
