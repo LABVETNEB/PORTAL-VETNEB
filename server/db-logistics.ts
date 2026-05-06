@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lte, or, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   fieldVisits,
@@ -197,6 +197,14 @@ export type ClinicSlaSummary = {
   breached: number;
   resolved: number;
   canceled: number;
+};
+
+export type ListOverdueActiveClinicSlaInstancesParams = {
+  clinicId: number;
+  dueAtOrBefore: Date;
+  targetType?: SlaTargetType;
+  limit?: number;
+  offset?: number;
 };
 
 export type GenerateHeuristicRoutePlanInput = {
@@ -1228,6 +1236,30 @@ export async function getClinicSlaSummary(
   }
 
   return summary;
+}
+
+export async function listOverdueActiveClinicSlaInstances(
+  params: ListOverdueActiveClinicSlaInstancesParams,
+): Promise<SlaInstance[]> {
+  const filters = [
+    eq(slaInstances.clinicId, params.clinicId),
+    eq(slaInstances.status, "active"),
+    lte(slaInstances.dueAt, params.dueAtOrBefore),
+  ];
+  const limit = normalizeLogisticsLimit(params.limit);
+  const offset = normalizeLogisticsOffset(params.offset);
+
+  if (params.targetType) {
+    filters.push(eq(slaInstances.targetType, params.targetType));
+  }
+
+  return db
+    .select()
+    .from(slaInstances)
+    .where(and(...filters))
+    .orderBy(asc(slaInstances.dueAt), asc(slaInstances.id))
+    .limit(limit)
+    .offset(offset);
 }
 
 export async function listClinicSlaInstances(
