@@ -222,3 +222,20 @@ test("logistics DB overdue SLA reads stay paginated, deterministic and optionall
   assert.ok(dbLogisticsSource.includes("eq(slaInstances.targetType, params.targetType)"));
   assert.ok(dbLogisticsSource.includes("orderBy(asc(slaInstances.dueAt), asc(slaInstances.id))"));
 });
+
+test("logistics DB helpers expose SLA breach marking helper", () => {
+  assert.ok(dbLogisticsSource.includes("export type MarkOverdueActiveClinicSlaInstancesBreachedParams"));
+  assert.ok(dbLogisticsSource.includes("export async function markOverdueActiveClinicSlaInstancesBreached"));
+  assert.ok(dbLogisticsSource.includes("eq(slaInstances.clinicId, params.clinicId)"));
+  assert.ok(dbLogisticsSource.includes("eq(slaInstances.status, \"active\")"));
+  assert.ok(dbLogisticsSource.includes("lte(slaInstances.dueAt, params.dueAtOrBefore)"));
+});
+
+test("logistics DB SLA breach marking updates only overdue active instances", () => {
+  assert.ok(dbLogisticsSource.includes("status: \"breached\""));
+  assert.ok(dbLogisticsSource.includes("breachedAt: params.breachedAt"));
+  assert.ok(dbLogisticsSource.includes("updatedAt: params.breachedAt"));
+  assert.ok(dbLogisticsSource.includes("eq(slaInstances.targetType, params.targetType)"));
+  assert.ok(dbLogisticsSource.includes(".update(slaInstances)"));
+  assert.ok(dbLogisticsSource.includes(".returning()"));
+});
