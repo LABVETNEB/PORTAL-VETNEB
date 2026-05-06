@@ -341,6 +341,101 @@ test("logistics SLA integration rejects expired sessions before DB helpers", asy
   }
 });
 
+test("logistics SLA integration rejects missing session users before DB helpers", async () => {
+  const app = Fastify();
+  const policyCalls: SlaPolicyCall[] = [];
+  const instanceCalls: SlaInstanceCall[] = [];
+  const overdueCalls: Array<{
+    clinicId: number;
+    dueAtOrBefore: Date;
+    targetType?: string;
+    limit?: number;
+    offset?: number;
+  }> = [];
+  const summaryCalls: number[] = [];
+  const deletedSessionHashes: string[] = [];
+
+  await app.register(logisticsSlaNativeRoutes as any, {
+    prefix: "/api/logistics/sla",
+    now: () => Date.UTC(2026, 4, 5, 0, 0, 0),
+    deleteActiveSession: async (tokenHash: string) => {
+      deletedSessionHashes.push(tokenHash);
+    },
+    getActiveSessionByToken: async (tokenHash: string) => {
+      if (tokenHash !== "hash:missing-user-session-token") {
+        return null;
+      }
+
+      return {
+        clinicUserId: 404,
+        expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+        lastAccess: new Date("2026-05-04T23:00:00.000Z"),
+      };
+    },
+    getClinicUserById: async (clinicUserId: number) => {
+      assert.equal(clinicUserId, 404);
+      return null;
+    },
+    updateSessionLastAccess: async () => {
+      throw new Error("usuario faltante no debe actualizar last access");
+    },
+    hashSessionToken: (token: string) => `hash:${token}`,
+    listActiveClinicSlaPolicies: async (params: SlaPolicyCall) => {
+      policyCalls.push(params);
+      return [];
+    },
+    listClinicSlaInstances: async (params: SlaInstanceCall) => {
+      instanceCalls.push(params);
+      return [];
+    },
+    listOverdueActiveClinicSlaInstances: async (params: {
+      clinicId: number;
+      dueAtOrBefore: Date;
+      targetType?: string;
+      limit?: number;
+      offset?: number;
+    }) => {
+      overdueCalls.push(params);
+      return [];
+    },
+    getClinicSlaSummary: async (clinicId: number) => {
+      summaryCalls.push(clinicId);
+      return {
+        clinicId,
+        total: 0,
+        active: 0,
+        paused: 0,
+        breached: 0,
+        resolved: 0,
+        canceled: 0,
+      };
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/logistics/sla/summary",
+      headers: {
+        cookie: `${ENV.cookieName}=missing-user-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Usuario de sesion no encontrado",
+    });
+    assert.deepEqual(deletedSessionHashes, ["hash:missing-user-session-token"]);
+    assert.deepEqual(policyCalls, []);
+    assert.deepEqual(instanceCalls, []);
+    assert.deepEqual(overdueCalls, []);
+    assert.deepEqual(summaryCalls, []);
+  } finally {
+    await app.close();
+  }
+});
+
 test("logistics SLA integration handles CORS preflight without DB helpers", async () => {
   const { app, policyCalls, instanceCalls, overdueCalls, summaryCalls } = await createIntegrationApp();
 
