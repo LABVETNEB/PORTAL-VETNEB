@@ -207,3 +207,12 @@ test("logistics route plans API enforces role-aware logistics route plan permiss
   assert.match(routeSource, /UNSAFE_METHODS\.has\(request\.method\.toUpperCase\(\)\)/);
   assert.match(routeSource, /Permisos insuficientes para logistica/);
 });
+
+test("logistics route plans API audits lifecycle transitions", () => {
+  assert.match(routeSource, /writeAuditLog\?:/);
+  assert.match(routeSource, /writeAuditLog: audit\.writeAuditLog/);
+  assert.match(routeSource, /AUDIT_EVENTS\.LOGISTICS_ROUTE_PLAN_LIFECYCLE_CHANGED/);
+  assert.match(routeSource, /await deps\.writeAuditLog\(createAuditRequestLike\(request, auth\),/);
+  assert.match(routeSource, /routePlanId,/);
+  assert.match(routeSource, /action,/);
+});

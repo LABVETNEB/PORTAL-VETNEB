@@ -143,6 +143,8 @@ export const AUDIT_EVENTS = [
   "report_access_token.created",
   "report_access_token.revoked",
   "report.public_accessed",
+  "logistics.route_plan.lifecycle_changed",
+  "logistics.route_event.created",
 ] as const;
 export type AuditEvent = (typeof AUDIT_EVENTS)[number];
 

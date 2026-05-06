@@ -1,4 +1,4 @@
-﻿import type { Request } from "./http-types.ts";
+import type { Request } from "./http-types.ts";
 import type { AuditActorType, AuditEvent } from "../../drizzle/schema";
 import { sanitizeUrlForLogs } from "../middlewares/request-logger.ts";
 
@@ -13,6 +13,9 @@ export const AUDIT_EVENTS = {
   REPORT_ACCESS_TOKEN_CREATED: "report_access_token.created",
   REPORT_ACCESS_TOKEN_REVOKED: "report_access_token.revoked",
   REPORT_PUBLIC_ACCESSED: "report.public_accessed",
+  LOGISTICS_ROUTE_PLAN_LIFECYCLE_CHANGED:
+    "logistics.route_plan.lifecycle_changed",
+  LOGISTICS_ROUTE_EVENT_CREATED: "logistics.route_event.created",
 } as const satisfies Record<string, AuditEvent>;
 
 export type AuditActor = {

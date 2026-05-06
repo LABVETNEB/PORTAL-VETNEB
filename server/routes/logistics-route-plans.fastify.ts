@@ -30,6 +30,10 @@ import type {
 } from "../db-logistics.ts";
 import { ENV } from "../lib/env.ts";
 import {
+  AUDIT_EVENTS,
+  type AuditWriteInput,
+} from "../lib/audit.ts";
+import {
   getClinicPermissions,
   normalizeClinicUserRole,
 } from "../lib/permissions.ts";
@@ -106,6 +110,7 @@ export type LogisticsRoutePlansNativeRoutesOptions = {
   generateHeuristicRoutePlan?: (
     input: GenerateHeuristicRoutePlanInput,
   ) => Promise<GenerateHeuristicRoutePlanResult>;
+  writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
   now?: () => number;
 };
 
@@ -126,6 +131,7 @@ type NativeLogisticsRoutePlansDeps = Required<
     | "updateClinicScopedRouteStop"
     | "transitionClinicScopedRoutePlanStatus"
     | "generateHeuristicRoutePlan"
+    | "writeAuditLog"
   >
 >;
 
@@ -141,6 +147,7 @@ async function loadDefaultDeps(): Promise<NativeLogisticsRoutePlansDeps> {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const dbLogistics = await import("../db-logistics.ts");
+      const audit = await import("../lib/audit.ts");
 
       return {
         deleteActiveSession: db.deleteActiveSession,
@@ -161,6 +168,10 @@ async function loadDefaultDeps(): Promise<NativeLogisticsRoutePlansDeps> {
         transitionClinicScopedRoutePlanStatus:
           dbLogistics.transitionClinicScopedRoutePlanStatus,
         generateHeuristicRoutePlan: dbLogistics.generateHeuristicRoutePlan,
+        writeAuditLog: audit.writeAuditLog as (
+          req: unknown,
+          input: AuditWriteInput,
+        ) => Promise<void>,
       };
     })();
   }
@@ -1359,6 +1370,24 @@ function getLifecycleActionError(
 }
 
 
+function createAuditRequestLike(
+  request: FastifyRequest,
+  auth: AuthenticatedClinicUser,
+): Record<string, unknown> {
+  return {
+    method: request.method,
+    originalUrl: request.url,
+    ip: request.ip,
+    headers: request.headers,
+    auth: {
+      id: auth.id,
+      clinicId: auth.clinicId,
+      username: auth.username,
+      role: auth.role,
+    },
+  };
+}
+
 function serializeDate(value: Date | null | undefined): string | null {
   if (!(value instanceof Date)) {
     return null;
@@ -1455,6 +1484,10 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     transitionClinicScopedRoutePlanStatus:
       options.transitionClinicScopedRoutePlanStatus ??
       defaultDeps!.transitionClinicScopedRoutePlanStatus,
+    writeAuditLog:
+      options.writeAuditLog ??
+      defaultDeps?.writeAuditLog ??
+      (async () => undefined),
     generateHeuristicRoutePlan:
       options.generateHeuristicRoutePlan ??
       defaultDeps?.generateHeuristicRoutePlan ??
@@ -2120,6 +2153,15 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
+    await deps.writeAuditLog(createAuditRequestLike(request, auth), {
+      event: AUDIT_EVENTS.LOGISTICS_ROUTE_PLAN_LIFECYCLE_CHANGED,
+      clinicId: auth.clinicId,
+      metadata: {
+        routePlanId,
+        action,
+        status: result.routePlan.status,
+      },
+    });
     return reply.code(200).send({
       success: true,
       message: "Estado del plan de ruta actualizado correctamente",

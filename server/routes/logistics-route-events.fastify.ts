@@ -18,6 +18,10 @@ import type {
 } from "../db-logistics.ts";
 import { ENV } from "../lib/env.ts";
 import {
+  AUDIT_EVENTS,
+  type AuditWriteInput,
+} from "../lib/audit.ts";
+import {
   getClinicPermissions,
   normalizeClinicUserRole,
 } from "../lib/permissions.ts";
@@ -71,6 +75,7 @@ export type LogisticsRouteEventsNativeRoutesOptions = {
     afterId: number,
     limit?: number,
   ) => Promise<RouteEvent[]>;
+  writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
   now?: () => number;
 };
 
@@ -86,6 +91,7 @@ type NativeLogisticsRouteEventsDeps = Required<
     | "listClinicRouteEvents"
     | "listRouteEventsForClinicRoutePlan"
     | "listIncrementalClinicRouteEvents"
+    | "writeAuditLog"
   >
 >;
 
@@ -100,6 +106,7 @@ async function loadDefaultDeps(): Promise<NativeLogisticsRouteEventsDeps> {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const dbLogistics = await import("../db-logistics.ts");
+      const audit = await import("../lib/audit.ts");
 
       return {
         deleteActiveSession: db.deleteActiveSession,
@@ -113,6 +120,10 @@ async function loadDefaultDeps(): Promise<NativeLogisticsRouteEventsDeps> {
           dbLogistics.listRouteEventsForClinicRoutePlan,
         listIncrementalClinicRouteEvents:
           dbLogistics.listIncrementalClinicRouteEvents,
+        writeAuditLog: audit.writeAuditLog as (
+          req: unknown,
+          input: AuditWriteInput,
+        ) => Promise<void>,
       };
     })();
   }
@@ -738,6 +749,24 @@ function buildListRouteEventsParams(
   };
 }
 
+function createAuditRequestLike(
+  request: FastifyRequest,
+  auth: AuthenticatedClinicUser,
+): Record<string, unknown> {
+  return {
+    method: request.method,
+    originalUrl: request.url,
+    ip: request.ip,
+    headers: request.headers,
+    auth: {
+      id: auth.id,
+      clinicId: auth.clinicId,
+      username: auth.username,
+      role: auth.role,
+    },
+  };
+}
+
 function serializeDate(value: Date | null | undefined): string | null {
   if (!(value instanceof Date)) {
     return null;
@@ -774,7 +803,8 @@ export const logisticsRouteEventsNativeRoutes: FastifyPluginAsync<
     !!options.createRouteEvent &&
     !!options.listClinicRouteEvents &&
     !!options.listRouteEventsForClinicRoutePlan &&
-    !!options.listIncrementalClinicRouteEvents;
+    !!options.listIncrementalClinicRouteEvents &&
+    true;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -799,6 +829,10 @@ export const logisticsRouteEventsNativeRoutes: FastifyPluginAsync<
     listIncrementalClinicRouteEvents:
       options.listIncrementalClinicRouteEvents ??
       defaultDeps!.listIncrementalClinicRouteEvents,
+    writeAuditLog:
+      options.writeAuditLog ??
+      defaultDeps?.writeAuditLog ??
+      (async () => undefined),
   };
 
   const now = options.now ?? (() => Date.now());
@@ -1061,6 +1095,18 @@ export const logisticsRouteEventsNativeRoutes: FastifyPluginAsync<
         error: "Plan de ruta o parada no encontrada",
       });
     }
+
+    await deps.writeAuditLog(createAuditRequestLike(request, auth), {
+      event: AUDIT_EVENTS.LOGISTICS_ROUTE_EVENT_CREATED,
+      clinicId: auth.clinicId,
+      metadata: {
+        routeEventId: routeEvent.id,
+        routePlanId: routeEvent.routePlanId,
+        routeStopId: routeEvent.routeStopId,
+        eventType: routeEvent.eventType,
+        source: routeEvent.source,
+      },
+    });
 
     return reply.code(201).send({
       success: true,
