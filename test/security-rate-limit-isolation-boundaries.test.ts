@@ -336,18 +336,23 @@ test("public report access rate limit cuts off before token hashing DB signing a
   );
   assertContains(
     source,
-    "const accessAttempts = new Map<string, { count: number; resetAt: number }>();",
-    "public report access store",
+    "publicReportAccessRateLimitStore?: RateLimitStore;",
+    "public report access injectable store option",
+  );
+  assertContains(
+    source,
+    "options.publicReportAccessRateLimitStore ?? createMemoryRateLimitStore();",
+    "public report access memory fallback store",
   );
   assertContainsInOrder(
     source,
     [
-      "const accessEntry = getAccessEntry(",
+      "const accessEntry = await getOrCreateRateLimitEntry(",
       "if (accessEntry.count >= publicReportAccessRateLimitMaxAttempts) {",
       "setRateLimitHeaders(reply, {",
       "return reply.code(429).send({",
       "error: PUBLIC_REPORT_ACCESS_RATE_LIMIT_ERROR_MESSAGE",
-      "accessEntry.count += 1;",
+      "const updatedAccessEntry = await incrementRateLimitEntry(",
       "const parsed = reportAccessTokenRawTokenSchema.safeParse(request.params.token);",
       "const tokenHash = deps.hashSessionToken(parsed.data);",
       "const record = await deps.getReportAccessTokenWithReportByTokenHash(tokenHash);",
