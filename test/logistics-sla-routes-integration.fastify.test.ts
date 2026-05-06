@@ -434,6 +434,40 @@ test("logistics SLA integration lists active policies with clinic scope, filters
   }
 });
 
+test("logistics SLA integration caps policies pagination limit and defaults invalid offset", async () => {
+  const { app, policyCalls } = await createIntegrationApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/logistics/sla/policies?limit=1000&offset=-1",
+      headers: {
+        cookie: createCookie(),
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.success, true);
+    assert.deepEqual(body.pagination, {
+      limit: 100,
+      offset: 0,
+    });
+
+    assert.deepEqual(policyCalls, [
+      {
+        clinicId: 3,
+        targetType: undefined,
+        limit: 100,
+        offset: 0,
+      },
+    ]);
+  } finally {
+    await app.close();
+  }
+});
+
 test("logistics SLA integration lists instances with validated filters and tenant scope", async () => {
   const { app, instanceCalls } = await createIntegrationApp();
 
