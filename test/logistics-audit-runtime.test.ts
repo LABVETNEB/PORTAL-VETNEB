@@ -98,6 +98,30 @@ type LogisticsAuditWriter = (
   input: Parameters<ReturnType<typeof createWriteAuditLog>>[1],
 ) => Promise<void>;
 
+function createCapturingLogisticsAuditWriter(
+  auditPayloads: unknown[],
+): LogisticsAuditWriter {
+  const auditWriter = createWriteAuditLog({
+    createAuditLog: async (payload) => {
+      auditPayloads.push(payload);
+    },
+    logInfo: () => {},
+    logError: () => {},
+    serializeError: (error) =>
+      error instanceof Error
+        ? {
+            message: error.message,
+          }
+        : {
+            message: String(error),
+          },
+  });
+
+  return async (req, input) => {
+    await auditWriter(req as Parameters<typeof auditWriter>[0], input);
+  };
+}
+
 function createFailingLogisticsAuditWriter(
   auditWriteErrors: unknown[],
 ): LogisticsAuditWriter {
@@ -604,6 +628,142 @@ test("logistics route events runtime passes request context to audit writer", as
 
     assert.equal(input.event, "logistics.route_event.created");
     assert.equal(input.clinicId, 7);
+    assert.equal(metadata.routeEventId, 900);
+    assert.equal(metadata.routePlanId, 501);
+    assert.equal(metadata.routeStopId, 701);
+    assert.equal(metadata.eventType, "route.released");
+    assert.equal(metadata.source, "clinic");
+  } finally {
+    await app.close();
+  }
+});
+test("logistics route plan lifecycle audit writer resolves clinic actor payload", async () => {
+  const app = Fastify();
+  const auditPayloads: unknown[] = [];
+
+  await app.register(logisticsRoutePlansNativeRoutes, {
+    prefix: "/api/logistics/route-plans",
+    ...sharedAuthDeps(),
+    createRoutePlan: async () => null,
+    getClinicScopedRoutePlan: async () => null,
+    listClinicRoutePlans: async () => [],
+    updateClinicScopedRoutePlan: async () => null,
+    createRouteStopForClinicRoutePlan: async () => null,
+    listRouteStopsForClinicRoutePlan: async () => [],
+    updateClinicScopedRouteStop: async () => null,
+    transitionClinicScopedRoutePlanStatus: async (routePlanId, clinicId) => ({
+      routePlan: buildRoutePlan({
+        id: routePlanId,
+        clinicId,
+        status: "released",
+      }),
+    }),
+    generateHeuristicRoutePlan: async (
+      _input: GenerateHeuristicRoutePlanInput,
+    ): Promise<GenerateHeuristicRoutePlanResult> => ({
+      reason: "no_visits",
+    }),
+    writeAuditLog: createCapturingLogisticsAuditWriter(auditPayloads),
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/logistics/route-plans/501/release",
+      headers: {
+        cookie: SESSION_COOKIE,
+        origin: VALID_ORIGIN,
+        "user-agent": "vetneb-audit-actor-test/1.0",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(auditPayloads.length, 1);
+
+    const payload = asRecord(auditPayloads[0]);
+    const metadata = asRecord(payload.metadata);
+
+    assert.equal(payload.event, "logistics.route_plan.lifecycle_changed");
+    assert.equal(payload.actorType, "clinic_user");
+    assert.equal(payload.actorClinicUserId, 9);
+    assert.equal(payload.actorAdminUserId, null);
+    assert.equal(payload.actorReportAccessTokenId, null);
+    assert.equal(payload.clinicId, 7);
+    assert.equal(payload.requestMethod, "POST");
+    assert.equal(payload.requestPath, "/api/logistics/route-plans/501/release");
+    assert.equal(payload.userAgent, "vetneb-audit-actor-test/1.0");
+
+    assert.equal(metadata.routePlanId, 501);
+    assert.equal(metadata.action, "release");
+    assert.equal(metadata.status, "released");
+  } finally {
+    await app.close();
+  }
+});
+
+test("logistics route event audit writer resolves clinic actor payload", async () => {
+  const app = Fastify();
+  const auditPayloads: unknown[] = [];
+
+  await app.register(logisticsRouteEventsNativeRoutes, {
+    prefix: "/api/logistics/route-events",
+    ...sharedAuthDeps(),
+    createRouteEvent: async (input) =>
+      buildRouteEvent({
+        clinicId: input.clinicId,
+        routePlanId: input.routePlanId ?? null,
+        routeStopId: input.routeStopId ?? null,
+        eventType: input.eventType,
+        eventTime: input.eventTime ?? new Date("2026-05-05T13:00:00.000Z"),
+        payload: input.payload ?? null,
+        lat: input.lat ?? null,
+        lng: input.lng ?? null,
+        source: input.source ?? "system",
+      }),
+    listClinicRouteEvents: async () => [],
+    listRouteEventsForClinicRoutePlan: async () => [],
+    listIncrementalClinicRouteEvents: async () => [],
+    writeAuditLog: createCapturingLogisticsAuditWriter(auditPayloads),
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/logistics/route-events/",
+      headers: {
+        cookie: SESSION_COOKIE,
+        origin: VALID_ORIGIN,
+        "content-type": "application/json",
+        "user-agent": "vetneb-audit-actor-test/1.0",
+      },
+      payload: JSON.stringify({
+        routePlanId: 501,
+        routeStopId: 701,
+        eventType: "route.released",
+        eventTime: "2026-05-05T13:00:00.000Z",
+        payload: {
+          note: "released by clinic",
+        },
+        source: "clinic",
+      }),
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(auditPayloads.length, 1);
+
+    const payload = asRecord(auditPayloads[0]);
+    const metadata = asRecord(payload.metadata);
+
+    assert.equal(payload.event, "logistics.route_event.created");
+    assert.equal(payload.actorType, "clinic_user");
+    assert.equal(payload.actorClinicUserId, 9);
+    assert.equal(payload.actorAdminUserId, null);
+    assert.equal(payload.actorReportAccessTokenId, null);
+    assert.equal(payload.clinicId, 7);
+    assert.equal(payload.requestMethod, "POST");
+    assert.equal(payload.requestPath, "/api/logistics/route-events/");
+    assert.equal(payload.userAgent, "vetneb-audit-actor-test/1.0");
+
     assert.equal(metadata.routeEventId, 900);
     assert.equal(metadata.routePlanId, 501);
     assert.equal(metadata.routeStopId, 701);
