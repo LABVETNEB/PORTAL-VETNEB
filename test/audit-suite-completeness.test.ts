@@ -325,6 +325,15 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         path: "test/particular-audit.fastify.test.ts",
         markers: ["particularAuditNativeRoutes", "export.csv", "particular"],
       },
+      {
+        path: "test/logistics-audit-runtime.test.ts",
+        markers: [
+          "logistics route plan lifecycle runtime writes audit metadata",
+          "logistics route events runtime writes audit metadata",
+          "logistics.route_plan.lifecycle_changed",
+          "logistics.route_event.created",
+        ],
+      },
     ],
     runtimeAnchors: [
       {
@@ -338,6 +347,20 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
       {
         path: "server/routes/particular-audit.fastify.ts",
         markers: ["particularAuditNativeRoutes", "\"/export.csv\"", "\"/\""],
+      },
+      {
+        path: "server/routes/logistics-route-plans.fastify.ts",
+        markers: [
+          "AUDIT_EVENTS.LOGISTICS_ROUTE_PLAN_LIFECYCLE_CHANGED",
+          "await deps.writeAuditLog(createAuditRequestLike(request, auth),",
+        ],
+      },
+      {
+        path: "server/routes/logistics-route-events.fastify.ts",
+        markers: [
+          "AUDIT_EVENTS.LOGISTICS_ROUTE_EVENT_CREATED",
+          "await deps.writeAuditLog(createAuditRequestLike(request, auth),",
+        ],
       },
     ],
   },
