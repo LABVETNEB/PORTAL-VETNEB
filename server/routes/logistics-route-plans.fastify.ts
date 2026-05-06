@@ -167,7 +167,11 @@ async function loadDefaultDeps(): Promise<NativeLogisticsRoutePlansDeps> {
           dbLogistics.updateClinicScopedRouteStop,
         transitionClinicScopedRoutePlanStatus:
           dbLogistics.transitionClinicScopedRoutePlanStatus,
-        generateHeuristicRoutePlan: dbLogistics.generateHeuristicRoutePlan,
+        writeAuditLog:
+      options.writeAuditLog ??
+      defaultDeps?.writeAuditLog ??
+      (async () => undefined),
+    generateHeuristicRoutePlan: dbLogistics.generateHeuristicRoutePlan,
         writeAuditLog: audit.writeAuditLog as (
           req: unknown,
           input: AuditWriteInput,
@@ -1484,6 +1488,10 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     transitionClinicScopedRoutePlanStatus:
       options.transitionClinicScopedRoutePlanStatus ??
       defaultDeps!.transitionClinicScopedRoutePlanStatus,
+    writeAuditLog:
+      options.writeAuditLog ??
+      defaultDeps?.writeAuditLog ??
+      (async () => undefined),
     generateHeuristicRoutePlan:
       options.generateHeuristicRoutePlan ??
       defaultDeps?.generateHeuristicRoutePlan ??
