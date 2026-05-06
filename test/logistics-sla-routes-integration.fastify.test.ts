@@ -220,6 +220,33 @@ test("logistics SLA integration rejects unauthenticated reads before DB helpers"
 });
 
 
+test("logistics SLA integration rejects invalid sessions before DB helpers", async () => {
+  const { app, policyCalls, instanceCalls, overdueCalls, summaryCalls } = await createIntegrationApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/logistics/sla/summary",
+      headers: {
+        cookie: `${ENV.cookieName}=invalid-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Sesion invalida",
+    });
+
+    assert.deepEqual(policyCalls, []);
+    assert.deepEqual(instanceCalls, []);
+    assert.deepEqual(overdueCalls, []);
+    assert.deepEqual(summaryCalls, []);
+  } finally {
+    await app.close();
+  }
+});
+
 test("logistics SLA integration handles CORS preflight without DB helpers", async () => {
   const { app, policyCalls, instanceCalls, overdueCalls, summaryCalls } = await createIntegrationApp();
 
