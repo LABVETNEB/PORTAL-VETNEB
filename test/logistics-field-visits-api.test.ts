@@ -145,3 +145,11 @@ test("logistics field visit API keeps time-window writes behind trusted-origin c
   assert.match(routeSource, /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)/);
   assert.match(routeSource, /auth\.clinicId/);
 });
+
+test("logistics field visit API enforces role-aware logistics field visit permissions", () => {
+  assert.match(routeSource, /type ClinicUserRole/);
+  assert.match(routeSource, /normalizeClinicUserRole\(clinicUser\.role, "clinic_staff"\)/);
+  assert.match(routeSource, /getClinicPermissions\(auth\.role\)\.canManageLogisticsFieldVisits/);
+  assert.match(routeSource, /UNSAFE_METHODS\.has\(request\.method\.toUpperCase\(\)\)/);
+  assert.match(routeSource, /Permisos insuficientes para logistica/);
+});

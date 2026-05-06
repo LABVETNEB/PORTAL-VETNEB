@@ -7,6 +7,7 @@ import type {
 import {
   SLA_INSTANCE_STATUSES,
   SLA_TARGET_TYPES,
+  type ClinicUserRole,
   type SlaInstanceStatus,
   type SlaTargetType,
 } from "../../drizzle/schema.ts";
@@ -19,6 +20,10 @@ import type {
   SlaPolicy,
 } from "../db-logistics.ts";
 import { ENV } from "../lib/env.ts";
+import {
+  getClinicPermissions,
+  normalizeClinicUserRole,
+} from "../lib/permissions.ts";
 
 type ActiveSessionRecord = {
   clinicUserId: number;
@@ -31,6 +36,7 @@ type ClinicUserRecord = {
   clinicId: number;
   username: string;
   authProId?: string | null;
+  role?: ClinicUserRole | null;
 };
 
 type AuthenticatedClinicUser = {
@@ -38,6 +44,7 @@ type AuthenticatedClinicUser = {
   clinicId: number;
   username: string;
   authProId: string | null;
+  role: ClinicUserRole;
   sessionToken: string;
 };
 
@@ -205,6 +212,23 @@ function applyCorsHeaders(
   reply.header("access-control-allow-credentials", "true");
 }
 
+
+function enforceLogisticsPermission(
+  reply: FastifyReply,
+  allowed: boolean,
+): boolean {
+  if (allowed) {
+    return true;
+  }
+
+  reply.code(403).send({
+    success: false,
+    error: "Permisos insuficientes para logistica",
+  });
+
+  return false;
+}
+
 function parseCookies(cookieHeader: string | undefined): Record<string, string> {
   const result: Record<string, string> = {};
 
@@ -362,6 +386,7 @@ async function authenticateClinicUser(
     clinicId: clinicUser.clinicId,
     username: clinicUser.username,
     authProId: clinicUser.authProId ?? null,
+    role: normalizeClinicUserRole(clinicUser.role, "clinic_staff"),
     sessionToken: token,
   };
 }
@@ -694,6 +719,15 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
+    if (
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canViewLogisticsSla,
+      )
+    ) {
+      return reply;
+    }
+
     const parsed = buildListOverdueSlaInstancesParams(
       request.query,
       auth.clinicId,
@@ -730,6 +764,15 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
+    if (
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canViewLogisticsSla,
+      )
+    ) {
+      return reply;
+    }
+
     const summary = await deps.getClinicSlaSummary(auth.clinicId);
 
     return reply.code(200).send({
@@ -748,6 +791,15 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canViewLogisticsSla,
+      )
+    ) {
       return reply;
     }
 
@@ -785,6 +837,15 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canViewLogisticsSla,
+      )
+    ) {
       return reply;
     }
 

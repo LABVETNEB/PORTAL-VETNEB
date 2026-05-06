@@ -281,3 +281,23 @@ test("reports clinic read-only no declara rutas mutantes ni storage upload", () 
     );
   }
 });
+
+test("clinic permissions expose logistics role gates", () => {
+  const source = readSource("server/lib/permissions.ts");
+
+  for (const marker of [
+    "canViewLogistics: boolean",
+    "canManageLogisticsFieldVisits: boolean",
+    "canManageLogisticsRoutePlans: boolean",
+    "canManageLogisticsRouteEvents: boolean",
+    "canViewLogisticsSla: boolean",
+    "canManageLogisticsFieldVisits: true",
+    "canManageLogisticsRoutePlans: true",
+    "canManageLogisticsRouteEvents: true",
+    "canManageLogisticsFieldVisits: false",
+    "canManageLogisticsRoutePlans: false",
+    "canManageLogisticsRouteEvents: false",
+  ]) {
+    assertContains(source, marker, "server/lib/permissions.ts");
+  }
+});

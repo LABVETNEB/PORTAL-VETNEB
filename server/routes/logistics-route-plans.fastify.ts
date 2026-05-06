@@ -9,6 +9,7 @@ import {
   ROUTE_PLANNING_MODES,
   ROUTE_PLAN_STATUSES,
   ROUTE_STOP_STATUSES,
+  type ClinicUserRole,
   type RoutePlanObjective,
   type RoutePlanningMode,
   type RoutePlanStatus,
@@ -29,6 +30,10 @@ import type {
 } from "../db-logistics.ts";
 import { ENV } from "../lib/env.ts";
 import {
+  getClinicPermissions,
+  normalizeClinicUserRole,
+} from "../lib/permissions.ts";
+import {
   calculateRouteStopComplianceMetrics,
   type RouteStopComplianceInput,
 } from "../lib/logistics/metrics.ts";
@@ -44,6 +49,7 @@ type ClinicUserRecord = {
   clinicId: number;
   username: string;
   authProId?: string | null;
+  role?: ClinicUserRole | null;
 };
 
 type AuthenticatedClinicUser = {
@@ -51,6 +57,7 @@ type AuthenticatedClinicUser = {
   clinicId: number;
   username: string;
   authProId: string | null;
+  role: ClinicUserRole;
   sessionToken: string;
 };
 
@@ -285,6 +292,23 @@ function enforceTrustedOrigin(
   return false;
 }
 
+
+function enforceLogisticsPermission(
+  reply: FastifyReply,
+  allowed: boolean,
+): boolean {
+  if (allowed) {
+    return true;
+  }
+
+  reply.code(403).send({
+    success: false,
+    error: "Permisos insuficientes para logistica",
+  });
+
+  return false;
+}
+
 function parseCookies(cookieHeader: string | undefined): Record<string, string> {
   const result: Record<string, string> = {};
 
@@ -442,6 +466,7 @@ async function authenticateClinicUser(
     clinicId: clinicUser.clinicId,
     username: clinicUser.username,
     authProId: clinicUser.authProId ?? null,
+    role: normalizeClinicUserRole(clinicUser.role, "clinic_staff"),
     sessionToken: token,
   };
 }
@@ -1503,6 +1528,16 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRoutePlans,
+      )
+    ) {
+      return reply;
+    }
+
     const parsed = buildGenerateHeuristicRoutePlanInput(
       request.body,
       auth.clinicId,
@@ -1554,6 +1589,16 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRoutePlans,
+      )
+    ) {
       return reply;
     }
 
@@ -1624,6 +1669,16 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRoutePlans,
+      )
+    ) {
+      return reply;
+    }
+
     const parsed = buildCreateRoutePlanInput(request.body, auth.clinicId);
 
     if (!parsed.input) {
@@ -1657,6 +1712,16 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRoutePlans,
+      )
+    ) {
       return reply;
     }
 
@@ -1700,6 +1765,16 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRoutePlans,
+      )
+    ) {
       return reply;
     }
 
@@ -1752,6 +1827,16 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRoutePlans,
+      )
+    ) {
       return reply;
     }
 
@@ -1809,6 +1894,16 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRoutePlans,
+      )
+    ) {
+      return reply;
+    }
+
     const routePlanId = parseEntityId(request.params.routePlanId);
 
     if (!routePlanId) {
@@ -1845,6 +1940,16 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRoutePlans,
+      )
+    ) {
       return reply;
     }
 
@@ -1902,6 +2007,16 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRoutePlans,
+      )
+    ) {
       return reply;
     }
 
@@ -1967,6 +2082,16 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRoutePlans,
+      )
+    ) {
       return reply;
     }
 

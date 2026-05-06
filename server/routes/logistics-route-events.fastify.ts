@@ -7,6 +7,7 @@ import type {
 import {
   ROUTE_EVENT_SOURCES,
   ROUTE_EVENT_TYPES,
+  type ClinicUserRole,
   type RouteEventSource,
   type RouteEventType,
 } from "../../drizzle/schema.ts";
@@ -16,6 +17,10 @@ import type {
   RouteEvent,
 } from "../db-logistics.ts";
 import { ENV } from "../lib/env.ts";
+import {
+  getClinicPermissions,
+  normalizeClinicUserRole,
+} from "../lib/permissions.ts";
 
 type ActiveSessionRecord = {
   clinicUserId: number;
@@ -28,6 +33,7 @@ type ClinicUserRecord = {
   clinicId: number;
   username: string;
   authProId?: string | null;
+  role?: ClinicUserRole | null;
 };
 
 type AuthenticatedClinicUser = {
@@ -35,6 +41,7 @@ type AuthenticatedClinicUser = {
   clinicId: number;
   username: string;
   authProId: string | null;
+  role: ClinicUserRole;
   sessionToken: string;
 };
 
@@ -237,6 +244,23 @@ function enforceTrustedOrigin(
   return false;
 }
 
+
+function enforceLogisticsPermission(
+  reply: FastifyReply,
+  allowed: boolean,
+): boolean {
+  if (allowed) {
+    return true;
+  }
+
+  reply.code(403).send({
+    success: false,
+    error: "Permisos insuficientes para logistica",
+  });
+
+  return false;
+}
+
 function parseCookies(cookieHeader: string | undefined): Record<string, string> {
   const result: Record<string, string> = {};
 
@@ -394,6 +418,7 @@ async function authenticateClinicUser(
     clinicId: clinicUser.clinicId,
     username: clinicUser.username,
     authProId: clinicUser.authProId ?? null,
+    role: normalizeClinicUserRole(clinicUser.role, "clinic_staff"),
     sessionToken: token,
   };
 }
@@ -829,6 +854,16 @@ export const logisticsRouteEventsNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRouteEvents,
+      )
+    ) {
+      return reply;
+    }
+
     const parsed = buildListRouteEventsParams(request.query, auth.clinicId);
 
     if (!parsed.params) {
@@ -863,6 +898,16 @@ export const logisticsRouteEventsNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRouteEvents,
+      )
+    ) {
       return reply;
     }
 
@@ -904,6 +949,16 @@ export const logisticsRouteEventsNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRouteEvents,
+      )
+    ) {
       return reply;
     }
 
@@ -976,6 +1031,16 @@ export const logisticsRouteEventsNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsRouteEvents,
+      )
+    ) {
       return reply;
     }
 

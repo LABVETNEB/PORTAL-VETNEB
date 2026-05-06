@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -274,6 +274,11 @@ test("requireAuth autentica owner y actualiza lastAccess", async () => {
     permissions: {
       canUploadReports: false,
       canManageClinicUsers: true,
+      canViewLogistics: true,
+      canManageLogisticsFieldVisits: true,
+      canManageLogisticsRoutePlans: true,
+      canManageLogisticsRouteEvents: true,
+      canViewLogisticsSla: true,
     },
     canUploadReports: false,
     canManageClinicUsers: true,
@@ -332,6 +337,11 @@ test("requireAuth normaliza role inválido a clinic_staff", async () => {
     permissions: {
       canUploadReports: false,
       canManageClinicUsers: false,
+      canViewLogistics: true,
+      canManageLogisticsFieldVisits: false,
+      canManageLogisticsRoutePlans: false,
+      canManageLogisticsRouteEvents: false,
+      canViewLogisticsSla: true,
     },
     canUploadReports: false,
     canManageClinicUsers: false,
