@@ -32,8 +32,6 @@ import {
   MOCK_DASHBOARD_STATS,
 } from "@/lib/mock-data";
 
-// ─── Configuración base ───────────────────────────────────────────────────────
-
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
@@ -67,8 +65,6 @@ async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
-// ─── Autenticación (endpoints confirmados en backend) ─────────────────────────
-
 export async function loginClinic(
   credentials: LoginCredentials,
 ): Promise<AuthUser> {
@@ -90,15 +86,6 @@ export async function logout(): Promise<void> {
   await apiFetch<void>("/api/auth/logout", { method: "POST" });
 }
 
-// ─── Informes ─────────────────────────────────────────────────────────────────
-
-/**
- * Obtener lista de informes de la clínica autenticada.
- * GET /api/reports
- *
- * Endpoint confirmado en backend. Acepta RequestInit para lectura server-side
- * dinámica con cookies reenviadas desde Next.
- */
 export async function getReports(options?: RequestInit): Promise<Report[]> {
   try {
     const res = await apiFetch<{ reports: Report[] }>("/api/reports", options);
@@ -109,13 +96,6 @@ export async function getReports(options?: RequestInit): Promise<Report[]> {
   }
 }
 
-/**
- * Buscar informes con filtros.
- * GET /api/reports/search
- *
- * Endpoint confirmado en backend. Acepta RequestInit para lectura server-side
- * dinámica con cookies reenviadas desde Next.
- */
 export async function searchReports(
   params: {
     query?: string;
@@ -154,8 +134,6 @@ export async function getReportDownloadUrl(
   }
 }
 
-// ─── Logística — Visitas de campo ─────────────────────────────────────────────
-
 export async function getLogisticsFieldVisits(
   options?: RequestInit,
 ): Promise<FieldVisit[]> {
@@ -170,8 +148,6 @@ export async function getLogisticsFieldVisits(
     return MOCK_FIELD_VISITS;
   }
 }
-
-// ─── Logística — Planes de ruta ───────────────────────────────────────────────
 
 export async function getRoutePlans(
   options?: RequestInit,
@@ -211,8 +187,6 @@ export async function getRoutePlanMetrics(
   return MOCK_ROUTE_METRICS;
 }
 
-// ─── Admin — Auditoría ────────────────────────────────────────────────────────
-
 export async function getAuditEntries(
   options?: RequestInit,
 ): Promise<AuditEntry[]> {
@@ -228,9 +202,28 @@ export async function getAuditEntries(
   }
 }
 
-// ─── Dashboard — Estadísticas resumen (@mock) ─────────────────────────────────
+export async function getDashboardStats(
+  options?: RequestInit,
+): Promise<DashboardStats> {
+  const [reports, visits, routePlans] = await Promise.all([
+    getReports(options),
+    getLogisticsFieldVisits(options),
+    getRoutePlans(options),
+  ]);
 
-export async function getDashboardStats(): Promise<DashboardStats> {
-  console.warn("[API] getDashboardStats: usando mock data");
+  return {
+    totalReports: reports.length,
+    pendingReports: reports.filter((report) => report.status !== "delivered")
+      .length,
+    activeVisits: visits.filter(
+      (visit) => visit.status === "scheduled" || visit.status === "in_progress",
+    ).length,
+    activePlans: routePlans.filter(
+      (plan) => plan.status === "released" || plan.status === "in_progress",
+    ).length,
+  };
+}
+
+export async function getFallbackDashboardStats(): Promise<DashboardStats> {
   return MOCK_DASHBOARD_STATS;
 }
