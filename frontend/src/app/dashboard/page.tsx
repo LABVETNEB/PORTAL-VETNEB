@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { StatsCards } from "@/components/dashboard/StatsCards";
@@ -6,37 +7,55 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
-import { MOCK_DASHBOARD_STATS, MOCK_REPORTS, MOCK_FIELD_VISITS } from "@/lib/mock-data";
-import { getReportStatusLabel, getReportStatusVariant, getFieldVisitStatusLabel, getFieldVisitStatusVariant, formatDate } from "@/lib/utils";
+import {
+  getDashboardStats,
+  getLogisticsFieldVisits,
+  getReports,
+} from "@/lib/api";
+import {
+  getReportStatusLabel,
+  getReportStatusVariant,
+  getFieldVisitStatusLabel,
+  getFieldVisitStatusVariant,
+  formatDate,
+} from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Dashboard — Portal VETNEB",
   robots: { index: false, follow: false },
 };
 
-export default function DashboardPage() {
-  const recentReports = MOCK_REPORTS.slice(0, 3);
-  const recentVisits = MOCK_FIELD_VISITS.slice(0, 3);
+async function getDashboardRequestOptions(): Promise<RequestInit> {
+  const cookieHeader = (await cookies()).toString();
+
+  return {
+    cache: "no-store",
+    headers: cookieHeader ? { Cookie: cookieHeader } : {},
+  };
+}
+
+export default async function DashboardPage() {
+  const requestOptions = await getDashboardRequestOptions();
+  const [stats, reports, visits] = await Promise.all([
+    getDashboardStats(requestOptions),
+    getReports(requestOptions),
+    getLogisticsFieldVisits(requestOptions),
+  ]);
+
+  const recentReports = reports.slice(0, 3);
+  const recentVisits = visits.slice(0, 3);
 
   return (
     <>
-      <DashboardTopbar
-        title="Dashboard"
-        subtitle="Resumen operativo"
-      />
+      <DashboardTopbar title="Dashboard" subtitle="Resumen operativo" />
       <main className="flex-1 p-6 space-y-6">
-        {/* Banner de desarrollo */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
-          <strong>Modo demo:</strong> Los datos mostrados son mock data. La
-          autenticación real se integrará en un próximo PR.
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
+          Lectura conectada a datos operativos del backend.
         </div>
 
-        {/* Stats */}
-        <StatsCards stats={MOCK_DASHBOARD_STATS} />
+        <StatsCards stats={stats} />
 
-        {/* Actividad reciente */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Informes recientes */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-4">
               <CardTitle className="text-base">Informes recientes</CardTitle>
@@ -58,7 +77,10 @@ export default function DashboardPage() {
                       {report.studyType} · {formatDate(report.uploadDate)}
                     </p>
                   </div>
-                  <Badge variant={getReportStatusVariant(report.status)} className="ml-2 shrink-0">
+                  <Badge
+                    variant={getReportStatusVariant(report.status)}
+                    className="ml-2 shrink-0"
+                  >
                     {getReportStatusLabel(report.status)}
                   </Badge>
                 </div>
@@ -66,7 +88,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Visitas recientes */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-4">
               <CardTitle className="text-base">Visitas de campo</CardTitle>
@@ -88,7 +109,10 @@ export default function DashboardPage() {
                       {formatDate(visit.scheduledAt)}
                     </p>
                   </div>
-                  <Badge variant={getFieldVisitStatusVariant(visit.status)} className="ml-2 shrink-0">
+                  <Badge
+                    variant={getFieldVisitStatusVariant(visit.status)}
+                    className="ml-2 shrink-0"
+                  >
                     {getFieldVisitStatusLabel(visit.status)}
                   </Badge>
                 </div>
@@ -97,7 +121,6 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Accesos rápidos */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Accesos rápidos</CardTitle>
@@ -106,8 +129,16 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
                 { label: "Informes", href: ROUTES.dashboardInformes, icon: "📋" },
-                { label: "Visitas", href: ROUTES.dashboardLogisticaVisitas, icon: "🚐" },
-                { label: "Rutas", href: ROUTES.dashboardLogisticaRutas, icon: "🗺️" },
+                {
+                  label: "Visitas",
+                  href: ROUTES.dashboardLogisticaVisitas,
+                  icon: "🚐",
+                },
+                {
+                  label: "Rutas",
+                  href: ROUTES.dashboardLogisticaRutas,
+                  icon: "🗺️",
+                },
                 { label: "Admin", href: ROUTES.dashboardAdmin, icon: "🔧" },
               ].map((item) => (
                 <Button
@@ -117,7 +148,9 @@ export default function DashboardPage() {
                   className="h-16 flex-col gap-1"
                 >
                   <Link href={item.href}>
-                    <span className="text-xl" aria-hidden="true">{item.icon}</span>
+                    <span className="text-xl" aria-hidden="true">
+                      {item.icon}
+                    </span>
                     <span className="text-xs">{item.label}</span>
                   </Link>
                 </Button>
