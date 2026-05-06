@@ -211,11 +211,34 @@ test("auth login rate limits keep separate in-memory stores per auth domain", ()
       'from "../lib/login-rate-limit.ts"',
       `${file} login rate limit import`,
     );
-    assertContains(
-      source,
-      "const loginFailures = new Map<string, { count: number; resetAt: number }>();",
-      `${file} login store`,
-    );
+    if (file === "server/routes/auth.fastify.ts") {
+      assertContains(
+        source,
+        "loginRateLimitStore?: RateLimitStore;",
+        `${file} injectable login rate limit store option`,
+      );
+      assertContains(
+        source,
+        "options.loginRateLimitStore ?? createMemoryRateLimitStore();",
+        `${file} memory fallback login rate limit store`,
+      );
+      assertContains(
+        source,
+        "await getOrCreateRateLimitEntry(",
+        `${file} login rate limit store read`,
+      );
+      assertContains(
+        source,
+        "await incrementRateLimitEntry(",
+        `${file} login rate limit store increment`,
+      );
+    } else {
+      assertContains(
+        source,
+        "const loginFailures = new Map<string, { count: number; resetAt: number }>();",
+        `${file} login store`,
+      );
+    }
     assertContains(
       source,
       "options.loginRateLimitWindowMs ?? LOGIN_RATE_LIMIT_WINDOW_MS",

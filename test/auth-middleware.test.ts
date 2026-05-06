@@ -1,4 +1,5 @@
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -379,4 +380,16 @@ test("requireAuth propaga errores inesperados a next", async () => {
   assert.equal(res.statusCode, 200);
   assert.equal(res.jsonPayload, undefined);
   assert.deepEqual(nextCalls, [expectedError]);
+});
+
+test("clinic auth route exposes injectable login rate limit store contract", async () => {
+  const source = readFileSync(
+    new URL("../server/routes/auth.fastify.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /loginRateLimitStore\?: RateLimitStore/);
+  assert.match(source, /options\.loginRateLimitStore \?\? createMemoryRateLimitStore\(\)/);
+  assert.match(source, /await getOrCreateRateLimitEntry\(/);
+  assert.match(source, /await incrementRateLimitEntry\(/);
 });

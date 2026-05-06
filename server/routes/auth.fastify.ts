@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   FastifyPluginAsync,
   FastifyReply,
   FastifyRequest,
@@ -11,6 +11,12 @@ import {
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
 } from "../lib/login-rate-limit.ts";
+import {
+  createMemoryRateLimitStore,
+  getOrCreateRateLimitEntry,
+  incrementRateLimitEntry,
+  type RateLimitStore,
+} from "../lib/rate-limit-store.ts";
 import {
   getClinicPermissions,
   normalizeClinicUserRole,
@@ -104,6 +110,7 @@ export type AuthNativeRoutesOptions = {
   writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
   loginRateLimitWindowMs?: number;
   loginRateLimitMaxAttempts?: number;
+  loginRateLimitStore?: RateLimitStore;
   now?: () => number;
 };
 
@@ -403,25 +410,6 @@ function setLoginRateLimitHeaders(
   );
 }
 
-function getFailureEntry(
-  failures: Map<string, { count: number; resetAt: number }>,
-  key: string,
-  windowMs: number,
-  now: number,
-) {
-  const current = failures.get(key);
-
-  if (!current || current.resetAt <= now) {
-    const fresh = {
-      count: 0,
-      resetAt: now + windowMs,
-    };
-    failures.set(key, fresh);
-    return fresh;
-  }
-
-  return current;
-}
 
 function createAuditRequestLike(
   request: FastifyRequest,
@@ -554,7 +542,8 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
   const loginRateLimitMaxAttempts =
     options.loginRateLimitMaxAttempts ?? LOGIN_RATE_LIMIT_MAX_ATTEMPTS;
   const allowedOrigins = new Set(getAllowedOrigins());
-  const loginFailures = new Map<string, { count: number; resetAt: number }>();
+  const loginRateLimitStore =
+    options.loginRateLimitStore ?? createMemoryRateLimitStore();
 
   app.addHook("onRequest", async (request, reply) => {
     (request as AuthFastifyRequest)[REQUEST_START_TIME_KEY] =
@@ -623,8 +612,8 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
 
     const rateLimitKey = request.ip || "unknown";
     const currentTime = now();
-    const failureEntry = getFailureEntry(
-      loginFailures,
+    const failureEntry = await getOrCreateRateLimitEntry(
+      loginRateLimitStore,
       rateLimitKey,
       loginRateLimitWindowMs,
       currentTime,
@@ -645,8 +634,15 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const markFailure = () => {
-      failureEntry.count += 1;
+    const markFailure = async () => {
+      const updatedEntry = await incrementRateLimitEntry(
+        loginRateLimitStore,
+        rateLimitKey,
+        failureEntry,
+      );
+
+      failureEntry.count = updatedEntry.count;
+      failureEntry.resetAt = updatedEntry.resetAt;
 
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
@@ -675,7 +671,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       typeof request.body?.password === "string" ? request.body.password : "";
 
     if (!username || !password) {
-      markFailure();
+      await markFailure();
 
       return reply.code(400).send({
         success: false,
@@ -686,7 +682,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
     const clinicUser = await deps.getClinicUserByUsername(username);
 
     if (!clinicUser) {
-      markFailure();
+      await markFailure();
 
       return reply.code(401).send({
         success: false,
@@ -700,7 +696,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
     );
 
     if (!passwordCheck.valid) {
-      markFailure();
+      await markFailure();
 
       return reply.code(401).send({
         success: false,
