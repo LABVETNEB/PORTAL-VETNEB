@@ -94,6 +94,27 @@ test("SLA breach runtime defaults cutoff and breach time to injected now", async
   ]);
 });
 
+test("SLA breach runtime rejects invalid injected now before DB writes", async () => {
+  let writes = 0;
+
+  await assert.rejects(async () => {
+    await markOverdueSlaBreaches(
+      {
+        clinicId: 1,
+      },
+      {
+        now: () => new Date("invalid"),
+        markOverdueActiveClinicSlaInstancesBreached: async () => {
+          writes += 1;
+          return [];
+        },
+      },
+    );
+  }, /now invalido/);
+
+  assert.equal(writes, 0);
+});
+
 test("SLA breach runtime rejects invalid clinic ids and invalid dates before DB writes", async () => {
   let writes = 0;
 
