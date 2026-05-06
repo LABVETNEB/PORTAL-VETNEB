@@ -24,6 +24,11 @@ export function normalizeClinicUserRole(
 export type ClinicPermissions = {
   canUploadReports: boolean;
   canManageClinicUsers: boolean;
+  canViewLogistics: boolean;
+  canManageLogisticsFieldVisits: boolean;
+  canManageLogisticsRoutePlans: boolean;
+  canManageLogisticsRouteEvents: boolean;
+  canViewLogisticsSla: boolean;
 };
 
 export function getClinicPermissions(role: ClinicUserRole): ClinicPermissions {
@@ -32,12 +37,22 @@ export function getClinicPermissions(role: ClinicUserRole): ClinicPermissions {
       return {
         canUploadReports: false,
         canManageClinicUsers: true,
+        canViewLogistics: true,
+        canManageLogisticsFieldVisits: true,
+        canManageLogisticsRoutePlans: true,
+        canManageLogisticsRouteEvents: true,
+        canViewLogisticsSla: true,
       };
     case "clinic_staff":
     default:
       return {
         canUploadReports: false,
         canManageClinicUsers: false,
+        canViewLogistics: true,
+        canManageLogisticsFieldVisits: false,
+        canManageLogisticsRoutePlans: false,
+        canManageLogisticsRouteEvents: false,
+        canViewLogisticsSla: true,
       };
   }
 }

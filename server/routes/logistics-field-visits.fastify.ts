@@ -8,6 +8,7 @@ import {
   FIELD_VISIT_SOURCE_TYPES,
   FIELD_VISIT_STATUSES,
   VISIT_LOCATION_GEO_QUALITIES,
+  type ClinicUserRole,
   type FieldVisitSourceType,
   type FieldVisitStatus,
   type VisitLocationGeoQuality,
@@ -23,6 +24,10 @@ import type {
   VisitLocation,
 } from "../db-logistics.ts";
 import { ENV } from "../lib/env.ts";
+import {
+  getClinicPermissions,
+  normalizeClinicUserRole,
+} from "../lib/permissions.ts";
 
 type ActiveSessionRecord = {
   clinicUserId: number;
@@ -35,6 +40,7 @@ type ClinicUserRecord = {
   clinicId: number;
   username: string;
   authProId?: string | null;
+  role?: ClinicUserRole | null;
 };
 
 type AuthenticatedClinicUser = {
@@ -42,6 +48,7 @@ type AuthenticatedClinicUser = {
   clinicId: number;
   username: string;
   authProId: string | null;
+  role: ClinicUserRole;
   sessionToken: string;
 };
 
@@ -262,6 +269,23 @@ function enforceTrustedOrigin(
   return false;
 }
 
+
+function enforceLogisticsPermission(
+  reply: FastifyReply,
+  allowed: boolean,
+): boolean {
+  if (allowed) {
+    return true;
+  }
+
+  reply.code(403).send({
+    success: false,
+    error: "Permisos insuficientes para logistica",
+  });
+
+  return false;
+}
+
 function parseCookies(cookieHeader: string | undefined): Record<string, string> {
   const result: Record<string, string> = {};
 
@@ -419,6 +443,7 @@ async function authenticateClinicUser(
     clinicId: clinicUser.clinicId,
     username: clinicUser.username,
     authProId: clinicUser.authProId ?? null,
+    role: normalizeClinicUserRole(clinicUser.role, "clinic_staff"),
     sessionToken: token,
   };
 }
@@ -1113,6 +1138,16 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsFieldVisits,
+      )
+    ) {
+      return reply;
+    }
+
     const status = parseFieldVisitStatus(request.query.status);
 
     if (status.error) {
@@ -1172,6 +1207,16 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsFieldVisits,
+      )
+    ) {
+      return reply;
+    }
+
     const parsed = buildCreateFieldVisitInput(request.body, auth.clinicId);
 
     if (!parsed.input) {
@@ -1210,6 +1255,16 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsFieldVisits,
+      )
+    ) {
       return reply;
     }
 
@@ -1262,6 +1317,16 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsFieldVisits,
+      )
+    ) {
+      return reply;
+    }
+
     const fieldVisitId = parseEntityId(request.params.fieldVisitId);
 
     if (!fieldVisitId) {
@@ -1302,6 +1367,16 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsFieldVisits,
+      )
+    ) {
       return reply;
     }
 
@@ -1355,6 +1430,16 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsFieldVisits,
+      )
+    ) {
+      return reply;
+    }
+
     const fieldVisitId = parseEntityId(request.params.fieldVisitId);
 
     if (!fieldVisitId) {
@@ -1391,6 +1476,16 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
     const auth = await authenticateClinicUser(request, reply, deps, now);
 
     if (!auth) {
+      return reply;
+    }
+
+    if (
+      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+      !enforceLogisticsPermission(
+        reply,
+        getClinicPermissions(auth.role).canManageLogisticsFieldVisits,
+      )
+    ) {
       return reply;
     }
 

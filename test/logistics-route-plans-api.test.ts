@@ -199,3 +199,11 @@ test("logistics route plans API validates route compliance metrics tolerances", 
   assert.match(routeSource, /parseOptionalPositiveNumberField\(\s*query\.timeToleranceMin/);
   assert.match(routeSource, /parseOptionalPositiveNumberField\(\s*query\.toleranceMin/);
 });
+
+test("logistics route plans API enforces role-aware logistics route plan permissions", () => {
+  assert.match(routeSource, /type ClinicUserRole/);
+  assert.match(routeSource, /normalizeClinicUserRole\(clinicUser\.role, "clinic_staff"\)/);
+  assert.match(routeSource, /getClinicPermissions\(auth\.role\)\.canManageLogisticsRoutePlans/);
+  assert.match(routeSource, /UNSAFE_METHODS\.has\(request\.method\.toUpperCase\(\)\)/);
+  assert.match(routeSource, /Permisos insuficientes para logistica/);
+});

@@ -93,3 +93,11 @@ test("logistics route events API keeps event writes behind trusted-origin checks
   assert.match(routeSource, /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)/);
   assert.match(routeSource, /Origen no permitido/);
 });
+
+test("logistics route events API enforces role-aware logistics route event permissions", () => {
+  assert.match(routeSource, /type ClinicUserRole/);
+  assert.match(routeSource, /normalizeClinicUserRole\(clinicUser\.role, "clinic_staff"\)/);
+  assert.match(routeSource, /getClinicPermissions\(auth\.role\)\.canManageLogisticsRouteEvents/);
+  assert.match(routeSource, /UNSAFE_METHODS\.has\(request\.method\.toUpperCase\(\)\)/);
+  assert.match(routeSource, /Permisos insuficientes para logistica/);
+});

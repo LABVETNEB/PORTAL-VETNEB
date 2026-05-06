@@ -92,6 +92,7 @@ async function buildRoutePlansRuntimeApp(input?: {
             id: 9,
             clinicId: 7,
             username: "clinic-user",
+            role: "clinic_owner",
             authProId: null,
           }
         : null,

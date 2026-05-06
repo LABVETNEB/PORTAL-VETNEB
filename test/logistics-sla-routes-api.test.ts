@@ -72,3 +72,10 @@ test("logistics SLA API validates overdue route filters before DB reads", () => 
   assert.match(routeSource, /parseSlaTargetType\(query\.targetType\)/);
   assert.match(routeSource, /dueAtOrBefore: dueAtOrBefore\.value \?\? new Date\(now\(\)\)/);
 });
+
+test("logistics SLA API enforces role-aware logistics SLA read permissions", () => {
+  assert.match(routeSource, /type ClinicUserRole/);
+  assert.match(routeSource, /normalizeClinicUserRole\(clinicUser\.role, "clinic_staff"\)/);
+  assert.match(routeSource, /getClinicPermissions\(auth\.role\)\.canViewLogisticsSla/);
+  assert.match(routeSource, /Permisos insuficientes para logistica/);
+});
