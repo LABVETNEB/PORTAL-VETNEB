@@ -207,6 +207,13 @@ export type ListOverdueActiveClinicSlaInstancesParams = {
   offset?: number;
 };
 
+export type MarkOverdueActiveClinicSlaInstancesBreachedParams = {
+  clinicId: number;
+  dueAtOrBefore: Date;
+  breachedAt: Date;
+  targetType?: SlaTargetType;
+};
+
 export type GenerateHeuristicRoutePlanInput = {
   clinicId: number;
   serviceDate: Date;
@@ -1236,6 +1243,30 @@ export async function getClinicSlaSummary(
   }
 
   return summary;
+}
+
+export async function markOverdueActiveClinicSlaInstancesBreached(
+  params: MarkOverdueActiveClinicSlaInstancesBreachedParams,
+): Promise<SlaInstance[]> {
+  const filters = [
+    eq(slaInstances.clinicId, params.clinicId),
+    eq(slaInstances.status, "active"),
+    lte(slaInstances.dueAt, params.dueAtOrBefore),
+  ];
+
+  if (params.targetType) {
+    filters.push(eq(slaInstances.targetType, params.targetType));
+  }
+
+  return db
+    .update(slaInstances)
+    .set({
+      status: "breached",
+      breachedAt: params.breachedAt,
+      updatedAt: params.breachedAt,
+    })
+    .where(and(...filters))
+    .returning();
 }
 
 export async function listOverdueActiveClinicSlaInstances(
