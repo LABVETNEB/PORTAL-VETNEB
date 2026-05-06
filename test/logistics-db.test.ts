@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -187,4 +187,23 @@ test("logistics DB SLA reads stay clinic scoped, active and paginated", () => {
   assert.ok(dbLogisticsSource.includes("normalizeLogisticsLimit(params.limit)"));
   assert.ok(dbLogisticsSource.includes("normalizeLogisticsOffset(params.offset)"));
   assert.ok(dbLogisticsSource.includes("orderBy(asc(slaInstances.dueAt), asc(slaInstances.id))"));
+});
+
+test("logistics DB helpers expose tenant-scoped SLA summary helper", () => {
+  assert.ok(dbLogisticsSource.includes("export type ClinicSlaSummary = {"));
+  assert.ok(dbLogisticsSource.includes("export async function getClinicSlaSummary"));
+  assert.ok(dbLogisticsSource.includes("eq(slaInstances.clinicId, clinicId)"));
+  assert.ok(dbLogisticsSource.includes("groupBy(slaInstances.status)"));
+  assert.ok(dbLogisticsSource.includes("sql<number>\`cast(count(*) as int)\`"));
+});
+
+test("logistics DB SLA summary returns all known status buckets", () => {
+  assert.ok(dbLogisticsSource.includes("total: 0"));
+  assert.ok(dbLogisticsSource.includes("active: 0"));
+  assert.ok(dbLogisticsSource.includes("paused: 0"));
+  assert.ok(dbLogisticsSource.includes("breached: 0"));
+  assert.ok(dbLogisticsSource.includes("resolved: 0"));
+  assert.ok(dbLogisticsSource.includes("canceled: 0"));
+  assert.ok(dbLogisticsSource.includes("summary.total += count"));
+  assert.ok(dbLogisticsSource.includes("summary[row.status] = count"));
 });
