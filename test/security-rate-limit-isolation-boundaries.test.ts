@@ -288,8 +288,18 @@ test("public professionals search and detail keep independent fixed-window store
   );
   assertContains(
     source,
-    "const entries = new Map<string, { count: number; resetAt: number }>();",
-    "public professionals fixed window store",
+    "searchRateLimitStore?: RateLimitStore;",
+    "public professionals search injectable store option",
+  );
+  assertContains(
+    source,
+    "detailRateLimitStore?: RateLimitStore;",
+    "public professionals detail injectable store option",
+  );
+  assertContains(
+    source,
+    "config.store ?? createMemoryRateLimitStore();",
+    "public professionals memory fallback store",
   );
   assertContainsInOrder(
     source,
@@ -298,10 +308,12 @@ test("public professionals search and detail keep independent fixed-window store
       "PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_WINDOW_MS",
       "PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_MAX_ATTEMPTS",
       "PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_ERROR_MESSAGE",
+      "store: options.searchRateLimitStore",
       "const detailRateLimit = createFixedWindowRateLimit({",
       "PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_WINDOW_MS",
       "PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_MAX_ATTEMPTS",
       "PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_ERROR_MESSAGE",
+      "store: options.detailRateLimitStore",
     ],
     "public professionals separate limiter setup",
   );
