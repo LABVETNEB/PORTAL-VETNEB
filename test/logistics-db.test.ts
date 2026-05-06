@@ -207,3 +207,18 @@ test("logistics DB SLA summary returns all known status buckets", () => {
   assert.ok(dbLogisticsSource.includes("summary.total += count"));
   assert.ok(dbLogisticsSource.includes("summary[row.status] = count"));
 });
+
+test("logistics DB helpers expose overdue active SLA instance reads", () => {
+  assert.ok(dbLogisticsSource.includes("export type ListOverdueActiveClinicSlaInstancesParams"));
+  assert.ok(dbLogisticsSource.includes("export async function listOverdueActiveClinicSlaInstances"));
+  assert.ok(dbLogisticsSource.includes("eq(slaInstances.clinicId, params.clinicId)"));
+  assert.ok(dbLogisticsSource.includes("eq(slaInstances.status, \"active\")"));
+  assert.ok(dbLogisticsSource.includes("lte(slaInstances.dueAt, params.dueAtOrBefore)"));
+});
+
+test("logistics DB overdue SLA reads stay paginated, deterministic and optionally target-scoped", () => {
+  assert.ok(dbLogisticsSource.includes("normalizeLogisticsLimit(params.limit)"));
+  assert.ok(dbLogisticsSource.includes("normalizeLogisticsOffset(params.offset)"));
+  assert.ok(dbLogisticsSource.includes("eq(slaInstances.targetType, params.targetType)"));
+  assert.ok(dbLogisticsSource.includes("orderBy(asc(slaInstances.dueAt), asc(slaInstances.id))"));
+});
