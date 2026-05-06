@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, or, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   fieldVisits,
@@ -187,6 +187,16 @@ export type ListClinicSlaInstancesParams = {
   targetId?: number;
   limit?: number;
   offset?: number;
+};
+
+export type ClinicSlaSummary = {
+  clinicId: number;
+  total: number;
+  active: number;
+  paused: number;
+  breached: number;
+  resolved: number;
+  canceled: number;
 };
 
 export type GenerateHeuristicRoutePlanInput = {
@@ -1186,6 +1196,38 @@ export async function listActiveClinicSlaPolicies(
     .orderBy(asc(slaPolicies.targetType), asc(slaPolicies.scope), desc(slaPolicies.id))
     .limit(limit)
     .offset(offset);
+}
+
+export async function getClinicSlaSummary(
+  clinicId: number,
+): Promise<ClinicSlaSummary> {
+  const rows = await db
+    .select({
+      status: slaInstances.status,
+      count: sql<number>`cast(count(*) as int)`,
+    })
+    .from(slaInstances)
+    .where(eq(slaInstances.clinicId, clinicId))
+    .groupBy(slaInstances.status);
+
+  const summary: ClinicSlaSummary = {
+    clinicId,
+    total: 0,
+    active: 0,
+    paused: 0,
+    breached: 0,
+    resolved: 0,
+    canceled: 0,
+  };
+
+  for (const row of rows) {
+    const count = Number(row.count) || 0;
+
+    summary.total += count;
+    summary[row.status] = count;
+  }
+
+  return summary;
 }
 
 export async function listClinicSlaInstances(
