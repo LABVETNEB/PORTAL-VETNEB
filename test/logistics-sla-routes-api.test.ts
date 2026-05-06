@@ -13,10 +13,12 @@ const appSource = readFileSync(
   "utf8",
 );
 
-test("logistics SLA API exposes read-only policy and instance endpoints", () => {
+test("logistics SLA API exposes read-only policy, instance and summary endpoints", () => {
   assert.match(routeSource, /export const logisticsSlaNativeRoutes/);
+  assert.match(routeSource, /app\.get\("\/summary", async/);
   assert.match(routeSource, /app\.get<[\s\S]*>\("\/policies", async/);
   assert.match(routeSource, /app\.get<[\s\S]*>\("\/instances", async/);
+  assert.match(routeSource, /app\.options\("\/summary", optionsHandler\)/);
   assert.match(routeSource, /app\.options\("\/policies", optionsHandler\)/);
   assert.match(routeSource, /app\.options\("\/instances", optionsHandler\)/);
   assert.match(routeSource, /GET,OPTIONS/);
@@ -25,15 +27,19 @@ test("logistics SLA API exposes read-only policy and instance endpoints", () => 
 test("logistics SLA API wires DB helpers through injectable deps", () => {
   assert.match(routeSource, /listActiveClinicSlaPolicies\?:/);
   assert.match(routeSource, /listClinicSlaInstances\?:/);
+  assert.match(routeSource, /getClinicSlaSummary\?:/);
   assert.match(routeSource, /dbLogistics\.listActiveClinicSlaPolicies/);
   assert.match(routeSource, /dbLogistics\.listClinicSlaInstances/);
+  assert.match(routeSource, /dbLogistics\.getClinicSlaSummary/);
   assert.match(routeSource, /deps\.listActiveClinicSlaPolicies\(parsed\.params\)/);
   assert.match(routeSource, /deps\.listClinicSlaInstances\(parsed\.params\)/);
+  assert.match(routeSource, /deps\.getClinicSlaSummary\(auth\.clinicId\)/);
 });
 
 test("logistics SLA API keeps reads clinic scoped and paginated", () => {
   assert.match(routeSource, /buildListSlaPoliciesParams\(request\.query, auth\.clinicId\)/);
   assert.match(routeSource, /buildListSlaInstancesParams\(request\.query, auth\.clinicId\)/);
+  assert.match(routeSource, /getClinicSlaSummary\(auth\.clinicId\)/);
   assert.match(routeSource, /clinicId,/);
   assert.match(routeSource, /parsePositiveInt\(query\.limit, 50, 100\)/);
   assert.match(routeSource, /parseOffset\(query\.offset\)/);

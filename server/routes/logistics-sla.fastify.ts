@@ -11,6 +11,7 @@ import {
   type SlaTargetType,
 } from "../../drizzle/schema.ts";
 import type {
+  ClinicSlaSummary,
   ListActiveClinicSlaPoliciesParams,
   ListClinicSlaInstancesParams,
   SlaInstance,
@@ -55,6 +56,7 @@ export type LogisticsSlaNativeRoutesOptions = {
   listClinicSlaInstances?: (
     params: ListClinicSlaInstancesParams,
   ) => Promise<SlaInstance[]>;
+  getClinicSlaSummary?: (clinicId: number) => Promise<ClinicSlaSummary>;
   now?: () => number;
 };
 
@@ -68,6 +70,7 @@ type NativeLogisticsSlaDeps = Required<
     | "hashSessionToken"
     | "listActiveClinicSlaPolicies"
     | "listClinicSlaInstances"
+    | "getClinicSlaSummary"
   >
 >;
 
@@ -90,6 +93,7 @@ async function loadDefaultDeps(): Promise<NativeLogisticsSlaDeps> {
         hashSessionToken: authSecurity.hashSessionToken,
         listActiveClinicSlaPolicies: dbLogistics.listActiveClinicSlaPolicies,
         listClinicSlaInstances: dbLogistics.listClinicSlaInstances,
+        getClinicSlaSummary: dbLogistics.getClinicSlaSummary,
       };
     })();
   }
@@ -545,7 +549,8 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
     !!options.updateSessionLastAccess &&
     !!options.hashSessionToken &&
     !!options.listActiveClinicSlaPolicies &&
-    !!options.listClinicSlaInstances;
+    !!options.listClinicSlaInstances &&
+    !!options.getClinicSlaSummary;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -565,6 +570,8 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
       defaultDeps!.listActiveClinicSlaPolicies,
     listClinicSlaInstances:
       options.listClinicSlaInstances ?? defaultDeps!.listClinicSlaInstances,
+    getClinicSlaSummary:
+      options.getClinicSlaSummary ?? defaultDeps!.getClinicSlaSummary,
   };
 
   const now = options.now ?? (() => Date.now());
@@ -602,6 +609,22 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
 
   app.options("/policies", optionsHandler);
   app.options("/instances", optionsHandler);
+  app.options("/summary", optionsHandler);
+
+  app.get("/summary", async (request, reply) => {
+    const auth = await authenticateClinicUser(request, reply, deps, now);
+
+    if (!auth) {
+      return reply;
+    }
+
+    const summary = await deps.getClinicSlaSummary(auth.clinicId);
+
+    return reply.code(200).send({
+      success: true,
+      summary,
+    });
+  });
 
   app.get<{
     Querystring: {
