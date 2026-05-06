@@ -1,11 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   markOverdueSlaBreaches,
   markOverdueSlaBreachesWithDb,
   type MarkOverdueSlaBreachesDeps,
 } from "../server/lib/logistics/sla-breach.ts";
+
+const slaBreachSource = readFileSync(
+  new URL("../server/lib/logistics/sla-breach.ts", import.meta.url),
+  "utf8",
+);
 
 function createSlaInstanceFixture() {
   return {
@@ -154,6 +160,16 @@ test("SLA breach runtime rejects invalid clinic ids and invalid dates before DB 
   assert.equal(writes, 0);
 });
 
-test("SLA breach runtime exposes DB-wired entrypoint", () => {
+test("SLA breach runtime DB-wired entrypoint imports DB helper lazily and delegates through runtime service", () => {
   assert.equal(typeof markOverdueSlaBreachesWithDb, "function");
+
+  assert.match(
+    slaBreachSource,
+    /const\s+\{\s*markOverdueActiveClinicSlaInstancesBreached\s*\}\s*=\s*await\s+import\(\s*"\.\.\/\.\.\/db-logistics\.ts"\s*\)/,
+  );
+
+  assert.match(
+    slaBreachSource,
+    /return\s+markOverdueSlaBreaches\(\s*input,\s*\{\s*markOverdueActiveClinicSlaInstancesBreached,\s*now:\s*options\.now,\s*\}\s*\)/,
+  );
 });
