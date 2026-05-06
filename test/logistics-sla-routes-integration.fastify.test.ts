@@ -71,7 +71,9 @@ function createCookie() {
   return `${ENV.cookieName}=session-token`;
 }
 
-async function createIntegrationApp() {
+async function createIntegrationApp(options: {
+  sessionLastAccess?: Date;
+} = {}) {
   const app = Fastify();
   const policyCalls: SlaPolicyCall[] = [];
   const instanceCalls: SlaInstanceCall[] = [];
@@ -100,7 +102,7 @@ async function createIntegrationApp() {
       return {
         clinicUserId: 9,
         expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-        lastAccess: new Date("2026-05-04T23:00:00.000Z"),
+        lastAccess: options.sessionLastAccess ?? new Date("2026-05-04T23:00:00.000Z"),
       };
     },
     getClinicUserById: async (clinicUserId: number) => {
@@ -646,6 +648,33 @@ test("logistics SLA integration returns clinic-scoped summary", async () => {
     });
 
     assert.deepEqual(summaryCalls, [3]);
+  } finally {
+    await app.close();
+  }
+});
+
+test("logistics SLA integration does not refresh recent session lastAccess", async () => {
+  const { app, summaryCalls, updatedSessionHashes } = await createIntegrationApp({
+    sessionLastAccess: new Date("2026-05-04T23:55:00.000Z"),
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/logistics/sla/summary",
+      headers: {
+        cookie: createCookie(),
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.success, true);
+    assert.equal(body.summary.clinicId, 3);
+
+    assert.deepEqual(summaryCalls, [3]);
+    assert.deepEqual(updatedSessionHashes, []);
   } finally {
     await app.close();
   }
