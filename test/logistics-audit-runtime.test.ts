@@ -461,3 +461,155 @@ test("logistics route events runtime isolates audit writer failures", async () =
     await app.close();
   }
 });
+test("logistics route plan lifecycle runtime passes request context to audit writer", async () => {
+  const app = Fastify();
+  let auditRequest: unknown;
+  let auditInput: unknown;
+
+  await app.register(logisticsRoutePlansNativeRoutes, {
+    prefix: "/api/logistics/route-plans",
+    ...sharedAuthDeps(),
+    createRoutePlan: async () => null,
+    getClinicScopedRoutePlan: async () => null,
+    listClinicRoutePlans: async () => [],
+    updateClinicScopedRoutePlan: async () => null,
+    createRouteStopForClinicRoutePlan: async () => null,
+    listRouteStopsForClinicRoutePlan: async () => [],
+    updateClinicScopedRouteStop: async () => null,
+    transitionClinicScopedRoutePlanStatus: async (routePlanId, clinicId) => ({
+      routePlan: buildRoutePlan({
+        id: routePlanId,
+        clinicId,
+        status: "released",
+      }),
+    }),
+    generateHeuristicRoutePlan: async (
+      _input: GenerateHeuristicRoutePlanInput,
+    ): Promise<GenerateHeuristicRoutePlanResult> => ({
+      reason: "no_visits",
+    }),
+    writeAuditLog: async (requestLike, input) => {
+      auditRequest = requestLike;
+      auditInput = input;
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/logistics/route-plans/501/release",
+      headers: {
+        cookie: SESSION_COOKIE,
+        origin: VALID_ORIGIN,
+        "user-agent": "vetneb-runtime-test/1.0",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const requestContext = asRecord(auditRequest);
+    const headers = asRecord(requestContext.headers);
+    const auth = asRecord(requestContext.auth);
+    const input = asRecord(auditInput);
+    const metadata = asRecord(input.metadata);
+
+    assert.equal(requestContext.method, "POST");
+    assert.equal(requestContext.originalUrl, "/api/logistics/route-plans/501/release");
+    assert.equal(headers.origin, VALID_ORIGIN);
+    assert.equal(headers["user-agent"], "vetneb-runtime-test/1.0");
+
+    assert.equal(auth.id, 9);
+    assert.equal(auth.clinicId, 7);
+    assert.equal(auth.username, "clinic-user");
+    assert.equal(auth.role, "clinic_owner");
+
+    assert.equal(input.event, "logistics.route_plan.lifecycle_changed");
+    assert.equal(input.clinicId, 7);
+    assert.equal(metadata.routePlanId, 501);
+    assert.equal(metadata.action, "release");
+    assert.equal(metadata.status, "released");
+  } finally {
+    await app.close();
+  }
+});
+
+test("logistics route events runtime passes request context to audit writer", async () => {
+  const app = Fastify();
+  let auditRequest: unknown;
+  let auditInput: unknown;
+
+  await app.register(logisticsRouteEventsNativeRoutes, {
+    prefix: "/api/logistics/route-events",
+    ...sharedAuthDeps(),
+    createRouteEvent: async (input) =>
+      buildRouteEvent({
+        clinicId: input.clinicId,
+        routePlanId: input.routePlanId ?? null,
+        routeStopId: input.routeStopId ?? null,
+        eventType: input.eventType,
+        eventTime: input.eventTime ?? new Date("2026-05-05T13:00:00.000Z"),
+        payload: input.payload ?? null,
+        lat: input.lat ?? null,
+        lng: input.lng ?? null,
+        source: input.source ?? "system",
+      }),
+    listClinicRouteEvents: async () => [],
+    listRouteEventsForClinicRoutePlan: async () => [],
+    listIncrementalClinicRouteEvents: async () => [],
+    writeAuditLog: async (requestLike, input) => {
+      auditRequest = requestLike;
+      auditInput = input;
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/logistics/route-events/",
+      headers: {
+        cookie: SESSION_COOKIE,
+        origin: VALID_ORIGIN,
+        "content-type": "application/json",
+        "user-agent": "vetneb-runtime-test/1.0",
+      },
+      payload: JSON.stringify({
+        routePlanId: 501,
+        routeStopId: 701,
+        eventType: "route.released",
+        eventTime: "2026-05-05T13:00:00.000Z",
+        payload: {
+          note: "released by clinic",
+        },
+        source: "clinic",
+      }),
+    });
+
+    assert.equal(response.statusCode, 201);
+
+    const requestContext = asRecord(auditRequest);
+    const headers = asRecord(requestContext.headers);
+    const auth = asRecord(requestContext.auth);
+    const input = asRecord(auditInput);
+    const metadata = asRecord(input.metadata);
+
+    assert.equal(requestContext.method, "POST");
+    assert.equal(requestContext.originalUrl, "/api/logistics/route-events/");
+    assert.equal(headers.origin, VALID_ORIGIN);
+    assert.equal(headers["user-agent"], "vetneb-runtime-test/1.0");
+
+    assert.equal(auth.id, 9);
+    assert.equal(auth.clinicId, 7);
+    assert.equal(auth.username, "clinic-user");
+    assert.equal(auth.role, "clinic_owner");
+
+    assert.equal(input.event, "logistics.route_event.created");
+    assert.equal(input.clinicId, 7);
+    assert.equal(metadata.routeEventId, 900);
+    assert.equal(metadata.routePlanId, 501);
+    assert.equal(metadata.routeStopId, 701);
+    assert.equal(metadata.eventType, "route.released");
+    assert.equal(metadata.source, "clinic");
+  } finally {
+    await app.close();
+  }
+});
