@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   FastifyPluginAsync,
   FastifyReply,
   FastifyRequest,
@@ -12,6 +12,12 @@ import {
   REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_MAX_ATTEMPTS,
   REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_WINDOW_MS,
 } from "../lib/report-access-token-rate-limit.ts";
+import {
+  createMemoryRateLimitStore,
+  getOrCreateRateLimitEntry,
+  incrementRateLimitEntry,
+  type RateLimitStore,
+} from "../lib/rate-limit-store.ts";
 import {
   adminCreateReportAccessTokenSchema,
   buildPublicReportAccessPath,
@@ -101,6 +107,7 @@ export type AdminReportAccessTokensNativeRoutesOptions = {
   writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
   mutationRateLimitWindowMs?: number;
   mutationRateLimitMaxAttempts?: number;
+  mutationRateLimitStore?: RateLimitStore;
   now?: () => number;
 };
 
@@ -398,25 +405,6 @@ function setMutationRateLimitHeaders(
   );
 }
 
-function getMutationEntry(
-  attempts: Map<string, { count: number; resetAt: number }>,
-  key: string,
-  windowMs: number,
-  now: number,
-) {
-  const current = attempts.get(key);
-
-  if (!current || current.resetAt <= now) {
-    const fresh = {
-      count: 0,
-      resetAt: now + windowMs,
-    };
-    attempts.set(key, fresh);
-    return fresh;
-  }
-
-  return current;
-}
 
 function shouldRefreshSessionLastAccess(
   lastAccess: Date | null | undefined,
@@ -565,7 +553,8 @@ export const adminReportAccessTokensNativeRoutes: FastifyPluginAsync<
     options.mutationRateLimitMaxAttempts ??
     REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_MAX_ATTEMPTS;
   const allowedOrigins = new Set(getAllowedOrigins());
-  const mutationAttempts = new Map<string, { count: number; resetAt: number }>();
+  const mutationRateLimitStore =
+    options.mutationRateLimitStore ?? createMemoryRateLimitStore();
 
   app.addHook("onRequest", async (request, reply) => {
     (request as AdminReportAccessTokensFastifyRequest)[REQUEST_START_TIME_KEY] =
@@ -625,14 +614,14 @@ export const adminReportAccessTokensNativeRoutes: FastifyPluginAsync<
   app.options("/:tokenId", optionsHandler);
   app.options("/:tokenId/revoke", optionsHandler);
 
-  const applyMutationRateLimit = (
+  const applyMutationRateLimit = async (
     request: FastifyRequest,
     reply: FastifyReply,
   ) => {
     const rateLimitKey = request.ip || "unknown";
     const currentTime = now();
-    const entry = getMutationEntry(
-      mutationAttempts,
+    const entry = await getOrCreateRateLimitEntry(
+      mutationRateLimitStore,
       rateLimitKey,
       mutationRateLimitWindowMs,
       currentTime,
@@ -655,7 +644,14 @@ export const adminReportAccessTokensNativeRoutes: FastifyPluginAsync<
       return null;
     }
 
-    entry.count += 1;
+    const updatedEntry = await incrementRateLimitEntry(
+      mutationRateLimitStore,
+      rateLimitKey,
+      entry,
+    );
+
+    entry.count = updatedEntry.count;
+    entry.resetAt = updatedEntry.resetAt;
 
     setMutationRateLimitHeaders(reply, {
       max: mutationRateLimitMaxAttempts,
@@ -679,7 +675,7 @@ export const adminReportAccessTokensNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    if (!applyMutationRateLimit(request, reply)) {
+    if (!(await applyMutationRateLimit(request, reply))) {
       return reply;
     }
 
@@ -846,7 +842,7 @@ export const adminReportAccessTokensNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    if (!applyMutationRateLimit(request, reply)) {
+    if (!(await applyMutationRateLimit(request, reply))) {
       return reply;
     }
 

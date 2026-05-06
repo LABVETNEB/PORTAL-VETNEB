@@ -405,12 +405,17 @@ test("report access token mutation rate limits cut off before auth and writes", 
     );
     assertContains(
       source,
-      "const mutationAttempts = new Map<string, { count: number; resetAt: number }>();",
-      `${scenario.file} mutation store`,
+      "mutationRateLimitStore?: RateLimitStore;",
+      `${scenario.file} injectable mutation store option`,
     );
     assertContains(
       source,
-      "const applyMutationRateLimit = (",
+      "options.mutationRateLimitStore ?? createMemoryRateLimitStore();",
+      `${scenario.file} memory fallback mutation store`,
+    );
+    assertContains(
+      source,
+      "const applyMutationRateLimit = async (",
       `${scenario.file} mutation limiter function`,
     );
     assertContainsInOrder(
@@ -421,14 +426,14 @@ test("report access token mutation rate limits cut off before auth and writes", 
         "reply.code(429).send({",
         "error: REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_ERROR_MESSAGE",
         "return null;",
-        "entry.count += 1;",
+        "const updatedEntry = await incrementRateLimitEntry(",
       ],
       `${scenario.file} mutation limiter cut-off`,
     );
     assertContainsInOrder(
       source,
       [
-        "if (!applyMutationRateLimit(request, reply)) {",
+        "if (!(await applyMutationRateLimit(request, reply))) {",
         "return reply;",
         scenario.authMarker,
       ],
@@ -437,7 +442,7 @@ test("report access token mutation rate limits cut off before auth and writes", 
     assertContainsInOrder(
       source,
       [
-        "if (!applyMutationRateLimit(request, reply)) {",
+        "if (!(await applyMutationRateLimit(request, reply))) {",
         scenario.authMarker,
         "await deps.writeAuditLog(",
       ],
