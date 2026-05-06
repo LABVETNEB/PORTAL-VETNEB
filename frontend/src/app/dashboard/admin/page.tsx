@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -9,8 +10,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { MOCK_AUDIT_ENTRIES } from "@/lib/mock-data";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { getAuditEntries } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -47,8 +54,18 @@ function getEventVariant(
   return "outline";
 }
 
-export default function AdminPage() {
-  const eventCounts = MOCK_AUDIT_ENTRIES.reduce(
+async function getAdminRequestOptions(): Promise<RequestInit> {
+  const cookieHeader = (await cookies()).toString();
+
+  return {
+    cache: "no-store",
+    headers: cookieHeader ? { Cookie: cookieHeader } : {},
+  };
+}
+
+export default async function AdminPage() {
+  const auditEntries = await getAuditEntries(await getAdminRequestOptions());
+  const eventCounts = auditEntries.reduce(
     (acc, entry) => {
       acc[entry.event] = (acc[entry.event] ?? 0) + 1;
       return acc;
@@ -63,12 +80,10 @@ export default function AdminPage() {
         subtitle="Auditoría, reportes y estado operacional"
       />
       <main className="flex-1 p-6 space-y-6">
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-xs text-amber-700">
-          <strong>Mock data:</strong> Se conectará con{" "}
-          <code>GET /api/admin/audit-log</code>.
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700">
+          Lectura conectada a <code>GET /api/admin/audit-log</code>.
         </div>
 
-        {/* Resumen de estado operacional */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="border-gray-100">
             <CardHeader className="pb-2">
@@ -78,7 +93,7 @@ export default function AdminPage() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-gray-900">
-                {MOCK_AUDIT_ENTRIES.length}
+                {auditEntries.length}
               </p>
               <p className="text-xs text-gray-400 mt-1">Registros totales</p>
             </CardContent>
@@ -116,7 +131,6 @@ export default function AdminPage() {
           </Card>
         </div>
 
-        {/* Resumen de eventos por tipo */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Resumen por tipo de evento</CardTitle>
@@ -143,11 +157,10 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
-        {/* Log de auditoría */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Log de auditoría ({MOCK_AUDIT_ENTRIES.length})
+              Log de auditoría ({auditEntries.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -163,7 +176,7 @@ export default function AdminPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {MOCK_AUDIT_ENTRIES.map((entry) => (
+                {auditEntries.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell className="font-mono text-xs text-gray-400">
                       #{entry.id}
