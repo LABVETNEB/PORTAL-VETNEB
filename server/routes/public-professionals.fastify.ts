@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   FastifyPluginAsync,
   FastifyReply,
   FastifyRequest,
@@ -13,6 +13,12 @@ import {
   PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_MAX_ATTEMPTS,
   PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_WINDOW_MS,
 } from "../lib/public-professionals-rate-limit.ts";
+import {
+  createMemoryRateLimitStore,
+  getOrCreateRateLimitEntry,
+  incrementRateLimitEntry,
+  type RateLimitStore,
+} from "../lib/rate-limit-store.ts";
 import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
@@ -69,8 +75,10 @@ export type PublicProfessionalsNativeRoutesOptions = {
   createSignedStorageUrl?: CreateSignedStorageUrlFn;
   searchRateLimitWindowMs?: number;
   searchRateLimitMaxAttempts?: number;
+  searchRateLimitStore?: RateLimitStore;
   detailRateLimitWindowMs?: number;
   detailRateLimitMaxAttempts?: number;
+  detailRateLimitStore?: RateLimitStore;
   now?: () => number;
 };
 
@@ -224,27 +232,25 @@ function createFixedWindowRateLimit(config: {
   windowMs: number;
   max: number;
   errorMessage: string;
+  store?: RateLimitStore;
   now?: () => number;
 }) {
-  const entries = new Map<string, { count: number; resetAt: number }>();
+  const store = config.store ?? createMemoryRateLimitStore();
   const now = config.now ?? (() => Date.now());
 
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const key = request.ip || "unknown";
     const currentTime = now();
-    const currentEntry = entries.get(key);
+    const entry = await getOrCreateRateLimitEntry(
+      store,
+      key,
+      config.windowMs,
+      currentTime,
+    );
+    const updatedEntry = await incrementRateLimitEntry(store, key, entry);
 
-    let entry = currentEntry;
-
-    if (!entry || entry.resetAt <= currentTime) {
-      entry = {
-        count: 0,
-        resetAt: currentTime + config.windowMs,
-      };
-      entries.set(key, entry);
-    }
-
-    entry.count += 1;
+    entry.count = updatedEntry.count;
+    entry.resetAt = updatedEntry.resetAt;
 
     setRateLimitHeaders(reply, {
       max: config.max,
@@ -305,6 +311,7 @@ export const publicProfessionalsNativeRoutes: FastifyPluginAsync<
       options.searchRateLimitMaxAttempts ??
       PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_MAX_ATTEMPTS,
     errorMessage: PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_ERROR_MESSAGE,
+    store: options.searchRateLimitStore,
     now: options.now,
   });
 
@@ -316,6 +323,7 @@ export const publicProfessionalsNativeRoutes: FastifyPluginAsync<
       options.detailRateLimitMaxAttempts ??
       PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_MAX_ATTEMPTS,
     errorMessage: PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_ERROR_MESSAGE,
+    store: options.detailRateLimitStore,
     now: options.now,
   });
 
