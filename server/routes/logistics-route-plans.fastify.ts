@@ -167,11 +167,7 @@ async function loadDefaultDeps(): Promise<NativeLogisticsRoutePlansDeps> {
           dbLogistics.updateClinicScopedRouteStop,
         transitionClinicScopedRoutePlanStatus:
           dbLogistics.transitionClinicScopedRoutePlanStatus,
-        writeAuditLog:
-      options.writeAuditLog ??
-      defaultDeps?.writeAuditLog ??
-      (async () => undefined),
-    generateHeuristicRoutePlan: dbLogistics.generateHeuristicRoutePlan,
+        generateHeuristicRoutePlan: dbLogistics.generateHeuristicRoutePlan,
         writeAuditLog: audit.writeAuditLog as (
           req: unknown,
           input: AuditWriteInput,
