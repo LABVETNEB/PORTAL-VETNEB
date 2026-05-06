@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   FastifyPluginAsync,
   FastifyReply,
   FastifyRequest,
@@ -15,6 +15,12 @@ import {
   PUBLIC_REPORT_ACCESS_RATE_LIMIT_MAX_ATTEMPTS,
   PUBLIC_REPORT_ACCESS_RATE_LIMIT_WINDOW_MS,
 } from "../lib/public-report-access-rate-limit.ts";
+import {
+  createMemoryRateLimitStore,
+  getOrCreateRateLimitEntry,
+  incrementRateLimitEntry,
+  type RateLimitStore,
+} from "../lib/rate-limit-store.ts";
 import {
   canAccessReportPublicly,
   getReportAccessTokenState,
@@ -64,6 +70,7 @@ export type PublicReportAccessNativeRoutesOptions = {
   ) => Promise<void>;
   publicReportAccessRateLimitWindowMs?: number;
   publicReportAccessRateLimitMaxAttempts?: number;
+  publicReportAccessRateLimitStore?: RateLimitStore;
   now?: () => number;
 };
 
@@ -213,25 +220,6 @@ function setRateLimitHeaders(
   );
 }
 
-function getAccessEntry(
-  attempts: Map<string, { count: number; resetAt: number }>,
-  key: string,
-  windowMs: number,
-  now: number,
-) {
-  const current = attempts.get(key);
-
-  if (!current || current.resetAt <= now) {
-    const fresh = {
-      count: 0,
-      resetAt: now + windowMs,
-    };
-    attempts.set(key, fresh);
-    return fresh;
-  }
-
-  return current;
-}
 
 export const publicReportAccessNativeRoutes: FastifyPluginAsync<
   PublicReportAccessNativeRoutesOptions
@@ -270,7 +258,8 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
     options.publicReportAccessRateLimitMaxAttempts ??
     PUBLIC_REPORT_ACCESS_RATE_LIMIT_MAX_ATTEMPTS;
   const allowedOrigins = new Set(getAllowedOrigins());
-  const accessAttempts = new Map<string, { count: number; resetAt: number }>();
+  const publicReportAccessRateLimitStore =
+    options.publicReportAccessRateLimitStore ?? createMemoryRateLimitStore();
 
   app.addHook("onRequest", async (request, reply) => {
     (request as PublicReportAccessFastifyRequest)[REQUEST_START_TIME_KEY] =
@@ -321,8 +310,8 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
   }>("/:token", async (request, reply) => {
     const rateLimitKey = request.ip || "unknown";
     const currentTime = now();
-    const accessEntry = getAccessEntry(
-      accessAttempts,
+    const accessEntry = await getOrCreateRateLimitEntry(
+      publicReportAccessRateLimitStore,
       rateLimitKey,
       publicReportAccessRateLimitWindowMs,
       currentTime,
@@ -343,7 +332,14 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    accessEntry.count += 1;
+    const updatedAccessEntry = await incrementRateLimitEntry(
+      publicReportAccessRateLimitStore,
+      rateLimitKey,
+      accessEntry,
+    );
+
+    accessEntry.count = updatedAccessEntry.count;
+    accessEntry.resetAt = updatedAccessEntry.resetAt;
 
     setRateLimitHeaders(reply, {
       max: publicReportAccessRateLimitMaxAttempts,
