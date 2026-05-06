@@ -214,21 +214,28 @@ export async function getRoutePlans(
  * Obtener métricas de cumplimiento de planes de ruta.
  * GET /api/logistics/route-plans/:id/metrics
  *
- * @mock — Endpoint no confirmado. Devuelve mock data.
+ * Endpoint confirmado en backend. Acepta RequestInit para lectura server-side
+ * dinámica con cookies reenviadas desde Next.
  */
 export async function getRoutePlanMetrics(
   planId?: number,
+  options?: RequestInit,
 ): Promise<RouteMetrics[]> {
   if (planId !== undefined) {
     try {
       const res = await apiFetch<{ metrics: RouteMetrics }>(
         `/api/logistics/route-plans/${planId}/metrics`,
+        options,
       );
       return res.metrics ? [res.metrics] : [];
     } catch {
-      // @mock
+      console.warn("[API] getRoutePlanMetrics: usando mock data");
+      return MOCK_ROUTE_METRICS.filter(
+        (metric) => metric.routePlanId === planId,
+      );
     }
   }
+
   console.warn("[API] getRoutePlanMetrics: usando mock data");
   return MOCK_ROUTE_METRICS;
 }

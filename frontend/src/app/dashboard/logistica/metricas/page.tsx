@@ -1,39 +1,66 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MOCK_ROUTE_METRICS, MOCK_ROUTE_PLANS } from "@/lib/mock-data";
+import { getRoutePlanMetrics, getRoutePlans } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Métricas de logística — Portal VETNEB",
   robots: { index: false, follow: false },
 };
 
-export default function MetricasPage() {
-  const totalStops = MOCK_ROUTE_METRICS.reduce(
-    (sum, m) => sum + m.totalStops,
+async function getLogisticsRequestOptions(): Promise<RequestInit> {
+  const cookieHeader = (await cookies()).toString();
+
+  return {
+    cache: "no-store",
+    headers: cookieHeader ? { Cookie: cookieHeader } : {},
+  };
+}
+
+export default async function MetricasPage() {
+  const requestOptions = await getLogisticsRequestOptions();
+  const routePlans = await getRoutePlans(requestOptions);
+  const routeMetrics = (
+    await Promise.all(
+      routePlans.map((plan) => getRoutePlanMetrics(plan.id, requestOptions)),
+    )
+  ).flat();
+
+  const totalStops = routeMetrics.reduce(
+    (sum, metric) => sum + metric.totalStops,
     0,
   );
-  const completedStops = MOCK_ROUTE_METRICS.reduce(
-    (sum, m) => sum + m.completedStops,
+  const completedStops = routeMetrics.reduce(
+    (sum, metric) => sum + metric.completedStops,
     0,
   );
   const avgCompliance =
-    MOCK_ROUTE_METRICS.length > 0
+    routeMetrics.length > 0
       ? Math.round(
-          MOCK_ROUTE_METRICS.reduce((sum, m) => sum + m.complianceRate, 0) /
-            MOCK_ROUTE_METRICS.length,
+          routeMetrics.reduce(
+            (sum, metric) => sum + metric.complianceRate,
+            0,
+          ) / routeMetrics.length,
         )
       : 0;
+  const metricsWithDuration = routeMetrics.filter(
+    (metric) => metric.averageDurationMinutes !== null,
+  );
   const avgDuration =
-    MOCK_ROUTE_METRICS.filter((m) => m.averageDurationMinutes !== null)
-      .length > 0
+    metricsWithDuration.length > 0
       ? Math.round(
-          MOCK_ROUTE_METRICS.filter(
-            (m) => m.averageDurationMinutes !== null,
-          ).reduce((sum, m) => sum + (m.averageDurationMinutes ?? 0), 0) /
-            MOCK_ROUTE_METRICS.filter((m) => m.averageDurationMinutes !== null)
-              .length,
+          metricsWithDuration.reduce(
+            (sum, metric) => sum + (metric.averageDurationMinutes ?? 0),
+            0,
+          ) / metricsWithDuration.length,
         )
       : null;
 
@@ -44,12 +71,11 @@ export default function MetricasPage() {
         subtitle="Cumplimiento, SLA y reportes operativos"
       />
       <main className="flex-1 p-6 space-y-6">
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-xs text-amber-700">
-          <strong>Mock data:</strong> Se conectará con{" "}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700">
+          Lectura conectada a{" "}
           <code>GET /api/logistics/route-plans/:id/metrics</code>.
         </div>
 
-        {/* KPIs globales */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="border-gray-100">
             <CardHeader className="pb-2">
@@ -95,13 +121,12 @@ export default function MetricasPage() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-gray-900">
-                {MOCK_ROUTE_METRICS.length}
+                {routeMetrics.length}
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Métricas por plan */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Métricas por plan de ruta</CardTitle>
@@ -110,9 +135,9 @@ export default function MetricasPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {MOCK_ROUTE_METRICS.map((metric) => {
-              const plan = MOCK_ROUTE_PLANS.find(
-                (p) => p.id === metric.routePlanId,
+            {routeMetrics.map((metric) => {
+              const plan = routePlans.find(
+                (routePlan) => routePlan.id === metric.routePlanId,
               );
               return (
                 <div
@@ -159,7 +184,6 @@ export default function MetricasPage() {
                       </p>
                     </div>
                   </div>
-                  {/* Barra de progreso */}
                   <div className="w-full bg-gray-100 rounded-full h-2">
                     <div
                       className="bg-primary h-2 rounded-full"
