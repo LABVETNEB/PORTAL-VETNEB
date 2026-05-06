@@ -14,6 +14,7 @@ import type {
   ClinicSlaSummary,
   ListActiveClinicSlaPoliciesParams,
   ListClinicSlaInstancesParams,
+  ListOverdueActiveClinicSlaInstancesParams,
   SlaInstance,
   SlaPolicy,
 } from "../db-logistics.ts";
@@ -56,6 +57,9 @@ export type LogisticsSlaNativeRoutesOptions = {
   listClinicSlaInstances?: (
     params: ListClinicSlaInstancesParams,
   ) => Promise<SlaInstance[]>;
+  listOverdueActiveClinicSlaInstances?: (
+    params: ListOverdueActiveClinicSlaInstancesParams,
+  ) => Promise<SlaInstance[]>;
   getClinicSlaSummary?: (clinicId: number) => Promise<ClinicSlaSummary>;
   now?: () => number;
 };
@@ -70,6 +74,7 @@ type NativeLogisticsSlaDeps = Required<
     | "hashSessionToken"
     | "listActiveClinicSlaPolicies"
     | "listClinicSlaInstances"
+    | "listOverdueActiveClinicSlaInstances"
     | "getClinicSlaSummary"
   >
 >;
@@ -93,6 +98,8 @@ async function loadDefaultDeps(): Promise<NativeLogisticsSlaDeps> {
         hashSessionToken: authSecurity.hashSessionToken,
         listActiveClinicSlaPolicies: dbLogistics.listActiveClinicSlaPolicies,
         listClinicSlaInstances: dbLogistics.listClinicSlaInstances,
+        listOverdueActiveClinicSlaInstances:
+          dbLogistics.listOverdueActiveClinicSlaInstances,
         getClinicSlaSummary: dbLogistics.getClinicSlaSummary,
       };
     })();
@@ -481,6 +488,63 @@ function buildListSlaPoliciesParams(
   };
 }
 
+function parseOptionalDate(
+  value: unknown,
+  fieldName: string,
+): { value?: Date; error?: string } {
+  if (value == null || value === "") {
+    return {};
+  }
+
+  if (typeof value !== "string") {
+    return { error: `${fieldName} invalido` };
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return { error: `${fieldName} invalido` };
+  }
+
+  return { value: date };
+}
+
+function buildListOverdueSlaInstancesParams(
+  query: {
+    dueAtOrBefore?: unknown;
+    targetType?: unknown;
+    limit?: unknown;
+    offset?: unknown;
+  },
+  clinicId: number,
+  now: () => number,
+): { params?: ListOverdueActiveClinicSlaInstancesParams; error?: string } {
+  const dueAtOrBefore = parseOptionalDate(
+    query.dueAtOrBefore,
+    "dueAtOrBefore",
+  );
+
+  if (dueAtOrBefore.error) {
+    return { error: dueAtOrBefore.error };
+  }
+
+  const targetType = parseSlaTargetType(query.targetType);
+
+  if (targetType.error) {
+    return { error: targetType.error };
+  }
+
+  return {
+    params: {
+      clinicId,
+      dueAtOrBefore: dueAtOrBefore.value ?? new Date(now()),
+      targetType: targetType.value,
+      limit: parsePositiveInt(query.limit, 50, 100),
+      offset: parseOffset(query.offset),
+    },
+  };
+}
+
 function buildListSlaInstancesParams(
   query: {
     status?: unknown;
@@ -550,6 +614,7 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
     !!options.hashSessionToken &&
     !!options.listActiveClinicSlaPolicies &&
     !!options.listClinicSlaInstances &&
+    !!options.listOverdueActiveClinicSlaInstances &&
     !!options.getClinicSlaSummary;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
@@ -570,6 +635,9 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
       defaultDeps!.listActiveClinicSlaPolicies,
     listClinicSlaInstances:
       options.listClinicSlaInstances ?? defaultDeps!.listClinicSlaInstances,
+    listOverdueActiveClinicSlaInstances:
+      options.listOverdueActiveClinicSlaInstances ??
+      defaultDeps!.listOverdueActiveClinicSlaInstances,
     getClinicSlaSummary:
       options.getClinicSlaSummary ?? defaultDeps!.getClinicSlaSummary,
   };
@@ -610,6 +678,50 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
   app.options("/policies", optionsHandler);
   app.options("/instances", optionsHandler);
   app.options("/summary", optionsHandler);
+  app.options("/overdue", optionsHandler);
+
+  app.get<{
+    Querystring: {
+      dueAtOrBefore?: unknown;
+      targetType?: unknown;
+      limit?: unknown;
+      offset?: unknown;
+    };
+  }>("/overdue", async (request, reply) => {
+    const auth = await authenticateClinicUser(request, reply, deps, now);
+
+    if (!auth) {
+      return reply;
+    }
+
+    const parsed = buildListOverdueSlaInstancesParams(
+      request.query,
+      auth.clinicId,
+      now,
+    );
+
+    if (!parsed.params) {
+      return reply.code(400).send({
+        success: false,
+        error: parsed.error ?? "Parametros invalidos",
+      });
+    }
+
+    const instances = await deps.listOverdueActiveClinicSlaInstances(
+      parsed.params,
+    );
+
+    return reply.code(200).send({
+      success: true,
+      count: instances.length,
+      instances: instances.map((instance) => serializeSlaInstance(instance)),
+      pagination: {
+        limit: parsed.params.limit,
+        offset: parsed.params.offset,
+      },
+      dueAtOrBefore: parsed.params.dueAtOrBefore.toISOString(),
+    });
+  });
 
   app.get("/summary", async (request, reply) => {
     const auth = await authenticateClinicUser(request, reply, deps, now);

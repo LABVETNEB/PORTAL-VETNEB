@@ -572,6 +572,7 @@ function buildLogisticsSlaRouteStubs() {
     hashSessionToken: (token: string) => `hash:${token}`,
     listActiveClinicSlaPolicies: async () => [],
     listClinicSlaInstances: async () => [],
+    listOverdueActiveClinicSlaInstances: async () => [],
     getClinicSlaSummary: async () => ({
       clinicId: 1,
       total: 0,

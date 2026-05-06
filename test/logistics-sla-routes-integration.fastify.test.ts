@@ -75,6 +75,13 @@ async function createIntegrationApp() {
   const app = Fastify();
   const policyCalls: SlaPolicyCall[] = [];
   const instanceCalls: SlaInstanceCall[] = [];
+  const overdueCalls: Array<{
+    clinicId: number;
+    dueAtOrBefore: Date;
+    targetType?: string;
+    limit?: number;
+    offset?: number;
+  }> = [];
   const summaryCalls: number[] = [];
   const deletedSessionHashes: string[] = [];
   const updatedSessionHashes: string[] = [];
@@ -120,6 +127,16 @@ async function createIntegrationApp() {
       instanceCalls.push(params);
       return [createSlaInstanceFixture() as any];
     },
+    listOverdueActiveClinicSlaInstances: async (params: {
+      clinicId: number;
+      dueAtOrBefore: Date;
+      targetType?: string;
+      limit?: number;
+      offset?: number;
+    }) => {
+      overdueCalls.push(params);
+      return [createSlaInstanceFixture() as any];
+    },
     getClinicSlaSummary: async (clinicId: number) => {
       summaryCalls.push(clinicId);
       return {
@@ -138,6 +155,7 @@ async function createIntegrationApp() {
     app,
     policyCalls,
     instanceCalls,
+    overdueCalls,
     summaryCalls,
     deletedSessionHashes,
     updatedSessionHashes,
@@ -145,9 +163,20 @@ async function createIntegrationApp() {
 }
 
 test("logistics SLA integration rejects unauthenticated reads before DB helpers", async () => {
-  const { app, policyCalls, instanceCalls, summaryCalls } = await createIntegrationApp();
+  const { app, policyCalls, instanceCalls, overdueCalls, summaryCalls } = await createIntegrationApp();
 
   try {
+    const overdueResponse = await app.inject({
+      method: "GET",
+      url: "/api/logistics/sla/overdue",
+    });
+
+    assert.equal(overdueResponse.statusCode, 401);
+    assert.deepEqual(JSON.parse(overdueResponse.body), {
+      success: false,
+      error: "No autenticado",
+    });
+
     const summaryResponse = await app.inject({
       method: "GET",
       url: "/api/logistics/sla/summary",
@@ -183,12 +212,87 @@ test("logistics SLA integration rejects unauthenticated reads before DB helpers"
 
     assert.deepEqual(policyCalls, []);
     assert.deepEqual(instanceCalls, []);
+    assert.deepEqual(overdueCalls, []);
     assert.deepEqual(summaryCalls, []);
   } finally {
     await app.close();
   }
 });
 
+
+test("logistics SLA integration lists overdue active instances with clinic scope and cutoff", async () => {
+  const { app, overdueCalls } = await createIntegrationApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/logistics/sla/overdue?dueAtOrBefore=2026-05-01T12:30:00.000Z&targetType=field_visit&limit=4&offset=1",
+      headers: {
+        cookie: createCookie(),
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.success, true);
+    assert.equal(body.count, 1);
+    assert.equal(body.dueAtOrBefore, "2026-05-01T12:30:00.000Z");
+    assert.deepEqual(body.pagination, {
+      limit: 4,
+      offset: 1,
+    });
+    assert.equal(body.instances[0].id, 21);
+    assert.equal(body.instances[0].dueAt, "2026-05-01T12:00:00.000Z");
+
+    assert.equal(overdueCalls.length, 1);
+    assert.equal(overdueCalls[0].clinicId, 3);
+    assert.equal(overdueCalls[0].dueAtOrBefore.toISOString(), "2026-05-01T12:30:00.000Z");
+    assert.equal(overdueCalls[0].targetType, "field_visit");
+    assert.equal(overdueCalls[0].limit, 4);
+    assert.equal(overdueCalls[0].offset, 1);
+  } finally {
+    await app.close();
+  }
+});
+
+test("logistics SLA integration rejects invalid overdue filters before DB reads", async () => {
+  const { app, overdueCalls } = await createIntegrationApp();
+
+  try {
+    const invalidDateResponse = await app.inject({
+      method: "GET",
+      url: "/api/logistics/sla/overdue?dueAtOrBefore=not-a-date",
+      headers: {
+        cookie: createCookie(),
+      },
+    });
+
+    assert.equal(invalidDateResponse.statusCode, 400);
+    assert.deepEqual(JSON.parse(invalidDateResponse.body), {
+      success: false,
+      error: "dueAtOrBefore invalido",
+    });
+
+    const invalidTargetTypeResponse = await app.inject({
+      method: "GET",
+      url: "/api/logistics/sla/overdue?targetType=unknown",
+      headers: {
+        cookie: createCookie(),
+      },
+    });
+
+    assert.equal(invalidTargetTypeResponse.statusCode, 400);
+    assert.deepEqual(JSON.parse(invalidTargetTypeResponse.body), {
+      success: false,
+      error: "targetType invalido",
+    });
+
+    assert.deepEqual(overdueCalls, []);
+  } finally {
+    await app.close();
+  }
+});
 
 test("logistics SLA integration returns clinic-scoped summary", async () => {
   const { app, summaryCalls } = await createIntegrationApp();

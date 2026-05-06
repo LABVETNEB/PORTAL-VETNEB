@@ -13,12 +13,14 @@ const appSource = readFileSync(
   "utf8",
 );
 
-test("logistics SLA API exposes read-only policy, instance and summary endpoints", () => {
+test("logistics SLA API exposes read-only policy, instance, overdue and summary endpoints", () => {
   assert.match(routeSource, /export const logisticsSlaNativeRoutes/);
   assert.match(routeSource, /app\.get\("\/summary", async/);
+  assert.match(routeSource, /app\.get<[\s\S]*>\("\/overdue", async/);
   assert.match(routeSource, /app\.get<[\s\S]*>\("\/policies", async/);
   assert.match(routeSource, /app\.get<[\s\S]*>\("\/instances", async/);
   assert.match(routeSource, /app\.options\("\/summary", optionsHandler\)/);
+  assert.match(routeSource, /app\.options\("\/overdue", optionsHandler\)/);
   assert.match(routeSource, /app\.options\("\/policies", optionsHandler\)/);
   assert.match(routeSource, /app\.options\("\/instances", optionsHandler\)/);
   assert.match(routeSource, /GET,OPTIONS/);
@@ -28,12 +30,15 @@ test("logistics SLA API wires DB helpers through injectable deps", () => {
   assert.match(routeSource, /listActiveClinicSlaPolicies\?:/);
   assert.match(routeSource, /listClinicSlaInstances\?:/);
   assert.match(routeSource, /getClinicSlaSummary\?:/);
+  assert.match(routeSource, /listOverdueActiveClinicSlaInstances\?:/);
   assert.match(routeSource, /dbLogistics\.listActiveClinicSlaPolicies/);
   assert.match(routeSource, /dbLogistics\.listClinicSlaInstances/);
   assert.match(routeSource, /dbLogistics\.getClinicSlaSummary/);
+  assert.match(routeSource, /dbLogistics\.listOverdueActiveClinicSlaInstances/);
   assert.match(routeSource, /deps\.listActiveClinicSlaPolicies\(parsed\.params\)/);
   assert.match(routeSource, /deps\.listClinicSlaInstances\(parsed\.params\)/);
   assert.match(routeSource, /deps\.getClinicSlaSummary\(auth\.clinicId\)/);
+  assert.match(routeSource, /deps\.listOverdueActiveClinicSlaInstances\(\s*parsed\.params,\s*\)/);
 });
 
 test("logistics SLA API keeps reads clinic scoped and paginated", () => {
@@ -59,4 +64,11 @@ test("fastify app registers logistics SLA routes under dedicated prefix", () => 
   assert.match(appSource, /type LogisticsSlaNativeRoutesOptions/);
   assert.match(appSource, /logisticsSlaRoutes\?: LogisticsSlaNativeRoutesOptions/);
   assert.match(appSource, /prefix: "\/api\/logistics\/sla"/);
+});
+
+test("logistics SLA API validates overdue route filters before DB reads", () => {
+  assert.match(routeSource, /buildListOverdueSlaInstancesParams/);
+  assert.match(routeSource, /parseOptionalDate\(\s*query\.dueAtOrBefore,\s*"dueAtOrBefore",\s*\)/);
+  assert.match(routeSource, /parseSlaTargetType\(query\.targetType\)/);
+  assert.match(routeSource, /dueAtOrBefore: dueAtOrBefore\.value \?\? new Date\(now\(\)\)/);
 });
