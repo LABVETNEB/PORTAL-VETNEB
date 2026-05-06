@@ -511,6 +511,42 @@ test("logistics SLA integration lists instances with validated filters and tenan
   }
 });
 
+test("logistics SLA integration caps instances pagination limit and defaults invalid offset", async () => {
+  const { app, instanceCalls } = await createIntegrationApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/logistics/sla/instances?limit=1000&offset=-1",
+      headers: {
+        cookie: createCookie(),
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.success, true);
+    assert.deepEqual(body.pagination, {
+      limit: 100,
+      offset: 0,
+    });
+
+    assert.deepEqual(instanceCalls, [
+      {
+        clinicId: 3,
+        status: undefined,
+        targetType: undefined,
+        targetId: undefined,
+        limit: 100,
+        offset: 0,
+      },
+    ]);
+  } finally {
+    await app.close();
+  }
+});
+
 test("logistics SLA integration rejects invalid filters before DB reads", async () => {
   const { app, policyCalls, instanceCalls } = await createIntegrationApp();
 
