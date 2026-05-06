@@ -173,3 +173,62 @@ test("SLA breach runtime DB-wired entrypoint imports DB helper lazily and delega
     /return\s+markOverdueSlaBreaches\(\s*input,\s*\{\s*markOverdueActiveClinicSlaInstancesBreached,\s*now:\s*options\.now,\s*\}\s*\)/,
   );
 });
+
+test("SLA breach runtime notifies marked breaches with escalation payload", async () => {
+  const fixture = createSlaInstanceFixture();
+  const dueAtOrBefore = new Date("2026-05-01T12:30:00.000Z");
+  const breachedAt = new Date("2026-05-01T12:45:00.000Z");
+  const notifications: unknown[] = [];
+
+  const result = await markOverdueSlaBreaches(
+    {
+      clinicId: 7,
+      dueAtOrBefore,
+      breachedAt,
+      targetType: "field_visit",
+    },
+    {
+      markOverdueActiveClinicSlaInstancesBreached: async () => [
+        fixture as any,
+      ],
+      notifySlaBreaches: async (notification) => {
+        notifications.push(notification);
+      },
+    },
+  );
+
+  assert.equal(result.breachedCount, 1);
+  assert.deepEqual(notifications, [
+    {
+      clinicId: 7,
+      breachedCount: 1,
+      breachedInstances: [fixture],
+      dueAtOrBefore,
+      breachedAt,
+      targetType: "field_visit",
+    },
+  ]);
+});
+
+test("SLA breach runtime skips notification hook when no breaches are marked", async () => {
+  let notifications = 0;
+
+  const result = await markOverdueSlaBreaches(
+    {
+      clinicId: 7,
+      dueAtOrBefore: new Date("2026-05-01T12:30:00.000Z"),
+      breachedAt: new Date("2026-05-01T12:45:00.000Z"),
+      targetType: "route_plan",
+    },
+    {
+      markOverdueActiveClinicSlaInstancesBreached: async () => [],
+      notifySlaBreaches: async () => {
+        notifications += 1;
+      },
+    },
+  );
+
+  assert.equal(result.breachedCount, 0);
+  assert.deepEqual(result.breachedInstances, []);
+  assert.equal(notifications, 0);
+});

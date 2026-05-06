@@ -4,10 +4,22 @@ import type {
 } from "../../db-logistics.ts";
 import type { SlaTargetType } from "../../../drizzle/schema.ts";
 
+export type MarkOverdueSlaBreachesNotification = {
+  clinicId: number;
+  breachedCount: number;
+  breachedInstances: SlaInstance[];
+  dueAtOrBefore: Date;
+  breachedAt: Date;
+  targetType?: SlaTargetType;
+};
+
 export type MarkOverdueSlaBreachesDeps = {
   markOverdueActiveClinicSlaInstancesBreached: (
     params: MarkOverdueActiveClinicSlaInstancesBreachedParams,
   ) => Promise<SlaInstance[]>;
+  notifySlaBreaches?: (
+    notification: MarkOverdueSlaBreachesNotification,
+  ) => Promise<void>;
   now?: () => Date;
 };
 
@@ -64,6 +76,17 @@ export async function markOverdueSlaBreaches(
       breachedAt,
       targetType: input.targetType,
     });
+
+  if (breachedInstances.length > 0 && deps.notifySlaBreaches) {
+    await deps.notifySlaBreaches({
+      clinicId: input.clinicId,
+      breachedCount: breachedInstances.length,
+      breachedInstances,
+      dueAtOrBefore,
+      breachedAt,
+      targetType: input.targetType,
+    });
+  }
 
   return {
     breachedCount: breachedInstances.length,
