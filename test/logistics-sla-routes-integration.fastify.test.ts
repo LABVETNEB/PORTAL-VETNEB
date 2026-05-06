@@ -220,6 +220,48 @@ test("logistics SLA integration rejects unauthenticated reads before DB helpers"
 });
 
 
+test("logistics SLA integration handles CORS preflight without DB helpers", async () => {
+  const { app, policyCalls, instanceCalls, overdueCalls, summaryCalls } = await createIntegrationApp();
+
+  try {
+    const allowedResponse = await app.inject({
+      method: "OPTIONS",
+      url: "/api/logistics/sla/summary",
+      headers: {
+        origin: "http://localhost:3000",
+        "access-control-request-headers": "content-type,x-test-header",
+      },
+    });
+
+    assert.equal(allowedResponse.statusCode, 204);
+    assert.equal(allowedResponse.headers["access-control-allow-origin"], "http://localhost:3000");
+    assert.equal(allowedResponse.headers["access-control-allow-credentials"], "true");
+    assert.equal(allowedResponse.headers["access-control-allow-methods"], "GET,OPTIONS");
+    assert.equal(allowedResponse.headers["access-control-allow-headers"], "content-type,x-test-header");
+
+    const blockedResponse = await app.inject({
+      method: "OPTIONS",
+      url: "/api/logistics/sla/summary",
+      headers: {
+        origin: "https://blocked.example",
+      },
+    });
+
+    assert.equal(blockedResponse.statusCode, 403);
+    assert.deepEqual(JSON.parse(blockedResponse.body), {
+      success: false,
+      error: "Origen no permitido",
+    });
+
+    assert.deepEqual(policyCalls, []);
+    assert.deepEqual(instanceCalls, []);
+    assert.deepEqual(overdueCalls, []);
+    assert.deepEqual(summaryCalls, []);
+  } finally {
+    await app.close();
+  }
+});
+
 test("logistics SLA integration lists overdue active instances with clinic scope and cutoff", async () => {
   const { app, overdueCalls } = await createIntegrationApp();
 
