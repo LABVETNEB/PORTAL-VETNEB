@@ -240,22 +240,25 @@ export async function getRoutePlanMetrics(
   return MOCK_ROUTE_METRICS;
 }
 
-// ─── Admin — Auditoría (@mock — endpoint pendiente de confirmación) ────────────
+// ─── Admin — Auditoría ────────────────────────────────────────────────────────
 
 /**
  * Obtener entradas del log de auditoría.
  * GET /api/admin/audit-log
  *
- * @mock — El endpoint existe pero requiere autenticación admin.
+ * Endpoint confirmado en backend. Acepta RequestInit para lectura server-side
+ * dinámica con cookies reenviadas desde Next.
  */
-export async function getAuditEntries(): Promise<AuditEntry[]> {
+export async function getAuditEntries(
+  options?: RequestInit,
+): Promise<AuditEntry[]> {
   try {
     const res = await apiFetch<{ entries: AuditEntry[] }>(
       "/api/admin/audit-log",
+      options,
     );
     return res.entries ?? [];
   } catch {
-    // @mock
     console.warn("[API] getAuditEntries: usando mock data");
     return MOCK_AUDIT_ENTRIES;
   }
