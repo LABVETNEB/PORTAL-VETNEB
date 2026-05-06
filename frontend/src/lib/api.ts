@@ -39,15 +39,18 @@ const API_BASE_URL =
 
 async function apiFetch<T>(
   path: string,
-  options?: RequestInit,
+  options: RequestInit = {},
 ): Promise<T> {
+  const headers = new Headers(options.headers);
+
+  if (options.body !== undefined && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const res = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
     ...options,
+    credentials: options.credentials ?? "include",
+    headers,
   });
 
   if (!res.ok) {
@@ -55,6 +58,10 @@ async function apiFetch<T>(
     throw new Error(
       (body as { error?: string }).error ?? `HTTP ${res.status}`,
     );
+  }
+
+  if (res.status === 204) {
+    return undefined as T;
   }
 
   return res.json() as Promise<T>;
@@ -155,44 +162,49 @@ export async function getReportDownloadUrl(
   }
 }
 
-// ─── Logística — Visitas de campo (@mock — endpoint pendiente de confirmación) ─
+// ─── Logística — Visitas de campo ─────────────────────────────────────────────
 
 /**
  * Obtener visitas de campo.
  * GET /api/logistics/field-visits
  *
- * @mock — El endpoint existe en el backend pero requiere autenticación admin.
- * Se usa mock data hasta confirmar el contrato de respuesta.
+ * Endpoint confirmado en backend. Acepta RequestInit para lectura server-side
+ * dinámica con cookies reenviadas desde Next.
  */
-export async function getLogisticsFieldVisits(): Promise<FieldVisit[]> {
+export async function getLogisticsFieldVisits(
+  options?: RequestInit,
+): Promise<FieldVisit[]> {
   try {
     const res = await apiFetch<{ visits: FieldVisit[] }>(
       "/api/logistics/field-visits",
+      options,
     );
     return res.visits ?? [];
   } catch {
-    // @mock
     console.warn("[API] getLogisticsFieldVisits: usando mock data");
     return MOCK_FIELD_VISITS;
   }
 }
 
-// ─── Logística — Planes de ruta (@mock — endpoint pendiente de confirmación) ──
+// ─── Logística — Planes de ruta ───────────────────────────────────────────────
 
 /**
  * Obtener planes de ruta.
  * GET /api/logistics/route-plans
  *
- * @mock — El endpoint existe en el backend pero requiere autenticación admin.
+ * Endpoint confirmado en backend. Acepta RequestInit para lectura server-side
+ * dinámica con cookies reenviadas desde Next.
  */
-export async function getRoutePlans(): Promise<RoutePlan[]> {
+export async function getRoutePlans(
+  options?: RequestInit,
+): Promise<RoutePlan[]> {
   try {
     const res = await apiFetch<{ plans: RoutePlan[] }>(
       "/api/logistics/route-plans",
+      options,
     );
     return res.plans ?? [];
   } catch {
-    // @mock
     console.warn("[API] getRoutePlans: usando mock data");
     return MOCK_ROUTE_PLANS;
   }

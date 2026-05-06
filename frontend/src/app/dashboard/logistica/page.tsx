@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
-import { MOCK_FIELD_VISITS, MOCK_ROUTE_PLANS } from "@/lib/mock-data";
+import {
+  getLogisticsFieldVisits,
+  getRoutePlans,
+} from "@/lib/api";
 import {
   getFieldVisitStatusLabel,
   getFieldVisitStatusVariant,
@@ -19,11 +23,26 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function LogisticaPage() {
-  const activeVisits = MOCK_FIELD_VISITS.filter(
+async function getLogisticsRequestOptions(): Promise<RequestInit> {
+  const cookieHeader = (await cookies()).toString();
+
+  return {
+    cache: "no-store",
+    headers: cookieHeader ? { Cookie: cookieHeader } : {},
+  };
+}
+
+export default async function LogisticaPage() {
+  const requestOptions = await getLogisticsRequestOptions();
+  const [fieldVisits, routePlans] = await Promise.all([
+    getLogisticsFieldVisits(requestOptions),
+    getRoutePlans(requestOptions),
+  ]);
+
+  const activeVisits = fieldVisits.filter(
     (v) => v.status === "in_progress" || v.status === "scheduled",
   );
-  const activePlans = MOCK_ROUTE_PLANS.filter(
+  const activePlans = routePlans.filter(
     (p) => p.status === "in_progress" || p.status === "released",
   );
 
@@ -34,7 +53,6 @@ export default function LogisticaPage() {
         subtitle="Visitas de campo y planes de ruta"
       />
       <main className="flex-1 p-6 space-y-6">
-        {/* Resumen */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="border-gray-100">
             <CardHeader className="pb-2">
@@ -68,13 +86,12 @@ export default function LogisticaPage() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-gray-900">
-                {MOCK_FIELD_VISITS.length}
+                {fieldVisits.length}
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Módulos */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
             {
@@ -82,14 +99,14 @@ export default function LogisticaPage() {
               href: ROUTES.dashboardLogisticaVisitas,
               icon: "🚐",
               description: "Seguimiento de visitas programadas y en curso.",
-              count: MOCK_FIELD_VISITS.length,
+              count: fieldVisits.length,
             },
             {
               title: "Planes de ruta",
               href: ROUTES.dashboardLogisticaRutas,
               icon: "🗺️",
               description: "Planificación y gestión de rutas de entrega.",
-              count: MOCK_ROUTE_PLANS.length,
+              count: routePlans.length,
             },
             {
               title: "Métricas",
@@ -124,7 +141,6 @@ export default function LogisticaPage() {
           ))}
         </div>
 
-        {/* Visitas recientes */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <CardTitle className="text-base">Visitas recientes</CardTitle>
@@ -133,7 +149,7 @@ export default function LogisticaPage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {MOCK_FIELD_VISITS.slice(0, 4).map((visit) => (
+            {fieldVisits.slice(0, 4).map((visit) => (
               <div
                 key={visit.id}
                 className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
@@ -158,7 +174,6 @@ export default function LogisticaPage() {
           </CardContent>
         </Card>
 
-        {/* Planes de ruta recientes */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <CardTitle className="text-base">Planes de ruta</CardTitle>
@@ -167,7 +182,7 @@ export default function LogisticaPage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {MOCK_ROUTE_PLANS.map((plan) => (
+            {routePlans.map((plan) => (
               <div
                 key={plan.id}
                 className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"

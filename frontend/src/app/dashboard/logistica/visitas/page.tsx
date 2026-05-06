@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,11 +11,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MOCK_FIELD_VISITS } from "@/lib/mock-data";
+import { getLogisticsFieldVisits } from "@/lib/api";
 import {
   getFieldVisitStatusLabel,
   getFieldVisitStatusVariant,
-  formatDate,
   formatDateTime,
 } from "@/lib/utils";
 
@@ -23,7 +23,20 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function VisitasPage() {
+async function getLogisticsRequestOptions(): Promise<RequestInit> {
+  const cookieHeader = (await cookies()).toString();
+
+  return {
+    cache: "no-store",
+    headers: cookieHeader ? { Cookie: cookieHeader } : {},
+  };
+}
+
+export default async function VisitasPage() {
+  const visits = await getLogisticsFieldVisits(
+    await getLogisticsRequestOptions(),
+  );
+
   return (
     <>
       <DashboardTopbar
@@ -31,12 +44,10 @@ export default function VisitasPage() {
         subtitle="Seguimiento de visitas programadas y en curso"
       />
       <main className="flex-1 p-6 space-y-6">
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-xs text-amber-700">
-          <strong>Mock data:</strong> Se conectará con{" "}
-          <code>GET /api/logistics/field-visits</code>.
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700">
+          Lectura conectada a <code>GET /api/logistics/field-visits</code>.
         </div>
 
-        {/* Resumen por estado */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {(
             [
@@ -46,9 +57,7 @@ export default function VisitasPage() {
               { status: "done", label: "Completadas" },
             ] as const
           ).map(({ status, label }) => {
-            const count = MOCK_FIELD_VISITS.filter(
-              (v) => v.status === status,
-            ).length;
+            const count = visits.filter((v) => v.status === status).length;
             return (
               <Card key={status} className="border-gray-100">
                 <CardContent className="pt-4">
@@ -60,11 +69,10 @@ export default function VisitasPage() {
           })}
         </div>
 
-        {/* Tabla */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Visitas ({MOCK_FIELD_VISITS.length})
+              Visitas ({visits.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -81,7 +89,7 @@ export default function VisitasPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {MOCK_FIELD_VISITS.map((visit) => (
+                {visits.map((visit) => (
                   <TableRow key={visit.id}>
                     <TableCell className="font-mono text-xs text-gray-400">
                       #{visit.id}
