@@ -1,4 +1,5 @@
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import Fastify from "fastify";
@@ -214,4 +215,28 @@ test("performance smoke mantiene detail publico estable bajo carga concurrente",
   } finally {
     await app.close();
   }
+});
+
+test("public capacity budget guardrail covers bounded public surfaces", () => {
+  const publicProfessionals = readFileSync(
+    new URL("../server/routes/public-professionals.fastify.ts", import.meta.url),
+    "utf8",
+  );
+
+  const publicReportAccess = readFileSync(
+    new URL("../server/routes/public-report-access.fastify.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(publicProfessionals, /parsePositiveInt\(request\.query\.limit, 20, 50\)/);
+  assert.match(publicProfessionals, /parseOffset\(request\.query\.offset, 0\)/);
+  assert.match(publicProfessionals, /searchRateLimitStore\?: RateLimitStore/);
+  assert.match(publicProfessionals, /detailRateLimitStore\?: RateLimitStore/);
+  assert.match(publicProfessionals, /PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_MAX_ATTEMPTS/);
+  assert.match(publicProfessionals, /PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_MAX_ATTEMPTS/);
+
+  assert.match(publicReportAccess, /publicReportAccessRateLimitStore\?: RateLimitStore/);
+  assert.match(publicReportAccess, /PUBLIC_REPORT_ACCESS_RATE_LIMIT_MAX_ATTEMPTS/);
+  assert.match(publicReportAccess, /await getOrCreateRateLimitEntry\(/);
+  assert.match(publicReportAccess, /await incrementRateLimitEntry\(/);
 });
