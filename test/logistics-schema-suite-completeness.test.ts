@@ -1,4 +1,4 @@
-﻿import assert from "node:assert/strict";
+import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -250,4 +250,9 @@ test("pre-existing native logistics schema tests remain in the suite", async () 
   for (const { exportName } of expectedTableExports) {
     assertSourceIncludes(combinedTestSource, exportName);
   }
+});
+
+test("logistics audit events remain registered in audit schema", () => {
+  assert.ok(schema.AUDIT_EVENTS.includes("logistics.route_plan.lifecycle_changed"));
+  assert.ok(schema.AUDIT_EVENTS.includes("logistics.route_event.created"));
 });

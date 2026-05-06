@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import {
   AUDIT_EVENTS,
@@ -20,6 +20,9 @@ test("AUDIT_EVENTS conserva los eventos públicos esperados", () => {
     REPORT_ACCESS_TOKEN_CREATED: "report_access_token.created",
     REPORT_ACCESS_TOKEN_REVOKED: "report_access_token.revoked",
     REPORT_PUBLIC_ACCESSED: "report.public_accessed",
+    LOGISTICS_ROUTE_PLAN_LIFECYCLE_CHANGED:
+      "logistics.route_plan.lifecycle_changed",
+    LOGISTICS_ROUTE_EVENT_CREATED: "logistics.route_event.created",
   });
 });
 
