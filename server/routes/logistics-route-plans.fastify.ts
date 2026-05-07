@@ -41,6 +41,7 @@ import {
   calculateRouteStopComplianceMetrics,
   type RouteStopComplianceInput,
 } from "../lib/logistics/metrics.ts";
+import { createRuntimeTimer } from "../lib/runtime-timing.ts";
 
 type ActiveSessionRecord = {
   clinicUserId: number;
@@ -1584,7 +1585,9 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
+    const planningTimer = createRuntimeTimer();
     const result = await deps.generateHeuristicRoutePlan(parsed.input);
+    const planningDurationMs = planningTimer.elapsedMs();
 
     if (result.reason) {
       const error = getGenerateHeuristicRoutePlanError(result);
@@ -1606,6 +1609,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
         mode: "heuristic",
         objective: result.routePlan.objective,
         fieldVisitCount: result.routeStops.length,
+        planningDurationMs,
         warnings: result.warnings,
       },
     });

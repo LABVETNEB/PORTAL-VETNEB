@@ -139,6 +139,8 @@ test("logistics route plans API exposes heuristic generation endpoint", () => {
   assert.match(routeSource, /app\.post<[\s\S]*>\("\/heuristic", async/);
   assert.match(routeSource, /buildGenerateHeuristicRoutePlanInput/);
   assert.match(routeSource, /deps\.generateHeuristicRoutePlan\(parsed\.input\)/);
+  assert.match(routeSource, /createRuntimeTimer/);
+  assert.match(routeSource, /planningDurationMs/);
   assert.match(routeSource, /planning:\s*{\s*mode: "heuristic"/);
 });
 
@@ -169,7 +171,7 @@ test("logistics route plans API validates heuristic generation input before DB c
 test("logistics route plans API keeps heuristic planning call behind 400 validation cut-off", () => {
   assert.match(
     routeSource,
-    /const parsed = buildGenerateHeuristicRoutePlanInput\([\s\S]*?if \(!parsed\.input\) {[\s\S]*?return reply\.code\(400\)\.send\({[\s\S]*?}\);\s*}\s*const result = await deps\.generateHeuristicRoutePlan\(parsed\.input\);/,
+    /const parsed = buildGenerateHeuristicRoutePlanInput\([\s\S]*?if \(!parsed\.input\) {[\s\S]*?return reply\.code\(400\)\.send\({[\s\S]*?}\);\s*}\s*const planningTimer = createRuntimeTimer\(\);\s*const result = await deps\.generateHeuristicRoutePlan\(parsed\.input\);/,
   );
 });
 
