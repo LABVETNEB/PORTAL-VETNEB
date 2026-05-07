@@ -362,6 +362,15 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         ],
       },
       {
+        path: "test/particular-audit-session-last-access-contract.test.ts",
+        markers: [
+          "particular audit route uses shared session last access helper",
+          "shouldRefreshSessionLastAccess",
+          "SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS",
+          "function shouldRefreshSessionLastAccess",
+        ],
+      },
+      {
         path: "test/logistics-audit-runtime.test.ts",
         markers: [
           "logistics route plan lifecycle runtime writes audit metadata",
