@@ -16,6 +16,10 @@ import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
 } from "../middlewares/request-logger.ts";
+import {
+  createRuntimeTimer,
+  type RuntimeTimer,
+} from "../lib/runtime-timing.ts";
 
 type ParticularSessionRecord = {
   particularTokenId: number;
@@ -67,12 +71,12 @@ export type ParticularAuditNativeRoutesOptions = {
   now?: () => number;
 };
 
-const REQUEST_START_TIME_KEY = "__particularAuditRequestStartTimeNs";
+const REQUEST_TIMER_KEY = "__particularAuditRequestTimer";
 const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 const PARTICULAR_AUDIT_CSV_EXPORT_MAX_ROWS = 10_000;
 
 type ParticularAuditFastifyRequest = FastifyRequest & {
-  [REQUEST_START_TIME_KEY]?: bigint;
+  [REQUEST_TIMER_KEY]?: RuntimeTimer;
 };
 
 type NativeParticularAuditDeps = Required<
@@ -325,19 +329,18 @@ export const particularAuditNativeRoutes: FastifyPluginAsync<
   const now = options.now ?? (() => Date.now());
 
   app.addHook("onRequest", async (request) => {
-    (request as ParticularAuditFastifyRequest)[REQUEST_START_TIME_KEY] =
-      process.hrtime.bigint();
+    (request as ParticularAuditFastifyRequest)[REQUEST_TIMER_KEY] =
+      createRuntimeTimer();
 
     return undefined;
   });
 
   app.addHook("onResponse", async (request, reply) => {
-    const startedAt =
-      (request as ParticularAuditFastifyRequest)[REQUEST_START_TIME_KEY] ??
-      process.hrtime.bigint();
+    const timer =
+      (request as ParticularAuditFastifyRequest)[REQUEST_TIMER_KEY] ??
+      createRuntimeTimer();
 
-    const durationMs =
-      Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    const durationMs = timer.elapsedMs();
     const safeUrl = sanitizeUrlForLogs(request.url);
 
     console.log(

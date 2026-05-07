@@ -344,6 +344,15 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         markers: ["particularAuditNativeRoutes", "export.csv", "particular"],
       },
       {
+        path: "test/particular-audit-runtime-timing-contract.test.ts",
+        markers: [
+          "particular audit request logging uses shared runtime timing helper",
+          "createRuntimeTimer",
+          "REQUEST_TIMER_KEY",
+          "assert.doesNotMatch",
+        ],
+      },
+      {
         path: "test/logistics-audit-runtime.test.ts",
         markers: [
           "logistics route plan lifecycle runtime writes audit metadata",
