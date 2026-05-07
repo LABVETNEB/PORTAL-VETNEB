@@ -31,7 +31,12 @@ import {
 import {
   adminSystemHealthNativeRoutes,
   type AdminSystemHealthNativeRoutesOptions,
-} from "./routes/admin-system-health.fastify.ts";import {
+} from "./routes/admin-system-health.fastify.ts";
+import {
+  adminSystemMaintenanceNativeRoutes,
+  type AdminSystemMaintenanceNativeRoutesOptions,
+} from "./routes/admin-system-maintenance.fastify.ts";
+import {
   clinicAuthNativeRoutes,
   type AuthNativeRoutesOptions,
 } from "./routes/auth.fastify.ts";
@@ -173,6 +178,7 @@ export type CreateFastifyAppOptions = {
   adminReportAccessTokensRoutes?: AdminReportAccessTokensNativeRoutesOptions;
   adminStudyTrackingRoutes?: AdminStudyTrackingNativeRoutesOptions;
   adminSystemHealthRoutes?: AdminSystemHealthNativeRoutesOptions;
+  adminSystemMaintenanceRoutes?: AdminSystemMaintenanceNativeRoutesOptions;
   clinicAuthRoutes?: AuthNativeRoutesOptions;
   clinicAuditRoutes?: ClinicAuditNativeRoutesOptions;
   clinicPublicProfileRoutes?: ClinicPublicProfileNativeRoutesOptions;
@@ -302,6 +308,11 @@ export async function createFastifyApp(
   await app.register(adminSystemHealthNativeRoutes, {
     prefix: "/api/admin/system/health",
     ...(options.adminSystemHealthRoutes ?? {}),
+  });
+
+  await app.register(adminSystemMaintenanceNativeRoutes, {
+    prefix: "/api/admin/system/maintenance",
+    ...(options.adminSystemMaintenanceRoutes ?? {}),
   });
 
   await app.register(clinicAuthNativeRoutes, {
