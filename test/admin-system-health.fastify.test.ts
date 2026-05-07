@@ -2,8 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import Fastify from "fastify";
 
-import { ENV } from "../server/lib/env.ts";
-import { adminSystemHealthNativeRoutes } from "../server/routes/admin-system-health.fastify.ts";
+process.env.NODE_ENV ??= "development";
+process.env.SUPABASE_URL ??= "https://example.supabase.co";
+process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
+process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
+process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
+process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
+
+const { ENV } = await import("../server/lib/env.ts");
+const { adminSystemHealthNativeRoutes } = await import(
+  "../server/routes/admin-system-health.fastify.ts"
+);
 
 test("admin system health requiere sesión admin", async () => {
   const app = Fastify();
