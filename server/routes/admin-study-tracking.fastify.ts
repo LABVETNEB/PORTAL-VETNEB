@@ -30,6 +30,10 @@ import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
 } from "../middlewares/request-logger.ts";
+import {
+  createRuntimeTimer,
+  type RuntimeTimer,
+} from "../lib/runtime-timing.ts";
 
 type AdminUserRecord = {
   id: number;
@@ -160,12 +164,12 @@ export type AdminStudyTrackingNativeRoutesOptions = {
   createDate?: () => Date;
 };
 
-const REQUEST_START_TIME_KEY = "__adminStudyTrackingRequestStartTimeNs";
+const REQUEST_TIMER_KEY = "__adminStudyTrackingRequestTimer";
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
 type AdminStudyTrackingFastifyRequest = FastifyRequest & {
-  [REQUEST_START_TIME_KEY]?: bigint;
+  [REQUEST_TIMER_KEY]?: RuntimeTimer;
 };
 
 type NativeAdminStudyTrackingDeps = Required<
@@ -473,7 +477,7 @@ async function authenticateAdminUser(
   if (!session) {
     reply.code(401).send({
       success: false,
-      error: "Sesión admin inválida",
+      error: "Sesiï¿½n admin invï¿½lida",
     });
     return null;
   }
@@ -484,7 +488,7 @@ async function authenticateAdminUser(
     reply.header("set-cookie", buildClearAdminSessionCookie());
     reply.code(401).send({
       success: false,
-      error: "Sesión admin expirada",
+      error: "Sesiï¿½n admin expirada",
     });
     return null;
   }
@@ -497,7 +501,7 @@ async function authenticateAdminUser(
     reply.header("set-cookie", buildClearAdminSessionCookie());
     reply.code(401).send({
       success: false,
-      error: "Usuario admin de sesión no encontrado",
+      error: "Usuario admin de sesiï¿½n no encontrado",
     });
     return null;
   }
@@ -637,8 +641,8 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
   const allowedOrigins = new Set(getAllowedOrigins());
 
   app.addHook("onRequest", async (request, reply) => {
-    (request as AdminStudyTrackingFastifyRequest)[REQUEST_START_TIME_KEY] =
-      process.hrtime.bigint();
+    (request as AdminStudyTrackingFastifyRequest)[REQUEST_TIMER_KEY] =
+      createRuntimeTimer();
 
     applyCorsHeaders(request, reply, allowedOrigins);
 
@@ -646,12 +650,11 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
   });
 
   app.addHook("onResponse", async (request, reply) => {
-    const startedAt =
-      (request as AdminStudyTrackingFastifyRequest)[REQUEST_START_TIME_KEY] ??
-      process.hrtime.bigint();
+    const timer =
+      (request as AdminStudyTrackingFastifyRequest)[REQUEST_TIMER_KEY] ??
+      createRuntimeTimer();
 
-    const durationMs =
-      Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    const durationMs = timer.elapsedMs();
     const safeUrl = sanitizeUrlForLogs(request.url);
 
     console.log(
@@ -760,7 +763,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     if (!clinic) {
       return reply.code(404).send({
         success: false,
-        error: "Clínica no encontrada",
+        error: "Clï¿½nica no encontrada",
       });
     }
 
@@ -777,7 +780,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       if (report.clinicId !== parsed.data.clinicId) {
         return reply.code(400).send({
           success: false,
-          error: "El informe no pertenece a la clínica indicada",
+          error: "El informe no pertenece a la clï¿½nica indicada",
         });
       }
     }
@@ -797,7 +800,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       if (particularToken.clinicId !== parsed.data.clinicId) {
         return reply.code(400).send({
           success: false,
-          error: "El token particular no pertenece a la clínica indicada",
+          error: "El token particular no pertenece a la clï¿½nica indicada",
         });
       }
     }
@@ -855,9 +858,9 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
         reportId: created.reportId ?? null,
         particularTokenId: created.particularTokenId ?? null,
         type: "special_stain_required",
-        title: "Se requiere tinción especial",
+        title: "Se requiere tinciï¿½n especial",
         message:
-          "El estudio ingresó a evaluación y requiere tinción especial para continuar.",
+          "El estudio ingresï¿½ a evaluaciï¿½n y requiere tinciï¿½n especial para continuar.",
         isRead: false,
         readAt: null,
       });
@@ -971,7 +974,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     if (typeof trackingCaseId !== "number") {
       return reply.code(400).send({
         success: false,
-        error: "ID de seguimiento inválido",
+        error: "ID de seguimiento invï¿½lido",
       });
     }
 
@@ -1018,7 +1021,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     if (typeof trackingCaseId !== "number") {
       return reply.code(400).send({
         success: false,
-        error: "ID de seguimiento inválido",
+        error: "ID de seguimiento invï¿½lido",
       });
     }
 
@@ -1060,7 +1063,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       if (report.clinicId !== current.clinicId) {
         return reply.code(400).send({
           success: false,
-          error: "El informe no pertenece a la clínica del seguimiento",
+          error: "El informe no pertenece a la clï¿½nica del seguimiento",
         });
       }
     }
@@ -1080,7 +1083,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       if (particularToken.clinicId !== current.clinicId) {
         return reply.code(400).send({
           success: false,
-          error: "El token particular no pertenece a la clínica del seguimiento",
+          error: "El token particular no pertenece a la clï¿½nica del seguimiento",
         });
       }
     }
@@ -1194,9 +1197,9 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
         reportId: updated.reportId ?? null,
         particularTokenId: updated.particularTokenId ?? null,
         type: "special_stain_required",
-        title: "Se requiere tinción especial",
+        title: "Se requiere tinciï¿½n especial",
         message:
-          "El estudio requiere tinción especial. Revisá el seguimiento para continuar la gestión.",
+          "El estudio requiere tinciï¿½n especial. Revisï¿½ el seguimiento para continuar la gestiï¿½n.",
         isRead: false,
         readAt: null,
       });
