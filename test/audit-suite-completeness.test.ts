@@ -327,6 +327,15 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         markers: ["clinicAuditNativeRoutes", "export.csv", "ENV.cookieName"],
       },
       {
+        path: "test/clinic-audit-runtime-timing-contract.test.ts",
+        markers: [
+          "clinic audit request logging uses shared runtime timing helper",
+          "createRuntimeTimer",
+          "REQUEST_TIMER_KEY",
+          "assert.doesNotMatch",
+        ],
+      },
+      {
         path: "test/clinic-audit.test.ts",
         markers: ["buildClinicAuditListFilters", "clinicId"],
       },
