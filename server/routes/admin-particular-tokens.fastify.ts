@@ -24,6 +24,7 @@ import {
   createRuntimeTimer,
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
+import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 
 type AdminUserRecord = {
   id: number;
@@ -97,7 +98,6 @@ export type AdminParticularTokensNativeRoutesOptions = {
 
 const REQUEST_TIMER_KEY = "__adminParticularTokensRequestTimer";
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
 type AdminParticularTokensFastifyRequest = FastifyRequest & {
   [REQUEST_TIMER_KEY]?: RuntimeTimer;
@@ -354,16 +354,6 @@ function buildClearAdminSessionCookie() {
   });
 }
 
-function shouldRefreshSessionLastAccess(
-  lastAccess: Date | null | undefined,
-  nowMs: number,
-) {
-  if (!(lastAccess instanceof Date)) {
-    return true;
-  }
-
-  return nowMs - lastAccess.getTime() >= SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS;
-}
 
 async function authenticateAdminUser(
   request: FastifyRequest,
