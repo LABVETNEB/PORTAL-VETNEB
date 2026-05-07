@@ -19,6 +19,7 @@ import {
   createRuntimeTimer,
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
+import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import type { UpsertClinicPublicProfileInput } from "../db-public-professionals.ts";
 
 type ClinicRecord = {
@@ -143,7 +144,6 @@ export type ClinicPublicProfileNativeRoutesOptions = {
 
 const REQUEST_TIMER_KEY = "__clinicPublicProfileRequestTimer";
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 const MAX_DISPLAY_NAME = 255;
 const MAX_EMAIL = 255;
 const MAX_PHONE = 50;
@@ -441,17 +441,6 @@ function buildClearSessionCookie() {
     maxAgeSeconds: 0,
     expires: "Thu, 01 Jan 1970 00:00:00 GMT",
   });
-}
-
-function shouldRefreshSessionLastAccess(
-  lastAccess: Date | null | undefined,
-  nowMs: number,
-) {
-  if (!(lastAccess instanceof Date)) {
-    return true;
-  }
-
-  return nowMs - lastAccess.getTime() >= SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS;
 }
 
 function normalizeNullableString(value: unknown, maxLength: number) {
