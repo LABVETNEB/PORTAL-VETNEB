@@ -584,6 +584,27 @@ function buildLogisticsSlaRouteStubs() {
     }),
   };
 }
+function buildAdminSystemHealthRouteStubs() {
+  return {
+    deleteAdminSession: async () => {},
+    getAdminSessionByToken: async () => null,
+    getAdminUserById: async () => null,
+    updateAdminSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    getSystemHealthSnapshot: async () => ({
+      statusCode: 200,
+      payload: {
+        success: true,
+        status: "ok",
+        checks: {
+          database: "up",
+          storage: "up",
+        },
+      },
+    }),
+    getBackendVersion: () => "test-version",
+  };
+}
 function buildFastifyDispatchRouteStubs() {
   return {
     adminAuditRoutes: buildAdminAuditRouteStubs(),
@@ -592,6 +613,7 @@ function buildFastifyDispatchRouteStubs() {
     adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
     adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
     clinicAuthRoutes: buildClinicAuthRouteStubs(),
     clinicAuditRoutes: buildClinicAuditRouteStubs(),
     clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -641,6 +663,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -750,6 +773,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -820,6 +844,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -881,6 +906,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: {
         ...buildClinicAuthRouteStubs(),
         getActiveSessionByToken: async () => ({
@@ -963,6 +989,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: {
         ...buildClinicAuditRouteStubs(),
@@ -1075,6 +1102,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: {
@@ -1171,6 +1199,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1278,6 +1307,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1346,6 +1376,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1463,6 +1494,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1626,6 +1658,7 @@ test(
         ],
       },
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1724,6 +1757,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1782,6 +1816,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -1898,6 +1933,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -2018,6 +2054,7 @@ test(
       adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
       adminStudyTrackingRoutes: buildAdminStudyTrackingRouteStubs(),
+    adminSystemHealthRoutes: buildAdminSystemHealthRouteStubs(),
       clinicAuthRoutes: buildClinicAuthRouteStubs(),
       clinicAuditRoutes: buildClinicAuditRouteStubs(),
       clinicPublicProfileRoutes: buildClinicPublicProfileRouteStubs(),
@@ -2279,6 +2316,61 @@ test(
           },
           profileQualityScore: 0.91,
         },
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "createFastifyApp despacha /api/admin/system/health al router nativo",
+  async () => {
+    const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
+      adminSystemHealthRoutes: {
+        ...buildAdminSystemHealthRouteStubs(),
+        getAdminSessionByToken: async () => ({
+          adminUserId: 1,
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+        }),
+        getAdminUserById: async () => ({
+          id: 1,
+          username: "VETNEB",
+        }),
+        getSystemHealthSnapshot: async () => ({
+          statusCode: 200,
+          payload: {
+            success: true,
+            status: "ok",
+            checks: {
+              database: "up",
+              storage: "up",
+            },
+          },
+        }),
+        getBackendVersion: () => "2.1.0-test",
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/system/health",
+        headers: {
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+
+      const body = JSON.parse(response.body);
+      assert.equal(body.success, true);
+      assert.equal(body.version, "2.1.0-test");
+      assert.deepEqual(body.services, {
+        database: "up",
+        storage: "up",
       });
     } finally {
       await app.close();
