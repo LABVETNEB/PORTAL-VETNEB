@@ -36,6 +36,10 @@ import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
 } from "../middlewares/request-logger.ts";
+import {
+  createRuntimeTimer,
+  type RuntimeTimer,
+} from "../lib/runtime-timing.ts";
 
 type ReportAccessTokenWithReportRecord = {
   token: ReportAccessToken;
@@ -74,10 +78,10 @@ export type PublicReportAccessNativeRoutesOptions = {
   now?: () => number;
 };
 
-const REQUEST_START_TIME_KEY = "__publicReportAccessRequestStartTimeNs";
+const REQUEST_TIMER_KEY = "__publicReportAccessRequestTimer";
 
 type PublicReportAccessFastifyRequest = FastifyRequest & {
-  [REQUEST_START_TIME_KEY]?: bigint;
+  [REQUEST_TIMER_KEY]?: RuntimeTimer;
 };
 
 type NativePublicReportAccessDeps = Required<
@@ -262,8 +266,8 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
     options.publicReportAccessRateLimitStore ?? createMemoryRateLimitStore();
 
   app.addHook("onRequest", async (request, reply) => {
-    (request as PublicReportAccessFastifyRequest)[REQUEST_START_TIME_KEY] =
-      process.hrtime.bigint();
+    (request as PublicReportAccessFastifyRequest)[REQUEST_TIMER_KEY] =
+      createRuntimeTimer();
 
     applyCorsHeaders(request, reply, allowedOrigins);
 
@@ -271,12 +275,11 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
   });
 
   app.addHook("onResponse", async (request, reply) => {
-    const startedAt =
-      (request as PublicReportAccessFastifyRequest)[REQUEST_START_TIME_KEY] ??
-      process.hrtime.bigint();
+    const timer =
+      (request as PublicReportAccessFastifyRequest)[REQUEST_TIMER_KEY] ??
+      createRuntimeTimer();
 
-    const durationMs =
-      Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    const durationMs = timer.elapsedMs();
     const safeUrl = sanitizeUrlForLogs(request.url);
 
     console.log(
