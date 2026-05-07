@@ -42,6 +42,7 @@ import {
   type RouteStopComplianceInput,
 } from "../lib/logistics/metrics.ts";
 import { createRuntimeTimer } from "../lib/runtime-timing.ts";
+import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 
 type ActiveSessionRecord = {
   clinicUserId: number;
@@ -136,7 +137,6 @@ type NativeLogisticsRoutePlansDeps = Required<
   >
 >;
 
-const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const MAX_ROUTE_PLAN_FIELD_VISIT_IDS = 100;
 
@@ -405,17 +405,6 @@ function buildClearSessionCookie(): string {
     maxAgeSeconds: 0,
     expires: "Thu, 01 Jan 1970 00:00:00 GMT",
   });
-}
-
-function shouldRefreshSessionLastAccess(
-  lastAccess: Date | null | undefined,
-  nowMs: number,
-): boolean {
-  if (!(lastAccess instanceof Date)) {
-    return true;
-  }
-
-  return nowMs - lastAccess.getTime() >= SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS;
 }
 
 async function authenticateClinicUser(
