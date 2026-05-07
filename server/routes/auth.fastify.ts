@@ -25,6 +25,10 @@ import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
 } from "../middlewares/request-logger.ts";
+import {
+  createRuntimeTimer,
+  type RuntimeTimer,
+} from "../lib/runtime-timing.ts";
 
 type VerifyPasswordResult = {
   valid: boolean;
@@ -114,11 +118,11 @@ export type AuthNativeRoutesOptions = {
   now?: () => number;
 };
 
-const REQUEST_START_TIME_KEY = "__clinicAuthRequestStartTimeNs";
+const REQUEST_TIMER_KEY = "__clinicAuthRequestTimer";
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 type AuthFastifyRequest = FastifyRequest & {
-  [REQUEST_START_TIME_KEY]?: bigint;
+  [REQUEST_TIMER_KEY]?: RuntimeTimer;
 };
 
 type NativeAuthDeps = Required<
@@ -546,8 +550,8 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
     options.loginRateLimitStore ?? createMemoryRateLimitStore();
 
   app.addHook("onRequest", async (request, reply) => {
-    (request as AuthFastifyRequest)[REQUEST_START_TIME_KEY] =
-      process.hrtime.bigint();
+    (request as AuthFastifyRequest)[REQUEST_TIMER_KEY] =
+      createRuntimeTimer();
 
     applyCorsHeaders(request, reply, allowedOrigins);
 
@@ -555,12 +559,11 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
   });
 
   app.addHook("onResponse", async (request, reply) => {
-    const startedAt =
-      (request as AuthFastifyRequest)[REQUEST_START_TIME_KEY] ??
-      process.hrtime.bigint();
+    const timer =
+      (request as AuthFastifyRequest)[REQUEST_TIMER_KEY] ??
+      createRuntimeTimer();
 
-    const durationMs =
-      Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    const durationMs = timer.elapsedMs();
     const safeUrl = sanitizeUrlForLogs(request.url);
 
     console.log(
