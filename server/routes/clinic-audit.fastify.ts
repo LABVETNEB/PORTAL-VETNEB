@@ -17,6 +17,10 @@ import {
   sanitizeUrlForLogs,
 } from "../middlewares/request-logger.ts";
 import {
+  createRuntimeTimer,
+  type RuntimeTimer,
+} from "../lib/runtime-timing.ts";
+import {
   getClinicPermissions,
   normalizeClinicUserRole,
 } from "../lib/permissions.ts";
@@ -74,12 +78,12 @@ export type ClinicAuditNativeRoutesOptions = {
   now?: () => number;
 };
 
-const REQUEST_START_TIME_KEY = "__clinicAuditRequestStartTimeNs";
+const REQUEST_TIMER_KEY = "__clinicAuditRequestTimer";
 const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 const CLINIC_AUDIT_CSV_EXPORT_MAX_ROWS = 10_000;
 
 type ClinicAuditFastifyRequest = FastifyRequest & {
-  [REQUEST_START_TIME_KEY]?: bigint;
+  [REQUEST_TIMER_KEY]?: RuntimeTimer;
 };
 
 type NativeClinicAuditDeps = Required<
@@ -326,19 +330,18 @@ export const clinicAuditNativeRoutes: FastifyPluginAsync<
   const now = options.now ?? (() => Date.now());
 
   app.addHook("onRequest", async (request) => {
-    (request as ClinicAuditFastifyRequest)[REQUEST_START_TIME_KEY] =
-      process.hrtime.bigint();
+    (request as ClinicAuditFastifyRequest)[REQUEST_TIMER_KEY] =
+      createRuntimeTimer();
 
     return undefined;
   });
 
   app.addHook("onResponse", async (request, reply) => {
-    const startedAt =
-      (request as ClinicAuditFastifyRequest)[REQUEST_START_TIME_KEY] ??
-      process.hrtime.bigint();
+    const timer =
+      (request as ClinicAuditFastifyRequest)[REQUEST_TIMER_KEY] ??
+      createRuntimeTimer();
 
-    const durationMs =
-      Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    const durationMs = timer.elapsedMs();
     const safeUrl = sanitizeUrlForLogs(request.url);
 
     console.log(
