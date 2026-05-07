@@ -20,6 +20,7 @@ import {
   createRuntimeTimer,
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
+import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 
 type ParticularSessionRecord = {
   particularTokenId: number;
@@ -72,7 +73,6 @@ export type ParticularAuditNativeRoutesOptions = {
 };
 
 const REQUEST_TIMER_KEY = "__particularAuditRequestTimer";
-const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 const PARTICULAR_AUDIT_CSV_EXPORT_MAX_ROWS = 10_000;
 
 type ParticularAuditFastifyRequest = FastifyRequest & {
@@ -209,16 +209,6 @@ function buildClearParticularSessionCookie() {
   });
 }
 
-function shouldRefreshSessionLastAccess(
-  lastAccess: Date | null | undefined,
-  nowMs: number,
-) {
-  if (!(lastAccess instanceof Date)) {
-    return true;
-  }
-
-  return nowMs - lastAccess.getTime() >= SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS;
-}
 
 async function authenticateParticularUser(
   request: FastifyRequest,
