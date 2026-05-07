@@ -1,4 +1,5 @@
-﻿import type { NextFunction, Request, Response } from "../lib/http-types.ts";
+import type { NextFunction, Request, Response } from "../lib/http-types.ts";
+import { createRuntimeTimer } from "../lib/runtime-timing.ts";
 
 export function sanitizeUrlForLogs(url: string): string {
   return url
@@ -28,10 +29,10 @@ export function buildRequestLogLine(input: {
 }
 
 export function requestLogger(req: Request, res: Response, next: NextFunction) {
-  const startTime = process.hrtime.bigint();
+  const timer = createRuntimeTimer();
 
   res.on("finish", () => {
-    const durationMs = Number(process.hrtime.bigint() - startTime) / 1_000_000;
+    const durationMs = timer.elapsedMs();
     const safeUrl = sanitizeUrlForLogs(req.originalUrl);
 
     console.log(
