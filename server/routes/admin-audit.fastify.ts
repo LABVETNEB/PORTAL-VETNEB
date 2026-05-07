@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   FastifyPluginAsync,
   FastifyReply,
   FastifyRequest,
@@ -16,6 +16,10 @@ import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
 } from "../middlewares/request-logger.ts";
+import {
+  createRuntimeTimer,
+  type RuntimeTimer,
+} from "../lib/runtime-timing.ts";
 
 type AdminUserRecord = {
   id: number;
@@ -59,12 +63,12 @@ export type AdminAuditNativeRoutesOptions = {
   now?: () => number;
 };
 
-const REQUEST_START_TIME_KEY = "__adminAuditRequestStartTimeNs";
+const REQUEST_TIMER_KEY = "__adminAuditRequestTimer";
 const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 const ADMIN_AUDIT_CSV_EXPORT_MAX_ROWS = 10_000;
 
 type AdminAuditFastifyRequest = FastifyRequest & {
-  [REQUEST_START_TIME_KEY]?: bigint;
+  [REQUEST_TIMER_KEY]?: RuntimeTimer;
 };
 
 type NativeAdminAuditDeps = Required<
@@ -309,19 +313,18 @@ export const adminAuditNativeRoutes: FastifyPluginAsync<
   const now = options.now ?? (() => Date.now());
 
   app.addHook("onRequest", async (request) => {
-    (request as AdminAuditFastifyRequest)[REQUEST_START_TIME_KEY] =
-      process.hrtime.bigint();
+    (request as AdminAuditFastifyRequest)[REQUEST_TIMER_KEY] =
+      createRuntimeTimer();
 
     return undefined;
   });
 
   app.addHook("onResponse", async (request, reply) => {
-    const startedAt =
-      (request as AdminAuditFastifyRequest)[REQUEST_START_TIME_KEY] ??
-      process.hrtime.bigint();
+    const timer =
+      (request as AdminAuditFastifyRequest)[REQUEST_TIMER_KEY] ??
+      createRuntimeTimer();
 
-    const durationMs =
-      Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    const durationMs = timer.elapsedMs();
     const safeUrl = sanitizeUrlForLogs(request.url);
 
     console.log(

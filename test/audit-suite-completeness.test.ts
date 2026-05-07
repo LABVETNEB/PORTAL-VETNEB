@@ -293,6 +293,15 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         markers: ["adminAuditNativeRoutes", "export.csv", "filtros"],
       },
       {
+        path: "test/admin-audit-runtime-timing-contract.test.ts",
+        markers: [
+          "admin audit request logging uses shared runtime timing helper",
+          "createRuntimeTimer",
+          "REQUEST_TIMER_KEY",
+          "assert.doesNotMatch",
+        ],
+      },
+      {
         path: "test/admin-audit.test.ts",
         markers: ["buildAdminAuditListFilters", "buildAdminAuditCsv"],
       },
