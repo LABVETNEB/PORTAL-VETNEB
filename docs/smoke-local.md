@@ -1,4 +1,4 @@
-﻿# Smoke local
+# Smoke local
 
 Los scripts de smoke validan el backend contra un servidor ya levantado.
 
@@ -28,7 +28,7 @@ $env:SMOKE_USERNAME = "<clinic-user>"
 $env:SMOKE_PASSWORD = "<clinic-password>"
 ```
 
-No usar los defaults internos `admin` / `admin123` salvo que existan explicitamente en la base local.
+SMOKE_PASSWORD es obligatorio. El script falla si no esta configurado para evitar passwords por defecto en smoke local.
 
 Usar `127.0.0.1` evita diferencias locales de resolucion IPv6 de `localhost`.
 

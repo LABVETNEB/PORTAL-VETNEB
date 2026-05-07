@@ -174,13 +174,29 @@ test("upload local smoke keeps temp artifacts outside the repo and covers admin 
 
 test("local smoke documentation keeps credential handling explicit", () => {
   const docs = read("docs/smoke-local.md");
+  const smokeTest = read("scripts/smoke/smoke-test.mjs");
+  const smokeUpload = read("scripts/smoke/smoke-upload.mjs");
+  const forbiddenDefaultPasswordPattern = new RegExp("admin" + "123");
+
+  assert.doesNotMatch(smokeTest, forbiddenDefaultPasswordPattern);
+  assert.doesNotMatch(smokeUpload, forbiddenDefaultPasswordPattern);
+  assertIncludes(
+    smokeTest,
+    'requiredEnv("SMOKE_PASSWORD")',
+    "scripts/smoke/smoke-test.mjs"
+  );
+  assertIncludes(
+    smokeUpload,
+    'requiredEnv("SMOKE_PASSWORD")',
+    "scripts/smoke/smoke-upload.mjs"
+  );
 
   for (const marker of [
     "SMOKE_BASE_URL",
     "SMOKE_USERNAME",
     "SMOKE_PASSWORD",
     "SMOKE_TMP_DIR",
-    "No usar los defaults internos `admin` / `admin123`",
+    "SMOKE_PASSWORD es obligatorio.",
     "Los scripts no deben registrar la password en consola.",
     "Solo muestran BASE URL y USUARIO.",
     "Las credenciales reales deben configurarse por entorno local y no commitearse.",

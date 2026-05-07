@@ -5,9 +5,19 @@ import path from "node:path";
 
 const BASE_URL = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
 const USERNAME = process.env.SMOKE_USERNAME ?? "admin";
-const PASSWORD = process.env.SMOKE_PASSWORD ?? "admin123";
+const PASSWORD = requiredEnv("SMOKE_PASSWORD");
 const TMP_DIR = process.env.SMOKE_TMP_DIR ?? path.join(os.tmpdir(), "portal-vetneb-smoke");
 const PDF_PATH = path.join(TMP_DIR, "smoke-test.pdf");
+
+function requiredEnv(name) {
+  const value = process.env[name];
+
+  if (value === undefined || value.trim() === "") {
+    throw new Error(`${name} es requerido para ejecutar este smoke script.`);
+  }
+
+  return value;
+}
 
 function fail(message, error) {
   console.error("SMOKE UPLOAD FALLO");
