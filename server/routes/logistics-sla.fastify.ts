@@ -24,6 +24,7 @@ import {
   getClinicPermissions,
   normalizeClinicUserRole,
 } from "../lib/permissions.ts";
+import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 
 type ActiveSessionRecord = {
   clinicUserId: number;
@@ -86,7 +87,6 @@ type NativeLogisticsSlaDeps = Required<
   >
 >;
 
-const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
 let defaultDepsPromise: Promise<NativeLogisticsSlaDeps> | undefined;
 
@@ -313,17 +313,6 @@ function buildClearSessionCookie(): string {
     maxAgeSeconds: 0,
     expires: "Thu, 01 Jan 1970 00:00:00 GMT",
   });
-}
-
-function shouldRefreshSessionLastAccess(
-  lastAccess: Date | null | undefined,
-  nowMs: number,
-): boolean {
-  if (!(lastAccess instanceof Date)) {
-    return true;
-  }
-
-  return nowMs - lastAccess.getTime() >= SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS;
 }
 
 async function authenticateClinicUser(
