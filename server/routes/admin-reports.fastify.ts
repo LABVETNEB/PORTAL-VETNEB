@@ -20,6 +20,10 @@ import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
 } from "../middlewares/request-logger.ts";
+import {
+  createRuntimeTimer,
+  type RuntimeTimer,
+} from "../lib/runtime-timing.ts";
 
 type AdminUserRecord = {
   id: number;
@@ -101,12 +105,12 @@ export type AdminReportsNativeRoutesOptions = {
   now?: () => number;
 };
 
-const REQUEST_START_TIME_KEY = "__adminReportsRequestStartTimeNs";
+const REQUEST_TIMER_KEY = "__adminReportsRequestTimer";
 const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 type AdminReportsFastifyRequest = FastifyRequest & {
-  [REQUEST_START_TIME_KEY]?: bigint;
+  [REQUEST_TIMER_KEY]?: RuntimeTimer;
 };
 
 const allowedMimeTypes = new Set(ALLOWED_MIME_TYPES);
@@ -572,8 +576,8 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
   }
 
   app.addHook("onRequest", async (request, reply) => {
-    (request as AdminReportsFastifyRequest)[REQUEST_START_TIME_KEY] =
-      process.hrtime.bigint();
+    (request as AdminReportsFastifyRequest)[REQUEST_TIMER_KEY] =
+      createRuntimeTimer();
 
     applyCorsHeaders(request, reply, allowedOrigins);
 
@@ -581,11 +585,11 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
   });
 
   app.addHook("onResponse", async (request, reply) => {
-    const startedAt =
-      (request as AdminReportsFastifyRequest)[REQUEST_START_TIME_KEY] ??
-      process.hrtime.bigint();
+    const timer =
+      (request as AdminReportsFastifyRequest)[REQUEST_TIMER_KEY] ??
+      createRuntimeTimer();
 
-    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    const durationMs = timer.elapsedMs();
     const safeUrl = sanitizeUrlForLogs(request.url);
 
     console.log(
