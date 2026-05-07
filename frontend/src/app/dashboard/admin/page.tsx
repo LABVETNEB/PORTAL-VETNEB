@@ -17,7 +17,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { getAuditEntries } from "@/lib/api";
+import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -54,6 +54,40 @@ function getEventVariant(
   return "outline";
 }
 
+
+function getServiceVariant(
+  value: unknown,
+): "default" | "secondary" | "destructive" | "outline" {
+  if (value === "up") return "default";
+  if (value === "down") return "destructive";
+  if (value === "unknown" || value === undefined || value === null) {
+    return "outline";
+  }
+  return "secondary";
+}
+
+function formatServiceStatus(value: unknown) {
+  if (value === "up") return "Activo";
+  if (value === "down") return "Caído";
+  if (value === "unknown" || value === undefined || value === null) {
+    return "Desconocido";
+  }
+  return String(value);
+}
+
+function formatUptime(totalSeconds: number | undefined) {
+  if (typeof totalSeconds !== "number" || !Number.isFinite(totalSeconds)) {
+    return "—";
+  }
+
+  const days = Math.floor(totalSeconds / 86_400);
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
 async function getAdminRequestOptions(): Promise<RequestInit> {
   const cookieHeader = (await cookies()).toString();
 
@@ -65,6 +99,10 @@ async function getAdminRequestOptions(): Promise<RequestInit> {
 
 export default async function AdminPage() {
   const auditEntries = await getAuditEntries(await getAdminRequestOptions());
+  const systemHealth = await getAdminSystemHealth(await getAdminRequestOptions());
+  const serviceChecks = systemHealth?.services ?? {};
+  const systemStatus = systemHealth?.status ?? "unknown";
+  const isSystemOk = systemStatus === "ok";
   const eventCounts = auditEntries.reduce(
     (acc, entry) => {
       acc[entry.event] = (acc[entry.event] ?? 0) + 1;
@@ -81,7 +119,7 @@ export default async function AdminPage() {
       />
       <main className="flex-1 p-6 space-y-6">
         <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700">
-          Lectura conectada a <code>GET /api/admin/audit-log</code>.
+          Lectura conectada a <code>GET /api/admin/audit-log</code> y <code>GET /api/admin/system/health</code>.
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -130,6 +168,46 @@ export default async function AdminPage() {
             </CardContent>
           </Card>
         </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Health & Maintenance</CardTitle>
+            <CardDescription>
+              Estado de servicios y consumo runtime del backend en producción
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs text-gray-400 mb-2">Database</p>
+                <Badge variant={getServiceVariant(serviceChecks.database)}>
+                  {formatServiceStatus(serviceChecks.database)}
+                </Badge>
+              </div>
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs text-gray-400 mb-2">Storage</p>
+                <Badge variant={getServiceVariant(serviceChecks.storage)}>
+                  {formatServiceStatus(serviceChecks.storage)}
+                </Badge>
+              </div>
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs text-gray-400">Uptime</p>
+                <p className="text-lg font-semibold text-gray-800 mt-1">
+                  {formatUptime(systemHealth?.runtime.uptimeSeconds)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs text-gray-400">Memoria RSS</p>
+                <p className="text-lg font-semibold text-gray-800 mt-1">
+                  {systemHealth?.runtime.memory.rssMb ?? "—"} MB
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Heap usado: {systemHealth?.runtime.memory.heapUsedMb ?? "—"} MB
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
 
         <Card>
           <CardHeader>
