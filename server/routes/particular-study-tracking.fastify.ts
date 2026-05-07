@@ -25,6 +25,7 @@ import {
   createRuntimeTimer,
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
+import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 
 type ParticularSessionRecord = {
   particularTokenId: number;
@@ -69,7 +70,6 @@ export type ParticularStudyTrackingNativeRoutesOptions = {
 };
 
 const REQUEST_TIMER_KEY = "__particularStudyTrackingRequestTimer";
-const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
 type ParticularStudyTrackingFastifyRequest = FastifyRequest & {
   [REQUEST_TIMER_KEY]?: RuntimeTimer;
@@ -336,17 +336,6 @@ function buildClearParticularSessionCookie() {
     maxAgeSeconds: 0,
     expires: "Thu, 01 Jan 1970 00:00:00 GMT",
   });
-}
-
-function shouldRefreshSessionLastAccess(
-  lastAccess: Date | null | undefined,
-  nowMs: number,
-) {
-  if (!(lastAccess instanceof Date)) {
-    return true;
-  }
-
-  return nowMs - lastAccess.getTime() >= SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS;
 }
 
 async function authenticateParticularUser(
