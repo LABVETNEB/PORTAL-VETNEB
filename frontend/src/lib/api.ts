@@ -29,7 +29,6 @@ import {
   MOCK_ROUTE_PLANS,
   MOCK_ROUTE_METRICS,
   MOCK_AUDIT_ENTRIES,
-  MOCK_DASHBOARD_STATS,
 } from "@/lib/mock-data";
 
 const API_BASE_URL =
@@ -222,8 +221,4 @@ export async function getDashboardStats(
       (plan) => plan.status === "released" || plan.status === "in_progress",
     ).length,
   };
-}
-
-export async function getFallbackDashboardStats(): Promise<DashboardStats> {
-  return MOCK_DASHBOARD_STATS;
 }
