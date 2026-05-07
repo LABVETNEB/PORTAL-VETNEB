@@ -35,6 +35,7 @@ import {
   createRuntimeTimer,
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
+import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 
 type ClinicUserRecord = {
   id: number;
@@ -175,7 +176,6 @@ export type StudyTrackingNativeRoutesOptions = {
 
 const REQUEST_TIMER_KEY = "__studyTrackingRequestTimer";
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
 type StudyTrackingFastifyRequest = FastifyRequest & {
   [REQUEST_TIMER_KEY]?: RuntimeTimer;
@@ -455,17 +455,6 @@ function buildClearSessionCookie() {
     maxAgeSeconds: 0,
     expires: "Thu, 01 Jan 1970 00:00:00 GMT",
   });
-}
-
-function shouldRefreshSessionLastAccess(
-  lastAccess: Date | null | undefined,
-  nowMs: number,
-) {
-  if (!(lastAccess instanceof Date)) {
-    return true;
-  }
-
-  return nowMs - lastAccess.getTime() >= SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS;
 }
 
 async function authenticateClinicUser(
