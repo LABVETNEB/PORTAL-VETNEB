@@ -17,6 +17,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { AdminMaintenanceDryRunCard } from "./AdminMaintenanceDryRunCard";
 import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 
@@ -119,7 +120,7 @@ export default async function AdminPage() {
       />
       <main className="flex-1 p-6 space-y-6">
         <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700">
-          Lectura conectada a <code>GET /api/admin/audit-log</code> y <code>GET /api/admin/system/health</code>.
+          Lectura conectada a <code>GET /api/admin/audit-log</code>, <code>GET /api/admin/system/health</code> y <code>POST /api/admin/system/maintenance/purge-dry-run</code>.
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -207,7 +208,7 @@ export default async function AdminPage() {
             </div>
           </CardContent>
         </Card>
-
+        <AdminMaintenanceDryRunCard />
 
         <Card>
           <CardHeader>
