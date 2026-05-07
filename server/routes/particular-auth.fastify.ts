@@ -22,6 +22,10 @@ import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
 } from "../middlewares/request-logger.ts";
+import {
+  createRuntimeTimer,
+  type RuntimeTimer,
+} from "../lib/runtime-timing.ts";
 
 type ParticularSessionRecord = {
   particularTokenId: number;
@@ -76,12 +80,12 @@ export type ParticularAuthNativeRoutesOptions = {
   now?: () => number;
 };
 
-const REQUEST_START_TIME_KEY = "__particularAuthRequestStartTimeNs";
+const REQUEST_TIMER_KEY = "__particularAuthRequestTimer";
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
 type ParticularAuthFastifyRequest = FastifyRequest & {
-  [REQUEST_START_TIME_KEY]?: bigint;
+  [REQUEST_TIMER_KEY]?: RuntimeTimer;
 };
 
 type NativeParticularAuthDeps = Required<
@@ -535,8 +539,8 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     options.loginRateLimitStore ?? createMemoryRateLimitStore();
 
   app.addHook("onRequest", async (request, reply) => {
-    (request as ParticularAuthFastifyRequest)[REQUEST_START_TIME_KEY] =
-      process.hrtime.bigint();
+    (request as ParticularAuthFastifyRequest)[REQUEST_TIMER_KEY] =
+      createRuntimeTimer();
 
     applyCorsHeaders(request, reply, allowedOrigins);
 
@@ -544,12 +548,11 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
   });
 
   app.addHook("onResponse", async (request, reply) => {
-    const startedAt =
-      (request as ParticularAuthFastifyRequest)[REQUEST_START_TIME_KEY] ??
-      process.hrtime.bigint();
+    const timer =
+      (request as ParticularAuthFastifyRequest)[REQUEST_TIMER_KEY] ??
+      createRuntimeTimer();
 
-    const durationMs =
-      Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    const durationMs = timer.elapsedMs();
     const safeUrl = sanitizeUrlForLogs(request.url);
 
     console.log(
