@@ -185,6 +185,38 @@ export type DashboardStats = {
   activeVisits: number;
   activePlans: number;
 };
+
+export type MaintenancePurgeCandidateCategory =
+  | "expired_clinic_sessions"
+  | "expired_admin_sessions"
+  | "expired_particular_sessions"
+  | "storage_orphans";
+
+export type MaintenancePurgeCandidateGroup = {
+  category: MaintenancePurgeCandidateCategory;
+  label: string;
+  count: number;
+  supported: boolean;
+  destructiveAction: string | null;
+  reason?: string;
+};
+
+export type MaintenancePurgeDryRunSnapshot = {
+  success: boolean;
+  dryRun: true;
+  generatedAt: string;
+  checkedBy?: {
+    adminUserId: number;
+    username: string;
+  };
+  candidates: MaintenancePurgeCandidateGroup[];
+  totals: {
+    candidateRecords: number;
+    supportedCandidateRecords: number;
+    unsupportedGroups: number;
+  };
+};
+
 export type SystemHealth = {
   success: boolean;
   status: string;

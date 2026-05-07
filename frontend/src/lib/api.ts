@@ -22,6 +22,7 @@ import type {
   LoginCredentials,
   DashboardStats,
   SystemHealth,
+  MaintenancePurgeDryRunSnapshot,
 } from "@/types";
 
 import {
@@ -216,6 +217,18 @@ export async function getAdminSystemHealth(
     return null;
   }
 }
+export async function getAdminMaintenancePurgeDryRun(
+  options?: RequestInit,
+): Promise<MaintenancePurgeDryRunSnapshot> {
+  return apiFetch<MaintenancePurgeDryRunSnapshot>(
+    "/api/admin/system/maintenance/purge-dry-run",
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+}
+
 export async function getDashboardStats(
   options?: RequestInit,
 ): Promise<DashboardStats> {
