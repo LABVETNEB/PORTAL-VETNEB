@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   FastifyPluginAsync,
   FastifyReply,
   FastifyRequest,
@@ -15,6 +15,10 @@ import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
 } from "../middlewares/request-logger.ts";
+import {
+  createRuntimeTimer,
+  type RuntimeTimer,
+} from "../lib/runtime-timing.ts";
 import type { UpsertClinicPublicProfileInput } from "../db-public-professionals.ts";
 
 type ClinicRecord = {
@@ -137,7 +141,7 @@ export type ClinicPublicProfileNativeRoutesOptions = {
   now?: () => number;
 };
 
-const REQUEST_START_TIME_KEY = "__clinicPublicProfileRequestStartTimeNs";
+const REQUEST_TIMER_KEY = "__clinicPublicProfileRequestTimer";
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 const MAX_DISPLAY_NAME = 255;
@@ -150,7 +154,7 @@ const MAX_ABOUT = 5000;
 const MAX_SERVICES = 5000;
 
 type ClinicPublicProfileFastifyRequest = FastifyRequest & {
-  [REQUEST_START_TIME_KEY]?: bigint;
+  [REQUEST_TIMER_KEY]?: RuntimeTimer;
 };
 
 type NativeClinicPublicProfileDeps = Required<
@@ -722,8 +726,8 @@ export const clinicPublicProfileNativeRoutes: FastifyPluginAsync<
   }
 
   app.addHook("onRequest", async (request, reply) => {
-    (request as ClinicPublicProfileFastifyRequest)[REQUEST_START_TIME_KEY] =
-      process.hrtime.bigint();
+    (request as ClinicPublicProfileFastifyRequest)[REQUEST_TIMER_KEY] =
+      createRuntimeTimer();
 
     applyCorsHeaders(request, reply, allowedOrigins);
 
@@ -731,12 +735,11 @@ export const clinicPublicProfileNativeRoutes: FastifyPluginAsync<
   });
 
   app.addHook("onResponse", async (request, reply) => {
-    const startedAt =
-      (request as ClinicPublicProfileFastifyRequest)[REQUEST_START_TIME_KEY] ??
-      process.hrtime.bigint();
+    const timer =
+      (request as ClinicPublicProfileFastifyRequest)[REQUEST_TIMER_KEY] ??
+      createRuntimeTimer();
 
-    const durationMs =
-      Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    const durationMs = timer.elapsedMs();
     const safeUrl = sanitizeUrlForLogs(request.url);
 
     console.log(
