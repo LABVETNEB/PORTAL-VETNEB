@@ -25,6 +25,7 @@ import {
   createRuntimeTimer,
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
+import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 
 type ClinicUserRecord = {
   id: number;
@@ -85,7 +86,6 @@ export type ReportsNativeRoutesOptions = {
 };
 
 const REQUEST_TIMER_KEY = "__reportsRequestTimer";
-const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
 type ReportsFastifyRequest = FastifyRequest & {
   [REQUEST_TIMER_KEY]?: RuntimeTimer;
@@ -363,16 +363,6 @@ function buildClearSessionCookie() {
   });
 }
 
-function shouldRefreshSessionLastAccess(
-  lastAccess: Date | null | undefined,
-  nowMs: number,
-) {
-  if (!(lastAccess instanceof Date)) {
-    return true;
-  }
-
-  return nowMs - lastAccess.getTime() >= SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS;
-}
 
 async function authenticateClinicUser(
   request: FastifyRequest,
