@@ -21,6 +21,10 @@ import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
 } from "../middlewares/request-logger.ts";
+import {
+  createRuntimeTimer,
+  type RuntimeTimer,
+} from "../lib/runtime-timing.ts";
 
 type ParticularSessionRecord = {
   particularTokenId: number;
@@ -64,11 +68,11 @@ export type ParticularStudyTrackingNativeRoutesOptions = {
   now?: () => number;
 };
 
-const REQUEST_START_TIME_KEY = "__particularStudyTrackingRequestStartTimeNs";
+const REQUEST_TIMER_KEY = "__particularStudyTrackingRequestTimer";
 const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
 type ParticularStudyTrackingFastifyRequest = FastifyRequest & {
-  [REQUEST_START_TIME_KEY]?: bigint;
+  [REQUEST_TIMER_KEY]?: RuntimeTimer;
 };
 
 type NativeParticularStudyTrackingDeps = Required<
@@ -417,9 +421,8 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
   const allowedOrigins = new Set(getAllowedOrigins());
 
   app.addHook("onRequest", async (request, reply) => {
-    (request as ParticularStudyTrackingFastifyRequest)[
-      REQUEST_START_TIME_KEY
-    ] = process.hrtime.bigint();
+    (request as ParticularStudyTrackingFastifyRequest)[REQUEST_TIMER_KEY] =
+      createRuntimeTimer();
 
     applyCorsHeaders(request, reply, allowedOrigins);
 
@@ -427,13 +430,11 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
   });
 
   app.addHook("onResponse", async (request, reply) => {
-    const startedAt =
-      (request as ParticularStudyTrackingFastifyRequest)[
-        REQUEST_START_TIME_KEY
-      ] ?? process.hrtime.bigint();
+    const timer =
+      (request as ParticularStudyTrackingFastifyRequest)[REQUEST_TIMER_KEY] ??
+      createRuntimeTimer();
 
-    const durationMs =
-      Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    const durationMs = timer.elapsedMs();
     const safeUrl = sanitizeUrlForLogs(request.url);
 
     console.log(
