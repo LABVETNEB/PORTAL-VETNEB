@@ -76,6 +76,35 @@ function formatServiceStatus(value: unknown) {
   return String(value);
 }
 
+function getSystemStatusVariant(
+  status: string,
+): "default" | "secondary" | "destructive" | "outline" {
+  if (status === "ok") return "default";
+  if (status === "down") return "destructive";
+  if (status === "degraded") return "secondary";
+  return "outline";
+}
+
+function formatSystemStatus(status: string) {
+  if (status === "ok") return "Operativo";
+  if (status === "degraded") return "Degradado";
+  if (status === "down") return "Caído";
+  return "Desconocido";
+}
+
+function getSystemStatusIndicatorClass(status: string) {
+  if (status === "ok") return "bg-green-500 animate-pulse";
+  if (status === "degraded") return "bg-amber-500";
+  if (status === "down") return "bg-red-500";
+  return "bg-gray-400";
+}
+
+function formatSystemStatusDetail(services: Record<string, unknown>) {
+  return `DB: ${formatServiceStatus(services.database)} · Storage: ${formatServiceStatus(
+    services.storage,
+  )}`;
+}
+
 function formatUptime(totalSeconds: number | undefined) {
   if (typeof totalSeconds !== "number" || !Number.isFinite(totalSeconds)) {
     return "—";
@@ -103,7 +132,6 @@ export default async function AdminPage() {
   const systemHealth = await getAdminSystemHealth(await getAdminRequestOptions());
   const serviceChecks = systemHealth?.services ?? {};
   const systemStatus = systemHealth?.status ?? "unknown";
-  const isSystemOk = systemStatus === "ok";
   const eventCounts = auditEntries.reduce(
     (acc, entry) => {
       acc[entry.event] = (acc[entry.event] ?? 0) + 1;
@@ -150,7 +178,7 @@ export default async function AdminPage() {
               <p className="text-xs text-gray-400 mt-1">Categorías distintas</p>
             </CardContent>
           </Card>
-          <Card className="border-green-50 border">
+          <Card className="border-gray-100">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-500">
                 Estado del sistema
@@ -158,13 +186,17 @@ export default async function AdminPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse" />
-                <p className="text-sm font-semibold text-green-700">
-                  Operativo
-                </p>
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${getSystemStatusIndicatorClass(
+                    systemStatus,
+                  )}`}
+                />
+                <Badge variant={getSystemStatusVariant(systemStatus)}>
+                  {formatSystemStatus(systemStatus)}
+                </Badge>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Backend + Storage activos
+              <p className="text-xs text-gray-400 mt-2">
+                {formatSystemStatusDetail(serviceChecks)}
               </p>
             </CardContent>
           </Card>
