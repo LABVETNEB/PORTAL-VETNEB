@@ -20,6 +20,10 @@ import {
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
 import {
+  createRuntimeTimer,
+  type RuntimeTimer,
+} from "../lib/runtime-timing.ts";
+import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
 } from "../middlewares/request-logger.ts";
@@ -82,10 +86,10 @@ export type PublicProfessionalsNativeRoutesOptions = {
   now?: () => number;
 };
 
-const REQUEST_START_TIME_KEY = "__publicProfessionalsRequestStartTimeNs";
+const REQUEST_TIMER_KEY = "__publicProfessionalsRequestTimer";
 
 type PublicProfessionalsFastifyRequest = FastifyRequest & {
-  [REQUEST_START_TIME_KEY]?: bigint;
+  [REQUEST_TIMER_KEY]?: RuntimeTimer;
 };
 
 function getAllowedOrigins(): string[] {
@@ -328,8 +332,8 @@ export const publicProfessionalsNativeRoutes: FastifyPluginAsync<
   });
 
   app.addHook("onRequest", async (request, reply) => {
-    (request as PublicProfessionalsFastifyRequest)[REQUEST_START_TIME_KEY] =
-      process.hrtime.bigint();
+    (request as PublicProfessionalsFastifyRequest)[REQUEST_TIMER_KEY] =
+      createRuntimeTimer();
 
     const corsAccepted = applyCorsHeaders(request, reply, allowedOrigins);
 
@@ -341,12 +345,11 @@ export const publicProfessionalsNativeRoutes: FastifyPluginAsync<
   });
 
   app.addHook("onResponse", async (request, reply) => {
-    const startedAt =
-      (request as PublicProfessionalsFastifyRequest)[REQUEST_START_TIME_KEY] ??
-      process.hrtime.bigint();
+    const timer =
+      (request as PublicProfessionalsFastifyRequest)[REQUEST_TIMER_KEY] ??
+      createRuntimeTimer();
 
-    const durationMs =
-      Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    const durationMs = timer.elapsedMs();
     const safeUrl = sanitizeUrlForLogs(request.url);
 
     console.log(
