@@ -21,6 +21,7 @@ import type {
   AuthUser,
   LoginCredentials,
   DashboardStats,
+  SystemHealth,
 } from "@/types";
 
 import {
@@ -201,6 +202,20 @@ export async function getAuditEntries(
   }
 }
 
+
+export async function getAdminSystemHealth(
+  options?: RequestInit,
+): Promise<SystemHealth | null> {
+  try {
+    return await apiFetch<SystemHealth>(
+      "/api/admin/system/health",
+      options,
+    );
+  } catch {
+    console.warn("[API] getAdminSystemHealth: endpoint no disponible");
+    return null;
+  }
+}
 export async function getDashboardStats(
   options?: RequestInit,
 ): Promise<DashboardStats> {

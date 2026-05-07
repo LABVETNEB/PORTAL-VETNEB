@@ -185,3 +185,24 @@ export type DashboardStats = {
   activeVisits: number;
   activePlans: number;
 };
+export type SystemHealth = {
+  success: boolean;
+  status: string;
+  version: string;
+  checkedBy?: {
+    adminUserId: number;
+    username: string;
+  };
+  services: Record<string, unknown>;
+  runtime: {
+    uptimeSeconds: number;
+    memory: {
+      rssMb: number;
+      heapTotalMb: number;
+      heapUsedMb: number;
+      externalMb: number;
+      arrayBuffersMb: number;
+    };
+  };
+  health?: Record<string, unknown>;
+};
