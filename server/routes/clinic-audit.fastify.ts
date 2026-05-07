@@ -24,6 +24,7 @@ import {
   getClinicPermissions,
   normalizeClinicUserRole,
 } from "../lib/permissions.ts";
+import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 
 type ClinicUserRecord = {
   id: number;
@@ -79,7 +80,6 @@ export type ClinicAuditNativeRoutesOptions = {
 };
 
 const REQUEST_TIMER_KEY = "__clinicAuditRequestTimer";
-const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 const CLINIC_AUDIT_CSV_EXPORT_MAX_ROWS = 10_000;
 
 type ClinicAuditFastifyRequest = FastifyRequest & {
@@ -211,16 +211,6 @@ function buildClearSessionCookie() {
   });
 }
 
-function shouldRefreshSessionLastAccess(
-  lastAccess: Date | null | undefined,
-  nowMs: number,
-) {
-  if (!(lastAccess instanceof Date)) {
-    return true;
-  }
-
-  return nowMs - lastAccess.getTime() >= SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS;
-}
 
 async function authenticateClinicUser(
   request: FastifyRequest,

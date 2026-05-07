@@ -336,6 +336,15 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         ],
       },
       {
+        path: "test/clinic-audit-session-last-access-contract.test.ts",
+        markers: [
+          "clinic audit route uses shared session last access helper",
+          "shouldRefreshSessionLastAccess",
+          "SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS",
+          "function shouldRefreshSessionLastAccess",
+        ],
+      },
+      {
         path: "test/clinic-audit.test.ts",
         markers: ["buildClinicAuditListFilters", "clinicId"],
       },
