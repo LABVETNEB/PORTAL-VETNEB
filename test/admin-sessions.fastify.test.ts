@@ -1,0 +1,164 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import Fastify from "fastify";
+
+process.env.NODE_ENV ??= "development";
+process.env.SUPABASE_URL ??= "https://example.supabase.co";
+process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
+process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
+process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
+process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
+
+const { ENV } = await import("../server/lib/env.ts");
+const { adminSessionsNativeRoutes } = await import(
+  "../server/routes/admin-sessions.fastify.ts"
+);
+
+function buildDeps(overrides = {}) {
+  return {
+    deleteAdminSession: async () => {},
+    getAdminSessionByToken: async () => ({
+      adminUserId: 1,
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      lastAccess: new Date("2026-05-07T00:00:00.000Z"),
+    }),
+    getAdminUserById: async () => ({
+      id: 1,
+      username: "VETNEB",
+    }),
+    updateAdminSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    getAdminSessionsSnapshot: async () => ({
+      success: true,
+      sessions: [],
+      total: 0,
+      limit: 50,
+      offset: 0,
+    }),
+    now: () => Date.UTC(2026, 4, 8, 0, 0, 0),
+    ...overrides,
+  };
+}
+
+test("admin sessions requiere sesión admin", async () => {
+  const app = Fastify();
+
+  await app.register(adminSessionsNativeRoutes, buildDeps({
+    getAdminSessionByToken: async () => null,
+  }));
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/",
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Admin no autenticado",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin sessions devuelve sesiones sanitizadas sin tokenHash", async () => {
+  const app = Fastify();
+
+  await app.register(adminSessionsNativeRoutes, buildDeps({
+    getAdminSessionsSnapshot: async (params) => ({
+      success: true,
+      sessions: [
+        {
+          sessionType: "admin",
+          sessionId: 10,
+          actorType: "admin_user",
+          actorId: 1,
+          createdAt: "2026-05-08T00:00:00.000Z",
+          lastAccess: "2026-05-08T00:10:00.000Z",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          status: "active",
+        },
+        {
+          sessionType: "clinic",
+          sessionId: 20,
+          actorType: "clinic_user",
+          actorId: 7,
+          createdAt: "2026-05-07T00:00:00.000Z",
+          lastAccess: null,
+          expiresAt: "2026-05-07T01:00:00.000Z",
+          status: "expired",
+        },
+      ].filter((item) =>
+        params.status ? item.status === params.status : true,
+      ),
+      total: params.status === "active" ? 1 : 2,
+      limit: params.limit ?? 50,
+      offset: params.offset ?? 0,
+    }),
+  }));
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?status=active&limit=25&offset=0",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+
+    assert.equal(body.success, true);
+    assert.deepEqual(body.checkedBy, {
+      adminUserId: 1,
+      username: "VETNEB",
+    });
+    assert.equal(body.sessions.length, 1);
+    assert.equal(body.sessions[0].sessionType, "admin");
+    assert.equal(body.sessions[0].status, "active");
+    assert.equal(body.sessions[0].tokenHash, undefined);
+    assert.equal(body.sessions[0].token, undefined);
+    assert.equal(body.sessions[0].cookie, undefined);
+    assert.equal(JSON.stringify(body).includes("hash:"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin sessions rechaza filtros inválidos", async () => {
+  const app = Fastify();
+  let snapshotCalled = false;
+
+  await app.register(adminSessionsNativeRoutes, buildDeps({
+    getAdminSessionsSnapshot: async () => {
+      snapshotCalled = true;
+      return {
+        success: true,
+        sessions: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
+      };
+    },
+  }));
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?sessionType=unknown",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(JSON.parse(response.body).success, false);
+    assert.equal(snapshotCalled, false);
+  } finally {
+    await app.close();
+  }
+});
