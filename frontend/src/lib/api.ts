@@ -328,10 +328,9 @@ export async function getAdminMaintenancePurgeDryRun(
   );
 }
 
-export async function getAdminFailedLoginAlerts(
+function buildAdminFailedLoginAlertsQueryString(
   params: AdminFailedLoginAlertsQuery = {},
-  options?: RequestInit,
-): Promise<AdminFailedLoginAlertsSnapshot> {
+) {
   const query = new URLSearchParams();
 
   if (params.surface) {
@@ -350,12 +349,27 @@ export async function getAdminFailedLoginAlerts(
     query.set("offset", String(params.offset));
   }
 
-  const qs = query.toString();
+  return query.toString();
+}
+
+export async function getAdminFailedLoginAlerts(
+  params: AdminFailedLoginAlertsQuery = {},
+  options?: RequestInit,
+): Promise<AdminFailedLoginAlertsSnapshot> {
+  const qs = buildAdminFailedLoginAlertsQueryString(params);
 
   return apiFetch<AdminFailedLoginAlertsSnapshot>(
     `/api/admin/failed-login-alerts${qs ? `?${qs}` : ""}`,
     options,
   );
+}
+
+export function buildAdminFailedLoginAlertsCsvUrl(
+  params: AdminFailedLoginAlertsQuery = {},
+) {
+  const qs = buildAdminFailedLoginAlertsQueryString(params);
+
+  return `${API_BASE_URL}/api/admin/failed-login-alerts/export.csv${qs ? `?${qs}` : ""}`;
 }
 
 export async function getDashboardStats(
