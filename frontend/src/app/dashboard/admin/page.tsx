@@ -118,6 +118,18 @@ function formatUptime(totalSeconds: number | undefined) {
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
 }
+function formatHealthTimestamp(value: unknown) {
+  if (typeof value !== "string") return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return formatDateTime(date.toISOString());
+}
+
 async function getAdminRequestOptions(): Promise<RequestInit> {
   const cookieHeader = (await cookies()).toString();
 
@@ -233,6 +245,9 @@ export default async function AdminPage() {
                 <p className="text-xs text-gray-400">Uptime</p>
                 <p className="text-lg font-semibold text-gray-800 mt-1">
                   {formatUptime(systemHealth?.runtime.uptimeSeconds)}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Check: {formatHealthTimestamp(systemHealth?.health?.timestamp)}
                 </p>
               </div>
                             <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
