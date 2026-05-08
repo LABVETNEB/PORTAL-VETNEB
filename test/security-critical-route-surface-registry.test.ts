@@ -168,6 +168,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "audit logging phase guardrail source stays ascii only",
         ],
       },
+      {
+        path: "test/security-actor-relationship-boundaries.test.ts",
+        markers: [
+          "actor relationship matrix documents admin clinic and particular boundaries",
+          "admin routes keep explicit clinic relationships before linking reports tokens or tracking",
+          "clinic routes force authenticated clinic relationships and reject cross clinic links",
+        ],
+      },
     ],
   },
   {
@@ -602,6 +610,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-boundary-suite-completeness.test.ts",
     "test/security-sensitive-log-redaction-boundaries.test.ts",
     "test/security-audit-logging-phase-boundaries.test.ts",
+    "test/security-actor-relationship-boundaries.test.ts",
     "test/security-trusted-origin-cors-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",
     "test/security-validation-cutoff-boundaries.test.ts",
