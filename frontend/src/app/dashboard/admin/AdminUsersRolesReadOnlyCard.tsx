@@ -67,6 +67,35 @@ function getNextClinicRole(role: ClinicUserRole): ClinicUserRole {
   return role === "clinic_owner" ? "clinic_staff" : "clinic_owner";
 }
 
+function getUserKey(user: AdminRoleUserSummary) {
+  return `${user.userType}-${user.userId}`;
+}
+
+function formatRoleChangeError(error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : "No se pudo cambiar el rol del usuario.";
+
+  if (
+    message.includes("último clinic_owner") ||
+    message.includes("ultimo clinic_owner") ||
+    message.includes("last clinic_owner")
+  ) {
+    return "No se puede degradar el último Owner clínica. Asigná otro Owner clínica antes de cambiar este rol.";
+  }
+
+  if (message.includes("Usuario de clínica no encontrado")) {
+    return "El usuario de clínica ya no existe o no está disponible. Actualizá la lista e intentá nuevamente.";
+  }
+
+  if (message.includes("role inválido") || message.includes("rol inválido")) {
+    return "El rol seleccionado no es válido. Solo se permiten Owner clínica y Staff clínica.";
+  }
+
+  return message;
+}
+
 export function AdminUsersRolesReadOnlyCard() {
   const [snapshot, setSnapshot] = useState<AdminUsersRolesSnapshot | null>(null);
   const [userType, setUserType] = useState<AdminRoleUserType | "all">("all");
@@ -75,6 +104,7 @@ export function AdminUsersRolesReadOnlyCard() {
   const [error, setError] = useState<string | null>(null);
   const [roleChangeMessage, setRoleChangeMessage] = useState<string | null>(null);
   const [changingUserKey, setChangingUserKey] = useState<string | null>(null);
+  const [changedUserKey, setChangedUserKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const query = useMemo(
@@ -86,6 +116,9 @@ export function AdminUsersRolesReadOnlyCard() {
     }),
     [offset, role, userType],
   );
+
+  const isMutatingRole = changingUserKey !== null;
+  const disableUserActions = isPending || isMutatingRole;
 
   function loadUsersRoles() {
     setError(null);
@@ -106,9 +139,19 @@ export function AdminUsersRolesReadOnlyCard() {
     });
   }
 
+  function resetFiltersFeedback() {
+    setError(null);
+    setRoleChangeMessage(null);
+    setChangedUserKey(null);
+  }
+
   async function handleChangeClinicRole(
     user: Extract<AdminRoleUserSummary, { userType: "clinic" }>,
   ) {
+    if (disableUserActions) {
+      return;
+    }
+
     const nextRole = getNextClinicRole(user.role);
     const confirmed = window.confirm(
       `¿Cambiar el rol de ${user.username} de ${formatRole(user.role)} a ${formatRole(nextRole)}?`,
@@ -118,10 +161,11 @@ export function AdminUsersRolesReadOnlyCard() {
       return;
     }
 
-    const userKey = `${user.userType}-${user.userId}`;
+    const userKey = getUserKey(user);
 
     setError(null);
     setRoleChangeMessage(null);
+    setChangedUserKey(null);
     setChangingUserKey(userKey);
 
     try {
@@ -142,15 +186,12 @@ export function AdminUsersRolesReadOnlyCard() {
         };
       });
 
+      setChangedUserKey(userKey);
       setRoleChangeMessage(
         `Rol actualizado: ${result.user.username} ahora es ${formatRole(result.user.role)}.`,
       );
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo cambiar el rol del usuario.",
-      );
+      setError(formatRoleChangeError(err));
     } finally {
       setChangingUserKey(null);
     }
@@ -177,7 +218,11 @@ export function AdminUsersRolesReadOnlyCard() {
           </CardDescription>
         </div>
 
-        <Button type="button" onClick={loadUsersRoles} disabled={isPending}>
+        <Button
+          type="button"
+          onClick={loadUsersRoles}
+          disabled={isPending || isMutatingRole}
+        >
           {isPending ? "Actualizando..." : "Actualizar"}
         </Button>
       </CardHeader>
@@ -210,7 +255,9 @@ export function AdminUsersRolesReadOnlyCard() {
             <select
               className="mt-2 w-full rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-gray-700"
               value={userType}
+              disabled={disableUserActions}
               onChange={(event) => {
+                resetFiltersFeedback();
                 setOffset(0);
                 setUserType(event.target.value as AdminRoleUserType | "all");
               }}
@@ -226,7 +273,9 @@ export function AdminUsersRolesReadOnlyCard() {
             <select
               className="mt-2 w-full rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-gray-700"
               value={role}
+              disabled={disableUserActions}
               onChange={(event) => {
+                resetFiltersFeedback();
                 setOffset(0);
                 setRole(event.target.value as AdminRoleUserRole | "all");
               }}
@@ -267,11 +316,15 @@ export function AdminUsersRolesReadOnlyCard() {
             <TableBody>
               {snapshot?.users.length ? (
                 snapshot.users.map((user) => {
-                  const userKey = `${user.userType}-${user.userId}`;
+                  const userKey = getUserKey(user);
                   const isChanging = changingUserKey === userKey;
+                  const wasChanged = changedUserKey === userKey;
 
                   return (
-                    <TableRow key={userKey}>
+                    <TableRow
+                      key={userKey}
+                      className={wasChanged ? "bg-green-50/60" : undefined}
+                    >
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           <span className="text-sm font-semibold text-gray-700">
@@ -280,6 +333,11 @@ export function AdminUsersRolesReadOnlyCard() {
                           <span className="font-mono text-xs text-gray-400">
                             #{user.userId}
                           </span>
+                          {wasChanged ? (
+                            <span className="text-xs font-medium text-green-700">
+                              Actualizado
+                            </span>
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -306,7 +364,7 @@ export function AdminUsersRolesReadOnlyCard() {
                           <Button
                             type="button"
                             variant="outline"
-                            disabled={isChanging}
+                            disabled={disableUserActions}
                             onClick={() => void handleChangeClinicRole(user)}
                           >
                             {isChanging
@@ -351,16 +409,22 @@ export function AdminUsersRolesReadOnlyCard() {
             <Button
               type="button"
               variant="outline"
-              disabled={!hasPreviousPage || isPending}
-              onClick={() => setOffset(Math.max(offset - PAGE_SIZE, 0))}
+              disabled={!hasPreviousPage || disableUserActions}
+              onClick={() => {
+                resetFiltersFeedback();
+                setOffset(Math.max(offset - PAGE_SIZE, 0));
+              }}
             >
               Anterior
             </Button>
             <Button
               type="button"
               variant="outline"
-              disabled={!hasNextPage || isPending}
-              onClick={() => setOffset(offset + PAGE_SIZE)}
+              disabled={!hasNextPage || disableUserActions}
+              onClick={() => {
+                resetFiltersFeedback();
+                setOffset(offset + PAGE_SIZE);
+              }}
             >
               Siguiente
             </Button>
