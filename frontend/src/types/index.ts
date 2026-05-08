@@ -219,6 +219,19 @@ export type AdminSessionsSnapshot = {
   };
 };
 
+export type AdminSessionRevocationResult = AdminSessionSummary & {
+  revokedAt: string;
+};
+
+export type AdminSessionRevocationResponse = {
+  success: true;
+  revokedSession: AdminSessionRevocationResult;
+  revokedBy: {
+    adminUserId: number;
+    username: string;
+  };
+};
+
 export type MaintenancePurgeCandidateCategory =
   | "expired_clinic_sessions"
   | "expired_admin_sessions"
