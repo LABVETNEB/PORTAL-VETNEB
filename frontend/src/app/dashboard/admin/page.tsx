@@ -176,7 +176,13 @@ function getAuditMetadataSummary(entry: { event: string; metadata: Record<string
   }
 
   const visibleEntries = Object.entries(metadata)
-    .filter(([, value]) => value !== null && value !== undefined && value !== "")
+    .filter(
+      ([key, value]) =>
+        !isSensitiveAuditMetadataKey(key) &&
+        value !== null &&
+        value !== undefined &&
+        value !== "",
+    )
     .slice(0, 3);
 
   if (!visibleEntries.length) {
