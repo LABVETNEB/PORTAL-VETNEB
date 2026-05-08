@@ -51,6 +51,7 @@ test("Backend CI uses the pinned pnpm and Node toolchain", () => {
   assertContains(workflow, "uses: actions/setup-node@v6");
   assertContains(workflow, "node-version: 24");
   assertContains(workflow, "cache: pnpm");
+  assertContains(workflow, "cache-dependency-path: pnpm-lock.yaml");
   assertContains(workflow, "run: pnpm install --frozen-lockfile");
 });
 
