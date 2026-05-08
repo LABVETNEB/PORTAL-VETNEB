@@ -45,6 +45,10 @@ test("Backend CI uses the pinned pnpm and Node toolchain", () => {
   const workflow = readTextFile(".github", "workflows", "backend-ci.yml");
 
   assertContains(workflow, "permissions:\n  contents: read");
+  assertContains(
+    workflow,
+    "concurrency:\n  group: backend-ci-${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true",
+  );
   assertContains(workflow, "uses: actions/checkout@v6");
   assertContains(workflow, "uses: pnpm/action-setup@v6");
   assertContains(workflow, "version: 10.8.1");
