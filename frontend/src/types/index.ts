@@ -219,6 +219,15 @@ export type AdminUsersRolesQuery = {
   offset?: number;
 };
 
+
+export type AdminClinicUserRoleChangeResponse = {
+  success: true;
+  user: Extract<AdminRoleUserSummary, { userType: "clinic" }>;
+  changedBy: {
+    adminUserId: number;
+    username: string;
+  };
+};
 export type AdminUsersRolesSnapshot = {
   success: true;
   users: AdminRoleUserSummary[];
