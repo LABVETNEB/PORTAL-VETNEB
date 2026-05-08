@@ -44,9 +44,10 @@ test("package.json pins the expected package manager", () => {
 test("Backend CI uses the pinned pnpm and Node toolchain", () => {
   const workflow = readTextFile(".github", "workflows", "backend-ci.yml");
 
-  assertContains(workflow, "uses: pnpm/action-setup@v4");
+  assertContains(workflow, "uses: actions/checkout@v6");
+  assertContains(workflow, "uses: pnpm/action-setup@v6");
   assertContains(workflow, "version: 10.8.1");
-  assertContains(workflow, "uses: actions/setup-node@v4");
+  assertContains(workflow, "uses: actions/setup-node@v6");
   assertContains(workflow, "node-version: 24");
   assertContains(workflow, "cache: pnpm");
   assertContains(workflow, "run: pnpm install --frozen-lockfile");
@@ -56,8 +57,8 @@ test("Backend CI installs dependencies after toolchain setup", () => {
   const workflow = readTextFile(".github", "workflows", "backend-ci.yml");
 
   assertOrdered(workflow, [
-    "      - name: Setup pnpm\n        uses: pnpm/action-setup@v4",
-    "      - name: Setup Node.js\n        uses: actions/setup-node@v4",
+    "      - name: Setup pnpm\n        uses: pnpm/action-setup@v6",
+    "      - name: Setup Node.js\n        uses: actions/setup-node@v6",
     "      - name: Install dependencies\n        run: pnpm install --frozen-lockfile",
   ]);
 });
