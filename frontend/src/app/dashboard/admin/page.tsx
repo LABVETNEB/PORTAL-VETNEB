@@ -212,6 +212,14 @@ export default async function AdminPage({
 
     return matchesEvent && matchesActorType;
   });
+  const hasActiveAuditFilters =
+    Boolean(selectedAuditEvent) || Boolean(selectedActorType);
+  const selectedAuditEventLabel = selectedAuditEvent
+    ? EVENT_LABELS[selectedAuditEvent] ?? selectedAuditEvent
+    : "Todos";
+  const selectedActorTypeLabel = selectedActorType
+    ? ACTOR_LABELS[selectedActorType] ?? selectedActorType
+    : "Todos";
 
   return (
     <>
@@ -405,13 +413,30 @@ export default async function AdminPage({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card id="audit-log">
           <CardHeader>
             <CardTitle className="text-base">
-              Log de auditoría ({auditEntries.length})
+              Log de auditoría ({filteredAuditEntries.length}/{auditEntries.length})
             </CardTitle>
+            <CardDescription>
+              Filtros activos: evento <strong>{selectedAuditEventLabel}</strong>
+              {" · "}actor <strong>{selectedActorTypeLabel}</strong>
+            </CardDescription>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="space-y-4 p-0">
+            {hasActiveAuditFilters ? (
+              <div className="mx-6 mt-4 flex flex-col gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700 md:flex-row md:items-center md:justify-between">
+                <span>
+                  Mostrando {filteredAuditEntries.length} de {auditEntries.length} eventos.
+                </span>
+                <Link
+                  href="/dashboard/admin#audit-log"
+                  className="font-semibold text-blue-800 hover:text-blue-950"
+                >
+                  Limpiar filtros
+                </Link>
+              </div>
+            ) : null}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -424,37 +449,60 @@ export default async function AdminPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAuditEntries.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="font-mono text-xs text-gray-400">
-                      #{entry.id}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getEventVariant(entry.event)}>
-                        {EVENT_LABELS[entry.event] ?? entry.event}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-600">
-                      {entry.actorId ? `#${entry.actorId}` : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {ACTOR_LABELS[entry.actorType] ?? entry.actorType}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {entry.targetType && entry.targetId
-                        ? `${entry.targetType} #${entry.targetId}`
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-gray-400 text-xs">
-                      {formatDateTime(entry.createdAt)}
+                {filteredAuditEntries.length ? (
+                  filteredAuditEntries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="font-mono text-xs text-gray-400">
+                        #{entry.id}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getEventVariant(entry.event)}>
+                          {EVENT_LABELS[entry.event] ?? entry.event}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">
+                        {entry.actorId ? `#${entry.actorId}` : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {ACTOR_LABELS[entry.actorType] ?? entry.actorType}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {entry.targetType && entry.targetId
+                          ? `${entry.targetType} #${entry.targetId}`
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-gray-400 text-xs">
+                        {formatDateTime(entry.createdAt)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="py-8 text-center text-sm text-gray-400"
+                    >
+                      {hasActiveAuditFilters
+                        ? "No hay eventos para los filtros seleccionados."
+                        : "No hay eventos de auditoría disponibles."}
+                      {hasActiveAuditFilters ? (
+                        <div className="mt-2">
+                          <Link
+                            href="/dashboard/admin#audit-log"
+                            className="font-semibold text-blue-700 hover:text-blue-900"
+                          >
+                            Limpiar filtros
+                          </Link>
+                        </div>
+                      ) : null}
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </CardContent>
         </Card>
-      </main>
+</main>
     </>
   );
 }
