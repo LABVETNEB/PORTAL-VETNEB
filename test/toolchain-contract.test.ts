@@ -44,6 +44,7 @@ test("package.json pins the expected package manager", () => {
 test("Backend CI uses the pinned pnpm and Node toolchain", () => {
   const workflow = readTextFile(".github", "workflows", "backend-ci.yml");
 
+  assertContains(workflow, "permissions:\n  contents: read");
   assertContains(workflow, "uses: actions/checkout@v6");
   assertContains(workflow, "uses: pnpm/action-setup@v6");
   assertContains(workflow, "version: 10.8.1");
