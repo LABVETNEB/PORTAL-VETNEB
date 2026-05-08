@@ -38,6 +38,61 @@ type AdminFailedLoginAlertsRequestQuery = {
   offset?: string;
 };
 
+const ADMIN_FAILED_LOGIN_ALERTS_CSV_EXPORT_MAX_ROWS = 10_000;
+
+type AdminFailedLoginAlertCsvItem =
+  AdminFailedLoginAlertsSnapshot["failedLoginAlerts"][number];
+
+const ADMIN_FAILED_LOGIN_ALERT_CSV_HEADERS = [
+  "id",
+  "surface",
+  "username",
+  "reason",
+  "ipAddress",
+  "userAgent",
+  "createdAt",
+] as const;
+
+function escapeCsvValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  const raw = String(value);
+
+  if (/[",\n\r]/.test(raw)) {
+    return `"${raw.replace(/"/g, '""')}"`;
+  }
+
+  return raw;
+}
+
+export function buildAdminFailedLoginAlertsCsv(
+  items: AdminFailedLoginAlertCsvItem[],
+) {
+  const rows = items.map((item) =>
+    [
+      item.id,
+      item.surface,
+      item.username,
+      item.reason,
+      item.ipAddress,
+      item.userAgent,
+      item.createdAt,
+    ]
+      .map(escapeCsvValue)
+      .join(","),
+  );
+
+  return [ADMIN_FAILED_LOGIN_ALERT_CSV_HEADERS.join(","), ...rows].join("\n");
+}
+
+export function buildAdminFailedLoginAlertsCsvFilename(now = new Date()) {
+  const timestamp = now.toISOString().replace(/[:.]/g, "-");
+
+  return `admin-failed-login-alerts-${timestamp}.csv`;
+}
+
 export type AdminFailedLoginAlertsNativeRoutesOptions = {
   deleteAdminSession?: (tokenHash: string) => Promise<void>;
   getAdminSessionByToken?: (
@@ -51,6 +106,10 @@ export type AdminFailedLoginAlertsNativeRoutesOptions = {
   listAdminFailedLoginAlerts?: (
     params: AdminFailedLoginAlertsQuery,
   ) => Promise<AdminFailedLoginAlertsSnapshot>;
+  buildAdminFailedLoginAlertsCsv?: (
+    items: AdminFailedLoginAlertCsvItem[],
+  ) => string;
+  buildAdminFailedLoginAlertsCsvFilename?: (now?: Date) => string;
   now?: () => number;
 };
 
@@ -63,6 +122,8 @@ type NativeAdminFailedLoginAlertsDeps = Required<
     | "updateAdminSessionLastAccess"
     | "hashSessionToken"
     | "listAdminFailedLoginAlerts"
+    | "buildAdminFailedLoginAlertsCsv"
+    | "buildAdminFailedLoginAlertsCsvFilename"
   >
 >;
 
@@ -87,6 +148,9 @@ async function loadDefaultDeps(): Promise<NativeAdminFailedLoginAlertsDeps> {
         hashSessionToken: authSecurity.hashSessionToken,
         listAdminFailedLoginAlerts:
           failedLoginAlerts.listAdminFailedLoginAlerts,
+        buildAdminFailedLoginAlertsCsv: buildAdminFailedLoginAlertsCsv,
+        buildAdminFailedLoginAlertsCsvFilename:
+          buildAdminFailedLoginAlertsCsvFilename,
       };
     })();
   }
@@ -326,7 +390,9 @@ export const adminFailedLoginAlertsNativeRoutes: FastifyPluginAsync<
       !!options.getAdminUserById &&
       !!options.updateAdminSessionLastAccess &&
       !!options.hashSessionToken &&
-      !!options.listAdminFailedLoginAlerts;
+      !!options.listAdminFailedLoginAlerts &&
+      !!options.buildAdminFailedLoginAlertsCsv &&
+      !!options.buildAdminFailedLoginAlertsCsvFilename;
 
     const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -345,8 +411,64 @@ export const adminFailedLoginAlertsNativeRoutes: FastifyPluginAsync<
       listAdminFailedLoginAlerts:
         options.listAdminFailedLoginAlerts ??
         defaultDeps!.listAdminFailedLoginAlerts,
+      buildAdminFailedLoginAlertsCsv:
+        options.buildAdminFailedLoginAlertsCsv ??
+        buildAdminFailedLoginAlertsCsv,
+      buildAdminFailedLoginAlertsCsvFilename:
+        options.buildAdminFailedLoginAlertsCsvFilename ??
+        buildAdminFailedLoginAlertsCsvFilename,
     };
   }
+
+  app.get<{ Querystring: AdminFailedLoginAlertsRequestQuery }>(
+    "/export.csv",
+    async (request, reply) => {
+      const deps = await resolveDeps();
+      const admin = await authenticateAdminUser(request, reply, deps, now);
+
+      if (!admin) {
+        return reply;
+      }
+
+      const params = parseFailedLoginAlertsQuery(request.query);
+
+      if (!params) {
+        return reply.code(400).send({
+          success: false,
+          error:
+            "Query inválida. surface debe ser admin, clinic o particular; reason debe ser missing_credentials, invalid_credentials o rate_limited; limit/offset deben ser enteros válidos.",
+        });
+      }
+
+      const exportParams: AdminFailedLoginAlertsQuery = {
+        ...params,
+        limit: ADMIN_FAILED_LOGIN_ALERTS_CSV_EXPORT_MAX_ROWS,
+        offset: 0,
+      };
+
+      const snapshot = await deps.listAdminFailedLoginAlerts(exportParams);
+
+      if (snapshot.total > ADMIN_FAILED_LOGIN_ALERTS_CSV_EXPORT_MAX_ROWS) {
+        return reply.code(400).send({
+          success: false,
+          error: `Demasiados registros para exportar. Aplica filtros mas especificos (maximo ${ADMIN_FAILED_LOGIN_ALERTS_CSV_EXPORT_MAX_ROWS}).`,
+        });
+      }
+
+      const csv = deps.buildAdminFailedLoginAlertsCsv(
+        snapshot.failedLoginAlerts,
+      );
+      const filename = deps.buildAdminFailedLoginAlertsCsvFilename();
+
+      reply.header("content-type", "text/csv; charset=utf-8");
+      reply.header(
+        "content-disposition",
+        `attachment; filename="${filename}"`,
+      );
+
+      return reply.code(200).send(csv);
+    },
+  );
 
   app.get<{ Querystring: AdminFailedLoginAlertsRequestQuery }>(
     "/",

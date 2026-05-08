@@ -71,6 +71,10 @@ function buildAdminFailedLoginAlertsRouteStubs() {
         reason: null,
       },
     }),
+    buildAdminFailedLoginAlertsCsv: () =>
+      "id,surface,username,reason,ipAddress,userAgent,createdAt",
+    buildAdminFailedLoginAlertsCsvFilename: () =>
+      "admin-failed-login-alerts-test.csv",
   };
 }
 
