@@ -218,7 +218,19 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
         markers: ["cookies[ENV.adminCookieName]"],
       },
       {
+        path: "server/routes/admin-reports.fastify.ts",
+        markers: ["cookies[ENV.adminCookieName]"],
+      },
+      {
         path: "server/routes/admin-sessions.fastify.ts",
+        markers: ["cookies[ENV.adminCookieName]"],
+      },
+      {
+        path: "server/routes/admin-system-health.fastify.ts",
+        markers: ["cookies[ENV.adminCookieName]"],
+      },
+      {
+        path: "server/routes/admin-system-maintenance.fastify.ts",
         markers: ["cookies[ENV.adminCookieName]"],
       },
       {
