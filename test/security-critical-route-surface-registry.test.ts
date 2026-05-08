@@ -152,6 +152,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "security boundary suite completeness guardrail source stays ascii only",
         ],
       },
+      {
+        path: "test/security-sensitive-log-redaction-boundaries.test.ts",
+        markers: [
+          "sensitive log redaction matrix documents protected boundaries",
+          "request logger keeps token and query redaction centralized",
+          "sensitive log redaction guardrail source stays ascii only",
+        ],
+      },
     ],
   },
   {
@@ -584,6 +592,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-session-cookie-boundaries.test.ts",
     "test/security-cross-auth-surface-boundaries.test.ts",
     "test/security-boundary-suite-completeness.test.ts",
+    "test/security-sensitive-log-redaction-boundaries.test.ts",
     "test/security-trusted-origin-cors-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",
     "test/security-validation-cutoff-boundaries.test.ts",
