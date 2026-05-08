@@ -56,7 +56,19 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
       },
       {
+        path: "server/routes/admin-reports.fastify.ts",
+        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+      },
+      {
         path: "server/routes/admin-sessions.fastify.ts",
+        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+      },
+      {
+        path: "server/routes/admin-system-health.fastify.ts",
+        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+      },
+      {
+        path: "server/routes/admin-system-maintenance.fastify.ts",
         markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
       },
       {
