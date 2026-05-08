@@ -518,6 +518,7 @@ export default async function AdminPage({
                   <TableHead>Actor</TableHead>
                   <TableHead>Tipo actor</TableHead>
                   <TableHead>Objetivo</TableHead>
+                  <TableHead>Detalle</TableHead>
                   <TableHead>Fecha</TableHead>
                 </TableRow>
               </TableHeader>
@@ -543,6 +544,9 @@ export default async function AdminPage({
                         {entry.targetType && entry.targetId
                           ? `${entry.targetType} #${entry.targetId}`
                           : "—"}
+                      </TableCell>
+                      <TableCell className="max-w-md whitespace-normal break-words text-xs text-gray-500">
+                        {getAuditMetadataSummary(entry)}
                       </TableCell>
                       <TableCell className="text-gray-400 text-xs">
                         {formatDateTime(entry.createdAt)}
