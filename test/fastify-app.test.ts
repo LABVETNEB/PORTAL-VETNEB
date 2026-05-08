@@ -60,7 +60,7 @@ function buildAdminFailedLoginAlertsRouteStubs() {
     updateAdminSessionLastAccess: async () => {},
     hashSessionToken: (token: string) => `hash:${token}`,
     listAdminFailedLoginAlerts: async () => ({
-      success: true,
+      success: true as const,
       failedLoginAlerts: [],
       count: 0,
       total: 0,
@@ -2419,7 +2419,7 @@ test(
           username: "VETNEB",
         }),
         listAdminFailedLoginAlerts: async () => ({
-          success: true,
+          success: true as const,
           failedLoginAlerts: [
             {
               id: 10,
