@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -21,9 +21,12 @@ const clinicFiles = [
 const adminFiles = [
   "server/routes/admin-auth.fastify.ts",
   "server/routes/admin-audit.fastify.ts",
+  "server/routes/admin-failed-login-alerts.fastify.ts",
   "server/routes/admin-particular-tokens.fastify.ts",
   "server/routes/admin-report-access-tokens.fastify.ts",
+  "server/routes/admin-sessions.fastify.ts",
   "server/routes/admin-study-tracking.fastify.ts",
+  "server/routes/admin-users-roles.fastify.ts",
 ] as const;
 
 const particularFiles = [
@@ -122,9 +125,12 @@ test("cross auth surface registry keeps every protected route family explicit", 
       "server/routes/study-tracking.fastify.ts",
       "server/routes/admin-auth.fastify.ts",
       "server/routes/admin-audit.fastify.ts",
+      "server/routes/admin-failed-login-alerts.fastify.ts",
       "server/routes/admin-particular-tokens.fastify.ts",
       "server/routes/admin-report-access-tokens.fastify.ts",
+      "server/routes/admin-sessions.fastify.ts",
       "server/routes/admin-study-tracking.fastify.ts",
+      "server/routes/admin-users-roles.fastify.ts",
       "server/routes/particular-audit.fastify.ts",
       "server/routes/particular-auth.fastify.ts",
       "server/routes/particular-study-tracking.fastify.ts",
