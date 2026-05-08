@@ -2471,3 +2471,98 @@ test(
     }
   },
 );
+
+
+test(
+  "createFastifyApp despacha /api/admin/failed-login-alerts/export.csv al router nativo",
+  async () => {
+    let receivedParams: any = null;
+
+    const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
+      adminFailedLoginAlertsRoutes: {
+        ...buildAdminFailedLoginAlertsRouteStubs(),
+        getAdminSessionByToken: async () => ({
+          id: 99,
+          adminUserId: 1,
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+          lastAccess: new Date("2026-05-08T00:00:00.000Z"),
+        }),
+        getAdminUserById: async () => ({
+          id: 1,
+          username: "VETNEB",
+        }),
+        listAdminFailedLoginAlerts: async (params: any) => {
+          receivedParams = params;
+
+          return {
+            success: true as const,
+            failedLoginAlerts: [
+              {
+                id: 10,
+                surface: "admin" as const,
+                username: "VETNEB",
+                reason: "invalid_credentials" as const,
+                ipAddress: "203.0.113.10",
+                userAgent: "node-test",
+                createdAt: "2026-05-08T00:00:00.000Z",
+              },
+            ],
+            count: 1,
+            total: 1,
+            limit: params.limit ?? 50,
+            offset: params.offset ?? 0,
+            filters: {
+              surface: params.surface ?? null,
+              reason: params.reason ?? null,
+            },
+          };
+        },
+        buildAdminFailedLoginAlertsCsv: () =>
+          [
+            "id,surface,username,reason,ipAddress,userAgent,createdAt",
+            "10,admin,VETNEB,invalid_credentials,203.0.113.10,node-test,2026-05-08T00:00:00.000Z",
+          ].join("\n"),
+        buildAdminFailedLoginAlertsCsvFilename: () =>
+          "admin-failed-login-alerts-test.csv",
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/failed-login-alerts/export.csv?surface=admin&reason=invalid_credentials&limit=5&offset=5",
+        headers: {
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.headers["content-type"], "text/csv; charset=utf-8");
+      assert.equal(
+        response.headers["content-disposition"],
+        'attachment; filename="admin-failed-login-alerts-test.csv"',
+      );
+      assert.deepEqual(receivedParams, {
+        surface: "admin",
+        reason: "invalid_credentials",
+        limit: 10000,
+        offset: 0,
+      });
+      assert.equal(
+        response.body,
+        [
+          "id,surface,username,reason,ipAddress,userAgent,createdAt",
+          "10,admin,VETNEB,invalid_credentials,203.0.113.10,node-test,2026-05-08T00:00:00.000Z",
+        ].join("\n"),
+      );
+      assert.equal(response.body.includes("tokenHash"), false);
+      assert.equal(response.body.includes("hash:"), false);
+      assert.equal(response.body.includes("password"), false);
+      assert.equal(response.body.includes("cookie"), false);
+    } finally {
+      await app.close();
+    }
+  },
+);
