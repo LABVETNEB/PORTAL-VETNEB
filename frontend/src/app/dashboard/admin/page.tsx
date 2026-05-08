@@ -235,14 +235,27 @@ export default async function AdminPage() {
                   {formatUptime(systemHealth?.runtime.uptimeSeconds)}
                 </p>
               </div>
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                <p className="text-xs text-gray-400">Memoria RSS</p>
+                            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs text-gray-400">Memoria runtime</p>
                 <p className="text-lg font-semibold text-gray-800 mt-1">
                   {systemHealth?.runtime.memory.rssMb ?? "—"} MB
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Heap usado: {systemHealth?.runtime.memory.heapUsedMb ?? "—"} MB
-                </p>
+                <div className="mt-2 space-y-1 text-xs text-gray-400">
+                  <p>RSS: {systemHealth?.runtime.memory.rssMb ?? "—"} MB</p>
+                  <p>
+                    Heap usado: {systemHealth?.runtime.memory.heapUsedMb ?? "—"} MB
+                  </p>
+                  <p>
+                    Heap total: {systemHealth?.runtime.memory.heapTotalMb ?? "—"} MB
+                  </p>
+                  <p>
+                    External: {systemHealth?.runtime.memory.externalMb ?? "—"} MB
+                  </p>
+                  <p>
+                    Array buffers:{" "}
+                    {systemHealth?.runtime.memory.arrayBuffersMb ?? "—"} MB
+                  </p>
+                </div>
               </div>
             </div>
           </CardContent>
