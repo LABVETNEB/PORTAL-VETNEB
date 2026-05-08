@@ -31,6 +31,8 @@ import type {
   ClinicUserRole,
   AdminSessionRevocationResponse,
   AdminSessionType,
+  AdminFailedLoginAlertsQuery,
+  AdminFailedLoginAlertsSnapshot,
 } from "@/types";
 
 import {
@@ -323,6 +325,36 @@ export async function getAdminMaintenancePurgeDryRun(
       ...options,
       method: "POST",
     },
+  );
+}
+
+export async function getAdminFailedLoginAlerts(
+  params: AdminFailedLoginAlertsQuery = {},
+  options?: RequestInit,
+): Promise<AdminFailedLoginAlertsSnapshot> {
+  const query = new URLSearchParams();
+
+  if (params.surface) {
+    query.set("surface", params.surface);
+  }
+
+  if (params.reason) {
+    query.set("reason", params.reason);
+  }
+
+  if (typeof params.limit === "number") {
+    query.set("limit", String(params.limit));
+  }
+
+  if (typeof params.offset === "number") {
+    query.set("offset", String(params.offset));
+  }
+
+  const qs = query.toString();
+
+  return apiFetch<AdminFailedLoginAlertsSnapshot>(
+    `/api/admin/failed-login-alerts${qs ? `?${qs}` : ""}`,
+    options,
   );
 }
 

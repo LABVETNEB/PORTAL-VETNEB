@@ -290,6 +290,46 @@ export type AdminSessionRevocationResponse = {
   };
 };
 
+export type AdminFailedLoginAlertSurface = "admin" | "clinic" | "particular";
+export type AdminFailedLoginAlertReason =
+  | "missing_credentials"
+  | "invalid_credentials"
+  | "rate_limited";
+
+export type AdminFailedLoginAlertSummary = {
+  id: number;
+  surface: AdminFailedLoginAlertSurface;
+  username: string | null;
+  reason: AdminFailedLoginAlertReason;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+};
+
+export type AdminFailedLoginAlertsQuery = {
+  surface?: AdminFailedLoginAlertSurface;
+  reason?: AdminFailedLoginAlertReason;
+  limit?: number;
+  offset?: number;
+};
+
+export type AdminFailedLoginAlertsSnapshot = {
+  success: true;
+  failedLoginAlerts: AdminFailedLoginAlertSummary[];
+  count: number;
+  total: number;
+  limit: number;
+  offset: number;
+  filters: {
+    surface: AdminFailedLoginAlertSurface | null;
+    reason: AdminFailedLoginAlertReason | null;
+  };
+  checkedBy?: {
+    adminUserId: number;
+    username: string;
+  };
+};
+
 export type MaintenancePurgeCandidateCategory =
   | "expired_clinic_sessions"
   | "expired_admin_sessions"
