@@ -8,9 +8,12 @@ import {
   adminUsers,
   clinicUsers,
   clinics,
+  loginFailedAttempts,
   reports,
   reportStatusHistory,
   type ClinicUserRole,
+  type LoginFailedAttemptReason,
+  type LoginFailedAttemptSurface,
   type ReportStatus,
 } from "../drizzle/schema";
 import { ENV } from "./lib/env";
@@ -114,6 +117,31 @@ export async function getAdminUserByUsername(username: string) {
     .from(adminUsers)
     .where(eq(adminUsers.username, username.trim()))
     .limit(1);
+
+  return result[0];
+}
+
+/* ========================= LOGIN FAILED ATTEMPTS ========================= */
+
+export async function recordLoginFailedAttempt(input: {
+  surface: LoginFailedAttemptSurface;
+  username?: string | null;
+  reason: LoginFailedAttemptReason;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  createdAt?: Date;
+}) {
+  const result = await db
+    .insert(loginFailedAttempts)
+    .values({
+      surface: input.surface,
+      username: input.username ?? null,
+      reason: input.reason,
+      ipAddress: input.ipAddress ?? null,
+      userAgent: input.userAgent ?? null,
+      createdAt: input.createdAt ?? new Date(),
+    })
+    .returning();
 
   return result[0];
 }
