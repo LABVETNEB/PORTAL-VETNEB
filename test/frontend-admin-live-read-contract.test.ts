@@ -67,3 +67,63 @@ test("frontend admin audit API wrapper accepts request options", () => {
   assertIncludes(source, "options,", frontendApiClient);
   assertIncludes(source, "return MOCK_AUDIT_ENTRIES", frontendApiClient);
 });
+
+
+test("frontend admin failed-login alerts read-only UI queda montada", () => {
+  const adminPageSource = read(adminPage);
+  const apiSource = read(frontendApiClient);
+  const cardSource = read(
+    "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+
+  assertIncludes(
+    adminPageSource,
+    'import { AdminFailedLoginAlertsReadOnlyCard } from "./AdminFailedLoginAlertsReadOnlyCard";',
+    adminPage,
+  );
+  assertIncludes(
+    adminPageSource,
+    "<AdminFailedLoginAlertsReadOnlyCard />",
+    adminPage,
+  );
+  assertIncludes(
+    adminPageSource,
+    "GET /api/admin/failed-login-alerts",
+    adminPage,
+  );
+  assertIncludes(
+    apiSource,
+    "export async function getAdminFailedLoginAlerts(",
+    frontendApiClient,
+  );
+  assertIncludes(
+    apiSource,
+    "/api/admin/failed-login-alerts",
+    frontendApiClient,
+  );
+  assertIncludes(
+    cardSource,
+    "getAdminFailedLoginAlerts(query)",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "Vista Admin read-only",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "no bloquea usuarios",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "no revoca sesiones",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertNotIncludes(
+    cardSource,
+    "tokenHash",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+});
