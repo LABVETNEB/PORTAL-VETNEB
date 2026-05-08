@@ -18,13 +18,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAdminUsersRoles } from "@/lib/api";
+import {
+  changeAdminClinicUserRole,
+  getAdminUsersRoles,
+} from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 import type {
   AdminRoleUserRole,
   AdminRoleUserSummary,
   AdminRoleUserType,
   AdminUsersRolesSnapshot,
+  ClinicUserRole,
 } from "@/types";
 
 const PAGE_SIZE = 25;
@@ -59,12 +63,18 @@ function formatClinic(user: AdminRoleUserSummary) {
   return user.clinicName ? `${user.clinicName} #${user.clinicId}` : `#${user.clinicId}`;
 }
 
+function getNextClinicRole(role: ClinicUserRole): ClinicUserRole {
+  return role === "clinic_owner" ? "clinic_staff" : "clinic_owner";
+}
+
 export function AdminUsersRolesReadOnlyCard() {
   const [snapshot, setSnapshot] = useState<AdminUsersRolesSnapshot | null>(null);
   const [userType, setUserType] = useState<AdminRoleUserType | "all">("all");
   const [role, setRole] = useState<AdminRoleUserRole | "all">("all");
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [roleChangeMessage, setRoleChangeMessage] = useState<string | null>(null);
+  const [changingUserKey, setChangingUserKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const query = useMemo(
@@ -96,6 +106,56 @@ export function AdminUsersRolesReadOnlyCard() {
     });
   }
 
+  async function handleChangeClinicRole(
+    user: Extract<AdminRoleUserSummary, { userType: "clinic" }>,
+  ) {
+    const nextRole = getNextClinicRole(user.role);
+    const confirmed = window.confirm(
+      `¿Cambiar el rol de ${user.username} de ${formatRole(user.role)} a ${formatRole(nextRole)}?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const userKey = `${user.userType}-${user.userId}`;
+
+    setError(null);
+    setRoleChangeMessage(null);
+    setChangingUserKey(userKey);
+
+    try {
+      const result = await changeAdminClinicUserRole(user.userId, nextRole);
+
+      setSnapshot((current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          users: current.users.map((entry) =>
+            entry.userType === "clinic" && entry.userId === result.user.userId
+              ? result.user
+              : entry,
+          ),
+        };
+      });
+
+      setRoleChangeMessage(
+        `Rol actualizado: ${result.user.username} ahora es ${formatRole(result.user.role)}.`,
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo cambiar el rol del usuario.",
+      );
+    } finally {
+      setChangingUserKey(null);
+    }
+  }
+
   useEffect(() => {
     loadUsersRoles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,8 +172,8 @@ export function AdminUsersRolesReadOnlyCard() {
         <div>
           <CardTitle className="text-base">Usuarios y roles</CardTitle>
           <CardDescription>
-            Vista read-only de usuarios Admin y clínica. No permite edición,
-            revocación ni acciones destructivas.
+            Vista Admin de usuarios y roles. Permite cambiar roles de usuarios
+            de clínica con confirmación explícita y bloqueo anti-lockout.
           </CardDescription>
         </div>
 
@@ -185,6 +245,12 @@ export function AdminUsersRolesReadOnlyCard() {
           </div>
         ) : null}
 
+        {roleChangeMessage ? (
+          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            {roleChangeMessage}
+          </div>
+        ) : null}
+
         <div className="overflow-hidden rounded-lg border border-gray-100">
           <Table>
             <TableHeader>
@@ -195,47 +261,71 @@ export function AdminUsersRolesReadOnlyCard() {
                 <TableHead>Clínica</TableHead>
                 <TableHead>Creado</TableHead>
                 <TableHead>Actualizado</TableHead>
+                <TableHead className="text-right">Acción</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {snapshot?.users.length ? (
-                snapshot.users.map((user) => (
-                  <TableRow key={`${user.userType}-${user.userId}`}>
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-sm font-semibold text-gray-700">
-                          {user.username}
-                        </span>
-                        <span className="font-mono text-xs text-gray-400">
-                          #{user.userId}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getUserTypeVariant(user.userType)}>
-                        {formatUserType(user.userType)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleVariant(user.role)}>
-                        {formatRole(user.role)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {formatClinic(user)}
-                    </TableCell>
-                    <TableCell className="text-xs text-gray-400">
-                      {formatDateTime(user.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-xs text-gray-400">
-                      {formatDateTime(user.updatedAt)}
-                    </TableCell>
-                  </TableRow>
-                ))
+                snapshot.users.map((user) => {
+                  const userKey = `${user.userType}-${user.userId}`;
+                  const isChanging = changingUserKey === userKey;
+
+                  return (
+                    <TableRow key={userKey}>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-sm font-semibold text-gray-700">
+                            {user.username}
+                          </span>
+                          <span className="font-mono text-xs text-gray-400">
+                            #{user.userId}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getUserTypeVariant(user.userType)}>
+                          {formatUserType(user.userType)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getRoleVariant(user.role)}>
+                          {formatRole(user.role)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {formatClinic(user)}
+                      </TableCell>
+                      <TableCell className="text-xs text-gray-400">
+                        {formatDateTime(user.createdAt)}
+                      </TableCell>
+                      <TableCell className="text-xs text-gray-400">
+                        {formatDateTime(user.updatedAt)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {user.userType === "clinic" ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={isChanging}
+                            onClick={() => void handleChangeClinicRole(user)}
+                          >
+                            {isChanging
+                              ? "Cambiando..."
+                              : `Cambiar a ${formatRole(getNextClinicRole(user.role))}`}
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-gray-400">
+                            No editable
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="py-8 text-center text-sm text-gray-400"
                   >
                     {isPending
@@ -250,9 +340,11 @@ export function AdminUsersRolesReadOnlyCard() {
 
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <p className="text-xs text-gray-400">
-            Endpoint: <code>GET /api/admin/users-roles</code>. Campos sensibles
-            como <code>passwordHash</code>, <code>authProId</code> y tokens no
-            se renderizan.
+            Endpoints: <code>GET /api/admin/users-roles</code> y{" "}
+            <code>PATCH /api/admin/users-roles/clinic/:clinicUserId/role</code>.
+            Admin users no son editables. Campos sensibles como{" "}
+            <code>passwordHash</code>, <code>authProId</code> y tokens no se
+            renderizan.
           </p>
 
           <div className="flex items-center gap-2">

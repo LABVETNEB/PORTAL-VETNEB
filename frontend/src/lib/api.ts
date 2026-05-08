@@ -27,6 +27,8 @@ import type {
   AdminSessionsSnapshot,
   AdminUsersRolesQuery,
   AdminUsersRolesSnapshot,
+  AdminClinicUserRoleChangeResponse,
+  ClinicUserRole,
   AdminSessionRevocationResponse,
   AdminSessionType,
 } from "@/types";
@@ -251,6 +253,21 @@ export async function getAdminUsersRoles(
   return apiFetch<AdminUsersRolesSnapshot>(
     `/api/admin/users-roles${qs ? `?${qs}` : ""}`,
     options,
+  );
+}
+
+export async function changeAdminClinicUserRole(
+  clinicUserId: number,
+  role: ClinicUserRole,
+  options?: RequestInit,
+): Promise<AdminClinicUserRoleChangeResponse> {
+  return apiFetch<AdminClinicUserRoleChangeResponse>(
+    `/api/admin/users-roles/clinic/${clinicUserId}/role`,
+    {
+      ...options,
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    },
   );
 }
 export async function getAdminSessions(
