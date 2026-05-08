@@ -95,6 +95,7 @@ test("Frontend CI define toolchain y cache de pnpm esperados", () => {
   const source = readWorkflow();
 
   assertContains(source, "uses: pnpm/action-setup@v6");
+  assertContains(source, "version: 10.8.1");
   assertContains(source, "uses: actions/setup-node@v6");
   assertContains(source, "node-version: 24");
   assertContains(source, "cache: pnpm");
