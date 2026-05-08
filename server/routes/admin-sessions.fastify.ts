@@ -237,21 +237,25 @@ async function authenticateAdminUser(
   };
 }
 
-function parseSessionType(value: string | undefined) {
+function parseSessionType(
+  value: string | undefined,
+): AdminSessionType | undefined | null {
   if (value === undefined) return undefined;
 
   if (value === "admin" || value === "clinic" || value === "particular") {
-    return value satisfies AdminSessionType;
+    return value;
   }
 
   return null;
 }
 
-function parseSessionStatus(value: string | undefined) {
+function parseSessionStatus(
+  value: string | undefined,
+): AdminSessionStatus | undefined | null {
   if (value === undefined) return undefined;
 
   if (value === "active" || value === "expired") {
-    return value satisfies AdminSessionStatus;
+    return value;
   }
 
   return null;
@@ -276,7 +280,9 @@ function parseIntegerParam(
   return Math.min(Math.max(parsed, min), max);
 }
 
-function parseSessionsQuery(query: AdminSessionsRequestQuery) {
+function parseSessionsQuery(
+  query: AdminSessionsRequestQuery,
+): AdminSessionsQuery | null {
   const sessionType = parseSessionType(query.sessionType);
   const status = parseSessionStatus(query.status);
   const limit = parseIntegerParam(query.limit, 50, 1, 100);

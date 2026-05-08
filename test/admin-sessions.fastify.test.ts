@@ -13,8 +13,19 @@ const { ENV } = await import("../server/lib/env.ts");
 const { adminSessionsNativeRoutes } = await import(
   "../server/routes/admin-sessions.fastify.ts"
 );
+type AdminSessionsNativeRoutesOptions = import(
+  "../server/routes/admin-sessions.fastify.ts"
+).AdminSessionsNativeRoutesOptions;
+type AdminSessionsQuery = import(
+  "../server/db-admin-sessions.ts"
+).AdminSessionsQuery;
+type AdminSessionsSnapshot = import(
+  "../server/db-admin-sessions.ts"
+).AdminSessionsSnapshot;
 
-function buildDeps(overrides = {}) {
+function buildDeps(
+  overrides: Partial<AdminSessionsNativeRoutesOptions> = {},
+): AdminSessionsNativeRoutesOptions {
   return {
     deleteAdminSession: async () => {},
     getAdminSessionByToken: async () => ({
@@ -28,7 +39,7 @@ function buildDeps(overrides = {}) {
     }),
     updateAdminSessionLastAccess: async () => {},
     hashSessionToken: (token: string) => `hash:${token}`,
-    getAdminSessionsSnapshot: async () => ({
+    getAdminSessionsSnapshot: async (): Promise<AdminSessionsSnapshot> => ({
       success: true,
       sessions: [],
       total: 0,
@@ -67,7 +78,9 @@ test("admin sessions devuelve sesiones sanitizadas sin tokenHash", async () => {
   const app = Fastify();
 
   await app.register(adminSessionsNativeRoutes, buildDeps({
-    getAdminSessionsSnapshot: async (params) => ({
+    getAdminSessionsSnapshot: async (
+      params: AdminSessionsQuery,
+    ): Promise<AdminSessionsSnapshot> => ({
       success: true,
       sessions: [
         {
@@ -134,7 +147,7 @@ test("admin sessions rechaza filtros inválidos", async () => {
   let snapshotCalled = false;
 
   await app.register(adminSessionsNativeRoutes, buildDeps({
-    getAdminSessionsSnapshot: async () => {
+    getAdminSessionsSnapshot: async (): Promise<AdminSessionsSnapshot> => {
       snapshotCalled = true;
       return {
         success: true,
