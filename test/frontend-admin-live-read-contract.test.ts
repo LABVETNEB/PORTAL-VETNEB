@@ -176,3 +176,52 @@ test("frontend admin failed-login alerts expone export CSV read-only", () => {
     "AdminFailedLoginAlertsReadOnlyCard.tsx",
   );
 });
+
+
+test("frontend admin failed-login alerts CSV usa filtros sin paginacion", () => {
+  const cardSource = read(
+    "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+
+  assertIncludes(
+    cardSource,
+    "const csvUrl = useMemo(",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "buildAdminFailedLoginAlertsCsvUrl({",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    '...(surface !== "all" ? { surface } : {})',
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    '...(reason !== "all" ? { reason } : {})',
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "[reason, surface]",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+
+  const csvUrlBlock = cardSource.slice(
+    cardSource.indexOf("const csvUrl = useMemo("),
+    cardSource.indexOf("function loadFailedLoginAlerts()"),
+  );
+
+  assertNotIncludes(
+    csvUrlBlock,
+    "limit: PAGE_SIZE",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx csvUrl",
+  );
+  assertNotIncludes(
+    csvUrlBlock,
+    "offset",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx csvUrl",
+  );
+});
