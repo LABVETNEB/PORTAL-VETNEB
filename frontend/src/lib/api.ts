@@ -25,6 +25,8 @@ import type {
   MaintenancePurgeDryRunSnapshot,
   AdminSessionsQuery,
   AdminSessionsSnapshot,
+  AdminSessionRevocationResponse,
+  AdminSessionType,
 } from "@/types";
 
 import {
@@ -246,6 +248,20 @@ export async function getAdminSessions(
   return apiFetch<AdminSessionsSnapshot>(
     `/api/admin/sessions${qs ? `?${qs}` : ""}`,
     options,
+  );
+}
+
+export async function revokeAdminSession(
+  sessionType: AdminSessionType,
+  sessionId: number,
+  options?: RequestInit,
+): Promise<AdminSessionRevocationResponse> {
+  return apiFetch<AdminSessionRevocationResponse>(
+    `/api/admin/sessions/${sessionType}/${sessionId}/revoke`,
+    {
+      ...options,
+      method: "POST",
+    },
   );
 }
 

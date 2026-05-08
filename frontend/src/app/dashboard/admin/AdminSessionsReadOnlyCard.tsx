@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAdminSessions } from "@/lib/api";
+import { getAdminSessions, revokeAdminSession } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 import type {
   AdminSessionStatus,
@@ -71,6 +71,9 @@ export function AdminSessionsReadOnlyCard() {
   const [status, setStatus] = useState<AdminSessionStatus | "all">("all");
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [revokingSessionKey, setRevokingSessionKey] = useState<string | null>(
+    null,
+  );
   const [isPending, startTransition] = useTransition();
 
   const query = useMemo(
@@ -102,13 +105,45 @@ export function AdminSessionsReadOnlyCard() {
     });
   }
 
+  async function handleRevokeSession(session: AdminSessionSummary) {
+    const sessionKey = `${session.sessionType}-${session.sessionId}`;
+    const confirmed = window.confirm(
+      `¿Revocar la sesión ${formatSessionType(session.sessionType)} #${
+        session.sessionId
+      }? Esta acción cerrará esa sesión y quedará auditada.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError(null);
+    setRevokingSessionKey(sessionKey);
+
+    try {
+      await revokeAdminSession(session.sessionType, session.sessionId);
+      const refreshed = await getAdminSessions(query);
+      setSnapshot(refreshed);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo revocar la sesión seleccionada.",
+      );
+    } finally {
+      setRevokingSessionKey(null);
+    }
+  }
+
   useEffect(() => {
     loadSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   const hasPreviousPage = offset > 0;
-  const hasNextPage = snapshot ? offset + snapshot.sessions.length < snapshot.total : false;
+  const hasNextPage = snapshot
+    ? offset + snapshot.sessions.length < snapshot.total
+    : false;
 
   return (
     <Card>
@@ -116,8 +151,8 @@ export function AdminSessionsReadOnlyCard() {
         <div>
           <CardTitle className="text-base">Sesiones activas y expiradas</CardTitle>
           <CardDescription>
-            Vista read-only de sesiones Admin, clínica y particulares. No expone
-            tokens, hashes ni cookies.
+            Vista de sesiones Admin, clínica y particulares. No expone tokens,
+            hashes ni cookies. La revocación requiere confirmación explícita.
           </CardDescription>
         </div>
 
@@ -195,45 +230,63 @@ export function AdminSessionsReadOnlyCard() {
                 <TableHead>Creada</TableHead>
                 <TableHead>Último acceso</TableHead>
                 <TableHead>Expira</TableHead>
+                <TableHead className="text-right">Acción</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {snapshot?.sessions.length ? (
-                snapshot.sessions.map((session) => (
-                  <TableRow key={`${session.sessionType}-${session.sessionId}`}>
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <Badge variant={getSessionTypeVariant(session.sessionType)}>
-                          {formatSessionType(session.sessionType)}
+                snapshot.sessions.map((session) => {
+                  const sessionKey = `${session.sessionType}-${session.sessionId}`;
+                  const isRevoking = revokingSessionKey === sessionKey;
+
+                  return (
+                    <TableRow key={sessionKey}>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <Badge
+                            variant={getSessionTypeVariant(session.sessionType)}
+                          >
+                            {formatSessionType(session.sessionType)}
+                          </Badge>
+                          <span className="font-mono text-xs text-gray-400">
+                            #{session.sessionId}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">
+                        {formatActorType(session.actorType)} #{session.actorId}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusVariant(session.status)}>
+                          {formatStatus(session.status)}
                         </Badge>
-                        <span className="font-mono text-xs text-gray-400">
-                          #{session.sessionId}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-600">
-                      {formatActorType(session.actorType)} #{session.actorId}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusVariant(session.status)}>
-                        {formatStatus(session.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-gray-400">
-                      {formatOptionalDate(session.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-xs text-gray-400">
-                      {formatOptionalDate(session.lastAccess)}
-                    </TableCell>
-                    <TableCell className="text-xs text-gray-400">
-                      {formatOptionalDate(session.expiresAt)}
-                    </TableCell>
-                  </TableRow>
-                ))
+                      </TableCell>
+                      <TableCell className="text-xs text-gray-400">
+                        {formatOptionalDate(session.createdAt)}
+                      </TableCell>
+                      <TableCell className="text-xs text-gray-400">
+                        {formatOptionalDate(session.lastAccess)}
+                      </TableCell>
+                      <TableCell className="text-xs text-gray-400">
+                        {formatOptionalDate(session.expiresAt)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={isRevoking}
+                          onClick={() => void handleRevokeSession(session)}
+                        >
+                          {isRevoking ? "Revocando..." : "Revocar"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="py-8 text-center text-sm text-gray-400"
                   >
                     {isPending
@@ -248,8 +301,9 @@ export function AdminSessionsReadOnlyCard() {
 
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <p className="text-xs text-gray-400">
-            Endpoint: <code>GET /api/admin/sessions</code>. Vista sin acciones
-            destructivas.
+            Endpoints: <code>GET /api/admin/sessions</code> y{" "}
+            <code>POST /api/admin/sessions/:sessionType/:sessionId/revoke</code>.
+            La revocación queda auditada.
           </p>
 
           <div className="flex items-center gap-2">
