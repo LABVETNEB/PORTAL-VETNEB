@@ -493,7 +493,7 @@ export default async function AdminPage({
                 {filteredAuditEntries.length ? (
                   filteredAuditEntries.map((entry) => (
                     <TableRow key={entry.id}>
-                      <TableCell className="font-mono text-xs text-gray-400">
+                      <TableCell className="whitespace-nowrap font-mono text-xs text-gray-400">
                         #{entry.id}
                       </TableCell>
                       <TableCell>
