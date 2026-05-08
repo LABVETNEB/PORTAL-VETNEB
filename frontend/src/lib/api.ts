@@ -25,6 +25,8 @@ import type {
   MaintenancePurgeDryRunSnapshot,
   AdminSessionsQuery,
   AdminSessionsSnapshot,
+  AdminUsersRolesQuery,
+  AdminUsersRolesSnapshot,
   AdminSessionRevocationResponse,
   AdminSessionType,
 } from "@/types";
@@ -220,6 +222,36 @@ export async function getAdminSystemHealth(
     console.warn("[API] getAdminSystemHealth: endpoint no disponible");
     return null;
   }
+}
+
+export async function getAdminUsersRoles(
+  params: AdminUsersRolesQuery = {},
+  options?: RequestInit,
+): Promise<AdminUsersRolesSnapshot> {
+  const query = new URLSearchParams();
+
+  if (params.userType) {
+    query.set("userType", params.userType);
+  }
+
+  if (params.role) {
+    query.set("role", params.role);
+  }
+
+  if (typeof params.limit === "number") {
+    query.set("limit", String(params.limit));
+  }
+
+  if (typeof params.offset === "number") {
+    query.set("offset", String(params.offset));
+  }
+
+  const qs = query.toString();
+
+  return apiFetch<AdminUsersRolesSnapshot>(
+    `/api/admin/users-roles${qs ? `?${qs}` : ""}`,
+    options,
+  );
 }
 export async function getAdminSessions(
   params: AdminSessionsQuery = {},
