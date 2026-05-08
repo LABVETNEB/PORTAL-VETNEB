@@ -79,6 +79,7 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     ) => `signed-download:${storagePath}:${fileName ?? ""}`,
     generateSessionToken: () => "particular-session-token",
     hashSessionToken: (token: string) => `hash:${token}`,
+    recordLoginFailedAttempt: async () => {},
     ...overrides,
   });
 
@@ -517,3 +518,48 @@ test(
     }
   },
 );
+
+test("particularAuthNativeRoutes persiste failed login sin secretos", async () => {
+  const attempts: Array<Record<string, unknown>> = [];
+
+  const app = await createTestApp({
+    now: () => Date.UTC(2026, 4, 8, 0, 0, 0),
+    getParticularTokenByTokenHash: async () => null,
+    recordLoginFailedAttempt: async (input: Record<string, unknown>) => {
+      attempts.push(input);
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/particular/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+        "user-agent": "vetneb-test-agent",
+      },
+      remoteAddress: "203.0.113.46",
+      payload: {
+        token: "SUPER-SECRET-PARTICULAR-TOKEN",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(attempts.length, 1);
+
+    assert.equal(attempts[0].surface, "particular");
+    assert.equal(attempts[0].username, null);
+    assert.equal(attempts[0].reason, "invalid_credentials");
+    assert.equal(attempts[0].userAgent, "vetneb-test-agent");
+    assert.ok(attempts[0].createdAt instanceof Date);
+
+    const serializedAttempt = JSON.stringify(attempts[0]).toLowerCase();
+
+    assert.equal(serializedAttempt.includes("super-secret-particular-token"), false);
+    assert.equal(serializedAttempt.includes("tokenhash"), false);
+    assert.equal(serializedAttempt.includes("cookie"), false);
+    assert.equal(serializedAttempt.includes("password"), false);
+  } finally {
+    await app.close();
+  }
+});
