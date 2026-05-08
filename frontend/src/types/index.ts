@@ -186,6 +186,54 @@ export type DashboardStats = {
   activePlans: number;
 };
 
+
+export type AdminRoleUserType = "admin" | "clinic";
+export type AdminRoleUserRole = "admin" | ClinicUserRole;
+
+export type AdminRoleUserSummary =
+  | {
+      userType: "admin";
+      userId: number;
+      username: string;
+      role: "admin";
+      clinicId: null;
+      clinicName: null;
+      createdAt: string;
+      updatedAt: string;
+    }
+  | {
+      userType: "clinic";
+      userId: number;
+      username: string;
+      role: ClinicUserRole;
+      clinicId: number;
+      clinicName: string | null;
+      createdAt: string;
+      updatedAt: string;
+    };
+
+export type AdminUsersRolesQuery = {
+  userType?: AdminRoleUserType;
+  role?: AdminRoleUserRole;
+  limit?: number;
+  offset?: number;
+};
+
+export type AdminUsersRolesSnapshot = {
+  success: true;
+  users: AdminRoleUserSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+  totals: {
+    adminUsers: number;
+    clinicUsers: number;
+  };
+  checkedBy?: {
+    adminUserId: number;
+    username: string;
+  };
+};
 export type AdminSessionType = "admin" | "clinic" | "particular";
 export type AdminSessionStatus = "active" | "expired";
 
