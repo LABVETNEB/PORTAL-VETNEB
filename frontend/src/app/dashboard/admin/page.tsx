@@ -122,6 +122,47 @@ function formatUptime(totalSeconds: number | undefined) {
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
 }
+
+function formatAuditMetadataValue(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return JSON.stringify(value);
+}
+
+function getAuditMetadataSummary(entry: { event: string; metadata: Record<string, unknown> | null }) {
+  const metadata = entry.metadata;
+
+  if (!metadata) {
+    return "—";
+  }
+
+  if (entry.event === "clinic_user.role.changed") {
+    const username = formatAuditMetadataValue(metadata.username);
+    const clinicName = formatAuditMetadataValue(metadata.clinicName);
+    const previousRole = formatAuditMetadataValue(metadata.previousRole);
+    const newRole = formatAuditMetadataValue(metadata.newRole);
+
+    return `${username} · ${clinicName} · ${previousRole} → ${newRole}`;
+  }
+
+  const visibleEntries = Object.entries(metadata)
+    .filter(([, value]) => value !== null && value !== undefined && value !== "")
+    .slice(0, 3);
+
+  if (!visibleEntries.length) {
+    return "—";
+  }
+
+  return visibleEntries
+    .map(([key, value]) => `${key}: ${formatAuditMetadataValue(value)}`)
+    .join(" · ");
+}
 function formatHealthTimestamp(value: unknown) {
   if (typeof value !== "string") return "—";
 
@@ -479,7 +520,7 @@ export default async function AdminPage({
                 ) : (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="py-8 text-center text-sm text-gray-400"
                     >
                       {hasActiveAuditFilters
