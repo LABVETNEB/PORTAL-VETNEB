@@ -128,6 +128,22 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "rutas clinic-scoped que limpian sesión usan contrato central ENV",
         ],
       },
+      {
+        path: "test/security-session-cookie-boundaries.test.ts",
+        markers: [
+          "session cookie boundary matrix documents separated auth domains",
+          "clinic admin and particular route surfaces read only their own cookie",
+          "session cookie guardrail source stays ascii only",
+        ],
+      },
+      {
+        path: "test/security-cross-auth-surface-boundaries.test.ts",
+        markers: [
+          "admin route surfaces accept only admin session cookies",
+          "public token surfaces do not accept browser session cookies",
+          "cross auth surface registry keeps every protected route family explicit",
+        ],
+      },
     ],
   },
   {
