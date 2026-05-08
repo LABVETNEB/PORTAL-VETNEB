@@ -504,6 +504,8 @@ test("critical route surface registry cubre todos los guardrails finales obligat
 
   for (const requiredGuardrail of [
     "test/security-production-invariants.test.ts",
+    "test/security-session-cookie-boundaries.test.ts",
+    "test/security-cross-auth-surface-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",
     "test/supabase-storage-boundaries.test.ts",
     "test/public-professionals-route-surface-invariants.test.ts",
