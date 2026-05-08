@@ -54,6 +54,23 @@ function buildDeps(
           reason: null,
         },
       }),
+    buildAdminFailedLoginAlertsCsv: (items) =>
+      [
+        "id,surface,username,reason,ipAddress,userAgent,createdAt",
+        ...items.map((item) =>
+          [
+            item.id,
+            item.surface,
+            item.username ?? "",
+            item.reason,
+            item.ipAddress ?? "",
+            item.userAgent ?? "",
+            item.createdAt,
+          ].join(","),
+        ),
+      ].join("\n"),
+    buildAdminFailedLoginAlertsCsvFilename: () =>
+      "admin-failed-login-alerts-test.csv",
     now: () => Date.UTC(2026, 4, 8, 0, 0, 0),
     ...overrides,
   };
@@ -199,6 +216,140 @@ test("admin failed-login alerts rechaza filtros inválidos", async () => {
     const response = await app.inject({
       method: "GET",
       url: "/?surface=unknown",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(JSON.parse(response.body).success, false);
+    assert.equal(listCalled, false);
+  } finally {
+    await app.close();
+  }
+});
+
+
+test("admin failed-login alerts exporta CSV sanitizado", async () => {
+  const app = Fastify();
+  let receivedParams: AdminFailedLoginAlertsQuery | null = null;
+
+  await app.register(
+    adminFailedLoginAlertsNativeRoutes,
+    buildDeps({
+      listAdminFailedLoginAlerts: async (
+        params,
+      ): Promise<AdminFailedLoginAlertsSnapshot> => {
+        receivedParams = params;
+
+        return {
+          success: true,
+          failedLoginAlerts: [
+            {
+              id: 20,
+              surface: "clinic",
+              username: "clinic-user",
+              reason: "invalid_credentials",
+              ipAddress: "203.0.113.20",
+              userAgent: "csv-test-agent",
+              createdAt: "2026-05-08T00:02:00.000Z",
+            },
+            {
+              id: 21,
+              surface: "particular",
+              username: null,
+              reason: "rate_limited",
+              ipAddress: "203.0.113.21",
+              userAgent: "csv-test-agent-2",
+              createdAt: "2026-05-08T00:03:00.000Z",
+            },
+          ],
+          count: 2,
+          total: 2,
+          limit: params.limit ?? 50,
+          offset: params.offset ?? 0,
+          filters: {
+            surface: params.surface ?? null,
+            reason: params.reason ?? null,
+          },
+        };
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/export.csv?surface=clinic&reason=invalid_credentials&limit=25&offset=5",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(
+      response.headers["content-type"],
+      "text/csv; charset=utf-8",
+    );
+    assert.equal(
+      response.headers["content-disposition"],
+      'attachment; filename="admin-failed-login-alerts-test.csv"',
+    );
+    assert.deepEqual(receivedParams, {
+      surface: "clinic",
+      reason: "invalid_credentials",
+      limit: 10000,
+      offset: 0,
+    });
+
+    assert.equal(
+      response.body,
+      [
+        "id,surface,username,reason,ipAddress,userAgent,createdAt",
+        "20,clinic,clinic-user,invalid_credentials,203.0.113.20,csv-test-agent,2026-05-08T00:02:00.000Z",
+        "21,particular,,rate_limited,203.0.113.21,csv-test-agent-2,2026-05-08T00:03:00.000Z",
+      ].join("\n"),
+    );
+
+    assert.equal(response.body.includes("tokenHash"), false);
+    assert.equal(response.body.includes("hash:"), false);
+    assert.equal(response.body.includes("password"), false);
+    assert.equal(response.body.includes("cookie"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin failed-login alerts export rechaza filtros inválidos", async () => {
+  const app = Fastify();
+  let listCalled = false;
+
+  await app.register(
+    adminFailedLoginAlertsNativeRoutes,
+    buildDeps({
+      listAdminFailedLoginAlerts: async () => {
+        listCalled = true;
+
+        return {
+          success: true,
+          failedLoginAlerts: [],
+          count: 0,
+          total: 0,
+          limit: 50,
+          offset: 0,
+          filters: {
+            surface: null,
+            reason: null,
+          },
+        };
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/export.csv?reason=bad",
       headers: {
         cookie: `${ENV.adminCookieName}=admin-session-token`,
       },
