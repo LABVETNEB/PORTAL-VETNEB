@@ -5,13 +5,18 @@ import type {
 } from "fastify";
 
 import { ENV } from "../lib/env.ts";
+import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import type {
+  AdminClinicUserRoleChangeInput,
+  AdminClinicUserRoleChangeResult,
   AdminRoleUserRole,
   AdminRoleUserType,
   AdminUsersRolesQuery,
   AdminUsersRolesSnapshot,
 } from "../db-admin-users-roles.ts";
+
+type AdminClinicUserRole = Exclude<AdminRoleUserRole, "admin">;
 
 type AdminSessionRecord = {
   id: number;
@@ -37,6 +42,14 @@ type AdminUsersRolesRequestQuery = {
   offset?: string;
 };
 
+type AdminUsersRolesRoleChangeParams = {
+  clinicUserId: string;
+};
+
+type AdminUsersRolesRoleChangeBody = {
+  role?: unknown;
+};
+
 export type AdminUsersRolesNativeRoutesOptions = {
   deleteAdminSession?: (tokenHash: string) => Promise<void>;
   getAdminSessionByToken?: (
@@ -50,6 +63,10 @@ export type AdminUsersRolesNativeRoutesOptions = {
   getAdminUsersRolesSnapshot?: (
     params: AdminUsersRolesQuery,
   ) => Promise<AdminUsersRolesSnapshot>;
+  changeClinicUserRole?: (
+    input: AdminClinicUserRoleChangeInput,
+  ) => Promise<AdminClinicUserRoleChangeResult>;
+  writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
   now?: () => number;
 };
 
@@ -62,6 +79,8 @@ type NativeAdminUsersRolesDeps = Required<
     | "updateAdminSessionLastAccess"
     | "hashSessionToken"
     | "getAdminUsersRolesSnapshot"
+    | "changeClinicUserRole"
+    | "writeAuditLog"
   >
 >;
 
@@ -72,6 +91,7 @@ async function loadDefaultDeps(): Promise<NativeAdminUsersRolesDeps> {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
+      const audit = await import("../lib/audit.ts");
       const usersRoles = await import("../db-admin-users-roles.ts");
 
       return {
@@ -81,11 +101,16 @@ async function loadDefaultDeps(): Promise<NativeAdminUsersRolesDeps> {
         updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
         getAdminUsersRolesSnapshot: usersRoles.getAdminUsersRolesSnapshot,
+        changeClinicUserRole: usersRoles.changeClinicUserRole,
+        writeAuditLog: audit.writeAuditLog as (
+          req: unknown,
+          input: AuditWriteInput,
+        ) => Promise<void>,
       };
     })();
   }
 
-  return defaultDepsPromise;
+  return defaultDepsPromise!;
 }
 
 function parseCookies(cookieHeader: string | undefined) {
@@ -255,6 +280,14 @@ function parseRole(value: string | undefined): AdminRoleUserRole | undefined | n
   return null;
 }
 
+function parseClinicUserRole(value: unknown): AdminClinicUserRole | null {
+  if (value === "clinic_owner" || value === "clinic_staff") {
+    return value;
+  }
+
+  return null;
+}
+
 function parseIntegerParam(
   value: string | undefined,
   fallback: number,
@@ -272,6 +305,20 @@ function parseIntegerParam(
   }
 
   return Math.min(Math.max(parsed, min), max);
+}
+
+function parsePositiveIntegerParam(value: string | undefined) {
+  if (value === undefined || value.trim() === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return null;
+  }
+
+  return parsed;
 }
 
 function parseUsersRolesQuery(
@@ -299,6 +346,23 @@ function parseUsersRolesQuery(
   };
 }
 
+function createAuditRequestLike(
+  request: FastifyRequest,
+  admin: AuthenticatedAdminUser,
+) {
+  return {
+    method: request.method,
+    originalUrl: request.url,
+    ip: request.ip,
+    headers: request.headers,
+    requestId: request.id,
+    adminAuth: {
+      id: admin.id,
+      username: admin.username,
+    },
+  };
+}
+
 export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
   AdminUsersRolesNativeRoutesOptions
 > = async (app, options) => {
@@ -311,7 +375,9 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
       !!options.getAdminUserById &&
       !!options.updateAdminSessionLastAccess &&
       !!options.hashSessionToken &&
-      !!options.getAdminUsersRolesSnapshot;
+      !!options.getAdminUsersRolesSnapshot &&
+      !!options.changeClinicUserRole &&
+      !!options.writeAuditLog;
 
     const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -330,6 +396,9 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
       getAdminUsersRolesSnapshot:
         options.getAdminUsersRolesSnapshot ??
         defaultDeps!.getAdminUsersRolesSnapshot,
+      changeClinicUserRole:
+        options.changeClinicUserRole ?? defaultDeps!.changeClinicUserRole,
+      writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
     };
   }
 
@@ -364,4 +433,84 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
       });
     },
   );
+
+  app.patch<{
+    Params: AdminUsersRolesRoleChangeParams;
+    Body: AdminUsersRolesRoleChangeBody;
+  }>("/clinic/:clinicUserId/role", async (request, reply) => {
+    const deps = await resolveDeps();
+    const admin = await authenticateAdminUser(request, reply, deps, now);
+
+    if (!admin) {
+      return reply;
+    }
+
+    const clinicUserId = parsePositiveIntegerParam(request.params.clinicUserId);
+
+    if (clinicUserId === null) {
+      return reply.code(400).send({
+        success: false,
+        error: "clinicUserId inválido.",
+      });
+    }
+
+    const role = parseClinicUserRole(request.body?.role);
+
+    if (!role) {
+      return reply.code(400).send({
+        success: false,
+        error: "role inválido. Debe ser clinic_owner o clinic_staff.",
+      });
+    }
+
+    const result = await deps.changeClinicUserRole({
+      clinicUserId,
+      role,
+      now: new Date(now()),
+    });
+
+    if (!result.ok && result.reason === "not_found") {
+      return reply.code(404).send({
+        success: false,
+        error: "Usuario de clínica no encontrado.",
+      });
+    }
+
+    if (!result.ok && result.reason === "last_clinic_owner") {
+      return reply.code(409).send({
+        success: false,
+        error:
+          "No se puede degradar el último clinic_owner de la clínica.",
+      });
+    }
+
+    if (!result.ok) {
+      return reply.code(500).send({
+        success: false,
+        error: "No se pudo cambiar el rol del usuario.",
+      });
+    }
+
+    await deps.writeAuditLog(createAuditRequestLike(request, admin), {
+      event: AUDIT_EVENTS.CLINIC_USER_ROLE_CHANGED,
+      clinicId: result.user.clinicId,
+      targetClinicUserId: result.user.userId,
+      metadata: {
+        username: result.user.username,
+        clinicName: result.user.clinicName,
+        previousRole: result.previousRole,
+        newRole: result.user.role,
+        roleChanged: result.roleChanged,
+      },
+    });
+
+    return reply.code(200).send({
+      success: true,
+      user: result.user,
+      changedBy: {
+        adminUserId: admin.id,
+        username: admin.username,
+      },
+    });
+  });
 };

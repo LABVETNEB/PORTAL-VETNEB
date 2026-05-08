@@ -136,6 +136,7 @@ export const AUDIT_EVENTS = [
   "auth.admin.login.succeeded",
   "auth.clinic.login.succeeded",
   "auth.session.revoked",
+  "clinic_user.role.changed",
   "report.status.changed",
   "report.uploaded",
   "study_tracking.case.created",

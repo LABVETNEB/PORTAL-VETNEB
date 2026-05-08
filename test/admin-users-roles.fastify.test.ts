@@ -26,6 +26,20 @@ type AdminUsersRolesSnapshot = import(
 type AdminRoleUserSummary = import(
   "../server/db-admin-users-roles.ts"
 ).AdminRoleUserSummary;
+type AdminClinicUserRoleChangeResult = import(
+  "../server/db-admin-users-roles.ts"
+).AdminClinicUserRoleChangeResult;
+
+const demoClinicUser: Extract<AdminRoleUserSummary, { userType: "clinic" }> = {
+  userType: "clinic",
+  userId: 2,
+  username: "clinic-owner",
+  role: "clinic_owner",
+  clinicId: 10,
+  clinicName: "Clínica Demo",
+  createdAt: "2026-05-08T00:00:00.000Z",
+  updatedAt: "2026-05-08T00:00:00.000Z",
+};
 
 function buildDeps(
   overrides: Partial<AdminUsersRolesNativeRoutesOptions> = {},
@@ -55,6 +69,14 @@ function buildDeps(
         clinicUsers: 0,
       },
     }),
+    changeClinicUserRole:
+      async (): Promise<AdminClinicUserRoleChangeResult> => ({
+        ok: true,
+        user: demoClinicUser,
+        previousRole: "clinic_staff",
+        roleChanged: true,
+      }),
+    writeAuditLog: async () => {},
     now: () => Date.UTC(2026, 4, 8, 0, 0, 0),
     ...overrides,
   };
@@ -106,16 +128,7 @@ test("admin users roles devuelve usuarios sanitizados sin hashes ni auth ids", a
             createdAt: "2026-05-08T00:00:00.000Z",
             updatedAt: "2026-05-08T00:00:00.000Z",
           },
-          {
-            userType: "clinic",
-            userId: 2,
-            username: "clinic-owner",
-            role: "clinic_owner",
-            clinicId: 10,
-            clinicName: "Clínica Demo",
-            createdAt: "2026-05-08T00:00:00.000Z",
-            updatedAt: "2026-05-08T00:00:00.000Z",
-          },
+          demoClinicUser,
         ];
 
         const filtered = users.filter((user) =>
@@ -206,6 +219,201 @@ test("admin users roles rechaza filtros inválidos", async () => {
     assert.equal(response.statusCode, 400);
     assert.equal(JSON.parse(response.body).success, false);
     assert.equal(snapshotCalled, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin users roles cambia rol de clinic user y escribe audit log", async () => {
+  const app = Fastify();
+  const auditWrites: Array<{
+    input: {
+      event?: string;
+      clinicId?: number | null;
+      targetClinicUserId?: number | null;
+      metadata?: Record<string, unknown>;
+    };
+  }> = [];
+
+  await app.register(
+    adminUsersRolesNativeRoutes,
+    buildDeps({
+      changeClinicUserRole: async (input) => {
+        assert.deepEqual(input, {
+          clinicUserId: 2,
+          role: "clinic_owner",
+          now: new Date("2026-05-08T00:00:00.000Z"),
+        });
+
+        return {
+          ok: true,
+          user: {
+            ...demoClinicUser,
+            role: "clinic_owner",
+          },
+          previousRole: "clinic_staff",
+          roleChanged: true,
+        };
+      },
+      writeAuditLog: async (_req, input) => {
+        auditWrites.push({ input });
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/clinic/2/role",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+      payload: {
+        role: "clinic_owner",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+
+    assert.equal(body.success, true);
+    assert.equal(body.user.userType, "clinic");
+    assert.equal(body.user.userId, 2);
+    assert.equal(body.user.role, "clinic_owner");
+    assert.deepEqual(body.changedBy, {
+      adminUserId: 1,
+      username: "VETNEB",
+    });
+    assert.equal(body.user.passwordHash, undefined);
+    assert.equal(body.user.authProId, undefined);
+    assert.equal(JSON.stringify(body).includes("password"), false);
+
+    assert.equal(auditWrites.length, 1);
+    assert.equal(auditWrites[0].input.event, "clinic_user.role.changed");
+    assert.equal(auditWrites[0].input.clinicId, 10);
+    assert.equal(auditWrites[0].input.targetClinicUserId, 2);
+    assert.deepEqual(auditWrites[0].input.metadata, {
+      username: "clinic-owner",
+      clinicName: "Clínica Demo",
+      previousRole: "clinic_staff",
+      newRole: "clinic_owner",
+      roleChanged: true,
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin users roles rechaza rol inválido en cambio", async () => {
+  const app = Fastify();
+  let roleChangeCalled = false;
+
+  await app.register(
+    adminUsersRolesNativeRoutes,
+    buildDeps({
+      changeClinicUserRole: async (): Promise<AdminClinicUserRoleChangeResult> => {
+        roleChangeCalled = true;
+
+        return {
+          ok: true,
+          user: demoClinicUser,
+          previousRole: "clinic_staff",
+          roleChanged: true,
+        };
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/clinic/2/role",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+      payload: {
+        role: "admin",
+      },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.equal(JSON.parse(response.body).success, false);
+    assert.equal(roleChangeCalled, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin users roles no degrada último clinic_owner", async () => {
+  const app = Fastify();
+  let auditCalled = false;
+
+  await app.register(
+    adminUsersRolesNativeRoutes,
+    buildDeps({
+      changeClinicUserRole: async (): Promise<AdminClinicUserRoleChangeResult> => ({
+        ok: false,
+        reason: "last_clinic_owner",
+      }),
+      writeAuditLog: async () => {
+        auditCalled = true;
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/clinic/2/role",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+      payload: {
+        role: "clinic_staff",
+      },
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(JSON.parse(response.body).success, false);
+    assert.equal(auditCalled, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin users roles devuelve 404 si clinic user no existe", async () => {
+  const app = Fastify();
+  let auditCalled = false;
+
+  await app.register(
+    adminUsersRolesNativeRoutes,
+    buildDeps({
+      changeClinicUserRole: async (): Promise<AdminClinicUserRoleChangeResult> => ({
+        ok: false,
+        reason: "not_found",
+      }),
+      writeAuditLog: async () => {
+        auditCalled = true;
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/clinic/999/role",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+      payload: {
+        role: "clinic_staff",
+      },
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.equal(JSON.parse(response.body).success, false);
+    assert.equal(auditCalled, false);
   } finally {
     await app.close();
   }

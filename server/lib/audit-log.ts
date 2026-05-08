@@ -10,6 +10,7 @@ export type AuditActorType = (typeof AUDIT_ACTOR_TYPES)[number];
 export const AUDIT_EVENTS = [
   "auth.admin.login.succeeded",
   "auth.clinic.login.succeeded",
+  "clinic_user.role.changed",
   "report.status.changed",
   "report.uploaded",
   "study_tracking.case.created",
