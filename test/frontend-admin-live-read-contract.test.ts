@@ -283,3 +283,57 @@ test("frontend admin failed-login alerts permite limpiar filtros sin mutaciones"
     "AdminFailedLoginAlertsReadOnlyCard.tsx clear filters",
   );
 });
+
+
+test("frontend admin failed-login alerts deshabilita limpiar filtros sin filtros activos", () => {
+  const cardSource = read(
+    "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+
+  assertIncludes(
+    cardSource,
+    "clearFailedLoginAlertFilters",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    'disabled={surface === "all" && reason === "all" && offset === 0}',
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    'setSurface("all")',
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    'setReason("all")',
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "setOffset(0)",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+
+  const clearFiltersBlock = cardSource.slice(
+    cardSource.indexOf("function clearFailedLoginAlertFilters()"),
+    cardSource.indexOf("function loadFailedLoginAlerts()"),
+  );
+
+  assertNotIncludes(
+    clearFiltersBlock,
+    "fetch(",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx clear filters",
+  );
+  assertNotIncludes(
+    clearFiltersBlock,
+    "getAdminFailedLoginAlerts",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx clear filters",
+  );
+  assertNotIncludes(
+    clearFiltersBlock,
+    "buildAdminFailedLoginAlertsCsvUrl",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx clear filters",
+  );
+});
