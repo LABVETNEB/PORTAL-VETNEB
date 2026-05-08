@@ -9,11 +9,13 @@ import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import type {
   AdminSessionsQuery,
   AdminSessionsSnapshot,
+  AdminSessionRevocationResult,
   AdminSessionStatus,
   AdminSessionType,
 } from "../db-admin-sessions.ts";
 
 type AdminSessionRecord = {
+  id: number;
   adminUserId: number;
   expiresAt: Date | null;
   lastAccess?: Date | null;
@@ -27,6 +29,7 @@ type SessionAdminUserRecord = {
 type AuthenticatedAdminUser = {
   id: number;
   username: string;
+  sessionId: number;
   sessionToken: string;
 };
 
@@ -35,6 +38,27 @@ type AdminSessionsRequestQuery = {
   status?: string;
   limit?: string;
   offset?: string;
+};
+
+type AdminSessionRevokeParams = {
+  sessionType?: string;
+  sessionId?: string;
+};
+
+type CreateSessionAuditLogInput = {
+  event: "auth.session.revoked";
+  actorType: "admin_user";
+  actorAdminUserId: number;
+  targetAdminUserId?: number | null;
+  targetClinicUserId?: number | null;
+  requestMethod?: string | null;
+  requestPath?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  metadata?: Record<string, unknown> | null;
+  action?: string | null;
+  entity?: string | null;
+  entityId?: number | null;
 };
 
 export type AdminSessionsNativeRoutesOptions = {
@@ -51,6 +75,11 @@ export type AdminSessionsNativeRoutesOptions = {
     params: AdminSessionsQuery,
     now: Date,
   ) => Promise<AdminSessionsSnapshot>;
+  revokeAdminSessionById?: (
+    target: { sessionType: AdminSessionType; sessionId: number },
+    now: Date,
+  ) => Promise<AdminSessionRevocationResult | null>;
+  createAuditLog?: (input: CreateSessionAuditLogInput) => Promise<unknown>;
   now?: () => number;
 };
 
@@ -63,6 +92,8 @@ type NativeAdminSessionsDeps = Required<
     | "updateAdminSessionLastAccess"
     | "hashSessionToken"
     | "getAdminSessionsSnapshot"
+    | "revokeAdminSessionById"
+    | "createAuditLog"
   >
 >;
 
@@ -74,6 +105,7 @@ async function loadDefaultDeps(): Promise<NativeAdminSessionsDeps> {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const adminSessions = await import("../db-admin-sessions.ts");
+      const audit = await import("../db-audit.ts");
 
       return {
         deleteAdminSession: db.deleteAdminSession,
@@ -82,6 +114,8 @@ async function loadDefaultDeps(): Promise<NativeAdminSessionsDeps> {
         updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
         getAdminSessionsSnapshot: adminSessions.getAdminSessionsSnapshot,
+        revokeAdminSessionById: adminSessions.revokeAdminSessionById,
+        createAuditLog: audit.createAuditLog,
       };
     })();
   }
@@ -233,6 +267,7 @@ async function authenticateAdminUser(
   return {
     id: adminUser.id,
     username: adminUser.username,
+    sessionId: session.id,
     sessionToken: token,
   };
 }
@@ -280,6 +315,25 @@ function parseIntegerParam(
   return Math.min(Math.max(parsed, min), max);
 }
 
+function parseSessionId(value: string | undefined) {
+  if (value === undefined || value.trim() === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function getRequestUserAgent(request: FastifyRequest) {
+  const value = request.headers["user-agent"];
+
+  return typeof value === "string" ? value : null;
+}
 function parseSessionsQuery(
   query: AdminSessionsRequestQuery,
 ): AdminSessionsQuery | null {
@@ -317,7 +371,9 @@ export const adminSessionsNativeRoutes: FastifyPluginAsync<
       !!options.getAdminUserById &&
       !!options.updateAdminSessionLastAccess &&
       !!options.hashSessionToken &&
-      !!options.getAdminSessionsSnapshot;
+      !!options.getAdminSessionsSnapshot &&
+      !!options.revokeAdminSessionById &&
+      !!options.createAuditLog;
 
     const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -336,6 +392,9 @@ export const adminSessionsNativeRoutes: FastifyPluginAsync<
       getAdminSessionsSnapshot:
         options.getAdminSessionsSnapshot ??
         defaultDeps!.getAdminSessionsSnapshot,
+      revokeAdminSessionById:
+        options.revokeAdminSessionById ?? defaultDeps!.revokeAdminSessionById,
+      createAuditLog: options.createAuditLog ?? defaultDeps!.createAuditLog,
     };
   }
 
@@ -367,6 +426,89 @@ export const adminSessionsNativeRoutes: FastifyPluginAsync<
       return reply.code(200).send({
         ...snapshot,
         checkedBy: {
+          adminUserId: admin.id,
+          username: admin.username,
+        },
+      });
+    },
+  );
+
+  app.post<{ Params: AdminSessionRevokeParams }>(
+    "/:sessionType/:sessionId/revoke",
+    async (request, reply) => {
+      const deps = await resolveDeps();
+      const admin = await authenticateAdminUser(request, reply, deps, now);
+
+      if (!admin) {
+        return reply;
+      }
+
+      const sessionType = parseSessionType(request.params.sessionType);
+      const sessionId = parseSessionId(request.params.sessionId);
+
+      if (!sessionType || sessionId === null) {
+        return reply.code(400).send({
+          success: false,
+          error:
+            "Parámetros inválidos. sessionType debe ser admin, clinic o particular; sessionId debe ser entero positivo.",
+        });
+      }
+
+      if (sessionType === "admin" && sessionId === admin.sessionId) {
+        return reply.code(400).send({
+          success: false,
+          error: "No se puede revocar la sesión admin actual.",
+        });
+      }
+
+      const revokedSession = await deps.revokeAdminSessionById(
+        { sessionType, sessionId },
+        new Date(now()),
+      );
+
+      if (!revokedSession) {
+        return reply.code(404).send({
+          success: false,
+          error: "Sesión no encontrada",
+        });
+      }
+
+      await deps.createAuditLog({
+        event: "auth.session.revoked",
+        actorType: "admin_user",
+        actorAdminUserId: admin.id,
+        targetAdminUserId:
+          revokedSession.actorType === "admin_user"
+            ? revokedSession.actorId
+            : null,
+        targetClinicUserId:
+          revokedSession.actorType === "clinic_user"
+            ? revokedSession.actorId
+            : null,
+        requestMethod: request.method,
+        requestPath: request.url,
+        ipAddress: request.ip,
+        userAgent: getRequestUserAgent(request),
+        metadata: {
+          sessionType: revokedSession.sessionType,
+          sessionId: revokedSession.sessionId,
+          actorType: revokedSession.actorType,
+          actorId: revokedSession.actorId,
+          statusAtRevocation: revokedSession.status,
+          createdAt: revokedSession.createdAt,
+          lastAccess: revokedSession.lastAccess,
+          expiresAt: revokedSession.expiresAt,
+          revokedAt: revokedSession.revokedAt,
+        },
+        action: "auth.session.revoked",
+        entity: "session",
+        entityId: revokedSession.sessionId,
+      });
+
+      return reply.code(200).send({
+        success: true,
+        revokedSession,
+        revokedBy: {
           adminUserId: admin.id,
           username: admin.username,
         },
