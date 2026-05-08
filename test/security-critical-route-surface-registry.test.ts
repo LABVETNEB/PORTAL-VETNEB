@@ -232,6 +232,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
+        path: "test/security-trusted-origin-cors-boundaries.test.ts",
+        markers: [
+          "auth login y mutations bloquean Origin no permitido antes de tocar dependencias",
+          "auth preflight OPTIONS solo expone CORS con origins confiables y sin wildcard credentials",
+          "CORS con credentials no usa wildcard y trust proxy queda gobernado por ENV",
+        ],
+      },
+      {
         path: "test/admin-particular-tokens.fastify.test.ts",
         markers: [
           "adminParticularTokensNativeRoutes bloquea POST / con origin no permitido",
@@ -560,6 +568,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-session-cookie-boundaries.test.ts",
     "test/security-cross-auth-surface-boundaries.test.ts",
     "test/security-boundary-suite-completeness.test.ts",
+    "test/security-trusted-origin-cors-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",
     "test/supabase-storage-boundaries.test.ts",
     "test/public-professionals-route-surface-invariants.test.ts",
