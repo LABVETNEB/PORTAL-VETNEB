@@ -326,6 +326,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "rutas mutantes sensibles validan origin, sesión y permiso antes de operar",
         ],
       },
+      {
+        path: "test/security-validation-cutoff-boundaries.test.ts",
+        markers: [
+          "validation cut-off matrix documents the protected contract",
+          "public report access validates raw token before hash db signing and audit",
+          "validation cut-off guardrail source stays ascii only",
+        ],
+      },
     ],
   },
   {
@@ -570,6 +578,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-boundary-suite-completeness.test.ts",
     "test/security-trusted-origin-cors-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",
+    "test/security-validation-cutoff-boundaries.test.ts",
     "test/supabase-storage-boundaries.test.ts",
     "test/public-professionals-route-surface-invariants.test.ts",
     "test/public-professionals-fixture-suite-completeness-invariants.test.ts",
