@@ -101,3 +101,16 @@ test("frontend admin role-change metadata summary only reads approved fields", (
     );
   }
 });
+test("frontend admin audit table keeps detail column wired to safe metadata summary", () => {
+  const source = read(adminPage);
+
+  assertIncludes(source, "<TableHead>Detalle</TableHead>", adminPage);
+  assertIncludes(source, "{getAuditMetadataSummary(entry)}", adminPage);
+  assertIncludes(source, "colSpan={7}", adminPage);
+  assertIncludes(source, "function getAuditMetadataSummary", adminPage);
+  assert.match(
+    source,
+    /!\s*isSensitiveAuditMetadataKey\(key\)/,
+    "detail column summary must keep sensitive metadata filtering",
+  );
+});
