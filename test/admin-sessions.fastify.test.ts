@@ -13,6 +13,7 @@ const { ENV } = await import("../server/lib/env.ts");
 const { adminSessionsNativeRoutes } = await import(
   "../server/routes/admin-sessions.fastify.ts"
 );
+
 type AdminSessionsNativeRoutesOptions = import(
   "../server/routes/admin-sessions.fastify.ts"
 ).AdminSessionsNativeRoutesOptions;
@@ -22,6 +23,9 @@ type AdminSessionsQuery = import(
 type AdminSessionsSnapshot = import(
   "../server/db-admin-sessions.ts"
 ).AdminSessionsSnapshot;
+type AdminSessionSummary = import(
+  "../server/db-admin-sessions.ts"
+).AdminSessionSummary;
 
 function buildDeps(
   overrides: Partial<AdminSessionsNativeRoutesOptions> = {},
@@ -54,9 +58,12 @@ function buildDeps(
 test("admin sessions requiere sesión admin", async () => {
   const app = Fastify();
 
-  await app.register(adminSessionsNativeRoutes, buildDeps({
-    getAdminSessionByToken: async () => null,
-  }));
+  await app.register(
+    adminSessionsNativeRoutes,
+    buildDeps({
+      getAdminSessionByToken: async () => null,
+    }),
+  );
 
   try {
     const response = await app.inject({
@@ -77,40 +84,49 @@ test("admin sessions requiere sesión admin", async () => {
 test("admin sessions devuelve sesiones sanitizadas sin tokenHash", async () => {
   const app = Fastify();
 
-  await app.register(adminSessionsNativeRoutes, buildDeps({
-    getAdminSessionsSnapshot: async (
-      params: AdminSessionsQuery,
-    ): Promise<AdminSessionsSnapshot> => ({
-      success: true,
-      sessions: [
-        {
-          sessionType: "admin",
-          sessionId: 10,
-          actorType: "admin_user",
-          actorId: 1,
-          createdAt: "2026-05-08T00:00:00.000Z",
-          lastAccess: "2026-05-08T00:10:00.000Z",
-          expiresAt: "2099-01-01T00:00:00.000Z",
-          status: "active",
-        },
-        {
-          sessionType: "clinic",
-          sessionId: 20,
-          actorType: "clinic_user",
-          actorId: 7,
-          createdAt: "2026-05-07T00:00:00.000Z",
-          lastAccess: null,
-          expiresAt: "2026-05-07T01:00:00.000Z",
-          status: "expired",
-        },
-      ].filter((item) =>
-        params.status ? item.status === params.status : true,
-      ),
-      total: params.status === "active" ? 1 : 2,
-      limit: params.limit ?? 50,
-      offset: params.offset ?? 0,
+  await app.register(
+    adminSessionsNativeRoutes,
+    buildDeps({
+      getAdminSessionsSnapshot: async (
+        params: AdminSessionsQuery,
+      ): Promise<AdminSessionsSnapshot> => {
+        const sessions: AdminSessionSummary[] = [
+          {
+            sessionType: "admin",
+            sessionId: 10,
+            actorType: "admin_user",
+            actorId: 1,
+            createdAt: "2026-05-08T00:00:00.000Z",
+            lastAccess: "2026-05-08T00:10:00.000Z",
+            expiresAt: "2099-01-01T00:00:00.000Z",
+            status: "active",
+          },
+          {
+            sessionType: "clinic",
+            sessionId: 20,
+            actorType: "clinic_user",
+            actorId: 7,
+            createdAt: "2026-05-07T00:00:00.000Z",
+            lastAccess: null,
+            expiresAt: "2026-05-07T01:00:00.000Z",
+            status: "expired",
+          },
+        ];
+
+        const filtered = sessions.filter((item) =>
+          params.status ? item.status === params.status : true,
+        );
+
+        return {
+          success: true,
+          sessions: filtered,
+          total: filtered.length,
+          limit: params.limit ?? 50,
+          offset: params.offset ?? 0,
+        };
+      },
     }),
-  }));
+  );
 
   try {
     const response = await app.inject({
@@ -146,18 +162,22 @@ test("admin sessions rechaza filtros inválidos", async () => {
   const app = Fastify();
   let snapshotCalled = false;
 
-  await app.register(adminSessionsNativeRoutes, buildDeps({
-    getAdminSessionsSnapshot: async (): Promise<AdminSessionsSnapshot> => {
-      snapshotCalled = true;
-      return {
-        success: true,
-        sessions: [],
-        total: 0,
-        limit: 50,
-        offset: 0,
-      };
-    },
-  }));
+  await app.register(
+    adminSessionsNativeRoutes,
+    buildDeps({
+      getAdminSessionsSnapshot: async (): Promise<AdminSessionsSnapshot> => {
+        snapshotCalled = true;
+
+        return {
+          success: true,
+          sessions: [],
+          total: 0,
+          limit: 50,
+          offset: 0,
+        };
+      },
+    }),
+  );
 
   try {
     const response = await app.inject({
