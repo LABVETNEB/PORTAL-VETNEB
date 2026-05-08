@@ -176,6 +176,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "clinic routes force authenticated clinic relationships and reject cross clinic links",
         ],
       },
+      {
+        path: "test/security-resource-ownership-boundaries.test.ts",
+        markers: [
+          "resource ownership matrix documents protected owner keys",
+          "clinic-owned resources reject cross-clinic reports tokens and tracking cases",
+          "admin-owned linking validates target clinic before binding resources",
+        ],
+      },
     ],
   },
   {
@@ -611,6 +619,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-sensitive-log-redaction-boundaries.test.ts",
     "test/security-audit-logging-phase-boundaries.test.ts",
     "test/security-actor-relationship-boundaries.test.ts",
+    "test/security-resource-ownership-boundaries.test.ts",
     "test/security-trusted-origin-cors-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",
     "test/security-validation-cutoff-boundaries.test.ts",
