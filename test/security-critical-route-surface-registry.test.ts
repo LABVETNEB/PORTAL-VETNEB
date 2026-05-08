@@ -334,6 +334,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "validation cut-off guardrail source stays ascii only",
         ],
       },
+      {
+        path: "test/security-rate-limit-isolation-boundaries.test.ts",
+        markers: [
+          "rate limit isolation matrix documents the protected contract",
+          "auth login rate limits keep separate in-memory stores per auth domain",
+          "rate limit isolation guardrail source stays ascii only",
+        ],
+      },
     ],
   },
   {
@@ -579,6 +587,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-trusted-origin-cors-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",
     "test/security-validation-cutoff-boundaries.test.ts",
+    "test/security-rate-limit-isolation-boundaries.test.ts",
     "test/supabase-storage-boundaries.test.ts",
     "test/public-professionals-route-surface-invariants.test.ts",
     "test/public-professionals-fixture-suite-completeness-invariants.test.ts",
