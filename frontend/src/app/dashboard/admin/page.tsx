@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { Badge } from "@/components/ui/badge";
@@ -133,6 +134,38 @@ function formatHealthTimestamp(value: unknown) {
   return formatDateTime(date.toISOString());
 }
 
+type AdminPageSearchParams = {
+  event?: string;
+  actorType?: string;
+};
+
+function normalizeAuditFilter(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
+
+  return value ?? "";
+}
+
+function buildAdminAuditFilterHref(input: {
+  event?: string;
+  actorType?: string;
+}) {
+  const query = new URLSearchParams();
+
+  if (input.event) {
+    query.set("event", input.event);
+  }
+
+  if (input.actorType) {
+    query.set("actorType", input.actorType);
+  }
+
+  const qs = query.toString();
+
+  return qs ? `/dashboard/admin?${qs}#audit-log` : "/dashboard/admin#audit-log";
+}
+
 async function getAdminRequestOptions(): Promise<RequestInit> {
   const cookieHeader = (await cookies()).toString();
 
@@ -142,7 +175,14 @@ async function getAdminRequestOptions(): Promise<RequestInit> {
   };
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: Promise<AdminPageSearchParams>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const selectedAuditEvent = normalizeAuditFilter(resolvedSearchParams.event);
+  const selectedActorType = normalizeAuditFilter(resolvedSearchParams.actorType);
   const auditEntries = await getAuditEntries(await getAdminRequestOptions());
   const systemHealth = await getAdminSystemHealth(await getAdminRequestOptions());
   const serviceChecks = systemHealth?.services ?? {};
@@ -158,6 +198,20 @@ export default async function AdminPage() {
     (entry) => entry.event === "clinic_user.role.changed",
   );
   const lastRoleChangeAuditEntry = roleChangeAuditEntries[0];
+  const auditEventOptions = Object.keys(eventCounts).sort();
+  const actorTypeOptions = Array.from(
+    new Set(auditEntries.map((entry) => entry.actorType)),
+  ).sort();
+  const filteredAuditEntries = auditEntries.filter((entry) => {
+    const matchesEvent = selectedAuditEvent
+      ? entry.event === selectedAuditEvent
+      : true;
+    const matchesActorType = selectedActorType
+      ? entry.actorType === selectedActorType
+      : true;
+
+    return matchesEvent && matchesActorType;
+  });
 
   return (
     <>
@@ -370,7 +424,7 @@ export default async function AdminPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {auditEntries.map((entry) => (
+                {filteredAuditEntries.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell className="font-mono text-xs text-gray-400">
                       #{entry.id}
