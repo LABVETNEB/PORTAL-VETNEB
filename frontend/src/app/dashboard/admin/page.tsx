@@ -135,6 +135,13 @@ function formatAuditMetadataValue(value: unknown) {
   return JSON.stringify(value);
 }
 
+function formatAuditClinicRole(value: unknown) {
+  if (value === "clinic_owner") return "Owner clínica";
+  if (value === "clinic_staff") return "Staff clínica";
+
+  return formatAuditMetadataValue(value);
+}
+
 function getAuditMetadataSummary(entry: { event: string; metadata: Record<string, unknown> | null }) {
   const metadata = entry.metadata;
 
