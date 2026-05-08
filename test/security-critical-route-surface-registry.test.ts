@@ -177,6 +177,30 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
+        path: "server/routes/admin-particular-tokens.fastify.ts",
+        markers: [
+          'app.options("/", optionsHandler)',
+          'app.options("/:tokenId", optionsHandler)',
+          'app.options("/:tokenId/report", optionsHandler)',
+        ],
+      },
+      {
+        path: "server/routes/admin-report-access-tokens.fastify.ts",
+        markers: [
+          'app.options("/", optionsHandler)',
+          'app.options("/:tokenId", optionsHandler)',
+          'app.options("/:tokenId/revoke", optionsHandler)',
+        ],
+      },
+      {
+        path: "server/routes/admin-study-tracking.fastify.ts",
+        markers: [
+          'app.options("/", optionsHandler)',
+          'app.options("/notifications", optionsHandler)',
+          'app.options("/:trackingCaseId", optionsHandler)',
+        ],
+      },
+      {
         path: "server/routes/reports.fastify.ts",
         markers: [
           'app.options("/", optionsHandler)',
