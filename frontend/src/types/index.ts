@@ -186,6 +186,39 @@ export type DashboardStats = {
   activePlans: number;
 };
 
+export type AdminSessionType = "admin" | "clinic" | "particular";
+export type AdminSessionStatus = "active" | "expired";
+
+export type AdminSessionSummary = {
+  sessionType: AdminSessionType;
+  sessionId: number;
+  actorType: "admin_user" | "clinic_user" | "particular_token";
+  actorId: number;
+  createdAt: string;
+  lastAccess: string | null;
+  expiresAt: string | null;
+  status: AdminSessionStatus;
+};
+
+export type AdminSessionsQuery = {
+  sessionType?: AdminSessionType;
+  status?: AdminSessionStatus;
+  limit?: number;
+  offset?: number;
+};
+
+export type AdminSessionsSnapshot = {
+  success: true;
+  sessions: AdminSessionSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+  checkedBy?: {
+    adminUserId: number;
+    username: string;
+  };
+};
+
 export type MaintenancePurgeCandidateCategory =
   | "expired_clinic_sessions"
   | "expired_admin_sessions"

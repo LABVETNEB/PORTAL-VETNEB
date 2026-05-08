@@ -23,6 +23,8 @@ import type {
   DashboardStats,
   SystemHealth,
   MaintenancePurgeDryRunSnapshot,
+  AdminSessionsQuery,
+  AdminSessionsSnapshot,
 } from "@/types";
 
 import {
@@ -217,6 +219,36 @@ export async function getAdminSystemHealth(
     return null;
   }
 }
+export async function getAdminSessions(
+  params: AdminSessionsQuery = {},
+  options?: RequestInit,
+): Promise<AdminSessionsSnapshot> {
+  const query = new URLSearchParams();
+
+  if (params.sessionType) {
+    query.set("sessionType", params.sessionType);
+  }
+
+  if (params.status) {
+    query.set("status", params.status);
+  }
+
+  if (typeof params.limit === "number") {
+    query.set("limit", String(params.limit));
+  }
+
+  if (typeof params.offset === "number") {
+    query.set("offset", String(params.offset));
+  }
+
+  const qs = query.toString();
+
+  return apiFetch<AdminSessionsSnapshot>(
+    `/api/admin/sessions${qs ? `?${qs}` : ""}`,
+    options,
+  );
+}
+
 export async function getAdminMaintenancePurgeDryRun(
   options?: RequestInit,
 ): Promise<MaintenancePurgeDryRunSnapshot> {
