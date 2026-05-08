@@ -48,6 +48,20 @@ type AuthenticatedParticularUser = {
   sessionToken: string;
 };
 
+type LoginFailedAttemptReason =
+  | "missing_credentials"
+  | "invalid_credentials"
+  | "rate_limited";
+
+type RecordLoginFailedAttemptInput = {
+  surface: "particular";
+  username?: string | null;
+  reason: LoginFailedAttemptReason;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  createdAt: Date;
+};
+
 export type ParticularAuthNativeRoutesOptions = {
   createParticularSession?: (input: {
     particularTokenId: number;
@@ -75,6 +89,9 @@ export type ParticularAuthNativeRoutesOptions = {
   ) => Promise<string>;
   generateSessionToken?: () => string;
   hashSessionToken?: (token: string) => string;
+  recordLoginFailedAttempt?: (
+    input: RecordLoginFailedAttemptInput,
+  ) => Promise<unknown>;
   loginRateLimitWindowMs?: number;
   loginRateLimitMaxAttempts?: number;
   loginRateLimitStore?: RateLimitStore;
@@ -103,6 +120,7 @@ type NativeParticularAuthDeps = Required<
     | "createSignedReportDownloadUrl"
     | "generateSessionToken"
     | "hashSessionToken"
+    | "recordLoginFailedAttempt"
   >
 >;
 
@@ -133,6 +151,7 @@ async function loadDefaultDeps(): Promise<NativeParticularAuthDeps> {
           supabase.createSignedReportDownloadUrl,
         generateSessionToken: authSecurity.generateSessionToken,
         hashSessionToken: authSecurity.hashSessionToken,
+        recordLoginFailedAttempt: db.recordLoginFailedAttempt,
       };
     })();
   }
@@ -381,7 +400,11 @@ function setLoginRateLimitHeaders(
   );
 }
 
+function getUserAgent(request: FastifyRequest) {
+  const value = request.headers["user-agent"];
 
+  return typeof value === "string" && value.trim() ? value : null;
+}
 
 async function buildParticularResponse(
   deps: NativeParticularAuthDeps,
@@ -517,6 +540,10 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
       options.generateSessionToken ?? defaultDeps!.generateSessionToken,
     hashSessionToken:
       options.hashSessionToken ?? defaultDeps!.hashSessionToken,
+    recordLoginFailedAttempt:
+      options.recordLoginFailedAttempt ??
+      defaultDeps?.recordLoginFailedAttempt ??
+      (async () => undefined),
   };
 
   const now = options.now ?? (() => Date.now());
@@ -605,6 +632,19 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
       currentTime,
     );
 
+    const recordFailedLoginAttempt = async (input: {
+      reason: LoginFailedAttemptReason;
+    }) => {
+      await deps.recordLoginFailedAttempt({
+        surface: "particular",
+        username: null,
+        reason: input.reason,
+        ipAddress: request.ip || null,
+        userAgent: getUserAgent(request),
+        createdAt: new Date(currentTime),
+      });
+    };
+
     if (failureEntry.count >= loginRateLimitMaxAttempts) {
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
@@ -614,13 +654,19 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
         now: currentTime,
       });
 
+      await recordFailedLoginAttempt({
+        reason: "rate_limited",
+      });
+
       return reply.code(429).send({
         success: false,
         error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
       });
     }
 
-    const markFailure = async () => {
+    const markFailure = async (input: {
+      reason: LoginFailedAttemptReason;
+    }) => {
       const updatedEntry = await incrementRateLimitEntry(
         loginRateLimitStore,
         rateLimitKey,
@@ -637,6 +683,8 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
         resetAt: failureEntry.resetAt,
         now: currentTime,
       });
+
+      await recordFailedLoginAttempt(input);
     };
 
     const markSuccess = () => {
@@ -653,7 +701,9 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
       typeof request.body?.token === "string" ? request.body.token.trim() : "";
 
     if (!providedToken) {
-      await markFailure();
+      await markFailure({
+        reason: "missing_credentials",
+      });
 
       return reply.code(400).send({
         success: false,
@@ -665,7 +715,9 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     const particularToken = await deps.getParticularTokenByTokenHash(tokenHash);
 
     if (!particularToken || !particularToken.isActive) {
-      await markFailure();
+      await markFailure({
+        reason: "invalid_credentials",
+      });
 
       return reply.code(401).send({
         success: false,
