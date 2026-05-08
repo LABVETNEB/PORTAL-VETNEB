@@ -34,9 +34,17 @@ const CLINIC_SESSION_FILES = [
 ] as const;
 
 const ADMIN_SESSION_FILES = [
-  "server/routes/admin-auth.fastify.ts",
   "server/routes/admin-audit.fastify.ts",
+  "server/routes/admin-auth.fastify.ts",
+  "server/routes/admin-failed-login-alerts.fastify.ts",
+  "server/routes/admin-particular-tokens.fastify.ts",
+  "server/routes/admin-report-access-tokens.fastify.ts",
+  "server/routes/admin-reports.fastify.ts",
+  "server/routes/admin-sessions.fastify.ts",
   "server/routes/admin-study-tracking.fastify.ts",
+  "server/routes/admin-system-health.fastify.ts",
+  "server/routes/admin-system-maintenance.fastify.ts",
+  "server/routes/admin-users-roles.fastify.ts",
 ] as const;
 
 const PARTICULAR_SESSION_FILES = [
