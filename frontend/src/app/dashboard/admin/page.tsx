@@ -423,12 +423,14 @@ export default async function AdminPage({
               </div>
               <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
                 <p className="text-xs text-gray-400">Filtro audit</p>
-                <a
-                  href="#audit-log"
+                <Link
+                  href={buildAdminAuditFilterHref({
+                    event: "clinic_user.role.changed",
+                  })}
                   className="mt-1 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-900"
                 >
-                  Ver log completo
-                </a>
+                  Ver cambios de rol
+                </Link>
               </div>
             </div>
           </CardContent>
