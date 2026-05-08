@@ -123,6 +123,23 @@ function formatUptime(totalSeconds: number | undefined) {
   return `${minutes}m`;
 }
 
+const SENSITIVE_AUDIT_METADATA_KEY_PARTS = [
+  "password",
+  "token",
+  "secret",
+  "cookie",
+  "auth",
+  "hash",
+] as const;
+
+function isSensitiveAuditMetadataKey(key: string) {
+  const normalizedKey = key.toLowerCase();
+
+  return SENSITIVE_AUDIT_METADATA_KEY_PARTS.some((part) =>
+    normalizedKey.includes(part),
+  );
+}
+
 function formatAuditMetadataValue(value: unknown) {
   if (value === null || value === undefined || value === "") {
     return "—";
