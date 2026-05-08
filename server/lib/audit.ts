@@ -5,6 +5,7 @@ import { sanitizeUrlForLogs } from "../middlewares/request-logger.ts";
 export const AUDIT_EVENTS = {
   ADMIN_LOGIN_SUCCEEDED: "auth.admin.login.succeeded",
   CLINIC_LOGIN_SUCCEEDED: "auth.clinic.login.succeeded",
+  CLINIC_USER_ROLE_CHANGED: "clinic_user.role.changed",
   REPORT_STATUS_CHANGED: "report.status.changed",
   REPORT_UPLOADED: "report.uploaded",
   STUDY_TRACKING_CASE_CREATED: "study_tracking.case.created",

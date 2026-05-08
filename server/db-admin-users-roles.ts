@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 
 import { db } from "./db.ts";
 import {
@@ -52,6 +52,34 @@ export type AdminUsersRolesSnapshot = {
   };
 };
 
+export type AdminClinicUserRoleChangeInput = {
+  clinicUserId: number;
+  role: ClinicUserRole;
+  now?: Date;
+};
+
+export type AdminClinicUserRoleChangeResult =
+  | {
+      ok: true;
+      user: Extract<AdminRoleUserSummary, { userType: "clinic" }>;
+      previousRole: ClinicUserRole;
+      roleChanged: boolean;
+    }
+  | {
+      ok: false;
+      reason: "not_found" | "last_clinic_owner";
+    };
+
+type ClinicUserRoleRow = {
+  userId: number;
+  username: string;
+  role: ClinicUserRole;
+  clinicId: number;
+  clinicName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 function normalizeLimit(value: number | undefined) {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return 50;
@@ -78,6 +106,42 @@ function sortUsers(a: AdminRoleUserSummary, b: AdminRoleUserSummary) {
   }
 
   return a.username.localeCompare(b.username);
+}
+
+function serializeClinicUserRoleRow(
+  row: ClinicUserRoleRow,
+): Extract<AdminRoleUserSummary, { userType: "clinic" }> {
+  return {
+    userType: "clinic",
+    userId: row.userId,
+    username: row.username,
+    role: row.role,
+    clinicId: row.clinicId,
+    clinicName: row.clinicName ?? null,
+    createdAt: toIsoDate(row.createdAt),
+    updatedAt: toIsoDate(row.updatedAt),
+  };
+}
+
+async function getClinicUserRoleRow(
+  clinicUserId: number,
+): Promise<ClinicUserRoleRow | null> {
+  const rows = await db
+    .select({
+      userId: clinicUsers.id,
+      username: clinicUsers.username,
+      role: clinicUsers.role,
+      clinicId: clinicUsers.clinicId,
+      clinicName: clinics.name,
+      createdAt: clinicUsers.createdAt,
+      updatedAt: clinicUsers.updatedAt,
+    })
+    .from(clinicUsers)
+    .leftJoin(clinics, eq(clinics.id, clinicUsers.clinicId))
+    .where(eq(clinicUsers.id, clinicUserId))
+    .limit(1);
+
+  return rows[0] ?? null;
 }
 
 export async function getAdminUsersRolesSnapshot(
@@ -131,16 +195,17 @@ export async function getAdminUsersRolesSnapshot(
       createdAt: toIsoDate(row.createdAt),
       updatedAt: toIsoDate(row.updatedAt),
     })),
-    ...clinicRows.map((row) => ({
-      userType: "clinic" as const,
-      userId: row.userId,
-      username: row.username,
-      role: row.role,
-      clinicId: row.clinicId,
-      clinicName: row.clinicName ?? null,
-      createdAt: toIsoDate(row.createdAt),
-      updatedAt: toIsoDate(row.updatedAt),
-    })),
+    ...clinicRows.map((row) =>
+      serializeClinicUserRoleRow({
+        userId: row.userId,
+        username: row.username,
+        role: row.role,
+        clinicId: row.clinicId,
+        clinicName: row.clinicName ?? null,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      }),
+    ),
   ]
     .filter((user) => (params.role ? user.role === params.role : true))
     .sort(sortUsers);
@@ -155,5 +220,74 @@ export async function getAdminUsersRolesSnapshot(
       adminUsers: users.filter((user) => user.userType === "admin").length,
       clinicUsers: users.filter((user) => user.userType === "clinic").length,
     },
+  };
+}
+
+export async function changeClinicUserRole(
+  input: AdminClinicUserRoleChangeInput,
+): Promise<AdminClinicUserRoleChangeResult> {
+  const current = await getClinicUserRoleRow(input.clinicUserId);
+
+  if (!current) {
+    return {
+      ok: false,
+      reason: "not_found",
+    };
+  }
+
+  if (current.role === input.role) {
+    return {
+      ok: true,
+      user: serializeClinicUserRoleRow(current),
+      previousRole: current.role,
+      roleChanged: false,
+    };
+  }
+
+  if (current.role === "clinic_owner" && input.role === "clinic_staff") {
+    const otherOwners = await db
+      .select({
+        userId: clinicUsers.id,
+      })
+      .from(clinicUsers)
+      .where(
+        and(
+          eq(clinicUsers.clinicId, current.clinicId),
+          eq(clinicUsers.role, "clinic_owner"),
+          ne(clinicUsers.id, input.clinicUserId),
+        ),
+      )
+      .limit(1);
+
+    if (otherOwners.length === 0) {
+      return {
+        ok: false,
+        reason: "last_clinic_owner",
+      };
+    }
+  }
+
+  await db
+    .update(clinicUsers)
+    .set({
+      role: input.role,
+      updatedAt: input.now ?? new Date(),
+    })
+    .where(eq(clinicUsers.id, input.clinicUserId));
+
+  const updated = await getClinicUserRoleRow(input.clinicUserId);
+
+  if (!updated) {
+    return {
+      ok: false,
+      reason: "not_found",
+    };
+  }
+
+  return {
+    ok: true,
+    user: serializeClinicUserRoleRow(updated),
+    previousRole: current.role,
+    roleChanged: true,
   };
 }
