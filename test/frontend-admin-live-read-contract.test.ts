@@ -225,3 +225,61 @@ test("frontend admin failed-login alerts CSV usa filtros sin paginacion", () => 
     "AdminFailedLoginAlertsReadOnlyCard.tsx csvUrl",
   );
 });
+
+
+test("frontend admin failed-login alerts permite limpiar filtros sin mutaciones", () => {
+  const cardSource = read(
+    "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+
+  assertIncludes(
+    cardSource,
+    "function clearFailedLoginAlertFilters()",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    'setSurface("all")',
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    'setReason("all")',
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "setOffset(0)",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "Limpiar filtros",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "filtros reversibles",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "no bloquea usuarios",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "no revoca",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertNotIncludes(
+    cardSource,
+    "fetch(",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx clear filters",
+  );
+  assertNotIncludes(
+    cardSource,
+    "method: \"POST\"",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx clear filters",
+  );
+});

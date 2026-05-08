@@ -95,6 +95,12 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
     [reason, surface],
   );
 
+  function clearFailedLoginAlertFilters() {
+    setSurface("all");
+    setReason("all");
+    setOffset(0);
+  }
+
   function loadFailedLoginAlerts() {
     setError(null);
 
@@ -138,6 +144,14 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={clearFailedLoginAlertFilters}
+            disabled={surface === "all" && reason === "all" && offset === 0}
+          >
+            Limpiar filtros
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -285,8 +299,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           <p className="text-xs text-gray-400">
             Endpoints: <code>GET /api/admin/failed-login-alerts</code> y{" "}
             <code>GET /api/admin/failed-login-alerts/export.csv</code>. Vista
-            read-only: no bloquea usuarios, no revoca sesiones y no dispara
-            notificaciones.
+            read-only con filtros reversibles: no bloquea usuarios, no revoca sesiones y no dispara notificaciones.
           </p>
 
           <div className="flex items-center gap-2">
