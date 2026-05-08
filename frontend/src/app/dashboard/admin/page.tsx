@@ -205,11 +205,11 @@ export default async function AdminPage() {
           <CardHeader>
             <CardTitle className="text-base">Health & Maintenance</CardTitle>
             <CardDescription>
-              Estado de servicios y consumo runtime del backend en producción
+              Estado de servicios, versión y consumo runtime del backend en producción
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
                 <p className="text-xs text-gray-400 mb-2">Database</p>
                 <Badge variant={getServiceVariant(serviceChecks.database)}>
@@ -221,6 +221,13 @@ export default async function AdminPage() {
                 <Badge variant={getServiceVariant(serviceChecks.storage)}>
                   {formatServiceStatus(serviceChecks.storage)}
                 </Badge>
+              </div>
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs text-gray-400">Backend</p>
+                <p className="text-lg font-semibold text-gray-800 mt-1">
+                  {systemHealth?.version ?? "—"}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Versión activa</p>
               </div>
               <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
                 <p className="text-xs text-gray-400">Uptime</p>
