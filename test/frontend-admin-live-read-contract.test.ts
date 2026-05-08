@@ -127,3 +127,52 @@ test("frontend admin failed-login alerts read-only UI queda montada", () => {
     "AdminFailedLoginAlertsReadOnlyCard.tsx",
   );
 });
+
+
+test("frontend admin failed-login alerts expone export CSV read-only", () => {
+  const apiSource = read(frontendApiClient);
+  const cardSource = read(
+    "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+
+  assertIncludes(
+    apiSource,
+    "export function buildAdminFailedLoginAlertsCsvUrl(",
+    frontendApiClient,
+  );
+  assertIncludes(
+    apiSource,
+    "/api/admin/failed-login-alerts/export.csv",
+    frontendApiClient,
+  );
+  assertIncludes(
+    cardSource,
+    "buildAdminFailedLoginAlertsCsvUrl",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "Exportar CSV",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "GET /api/admin/failed-login-alerts/export.csv",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "no bloquea usuarios",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertIncludes(
+    cardSource,
+    "no revoca sesiones",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+  assertNotIncludes(
+    cardSource,
+    "tokenHash",
+    "AdminFailedLoginAlertsReadOnlyCard.tsx",
+  );
+});

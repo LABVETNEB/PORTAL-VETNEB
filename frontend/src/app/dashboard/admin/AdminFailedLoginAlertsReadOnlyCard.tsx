@@ -18,7 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAdminFailedLoginAlerts } from "@/lib/api";
+import {
+  buildAdminFailedLoginAlertsCsvUrl,
+  getAdminFailedLoginAlerts,
+} from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 import type {
   AdminFailedLoginAlertReason,
@@ -83,6 +86,15 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
     [offset, reason, surface],
   );
 
+  const csvUrl = useMemo(
+    () =>
+      buildAdminFailedLoginAlertsCsvUrl({
+        ...(surface !== "all" ? { surface } : {}),
+        ...(reason !== "all" ? { reason } : {}),
+      }),
+    [reason, surface],
+  );
+
   function loadFailedLoginAlerts() {
     setError(null);
 
@@ -125,13 +137,22 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           </CardDescription>
         </div>
 
-        <Button
-          type="button"
-          onClick={loadFailedLoginAlerts}
-          disabled={isPending}
-        >
-          {isPending ? "Actualizando..." : "Actualizar"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            asChild
+          >
+            <a href={csvUrl}>Exportar CSV</a>
+          </Button>
+          <Button
+            type="button"
+            onClick={loadFailedLoginAlerts}
+            disabled={isPending}
+          >
+            {isPending ? "Actualizando..." : "Actualizar"}
+          </Button>
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -262,7 +283,8 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
 
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <p className="text-xs text-gray-400">
-            Endpoint: <code>GET /api/admin/failed-login-alerts</code>. Vista
+            Endpoints: <code>GET /api/admin/failed-login-alerts</code> y{" "}
+            <code>GET /api/admin/failed-login-alerts/export.csv</code>. Vista
             read-only: no bloquea usuarios, no revoca sesiones y no dispara
             notificaciones.
           </p>
