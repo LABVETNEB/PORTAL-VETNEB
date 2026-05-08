@@ -52,6 +52,28 @@ function buildAdminAuthRouteStubs() {
   };
 }
 
+function buildAdminFailedLoginAlertsRouteStubs() {
+  return {
+    deleteAdminSession: async () => {},
+    getAdminSessionByToken: async () => null,
+    getAdminUserById: async () => null,
+    updateAdminSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    listAdminFailedLoginAlerts: async () => ({
+      success: true,
+      failedLoginAlerts: [],
+      count: 0,
+      total: 0,
+      limit: 50,
+      offset: 0,
+      filters: {
+        surface: null,
+        reason: null,
+      },
+    }),
+  };
+}
+
 
 
 function buildAdminParticularTokensRouteStubs() {
@@ -609,6 +631,7 @@ function buildFastifyDispatchRouteStubs() {
   return {
     adminAuditRoutes: buildAdminAuditRouteStubs(),
     adminAuthRoutes: buildAdminAuthRouteStubs(),
+    adminFailedLoginAlertsRoutes: buildAdminFailedLoginAlertsRouteStubs(),
     adminParticularTokensRoutes: buildAdminParticularTokensRouteStubs(),
     adminReportsRoutes: buildAdminReportsRouteStubs(),
     adminReportAccessTokensRoutes: buildAdminReportAccessTokensRouteStubs(),
@@ -2372,6 +2395,73 @@ test(
         database: "up",
         storage: "up",
       });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "createFastifyApp despacha /api/admin/failed-login-alerts al router nativo",
+  async () => {
+    const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
+      adminFailedLoginAlertsRoutes: {
+        ...buildAdminFailedLoginAlertsRouteStubs(),
+        getAdminSessionByToken: async () => ({
+          id: 99,
+          adminUserId: 1,
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+          lastAccess: new Date("2026-05-08T00:00:00.000Z"),
+        }),
+        getAdminUserById: async () => ({
+          id: 1,
+          username: "VETNEB",
+        }),
+        listAdminFailedLoginAlerts: async () => ({
+          success: true,
+          failedLoginAlerts: [
+            {
+              id: 10,
+              surface: "admin",
+              username: "VETNEB",
+              reason: "invalid_credentials",
+              ipAddress: "203.0.113.10",
+              userAgent: "node-test",
+              createdAt: "2026-05-08T00:00:00.000Z",
+            },
+          ],
+          count: 1,
+          total: 1,
+          limit: 5,
+          offset: 0,
+          filters: {
+            surface: "admin",
+            reason: null,
+          },
+        }),
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/failed-login-alerts?surface=admin&limit=5",
+        headers: {
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.equal(response.statusCode, 200);
+
+      const body = JSON.parse(response.body);
+
+      assert.equal(body.success, true);
+      assert.equal(body.count, 1);
+      assert.equal(body.failedLoginAlerts[0].surface, "admin");
+      assert.equal(body.failedLoginAlerts[0].tokenHash, undefined);
+      assert.equal(JSON.stringify(body).includes("hash:"), false);
     } finally {
       await app.close();
     }
