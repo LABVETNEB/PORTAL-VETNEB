@@ -210,6 +210,10 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
         markers: ["cookies[ENV.cookieName]"],
       },
       {
+        path: "server/routes/admin-audit.fastify.ts",
+        markers: ["cookies[ENV.adminCookieName]"],
+      },
+      {
         path: "server/routes/admin-auth.fastify.ts",
         markers: ["cookies[ENV.adminCookieName]"],
       },
@@ -218,11 +222,23 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
         markers: ["cookies[ENV.adminCookieName]"],
       },
       {
+        path: "server/routes/admin-particular-tokens.fastify.ts",
+        markers: ["cookies[ENV.adminCookieName]"],
+      },
+      {
+        path: "server/routes/admin-report-access-tokens.fastify.ts",
+        markers: ["cookies[ENV.adminCookieName]"],
+      },
+      {
         path: "server/routes/admin-reports.fastify.ts",
         markers: ["cookies[ENV.adminCookieName]"],
       },
       {
         path: "server/routes/admin-sessions.fastify.ts",
+        markers: ["cookies[ENV.adminCookieName]"],
+      },
+      {
+        path: "server/routes/admin-study-tracking.fastify.ts",
         markers: ["cookies[ENV.adminCookieName]"],
       },
       {
