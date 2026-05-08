@@ -154,6 +154,10 @@ export default async function AdminPage() {
     },
     {} as Record<string, number>,
   );
+  const roleChangeAuditEntries = auditEntries.filter(
+    (entry) => entry.event === "clinic_user.role.changed",
+  );
+  const lastRoleChangeAuditEntry = roleChangeAuditEntries[0];
 
   return (
     <>
