@@ -102,12 +102,15 @@ async function loadDefaultDeps(): Promise<NativeAdminUsersRolesDeps> {
         hashSessionToken: authSecurity.hashSessionToken,
         getAdminUsersRolesSnapshot: usersRoles.getAdminUsersRolesSnapshot,
         changeClinicUserRole: usersRoles.changeClinicUserRole,
-        writeAuditLog: audit.writeAuditLog,
+        writeAuditLog: audit.writeAuditLog as (
+          req: unknown,
+          input: AuditWriteInput,
+        ) => Promise<void>,
       };
     })();
   }
 
-  return defaultDepsPromise;
+  return defaultDepsPromise!;
 }
 
 function parseCookies(cookieHeader: string | undefined) {
