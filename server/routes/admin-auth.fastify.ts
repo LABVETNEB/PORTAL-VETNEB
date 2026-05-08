@@ -65,6 +65,20 @@ type AuditWriteInput = {
   };
 };
 
+type LoginFailedAttemptReason =
+  | "missing_credentials"
+  | "invalid_credentials"
+  | "rate_limited";
+
+type RecordLoginFailedAttemptInput = {
+  surface: "admin";
+  username?: string | null;
+  reason: LoginFailedAttemptReason;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  createdAt: Date;
+};
+
 export type AdminAuthNativeRoutesOptions = {
   createAdminSession?: (input: {
     adminUserId: number;
@@ -89,6 +103,9 @@ export type AdminAuthNativeRoutesOptions = {
     passwordHash: string,
   ) => Promise<VerifyPasswordResult>;
   writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
+  recordLoginFailedAttempt?: (
+    input: RecordLoginFailedAttemptInput,
+  ) => Promise<unknown>;
   loginRateLimitWindowMs?: number;
   loginRateLimitMaxAttempts?: number;
   loginRateLimitStore?: RateLimitStore;
@@ -115,6 +132,7 @@ type NativeAdminAuthDeps = Required<
     | "hashSessionToken"
     | "verifyPassword"
     | "writeAuditLog"
+    | "recordLoginFailedAttempt"
   >
 >;
 
@@ -141,6 +159,7 @@ async function loadDefaultDeps(): Promise<NativeAdminAuthDeps> {
           req: unknown,
           input: AuditWriteInput,
         ) => Promise<void>,
+        recordLoginFailedAttempt: db.recordLoginFailedAttempt,
       };
     })();
   }
@@ -391,6 +410,12 @@ function setLoginRateLimitHeaders(
 
 
 
+function getUserAgent(request: FastifyRequest) {
+  const value = request.headers["user-agent"];
+
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
 function createAuditRequestLike(
   request: FastifyRequest,
   admin?: Pick<AuthenticatedAdminUser, "id" | "username">,
@@ -508,6 +533,10 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       options.hashSessionToken ?? defaultDeps!.hashSessionToken,
     verifyPassword: options.verifyPassword ?? defaultDeps!.verifyPassword,
     writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
+    recordLoginFailedAttempt:
+      options.recordLoginFailedAttempt ??
+      defaultDeps?.recordLoginFailedAttempt ??
+      (async () => undefined),
   };
 
   const now = options.now ?? (() => Date.now());
@@ -595,6 +624,20 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       currentTime,
     );
 
+    const recordFailedLoginAttempt = async (input: {
+      username?: string | null;
+      reason: LoginFailedAttemptReason;
+    }) => {
+      await deps.recordLoginFailedAttempt({
+        surface: "admin",
+        username: input.username?.trim() || null,
+        reason: input.reason,
+        ipAddress: request.ip || null,
+        userAgent: getUserAgent(request),
+        createdAt: new Date(currentTime),
+      });
+    };
+
     if (failureEntry.count >= loginRateLimitMaxAttempts) {
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
@@ -604,13 +647,26 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
         now: currentTime,
       });
 
+      const attemptedUsername =
+        typeof request.body?.username === "string"
+          ? request.body.username.trim()
+          : "";
+
+      await recordFailedLoginAttempt({
+        username: attemptedUsername,
+        reason: "rate_limited",
+      });
+
       return reply.code(429).send({
         success: false,
         error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
       });
     }
 
-    const markFailure = async () => {
+    const markFailure = async (input: {
+      username?: string | null;
+      reason: LoginFailedAttemptReason;
+    }) => {
       const updatedEntry = await incrementRateLimitEntry(
         loginRateLimitStore,
         rateLimitKey,
@@ -627,6 +683,8 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
         resetAt: failureEntry.resetAt,
         now: currentTime,
       });
+
+      await recordFailedLoginAttempt(input);
     };
 
     const markSuccess = () => {
@@ -647,7 +705,10 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       typeof request.body?.password === "string" ? request.body.password : "";
 
     if (!username || !password) {
-      await markFailure();
+      await markFailure({
+        username,
+        reason: "missing_credentials",
+      });
 
       return reply.code(400).send({
         success: false,
@@ -658,7 +719,10 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
     const admin = await deps.getAdminUserByUsername(username);
 
     if (!admin) {
-      await markFailure();
+      await markFailure({
+        username,
+        reason: "invalid_credentials",
+      });
 
       return reply.code(401).send({
         success: false,
@@ -669,7 +733,10 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
     const valid = await deps.verifyPassword(password, admin.passwordHash);
 
     if (!valid.valid) {
-      await markFailure();
+      await markFailure({
+        username,
+        reason: "invalid_credentials",
+      });
 
       return reply.code(401).send({
         success: false,

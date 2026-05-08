@@ -36,6 +36,7 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
       needsRehash: false,
     }),
     writeAuditLog: async () => {},
+    recordLoginFailedAttempt: async () => {},
     ...overrides,
   });
 
@@ -436,6 +437,52 @@ test("adminAuthNativeRoutes bloquea preflight OPTIONS con origin no permitido", 
       success: false,
       error: "Origen no permitido",
     });
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminAuthNativeRoutes persiste failed login sin secretos", async () => {
+  const attempts: Array<Record<string, unknown>> = [];
+
+  const app = await createTestApp({
+    now: () => Date.UTC(2026, 4, 8, 0, 0, 0),
+    getAdminUserByUsername: async () => null,
+    recordLoginFailedAttempt: async (input: Record<string, unknown>) => {
+      attempts.push(input);
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/admin/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+        "user-agent": "vetneb-test-agent",
+      },
+      remoteAddress: "203.0.113.44",
+      payload: {
+        username: " VETNEB ",
+        password: "SUPER-SECRET-PASSWORD",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(attempts.length, 1);
+
+    assert.equal(attempts[0].surface, "admin");
+    assert.equal(attempts[0].username, "VETNEB");
+    assert.equal(attempts[0].reason, "invalid_credentials");
+    assert.equal(attempts[0].userAgent, "vetneb-test-agent");
+    assert.ok(attempts[0].createdAt instanceof Date);
+
+    const serializedAttempt = JSON.stringify(attempts[0]).toLowerCase();
+
+    assert.equal(serializedAttempt.includes("super-secret-password".toLowerCase()), false);
+    assert.equal(serializedAttempt.includes("passwordhash"), false);
+    assert.equal(serializedAttempt.includes("tokenhash"), false);
+    assert.equal(serializedAttempt.includes("cookie"), false);
   } finally {
     await app.close();
   }

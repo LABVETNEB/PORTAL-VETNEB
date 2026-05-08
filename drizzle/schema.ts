@@ -150,6 +150,22 @@ export const AUDIT_EVENTS = [
 ] as const;
 export type AuditEvent = (typeof AUDIT_EVENTS)[number];
 
+export const LOGIN_FAILED_ATTEMPT_SURFACES = [
+  "admin",
+  "clinic",
+  "particular",
+] as const;
+export type LoginFailedAttemptSurface =
+  (typeof LOGIN_FAILED_ATTEMPT_SURFACES)[number];
+
+export const LOGIN_FAILED_ATTEMPT_REASONS = [
+  "missing_credentials",
+  "invalid_credentials",
+  "rate_limited",
+] as const;
+export type LoginFailedAttemptReason =
+  (typeof LOGIN_FAILED_ATTEMPT_REASONS)[number];
+
 
 export const clinics = pgTable("clinics", {
   id: serial("id").primaryKey(),
@@ -389,6 +405,35 @@ export const auditLog = pgTable(
     targetReportAccessTokenIdIdx: index(
       "audit_log_target_report_access_token_id_idx",
     ).on(table.targetReportAccessTokenId),
+  }),
+);
+
+export const loginFailedAttempts = pgTable(
+  "login_failed_attempts",
+  {
+    id: serial("id").primaryKey(),
+    surface: varchar("surface", { length: 32 })
+      .$type<LoginFailedAttemptSurface>()
+      .notNull(),
+    username: varchar("username", { length: 100 }),
+    reason: varchar("reason", { length: 64 })
+      .$type<LoginFailedAttemptReason>()
+      .notNull(),
+    ipAddress: varchar("ip_address", { length: 64 }),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    surfaceCreatedAtIdx: index(
+      "login_failed_attempts_surface_created_at_idx",
+    ).on(table.surface, table.createdAt),
+    ipCreatedAtIdx: index("login_failed_attempts_ip_created_at_idx").on(
+      table.ipAddress,
+      table.createdAt,
+    ),
+    reasonCreatedAtIdx: index(
+      "login_failed_attempts_reason_created_at_idx",
+    ).on(table.reason, table.createdAt),
   }),
 );
 
