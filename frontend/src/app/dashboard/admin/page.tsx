@@ -31,6 +31,7 @@ export const metadata: Metadata = {
 const EVENT_LABELS: Record<string, string> = {
   "auth.admin.login.succeeded": "Login admin",
   "auth.clinic.login.succeeded": "Login clínica",
+  "clinic_user.role.changed": "Cambio rol clínica",
   "report.status.changed": "Estado informe",
   "report.uploaded": "Informe subido",
   "study_tracking.case.created": "Caso creado",
@@ -280,6 +281,44 @@ export default async function AdminPage() {
         <AdminMaintenanceDryRunCard />
         <AdminSessionsReadOnlyCard />
         <AdminUsersRolesReadOnlyCard />
+        <Card id="audit-role-changes">
+          <CardHeader>
+            <CardTitle className="text-base">
+              Auditoría de cambios de rol clínica
+            </CardTitle>
+            <CardDescription>
+              Acceso rápido a eventos <code>clinic_user.role.changed</code>
+              generados desde usuarios y roles.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs text-gray-400">Cambios registrados</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">
+                  {roleChangeAuditEntries.length}
+                </p>
+              </div>
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs text-gray-400">Último cambio</p>
+                <p className="mt-1 text-sm font-semibold text-gray-800">
+                  {lastRoleChangeAuditEntry
+                    ? formatDateTime(lastRoleChangeAuditEntry.createdAt)
+                    : "—"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs text-gray-400">Filtro audit</p>
+                <a
+                  href="#audit-log"
+                  className="mt-1 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-900"
+                >
+                  Ver log completo
+                </a>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
 
         <Card>
