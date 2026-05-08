@@ -86,6 +86,10 @@ test("Frontend CI dispara en push y pull_request para rutas de frontend", () => 
   assertContains(source, "push:");
   assertContains(source, "pull_request:");
   assertContains(source, "  contents: read");
+  assertContains(
+    source,
+    "concurrency:\n  group: frontend-ci-${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true",
+  );
 
   assertEventPathFilters(source, "push");
   assertEventPathFilters(source, "pull_request");
