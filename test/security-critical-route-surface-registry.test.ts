@@ -144,6 +144,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "cross auth surface registry keeps every protected route family explicit",
         ],
       },
+      {
+        path: "test/security-boundary-suite-completeness.test.ts",
+        markers: [
+          "security boundary suite completeness registry keeps canonical order",
+          "security boundary guardrails remain connected to runtime anchors",
+          "security boundary suite completeness guardrail source stays ascii only",
+        ],
+      },
     ],
   },
   {
@@ -506,6 +514,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-production-invariants.test.ts",
     "test/security-session-cookie-boundaries.test.ts",
     "test/security-cross-auth-surface-boundaries.test.ts",
+    "test/security-boundary-suite-completeness.test.ts",
     "test/security-mutation-permission-surface.test.ts",
     "test/supabase-storage-boundaries.test.ts",
     "test/public-professionals-route-surface-invariants.test.ts",
