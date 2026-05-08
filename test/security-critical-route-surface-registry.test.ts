@@ -33,6 +33,17 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
+        path: "server/fastify-app.ts",
+        markers: [
+          "adminFailedLoginAlertsNativeRoutes",
+          'prefix: "/api/admin/failed-login-alerts"',
+          "adminSessionsNativeRoutes",
+          'prefix: "/api/admin/sessions"',
+          "adminUsersRolesNativeRoutes",
+          'prefix: "/api/admin/users-roles"',
+        ],
+      },
+      {
         path: "server/routes/auth.fastify.ts",
         markers: ["cookies[ENV.cookieName]", "name: ENV.cookieName"],
       },
