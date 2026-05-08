@@ -160,6 +160,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "sensitive log redaction guardrail source stays ascii only",
         ],
       },
+      {
+        path: "test/security-audit-logging-phase-boundaries.test.ts",
+        markers: [
+          "audit logging phase matrix documents the protected contract",
+          "writeAuditLog keeps audit storage failures isolated from business flow",
+          "audit logging phase guardrail source stays ascii only",
+        ],
+      },
     ],
   },
   {
@@ -593,6 +601,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-cross-auth-surface-boundaries.test.ts",
     "test/security-boundary-suite-completeness.test.ts",
     "test/security-sensitive-log-redaction-boundaries.test.ts",
+    "test/security-audit-logging-phase-boundaries.test.ts",
     "test/security-trusted-origin-cors-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",
     "test/security-validation-cutoff-boundaries.test.ts",
