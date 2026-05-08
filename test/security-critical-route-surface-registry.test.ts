@@ -232,6 +232,27 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
+        path: "test/admin-particular-tokens.fastify.test.ts",
+        markers: [
+          "adminParticularTokensNativeRoutes bloquea POST / con origin no permitido",
+          "adminParticularTokensNativeRoutes vincula PATCH /:tokenId/report con trusted origin",
+        ],
+      },
+      {
+        path: "test/admin-report-access-tokens.fastify.test.ts",
+        markers: [
+          "adminReportAccessTokensNativeRoutes bloquea POST / con origin no permitido",
+          "adminReportAccessTokensNativeRoutes aplica rate limit nativo fijo sobre mutaciones",
+        ],
+      },
+      {
+        path: "test/admin-study-tracking.fastify.test.ts",
+        markers: [
+          "adminStudyTrackingNativeRoutes bloquea POST / con origin no permitido",
+          "adminStudyTrackingNativeRoutes actualiza PATCH /:trackingCaseId y notifica tinción especial",
+        ],
+      },
+      {
         path: "test/reports.fastify.test.ts",
         markers: [
           "reportsNativeRoutes responde preflight OPTIONS para superficie clinic read-only sin autenticar",
