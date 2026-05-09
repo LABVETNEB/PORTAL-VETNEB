@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { UploadReportModal } from "@/components/dashboard/UploadReportModal";
+import { ReportDownloadButton } from "@/components/dashboard/ReportDownloadButton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -131,17 +132,10 @@ export default async function InformesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <button
-                        className="text-xs text-primary hover:underline disabled:opacity-40"
-                        disabled={!report.storagePath}
-                        title={
-                          report.storagePath
-                            ? "Descargar informe"
-                            : "Informe no disponible aún"
-                        }
-                      >
-                        {report.storagePath ? "Descargar" : "No disponible"}
-                      </button>
+                      <ReportDownloadButton
+                        reportId={report.id}
+                        hasStoragePath={Boolean(report.storagePath)}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -153,3 +147,5 @@ export default async function InformesPage() {
     </>
   );
 }
+
+
