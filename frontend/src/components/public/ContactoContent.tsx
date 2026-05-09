@@ -1,9 +1,12 @@
 "use client";
 
+import { FormEvent, useState } from "react";
+
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { submitContactMessage } from "@/lib/api";
 
 const contactInfo = [
   {
@@ -27,6 +30,55 @@ const contactInfo = [
 ];
 
 export function ContactoContent() {
+  const [nombre, setNombre] = useState("");
+  const [apellido, setApellido] = useState("");
+  const [email, setEmail] = useState("");
+  const [clinica, setClinica] = useState("");
+  const [mensaje, setMensaje] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      const fullName = [nombre.trim(), apellido.trim()]
+        .filter(Boolean)
+        .join(" ");
+
+      const response = await submitContactMessage({
+        name: fullName,
+        email: email.trim(),
+        clinicName: clinica.trim() || null,
+        message: mensaje.trim(),
+      });
+
+      setSuccessMessage(response.message);
+      setNombre("");
+      setApellido("");
+      setEmail("");
+      setClinica("");
+      setMensaje("");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo enviar el mensaje. Intente nuevamente.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <PublicLayout>
       {/* Header */}
@@ -43,7 +95,7 @@ export function ContactoContent() {
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-5xl mx-auto">
-            {/* Formulario visual */}
+            {/* Formulario conectado */}
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
                 Envíenos un mensaje
@@ -51,7 +103,7 @@ export function ContactoContent() {
               <form
                 className="space-y-4"
                 aria-label="Formulario de contacto"
-                onSubmit={(e) => e.preventDefault()}
+                onSubmit={handleSubmit}
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -66,6 +118,10 @@ export function ContactoContent() {
                       type="text"
                       placeholder="Su nombre"
                       autoComplete="given-name"
+                      required
+                      value={nombre}
+                      onChange={(event) => setNombre(event.target.value)}
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div>
@@ -80,6 +136,9 @@ export function ContactoContent() {
                       type="text"
                       placeholder="Su apellido"
                       autoComplete="family-name"
+                      value={apellido}
+                      onChange={(event) => setApellido(event.target.value)}
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -95,6 +154,10 @@ export function ContactoContent() {
                     type="email"
                     placeholder="su@email.com"
                     autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div>
@@ -109,6 +172,9 @@ export function ContactoContent() {
                     type="text"
                     placeholder="Clínica Veterinaria..."
                     autoComplete="organization"
+                    value={clinica}
+                    onChange={(event) => setClinica(event.target.value)}
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div>
@@ -123,15 +189,31 @@ export function ContactoContent() {
                     rows={5}
                     placeholder="Describa su consulta o solicitud de acceso..."
                     className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                    required
+                    minLength={10}
+                    value={mensaje}
+                    onChange={(event) => setMensaje(event.target.value)}
+                    disabled={isSubmitting}
                   />
                 </div>
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-                  <strong>Nota de desarrollo:</strong> Este formulario es
-                  visual. La funcionalidad de envío se integrará con el backend
-                  o un servicio de email en un próximo PR.
-                </p>
-                <Button type="submit" className="w-full" disabled>
-                  Enviar mensaje (próximamente)
+
+                {errorMessage ? (
+                  <p
+                    className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2"
+                    role="alert"
+                  >
+                    {errorMessage}
+                  </p>
+                ) : null}
+
+                {successMessage ? (
+                  <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+                    {successMessage}
+                  </p>
+                ) : null}
+
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? "Enviando mensaje..." : "Enviar mensaje"}
                 </Button>
               </form>
             </div>

@@ -169,6 +169,31 @@ export async function uploadAdminReport(
   });
 }
 
+
+export type ContactMessagePayload = {
+  name: string;
+  email: string;
+  clinicName?: string | null;
+  message: string;
+};
+
+export type ContactMessageResponse = {
+  success: true;
+  sent: boolean;
+  reason?: "smtp_disabled";
+  message: string;
+};
+
+export async function submitContactMessage(
+  payload: ContactMessagePayload,
+  options?: RequestInit,
+): Promise<ContactMessageResponse> {
+  return apiFetch<ContactMessageResponse>("/api/contact", {
+    ...options,
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
 export async function getLogisticsFieldVisits(
   options?: RequestInit,
 ): Promise<FieldVisit[]> {
@@ -417,4 +442,5 @@ export async function getDashboardStats(
     ).length,
   };
 }
+
 
