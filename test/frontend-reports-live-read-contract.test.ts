@@ -71,5 +71,17 @@ test("frontend reports API wrappers accept request options", () => {
     '`/api/reports/search${qs ? `?${qs}` : ""}`',
     frontendApiClient,
   );
-  assertIncludes(source, "return MOCK_REPORTS", frontendApiClient);
+  assertIncludes(
+    source,
+    'console.warn("[API] getReports: endpoint no disponible")',
+    frontendApiClient,
+  );
+  assertIncludes(
+    source,
+    'console.warn("[API] searchReports: endpoint no disponible")',
+    frontendApiClient,
+  );
+  assertIncludes(source, "return []", frontendApiClient);
+  assertNotIncludes(source, "return MOCK_REPORTS", frontendApiClient);
 });
+

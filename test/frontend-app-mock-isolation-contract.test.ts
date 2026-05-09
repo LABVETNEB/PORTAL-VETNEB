@@ -40,19 +40,18 @@ test("frontend app pages do not import mock data directly", () => {
   assert.deepEqual(offenders, []);
 });
 
-test("frontend API client keeps remaining mock fallbacks centralized", () => {
+test("frontend API client does not use mock-data fallbacks", () => {
   const source = read(apiClientPath);
 
   assert.ok(
-    source.includes('from "@/lib/mock-data"'),
-    `${apiClientPath} should own centralized mock-data fallback imports`,
+    !source.includes('from "@/lib/mock-data"'),
+    `${apiClientPath} must not import mock-data fallback datasets`,
   );
 
-  for (const expected of [
-    "MOCK_REPORTS",
-  ]) {
-    assert.ok(source.includes(expected), `${apiClientPath} missing ${expected}`);
-  }
+  assert.ok(
+    !source.includes("MOCK_"),
+    `${apiClientPath} must not reference mock datasets`,
+  );
 
   assert.ok(
     !source.includes("getFallbackDashboardStats"),
@@ -64,5 +63,6 @@ test("frontend API client keeps remaining mock fallbacks centralized", () => {
     `${apiClientPath} must not import unused dashboard stats mock`,
   );
 });
+
 
 
