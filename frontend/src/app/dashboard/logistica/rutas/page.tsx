@@ -86,52 +86,63 @@ export default async function RutasPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {routePlans.map((plan) => {
-                  const progress =
-                    plan.totalStops > 0
-                      ? Math.round(
-                          (plan.completedStops / plan.totalStops) * 100,
-                        )
-                      : 0;
-                  return (
-                    <TableRow key={plan.id}>
-                      <TableCell className="font-mono text-xs text-gray-400">
-                        #{plan.id}
-                      </TableCell>
-                      <TableCell className="font-medium text-sm">
-                        {plan.name}
-                      </TableCell>
-                      <TableCell className="text-gray-500 text-sm">
-                        {formatDate(plan.plannedDate)}
-                      </TableCell>
-                      <TableCell className="text-gray-600 text-sm">
-                        {plan.completedStops}/{plan.totalStops}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-gray-100 rounded-full h-1.5 max-w-[80px]">
-                            <div
-                              className="bg-primary h-1.5 rounded-full transition-all"
-                              style={{ width: `${progress}%` }}
-                              role="progressbar"
-                              aria-valuenow={progress}
-                              aria-valuemin={0}
-                              aria-valuemax={100}
-                            />
+                {routePlans.length ? (
+                  routePlans.map((plan) => {
+                    const progress =
+                      plan.totalStops > 0
+                        ? Math.round(
+                            (plan.completedStops / plan.totalStops) * 100,
+                          )
+                        : 0;
+                    return (
+                      <TableRow key={plan.id}>
+                        <TableCell className="font-mono text-xs text-gray-400">
+                          #{plan.id}
+                        </TableCell>
+                        <TableCell className="font-medium text-sm">
+                          {plan.name}
+                        </TableCell>
+                        <TableCell className="text-gray-500 text-sm">
+                          {formatDate(plan.plannedDate)}
+                        </TableCell>
+                        <TableCell className="text-gray-600 text-sm">
+                          {plan.completedStops}/{plan.totalStops}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-gray-100 rounded-full h-1.5 max-w-[80px]">
+                              <div
+                                className="bg-primary h-1.5 rounded-full transition-all"
+                                style={{ width: `${progress}%` }}
+                                role="progressbar"
+                                aria-valuenow={progress}
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {progress}%
+                            </span>
                           </div>
-                          <span className="text-xs text-gray-500">
-                            {progress}%
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getRoutePlanStatusVariant(plan.status)}>
-                          {getRoutePlanStatusLabel(plan.status)}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getRoutePlanStatusVariant(plan.status)}>
+                            {getRoutePlanStatusLabel(plan.status)}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="px-6 py-10 text-center text-sm text-gray-500"
+                    >
+                      No hay planes de ruta disponibles.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>

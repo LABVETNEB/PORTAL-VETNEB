@@ -89,35 +89,46 @@ export default async function VisitasPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visits.map((visit) => (
-                  <TableRow key={visit.id}>
-                    <TableCell className="font-mono text-xs text-gray-400">
-                      #{visit.id}
-                    </TableCell>
-                    <TableCell className="font-medium text-sm">
-                      {visit.clinicName ?? `Clínica #${visit.clinicId}`}
-                    </TableCell>
-                    <TableCell className="text-gray-600 text-sm max-w-[180px] truncate">
-                      {visit.address ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-gray-500 text-sm">
-                      {formatDateTime(visit.scheduledAt)}
-                    </TableCell>
-                    <TableCell className="text-gray-500 text-sm">
-                      {visit.completedAt
-                        ? formatDateTime(visit.completedAt)
-                        : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getFieldVisitStatusVariant(visit.status)}>
-                        {getFieldVisitStatusLabel(visit.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-gray-400 text-xs max-w-[150px] truncate">
-                      {visit.notes ?? "—"}
+                {visits.length ? (
+                  visits.map((visit) => (
+                    <TableRow key={visit.id}>
+                      <TableCell className="font-mono text-xs text-gray-400">
+                        #{visit.id}
+                      </TableCell>
+                      <TableCell className="font-medium text-sm">
+                        {visit.clinicName ?? `Clínica #${visit.clinicId}`}
+                      </TableCell>
+                      <TableCell className="text-gray-600 text-sm max-w-[180px] truncate">
+                        {visit.address ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-gray-500 text-sm">
+                        {formatDateTime(visit.scheduledAt)}
+                      </TableCell>
+                      <TableCell className="text-gray-500 text-sm">
+                        {visit.completedAt
+                          ? formatDateTime(visit.completedAt)
+                          : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getFieldVisitStatusVariant(visit.status)}>
+                          {getFieldVisitStatusLabel(visit.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-gray-400 text-xs max-w-[150px] truncate">
+                        {visit.notes ?? "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className="px-6 py-10 text-center text-sm text-gray-500"
+                    >
+                      No hay visitas de campo disponibles.
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </CardContent>
