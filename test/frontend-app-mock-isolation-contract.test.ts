@@ -50,7 +50,6 @@ test("frontend API client keeps remaining mock fallbacks centralized", () => {
 
   for (const expected of [
     "MOCK_REPORTS",
-    "MOCK_AUDIT_ENTRIES",
   ]) {
     assert.ok(source.includes(expected), `${apiClientPath} missing ${expected}`);
   }
@@ -65,4 +64,5 @@ test("frontend API client keeps remaining mock fallbacks centralized", () => {
     `${apiClientPath} must not import unused dashboard stats mock`,
   );
 });
+
 

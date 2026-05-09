@@ -349,6 +349,14 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         markers: ["buildClinicAuditListFilters", "clinicId"],
       },
       {
+        path: "test/frontend-audit-no-mock-fallback.test.ts",
+        markers: [
+          "frontend audit api client does not import audit mock dataset",
+          "frontend audit api client uses real admin audit endpoint",
+          "frontend audit api client returns empty state instead of mock fallback",
+        ],
+      },
+      {
         path: "test/particular-audit.fastify.test.ts",
         markers: ["particularAuditNativeRoutes", "export.csv", "particular"],
       },
@@ -607,3 +615,4 @@ test("audit suite completeness guardrail source stays ascii only", () => {
     );
   }
 });
+
