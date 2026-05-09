@@ -6,8 +6,7 @@
  *
  * Convención:
  * - Si el endpoint está confirmado en el backend, se llama directamente.
- * - Si el endpoint NO está confirmado, se devuelve mock data desde mock-data.ts.
- * - Las funciones mock están claramente marcadas con el comentario @mock.
+ * - Si el endpoint no está disponible, las funciones devuelven un estado vacío seguro.
  *
  * Autenticación: el backend usa cookies de sesión (credentials: 'include').
  */
@@ -34,10 +33,6 @@ import type {
   AdminFailedLoginAlertsQuery,
   AdminFailedLoginAlertsSnapshot,
 } from "@/types";
-
-import {
-  MOCK_REPORTS,
-} from "@/lib/mock-data";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
@@ -105,8 +100,8 @@ export async function getReports(options?: RequestInit): Promise<Report[]> {
     const res = await apiFetch<{ reports: Report[] }>("/api/reports", options);
     return res.reports ?? [];
   } catch {
-    console.warn("[API] getReports: usando mock data");
-    return MOCK_REPORTS;
+    console.warn("[API] getReports: endpoint no disponible");
+    return [];
   }
 }
 
@@ -130,8 +125,8 @@ export async function searchReports(
     );
     return res.reports ?? [];
   } catch {
-    console.warn("[API] searchReports: usando mock data");
-    return MOCK_REPORTS;
+    console.warn("[API] searchReports: endpoint no disponible");
+    return [];
   }
 }
 
@@ -436,6 +431,7 @@ export async function getDashboardStats(
     ).length,
   };
 }
+
 
 
 
