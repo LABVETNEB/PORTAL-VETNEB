@@ -135,69 +135,75 @@ export default async function MetricasPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {routeMetrics.map((metric) => {
-              const plan = routePlans.find(
-                (routePlan) => routePlan.id === metric.routePlanId,
-              );
-              return (
-                <div
-                  key={metric.routePlanId}
-                  className="border border-gray-100 rounded-lg p-4 space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-gray-900 text-sm">
-                      {plan?.name ?? `Plan #${metric.routePlanId}`}
-                    </h3>
-                    <Badge
-                      variant={
-                        metric.complianceRate >= 90
-                          ? "default"
-                          : metric.complianceRate >= 60
-                            ? "secondary"
-                            : "destructive"
-                      }
-                    >
-                      {metric.complianceRate}% cumplimiento
-                    </Badge>
+            {routeMetrics.length ? (
+              routeMetrics.map((metric) => {
+                const plan = routePlans.find(
+                  (routePlan) => routePlan.id === metric.routePlanId,
+                );
+                return (
+                  <div
+                    key={metric.routePlanId}
+                    className="border border-gray-100 rounded-lg p-4 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-gray-900 text-sm">
+                        {plan?.name ?? `Plan #${metric.routePlanId}`}
+                      </h3>
+                      <Badge
+                        variant={
+                          metric.complianceRate >= 90
+                            ? "default"
+                            : metric.complianceRate >= 60
+                              ? "secondary"
+                              : "destructive"
+                        }
+                      >
+                        {metric.complianceRate}% cumplimiento
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div>
+                        <p className="text-gray-400 text-xs">Total paradas</p>
+                        <p className="font-semibold">{metric.totalStops}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 text-xs">Completadas</p>
+                        <p className="font-semibold text-green-600">
+                          {metric.completedStops}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 text-xs">Omitidas</p>
+                        <p className="font-semibold text-amber-600">
+                          {metric.skippedStops}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 text-xs">Sin presencia</p>
+                        <p className="font-semibold text-red-600">
+                          {metric.noShowStops}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full"
+                        style={{ width: `${metric.complianceRate}%` }}
+                        role="progressbar"
+                        aria-valuenow={metric.complianceRate}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`Cumplimiento: ${metric.complianceRate}%`}
+                      />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div>
-                      <p className="text-gray-400 text-xs">Total paradas</p>
-                      <p className="font-semibold">{metric.totalStops}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-xs">Completadas</p>
-                      <p className="font-semibold text-green-600">
-                        {metric.completedStops}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-xs">Omitidas</p>
-                      <p className="font-semibold text-amber-600">
-                        {metric.skippedStops}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-xs">Sin presencia</p>
-                      <p className="font-semibold text-red-600">
-                        {metric.noShowStops}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full"
-                      style={{ width: `${metric.complianceRate}%` }}
-                      role="progressbar"
-                      aria-valuenow={metric.complianceRate}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label={`Cumplimiento: ${metric.complianceRate}%`}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                No hay métricas de ruta disponibles.
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
