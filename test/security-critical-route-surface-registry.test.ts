@@ -192,6 +192,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "clinic writes persist clinic attribution and audit through clinic context",
         ],
       },
+      {
+        path: "test/security-access-lifecycle-boundaries.test.ts",
+        markers: [
+          "access lifecycle matrix documents public token revoke session and rate-limit states",
+          "public report access enforces token lifecycle before signed URLs and audit",
+          "runtime lifecycle tests remain explicit for public report access",
+        ],
+      },
     ],
   },
   {
@@ -629,6 +637,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-actor-relationship-boundaries.test.ts",
     "test/security-resource-ownership-boundaries.test.ts",
     "test/security-write-attribution-boundaries.test.ts",
+    "test/security-access-lifecycle-boundaries.test.ts",
     "test/security-trusted-origin-cors-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",
     "test/security-validation-cutoff-boundaries.test.ts",
