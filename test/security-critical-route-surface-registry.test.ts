@@ -200,6 +200,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "runtime lifecycle tests remain explicit for public report access",
         ],
       },
+      {
+        path: "test/security-response-disclosure-boundaries.test.ts",
+        markers: [
+          "response disclosure matrix documents stable public error semantics",
+          "public report access uses explicit 400 404 409 410 and 429 boundaries",
+          "runtime disclosure tests remain explicit for hidden resources and response codes",
+        ],
+      },
     ],
   },
   {
@@ -638,6 +646,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-resource-ownership-boundaries.test.ts",
     "test/security-write-attribution-boundaries.test.ts",
     "test/security-access-lifecycle-boundaries.test.ts",
+    "test/security-response-disclosure-boundaries.test.ts",
     "test/security-trusted-origin-cors-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",
     "test/security-validation-cutoff-boundaries.test.ts",
