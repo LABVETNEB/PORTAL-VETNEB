@@ -52,7 +52,14 @@ async function apiFetch<T>(
 ): Promise<T> {
   const headers = new Headers(options.headers);
 
-  if (options.body !== undefined && !headers.has("Content-Type")) {
+  const hasFormDataBody =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
+
+  if (
+    options.body !== undefined &&
+    !hasFormDataBody &&
+    !headers.has("Content-Type")
+  ) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -132,6 +139,12 @@ export async function searchReports(
   }
 }
 
+type AdminReportUploadResponse = {
+  success: true;
+  message: string;
+  report: Report;
+};
+
 export async function getReportDownloadUrl(
   reportId: number,
 ): Promise<string | null> {
@@ -143,6 +156,17 @@ export async function getReportDownloadUrl(
   } catch {
     return null;
   }
+}
+
+export async function uploadAdminReport(
+  formData: FormData,
+  options?: RequestInit,
+): Promise<AdminReportUploadResponse> {
+  return apiFetch<AdminReportUploadResponse>("/api/admin/reports/upload", {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
 }
 
 export async function getLogisticsFieldVisits(
@@ -393,3 +417,4 @@ export async function getDashboardStats(
     ).length,
   };
 }
+
