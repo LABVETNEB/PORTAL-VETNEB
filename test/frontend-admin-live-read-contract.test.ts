@@ -65,7 +65,13 @@ test("frontend admin audit API wrapper accepts request options", () => {
   assertIncludes(source, "options?: RequestInit", frontendApiClient);
   assertIncludes(source, '"/api/admin/audit-log"', frontendApiClient);
   assertIncludes(source, "options,", frontendApiClient);
-  assertIncludes(source, "return MOCK_AUDIT_ENTRIES", frontendApiClient);
+  assertIncludes(
+    source,
+    'console.warn("[API] getAuditEntries: endpoint no disponible")',
+    frontendApiClient,
+  );
+  assertIncludes(source, "return []", frontendApiClient);
+  assertNotIncludes(source, "return MOCK_AUDIT_ENTRIES", frontendApiClient);
 });
 
 
@@ -337,3 +343,4 @@ test("frontend admin failed-login alerts deshabilita limpiar filtros sin filtros
     "AdminFailedLoginAlertsReadOnlyCard.tsx clear filters",
   );
 });
+

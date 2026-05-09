@@ -37,7 +37,6 @@ import type {
 
 import {
   MOCK_REPORTS,
-  MOCK_AUDIT_ENTRIES,
 } from "@/lib/mock-data";
 
 const API_BASE_URL =
@@ -252,8 +251,8 @@ export async function getAuditEntries(
     );
     return res.entries ?? [];
   } catch {
-    console.warn("[API] getAuditEntries: usando mock data");
-    return MOCK_AUDIT_ENTRIES;
+    console.warn("[API] getAuditEntries: endpoint no disponible");
+    return [];
   }
 }
 
@@ -437,6 +436,7 @@ export async function getDashboardStats(
     ).length,
   };
 }
+
 
 
 
