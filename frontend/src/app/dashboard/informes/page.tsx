@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
+import { UploadReportModal } from "@/components/dashboard/UploadReportModal";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -51,6 +53,10 @@ export default async function InformesPage() {
         subtitle="Gestión de informes médicos veterinarios"
       />
       <main className="flex-1 p-6 space-y-6">
+        <div className="flex justify-end">
+          <UploadReportModal />
+        </div>
+
         <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700">
           Lectura conectada a <code>GET /api/reports</code>.
         </div>
