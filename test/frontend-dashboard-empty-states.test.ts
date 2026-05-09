@@ -1,0 +1,44 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import test from "node:test";
+
+const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
+const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
+const LOGISTICA_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
+
+function read(relativePath: string): string {
+  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
+    /\r\n/g,
+    "\n",
+  );
+}
+
+test("dashboard overview shows empty states for recent lists", () => {
+  const source = read(DASHBOARD_PAGE_PATH);
+
+  assert.ok(source.includes("recentReports.length ?"));
+  assert.ok(source.includes("recentVisits.length ?"));
+  assert.ok(source.includes("No hay informes recientes disponibles."));
+  assert.ok(source.includes("No hay visitas de campo recientes disponibles."));
+});
+
+test("dashboard informes page shows empty state when reports are unavailable", () => {
+  const source = read(INFORMES_PAGE_PATH);
+
+  assert.ok(source.includes("reports.length ?"));
+  assert.ok(source.includes("No hay informes disponibles."));
+  assert.ok(source.includes("colSpan={7}"));
+  assert.ok(source.includes("reports.map((report)"));
+});
+
+test("dashboard logistics page shows empty states for visits and route plans", () => {
+  const source = read(LOGISTICA_PAGE_PATH);
+
+  assert.ok(source.includes("fieldVisits.length ?"));
+  assert.ok(source.includes("routePlans.length ?"));
+  assert.ok(source.includes("No hay visitas recientes disponibles."));
+  assert.ok(source.includes("No hay planes de ruta disponibles."));
+  assert.ok(source.includes("fieldVisits.slice(0, 4).map((visit)"));
+  assert.ok(source.includes("routePlans.map((plan)"));
+});

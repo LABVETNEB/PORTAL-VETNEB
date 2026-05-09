@@ -64,27 +64,33 @@ export default async function DashboardPage() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              {recentReports.map((report) => (
-                <div
-                  key={report.id}
-                  className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {report.patientName ?? "Sin nombre"}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {report.studyType} · {formatDate(report.uploadDate)}
-                    </p>
-                  </div>
-                  <Badge
-                    variant={getReportStatusVariant(report.status)}
-                    className="ml-2 shrink-0"
+              {recentReports.length ? (
+                recentReports.map((report) => (
+                  <div
+                    key={report.id}
+                    className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
                   >
-                    {getReportStatusLabel(report.status)}
-                  </Badge>
-                </div>
-              ))}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {report.patientName ?? "Sin nombre"}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {report.studyType} · {formatDate(report.uploadDate)}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={getReportStatusVariant(report.status)}
+                      className="ml-2 shrink-0"
+                    >
+                      {getReportStatusLabel(report.status)}
+                    </Badge>
+                  </div>
+                ))
+              ) : (
+                <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                  No hay informes recientes disponibles.
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -96,27 +102,33 @@ export default async function DashboardPage() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              {recentVisits.map((visit) => (
-                <div
-                  key={visit.id}
-                  className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {visit.clinicName ?? `Clínica #${visit.clinicId}`}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {formatDate(visit.scheduledAt)}
-                    </p>
-                  </div>
-                  <Badge
-                    variant={getFieldVisitStatusVariant(visit.status)}
-                    className="ml-2 shrink-0"
+              {recentVisits.length ? (
+                recentVisits.map((visit) => (
+                  <div
+                    key={visit.id}
+                    className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
                   >
-                    {getFieldVisitStatusLabel(visit.status)}
-                  </Badge>
-                </div>
-              ))}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {visit.clinicName ?? `Clínica #${visit.clinicId}`}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {formatDate(visit.scheduledAt)}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={getFieldVisitStatusVariant(visit.status)}
+                      className="ml-2 shrink-0"
+                    >
+                      {getFieldVisitStatusLabel(visit.status)}
+                    </Badge>
+                  </div>
+                ))
+              ) : (
+                <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                  No hay visitas de campo recientes disponibles.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
