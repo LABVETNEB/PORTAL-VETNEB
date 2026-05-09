@@ -79,7 +79,14 @@ test("frontend logistics metrics API wrapper accepts request options", () => {
   assertIncludes(source, "options,", frontendApiClient);
   assertIncludes(
     source,
-    "MOCK_ROUTE_METRICS.filter(",
+    'console.warn("[API] getRoutePlanMetrics: endpoint no disponible")',
     frontendApiClient,
   );
+  assertIncludes(
+    source,
+    'console.warn("[API] getRoutePlanMetrics: requiere planId para usar endpoint real")',
+    frontendApiClient,
+  );
+  assertIncludes(source, "return []", frontendApiClient);
 });
+

@@ -37,9 +37,6 @@ import type {
 
 import {
   MOCK_REPORTS,
-  MOCK_FIELD_VISITS,
-  MOCK_ROUTE_PLANS,
-  MOCK_ROUTE_METRICS,
   MOCK_AUDIT_ENTRIES,
 } from "@/lib/mock-data";
 
@@ -204,8 +201,8 @@ export async function getLogisticsFieldVisits(
     );
     return res.visits ?? [];
   } catch {
-    console.warn("[API] getLogisticsFieldVisits: usando mock data");
-    return MOCK_FIELD_VISITS;
+    console.warn("[API] getLogisticsFieldVisits: endpoint no disponible");
+    return [];
   }
 }
 
@@ -219,8 +216,8 @@ export async function getRoutePlans(
     );
     return res.plans ?? [];
   } catch {
-    console.warn("[API] getRoutePlans: usando mock data");
-    return MOCK_ROUTE_PLANS;
+    console.warn("[API] getRoutePlans: endpoint no disponible");
+    return [];
   }
 }
 
@@ -236,15 +233,13 @@ export async function getRoutePlanMetrics(
       );
       return res.metrics ? [res.metrics] : [];
     } catch {
-      console.warn("[API] getRoutePlanMetrics: usando mock data");
-      return MOCK_ROUTE_METRICS.filter(
-        (metric) => metric.routePlanId === planId,
-      );
+      console.warn("[API] getRoutePlanMetrics: endpoint no disponible");
+      return [];
     }
   }
 
-  console.warn("[API] getRoutePlanMetrics: usando mock data");
-  return MOCK_ROUTE_METRICS;
+  console.warn("[API] getRoutePlanMetrics: requiere planId para usar endpoint real");
+  return [];
 }
 
 export async function getAuditEntries(
@@ -442,5 +437,7 @@ export async function getDashboardStats(
     ).length,
   };
 }
+
+
 
 
