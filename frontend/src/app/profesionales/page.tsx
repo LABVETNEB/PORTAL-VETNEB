@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
+import { ROUTES } from "@/lib/routes";
 
 export const metadata: Metadata = createPageMetadata(
   "Red de Profesionales Veterinarios",
@@ -113,6 +116,28 @@ export default function ProfesionalesPage() {
                 {specialty}
               </Badge>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            ¿Querés integrar tu práctica a Portal VETNEB?
+          </h2>
+          <p className="text-gray-600 leading-relaxed mb-8">
+            Contactanos para coordinar el acceso profesional o conocer cómo una
+            clínica puede operar con informes digitales, trazabilidad y gestión
+            segura desde el portal.
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-3">
+            <Button asChild size="lg">
+              <Link href={ROUTES.contacto}>Contactar a VETNEB</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link href={ROUTES.clinicas}>Ver portal para clínicas</Link>
+            </Button>
           </div>
         </div>
       </section>

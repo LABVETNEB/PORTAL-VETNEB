@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { createPageMetadata, getServicesJsonLd } from "@/lib/seo";
+import { ROUTES } from "@/lib/routes";
 
 export const metadata: Metadata = createPageMetadata(
   "Servicios de Laboratorio Veterinario",
@@ -131,6 +134,28 @@ export default function ServiciosPage() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16 bg-blue-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            ¿Necesitás digitalizar la gestión de estudios?
+          </h2>
+          <p className="text-gray-600 leading-relaxed mb-8">
+            Solicitá acceso para tu clínica o contactanos para conocer cómo
+            Portal VETNEB puede acompañar el flujo completo de informes,
+            logística y trazabilidad.
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-3">
+            <Button asChild size="lg">
+              <Link href={ROUTES.contacto}>Solicitar información</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link href={ROUTES.clinicas}>Ver solución para clínicas</Link>
+            </Button>
           </div>
         </div>
       </section>
