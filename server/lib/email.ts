@@ -107,6 +107,68 @@ function buildSpecialStainRequiredText(input: {
   return lines.join("\n");
 }
 
+
+function buildContactMessageText(input: {
+  name: string;
+  email: string;
+  clinicName: string | null;
+  message: string;
+}) {
+  return [
+    "Nuevo mensaje desde el formulario de contacto de Portal VETNEB",
+    "",
+    `Nombre: ${input.name}`,
+    `Email: ${input.email}`,
+    `Clinica: ${input.clinicName ?? "No informada"}`,
+    "",
+    "Mensaje:",
+    input.message,
+    "",
+    "Equipo VETNEB",
+  ].join("\n");
+}
+
+export async function sendContactMessageEmail(input: {
+  name: string;
+  email: string;
+  clinicName: string | null;
+  message: string;
+}): Promise<
+  | { sent: false; reason: "smtp_disabled" }
+  | { sent: true; messageId: string }
+> {
+  const recipient = normalizeRecipients([ENV.smtp.from])[0];
+
+  const transporter = getTransporter();
+
+  if (!transporter || !recipient) {
+    console.info("[EMAIL] contact_message skipped: smtp disabled", {
+      email: input.email,
+      clinicName: input.clinicName,
+    });
+
+    return { sent: false, reason: "smtp_disabled" as const };
+  }
+
+  const info = await transporter.sendMail({
+    from: ENV.smtp.from,
+    to: recipient,
+    replyTo: input.email,
+    subject: `[VETNEB] Contacto web: ${input.name}`,
+    text: buildContactMessageText(input),
+  });
+
+  console.info("[EMAIL] contact_message sent", {
+    email: input.email,
+    clinicName: input.clinicName,
+    messageId: info.messageId,
+  });
+
+  return {
+    sent: true,
+    messageId: info.messageId,
+  };
+}
 export async function sendSpecialStainRequiredEmail(input: {
   to: Array<string | null | undefined>;
   clinicName: string;
@@ -158,3 +220,4 @@ export async function sendSpecialStainRequiredEmail(input: {
     messageId: info.messageId,
   };
 }
+

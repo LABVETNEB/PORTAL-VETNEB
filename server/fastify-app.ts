@@ -53,6 +53,10 @@ import {
   type AuthNativeRoutesOptions,
 } from "./routes/auth.fastify.ts";
 import {
+  contactNativeRoutes,
+  type ContactNativeRoutesOptions,
+} from "./routes/contact.fastify.ts";
+import {
   clinicAuditNativeRoutes,
   type ClinicAuditNativeRoutesOptions,
 } from "./routes/clinic-audit.fastify.ts";
@@ -195,6 +199,7 @@ export type CreateFastifyAppOptions = {
   adminSystemMaintenanceRoutes?: AdminSystemMaintenanceNativeRoutesOptions;
   adminUsersRolesRoutes?: AdminUsersRolesNativeRoutesOptions;
   clinicAuthRoutes?: AuthNativeRoutesOptions;
+  contactRoutes?: ContactNativeRoutesOptions;
   clinicAuditRoutes?: ClinicAuditNativeRoutesOptions;
   clinicPublicProfileRoutes?: ClinicPublicProfileNativeRoutesOptions;
   particularAuditRoutes?: ParticularAuditNativeRoutesOptions;
@@ -350,6 +355,11 @@ export async function createFastifyApp(
     ...(options.clinicAuthRoutes ?? {}),
   });
 
+  await app.register(contactNativeRoutes, {
+    prefix: "/api/contact",
+    ...(options.contactRoutes ?? {}),
+  });
+
   await app.register(clinicAuditNativeRoutes, {
     prefix: "/api/clinic/audit-log",
     ...(options.clinicAuditRoutes ?? {}),
@@ -437,5 +447,6 @@ export async function createFastifyApp(
 
   return app;
 }
+
 
 
