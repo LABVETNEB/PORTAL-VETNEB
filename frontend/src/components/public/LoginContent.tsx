@@ -1,12 +1,62 @@
 "use client";
 
+import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { loginClinic } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 
+function getSafeNextPath(nextPath: string | null): string {
+  if (!nextPath?.startsWith("/dashboard")) {
+    return ROUTES.dashboard;
+  }
+
+  return nextPath;
+}
+
 export function LoginContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      await loginClinic({ username, password });
+      router.replace(getSafeNextPath(searchParams.get("next")));
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo iniciar sesión. Intente nuevamente.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -38,7 +88,7 @@ export function LoginContent() {
             <form
               className="space-y-4"
               aria-label="Formulario de inicio de sesión"
-              onSubmit={(e) => e.preventDefault()}
+              onSubmit={handleSubmit}
             >
               <div>
                 <label
@@ -49,10 +99,15 @@ export function LoginContent() {
                 </label>
                 <Input
                   id="username"
+                  name="username"
                   type="text"
                   placeholder="nombre_usuario"
                   autoComplete="username"
                   autoFocus
+                  required
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -64,27 +119,28 @@ export function LoginContent() {
                 </label>
                 <Input
                   id="password"
+                  name="password"
                   type="password"
                   placeholder="••••••••"
                   autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  disabled={isSubmitting}
                 />
               </div>
 
-              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-                <strong>Nota de desarrollo:</strong> La autenticación real se
-                conectará con{" "}
-                <code className="font-mono">POST /api/auth/login</code> en un
-                próximo PR.
-              </p>
+              {errorMessage ? (
+                <p
+                  className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2"
+                  role="alert"
+                >
+                  {errorMessage}
+                </p>
+              ) : null}
 
-              <Button type="submit" className="w-full" disabled>
-                Iniciar sesión (próximamente)
-              </Button>
-
-              <Button asChild variant="outline" className="w-full">
-                <Link href={ROUTES.dashboard}>
-                  Ver dashboard (demo sin auth)
-                </Link>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Iniciando sesión..." : "Iniciar sesión"}
               </Button>
             </form>
 

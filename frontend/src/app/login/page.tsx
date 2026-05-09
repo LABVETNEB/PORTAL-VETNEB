@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
+
 import { createPageMetadata } from "@/lib/seo";
 import { LoginContent } from "@/components/public/LoginContent";
 
@@ -12,5 +14,9 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  return <LoginContent />;
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
+  );
 }
