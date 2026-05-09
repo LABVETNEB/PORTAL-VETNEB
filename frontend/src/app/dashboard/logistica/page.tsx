@@ -149,28 +149,34 @@ export default async function LogisticaPage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {fieldVisits.slice(0, 4).map((visit) => (
-              <div
-                key={visit.id}
-                className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {visit.clinicName ?? `Clínica #${visit.clinicId}`}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {visit.address ?? "Sin dirección"} ·{" "}
-                    {formatDate(visit.scheduledAt)}
-                  </p>
-                </div>
-                <Badge
-                  variant={getFieldVisitStatusVariant(visit.status)}
-                  className="ml-2 shrink-0"
+            {fieldVisits.length ? (
+              fieldVisits.slice(0, 4).map((visit) => (
+                <div
+                  key={visit.id}
+                  className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
                 >
-                  {getFieldVisitStatusLabel(visit.status)}
-                </Badge>
-              </div>
-            ))}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {visit.clinicName ?? `Clínica #${visit.clinicId}`}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {visit.address ?? "Sin dirección"} ·{" "}
+                      {formatDate(visit.scheduledAt)}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={getFieldVisitStatusVariant(visit.status)}
+                    className="ml-2 shrink-0"
+                  >
+                    {getFieldVisitStatusLabel(visit.status)}
+                  </Badge>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                No hay visitas recientes disponibles.
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -182,28 +188,34 @@ export default async function LogisticaPage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {routePlans.map((plan) => (
-              <div
-                key={plan.id}
-                className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {plan.name}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {plan.completedStops}/{plan.totalStops} paradas ·{" "}
-                    {formatDate(plan.plannedDate)}
-                  </p>
-                </div>
-                <Badge
-                  variant={getRoutePlanStatusVariant(plan.status)}
-                  className="ml-2 shrink-0"
+            {routePlans.length ? (
+              routePlans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
                 >
-                  {getRoutePlanStatusLabel(plan.status)}
-                </Badge>
-              </div>
-            ))}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {plan.name}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {plan.completedStops}/{plan.totalStops} paradas ·{" "}
+                      {formatDate(plan.plannedDate)}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={getRoutePlanStatusVariant(plan.status)}
+                    className="ml-2 shrink-0"
+                  >
+                    {getRoutePlanStatusLabel(plan.status)}
+                  </Badge>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                No hay planes de ruta disponibles.
+              </p>
+            )}
           </CardContent>
         </Card>
       </main>

@@ -109,36 +109,47 @@ export default async function InformesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {reports.map((report) => (
-                  <TableRow key={report.id}>
-                    <TableCell className="font-mono text-xs text-gray-400">
-                      #{report.id}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {report.patientName ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-gray-600">
-                      {report.studyType ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-gray-600 text-sm">
-                      {report.clinicName ?? `Clínica #${report.clinicId}`}
-                    </TableCell>
-                    <TableCell className="text-gray-500 text-sm">
-                      {formatDate(report.uploadDate)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getReportStatusVariant(report.status)}>
-                        {getReportStatusLabel(report.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <ReportDownloadButton
-                        reportId={report.id}
-                        hasStoragePath={Boolean(report.storagePath)}
-                      />
+                {reports.length ? (
+                  reports.map((report) => (
+                    <TableRow key={report.id}>
+                      <TableCell className="font-mono text-xs text-gray-400">
+                        #{report.id}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {report.patientName ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-gray-600">
+                        {report.studyType ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-gray-600 text-sm">
+                        {report.clinicName ?? `Clínica #${report.clinicId}`}
+                      </TableCell>
+                      <TableCell className="text-gray-500 text-sm">
+                        {formatDate(report.uploadDate)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getReportStatusVariant(report.status)}>
+                          {getReportStatusLabel(report.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <ReportDownloadButton
+                          reportId={report.id}
+                          hasStoragePath={Boolean(report.storagePath)}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className="px-6 py-10 text-center text-sm text-gray-500"
+                    >
+                      No hay informes disponibles.
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </CardContent>
