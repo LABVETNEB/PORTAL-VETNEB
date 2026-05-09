@@ -184,6 +184,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "admin-owned linking validates target clinic before binding resources",
         ],
       },
+      {
+        path: "test/security-write-attribution-boundaries.test.ts",
+        markers: [
+          "write attribution matrix documents admin clinic particular and public token actors",
+          "admin writes persist admin attribution and audit through admin context",
+          "clinic writes persist clinic attribution and audit through clinic context",
+        ],
+      },
     ],
   },
   {
@@ -620,6 +628,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-audit-logging-phase-boundaries.test.ts",
     "test/security-actor-relationship-boundaries.test.ts",
     "test/security-resource-ownership-boundaries.test.ts",
+    "test/security-write-attribution-boundaries.test.ts",
     "test/security-trusted-origin-cors-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",
     "test/security-validation-cutoff-boundaries.test.ts",
