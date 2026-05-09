@@ -2,12 +2,38 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import Fastify from "fastify";
 
-import {
-  contactNativeRoutes,
-  type ContactNativeRoutesOptions,
-} from "../server/routes/contact.fastify.ts";
+type ContactEmailResult =
+  | { sent: true; messageId: string }
+  | { sent: false; reason: "smtp_disabled" };
+
+type ContactMessageInput = {
+  name: string;
+  email: string;
+  clinicName: string | null;
+  message: string;
+};
+
+type ContactNativeRoutesOptions = {
+  sendContactMessageEmail?: (
+    input: ContactMessageInput,
+  ) => Promise<ContactEmailResult>;
+};
+
+function ensureContactRouteTestEnv() {
+  process.env.NODE_ENV ??= "test";
+  process.env.DATABASE_URL ??= "postgres://postgres:postgres@localhost:5432/test";
+  process.env.SUPABASE_URL ??= "https://example.supabase.co";
+  process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
+}
 
 async function createContactTestApp(options: ContactNativeRoutesOptions) {
+  ensureContactRouteTestEnv();
+
+  const { contactNativeRoutes } = await import(
+    "../server/routes/contact.fastify.ts"
+  );
+
   const app = Fastify({ logger: false });
 
   await app.register(contactNativeRoutes, options);
@@ -165,4 +191,3 @@ test("contact endpoint rejects untrusted unsafe origins", async () => {
     await app.close();
   }
 });
-
