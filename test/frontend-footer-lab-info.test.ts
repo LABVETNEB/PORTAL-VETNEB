@@ -53,7 +53,11 @@ test("footer includes laboratory contact information and Google Maps embed", () 
 test("footer keeps public navigation and does not expose private dashboard content", () => {
   const source = read(FOOTER_PATH);
 
-  assert.ok(source.includes("Portal VETNEB"));
+  assert.ok(source.includes("rounded-md bg-primary px-3"));
+  assert.ok(source.includes("font-bold tracking-wide text-white"));
+  assert.ok(source.includes("VETNEB"));
+  assert.equal(source.includes(">VN<"), false);
+  assert.equal(source.includes("Portal VETNEB"), false);
   assert.ok(source.includes("ROUTES.servicios"));
   assert.ok(source.includes("ROUTES.profesionales"));
   assert.ok(source.includes("ROUTES.clinicas"));

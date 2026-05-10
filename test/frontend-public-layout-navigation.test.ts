@@ -39,15 +39,19 @@ test("navbar uses centralized public routes for primary navigation", () => {
   assert.ok(source.includes('aria-label="Navegación principal"'));
 });
 
-test("navbar exposes home login and access CTAs", () => {
+test("navbar exposes home login and access CTAs with VETNEB brand", () => {
   const source = read(NAVBAR_PATH);
 
-  assert.ok(source.includes('href={ROUTES.home}'));
-  assert.ok(source.includes('aria-label="Portal VETNEB — Inicio"'));
-  assert.ok(source.includes("Portal VETNEB"));
-  assert.ok(source.includes('href={ROUTES.login}'));
+  assert.ok(source.includes("href={ROUTES.home}"));
+  assert.ok(source.includes('aria-label="VETNEB — Inicio"'));
+  assert.ok(source.includes("rounded-md bg-primary px-3"));
+  assert.ok(source.includes("font-bold tracking-wide text-white"));
+  assert.ok(source.includes("VETNEB"));
+  assert.equal(source.includes(">VN<"), false);
+  assert.equal(source.includes("Portal VETNEB"), false);
+  assert.ok(source.includes("href={ROUTES.login}"));
   assert.ok(source.includes("Iniciar sesión"));
-  assert.ok(source.includes('href={ROUTES.contacto}'));
+  assert.ok(source.includes("href={ROUTES.contacto}"));
   assert.ok(source.includes("Solicitar acceso"));
 });
 
@@ -63,14 +67,18 @@ test("footer uses centralized public routes and contentinfo landmark", () => {
   assert.ok(source.includes('{ label: "Contacto", href: ROUTES.contacto }'));
 });
 
-test("footer exposes access links and legal brand copy", () => {
+test("footer exposes access links and legal brand copy with VETNEB brand", () => {
   const source = read(FOOTER_PATH);
 
-  assert.ok(source.includes('href={ROUTES.login}'));
+  assert.ok(source.includes("href={ROUTES.login}"));
   assert.ok(source.includes("Iniciar sesión"));
-  assert.ok(source.includes('href={ROUTES.contacto}'));
+  assert.ok(source.includes("href={ROUTES.contacto}"));
   assert.ok(source.includes("Solicitar acceso"));
-  assert.ok(source.includes("Portal VETNEB"));
+  assert.ok(source.includes("rounded-md bg-primary px-3"));
+  assert.ok(source.includes("font-bold tracking-wide text-white"));
+  assert.ok(source.includes("VETNEB"));
+  assert.equal(source.includes(">VN<"), false);
+  assert.equal(source.includes("Portal VETNEB"), false);
   assert.ok(source.includes("Laboratorio veterinario digital"));
   assert.ok(source.includes("Todos los derechos reservados"));
 });
