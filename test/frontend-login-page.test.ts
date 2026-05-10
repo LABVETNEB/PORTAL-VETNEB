@@ -42,9 +42,11 @@ test("login content keeps standalone login shell and form landmarks", () => {
   assert.ok(source.includes('import Link from "next/link";'));
   assert.ok(source.includes('import { loginClinic } from "@/lib/api";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
-  assert.ok(source.includes('className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4"'));
-  assert.ok(source.includes("Portal VETNEB"));
-  assert.ok(source.includes("Laboratorio veterinario digital"));
+  assert.ok(source.includes("bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800"));
+  assert.ok(source.includes("PORTAL VETNEB"));
+  assert.ok(source.includes('aria-label="PORTAL VETNEB — Inicio"'));
+  assert.equal(source.includes(">VN<"), false);
+  assert.equal(source.includes("Laboratorio veterinario digital"), false);
   assert.ok(source.includes("Iniciar sesión"));
   assert.ok(source.includes('aria-label="Formulario de inicio de sesión"'));
   assert.ok(source.includes("Usuario"));
@@ -66,10 +68,10 @@ test("login content keeps safe dashboard redirect and error handling", () => {
 test("login content exposes public navigation affordances without direct fetch", () => {
   const source = read(LOGIN_CONTENT_PATH);
 
-  assert.ok(source.includes('href={ROUTES.home}'));
-  assert.ok(source.includes('aria-label="Portal VETNEB — Inicio"'));
+  assert.ok(source.includes("href={ROUTES.home}"));
+  assert.ok(source.includes('aria-label="PORTAL VETNEB — Inicio"'));
   assert.ok(source.includes("¿Su clínica no tiene acceso?"));
-  assert.ok(source.includes('href={ROUTES.contacto}'));
+  assert.ok(source.includes("href={ROUTES.contacto}"));
   assert.ok(source.includes("Solicite acceso"));
   assert.ok(source.includes("← Volver al sitio público"));
   assert.equal(source.includes('"/api"'), false);
