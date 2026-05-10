@@ -21,7 +21,7 @@ test("servicios page defines metadata JSON-LD and public layout wiring", () => {
   assert.ok(source.includes('import { createPageMetadata, getServicesJsonLd } from "@/lib/seo";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
   assert.ok(source.includes("export const metadata: Metadata = createPageMetadata("));
-  assert.ok(source.includes('"Laboratorio Patológico Veterinario: Histopatología, Citología y Hematología"'));
+  assert.ok(source.includes('"Servicio Patológico Veterinario: Histopatología, Citología y Hematología"'));
   assert.ok(source.includes('"/servicios"'));
   assert.ok(source.includes("const jsonLd = getServicesJsonLd();"));
   assert.ok(source.includes('type="application/ld+json"'));
@@ -31,51 +31,46 @@ test("servicios page defines metadata JSON-LD and public layout wiring", () => {
 test("servicios page exposes hero content", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
-  assert.ok(source.includes("Servicios del laboratorio patológico veterinario"));
-  assert.ok(source.includes("Servicio patológico veterinario para clínicas y profesionales:"));
-  assert.ok(source.includes("histopatología, citología, citopatología, hematología, diagnóstico"));
+  assert.ok(source.includes("Servicio patológico veterinario"));
+  assert.ok(source.includes("La anatomía patológica veterinaria estudia los motivos"));
+  assert.ok(source.includes("desarrollo y las consecuencias de distintas enfermedades"));
 });
 
 test("servicios page lists laboratory service categories", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
   assert.ok(source.includes("const serviceCategories = ["));
-  assert.ok(source.includes("Informes Médicos Veterinarios"));
-  assert.ok(source.includes("Patología, Histopatología y Citopatología Veterinaria"));
-  assert.ok(source.includes("Gestión Digital de Clínicas"));
-  assert.ok(source.includes("Logística Operativa"));
+  assert.ok(source.includes("Estudio anatomopatológico de tejidos"));
+  assert.ok(source.includes("Estudio citológico de muestras"));
+  assert.ok(source.includes("Tinciones especiales aplicadas"));
+  assert.ok(source.includes("Diagnóstico integral interdisciplinario"));
+  assert.ok(source.includes("Informes y seguimiento"));
   assert.ok(source.includes("serviceCategories.map((service) =>"));
 });
 
 test("servicios page keeps detailed service feature bullets", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
-  assert.ok(source.includes("Carga y procesamiento de estudios"));
-  assert.ok(source.includes("Histopatología veterinaria y anatomía patológica"));
-  assert.ok(source.includes("Citología veterinaria y citopatología diagnóstica"));
-  assert.ok(source.includes("Hematología veterinaria y diagnóstico hematológico"));
-  assert.ok(source.includes("Búsqueda y reporte de hemoparásitos veterinarios"));
-  assert.ok(source.includes("Dashboard privado por clínica"));
-  assert.ok(source.includes("Planificación de rutas de entrega"));
-  assert.ok(source.includes("Métricas de cumplimiento y SLA"));
+  assert.ok(source.includes("Recepción y procesamiento de muestras de tejidos"));
+  assert.ok(source.includes("Estudio citológico de líquidos y punciones"));
+  assert.ok(source.includes("Complemento de histopatología y citopatología"));
+  assert.ok(source.includes("Interconsulta profesional cuando el caso lo requiere"));
+  assert.ok(source.includes("Consulta de resultados de informes las 24 hs"));
+  assert.ok(source.includes("Priorización según complejidad diagnóstica"));
 });
 
 test("servicios page exposes conversion CTAs and SEO copy", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
-  assert.ok(source.includes("¿Necesitás digitalizar la gestión de estudios?"));
+  assert.ok(source.includes("Seguimos trabajando en mejorar"));
   assert.ok(source.includes('href={ROUTES.contacto}'));
   assert.ok(source.includes("Solicitar información"));
   assert.ok(source.includes('href={ROUTES.clinicas}'));
   assert.ok(source.includes("Ver solución para clínicas"));
-  assert.ok(source.includes("Laboratorio patológico veterinario en Argentina"));
-  assert.ok(source.includes("Servicio patológico, histopatológico, citológico y hematológico veterinario"));
-  assert.ok(source.includes("histopatología veterinaria"));
-  assert.ok(source.includes("citología veterinaria"));
-  assert.ok(source.includes("citopatología"));
-  assert.ok(source.includes("hematología"));
-  assert.ok(source.includes("diagnóstico hematológico"));
-  assert.ok(source.includes("hemoparásitos"));
+  assert.ok(source.includes("Diagnóstico integral para medicina veterinaria"));
+  assert.ok(source.includes("Para tener en cuenta"));
+  assert.ok(source.includes("Valores que guían el servicio"));
+  assert.ok(source.includes("veterinario confiable"));
 });
 
 test("servicios page remains public and avoids direct backend/API calls", () => {

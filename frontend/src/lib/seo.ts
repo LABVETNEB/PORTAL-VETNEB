@@ -11,7 +11,7 @@ export const SITE_NAME = "Portal VETNEB";
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://portal.vetneb.com";
 export const SITE_DESCRIPTION =
-  "Laboratorio patológico veterinario especializado en histopatología, citología, citopatología, hematología, diagnóstico hematológico y hemoparásitos. Servicio patológico veterinario con informes digitales para clínicas y profesionales.";
+  "La anatomía patológica veterinaria estudia los motivos, el desarrollo y las consecuencias de distintas enfermedades mediante el análisis de tejidos, órganos y muestras celulares. Servicio patológico veterinario con histopatología, citología, citopatología, hematología, diagnóstico hematológico y hemoparásitos.";
 export const SITE_LOCALE = "es_AR";
 
 // ─── Metadata base ────────────────────────────────────────────────────────────
@@ -120,7 +120,7 @@ export function getOrganizationJsonLd() {
     "@type": "MedicalOrganization",
     name: "VETNEB",
     description:
-      "Laboratorio patológico veterinario especializado en histopatología, citología, citopatología, hematología, diagnóstico hematológico, hemoparásitos e informes diagnósticos para clínicas veterinarias.",
+      "Laboratorio patológico veterinario orientado a diagnóstico integral mediante estudio anatomopatológico, citológico y tinciones especiales para clínicas y profesionales.",
     url: SITE_URL,
     logo: `${SITE_URL}/logo.png`,
     contactPoint: {
@@ -160,7 +160,7 @@ export function getServicesJsonLd() {
       url: SITE_URL,
     },
     description:
-      "Servicios patológicos veterinarios: histopatología, citología, citopatología, hematología, diagnóstico hematológico, hemoparásitos, informes diagnósticos digitales y trazabilidad clínica.",
+      "Servicios patológicos veterinarios para diagnóstico integral: estudio anatomopatológico de tejidos, citología de muestras, tinciones especiales, hematología y seguimiento de informes diagnósticos.",
     areaServed: "Argentina",
     hasOfferCatalog: {
       "@type": "OfferCatalog",

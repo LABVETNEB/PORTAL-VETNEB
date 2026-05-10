@@ -8,54 +8,54 @@ import { ROUTES } from "@/lib/routes";
 
 export const metadata: Metadata = createPageMetadata(
   "Portal VETNEB — Laboratorio Patológico Veterinario",
-  "Laboratorio patológico veterinario para clínicas y profesionales: histopatología, citología, citopatología, hematología, diagnóstico hematológico, hemoparásitos e informes digitales.",
+  "La anatomía patológica veterinaria estudia los motivos, el desarrollo y las consecuencias de distintas enfermedades mediante el análisis de tejidos, órganos y muestras celulares. VETNEB integra histopatología, citología, citopatología, hematología, diagnóstico hematológico y hemoparásitos.",
   "/",
 );
 
 const services = [
   {
     icon: "📋",
-    title: "Informes Médicos",
+    title: "Estudio Anatomopatológico",
     description:
-      "Acceso digital seguro a resultados de estudios veterinarios. Descarga, seguimiento y gestión de informes en tiempo real.",
+      "Estudio anatomopatológico de todo tipo de tejidos para caracterizar lesiones y aportar precisión diagnóstica en medicina veterinaria.",
   },
   {
     icon: "🔬",
-    title: "Estudios Veterinarios",
+    title: "Estudio Citológico",
     description:
-      "Hemogramas, bioquímicas, uroanálisis, estudios de imagen y más. Resultados precisos con trazabilidad completa.",
+      "Estudio citológico de muestras, líquidos y punciones para evaluar alteraciones celulares con criterio clínico-patológico.",
   },
   {
     icon: "🏥",
-    title: "Gestión Digital",
+    title: "Tinciones Especiales",
     description:
-      "Portal centralizado para clínicas. Administración de pacientes, historial de estudios y comunicación directa con el laboratorio.",
+      "Estudios aplicados con tinciones especiales para ampliar hallazgos histológicos y reforzar diagnósticos diferenciales.",
   },
   {
     icon: "🚐",
-    title: "Logística Operativa",
+    title: "Diagnóstico Integral",
     description:
-      "Planificación de rutas, visitas de campo y seguimiento en tiempo real. Optimización de la cadena de entrega de resultados.",
+      "Integración de datos clínicos con evaluación histológica y citológica para orientar decisiones diagnósticas y terapéuticas.",
   },
 ];
 
 const benefits = [
   {
-    title: "Para clínicas veterinarias",
+    title: "Diagnóstico integral",
     items: [
-      "Acceso inmediato a resultados de estudios",
-      "Historial completo de pacientes",
-      "Notificaciones de estado en tiempo real",
-      "Descarga segura de informes en PDF",
+      "Integramos hallazgos de tejidos y células con la información clínica de cada caso",
+      "Articulamos el análisis con equipos de diagnóstico por imágenes y áreas quirúrgicas",
+      "Priorizamos un diagnóstico específico para cada paciente veterinario",
+      "Acompañamos la toma de decisiones terapéuticas con criterios anatomopatológicos",
     ],
   },
   {
-    title: "Para profesionales",
+    title: "Para tener en cuenta",
     items: [
-      "Plataforma centralizada de gestión",
-      "Seguimiento de casos clínicos",
-      "Comunicación directa con el laboratorio",
-      "Acceso desde cualquier dispositivo",
+      "Los tiempos pueden variar según la complejidad diagnóstica de cada muestra",
+      "El análisis no es automatizado: requiere evaluación microscópica especializada",
+      "En algunos casos se requieren tinciones especiales o interconsultas profesionales",
+      "Seguimos trabajando en mejorar los tiempos de recepción, diagnóstico y entrega",
     ],
   },
 ];
@@ -79,19 +79,20 @@ export default function HomePage() {
           <div className="max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-blue-700/50 px-4 py-1.5 text-sm font-medium text-blue-100">
               <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-              Laboratorio patológico veterinario
+              Servicio patológico veterinario
             </div>
             <h1
               id="hero-heading"
               className="mb-6 text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl"
             >
-              Diagnóstico patológico de
-              <span className="text-blue-300"> laboratorio veterinario</span>
+              Diagnóstico anatomopatológico
+              <span className="text-blue-300"> veterinario integral</span>
             </h1>
             <p className="mb-8 max-w-2xl text-lg leading-relaxed text-blue-100 md:text-xl">
-              Portal centralizado para clínicas y profesionales veterinarios.
-              Acceda a informes, estudios y logística operativa desde un único
-              lugar seguro y confiable.
+              La anatomía patológica veterinaria estudia los motivos, el
+              desarrollo y las consecuencias de distintas enfermedades a partir
+              del análisis de tejidos, órganos y muestras celulares. Consultá
+              los resultados de tus informes las 24 hs desde el portal.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
               <Button
@@ -133,8 +134,8 @@ export default function HomePage() {
               Servicios del laboratorio patológico veterinario
             </h2>
             <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-              Una plataforma completa para la gestión de diagnóstico veterinario
-              y operaciones de laboratorio.
+              Cobertura diagnóstica orientada a estudio anatomopatológico,
+              citología, tinciones especiales e integración clínico-patológica.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -176,11 +177,12 @@ export default function HomePage() {
               id="benefits-heading"
               className="text-3xl md:text-4xl font-bold text-gray-900 mb-4"
             >
-              Diseñado para el sector veterinario
+              Trabajo interdisciplinario y criterio diagnóstico
             </h2>
             <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-              Herramientas específicas para clínicas y profesionales que
-              necesitan eficiencia y confiabilidad.
+              Colaboramos de forma permanente con equipos clínicos para evaluar
+              lesiones, integrar contexto médico y definir conductas de
+              tratamiento.
             </p>
           </div>
           <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
@@ -220,11 +222,12 @@ export default function HomePage() {
             id="cta-heading"
             className="text-3xl md:text-4xl font-bold mb-4"
           >
-            ¿Listo para digitalizar su laboratorio?
+            Seguimos trabajando en mejorar
           </h2>
           <p className="mx-auto mb-8 max-w-xl text-lg text-blue-100">
-            Únase a las clínicas y profesionales que ya gestionan sus estudios
-            veterinarios de forma digital con Portal VETNEB.
+            Agilizamos la recepción y entrega de informes, fortalecemos la
+            comunicación con clínicas y profesionales, y sostenemos un servicio
+            guiado por compromiso, responsabilidad y trabajo constante.
           </p>
           <div className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
             <Button

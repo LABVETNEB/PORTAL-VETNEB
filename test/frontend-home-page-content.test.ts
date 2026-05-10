@@ -30,9 +30,10 @@ test("home page exposes accessible hero and primary CTAs", () => {
 
   assert.ok(source.includes('aria-labelledby="hero-heading"'));
   assert.ok(source.includes('id="hero-heading"'));
-  assert.ok(source.includes("Diagnóstico patológico de"));
-  assert.ok(source.includes("laboratorio veterinario"));
-  assert.ok(source.includes("Portal centralizado para clínicas y profesionales veterinarios."));
+  assert.ok(source.includes("Diagnóstico anatomopatológico"));
+  assert.ok(source.includes("veterinario integral"));
+  assert.ok(source.includes("La anatomía patológica veterinaria estudia los motivos"));
+  assert.ok(source.includes("resultados de tus informes las 24 hs"));
   assert.ok(source.includes("histopatología"));
   assert.ok(source.includes("citología"));
   assert.ok(source.includes("citopatología"));
@@ -51,10 +52,10 @@ test("home page lists core laboratory services and services route CTA", () => {
   assert.ok(source.includes('aria-labelledby="services-heading"'));
   assert.ok(source.includes('id="services-heading"'));
   assert.ok(source.includes("Servicios del laboratorio patológico veterinario"));
-  assert.ok(source.includes("Informes Médicos"));
-  assert.ok(source.includes("Estudios Veterinarios"));
-  assert.ok(source.includes("Gestión Digital"));
-  assert.ok(source.includes("Logística Operativa"));
+  assert.ok(source.includes("Estudio Anatomopatológico"));
+  assert.ok(source.includes("Estudio Citológico"));
+  assert.ok(source.includes("Tinciones Especiales"));
+  assert.ok(source.includes("Diagnóstico Integral"));
   assert.ok(source.includes('href={ROUTES.servicios}'));
   assert.ok(source.includes("Ver todos los servicios"));
 });
@@ -64,11 +65,11 @@ test("home page lists benefits for clinics and professionals", () => {
 
   assert.ok(source.includes('aria-labelledby="benefits-heading"'));
   assert.ok(source.includes('id="benefits-heading"'));
-  assert.ok(source.includes("Diseñado para el sector veterinario"));
-  assert.ok(source.includes("Para clínicas veterinarias"));
-  assert.ok(source.includes("Para profesionales"));
-  assert.ok(source.includes("Acceso inmediato a resultados de estudios"));
-  assert.ok(source.includes("Seguimiento de casos clínicos"));
+  assert.ok(source.includes("Trabajo interdisciplinario y criterio diagnóstico"));
+  assert.ok(source.includes("Diagnóstico integral"));
+  assert.ok(source.includes("Para tener en cuenta"));
+  assert.ok(source.includes("Articulamos el análisis con equipos de diagnóstico por imágenes"));
+  assert.ok(source.includes("El análisis no es automatizado: requiere evaluación microscópica especializada"));
 });
 
 test("home page exposes final conversion CTA without private route metadata", () => {
@@ -76,7 +77,7 @@ test("home page exposes final conversion CTA without private route metadata", ()
 
   assert.ok(source.includes('aria-labelledby="cta-heading"'));
   assert.ok(source.includes('id="cta-heading"'));
-  assert.ok(source.includes("¿Listo para digitalizar su laboratorio?"));
+  assert.ok(source.includes("Seguimos trabajando en mejorar"));
   assert.ok(source.includes("Iniciar sesión"));
   assert.ok(source.includes("Contactar"));
   assert.equal(source.includes('"/dashboard"'), false);
