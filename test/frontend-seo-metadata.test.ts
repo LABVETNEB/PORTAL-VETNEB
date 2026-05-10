@@ -65,6 +65,16 @@ test("frontend SEO helpers create page metadata and organization JSON-LD", () =>
   assert.ok(source.includes('"@context": "https://schema.org"'));
   assert.ok(source.includes('"@type": "MedicalOrganization"'));
   assert.ok(source.includes('medicalSpecialty: "Veterinary"'));
+  assert.ok(source.includes('"laboratorio patológico veterinario"'));
+  assert.ok(source.includes('"servicio patológico veterinario"'));
+  assert.ok(source.includes('"histopatología veterinaria"'));
+  assert.ok(source.includes('"citología veterinaria"'));
+  assert.ok(source.includes('"citopatología veterinaria"'));
+  assert.ok(source.includes('"hematología veterinaria"'));
+  assert.ok(source.includes('"diagnóstico hematológico veterinario"'));
+  assert.ok(source.includes('"hemoparásitos veterinarios"'));
+  assert.ok(source.includes("knowsAbout: ["));
+  assert.ok(source.includes("hasOfferCatalog: {"));
 });
 
 test("frontend robots allows public pages and blocks private/API surfaces", () => {

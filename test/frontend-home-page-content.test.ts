@@ -18,7 +18,7 @@ test("home page defines public metadata and organization JSON-LD", () => {
   assert.ok(source.includes('import type { Metadata } from "next";'));
   assert.ok(source.includes('import { createPageMetadata, getOrganizationJsonLd, SITE_URL } from "@/lib/seo";'));
   assert.ok(source.includes("export const metadata: Metadata = createPageMetadata("));
-  assert.ok(source.includes('"Portal VETNEB — Laboratorio Veterinario Digital"'));
+  assert.ok(source.includes('"Portal VETNEB — Laboratorio Patológico Veterinario"'));
   assert.ok(source.includes('"/"'));
   assert.ok(source.includes("const jsonLd = getOrganizationJsonLd();"));
   assert.ok(source.includes('type="application/ld+json"'));
@@ -30,9 +30,15 @@ test("home page exposes accessible hero and primary CTAs", () => {
 
   assert.ok(source.includes('aria-labelledby="hero-heading"'));
   assert.ok(source.includes('id="hero-heading"'));
-  assert.ok(source.includes("Gestión digital de"));
+  assert.ok(source.includes("Diagnóstico patológico de"));
   assert.ok(source.includes("laboratorio veterinario"));
   assert.ok(source.includes("Portal centralizado para clínicas y profesionales veterinarios."));
+  assert.ok(source.includes("histopatología"));
+  assert.ok(source.includes("citología"));
+  assert.ok(source.includes("citopatología"));
+  assert.ok(source.includes("hematología"));
+  assert.ok(source.includes("diagnóstico hematológico"));
+  assert.ok(source.includes("hemoparásitos"));
   assert.ok(source.includes('href={ROUTES.login}'));
   assert.ok(source.includes("Acceder al portal"));
   assert.ok(source.includes('href={ROUTES.contacto}'));
@@ -44,7 +50,7 @@ test("home page lists core laboratory services and services route CTA", () => {
 
   assert.ok(source.includes('aria-labelledby="services-heading"'));
   assert.ok(source.includes('id="services-heading"'));
-  assert.ok(source.includes("Servicios del laboratorio"));
+  assert.ok(source.includes("Servicios del laboratorio patológico veterinario"));
   assert.ok(source.includes("Informes Médicos"));
   assert.ok(source.includes("Estudios Veterinarios"));
   assert.ok(source.includes("Gestión Digital"));

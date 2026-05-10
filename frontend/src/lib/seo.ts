@@ -11,7 +11,7 @@ export const SITE_NAME = "Portal VETNEB";
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://portal.vetneb.com";
 export const SITE_DESCRIPTION =
-  "Portal digital de laboratorio veterinario. Informes médicos, estudios veterinarios, gestión de clínicas y logística operativa para profesionales del sector.";
+  "Laboratorio patológico veterinario especializado en histopatología, citología, citopatología, hematología, diagnóstico hematológico y hemoparásitos. Servicio patológico veterinario con informes digitales para clínicas y profesionales.";
 export const SITE_LOCALE = "es_AR";
 
 // ─── Metadata base ────────────────────────────────────────────────────────────
@@ -24,15 +24,26 @@ export const baseMetadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   keywords: [
+    "laboratorio patológico veterinario",
     "laboratorio veterinario",
+    "servicio patológico veterinario",
+    "patología veterinaria",
+    "anatomía patológica veterinaria",
+    "histopatología veterinaria",
+    "servicio histopatológico veterinario",
+    "citología veterinaria",
+    "citopatología veterinaria",
+    "servicio citopatológico veterinario",
+    "hematología veterinaria",
+    "diagnóstico hematológico veterinario",
+    "servicio hematológico veterinario",
+    "hemoparásitos veterinarios",
+    "diagnóstico de hemoparásitos",
     "informes veterinarios",
-    "portal veterinario",
     "estudios veterinarios",
-    "gestión clínica veterinaria",
-    "logística veterinaria",
-    "VETNEB",
     "diagnóstico veterinario",
     "resultados veterinarios online",
+    "VETNEB",
   ],
   authors: [{ name: "VETNEB" }],
   creator: "VETNEB",
@@ -60,7 +71,7 @@ export const baseMetadata: Metadata = {
         url: `${SITE_URL}/og-image.png`,
         width: 1200,
         height: 630,
-        alt: "Portal VETNEB — Laboratorio Veterinario Digital",
+        alt: "Portal VETNEB — Laboratorio patológico veterinario, histopatología, citología y hematología",
       },
     ],
   },
@@ -109,7 +120,7 @@ export function getOrganizationJsonLd() {
     "@type": "MedicalOrganization",
     name: "VETNEB",
     description:
-      "Laboratorio veterinario digital especializado en diagnóstico, informes médicos y gestión operativa para clínicas veterinarias.",
+      "Laboratorio patológico veterinario especializado en histopatología, citología, citopatología, hematología, diagnóstico hematológico, hemoparásitos e informes diagnósticos para clínicas veterinarias.",
     url: SITE_URL,
     logo: `${SITE_URL}/logo.png`,
     contactPoint: {
@@ -122,6 +133,17 @@ export function getOrganizationJsonLd() {
       name: "Argentina",
     },
     medicalSpecialty: "Veterinary",
+    knowsAbout: [
+      "laboratorio patológico veterinario",
+      "servicio patológico veterinario",
+      "histopatología veterinaria",
+      "citología veterinaria",
+      "citopatología veterinaria",
+      "hematología veterinaria",
+      "diagnóstico hematológico veterinario",
+      "hemoparásitos veterinarios",
+      "anatomía patológica veterinaria",
+    ],
   };
 }
 
@@ -131,14 +153,52 @@ export function getServicesJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "Service",
-    serviceType: "Laboratorio Veterinario",
+    serviceType: "Laboratorio patológico veterinario",
     provider: {
       "@type": "MedicalOrganization",
       name: "VETNEB",
       url: SITE_URL,
     },
     description:
-      "Servicios de diagnóstico veterinario: hemogramas, bioquímicas, estudios de imagen, gestión digital de informes y logística operativa.",
+      "Servicios patológicos veterinarios: histopatología, citología, citopatología, hematología, diagnóstico hematológico, hemoparásitos, informes diagnósticos digitales y trazabilidad clínica.",
     areaServed: "Argentina",
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: "Servicios de laboratorio patológico veterinario",
+      itemListElement: [
+        {
+          "@type": "Offer",
+          itemOffered: {
+            "@type": "Service",
+            name: "Histopatología veterinaria",
+            serviceType: "Servicio histopatológico veterinario",
+          },
+        },
+        {
+          "@type": "Offer",
+          itemOffered: {
+            "@type": "Service",
+            name: "Citología y citopatología veterinaria",
+            serviceType: "Servicio citopatológico veterinario",
+          },
+        },
+        {
+          "@type": "Offer",
+          itemOffered: {
+            "@type": "Service",
+            name: "Hematología veterinaria",
+            serviceType: "Servicio hematológico veterinario",
+          },
+        },
+        {
+          "@type": "Offer",
+          itemOffered: {
+            "@type": "Service",
+            name: "Diagnóstico de hemoparásitos",
+            serviceType: "Hemoparásitos veterinarios",
+          },
+        },
+      ],
+    },
   };
 }
