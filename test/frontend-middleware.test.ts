@@ -19,13 +19,16 @@ test("frontend middleware imports Next response and request types", () => {
   assert.ok(source.includes("export function middleware(request: NextRequest)"));
 });
 
-test("frontend middleware checks clinic session cookie before allowing dashboard access", () => {
+test("frontend middleware checks clinic and admin session cookies before allowing dashboard access", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes('const CLINIC_SESSION_COOKIE_NAME = "app_session_id";'));
+  assert.ok(source.includes('const ADMIN_SESSION_COOKIE_NAME = "admin_session_id";'));
   assert.ok(source.includes("const hasClinicSession = Boolean("));
+  assert.ok(source.includes("const hasAdminSession = Boolean("));
   assert.ok(source.includes("request.cookies.get(CLINIC_SESSION_COOKIE_NAME)?.value"));
-  assert.ok(source.includes("if (hasClinicSession) {"));
+  assert.ok(source.includes("request.cookies.get(ADMIN_SESSION_COOKIE_NAME)?.value"));
+  assert.ok(source.includes("if (hasClinicSession || hasAdminSession) {"));
   assert.ok(source.includes("return NextResponse.next();"));
 });
 
