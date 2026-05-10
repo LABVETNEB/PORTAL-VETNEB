@@ -60,21 +60,16 @@ export function LoginContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="mb-8 text-center">
           <Link
             href={ROUTES.home}
-            className="inline-flex items-center gap-3"
-            aria-label="Portal VETNEB — Inicio"
+            className="inline-flex items-center justify-center"
+            aria-label="PORTAL VETNEB — Inicio"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-lg font-bold text-primary shadow-sm">
-              VN
-            </div>
-            <span className="text-2xl font-bold text-white">Portal VETNEB</span>
+            <span className="text-2xl font-bold uppercase tracking-wide text-white">
+              PORTAL VETNEB
+            </span>
           </Link>
-          <p className="mt-2 text-sm text-blue-200">
-            Laboratorio veterinario digital
-          </p>
         </div>
 
         <Card className="border border-white/80 bg-white/95 shadow-2xl backdrop-blur">
@@ -91,10 +86,7 @@ export function LoginContent() {
               onSubmit={handleSubmit}
             >
               <div>
-                <label
-                  htmlFor="username"
-                  className="field-label"
-                >
+                <label htmlFor="username" className="field-label">
                   Usuario
                 </label>
                 <Input
@@ -111,10 +103,7 @@ export function LoginContent() {
                 />
               </div>
               <div>
-                <label
-                  htmlFor="password"
-                  className="field-label"
-                >
+                <label htmlFor="password" className="field-label">
                   Contraseña
                 </label>
                 <Input
