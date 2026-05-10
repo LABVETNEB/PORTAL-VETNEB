@@ -107,6 +107,11 @@ test("public home page keeps polished visual hierarchy and responsive sections",
       'aria-labelledby="services-heading"',
       'aria-labelledby="benefits-heading"',
       'aria-labelledby="cta-heading"',
+      'src="/images/hero-microscope-vetneb.jpg"',
+      'sizes="100vw"',
+      "bg-black/55",
+      "CONSULTÁ LOS RESULTADOS DE SUS INFORMES LAS 24 HS.",
+      'href="https://wa.me/5493534138946"',
       "services.map((service) =>",
       "benefits.map((benefit) =>",
       "transition-shadow hover:shadow-md",
@@ -117,9 +122,10 @@ test("public home page keeps polished visual hierarchy and responsive sections",
   assertMatchesAll(
     source,
     [
-      /className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white"/,
-      /className="container mx-auto px-4 py-16 sm:px-6 md:py-20 lg:px-8 lg:py-24"/,
-      /className="mb-6 text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl"/,
+      /className="relative isolate overflow-hidden text-white"/,
+      /className="relative container mx-auto flex min-h-\[calc\(100vh-4\.5rem\)\] items-center px-4 py-16 sm:px-6 lg:px-8"/,
+      /className="text-4xl font-semibold leading-tight tracking-\[0\.08em\] text-white sm:text-5xl lg:text-6xl"/,
+      /className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4"/,
       /className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4"/,
       /className="bg-primary py-16 text-white md:py-20"/,
       /className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4"/,
@@ -127,7 +133,7 @@ test("public home page keeps polished visual hierarchy and responsive sections",
     "home page class contracts",
   );
 
-  assertInlineStylesAtMost(source, 1, "home page");
+  assertInlineStylesAtMost(source, 0, "home page");
 });
 
 test("servicios page keeps professional section/card structure and responsive layout", () => {

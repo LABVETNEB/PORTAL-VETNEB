@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { Button } from "@/components/ui/button";
@@ -72,52 +73,64 @@ export default function HomePage() {
 
       {/* Hero */}
       <section
-        className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white"
+        className="relative isolate overflow-hidden text-white"
         aria-labelledby="hero-heading"
       >
-        <div className="container mx-auto px-4 py-16 sm:px-6 md:py-20 lg:px-8 lg:py-24">
-          <div className="max-w-3xl">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-blue-700/50 px-4 py-1.5 text-sm font-medium text-blue-100">
-              <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+        <div className="absolute inset-0">
+          <Image
+            src="/images/hero-microscope-vetneb.jpg"
+            alt="Microscopio en laboratorio patológico veterinario"
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover object-center"
+          />
+        </div>
+        <div className="absolute inset-0 bg-black/55" aria-hidden="true" />
+        <div className="relative container mx-auto flex min-h-[calc(100vh-4.5rem)] items-center px-4 py-16 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-4xl text-center">
+            <div className="mb-6 inline-flex items-center justify-center rounded-full border border-white/30 bg-black/35 px-4 py-1.5 text-sm font-medium tracking-wide text-slate-100">
               Servicio patológico veterinario
             </div>
             <h1
               id="hero-heading"
-              className="mb-6 text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl"
+              className="text-4xl font-semibold leading-tight tracking-[0.08em] text-white sm:text-5xl lg:text-6xl"
             >
-              Diagnóstico anatomopatológico
-              <span className="text-blue-300"> veterinario integral</span>
+              <span className="block uppercase">SERVICIO PATOLÓGICO</span>
+              <span className="block uppercase">VETNEB</span>
             </h1>
-            <p className="mb-8 max-w-2xl text-lg leading-relaxed text-blue-100 md:text-xl">
-              La anatomía patológica veterinaria estudia los motivos, el
-              desarrollo y las consecuencias de distintas enfermedades a partir
-              del análisis de tejidos, órganos y muestras celulares. Consultá
-              los resultados de tus informes las 24 hs desde el portal.
+            <p className="mt-4 text-lg font-medium tracking-[0.06em] text-slate-100 md:text-xl">
+              Dr. BARBÉ, NICOLÁS E.
             </p>
-            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+            <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
               <Button
                 asChild
                 size="lg"
-                className="w-full bg-white text-blue-900 hover:bg-blue-50 sm:w-auto"
+                className="w-full bg-white px-8 text-slate-900 hover:bg-slate-100 sm:w-auto"
               >
-                <Link href={ROUTES.login}>Acceder al portal</Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="w-full border-white/40 text-white hover:bg-white/10 sm:w-auto"
-              >
-                <Link href={ROUTES.contacto}>Solicitar acceso</Link>
+                <Link href={ROUTES.login}>
+                  ACCESO (CONOCÉ LOS RESULTADOS DE TUS ESTUDIOS)
+                </Link>
               </Button>
             </div>
+            <p className="mt-8 text-sm font-medium tracking-wide text-slate-100">
+              CONSULTÁ LOS RESULTADOS DE SUS INFORMES LAS 24 HS.
+            </p>
+            <p className="mt-3 text-sm text-slate-200">
+              Horario de atención Lunes a viernes de 8 a 17hs
+            </p>
+            <p className="mt-2 text-sm text-slate-100">
+              <a
+                href="https://wa.me/5493534138946"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium underline decoration-white/70 underline-offset-4 transition hover:text-white"
+              >
+                Whatsapp: 3534138946
+              </a>
+            </p>
           </div>
         </div>
-        <div
-          className="absolute bottom-0 left-0 right-0 h-16 bg-white"
-          style={{ clipPath: "ellipse(55% 100% at 50% 100%)" }}
-          aria-hidden="true"
-        />
       </section>
 
       {/* Servicios principales */}
