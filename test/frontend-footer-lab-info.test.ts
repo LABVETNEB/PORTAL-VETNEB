@@ -37,7 +37,7 @@ test("footer includes public FAQ content in the lower frontend area", () => {
   assert.ok(source.includes("tinciones especiales"));
 });
 
-test("footer includes laboratory contact information and Google Maps embed", () => {
+test("footer unifies laboratory info navigation access and reduced map", () => {
   const source = read(FOOTER_PATH);
 
   assert.ok(source.includes("Servicio Patológico VETNEB"));
@@ -45,23 +45,27 @@ test("footer includes laboratory contact information and Google Maps embed", () 
   assert.ok(source.includes("Lunes a viernes de 8 a 17hs"));
   assert.ok(source.includes("3534138946"));
   assert.ok(source.includes("lab.vetneb@gmail.com"));
+  assert.ok(source.includes('aria-label="Navegación secundaria"'));
+  assert.ok(source.includes("Navegación"));
+  assert.ok(source.includes("Acceso"));
+  assert.ok(source.includes("footerLinks.map((link) =>"));
+  assert.ok(source.includes("lg:grid-cols-[1.35fr_0.75fr_0.75fr_1.15fr]"));
   assert.ok(source.includes("https://www.google.com/maps?q="));
   assert.ok(source.includes("output=embed"));
+  assert.ok(source.includes('className="h-40 w-full"'));
   assert.ok(source.includes("Ubicación de Servicio Patológico VETNEB en Google Maps"));
 });
 
-test("footer keeps public navigation and does not expose private dashboard content", () => {
+test("footer removes redundant brand block and keeps public routes safe", () => {
   const source = read(FOOTER_PATH);
 
-  assert.ok(source.includes("rounded-md bg-primary px-3"));
-  assert.ok(source.includes("font-bold tracking-wide text-white"));
-  assert.ok(source.includes("VETNEB"));
-  assert.equal(source.includes(">VN<"), false);
-  assert.equal(source.includes("Portal VETNEB"), false);
+  assert.equal(source.includes("Laboratorio veterinario digital. Informes, estudios y gestión"), false);
+  assert.equal(source.includes("rounded-md bg-primary px-3"), false);
   assert.ok(source.includes("ROUTES.servicios"));
   assert.ok(source.includes("ROUTES.profesionales"));
   assert.ok(source.includes("ROUTES.clinicas"));
   assert.ok(source.includes("ROUTES.contacto"));
+  assert.ok(source.includes("ROUTES.login"));
   assert.equal(source.includes('"/dashboard"'), false);
   assert.equal(source.includes("admin_session_id"), false);
 });
