@@ -34,6 +34,13 @@ const labInfo = [
   "Horario: Lunes a viernes de 8 a 17hs",
 ];
 
+const footerLinks = [
+  { label: "Servicios", href: ROUTES.servicios },
+  { label: "Profesionales", href: ROUTES.profesionales },
+  { label: "Clínicas", href: ROUTES.clinicas },
+  { label: "Contacto", href: ROUTES.contacto },
+];
+
 const mapsEmbedUrl =
   "https://www.google.com/maps?q=Blvd.%20Italia%20274%2C%20Villa%20Maria%2C%20Cordoba%2C%20Argentina&output=embed";
 
@@ -79,7 +86,7 @@ export function Footer() {
         className="bg-white py-8"
         aria-labelledby="footer-lab-info-heading"
       >
-        <div className="container mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 md:grid-cols-2 lg:px-8">
+        <div className="container mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 md:grid-cols-2 lg:grid-cols-[1.35fr_0.75fr_0.75fr_1.15fr] lg:px-8">
           <div className="text-sm text-gray-950">
             <h2
               id="footer-lab-info-heading"
@@ -115,44 +122,12 @@ export function Footer() {
             </address>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-100 shadow-sm">
-            <iframe
-              title="Ubicación de Servicio Patológico VETNEB en Google Maps"
-              src={mapsEmbedUrl}
-              className="h-56 w-full"
-              loading="lazy"
-              allowFullScreen
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
-        </div>
-      </section>
-
-      <div className="container mx-auto px-4 py-10 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-          <div>
-            <div className="mb-3 flex items-center">
-              <span className="flex h-8 items-center justify-center rounded-md bg-primary px-3 text-sm font-bold tracking-wide text-white">
-                VETNEB
-              </span>
-            </div>
-            <p className="text-sm leading-relaxed text-gray-500">
-              Laboratorio veterinario digital. Informes, estudios y gestión
-              operativa para clínicas y profesionales.
-            </p>
-          </div>
-
-          <div>
-            <h3 className="mb-3 text-sm font-semibold text-gray-900">
+          <nav aria-label="Navegación secundaria">
+            <h3 className="mb-5 text-sm font-semibold text-gray-900">
               Navegación
             </h3>
-            <ul className="space-y-2">
-              {[
-                { label: "Servicios", href: ROUTES.servicios },
-                { label: "Profesionales", href: ROUTES.profesionales },
-                { label: "Clínicas", href: ROUTES.clinicas },
-                { label: "Contacto", href: ROUTES.contacto },
-              ].map((link) => (
+            <ul className="space-y-3">
+              {footerLinks.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
@@ -163,13 +138,13 @@ export function Footer() {
                 </li>
               ))}
             </ul>
-          </div>
+          </nav>
 
           <div>
-            <h3 className="mb-3 text-sm font-semibold text-gray-900">
+            <h3 className="mb-5 text-sm font-semibold text-gray-900">
               Acceso
             </h3>
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               <li>
                 <Link
                   href={ROUTES.login}
@@ -188,9 +163,22 @@ export function Footer() {
               </li>
             </ul>
           </div>
-        </div>
 
-        <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-8 sm:flex-row">
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-100 shadow-sm">
+            <iframe
+              title="Ubicación de Servicio Patológico VETNEB en Google Maps"
+              src={mapsEmbedUrl}
+              className="h-40 w-full"
+              loading="lazy"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
+        </div>
+      </section>
+
+      <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-6 sm:flex-row">
           <p className="text-xs text-gray-400">
             &copy; {year} VETNEB. Todos los derechos reservados.
           </p>
