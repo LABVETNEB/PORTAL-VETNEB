@@ -32,7 +32,7 @@ test("servicios public page exposes conversion CTAs", () => {
   assert.ok(source.includes('import Link from "next/link"'));
   assert.ok(source.includes('import { Button } from "@/components/ui/button"'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes"'));
-  assert.ok(source.includes("¿Necesitás digitalizar la gestión de estudios?"));
+  assert.ok(source.includes("Seguimos trabajando en mejorar"));
   assert.ok(source.includes("Solicitar información"));
   assert.ok(source.includes("Ver solución para clínicas"));
   assert.ok(source.includes("href={ROUTES.contacto}"));

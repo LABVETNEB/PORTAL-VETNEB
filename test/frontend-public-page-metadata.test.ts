@@ -20,7 +20,7 @@ test("servicios public page defines SEO metadata and services JSON-LD", () => {
   assert.ok(source.includes('import type { Metadata } from "next";'));
   assert.ok(source.includes('import { createPageMetadata, getServicesJsonLd } from "@/lib/seo";'));
   assert.ok(source.includes("export const metadata: Metadata = createPageMetadata("));
-  assert.ok(source.includes('"Laboratorio Patológico Veterinario: Histopatología, Citología y Hematología"'));
+  assert.ok(source.includes('"Servicio Patológico Veterinario: Histopatología, Citología y Hematología"'));
   assert.ok(source.includes('"/servicios"'));
   assert.ok(source.includes("const jsonLd = getServicesJsonLd();"));
   assert.ok(source.includes('type="application/ld+json"'));
