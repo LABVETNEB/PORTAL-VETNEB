@@ -131,11 +131,10 @@ export function Footer() {
       <div className="container mx-auto px-4 py-10 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
           <div>
-            <div className="mb-3 flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-sm font-bold text-white">
-                VN
-              </div>
-              <span className="font-semibold text-gray-900">Portal VETNEB</span>
+            <div className="mb-3 flex items-center">
+              <span className="flex h-8 items-center justify-center rounded-md bg-primary px-3 text-sm font-bold tracking-wide text-white">
+                VETNEB
+              </span>
             </div>
             <p className="text-sm leading-relaxed text-gray-500">
               Laboratorio veterinario digital. Informes, estudios y gestión
