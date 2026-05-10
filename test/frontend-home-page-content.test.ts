@@ -79,6 +79,10 @@ test("home page exposes final conversion CTA without private route metadata", ()
   assert.ok(source.includes("Seguimos trabajando en mejorar"));
   assert.ok(source.includes("Iniciar sesión"));
   assert.ok(source.includes("Contactar"));
+  assert.ok(source.includes("border border-white/70 bg-blue-950/20"));
+  assert.ok(source.includes("font-semibold text-white shadow-sm"));
+  assert.ok(source.includes("hover:bg-white hover:text-primary"));
+  assert.equal(source.includes("w-full border-white/40 text-white hover:bg-white/10 sm:w-auto"), false);
   assert.equal(source.includes('"/dashboard"'), false);
   assert.equal(source.includes('"/api"'), false);
 });

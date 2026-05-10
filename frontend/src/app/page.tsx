@@ -251,13 +251,12 @@ export default function HomePage() {
               <Link href={ROUTES.login}>Iniciar sesión</Link>
             </Button>
             <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="w-full border-white/40 text-white hover:bg-white/10 sm:w-auto"
-              >
-                <Link href={ROUTES.contacto}>Contactar</Link>
-              </Button>
+              asChild
+              size="lg"
+              className="w-full border border-white/70 bg-blue-950/20 font-semibold text-white shadow-sm hover:bg-white hover:text-primary sm:w-auto"
+            >
+              <Link href={ROUTES.contacto}>Contactar</Link>
+            </Button>
           </div>
         </div>
       </section>
