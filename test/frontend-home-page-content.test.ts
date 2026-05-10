@@ -30,20 +30,19 @@ test("home page exposes accessible hero and primary CTAs", () => {
 
   assert.ok(source.includes('aria-labelledby="hero-heading"'));
   assert.ok(source.includes('id="hero-heading"'));
-  assert.ok(source.includes("Diagnóstico anatomopatológico"));
-  assert.ok(source.includes("veterinario integral"));
-  assert.ok(source.includes("La anatomía patológica veterinaria estudia los motivos"));
-  assert.ok(source.includes("resultados de tus informes las 24 hs"));
-  assert.ok(source.includes("histopatología"));
-  assert.ok(source.includes("citología"));
-  assert.ok(source.includes("citopatología"));
-  assert.ok(source.includes("hematología"));
-  assert.ok(source.includes("diagnóstico hematológico"));
-  assert.ok(source.includes("hemoparásitos"));
+  assert.ok(source.includes('src="/images/hero-microscope-vetneb.jpg"'));
+  assert.ok(source.includes("SERVICIO PATOLÓGICO"));
+  assert.ok(source.includes("VETNEB"));
+  assert.ok(source.includes("Dr. BARBÉ, NICOLÁS E."));
+  assert.ok(source.includes("ACCESO (CONOCÉ LOS RESULTADOS DE TUS ESTUDIOS)"));
+  assert.ok(source.includes("CONSULTÁ LOS RESULTADOS DE SUS INFORMES LAS 24 HS."));
+  assert.ok(source.includes("Horario de atención Lunes a viernes de 8 a 17hs"));
+  assert.ok(source.includes("Whatsapp: 3534138946"));
+  assert.ok(source.includes('href="https://wa.me/5493534138946"'));
+  assert.ok(source.includes('target="_blank"'));
+  assert.ok(source.includes('rel="noopener noreferrer"'));
   assert.ok(source.includes('href={ROUTES.login}'));
-  assert.ok(source.includes("Acceder al portal"));
-  assert.ok(source.includes('href={ROUTES.contacto}'));
-  assert.ok(source.includes("Solicitar acceso"));
+  assert.ok(source.includes('import Image from "next/image";'));
 });
 
 test("home page lists core laboratory services and services route CTA", () => {
