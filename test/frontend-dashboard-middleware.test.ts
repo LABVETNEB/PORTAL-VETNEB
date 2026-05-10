@@ -23,8 +23,11 @@ test("frontend dashboard middleware exists and protects dashboard routes", () =>
 
   assert.ok(source.includes('from "next/server"'));
   assert.ok(source.includes('CLINIC_SESSION_COOKIE_NAME = "app_session_id"'));
+  assert.ok(source.includes('ADMIN_SESSION_COOKIE_NAME = "admin_session_id"'));
   assert.ok(source.includes('LOGIN_PATH = "/login"'));
-  assert.ok(source.includes('request.cookies.get(CLINIC_SESSION_COOKIE_NAME)'));
+  assert.ok(source.includes("request.cookies.get(CLINIC_SESSION_COOKIE_NAME)"));
+  assert.ok(source.includes("request.cookies.get(ADMIN_SESSION_COOKIE_NAME)"));
+  assert.ok(source.includes("hasClinicSession || hasAdminSession"));
   assert.ok(source.includes("NextResponse.next()"));
   assert.ok(source.includes("NextResponse.redirect(loginUrl)"));
   assert.ok(source.includes('matcher: ["/dashboard/:path*"]'));
@@ -46,7 +49,6 @@ test("frontend dashboard middleware stays scoped to frontend route protection", 
   const source = read(MIDDLEWARE_PATH);
 
   assert.equal(source.includes("fetch("), false);
-  assert.equal(source.includes("admin_session_id"), false);
   assert.equal(source.includes("particular_session_id"), false);
   assert.equal(source.includes("process.env"), false);
 });
