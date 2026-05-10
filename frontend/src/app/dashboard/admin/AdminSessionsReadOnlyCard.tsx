@@ -163,17 +163,17 @@ export function AdminSessionsReadOnlyCard() {
 
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <div className="surface-soft">
             <p className="text-xs text-gray-400">Total filtrado</p>
             <p className="mt-1 text-2xl font-bold text-gray-900">
               {snapshot?.total ?? "—"}
             </p>
           </div>
 
-          <label className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <label className="surface-soft">
             <span className="text-xs text-gray-400">Tipo de sesión</span>
             <select
-              className="mt-2 w-full rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-gray-700"
+              className="field-select mt-2"
               value={sessionType}
               onChange={(event) => {
                 setOffset(0);
@@ -187,10 +187,10 @@ export function AdminSessionsReadOnlyCard() {
             </select>
           </label>
 
-          <label className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <label className="surface-soft">
             <span className="text-xs text-gray-400">Estado</span>
             <select
-              className="mt-2 w-full rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-gray-700"
+              className="field-select mt-2"
               value={status}
               onChange={(event) => {
                 setOffset(0);
@@ -203,7 +203,7 @@ export function AdminSessionsReadOnlyCard() {
             </select>
           </label>
 
-          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <div className="surface-soft">
             <p className="text-xs text-gray-400">Página</p>
             <p className="mt-1 text-sm font-semibold text-gray-700">
               {Math.floor(offset / PAGE_SIZE) + 1}
@@ -215,12 +215,12 @@ export function AdminSessionsReadOnlyCard() {
         </div>
 
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-lg border border-gray-100">
+        <div className="overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>

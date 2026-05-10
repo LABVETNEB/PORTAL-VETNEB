@@ -77,3 +77,33 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .dashboard-main {
+    @apply flex-1 space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-7;
+  }
+
+  .surface-note-info {
+    @apply rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800;
+  }
+
+  .surface-empty {
+    @apply rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500;
+  }
+
+  .surface-soft {
+    @apply rounded-xl border border-gray-200 bg-gray-50 p-3;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-sm font-medium text-gray-700;
+  }
+
+  .field-select {
+    @apply flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm ring-offset-background transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2;
+  }
+
+  .field-textarea {
+    @apply flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm ring-offset-background placeholder:text-muted-foreground transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none;
+  }
+}

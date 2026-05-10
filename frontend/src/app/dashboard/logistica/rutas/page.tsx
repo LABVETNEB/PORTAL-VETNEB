@@ -41,12 +41,12 @@ export default async function RutasPage() {
         title="Planes de ruta"
         subtitle="Planificación y gestión de rutas de entrega"
       />
-      <main className="flex-1 p-6 space-y-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700">
+      <main className="dashboard-main">
+        <div className="surface-note-info">
           Lectura conectada a <code>GET /api/logistics/route-plans</code>.
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {(
             [
               { status: "draft", label: "Borradores" },

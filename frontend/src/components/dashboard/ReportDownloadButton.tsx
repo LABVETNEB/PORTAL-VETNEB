@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { getReportDownloadUrl } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 
 type ReportDownloadButtonProps = {
   reportId: number;
@@ -46,9 +47,11 @@ export function ReportDownloadButton({
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <button
+      <Button
         type="button"
-        className="text-xs text-primary hover:underline disabled:opacity-40"
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2 text-xs text-primary hover:text-primary"
         disabled={!hasStoragePath || isLoading}
         title={hasStoragePath ? "Descargar informe" : "Informe no disponible aún"}
         onClick={handleDownload}
@@ -58,7 +61,7 @@ export function ReportDownloadButton({
           : hasStoragePath
             ? "Descargar"
             : "No disponible"}
-      </button>
+      </Button>
 
       {errorMessage ? (
         <span className="max-w-40 text-right text-[11px] text-red-600" role="alert">

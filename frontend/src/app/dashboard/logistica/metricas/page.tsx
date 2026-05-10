@@ -70,13 +70,13 @@ export default async function MetricasPage() {
         title="Métricas de logística"
         subtitle="Cumplimiento, SLA y reportes operativos"
       />
-      <main className="flex-1 p-6 space-y-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700">
+      <main className="dashboard-main">
+        <div className="surface-note-info">
           Lectura conectada a{" "}
           <code>GET /api/logistics/route-plans/:id/metrics</code>.
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Card className="border-gray-100">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-500">
@@ -143,7 +143,7 @@ export default async function MetricasPage() {
                 return (
                   <div
                     key={metric.routePlanId}
-                    className="border border-gray-100 rounded-lg p-4 space-y-3"
+                    className="space-y-3 rounded-xl border border-gray-100 p-4"
                   >
                     <div className="flex items-center justify-between">
                       <h3 className="font-medium text-gray-900 text-sm">
@@ -200,7 +200,7 @@ export default async function MetricasPage() {
                 );
               })
             ) : (
-              <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+              <div className="surface-empty">
                 No hay métricas de ruta disponibles.
               </div>
             )}

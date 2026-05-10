@@ -9,17 +9,21 @@ interface DashboardTopbarProps {
 
 export function DashboardTopbar({ title, subtitle }: DashboardTopbarProps) {
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
-      <div>
-        <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
+    <header className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b bg-white/95 px-4 py-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/80 sm:px-6">
+      <div className="min-w-0">
+        <h1 className="truncate text-lg font-semibold text-gray-900 sm:text-xl">
+          {title}
+        </h1>
         {subtitle && (
-          <p className="text-xs text-gray-500">{subtitle}</p>
+          <p className="truncate text-xs text-gray-500 sm:text-sm">
+            {subtitle}
+          </p>
         )}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="ml-3 flex shrink-0 items-center gap-2 sm:gap-3">
         {/* Usuario mock — reemplazar con estado real de sesión */}
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
             CL
           </div>
           <span className="hidden sm:block">Clínica Demo</span>

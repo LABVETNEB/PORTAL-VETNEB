@@ -45,7 +45,7 @@ function MaintenanceCandidateRow({
   candidate: MaintenancePurgeCandidateGroup;
 }) {
   return (
-    <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+    <div className="surface-soft">
       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="text-sm font-semibold text-gray-800">
@@ -122,13 +122,13 @@ export function AdminMaintenanceDryRunCard() {
 
       <CardContent className="space-y-4">
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         ) : null}
 
         {!snapshot ? (
-          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+          <div className="surface-empty">
             Sin análisis ejecutado. Presioná{" "}
             <span className="font-semibold">Analizar limpieza</span> para
             consultar el endpoint dry-run.
@@ -136,25 +136,25 @@ export function AdminMaintenanceDryRunCard() {
         ) : (
           <>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <div className="surface-soft">
                 <p className="text-xs text-gray-400">Dry-run</p>
                 <Badge variant={snapshot.dryRun ? "default" : "destructive"}>
                   {snapshot.dryRun ? "true" : "false"}
                 </Badge>
               </div>
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <div className="surface-soft">
                 <p className="text-xs text-gray-400">Candidatos totales</p>
                 <p className="mt-1 text-2xl font-bold text-gray-900">
                   {snapshot.totals.candidateRecords}
                 </p>
               </div>
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <div className="surface-soft">
                 <p className="text-xs text-gray-400">Candidatos soportados</p>
                 <p className="mt-1 text-2xl font-bold text-gray-900">
                   {snapshot.totals.supportedCandidateRecords}
                 </p>
               </div>
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <div className="surface-soft">
                 <p className="text-xs text-gray-400">Grupos no soportados</p>
                 <p className="mt-1 text-2xl font-bold text-gray-900">
                   {snapshot.totals.unsupportedGroups}

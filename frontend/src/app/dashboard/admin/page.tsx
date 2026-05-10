@@ -299,8 +299,8 @@ export default async function AdminPage({
         title="Administración"
         subtitle="Auditoría, reportes y estado operacional"
       />
-      <main className="flex-1 p-6 space-y-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700">
+      <main className="dashboard-main">
+        <div className="surface-note-info">
           Lectura conectada a <code>GET /api/admin/audit-log</code>, <code>GET /api/admin/system/health</code>, <code>GET /api/admin/sessions</code>, <code>GET /api/admin/failed-login-alerts</code>, <code>GET /api/admin/users-roles</code> y <code>POST /api/admin/system/maintenance/purge-dry-run</code>.
         </div>
 
@@ -363,26 +363,26 @@ export default async function AdminPage({
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <div className="surface-soft">
                 <p className="text-xs text-gray-400 mb-2">Database</p>
                 <Badge variant={getServiceVariant(serviceChecks.database)}>
                   {formatServiceStatus(serviceChecks.database)}
                 </Badge>
               </div>
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <div className="surface-soft">
                 <p className="text-xs text-gray-400 mb-2">Storage</p>
                 <Badge variant={getServiceVariant(serviceChecks.storage)}>
                   {formatServiceStatus(serviceChecks.storage)}
                 </Badge>
               </div>
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <div className="surface-soft">
                 <p className="text-xs text-gray-400">Backend</p>
                 <p className="text-lg font-semibold text-gray-800 mt-1">
                   {systemHealth?.version ?? "—"}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">Versión activa</p>
               </div>
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <div className="surface-soft">
                 <p className="text-xs text-gray-400">Uptime</p>
                 <p className="text-lg font-semibold text-gray-800 mt-1">
                   {formatUptime(systemHealth?.runtime.uptimeSeconds)}
@@ -391,7 +391,7 @@ export default async function AdminPage({
                   Check: {formatHealthTimestamp(systemHealth?.health?.timestamp)}
                 </p>
               </div>
-                            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <div className="surface-soft">
                 <p className="text-xs text-gray-400">Memoria runtime</p>
                 <p className="text-lg font-semibold text-gray-800 mt-1">
                   {systemHealth?.runtime.memory.rssMb ?? "—"} MB
@@ -432,13 +432,13 @@ export default async function AdminPage({
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <div className="surface-soft">
                 <p className="text-xs text-gray-400">Cambios registrados</p>
                 <p className="mt-1 text-2xl font-bold text-gray-900">
                   {roleChangeAuditEntries.length}
                 </p>
               </div>
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <div className="surface-soft">
                 <p className="text-xs text-gray-400">Último cambio</p>
                 <p className="mt-1 text-sm font-semibold text-gray-800">
                   {lastRoleChangeAuditEntry
@@ -446,7 +446,7 @@ export default async function AdminPage({
                     : "—"}
                 </p>
               </div>
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <div className="surface-soft">
                 <p className="text-xs text-gray-400">Filtro audit</p>
                 <Link
                   href={buildAdminAuditFilterHref({
@@ -500,7 +500,7 @@ export default async function AdminPage({
           </CardHeader>
           <CardContent className="space-y-4 p-0">
             {hasActiveAuditFilters ? (
-              <div className="mx-6 mt-4 flex flex-col gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700 md:flex-row md:items-center md:justify-between">
+              <div className="mx-6 mt-4 flex flex-col gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700 md:flex-row md:items-center md:justify-between">
                 <span>
                   Mostrando {filteredAuditEntries.length} de {auditEntries.length} eventos.
                 </span>
@@ -585,3 +585,4 @@ export default async function AdminPage({
     </>
   );
 }
+

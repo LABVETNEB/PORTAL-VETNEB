@@ -96,11 +96,11 @@ export function UploadReportModal() {
 
       {isOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[1px]"
           role="presentation"
         >
           <div
-            className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl"
+            className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="upload-report-title"
@@ -131,7 +131,7 @@ export function UploadReportModal() {
               <div>
                 <label
                   htmlFor="upload-clinic-id"
-                  className="mb-1 block text-sm font-medium text-gray-700"
+                  className="field-label"
                 >
                   ID de clínica
                 </label>
@@ -150,7 +150,7 @@ export function UploadReportModal() {
               <div>
                 <label
                   htmlFor="upload-file"
-                  className="mb-1 block text-sm font-medium text-gray-700"
+                  className="field-label"
                 >
                   Archivo PDF
                 </label>
@@ -168,7 +168,7 @@ export function UploadReportModal() {
               <div>
                 <label
                   htmlFor="upload-patient-name"
-                  className="mb-1 block text-sm font-medium text-gray-700"
+                  className="field-label"
                 >
                   Paciente
                 </label>
@@ -185,14 +185,14 @@ export function UploadReportModal() {
               <div>
                 <label
                   htmlFor="upload-study-type"
-                  className="mb-1 block text-sm font-medium text-gray-700"
+                  className="field-label"
                 >
                   Tipo de estudio
                 </label>
                 <select
                   id="upload-study-type"
                   name="studyType"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="field-select"
                   value={studyType}
                   onChange={(event) => setStudyType(event.target.value)}
                   disabled={isSubmitting}
@@ -208,7 +208,7 @@ export function UploadReportModal() {
               <div>
                 <label
                   htmlFor="upload-date"
-                  className="mb-1 block text-sm font-medium text-gray-700"
+                  className="field-label"
                 >
                   Fecha de carga
                 </label>

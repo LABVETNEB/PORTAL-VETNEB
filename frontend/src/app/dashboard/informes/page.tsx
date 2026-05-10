@@ -53,12 +53,12 @@ export default async function InformesPage() {
         title="Informes"
         subtitle="Gestión de informes médicos veterinarios"
       />
-      <main className="flex-1 p-6 space-y-6">
+      <main className="dashboard-main">
         <div className="flex justify-end">
           <UploadReportModal />
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700">
+        <div className="surface-note-info">
           Lectura conectada a <code>GET /api/reports</code>.
         </div>
 
@@ -69,14 +69,14 @@ export default async function InformesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <Input
                 placeholder="Buscar por paciente o tipo de estudio..."
-                className="sm:max-w-xs"
+                className="sm:max-w-sm"
                 aria-label="Buscar informes"
               />
               <select
-                className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="field-select sm:w-56"
                 aria-label="Filtrar por estado"
               >
                 {statusOptions.map((opt) => (
