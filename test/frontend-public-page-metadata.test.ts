@@ -34,7 +34,7 @@ test("profesionales public page defines SEO metadata", () => {
   assert.ok(source.includes('import { createPageMetadata } from "@/lib/seo";'));
   assert.ok(source.includes("export const metadata: Metadata = createPageMetadata("));
   assert.ok(source.includes('"Red de Profesionales Veterinarios"'));
-  assert.ok(source.includes('"Directorio y red de profesionales veterinarios en Portal VETNEB.'));
+  assert.ok(source.includes('"Banco público de profesionales vinculados a VETNEB'));
   assert.ok(source.includes('"/profesionales"'));
 });
 

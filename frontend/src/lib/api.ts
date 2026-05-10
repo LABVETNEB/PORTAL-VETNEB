@@ -431,9 +431,87 @@ export async function getDashboardStats(
     ).length,
   };
 }
+export type PublicProfessional = {
+  clinicId: number;
+  displayName: string;
+  avatarUrl: string | null;
+  specialtyText: string | null;
+  servicesText: string | null;
+  email: string | null;
+  phone: string | null;
+  locality: string | null;
+  country: string | null;
+  aboutText: string | null;
+  updatedAt: string;
+  relevance: {
+    rank: number;
+    similarity: number;
+    score: number;
+  };
+  profileQualityScore: number | null;
+};
 
+export type PublicProfessionalsSearchSnapshot = {
+  success: true;
+  count: number;
+  total: number;
+  professionals: PublicProfessional[];
+  filters: {
+    query: string | null;
+    locality: string | null;
+    country: string | null;
+  };
+  pagination: {
+    limit: number;
+    offset: number;
+  };
+};
 
+export async function searchPublicProfessionals(
+  params: {
+    query?: string;
+    limit?: number;
+    offset?: number;
+  },
+  options?: RequestInit,
+): Promise<PublicProfessionalsSearchSnapshot> {
+  const query = new URLSearchParams();
 
+  if (params.query?.trim()) {
+    query.set("q", params.query.trim());
+  }
 
+  if (typeof params.limit === "number") {
+    query.set("limit", String(params.limit));
+  }
 
+  if (typeof params.offset === "number") {
+    query.set("offset", String(params.offset));
+  }
+
+  const qs = query.toString();
+
+  try {
+    return await apiFetch<PublicProfessionalsSearchSnapshot>(
+      `/api/public/professionals/search${qs ? `?${qs}` : ""}`,
+      options,
+    );
+  } catch {
+    return {
+      success: true,
+      count: 0,
+      total: 0,
+      professionals: [],
+      filters: {
+        query: params.query?.trim() || null,
+        locality: null,
+        country: null,
+      },
+      pagination: {
+        limit: params.limit ?? 20,
+        offset: params.offset ?? 0,
+      },
+    };
+  }
+}
 
