@@ -370,6 +370,137 @@ test("clinicAuthNativeRoutes bloquea preflight OPTIONS con origin no permitido",
   }
 });
 
+test("clinicAuthNativeRoutes responde 401 para username inexistente", async () => {
+  const app = await createTestApp({
+    getClinicUserByUsername: async () => null,
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      payload: {
+        username: "noexiste",
+        password: "noexiste",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Usuario o contraseña inválidos",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes responde 401 para password inválida", async () => {
+  const app = await createTestApp({
+    getClinicUserByUsername: async () => ({
+      id: 7,
+      clinicId: 3,
+      username: "vetneb",
+      passwordHash: "stored-hash",
+      authProId: null,
+      role: "clinic_staff",
+    }),
+    verifyPassword: async () => ({
+      valid: false,
+      needsRehash: false,
+    }),
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      payload: {
+        username: "vetneb",
+        password: "incorrecta",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Usuario o contraseña inválidos",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes responde 400 para credenciales faltantes", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      payload: {
+        username: "vetneb",
+      },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Usuario y contrasena son obligatorios",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes mantiene 401 aunque falle recordLoginFailedAttempt", async () => {
+  const app = await createTestApp({
+    getClinicUserByUsername: async () => null,
+    recordLoginFailedAttempt: async () => {
+      throw new Error("record failed attempt write failed");
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      payload: {
+        username: "noexiste",
+        password: "noexiste",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Usuario o contraseña inválidos",
+    });
+    assert.equal(
+      response.body.toLowerCase().includes("record failed attempt write failed"),
+      false,
+    );
+    assert.equal(
+      response.body.toLowerCase().includes("error interno del servidor"),
+      false,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
 test("clinicAuthNativeRoutes persiste failed login sin secretos", async () => {
   const attempts: Array<Record<string, unknown>> = [];
 

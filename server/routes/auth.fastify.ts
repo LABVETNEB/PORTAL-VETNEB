@@ -654,14 +654,25 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       username?: string | null;
       reason: LoginFailedAttemptReason;
     }) => {
-      await deps.recordLoginFailedAttempt({
-        surface: "clinic",
-        username: input.username?.trim() || null,
-        reason: input.reason,
-        ipAddress: request.ip || null,
-        userAgent: getUserAgent(request),
-        createdAt: new Date(currentTime),
-      });
+      try {
+        await deps.recordLoginFailedAttempt({
+          surface: "clinic",
+          username: input.username?.trim() || null,
+          reason: input.reason,
+          ipAddress: request.ip || null,
+          userAgent: getUserAgent(request),
+          createdAt: new Date(currentTime),
+        });
+      } catch (error) {
+        request.log.warn(
+          {
+            err: error,
+            surface: "clinic",
+            reason: input.reason,
+          },
+          "No se pudo persistir intento fallido de login clinic",
+        );
+      }
     };
 
     if (failureEntry.count >= loginRateLimitMaxAttempts) {
@@ -872,5 +883,4 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
     });
   });
 };
-
 
