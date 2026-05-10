@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+
 import { PublicLayout } from "@/components/layout/PublicLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createPageMetadata } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
@@ -55,51 +62,53 @@ const steps = [
   {
     number: "01",
     title: "Solicite acceso",
-    description: "Complete el formulario de contacto para registrar su clínica en Portal VETNEB.",
+    description:
+      "Complete el formulario de contacto para registrar su clínica en Portal VETNEB.",
   },
   {
     number: "02",
     title: "Configure su cuenta",
-    description: "Reciba sus credenciales y configure los usuarios de su equipo con los roles apropiados.",
+    description:
+      "Reciba sus credenciales y configure los usuarios de su equipo con los roles apropiados.",
   },
   {
     number: "03",
     title: "Acceda a sus informes",
-    description: "Desde el dashboard privado, acceda a todos los informes y estudios de su clínica.",
+    description:
+      "Desde el dashboard privado, acceda a todos los informes y estudios de su clínica.",
   },
   {
     number: "04",
     title: "Gestione su operación",
-    description: "Utilice las herramientas de seguimiento, logística y auditoría para optimizar su práctica.",
+    description:
+      "Utilice las herramientas de seguimiento, logística y auditoría para optimizar su práctica.",
   },
 ];
 
 export default function ClinicasPage() {
   return (
     <PublicLayout>
-      {/* Header */}
-      <section className="bg-gradient-to-br from-blue-900 to-blue-700 text-white py-16">
+      <section className="bg-gradient-to-br from-blue-900 to-blue-700 py-16 text-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+          <h1 className="mb-4 text-4xl font-bold md:text-5xl">
             Portal para clínicas veterinarias
           </h1>
-          <p className="text-xl text-blue-100 max-w-2xl">
+          <p className="max-w-2xl text-xl text-blue-100">
             Gestión centralizada de informes, estudios y logística para su
             clínica veterinaria. Acceso seguro, trazable y disponible las 24 hs.
           </p>
-          <div className="mt-8 flex flex-col sm:flex-row gap-4">
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row">
             <Button
               asChild
               size="lg"
-              className="bg-white text-blue-900 hover:bg-blue-50 font-semibold"
+              className="bg-white font-semibold text-blue-900 hover:bg-blue-50"
             >
               <Link href={ROUTES.login}>Acceder al portal</Link>
             </Button>
             <Button
               asChild
               size="lg"
-              variant="outline"
-              className="border-white/40 text-white hover:bg-white/10"
+              className="border border-white/70 bg-blue-950/20 font-semibold text-white shadow-sm hover:bg-white hover:text-blue-900"
             >
               <Link href={ROUTES.contacto}>Solicitar acceso</Link>
             </Button>
@@ -107,17 +116,19 @@ export default function ClinicasPage() {
         </div>
       </section>
 
-      {/* Funcionalidades */}
-      <section className="py-16 bg-white">
+      <section className="bg-white py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">
+          <h2 className="mb-8 text-center text-2xl font-bold text-gray-900">
             Todo lo que necesita su clínica
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {features.map((feature) => (
-              <Card key={feature.title} className="border-gray-100 hover:shadow-md transition-shadow">
+              <Card
+                key={feature.title}
+                className="border-gray-100 transition-shadow hover:shadow-md"
+              >
                 <CardHeader>
-                  <div className="text-3xl mb-2" aria-hidden="true">
+                  <div className="mb-2 text-3xl" aria-hidden="true">
                     {feature.icon}
                   </div>
                   <CardTitle className="text-lg">{feature.title}</CardTitle>
@@ -133,20 +144,23 @@ export default function ClinicasPage() {
         </div>
       </section>
 
-      {/* Cómo funciona */}
-      <section className="py-16 bg-gray-50">
+      <section className="bg-gray-50 py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">
+          <h2 className="mb-8 text-center text-2xl font-bold text-gray-900">
             Cómo comenzar
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             {steps.map((step) => (
               <div key={step.number} className="text-center">
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white font-bold text-lg mb-4">
+                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary text-lg font-bold text-white">
                   {step.number}
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">{step.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{step.description}</p>
+                <h3 className="mb-2 font-semibold text-gray-900">
+                  {step.title}
+                </h3>
+                <p className="text-sm leading-relaxed text-gray-500">
+                  {step.description}
+                </p>
               </div>
             ))}
           </div>

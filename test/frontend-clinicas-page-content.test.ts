@@ -31,10 +31,20 @@ test("clinicas page exposes hero content and primary CTAs", () => {
 
   assert.ok(source.includes("Portal para clínicas veterinarias"));
   assert.ok(source.includes("Gestión centralizada de informes, estudios y logística"));
-  assert.ok(source.includes('href={ROUTES.login}'));
+  assert.ok(source.includes("href={ROUTES.login}"));
   assert.ok(source.includes("Acceder al portal"));
-  assert.ok(source.includes('href={ROUTES.contacto}'));
+  assert.ok(source.includes("href={ROUTES.contacto}"));
   assert.ok(source.includes("Solicitar acceso"));
+});
+
+test("clinicas page keeps solicitar acceso CTA visible on blue hero background", () => {
+  const source = read(CLINICAS_PAGE_PATH);
+
+  assert.ok(source.includes("border border-white/70"));
+  assert.ok(source.includes("bg-blue-950/20"));
+  assert.ok(source.includes("font-semibold text-white"));
+  assert.ok(source.includes("hover:bg-white hover:text-blue-900"));
+  assert.equal(source.includes('variant="outline"'), false);
 });
 
 test("clinicas page lists operational feature cards", () => {
