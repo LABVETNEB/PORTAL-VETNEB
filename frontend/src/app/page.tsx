@@ -7,8 +7,8 @@ import { createPageMetadata, getOrganizationJsonLd, SITE_URL } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
 
 export const metadata: Metadata = createPageMetadata(
-  "Portal VETNEB — Laboratorio Veterinario Digital",
-  "Portal digital de laboratorio veterinario. Informes médicos, estudios veterinarios, gestión de clínicas y logística operativa para profesionales del sector.",
+  "Portal VETNEB — Laboratorio Patológico Veterinario",
+  "Laboratorio patológico veterinario para clínicas y profesionales: histopatología, citología, citopatología, hematología, diagnóstico hematológico, hemoparásitos e informes digitales.",
   "/",
 );
 
@@ -79,13 +79,13 @@ export default function HomePage() {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-blue-700/50 px-4 py-1.5 text-sm font-medium text-blue-100 mb-6">
               <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-              Laboratorio veterinario digital
+              Laboratorio patológico veterinario
             </div>
             <h1
               id="hero-heading"
               className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
             >
-              Gestión digital de
+              Diagnóstico patológico de
               <span className="text-blue-300"> laboratorio veterinario</span>
             </h1>
             <p className="text-lg md:text-xl text-blue-100 leading-relaxed mb-8 max-w-2xl">
@@ -130,7 +130,7 @@ export default function HomePage() {
               id="services-heading"
               className="text-3xl md:text-4xl font-bold text-gray-900 mb-4"
             >
-              Servicios del laboratorio
+              Servicios del laboratorio patológico veterinario
             </h2>
             <p className="text-lg text-gray-500 max-w-2xl mx-auto">
               Una plataforma completa para la gestión de diagnóstico veterinario

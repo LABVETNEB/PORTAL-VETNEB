@@ -21,7 +21,7 @@ test("servicios page defines metadata JSON-LD and public layout wiring", () => {
   assert.ok(source.includes('import { createPageMetadata, getServicesJsonLd } from "@/lib/seo";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
   assert.ok(source.includes("export const metadata: Metadata = createPageMetadata("));
-  assert.ok(source.includes('"Servicios de Laboratorio Veterinario"'));
+  assert.ok(source.includes('"Laboratorio Patológico Veterinario: Histopatología, Citología y Hematología"'));
   assert.ok(source.includes('"/servicios"'));
   assert.ok(source.includes("const jsonLd = getServicesJsonLd();"));
   assert.ok(source.includes('type="application/ld+json"'));
@@ -31,9 +31,9 @@ test("servicios page defines metadata JSON-LD and public layout wiring", () => {
 test("servicios page exposes hero content", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
-  assert.ok(source.includes("Servicios del laboratorio"));
-  assert.ok(source.includes("Soluciones digitales completas para la gestión de diagnóstico"));
-  assert.ok(source.includes("veterinario. Desde el estudio hasta la entrega del informe."));
+  assert.ok(source.includes("Servicios del laboratorio patológico veterinario"));
+  assert.ok(source.includes("Servicio patológico veterinario para clínicas y profesionales:"));
+  assert.ok(source.includes("histopatología, citología, citopatología, hematología, diagnóstico"));
 });
 
 test("servicios page lists laboratory service categories", () => {
@@ -41,7 +41,7 @@ test("servicios page lists laboratory service categories", () => {
 
   assert.ok(source.includes("const serviceCategories = ["));
   assert.ok(source.includes("Informes Médicos Veterinarios"));
-  assert.ok(source.includes("Estudios Veterinarios"));
+  assert.ok(source.includes("Patología, Histopatología y Citopatología Veterinaria"));
   assert.ok(source.includes("Gestión Digital de Clínicas"));
   assert.ok(source.includes("Logística Operativa"));
   assert.ok(source.includes("serviceCategories.map((service) =>"));
@@ -51,7 +51,10 @@ test("servicios page keeps detailed service feature bullets", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
   assert.ok(source.includes("Carga y procesamiento de estudios"));
-  assert.ok(source.includes("Hemograma completo y diferencial"));
+  assert.ok(source.includes("Histopatología veterinaria y anatomía patológica"));
+  assert.ok(source.includes("Citología veterinaria y citopatología diagnóstica"));
+  assert.ok(source.includes("Hematología veterinaria y diagnóstico hematológico"));
+  assert.ok(source.includes("Búsqueda y reporte de hemoparásitos veterinarios"));
   assert.ok(source.includes("Dashboard privado por clínica"));
   assert.ok(source.includes("Planificación de rutas de entrega"));
   assert.ok(source.includes("Métricas de cumplimiento y SLA"));
@@ -65,7 +68,14 @@ test("servicios page exposes conversion CTAs and SEO copy", () => {
   assert.ok(source.includes("Solicitar información"));
   assert.ok(source.includes('href={ROUTES.clinicas}'));
   assert.ok(source.includes("Ver solución para clínicas"));
-  assert.ok(source.includes("Laboratorio veterinario digital en Argentina"));
+  assert.ok(source.includes("Laboratorio patológico veterinario en Argentina"));
+  assert.ok(source.includes("Servicio patológico, histopatológico, citológico y hematológico veterinario"));
+  assert.ok(source.includes("histopatología veterinaria"));
+  assert.ok(source.includes("citología veterinaria"));
+  assert.ok(source.includes("citopatología"));
+  assert.ok(source.includes("hematología"));
+  assert.ok(source.includes("diagnóstico hematológico"));
+  assert.ok(source.includes("hemoparásitos"));
 });
 
 test("servicios page remains public and avoids direct backend/API calls", () => {
