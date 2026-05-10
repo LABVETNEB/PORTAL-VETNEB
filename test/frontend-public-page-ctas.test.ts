@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const PROFESIONALES_PAGE_PATH = "frontend/src/app/profesionales/page.tsx";
+const PROFESIONALES_SEARCH_CONTENT_PATH =
+  "frontend/src/components/public/ProfesionalesSearchContent.tsx";
 const SERVICIOS_PAGE_PATH = "frontend/src/app/servicios/page.tsx";
 
 function read(relativePath: string): string {
@@ -13,17 +15,18 @@ function read(relativePath: string): string {
   );
 }
 
-test("profesionales public page exposes actionable CTAs", () => {
-  const source = read(PROFESIONALES_PAGE_PATH);
+test("profesionales public page exposes search instead of conversion CTAs", () => {
+  const pageSource = read(PROFESIONALES_PAGE_PATH);
+  const contentSource = read(PROFESIONALES_SEARCH_CONTENT_PATH);
+  const combined = [pageSource, contentSource].join("\n");
 
-  assert.ok(source.includes('import Link from "next/link"'));
-  assert.ok(source.includes('import { Button } from "@/components/ui/button"'));
-  assert.ok(source.includes('import { ROUTES } from "@/lib/routes"'));
-  assert.ok(source.includes("¿Querés integrar tu práctica a Portal VETNEB?"));
-  assert.ok(source.includes("Contactar a VETNEB"));
-  assert.ok(source.includes("Ver portal para clínicas"));
-  assert.ok(source.includes("href={ROUTES.contacto}"));
-  assert.ok(source.includes("href={ROUTES.clinicas}"));
+  assert.ok(combined.includes("ProfesionalesSearchContent"));
+  assert.ok(combined.includes("Buscar profesionales"));
+  assert.ok(combined.includes('aria-label="Buscador de profesionales"'));
+  assert.ok(combined.includes('name="q"'));
+  assert.equal(combined.includes("¿Querés integrar tu práctica a Portal VETNEB?"), false);
+  assert.equal(combined.includes("Contactar a VETNEB"), false);
+  assert.equal(combined.includes("Ver portal para clínicas"), false);
 });
 
 test("servicios public page exposes conversion CTAs", () => {
