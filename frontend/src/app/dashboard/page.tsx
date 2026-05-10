@@ -48,14 +48,14 @@ export default async function DashboardPage() {
   return (
     <>
       <DashboardTopbar title="Dashboard" subtitle="Resumen operativo" />
-      <main className="flex-1 p-6 space-y-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
+      <main className="dashboard-main">
+        <div className="surface-note-info">
           Lectura conectada a datos operativos del backend.
         </div>
 
         <StatsCards stats={stats} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-4">
               <CardTitle className="text-base">Informes recientes</CardTitle>
@@ -87,7 +87,7 @@ export default async function DashboardPage() {
                   </div>
                 ))
               ) : (
-                <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                <p className="surface-empty">
                   No hay informes recientes disponibles.
                 </p>
               )}
@@ -125,7 +125,7 @@ export default async function DashboardPage() {
                   </div>
                 ))
               ) : (
-                <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+                <p className="surface-empty">
                   No hay visitas de campo recientes disponibles.
                 </p>
               )}
@@ -138,7 +138,7 @@ export default async function DashboardPage() {
             <CardTitle className="text-base">Accesos rápidos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               {[
                 { label: "Informes", href: ROUTES.dashboardInformes, icon: "📋" },
                 {
@@ -157,7 +157,7 @@ export default async function DashboardPage() {
                   key={item.href}
                   asChild
                   variant="outline"
-                  className="h-16 flex-col gap-1"
+                  className="h-16 flex-col gap-1 rounded-xl"
                 >
                   <Link href={item.href}>
                     <span className="text-xl" aria-hidden="true">

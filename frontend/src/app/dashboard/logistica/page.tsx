@@ -52,8 +52,13 @@ export default async function LogisticaPage() {
         title="Logística"
         subtitle="Visitas de campo y planes de ruta"
       />
-      <main className="flex-1 p-6 space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <main className="dashboard-main">
+        <div className="surface-note-info">
+          Lectura conectada a <code>GET /api/logistics/field-visits</code> y{" "}
+          <code>GET /api/logistics/route-plans</code>.
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card className="border-gray-100">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-500">
@@ -92,7 +97,7 @@ export default async function LogisticaPage() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {[
             {
               title: "Visitas de campo",
@@ -118,7 +123,7 @@ export default async function LogisticaPage() {
           ].map((module) => (
             <Card
               key={module.href}
-              className="border-gray-100 hover:shadow-md transition-shadow"
+              className="h-full border-gray-100 transition-shadow hover:shadow-md"
             >
               <CardHeader>
                 <div className="text-3xl mb-2" aria-hidden="true">
@@ -173,7 +178,7 @@ export default async function LogisticaPage() {
                 </div>
               ))
             ) : (
-              <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+              <p className="surface-empty">
                 No hay visitas recientes disponibles.
               </p>
             )}
@@ -212,7 +217,7 @@ export default async function LogisticaPage() {
                 </div>
               ))
             ) : (
-              <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+              <p className="surface-empty">
                 No hay planes de ruta disponibles.
               </p>
             )}

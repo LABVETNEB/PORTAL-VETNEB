@@ -101,12 +101,12 @@ export default function ServiciosPage() {
       />
 
       {/* Header */}
-      <section className="bg-gradient-to-br from-blue-900 to-blue-700 text-white py-16">
+      <section className="bg-gradient-to-br from-blue-900 to-blue-700 py-16 text-white md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+          <h1 className="mb-4 text-4xl font-bold leading-tight md:text-5xl">
             Servicios del laboratorio patológico veterinario
           </h1>
-          <p className="text-xl text-blue-100 max-w-2xl">
+          <p className="max-w-2xl text-lg leading-relaxed text-blue-100 md:text-xl">
             Servicio patológico veterinario para clínicas y profesionales:
             histopatología, citología, citopatología, hematología, diagnóstico
             hematológico, hemoparásitos e informes digitales.
@@ -115,17 +115,17 @@ export default function ServiciosPage() {
       </section>
 
       {/* Servicios */}
-      <section className="py-16 bg-white">
+      <section className="bg-white py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
             {serviceCategories.map((service) => (
               <Card
                 key={service.id}
                 id={service.id}
-                className="border-gray-100 hover:shadow-md transition-shadow"
+                className="h-full border-gray-100 transition-shadow hover:shadow-md"
               >
                 <CardHeader>
-                  <div className="text-4xl mb-3" aria-hidden="true">
+                  <div className="mb-2 text-4xl" aria-hidden="true">
                     {service.icon}
                   </div>
                   <CardTitle className="text-xl">{service.title}</CardTitle>
@@ -134,7 +134,7 @@ export default function ServiciosPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ul className="space-y-2">
+                  <ul className="space-y-2.5">
                     {service.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2">
                         <span
@@ -155,7 +155,7 @@ export default function ServiciosPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-16 bg-blue-50">
+      <section className="bg-blue-50 py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             ¿Necesitás digitalizar la gestión de estudios?
@@ -165,11 +165,11 @@ export default function ServiciosPage() {
             Portal VETNEB puede acompañar el flujo completo de informes,
             logística y trazabilidad.
           </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-3">
-            <Button asChild size="lg">
+          <div className="flex flex-col justify-center gap-3 sm:flex-row">
+            <Button asChild size="lg" className="w-full sm:w-auto">
               <Link href={ROUTES.contacto}>Solicitar información</Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
               <Link href={ROUTES.clinicas}>Ver solución para clínicas</Link>
             </Button>
           </div>
@@ -177,7 +177,7 @@ export default function ServiciosPage() {
       </section>
 
       {/* Autoridad patológica veterinaria */}
-      <section className="py-16 bg-white">
+      <section className="bg-white py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             Servicio patológico, histopatológico, citológico y hematológico veterinario
@@ -201,7 +201,7 @@ export default function ServiciosPage() {
       </section>
 
       {/* Texto SEO adicional */}
-      <section className="py-16 bg-gray-50">
+      <section className="bg-gray-50 py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             Laboratorio patológico veterinario en Argentina
@@ -222,7 +222,7 @@ export default function ServiciosPage() {
         </div>
       </section>
 
-      <section className="py-16 bg-white">
+      <section className="bg-white py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
             Diagnóstico citológico veterinario integrado

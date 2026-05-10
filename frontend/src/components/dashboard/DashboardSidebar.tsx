@@ -44,15 +44,15 @@ export function DashboardSidebar() {
 
   return (
     <aside
-      className="w-64 shrink-0 bg-sidebar text-sidebar-foreground flex flex-col min-h-screen"
+      className="flex min-h-screen w-[4.5rem] shrink-0 flex-col bg-sidebar text-sidebar-foreground sm:w-64"
       aria-label="Navegación del dashboard"
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-sidebar-primary text-white font-bold text-sm">
+      <div className="flex items-center justify-center gap-3 border-b border-sidebar-border px-2 py-5 sm:justify-start sm:px-6">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-sidebar-primary text-sm font-bold text-white">
           VN
         </div>
-        <div>
+        <div className="hidden sm:block">
           <p className="font-semibold text-sm text-sidebar-foreground">
             Portal VETNEB
           </p>
@@ -61,13 +61,13 @@ export function DashboardSidebar() {
       </div>
 
       {/* Navegación */}
-      <nav className="flex-1 px-3 py-4 space-y-1" aria-label="Menú principal">
+      <nav className="flex-1 space-y-1 px-2 py-4 sm:px-3" aria-label="Menú principal">
         {navItems.map((item) => (
           <div key={item.href}>
             <Link
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                "flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors sm:justify-start sm:px-3",
                 isActive(item.href, item.exact)
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
@@ -77,11 +77,11 @@ export function DashboardSidebar() {
               <span aria-hidden="true" className="text-base">
                 {item.icon}
               </span>
-              {item.label}
+              <span className="hidden sm:inline">{item.label}</span>
             </Link>
             {/* Sub-navegación */}
             {item.children && isActive(item.href) && (
-              <div className="ml-6 mt-1 space-y-1">
+              <div className="ml-6 mt-1 hidden space-y-1 sm:block">
                 {item.children.map((child) => (
                   <Link
                     key={child.href}
@@ -105,13 +105,13 @@ export function DashboardSidebar() {
       </nav>
 
       {/* Footer del sidebar */}
-      <div className="px-3 py-4 border-t border-sidebar-border">
+      <div className="border-t border-sidebar-border px-2 py-4 sm:px-3">
         <Link
           href={ROUTES.home}
-          className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+          className="flex items-center justify-center gap-2 rounded-md px-2 py-2 text-xs text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground sm:justify-start sm:px-3"
         >
           <span aria-hidden="true">←</span>
-          Volver al sitio público
+          <span className="hidden sm:inline">Volver al sitio público</span>
         </Link>
       </div>
     </aside>

@@ -61,24 +61,24 @@ export function LoginContent() {
     <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="mb-8 text-center">
           <Link
             href={ROUTES.home}
             className="inline-flex items-center gap-3"
             aria-label="Portal VETNEB — Inicio"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-primary font-bold text-lg">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-lg font-bold text-primary shadow-sm">
               VN
             </div>
-            <span className="text-white font-bold text-2xl">Portal VETNEB</span>
+            <span className="text-2xl font-bold text-white">Portal VETNEB</span>
           </Link>
-          <p className="text-blue-200 text-sm mt-2">
+          <p className="mt-2 text-sm text-blue-200">
             Laboratorio veterinario digital
           </p>
         </div>
 
-        <Card className="shadow-2xl border-0">
-          <CardHeader className="text-center pb-4">
+        <Card className="border border-white/80 bg-white/95 shadow-2xl backdrop-blur">
+          <CardHeader className="pb-4 text-center">
             <CardTitle className="text-xl">Iniciar sesión</CardTitle>
             <CardDescription>
               Ingrese sus credenciales para acceder al portal
@@ -93,7 +93,7 @@ export function LoginContent() {
               <div>
                 <label
                   htmlFor="username"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="field-label"
                 >
                   Usuario
                 </label>
@@ -113,7 +113,7 @@ export function LoginContent() {
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="field-label"
                 >
                   Contraseña
                 </label>
@@ -132,7 +132,7 @@ export function LoginContent() {
 
               {errorMessage ? (
                 <p
-                  className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2"
+                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
                   role="alert"
                 >
                   {errorMessage}
@@ -158,7 +158,7 @@ export function LoginContent() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-blue-300 text-xs mt-6">
+        <p className="mt-6 text-center text-xs text-blue-300">
           <Link href={ROUTES.home} className="hover:text-white transition-colors">
             ← Volver al sitio público
           </Link>

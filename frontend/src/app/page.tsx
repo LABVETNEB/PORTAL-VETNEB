@@ -72,32 +72,32 @@ export default function HomePage() {
 
       {/* Hero */}
       <section
-        className="relative bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white"
+        className="relative overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white"
         aria-labelledby="hero-heading"
       >
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+        <div className="container mx-auto px-4 py-16 sm:px-6 md:py-20 lg:px-8 lg:py-24">
           <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-blue-700/50 px-4 py-1.5 text-sm font-medium text-blue-100 mb-6">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-blue-700/50 px-4 py-1.5 text-sm font-medium text-blue-100">
               <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
               Laboratorio patológico veterinario
             </div>
             <h1
               id="hero-heading"
-              className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
+              className="mb-6 text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl"
             >
               Diagnóstico patológico de
               <span className="text-blue-300"> laboratorio veterinario</span>
             </h1>
-            <p className="text-lg md:text-xl text-blue-100 leading-relaxed mb-8 max-w-2xl">
+            <p className="mb-8 max-w-2xl text-lg leading-relaxed text-blue-100 md:text-xl">
               Portal centralizado para clínicas y profesionales veterinarios.
               Acceda a informes, estudios y logística operativa desde un único
               lugar seguro y confiable.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
               <Button
                 asChild
                 size="lg"
-                className="bg-white text-blue-900 hover:bg-blue-50 font-semibold"
+                className="w-full bg-white text-blue-900 hover:bg-blue-50 sm:w-auto"
               >
                 <Link href={ROUTES.login}>Acceder al portal</Link>
               </Button>
@@ -105,7 +105,7 @@ export default function HomePage() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="border-white/40 text-white hover:bg-white/10"
+                className="w-full border-white/40 text-white hover:bg-white/10 sm:w-auto"
               >
                 <Link href={ROUTES.contacto}>Solicitar acceso</Link>
               </Button>
@@ -121,7 +121,7 @@ export default function HomePage() {
 
       {/* Servicios principales */}
       <section
-        className="py-20 bg-white"
+        className="bg-white py-16 md:py-20"
         aria-labelledby="services-heading"
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -137,14 +137,14 @@ export default function HomePage() {
               y operaciones de laboratorio.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             {services.map((service) => (
               <Card
                 key={service.title}
-                className="border-gray-100 hover:shadow-md transition-shadow"
+                className="h-full border-gray-100 transition-shadow hover:shadow-md"
               >
                 <CardHeader>
-                  <div className="text-3xl mb-2" aria-hidden="true">
+                  <div className="mb-2 text-3xl" aria-hidden="true">
                     {service.icon}
                   </div>
                   <CardTitle className="text-lg">{service.title}</CardTitle>
@@ -157,7 +157,7 @@ export default function HomePage() {
               </Card>
             ))}
           </div>
-          <div className="text-center mt-10">
+          <div className="mt-10 text-center">
             <Button asChild variant="outline">
               <Link href={ROUTES.servicios}>Ver todos los servicios</Link>
             </Button>
@@ -167,7 +167,7 @@ export default function HomePage() {
 
       {/* Beneficios */}
       <section
-        className="py-20 bg-gray-50"
+        className="bg-gray-50 py-16 md:py-20"
         aria-labelledby="benefits-heading"
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -183,9 +183,9 @@ export default function HomePage() {
               necesitan eficiencia y confiabilidad.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
             {benefits.map((benefit) => (
-              <Card key={benefit.title} className="border-gray-200">
+              <Card key={benefit.title} className="h-full border-gray-200">
                 <CardHeader>
                   <CardTitle className="text-xl">{benefit.title}</CardTitle>
                 </CardHeader>
@@ -212,7 +212,7 @@ export default function HomePage() {
 
       {/* CTA final */}
       <section
-        className="py-20 bg-primary text-white"
+        className="bg-primary py-16 text-white md:py-20"
         aria-labelledby="cta-heading"
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -222,26 +222,26 @@ export default function HomePage() {
           >
             ¿Listo para digitalizar su laboratorio?
           </h2>
-          <p className="text-lg text-blue-100 mb-8 max-w-xl mx-auto">
+          <p className="mx-auto mb-8 max-w-xl text-lg text-blue-100">
             Únase a las clínicas y profesionales que ya gestionan sus estudios
             veterinarios de forma digital con Portal VETNEB.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
             <Button
               asChild
               size="lg"
-              className="bg-white text-primary hover:bg-blue-50 font-semibold"
+              className="w-full bg-white text-primary hover:bg-blue-50 sm:w-auto"
             >
               <Link href={ROUTES.login}>Iniciar sesión</Link>
             </Button>
             <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="border-white/40 text-white hover:bg-white/10"
-            >
-              <Link href={ROUTES.contacto}>Contactar</Link>
-            </Button>
+                asChild
+                size="lg"
+                variant="outline"
+                className="w-full border-white/40 text-white hover:bg-white/10 sm:w-auto"
+              >
+                <Link href={ROUTES.contacto}>Contactar</Link>
+              </Button>
           </div>
         </div>
       </section>

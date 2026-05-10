@@ -229,31 +229,31 @@ export function AdminUsersRolesReadOnlyCard() {
 
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
-          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <div className="surface-soft">
             <p className="text-xs text-gray-400">Total filtrado</p>
             <p className="mt-1 text-2xl font-bold text-gray-900">
               {snapshot?.total ?? "—"}
             </p>
           </div>
 
-          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <div className="surface-soft">
             <p className="text-xs text-gray-400">Admins</p>
             <p className="mt-1 text-2xl font-bold text-gray-900">
               {snapshot?.totals.adminUsers ?? "—"}
             </p>
           </div>
 
-          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <div className="surface-soft">
             <p className="text-xs text-gray-400">Clínicas</p>
             <p className="mt-1 text-2xl font-bold text-gray-900">
               {snapshot?.totals.clinicUsers ?? "—"}
             </p>
           </div>
 
-          <label className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <label className="surface-soft">
             <span className="text-xs text-gray-400">Tipo usuario</span>
             <select
-              className="mt-2 w-full rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-gray-700"
+              className="field-select mt-2"
               value={userType}
               disabled={disableUserActions}
               onChange={(event) => {
@@ -268,10 +268,10 @@ export function AdminUsersRolesReadOnlyCard() {
             </select>
           </label>
 
-          <label className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <label className="surface-soft">
             <span className="text-xs text-gray-400">Rol</span>
             <select
-              className="mt-2 w-full rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-gray-700"
+              className="field-select mt-2"
               value={role}
               disabled={disableUserActions}
               onChange={(event) => {
@@ -289,18 +289,18 @@ export function AdminUsersRolesReadOnlyCard() {
         </div>
 
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         ) : null}
 
         {roleChangeMessage ? (
-          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
             {roleChangeMessage}
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-lg border border-gray-100">
+        <div className="overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
