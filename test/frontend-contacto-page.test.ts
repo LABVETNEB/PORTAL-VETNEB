@@ -43,6 +43,21 @@ test("contacto content keeps public layout and contact form landmarks", () => {
   assert.ok(source.includes("Información de contacto"));
 });
 
+test("contacto content exposes real linked contact information", () => {
+  const source = read(CONTACTO_CONTENT_PATH);
+
+  assert.ok(source.includes("lab.vetneb@gmail.com"));
+  assert.ok(source.includes("mailto:lab.vetneb@gmail.com"));
+  assert.ok(source.includes("3534138946"));
+  assert.ok(source.includes("https://wa.me/5493534138946"));
+  assert.ok(source.includes("Villa María, Córdoba, Argentina"));
+  assert.ok(source.includes("hover:text-primary"));
+  assert.equal(source.includes("contacto@vetneb.com"), false);
+  assert.equal(source.includes("+54 11 0000-0000"), false);
+  assert.equal(source.includes("Buenos Aires, Argentina"), false);
+  assert.equal(source.includes("— datos de ejemplo —"), false);
+});
+
 test("contacto content keeps clinic onboarding guidance visible", () => {
   const source = read(CONTACTO_CONTENT_PATH);
 

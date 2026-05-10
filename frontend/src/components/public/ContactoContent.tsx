@@ -12,20 +12,20 @@ const contactInfo = [
   {
     icon: "📧",
     label: "Email",
-    value: "contacto@vetneb.com",
-    note: "— datos de ejemplo —",
+    value: "lab.vetneb@gmail.com",
+    href: "mailto:lab.vetneb@gmail.com",
   },
   {
     icon: "📞",
     label: "Teléfono",
-    value: "+54 11 0000-0000",
-    note: "— datos de ejemplo —",
+    value: "3534138946",
+    href: "https://wa.me/5493534138946",
   },
   {
     icon: "📍",
     label: "Ubicación",
-    value: "Buenos Aires, Argentina",
-    note: "— datos de ejemplo —",
+    value: "Villa María, Córdoba, Argentina",
+    href: null,
   },
 ];
 
@@ -81,7 +81,6 @@ export function ContactoContent() {
 
   return (
     <PublicLayout>
-      {/* Header */}
       <section className="bg-gradient-to-br from-blue-900 to-blue-700 text-white py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Contacto</h1>
@@ -95,7 +94,6 @@ export function ContactoContent() {
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-5xl mx-auto">
-            {/* Formulario conectado */}
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
                 Envíenos un mensaje
@@ -218,7 +216,6 @@ export function ContactoContent() {
               </form>
             </div>
 
-            {/* Información de contacto */}
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
                 Información de contacto
@@ -233,8 +230,16 @@ export function ContactoContent() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-gray-700 font-medium">{info.value}</p>
-                      <p className="text-xs text-amber-500 mt-1">{info.note}</p>
+                      {info.href ? (
+                        <a
+                          href={info.href}
+                          className="text-gray-700 font-medium underline underline-offset-2 hover:text-primary"
+                        >
+                          {info.value}
+                        </a>
+                      ) : (
+                        <p className="text-gray-700 font-medium">{info.value}</p>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
