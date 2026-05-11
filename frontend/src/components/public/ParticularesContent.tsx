@@ -2,6 +2,18 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import {
+  CalendarDays,
+  Download,
+  Eye,
+  FileText,
+  KeyRound,
+  LogOut,
+  PawPrint,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
 
 import {
   getParticularReportDownloadUrl,
@@ -21,6 +33,12 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AmbientOrbs,
+  Eyebrow,
+  PremiumPanel,
+  VisualIcon,
+} from "@/components/public/VisualAccents";
 
 function formatDate(value: string | null | undefined) {
   if (!value) {
@@ -39,6 +57,27 @@ function formatDate(value: string | null | undefined) {
     year: "numeric",
   }).format(date);
 }
+
+const accessHighlights = [
+  {
+    title: "Token",
+    description: "Ingreso individual entregado por VETNEB o clínica.",
+    icon: KeyRound,
+    tone: "blue" as const,
+  },
+  {
+    title: "Sesión",
+    description: "Cookie particular independiente del portal clínico.",
+    icon: ShieldCheck,
+    tone: "emerald" as const,
+  },
+  {
+    title: "Informe",
+    description: "Vista y descarga solo si el caso tiene informe asociado.",
+    icon: FileText,
+    tone: "amber" as const,
+  },
+];
 
 export function ParticularesContent() {
   const [token, setToken] = useState("");
@@ -127,12 +166,15 @@ export function ParticularesContent() {
   }
 
   return (
-    <section className="bg-gray-50 py-16">
-      <div className="container mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_0.95fr] lg:px-8">
+    <section className="relative overflow-hidden public-soft-canvas py-16 md:py-20">
+      <AmbientOrbs />
+      <div className="container relative z-10 mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_0.95fr] lg:px-8">
         <div>
-          <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-primary">
+          <Eyebrow className="border-blue-200/70 bg-white/70 text-primary shadow-sm">
+            <Sparkles className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
             Acceso para particulares
-          </p>
+          </Eyebrow>
+
           <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-gray-950 md:text-5xl">
             Consulte el estado de su caso con token seguro
           </h1>
@@ -143,170 +185,250 @@ export function ParticularesContent() {
           </p>
 
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[
-              ["Token", "Ingreso individual entregado por VETNEB o clínica."],
-              ["Sesión", "Cookie particular independiente del portal clínico."],
-              ["Informe", "Vista y descarga solo si el caso tiene informe asociado."],
-            ].map(([title, description]) => (
-              <div
-                key={title}
-                className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-              >
-                <h2 className="font-semibold text-gray-950">{title}</h2>
+            {accessHighlights.map((item) => (
+              <div key={item.title} className="premium-card-muted p-4">
+                <VisualIcon
+                  icon={item.icon}
+                  tone={item.tone}
+                  className="mb-4 h-11 w-11 rounded-xl"
+                />
+                <h2 className="font-semibold text-gray-950">{item.title}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-gray-500">
-                  {description}
+                  {item.description}
                 </p>
               </div>
             ))}
           </div>
+
+          <div className="mt-8 rounded-3xl border border-emerald-100 bg-gradient-to-r from-white/90 via-emerald-50/80 to-blue-50/80 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+            <div className="flex items-start gap-3">
+              <VisualIcon
+                icon={ShieldCheck}
+                tone="emerald"
+                className="h-10 w-10 shrink-0 rounded-xl"
+              />
+              <div>
+                <h2 className="font-semibold text-gray-950">
+                  Sesión separada del portal clínico
+                </h2>
+                <p className="mt-1 text-sm leading-relaxed text-gray-600">
+                  El token particular opera en una superficie aislada y limitada
+                  al caso individual autorizado.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <Card className="border-gray-200 bg-white shadow-lg">
-          <CardHeader>
-            <CardTitle>
-              {session ? "Sesión particular activa" : "Ingresar con token"}
-            </CardTitle>
-            <CardDescription>
-              {session
-                ? "Datos visibles para el token actualmente autenticado."
-                : "Pegue el token recibido para iniciar una sesión particular."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isCheckingSession ? (
-              <p className="text-sm text-gray-500">Verificando sesión...</p>
-            ) : session ? (
-              <div className="space-y-5">
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                    <div>
-                      <dt className="font-medium text-gray-500">Tutor</dt>
-                      <dd className="text-gray-950">{session.tutorLastName}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium text-gray-500">Mascota</dt>
-                      <dd className="text-gray-950">{session.petName}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium text-gray-500">Especie</dt>
-                      <dd className="text-gray-950">{session.petSpecies}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium text-gray-500">Raza</dt>
-                      <dd className="text-gray-950">{session.petBreed}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium text-gray-500">
-                        Extracción
-                      </dt>
-                      <dd className="text-gray-950">
-                        {formatDate(session.extractionDate)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="font-medium text-gray-500">Envío</dt>
-                      <dd className="text-gray-950">
-                        {formatDate(session.shippingDate)}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-
-                {session.report ? (
-                  <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-                    <h3 className="font-semibold text-blue-950">
-                      Informe vinculado
-                    </h3>
-                    <p className="mt-1 text-sm text-blue-900">
-                      {session.report.studyType ?? "Estudio"} ·{" "}
-                      {session.report.fileName ?? "Archivo disponible"}
-                    </p>
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                      <Button
-                        type="button"
-                        onClick={() => openReport("preview")}
-                        disabled={isOpeningReport}
-                      >
-                        Ver informe
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => openReport("download")}
-                        disabled={isOpeningReport}
-                      >
-                        Descargar
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                    El caso todavía no tiene un informe vinculado.
-                  </div>
-                )}
-
-                {errorMessage ? (
-                  <p
-                    className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-                    role="alert"
-                  >
-                    {errorMessage}
-                  </p>
-                ) : null}
-
-                <Button type="button" variant="secondary" onClick={handleLogout}>
-                  Cerrar sesión particular
-                </Button>
-              </div>
-            ) : (
-              <form
-                className="space-y-4"
-                aria-label="Formulario de acceso particular por token"
-                onSubmit={handleSubmit}
-              >
+        <PremiumPanel className="overflow-hidden">
+          <Card className="border-0 bg-transparent shadow-none">
+            <CardHeader className="border-b border-white/70 bg-gradient-to-r from-white/80 via-blue-50/70 to-emerald-50/70">
+              <div className="flex items-start gap-3">
+                <VisualIcon
+                  icon={session ? UserRound : KeyRound}
+                  tone={session ? "emerald" : "blue"}
+                  className="h-11 w-11 rounded-xl"
+                />
                 <div>
-                  <label htmlFor="particular-token" className="field-label">
-                    Token de acceso
-                  </label>
-                  <Input
-                    id="particular-token"
-                    name="token"
-                    type="password"
-                    placeholder="Ingrese el token recibido"
-                    autoComplete="one-time-code"
-                    required
-                    value={token}
-                    onChange={(event) => setToken(event.target.value)}
-                    disabled={isSubmitting}
-                  />
+                  <CardTitle className="text-xl text-gray-950">
+                    {session ? "Sesión particular activa" : "Ingresar con token"}
+                  </CardTitle>
+                  <CardDescription className="mt-1 leading-relaxed">
+                    {session
+                      ? "Datos visibles para el token actualmente autenticado."
+                      : "Pegue el token recibido para iniciar una sesión particular."}
+                  </CardDescription>
                 </div>
+              </div>
+            </CardHeader>
 
-                {errorMessage ? (
-                  <p
-                    className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-                    role="alert"
+            <CardContent className="pt-6">
+              {isCheckingSession ? (
+                <div className="premium-card-muted p-4 text-sm text-gray-500">
+                  Verificando sesión...
+                </div>
+              ) : session ? (
+                <div className="space-y-5">
+                  <div className="rounded-2xl border border-slate-200/80 bg-white/75 p-4 shadow-inner">
+                    <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                      <div className="rounded-xl bg-slate-50/80 p-3">
+                        <dt className="flex items-center gap-1.5 font-medium text-gray-500">
+                          <UserRound className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                          Tutor
+                        </dt>
+                        <dd className="mt-1 font-semibold text-gray-950">
+                          {session.tutorLastName}
+                        </dd>
+                      </div>
+                      <div className="rounded-xl bg-slate-50/80 p-3">
+                        <dt className="flex items-center gap-1.5 font-medium text-gray-500">
+                          <PawPrint className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                          Mascota
+                        </dt>
+                        <dd className="mt-1 font-semibold text-gray-950">
+                          {session.petName}
+                        </dd>
+                      </div>
+                      <div className="rounded-xl bg-slate-50/80 p-3">
+                        <dt className="font-medium text-gray-500">Especie</dt>
+                        <dd className="mt-1 text-gray-950">
+                          {session.petSpecies}
+                        </dd>
+                      </div>
+                      <div className="rounded-xl bg-slate-50/80 p-3">
+                        <dt className="font-medium text-gray-500">Raza</dt>
+                        <dd className="mt-1 text-gray-950">
+                          {session.petBreed}
+                        </dd>
+                      </div>
+                      <div className="rounded-xl bg-slate-50/80 p-3">
+                        <dt className="flex items-center gap-1.5 font-medium text-gray-500">
+                          <CalendarDays className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                          Extracción
+                        </dt>
+                        <dd className="mt-1 text-gray-950">
+                          {formatDate(session.extractionDate)}
+                        </dd>
+                      </div>
+                      <div className="rounded-xl bg-slate-50/80 p-3">
+                        <dt className="flex items-center gap-1.5 font-medium text-gray-500">
+                          <CalendarDays className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                          Envío
+                        </dt>
+                        <dd className="mt-1 text-gray-950">
+                          {formatDate(session.shippingDate)}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+
+                  {session.report ? (
+                    <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-emerald-50 p-4 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <VisualIcon
+                          icon={FileText}
+                          tone="blue"
+                          className="h-10 w-10 shrink-0 rounded-xl"
+                        />
+                        <div>
+                          <h3 className="font-semibold text-blue-950">
+                            Informe vinculado
+                          </h3>
+                          <p className="mt-1 text-sm text-blue-900">
+                            {session.report.studyType ?? "Estudio"} ·{" "}
+                            {session.report.fileName ?? "Archivo disponible"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                        <Button
+                          type="button"
+                          onClick={() => openReport("preview")}
+                          disabled={isOpeningReport}
+                          className="bg-gradient-to-r from-blue-700 to-teal-600 shadow-[0_14px_35px_rgba(37,99,235,0.20)] hover:from-blue-800 hover:to-teal-700"
+                        >
+                          <Eye className="h-4 w-4" aria-hidden="true" />
+                          Ver informe
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => openReport("download")}
+                          disabled={isOpeningReport}
+                          className="bg-white/80"
+                        >
+                          <Download className="h-4 w-4" aria-hidden="true" />
+                          Descargar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 text-sm text-amber-900 shadow-sm">
+                      El caso todavía no tiene un informe vinculado.
+                    </div>
+                  )}
+
+                  {errorMessage ? (
+                    <p
+                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                      role="alert"
+                    >
+                      {errorMessage}
+                    </p>
+                  ) : null}
+
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleLogout}
+                    className="bg-slate-100 text-slate-700 hover:bg-slate-200"
                   >
-                    {errorMessage}
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
+                    Cerrar sesión particular
+                  </Button>
+                </div>
+              ) : (
+                <form
+                  className="space-y-4"
+                  aria-label="Formulario de acceso particular por token"
+                  onSubmit={handleSubmit}
+                >
+                  <div>
+                    <label htmlFor="particular-token" className="field-label">
+                      Token de acceso
+                    </label>
+                    <div className="relative">
+                      <KeyRound
+                        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                        aria-hidden="true"
+                      />
+                      <Input
+                        id="particular-token"
+                        name="token"
+                        type="password"
+                        placeholder="Ingrese el token recibido"
+                        autoComplete="one-time-code"
+                        required
+                        value={token}
+                        onChange={(event) => setToken(event.target.value)}
+                        disabled={isSubmitting}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  {errorMessage ? (
+                    <p
+                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                      role="alert"
+                    >
+                      {errorMessage}
+                    </p>
+                  ) : null}
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-blue-700 to-teal-600 shadow-[0_14px_35px_rgba(37,99,235,0.22)] hover:from-blue-800 hover:to-teal-700"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "Validando token..." : "Ingresar"}
+                  </Button>
+
+                  <p className="text-center text-sm text-gray-500">
+                    ¿Tiene credenciales de clínica?{" "}
+                    <Link
+                      href={ROUTES.login}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      Inicie sesión en el portal
+                    </Link>
                   </p>
-                ) : null}
-
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? "Validando token..." : "Ingresar"}
-                </Button>
-
-                <p className="text-center text-sm text-gray-500">
-                  ¿Tiene credenciales de clínica?{" "}
-                  <Link
-                    href={ROUTES.login}
-                    className="font-medium text-primary hover:underline"
-                  >
-                    Inicie sesión en el portal
-                  </Link>
-                </p>
-              </form>
-            )}
-          </CardContent>
-        </Card>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        </PremiumPanel>
       </div>
     </section>
   );

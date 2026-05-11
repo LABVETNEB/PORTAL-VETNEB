@@ -2,8 +2,18 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  BriefcaseMedical,
+  Mail,
+  MapPin,
+  Phone,
+  Search,
+  Sparkles,
+  UserRoundSearch,
+} from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { AmbientOrbs, Eyebrow, VisualIcon } from "@/components/public/VisualAccents";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -92,73 +102,93 @@ export function ProfesionalesSearchContent() {
 
   return (
     <PublicLayout>
-      <section className="bg-gradient-to-br from-blue-900 to-blue-700 py-16 text-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="mb-4 text-4xl font-bold md:text-5xl">
+      <section className="public-hero-depth py-16 text-white md:py-20">
+        <AmbientOrbs variant="dark" />
+        <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
+          <Eyebrow>
+            <Sparkles className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+            Banco profesional
+          </Eyebrow>
+          <h1 className="mb-4 max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
             Red de profesionales veterinarios
           </h1>
-          <p className="max-w-2xl text-xl text-blue-100">
-            Banco público de profesionales vinculados a VETNEB.
+          <p className="max-w-2xl text-xl leading-relaxed text-blue-50">
+            Banco público de profesionales vinculados a VETNEB, con búsqueda
+            directa, clara y optimizada para datos reales.
           </p>
         </div>
       </section>
 
-      <section className="bg-white py-16">
+      <section className="public-soft-canvas py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-4xl">
-            <h2 className="mb-3 text-2xl font-bold text-gray-900">
-              Buscar profesionales
-            </h2>
-            <p className="mb-6 text-sm leading-relaxed text-gray-600">
-              Ingrese texto libre, incluso una sola letra. La búsqueda admite coincidencias por nombre,
-              especialidad, servicios, localidad, país, email, teléfono o
-              descripción para reducir errores por escritura parcial.
-            </p>
+            <div className="mb-6 flex items-start gap-4">
+              <VisualIcon icon={UserRoundSearch} tone="blue" className="hidden sm:inline-flex" />
+              <div>
+                <h2 className="mb-3 text-2xl font-bold text-gray-950">
+                  Buscar profesionales
+                </h2>
+                <p className="text-sm leading-relaxed text-gray-600">
+                  Ingrese texto libre, incluso una sola letra. La búsqueda admite coincidencias por nombre,
+                  especialidad, servicios, localidad, país, email, teléfono o
+                  descripción para reducir errores por escritura parcial.
+                </p>
+              </div>
+            </div>
 
             <form
-              className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 sm:flex-row"
+              className="premium-card flex flex-col gap-3 p-4 sm:flex-row"
               aria-label="Buscador de profesionales"
               onSubmit={handleSubmit}
             >
               <label htmlFor="professional-search" className="sr-only">
                 Buscar profesional
               </label>
-              <input
-                id="professional-search"
-                name="q"
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar desde una letra: nombre, especialidad, localidad o dato asociado"
-                className="h-11 flex-1 rounded-md border border-input bg-white px-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              />
-              <Button type="submit" className="h-11">
+              <div className="relative flex-1">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                  aria-hidden="true"
+                />
+                <input
+                  id="professional-search"
+                  name="q"
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Buscar desde una letra: nombre, especialidad, localidad o dato asociado"
+                  className="h-11 w-full rounded-xl border border-input bg-white/90 pl-10 pr-3 text-sm shadow-inner ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="h-11 bg-gradient-to-r from-blue-700 to-teal-600 shadow-[0_14px_35px_rgba(37,99,235,0.22)] hover:from-blue-800 hover:to-teal-700"
+              >
                 Buscar
               </Button>
             </form>
 
             <div className="mt-8" aria-live="polite">
               {!currentQuery ? (
-                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-sm text-gray-500">
+                <div className="premium-card-muted p-6 text-sm text-gray-500">
                   Realice una búsqueda para consultar el banco público de
                   profesionales.
                 </div>
               ) : null}
 
               {state.status === "loading" ? (
-                <div className="rounded-xl border border-blue-100 bg-blue-50 p-6 text-sm text-blue-700">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/90 p-6 text-sm text-blue-700 shadow-sm">
                   Buscando profesionales...
                 </div>
               ) : null}
 
               {state.status === "error" ? (
-                <div className="rounded-xl border border-red-100 bg-red-50 p-6 text-sm text-red-700">
+                <div className="rounded-2xl border border-red-100 bg-red-50 p-6 text-sm text-red-700 shadow-sm">
                   No se pudo realizar la búsqueda. Intente nuevamente.
                 </div>
               ) : null}
 
               {state.status === "success" && state.professionals.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-sm text-gray-500">
+                <div className="premium-card-muted p-6 text-sm text-gray-500">
                   No se encontraron profesionales para “{currentQuery}”.
                 </div>
               ) : null}
@@ -172,14 +202,26 @@ export function ProfesionalesSearchContent() {
                     {state.professionals.map((professional) => (
                       <Card
                         key={professional.clinicId}
-                        className="border-gray-100"
+                        className="premium-card overflow-hidden"
                       >
-                        <CardHeader>
-                          <CardTitle className="text-lg">
-                            {professional.displayName}
-                          </CardTitle>
+                        <CardHeader className="border-b border-slate-100/80 bg-gradient-to-r from-white via-blue-50/50 to-emerald-50/50">
+                          <div className="flex items-start gap-3">
+                            <VisualIcon icon={BriefcaseMedical} tone="emerald" className="h-11 w-11 rounded-xl" />
+                            <div>
+                              <CardTitle className="text-lg text-gray-950">
+                                {professional.displayName}
+                              </CardTitle>
+                              {(professional.locality || professional.country) ? (
+                                <p className="mt-1 text-xs text-gray-500">
+                                  {[professional.locality, professional.country]
+                                    .filter(Boolean)
+                                    .join(", ")}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
                         </CardHeader>
-                        <CardContent className="space-y-3 text-sm text-gray-600">
+                        <CardContent className="space-y-3 pt-5 text-sm text-gray-600">
                           {professional.specialtyText ? (
                             <p>{professional.specialtyText}</p>
                           ) : null}
@@ -191,13 +233,14 @@ export function ProfesionalesSearchContent() {
                               {professional.aboutText}
                             </p>
                           ) : null}
-                          <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             {professional.locality || professional.country ? (
-                              <div>
-                                <dt className="font-medium text-gray-900">
+                              <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
+                                <dt className="flex items-center gap-1.5 font-medium text-gray-950">
+                                  <MapPin className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                                   Ubicación
                                 </dt>
-                                <dd>
+                                <dd className="mt-1 text-gray-600">
                                   {[professional.locality, professional.country]
                                     .filter(Boolean)
                                     .join(", ")}
@@ -205,11 +248,12 @@ export function ProfesionalesSearchContent() {
                               </div>
                             ) : null}
                             {professional.email ? (
-                              <div>
-                                <dt className="font-medium text-gray-900">
+                              <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
+                                <dt className="flex items-center gap-1.5 font-medium text-gray-950">
+                                  <Mail className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                                   Email
                                 </dt>
-                                <dd>
+                                <dd className="mt-1">
                                   <a
                                     href={`mailto:${professional.email}`}
                                     className="underline underline-offset-2 hover:text-primary"
@@ -220,11 +264,12 @@ export function ProfesionalesSearchContent() {
                               </div>
                             ) : null}
                             {professional.phone ? (
-                              <div>
-                                <dt className="font-medium text-gray-900">
+                              <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
+                                <dt className="flex items-center gap-1.5 font-medium text-gray-950">
+                                  <Phone className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                                   Teléfono
                                 </dt>
-                                <dd>
+                                <dd className="mt-1">
                                   <a
                                     href={`https://wa.me/549${professional.phone.replace(/\D/g, "")}`}
                                     className="underline underline-offset-2 hover:text-primary"
