@@ -7,6 +7,7 @@ const navLinks = [
   { label: "Servicios", href: ROUTES.servicios },
   { label: "Profesionales", href: ROUTES.profesionales },
   { label: "Clínicas", href: ROUTES.clinicas },
+  { label: "Particulares", href: ROUTES.particulares },
   { label: "Contacto", href: ROUTES.contacto },
 ];
 
