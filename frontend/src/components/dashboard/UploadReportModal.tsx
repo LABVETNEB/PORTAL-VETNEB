@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
+import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -12,12 +14,13 @@ const STUDY_TYPE_OPTIONS = [
   { value: "histopathology", label: "Histopatología" },
   { value: "cytology", label: "Citología" },
   { value: "immunohistochemistry", label: "Inmunohistoquímica" },
-  { value: "special_stain", label: "Tinción especial" },
+  { value: "special_stain", label: "Hematología" },
 ];
 
 export function UploadReportModal() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [clinicId, setClinicId] = useState("");
   const [patientName, setPatientName] = useState("");
@@ -26,6 +29,10 @@ export function UploadReportModal() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   function resetForm() {
     setClinicId("");
@@ -36,6 +43,16 @@ export function UploadReportModal() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  }
+
+  function closeModal() {
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsOpen(false);
+    setErrorMessage(null);
+    setSuccessMessage(null);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -88,162 +105,164 @@ export function UploadReportModal() {
     }
   }
 
+  const modal = isOpen ? (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+      role="presentation"
+    >
+      <div
+        className="relative z-[10000] w-full max-w-lg rounded-2xl border border-white/80 bg-white p-6 text-slate-950 shadow-[0_32px_120px_rgba(2,6,23,0.42)]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upload-report-title"
+      >
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h2
+              id="upload-report-title"
+              className="text-lg font-semibold text-gray-900"
+            >
+              Subir informe
+            </h2>
+            <p className="text-sm text-gray-500">
+              Cargue un PDF y asócielo a una clínica.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={closeModal}
+            disabled={isSubmitting}
+          >
+            Cerrar
+          </Button>
+        </div>
+
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div>
+            <label
+              htmlFor="upload-clinic-id"
+              className="field-label"
+            >
+              ID de clínica
+            </label>
+            <Input
+              id="upload-clinic-id"
+              name="clinicId"
+              type="number"
+              min="1"
+              required
+              value={clinicId}
+              onChange={(event) => setClinicId(event.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="upload-file"
+              className="field-label"
+            >
+              Archivo PDF
+            </label>
+            <Input
+              id="upload-file"
+              name="file"
+              type="file"
+              accept="application/pdf"
+              ref={fileInputRef}
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="upload-patient-name"
+              className="field-label"
+            >
+              Paciente
+            </label>
+            <Input
+              id="upload-patient-name"
+              name="patientName"
+              type="text"
+              value={patientName}
+              onChange={(event) => setPatientName(event.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="upload-study-type"
+              className="field-label"
+            >
+              Tipo de estudio
+            </label>
+            <select
+              id="upload-study-type"
+              name="studyType"
+              className="field-select"
+              value={studyType}
+              onChange={(event) => setStudyType(event.target.value)}
+              disabled={isSubmitting}
+            >
+              {STUDY_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="upload-date"
+              className="field-label"
+            >
+              Fecha de carga
+            </label>
+            <Input
+              id="upload-date"
+              name="uploadDate"
+              type="date"
+              value={uploadDate}
+              onChange={(event) => setUploadDate(event.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+
+          {errorMessage ? (
+            <p
+              className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              role="alert"
+            >
+              {errorMessage}
+            </p>
+          ) : null}
+
+          {successMessage ? (
+            <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              {successMessage}
+            </p>
+          ) : null}
+
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? "Subiendo informe..." : "Subir informe"}
+          </Button>
+        </form>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div>
       <Button type="button" onClick={() => setIsOpen(true)}>
         Subir informe
       </Button>
 
-      {isOpen ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[1px]"
-          role="presentation"
-        >
-          <div
-            className="relative z-[101] w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-white/80"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="upload-report-title"
-          >
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
-                <h2
-                  id="upload-report-title"
-                  className="text-lg font-semibold text-gray-900"
-                >
-                  Subir informe
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Cargue un PDF y asócielo a una clínica.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsOpen(false)}
-                disabled={isSubmitting}
-              >
-                Cerrar
-              </Button>
-            </div>
-
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div>
-                <label
-                  htmlFor="upload-clinic-id"
-                  className="field-label"
-                >
-                  ID de clínica
-                </label>
-                <Input
-                  id="upload-clinic-id"
-                  name="clinicId"
-                  type="number"
-                  min="1"
-                  required
-                  value={clinicId}
-                  onChange={(event) => setClinicId(event.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="upload-file"
-                  className="field-label"
-                >
-                  Archivo PDF
-                </label>
-                <Input
-                  id="upload-file"
-                  name="file"
-                  type="file"
-                  accept="application/pdf"
-                  ref={fileInputRef}
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="upload-patient-name"
-                  className="field-label"
-                >
-                  Paciente
-                </label>
-                <Input
-                  id="upload-patient-name"
-                  name="patientName"
-                  type="text"
-                  value={patientName}
-                  onChange={(event) => setPatientName(event.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="upload-study-type"
-                  className="field-label"
-                >
-                  Tipo de estudio
-                </label>
-                <select
-                  id="upload-study-type"
-                  name="studyType"
-                  className="field-select"
-                  value={studyType}
-                  onChange={(event) => setStudyType(event.target.value)}
-                  disabled={isSubmitting}
-                >
-                  {STUDY_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="upload-date"
-                  className="field-label"
-                >
-                  Fecha de carga
-                </label>
-                <Input
-                  id="upload-date"
-                  name="uploadDate"
-                  type="date"
-                  value={uploadDate}
-                  onChange={(event) => setUploadDate(event.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              {errorMessage ? (
-                <p
-                  className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-                  role="alert"
-                >
-                  {errorMessage}
-                </p>
-              ) : null}
-
-              {successMessage ? (
-                <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-                  {successMessage}
-                </p>
-              ) : null}
-
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Subiendo informe..." : "Subir informe"}
-              </Button>
-            </form>
-          </div>
-        </div>
-      ) : null}
+      {isMounted && modal ? createPortal(modal, document.body) : null}
     </div>
   );
 }
