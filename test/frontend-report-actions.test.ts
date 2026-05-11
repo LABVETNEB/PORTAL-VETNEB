@@ -24,7 +24,7 @@ test("upload report modal is client-side and imports upload dependencies", () =>
   assert.ok(source.includes('import { uploadAdminReport } from "@/lib/api";'));
   assert.ok(source.includes('import { getAdminUsersRoles } from "@/lib/api";'));
   assert.ok(source.includes("getAdminParticularTokens"));
-  assert.ok(source.includes("linkAdminParticularTokenReport"));
+  assert.ok(source.includes("createAdminStudyTrackingCase"));
 });
 
 test("upload report modal keeps study type options", () => {
@@ -79,9 +79,10 @@ test("upload report modal calls upload API refreshes dashboard and handles error
   const source = read(UPLOAD_REPORT_MODAL_PATH);
 
   assert.ok(source.includes("const response = await uploadAdminReport(formData);"));
-  assert.ok(source.includes("await linkAdminParticularTokenReport("));
+  assert.ok(source.includes("const trackingResponse = await createAdminStudyTrackingCase({"));
   assert.ok(source.includes("response.report.id"));
-  assert.ok(source.includes("Token particular vinculado al informe."));
+  assert.ok(source.includes("trackingResponse.trackingCase.estimatedDeliveryAt"));
+  assert.ok(source.includes("Seguimiento particular creado con entrega estimada"));
   assert.ok(source.includes("setSuccessMessage(response.message);"));
   assert.ok(source.includes("resetForm();"));
   assert.ok(source.includes("router.refresh();"));
@@ -117,6 +118,8 @@ test("upload report modal renders accessible dialog and form controls", () => {
   assert.ok(source.includes('id="upload-study-type"'));
   assert.ok(source.includes('id="upload-date"'));
   assert.ok(source.includes('type="date"'));
+  assert.ok(source.includes("15 días hábiles"));
+  assert.ok(source.includes("feriados nacionales argentinos"));
 });
 
 test("upload report modal renders error success and submit states", () => {
