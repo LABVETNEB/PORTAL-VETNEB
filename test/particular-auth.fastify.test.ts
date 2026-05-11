@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import Fastify from "fastify";
 
@@ -519,6 +519,42 @@ test(
   },
 );
 
+test(
+  "particularAuthNativeRoutes conserva 401 si falla auditoría de token inválido",
+  async () => {
+    const app = await createTestApp({
+      now: () => Date.UTC(2026, 4, 11, 0, 0, 0),
+      getParticularTokenByTokenHash: async () => null,
+      recordLoginFailedAttempt: async () => {
+        throw new Error("simulated failed-login persistence error");
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/particular/auth/login",
+        headers: {
+          origin: "http://localhost:3000",
+          "user-agent": "vetneb-test-agent",
+        },
+        remoteAddress: "203.0.113.77",
+        payload: {
+          token: "INVALID-PARTICULAR-TOKEN",
+        },
+      });
+
+      assert.equal(response.statusCode, 401);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: "Token inválido",
+      });
+      assert.equal(response.headers["set-cookie"], undefined);
+    } finally {
+      await app.close();
+    }
+  },
+);
 test("particularAuthNativeRoutes persiste failed login sin secretos", async () => {
   const attempts: Array<Record<string, unknown>> = [];
 

@@ -635,14 +635,22 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     const recordFailedLoginAttempt = async (input: {
       reason: LoginFailedAttemptReason;
     }) => {
-      await deps.recordLoginFailedAttempt({
-        surface: "particular",
-        username: null,
-        reason: input.reason,
-        ipAddress: request.ip || null,
-        userAgent: getUserAgent(request),
-        createdAt: new Date(currentTime),
-      });
+      try {
+        await deps.recordLoginFailedAttempt({
+          surface: "particular",
+          username: null,
+          reason: input.reason,
+          ipAddress: request.ip || null,
+          userAgent: getUserAgent(request),
+          createdAt: new Date(currentTime),
+        });
+      } catch (error) {
+        console.warn("[WARN] PARTICULAR_LOGIN_FAILED_ATTEMPT_RECORD_FAILED", {
+          surface: "particular",
+          reason: input.reason,
+          message: error instanceof Error ? error.message : "unknown error",
+        });
+      }
     };
 
     if (failureEntry.count >= loginRateLimitMaxAttempts) {
