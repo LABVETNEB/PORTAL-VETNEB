@@ -10,8 +10,8 @@ import { Input } from "@/components/ui/input";
 import { uploadAdminReport } from "@/lib/api";
 import { getAdminUsersRoles } from "@/lib/api";
 import {
+  createAdminStudyTrackingCase,
   getAdminParticularTokens,
-  linkAdminParticularTokenReport,
   type AdminParticularTokenSummary,
 } from "@/lib/api";
 
@@ -91,6 +91,29 @@ function buildParticularTokenLabel(token: AdminParticularTokenSummary) {
 
   return `Token ****${token.tokenLast4} · ${token.petName} · ${token.tutorLastName} · ${linkedLabel}`;
 }
+
+function getTrackingReceptionAt(uploadDate: string) {
+  if (uploadDate) {
+    return `${uploadDate}T00:00:00.000Z`;
+  }
+
+  return new Date().toISOString();
+}
+
+function formatTrackingDateLabel(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "calculada automáticamente";
+  }
+
+  return new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
 
 export function UploadReportModal() {
   const router = useRouter();
@@ -364,13 +387,20 @@ export function UploadReportModal() {
       const response = await uploadAdminReport(formData);
 
       if (selectedParticularToken) {
-        await linkAdminParticularTokenReport(
-          selectedParticularToken.id,
-          response.report.id,
+        const trackingResponse = await createAdminStudyTrackingCase({
+          clinicId: Number(clinicId),
+          reportId: response.report.id,
+          particularTokenId: selectedParticularToken.id,
+          receptionAt: getTrackingReceptionAt(uploadDate),
+          currentStage: "reception",
+        });
+
+        const estimatedDelivery = formatTrackingDateLabel(
+          trackingResponse.trackingCase.estimatedDeliveryAt,
         );
 
         setSuccessMessage(
-          `${response.message}. Token particular vinculado al informe.`,
+          `${response.message}. Seguimiento particular creado con entrega estimada ${estimatedDelivery}.`,
         );
       } else {
         setSuccessMessage(response.message);
@@ -625,7 +655,13 @@ export function UploadReportModal() {
               value={uploadDate}
               onChange={(event) => setUploadDate(event.target.value)}
               disabled={isSubmitting}
+              aria-describedby="upload-date-help"
             />
+            <p id="upload-date-help" className="mt-1 text-xs text-gray-500">
+              El seguimiento particular usará esta fecha como recepción y
+              calculará entrega automática en 15 días hábiles, excluyendo
+              domingos y feriados nacionales argentinos.
+            </p>
           </div>
 
           {errorMessage ? (

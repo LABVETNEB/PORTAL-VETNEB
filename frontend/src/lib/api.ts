@@ -294,6 +294,74 @@ export async function linkAdminParticularTokenReport(
 }
 
 
+
+export type AdminStudyTrackingStage =
+  | "reception"
+  | "processing"
+  | "evaluation"
+  | "report_development"
+  | "delivered";
+
+export type AdminStudyTrackingCaseSummary = {
+  id: number;
+  clinicId: number;
+  reportId: number | null;
+  particularTokenId: number | null;
+  createdByAdminId: number | null;
+  createdByClinicUserId: number | null;
+  receptionAt: string;
+  estimatedDeliveryAt: string;
+  estimatedDeliveryAutoCalculatedAt: string;
+  estimatedDeliveryWasManuallyAdjusted: boolean;
+  currentStage: AdminStudyTrackingStage;
+  processingAt: string | null;
+  evaluationAt: string | null;
+  reportDevelopmentAt: string | null;
+  deliveredAt: string | null;
+  specialStainRequired: boolean;
+  specialStainNotifiedAt: string | null;
+  paymentUrl: string | null;
+  adminContactEmail: string | null;
+  adminContactPhone: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminStudyTrackingCreatePayload = {
+  clinicId: number;
+  reportId?: number | null;
+  particularTokenId?: number | null;
+  receptionAt: string;
+  estimatedDeliveryAt?: string | null;
+  currentStage?: AdminStudyTrackingStage;
+  specialStainRequired?: boolean;
+  paymentUrl?: string | null;
+  adminContactEmail?: string | null;
+  adminContactPhone?: string | null;
+  notes?: string | null;
+};
+
+export type AdminStudyTrackingCreateResponse = {
+  success: true;
+  message: string;
+  trackingCase: AdminStudyTrackingCaseSummary;
+};
+
+export async function createAdminStudyTrackingCase(
+  payload: AdminStudyTrackingCreatePayload,
+  options?: RequestInit,
+): Promise<AdminStudyTrackingCreateResponse> {
+  return apiFetch<AdminStudyTrackingCreateResponse>(
+    "/api/admin/study-tracking",
+    {
+      ...options,
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
 export type ContactMessagePayload = {
   name: string;
   email: string;
