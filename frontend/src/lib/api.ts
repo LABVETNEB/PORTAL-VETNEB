@@ -19,6 +19,8 @@ import type {
   AuditEntry,
   AuthUser,
   LoginCredentials,
+  ParticularAuthResponse,
+  ParticularLoginCredentials,
   DashboardStats,
   SystemHealth,
   MaintenancePurgeDryRunSnapshot,
@@ -93,6 +95,43 @@ export async function getClinicSession(): Promise<AuthUser | null> {
 
 export async function logout(): Promise<void> {
   await apiFetch<void>("/api/auth/logout", { method: "POST" });
+}
+
+export async function loginParticular(
+  credentials: ParticularLoginCredentials,
+): Promise<ParticularAuthResponse> {
+  return apiFetch<ParticularAuthResponse>("/api/particular/auth/login", {
+    method: "POST",
+    body: JSON.stringify(credentials),
+  });
+}
+
+export async function getParticularSession(): Promise<ParticularAuthResponse | null> {
+  try {
+    return await apiFetch<ParticularAuthResponse>("/api/particular/auth/me");
+  } catch {
+    return null;
+  }
+}
+
+export async function logoutParticular(): Promise<void> {
+  await apiFetch<void>("/api/particular/auth/logout", { method: "POST" });
+}
+
+export async function getParticularReportPreviewUrl(): Promise<string> {
+  const response = await apiFetch<{ success: true; previewUrl: string }>(
+    "/api/particular/auth/report/preview-url",
+  );
+
+  return response.previewUrl;
+}
+
+export async function getParticularReportDownloadUrl(): Promise<string> {
+  const response = await apiFetch<{ success: true; downloadUrl: string }>(
+    "/api/particular/auth/report/download-url",
+  );
+
+  return response.downloadUrl;
 }
 
 export async function getReports(options?: RequestInit): Promise<Report[]> {

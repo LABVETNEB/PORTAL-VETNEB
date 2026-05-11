@@ -14,7 +14,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { loginClinic } from "@/lib/api";
+import { loginParticular } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
+
+type LoginMode = "clinic" | "particular";
 
 function getSafeNextPath(nextPath: string | null): string {
   if (!nextPath?.startsWith("/dashboard")) {
@@ -24,11 +27,19 @@ function getSafeNextPath(nextPath: string | null): string {
   return nextPath;
 }
 
+function getInitialLoginMode(value: string | null): LoginMode {
+  return value === "particular" ? "particular" : "clinic";
+}
+
 export function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [mode, setMode] = useState<LoginMode>(() =>
+    getInitialLoginMode(searchParams.get("tipo") ?? searchParams.get("surface")),
+  );
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [token, setToken] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,6 +54,13 @@ export function LoginContent() {
     setIsSubmitting(true);
 
     try {
+      if (mode === "particular") {
+        await loginParticular({ token });
+        router.replace(ROUTES.particulares);
+        router.refresh();
+        return;
+      }
+
       await loginClinic({ username, password });
       router.replace(getSafeNextPath(searchParams.get("next")));
       router.refresh();
@@ -56,6 +74,13 @@ export function LoginContent() {
       setIsSubmitting(false);
     }
   }
+
+  function selectMode(nextMode: LoginMode) {
+    setMode(nextMode);
+    setErrorMessage(null);
+  }
+
+  const clinicSubmitLabel = isSubmitting ? "Iniciando sesión..." : "Iniciar sesión";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4">
@@ -76,48 +101,104 @@ export function LoginContent() {
           <CardHeader className="pb-4 text-center">
             <CardTitle className="text-xl">Iniciar sesión</CardTitle>
             <CardDescription>
-              Ingrese sus credenciales para acceder al portal
+              Acceda como clínica o ingrese con token particular
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div
+              className="mb-5 grid grid-cols-2 rounded-lg border border-gray-200 bg-gray-50 p-1"
+              aria-label="Tipo de acceso"
+            >
+              <button
+                type="button"
+                className={`rounded-md px-3 py-2 text-sm font-medium transition ${
+                  mode === "clinic"
+                    ? "bg-white text-gray-950 shadow-sm"
+                    : "text-gray-500 hover:text-gray-900"
+                }`}
+                onClick={() => selectMode("clinic")}
+                disabled={isSubmitting}
+              >
+                Clínicas
+              </button>
+              <button
+                type="button"
+                className={`rounded-md px-3 py-2 text-sm font-medium transition ${
+                  mode === "particular"
+                    ? "bg-white text-gray-950 shadow-sm"
+                    : "text-gray-500 hover:text-gray-900"
+                }`}
+                onClick={() => selectMode("particular")}
+                disabled={isSubmitting}
+              >
+                Particulares
+              </button>
+            </div>
+
             <form
               className="space-y-4"
               aria-label="Formulario de inicio de sesión"
               onSubmit={handleSubmit}
             >
-              <div>
-                <label htmlFor="username" className="field-label">
-                  Usuario
-                </label>
-                <Input
-                  id="username"
-                  name="username"
-                  type="text"
-                  placeholder="nombre_usuario"
-                  autoComplete="username"
-                  autoFocus
-                  required
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div>
-                <label htmlFor="password" className="field-label">
-                  Contraseña
-                </label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
+              {mode === "particular" ? (
+                <div>
+                  <label htmlFor="token" className="field-label">
+                    Token de acceso
+                  </label>
+                  <Input
+                    id="token"
+                    name="token"
+                    type="password"
+                    placeholder="Ingrese el token recibido"
+                    autoComplete="one-time-code"
+                    autoFocus
+                    required
+                    value={token}
+                    onChange={(event) => setToken(event.target.value)}
+                    disabled={isSubmitting}
+                  />
+                  <p className="mt-2 text-xs leading-relaxed text-gray-500">
+                    El token habilita una sesión particular limitada al caso
+                    vinculado.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label htmlFor="username" className="field-label">
+                      Usuario
+                    </label>
+                    <Input
+                      id="username"
+                      name="username"
+                      type="text"
+                      placeholder="nombre_usuario"
+                      autoComplete="username"
+                      autoFocus
+                      required
+                      value={username}
+                      onChange={(event) => setUsername(event.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="password" className="field-label">
+                      Contraseña
+                    </label>
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      required
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </>
+              )}
 
               {errorMessage ? (
                 <p
@@ -129,20 +210,36 @@ export function LoginContent() {
               ) : null}
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Iniciando sesión..." : "Iniciar sesión"}
+                {mode === "particular"
+                  ? isSubmitting
+                    ? "Iniciando sesión..."
+                    : "Ingresar con token"
+                  : clinicSubmitLabel}
               </Button>
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-sm text-gray-500">
-                ¿Su clínica no tiene acceso?{" "}
-                <Link
-                  href={ROUTES.contacto}
-                  className="text-primary hover:underline font-medium"
-                >
-                  Solicite acceso
-                </Link>
-              </p>
+              {mode === "particular" ? (
+                <p className="text-sm text-gray-500">
+                  ¿Necesita ayuda con su token?{" "}
+                  <Link
+                    href={ROUTES.contacto}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Contacte a VETNEB
+                  </Link>
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  ¿Su clínica no tiene acceso?{" "}
+                  <Link
+                    href={ROUTES.contacto}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Solicite acceso
+                  </Link>
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

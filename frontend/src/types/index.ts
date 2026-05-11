@@ -163,6 +163,52 @@ export type LoginCredentials = {
   password: string;
 };
 
+export type ParticularLoginCredentials = {
+  token: string;
+};
+
+export type ParticularReportSummary = {
+  id: number;
+  clinicId: number;
+  uploadDate: string | null;
+  studyType: string | null;
+  patientName: string | null;
+  fileName: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ParticularSession = {
+  id: number;
+  clinicId: number;
+  reportId: number | null;
+  tokenLast4: string | null;
+  tutorLastName: string;
+  petName: string;
+  petAge: string;
+  petBreed: string;
+  petSex: string;
+  petSpecies: string;
+  sampleLocation: string;
+  sampleEvolution: string;
+  detailsLesion: string | null;
+  extractionDate: string;
+  shippingDate: string;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdByAdminId: number | null;
+  createdByClinicUserId: number | null;
+  hasLinkedReport: boolean;
+  report: ParticularReportSummary | null;
+};
+
+export type ParticularAuthResponse = {
+  success: true;
+  particular: ParticularSession;
+};
+
 // --- Tipos de UI ---
 
 export type NavItem = {
@@ -186,7 +232,6 @@ export type DashboardStats = {
   activeVisits: number;
   activePlans: number;
 };
-
 
 export type AdminRoleUserType = "admin" | "clinic";
 export type AdminRoleUserRole = "admin" | ClinicUserRole;
@@ -220,7 +265,6 @@ export type AdminUsersRolesQuery = {
   offset?: number;
 };
 
-
 export type AdminClinicUserRoleChangeResponse = {
   success: true;
   user: Extract<AdminRoleUserSummary, { userType: "clinic" }>;
@@ -229,6 +273,7 @@ export type AdminClinicUserRoleChangeResponse = {
     username: string;
   };
 };
+
 export type AdminUsersRolesSnapshot = {
   success: true;
   users: AdminRoleUserSummary[];
@@ -244,6 +289,7 @@ export type AdminUsersRolesSnapshot = {
     username: string;
   };
 };
+
 export type AdminSessionType = "admin" | "clinic" | "particular";
 export type AdminSessionStatus = "active" | "expired";
 

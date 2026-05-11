@@ -38,6 +38,7 @@ const footerLinks = [
   { label: "Servicios", href: ROUTES.servicios },
   { label: "Profesionales", href: ROUTES.profesionales },
   { label: "Clínicas", href: ROUTES.clinicas },
+  { label: "Particulares", href: ROUTES.particulares },
   { label: "Contacto", href: ROUTES.contacto },
 ];
 
@@ -151,6 +152,14 @@ export function Footer() {
                   className="text-sm text-gray-500 transition-colors hover:text-primary"
                 >
                   Iniciar sesión
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href={ROUTES.particulares}
+                  className="text-sm text-gray-500 transition-colors hover:text-primary"
+                >
+                  Acceso particulares
                 </Link>
               </li>
               <li>

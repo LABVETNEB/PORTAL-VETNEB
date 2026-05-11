@@ -9,6 +9,7 @@ export const ROUTES = {
   servicios: "/servicios",
   profesionales: "/profesionales",
   clinicas: "/clinicas",
+  particulares: "/particulares",
   contacto: "/contacto",
   login: "/login",
 
@@ -30,6 +31,7 @@ export const PUBLIC_ROUTES: AppRoute[] = [
   ROUTES.servicios,
   ROUTES.profesionales,
   ROUTES.clinicas,
+  ROUTES.particulares,
   ROUTES.contacto,
   ROUTES.login,
 ];
