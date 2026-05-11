@@ -181,7 +181,7 @@
       radial-gradient(circle at 12% 12%, rgba(34, 211, 238, 0.30), transparent 31%),
       radial-gradient(circle at 88% 15%, rgba(52, 211, 153, 0.30), transparent 34%),
       radial-gradient(circle at 50% 120%, rgba(251, 191, 36, 0.16), transparent 34%),
-      linear-gradient(135deg, #07365d 0%, #123f7a 42%, #0f766e 100%);
+      linear-gradient(135deg, #07365d 0%, #123f7a 42%, #0f766e 100%) !important;
   }
 
   .public-hero-depth::after,
