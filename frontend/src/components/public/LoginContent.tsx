@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { KeyRound, ShieldCheck } from "lucide-react";
 
 import {
   Card,
@@ -83,7 +84,8 @@ export function LoginContent() {
   const clinicSubmitLabel = isSubmitting ? "Iniciando sesión..." : "Iniciar sesión";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4"
+      data-auth-login-polish="true">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link
@@ -95,10 +97,21 @@ export function LoginContent() {
               PORTAL VETNEB
             </span>
           </Link>
+          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.28em] text-blue-100/70">
+            Patología veterinaria
+          </p>
         </div>
 
-        <Card className="border border-white/80 bg-white/95 shadow-2xl backdrop-blur">
+        <Card className="border border-white/80 bg-white/95 shadow-2xl backdrop-blur"
+          data-auth-login-card="true">
           <CardHeader className="pb-4 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 ring-1 ring-blue-100">
+              {mode === "particular" ? (
+                <KeyRound className="h-5 w-5" aria-hidden="true" />
+              ) : (
+                <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+              )}
+            </div>
             <CardTitle className="text-xl">Iniciar sesión</CardTitle>
             <CardDescription>
               Acceda como clínica o ingrese con token particular
@@ -156,6 +169,7 @@ export function LoginContent() {
                     value={token}
                     onChange={(event) => setToken(event.target.value)}
                     disabled={isSubmitting}
+                    className="h-12 rounded-xl"
                   />
                   <p className="mt-2 text-xs leading-relaxed text-gray-500">
                     El token habilita una sesión particular limitada al caso
@@ -179,6 +193,7 @@ export function LoginContent() {
                       value={username}
                       onChange={(event) => setUsername(event.target.value)}
                       disabled={isSubmitting}
+                      className="h-12 rounded-xl"
                     />
                   </div>
                   <div>
@@ -195,6 +210,7 @@ export function LoginContent() {
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       disabled={isSubmitting}
+                      className="h-12 rounded-xl"
                     />
                   </div>
                 </>
@@ -209,7 +225,8 @@ export function LoginContent() {
                 </p>
               ) : null}
 
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button type="submit" className="w-full"
+                data-auth-login-submit="true" disabled={isSubmitting}>
                 {mode === "particular"
                   ? isSubmitting
                     ? "Iniciando sesión..."
@@ -218,7 +235,7 @@ export function LoginContent() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3">
               {mode === "particular" ? (
                 <p className="text-sm text-gray-500">
                   ¿Necesita ayuda con su token?{" "}

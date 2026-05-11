@@ -45,11 +45,12 @@ export function DashboardSidebar() {
   return (
     <aside
       className="flex min-h-screen w-[4.5rem] shrink-0 flex-col bg-sidebar text-sidebar-foreground sm:w-64"
+      data-dashboard-sidebar-polish="true"
       aria-label="Navegación del dashboard"
     >
       {/* Logo */}
       <div className="flex items-center justify-center gap-3 border-b border-sidebar-border px-2 py-5 sm:justify-start sm:px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-sidebar-primary text-sm font-bold text-white">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-teal-500 text-sm font-black text-white shadow-[0_16px_40px_rgba(37,99,235,0.32)] ring-1 ring-white/20">
           VN
         </div>
         <div className="hidden sm:block">
@@ -69,7 +70,7 @@ export function DashboardSidebar() {
               className={cn(
                 "flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors sm:justify-start sm:px-3",
                 isActive(item.href, item.exact)
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-[0_14px_42px_rgba(15,23,42,0.26)]"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
               )}
               aria-current={isActive(item.href, item.exact) ? "page" : undefined}
@@ -108,7 +109,7 @@ export function DashboardSidebar() {
       <div className="border-t border-sidebar-border px-2 py-4 sm:px-3">
         <Link
           href={ROUTES.home}
-          className="flex items-center justify-center gap-2 rounded-md px-2 py-2 text-xs text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground sm:justify-start sm:px-3"
+          className="flex items-center justify-center gap-2 rounded-xl px-2 py-2 text-xs text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground sm:justify-start sm:px-3"
         >
           <span aria-hidden="true">←</span>
           <span className="hidden sm:inline">Volver al sitio público</span>
