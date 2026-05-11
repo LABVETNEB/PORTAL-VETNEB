@@ -200,6 +200,100 @@ export async function uploadAdminReport(
 }
 
 
+export type AdminParticularTokenSummary = {
+  id: number;
+  clinicId: number;
+  reportId: number | null;
+  tokenLast4: string;
+  tutorLastName: string;
+  petName: string;
+  petAge: string;
+  petBreed: string;
+  petSex: string;
+  petSpecies: string;
+  sampleLocation: string;
+  sampleEvolution: string;
+  detailsLesion: string | null;
+  extractionDate: string;
+  shippingDate: string;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdByAdminId: number | null;
+  createdByClinicUserId: number | null;
+  hasLinkedReport: boolean;
+};
+
+export type AdminParticularTokensSnapshot = {
+  success: true;
+  count: number;
+  particularTokens: AdminParticularTokenSummary[];
+  pagination: {
+    limit: number;
+    offset: number;
+  };
+  filters: {
+    clinicId: number | null;
+  };
+};
+
+export type AdminParticularTokenDetail = AdminParticularTokenSummary & {
+  report: Report | null;
+};
+
+export type AdminParticularTokenReportLinkResponse = {
+  success: true;
+  message: string;
+  particularToken: AdminParticularTokenDetail | null;
+};
+
+export async function getAdminParticularTokens(
+  params: {
+    clinicId?: number;
+    limit?: number;
+    offset?: number;
+  } = {},
+  options?: RequestInit,
+): Promise<AdminParticularTokensSnapshot> {
+  const query = new URLSearchParams();
+
+  if (typeof params.clinicId === "number") {
+    query.set("clinicId", String(params.clinicId));
+  }
+
+  if (typeof params.limit === "number") {
+    query.set("limit", String(params.limit));
+  }
+
+  if (typeof params.offset === "number") {
+    query.set("offset", String(params.offset));
+  }
+
+  const qs = query.toString();
+
+  return apiFetch<AdminParticularTokensSnapshot>(
+    `/api/admin/particular-tokens${qs ? `?${qs}` : ""}`,
+    options,
+  );
+}
+
+export async function linkAdminParticularTokenReport(
+  tokenId: number,
+  reportId: number | null,
+  options?: RequestInit,
+): Promise<AdminParticularTokenReportLinkResponse> {
+  return apiFetch<AdminParticularTokenReportLinkResponse>(
+    `/api/admin/particular-tokens/${tokenId}/report`,
+    {
+      ...options,
+      method: "PATCH",
+      body: JSON.stringify({ reportId }),
+    },
+  );
+}
+
+
 export type ContactMessagePayload = {
   name: string;
   email: string;
