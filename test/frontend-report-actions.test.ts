@@ -32,7 +32,7 @@ test("upload report modal keeps study type options", () => {
   assert.ok(source.includes('{ value: "histopathology", label: "Histopatología" }'));
   assert.ok(source.includes('{ value: "cytology", label: "Citología" }'));
   assert.ok(source.includes('{ value: "immunohistochemistry", label: "Inmunohistoquímica" }'));
-  assert.ok(source.includes('{ value: "special_stain", label: "Tinción especial" }'));
+  assert.ok(source.includes('{ value: "special_stain", label: "Hematología" }'));
 });
 
 test("upload report modal keeps form state reset and file ref handling", () => {
