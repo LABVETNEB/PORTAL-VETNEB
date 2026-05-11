@@ -4,14 +4,16 @@ import { cn } from "@/lib/utils";
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
+type VisualTone = "blue" | "emerald" | "amber" | "slate";
+
 type VisualIconProps = {
   icon: IconComponent;
   className?: string;
   iconClassName?: string;
-  tone?: "blue" | "emerald" | "amber" | "slate";
+  tone?: VisualTone;
 };
 
-const toneClasses = {
+const toneClasses: Record<VisualTone, string> = {
   blue: "from-blue-500/15 via-cyan-400/10 to-white text-blue-700 ring-blue-500/15",
   emerald:
     "from-emerald-500/15 via-teal-400/10 to-white text-emerald-700 ring-emerald-500/15",
@@ -30,7 +32,7 @@ export function VisualIcon({
   return (
     <span
       className={cn(
-        "inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br shadow-[0_18px_45px_rgba(15,23,42,0.10)] ring-1",
+        "render-gpu-soft inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br shadow-[0_18px_45px_rgba(15,23,42,0.10)] ring-1",
         toneClasses[tone],
         className,
       )}
@@ -50,7 +52,7 @@ export function Eyebrow({ children, className }: EyebrowProps) {
   return (
     <p
       className={cn(
-        "mb-3 inline-flex items-center rounded-full border border-white/50 bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-white/90 shadow-sm backdrop-blur",
+        "render-gpu-soft mb-3 inline-flex items-center rounded-full border border-white/50 bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-white/90 shadow-sm backdrop-blur",
         className,
       )}
     >
@@ -61,28 +63,32 @@ export function Eyebrow({ children, className }: EyebrowProps) {
 
 type AmbientOrbsProps = {
   variant?: "light" | "dark";
+  className?: string;
 };
 
-export function AmbientOrbs({ variant = "light" }: AmbientOrbsProps) {
+export function AmbientOrbs({ variant = "light", className }: AmbientOrbsProps) {
   const isDark = variant === "dark";
 
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+    <div
+      className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)}
+      aria-hidden="true"
+    >
       <div
         className={cn(
-          "absolute -left-24 -top-28 h-72 w-72 rounded-full blur-3xl",
+          "render-orb absolute -left-24 -top-28 h-72 w-72 rounded-full",
           isDark ? "bg-cyan-300/20" : "bg-cyan-200/45",
         )}
       />
       <div
         className={cn(
-          "absolute right-[-7rem] top-16 h-80 w-80 rounded-full blur-3xl",
+          "render-orb absolute right-[-7rem] top-16 h-80 w-80 rounded-full",
           isDark ? "bg-emerald-300/20" : "bg-emerald-200/45",
         )}
       />
       <div
         className={cn(
-          "absolute bottom-[-9rem] left-1/2 h-72 w-72 -translate-x-1/2 rounded-full blur-3xl",
+          "render-orb absolute bottom-[-9rem] left-1/2 h-72 w-72 -translate-x-1/2 rounded-full",
           isDark ? "bg-amber-200/15" : "bg-amber-100/55",
         )}
       />
@@ -99,7 +105,7 @@ export function PremiumPanel({ children, className }: PremiumPanelProps) {
   return (
     <div
       className={cn(
-        "rounded-3xl border border-white/70 bg-white/80 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl",
+        "render-gpu-soft rounded-3xl border border-white/70 bg-white/80 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl",
         className,
       )}
     >
