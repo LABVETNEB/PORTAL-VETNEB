@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { uploadAdminReport } from "@/lib/api";
 import { getAdminUsersRoles } from "@/lib/api";
+import {
+  getAdminParticularTokens,
+  linkAdminParticularTokenReport,
+  type AdminParticularTokenSummary,
+} from "@/lib/api";
 
 type ClinicOption = {
   id: number;
@@ -33,13 +38,7 @@ function normalizeSearchText(value: string) {
 }
 
 function buildClinicSearchText(option: ClinicOption) {
-  return normalizeSearchText(
-    [
-      option.id,
-      option.name,
-      ...option.usernames,
-    ].join(" "),
-  );
+  return normalizeSearchText([option.id, option.name, ...option.usernames].join(" "));
 }
 
 function matchClinicOption(option: ClinicOption, query: string) {
@@ -85,6 +84,14 @@ function dedupeClinicOptions(options: ClinicOption[]) {
   return Array.from(byId.values()).sort(sortClinicOptions);
 }
 
+function buildParticularTokenLabel(token: AdminParticularTokenSummary) {
+  const linkedLabel = token.hasLinkedReport
+    ? "reemplaza informe vinculado"
+    : "sin informe vinculado";
+
+  return `Token ****${token.tokenLast4} · ${token.petName} · ${token.tutorLastName} · ${linkedLabel}`;
+}
+
 export function UploadReportModal() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -95,6 +102,15 @@ export function UploadReportModal() {
   const [clinicOptions, setClinicOptions] = useState<ClinicOption[]>([]);
   const [isLoadingClinics, setIsLoadingClinics] = useState(false);
   const [clinicLoadError, setClinicLoadError] = useState<string | null>(null);
+  const [particularTokenId, setParticularTokenId] = useState("");
+  const [particularTokens, setParticularTokens] = useState<
+    AdminParticularTokenSummary[]
+  >([]);
+  const [isLoadingParticularTokens, setIsLoadingParticularTokens] =
+    useState(false);
+  const [particularTokenLoadError, setParticularTokenLoadError] = useState<
+    string | null
+  >(null);
   const [patientName, setPatientName] = useState("");
   const [studyType, setStudyType] = useState("");
   const [uploadDate, setUploadDate] = useState("");
@@ -104,6 +120,12 @@ export function UploadReportModal() {
 
   const selectedClinic = clinicOptions.find(
     (option) => String(option.id) === clinicId,
+  );
+
+  const selectedClinicId = selectedClinic?.id;
+
+  const selectedParticularToken = particularTokens.find(
+    (token) => String(token.id) === particularTokenId,
   );
 
   const filteredClinicOptions = clinicOptions
@@ -184,9 +206,73 @@ export function UploadReportModal() {
     };
   }, [clinicOptions.length, isLoadingClinics, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || typeof selectedClinicId !== "number") {
+      setParticularTokens([]);
+      setParticularTokenId("");
+      setParticularTokenLoadError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadParticularTokens() {
+      setIsLoadingParticularTokens(true);
+      setParticularTokenLoadError(null);
+
+      try {
+        const limit = 100;
+        let offset = 0;
+        let total = Number.POSITIVE_INFINITY;
+        const tokens: AdminParticularTokenSummary[] = [];
+
+        while (offset < total) {
+          const snapshot = await getAdminParticularTokens({
+            clinicId: selectedClinicId,
+            limit,
+            offset,
+          });
+
+          total = snapshot.count;
+          tokens.push(...snapshot.particularTokens);
+          offset += snapshot.particularTokens.length;
+
+          if (snapshot.particularTokens.length === 0) {
+            break;
+          }
+        }
+
+        if (!cancelled) {
+          setParticularTokens(tokens);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setParticularTokenLoadError(
+            error instanceof Error
+              ? error.message
+              : "No se pudieron cargar los tokens particulares.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingParticularTokens(false);
+        }
+      }
+    }
+
+    void loadParticularTokens();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, selectedClinicId]);
+
   function resetForm() {
     setClinicId("");
     setClinicSearch("");
+    setParticularTokenId("");
+    setParticularTokens([]);
+    setParticularTokenLoadError(null);
     setPatientName("");
     setStudyType("");
     setUploadDate("");
@@ -209,13 +295,30 @@ export function UploadReportModal() {
   function selectClinic(option: ClinicOption) {
     setClinicId(String(option.id));
     setClinicSearch(option.name);
+    setParticularTokenId("");
+    setParticularTokens([]);
+    setParticularTokenLoadError(null);
     setErrorMessage(null);
   }
 
   function handleClinicSearchChange(value: string) {
     setClinicSearch(value);
     setClinicId("");
+    setParticularTokenId("");
+    setParticularTokens([]);
+    setParticularTokenLoadError(null);
     setErrorMessage(null);
+  }
+
+  function handleParticularTokenChange(value: string) {
+    setParticularTokenId(value);
+    setErrorMessage(null);
+
+    const token = particularTokens.find((item) => String(item.id) === value);
+
+    if (token && !patientName.trim()) {
+      setPatientName(`${token.petName} / ${token.tutorLastName}`);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -259,7 +362,20 @@ export function UploadReportModal() {
 
     try {
       const response = await uploadAdminReport(formData);
-      setSuccessMessage(response.message);
+
+      if (selectedParticularToken) {
+        await linkAdminParticularTokenReport(
+          selectedParticularToken.id,
+          response.report.id,
+        );
+
+        setSuccessMessage(
+          `${response.message}. Token particular vinculado al informe.`,
+        );
+      } else {
+        setSuccessMessage(response.message);
+      }
+
       resetForm();
       router.refresh();
     } catch (error) {
@@ -308,10 +424,7 @@ export function UploadReportModal() {
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label
-              htmlFor="upload-clinic-search"
-              className="field-label"
-            >
+            <label htmlFor="upload-clinic-search" className="field-label">
               Clínica
             </label>
             <Input
@@ -402,10 +515,58 @@ export function UploadReportModal() {
           </div>
 
           <div>
-            <label
-              htmlFor="upload-file"
-              className="field-label"
+            <label htmlFor="upload-particular-token-id" className="field-label">
+              Token particular
+            </label>
+            <select
+              id="upload-particular-token-id"
+              name="particularTokenId"
+              className="field-select"
+              value={particularTokenId}
+              onChange={(event) => handleParticularTokenChange(event.target.value)}
+              disabled={!selectedClinic || isLoadingParticularTokens || isSubmitting}
             >
+              <option value="">
+                Sin token particular vinculado
+              </option>
+              {particularTokens.map((token) => (
+                <option key={token.id} value={token.id}>
+                  {buildParticularTokenLabel(token)}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Seleccione un token existente para que el informe quede disponible
+              en Particulares. Puede cambiar el token antes de subir el informe.
+            </p>
+
+            {isLoadingParticularTokens ? (
+              <p className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-gray-500">
+                Cargando tokens particulares...
+              </p>
+            ) : null}
+
+            {particularTokenLoadError ? (
+              <p
+                className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                role="alert"
+              >
+                {particularTokenLoadError}
+              </p>
+            ) : null}
+
+            {selectedClinic &&
+            !isLoadingParticularTokens &&
+            !particularTokenLoadError &&
+            particularTokens.length === 0 ? (
+              <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                Esta clínica no tiene tokens particulares disponibles.
+              </p>
+            ) : null}
+          </div>
+
+          <div>
+            <label htmlFor="upload-file" className="field-label">
               Archivo PDF
             </label>
             <Input
@@ -420,10 +581,7 @@ export function UploadReportModal() {
           </div>
 
           <div>
-            <label
-              htmlFor="upload-patient-name"
-              className="field-label"
-            >
+            <label htmlFor="upload-patient-name" className="field-label">
               Paciente
             </label>
             <Input
@@ -437,10 +595,7 @@ export function UploadReportModal() {
           </div>
 
           <div>
-            <label
-              htmlFor="upload-study-type"
-              className="field-label"
-            >
+            <label htmlFor="upload-study-type" className="field-label">
               Tipo de estudio
             </label>
             <select
@@ -460,10 +615,7 @@ export function UploadReportModal() {
           </div>
 
           <div>
-            <label
-              htmlFor="upload-date"
-              className="field-label"
-            >
+            <label htmlFor="upload-date" className="field-label">
               Fecha de carga
             </label>
             <Input

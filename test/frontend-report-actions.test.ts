@@ -23,6 +23,8 @@ test("upload report modal is client-side and imports upload dependencies", () =>
   assert.ok(source.includes('import { Input } from "@/components/ui/input";'));
   assert.ok(source.includes('import { uploadAdminReport } from "@/lib/api";'));
   assert.ok(source.includes('import { getAdminUsersRoles } from "@/lib/api";'));
+  assert.ok(source.includes("getAdminParticularTokens"));
+  assert.ok(source.includes("linkAdminParticularTokenReport"));
 });
 
 test("upload report modal keeps study type options", () => {
@@ -44,6 +46,8 @@ test("upload report modal keeps form state reset and file ref handling", () => {
     assert.ok(source.includes("const [clinicId, setClinicId] = useState(\"\");"));
   assert.ok(source.includes("const [clinicSearch, setClinicSearch] = useState(\"\");"));
   assert.ok(source.includes("const [clinicOptions, setClinicOptions] = useState<ClinicOption[]>([]);"));
+  assert.ok(source.includes("const [particularTokenId, setParticularTokenId] = useState(\"\");"));
+  assert.ok(source.includes("AdminParticularTokenSummary"));
   assert.ok(source.includes("const [patientName, setPatientName] = useState(\"\");"));
   assert.ok(source.includes("const [studyType, setStudyType] = useState(\"\");"));
   assert.ok(source.includes("const [uploadDate, setUploadDate] = useState(\"\");"));
@@ -75,6 +79,9 @@ test("upload report modal calls upload API refreshes dashboard and handles error
   const source = read(UPLOAD_REPORT_MODAL_PATH);
 
   assert.ok(source.includes("const response = await uploadAdminReport(formData);"));
+  assert.ok(source.includes("await linkAdminParticularTokenReport("));
+  assert.ok(source.includes("response.report.id"));
+  assert.ok(source.includes("Token particular vinculado al informe."));
   assert.ok(source.includes("setSuccessMessage(response.message);"));
   assert.ok(source.includes("resetForm();"));
   assert.ok(source.includes("router.refresh();"));
@@ -99,6 +106,10 @@ test("upload report modal renders accessible dialog and form controls", () => {
   assert.ok(source.includes('role="listbox"'));
   assert.ok(source.includes('aria-label="Clínicas registradas"'));
   assert.ok(source.includes("Seleccione una clínica registrada del listado."));
+  assert.ok(source.includes('id="upload-particular-token-id"'));
+  assert.ok(source.includes('name="particularTokenId"'));
+  assert.ok(source.includes("Sin token particular vinculado"));
+  assert.ok(source.includes("Seleccione un token existente para que el informe quede disponible"));
   assert.ok(source.includes('id="upload-file"'));
   assert.ok(source.includes('type="file"'));
   assert.ok(source.includes('accept="application/pdf"'));
