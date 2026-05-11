@@ -22,6 +22,7 @@ test("upload report modal is client-side and imports upload dependencies", () =>
   assert.ok(source.includes('import { Button } from "@/components/ui/button";'));
   assert.ok(source.includes('import { Input } from "@/components/ui/input";'));
   assert.ok(source.includes('import { uploadAdminReport } from "@/lib/api";'));
+  assert.ok(source.includes('import { getAdminUsersRoles } from "@/lib/api";'));
 });
 
 test("upload report modal keeps study type options", () => {
@@ -40,7 +41,9 @@ test("upload report modal keeps form state reset and file ref handling", () => {
 
   assert.ok(source.includes("const fileInputRef = useRef<HTMLInputElement | null>(null);"));
   assert.ok(source.includes("const [isOpen, setIsOpen] = useState(false);"));
-  assert.ok(source.includes("const [clinicId, setClinicId] = useState(\"\");"));
+    assert.ok(source.includes("const [clinicId, setClinicId] = useState(\"\");"));
+  assert.ok(source.includes("const [clinicSearch, setClinicSearch] = useState(\"\");"));
+  assert.ok(source.includes("const [clinicOptions, setClinicOptions] = useState<ClinicOption[]>([]);"));
   assert.ok(source.includes("const [patientName, setPatientName] = useState(\"\");"));
   assert.ok(source.includes("const [studyType, setStudyType] = useState(\"\");"));
   assert.ok(source.includes("const [uploadDate, setUploadDate] = useState(\"\");"));
@@ -59,6 +62,7 @@ test("upload report modal validates PDF file and submits FormData safely", () =>
   assert.ok(source.includes("if (isSubmitting) {"));
   assert.ok(source.includes("const file = fileInputRef.current?.files?.[0];"));
   assert.ok(source.includes("Seleccione un archivo PDF para subir."));
+    assert.ok(source.includes("if (!clinicId || !selectedClinic) {"));
   assert.ok(source.includes("const formData = new FormData();"));
   assert.ok(source.includes('formData.append("clinicId", clinicId);'));
   assert.ok(source.includes('formData.append("file", file);'));
@@ -87,9 +91,14 @@ test("upload report modal renders accessible dialog and form controls", () => {
   assert.ok(source.includes('aria-labelledby="upload-report-title"'));
   assert.ok(source.includes('id="upload-report-title"'));
   assert.ok(source.includes("Cargue un PDF y asócielo a una clínica."));
+    assert.ok(source.includes('id="upload-clinic-search"'));
+  assert.ok(source.includes('name="clinicSearch"'));
+  assert.ok(source.includes('placeholder="Buscar clínica registrada por nombre, usuario o ID..."'));
   assert.ok(source.includes('id="upload-clinic-id"'));
-  assert.ok(source.includes('type="number"'));
-  assert.ok(source.includes('min="1"'));
+  assert.ok(source.includes('type="hidden"'));
+  assert.ok(source.includes('role="listbox"'));
+  assert.ok(source.includes('aria-label="Clínicas registradas"'));
+  assert.ok(source.includes("Seleccione una clínica registrada del listado."));
   assert.ok(source.includes('id="upload-file"'));
   assert.ok(source.includes('type="file"'));
   assert.ok(source.includes('accept="application/pdf"'));
