@@ -12,16 +12,17 @@ function read(relativePath: string): string {
   );
 }
 
-test("dashboard home defines non-indexable metadata and imports live dependencies", () => {
+test("dashboard home defines non-indexable clinic metadata and imports live dependencies", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
   assert.ok(source.includes('import { cookies } from "next/headers";'));
   assert.ok(source.includes('import Link from "next/link";'));
-  assert.ok(source.includes('title: "Dashboard — Portal VETNEB"'));
+  assert.ok(source.includes('title: "Dashboard Clínica — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
   assert.ok(source.includes('import { StatsCards } from "@/components/dashboard/StatsCards";'));
+  assert.ok(source.includes('import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";'));
 });
 
 test("dashboard home forwards cookies and disables cache for backend reads", () => {
@@ -46,11 +47,14 @@ test("dashboard home reads stats reports and field visits through API helpers", 
   assert.ok(source.includes("const recentVisits = visits.slice(0, 3);"));
 });
 
-test("dashboard home renders operational summary, stats, reports, and field visits", () => {
+test("dashboard home renders clinic operational summary, stats, reports, and field visits", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
-  assert.ok(source.includes('<DashboardTopbar title="Dashboard" subtitle="Resumen operativo" />'));
-  assert.ok(source.includes("Lectura conectada a datos operativos del backend."));
+  assert.ok(source.includes('title="Dashboard Clínica"'));
+  assert.ok(source.includes('subtitle="Resumen operativo clínica"'));
+  assert.ok(source.includes("Lectura conectada a datos operativos clinic-scoped del backend."));
+  assert.ok(source.includes("Esta"));
+  assert.ok(source.includes("superficie no usa sesión de administración."));
   assert.ok(source.includes("<StatsCards stats={stats} />"));
   assert.ok(source.includes("Informes recientes"));
   assert.ok(source.includes("Visitas de campo"));
@@ -69,7 +73,7 @@ test("dashboard home keeps status badges and date formatting wired", () => {
   assert.ok(source.includes("formatDate(visit.scheduledAt)"));
 });
 
-test("dashboard home exposes route-registry quick links only", () => {
+test("dashboard home exposes clinic route-registry quick links only", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
   assert.ok(source.includes("Accesos rápidos"));
@@ -78,6 +82,9 @@ test("dashboard home exposes route-registry quick links only", () => {
   assert.ok(source.includes("href: ROUTES.dashboardLogisticaVisitas"));
   assert.ok(source.includes('label: "Rutas"'));
   assert.ok(source.includes("href: ROUTES.dashboardLogisticaRutas"));
-  assert.ok(source.includes('label: "Admin", href: ROUTES.dashboardAdmin'));
+  assert.ok(source.includes('label: "Tokens"'));
+  assert.ok(source.includes('href: "#clinic-particular-tokens"'));
+  assert.equal(source.includes('label: "Admin"'), false);
+  assert.equal(source.includes("ROUTES.dashboardAdmin"), false);
   assert.equal(source.includes('"/api"'), false);
 });

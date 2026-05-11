@@ -295,6 +295,101 @@ export async function linkAdminParticularTokenReport(
 
 
 
+
+export type ClinicParticularTokenSummary = AdminParticularTokenSummary;
+
+export type ClinicParticularTokensSnapshot = {
+  success: true;
+  count: number;
+  particularTokens: ClinicParticularTokenSummary[];
+  pagination: {
+    limit: number;
+    offset: number;
+  };
+};
+
+export type ClinicParticularTokenCreatePayload = {
+  reportId?: number | null;
+  tutorLastName: string;
+  petName: string;
+  petAge: string;
+  petBreed: string;
+  petSex: string;
+  petSpecies: string;
+  sampleLocation: string;
+  sampleEvolution: string;
+  detailsLesion: string;
+  extractionDate: string;
+  shippingDate: string;
+};
+
+export type ClinicParticularTokenCreateResponse = {
+  success: true;
+  message: string;
+  token: string;
+  particularToken: ClinicParticularTokenSummary;
+};
+
+export type ClinicParticularTokenReportLinkResponse = {
+  success: true;
+  message: string;
+  particularToken: ClinicParticularTokenSummary | null;
+};
+
+export async function getClinicParticularTokens(
+  params: {
+    limit?: number;
+    offset?: number;
+  } = {},
+  options?: RequestInit,
+): Promise<ClinicParticularTokensSnapshot> {
+  const query = new URLSearchParams();
+
+  if (typeof params.limit === "number") {
+    query.set("limit", String(params.limit));
+  }
+
+  if (typeof params.offset === "number") {
+    query.set("offset", String(params.offset));
+  }
+
+  const qs = query.toString();
+
+  return apiFetch<ClinicParticularTokensSnapshot>(
+    `/api/particular-tokens${qs ? `?${qs}` : ""}`,
+    options,
+  );
+}
+
+export async function createClinicParticularToken(
+  payload: ClinicParticularTokenCreatePayload,
+  options?: RequestInit,
+): Promise<ClinicParticularTokenCreateResponse> {
+  return apiFetch<ClinicParticularTokenCreateResponse>(
+    "/api/particular-tokens",
+    {
+      ...options,
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function linkClinicParticularTokenReport(
+  tokenId: number,
+  reportId: number | null,
+  options?: RequestInit,
+): Promise<ClinicParticularTokenReportLinkResponse> {
+  return apiFetch<ClinicParticularTokenReportLinkResponse>(
+    `/api/particular-tokens/${tokenId}/report`,
+    {
+      ...options,
+      method: "PATCH",
+      body: JSON.stringify({ reportId }),
+    },
+  );
+}
+
 export type AdminStudyTrackingStage =
   | "reception"
   | "processing"
@@ -715,4 +810,5 @@ export async function searchPublicProfessionals(
     };
   }
 }
+
 
