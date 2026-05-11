@@ -73,6 +73,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -104,32 +105,92 @@
   }
 
   .field-textarea {
-    @apply flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm ring-offset-background placeholder:text-muted-foreground transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none;
+    @apply flex w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm ring-offset-background placeholder:text-muted-foreground transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
-  .public-soft-canvas {
+  .render-surface {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
     background:
       radial-gradient(circle at 12% 16%, rgba(45, 212, 191, 0.18), transparent 32%),
       radial-gradient(circle at 88% 4%, rgba(251, 191, 36, 0.16), transparent 30%),
       linear-gradient(135deg, #f8fafc 0%, #eef6ff 45%, #ecfeff 100%);
   }
 
-  .public-hero-depth {
+  .render-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-radius: 1.25rem;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.84));
+    box-shadow: 0 24px 78px rgba(15, 23, 42, 0.10);
+    transform: translateZ(0);
+    transition:
+      transform 180ms ease,
+      box-shadow 180ms ease,
+      border-color 180ms ease,
+      background-color 180ms ease;
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    backface-visibility: hidden;
+  }
+
+  .render-card:hover {
+    border-color: rgba(125, 211, 252, 0.65);
+    box-shadow: 0 30px 95px rgba(15, 23, 42, 0.14);
+    transform: translate3d(0, -2px, 0);
+  }
+
+  .render-copy {
+    line-height: 1.68;
+    overflow-wrap: break-word;
+    text-wrap: pretty;
+  }
+
+  .render-gpu-soft {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  .render-orb {
+    opacity: 0.9;
+    filter: blur(48px);
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform, opacity;
+  }
+
+  .public-soft-canvas,
+  [data-public-soft-canvas="true"] {
     position: relative;
     isolation: isolate;
     overflow: hidden;
     background:
-      radial-gradient(circle at 15% 10%, rgba(34, 211, 238, 0.28), transparent 30%),
-      radial-gradient(circle at 88% 12%, rgba(52, 211, 153, 0.22), transparent 26%),
-      radial-gradient(circle at 62% 112%, rgba(251, 191, 36, 0.14), transparent 32%),
-      linear-gradient(135deg, #071a35 0%, #123f7a 48%, #0f766e 100%);
+      radial-gradient(circle at 12% 16%, rgba(45, 212, 191, 0.18), transparent 32%),
+      radial-gradient(circle at 88% 4%, rgba(251, 191, 36, 0.16), transparent 30%),
+      linear-gradient(135deg, #f8fafc 0%, #eef6ff 45%, #ecfeff 100%);
   }
 
-  .public-hero-depth::after {
+  .public-hero-depth,
+  [data-public-hero-depth="true"] {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 12% 12%, rgba(34, 211, 238, 0.30), transparent 31%),
+      radial-gradient(circle at 88% 15%, rgba(52, 211, 153, 0.30), transparent 34%),
+      radial-gradient(circle at 50% 120%, rgba(251, 191, 36, 0.16), transparent 34%),
+      linear-gradient(135deg, #07365d 0%, #123f7a 42%, #0f766e 100%);
+  }
+
+  .public-hero-depth::after,
+  [data-public-hero-depth="true"]::after {
     content: "";
     position: absolute;
     inset: 0;
-    z-index: -1;
+    z-index: 0;
+    pointer-events: none;
     background-image:
       linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
@@ -139,54 +200,20 @@
 
   .premium-card {
     @apply rounded-2xl border border-white/70 bg-white/85 shadow-[0_24px_70px_rgba(15,23,42,0.10)] backdrop-blur transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_30px_90px_rgba(15,23,42,0.14)];
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 
   .premium-card-muted {
     @apply rounded-2xl border border-slate-200/80 bg-white/75 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur;
+    transform: translateZ(0);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    backface-visibility: hidden;
   }
 
   .premium-divider {
     background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.45), rgba(45, 212, 191, 0.45), transparent);
-  }
-}
-@layer components {
-  [data-public-hero-depth="true"] {
-    position: relative;
-    isolation: isolate;
-    overflow: hidden;
-    background:
-      radial-gradient(circle at 15% 10%, rgba(34, 211, 238, 0.28), transparent 30%),
-      radial-gradient(circle at 88% 12%, rgba(52, 211, 153, 0.22), transparent 26%),
-      radial-gradient(circle at 62% 112%, rgba(251, 191, 36, 0.14), transparent 32%),
-      linear-gradient(135deg, #071a35 0%, #123f7a 48%, #0f766e 100%);
-  }
-
-  [data-public-hero-depth="true"]::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
-    background-size: 46px 46px;
-    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent 72%);
-  }
-
-  [data-public-soft-canvas="true"] {
-    background:
-      radial-gradient(circle at 12% 16%, rgba(45, 212, 191, 0.18), transparent 32%),
-      radial-gradient(circle at 88% 4%, rgba(251, 191, 36, 0.16), transparent 30%),
-      linear-gradient(135deg, #f8fafc 0%, #eef6ff 45%, #ecfeff 100%);
-  }
-}
-@layer components {
-  [data-public-hero-depth="true"][data-public-hero-depth="true"] {
-    background:
-      radial-gradient(circle at 12% 12%, rgba(34, 211, 238, 0.30), transparent 31%),
-      radial-gradient(circle at 88% 15%, rgba(52, 211, 153, 0.30), transparent 34%),
-      radial-gradient(circle at 50% 120%, rgba(251, 191, 36, 0.16), transparent 34%),
-      linear-gradient(135deg, #07365d 0%, #123f7a 42%, #0f766e 100%) !important;
   }
 
   [data-services-polished="true"] > [id] {
@@ -197,7 +224,14 @@
     background:
       linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.84)) !important;
     box-shadow: 0 24px 78px rgba(15, 23, 42, 0.10) !important;
+    transform: translateZ(0);
+    transition:
+      transform 180ms ease,
+      box-shadow 180ms ease,
+      border-color 180ms ease;
+    -webkit-backdrop-filter: blur(18px);
     backdrop-filter: blur(18px);
+    backface-visibility: hidden;
   }
 
   [data-services-polished="true"] > [id]::before {
@@ -211,11 +245,12 @@
   [data-services-polished="true"] > [id]:hover {
     border-color: rgba(125, 211, 252, 0.65) !important;
     box-shadow: 0 30px 95px rgba(15, 23, 42, 0.14) !important;
+    transform: translate3d(0, -2px, 0);
   }
-}
-@layer components {
+
   .public-copy {
     line-height: 1.7;
+    overflow-wrap: break-word;
     text-wrap: pretty;
   }
 
@@ -225,6 +260,7 @@
 
   .public-copy-tight {
     line-height: 1.58;
+    overflow-wrap: break-word;
     text-wrap: pretty;
   }
 
@@ -234,6 +270,7 @@
 
   .public-copy-card {
     line-height: 1.65;
+    overflow-wrap: break-word;
     text-wrap: pretty;
   }
 
@@ -241,5 +278,23 @@
   .public-copy-card > ul + p,
   .public-copy-card > p + ul {
     margin-top: 1lh;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .render-card,
+    .premium-card,
+    [data-services-polished="true"] > [id] {
+      transition: none;
+    }
+
+    .render-card:hover,
+    .premium-card:hover,
+    [data-services-polished="true"] > [id]:hover {
+      transform: translateZ(0);
+    }
+
+    .render-orb {
+      will-change: auto;
+    }
   }
 }
