@@ -96,11 +96,11 @@ export function UploadReportModal() {
 
       {isOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[1px]"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[1px]"
           role="presentation"
         >
           <div
-            className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl"
+            className="relative z-[101] w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-white/80"
             role="dialog"
             aria-modal="true"
             aria-labelledby="upload-report-title"
