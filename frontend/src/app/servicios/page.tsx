@@ -145,8 +145,8 @@ export default function ServiciosPage() {
       </section>
 
       <section className="bg-white py-16 md:py-20" data-public-soft-canvas="true">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-10 max-w-3xl">
+        <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto mb-10 max-w-4xl">
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-primary">
               Laboratorio VETNEB
             </p>
@@ -159,7 +159,7 @@ export default function ServiciosPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8" data-services-polished="true">
             {serviceCategories.map((service) => (
               <Card
                 key={service.id}
