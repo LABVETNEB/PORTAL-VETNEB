@@ -143,7 +143,6 @@ export default function ServiciosPage() {
           </p>
         </div>
       </section>
-
       <section className="bg-white py-16 md:py-20" data-public-soft-canvas="true">
         <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-10 max-w-4xl">
