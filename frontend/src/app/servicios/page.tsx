@@ -136,7 +136,7 @@ export default function ServiciosPage() {
           <h1 className="mb-4 max-w-4xl text-4xl font-bold leading-tight tracking-tight md:text-5xl">
             Servicio patológico veterinario
           </h1>
-          <p className="max-w-2xl text-lg leading-relaxed text-blue-100 md:text-xl">
+          <p className="max-w-2xl public-copy text-lg text-blue-100 md:text-xl">
             La anatomía patológica veterinaria estudia los motivos, el
             desarrollo y las consecuencias de distintas enfermedades mediante el
             análisis de tejidos, órganos y muestras celulares.
@@ -153,7 +153,7 @@ export default function ServiciosPage() {
             <h2 className="text-2xl font-bold text-gray-950 md:text-3xl">
               Estudios con criterio clínico-patológico
             </h2>
-            <p className="mt-3 text-sm leading-relaxed text-gray-600">
+            <p className="mt-3 public-copy-tight text-sm text-gray-600">
               Unificamos histopatología, citología, técnicas complementarias y
               seguimiento para sostener decisiones clínicas con mayor claridad.
             </p>
@@ -171,7 +171,7 @@ export default function ServiciosPage() {
                   <CardTitle className="text-xl text-gray-950">
                     {service.title}
                   </CardTitle>
-                  <CardDescription className="text-sm leading-relaxed text-gray-600">
+                  <CardDescription className="public-copy-tight text-sm text-gray-600">
                     {service.description}
                   </CardDescription>
                 </CardHeader>
@@ -202,7 +202,7 @@ export default function ServiciosPage() {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               Seguimos trabajando en mejorar
             </h2>
-            <p className="text-gray-600 leading-relaxed mb-8">
+            <p className="public-copy text-gray-600 mb-8">
               Estamos enfocados en agilizar la recepción y entrega de informes, y
               en fortalecer los medios de comunicación con clínicas y
               profesionales para reducir tiempos de espera de resultados.
@@ -232,14 +232,14 @@ export default function ServiciosPage() {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               Diagnóstico integral para medicina veterinaria
             </h2>
-            <p className="text-gray-600 leading-relaxed mb-4">
+            <p className="public-copy text-gray-600 mb-4">
               El diagnóstico anatomopatológico veterinario requiere integrar no
               sólo el análisis de tejido y citología, sino también el
               conocimiento clínico global de cada paciente. Esta articulación
               permite enriquecer la lectura diagnóstica junto con otras áreas de
               práctica veterinaria.
             </p>
-            <p className="text-gray-600 leading-relaxed">
+            <p className="public-copy text-gray-600">
               Nuestro objetivo es colaborar de forma permanente con equipos
               quirúrgicos y clínicos, estudiando tejidos extirpados y muestras de
               punción para construir diagnósticos específicos y apoyar planes de
@@ -255,12 +255,12 @@ export default function ServiciosPage() {
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               Para tener en cuenta
             </h2>
-            <p className="text-gray-600 leading-relaxed mb-4">
+            <p className="public-copy text-gray-600 mb-4">
               El estudio anatomopatológico requiere integrar datos clínicos con la
               evaluación histológica y citológica realizada por el médico
               veterinario patólogo en microscopía.
             </p>
-            <p className="text-gray-600 leading-relaxed">
+            <p className="public-copy text-gray-600">
               No se trata de un diagnóstico automatizado, por lo que los tiempos
               son variables según complejidad. En ciertos casos se requiere
               interconsulta profesional para alcanzar mayor precisión diagnóstica.
@@ -278,7 +278,7 @@ export default function ServiciosPage() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
                   Valores que guían el servicio
                 </h2>
-                <p className="text-gray-600 leading-relaxed">
+                <p className="public-copy text-gray-600">
                   Basamos nuestro trabajo en compromiso, seriedad, respeto,
                   responsabilidad, confianza, diálogo, trabajo en equipo, empatía y
                   capacitación constante para sostener un servicio patológico

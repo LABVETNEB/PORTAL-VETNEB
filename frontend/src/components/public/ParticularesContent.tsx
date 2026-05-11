@@ -178,7 +178,7 @@ export function ParticularesContent() {
           <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-gray-950 md:text-5xl">
             Consulte el estado de su caso con token seguro
           </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-gray-600">
+          <p className="mt-5 max-w-2xl public-copy text-lg text-gray-600">
             El acceso particular está limitado al caso vinculado al token. La
             sesión no expone información de clínicas, rutas internas,
             profesionales ni otros estudios.
@@ -193,7 +193,7 @@ export function ParticularesContent() {
                   className="mb-4 h-11 w-11 rounded-xl"
                 />
                 <h2 className="font-semibold text-gray-950">{item.title}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-gray-500">
+                <p className="mt-2 public-copy-tight text-sm text-gray-500">
                   {item.description}
                 </p>
               </div>
@@ -211,7 +211,7 @@ export function ParticularesContent() {
                 <h2 className="font-semibold text-gray-950">
                   Sesión separada del portal clínico
                 </h2>
-                <p className="mt-1 text-sm leading-relaxed text-gray-600">
+                <p className="mt-1 public-copy-tight text-sm text-gray-600">
                   El token particular opera en una superficie aislada y limitada
                   al caso individual autorizado.
                 </p>

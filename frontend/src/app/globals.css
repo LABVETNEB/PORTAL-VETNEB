@@ -213,3 +213,33 @@
     box-shadow: 0 30px 95px rgba(15, 23, 42, 0.14) !important;
   }
 }
+@layer components {
+  .public-copy {
+    line-height: 1.7;
+    text-wrap: pretty;
+  }
+
+  .public-copy > p + p {
+    margin-top: 1lh;
+  }
+
+  .public-copy-tight {
+    line-height: 1.58;
+    text-wrap: pretty;
+  }
+
+  .public-copy-tight > p + p {
+    margin-top: 0.75lh;
+  }
+
+  .public-copy-card {
+    line-height: 1.65;
+    text-wrap: pretty;
+  }
+
+  .public-copy-card > p + p,
+  .public-copy-card > ul + p,
+  .public-copy-card > p + ul {
+    margin-top: 1lh;
+  }
+}
