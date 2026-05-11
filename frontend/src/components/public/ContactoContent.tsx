@@ -1,8 +1,20 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import {
+  ArrowRight,
+  Building2,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Send,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { AmbientOrbs, Eyebrow, VisualIcon } from "@/components/public/VisualAccents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,22 +22,25 @@ import { submitContactMessage } from "@/lib/api";
 
 const contactInfo = [
   {
-    icon: "📧",
+    icon: Mail,
     label: "Email",
     value: "lab.vetneb@gmail.com",
     href: "mailto:lab.vetneb@gmail.com",
+    tone: "blue" as const,
   },
   {
-    icon: "📞",
+    icon: Phone,
     label: "Teléfono",
     value: "3534138946",
     href: "https://wa.me/5493534138946",
+    tone: "emerald" as const,
   },
   {
-    icon: "📍",
+    icon: MapPin,
     label: "Ubicación",
     value: "Villa María, Córdoba, Argentina",
     href: null,
+    tone: "amber" as const,
   },
 ];
 
@@ -81,29 +96,46 @@ export function ContactoContent() {
 
   return (
     <PublicLayout>
-      <section className="bg-gradient-to-br from-blue-900 to-blue-700 text-white py-16">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Contacto</h1>
-          <p className="text-xl text-blue-100 max-w-2xl">
+      <section className="public-hero-depth py-16 text-white md:py-20">
+        <AmbientOrbs variant="dark" />
+        <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
+          <Eyebrow>
+            <Sparkles className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+            Contacto VETNEB
+          </Eyebrow>
+          <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
+            Contacto
+          </h1>
+          <p className="max-w-2xl text-xl leading-relaxed text-blue-50">
             ¿Desea registrar su clínica o tiene consultas sobre nuestros
             servicios? Comuníquese con nuestro equipo.
           </p>
         </div>
       </section>
 
-      <section className="py-16 bg-white">
+      <section className="public-soft-canvas py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-5xl mx-auto">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                Envíenos un mensaje
-              </h2>
+          <div className="grid max-w-5xl grid-cols-1 gap-12 mx-auto lg:grid-cols-2">
+            <div className="rounded-3xl border border-white/70 bg-white/80 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur">
+              <div className="mb-6 flex items-start gap-3">
+                <VisualIcon icon={MessageCircle} tone="blue" className="h-11 w-11 rounded-xl" />
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-950">
+                    Envíenos un mensaje
+                  </h2>
+                  <p className="mt-1 text-sm leading-relaxed text-gray-600">
+                    Complete el formulario y nuestro equipo responderá por el
+                    canal indicado.
+                  </p>
+                </div>
+              </div>
+
               <form
                 className="space-y-4"
                 aria-label="Formulario de contacto"
                 onSubmit={handleSubmit}
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label
                       htmlFor="nombre"
@@ -111,16 +143,20 @@ export function ContactoContent() {
                     >
                       Nombre
                     </label>
-                    <Input
-                      id="nombre"
-                      type="text"
-                      placeholder="Su nombre"
-                      autoComplete="given-name"
-                      required
-                      value={nombre}
-                      onChange={(event) => setNombre(event.target.value)}
-                      disabled={isSubmitting}
-                    />
+                    <div className="relative">
+                      <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                      <Input
+                        id="nombre"
+                        type="text"
+                        placeholder="Su nombre"
+                        autoComplete="given-name"
+                        required
+                        value={nombre}
+                        onChange={(event) => setNombre(event.target.value)}
+                        disabled={isSubmitting}
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label
@@ -147,16 +183,20 @@ export function ContactoContent() {
                   >
                     Email
                   </label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="su@email.com"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    disabled={isSubmitting}
-                  />
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="su@email.com"
+                      autoComplete="email"
+                      required
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      disabled={isSubmitting}
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label
@@ -165,15 +205,19 @@ export function ContactoContent() {
                   >
                     Nombre de la clínica (opcional)
                   </label>
-                  <Input
-                    id="clinica"
-                    type="text"
-                    placeholder="Clínica Veterinaria..."
-                    autoComplete="organization"
-                    value={clinica}
-                    onChange={(event) => setClinica(event.target.value)}
-                    disabled={isSubmitting}
-                  />
+                  <div className="relative">
+                    <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                    <Input
+                      id="clinica"
+                      type="text"
+                      placeholder="Clínica Veterinaria..."
+                      autoComplete="organization"
+                      value={clinica}
+                      onChange={(event) => setClinica(event.target.value)}
+                      disabled={isSubmitting}
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label
@@ -186,7 +230,7 @@ export function ContactoContent() {
                     id="mensaje"
                     rows={5}
                     placeholder="Describa su consulta o solicitud de acceso..."
-                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                    className="flex w-full resize-none rounded-xl border border-input bg-white/90 px-3 py-2 text-sm shadow-inner ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     required
                     minLength={10}
                     value={mensaje}
@@ -210,22 +254,36 @@ export function ContactoContent() {
                   </p>
                 ) : null}
 
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                <Button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-blue-700 to-teal-600 shadow-[0_14px_35px_rgba(37,99,235,0.22)] hover:from-blue-800 hover:to-teal-700"
+                  disabled={isSubmitting}
+                >
+                  <Send className="h-4 w-4" aria-hidden="true" />
                   {isSubmitting ? "Enviando mensaje..." : "Enviar mensaje"}
                 </Button>
               </form>
             </div>
 
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                Información de contacto
-              </h2>
+              <div className="mb-6 flex items-start gap-3">
+                <VisualIcon icon={Phone} tone="emerald" className="h-11 w-11 rounded-xl" />
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-950">
+                    Información de contacto
+                  </h2>
+                  <p className="mt-1 text-sm leading-relaxed text-gray-600">
+                    Canales oficiales para coordinación y consultas.
+                  </p>
+                </div>
+              </div>
+
               <div className="space-y-4 mb-8">
                 {contactInfo.map((info) => (
-                  <Card key={info.label} className="border-gray-100">
+                  <Card key={info.label} className="premium-card">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <span aria-hidden="true">{info.icon}</span>
+                      <CardTitle className="text-base flex items-center gap-3">
+                        <VisualIcon icon={info.icon} tone={info.tone} className="h-9 w-9 rounded-xl" />
                         {info.label}
                       </CardTitle>
                     </CardHeader>
@@ -245,7 +303,7 @@ export function ContactoContent() {
                 ))}
               </div>
 
-              <div className="bg-blue-50 rounded-lg p-6 border border-blue-100">
+              <div className="rounded-3xl border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-emerald-50 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
                 <h3 className="font-semibold text-blue-900 mb-2">
                   ¿Es una clínica veterinaria?
                 </h3>
@@ -254,6 +312,10 @@ export function ContactoContent() {
                   su mensaje. Nuestro equipo se pondrá en contacto para
                   configurar su acceso y explicarle el proceso de integración.
                 </p>
+                <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary">
+                  Solicitar integración
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </div>
               </div>
             </div>
           </div>
