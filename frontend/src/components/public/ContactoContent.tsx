@@ -106,7 +106,7 @@ export function ContactoContent() {
           <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
             Contacto
           </h1>
-          <p className="max-w-2xl text-xl leading-relaxed text-blue-50">
+          <p className="max-w-2xl public-copy text-xl text-blue-50">
             ¿Desea registrar su clínica o tiene consultas sobre nuestros
             servicios? Comuníquese con nuestro equipo.
           </p>
@@ -123,7 +123,7 @@ export function ContactoContent() {
                   <h2 className="text-2xl font-bold text-gray-950">
                     Envíenos un mensaje
                   </h2>
-                  <p className="mt-1 text-sm leading-relaxed text-gray-600">
+                  <p className="mt-1 public-copy-tight text-sm text-gray-600">
                     Complete el formulario y nuestro equipo responderá por el
                     canal indicado.
                   </p>
@@ -272,7 +272,7 @@ export function ContactoContent() {
                   <h2 className="text-2xl font-bold text-gray-950">
                     Información de contacto
                   </h2>
-                  <p className="mt-1 text-sm leading-relaxed text-gray-600">
+                  <p className="mt-1 public-copy-tight text-sm text-gray-600">
                     Canales oficiales para coordinación y consultas.
                   </p>
                 </div>
@@ -307,7 +307,7 @@ export function ContactoContent() {
                 <h3 className="font-semibold text-blue-900 mb-2">
                   ¿Es una clínica veterinaria?
                 </h3>
-                <p className="text-sm text-blue-700 leading-relaxed">
+                <p className="text-sm public-copy text-blue-700">
                   Si desea registrar su clínica en Portal VETNEB, indíquelo en
                   su mensaje. Nuestro equipo se pondrá en contacto para
                   configurar su acceso y explicarle el proceso de integración.

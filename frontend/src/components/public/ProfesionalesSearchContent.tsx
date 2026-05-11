@@ -112,7 +112,7 @@ export function ProfesionalesSearchContent() {
           <h1 className="mb-4 max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
             Red de profesionales veterinarios
           </h1>
-          <p className="max-w-2xl text-xl leading-relaxed text-blue-50">
+          <p className="max-w-2xl public-copy text-xl text-blue-50">
             Banco público de profesionales vinculados a VETNEB, con búsqueda
             directa, clara y optimizada para datos reales.
           </p>
@@ -128,7 +128,7 @@ export function ProfesionalesSearchContent() {
                 <h2 className="mb-3 text-2xl font-bold text-gray-950">
                   Buscar profesionales
                 </h2>
-                <p className="text-sm leading-relaxed text-gray-600">
+                <p className="public-copy-tight text-sm text-gray-600">
                   Ingrese texto libre, incluso una sola letra. La búsqueda admite coincidencias por nombre,
                   especialidad, servicios, localidad, país, email, teléfono o
                   descripción para reducir errores por escritura parcial.
