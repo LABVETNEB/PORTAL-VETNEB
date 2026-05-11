@@ -19,17 +19,22 @@ test("frontend middleware imports Next response and request types", () => {
   assert.ok(source.includes("export function middleware(request: NextRequest)"));
 });
 
-test("frontend middleware checks clinic and admin session cookies before allowing dashboard access", () => {
+test("frontend middleware separates clinic and admin dashboard session cookies", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes('const CLINIC_SESSION_COOKIE_NAME = "app_session_id";'));
   assert.ok(source.includes('const ADMIN_SESSION_COOKIE_NAME = "admin_session_id";'));
-  assert.ok(source.includes("const hasClinicSession = Boolean("));
-  assert.ok(source.includes("const hasAdminSession = Boolean("));
-  assert.ok(source.includes("request.cookies.get(CLINIC_SESSION_COOKIE_NAME)?.value"));
-  assert.ok(source.includes("request.cookies.get(ADMIN_SESSION_COOKIE_NAME)?.value"));
-  assert.ok(source.includes("if (hasClinicSession || hasAdminSession) {"));
+  assert.ok(source.includes('const ADMIN_DASHBOARD_PATH_PREFIX = "/dashboard/admin";'));
+  assert.ok(source.includes("function isAdminDashboardPath(pathname: string): boolean"));
+  assert.ok(source.includes("pathname === ADMIN_DASHBOARD_PATH_PREFIX"));
+  assert.ok(source.includes('pathname.startsWith(`${ADMIN_DASHBOARD_PATH_PREFIX}/`)'));
+  assert.ok(source.includes("function getRequiredSessionCookieName(pathname: string): string"));
+  assert.ok(source.includes("? ADMIN_SESSION_COOKIE_NAME"));
+  assert.ok(source.includes(": CLINIC_SESSION_COOKIE_NAME"));
+  assert.ok(source.includes("request.cookies.get(requiredCookieName)?.value"));
+  assert.ok(source.includes("if (hasRequiredSession) {"));
   assert.ok(source.includes("return NextResponse.next();"));
+  assert.equal(source.includes("hasClinicSession || hasAdminSession"), false);
 });
 
 test("frontend middleware redirects unauthenticated dashboard requests to login with next path", () => {

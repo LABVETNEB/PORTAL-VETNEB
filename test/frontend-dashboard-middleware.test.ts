@@ -25,12 +25,27 @@ test("frontend dashboard middleware exists and protects dashboard routes", () =>
   assert.ok(source.includes('CLINIC_SESSION_COOKIE_NAME = "app_session_id"'));
   assert.ok(source.includes('ADMIN_SESSION_COOKIE_NAME = "admin_session_id"'));
   assert.ok(source.includes('LOGIN_PATH = "/login"'));
-  assert.ok(source.includes("request.cookies.get(CLINIC_SESSION_COOKIE_NAME)"));
-  assert.ok(source.includes("request.cookies.get(ADMIN_SESSION_COOKIE_NAME)"));
-  assert.ok(source.includes("hasClinicSession || hasAdminSession"));
+  assert.ok(source.includes('ADMIN_DASHBOARD_PATH_PREFIX = "/dashboard/admin"'));
   assert.ok(source.includes("NextResponse.next()"));
   assert.ok(source.includes("NextResponse.redirect(loginUrl)"));
   assert.ok(source.includes('matcher: ["/dashboard/:path*"]'));
+});
+
+test("frontend dashboard middleware separates clinic and admin sessions", () => {
+  const source = read(MIDDLEWARE_PATH);
+
+  assert.ok(source.includes("function isAdminDashboardPath(pathname: string): boolean"));
+  assert.ok(source.includes("pathname === ADMIN_DASHBOARD_PATH_PREFIX"));
+  assert.ok(source.includes('pathname.startsWith(`${ADMIN_DASHBOARD_PATH_PREFIX}/`)'));
+  assert.ok(source.includes("function getRequiredSessionCookieName(pathname: string): string"));
+  assert.ok(source.includes("return isAdminDashboardPath(pathname)"));
+  assert.ok(source.includes("? ADMIN_SESSION_COOKIE_NAME"));
+  assert.ok(source.includes(": CLINIC_SESSION_COOKIE_NAME"));
+  assert.ok(source.includes("const requiredCookieName = getRequiredSessionCookieName("));
+  assert.ok(source.includes("request.nextUrl.pathname"));
+  assert.ok(source.includes("request.cookies.get(requiredCookieName)"));
+  assert.ok(source.includes("hasRequiredSession"));
+  assert.equal(source.includes("hasClinicSession || hasAdminSession"), false);
 });
 
 test("frontend dashboard middleware preserves requested dashboard path", () => {

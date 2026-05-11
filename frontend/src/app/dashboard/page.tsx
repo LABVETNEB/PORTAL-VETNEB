@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
+import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,7 @@ import {
 } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "Dashboard — Portal VETNEB",
+  title: "Dashboard Clínica — Portal VETNEB",
   robots: { index: false, follow: false },
 };
 
@@ -47,10 +48,11 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <DashboardTopbar title="Dashboard" subtitle="Resumen operativo" />
+      <DashboardTopbar title="Dashboard Clínica" subtitle="Resumen operativo clínica" />
       <main className="dashboard-main">
         <div className="surface-note-info">
-          Lectura conectada a datos operativos del backend.
+          Lectura conectada a datos operativos clinic-scoped del backend. Esta
+          superficie no usa sesión de administración.
         </div>
 
         <StatsCards stats={stats} />
@@ -151,7 +153,11 @@ export default async function DashboardPage() {
                   href: ROUTES.dashboardLogisticaRutas,
                   icon: "🗺️",
                 },
-                { label: "Admin", href: ROUTES.dashboardAdmin, icon: "🔧" },
+                {
+                  label: "Tokens",
+                  href: "#clinic-particular-tokens",
+                  icon: "🔐",
+                },
               ].map((item) => (
                 <Button
                   key={item.href}
@@ -170,6 +176,8 @@ export default async function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+
+        <ClinicParticularTokensCard />
       </main>
     </>
   );
