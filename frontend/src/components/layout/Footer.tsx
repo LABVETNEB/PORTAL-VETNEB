@@ -1,4 +1,12 @@
 import Link from "next/link";
+import {
+  ChevronDown,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Navigation,
+  Phone,
+} from "lucide-react";
 
 import { ROUTES } from "@/lib/routes";
 
@@ -49,32 +57,35 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t bg-gray-50" role="contentinfo">
+    <footer className="border-t border-slate-200/70 bg-slate-950 text-white" role="contentinfo">
       <section
-        className="bg-emerald-50 py-12"
+        className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-teal-950 py-12"
         aria-labelledby="footer-faq-heading"
       >
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          <div className="absolute -left-24 top-0 h-64 w-64 rounded-full bg-cyan-300/10 blur-3xl" />
+          <div className="absolute right-0 top-10 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
+        </div>
+
+        <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
           <h2
             id="footer-faq-heading"
-            className="mb-8 text-lg font-bold uppercase tracking-wide text-gray-950"
+            className="mb-8 text-lg font-bold uppercase tracking-[0.2em] text-cyan-50"
           >
             Preguntas frecuentes:
           </h2>
 
-          <div className="divide-y divide-gray-500/50">
+          <div className="divide-y divide-white/10 rounded-3xl border border-white/10 bg-white/[0.06] px-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] backdrop-blur">
             {faqItems.map((item) => (
               <details key={item.question} className="group py-4">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-gray-950">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-white">
                   <span>{item.question}</span>
-                  <span
-                    className="text-lg leading-none transition-transform group-open:rotate-180"
+                  <ChevronDown
+                    className="h-4 w-4 shrink-0 text-cyan-100 transition-transform group-open:rotate-180"
                     aria-hidden="true"
-                  >
-                    ˄
-                  </span>
+                  />
                 </summary>
-                <p className="mt-3 max-w-6xl text-sm leading-relaxed text-gray-900">
+                <p className="mt-3 max-w-6xl text-sm leading-relaxed text-cyan-50/80">
                   {item.answer}
                 </p>
               </details>
@@ -84,47 +95,58 @@ export function Footer() {
       </section>
 
       <section
-        className="bg-white py-8"
+        className="bg-gradient-to-b from-slate-950 to-slate-900 py-8"
         aria-labelledby="footer-lab-info-heading"
       >
         <div className="container mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 md:grid-cols-2 lg:grid-cols-[1.35fr_0.75fr_0.75fr_1.15fr] lg:px-8">
-          <div className="text-sm text-gray-950">
+          <div className="text-sm text-slate-200">
             <h2
               id="footer-lab-info-heading"
-              className="mb-5 text-sm font-bold uppercase tracking-wide"
+              className="mb-5 text-sm font-bold uppercase tracking-[0.2em] text-white"
             >
               Servicio Patológico VETNEB
             </h2>
 
             <address className="not-italic">
               <ul className="space-y-3">
-                {labInfo.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-                <li>
-                  WhatsApp:{" "}
-                  <a
-                    href="https://wa.me/5493534138946"
-                    className="underline underline-offset-2 hover:text-primary"
-                  >
-                    3534138946
-                  </a>
+                <li className="flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true" />
+                  <span>{labInfo[0]}</span>
                 </li>
-                <li>
-                  Mail:{" "}
-                  <a
-                    href="mailto:lab.vetneb@gmail.com"
-                    className="underline underline-offset-2 hover:text-primary"
-                  >
-                    lab.vetneb@gmail.com
-                  </a>
+                <li className="flex items-start gap-2">
+                  <Navigation className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
+                  <span>{labInfo[1]}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Phone className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
+                  <span>
+                    WhatsApp:{" "}
+                    <a
+                      href="https://wa.me/5493534138946"
+                      className="underline underline-offset-2 hover:text-cyan-200"
+                    >
+                      3534138946
+                    </a>
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Mail className="mt-0.5 h-4 w-4 shrink-0 text-blue-300" aria-hidden="true" />
+                  <span>
+                    Mail:{" "}
+                    <a
+                      href="mailto:lab.vetneb@gmail.com"
+                      className="underline underline-offset-2 hover:text-cyan-200"
+                    >
+                      lab.vetneb@gmail.com
+                    </a>
+                  </span>
                 </li>
               </ul>
             </address>
           </div>
 
           <nav aria-label="Navegación secundaria">
-            <h3 className="mb-5 text-sm font-semibold text-gray-900">
+            <h3 className="mb-5 text-sm font-semibold text-white">
               Navegación
             </h3>
             <ul className="space-y-3">
@@ -132,7 +154,7 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-gray-500 transition-colors hover:text-primary"
+                    className="text-sm text-slate-300 transition-colors hover:text-cyan-200"
                   >
                     {link.label}
                   </Link>
@@ -142,14 +164,14 @@ export function Footer() {
           </nav>
 
           <div>
-            <h3 className="mb-5 text-sm font-semibold text-gray-900">
+            <h3 className="mb-5 text-sm font-semibold text-white">
               Acceso
             </h3>
             <ul className="space-y-3">
               <li>
                 <Link
                   href={ROUTES.login}
-                  className="text-sm text-gray-500 transition-colors hover:text-primary"
+                  className="text-sm text-slate-300 transition-colors hover:text-cyan-200"
                 >
                   Iniciar sesión
                 </Link>
@@ -157,7 +179,7 @@ export function Footer() {
               <li>
                 <Link
                   href={ROUTES.particulares}
-                  className="text-sm text-gray-500 transition-colors hover:text-primary"
+                  className="text-sm text-slate-300 transition-colors hover:text-cyan-200"
                 >
                   Acceso particulares
                 </Link>
@@ -165,15 +187,16 @@ export function Footer() {
               <li>
                 <Link
                   href={ROUTES.contacto}
-                  className="text-sm text-gray-500 transition-colors hover:text-primary"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-sm text-white shadow-sm transition-colors hover:bg-white/15"
                 >
+                  <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
                   Solicitar acceso
                 </Link>
               </li>
             </ul>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-100 shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.22)]">
             <iframe
               title="Ubicación de Servicio Patológico VETNEB en Google Maps"
               src={mapsEmbedUrl}
@@ -187,11 +210,12 @@ export function Footer() {
       </section>
 
       <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-6 sm:flex-row">
-          <p className="text-xs text-gray-400">
+        <div className="premium-divider mb-6 h-px" aria-hidden="true" />
+        <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+          <p className="text-xs text-slate-400">
             &copy; {year} VETNEB. Todos los derechos reservados.
           </p>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-slate-400">
             Laboratorio veterinario digital — Argentina
           </p>
         </div>
