@@ -8,6 +8,13 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { uploadAdminReport } from "@/lib/api";
+import { getAdminUsersRoles } from "@/lib/api";
+
+type ClinicOption = {
+  id: number;
+  name: string;
+  usernames: string[];
+};
 
 const STUDY_TYPE_OPTIONS = [
   { value: "", label: "Tipo de estudio" },
@@ -17,12 +24,77 @@ const STUDY_TYPE_OPTIONS = [
   { value: "special_stain", label: "Hematología" },
 ];
 
+function normalizeSearchText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
+function buildClinicSearchText(option: ClinicOption) {
+  return normalizeSearchText(
+    [
+      option.id,
+      option.name,
+      ...option.usernames,
+    ].join(" "),
+  );
+}
+
+function matchClinicOption(option: ClinicOption, query: string) {
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const searchable = buildClinicSearchText(option);
+  const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+
+  return tokens.every((token) => searchable.includes(token));
+}
+
+function sortClinicOptions(a: ClinicOption, b: ClinicOption) {
+  return a.name.localeCompare(b.name, "es", { sensitivity: "base" });
+}
+
+function dedupeClinicOptions(options: ClinicOption[]) {
+  const byId = new Map<number, ClinicOption>();
+
+  for (const option of options) {
+    const current = byId.get(option.id);
+
+    if (!current) {
+      byId.set(option.id, {
+        ...option,
+        usernames: [...option.usernames],
+      });
+      continue;
+    }
+
+    byId.set(option.id, {
+      ...current,
+      name: current.name || option.name,
+      usernames: Array.from(
+        new Set([...current.usernames, ...option.usernames]),
+      ).sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" })),
+    });
+  }
+
+  return Array.from(byId.values()).sort(sortClinicOptions);
+}
+
 export function UploadReportModal() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [clinicId, setClinicId] = useState("");
+  const [clinicSearch, setClinicSearch] = useState("");
+  const [clinicOptions, setClinicOptions] = useState<ClinicOption[]>([]);
+  const [isLoadingClinics, setIsLoadingClinics] = useState(false);
+  const [clinicLoadError, setClinicLoadError] = useState<string | null>(null);
   const [patientName, setPatientName] = useState("");
   const [studyType, setStudyType] = useState("");
   const [uploadDate, setUploadDate] = useState("");
@@ -30,12 +102,91 @@ export function UploadReportModal() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const selectedClinic = clinicOptions.find(
+    (option) => String(option.id) === clinicId,
+  );
+
+  const filteredClinicOptions = clinicOptions
+    .filter((option) => matchClinicOption(option, clinicSearch))
+    .slice(0, 20);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!isOpen || clinicOptions.length > 0 || isLoadingClinics) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadClinicOptions() {
+      setIsLoadingClinics(true);
+      setClinicLoadError(null);
+
+      try {
+        const limit = 100;
+        let offset = 0;
+        let total = Number.POSITIVE_INFINITY;
+        const options: ClinicOption[] = [];
+
+        while (offset < total) {
+          const snapshot = await getAdminUsersRoles({
+            userType: "clinic",
+            limit,
+            offset,
+          });
+
+          total = snapshot.total;
+
+          for (const user of snapshot.users) {
+            if (user.userType !== "clinic") {
+              continue;
+            }
+
+            options.push({
+              id: user.clinicId,
+              name: user.clinicName ?? `Clínica #${user.clinicId}`,
+              usernames: [user.username],
+            });
+          }
+
+          offset += snapshot.users.length;
+
+          if (snapshot.users.length === 0) {
+            break;
+          }
+        }
+
+        if (!cancelled) {
+          setClinicOptions(dedupeClinicOptions(options));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setClinicLoadError(
+            error instanceof Error
+              ? error.message
+              : "No se pudieron cargar las clínicas registradas.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingClinics(false);
+        }
+      }
+    }
+
+    void loadClinicOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clinicOptions.length, isLoadingClinics, isOpen]);
+
   function resetForm() {
     setClinicId("");
+    setClinicSearch("");
     setPatientName("");
     setStudyType("");
     setUploadDate("");
@@ -55,10 +206,27 @@ export function UploadReportModal() {
     setSuccessMessage(null);
   }
 
+  function selectClinic(option: ClinicOption) {
+    setClinicId(String(option.id));
+    setClinicSearch(option.name);
+    setErrorMessage(null);
+  }
+
+  function handleClinicSearchChange(value: string) {
+    setClinicSearch(value);
+    setClinicId("");
+    setErrorMessage(null);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (isSubmitting) {
+      return;
+    }
+
+    if (!clinicId || !selectedClinic) {
+      setErrorMessage("Seleccione una clínica registrada del listado.");
       return;
     }
 
@@ -141,21 +309,96 @@ export function UploadReportModal() {
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label
-              htmlFor="upload-clinic-id"
+              htmlFor="upload-clinic-search"
               className="field-label"
             >
-              ID de clínica
+              Clínica
             </label>
             <Input
+              id="upload-clinic-search"
+              name="clinicSearch"
+              type="text"
+              placeholder="Buscar clínica registrada por nombre, usuario o ID..."
+              autoComplete="off"
+              required
+              value={clinicSearch}
+              onChange={(event) => handleClinicSearchChange(event.target.value)}
+              disabled={isSubmitting}
+              aria-describedby="upload-clinic-help"
+            />
+            <input
               id="upload-clinic-id"
               name="clinicId"
-              type="number"
-              min="1"
-              required
+              type="hidden"
               value={clinicId}
-              onChange={(event) => setClinicId(event.target.value)}
-              disabled={isSubmitting}
+              readOnly
             />
+            <p id="upload-clinic-help" className="mt-1 text-xs text-gray-500">
+              Seleccione una clínica del listado desplegado. La búsqueda admite
+              texto parcial, acentos, ID y usuarios asociados.
+            </p>
+
+            {clinicLoadError ? (
+              <p
+                className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                role="alert"
+              >
+                {clinicLoadError}
+              </p>
+            ) : null}
+
+            <div
+              className="mt-2 max-h-44 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm"
+              role="listbox"
+              aria-label="Clínicas registradas"
+            >
+              {isLoadingClinics ? (
+                <p className="px-3 py-2 text-sm text-gray-500">
+                  Cargando clínicas registradas...
+                </p>
+              ) : null}
+
+              {!isLoadingClinics && filteredClinicOptions.length === 0 ? (
+                <p className="px-3 py-2 text-sm text-gray-500">
+                  No hay clínicas registradas que coincidan con la búsqueda.
+                </p>
+              ) : null}
+
+              {!isLoadingClinics
+                ? filteredClinicOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-blue-50 ${
+                        String(option.id) === clinicId
+                          ? "bg-blue-50 text-blue-800"
+                          : "text-gray-700"
+                      }`}
+                      onClick={() => selectClinic(option)}
+                      disabled={isSubmitting}
+                      role="option"
+                      aria-selected={String(option.id) === clinicId}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">
+                          {option.name}
+                        </span>
+                        <span className="block truncate text-xs text-gray-500">
+                          ID #{option.id}
+                          {option.usernames.length
+                            ? ` · ${option.usernames.join(", ")}`
+                            : ""}
+                        </span>
+                      </span>
+                      {String(option.id) === clinicId ? (
+                        <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                          Seleccionada
+                        </span>
+                      ) : null}
+                    </button>
+                  ))
+                : null}
+            </div>
           </div>
 
           <div>
