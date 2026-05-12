@@ -132,7 +132,7 @@ export default function HomePage() {
 
       {/* Servicios principales */}
       <section
-        className="bg-white py-16 md:py-20"
+        className="public-soft-canvas py-16 md:py-20"
         aria-labelledby="services-heading"
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -260,4 +260,5 @@ export default function HomePage() {
     </PublicLayout>
   );
 }
+
 

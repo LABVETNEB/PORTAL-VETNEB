@@ -131,6 +131,7 @@ test("public home page keeps polished visual hierarchy and responsive sections",
       /className="relative container mx-auto flex min-h-\[calc\(100vh-4\.5rem\)\] items-center px-4 py-16 sm:px-6 lg:px-8"/,
       /className="text-4xl font-semibold leading-tight tracking-\[0\.08em\] text-white sm:text-5xl lg:text-6xl"/,
       /className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4"/,
+      /className="public-soft-canvas py-16 md:py-20"/,
       /className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4"/,
       /className="bg-primary py-16 text-white md:py-20"/,
       /className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4"/,
@@ -375,6 +376,7 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
   assertInlineStylesAtMost(source, 0, "dashboard admin");
   assert.equal(source.includes("fetch("), false, "dashboard admin must avoid fetch()");
 });
+
 
 
 
