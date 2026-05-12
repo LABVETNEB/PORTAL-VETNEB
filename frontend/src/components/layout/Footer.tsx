@@ -53,44 +53,40 @@ const footerLinks = [
 const mapsEmbedUrl =
   "https://www.google.com/maps?q=Blvd.%20Italia%20274%2C%20Villa%20Maria%2C%20Cordoba%2C%20Argentina&output=embed";
 
+export function FooterFaq() {
+  return (
+    <section className="relative overflow-hidden py-12" aria-labelledby="footer-faq-heading">
+      <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
+        <h2 id="footer-faq-heading" className="mb-8 text-lg font-bold text-foreground">
+          Preguntas frecuentes:
+        </h2>
+
+        <div className="divide-y divide-border/70 rounded-2xl border border-border/70 bg-transparent px-5">
+          {faqItems.map((item) => (
+            <details key={item.question} className="group py-4">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-foreground">
+                <span>{item.question}</span>
+                <ChevronDown
+                  className="h-4 w-4 shrink-0 text-primary transition-transform group-open:rotate-180"
+                  aria-hidden="true"
+                />
+              </summary>
+              <p className="mt-3 max-w-6xl text-sm leading-relaxed text-muted-foreground">
+                {item.answer}
+              </p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-sidebar-border bg-sidebar text-sidebar-foreground" role="contentinfo">
-      <section
-        className="relative overflow-hidden bg-sidebar py-12"
-        aria-labelledby="footer-faq-heading"
-      >
-        <div className="diagnostic-field" data-tone="dark" aria-hidden="true" />
-
-        <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <h2
-            id="footer-faq-heading"
-            className="mb-8 text-lg font-bold text-sidebar-foreground"
-          >
-            Preguntas frecuentes:
-          </h2>
-
-          <div className="divide-y divide-white/10 rounded-lg border border-white/10 bg-white/[0.06] px-5 shadow-[0_20px_64px_rgba(0,0,0,0.20)]">
-            {faqItems.map((item) => (
-              <details key={item.question} className="group py-4">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-white">
-                  <span>{item.question}</span>
-                  <ChevronDown
-                    className="h-4 w-4 shrink-0 text-cyan-100 transition-transform group-open:rotate-180"
-                    aria-hidden="true"
-                  />
-                </summary>
-                <p className="mt-3 max-w-6xl text-sm leading-relaxed text-cyan-50/80">
-                  {item.answer}
-                </p>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
-
+    <footer className="bg-transparent text-sidebar-foreground" role="contentinfo">
       <section
         className="border-t border-white/10 bg-sidebar py-8"
         aria-labelledby="footer-lab-info-heading"
