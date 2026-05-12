@@ -36,13 +36,15 @@ test("dashboard topbar keeps typed title and optional subtitle props", () => {
   assert.ok(source.includes("{subtitle}"));
 });
 
-test("dashboard topbar keeps protected dashboard header shell", () => {
+test("dashboard topbar keeps protected dashboard header shell without mock session chip", () => {
   const source = read(DASHBOARD_TOPBAR_PATH);
 
-  assert.ok(source.includes('<header className="sticky top-0 z-40'));
-  assert.ok(source.includes("Clínica Demo"));
-  assert.ok(source.includes("CL"));
+  assert.ok(source.includes('<header'));
+  assert.ok(source.includes("sticky top-0 z-40"));
   assert.ok(source.includes('<Button asChild variant="outline" size="sm">'));
+  assert.equal(source.includes("Usuario mock"), false);
+  assert.equal(source.includes("Clínica Demo"), false);
+  assert.equal(source.includes(">CL<"), false);
 });
 
 test("stats cards keep DashboardStats typing and UI dependencies", () => {
@@ -95,3 +97,4 @@ test("stats cards render configured metrics with fallback and hidden icons", () 
   assert.ok(source.includes("{stats ? stats[config.key] : \"—\"}"));
   assert.ok(source.includes("{config.description}"));
 });
+
