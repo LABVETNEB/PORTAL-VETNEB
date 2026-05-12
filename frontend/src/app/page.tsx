@@ -89,9 +89,6 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-black/55" aria-hidden="true" />
         <div className="relative container mx-auto flex min-h-[calc(100vh-4.5rem)] items-center px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-4xl text-center">
-            <div className="mb-6 inline-flex items-center justify-center rounded-full border border-white/30 bg-black/35 px-4 py-1.5 text-sm font-medium tracking-wide text-slate-100">
-              Servicio patológico veterinario
-            </div>
             <h1
               id="hero-heading"
               className="text-4xl font-semibold leading-tight tracking-[0.08em] text-white sm:text-5xl lg:text-6xl"
@@ -263,3 +260,4 @@ export default function HomePage() {
     </PublicLayout>
   );
 }
+
