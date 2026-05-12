@@ -100,10 +100,10 @@ function formatSystemStatus(status: string) {
 }
 
 function getSystemStatusIndicatorClass(status: string) {
-  if (status === "ok") return "bg-green-500 animate-pulse";
+  if (status === "ok") return "bg-vetneb-teal";
   if (status === "degraded") return "bg-amber-500";
-  if (status === "down") return "bg-red-500";
-  return "bg-gray-400";
+  if (status === "down") return "bg-destructive";
+  return "bg-muted-foreground";
 }
 
 function formatSystemStatusDetail(services: Record<string, unknown>) {
@@ -308,7 +308,7 @@ export default async function AdminPage({
         >
           <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
+              <p className="text-xs font-semibold uppercase text-blue-700">
                 Panel administrador
               </p>
               <h2 className="mt-2 text-xl font-semibold text-gray-950">

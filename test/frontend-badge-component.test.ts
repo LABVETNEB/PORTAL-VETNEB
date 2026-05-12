@@ -25,7 +25,7 @@ test("badge component uses shared variant utilities and class merge utility", ()
 test("badge component defines stable base classes", () => {
   const source = read(BADGE_PATH);
 
-  assert.ok(source.includes("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"));
+  assert.ok(source.includes("inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold"));
   assert.ok(source.includes("transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"));
 });
 
@@ -34,12 +34,12 @@ test("badge component defines expected variants and default", () => {
 
   assert.ok(source.includes("variant: {"));
   assert.ok(source.includes("default:"));
-  assert.ok(source.includes("border-transparent bg-primary text-primary-foreground hover:bg-primary/80"));
+  assert.ok(source.includes("border-vetneb-teal/25 bg-vetneb-teal/10 text-vetneb-teal hover:bg-vetneb-teal/20"));
   assert.ok(source.includes("secondary:"));
-  assert.ok(source.includes("border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80"));
+  assert.ok(source.includes("border-vetneb-cyan/25 bg-vetneb-cyan/10 text-vetneb-navy hover:bg-vetneb-cyan/20"));
   assert.ok(source.includes("destructive:"));
-  assert.ok(source.includes("border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80"));
-  assert.ok(source.includes('outline: "text-foreground"'));
+  assert.ok(source.includes("border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/20"));
+  assert.ok(source.includes('outline: "border-vetneb-line bg-card/70 text-foreground"'));
   assert.ok(source.includes("defaultVariants: {"));
   assert.ok(source.includes('variant: "default"'));
 });

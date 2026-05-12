@@ -103,7 +103,7 @@ export function ContactoContent() {
             <Sparkles className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
             Contacto VETNEB
           </Eyebrow>
-          <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
+          <h1 className="mb-4 text-4xl font-bold md:text-5xl">
             Contacto
           </h1>
           <p className="max-w-2xl public-copy text-xl text-blue-50">

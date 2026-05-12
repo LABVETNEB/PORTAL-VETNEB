@@ -33,7 +33,7 @@ export function PublicHero({
         {eyebrow}
         <h1
           className={cn(
-            "mb-4 max-w-4xl text-4xl font-bold leading-tight tracking-tight md:text-5xl",
+            "mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl",
             titleClassName,
           )}
         >
@@ -65,9 +65,9 @@ type PublicSectionProps = {
 };
 
 const sectionVariants = {
-  plain: "bg-white py-16 md:py-20",
+  plain: "bg-card/70 py-16 md:py-20",
   soft: "public-soft-canvas py-16 md:py-20",
-  muted: "bg-gray-50 py-16 md:py-20",
+  muted: "bg-vetneb-surface-muted/70 py-16 md:py-20",
 };
 
 export function PublicSection({
@@ -126,7 +126,7 @@ type PublicGradientButtonProps = {
 };
 
 const gradientButtonClassName =
-  "render-gpu-soft inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-700 to-teal-600 px-5 text-sm font-semibold text-white shadow-[0_14px_35px_rgba(37,99,235,0.22)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:from-blue-800 hover:to-teal-700 hover:shadow-[0_18px_44px_rgba(37,99,235,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60";
+  "render-gpu-soft inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-[0_14px_34px_hsl(var(--vetneb-navy)/0.20)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-[0_18px_44px_hsl(var(--vetneb-navy)/0.24)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60";
 
 export function PublicGradientButton({
   children,
@@ -174,10 +174,10 @@ type MetricPillProps = {
 };
 
 const metricToneClasses: Record<MetricPillTone, string> = {
-  blue: "border-blue-100 bg-blue-50/80 text-blue-900",
-  emerald: "border-emerald-100 bg-emerald-50/80 text-emerald-900",
-  amber: "border-amber-100 bg-amber-50/80 text-amber-900",
-  slate: "border-slate-200 bg-slate-50/80 text-slate-900",
+  blue: "border-vetneb-cyan/25 bg-vetneb-cyan/10 text-vetneb-navy",
+  emerald: "border-vetneb-teal/25 bg-vetneb-teal/10 text-vetneb-teal",
+  amber: "border-vetneb-amber/30 bg-vetneb-amber/10 text-amber-800",
+  slate: "border-vetneb-line bg-vetneb-surface-muted text-vetneb-ink",
 };
 
 export function MetricPill({
@@ -189,12 +189,12 @@ export function MetricPill({
   return (
     <div
       className={cn(
-        "render-gpu-soft rounded-2xl border px-4 py-3 shadow-sm",
+        "render-gpu-soft rounded-lg border px-4 py-3 shadow-sm",
         metricToneClasses[tone],
         className,
       )}
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] opacity-70">
+      <p className="text-xs font-semibold uppercase opacity-70">
         {label}
       </p>
       <p className="mt-1 text-lg font-bold leading-none">{value}</p>

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { ClipboardCheck, FlaskConical, Microscope, Network } from "lucide-react";
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { VisualIcon } from "@/components/public/VisualAccents";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { createPageMetadata, getOrganizationJsonLd, SITE_URL } from "@/lib/seo";
@@ -15,25 +17,29 @@ export const metadata: Metadata = createPageMetadata(
 
 const services = [
   {
-    icon: "📋",
+    icon: Microscope,
+    tone: "blue" as const,
     title: "Estudio Anatomopatológico",
     description:
       "Estudio anatomopatológico de todo tipo de tejidos para caracterizar lesiones y aportar precisión diagnóstica en medicina veterinaria.",
   },
   {
-    icon: "🔬",
+    icon: FlaskConical,
+    tone: "emerald" as const,
     title: "Estudio Citológico",
     description:
       "Estudio citológico de muestras, líquidos y punciones para evaluar alteraciones celulares con criterio clínico-patológico.",
   },
   {
-    icon: "🏥",
+    icon: ClipboardCheck,
+    tone: "amber" as const,
     title: "Tinciones Especiales",
     description:
       "Estudios aplicados con tinciones especiales para ampliar hallazgos histológicos y reforzar diagnósticos diferenciales.",
   },
   {
-    icon: "🚐",
+    icon: Network,
+    tone: "slate" as const,
     title: "Diagnóstico Integral",
     description:
       "Integración de datos clínicos con evaluación histológica y citológica para orientar decisiones diagnósticas y terapéuticas.",
@@ -86,31 +92,31 @@ export default function HomePage() {
             className="object-cover object-center"
           />
         </div>
-        <div className="absolute inset-0 bg-black/55" aria-hidden="true" />
+        <div className="absolute inset-0 bg-[hsl(var(--vetneb-navy)/0.68)]" aria-hidden="true" />
         <div className="relative container mx-auto flex min-h-[calc(100vh-4.5rem)] items-center px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-4xl text-center">
             <h1
               id="hero-heading"
-              className="text-4xl font-semibold leading-tight tracking-[0.08em] text-white sm:text-5xl lg:text-6xl"
+              className="text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl"
             >
               <span className="block uppercase">SERVICIO PATOLÓGICO</span>
               <span className="block uppercase">VETNEB</span>
             </h1>
-            <p className="mt-4 text-lg font-medium tracking-[0.06em] text-slate-100 md:text-xl">
+            <p className="mt-4 text-lg font-medium text-slate-100 md:text-xl">
               Dr. BARBÉ, NICOLÁS E.
             </p>
             <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
               <Button
                 asChild
                 size="lg"
-                className="w-full bg-white px-8 text-slate-900 hover:bg-slate-100 sm:w-auto"
+                className="w-full whitespace-normal bg-card px-8 text-vetneb-ink hover:bg-vetneb-surface-raised sm:w-auto"
               >
                 <Link href={ROUTES.login}>
                   ACCESO (CONOCÉ LOS RESULTADOS DE TUS ESTUDIOS)
                 </Link>
               </Button>
             </div>
-            <p className="mt-8 text-sm font-medium tracking-wide text-slate-100">
+            <p className="mt-8 text-sm font-medium text-slate-100">
               CONSULTÁ LOS RESULTADOS DE SUS INFORMES LAS 24 HS.
             </p>
             <p className="mt-3 text-sm text-slate-200">
@@ -153,12 +159,10 @@ export default function HomePage() {
               {services.map((service) => (
                 <Card
                   key={service.title}
-                  className="h-full border-gray-100 transition-shadow hover:shadow-md"
+                  className="h-full border-vetneb-line/80 transition-shadow hover:shadow-md"
                 >
                   <CardHeader>
-                    <div className="mb-2 text-3xl" aria-hidden="true">
-                      {service.icon}
-                    </div>
+                    <VisualIcon icon={service.icon} tone={service.tone} className="mb-2" />
                     <CardTitle className="text-lg">{service.title}</CardTitle>
                   </CardHeader>
                   <CardContent>

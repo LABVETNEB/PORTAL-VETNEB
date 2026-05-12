@@ -26,7 +26,7 @@ test("table primitive keeps scroll wrapper table ref props and base classes", ()
   assert.ok(source.includes("const Table = React.forwardRef<"));
   assert.ok(source.includes("HTMLTableElement"));
   assert.ok(source.includes("React.HTMLAttributes<HTMLTableElement>"));
-  assert.ok(source.includes('<div className="relative w-full overflow-auto">'));
+  assert.ok(source.includes('<div className="relative w-full overflow-auto rounded-lg border border-vetneb-line/70 bg-card/80">'));
   assert.ok(source.includes("<table"));
   assert.ok(source.includes("ref={ref}"));
   assert.ok(source.includes('className={cn("w-full caption-bottom text-sm", className)}'));
@@ -39,7 +39,7 @@ test("table primitive keeps section components and display names", () => {
 
   assert.ok(source.includes("const TableHeader = React.forwardRef<"));
   assert.ok(source.includes("HTMLTableSectionElement"));
-  assert.ok(source.includes('className={cn("[&_tr]:border-b", className)}'));
+  assert.ok(source.includes("[&_tr]:border-b [&_tr]:bg-vetneb-surface-muted/70"));
   assert.ok(source.includes('TableHeader.displayName = "TableHeader";'));
 
   assert.ok(source.includes("const TableBody = React.forwardRef<"));
@@ -56,17 +56,17 @@ test("table primitive keeps row head cell and caption components", () => {
 
   assert.ok(source.includes("const TableRow = React.forwardRef<"));
   assert.ok(source.includes("HTMLTableRowElement"));
-  assert.ok(source.includes('"border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"'));
+  assert.ok(source.includes('"border-b border-vetneb-line/60 transition-colors hover:bg-accent/45 data-[state=selected]:bg-accent"'));
   assert.ok(source.includes('TableRow.displayName = "TableRow";'));
 
   assert.ok(source.includes("const TableHead = React.forwardRef<"));
   assert.ok(source.includes("React.ThHTMLAttributes<HTMLTableCellElement>"));
-  assert.ok(source.includes('"h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0"'));
+  assert.ok(source.includes('"h-12 px-4 text-left align-middle text-xs font-semibold uppercase text-muted-foreground [&:has([role=checkbox])]:pr-0"'));
   assert.ok(source.includes('TableHead.displayName = "TableHead";'));
 
   assert.ok(source.includes("const TableCell = React.forwardRef<"));
   assert.ok(source.includes("React.TdHTMLAttributes<HTMLTableCellElement>"));
-  assert.ok(source.includes('"p-4 align-middle [&:has([role=checkbox])]:pr-0"'));
+  assert.ok(source.includes('"p-4 align-middle text-foreground/88 [&:has([role=checkbox])]:pr-0"'));
   assert.ok(source.includes('TableCell.displayName = "TableCell";'));
 
   assert.ok(source.includes("const TableCaption = React.forwardRef<"));
@@ -98,7 +98,7 @@ test("skeleton primitive keeps utility merge props and animation classes", () =>
   assert.ok(source.includes("...props"));
   assert.ok(source.includes("React.HTMLAttributes<HTMLDivElement>"));
   assert.ok(source.includes("<div"));
-  assert.ok(source.includes('className={cn("animate-pulse rounded-md bg-muted", className)}'));
+  assert.ok(source.includes("animate-pulse rounded-md bg-gradient-to-r from-vetneb-surface-muted via-card to-vetneb-surface-muted"));
   assert.ok(source.includes("{...props}"));
   assert.ok(source.includes("export { Skeleton };"));
 });

@@ -133,7 +133,7 @@ export default function ServiciosPage() {
             <Stethoscope className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
             Servicios diagnósticos
           </Eyebrow>
-          <h1 className="mb-4 max-w-4xl text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+          <h1 className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl">
             Servicio patológico veterinario
           </h1>
           <p className="max-w-2xl public-copy text-lg text-blue-100 md:text-xl">
@@ -147,7 +147,7 @@ export default function ServiciosPage() {
       <section className="py-16 md:py-20">
         <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-10 max-w-4xl">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-primary">
+            <p className="mb-3 text-sm font-semibold uppercase text-primary">
               Laboratorio VETNEB
             </p>
             <h2 className="text-2xl font-bold text-gray-950 md:text-3xl">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import { Building2, FileText, KeyRound, Map, Route } from "lucide-react";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";
 import { ClinicPublicProfileCard } from "@/components/dashboard/ClinicPublicProfileCard";
@@ -142,42 +143,44 @@ export default async function DashboardPage() {
           <CardContent>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               {[
-                { label: "Informes", href: ROUTES.dashboardInformes, icon: "📋" },
+                { label: "Informes", href: ROUTES.dashboardInformes, icon: FileText },
                 {
                   label: "Visitas",
                   href: ROUTES.dashboardLogisticaVisitas,
-                  icon: "🚐",
+                  icon: Route,
                 },
                 {
                   label: "Rutas",
                   href: ROUTES.dashboardLogisticaRutas,
-                  icon: "🗺️",
+                  icon: Map,
                 },
                 {
                   label: "Tokens",
                   href: `${ROUTES.dashboard}#clinic-particular-tokens`,
-                  icon: "🔐",
+                  icon: KeyRound,
                 },
                 {
                   label: "Perfil",
                   href: `${ROUTES.dashboard}#clinic-public-profile`,
-                  icon: "🏥",
+                  icon: Building2,
                 },
-              ].map((item) => (
+              ].map((item) => {
+                const Icon = item.icon;
+
+                return (
                 <Button
                   key={item.href}
                   asChild
                   variant="outline"
-                  className="h-16 flex-col gap-1 rounded-xl"
+                  className="h-16 flex-col gap-1 rounded-lg"
                 >
                   <Link href={item.href}>
-                    <span className="text-xl" aria-hidden="true">
-                      {item.icon}
-                    </span>
+                    <Icon className="h-5 w-5" aria-hidden="true" />
                     <span className="text-xs">{item.label}</span>
                   </Link>
                 </Button>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>

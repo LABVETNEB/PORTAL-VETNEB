@@ -27,11 +27,11 @@ test("button component defines expected visual variants", () => {
   const source = read(BUTTON_PATH);
 
   assert.ok(source.includes("variant: {"));
-  assert.ok(source.includes('default: "bg-primary text-primary-foreground hover:bg-primary/90"'));
+  assert.ok(source.includes("bg-primary text-primary-foreground shadow-[0_10px_24px_hsl(var(--vetneb-navy)/0.18)] hover:bg-primary/90"));
   assert.ok(source.includes("destructive:"));
   assert.ok(source.includes("outline:"));
   assert.ok(source.includes("secondary:"));
-  assert.ok(source.includes('ghost: "hover:bg-accent hover:text-accent-foreground"'));
+  assert.ok(source.includes('ghost: "text-foreground/78 hover:bg-accent hover:text-accent-foreground"'));
   assert.ok(source.includes('link: "text-primary underline-offset-4 hover:underline"'));
 });
 
