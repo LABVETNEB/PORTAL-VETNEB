@@ -37,7 +37,17 @@ test("frontend middleware separates clinic and admin dashboard session cookies",
   assert.equal(source.includes("hasClinicSession || hasAdminSession"), false);
 });
 
-test("frontend middleware redirects unauthenticated dashboard requests to login with next path", () => {
+test("frontend middleware blocks unauthenticated admin dashboard without public login redirect", () => {
+  const source = read(MIDDLEWARE_PATH);
+
+  assert.ok(source.includes("if (isAdminDashboardPath(pathname)) {"));
+  assert.ok(source.includes('return new NextResponse("Not Found", { status: 404 });'));
+  assert.equal(source.includes("notFoundUrl"), false);
+  assert.equal(source.includes("NOT_FOUND_PATH"), false);
+  assert.equal(source.includes('loginUrl.searchParams.set("next", nextPath);\\n\\n  return NextResponse.redirect(loginUrl);\\n}'), false);
+});
+
+test("frontend middleware redirects unauthenticated clinic dashboard requests to login with next path", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes('const LOGIN_PATH = "/login";'));
