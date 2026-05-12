@@ -83,9 +83,10 @@ test("dashboard home exposes clinic route-registry quick links only", () => {
   assert.ok(source.includes('label: "Rutas"'));
   assert.ok(source.includes("href: ROUTES.dashboardLogisticaRutas"));
   assert.ok(source.includes('label: "Tokens"'));
-  assert.ok(source.includes('href: "#clinic-particular-tokens"'));
+  assert.ok(
+    source.includes('href: `${ROUTES.dashboard}#clinic-particular-tokens`'),
+  );
   assert.equal(source.includes('label: "Admin"'), false);
   assert.equal(source.includes("ROUTES.dashboardAdmin"), false);
   assert.equal(source.includes('"/api"'), false);
 });
-

@@ -155,12 +155,12 @@ export default async function DashboardPage() {
                 },
                 {
                   label: "Tokens",
-                  href: "#clinic-particular-tokens",
+                  href: `${ROUTES.dashboard}#clinic-particular-tokens`,
                   icon: "🔐",
                 },
                 {
                   label: "Perfil",
-                  href: "#clinic-public-profile",
+                  href: `${ROUTES.dashboard}#clinic-public-profile`,
                   icon: "🏥",
                 },
               ].map((item) => (

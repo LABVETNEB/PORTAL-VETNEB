@@ -120,17 +120,17 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
 
   assert.ok(source.includes('title="Administración"'));
   assert.ok(source.includes('subtitle="Auditoría, reportes y estado operacional"'));
-  assert.ok(source.includes("GET /api/admin/audit-log"));
-  assert.ok(source.includes("GET /api/admin/system/health"));
-  assert.ok(source.includes("GET /api/admin/sessions"));
-  assert.ok(source.includes("GET /api/admin/failed-login-alerts"));
-  assert.ok(source.includes("GET /api/admin/users-roles"));
-  assert.ok(source.includes("POST /api/admin/system/maintenance/purge-dry-run"));
   assert.ok(source.includes("Eventos de auditoría"));
   assert.ok(source.includes("Tipos de evento"));
   assert.ok(source.includes("Estado del sistema"));
   assert.ok(source.includes('id="admin-health"'));
+  assert.ok(source.includes('id="admin-maintenance"'));
+  assert.ok(source.includes('id="admin-sessions"'));
+  assert.ok(source.includes('id="admin-users-roles"'));
+  assert.ok(source.includes('id="admin-event-summary"'));
   assert.ok(source.includes("Health & Maintenance"));
+  assert.equal(source.includes("AdminSourceContractMarkers"), false);
+  assert.equal(source.includes("ADMIN_READ_CONTRACT_MARKERS"), false);
 });
 
 test("dashboard admin renders role-change audit and audit log table", () => {
@@ -163,4 +163,10 @@ test("dashboard admin keeps filtered empty states and avoids client-side fetch l
   assert.equal(source.includes("fetch("), false);
 });
 
+test("dashboard admin avoids duplicate section ids in navigation anchors", () => {
+  const source = read(ADMIN_PAGE_PATH);
+  const adminHealthIdMatches = source.match(/id="admin-health"/g) ?? [];
 
+  assert.equal(adminHealthIdMatches.length, 1);
+  assert.equal(source.includes('id="admin-event-summary"'), true);
+});

@@ -7,7 +7,12 @@ const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
 const SERVICIOS_PAGE_PATH = "frontend/src/app/servicios/page.tsx";
 const LOGIN_CONTENT_PATH = "frontend/src/components/public/LoginContent.tsx";
-const DASHBOARD_SIDEBAR_PATH = "frontend/src/components/dashboard/DashboardSidebar.tsx";
+const DASHBOARD_SIDEBAR_FRAME_PATH =
+  "frontend/src/components/dashboard/DashboardSidebarFrame.tsx";
+const CLINIC_DASHBOARD_SIDEBAR_PATH =
+  "frontend/src/components/dashboard/ClinicDashboardSidebar.tsx";
+const ADMIN_DASHBOARD_SIDEBAR_PATH =
+  "frontend/src/components/dashboard/AdminDashboardSidebar.tsx";
 const DASHBOARD_TOPBAR_PATH = "frontend/src/components/dashboard/DashboardTopbar.tsx";
 const DASHBOARD_HOME_PATH = "frontend/src/app/dashboard/page.tsx";
 const DASHBOARD_ADMIN_PATH = "frontend/src/app/dashboard/admin/page.tsx";
@@ -201,13 +206,13 @@ test("login content keeps polished auth card layout and stable visual states", (
 });
 
 test("dashboard sidebar keeps shell consistency and responsive navigation classes", () => {
-  const source = read(DASHBOARD_SIDEBAR_PATH);
+  const source = read(DASHBOARD_SIDEBAR_FRAME_PATH);
 
   assertContainsAll(
     source,
     [
       '"use client";',
-      "const navItems = [",
+      "export type DashboardNavItem = {",
       'aria-label="Navegación del dashboard"',
       'aria-label="Menú principal"',
       "item.children && isActive(item.href)",
@@ -232,6 +237,40 @@ test("dashboard sidebar keeps shell consistency and responsive navigation classe
 
   assertInlineStylesAtMost(source, 0, "dashboard sidebar");
   assertNoClientFetchOrApiLiterals(source, "dashboard sidebar");
+});
+
+test("clinic and admin sidebars keep visual parity with separated operational nav", () => {
+  const clinicSource = read(CLINIC_DASHBOARD_SIDEBAR_PATH);
+  const adminSource = read(ADMIN_DASHBOARD_SIDEBAR_PATH);
+
+  assertContainsAll(
+    clinicSource,
+    [
+      "DashboardSidebarFrame",
+      'dashboardLabel="Dashboard clínica"',
+      'label: "Dashboard"',
+      'label: "Informes"',
+      'label: "Logística"',
+      'label: "Perfil público"',
+      'label: "Tokens particulares"',
+    ],
+    "clinic dashboard sidebar contracts",
+  );
+
+  assertContainsAll(
+    adminSource,
+    [
+      "DashboardSidebarFrame",
+      'dashboardLabel="Dashboard admin"',
+      'label: "Administración"',
+      'label: "Health"',
+      'label: "Sesiones"',
+      'label: "Roles clínica"',
+      'label: "Auditoría"',
+      'label: "Maintenance"',
+    ],
+    "admin dashboard sidebar contracts",
+  );
 });
 
 test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () => {
@@ -307,7 +346,6 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
     source,
     [
       '<main className="dashboard-main">',
-      '<div className="surface-note-info">',
       "<AdminMaintenanceDryRunCard />",
       "<AdminSessionsReadOnlyCard />",
       "<AdminFailedLoginAlertsReadOnlyCard />",
