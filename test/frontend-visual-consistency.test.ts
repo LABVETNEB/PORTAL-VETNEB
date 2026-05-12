@@ -261,15 +261,15 @@ test("clinic and admin sidebars keep visual parity with separated operational na
     adminSource,
     [
       "DashboardSidebarFrame",
-      'dashboardLabel="Dashboard admin"',
+      'dashboardLabel="Administración"',
       'label: "Administración"',
       'label: "Subir informe"',
-      'label: "Health"',
+      'label: "Estado"',
       'label: "Sesiones"',
       'label: "Tokens particulares"',
       'label: "Roles clínica"',
       'label: "Auditoría"',
-      'label: "Maintenance"',
+      'label: "Mantenimiento"',
     ],
     "admin dashboard sidebar contracts",
   );
@@ -375,6 +375,8 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
   assertInlineStylesAtMost(source, 0, "dashboard admin");
   assert.equal(source.includes("fetch("), false, "dashboard admin must avoid fetch()");
 });
+
+
 
 
 

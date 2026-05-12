@@ -127,6 +127,8 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes("Tipos de evento"));
   assert.ok(source.includes("Estado del sistema"));
   assert.ok(source.includes('id="admin-report-upload"'));
+  assert.ok(source.includes("Panel administrador"));
+  assert.ok(source.includes("única superficie administrativa"));
   assert.ok(source.includes("<UploadReportModal />"));
   assert.ok(source.includes('id="admin-health"'));
   assert.ok(source.includes('id="admin-maintenance"'));
@@ -134,7 +136,8 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes('id="admin-particular-tokens"'));
   assert.ok(source.includes('id="admin-users-roles"'));
   assert.ok(source.includes('id="admin-event-summary"'));
-  assert.ok(source.includes("Health & Maintenance"));
+  assert.ok(source.includes("Estado y mantenimiento"));
+  assert.equal(source.includes("Health & Maintenance"), false);
   assert.equal(source.includes("AdminSourceContractMarkers"), false);
   assert.equal(source.includes("ADMIN_READ_CONTRACT_MARKERS"), false);
 });
@@ -176,5 +179,6 @@ test("dashboard admin avoids duplicate section ids in navigation anchors", () =>
   assert.equal(adminHealthIdMatches.length, 1);
   assert.equal(source.includes('id="admin-event-summary"'), true);
 });
+
 
 

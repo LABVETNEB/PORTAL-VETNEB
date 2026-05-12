@@ -17,7 +17,7 @@ const adminNavItems: DashboardNavItem[] = [
     icon: "📄",
   },
   {
-    label: "Health",
+    label: "Estado",
     href: `${ROUTES.dashboardAdmin}#admin-health`,
     icon: "🟢",
   },
@@ -42,7 +42,7 @@ const adminNavItems: DashboardNavItem[] = [
     icon: "🧾",
   },
   {
-    label: "Maintenance",
+    label: "Mantenimiento",
     href: `${ROUTES.dashboardAdmin}#admin-maintenance`,
     icon: "🧹",
   },
@@ -51,10 +51,11 @@ const adminNavItems: DashboardNavItem[] = [
 export function AdminDashboardSidebar() {
   return (
     <DashboardSidebarFrame
-      dashboardLabel="Dashboard admin"
+      dashboardLabel="Administración"
       navItems={adminNavItems}
     />
   );
 }
+
 
 
