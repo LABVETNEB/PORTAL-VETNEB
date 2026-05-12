@@ -19,15 +19,18 @@ function getRequiredSessionCookieName(pathname: string): string {
 }
 
 export function middleware(request: NextRequest) {
-  const requiredCookieName = getRequiredSessionCookieName(
-    request.nextUrl.pathname,
-  );
+  const pathname = request.nextUrl.pathname;
+  const requiredCookieName = getRequiredSessionCookieName(pathname);
   const hasRequiredSession = Boolean(
     request.cookies.get(requiredCookieName)?.value,
   );
 
   if (hasRequiredSession) {
     return NextResponse.next();
+  }
+
+  if (isAdminDashboardPath(pathname)) {
+    return new NextResponse("Not Found", { status: 404 });
   }
 
   const loginUrl = request.nextUrl.clone();
