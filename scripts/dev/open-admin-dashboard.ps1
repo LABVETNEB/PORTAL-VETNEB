@@ -68,7 +68,7 @@ if ([string]::IsNullOrWhiteSpace($adminUsername)) {
 
 $adminPassword = $env:VETNEB_ADMIN_PASSWORD
 if ([string]::IsNullOrWhiteSpace($adminPassword)) {
-  $securePassword = Read-Host "Contraseña administrador $adminUsername" -AsSecureString
+  $securePassword = Read-Host "Password administrador $adminUsername" -AsSecureString
   $adminPassword = Convert-SecureStringToPlainText $securePassword
 }
 
@@ -123,8 +123,6 @@ $tab = Invoke-RestMethod `
   -Method PUT `
   -Uri "http://127.0.0.1:$DebugPort/json/new?about:blank"
 
-Add-Type -AssemblyName System.Net.WebSockets
-
 $ws = [System.Net.WebSockets.ClientWebSocket]::new()
 
 $ws.ConnectAsync(
@@ -172,3 +170,5 @@ try {
 }
 
 Write-Host "Administrador abierto: $FrontendUrl/dashboard/admin" -ForegroundColor Green
+
+

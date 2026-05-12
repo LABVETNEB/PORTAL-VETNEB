@@ -30,8 +30,11 @@ test("local admin dashboard launcher exists and opens admin through session cook
   assert.ok(source.includes("Network.setCookie"));
   assert.ok(source.includes("$FrontendUrl/dashboard/admin"));
   assert.ok(source.includes("Read-Host"));
+  assert.ok(source.includes("Password administrador"));
   assert.ok(source.includes("VETNEB_ADMIN_USERNAME"));
   assert.ok(source.includes("VETNEB_ADMIN_PASSWORD"));
+  assert.ok(source.includes("[System.Net.WebSockets.ClientWebSocket]::new()"));
+  assert.equal(source.includes("Add-Type -AssemblyName System.Net.WebSockets"), false);
 });
 
 test("local admin dashboard launcher does not hardcode admin password", () => {
