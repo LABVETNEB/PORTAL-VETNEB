@@ -20,7 +20,7 @@ test("clinic dashboard exists as a clinic-only dashboard and keeps admin out", (
 
   assert.ok(source.includes('title: "Dashboard Clínica — Portal VETNEB"'));
   assert.ok(source.includes('title="Dashboard Clínica"'));
-  assert.ok(source.includes("superficie no usa sesión de administración."));
+  assert.ok(source.includes("Esta superficie usa solo sesión clínica."));
   assert.ok(source.includes('import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";'));
   assert.ok(source.includes("<ClinicParticularTokensCard />"));
   assert.ok(source.includes('href: "#clinic-particular-tokens"'));
@@ -86,4 +86,5 @@ test("frontend api exposes clinic-scoped particular token helpers", () => {
   assert.ok(source.includes("`/api/particular-tokens${qs ? `?${qs}` : \"\"}`"));
   assert.ok(source.includes("`/api/particular-tokens/${tokenId}/report`"));
 });
+
 

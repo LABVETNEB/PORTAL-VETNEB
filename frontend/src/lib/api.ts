@@ -706,6 +706,95 @@ export function buildAdminFailedLoginAlertsCsvUrl(
   return `${API_BASE_URL}/api/admin/failed-login-alerts/export.csv${qs ? `?${qs}` : ""}`;
 }
 
+
+export type ClinicPublicProfilePublication = {
+  hasRequiredPublicFields: boolean;
+  hasQualitySupplement: boolean;
+  qualityScore: number;
+  minimumQualityScore: number;
+  isSearchEligible: boolean;
+  missingRequiredFields: string[];
+  missingRecommendedFields: string[];
+  publicationErrors: string[];
+};
+
+export type ClinicPublicProfile = {
+  clinicId: number;
+  clinicName: string;
+  displayName: string;
+  avatarUrl: string | null;
+  avatarStoragePath: string | null;
+  aboutText: string | null;
+  specialtyText: string | null;
+  servicesText: string | null;
+  email: string | null;
+  phone: string | null;
+  locality: string | null;
+  country: string | null;
+  isPublic: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+  publication: ClinicPublicProfilePublication;
+};
+
+export type ClinicPublicProfileSearchSnapshot = {
+  clinicId?: number;
+  isPublic?: boolean;
+  hasRequiredPublicFields?: boolean;
+  isSearchEligible?: boolean;
+  profileQualityScore?: number;
+  updatedAt?: string;
+  searchText?: string;
+};
+
+export type ClinicPublicProfileSnapshot = {
+  success: true;
+  profile: ClinicPublicProfile;
+  search: ClinicPublicProfileSearchSnapshot | null;
+};
+
+export type ClinicPublicProfileUpdatePayload = {
+  displayName?: string | null;
+  aboutText?: string | null;
+  specialtyText?: string | null;
+  servicesText?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  locality?: string | null;
+  country?: string | null;
+  isPublic?: boolean;
+};
+
+export type ClinicPublicProfileUpdateResponse = {
+  success: true;
+  message: string;
+  profile: ClinicPublicProfile;
+  search: ClinicPublicProfileSearchSnapshot | null;
+};
+
+export async function getClinicPublicProfile(
+  options?: RequestInit,
+): Promise<ClinicPublicProfileSnapshot> {
+  return apiFetch<ClinicPublicProfileSnapshot>(
+    "/api/clinic/profile",
+    options,
+  );
+}
+
+export async function updateClinicPublicProfile(
+  payload: ClinicPublicProfileUpdatePayload,
+  options?: RequestInit,
+): Promise<ClinicPublicProfileUpdateResponse> {
+  return apiFetch<ClinicPublicProfileUpdateResponse>(
+    "/api/clinic/profile",
+    {
+      ...options,
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
 export async function getDashboardStats(
   options?: RequestInit,
 ): Promise<DashboardStats> {
@@ -810,5 +899,6 @@ export async function searchPublicProfessionals(
     };
   }
 }
+
 
 

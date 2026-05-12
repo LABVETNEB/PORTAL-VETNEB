@@ -3,8 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 
-const UPLOAD_MODAL_PATH =
-  "frontend/src/components/dashboard/UploadReportModal.tsx";
+const UPLOAD_MODAL_PATH = "frontend/src/components/dashboard/UploadReportModal.tsx";
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
 
 function read(relativePath: string): string {
@@ -14,45 +13,25 @@ function read(relativePath: string): string {
   );
 }
 
-test("frontend report upload modal exists and uses upload api client", () => {
+test("frontend upload report modal remains available as admin-only implementation", () => {
   assert.equal(existsSync(resolve(process.cwd(), UPLOAD_MODAL_PATH)), true);
 
   const source = read(UPLOAD_MODAL_PATH);
 
-  assert.ok(source.includes('"use client"'));
-  assert.ok(source.includes('import { uploadAdminReport } from "@/lib/api"'));
-  assert.ok(source.includes("new FormData()"));
-  assert.ok(source.includes('formData.append("clinicId", clinicId)'));
-  assert.ok(source.includes('formData.append("file", file)'));
-  assert.ok(source.includes('formData.append("patientName", patientName.trim())'));
-  assert.ok(source.includes('formData.append("studyType", studyType)'));
-  assert.ok(source.includes('formData.append("uploadDate", uploadDate)'));
-  assert.ok(source.includes("await uploadAdminReport(formData)"));
-  assert.ok(source.includes("router.refresh()"));
+  assert.ok(source.includes('"use client";'));
+  assert.ok(source.includes("uploadAdminReport"));
+  assert.ok(source.includes("getAdminUsersRoles"));
+  assert.ok(source.includes("getAdminParticularTokens"));
+  assert.ok(source.includes("createAdminStudyTrackingCase"));
+  assert.ok(source.includes("uploadAdminReport"));
 });
 
-test("frontend report upload modal handles user feedback and submit state", () => {
-  const source = read(UPLOAD_MODAL_PATH);
-
-  assert.ok(source.includes("const [errorMessage, setErrorMessage]"));
-  assert.ok(source.includes("const [successMessage, setSuccessMessage]"));
-  assert.ok(source.includes("const [isSubmitting, setIsSubmitting]"));
-  assert.ok(source.includes('role="alert"'));
-  assert.ok(source.includes("disabled={isSubmitting}"));
-  assert.ok(source.includes("Seleccione un archivo PDF para subir."));
-});
-
-test("frontend report upload modal stays scoped to frontend ui", () => {
-  const source = read(UPLOAD_MODAL_PATH);
-
-  assert.equal(source.includes("fetch("), false);
-  assert.equal(source.includes("/api/admin/reports/upload"), false);
-  assert.equal(source.includes("process.env"), false);
-});
-
-test("frontend informes page exposes upload report modal", () => {
+test("frontend informes page does not expose admin upload modal in clinic dashboard", () => {
   const source = read(INFORMES_PAGE_PATH);
 
-  assert.ok(source.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal"'));
-  assert.ok(source.includes("<UploadReportModal />"));
+  assert.equal(source.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal"'), false);
+  assert.equal(source.includes("<UploadReportModal />"), false);
+  assert.ok(source.includes("Lectura clinic-scoped conectada a"));
+  assert.ok(source.includes("dashboard administrador"));
 });
+

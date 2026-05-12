@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";
+import { ClinicPublicProfileCard } from "@/components/dashboard/ClinicPublicProfileCard";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,8 +52,7 @@ export default async function DashboardPage() {
       <DashboardTopbar title="Dashboard Clínica" subtitle="Resumen operativo clínica" />
       <main className="dashboard-main">
         <div className="surface-note-info">
-          Lectura conectada a datos operativos clinic-scoped del backend. Esta
-          superficie no usa sesión de administración.
+          Lectura conectada a datos operativos clinic-scoped del backend. Esta superficie usa solo sesión clínica.
         </div>
 
         <StatsCards stats={stats} />
@@ -158,6 +158,11 @@ export default async function DashboardPage() {
                   href: "#clinic-particular-tokens",
                   icon: "🔐",
                 },
+                {
+                  label: "Perfil",
+                  href: "#clinic-public-profile",
+                  icon: "🏥",
+                },
               ].map((item) => (
                 <Button
                   key={item.href}
@@ -177,8 +182,11 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
+        <ClinicPublicProfileCard />
         <ClinicParticularTokensCard />
       </main>
     </>
   );
 }
+
+
