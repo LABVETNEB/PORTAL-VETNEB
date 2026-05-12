@@ -107,7 +107,7 @@ function getSystemStatusIndicatorClass(status: string) {
 }
 
 function formatSystemStatusDetail(services: Record<string, unknown>) {
-  return `DB: ${formatServiceStatus(services.database)} · Storage: ${formatServiceStatus(
+  return `Base de datos: ${formatServiceStatus(services.database)} · Almacenamiento: ${formatServiceStatus(
     services.storage,
   )}`;
 }
@@ -302,14 +302,27 @@ export default async function AdminPage({
         subtitle="Auditoría, reportes y estado operacional"
       />
       <main className="dashboard-main">
-        <section id="admin-report-upload" className="surface-note-info flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="font-semibold text-blue-900">Carga de informes</p>
-            <p className="mt-1 text-sm text-blue-700">
-              Suba un PDF y asócielo a una clínica desde administración.
-            </p>
+        <section
+          id="admin-report-upload"
+          className="surface-note-info overflow-hidden rounded-2xl p-0"
+        >
+          <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
+                Panel administrador
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-gray-950">
+                Carga de informes
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm text-blue-800/80">
+                Suba PDFs, asócielos a una clínica y vincule tokens particulares
+                desde una única superficie administrativa.
+              </p>
+            </div>
+            <div className="shrink-0">
+              <UploadReportModal />
+            </div>
           </div>
-          <UploadReportModal />
         </section>
 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="border-gray-100">
@@ -363,7 +376,7 @@ export default async function AdminPage({
         </div>
         <Card id="admin-health">
           <CardHeader>
-            <CardTitle className="text-base">Health & Maintenance</CardTitle>
+            <CardTitle className="text-base">Estado y mantenimiento</CardTitle>
             <CardDescription>
               Estado de servicios, versión y consumo runtime del backend en producción
             </CardDescription>
@@ -371,13 +384,13 @@ export default async function AdminPage({
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               <div className="surface-soft">
-                <p className="text-xs text-gray-400 mb-2">Database</p>
+                <p className="text-xs text-gray-400 mb-2">Base de datos</p>
                 <Badge variant={getServiceVariant(serviceChecks.database)}>
                   {formatServiceStatus(serviceChecks.database)}
                 </Badge>
               </div>
               <div className="surface-soft">
-                <p className="text-xs text-gray-400 mb-2">Storage</p>
+                <p className="text-xs text-gray-400 mb-2">Almacenamiento</p>
                 <Badge variant={getServiceVariant(serviceChecks.storage)}>
                   {formatServiceStatus(serviceChecks.storage)}
                 </Badge>
@@ -390,12 +403,12 @@ export default async function AdminPage({
                 <p className="text-xs text-gray-400 mt-1">Versión activa</p>
               </div>
               <div className="surface-soft">
-                <p className="text-xs text-gray-400">Uptime</p>
+                <p className="text-xs text-gray-400">Tiempo activo</p>
                 <p className="text-lg font-semibold text-gray-800 mt-1">
                   {formatUptime(systemHealth?.runtime.uptimeSeconds)}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Check: {formatHealthTimestamp(systemHealth?.health?.timestamp)}
+                  Control: {formatHealthTimestamp(systemHealth?.health?.timestamp)}
                 </p>
               </div>
               <div className="surface-soft">
@@ -412,10 +425,10 @@ export default async function AdminPage({
                     Heap total: {systemHealth?.runtime.memory.heapTotalMb ?? "—"} MB
                   </p>
                   <p>
-                    External: {systemHealth?.runtime.memory.externalMb ?? "—"} MB
+                    Memoria externa: {systemHealth?.runtime.memory.externalMb ?? "—"} MB
                   </p>
                   <p>
-                    Array buffers:{" "}
+                    Buffers:{" "}
                     {systemHealth?.runtime.memory.arrayBuffersMb ?? "—"} MB
                   </p>
                 </div>
@@ -601,6 +614,8 @@ export default async function AdminPage({
     </>
   );
 }
+
+
 
 
 
