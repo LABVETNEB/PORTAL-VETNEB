@@ -28,9 +28,9 @@ const navItems = [
     ],
   },
   {
-    label: "Administración",
-    href: ROUTES.dashboardAdmin,
-    icon: "🔧",
+    label: "Perfil público",
+    href: "#clinic-public-profile",
+    icon: "🏥",
   },
 ];
 
@@ -38,6 +38,7 @@ export function DashboardSidebar() {
   const pathname = usePathname();
 
   function isActive(href: string, exact = false) {
+    if (href.startsWith("#")) return false;
     if (exact) return pathname === href;
     return pathname.startsWith(href);
   }
@@ -48,7 +49,6 @@ export function DashboardSidebar() {
       data-dashboard-sidebar-polish="true"
       aria-label="Navegación del dashboard"
     >
-      {/* Logo */}
       <div className="flex items-center justify-center gap-3 border-b border-sidebar-border px-2 py-5 sm:justify-start sm:px-6">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-teal-500 text-sm font-black text-white shadow-[0_16px_40px_rgba(37,99,235,0.32)] ring-1 ring-white/20">
           VN
@@ -57,11 +57,10 @@ export function DashboardSidebar() {
           <p className="font-semibold text-sm text-sidebar-foreground">
             Portal VETNEB
           </p>
-          <p className="text-xs text-sidebar-foreground/60">Dashboard</p>
+          <p className="text-xs text-sidebar-foreground/60">Dashboard clínica</p>
         </div>
       </div>
 
-      {/* Navegación */}
       <nav className="flex-1 space-y-1 px-2 py-4 sm:px-3" aria-label="Menú principal">
         {navItems.map((item) => (
           <div key={item.href}>
@@ -80,7 +79,7 @@ export function DashboardSidebar() {
               </span>
               <span className="hidden sm:inline">{item.label}</span>
             </Link>
-            {/* Sub-navegación */}
+
             {item.children && isActive(item.href) && (
               <div className="ml-6 mt-1 hidden space-y-1 sm:block">
                 {item.children.map((child) => (
@@ -105,7 +104,6 @@ export function DashboardSidebar() {
         ))}
       </nav>
 
-      {/* Footer del sidebar */}
       <div className="border-t border-sidebar-border px-2 py-4 sm:px-3">
         <Link
           href={ROUTES.home}
@@ -118,3 +116,5 @@ export function DashboardSidebar() {
     </aside>
   );
 }
+
+

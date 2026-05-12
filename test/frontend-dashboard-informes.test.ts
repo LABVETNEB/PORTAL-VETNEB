@@ -12,7 +12,7 @@ function read(relativePath: string): string {
   );
 }
 
-test("dashboard informes defines non-indexable metadata and dashboard dependencies", () => {
+test("dashboard informes defines non-indexable metadata and clinic read dependencies", () => {
   const source = read(INFORMES_PAGE_PATH);
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
@@ -20,8 +20,8 @@ test("dashboard informes defines non-indexable metadata and dashboard dependenci
   assert.ok(source.includes('title: "Informes — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
-  assert.ok(source.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'));
   assert.ok(source.includes('import { ReportDownloadButton } from "@/components/dashboard/ReportDownloadButton";'));
+  assert.equal(source.includes("UploadReportModal"), false);
 });
 
 test("dashboard informes forwards cookies and disables cache for report reads", () => {
@@ -45,14 +45,16 @@ test("dashboard informes keeps status filter options aligned to report statuses"
   assert.ok(source.includes('{ value: "delivered", label: "Entregado" }'));
 });
 
-test("dashboard informes renders topbar upload action and read-source notice", () => {
+test("dashboard informes renders read-only clinic source notice", () => {
   const source = read(INFORMES_PAGE_PATH);
 
   assert.ok(source.includes('title="Informes"'));
-  assert.ok(source.includes('subtitle="Gestión de informes médicos veterinarios"'));
-  assert.ok(source.includes("<UploadReportModal />"));
-  assert.ok(source.includes("Lectura conectada a"));
+  assert.ok(source.includes('subtitle="Consulta de informes médicos veterinarios"'));
+  assert.ok(source.includes("Lectura clinic-scoped conectada a"));
   assert.ok(source.includes("GET /api/reports"));
+  assert.ok(source.includes("dashboard administrador"));
+  assert.equal(source.includes("<UploadReportModal />"), false);
+  assert.equal(source.includes("/api/admin"), false);
 });
 
 test("dashboard informes renders filters and reports table columns", () => {
@@ -74,8 +76,8 @@ test("dashboard informes keeps row rendering badges dates and download action", 
   const source = read(INFORMES_PAGE_PATH);
 
   assert.ok(source.includes("reports.map((report) =>"));
-  assert.ok(source.includes("report.patientName ?? \"—\""));
-  assert.ok(source.includes("report.studyType ?? \"—\""));
+  assert.ok(source.includes('report.patientName ?? "—"'));
+  assert.ok(source.includes('report.studyType ?? "—"'));
   assert.ok(source.includes("report.clinicName ?? `Clínica #${report.clinicId}`"));
   assert.ok(source.includes("formatDate(report.uploadDate)"));
   assert.ok(source.includes("getReportStatusVariant(report.status)"));

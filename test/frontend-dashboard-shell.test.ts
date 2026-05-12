@@ -35,7 +35,7 @@ test("dashboard sidebar is client-side and uses route registry", () => {
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
 });
 
-test("dashboard sidebar defines primary dashboard navigation items", () => {
+test("dashboard sidebar defines clinic navigation items only", () => {
   const source = read(DASHBOARD_SIDEBAR_PATH);
 
   assert.ok(source.includes("const navItems = ["));
@@ -46,8 +46,10 @@ test("dashboard sidebar defines primary dashboard navigation items", () => {
   assert.ok(source.includes("href: ROUTES.dashboardInformes"));
   assert.ok(source.includes('label: "Logística"'));
   assert.ok(source.includes("href: ROUTES.dashboardLogistica"));
-  assert.ok(source.includes('label: "Administración"'));
-  assert.ok(source.includes("href: ROUTES.dashboardAdmin"));
+  assert.ok(source.includes('label: "Perfil público"'));
+  assert.ok(source.includes('href: "#clinic-public-profile"'));
+  assert.equal(source.includes('label: "Administración"'), false);
+  assert.equal(source.includes("ROUTES.dashboardAdmin"), false);
 });
 
 test("dashboard sidebar defines logistics subnavigation", () => {
@@ -65,6 +67,7 @@ test("dashboard sidebar keeps active state and accessibility markers", () => {
   const source = read(DASHBOARD_SIDEBAR_PATH);
 
   assert.ok(source.includes("function isActive(href: string, exact = false)"));
+  assert.ok(source.includes('if (href.startsWith("#")) return false;'));
   assert.ok(source.includes("if (exact) return pathname === href;"));
   assert.ok(source.includes("return pathname.startsWith(href);"));
   assert.ok(source.includes('aria-label="Navegación del dashboard"'));
@@ -77,7 +80,9 @@ test("dashboard sidebar exposes brand and public-site escape link", () => {
   const source = read(DASHBOARD_SIDEBAR_PATH);
 
   assert.ok(source.includes("Portal VETNEB"));
-  assert.ok(source.includes("Dashboard"));
+  assert.ok(source.includes("Dashboard clínica"));
   assert.ok(source.includes("href={ROUTES.home}"));
   assert.ok(source.includes("Volver al sitio público"));
 });
+
+

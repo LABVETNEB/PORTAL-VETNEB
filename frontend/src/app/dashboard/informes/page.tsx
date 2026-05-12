@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
-import { UploadReportModal } from "@/components/dashboard/UploadReportModal";
 import { ReportDownloadButton } from "@/components/dashboard/ReportDownloadButton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -51,15 +50,13 @@ export default async function InformesPage() {
     <>
       <DashboardTopbar
         title="Informes"
-        subtitle="Gestión de informes médicos veterinarios"
+        subtitle="Consulta de informes médicos veterinarios"
       />
       <main className="dashboard-main">
-        <div className="flex justify-end">
-          <UploadReportModal />
-        </div>
-
         <div className="surface-note-info">
-          Lectura conectada a <code>GET /api/reports</code>.
+          Lectura clinic-scoped conectada a <code>GET /api/reports</code>.
+          Las acciones administrativas de carga se gestionan únicamente desde
+          el dashboard administrador.
         </div>
 
         <Card>
@@ -158,5 +155,3 @@ export default async function InformesPage() {
     </>
   );
 }
-
-

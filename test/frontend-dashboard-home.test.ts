@@ -54,7 +54,7 @@ test("dashboard home renders clinic operational summary, stats, reports, and fie
   assert.ok(source.includes('subtitle="Resumen operativo clínica"'));
   assert.ok(source.includes("Lectura conectada a datos operativos clinic-scoped del backend."));
   assert.ok(source.includes("Esta"));
-  assert.ok(source.includes("superficie no usa sesión de administración."));
+  assert.ok(source.includes("Esta superficie usa solo sesión clínica."));
   assert.ok(source.includes("<StatsCards stats={stats} />"));
   assert.ok(source.includes("Informes recientes"));
   assert.ok(source.includes("Visitas de campo"));
@@ -88,3 +88,4 @@ test("dashboard home exposes clinic route-registry quick links only", () => {
   assert.equal(source.includes("ROUTES.dashboardAdmin"), false);
   assert.equal(source.includes('"/api"'), false);
 });
+
