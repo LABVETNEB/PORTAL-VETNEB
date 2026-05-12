@@ -17,6 +17,11 @@ const adminNavItems: DashboardNavItem[] = [
     icon: "🟢",
   },
   {
+    label: "Tokens particulares",
+    href: `${ROUTES.dashboardAdmin}#admin-particular-tokens`,
+    icon: "🎫",
+  },
+  {
     label: "Sesiones",
     href: `${ROUTES.dashboardAdmin}#admin-sessions`,
     icon: "🔐",
@@ -46,3 +51,4 @@ export function AdminDashboardSidebar() {
     />
   );
 }
+

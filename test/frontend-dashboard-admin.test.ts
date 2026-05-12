@@ -30,9 +30,11 @@ test("dashboard admin includes read-only admin cards", () => {
 
   assert.ok(source.includes('import { AdminFailedLoginAlertsReadOnlyCard } from "./AdminFailedLoginAlertsReadOnlyCard";'));
   assert.ok(source.includes('import { AdminMaintenanceDryRunCard } from "./AdminMaintenanceDryRunCard";'));
+  assert.ok(source.includes('import { AdminParticularTokensCard } from "./AdminParticularTokensCard";'));
   assert.ok(source.includes('import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";'));
   assert.ok(source.includes('import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";'));
   assert.ok(source.includes("<AdminMaintenanceDryRunCard />"));
+  assert.ok(source.includes("<AdminParticularTokensCard />"));
   assert.ok(source.includes("<AdminSessionsReadOnlyCard />"));
   assert.ok(source.includes("<AdminFailedLoginAlertsReadOnlyCard />"));
   assert.ok(source.includes("<AdminUsersRolesReadOnlyCard />"));
@@ -126,6 +128,7 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes('id="admin-health"'));
   assert.ok(source.includes('id="admin-maintenance"'));
   assert.ok(source.includes('id="admin-sessions"'));
+  assert.ok(source.includes('id="admin-particular-tokens"'));
   assert.ok(source.includes('id="admin-users-roles"'));
   assert.ok(source.includes('id="admin-event-summary"'));
   assert.ok(source.includes("Health & Maintenance"));
@@ -170,3 +173,4 @@ test("dashboard admin avoids duplicate section ids in navigation anchors", () =>
   assert.equal(adminHealthIdMatches.length, 1);
   assert.equal(source.includes('id="admin-event-summary"'), true);
 });
+

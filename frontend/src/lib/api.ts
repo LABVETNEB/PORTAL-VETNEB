@@ -248,6 +248,44 @@ export type AdminParticularTokenReportLinkResponse = {
   particularToken: AdminParticularTokenDetail | null;
 };
 
+
+export type AdminParticularTokenCreatePayload = {
+  clinicId: number;
+  reportId?: number | null;
+  tutorLastName: string;
+  petName: string;
+  petAge: string;
+  petBreed: string;
+  petSex: string;
+  petSpecies: string;
+  sampleLocation: string;
+  sampleEvolution: string;
+  detailsLesion: string;
+  extractionDate: string;
+  shippingDate: string;
+};
+
+export type AdminParticularTokenCreateResponse = {
+  success: true;
+  message: string;
+  token: string;
+  particularToken: AdminParticularTokenSummary;
+};
+
+export async function createAdminParticularToken(
+  payload: AdminParticularTokenCreatePayload,
+  options?: RequestInit,
+): Promise<AdminParticularTokenCreateResponse> {
+  return apiFetch<AdminParticularTokenCreateResponse>(
+    "/api/admin/particular-tokens",
+    {
+      ...options,
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
 export async function getAdminParticularTokens(
   params: {
     clinicId?: number;
@@ -899,6 +937,7 @@ export async function searchPublicProfessionals(
     };
   }
 }
+
 
 
 
