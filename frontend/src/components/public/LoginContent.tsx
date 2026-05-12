@@ -84,7 +84,7 @@ export function LoginContent() {
   const clinicSubmitLabel = isSubmitting ? "Iniciando sesión..." : "Iniciar sesión";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4"
+    <div className="min-h-screen public-soft-canvas flex items-center justify-center p-4"
       data-auth-login-polish="true">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
@@ -93,11 +93,11 @@ export function LoginContent() {
             className="inline-flex items-center justify-center"
             aria-label="PORTAL VETNEB — Inicio"
           >
-            <span className="text-2xl font-bold uppercase tracking-wide text-white">
+            <span className="text-2xl font-bold uppercase tracking-wide text-blue-950">
               PORTAL VETNEB
             </span>
           </Link>
-          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.28em] text-blue-100/70">
+          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.28em] text-blue-700/70">
             Patología veterinaria
           </p>
         </div>
@@ -261,8 +261,8 @@ export function LoginContent() {
           </CardContent>
         </Card>
 
-        <p className="mt-6 text-center text-xs text-blue-300">
-          <Link href={ROUTES.home} className="hover:text-white transition-colors">
+        <p className="mt-6 text-center text-xs text-blue-700">
+          <Link href={ROUTES.home} className="hover:text-primary transition-colors">
             ← Volver al sitio público
           </Link>
         </p>
@@ -270,3 +270,5 @@ export function LoginContent() {
     </div>
   );
 }
+
+

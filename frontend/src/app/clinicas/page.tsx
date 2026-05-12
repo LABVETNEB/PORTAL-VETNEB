@@ -142,7 +142,8 @@ export default function ClinicasPage() {
         </div>
       </section>
 
-      <section className="public-soft-canvas py-16 md:py-20">
+      <div className="public-soft-canvas">
+      <section className="py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-10 max-w-3xl text-center">
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-primary">
@@ -177,7 +178,7 @@ export default function ClinicasPage() {
         </div>
       </section>
 
-      <section className="bg-white py-16 md:py-20">
+      <section className="py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-10 max-w-3xl text-center">
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-teal-700">
@@ -224,6 +225,8 @@ export default function ClinicasPage() {
           </div>
         </div>
       </section>
+      </div>
     </PublicLayout>
   );
 }
+

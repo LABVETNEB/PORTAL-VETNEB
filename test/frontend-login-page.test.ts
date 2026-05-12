@@ -42,7 +42,8 @@ test("login content keeps standalone login shell and form landmarks", () => {
   assert.ok(source.includes('import Link from "next/link";'));
   assert.ok(source.includes('import { loginClinic } from "@/lib/api";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
-  assert.ok(source.includes("bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800"));
+  assert.ok(source.includes("min-h-screen public-soft-canvas flex items-center justify-center p-4"));
+  assert.equal(source.includes("bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800"), false);
   assert.ok(source.includes("PORTAL VETNEB"));
   assert.ok(source.includes('aria-label="PORTAL VETNEB — Inicio"'));
   assert.equal(source.includes(">VN<"), false);
@@ -77,3 +78,6 @@ test("login content exposes public navigation affordances without direct fetch",
   assert.equal(source.includes('"/api"'), false);
   assert.equal(source.includes("fetch("), false);
 });
+
+
+

@@ -31,6 +31,7 @@ test("home page exposes accessible hero and primary CTAs", () => {
   assert.ok(source.includes('aria-labelledby="hero-heading"'));
   assert.ok(source.includes('id="hero-heading"'));
   assert.ok(source.includes('src="/images/hero-microscope-vetneb.jpg"'));
+  assert.ok(source.includes('import Image from "next/image";'));
   assert.ok(source.includes("SERVICIO PATOLÓGICO"));
   assert.ok(source.includes("VETNEB"));
   assert.ok(source.includes("Dr. BARBÉ, NICOLÁS E."));
@@ -42,16 +43,16 @@ test("home page exposes accessible hero and primary CTAs", () => {
   assert.ok(source.includes('target="_blank"'));
   assert.ok(source.includes('rel="noopener noreferrer"'));
   assert.ok(source.includes('href={ROUTES.login}'));
-  assert.ok(source.includes('import Image from "next/image";'));
 });
 
 test("home page lists core laboratory services and services route CTA", () => {
   const source = read(HOME_PAGE_PATH);
 
+  assert.ok(source.includes('className="public-soft-canvas"'));
   assert.ok(source.includes('aria-labelledby="services-heading"'));
   assert.ok(source.includes('id="services-heading"'));
+  assert.ok(source.includes('className="py-16 md:py-20"'));
   assert.ok(source.includes("Servicios del laboratorio patológico veterinario"));
-  assert.ok(source.includes('className="public-soft-canvas py-16 md:py-20"'));
   assert.ok(source.includes("Estudio Anatomopatológico"));
   assert.ok(source.includes("Estudio Citológico"));
   assert.ok(source.includes("Tinciones Especiales"));
@@ -80,11 +81,11 @@ test("home page exposes final conversion CTA without private route metadata", ()
   assert.ok(source.includes("Seguimos trabajando en mejorar"));
   assert.ok(source.includes("Iniciar sesión"));
   assert.ok(source.includes("Contactar"));
-  assert.ok(source.includes("border border-white/70 bg-blue-950/20"));
-  assert.ok(source.includes("font-semibold text-white shadow-sm"));
+  assert.ok(source.includes("from-blue-700 to-teal-600"));
+  assert.ok(source.includes("border border-blue-200 bg-white/80"));
+  assert.ok(source.includes("font-semibold text-blue-900 shadow-sm"));
   assert.ok(source.includes("hover:bg-white hover:text-primary"));
-  assert.equal(source.includes("w-full border-white/40 text-white hover:bg-white/10 sm:w-auto"), false);
+  assert.equal(source.includes("bg-primary py-16 text-white md:py-20"), false);
   assert.equal(source.includes('"/dashboard"'), false);
   assert.equal(source.includes('"/api"'), false);
 });
-

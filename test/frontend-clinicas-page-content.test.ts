@@ -79,3 +79,12 @@ test("clinicas page remains public and avoids direct backend/API calls", () => {
   assert.equal(source.includes('"/api"'), false);
   assert.equal(source.includes("fetch("), false);
 });
+test("clinicas page keeps one continuous soft canvas below hero", () => {
+  const source = read(CLINICAS_PAGE_PATH);
+
+  assert.ok(source.includes('className="public-soft-canvas"'));
+  assert.ok(source.includes('className="py-16 md:py-20"'));
+  assert.equal(source.includes('className="bg-white py-16 md:py-20"'), false);
+  assert.equal(source.includes('className="public-soft-canvas py-16 md:py-20"'), false);
+});
+
