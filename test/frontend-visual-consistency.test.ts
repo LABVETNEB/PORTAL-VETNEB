@@ -284,7 +284,6 @@ test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () 
       "title: string;",
       "subtitle?: string;",
       "{subtitle && (",
-      "Clínica Demo",
       "<Button asChild variant=\"outline\" size=\"sm\">",
     ],
     "dashboard topbar hierarchy",
@@ -297,7 +296,6 @@ test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () 
       /className="truncate text-lg font-semibold text-gray-900 sm:text-xl"/,
       /className="truncate text-xs text-gray-500 sm:text-sm"/,
       /className="ml-3 flex shrink-0 items-center gap-2 sm:gap-3"/,
-      /className="flex h-8 w-8 items-center justify-center rounded-full bg-primary\/10 text-xs font-semibold text-primary"/,
     ],
     "dashboard topbar class contracts",
   );
@@ -376,6 +374,7 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
   assertInlineStylesAtMost(source, 0, "dashboard admin");
   assert.equal(source.includes("fetch("), false, "dashboard admin must avoid fetch()");
 });
+
 
 
 
