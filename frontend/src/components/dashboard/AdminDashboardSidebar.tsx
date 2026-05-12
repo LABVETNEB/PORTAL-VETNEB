@@ -12,6 +12,11 @@ const adminNavItems: DashboardNavItem[] = [
     exact: true,
   },
   {
+    label: "Subir informe",
+    href: `${ROUTES.dashboardAdmin}#admin-report-upload`,
+    icon: "📄",
+  },
+  {
     label: "Health",
     href: `${ROUTES.dashboardAdmin}#admin-health`,
     icon: "🟢",
@@ -51,4 +56,5 @@ export function AdminDashboardSidebar() {
     />
   );
 }
+
 

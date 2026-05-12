@@ -22,7 +22,6 @@ type ClinicOption = {
 };
 
 const STUDY_TYPE_OPTIONS = [
-  { value: "", label: "Tipo de estudio" },
   { value: "histopathology", label: "Histopatología" },
   { value: "cytology", label: "Citología" },
   { value: "immunohistochemistry", label: "Inmunohistoquímica" },
@@ -114,7 +113,6 @@ function formatTrackingDateLabel(value: string) {
   }).format(date);
 }
 
-
 export function UploadReportModal() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -134,8 +132,9 @@ export function UploadReportModal() {
   const [particularTokenLoadError, setParticularTokenLoadError] = useState<
     string | null
   >(null);
+  const [selectedFileName, setSelectedFileName] = useState("");
   const [patientName, setPatientName] = useState("");
-  const [studyType, setStudyType] = useState("");
+  const [studyType, setStudyType] = useState(STUDY_TYPE_OPTIONS[0].value);
   const [uploadDate, setUploadDate] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -296,8 +295,9 @@ export function UploadReportModal() {
     setParticularTokenId("");
     setParticularTokens([]);
     setParticularTokenLoadError(null);
+    setSelectedFileName("");
     setPatientName("");
-    setStudyType("");
+    setStudyType(STUDY_TYPE_OPTIONS[0].value);
     setUploadDate("");
 
     if (fileInputRef.current) {
@@ -342,6 +342,13 @@ export function UploadReportModal() {
     if (token && !patientName.trim()) {
       setPatientName(`${token.petName} / ${token.tutorLastName}`);
     }
+  }
+
+  function handleFileChange() {
+    const file = fileInputRef.current?.files?.[0];
+
+    setSelectedFileName(file?.name ?? "");
+    setErrorMessage(null);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -607,7 +614,20 @@ export function UploadReportModal() {
               ref={fileInputRef}
               required
               disabled={isSubmitting}
+              onChange={handleFileChange}
+              className="sr-only"
             />
+            <div className="flex flex-col gap-2 rounded-lg border border-input bg-background px-3 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <span className="truncate text-sm text-gray-600">
+                {selectedFileName || "Sin archivo seleccionado"}
+              </span>
+              <label
+                htmlFor="upload-file"
+                className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md border border-input bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm transition-colors hover:bg-gray-50"
+              >
+                Seleccionar archivo
+              </label>
+            </div>
           </div>
 
           <div>
@@ -635,6 +655,7 @@ export function UploadReportModal() {
               value={studyType}
               onChange={(event) => setStudyType(event.target.value)}
               disabled={isSubmitting}
+              required
             >
               {STUDY_TYPE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>

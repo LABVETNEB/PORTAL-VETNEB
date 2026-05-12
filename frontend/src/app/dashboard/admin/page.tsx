@@ -23,6 +23,7 @@ import { AdminMaintenanceDryRunCard } from "./AdminMaintenanceDryRunCard";
 import { AdminParticularTokensCard } from "./AdminParticularTokensCard";
 import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";
 import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
+import { UploadReportModal } from "@/components/dashboard/UploadReportModal";
 import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 
@@ -301,6 +302,15 @@ export default async function AdminPage({
         subtitle="Auditoría, reportes y estado operacional"
       />
       <main className="dashboard-main">
+        <section id="admin-report-upload" className="surface-note-info flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="font-semibold text-blue-900">Carga de informes</p>
+            <p className="mt-1 text-sm text-blue-700">
+              Suba un PDF y asócielo a una clínica desde administración.
+            </p>
+          </div>
+          <UploadReportModal />
+        </section>
 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="border-gray-100">
             <CardHeader className="pb-2">
@@ -591,6 +601,7 @@ export default async function AdminPage({
     </>
   );
 }
+
 
 
 

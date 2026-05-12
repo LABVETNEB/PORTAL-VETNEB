@@ -31,7 +31,7 @@ test("upload report modal keeps study type options", () => {
   const source = read(UPLOAD_REPORT_MODAL_PATH);
 
   assert.ok(source.includes("const STUDY_TYPE_OPTIONS = ["));
-  assert.ok(source.includes('{ value: "", label: "Tipo de estudio" }'));
+  assert.equal(source.includes('{ value: "", label: "Tipo de estudio" }'), false);
   assert.ok(source.includes('{ value: "histopathology", label: "Histopatología" }'));
   assert.ok(source.includes('{ value: "cytology", label: "Citología" }'));
   assert.ok(source.includes('{ value: "immunohistochemistry", label: "Inmunohistoquímica" }'));
@@ -49,13 +49,15 @@ test("upload report modal keeps form state reset and file ref handling", () => {
   assert.ok(source.includes("const [particularTokenId, setParticularTokenId] = useState(\"\");"));
   assert.ok(source.includes("AdminParticularTokenSummary"));
   assert.ok(source.includes("const [patientName, setPatientName] = useState(\"\");"));
-  assert.ok(source.includes("const [studyType, setStudyType] = useState(\"\");"));
+  assert.ok(source.includes("const [studyType, setStudyType] = useState(STUDY_TYPE_OPTIONS[0].value);"));
   assert.ok(source.includes("const [uploadDate, setUploadDate] = useState(\"\");"));
   assert.ok(source.includes("const [errorMessage, setErrorMessage] = useState<string | null>(null);"));
   assert.ok(source.includes("const [successMessage, setSuccessMessage] = useState<string | null>(null);"));
   assert.ok(source.includes("const [isSubmitting, setIsSubmitting] = useState(false);"));
   assert.ok(source.includes("function resetForm()"));
   assert.ok(source.includes("fileInputRef.current.value = \"\";"));
+  assert.ok(source.includes("const [selectedFileName, setSelectedFileName] = useState(\"\");"));
+  assert.ok(source.includes("setSelectedFileName(\"\");"));
 });
 
 test("upload report modal validates PDF file and submits FormData safely", () => {
@@ -114,6 +116,10 @@ test("upload report modal renders accessible dialog and form controls", () => {
   assert.ok(source.includes('id="upload-file"'));
   assert.ok(source.includes('type="file"'));
   assert.ok(source.includes('accept="application/pdf"'));
+  assert.ok(source.includes("Seleccionar archivo"));
+  assert.ok(source.includes("Sin archivo seleccionado"));
+  assert.equal(source.includes("Choose File"), false);
+  assert.equal(source.includes("No file chosen"), false);
   assert.ok(source.includes('id="upload-patient-name"'));
   assert.ok(source.includes('id="upload-study-type"'));
   assert.ok(source.includes('id="upload-date"'));
@@ -180,3 +186,4 @@ test("report download button renders labels titles disabled and alert state", ()
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("{errorMessage}"));
 });
+

@@ -85,6 +85,7 @@ test("admin dashboard sidebar keeps admin operations and excludes clinic navigat
 
   assert.ok(source.includes("const adminNavItems: DashboardNavItem[] = ["));
   assert.ok(source.includes('label: "Administración"'));
+  assert.ok(source.includes('label: "Subir informe"'));
   assert.ok(source.includes('label: "Health"'));
   assert.ok(source.includes('label: "Sesiones"'));
   assert.ok(source.includes('label: "Tokens particulares"'));
@@ -95,5 +96,6 @@ test("admin dashboard sidebar keeps admin operations and excludes clinic navigat
   assert.equal(source.includes("clinic-public-profile"), false);
   assert.equal(source.includes("clinic-particular-tokens"), false);
 });
+
 
 
