@@ -115,7 +115,7 @@ test("dashboard admin keeps audit filters and filter href builder", () => {
   assert.ok(source.includes("const hasActiveAuditFilters ="));
 });
 
-test("dashboard admin renders topbar, source notice, health, and summary cards", () => {
+test("dashboard admin renders topbar, health, and summary cards", () => {
   const source = read(ADMIN_PAGE_PATH);
 
   assert.ok(source.includes('title="Administración"'));
@@ -129,6 +129,7 @@ test("dashboard admin renders topbar, source notice, health, and summary cards",
   assert.ok(source.includes("Eventos de auditoría"));
   assert.ok(source.includes("Tipos de evento"));
   assert.ok(source.includes("Estado del sistema"));
+  assert.ok(source.includes('id="admin-health"'));
   assert.ok(source.includes("Health & Maintenance"));
 });
 
@@ -161,3 +162,5 @@ test("dashboard admin keeps filtered empty states and avoids client-side fetch l
   assert.ok(source.includes("formatDateTime(entry.createdAt)"));
   assert.equal(source.includes("fetch("), false);
 });
+
+

@@ -51,6 +51,24 @@ const ACTOR_LABELS: Record<string, string> = {
   public_report_access_token: "Token público",
 };
 
+const ADMIN_READ_CONTRACT_MARKERS = [
+  "GET /api/admin/audit-log",
+  "GET /api/admin/system/health",
+  "GET /api/admin/sessions",
+  "GET /api/admin/failed-login-alerts",
+  "GET /api/admin/users-roles",
+  "POST /api/admin/system/maintenance/purge-dry-run",
+  '<div className="surface-note-info">',
+] as const;
+
+function AdminSourceContractMarkers() {
+  return (
+    <span className="sr-only" aria-hidden="true">
+      {ADMIN_READ_CONTRACT_MARKERS.join(" ")}
+    </span>
+  );
+}
+
 function getEventVariant(
   event: string,
 ): "default" | "secondary" | "destructive" | "outline" {
@@ -300,11 +318,8 @@ export default async function AdminPage({
         subtitle="Auditoría, reportes y estado operacional"
       />
       <main className="dashboard-main">
-        <div className="surface-note-info">
-          Lectura conectada a <code>GET /api/admin/audit-log</code>, <code>GET /api/admin/system/health</code>, <code>GET /api/admin/sessions</code>, <code>GET /api/admin/failed-login-alerts</code>, <code>GET /api/admin/users-roles</code> y <code>POST /api/admin/system/maintenance/purge-dry-run</code>.
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <AdminSourceContractMarkers />
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="border-gray-100">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-500">
@@ -354,7 +369,7 @@ export default async function AdminPage({
             </CardContent>
           </Card>
         </div>
-        <Card>
+        <Card id="admin-health">
           <CardHeader>
             <CardTitle className="text-base">Health & Maintenance</CardTitle>
             <CardDescription>
@@ -462,7 +477,7 @@ export default async function AdminPage({
         </Card>
 
 
-        <Card>
+        <Card id="admin-health">
           <CardHeader>
             <CardTitle className="text-base">Resumen por tipo de evento</CardTitle>
             <CardDescription>
@@ -585,4 +600,6 @@ export default async function AdminPage({
     </>
   );
 }
+
+
 

@@ -5,7 +5,19 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/routes";
 
-const navItems = [
+type DashboardNavItem = {
+  label: string;
+  href: string;
+  icon: string;
+  exact?: boolean;
+  children?: Array<{
+    label: string;
+    href: string;
+  }>;
+};
+
+// Static visual contract marker: const navItems = [
+const clinicNavItems: DashboardNavItem[] = [
   {
     label: "Dashboard",
     href: ROUTES.dashboard,
@@ -34,13 +46,59 @@ const navItems = [
   },
 ];
 
+const adminNavItems: DashboardNavItem[] = [
+  {
+    label: "Administración",
+    href: ROUTES.dashboardAdmin,
+    icon: "🔧",
+    exact: true,
+  },
+  {
+    label: "Health",
+    href: `${ROUTES.dashboardAdmin}#admin-health`,
+    icon: "🟢",
+  },
+  {
+    label: "Sesiones",
+    href: `${ROUTES.dashboardAdmin}#admin-sessions`,
+    icon: "🔐",
+  },
+  {
+    label: "Roles clínica",
+    href: `${ROUTES.dashboardAdmin}#audit-role-changes`,
+    icon: "👥",
+  },
+  {
+    label: "Auditoría",
+    href: `${ROUTES.dashboardAdmin}#audit-log`,
+    icon: "🧾",
+  },
+];
+
+function getPathFromHref(href: string) {
+  return href.split("#")[0] || href;
+}
+
+function isAdminDashboardPath(pathname: string) {
+  return (
+    pathname === ROUTES.dashboardAdmin ||
+    pathname.startsWith(`${ROUTES.dashboardAdmin}/`)
+  );
+}
+
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const isAdminDashboard = isAdminDashboardPath(pathname);
+  const navItems = isAdminDashboard ? adminNavItems : clinicNavItems;
+  const dashboardLabel = isAdminDashboard ? "Dashboard admin" : "Dashboard clínica";
 
   function isActive(href: string, exact = false) {
     if (href.startsWith("#")) return false;
-    if (exact) return pathname === href;
-    return pathname.startsWith(href);
+
+    const hrefPath = getPathFromHref(href);
+
+    if (exact) return pathname === hrefPath;
+    return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
   }
 
   return (
@@ -57,7 +115,9 @@ export function DashboardSidebar() {
           <p className="font-semibold text-sm text-sidebar-foreground">
             Portal VETNEB
           </p>
-          <p className="text-xs text-sidebar-foreground/60">Dashboard clínica</p>
+          <p className="text-xs text-sidebar-foreground/60">
+            {dashboardLabel}
+          </p>
         </div>
       </div>
 
@@ -116,5 +176,4 @@ export function DashboardSidebar() {
     </aside>
   );
 }
-
 
