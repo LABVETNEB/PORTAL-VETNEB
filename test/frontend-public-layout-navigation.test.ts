@@ -22,7 +22,7 @@ test("public layout wraps pages with navbar main landmark and footer", () => {
   assert.ok(source.includes("interface PublicLayoutProps"));
   assert.ok(source.includes("children: React.ReactNode;"));
   assert.ok(source.includes("<Navbar />"));
-  assert.ok(source.includes('<main className="flex-1" id="main-content">'));
+  assert.ok(source.includes('<main className="public-page-canvas flex-1" id="main-content">'));
   assert.ok(source.includes("{children}"));
   assert.ok(source.includes("<Footer />"));
 });
@@ -81,4 +81,5 @@ test("footer exposes access links and legal copy without redundant brand block",
   assert.equal(source.includes("Laboratorio veterinario digital. Informes, estudios y gestión"), false);
   assert.equal(source.includes("rounded-md bg-primary px-3"), false);
 });
+
 
