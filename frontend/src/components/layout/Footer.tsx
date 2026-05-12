@@ -61,7 +61,7 @@ export function FooterFaq() {
           Preguntas frecuentes:
         </h2>
 
-        <div className="divide-y divide-border/70 rounded-2xl border border-border/70 bg-transparent px-5">
+        <div className="divide-y divide-border/70 rounded-3xl border border-white/80 bg-card/95 px-5 shadow-[0_28px_90px_rgba(22,72,99,0.18)] ring-1 ring-white/70 backdrop-blur-md">
           {faqItems.map((item) => (
             <details key={item.question} className="group py-4">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-foreground">
