@@ -33,6 +33,7 @@ test("dashboard admin includes read-only admin cards", () => {
   assert.ok(source.includes('import { AdminParticularTokensCard } from "./AdminParticularTokensCard";'));
   assert.ok(source.includes('import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";'));
   assert.ok(source.includes('import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";'));
+  assert.ok(source.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'));
   assert.ok(source.includes("<AdminMaintenanceDryRunCard />"));
   assert.ok(source.includes("<AdminParticularTokensCard />"));
   assert.ok(source.includes("<AdminSessionsReadOnlyCard />"));
@@ -125,6 +126,8 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes("Eventos de auditoría"));
   assert.ok(source.includes("Tipos de evento"));
   assert.ok(source.includes("Estado del sistema"));
+  assert.ok(source.includes('id="admin-report-upload"'));
+  assert.ok(source.includes("<UploadReportModal />"));
   assert.ok(source.includes('id="admin-health"'));
   assert.ok(source.includes('id="admin-maintenance"'));
   assert.ok(source.includes('id="admin-sessions"'));
@@ -173,4 +176,5 @@ test("dashboard admin avoids duplicate section ids in navigation anchors", () =>
   assert.equal(adminHealthIdMatches.length, 1);
   assert.equal(source.includes('id="admin-event-summary"'), true);
 });
+
 
