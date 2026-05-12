@@ -51,6 +51,7 @@ test("home page lists core laboratory services and services route CTA", () => {
   assert.ok(source.includes('aria-labelledby="services-heading"'));
   assert.ok(source.includes('id="services-heading"'));
   assert.ok(source.includes("Servicios del laboratorio patológico veterinario"));
+  assert.ok(source.includes('className="public-soft-canvas py-16 md:py-20"'));
   assert.ok(source.includes("Estudio Anatomopatológico"));
   assert.ok(source.includes("Estudio Citológico"));
   assert.ok(source.includes("Tinciones Especiales"));
@@ -86,3 +87,4 @@ test("home page exposes final conversion CTA without private route metadata", ()
   assert.equal(source.includes('"/dashboard"'), false);
   assert.equal(source.includes('"/api"'), false);
 });
+
