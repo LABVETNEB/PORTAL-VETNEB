@@ -57,25 +57,22 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-slate-200/70 bg-slate-950 text-white" role="contentinfo">
+    <footer className="border-t border-sidebar-border bg-sidebar text-sidebar-foreground" role="contentinfo">
       <section
-        className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-teal-950 py-12"
+        className="relative overflow-hidden bg-sidebar py-12"
         aria-labelledby="footer-faq-heading"
       >
-        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-          <div className="absolute -left-24 top-0 h-64 w-64 rounded-full bg-cyan-300/10 blur-3xl" />
-          <div className="absolute right-0 top-10 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
-        </div>
+        <div className="diagnostic-field" data-tone="dark" aria-hidden="true" />
 
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
           <h2
             id="footer-faq-heading"
-            className="mb-8 text-lg font-bold uppercase tracking-[0.2em] text-cyan-50"
+            className="mb-8 text-lg font-bold text-sidebar-foreground"
           >
             Preguntas frecuentes:
           </h2>
 
-          <div className="divide-y divide-white/10 rounded-3xl border border-white/10 bg-white/[0.06] px-5 shadow-[0_24px_80px_rgba(0,0,0,0.22)] backdrop-blur">
+          <div className="divide-y divide-white/10 rounded-lg border border-white/10 bg-white/[0.06] px-5 shadow-[0_20px_64px_rgba(0,0,0,0.20)]">
             {faqItems.map((item) => (
               <details key={item.question} className="group py-4">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-white">
@@ -95,14 +92,14 @@ export function Footer() {
       </section>
 
       <section
-        className="bg-gradient-to-b from-slate-950 to-slate-900 py-8"
+        className="border-t border-white/10 bg-sidebar py-8"
         aria-labelledby="footer-lab-info-heading"
       >
         <div className="container mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 md:grid-cols-2 lg:grid-cols-[1.35fr_0.75fr_0.75fr_1.15fr] lg:px-8">
-          <div className="text-sm text-slate-200">
+          <div className="text-sm text-sidebar-foreground/82">
             <h2
               id="footer-lab-info-heading"
-              className="mb-5 text-sm font-bold uppercase tracking-[0.2em] text-white"
+              className="mb-5 text-sm font-bold text-white"
             >
               Servicio Patológico VETNEB
             </h2>
@@ -154,7 +151,7 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-slate-300 transition-colors hover:text-cyan-200"
+                    className="text-sm text-sidebar-foreground/72 transition-colors hover:text-cyan-200"
                   >
                     {link.label}
                   </Link>
@@ -171,7 +168,7 @@ export function Footer() {
               <li>
                 <Link
                   href={ROUTES.login}
-                  className="text-sm text-slate-300 transition-colors hover:text-cyan-200"
+                  className="text-sm text-sidebar-foreground/72 transition-colors hover:text-cyan-200"
                 >
                   Iniciar sesión
                 </Link>
@@ -179,7 +176,7 @@ export function Footer() {
               <li>
                 <Link
                   href={ROUTES.particulares}
-                  className="text-sm text-slate-300 transition-colors hover:text-cyan-200"
+                  className="text-sm text-sidebar-foreground/72 transition-colors hover:text-cyan-200"
                 >
                   Acceso particulares
                 </Link>
@@ -187,7 +184,7 @@ export function Footer() {
               <li>
                 <Link
                   href={ROUTES.contacto}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-sm text-white shadow-sm transition-colors hover:bg-white/15"
+                  className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/10 px-3 py-1.5 text-sm text-white shadow-sm transition-colors hover:bg-white/15"
                 >
                   <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
                   Solicitar acceso
@@ -196,7 +193,7 @@ export function Footer() {
             </ul>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/10 shadow-[0_18px_60px_rgba(0,0,0,0.22)]">
+          <div className="overflow-hidden rounded-lg border border-white/10 bg-white/10 shadow-[0_18px_54px_rgba(0,0,0,0.20)]">
             <iframe
               title="Ubicación de Servicio Patológico VETNEB en Google Maps"
               src={mapsEmbedUrl}

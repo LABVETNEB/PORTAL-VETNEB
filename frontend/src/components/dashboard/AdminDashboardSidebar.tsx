@@ -1,3 +1,14 @@
+import {
+  Activity,
+  ClipboardPlus,
+  FileText,
+  KeyRound,
+  ScrollText,
+  Settings2,
+  ShieldCheck,
+  TicketCheck,
+  UsersRound,
+} from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import {
   DashboardSidebarFrame,
@@ -8,43 +19,43 @@ const adminNavItems: DashboardNavItem[] = [
   {
     label: "Administración",
     href: ROUTES.dashboardAdmin,
-    icon: "🔧",
+    icon: Settings2,
     exact: true,
   },
   {
     label: "Subir informe",
     href: `${ROUTES.dashboardAdmin}#admin-report-upload`,
-    icon: "📄",
+    icon: ClipboardPlus,
   },
   {
     label: "Estado",
     href: `${ROUTES.dashboardAdmin}#admin-health`,
-    icon: "🟢",
+    icon: Activity,
   },
   {
     label: "Tokens particulares",
     href: `${ROUTES.dashboardAdmin}#admin-particular-tokens`,
-    icon: "🎫",
+    icon: TicketCheck,
   },
   {
     label: "Sesiones",
     href: `${ROUTES.dashboardAdmin}#admin-sessions`,
-    icon: "🔐",
+    icon: KeyRound,
   },
   {
     label: "Roles clínica",
     href: `${ROUTES.dashboardAdmin}#audit-role-changes`,
-    icon: "👥",
+    icon: UsersRound,
   },
   {
     label: "Auditoría",
     href: `${ROUTES.dashboardAdmin}#audit-log`,
-    icon: "🧾",
+    icon: ScrollText,
   },
   {
     label: "Mantenimiento",
     href: `${ROUTES.dashboardAdmin}#admin-maintenance`,
-    icon: "🧹",
+    icon: ShieldCheck,
   },
 ];
 

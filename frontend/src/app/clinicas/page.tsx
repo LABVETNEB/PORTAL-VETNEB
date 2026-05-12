@@ -113,7 +113,7 @@ export default function ClinicasPage() {
             <Sparkles className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
             Portal clínico VETNEB
           </Eyebrow>
-          <h1 className="mb-5 max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
+          <h1 className="mb-5 max-w-4xl text-4xl font-bold md:text-5xl">
             Portal para clínicas veterinarias
           </h1>
           <p className="max-w-2xl text-xl leading-relaxed text-blue-50">
@@ -146,7 +146,7 @@ export default function ClinicasPage() {
       <section className="py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-10 max-w-3xl text-center">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-primary">
+            <p className="mb-3 text-sm font-semibold uppercase text-primary">
               Operación clínica
             </p>
             <h2 className="text-2xl font-bold text-gray-950 md:text-3xl">
@@ -181,7 +181,7 @@ export default function ClinicasPage() {
       <section className="py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-10 max-w-3xl text-center">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-teal-700">
+            <p className="mb-3 text-sm font-semibold uppercase text-teal-700">
               Implementación guiada
             </p>
             <h2 className="text-2xl font-bold text-gray-950 md:text-3xl">

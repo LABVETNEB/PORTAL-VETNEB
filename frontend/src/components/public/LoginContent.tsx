@@ -93,19 +93,19 @@ export function LoginContent() {
             className="inline-flex items-center justify-center"
             aria-label="PORTAL VETNEB — Inicio"
           >
-            <span className="text-2xl font-bold uppercase tracking-wide text-blue-950">
+            <span className="text-2xl font-bold uppercase text-vetneb-ink">
               PORTAL VETNEB
             </span>
           </Link>
-          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.28em] text-blue-700/70">
+          <p className="mt-2 text-xs font-semibold uppercase text-muted-foreground">
             Patología veterinaria
           </p>
         </div>
 
-        <Card className="border border-white/80 bg-white/95 shadow-2xl backdrop-blur"
+        <Card className="border border-vetneb-line/80 bg-card/95 shadow-[0_22px_76px_rgba(15,45,62,0.18)]"
           data-auth-login-card="true">
           <CardHeader className="pb-4 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 ring-1 ring-blue-100">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg border border-vetneb-cyan/25 bg-vetneb-cyan/10 text-vetneb-navy ring-1 ring-vetneb-cyan/20">
               {mode === "particular" ? (
                 <KeyRound className="h-5 w-5" aria-hidden="true" />
               ) : (
@@ -119,15 +119,15 @@ export function LoginContent() {
           </CardHeader>
           <CardContent>
             <div
-              className="mb-5 grid grid-cols-2 rounded-lg border border-gray-200 bg-gray-50 p-1"
+              className="mb-5 grid grid-cols-2 rounded-lg border border-vetneb-line bg-vetneb-surface-muted p-1"
               aria-label="Tipo de acceso"
             >
               <button
                 type="button"
                 className={`rounded-md px-3 py-2 text-sm font-medium transition ${
                   mode === "clinic"
-                    ? "bg-white text-gray-950 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900"
+                    ? "bg-card text-vetneb-ink shadow-sm"
+                    : "text-muted-foreground hover:text-vetneb-ink"
                 }`}
                 onClick={() => selectMode("clinic")}
                 disabled={isSubmitting}
@@ -138,8 +138,8 @@ export function LoginContent() {
                 type="button"
                 className={`rounded-md px-3 py-2 text-sm font-medium transition ${
                   mode === "particular"
-                    ? "bg-white text-gray-950 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900"
+                    ? "bg-card text-vetneb-ink shadow-sm"
+                    : "text-muted-foreground hover:text-vetneb-ink"
                 }`}
                 onClick={() => selectMode("particular")}
                 disabled={isSubmitting}
@@ -169,9 +169,9 @@ export function LoginContent() {
                     value={token}
                     onChange={(event) => setToken(event.target.value)}
                     disabled={isSubmitting}
-                    className="h-12 rounded-xl"
+                    className="h-12 rounded-lg"
                   />
-                  <p className="mt-2 text-xs leading-relaxed text-gray-500">
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                     El token habilita una sesión particular limitada al caso
                     vinculado.
                   </p>
@@ -193,7 +193,7 @@ export function LoginContent() {
                       value={username}
                       onChange={(event) => setUsername(event.target.value)}
                       disabled={isSubmitting}
-                      className="h-12 rounded-xl"
+                      className="h-12 rounded-lg"
                     />
                   </div>
                   <div>
@@ -210,7 +210,7 @@ export function LoginContent() {
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       disabled={isSubmitting}
-                      className="h-12 rounded-xl"
+                      className="h-12 rounded-lg"
                     />
                   </div>
                 </>
@@ -218,7 +218,7 @@ export function LoginContent() {
 
               {errorMessage ? (
                 <p
-                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                  className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive"
                   role="alert"
                 >
                   {errorMessage}
@@ -235,23 +235,23 @@ export function LoginContent() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3">
+            <div className="mt-6 rounded-lg border border-vetneb-cyan/25 bg-vetneb-cyan/10 px-4 py-3 text-center">
               {mode === "particular" ? (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   ¿Necesita ayuda con su token?{" "}
                   <Link
                     href={ROUTES.contacto}
-                    className="text-primary hover:underline font-medium"
+                    className="font-medium text-primary hover:underline"
                   >
                     Contacte a VETNEB
                   </Link>
                 </p>
               ) : (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   ¿Su clínica no tiene acceso?{" "}
                   <Link
                     href={ROUTES.contacto}
-                    className="text-primary hover:underline font-medium"
+                    className="font-medium text-primary hover:underline"
                   >
                     Solicite acceso
                   </Link>
@@ -261,8 +261,8 @@ export function LoginContent() {
           </CardContent>
         </Card>
 
-        <p className="mt-6 text-center text-xs text-blue-700">
-          <Link href={ROUTES.home} className="hover:text-primary transition-colors">
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          <Link href={ROUTES.home} className="transition-colors hover:text-primary">
             ← Volver al sitio público
           </Link>
         </p>

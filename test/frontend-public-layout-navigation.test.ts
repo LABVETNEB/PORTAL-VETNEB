@@ -45,7 +45,7 @@ test("navbar exposes home login and access CTAs with VETNEB brand", () => {
   assert.ok(source.includes("href={ROUTES.home}"));
   assert.ok(source.includes('aria-label="VETNEB — Inicio"'));
   assert.ok(source.includes("rounded-md bg-primary px-3"));
-  assert.ok(source.includes("font-bold tracking-wide text-white"));
+  assert.ok(source.includes("font-bold text-primary-foreground"));
   assert.ok(source.includes("VETNEB"));
   assert.equal(source.includes(">VN<"), false);
   assert.equal(source.includes("Portal VETNEB"), false);
@@ -81,5 +81,4 @@ test("footer exposes access links and legal copy without redundant brand block",
   assert.equal(source.includes("Laboratorio veterinario digital. Informes, estudios y gestión"), false);
   assert.equal(source.includes("rounded-md bg-primary px-3"), false);
 });
-
 

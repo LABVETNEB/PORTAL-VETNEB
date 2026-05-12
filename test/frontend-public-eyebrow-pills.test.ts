@@ -13,14 +13,15 @@ function read(relativePath: string): string {
   );
 }
 
-test("public visual accents no longer render decorative eyebrow pills", () => {
+test("public visual accents render clinical eyebrow chips without legacy decorative pills", () => {
   const source = read(VISUAL_ACCENTS_PATH);
 
-  assert.ok(source.includes("export function Eyebrow(_props: EyebrowProps)"));
-  assert.ok(source.includes("return null;"));
-  assert.equal(source.includes("tracking-[0.22em]"), false);
+  assert.ok(source.includes("export function Eyebrow({ children, className }: EyebrowProps)"));
+  assert.ok(source.includes("border border-vetneb-line bg-card/80"));
+  assert.equal(source.includes("return null;"), false);
   assert.equal(source.includes("rounded-full border border-white/50"), false);
-  assert.equal(source.includes("uppercase"), false);
+  assert.equal(source.includes("tracking-[0.22em]"), false);
+  assert.equal(source.includes("render-orb"), false);
 });
 
 test("home page no longer renders the hero eyebrow pill", () => {

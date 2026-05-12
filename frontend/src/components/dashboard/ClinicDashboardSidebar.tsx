@@ -1,3 +1,10 @@
+import {
+  Building2,
+  FileText,
+  KeyRound,
+  LayoutDashboard,
+  Route,
+} from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import {
   DashboardSidebarFrame,
@@ -8,18 +15,18 @@ const clinicNavItems: DashboardNavItem[] = [
   {
     label: "Dashboard",
     href: ROUTES.dashboard,
-    icon: "⊞",
+    icon: LayoutDashboard,
     exact: true,
   },
   {
     label: "Informes",
     href: ROUTES.dashboardInformes,
-    icon: "📋",
+    icon: FileText,
   },
   {
     label: "Logística",
     href: ROUTES.dashboardLogistica,
-    icon: "🚐",
+    icon: Route,
     children: [
       { label: "Visitas de campo", href: ROUTES.dashboardLogisticaVisitas },
       { label: "Planes de ruta", href: ROUTES.dashboardLogisticaRutas },
@@ -29,12 +36,12 @@ const clinicNavItems: DashboardNavItem[] = [
   {
     label: "Perfil público",
     href: `${ROUTES.dashboard}#clinic-public-profile`,
-    icon: "🏥",
+    icon: Building2,
   },
   {
     label: "Tokens particulares",
     href: `${ROUTES.dashboard}#clinic-particular-tokens`,
-    icon: "🔐",
+    icon: KeyRound,
   },
 ];
 

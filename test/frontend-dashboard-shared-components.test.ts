@@ -92,9 +92,8 @@ test("stats cards render configured metrics with fallback and hidden icons", () 
 
   assert.ok(source.includes("statConfig.map((config) => ("));
   assert.ok(source.includes("<Card key={config.key}"));
-  assert.ok(source.includes('<span aria-hidden="true">{config.icon}</span>'));
+  assert.ok(source.includes("<config.icon className=\"h-4 w-4\" />"));
   assert.ok(source.includes("{config.label}"));
   assert.ok(source.includes("{stats ? stats[config.key] : \"—\"}"));
   assert.ok(source.includes("{config.description}"));
 });
-

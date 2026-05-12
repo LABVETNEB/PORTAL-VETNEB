@@ -53,6 +53,17 @@ const config: Config = {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
+        vetneb: {
+          ink: "hsl(var(--vetneb-ink))",
+          navy: "hsl(var(--vetneb-navy))",
+          teal: "hsl(var(--vetneb-teal))",
+          cyan: "hsl(var(--vetneb-cyan))",
+          amber: "hsl(var(--vetneb-amber))",
+          surface: "hsl(var(--vetneb-surface))",
+          "surface-raised": "hsl(var(--vetneb-surface-raised))",
+          "surface-muted": "hsl(var(--vetneb-surface-muted))",
+          line: "hsl(var(--vetneb-line))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

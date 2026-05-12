@@ -35,10 +35,10 @@ test("input component preserves type prop ref and spread props", () => {
 test("input component keeps stable base classes for forms", () => {
   const source = read(INPUT_PATH);
 
-  assert.ok(source.includes("flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"));
+  assert.ok(source.includes("flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"));
   assert.ok(source.includes("placeholder:text-muted-foreground"));
-  assert.ok(source.includes("focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"));
-  assert.ok(source.includes("disabled:cursor-not-allowed disabled:opacity-50"));
+  assert.ok(source.includes("hover:border-vetneb-teal/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"));
+  assert.ok(source.includes("disabled:cursor-not-allowed disabled:opacity-55"));
   assert.ok(source.includes("className,"));
 });
 

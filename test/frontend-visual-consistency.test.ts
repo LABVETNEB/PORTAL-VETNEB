@@ -72,12 +72,15 @@ test("globals css keeps visual tokens and shared frontend surface utilities", ()
     source,
     [
       '@import "tailwindcss";',
-      '--primary: 210 80% 35%;',
-      "--ring: 210 80% 35%;",
-      "--sidebar-background: 222 47% 11%;",
-      "--sidebar-foreground: 210 40% 96%;",
-      "--sidebar-accent: 217 33% 17%;",
-      "--sidebar-ring: 210 80% 55%;",
+      "--primary: 207 72% 30%;",
+      "--ring: 182 72% 34%;",
+      "--vetneb-navy: 207 72% 22%;",
+      "--vetneb-teal: 177 64% 31%;",
+      "--vetneb-surface-raised: 190 33% 98%;",
+      "--sidebar-background: 207 62% 15%;",
+      "--sidebar-foreground: 195 45% 93%;",
+      "--sidebar-accent: 205 48% 22%;",
+      "--sidebar-ring: 181 65% 43%;",
       ".dashboard-main",
       ".surface-note-info",
       ".surface-empty",
@@ -93,8 +96,8 @@ test("globals css keeps visual tokens and shared frontend surface utilities", ()
     source,
     [
       /\.dashboard-main\s*\{[\s\S]*@apply[\s\S]*space-y-6[\s\S]*sm:px-6[\s\S]*lg:px-8[\s\S]*\}/,
-      /\.surface-note-info\s*\{[\s\S]*@apply[\s\S]*rounded-xl[\s\S]*border-blue-200[\s\S]*bg-blue-50[\s\S]*\}/,
-      /\.surface-empty\s*\{[\s\S]*@apply[\s\S]*border-dashed[\s\S]*bg-gray-50[\s\S]*\}/,
+      /\.surface-note-info\s*\{[\s\S]*@apply[\s\S]*rounded-lg[\s\S]*border-vetneb-cyan\/30[\s\S]*bg-vetneb-cyan\/10[\s\S]*\}/,
+      /\.surface-empty\s*\{[\s\S]*@apply[\s\S]*border-dashed[\s\S]*bg-vetneb-surface-muted\/70[\s\S]*\}/,
       /\.field-select\s*\{[\s\S]*@apply[\s\S]*h-11[\s\S]*rounded-lg[\s\S]*focus-visible:ring-2[\s\S]*\}/,
     ],
     "globals.css utility contracts",
@@ -114,7 +117,7 @@ test("public home page keeps polished visual hierarchy and responsive sections",
       'aria-labelledby="cta-heading"',
       'src="/images/hero-microscope-vetneb.jpg"',
       'sizes="100vw"',
-      "bg-black/55",
+      "bg-[hsl(var(--vetneb-navy)/0.68)]",
       "CONSULTÁ LOS RESULTADOS DE SUS INFORMES LAS 24 HS.",
       'href="https://wa.me/5493534138946"',
       "services.map((service) =>",
@@ -129,7 +132,7 @@ test("public home page keeps polished visual hierarchy and responsive sections",
     [
       /className="relative isolate overflow-hidden text-white"/,
       /className="relative container mx-auto flex min-h-\[calc\(100vh-4\.5rem\)\] items-center px-4 py-16 sm:px-6 lg:px-8"/,
-      /className="text-4xl font-semibold leading-tight tracking-\[0\.08em\] text-white sm:text-5xl lg:text-6xl"/,
+      /className="text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl"/,
       /className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4"/,
       /className="public-soft-canvas"/,
       /className="py-16 md:py-20"/,
@@ -195,10 +198,10 @@ test("login content keeps polished auth card layout and stable visual states", (
     source,
     [
       /className="min-h-screen public-page-canvas public-soft-canvas flex items-center justify-center p-4"/,
-      /className="border border-white\/80 bg-white\/95 shadow-2xl backdrop-blur"/,
-      /className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"/,
-      /className="text-primary hover:underline font-medium"/,
-      /className="hover:text-primary transition-colors"/,
+      /className="border border-vetneb-line\/80 bg-card\/95 shadow-\[0_22px_76px_rgba\(15,45,62,0\.18\)\]"/,
+      /className="rounded-lg border border-destructive\/25 bg-destructive\/10 px-3 py-2 text-sm text-destructive"/,
+      /className="font-medium text-primary hover:underline"/,
+      /className="transition-colors hover:text-primary"/,
     ],
     "login content visual details",
   );
@@ -229,7 +232,7 @@ test("dashboard sidebar keeps shell consistency and responsive navigation classe
       /className="sticky top-0 flex h-screen w-\[4\.5rem\] shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground sm:w-64"/,
       /className="flex items-center justify-center gap-3 border-b border-sidebar-border px-2 py-5 sm:justify-start sm:px-6"/,
       /className="flex-1 space-y-1 px-2 py-4 sm:px-3"/,
-      /"flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors sm:justify-start sm:px-3"/,
+      /"flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-semibold transition-colors sm:justify-start sm:px-3"/,
       /className="ml-6 mt-1 hidden space-y-1 sm:block"/,
       /"flex items-center gap-2 px-3 py-1\.5 rounded-md text-xs font-medium transition-colors"/,
       /className="border-t border-sidebar-border px-2 py-4 sm:px-3"/,
@@ -295,9 +298,9 @@ test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () 
   assertMatchesAll(
     source,
     [
-      /className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b bg-white\/95 px-4 py-2 shadow-sm backdrop-blur supports-\[backdrop-filter\]:bg-white\/80 sm:px-6"/,
-      /className="truncate text-lg font-semibold text-gray-900 sm:text-xl"/,
-      /className="truncate text-xs text-gray-500 sm:text-sm"/,
+      /className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b border-vetneb-line\/80 bg-card\/92 px-4 py-2 shadow-sm backdrop-blur supports-\[backdrop-filter\]:bg-card\/82 sm:px-6"/,
+      /className="truncate text-lg font-semibold text-vetneb-ink sm:text-xl"/,
+      /className="truncate text-xs text-muted-foreground sm:text-sm"/,
       /className="ml-3 flex shrink-0 items-center gap-2 sm:gap-3"/,
     ],
     "dashboard topbar class contracts",
@@ -330,7 +333,7 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
       /className="grid grid-cols-1 gap-6 lg:grid-cols-2"/,
       /className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"/,
       /className="grid grid-cols-2 gap-3 md:grid-cols-4"/,
-      /className="h-16 flex-col gap-1 rounded-xl"/,
+      /className="h-16 flex-col gap-1 rounded-lg"/,
       /className="text-sm font-medium text-gray-900 truncate"/,
       /className="text-xs text-gray-400"/,
     ],
@@ -388,12 +391,14 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
 
 
 
-test("public visual backgrounds do not render grid overlays", () => {
+test("public visual backgrounds use a single clinical diagnostic texture", () => {
   const source = read(GLOBALS_CSS_PATH);
 
-  assert.equal(source.includes("background-size: 46px 46px"), false);
-  assert.equal(source.includes("linear-gradient(rgba(255, 255, 255, 0.08) 1px"), false);
-  assert.equal(source.includes("linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px"), false);
+  assert.ok(source.includes(".public-page-canvas::before"));
+  assert.ok(source.includes("background-size: 86px 86px, 86px 86px, 100% 100%;"));
+  assert.ok(source.includes(".diagnostic-field"));
+  assert.equal(source.includes("render-orb"), false);
+  assert.equal(source.includes("blur(80px)"), false);
 });
 
 
@@ -406,10 +411,10 @@ test("public medical card system keeps clinical premium card surfaces", () => {
   assert.ok(source.includes(".public-soft-canvas .premium-card-muted"));
   assert.ok(source.includes('[data-auth-login-card="true"]'));
   assert.ok(source.includes('[data-services-polished="true"] > [id]'));
-  assert.ok(source.includes("backdrop-filter: blur(16px) saturate(1.08);"));
+  assert.ok(source.includes("border-radius: var(--radius) !important;"));
   assert.ok(source.includes("linear-gradient(90deg"));
-  assert.ok(source.includes("rgba(30, 64, 175, 0.78)"));
-  assert.ok(source.includes("rgba(13, 148, 136, 0.70)"));
+  assert.ok(source.includes("hsl(var(--vetneb-navy) / 0.78)"));
+  assert.ok(source.includes("hsl(var(--vetneb-teal) / 0.70)"));
   assert.ok(source.includes("@media (hover: hover)"));
 });
 
@@ -427,12 +432,12 @@ test("public pages use one single shared canvas background", () => {
 
   assert.ok(globals.includes(".public-page-canvas"));
   assert.ok(globals.includes(".public-page-canvas::before"));
-  assert.ok(globals.includes("public-page-canvas-drift 14s ease-in-out infinite alternate"));
+  assert.ok(globals.includes("mask-image: linear-gradient(180deg"));
   assert.ok(globals.includes("background: transparent !important;"));
   assert.ok(globals.includes(".public-soft-canvas::before"));
   assert.ok(globals.includes(".public-hero-depth::before"));
   assert.ok(globals.includes("content: none !important;"));
   assert.equal(globals.includes("linear-gradient(135deg, #07365d 0%, #123f7a 42%, #0f766e 100%) !important;"), false);
-  assert.equal(globals.includes("public-soft-canvas-drift 12s ease-in-out infinite alternate"), false);
+  assert.equal(globals.includes("public-page-canvas-drift"), false);
   assert.ok(login.includes("min-h-screen public-page-canvas public-soft-canvas flex items-center justify-center p-4"));
 });

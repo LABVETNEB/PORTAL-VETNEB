@@ -40,7 +40,7 @@ test("card component defines header title and description primitives", () => {
   assert.ok(source.includes('"flex flex-col space-y-1.5 p-6"'));
   assert.ok(source.includes('CardHeader.displayName = "CardHeader";'));
   assert.ok(source.includes("const CardTitle = React.forwardRef<"));
-  assert.ok(source.includes('"text-2xl font-semibold leading-none tracking-tight"'));
+  assert.ok(source.includes('"text-2xl font-semibold leading-none"'));
   assert.ok(source.includes('CardTitle.displayName = "CardTitle";'));
   assert.ok(source.includes("const CardDescription = React.forwardRef<"));
   assert.ok(source.includes('"text-sm text-muted-foreground"'));

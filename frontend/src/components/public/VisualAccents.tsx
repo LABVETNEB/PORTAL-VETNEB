@@ -14,13 +14,13 @@ type VisualIconProps = {
 };
 
 const toneClasses: Record<VisualTone, string> = {
-  blue: "from-blue-500/15 via-cyan-400/10 to-white text-blue-700 ring-blue-500/15",
+  blue: "border-vetneb-cyan/25 bg-vetneb-cyan/10 text-vetneb-navy ring-vetneb-cyan/20",
   emerald:
-    "from-emerald-500/15 via-teal-400/10 to-white text-emerald-700 ring-emerald-500/15",
+    "border-vetneb-teal/25 bg-vetneb-teal/10 text-vetneb-teal ring-vetneb-teal/20",
   amber:
-    "from-amber-400/20 via-orange-300/10 to-white text-amber-700 ring-amber-500/15",
+    "border-vetneb-amber/30 bg-vetneb-amber/10 text-amber-700 ring-vetneb-amber/20",
   slate:
-    "from-slate-500/15 via-blue-300/10 to-white text-slate-700 ring-slate-500/15",
+    "border-vetneb-line bg-vetneb-surface-muted text-vetneb-ink ring-vetneb-line",
 };
 
 export function VisualIcon({
@@ -32,7 +32,7 @@ export function VisualIcon({
   return (
     <span
       className={cn(
-        "render-gpu-soft inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br shadow-[0_18px_45px_rgba(15,23,42,0.10)] ring-1",
+        "render-gpu-soft inline-flex h-12 w-12 items-center justify-center rounded-lg border shadow-[0_12px_30px_rgba(15,45,62,0.10)] ring-1",
         toneClasses[tone],
         className,
       )}
@@ -48,8 +48,17 @@ type EyebrowProps = {
   className?: string;
 };
 
-export function Eyebrow(_props: EyebrowProps) {
-  return null;
+export function Eyebrow({ children, className }: EyebrowProps) {
+  return (
+    <div
+      className={cn(
+        "mb-5 inline-flex items-center rounded-md border border-vetneb-line bg-card/80 px-3 py-1.5 text-xs font-semibold text-vetneb-navy shadow-sm",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 type AmbientOrbsProps = {
@@ -58,32 +67,12 @@ type AmbientOrbsProps = {
 };
 
 export function AmbientOrbs({ variant = "light", className }: AmbientOrbsProps) {
-  const isDark = variant === "dark";
-
   return (
     <div
-      className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)}
+      className={cn("diagnostic-field", className)}
+      data-tone={variant}
       aria-hidden="true"
-    >
-      <div
-        className={cn(
-          "render-orb absolute -left-24 -top-28 h-72 w-72 rounded-full",
-          isDark ? "bg-cyan-300/20" : "bg-cyan-200/45",
-        )}
-      />
-      <div
-        className={cn(
-          "render-orb absolute right-[-7rem] top-16 h-80 w-80 rounded-full",
-          isDark ? "bg-emerald-300/20" : "bg-emerald-200/45",
-        )}
-      />
-      <div
-        className={cn(
-          "render-orb absolute bottom-[-9rem] left-1/2 h-72 w-72 -translate-x-1/2 rounded-full",
-          isDark ? "bg-amber-200/15" : "bg-amber-100/55",
-        )}
-      />
-    </div>
+    />
   );
 }
 
@@ -96,7 +85,7 @@ export function PremiumPanel({ children, className }: PremiumPanelProps) {
   return (
     <div
       className={cn(
-        "render-gpu-soft rounded-3xl border border-white/70 bg-white/80 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl",
+        "render-gpu-soft rounded-lg border border-vetneb-line bg-card/92 shadow-[0_18px_54px_rgba(15,45,62,0.10)]",
         className,
       )}
     >
