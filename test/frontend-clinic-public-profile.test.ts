@@ -75,6 +75,8 @@ test("clinic dashboard renders public profile before token generation", () => {
     source.indexOf("<ClinicPublicProfileCard />") <
       source.indexOf("<ClinicParticularTokensCard />"),
   );
-  assert.ok(source.includes('href: "#clinic-public-profile"'));
+  assert.ok(
+    source.includes('href: `${ROUTES.dashboard}#clinic-public-profile`'),
+  );
   assert.ok(source.includes('label: "Perfil"'));
 });

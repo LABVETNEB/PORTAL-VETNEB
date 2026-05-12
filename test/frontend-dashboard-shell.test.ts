@@ -4,7 +4,14 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const DASHBOARD_LAYOUT_PATH = "frontend/src/app/dashboard/layout.tsx";
-const DASHBOARD_SIDEBAR_PATH = "frontend/src/components/dashboard/DashboardSidebar.tsx";
+const DASHBOARD_SHELL_ROUTER_PATH =
+  "frontend/src/components/dashboard/DashboardShellRouter.tsx";
+const DASHBOARD_SIDEBAR_FRAME_PATH =
+  "frontend/src/components/dashboard/DashboardSidebarFrame.tsx";
+const CLINIC_DASHBOARD_SIDEBAR_PATH =
+  "frontend/src/components/dashboard/ClinicDashboardSidebar.tsx";
+const ADMIN_DASHBOARD_SIDEBAR_PATH =
+  "frontend/src/components/dashboard/AdminDashboardSidebar.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -13,83 +20,75 @@ function read(relativePath: string): string {
   );
 }
 
-test("dashboard layout wraps children with protected dashboard shell", () => {
+test("dashboard layout delegates shell selection to dashboard shell router", () => {
   const source = read(DASHBOARD_LAYOUT_PATH);
 
-  assert.ok(source.includes('import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";'));
+  assert.ok(source.includes('import { DashboardShellRouter } from "@/components/dashboard/DashboardShellRouter";'));
   assert.ok(source.includes("export default function DashboardLayout"));
   assert.ok(source.includes("children: React.ReactNode;"));
-  assert.ok(source.includes('<div className="flex min-h-screen bg-gray-50">'));
-  assert.ok(source.includes("<DashboardSidebar />"));
-  assert.ok(source.includes('<div className="flex-1 flex flex-col min-w-0">'));
-  assert.ok(source.includes("{children}"));
+  assert.ok(source.includes("<DashboardShellRouter>{children}</DashboardShellRouter>"));
 });
 
-test("dashboard sidebar is client-side and uses route registry", () => {
-  const source = read(DASHBOARD_SIDEBAR_PATH);
+test("dashboard shell router selects clinic/admin sidebar by route segment", () => {
+  const source = read(DASHBOARD_SHELL_ROUTER_PATH);
 
   assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes('import Link from "next/link";'));
-  assert.ok(source.includes('import { usePathname } from "next/navigation";'));
-  assert.ok(source.includes('import { cn } from "@/lib/utils";'));
-  assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
+  assert.ok(source.includes('import { useSelectedLayoutSegment } from "next/navigation";'));
+  assert.ok(source.includes('import { AdminDashboardSidebar } from "./AdminDashboardSidebar";'));
+  assert.ok(source.includes('import { ClinicDashboardSidebar } from "./ClinicDashboardSidebar";'));
+  assert.ok(source.includes("const selectedSegment = useSelectedLayoutSegment();"));
+  assert.ok(source.includes('const isAdminDashboard = selectedSegment === "admin";'));
+  assert.ok(source.includes("isAdminDashboard ? ("));
+  assert.ok(source.includes("<AdminDashboardSidebar />"));
+  assert.ok(source.includes("<ClinicDashboardSidebar />"));
 });
 
-test("dashboard sidebar defines separated clinic and admin navigation", () => {
-  const source = read(DASHBOARD_SIDEBAR_PATH);
+test("dashboard sidebar frame is the shared visual shell for both roles", () => {
+  const source = read(DASHBOARD_SIDEBAR_FRAME_PATH);
+
+  assert.ok(source.includes('"use client";'));
+  assert.ok(source.includes('import { usePathname } from "next/navigation";'));
+  assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
+  assert.ok(source.includes("export type DashboardNavItem = {"));
+  assert.ok(source.includes("dashboardLabel: string;"));
+  assert.ok(source.includes("navItems: DashboardNavItem[];"));
+  assert.ok(source.includes('aria-label="Navegación del dashboard"'));
+  assert.ok(source.includes('aria-label="Menú principal"'));
+  assert.ok(source.includes("function isActive(href: string, exact = false)"));
+  assert.ok(source.includes("if (exact) return pathname === hrefPath;"));
+  assert.ok(source.includes("item.children && isActive(item.href)"));
+  assert.ok(source.includes("item.children.map((child) =>"));
+  assert.ok(source.includes("Portal VETNEB"));
+  assert.ok(source.includes("Volver al sitio público"));
+});
+
+test("clinic dashboard sidebar keeps clinic operations and excludes admin navigation", () => {
+  const source = read(CLINIC_DASHBOARD_SIDEBAR_PATH);
 
   assert.ok(source.includes("const clinicNavItems: DashboardNavItem[] = ["));
-  assert.ok(source.includes("const adminNavItems: DashboardNavItem[] = ["));
+  assert.ok(source.includes('label: "Dashboard"'));
+  assert.ok(source.includes('label: "Informes"'));
+  assert.ok(source.includes('label: "Logística"'));
   assert.ok(source.includes('label: "Perfil público"'));
-  assert.ok(source.includes('href: "#clinic-public-profile"'));
+  assert.ok(source.includes('label: "Tokens particulares"'));
+  assert.ok(source.includes("ROUTES.dashboardInformes"));
+  assert.ok(source.includes("ROUTES.dashboardLogistica"));
+  assert.ok(source.includes('`${ROUTES.dashboard}#clinic-public-profile`'));
+  assert.ok(source.includes('`${ROUTES.dashboard}#clinic-particular-tokens`'));
+  assert.equal(source.includes("ROUTES.dashboardAdmin"), false);
+});
+
+test("admin dashboard sidebar keeps admin operations and excludes clinic navigation", () => {
+  const source = read(ADMIN_DASHBOARD_SIDEBAR_PATH);
+
+  assert.ok(source.includes("const adminNavItems: DashboardNavItem[] = ["));
   assert.ok(source.includes('label: "Administración"'));
-  assert.ok(source.includes("href: ROUTES.dashboardAdmin"));
   assert.ok(source.includes('label: "Health"'));
   assert.ok(source.includes('label: "Sesiones"'));
   assert.ok(source.includes('label: "Roles clínica"'));
   assert.ok(source.includes('label: "Auditoría"'));
-});
-
-test("dashboard sidebar switches shell by pathname", () => {
-  const source = read(DASHBOARD_SIDEBAR_PATH);
-
-  assert.ok(source.includes("function isAdminDashboardPath(pathname: string)"));
-  assert.ok(source.includes("pathname === ROUTES.dashboardAdmin"));
-  assert.ok(source.includes('pathname.startsWith(`${ROUTES.dashboardAdmin}/`)'));
-  assert.ok(source.includes("const isAdminDashboard = isAdminDashboardPath(pathname);"));
-  assert.ok(source.includes("const navItems = isAdminDashboard ? adminNavItems : clinicNavItems;"));
-  assert.ok(source.includes('isAdminDashboard ? "Dashboard admin" : "Dashboard clínica"'));
-});
-
-test("dashboard sidebar defines logistics subnavigation for clinic shell", () => {
-  const source = read(DASHBOARD_SIDEBAR_PATH);
-
-  assert.ok(source.includes("children: ["));
-  assert.ok(source.includes('{ label: "Visitas de campo", href: ROUTES.dashboardLogisticaVisitas }'));
-  assert.ok(source.includes('{ label: "Planes de ruta", href: ROUTES.dashboardLogisticaRutas }'));
-  assert.ok(source.includes('{ label: "Métricas", href: ROUTES.dashboardLogisticaMetricas }'));
-  assert.ok(source.includes("item.children && isActive(item.href)"));
-  assert.ok(source.includes("item.children.map((child) =>"));
-});
-
-test("dashboard sidebar keeps active state and accessibility markers", () => {
-  const source = read(DASHBOARD_SIDEBAR_PATH);
-
-  assert.ok(source.includes("function isActive(href: string, exact = false)"));
-  assert.ok(source.includes('if (href.startsWith("#")) return false;'));
-  assert.ok(source.includes("const hrefPath = getPathFromHref(href);"));
-  assert.ok(source.includes("if (exact) return pathname === hrefPath;"));
-  assert.ok(source.includes('aria-label="Navegación del dashboard"'));
-  assert.ok(source.includes('aria-label="Menú principal"'));
-  assert.ok(source.includes('aria-current={isActive(item.href, item.exact) ? "page" : undefined}'));
-  assert.ok(source.includes('aria-current={pathname === child.href ? "page" : undefined}'));
-});
-
-test("dashboard sidebar exposes brand and public-site escape link", () => {
-  const source = read(DASHBOARD_SIDEBAR_PATH);
-
-  assert.ok(source.includes("Portal VETNEB"));
-  assert.ok(source.includes("dashboardLabel"));
-  assert.ok(source.includes("href={ROUTES.home}"));
-  assert.ok(source.includes("Volver al sitio público"));
+  assert.ok(source.includes('label: "Maintenance"'));
+  assert.ok(source.includes("ROUTES.dashboardAdmin"));
+  assert.equal(source.includes("clinic-public-profile"), false);
+  assert.equal(source.includes("clinic-particular-tokens"), false);
 });

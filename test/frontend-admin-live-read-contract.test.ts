@@ -93,11 +93,6 @@ test("frontend admin failed-login alerts read-only UI queda montada", () => {
     adminPage,
   );
   assertIncludes(
-    adminPageSource,
-    "GET /api/admin/failed-login-alerts",
-    adminPage,
-  );
-  assertIncludes(
     apiSource,
     "export async function getAdminFailedLoginAlerts(",
     frontendApiClient,
@@ -343,4 +338,3 @@ test("frontend admin failed-login alerts deshabilita limpiar filtros sin filtros
     "AdminFailedLoginAlertsReadOnlyCard.tsx clear filters",
   );
 });
-

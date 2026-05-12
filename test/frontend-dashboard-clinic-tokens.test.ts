@@ -23,7 +23,9 @@ test("clinic dashboard exists as a clinic-only dashboard and keeps admin out", (
   assert.ok(source.includes("Esta superficie usa solo sesión clínica."));
   assert.ok(source.includes('import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";'));
   assert.ok(source.includes("<ClinicParticularTokensCard />"));
-  assert.ok(source.includes('href: "#clinic-particular-tokens"'));
+  assert.ok(
+    source.includes('href: `${ROUTES.dashboard}#clinic-particular-tokens`'),
+  );
   assert.equal(source.includes('label: "Admin"'), false);
   assert.equal(source.includes("ROUTES.dashboardAdmin"), false);
 });
@@ -86,5 +88,4 @@ test("frontend api exposes clinic-scoped particular token helpers", () => {
   assert.ok(source.includes("`/api/particular-tokens${qs ? `?${qs}` : \"\"}`"));
   assert.ok(source.includes("`/api/particular-tokens/${tokenId}/report`"));
 });
-
 

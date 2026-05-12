@@ -51,24 +51,6 @@ const ACTOR_LABELS: Record<string, string> = {
   public_report_access_token: "Token público",
 };
 
-const ADMIN_READ_CONTRACT_MARKERS = [
-  "GET /api/admin/audit-log",
-  "GET /api/admin/system/health",
-  "GET /api/admin/sessions",
-  "GET /api/admin/failed-login-alerts",
-  "GET /api/admin/users-roles",
-  "POST /api/admin/system/maintenance/purge-dry-run",
-  '<div className="surface-note-info">',
-] as const;
-
-function AdminSourceContractMarkers() {
-  return (
-    <span className="sr-only" aria-hidden="true">
-      {ADMIN_READ_CONTRACT_MARKERS.join(" ")}
-    </span>
-  );
-}
-
 function getEventVariant(
   event: string,
 ): "default" | "secondary" | "destructive" | "outline" {
@@ -318,7 +300,6 @@ export default async function AdminPage({
         subtitle="Auditoría, reportes y estado operacional"
       />
       <main className="dashboard-main">
-        <AdminSourceContractMarkers />
 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="border-gray-100">
             <CardHeader className="pb-2">
@@ -431,10 +412,16 @@ export default async function AdminPage({
             </div>
           </CardContent>
         </Card>
-        <AdminMaintenanceDryRunCard />
-        <AdminSessionsReadOnlyCard />
+        <section id="admin-maintenance">
+          <AdminMaintenanceDryRunCard />
+        </section>
+        <section id="admin-sessions">
+          <AdminSessionsReadOnlyCard />
+        </section>
         <AdminFailedLoginAlertsReadOnlyCard />
-        <AdminUsersRolesReadOnlyCard />
+        <section id="admin-users-roles">
+          <AdminUsersRolesReadOnlyCard />
+        </section>
         <Card id="audit-role-changes">
           <CardHeader>
             <CardTitle className="text-base">
@@ -477,7 +464,7 @@ export default async function AdminPage({
         </Card>
 
 
-        <Card id="admin-health">
+        <Card id="admin-event-summary">
           <CardHeader>
             <CardTitle className="text-base">Resumen por tipo de evento</CardTitle>
             <CardDescription>
