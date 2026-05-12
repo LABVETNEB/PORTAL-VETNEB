@@ -42,7 +42,7 @@ export function DashboardSidebarFrame({
 
   return (
     <aside
-      className="flex min-h-screen w-[4.5rem] shrink-0 flex-col bg-sidebar text-sidebar-foreground sm:w-64"
+      className="sticky top-0 flex h-screen w-[4.5rem] shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground sm:w-64"
       data-dashboard-sidebar-polish="true"
       aria-label="Navegación del dashboard"
     >
@@ -115,3 +115,4 @@ export function DashboardSidebarFrame({
     </aside>
   );
 }
+
