@@ -265,6 +265,7 @@ test("clinic and admin sidebars keep visual parity with separated operational na
       'label: "Administración"',
       'label: "Health"',
       'label: "Sesiones"',
+      'label: "Tokens particulares"',
       'label: "Roles clínica"',
       'label: "Auditoría"',
       'label: "Maintenance"',
@@ -375,6 +376,7 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
   assertInlineStylesAtMost(source, 0, "dashboard admin");
   assert.equal(source.includes("fetch("), false, "dashboard admin must avoid fetch()");
 });
+
 
 
 

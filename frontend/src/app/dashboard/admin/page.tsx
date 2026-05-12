@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/card";
 import { AdminFailedLoginAlertsReadOnlyCard } from "./AdminFailedLoginAlertsReadOnlyCard";
 import { AdminMaintenanceDryRunCard } from "./AdminMaintenanceDryRunCard";
+import { AdminParticularTokensCard } from "./AdminParticularTokensCard";
 import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";
 import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
 import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
@@ -415,6 +416,9 @@ export default async function AdminPage({
         <section id="admin-maintenance">
           <AdminMaintenanceDryRunCard />
         </section>
+        <section id="admin-particular-tokens">
+          <AdminParticularTokensCard />
+        </section>
         <section id="admin-sessions">
           <AdminSessionsReadOnlyCard />
         </section>
@@ -587,6 +591,7 @@ export default async function AdminPage({
     </>
   );
 }
+
 
 
 
