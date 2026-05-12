@@ -84,7 +84,7 @@ export function LoginContent() {
   const clinicSubmitLabel = isSubmitting ? "Iniciando sesión..." : "Iniciar sesión";
 
   return (
-    <div className="min-h-screen public-soft-canvas flex items-center justify-center p-4"
+    <div className="min-h-screen public-page-canvas public-soft-canvas flex items-center justify-center p-4"
       data-auth-login-polish="true">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
@@ -270,5 +270,6 @@ export function LoginContent() {
     </div>
   );
 }
+
 
 

@@ -194,7 +194,7 @@ test("login content keeps polished auth card layout and stable visual states", (
   assertMatchesAll(
     source,
     [
-      /className="min-h-screen public-soft-canvas flex items-center justify-center p-4"/,
+      /className="min-h-screen public-page-canvas public-soft-canvas flex items-center justify-center p-4"/,
       /className="border border-white\/80 bg-white\/95 shadow-2xl backdrop-blur"/,
       /className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"/,
       /className="text-primary hover:underline font-medium"/,
@@ -417,3 +417,22 @@ test("public medical card system keeps clinical premium card surfaces", () => {
 
 
 
+
+
+
+
+test("public pages use one single shared canvas background", () => {
+  const globals = read(GLOBALS_CSS_PATH);
+  const login = read(LOGIN_CONTENT_PATH);
+
+  assert.ok(globals.includes(".public-page-canvas"));
+  assert.ok(globals.includes(".public-page-canvas::before"));
+  assert.ok(globals.includes("public-page-canvas-drift 14s ease-in-out infinite alternate"));
+  assert.ok(globals.includes("background: transparent !important;"));
+  assert.ok(globals.includes(".public-soft-canvas::before"));
+  assert.ok(globals.includes(".public-hero-depth::before"));
+  assert.ok(globals.includes("content: none !important;"));
+  assert.equal(globals.includes("linear-gradient(135deg, #07365d 0%, #123f7a 42%, #0f766e 100%) !important;"), false);
+  assert.equal(globals.includes("public-soft-canvas-drift 12s ease-in-out infinite alternate"), false);
+  assert.ok(login.includes("min-h-screen public-page-canvas public-soft-canvas flex items-center justify-center p-4"));
+});
