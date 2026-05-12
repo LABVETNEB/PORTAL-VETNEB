@@ -130,135 +130,135 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Servicios principales */}
-      <section
-        className="public-soft-canvas py-16 md:py-20"
-        aria-labelledby="services-heading"
-      >
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2
-              id="services-heading"
-              className="text-3xl md:text-4xl font-bold text-gray-900 mb-4"
-            >
-              Servicios del laboratorio patológico veterinario
-            </h2>
-            <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-              Cobertura diagnóstica orientada a estudio anatomopatológico,
-              citología, tinciones especiales e integración clínico-patológica.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {services.map((service) => (
-              <Card
-                key={service.title}
-                className="h-full border-gray-100 transition-shadow hover:shadow-md"
+      <div className="public-soft-canvas">
+        {/* Servicios principales */}
+        <section
+          className="py-16 md:py-20"
+          aria-labelledby="services-heading"
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h2
+                id="services-heading"
+                className="text-3xl md:text-4xl font-bold text-gray-950 mb-4"
               >
-                <CardHeader>
-                  <div className="mb-2 text-3xl" aria-hidden="true">
-                    {service.icon}
-                  </div>
-                  <CardTitle className="text-lg">{service.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-sm leading-relaxed">
-                    {service.description}
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            ))}
+                Servicios del laboratorio patológico veterinario
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Cobertura diagnóstica orientada a estudio anatomopatológico,
+                citología, tinciones especiales e integración clínico-patológica.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {services.map((service) => (
+                <Card
+                  key={service.title}
+                  className="h-full border-gray-100 transition-shadow hover:shadow-md"
+                >
+                  <CardHeader>
+                    <div className="mb-2 text-3xl" aria-hidden="true">
+                      {service.icon}
+                    </div>
+                    <CardTitle className="text-lg">{service.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-sm leading-relaxed">
+                      {service.description}
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            <div className="mt-10 text-center">
+              <Button asChild variant="outline">
+                <Link href={ROUTES.servicios}>Ver todos los servicios</Link>
+              </Button>
+            </div>
           </div>
-          <div className="mt-10 text-center">
-            <Button asChild variant="outline">
-              <Link href={ROUTES.servicios}>Ver todos los servicios</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Beneficios */}
-      <section
-        className="bg-gray-50 py-16 md:py-20"
-        aria-labelledby="benefits-heading"
-      >
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+        {/* Beneficios */}
+        <section
+          className="py-16 md:py-20"
+          aria-labelledby="benefits-heading"
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h2
+                id="benefits-heading"
+                className="text-3xl md:text-4xl font-bold text-gray-950 mb-4"
+              >
+                Trabajo interdisciplinario y criterio diagnóstico
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Colaboramos de forma permanente con equipos clínicos para evaluar
+                lesiones, integrar contexto médico y definir conductas de
+                tratamiento.
+              </p>
+            </div>
+            <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
+              {benefits.map((benefit) => (
+                <Card key={benefit.title} className="h-full border-gray-200">
+                  <CardHeader>
+                    <CardTitle className="text-xl">{benefit.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3">
+                      {benefit.items.map((item) => (
+                        <li key={item} className="flex items-start gap-3">
+                          <span
+                            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold"
+                            aria-hidden="true"
+                          >
+                            ✓
+                          </span>
+                          <span className="text-sm text-gray-600">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA final */}
+        <section
+          className="py-16 md:py-20"
+          aria-labelledby="cta-heading"
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2
-              id="benefits-heading"
-              className="text-3xl md:text-4xl font-bold text-gray-900 mb-4"
+              id="cta-heading"
+              className="text-3xl md:text-4xl font-bold mb-4 text-gray-950"
             >
-              Trabajo interdisciplinario y criterio diagnóstico
+              Seguimos trabajando en mejorar
             </h2>
-            <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-              Colaboramos de forma permanente con equipos clínicos para evaluar
-              lesiones, integrar contexto médico y definir conductas de
-              tratamiento.
+            <p className="mx-auto mb-8 max-w-xl text-lg text-gray-600">
+              Agilizamos la recepción y entrega de informes, fortalecemos la
+              comunicación con clínicas y profesionales, y sostenemos un servicio
+              guiado por compromiso, responsabilidad y trabajo constante.
             </p>
+            <div className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
+              <Button
+                asChild
+                size="lg"
+                className="w-full bg-gradient-to-r from-blue-700 to-teal-600 text-white shadow-[0_14px_35px_rgba(37,99,235,0.22)] hover:from-blue-800 hover:to-teal-700 sm:w-auto"
+              >
+                <Link href={ROUTES.login}>Iniciar sesión</Link>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                className="w-full border border-blue-200 bg-white/80 font-semibold text-blue-900 shadow-sm backdrop-blur hover:bg-white hover:text-primary sm:w-auto"
+              >
+                <Link href={ROUTES.contacto}>Contactar</Link>
+              </Button>
+            </div>
           </div>
-          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-            {benefits.map((benefit) => (
-              <Card key={benefit.title} className="h-full border-gray-200">
-                <CardHeader>
-                  <CardTitle className="text-xl">{benefit.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3">
-                    {benefit.items.map((item) => (
-                      <li key={item} className="flex items-start gap-3">
-                        <span
-                          className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold"
-                          aria-hidden="true"
-                        >
-                          ✓
-                        </span>
-                        <span className="text-sm text-gray-600">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA final */}
-      <section
-        className="bg-primary py-16 text-white md:py-20"
-        aria-labelledby="cta-heading"
-      >
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2
-            id="cta-heading"
-            className="text-3xl md:text-4xl font-bold mb-4"
-          >
-            Seguimos trabajando en mejorar
-          </h2>
-          <p className="mx-auto mb-8 max-w-xl text-lg text-blue-100">
-            Agilizamos la recepción y entrega de informes, fortalecemos la
-            comunicación con clínicas y profesionales, y sostenemos un servicio
-            guiado por compromiso, responsabilidad y trabajo constante.
-          </p>
-          <div className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
-            <Button
-              asChild
-              size="lg"
-              className="w-full bg-white text-primary hover:bg-blue-50 sm:w-auto"
-            >
-              <Link href={ROUTES.login}>Iniciar sesión</Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              className="w-full border border-white/70 bg-blue-950/20 font-semibold text-white shadow-sm hover:bg-white hover:text-primary sm:w-auto"
-            >
-              <Link href={ROUTES.contacto}>Contactar</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </PublicLayout>
   );
 }
-
-

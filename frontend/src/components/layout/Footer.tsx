@@ -23,7 +23,7 @@ const faqItems = [
   },
   {
     question: "¿Dónde debo enviar la muestra?",
-    answer: "El envío debe coordinarse previo contacto vía WhatsApp.",
+    answer: "El envío debe coordinarse previo contacto vía Web o WhatsApp.",
   },
   {
     question: "¿Cuánto tiempo lleva realizar el estudio hasta el informe?",
@@ -216,10 +216,12 @@ export function Footer() {
             &copy; {year} VETNEB. Todos los derechos reservados.
           </p>
           <p className="text-xs text-slate-400">
-            Laboratorio veterinario digital — Argentina
+            
           </p>
         </div>
       </div>
     </footer>
   );
 }
+
+

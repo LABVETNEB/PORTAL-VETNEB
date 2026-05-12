@@ -80,3 +80,16 @@ test("servicios page remains public and avoids direct backend/API calls", () => 
   assert.equal(source.includes('"/api"'), false);
   assert.equal(source.includes("fetch("), false);
 });
+
+test("servicios page keeps one continuous soft canvas through middle sections", () => {
+  const source = read(SERVICIOS_PAGE_PATH);
+
+  assert.ok(source.includes('className="public-soft-canvas"'));
+  assert.ok(source.includes('className="py-16 md:py-20"'));
+  assert.ok(source.includes('className="py-16"'));
+  assert.equal(source.includes('className="bg-white py-16"'), false);
+  assert.equal(source.includes('className="bg-blue-50 py-16"'), false);
+  assert.equal(source.includes('className="bg-gray-50 py-16"'), false);
+  assert.equal(source.includes('data-public-soft-canvas="true"'), false);
+});
+

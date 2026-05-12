@@ -77,7 +77,8 @@ test("footer exposes access links and legal copy without redundant brand block",
   assert.ok(source.includes("href={ROUTES.contacto}"));
   assert.ok(source.includes("Solicitar acceso"));
   assert.ok(source.includes("Todos los derechos reservados"));
-  assert.ok(source.includes("Laboratorio veterinario digital — Argentina"));
+  assert.equal(source.includes("Laboratorio veterinario digital — Argentina"), false);
   assert.equal(source.includes("Laboratorio veterinario digital. Informes, estudios y gestión"), false);
   assert.equal(source.includes("rounded-md bg-primary px-3"), false);
 });
+

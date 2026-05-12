@@ -143,7 +143,8 @@ export default function ServiciosPage() {
           </p>
         </div>
       </section>
-      <section className="bg-white py-16 md:py-20" data-public-soft-canvas="true">
+      <div className="public-soft-canvas">
+      <section className="py-16 md:py-20">
         <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-10 max-w-4xl">
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.22em] text-primary">
@@ -195,7 +196,7 @@ export default function ServiciosPage() {
         </div>
       </section>
 
-      <section className="bg-blue-50 py-16" data-public-soft-canvas="true">
+      <section className="py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center">
           <div className="rounded-3xl border border-white/70 bg-white/80 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -225,7 +226,7 @@ export default function ServiciosPage() {
         </div>
       </section>
 
-      <section className="bg-white py-16">
+      <section className="py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
           <div className="premium-card-muted p-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -248,7 +249,7 @@ export default function ServiciosPage() {
         </div>
       </section>
 
-      <section className="bg-gray-50 py-16" data-public-soft-canvas="true">
+      <section className="py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
           <div className="premium-card-muted p-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -268,7 +269,7 @@ export default function ServiciosPage() {
         </div>
       </section>
 
-      <section className="bg-white py-16">
+      <section className="py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
           <div className="rounded-3xl border border-emerald-100 bg-gradient-to-r from-white via-emerald-50 to-blue-50 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
             <div className="flex items-start gap-3">
@@ -288,6 +289,8 @@ export default function ServiciosPage() {
           </div>
         </div>
       </section>
+      </div>
     </PublicLayout>
   );
 }
+

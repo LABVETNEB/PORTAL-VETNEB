@@ -131,9 +131,10 @@ test("public home page keeps polished visual hierarchy and responsive sections",
       /className="relative container mx-auto flex min-h-\[calc\(100vh-4\.5rem\)\] items-center px-4 py-16 sm:px-6 lg:px-8"/,
       /className="text-4xl font-semibold leading-tight tracking-\[0\.08em\] text-white sm:text-5xl lg:text-6xl"/,
       /className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4"/,
-      /className="public-soft-canvas py-16 md:py-20"/,
+      /className="public-soft-canvas"/,
+      /className="py-16 md:py-20"/,
       /className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4"/,
-      /className="bg-primary py-16 text-white md:py-20"/,
+      /className="py-16 md:py-20"/,
       /className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4"/,
     ],
     "home page class contracts",
@@ -165,7 +166,7 @@ test("servicios page keeps professional section/card structure and responsive la
       /className="h-full border-gray-100 transition-shadow hover:shadow-md"/,
       /className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center"/,
       /className="flex flex-col justify-center gap-3 sm:flex-row"/,
-      /className="bg-gray-50 py-16"/,
+      /className="py-16"/,
     ],
     "servicios class contracts",
   );
@@ -193,11 +194,11 @@ test("login content keeps polished auth card layout and stable visual states", (
   assertMatchesAll(
     source,
     [
-      /className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4"/,
+      /className="min-h-screen public-soft-canvas flex items-center justify-center p-4"/,
       /className="border border-white\/80 bg-white\/95 shadow-2xl backdrop-blur"/,
       /className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"/,
       /className="text-primary hover:underline font-medium"/,
-      /className="hover:text-white transition-colors"/,
+      /className="hover:text-primary transition-colors"/,
     ],
     "login content visual details",
   );
@@ -380,6 +381,37 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
 
 
 
+
+
+
+
+
+
+
+test("public visual backgrounds do not render grid overlays", () => {
+  const source = read(GLOBALS_CSS_PATH);
+
+  assert.equal(source.includes("background-size: 46px 46px"), false);
+  assert.equal(source.includes("linear-gradient(rgba(255, 255, 255, 0.08) 1px"), false);
+  assert.equal(source.includes("linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px"), false);
+});
+
+
+
+test("public medical card system keeps clinical premium card surfaces", () => {
+  const source = read(GLOBALS_CSS_PATH);
+
+  assert.ok(source.includes("public-medical-card-system:start"));
+  assert.ok(source.includes(".public-soft-canvas .premium-card"));
+  assert.ok(source.includes(".public-soft-canvas .premium-card-muted"));
+  assert.ok(source.includes('[data-auth-login-card="true"]'));
+  assert.ok(source.includes('[data-services-polished="true"] > [id]'));
+  assert.ok(source.includes("backdrop-filter: blur(16px) saturate(1.08);"));
+  assert.ok(source.includes("linear-gradient(90deg"));
+  assert.ok(source.includes("rgba(30, 64, 175, 0.78)"));
+  assert.ok(source.includes("rgba(13, 148, 136, 0.70)"));
+  assert.ok(source.includes("@media (hover: hover)"));
+});
 
 
 
