@@ -54,14 +54,21 @@ test("frontend logistics pages use API client read wrappers", () => {
   assertIncludes(overview, "getLogisticsFieldVisits", logisticsOverviewPage);
   assertIncludes(overview, "getRoutePlans", logisticsOverviewPage);
   assertIncludes(overview, "Promise.all", logisticsOverviewPage);
+  assertIncludes(overview, "let fieldVisits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];", logisticsOverviewPage);
+  assertIncludes(overview, "let fieldVisitsLoadError = false;", logisticsOverviewPage);
+  assertIncludes(overview, "let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];", logisticsOverviewPage);
+  assertIncludes(overview, "let routePlansLoadError = false;", logisticsOverviewPage);
+  assertIncludes(overview, "getLogisticsFieldVisits(requestOptions, {", logisticsOverviewPage);
+  assertIncludes(overview, "getRoutePlans(requestOptions, {", logisticsOverviewPage);
+  assertIncludes(overview, "throwOnError: true,", logisticsOverviewPage);
   assertIncludes(
     overview,
-    "getLogisticsFieldVisits(requestOptions)",
+    "getLogisticsFieldVisits(requestOptions, {",
     logisticsOverviewPage,
   );
   assertIncludes(
     overview,
-    "getRoutePlans(requestOptions)",
+    "getRoutePlans(requestOptions, {",
     logisticsOverviewPage,
   );
 

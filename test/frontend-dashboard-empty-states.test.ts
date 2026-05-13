@@ -35,11 +35,16 @@ test("dashboard informes page shows empty state when reports are unavailable", (
   assert.ok(source.includes("reports.map((report)"));
 });
 
-test("dashboard logistics page shows empty states for visits and route plans", () => {
+test("dashboard logistics page distinguishes overview load failures from empty states", () => {
   const source = read(LOGISTICA_PAGE_PATH);
 
+  assert.ok(source.includes("fieldVisitsLoadError ?"));
+  assert.ok(source.includes("routePlansLoadError ?"));
   assert.ok(source.includes("fieldVisits.length ?"));
   assert.ok(source.includes("routePlans.length ?"));
+  assert.ok(source.includes("No se pudieron cargar las visitas recientes. Intente nuevamente."));
+  assert.ok(source.includes("No se pudieron cargar los planes de ruta recientes. Intente nuevamente."));
+  assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("No hay visitas recientes disponibles."));
   assert.ok(source.includes("No hay planes de ruta disponibles."));
   assert.ok(source.includes("fieldVisits.slice(0, 4).map((visit)"));

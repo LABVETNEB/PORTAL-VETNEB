@@ -38,9 +38,13 @@ test("dashboard logistica reads field visits and route plans through API helpers
 
   assert.ok(source.includes("export default async function LogisticaPage()"));
   assert.ok(source.includes("const requestOptions = await getLogisticsRequestOptions();"));
-  assert.ok(source.includes("const [fieldVisits, routePlans] = await Promise.all(["));
-  assert.ok(source.includes("getLogisticsFieldVisits(requestOptions),"));
-  assert.ok(source.includes("getRoutePlans(requestOptions),"));
+  assert.ok(source.includes("let fieldVisits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];"));
+  assert.ok(source.includes("let fieldVisitsLoadError = false;"));
+  assert.ok(source.includes("let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];"));
+  assert.ok(source.includes("let routePlansLoadError = false;"));
+  assert.ok(source.includes("await Promise.all(["));
+  assert.ok(source.includes("getLogisticsFieldVisits(requestOptions, {"));
+  assert.ok(source.includes("getRoutePlans(requestOptions, {"));
 });
 
 test("dashboard logistica computes active visits and active route plans explicitly", () => {
@@ -77,6 +81,9 @@ test("dashboard logistica renders recent visits with status badges dates and emp
   assert.ok(source.includes("formatDate(visit.scheduledAt)"));
   assert.ok(source.includes("getFieldVisitStatusVariant(visit.status)"));
   assert.ok(source.includes("getFieldVisitStatusLabel(visit.status)"));
+  assert.ok(source.includes("fieldVisitsLoadError ?"));
+  assert.ok(source.includes("No se pudieron cargar las visitas recientes. Intente nuevamente."));
+  assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("No hay visitas recientes disponibles."));
 });
 
@@ -90,6 +97,9 @@ test("dashboard logistica renders route plans with status badges dates and empty
   assert.ok(source.includes("formatDate(plan.plannedDate)"));
   assert.ok(source.includes("getRoutePlanStatusVariant(plan.status)"));
   assert.ok(source.includes("getRoutePlanStatusLabel(plan.status)"));
+  assert.ok(source.includes("routePlansLoadError ?"));
+  assert.ok(source.includes("No se pudieron cargar los planes de ruta recientes. Intente nuevamente."));
+  assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("No hay planes de ruta disponibles."));
 });
 
