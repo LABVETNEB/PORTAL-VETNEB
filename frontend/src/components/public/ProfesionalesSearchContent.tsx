@@ -8,12 +8,11 @@ import {
   MapPin,
   Phone,
   Search,
-  Sparkles,
   UserRoundSearch,
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
-import { AmbientOrbs, Eyebrow, VisualIcon } from "@/components/public/VisualAccents";
+import { AmbientOrbs, VisualIcon } from "@/components/public/VisualAccents";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -105,11 +104,7 @@ export function ProfesionalesSearchContent() {
       <section className="public-hero-depth py-16 text-white md:py-20">
         <AmbientOrbs variant="dark" />
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <Eyebrow>
-            <Sparkles className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-            Banco profesional
-          </Eyebrow>
-          <h1 className="mb-4 max-w-4xl text-4xl font-bold md:text-5xl">
+<h1 className="mb-4 max-w-4xl text-4xl font-bold md:text-5xl">
             Red de profesionales veterinarios
           </h1>
           <p className="max-w-2xl public-copy text-xl text-blue-50">

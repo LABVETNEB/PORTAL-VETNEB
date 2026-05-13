@@ -8,7 +8,6 @@ import {
   MonitorCheck,
   Network,
   Sparkles,
-  Stethoscope,
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
@@ -20,7 +19,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AmbientOrbs, Eyebrow, VisualIcon } from "@/components/public/VisualAccents";
+import { AmbientOrbs, VisualIcon } from "@/components/public/VisualAccents";
 import { createPageMetadata, getServicesJsonLd } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
 
@@ -129,11 +128,7 @@ export default function ServiciosPage() {
       >
         <AmbientOrbs variant="dark" />
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <Eyebrow>
-            <Stethoscope className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-            Servicios diagnósticos
-          </Eyebrow>
-          <h1 className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl">
+<h1 className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl">
             Servicio patológico veterinario
           </h1>
           <p className="max-w-2xl public-copy text-lg text-blue-100 md:text-xl">
