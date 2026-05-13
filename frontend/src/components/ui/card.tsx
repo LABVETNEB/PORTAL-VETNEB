@@ -9,7 +9,7 @@ const Card = React.forwardRef<
     ref={ref}
     className={cn(
       "rounded-lg border bg-card text-card-foreground shadow-sm",
-      "border-vetneb-line/80 bg-card/95 shadow-[0_14px_40px_rgba(15,45,62,0.08)] ring-1 ring-card/70 transition-[border-color,box-shadow,background-color,transform] duration-200 hover:border-vetneb-teal/40 hover:shadow-[0_18px_54px_rgba(15,45,62,0.11)]",
+      "border-vetneb-line/80 bg-card/95 shadow-[0_12px_34px_rgba(15,45,62,0.08)] ring-1 ring-white/55 transition-[border-color,box-shadow,background-color,transform] duration-200 hover:-translate-y-0.5 hover:border-vetneb-teal/35 hover:shadow-[0_16px_44px_rgba(15,45,62,0.11)]",
       className,
     )}
     {...props}
@@ -36,8 +36,7 @@ const CardTitle = React.forwardRef<
   <h3
     ref={ref}
     className={cn(
-      "text-2xl font-semibold leading-none",
-      "text-xl font-bold text-vetneb-ink",
+      "text-xl font-semibold leading-tight text-vetneb-ink",
       className,
     )}
     {...props}
