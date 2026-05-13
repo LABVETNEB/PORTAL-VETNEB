@@ -33,7 +33,16 @@ async function getLogisticsRequestOptions(): Promise<RequestInit> {
 }
 
 export default async function RutasPage() {
-  const routePlans = await getRoutePlans(await getLogisticsRequestOptions());
+  let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];
+  let routePlansLoadError = false;
+
+  try {
+    routePlans = await getRoutePlans(await getLogisticsRequestOptions(), {
+      throwOnError: true,
+    });
+  } catch {
+    routePlansLoadError = true;
+  }
 
   return (
     <>
@@ -86,7 +95,17 @@ export default async function RutasPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {routePlans.length ? (
+                {routePlansLoadError ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      role="alert"
+                      className="px-6 py-10 text-center text-sm text-amber-700"
+                    >
+                      No se pudieron cargar los planes de ruta. Intente nuevamente.
+                    </TableCell>
+                  </TableRow>
+                ) : routePlans.length ? (
                   routePlans.map((plan) => {
                     const progress =
                       plan.totalStops > 0

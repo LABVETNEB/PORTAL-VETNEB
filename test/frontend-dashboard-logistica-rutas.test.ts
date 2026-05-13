@@ -31,7 +31,10 @@ test("dashboard logistica rutas forwards cookies and disables cache for live rea
   assert.ok(source.includes("const cookieHeader = (await cookies()).toString();"));
   assert.ok(source.includes('cache: "no-store"'));
   assert.ok(source.includes("headers: cookieHeader ? { Cookie: cookieHeader } : {},"));
-  assert.ok(source.includes("const routePlans = await getRoutePlans(await getLogisticsRequestOptions());"));
+  assert.ok(source.includes("let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];"));
+  assert.ok(source.includes("let routePlansLoadError = false;"));
+  assert.ok(source.includes("routePlans = await getRoutePlans(await getLogisticsRequestOptions(), {"));
+  assert.ok(source.includes("throwOnError: true,"));
 });
 
 test("dashboard logistica rutas renders topbar and read-source notice", () => {
@@ -82,9 +85,12 @@ test("dashboard logistica rutas keeps row rendering progress badges and dates", 
   assert.ok(source.includes("getRoutePlanStatusLabel(plan.status)"));
 });
 
-test("dashboard logistica rutas keeps empty state and avoids client-side fetch literals", () => {
+test("dashboard logistica rutas distinguishes load failures from real empty state", () => {
   const source = read(RUTAS_PAGE_PATH);
 
+  assert.ok(source.includes("routePlansLoadError ? ("));
+  assert.ok(source.includes('role="alert"'));
+  assert.ok(source.includes("No se pudieron cargar los planes de ruta. Intente nuevamente."));
   assert.ok(source.includes("No hay planes de ruta disponibles."));
   assert.ok(source.includes("colSpan={6}"));
   assert.equal(source.includes("fetch("), false);

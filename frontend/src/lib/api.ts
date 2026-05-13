@@ -585,6 +585,7 @@ export async function getLogisticsFieldVisits(
 
 export async function getRoutePlans(
   options?: RequestInit,
+  readOptions: LogisticsReadOptions = {},
 ): Promise<RoutePlan[]> {
   try {
     const res = await apiFetch<{ plans: RoutePlan[] }>(
@@ -592,8 +593,12 @@ export async function getRoutePlans(
       options,
     );
     return res.plans ?? [];
-  } catch {
+  } catch (error) {
     console.warn("[API] getRoutePlans: endpoint no disponible");
+    if (readOptions.throwOnError) {
+      throw error;
+    }
+
     return [];
   }
 }
