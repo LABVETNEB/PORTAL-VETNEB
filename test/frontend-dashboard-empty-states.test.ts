@@ -26,7 +26,10 @@ test("dashboard overview shows empty states for recent lists", () => {
 test("dashboard informes page shows empty state when reports are unavailable", () => {
   const source = read(INFORMES_PAGE_PATH);
 
+  assert.ok(source.includes("reportsLoadError ?"));
   assert.ok(source.includes("reports.length ?"));
+  assert.ok(source.includes("No se pudieron cargar los informes. Intente nuevamente."));
+  assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("No hay informes disponibles."));
   assert.ok(source.includes("colSpan={7}"));
   assert.ok(source.includes("reports.map((report)"));

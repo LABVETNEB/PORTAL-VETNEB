@@ -36,11 +36,12 @@ test("dashboard informes reads filters from searchParams and uses live search en
   assert.ok(source.includes("const resolvedSearchParams = (await searchParams) ?? {};"));
   assert.ok(source.includes("const query = normalizeSearchParamValue(resolvedSearchParams.query).trim();"));
   assert.ok(source.includes("const status = normalizeStatusFilter("));
-  assert.ok(source.includes("const reports = query"));
+  assert.ok(source.includes("reports = query"));
   assert.ok(source.includes("? await searchReports("));
   assert.ok(source.includes("query,"));
   assert.ok(source.includes("status: status || undefined,"));
-  assert.ok(source.includes(": await getReports(requestOptions, {"));
+  assert.ok(source.includes(": await getReports("));
+  assert.ok(source.includes("{ throwOnError: true }"));
 });
 
 test("dashboard informes preserves request options with forwarded cookies and no-store reads", () => {
@@ -124,6 +125,20 @@ test("dashboard informes keeps empty state and avoids client-side fetch literals
   assert.equal(source.includes("mock"), false);
 });
 
+test("dashboard informes separates fetch failures from real empty report lists", () => {
+  const source = read(INFORMES_PAGE_PATH);
+
+  assert.ok(source.includes("let reports: Awaited<ReturnType<typeof getReports>> = [];"));
+  assert.ok(source.includes("let reportsLoadError = false;"));
+  assert.ok(source.includes("try {"));
+  assert.ok(source.includes("reportsLoadError = true;"));
+  assert.ok(source.includes("reportsLoadError ?"));
+  assert.ok(source.includes("No se pudieron cargar los informes. Intente nuevamente."));
+  assert.ok(source.includes('role="alert"'));
+  assert.ok(source.includes(": reports.length ?"));
+  assert.ok(source.includes("No hay informes disponibles."));
+});
+
 test("api client supports reports status filter without bypassing wrappers", () => {
   const source = read(API_CLIENT_PATH);
 
@@ -135,4 +150,5 @@ test("api client supports reports status filter without bypassing wrappers", () 
   assert.ok(source.includes('query.set("status", params.status.trim());'));
   assert.ok(source.includes("`/api/reports${qs ? `?${qs}` : \"\"}`"));
   assert.ok(source.includes('export async function searchReports('));
+  assert.ok(source.includes("throwOnError?: boolean;"));
 });

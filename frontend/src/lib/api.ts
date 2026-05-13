@@ -134,6 +134,10 @@ export async function getParticularReportDownloadUrl(): Promise<string> {
   return response.downloadUrl;
 }
 
+type ReportReadOptions = {
+  throwOnError?: boolean;
+};
+
 export async function getReports(
   options?: RequestInit,
   params?: {
@@ -141,6 +145,7 @@ export async function getReports(
     limit?: number;
     offset?: number;
   },
+  readOptions: ReportReadOptions = {},
 ): Promise<Report[]> {
   try {
     const query = new URLSearchParams();
@@ -163,8 +168,12 @@ export async function getReports(
       options,
     );
     return res.reports ?? [];
-  } catch {
+  } catch (error) {
     console.warn("[API] getReports: endpoint no disponible");
+    if (readOptions.throwOnError) {
+      throw error;
+    }
+
     return [];
   }
 }
@@ -176,6 +185,7 @@ export async function searchReports(
     studyType?: string;
   },
   options?: RequestInit,
+  readOptions: ReportReadOptions = {},
 ): Promise<Report[]> {
   try {
     const qs = new URLSearchParams(
@@ -188,8 +198,12 @@ export async function searchReports(
       options,
     );
     return res.reports ?? [];
-  } catch {
+  } catch (error) {
     console.warn("[API] searchReports: endpoint no disponible");
+    if (readOptions.throwOnError) {
+      throw error;
+    }
+
     return [];
   }
 }
@@ -944,5 +958,4 @@ export async function searchPublicProfessionals(
     options,
   );
 }
-
 

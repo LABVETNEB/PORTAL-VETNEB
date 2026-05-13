@@ -78,18 +78,30 @@ export default async function InformesPage({
   );
   const studyType = normalizeSearchParamValue(resolvedSearchParams.studyType).trim();
   const requestOptions = await getReportsRequestOptions();
-  const reports = query
-    ? await searchReports(
-        {
-          query,
-          status: status || undefined,
-          studyType: studyType || undefined,
-        },
-        requestOptions,
-      )
-    : await getReports(requestOptions, {
-        status: status || undefined,
-      });
+  let reports: Awaited<ReturnType<typeof getReports>> = [];
+  let reportsLoadError = false;
+
+  try {
+    reports = query
+      ? await searchReports(
+          {
+            query,
+            status: status || undefined,
+            studyType: studyType || undefined,
+          },
+          requestOptions,
+          { throwOnError: true },
+        )
+      : await getReports(
+          requestOptions,
+          {
+            status: status || undefined,
+          },
+          { throwOnError: true },
+        );
+  } catch {
+    reportsLoadError = true;
+  }
 
   return (
     <>
@@ -163,7 +175,17 @@ export default async function InformesPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {reports.length ? (
+                {reportsLoadError ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      role="alert"
+                      className="px-6 py-10 text-center text-sm text-amber-700"
+                    >
+                      No se pudieron cargar los informes. Intente nuevamente.
+                    </TableCell>
+                  </TableRow>
+                ) : reports.length ? (
                   reports.map((report) => (
                     <TableRow key={report.id}>
                       <TableCell className="font-mono text-xs text-gray-400">
