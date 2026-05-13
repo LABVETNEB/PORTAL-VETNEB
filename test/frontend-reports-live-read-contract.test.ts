@@ -41,11 +41,28 @@ test("frontend reports page uses reports API client wrapper", () => {
   assertIncludes(source, "getReports", reportsPage);
   assertIncludes(source, "searchReports", reportsPage);
   assertIncludes(source, "const requestOptions = await getReportsRequestOptions();", reportsPage);
-  assertIncludes(source, "const reports = query", reportsPage);
+  assertIncludes(source, "reports = query", reportsPage);
   assertIncludes(source, "? await searchReports(", reportsPage);
-  assertIncludes(source, ": await getReports(requestOptions, {", reportsPage);
+  assertIncludes(source, ": await getReports(", reportsPage);
+  assertIncludes(source, "{ throwOnError: true }", reportsPage);
   assertIncludes(source, "reports.map", reportsPage);
   assertIncludes(source, "reports.length", reportsPage);
+});
+
+test("frontend reports page surfaces fetch failures separately from empty data", () => {
+  const source = read(reportsPage);
+
+  assertIncludes(source, "let reportsLoadError = false;", reportsPage);
+  assertIncludes(source, "try {", reportsPage);
+  assertIncludes(source, "reportsLoadError = true;", reportsPage);
+  assertIncludes(source, "reportsLoadError ?", reportsPage);
+  assertIncludes(
+    source,
+    "No se pudieron cargar los informes. Intente nuevamente.",
+    reportsPage,
+  );
+  assertIncludes(source, 'role="alert"', reportsPage);
+  assertIncludes(source, "No hay informes disponibles.", reportsPage);
 });
 
 test("frontend reports page forces dynamic server reads with forwarded cookies", () => {
@@ -70,6 +87,8 @@ test("frontend reports API wrappers accept request options", () => {
   assertIncludes(source, "options?: RequestInit,", frontendApiClient);
   assertIncludes(source, "params?: {", frontendApiClient);
   assertIncludes(source, "status?: string;", frontendApiClient);
+  assertIncludes(source, "throwOnError?: boolean;", frontendApiClient);
+  assertIncludes(source, "readOptions: ReportReadOptions = {},", frontendApiClient);
   assertIncludes(
     source,
     '`/api/reports${qs ? `?${qs}` : ""}`',
@@ -82,6 +101,8 @@ test("frontend reports API wrappers accept request options", () => {
     '`/api/reports/search${qs ? `?${qs}` : ""}`',
     frontendApiClient,
   );
+  assertIncludes(source, "if (readOptions.throwOnError) {", frontendApiClient);
+  assertIncludes(source, "throw error;", frontendApiClient);
   assertIncludes(
     source,
     'console.warn("[API] getReports: endpoint no disponible")',

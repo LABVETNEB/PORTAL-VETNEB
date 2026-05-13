@@ -21,10 +21,14 @@ test("frontend API client reads reports from backend reports endpoint", () => {
   assert.ok(source.includes("status?: string;"));
   assert.ok(source.includes("limit?: number;"));
   assert.ok(source.includes("offset?: number;"));
+  assert.ok(source.includes("readOptions: ReportReadOptions = {},"));
+  assert.ok(source.includes("throwOnError?: boolean;"));
   assert.ok(source.includes("const query = new URLSearchParams();"));
   assert.ok(source.includes("`/api/reports${qs ? `?${qs}` : \"\"}`"));
   assert.ok(source.includes("return res.reports ?? [];"));
   assert.ok(source.includes('console.warn("[API] getReports: endpoint no disponible");'));
+  assert.ok(source.includes("if (readOptions.throwOnError) {"));
+  assert.ok(source.includes("throw error;"));
   assert.ok(source.includes("return [];"));
 });
 
@@ -36,11 +40,14 @@ test("frontend API client searches reports with optional query parameters", () =
   assert.ok(source.includes("status?: string;"));
   assert.ok(source.includes("studyType?: string;"));
   assert.ok(source.includes("options?: RequestInit,"));
+  assert.ok(source.includes("readOptions: ReportReadOptions = {},"));
   assert.ok(source.includes("const qs = new URLSearchParams("));
   assert.ok(source.includes("Object.entries(params).filter(([, v]) => v !== undefined)"));
   assert.ok(source.includes("/api/reports/search"));
   assert.ok(source.includes("return res.reports ?? [];"));
   assert.ok(source.includes('console.warn("[API] searchReports: endpoint no disponible");'));
+  assert.ok(source.includes("if (readOptions.throwOnError) {"));
+  assert.ok(source.includes("throw error;"));
 });
 
 test("frontend API client requests report download URLs by report id", () => {
