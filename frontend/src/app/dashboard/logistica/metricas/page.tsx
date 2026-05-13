@@ -27,12 +27,34 @@ async function getLogisticsRequestOptions(): Promise<RequestInit> {
 
 export default async function MetricasPage() {
   const requestOptions = await getLogisticsRequestOptions();
-  const routePlans = await getRoutePlans(requestOptions);
-  const routeMetrics = (
-    await Promise.all(
-      routePlans.map((plan) => getRoutePlanMetrics(plan.id, requestOptions)),
-    )
-  ).flat();
+  let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];
+  let routePlansLoadError = false;
+  let routeMetrics: Awaited<ReturnType<typeof getRoutePlanMetrics>> = [];
+  let routeMetricsLoadError = false;
+
+  try {
+    routePlans = await getRoutePlans(requestOptions, {
+      throwOnError: true,
+    });
+  } catch {
+    routePlansLoadError = true;
+  }
+
+  if (!routePlansLoadError && routePlans.length) {
+    try {
+      routeMetrics = (
+        await Promise.all(
+          routePlans.map((plan) =>
+            getRoutePlanMetrics(plan.id, requestOptions, {
+              throwOnError: true,
+            }),
+          ),
+        )
+      ).flat();
+    } catch {
+      routeMetricsLoadError = true;
+    }
+  }
 
   const totalStops = routeMetrics.reduce(
     (sum, metric) => sum + metric.totalStops,
@@ -135,7 +157,15 @@ export default async function MetricasPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {routeMetrics.length ? (
+            {routePlansLoadError ? (
+              <div role="alert" className="surface-empty text-amber-700">
+                No se pudieron cargar los planes de ruta para métricas. Intente nuevamente.
+              </div>
+            ) : routeMetricsLoadError ? (
+              <div role="alert" className="surface-empty text-amber-700">
+                No se pudieron cargar las métricas de ruta. Intente nuevamente.
+              </div>
+            ) : routeMetrics.length ? (
               routeMetrics.map((metric) => {
                 const plan = routePlans.find(
                   (routePlan) => routePlan.id === metric.routePlanId,
