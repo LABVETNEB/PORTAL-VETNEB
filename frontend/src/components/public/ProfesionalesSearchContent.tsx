@@ -114,7 +114,8 @@ export function ProfesionalesSearchContent() {
           </h1>
           <p className="max-w-2xl public-copy text-xl text-blue-50">
             Banco público de profesionales vinculados a VETNEB, con búsqueda
-            directa, clara y optimizada para datos reales.
+            directa, clara y optimizada para coordinar derivaciones e
+            interconsultas con datos verificables.
           </p>
         </div>
       </section>
@@ -129,9 +130,10 @@ export function ProfesionalesSearchContent() {
                   Buscar profesionales
                 </h2>
                 <p className="public-copy-tight text-sm text-gray-600">
-                  Ingrese texto libre, incluso una sola letra. La búsqueda admite coincidencias por nombre,
-                  especialidad, servicios, localidad, país, email, teléfono o
-                  descripción para reducir errores por escritura parcial.
+                  Ingrese texto libre, incluso una sola letra. La búsqueda
+                  admite coincidencias por nombre, especialidad, servicios,
+                  localidad, país, email, teléfono o descripción, y facilita la
+                  coordinación profesional con trazabilidad de contacto.
                 </p>
               </div>
             </div>
@@ -170,14 +172,14 @@ export function ProfesionalesSearchContent() {
             <div className="mt-8" aria-live="polite">
               {!currentQuery ? (
                 <div className="premium-card-muted p-6 text-sm text-gray-500">
-                  Realice una búsqueda para consultar el banco público de
-                  profesionales.
+                  Realice una búsqueda para consultar el banco público y
+                  coordinar contacto profesional.
                 </div>
               ) : null}
 
               {state.status === "loading" ? (
                 <div className="rounded-2xl border border-blue-100 bg-blue-50/90 p-6 text-sm text-blue-700 shadow-sm">
-                  Buscando profesionales...
+                  Buscando profesionales vinculados a VETNEB...
                 </div>
               ) : null}
 
@@ -189,14 +191,17 @@ export function ProfesionalesSearchContent() {
 
               {state.status === "success" && state.professionals.length === 0 ? (
                 <div className="premium-card-muted p-6 text-sm text-gray-500">
-                  No se encontraron profesionales para “{currentQuery}”.
+                  No se encontraron profesionales para “{currentQuery}”. Revise
+                  la ortografía o pruebe otro dato de búsqueda.
                 </div>
               ) : null}
 
               {state.status === "success" && state.professionals.length > 0 ? (
                 <div>
                   <p className="mb-4 text-sm text-gray-500">
-                    {state.total} resultado(s) para “{currentQuery}”.
+                    {state.total} resultado(s) para “{currentQuery}”. Seleccione
+                    el perfil con los datos de contacto más adecuados para su
+                    coordinación clínica.
                   </p>
                   <div className="space-y-4">
                     {state.professionals.map((professional) => (

@@ -137,9 +137,9 @@ export default function ServiciosPage() {
             Servicio patológico veterinario
           </h1>
           <p className="max-w-2xl public-copy text-lg text-blue-100 md:text-xl">
-            La anatomía patológica veterinaria estudia los motivos, el
-            desarrollo y las consecuencias de distintas enfermedades mediante el
-            análisis de tejidos, órganos y muestras celulares.
+            La anatomía patológica veterinaria integra evaluación microscópica,
+            trazabilidad de muestras e informes clínicos para orientar
+            decisiones diagnósticas con respaldo profesional.
           </p>
         </div>
       </section>
@@ -151,11 +151,12 @@ export default function ServiciosPage() {
               Laboratorio VETNEB
             </p>
             <h2 className="text-2xl font-bold text-gray-950 md:text-3xl">
-              Estudios con criterio clínico-patológico
+              Estudios diagnósticos con criterio clínico-patológico
             </h2>
             <p className="mt-3 public-copy-tight text-sm text-gray-600">
-              Unificamos histopatología, citología, técnicas complementarias y
-              seguimiento para sostener decisiones clínicas con mayor claridad.
+              Unificamos histopatología, citología, técnicas complementarias e
+              informes trazables para acompañar decisiones clínicas en cada
+              etapa del caso.
             </p>
           </div>
 
@@ -200,12 +201,12 @@ export default function ServiciosPage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center">
           <div className="rounded-3xl border border-white/70 bg-white/80 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Seguimos trabajando en mejorar
+              Coordinación diagnóstica para clínicas y profesionales
             </h2>
             <p className="public-copy text-gray-600 mb-8">
-              Estamos enfocados en agilizar la recepción y entrega de informes, y
-              en fortalecer los medios de comunicación con clínicas y
-              profesionales para reducir tiempos de espera de resultados.
+              Coordinamos recepción de muestras, priorización por complejidad y
+              entrega de informes trazables. Los tiempos se ajustan al criterio
+              diagnóstico y a las necesidades clínicas de cada caso.
             </p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row">
               <Button
@@ -214,12 +215,12 @@ export default function ServiciosPage() {
                 className="w-full bg-gradient-to-r from-blue-700 to-teal-600 shadow-[0_14px_35px_rgba(37,99,235,0.22)] hover:from-blue-800 hover:to-teal-700 sm:w-auto"
               >
                 <Link href={ROUTES.contacto}>
-                  Solicitar información
+                  Solicitar coordinación diagnóstica
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="w-full bg-white/80 sm:w-auto">
-                <Link href={ROUTES.clinicas}>Ver solución para clínicas</Link>
+                <Link href={ROUTES.clinicas}>Conocer solución para clínicas</Link>
               </Button>
             </div>
           </div>
@@ -262,8 +263,9 @@ export default function ServiciosPage() {
             </p>
             <p className="public-copy text-gray-600">
               No se trata de un diagnóstico automatizado, por lo que los tiempos
-              son variables según complejidad. En ciertos casos se requiere
-              interconsulta profesional para alcanzar mayor precisión diagnóstica.
+              son variables según complejidad y técnicas complementarias
+              requeridas. En ciertos casos se requiere interconsulta profesional
+              para alcanzar mayor precisión diagnóstica.
             </p>
           </div>
         </div>

@@ -35,7 +35,7 @@ test("home page exposes accessible hero and primary CTAs", () => {
   assert.ok(source.includes("SERVICIO PATOLÓGICO"));
   assert.ok(source.includes("VETNEB"));
   assert.ok(source.includes("Dr. BARBÉ, NICOLÁS E."));
-  assert.ok(source.includes("ACCESO (CONOCÉ LOS RESULTADOS DE TUS ESTUDIOS)"));
+  assert.ok(source.includes("ACCESO A INFORMES Y TRAZABILIDAD DE ESTUDIOS"));
   assert.ok(source.includes("CONSULTÁ LOS RESULTADOS DE SUS INFORMES LAS 24 HS."));
   assert.ok(source.includes("Horario de atención Lunes a viernes de 8 a 17hs"));
   assert.ok(source.includes("Whatsapp: 3534138946"));
@@ -79,8 +79,8 @@ test("home page exposes final conversion CTA without private route metadata", ()
   assert.ok(source.includes('aria-labelledby="cta-heading"'));
   assert.ok(source.includes('id="cta-heading"'));
   assert.ok(source.includes("Seguimos trabajando en mejorar"));
-  assert.ok(source.includes("Iniciar sesión"));
-  assert.ok(source.includes("Contactar"));
+  assert.ok(source.includes("Ingresar al portal de informes"));
+  assert.ok(source.includes("Coordinar muestras y consultas"));
   assert.ok(source.includes("from-blue-700 to-teal-600"));
   assert.ok(source.includes("border border-blue-200 bg-white/80"));
   assert.ok(source.includes("font-semibold text-blue-900 shadow-sm"));

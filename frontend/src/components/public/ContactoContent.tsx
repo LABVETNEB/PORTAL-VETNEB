@@ -107,8 +107,8 @@ export function ContactoContent() {
             Contacto
           </h1>
           <p className="max-w-2xl public-copy text-xl text-blue-50">
-            ¿Desea registrar su clínica o tiene consultas sobre nuestros
-            servicios? Comuníquese con nuestro equipo.
+            ¿Desea registrar su clínica, coordinar envío de muestras o resolver
+            consultas sobre informes? Comuníquese con nuestro equipo.
           </p>
         </div>
       </section>
@@ -124,8 +124,9 @@ export function ContactoContent() {
                     Envíenos un mensaje
                   </h2>
                   <p className="mt-1 public-copy-tight text-sm text-gray-600">
-                    Complete el formulario y nuestro equipo responderá por el
-                    canal indicado.
+                    Complete el formulario con su consulta clínica o
+                    institucional. Nuestro equipo responderá por el canal
+                    indicado para coordinar próximos pasos.
                   </p>
                 </div>
               </div>
@@ -229,7 +230,7 @@ export function ContactoContent() {
                   <textarea
                     id="mensaje"
                     rows={5}
-                    placeholder="Describa su consulta o solicitud de acceso..."
+                    placeholder="Describa su consulta o solicitud de acceso, e incluya tipo de muestra cuando corresponda..."
                     className="flex w-full resize-none rounded-xl border border-input bg-white/90 px-3 py-2 text-sm shadow-inner ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     required
                     minLength={10}
@@ -273,7 +274,8 @@ export function ContactoContent() {
                     Información de contacto
                   </h2>
                   <p className="mt-1 public-copy-tight text-sm text-gray-600">
-                    Canales oficiales para coordinación y consultas.
+                    Canales oficiales para coordinación de muestras, seguimiento
+                    e integración.
                   </p>
                 </div>
               </div>
@@ -310,10 +312,11 @@ export function ContactoContent() {
                 <p className="text-sm public-copy text-blue-700">
                   Si desea registrar su clínica en Portal VETNEB, indíquelo en
                   su mensaje. Nuestro equipo se pondrá en contacto para
-                  configurar su acceso y explicarle el proceso de integración.
+                  configurar su acceso y explicarle el proceso de integración,
+                  trazabilidad y seguimiento de informes.
                 </p>
                 <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary">
-                  Solicitar integración
+                  Solicitar integración clínica
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </div>
               </div>
