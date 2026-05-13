@@ -33,9 +33,17 @@ async function getLogisticsRequestOptions(): Promise<RequestInit> {
 }
 
 export default async function VisitasPage() {
-  const visits = await getLogisticsFieldVisits(
-    await getLogisticsRequestOptions(),
-  );
+  let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];
+  let visitsLoadError = false;
+
+  try {
+    visits = await getLogisticsFieldVisits(
+      await getLogisticsRequestOptions(),
+      { throwOnError: true },
+    );
+  } catch {
+    visitsLoadError = true;
+  }
 
   return (
     <>
@@ -89,7 +97,17 @@ export default async function VisitasPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visits.length ? (
+                {visitsLoadError ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      role="alert"
+                      className="px-6 py-10 text-center text-sm text-amber-700"
+                    >
+                      No se pudieron cargar las visitas de campo. Intente nuevamente.
+                    </TableCell>
+                  </TableRow>
+                ) : visits.length ? (
                   visits.map((visit) => (
                     <TableRow key={visit.id}>
                       <TableCell className="font-mono text-xs text-gray-400">

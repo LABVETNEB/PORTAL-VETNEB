@@ -68,10 +68,27 @@ test("frontend logistics pages use API client read wrappers", () => {
   assertIncludes(visits, 'from "@/lib/api"', logisticsVisitsPage);
   assertIncludes(visits, "getLogisticsFieldVisits", logisticsVisitsPage);
   assertIncludes(visits, "getLogisticsFieldVisits(", logisticsVisitsPage);
+  assertIncludes(visits, "{ throwOnError: true }", logisticsVisitsPage);
 
   assertIncludes(routes, 'from "@/lib/api"', logisticsRoutesPage);
   assertIncludes(routes, "getRoutePlans", logisticsRoutesPage);
   assertIncludes(routes, "getRoutePlans(", logisticsRoutesPage);
+});
+
+test("frontend logistics visits page surfaces fetch failures separately from empty data", () => {
+  const source = read(logisticsVisitsPage);
+
+  assertIncludes(source, "let visitsLoadError = false;", logisticsVisitsPage);
+  assertIncludes(source, "try {", logisticsVisitsPage);
+  assertIncludes(source, "visitsLoadError = true;", logisticsVisitsPage);
+  assertIncludes(source, "visitsLoadError ?", logisticsVisitsPage);
+  assertIncludes(
+    source,
+    "No se pudieron cargar las visitas de campo. Intente nuevamente.",
+    logisticsVisitsPage,
+  );
+  assertIncludes(source, 'role="alert"', logisticsVisitsPage);
+  assertIncludes(source, "No hay visitas de campo disponibles.", logisticsVisitsPage);
 });
 
 test("frontend logistics pages force dynamic server reads with forwarded cookies", () => {
@@ -114,8 +131,12 @@ test("frontend logistics API wrappers accept request options for server-side rea
     frontendApiClient,
   );
   assertIncludes(source, "options?: RequestInit", frontendApiClient);
+  assertIncludes(source, "throwOnError?: boolean;", frontendApiClient);
+  assertIncludes(source, "readOptions: LogisticsReadOptions = {},", frontendApiClient);
   assertIncludes(source, '"/api/logistics/field-visits"', frontendApiClient);
   assertIncludes(source, "options,", frontendApiClient);
+  assertIncludes(source, "if (readOptions.throwOnError) {", frontendApiClient);
+  assertIncludes(source, "throw error;", frontendApiClient);
 
   assertIncludes(
     source,

@@ -558,8 +558,14 @@ export async function submitContactMessage(
     body: JSON.stringify(payload),
   });
 }
+
+type LogisticsReadOptions = {
+  throwOnError?: boolean;
+};
+
 export async function getLogisticsFieldVisits(
   options?: RequestInit,
+  readOptions: LogisticsReadOptions = {},
 ): Promise<FieldVisit[]> {
   try {
     const res = await apiFetch<{ visits: FieldVisit[] }>(
@@ -567,8 +573,12 @@ export async function getLogisticsFieldVisits(
       options,
     );
     return res.visits ?? [];
-  } catch {
+  } catch (error) {
     console.warn("[API] getLogisticsFieldVisits: endpoint no disponible");
+    if (readOptions.throwOnError) {
+      throw error;
+    }
+
     return [];
   }
 }
@@ -958,4 +968,3 @@ export async function searchPublicProfessionals(
     options,
   );
 }
-
