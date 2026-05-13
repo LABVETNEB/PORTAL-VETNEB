@@ -105,6 +105,11 @@ export default function HomePage() {
             <p className="mt-4 text-lg font-medium text-slate-100 md:text-xl">
               Dr. BARBÉ, NICOLÁS E.
             </p>
+            <p className="mx-auto mt-4 max-w-3xl text-sm text-slate-100 md:text-base">
+              Diagnóstico anatomopatológico veterinario con precisión clínica,
+              trazabilidad de estudios e informes disponibles para seguimiento
+              profesional.
+            </p>
             <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
               <Button
                 asChild
@@ -112,7 +117,7 @@ export default function HomePage() {
                 className="w-full whitespace-normal bg-card px-8 text-vetneb-ink hover:bg-vetneb-surface-raised sm:w-auto"
               >
                 <Link href={ROUTES.login}>
-                  ACCESO (CONOCÉ LOS RESULTADOS DE TUS ESTUDIOS)
+                  ACCESO A INFORMES Y TRAZABILIDAD DE ESTUDIOS
                 </Link>
               </Button>
             </div>
@@ -151,8 +156,9 @@ export default function HomePage() {
                 Servicios del laboratorio patológico veterinario
               </h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Cobertura diagnóstica orientada a estudio anatomopatológico,
-                citología, tinciones especiales e integración clínico-patológica.
+                Cobertura diagnóstica con estudio anatomopatológico, citología,
+                tinciones especiales e integración clínico-patológica para
+                sostener decisiones con mayor confianza.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -196,8 +202,8 @@ export default function HomePage() {
               </h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                 Colaboramos de forma permanente con equipos clínicos para evaluar
-                lesiones, integrar contexto médico y definir conductas de
-                tratamiento.
+                lesiones, integrar contexto médico y reforzar la confianza
+                diagnóstica antes de definir conductas de tratamiento.
               </p>
             </div>
             <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
@@ -240,9 +246,10 @@ export default function HomePage() {
               Seguimos trabajando en mejorar
             </h2>
             <p className="mx-auto mb-8 max-w-xl text-lg text-gray-600">
-              Agilizamos la recepción y entrega de informes, fortalecemos la
-              comunicación con clínicas y profesionales, y sostenemos un servicio
-              guiado por compromiso, responsabilidad y trabajo constante.
+              Agilizamos la recepción y entrega de informes, mantenemos
+              trazabilidad durante todo el proceso y coordinamos con clínicas y
+              profesionales para sostener decisiones terapéuticas con mayor
+              claridad.
             </p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
               <Button
@@ -250,14 +257,14 @@ export default function HomePage() {
                 size="lg"
                 className="w-full bg-gradient-to-r from-blue-700 to-teal-600 text-white shadow-[0_14px_35px_rgba(37,99,235,0.22)] hover:from-blue-800 hover:to-teal-700 sm:w-auto"
               >
-                <Link href={ROUTES.login}>Iniciar sesión</Link>
+                <Link href={ROUTES.login}>Ingresar al portal de informes</Link>
               </Button>
               <Button
                 asChild
                 size="lg"
                 className="w-full border border-blue-200 bg-white/80 font-semibold text-blue-900 shadow-sm backdrop-blur hover:bg-white hover:text-primary sm:w-auto"
               >
-                <Link href={ROUTES.contacto}>Contactar</Link>
+                <Link href={ROUTES.contacto}>Coordinar muestras y consultas</Link>
               </Button>
             </div>
           </div>

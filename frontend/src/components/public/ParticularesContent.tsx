@@ -61,19 +61,19 @@ function formatDate(value: string | null | undefined) {
 const accessHighlights = [
   {
     title: "Token",
-    description: "Ingreso individual entregado por VETNEB o clínica.",
+    description: "Clave individual emitida por VETNEB o por su clínica tratante.",
     icon: KeyRound,
     tone: "blue" as const,
   },
   {
     title: "Sesión",
-    description: "Cookie particular independiente del portal clínico.",
+    description: "Acceso aislado del portal clínico, limitado al caso autorizado.",
     icon: ShieldCheck,
     tone: "emerald" as const,
   },
   {
     title: "Informe",
-    description: "Vista y descarga solo si el caso tiene informe asociado.",
+    description: "Consulta y descarga cuando finaliza la validación profesional.",
     icon: FileText,
     tone: "amber" as const,
   },
@@ -176,12 +176,12 @@ export function ParticularesContent() {
           </Eyebrow>
 
           <h1 className="max-w-3xl text-4xl font-bold text-gray-950 md:text-5xl">
-            Consulte el estado de su caso con token seguro
+            Acceda al seguimiento y al informe de su caso con token seguro
           </h1>
           <p className="mt-5 max-w-2xl public-copy text-lg text-gray-600">
-            El acceso particular está limitado al caso vinculado al token. La
-            sesión no expone información de clínicas, rutas internas,
-            profesionales ni otros estudios.
+            El acceso particular está limitado al caso vinculado al token.
+            Permite consultar estado, fechas e informe sin exponer información
+            de clínicas, rutas internas, profesionales ni otros estudios.
           </p>
 
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -212,8 +212,9 @@ export function ParticularesContent() {
                   Sesión separada del portal clínico
                 </h2>
                 <p className="mt-1 public-copy-tight text-sm text-gray-600">
-                  El token particular opera en una superficie aislada y limitada
-                  al caso individual autorizado.
+                  El token particular funciona en una superficie separada para
+                  resguardar confidencialidad y trazabilidad del caso
+                  autorizado.
                 </p>
               </div>
             </div>
@@ -235,8 +236,8 @@ export function ParticularesContent() {
                   </CardTitle>
                   <CardDescription className="mt-1 leading-relaxed">
                     {session
-                      ? "Datos visibles para el token actualmente autenticado."
-                      : "Pegue el token recibido para iniciar una sesión particular."}
+                      ? "Datos visibles del caso autenticado con seguimiento trazable del proceso diagnóstico."
+                      : "Pegue el token recibido para consultar el estado del estudio y acceder al informe cuando esté disponible."}
                   </CardDescription>
                 </div>
               </div>
@@ -345,7 +346,9 @@ export function ParticularesContent() {
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 text-sm text-amber-900 shadow-sm">
-                      El caso todavía no tiene un informe vinculado.
+                      El caso todavía no tiene un informe vinculado. El estudio
+                      continúa en evaluación profesional y se habilitará cuando
+                      finalice la validación diagnóstica.
                     </div>
                   )}
 
@@ -414,6 +417,11 @@ export function ParticularesContent() {
                   >
                     {isSubmitting ? "Validando token..." : "Ingresar"}
                   </Button>
+
+                  <p className="text-center text-xs text-gray-500">
+                    La disponibilidad del informe depende de la complejidad
+                    diagnóstica y del proceso de validación profesional.
+                  </p>
 
                   <p className="text-center text-sm text-gray-500">
                     ¿Tiene credenciales de clínica?{" "}

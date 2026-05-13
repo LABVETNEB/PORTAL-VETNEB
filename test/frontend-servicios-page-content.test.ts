@@ -32,8 +32,8 @@ test("servicios page exposes hero content", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
   assert.ok(source.includes("Servicio patológico veterinario"));
-  assert.ok(source.includes("La anatomía patológica veterinaria estudia los motivos"));
-  assert.ok(source.includes("desarrollo y las consecuencias de distintas enfermedades"));
+  assert.ok(source.includes("La anatomía patológica veterinaria integra evaluación microscópica"));
+  assert.ok(source.includes("trazabilidad de muestras e informes clínicos"));
 });
 
 test("servicios page lists laboratory service categories", () => {
@@ -62,11 +62,11 @@ test("servicios page keeps detailed service feature bullets", () => {
 test("servicios page exposes conversion CTAs and SEO copy", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
-  assert.ok(source.includes("Seguimos trabajando en mejorar"));
+  assert.ok(source.includes("Coordinación diagnóstica para clínicas y profesionales"));
   assert.ok(source.includes('href={ROUTES.contacto}'));
-  assert.ok(source.includes("Solicitar información"));
+  assert.ok(source.includes("Solicitar coordinación diagnóstica"));
   assert.ok(source.includes('href={ROUTES.clinicas}'));
-  assert.ok(source.includes("Ver solución para clínicas"));
+  assert.ok(source.includes("Conocer solución para clínicas"));
   assert.ok(source.includes("Diagnóstico integral para medicina veterinaria"));
   assert.ok(source.includes("Para tener en cuenta"));
   assert.ok(source.includes("Valores que guían el servicio"));
@@ -92,4 +92,3 @@ test("servicios page keeps one continuous soft canvas through middle sections", 
   assert.equal(source.includes('className="bg-gray-50 py-16"'), false);
   assert.equal(source.includes('data-public-soft-canvas="true"'), false);
 });
-
