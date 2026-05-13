@@ -70,8 +70,8 @@ export function DashboardSidebarFrame({
               className={cn(
                 "flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-semibold transition-colors sm:justify-start sm:px-3",
                 isActive(item.href, item.exact)
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-[0_14px_42px_rgba(15,23,42,0.26)]"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                  ? "bg-sidebar-accent/90 text-sidebar-accent-foreground shadow-[0_10px_28px_rgba(8,35,50,0.24)] ring-1 ring-white/15"
+                  : "text-sidebar-foreground/72 hover:bg-sidebar-accent/45 hover:text-sidebar-foreground",
               )}
               aria-current={isActive(item.href, item.exact) ? "page" : undefined}
             >
@@ -85,14 +85,14 @@ export function DashboardSidebarFrame({
                   <Link
                     key={child.href}
                     href={child.href}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-                      pathname === child.href
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground",
-                    )}
-                    aria-current={pathname === child.href ? "page" : undefined}
-                  >
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                        pathname === child.href
+                          ? "bg-sidebar-accent/80 text-sidebar-accent-foreground ring-1 ring-white/10"
+                          : "text-sidebar-foreground/62 hover:bg-sidebar-accent/38 hover:text-sidebar-foreground",
+                      )}
+                      aria-current={pathname === child.href ? "page" : undefined}
+                    >
                     <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
                     {child.label}
                   </Link>
