@@ -257,7 +257,17 @@ export default async function AdminPage({
   const resolvedSearchParams = (await searchParams) ?? {};
   const selectedAuditEvent = normalizeAuditFilter(resolvedSearchParams.event);
   const selectedActorType = normalizeAuditFilter(resolvedSearchParams.actorType);
-  const auditEntries = await getAuditEntries(await getAdminRequestOptions());
+  let auditEntries: Awaited<ReturnType<typeof getAuditEntries>> = [];
+  let auditEntriesLoadError = false;
+
+  try {
+    auditEntries = await getAuditEntries(await getAdminRequestOptions(), {
+      throwOnError: true,
+    });
+  } catch {
+    auditEntriesLoadError = true;
+  }
+
   const systemHealth = await getAdminSystemHealth(await getAdminRequestOptions());
   const hasSystemHealthFetchError = systemHealth === null;
   const serviceChecks = systemHealth?.services ?? {};
@@ -566,7 +576,17 @@ export default async function AdminPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAuditEntries.length ? (
+                {auditEntriesLoadError ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      role="alert"
+                      className="py-8 text-center text-sm text-amber-700"
+                    >
+                      No se pudieron cargar los eventos de auditoría. Intente nuevamente.
+                    </TableCell>
+                  </TableRow>
+                ) : filteredAuditEntries.length ? (
                   filteredAuditEntries.map((entry) => (
                     <TableRow key={entry.id}>
                       <TableCell className="whitespace-nowrap font-mono text-xs text-gray-400">

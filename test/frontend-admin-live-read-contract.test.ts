@@ -38,7 +38,11 @@ test("frontend admin page uses audit API client wrapper", () => {
 
   assertIncludes(source, 'from "@/lib/api"', adminPage);
   assertIncludes(source, "getAuditEntries", adminPage);
-  assertIncludes(source, "getAuditEntries(await getAdminRequestOptions())", adminPage);
+  assertIncludes(source, "let auditEntries: Awaited<ReturnType<typeof getAuditEntries>> = [];", adminPage);
+  assertIncludes(source, "let auditEntriesLoadError = false;", adminPage);
+  assertIncludes(source, "auditEntries = await getAuditEntries(await getAdminRequestOptions(), {", adminPage);
+  assertIncludes(source, "throwOnError: true,", adminPage);
+  assertIncludes(source, "auditEntriesLoadError = true;", adminPage);
   assertIncludes(source, "auditEntries.reduce", adminPage);
   assertIncludes(source, "auditEntries.map", adminPage);
 });
@@ -63,6 +67,7 @@ test("frontend admin audit API wrapper accepts request options", () => {
     frontendApiClient,
   );
   assertIncludes(source, "options?: RequestInit", frontendApiClient);
+  assertIncludes(source, "readOptions: AdminReadOptions = {}", frontendApiClient);
   assertIncludes(source, '"/api/admin/audit-log"', frontendApiClient);
   assertIncludes(source, "options,", frontendApiClient);
   assertIncludes(
@@ -70,6 +75,8 @@ test("frontend admin audit API wrapper accepts request options", () => {
     'console.warn("[API] getAuditEntries: endpoint no disponible")',
     frontendApiClient,
   );
+  assertIncludes(source, "if (readOptions.throwOnError) {", frontendApiClient);
+  assertIncludes(source, "throw error;", frontendApiClient);
   assertIncludes(source, "return []", frontendApiClient);
   assertNotIncludes(source, "return MOCK_AUDIT_ENTRIES", frontendApiClient);
 });

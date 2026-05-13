@@ -100,7 +100,10 @@ test("dashboard admin forwards cookies and performs no-store admin reads", () =>
   assert.ok(source.includes("const cookieHeader = (await cookies()).toString();"));
   assert.ok(source.includes('cache: "no-store"'));
   assert.ok(source.includes("headers: cookieHeader ? { Cookie: cookieHeader } : {},"));
-  assert.ok(source.includes("const auditEntries = await getAuditEntries(await getAdminRequestOptions());"));
+  assert.ok(source.includes("let auditEntries: Awaited<ReturnType<typeof getAuditEntries>> = [];"));
+  assert.ok(source.includes("let auditEntriesLoadError = false;"));
+  assert.ok(source.includes("auditEntries = await getAuditEntries(await getAdminRequestOptions(), {"));
+  assert.ok(source.includes("throwOnError: true,"));
   assert.ok(source.includes("const systemHealth = await getAdminSystemHealth(await getAdminRequestOptions());"));
 });
 
@@ -172,9 +175,12 @@ test("dashboard admin renders role-change audit and audit log table", () => {
   assert.ok(source.includes("<TableHead>Fecha</TableHead>"));
 });
 
-test("dashboard admin keeps filtered empty states and avoids client-side fetch literals", () => {
+test("dashboard admin distinguishes audit log load failures from empty states", () => {
   const source = read(ADMIN_PAGE_PATH);
 
+  assert.ok(source.includes("auditEntriesLoadError ? ("));
+  assert.ok(source.includes('role="alert"'));
+  assert.ok(source.includes("No se pudieron cargar los eventos de auditoría. Intente nuevamente."));
   assert.ok(source.includes("No hay eventos para los filtros seleccionados."));
   assert.ok(source.includes("No hay eventos de auditoría disponibles."));
   assert.ok(source.includes("Limpiar filtros"));
