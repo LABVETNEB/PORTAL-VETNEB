@@ -34,9 +34,30 @@ async function getLogisticsRequestOptions(): Promise<RequestInit> {
 
 export default async function LogisticaPage() {
   const requestOptions = await getLogisticsRequestOptions();
-  const [fieldVisits, routePlans] = await Promise.all([
-    getLogisticsFieldVisits(requestOptions),
-    getRoutePlans(requestOptions),
+  let fieldVisits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];
+  let fieldVisitsLoadError = false;
+  let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];
+  let routePlansLoadError = false;
+
+  await Promise.all([
+    (async () => {
+      try {
+        fieldVisits = await getLogisticsFieldVisits(requestOptions, {
+          throwOnError: true,
+        });
+      } catch {
+        fieldVisitsLoadError = true;
+      }
+    })(),
+    (async () => {
+      try {
+        routePlans = await getRoutePlans(requestOptions, {
+          throwOnError: true,
+        });
+      } catch {
+        routePlansLoadError = true;
+      }
+    })(),
   ]);
 
   const activeVisits = fieldVisits.filter(
@@ -154,7 +175,11 @@ export default async function LogisticaPage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {fieldVisits.length ? (
+            {fieldVisitsLoadError ? (
+              <p role="alert" className="surface-empty text-amber-700">
+                No se pudieron cargar las visitas recientes. Intente nuevamente.
+              </p>
+            ) : fieldVisits.length ? (
               fieldVisits.slice(0, 4).map((visit) => (
                 <div
                   key={visit.id}
@@ -193,7 +218,11 @@ export default async function LogisticaPage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {routePlans.length ? (
+            {routePlansLoadError ? (
+              <p role="alert" className="surface-empty text-amber-700">
+                No se pudieron cargar los planes de ruta recientes. Intente nuevamente.
+              </p>
+            ) : routePlans.length ? (
               routePlans.map((plan) => (
                 <div
                   key={plan.id}
