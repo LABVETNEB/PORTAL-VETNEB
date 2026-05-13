@@ -128,7 +128,7 @@ export default function ServiciosPage() {
       >
         <AmbientOrbs variant="dark" />
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-<h1 className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl">
+          <h1 className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl">
             Servicio patológico veterinario
           </h1>
           <p className="max-w-2xl public-copy text-lg text-blue-100 md:text-xl">
@@ -157,36 +157,45 @@ export default function ServiciosPage() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8" data-services-polished="true">
             {serviceCategories.map((service) => (
-              <Card
+              <div
                 key={service.id}
-                id={service.id}
-                className="h-full border-gray-100 transition-shadow hover:shadow-md"
+                className={
+                  serviceCategories.length % 2 === 1 &&
+                  service.id === serviceCategories[serviceCategories.length - 1]?.id
+                    ? "lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-[calc((100%-2rem)/2)]"
+                    : ""
+                }
               >
-                <CardHeader>
-                  <VisualIcon icon={service.icon} tone={service.tone} className="mb-2" />
-                  <CardTitle className="text-xl text-gray-950">
-                    {service.title}
-                  </CardTitle>
-                  <CardDescription className="public-copy-tight text-sm text-gray-600">
-                    {service.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2.5">
-                    {service.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2">
-                        <span
-                          className="mt-0.5 text-primary font-bold text-xs"
-                          aria-hidden="true"
-                        >
-                          →
-                        </span>
-                        <span className="text-sm text-gray-600">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
+                <Card
+                  id={service.id}
+                  className="h-full border-gray-100 transition-shadow hover:shadow-md"
+                >
+                  <CardHeader>
+                    <VisualIcon icon={service.icon} tone={service.tone} className="mb-2" />
+                    <CardTitle className="text-xl text-gray-950">
+                      {service.title}
+                    </CardTitle>
+                    <CardDescription className="public-copy-tight text-sm text-gray-600">
+                      {service.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2.5">
+                      {service.features.map((feature) => (
+                        <li key={feature} className="flex items-start gap-2">
+                          <span
+                            className="mt-0.5 text-primary font-bold text-xs"
+                            aria-hidden="true"
+                          >
+                            →
+                          </span>
+                          <span className="text-sm text-gray-600">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              </div>
             ))}
           </div>
         </div>
