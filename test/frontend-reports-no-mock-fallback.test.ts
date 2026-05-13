@@ -23,7 +23,8 @@ test("frontend reports api client uses real reports endpoints", () => {
   const source = read(API_CLIENT_PATH);
 
   assert.ok(source.includes("export async function getReports("));
-  assert.ok(source.includes('apiFetch<{ reports: Report[] }>("/api/reports"'));
+  assert.ok(source.includes("apiFetch<{ reports: Report[] }>("));
+  assert.ok(source.includes("`/api/reports${qs ? `?${qs}` : \"\"}`"));
   assert.ok(source.includes("export async function searchReports("));
   assert.ok(source.includes("`/api/reports/search${qs ? `?${qs}` : \"\"}`"));
 });

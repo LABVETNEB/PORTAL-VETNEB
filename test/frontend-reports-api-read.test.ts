@@ -15,8 +15,14 @@ function read(relativePath: string): string {
 test("frontend API client reads reports from backend reports endpoint", () => {
   const source = read(API_CLIENT_PATH);
 
-  assert.ok(source.includes("export async function getReports(options?: RequestInit): Promise<Report[]>"));
-  assert.ok(source.includes('const res = await apiFetch<{ reports: Report[] }>("/api/reports", options);'));
+  assert.ok(source.includes("export async function getReports("));
+  assert.ok(source.includes("options?: RequestInit,"));
+  assert.ok(source.includes("params?: {"));
+  assert.ok(source.includes("status?: string;"));
+  assert.ok(source.includes("limit?: number;"));
+  assert.ok(source.includes("offset?: number;"));
+  assert.ok(source.includes("const query = new URLSearchParams();"));
+  assert.ok(source.includes("`/api/reports${qs ? `?${qs}` : \"\"}`"));
   assert.ok(source.includes("return res.reports ?? [];"));
   assert.ok(source.includes('console.warn("[API] getReports: endpoint no disponible");'));
   assert.ok(source.includes("return [];"));

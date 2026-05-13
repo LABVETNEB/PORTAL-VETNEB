@@ -39,7 +39,11 @@ test("frontend reports page uses reports API client wrapper", () => {
 
   assertIncludes(source, 'from "@/lib/api"', reportsPage);
   assertIncludes(source, "getReports", reportsPage);
-  assertIncludes(source, "getReports(await getReportsRequestOptions())", reportsPage);
+  assertIncludes(source, "searchReports", reportsPage);
+  assertIncludes(source, "const requestOptions = await getReportsRequestOptions();", reportsPage);
+  assertIncludes(source, "const reports = query", reportsPage);
+  assertIncludes(source, "? await searchReports(", reportsPage);
+  assertIncludes(source, ": await getReports(requestOptions, {", reportsPage);
   assertIncludes(source, "reports.map", reportsPage);
   assertIncludes(source, "reports.length", reportsPage);
 });
@@ -60,10 +64,17 @@ test("frontend reports API wrappers accept request options", () => {
 
   assertIncludes(
     source,
-    "export async function getReports(options?: RequestInit)",
+    "export async function getReports(",
     frontendApiClient,
   );
-  assertIncludes(source, '"/api/reports", options', frontendApiClient);
+  assertIncludes(source, "options?: RequestInit,", frontendApiClient);
+  assertIncludes(source, "params?: {", frontendApiClient);
+  assertIncludes(source, "status?: string;", frontendApiClient);
+  assertIncludes(
+    source,
+    '`/api/reports${qs ? `?${qs}` : ""}`',
+    frontendApiClient,
+  );
   assertIncludes(source, "export async function searchReports(", frontendApiClient);
   assertIncludes(source, "options?: RequestInit", frontendApiClient);
   assertIncludes(
@@ -84,4 +95,3 @@ test("frontend reports API wrappers accept request options", () => {
   assertIncludes(source, "return []", frontendApiClient);
   assertNotIncludes(source, "return MOCK_REPORTS", frontendApiClient);
 });
-

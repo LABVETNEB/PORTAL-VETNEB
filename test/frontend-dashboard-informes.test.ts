@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
+const API_CLIENT_PATH = "frontend/src/lib/api.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -17,6 +18,7 @@ test("dashboard informes defines non-indexable metadata and clinic read dependen
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
   assert.ok(source.includes('import { cookies } from "next/headers";'));
+  assert.ok(source.includes('import { getReports, searchReports } from "@/lib/api";'));
   assert.ok(source.includes('title: "Informes — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
@@ -24,14 +26,32 @@ test("dashboard informes defines non-indexable metadata and clinic read dependen
   assert.equal(source.includes("UploadReportModal"), false);
 });
 
-test("dashboard informes forwards cookies and disables cache for report reads", () => {
+test("dashboard informes reads filters from searchParams and uses live search endpoint", () => {
+  const source = read(INFORMES_PAGE_PATH);
+
+  assert.ok(source.includes("type InformesPageSearchParams = {"));
+  assert.ok(source.includes("query?: string | string[];"));
+  assert.ok(source.includes("status?: string | string[];"));
+  assert.ok(source.includes("searchParams?: Promise<InformesPageSearchParams>;"));
+  assert.ok(source.includes("const resolvedSearchParams = (await searchParams) ?? {};"));
+  assert.ok(source.includes("const query = normalizeSearchParamValue(resolvedSearchParams.query).trim();"));
+  assert.ok(source.includes("const status = normalizeStatusFilter("));
+  assert.ok(source.includes("const reports = query"));
+  assert.ok(source.includes("? await searchReports("));
+  assert.ok(source.includes("query,"));
+  assert.ok(source.includes("status: status || undefined,"));
+  assert.ok(source.includes(": await getReports(requestOptions, {"));
+});
+
+test("dashboard informes preserves request options with forwarded cookies and no-store reads", () => {
   const source = read(INFORMES_PAGE_PATH);
 
   assert.ok(source.includes("async function getReportsRequestOptions(): Promise<RequestInit>"));
   assert.ok(source.includes("const cookieHeader = (await cookies()).toString();"));
   assert.ok(source.includes('cache: "no-store"'));
   assert.ok(source.includes("headers: cookieHeader ? { Cookie: cookieHeader } : {},"));
-  assert.ok(source.includes("const reports = await getReports(await getReportsRequestOptions());"));
+  assert.ok(source.includes("const requestOptions = await getReportsRequestOptions();"));
+  assert.ok(source.includes("requestOptions,"));
 });
 
 test("dashboard informes keeps status filter options aligned to report statuses", () => {
@@ -60,9 +80,18 @@ test("dashboard informes renders read-only clinic source notice", () => {
 test("dashboard informes renders filters and reports table columns", () => {
   const source = read(INFORMES_PAGE_PATH);
 
+  assert.ok(source.includes('<form method="get"'));
   assert.ok(source.includes('placeholder="Buscar por paciente o tipo de estudio..."'));
+  assert.ok(source.includes('name="query"'));
+  assert.ok(source.includes("defaultValue={query}"));
   assert.ok(source.includes('aria-label="Buscar informes"'));
+  assert.ok(source.includes('name="status"'));
+  assert.ok(source.includes("defaultValue={status}"));
   assert.ok(source.includes('aria-label="Filtrar por estado"'));
+  assert.ok(source.includes("<Button type=\"submit\" size=\"sm\">"));
+  assert.ok(source.includes("Filtrar"));
+  assert.ok(source.includes('href="/dashboard/informes"'));
+  assert.ok(source.includes("Limpiar"));
   assert.ok(source.includes("<TableHead>ID</TableHead>"));
   assert.ok(source.includes("<TableHead>Paciente</TableHead>"));
   assert.ok(source.includes("<TableHead>Tipo de estudio</TableHead>"));
@@ -92,4 +121,18 @@ test("dashboard informes keeps empty state and avoids client-side fetch literals
   assert.ok(source.includes("No hay informes disponibles."));
   assert.ok(source.includes("colSpan={7}"));
   assert.equal(source.includes("fetch("), false);
+  assert.equal(source.includes("mock"), false);
+});
+
+test("api client supports reports status filter without bypassing wrappers", () => {
+  const source = read(API_CLIENT_PATH);
+
+  assert.ok(source.includes("export async function getReports("));
+  assert.ok(source.includes("params?: {"));
+  assert.ok(source.includes("status?: string;"));
+  assert.ok(source.includes("limit?: number;"));
+  assert.ok(source.includes("offset?: number;"));
+  assert.ok(source.includes('query.set("status", params.status.trim());'));
+  assert.ok(source.includes("`/api/reports${qs ? `?${qs}` : \"\"}`"));
+  assert.ok(source.includes('export async function searchReports('));
 });

@@ -134,9 +134,34 @@ export async function getParticularReportDownloadUrl(): Promise<string> {
   return response.downloadUrl;
 }
 
-export async function getReports(options?: RequestInit): Promise<Report[]> {
+export async function getReports(
+  options?: RequestInit,
+  params?: {
+    status?: string;
+    limit?: number;
+    offset?: number;
+  },
+): Promise<Report[]> {
   try {
-    const res = await apiFetch<{ reports: Report[] }>("/api/reports", options);
+    const query = new URLSearchParams();
+
+    if (params?.status?.trim()) {
+      query.set("status", params.status.trim());
+    }
+
+    if (typeof params?.limit === "number") {
+      query.set("limit", String(params.limit));
+    }
+
+    if (typeof params?.offset === "number") {
+      query.set("offset", String(params.offset));
+    }
+
+    const qs = query.toString();
+    const res = await apiFetch<{ reports: Report[] }>(
+      `/api/reports${qs ? `?${qs}` : ""}`,
+      options,
+    );
     return res.reports ?? [];
   } catch {
     console.warn("[API] getReports: endpoint no disponible");
@@ -937,7 +962,6 @@ export async function searchPublicProfessionals(
     };
   }
 }
-
 
 
 
