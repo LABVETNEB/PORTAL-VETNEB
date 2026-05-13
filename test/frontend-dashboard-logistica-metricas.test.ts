@@ -37,10 +37,15 @@ test("dashboard logistica metricas forwards cookies and disables cache for live 
 test("dashboard logistica metricas reads route plans and plan metrics", () => {
   const source = read(METRICAS_PAGE_PATH);
 
-  assert.ok(source.includes("const routePlans = await getRoutePlans(requestOptions);"));
-  assert.ok(source.includes("const routeMetrics = ("));
+  assert.ok(source.includes("let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];"));
+  assert.ok(source.includes("let routePlansLoadError = false;"));
+  assert.ok(source.includes("routePlans = await getRoutePlans(requestOptions, {"));
+  assert.ok(source.includes("throwOnError: true,"));
+  assert.ok(source.includes("let routeMetrics: Awaited<ReturnType<typeof getRoutePlanMetrics>> = [];"));
   assert.ok(source.includes("await Promise.all("));
-  assert.ok(source.includes("routePlans.map((plan) => getRoutePlanMetrics(plan.id, requestOptions))"));
+  assert.ok(source.includes("let routeMetricsLoadError = false;"));
+  assert.ok(source.includes("routePlans.map((plan) =>"));
+  assert.ok(source.includes("getRoutePlanMetrics(plan.id, requestOptions, {"));
   assert.ok(source.includes(").flat();"));
 });
 
@@ -98,9 +103,14 @@ test("dashboard logistica metricas keeps compliance badge thresholds and progres
   assert.ok(source.includes("aria-label={`Cumplimiento: ${metric.complianceRate}%`}"));
 });
 
-test("dashboard logistica metricas keeps empty state and avoids client-side fetch literals", () => {
+test("dashboard logistica metricas separates fetch failures from empty metrics", () => {
   const source = read(METRICAS_PAGE_PATH);
 
+  assert.ok(source.includes("routePlansLoadError ?"));
+  assert.ok(source.includes("routeMetricsLoadError ?"));
+  assert.ok(source.includes('role="alert"'));
+  assert.ok(source.includes("No se pudieron cargar los planes de ruta para métricas. Intente nuevamente."));
+  assert.ok(source.includes("No se pudieron cargar las métricas de ruta. Intente nuevamente."));
   assert.ok(source.includes("No hay métricas de ruta disponibles."));
   assert.equal(source.includes("fetch("), false);
 });

@@ -606,6 +606,7 @@ export async function getRoutePlans(
 export async function getRoutePlanMetrics(
   planId?: number,
   options?: RequestInit,
+  readOptions: LogisticsReadOptions = {},
 ): Promise<RouteMetrics[]> {
   if (planId !== undefined) {
     try {
@@ -614,8 +615,12 @@ export async function getRoutePlanMetrics(
         options,
       );
       return res.metrics ? [res.metrics] : [];
-    } catch {
+    } catch (error) {
       console.warn("[API] getRoutePlanMetrics: endpoint no disponible");
+      if (readOptions.throwOnError) {
+        throw error;
+      }
+
       return [];
     }
   }

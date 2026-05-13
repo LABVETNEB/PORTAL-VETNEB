@@ -42,10 +42,16 @@ test("frontend logistics metrics page uses API client wrappers", () => {
   assertIncludes(source, "getRoutePlans", logisticsMetricsPage);
   assertIncludes(source, "getRoutePlanMetrics", logisticsMetricsPage);
   assertIncludes(source, "Promise.all", logisticsMetricsPage);
+  assertIncludes(source, "let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];", logisticsMetricsPage);
+  assertIncludes(source, "let routePlansLoadError = false;", logisticsMetricsPage);
+  assertIncludes(source, "let routeMetrics: Awaited<ReturnType<typeof getRoutePlanMetrics>> = [];", logisticsMetricsPage);
+  assertIncludes(source, "let routeMetricsLoadError = false;", logisticsMetricsPage);
+  assertIncludes(source, "getRoutePlans(requestOptions, {", logisticsMetricsPage);
+  assertIncludes(source, "throwOnError: true,", logisticsMetricsPage);
   assertIncludes(source, "routePlans.map", logisticsMetricsPage);
   assertIncludes(
     source,
-    "getRoutePlanMetrics(plan.id, requestOptions)",
+    "getRoutePlanMetrics(plan.id, requestOptions, {",
     logisticsMetricsPage,
   );
 });
@@ -71,6 +77,7 @@ test("frontend logistics metrics API wrapper accepts request options", () => {
   );
   assertIncludes(source, "planId?: number", frontendApiClient);
   assertIncludes(source, "options?: RequestInit", frontendApiClient);
+  assertIncludes(source, "readOptions: LogisticsReadOptions = {},", frontendApiClient);
   assertIncludes(
     source,
     "`/api/logistics/route-plans/${planId}/metrics`",
@@ -87,6 +94,8 @@ test("frontend logistics metrics API wrapper accepts request options", () => {
     'console.warn("[API] getRoutePlanMetrics: requiere planId para usar endpoint real")',
     frontendApiClient,
   );
+  assertIncludes(source, "if (readOptions.throwOnError) {", frontendApiClient);
+  assertIncludes(source, "throw error;", frontendApiClient);
   assertIncludes(source, "return []", frontendApiClient);
 });
 

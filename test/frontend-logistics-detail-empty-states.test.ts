@@ -41,7 +41,12 @@ test("logistics route plans detail page shows an empty table state", () => {
 test("logistics metrics detail page shows an empty card state", () => {
   const source = read(METRICAS_PAGE_PATH);
 
-  assert.ok(source.includes("routeMetrics.length ?"));
+  assert.ok(source.includes("routePlansLoadError ?"));
+  assert.ok(source.includes("routeMetricsLoadError ?"));
+  assert.ok(source.includes(": routeMetrics.length ?"));
+  assert.ok(source.includes("No se pudieron cargar los planes de ruta para métricas. Intente nuevamente."));
+  assert.ok(source.includes("No se pudieron cargar las métricas de ruta. Intente nuevamente."));
+  assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("routeMetrics.map((metric)"));
   assert.ok(source.includes("No hay métricas de ruta disponibles."));
 });
