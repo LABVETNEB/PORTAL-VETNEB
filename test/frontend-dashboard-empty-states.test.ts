@@ -14,11 +14,16 @@ function read(relativePath: string): string {
   );
 }
 
-test("dashboard overview shows empty states for recent lists", () => {
+test("dashboard overview distinguishes recent list load failures from empty states", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
+  assert.ok(source.includes("reportsLoadError ?"));
+  assert.ok(source.includes("visitsLoadError ?"));
   assert.ok(source.includes("recentReports.length ?"));
   assert.ok(source.includes("recentVisits.length ?"));
+  assert.ok(source.includes("No se pudieron cargar los informes recientes. Intente nuevamente."));
+  assert.ok(source.includes("No se pudieron cargar las visitas de campo recientes. Intente nuevamente."));
+  assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("No hay informes recientes disponibles."));
   assert.ok(source.includes("No hay visitas de campo recientes disponibles."));
 });
