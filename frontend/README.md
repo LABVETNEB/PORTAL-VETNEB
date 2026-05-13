@@ -135,13 +135,29 @@ No es fallback principal para reportes ni logística en el estado actual.
 
 ## Validación frontend
 
-Ejecutar desde la raíz del repositorio:
+Ejecutar desde la raíz del repositorio.
+
+Validación rápida:
 
 ```bash
 pnpm --dir frontend lint
 pnpm --dir frontend typecheck
 pnpm --dir frontend build
 ```
+
+Paridad completa con Frontend CI:
+
+```bash
+pnpm --dir frontend lint
+pnpm --dir frontend typecheck
+pnpm --dir frontend build
+pnpm --dir frontend exec playwright install chromium
+pnpm --dir frontend e2e
+```
+
+Nota operativa:
+- En CI Linux se usa `pnpm --dir frontend exec playwright install --with-deps chromium`.
+- En desarrollo local Windows/PowerShell se recomienda `pnpm --dir frontend exec playwright install chromium`.
 
 ## Validación repo raíz
 
