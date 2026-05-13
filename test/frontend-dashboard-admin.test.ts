@@ -142,6 +142,17 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.equal(source.includes("ADMIN_READ_CONTRACT_MARKERS"), false);
 });
 
+test("dashboard admin surfaces system health fetch failures", () => {
+  const source = read(ADMIN_PAGE_PATH);
+
+  assert.ok(source.includes("const hasSystemHealthFetchError = systemHealth === null;"));
+  assert.ok(source.includes("hasSystemHealthFetchError"));
+  assert.ok(source.includes("No se pudo consultar el estado del sistema."));
+  assert.ok(source.includes('role="alert"'));
+  assert.ok(source.includes("Los valores de salud"));
+  assert.ok(source.includes("formatSystemStatusDetail(serviceChecks)"));
+});
+
 test("dashboard admin renders role-change audit and audit log table", () => {
   const source = read(ADMIN_PAGE_PATH);
 
@@ -179,6 +190,5 @@ test("dashboard admin avoids duplicate section ids in navigation anchors", () =>
   assert.equal(adminHealthIdMatches.length, 1);
   assert.equal(source.includes('id="admin-event-summary"'), true);
 });
-
 
 

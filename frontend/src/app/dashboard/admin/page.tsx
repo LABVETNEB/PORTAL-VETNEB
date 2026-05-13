@@ -259,6 +259,7 @@ export default async function AdminPage({
   const selectedActorType = normalizeAuditFilter(resolvedSearchParams.actorType);
   const auditEntries = await getAuditEntries(await getAdminRequestOptions());
   const systemHealth = await getAdminSystemHealth(await getAdminRequestOptions());
+  const hasSystemHealthFetchError = systemHealth === null;
   const serviceChecks = systemHealth?.services ?? {};
   const systemStatus = systemHealth?.status ?? "unknown";
   const eventCounts = auditEntries.reduce(
@@ -369,7 +370,9 @@ export default async function AdminPage({
                 </Badge>
               </div>
               <p className="text-xs text-gray-400 mt-2">
-                {formatSystemStatusDetail(serviceChecks)}
+                {hasSystemHealthFetchError
+                  ? "No se pudo consultar el estado del sistema."
+                  : formatSystemStatusDetail(serviceChecks)}
               </p>
             </CardContent>
           </Card>
@@ -382,6 +385,15 @@ export default async function AdminPage({
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {hasSystemHealthFetchError ? (
+              <div
+                role="alert"
+                className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+              >
+                No se pudo consultar el estado del sistema. Los valores de salud
+                operacional se muestran como desconocidos hasta recuperar la lectura.
+              </div>
+            ) : null}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               <div className="surface-soft">
                 <p className="text-xs text-gray-400 mb-2">Base de datos</p>
