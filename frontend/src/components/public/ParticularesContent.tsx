@@ -11,7 +11,6 @@ import {
   LogOut,
   PawPrint,
   ShieldCheck,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 
@@ -35,7 +34,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   AmbientOrbs,
-  Eyebrow,
   PremiumPanel,
   VisualIcon,
 } from "@/components/public/VisualAccents";
@@ -170,12 +168,7 @@ export function ParticularesContent() {
       <AmbientOrbs />
       <div className="container relative z-10 mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_0.95fr] lg:px-8">
         <div>
-          <Eyebrow className="border-blue-200/70 bg-white/70 text-primary shadow-sm">
-            <Sparkles className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-            Acceso para particulares
-          </Eyebrow>
-
-          <h1 className="max-w-3xl text-4xl font-bold text-gray-950 md:text-5xl">
+<h1 className="max-w-3xl text-4xl font-bold text-gray-950 md:text-5xl">
             Acceda al seguimiento y al informe de su caso con token seguro
           </h1>
           <p className="mt-5 max-w-2xl public-copy text-lg text-gray-600">

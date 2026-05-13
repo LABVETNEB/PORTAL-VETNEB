@@ -7,7 +7,6 @@ import {
   Globe2,
   Search,
   ShieldCheck,
-  Sparkles,
   Truck,
   UsersRound,
 } from "lucide-react";
@@ -21,7 +20,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AmbientOrbs, Eyebrow, VisualIcon } from "@/components/public/VisualAccents";
+import { AmbientOrbs, VisualIcon } from "@/components/public/VisualAccents";
 import { createPageMetadata } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
 
@@ -109,10 +108,6 @@ export default function ClinicasPage() {
       <section className="public-hero-depth py-16 text-white md:py-20">
         <AmbientOrbs variant="dark" />
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <Eyebrow>
-            <Sparkles className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-            Portal clínico VETNEB
-          </Eyebrow>
           <h1 className="mb-5 max-w-4xl text-4xl font-bold md:text-5xl">
             Portal para clínicas veterinarias
           </h1>
