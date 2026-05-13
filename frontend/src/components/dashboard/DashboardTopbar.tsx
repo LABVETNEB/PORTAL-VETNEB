@@ -10,7 +10,7 @@ interface DashboardTopbarProps {
 export function DashboardTopbar({ title, subtitle }: DashboardTopbarProps) {
   return (
     <header
-      className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b border-vetneb-line/80 bg-card/92 px-4 py-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/82 sm:px-6"
+      className="sticky top-0 z-40 flex min-h-[4.5rem] items-center justify-between border-b border-vetneb-line/80 bg-card/90 px-4 py-2.5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/78 sm:px-6"
       data-dashboard-topbar-polish="true"
     >
       <div className="min-w-0">
@@ -19,15 +19,18 @@ export function DashboardTopbar({ title, subtitle }: DashboardTopbarProps) {
             className="h-2 w-2 rounded-full bg-vetneb-teal shadow-[0_0_0_4px_hsl(var(--vetneb-teal)/0.14)]"
             aria-hidden="true"
           />
-          <span className="text-[0.66rem] font-semibold text-vetneb-teal">
+          <span className="text-[0.66rem] font-semibold tracking-wide text-vetneb-teal">
             Portal operativo
           </span>
+          <span className="text-[0.64rem] text-muted-foreground">
+            Sesión clínica segura
+          </span>
         </div>
-        <h1 className="truncate text-lg font-semibold text-vetneb-ink sm:text-xl">
+        <h1 className="truncate text-xl font-semibold leading-tight text-vetneb-ink sm:text-2xl">
           {title}
         </h1>
         {subtitle && (
-          <p className="truncate text-xs text-muted-foreground sm:text-sm">
+          <p className="mt-0.5 truncate text-xs text-muted-foreground sm:text-sm">
             {subtitle}
           </p>
         )}

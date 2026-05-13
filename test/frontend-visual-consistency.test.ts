@@ -298,9 +298,9 @@ test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () 
   assertMatchesAll(
     source,
     [
-      /className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b border-vetneb-line\/80 bg-card\/92 px-4 py-2 shadow-sm backdrop-blur supports-\[backdrop-filter\]:bg-card\/82 sm:px-6"/,
-      /className="truncate text-lg font-semibold text-vetneb-ink sm:text-xl"/,
-      /className="truncate text-xs text-muted-foreground sm:text-sm"/,
+      /className="sticky top-0 z-40 flex min-h-\[4\.5rem\] items-center justify-between border-b border-vetneb-line\/80 bg-card\/90 px-4 py-2\.5 shadow-sm backdrop-blur supports-\[backdrop-filter\]:bg-card\/78 sm:px-6"/,
+      /className="truncate text-xl font-semibold leading-tight text-vetneb-ink sm:text-2xl"/,
+      /className="mt-0\.5 truncate text-xs text-muted-foreground sm:text-sm"/,
       /className="ml-3 flex shrink-0 items-center gap-2 sm:gap-3"/,
     ],
     "dashboard topbar class contracts",
@@ -317,7 +317,7 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
     source,
     [
       '<main className="dashboard-main">',
-      '<div className="surface-note-info">',
+      '<section className="surface-note-info" aria-labelledby="dashboard-operational-priority">',
       "<StatsCards stats={stats} />",
       'className="surface-empty"',
       "recentReports.map((report) =>",
@@ -331,11 +331,11 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
     source,
     [
       /className="grid grid-cols-1 gap-6 lg:grid-cols-2"/,
-      /className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"/,
-      /className="grid grid-cols-2 gap-3 md:grid-cols-4"/,
+      /className="dashboard-list-row"/,
+      /className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5"/,
       /className="h-16 flex-col gap-1 rounded-lg"/,
-      /className="text-sm font-medium text-gray-900 truncate"/,
-      /className="text-xs text-gray-400"/,
+      /className="truncate text-sm font-semibold text-vetneb-ink"/,
+      /className="text-xs text-muted-foreground"/,
     ],
     "dashboard home visual patterns",
   );
