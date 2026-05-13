@@ -1,17 +1,19 @@
 import crypto from "node:crypto";
 import argon2 from "argon2";
 
+const PASSWORD_HASH_OPTIONS = {
+  type: argon2.argon2id,
+  memoryCost: 19456,
+  timeCost: 2,
+  parallelism: 1,
+};
+
 export function hashLegacyPassword(password: string): string {
   return crypto.createHash("sha256").update(password).digest("hex");
 }
 
 export async function hashPassword(password: string): Promise<string> {
-  return argon2.hash(password, {
-    type: argon2.argon2id,
-    memoryCost: 19456,
-    timeCost: 2,
-    parallelism: 1,
-  });
+  return argon2.hash(password, PASSWORD_HASH_OPTIONS);
 }
 
 export async function verifyPassword(
@@ -23,7 +25,8 @@ export async function verifyPassword(
 
     return {
       valid,
-      needsRehash: valid && (await argon2.needsRehash(storedHash)),
+      needsRehash:
+        valid && (await argon2.needsRehash(storedHash, PASSWORD_HASH_OPTIONS)),
     };
   }
 
