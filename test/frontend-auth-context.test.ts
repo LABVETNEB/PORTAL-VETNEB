@@ -56,9 +56,12 @@ test("frontend useAuth hook requires provider", () => {
   assert.ok(source.includes("return context"));
 });
 
-test("frontend root layout provides auth context globally", () => {
+test("frontend root layout remains server-rendered without global auth provider", () => {
   const source = read(ROOT_LAYOUT_PATH);
 
-  assert.ok(source.includes('import { AuthProvider } from "@/context/AuthContext"'));
-  assert.ok(source.includes("<AuthProvider>{children}</AuthProvider>"));
+  assert.equal(
+    source.includes('import { AuthProvider } from "@/context/AuthContext"'),
+    false,
+  );
+  assert.equal(source.includes("<AuthProvider>{children}</AuthProvider>"), false);
 });
