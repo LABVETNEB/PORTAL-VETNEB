@@ -939,29 +939,10 @@ export async function searchPublicProfessionals(
 
   const qs = query.toString();
 
-  try {
-    return await apiFetch<PublicProfessionalsSearchSnapshot>(
-      `/api/public/professionals/search${qs ? `?${qs}` : ""}`,
-      options,
-    );
-  } catch {
-    return {
-      success: true,
-      count: 0,
-      total: 0,
-      professionals: [],
-      filters: {
-        query: params.query?.trim() || null,
-        locality: null,
-        country: null,
-      },
-      pagination: {
-        limit: params.limit ?? 20,
-        offset: params.offset ?? 0,
-      },
-    };
-  }
+  return apiFetch<PublicProfessionalsSearchSnapshot>(
+    `/api/public/professionals/search${qs ? `?${qs}` : ""}`,
+    options,
+  );
 }
-
 
 
