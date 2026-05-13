@@ -31,8 +31,9 @@ test("dashboard logistica visitas forwards cookies and disables cache for live r
   assert.ok(source.includes("const cookieHeader = (await cookies()).toString();"));
   assert.ok(source.includes('cache: "no-store"'));
   assert.ok(source.includes("headers: cookieHeader ? { Cookie: cookieHeader } : {},"));
-  assert.ok(source.includes("const visits = await getLogisticsFieldVisits("));
+  assert.ok(source.includes("visits = await getLogisticsFieldVisits("));
   assert.ok(source.includes("await getLogisticsRequestOptions(),"));
+  assert.ok(source.includes("{ throwOnError: true },"));
 });
 
 test("dashboard logistica visitas renders topbar and read-source notice", () => {
@@ -86,4 +87,18 @@ test("dashboard logistica visitas keeps empty state and avoids client-side fetch
   assert.ok(source.includes("No hay visitas de campo disponibles."));
   assert.ok(source.includes("colSpan={7}"));
   assert.equal(source.includes("fetch("), false);
+});
+
+test("dashboard logistica visitas separates fetch failures from real empty visits", () => {
+  const source = read(VISITAS_PAGE_PATH);
+
+  assert.ok(source.includes("let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];"));
+  assert.ok(source.includes("let visitsLoadError = false;"));
+  assert.ok(source.includes("try {"));
+  assert.ok(source.includes("visitsLoadError = true;"));
+  assert.ok(source.includes("visitsLoadError ?"));
+  assert.ok(source.includes("No se pudieron cargar las visitas de campo. Intente nuevamente."));
+  assert.ok(source.includes('role="alert"'));
+  assert.ok(source.includes(": visits.length ?"));
+  assert.ok(source.includes("No hay visitas de campo disponibles."));
 });

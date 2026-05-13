@@ -20,8 +20,11 @@ function read(relativePath: string): string {
 test("logistics visits detail page shows an empty table state", () => {
   const source = read(VISITAS_PAGE_PATH);
 
+  assert.ok(source.includes("visitsLoadError ?"));
   assert.ok(source.includes("visits.length ?"));
   assert.ok(source.includes("visits.map((visit)"));
+  assert.ok(source.includes("No se pudieron cargar las visitas de campo. Intente nuevamente."));
+  assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("No hay visitas de campo disponibles."));
   assert.ok(source.includes("colSpan={7}"));
 });
