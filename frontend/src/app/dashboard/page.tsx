@@ -39,10 +39,31 @@ async function getDashboardRequestOptions(): Promise<RequestInit> {
 
 export default async function DashboardPage() {
   const requestOptions = await getDashboardRequestOptions();
-  const [stats, reports, visits] = await Promise.all([
-    getDashboardStats(requestOptions),
-    getReports(requestOptions),
-    getLogisticsFieldVisits(requestOptions),
+  const stats = await getDashboardStats(requestOptions);
+  let reports: Awaited<ReturnType<typeof getReports>> = [];
+  let reportsLoadError = false;
+  let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];
+  let visitsLoadError = false;
+
+  await Promise.all([
+    (async () => {
+      try {
+        reports = await getReports(requestOptions, undefined, {
+          throwOnError: true,
+        });
+      } catch {
+        reportsLoadError = true;
+      }
+    })(),
+    (async () => {
+      try {
+        visits = await getLogisticsFieldVisits(requestOptions, {
+          throwOnError: true,
+        });
+      } catch {
+        visitsLoadError = true;
+      }
+    })(),
   ]);
 
   const recentReports = reports.slice(0, 3);
@@ -115,7 +136,11 @@ export default async function DashboardPage() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-1.5">
-              {recentReports.length ? (
+              {reportsLoadError ? (
+                <p role="alert" className="surface-empty text-amber-700">
+                  No se pudieron cargar los informes recientes. Intente nuevamente.
+                </p>
+              ) : recentReports.length ? (
                 recentReports.map((report) => (
                   <div
                     key={report.id}
@@ -158,7 +183,11 @@ export default async function DashboardPage() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-1.5">
-              {recentVisits.length ? (
+              {visitsLoadError ? (
+                <p role="alert" className="surface-empty text-amber-700">
+                  No se pudieron cargar las visitas de campo recientes. Intente nuevamente.
+                </p>
+              ) : recentVisits.length ? (
                 recentVisits.map((visit) => (
                   <div
                     key={visit.id}

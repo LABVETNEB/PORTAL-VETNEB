@@ -44,13 +44,14 @@ test("frontend dashboard page uses API client wrappers", () => {
   assertIncludes(source, "getReports", dashboardPage);
   assertIncludes(source, "getLogisticsFieldVisits", dashboardPage);
   assertIncludes(source, "Promise.all", dashboardPage);
-  assertIncludes(source, "getDashboardStats(requestOptions)", dashboardPage);
-  assertIncludes(source, "getReports(requestOptions)", dashboardPage);
-  assertIncludes(
-    source,
-    "getLogisticsFieldVisits(requestOptions)",
-    dashboardPage,
-  );
+  assertIncludes(source, "const stats = await getDashboardStats(requestOptions);", dashboardPage);
+  assertIncludes(source, "let reports: Awaited<ReturnType<typeof getReports>> = [];", dashboardPage);
+  assertIncludes(source, "let reportsLoadError = false;", dashboardPage);
+  assertIncludes(source, "let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];", dashboardPage);
+  assertIncludes(source, "let visitsLoadError = false;", dashboardPage);
+  assertIncludes(source, "getReports(requestOptions, undefined, {", dashboardPage);
+  assertIncludes(source, "getLogisticsFieldVisits(requestOptions, {", dashboardPage);
+  assertIncludes(source, "throwOnError: true,", dashboardPage);
 });
 
 test("frontend dashboard page forces dynamic server reads with forwarded cookies", () => {

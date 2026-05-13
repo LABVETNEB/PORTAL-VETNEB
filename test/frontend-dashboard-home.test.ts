@@ -39,10 +39,15 @@ test("dashboard home reads stats reports and field visits through API helpers", 
 
   assert.ok(source.includes("export default async function DashboardPage()"));
   assert.ok(source.includes("const requestOptions = await getDashboardRequestOptions();"));
-  assert.ok(source.includes("const [stats, reports, visits] = await Promise.all(["));
-  assert.ok(source.includes("getDashboardStats(requestOptions),"));
-  assert.ok(source.includes("getReports(requestOptions),"));
-  assert.ok(source.includes("getLogisticsFieldVisits(requestOptions),"));
+  assert.ok(source.includes("const stats = await getDashboardStats(requestOptions);"));
+  assert.ok(source.includes("let reports: Awaited<ReturnType<typeof getReports>> = [];"));
+  assert.ok(source.includes("let reportsLoadError = false;"));
+  assert.ok(source.includes("let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];"));
+  assert.ok(source.includes("let visitsLoadError = false;"));
+  assert.ok(source.includes("await Promise.all(["));
+  assert.ok(source.includes("getReports(requestOptions, undefined, {"));
+  assert.ok(source.includes("getLogisticsFieldVisits(requestOptions, {"));
+  assert.ok(source.includes("throwOnError: true,"));
   assert.ok(source.includes("const recentReports = reports.slice(0, 3);"));
   assert.ok(source.includes("const recentVisits = visits.slice(0, 3);"));
 });
@@ -58,6 +63,11 @@ test("dashboard home renders clinic operational summary, stats, reports, and fie
   assert.ok(source.includes("<StatsCards stats={stats} />"));
   assert.ok(source.includes("Informes recientes"));
   assert.ok(source.includes("Visitas de campo"));
+  assert.ok(source.includes("reportsLoadError ?"));
+  assert.ok(source.includes("visitsLoadError ?"));
+  assert.ok(source.includes("No se pudieron cargar los informes recientes. Intente nuevamente."));
+  assert.ok(source.includes("No se pudieron cargar las visitas de campo recientes. Intente nuevamente."));
+  assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("No hay informes recientes disponibles."));
   assert.ok(source.includes("No hay visitas de campo recientes disponibles."));
 });
