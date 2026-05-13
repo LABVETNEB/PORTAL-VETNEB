@@ -624,8 +624,13 @@ export async function getRoutePlanMetrics(
   return [];
 }
 
+type AdminReadOptions = {
+  throwOnError?: boolean;
+};
+
 export async function getAuditEntries(
   options?: RequestInit,
+  readOptions: AdminReadOptions = {},
 ): Promise<AuditEntry[]> {
   try {
     const res = await apiFetch<{ entries: AuditEntry[] }>(
@@ -633,8 +638,12 @@ export async function getAuditEntries(
       options,
     );
     return res.entries ?? [];
-  } catch {
+  } catch (error) {
     console.warn("[API] getAuditEntries: endpoint no disponible");
+    if (readOptions.throwOnError) {
+      throw error;
+    }
+
     return [];
   }
 }
