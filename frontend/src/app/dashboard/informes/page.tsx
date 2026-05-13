@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { ReportDownloadButton } from "@/components/dashboard/ReportDownloadButton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -14,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getReports } from "@/lib/api";
+import { getReports, searchReports } from "@/lib/api";
 import {
   getReportStatusLabel,
   getReportStatusVariant,
@@ -34,6 +35,28 @@ const statusOptions = [
   { value: "delivered", label: "Entregado" },
 ];
 
+type InformesPageSearchParams = {
+  query?: string | string[];
+  status?: string | string[];
+  studyType?: string | string[];
+};
+
+function normalizeSearchParamValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0] ?? "";
+  }
+
+  return value ?? "";
+}
+
+function normalizeStatusFilter(value: string) {
+  if (statusOptions.some((option) => option.value === value)) {
+    return value;
+  }
+
+  return "";
+}
+
 async function getReportsRequestOptions(): Promise<RequestInit> {
   const cookieHeader = (await cookies()).toString();
 
@@ -43,8 +66,30 @@ async function getReportsRequestOptions(): Promise<RequestInit> {
   };
 }
 
-export default async function InformesPage() {
-  const reports = await getReports(await getReportsRequestOptions());
+export default async function InformesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<InformesPageSearchParams>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const query = normalizeSearchParamValue(resolvedSearchParams.query).trim();
+  const status = normalizeStatusFilter(
+    normalizeSearchParamValue(resolvedSearchParams.status),
+  );
+  const studyType = normalizeSearchParamValue(resolvedSearchParams.studyType).trim();
+  const requestOptions = await getReportsRequestOptions();
+  const reports = query
+    ? await searchReports(
+        {
+          query,
+          status: status || undefined,
+          studyType: studyType || undefined,
+        },
+        requestOptions,
+      )
+    : await getReports(requestOptions, {
+        status: status || undefined,
+      });
 
   return (
     <>
@@ -66,13 +111,17 @@ export default async function InformesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <form method="get" className="flex flex-col gap-3 sm:flex-row">
               <Input
+                name="query"
+                defaultValue={query}
                 placeholder="Buscar por paciente o tipo de estudio..."
                 className="sm:max-w-sm"
                 aria-label="Buscar informes"
               />
               <select
+                name="status"
+                defaultValue={status}
                 className="field-select sm:w-56"
                 aria-label="Filtrar por estado"
               >
@@ -82,7 +131,15 @@ export default async function InformesPage() {
                   </option>
                 ))}
               </select>
-            </div>
+              <div className="flex items-center gap-2">
+                <Button type="submit" size="sm">
+                  Filtrar
+                </Button>
+                <Button size="sm" variant="ghost" asChild>
+                  <a href="/dashboard/informes">Limpiar</a>
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
 
