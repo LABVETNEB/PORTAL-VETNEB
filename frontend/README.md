@@ -103,74 +103,55 @@ frontend/
 
 ## Integración con el backend
 
-El frontend consume el backend Fastify existente. El flujo de autenticación esperado es:
+El frontend consume el backend Fastify existente mediante wrappers en `src/lib/api.ts`.
+Todas las llamadas HTTP usan `credentials: 'include'` para enviar cookies de sesión.
 
-1. Login con `POST /api/auth/login` (con `credentials: 'include'`)
-2. Verificar sesión con `GET /api/auth/me`
-3. Listar informes con `GET /api/reports`
-4. Buscar informes con `GET /api/reports/search`
-5. Descargar informe con `GET /api/reports/:reportId/download-url`
+## Estado operacional actual
 
-Todos los fetch usan `credentials: 'include'` para enviar cookies de sesión.
+| Superficie | Estado |
+|---|---|
+| Dashboard `/dashboard/*` | Protegido por middleware (`src/middleware.ts`) |
+| Login clínica | Conectado a `POST /api/auth/login` y sesión vía cookies |
+| Sesión clínica | Validación con `GET /api/auth/me` |
+| Informes listados | Lectura real con `GET /api/reports` |
+| Informes filtrados | `query`/`status` conectados a backend (`GET /api/reports/search` y `GET /api/reports?status=...`) |
+| Descarga de informe | URL firmada vía `GET /api/reports/:reportId/download-url` |
+| Logística (visitas/rutas/métricas) | Lectura real de endpoints backend; si el backend no responde retorna estado vacío seguro |
 
 ## Mock data
 
-Los endpoints de logística y admin usan mock data mientras se confirman los contratos de respuesta:
+`src/lib/mock-data.ts` se mantiene como fixture/demo aislado para desarrollo o referencia visual.
+No es fallback principal para reportes ni logística en el estado actual.
 
-| Función | Endpoint backend | Estado |
-|---|---|---|
-| `getReports()` | `GET /api/reports` | Confirmado |
-| `searchReports()` | `GET /api/reports/search` | Confirmado |
-| `getLogisticsFieldVisits()` | `GET /api/logistics/field-visits` | Mock (auth admin) |
-| `getRoutePlans()` | `GET /api/logistics/route-plans` | Mock (auth admin) |
-| `getRoutePlanMetrics()` | `GET /api/logistics/route-plans/:id/metrics` | Mock |
-| `getAuditEntries()` | `GET /api/admin/audit-log` | Mock (auth admin) |
-| `getDashboardStats()` | Sin endpoint | Mock |
+## Decisiones técnicas vigentes
 
-## Decisiones técnicas
+**Next.js App Router sobre Pages Router:** metadata por página, Server Components para SEO y layouts anidados para dashboard.
 
-**Next.js App Router sobre Pages Router:** Permite metadata por página, Server Components para SEO, y layouts anidados para el dashboard sin re-renderizar el sidebar.
+**Componentes UI propios (shadcn/ui):** componentes en `src/components/ui/` para control total del frontend.
 
-**Componentes UI propios (shadcn/ui):** Los componentes están copiados en `src/components/ui/` para control total sin dependencias externas de terceros.
+**Middleware de acceso:** `/dashboard/*` exige cookie de sesión; rutas admin requieren cookie admin y se ocultan con `404` si no existe.
 
-**Mock data aislada:** Todo el mock data está en `src/lib/mock-data.ts` con comentarios `@mock` claros. La función `api.ts` tiene fallback a mock data cuando el backend no está disponible.
+**Lectura live con fallback seguro:** wrappers de API devuelven estados vacíos seguros ante errores de backend para no romper render de dashboard.
 
-**Sin autenticación real todavía:** La estructura visual del dashboard está preparada. La autenticación real se implementará en un PR separado conectando con `POST /api/auth/login` y `GET /api/auth/me`.
+## Validación frontend
 
-**Server Components por defecto:** Las páginas son Server Components. Solo los formularios interactivos (login, contacto) son Client Components (`"use client"`).
+Ejecutar desde la raíz del repositorio:
 
-## Próximos PRs recomendados
+```bash
+pnpm --dir frontend lint
+pnpm --dir frontend typecheck
+pnpm --dir frontend build
+```
 
-| PR | Descripción | Prioridad |
-|---|---|---|
-| `feat/auth-integration` | Conectar login con `POST /api/auth/login`, middleware de protección de rutas | Alta |
-| `feat/reports-live` | Conectar `getReports()` y `searchReports()` con datos reales, paginación | Alta |
-| `feat/logistics-live` | Conectar visitas y rutas con endpoints admin del backend | Media |
-| `feat/contact-form` | Integrar formulario de contacto con backend o servicio de email | Media |
-| `feat/dark-mode` | Soporte dark mode con `next-themes` | Baja |
-| `feat/mobile-nav` | Menú hamburguesa para navegación móvil | Media |
-| `feat/dashboard-auth-guard` | Middleware Next.js para proteger rutas `/dashboard/*` | Alta |
-| `feat/report-upload` | Interfaz de carga de informes con `POST /api/reports/upload` | Media |
+## Validación repo raíz
 
+```bash
+pnpm typecheck
+pnpm typecheck:test
+pnpm test
+pnpm build
+```
 
-## Validacion local
+## CI
 
-Desde la raiz del frontend:
-
-    pnpm install
-    pnpm lint
-    pnpm typecheck
-    pnpm build
-
-Tambien se puede ejecutar desde la raiz del repositorio apuntando al directorio del frontend:
-
-    pnpm --dir frontend install
-    pnpm --dir frontend lint
-    pnpm --dir frontend typecheck
-    pnpm --dir frontend build
-
-Validacion recomendada para cambios frontend:
-
-    pnpm --dir frontend lint
-    pnpm --dir frontend typecheck
-    pnpm --dir frontend build
+El repositorio incluye pipeline de frontend en `.github/workflows/frontend-ci.yml`.
