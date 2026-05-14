@@ -39,11 +39,18 @@ async function getDashboardRequestOptions(): Promise<RequestInit> {
 
 export default async function DashboardPage() {
   const requestOptions = await getDashboardRequestOptions();
-  const stats = await getDashboardStats(requestOptions);
+  let stats: Awaited<ReturnType<typeof getDashboardStats>> | null = null;
+  let statsLoadError = false;
   let reports: Awaited<ReturnType<typeof getReports>> = [];
   let reportsLoadError = false;
   let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];
   let visitsLoadError = false;
+
+  try {
+    stats = await getDashboardStats(requestOptions);
+  } catch {
+    statsLoadError = true;
+  }
 
   await Promise.all([
     (async () => {
@@ -117,6 +124,11 @@ export default async function DashboardPage() {
           <p className="dashboard-section-description">
             Vista rápida de informes, pendientes y actividad logística del día.
           </p>
+          {statsLoadError ? (
+            <p role="alert" className="mt-3 surface-empty text-amber-700">
+              No se pudieron cargar las métricas operativas. Intente nuevamente.
+            </p>
+          ) : null}
           <div className="mt-4">
             <StatsCards stats={stats} />
           </div>

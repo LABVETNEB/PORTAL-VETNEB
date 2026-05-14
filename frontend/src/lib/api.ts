@@ -905,9 +905,9 @@ export async function getDashboardStats(
   options?: RequestInit,
 ): Promise<DashboardStats> {
   const [reports, visits, routePlans] = await Promise.all([
-    getReports(options),
-    getLogisticsFieldVisits(options),
-    getRoutePlans(options),
+    getReports(options, undefined, { throwOnError: true }),
+    getLogisticsFieldVisits(options, { throwOnError: true }),
+    getRoutePlans(options, { throwOnError: true }),
   ]);
 
   return {

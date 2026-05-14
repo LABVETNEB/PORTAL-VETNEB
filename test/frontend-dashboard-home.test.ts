@@ -39,7 +39,10 @@ test("dashboard home reads stats reports and field visits through API helpers", 
 
   assert.ok(source.includes("export default async function DashboardPage()"));
   assert.ok(source.includes("const requestOptions = await getDashboardRequestOptions();"));
-  assert.ok(source.includes("const stats = await getDashboardStats(requestOptions);"));
+  assert.ok(source.includes("let stats: Awaited<ReturnType<typeof getDashboardStats>> | null = null;"));
+  assert.ok(source.includes("let statsLoadError = false;"));
+  assert.ok(source.includes("stats = await getDashboardStats(requestOptions);"));
+  assert.ok(source.includes("statsLoadError = true;"));
   assert.ok(source.includes("let reports: Awaited<ReturnType<typeof getReports>> = [];"));
   assert.ok(source.includes("let reportsLoadError = false;"));
   assert.ok(source.includes("let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];"));
@@ -60,6 +63,8 @@ test("dashboard home renders clinic operational summary, stats, reports, and fie
   assert.ok(source.includes("Lectura conectada a datos operativos clinic-scoped del backend."));
   assert.ok(source.includes("Esta"));
   assert.ok(source.includes("Esta superficie usa solo sesión clínica."));
+  assert.ok(source.includes("statsLoadError ?"));
+  assert.ok(source.includes("No se pudieron cargar las métricas operativas. Intente nuevamente."));
   assert.ok(source.includes("<StatsCards stats={stats} />"));
   assert.ok(source.includes("Informes recientes"));
   assert.ok(source.includes("Visitas de campo"));

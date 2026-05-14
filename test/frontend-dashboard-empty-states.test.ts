@@ -17,8 +17,10 @@ function read(relativePath: string): string {
 test("dashboard overview distinguishes recent list load failures from empty states", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
+  assert.ok(source.includes("statsLoadError ?"));
   assert.ok(source.includes("reportsLoadError ?"));
   assert.ok(source.includes("visitsLoadError ?"));
+  assert.ok(source.includes("No se pudieron cargar las métricas operativas. Intente nuevamente."));
   assert.ok(source.includes("recentReports.length ?"));
   assert.ok(source.includes("recentVisits.length ?"));
   assert.ok(source.includes("No se pudieron cargar los informes recientes. Intente nuevamente."));
