@@ -106,11 +106,25 @@ export async function loginParticular(
   });
 }
 
+const PARTICULAR_SESSION_RECOVERABLE_ERRORS = new Set([
+  "Particular no autenticado",
+  "Sesión particular inválida",
+  "Sesión particular expirada",
+  "Token particular inválido o inactivo",
+]);
+
 export async function getParticularSession(): Promise<ParticularAuthResponse | null> {
   try {
     return await apiFetch<ParticularAuthResponse>("/api/particular/auth/me");
-  } catch {
-    return null;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      PARTICULAR_SESSION_RECOVERABLE_ERRORS.has(error.message)
+    ) {
+      return null;
+    }
+
+    throw error;
   }
 }
 
