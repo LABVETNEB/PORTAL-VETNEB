@@ -92,6 +92,7 @@ test("dashboard home exposes clinic route-registry quick links only", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
   assert.ok(source.includes("Accesos rápidos"));
+  assert.ok(source.includes('label: "Perfil"'));
   assert.ok(source.includes('label: "Informes", href: ROUTES.dashboardInformes'));
   assert.ok(source.includes('label: "Visitas"'));
   assert.ok(source.includes("href: ROUTES.dashboardLogisticaVisitas"));
@@ -101,7 +102,25 @@ test("dashboard home exposes clinic route-registry quick links only", () => {
   assert.ok(
     source.includes('href: `${ROUTES.dashboard}#clinic-particular-tokens`'),
   );
+  assert.ok(
+    source.includes('href: `${ROUTES.dashboard}#clinic-public-profile`'),
+  );
   assert.equal(source.includes('label: "Admin"'), false);
   assert.equal(source.includes("ROUTES.dashboardAdmin"), false);
   assert.equal(source.includes('"/api"'), false);
+});
+
+test("dashboard home places quick actions before operational and metrics sections without duplicates", () => {
+  const source = read(DASHBOARD_PAGE_PATH);
+  const quickActionsTitleIndex = source.indexOf("Accesos rápidos");
+  const operationalStatusIndex = source.indexOf("Estado operativo clínica");
+  const metricsIndex = source.indexOf("Métricas operativas");
+  const quickActionsTitleMatches = source.match(/Accesos rápidos/g) ?? [];
+
+  assert.ok(quickActionsTitleIndex >= 0);
+  assert.ok(operationalStatusIndex >= 0);
+  assert.ok(metricsIndex >= 0);
+  assert.ok(quickActionsTitleIndex < operationalStatusIndex);
+  assert.ok(quickActionsTitleIndex < metricsIndex);
+  assert.equal(quickActionsTitleMatches.length, 1);
 });
