@@ -44,7 +44,7 @@ const adminNavItems: DashboardNavItem[] = [
   },
   {
     label: "Roles clínica",
-    href: `${ROUTES.dashboardAdmin}#audit-role-changes`,
+    href: `${ROUTES.dashboardAdmin}#admin-users-roles`,
     icon: UsersRound,
   },
   {

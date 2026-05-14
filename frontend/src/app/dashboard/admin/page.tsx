@@ -1,15 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
-import {
-  Activity,
-  ClipboardPlus,
-  KeyRound,
-  ScrollText,
-  ShieldCheck,
-  TicketCheck,
-  UsersRound,
-} from "lucide-react";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -27,7 +18,6 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { AdminFailedLoginAlertsReadOnlyCard } from "./AdminFailedLoginAlertsReadOnlyCard";
 import { AdminMaintenanceDryRunCard } from "./AdminMaintenanceDryRunCard";
 import { AdminParticularTokensCard } from "./AdminParticularTokensCard";
@@ -323,60 +313,6 @@ export default async function AdminPage({
         subtitle="Auditoría, reportes y estado operacional"
       />
       <main className="dashboard-main">
-        <Card className="dashboard-surface">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Accesos rápidos</CardTitle>
-            <CardDescription>
-              Atajos operativos para navegar las superficies administrativas clave.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-7">
-              {[
-                {
-                  label: "Subir informe",
-                  href: "#admin-report-upload",
-                  icon: ClipboardPlus,
-                },
-                { label: "Estado", href: "#admin-health", icon: Activity },
-                {
-                  label: "Tokens particulares",
-                  href: "#admin-particular-tokens",
-                  icon: TicketCheck,
-                },
-                { label: "Sesiones", href: "#admin-sessions", icon: KeyRound },
-                {
-                  label: "Roles clínica",
-                  href: "#admin-users-roles",
-                  icon: UsersRound,
-                },
-                { label: "Auditoría", href: "#audit-log", icon: ScrollText },
-                {
-                  label: "Mantenimiento",
-                  href: "#admin-maintenance",
-                  icon: ShieldCheck,
-                },
-              ].map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <Button
-                    key={item.href}
-                    asChild
-                    variant="outline"
-                    className="h-16 flex-col gap-1 rounded-lg"
-                  >
-                    <Link href={item.href}>
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                      <span className="text-xs">{item.label}</span>
-                    </Link>
-                  </Button>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
         <section
           id="admin-report-upload"
           className="surface-note-info overflow-hidden rounded-2xl p-0"

@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
+const CLINIC_DASHBOARD_SIDEBAR_PATH =
+  "frontend/src/components/dashboard/ClinicDashboardSidebar.tsx";
 const CLINIC_TOKENS_CARD_PATH =
   "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx";
 const API_PATH = "frontend/src/lib/api.ts";
@@ -17,15 +19,15 @@ function read(relativePath: string): string {
 
 test("clinic dashboard exists as a clinic-only dashboard and keeps admin out", () => {
   const source = read(DASHBOARD_PAGE_PATH);
+  const sidebarSource = read(CLINIC_DASHBOARD_SIDEBAR_PATH);
 
   assert.ok(source.includes('title: "Dashboard Clínica — Portal VETNEB"'));
   assert.ok(source.includes('title="Dashboard Clínica"'));
   assert.ok(source.includes("Esta superficie usa solo sesión clínica."));
   assert.ok(source.includes('import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";'));
   assert.ok(source.includes("<ClinicParticularTokensCard />"));
-  assert.ok(
-    source.includes('href: `${ROUTES.dashboard}#clinic-particular-tokens`'),
-  );
+  assert.ok(sidebarSource.includes('label: "Tokens particulares"'));
+  assert.ok(sidebarSource.includes('`${ROUTES.dashboard}#clinic-particular-tokens`'));
   assert.equal(source.includes('label: "Admin"'), false);
   assert.equal(source.includes("ROUTES.dashboardAdmin"), false);
 });
@@ -88,4 +90,3 @@ test("frontend api exposes clinic-scoped particular token helpers", () => {
   assert.ok(source.includes("`/api/particular-tokens${qs ? `?${qs}` : \"\"}`"));
   assert.ok(source.includes("`/api/particular-tokens/${tokenId}/report`"));
 });
-

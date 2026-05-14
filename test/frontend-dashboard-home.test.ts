@@ -88,39 +88,48 @@ test("dashboard home keeps status badges and date formatting wired", () => {
   assert.ok(source.includes("formatDate(visit.scheduledAt)"));
 });
 
-test("dashboard home exposes clinic route-registry quick links only", () => {
+test("dashboard home removes horizontal quick actions and preserves clinic sections", () => {
   const source = read(DASHBOARD_PAGE_PATH);
+  const quickActionsTitle = ["Accesos", "rápidos"].join(" ");
+  const quickActionsDescription = [
+    "Acciones frecuentes",
+    "para operación clínica diaria.",
+  ].join(" ");
+  const removedSnippets = [
+    quickActionsTitle,
+    quickActionsDescription,
+    'label: "Informes", href: ROUTES.dashboardInformes',
+    'label: "Visitas"',
+    'label: "Rutas"',
+    'label: "Tokens"',
+    'label: "Perfil"',
+    `xl:grid-cols-${5}`,
+  ];
 
-  assert.ok(source.includes("Accesos rápidos"));
-  assert.ok(source.includes('label: "Perfil"'));
-  assert.ok(source.includes('label: "Informes", href: ROUTES.dashboardInformes'));
-  assert.ok(source.includes('label: "Visitas"'));
-  assert.ok(source.includes("href: ROUTES.dashboardLogisticaVisitas"));
-  assert.ok(source.includes('label: "Rutas"'));
-  assert.ok(source.includes("href: ROUTES.dashboardLogisticaRutas"));
-  assert.ok(source.includes('label: "Tokens"'));
-  assert.ok(
-    source.includes('href: `${ROUTES.dashboard}#clinic-particular-tokens`'),
-  );
-  assert.ok(
-    source.includes('href: `${ROUTES.dashboard}#clinic-public-profile`'),
-  );
-  assert.equal(source.includes('label: "Admin"'), false);
-  assert.equal(source.includes("ROUTES.dashboardAdmin"), false);
-  assert.equal(source.includes('"/api"'), false);
-});
+  for (const snippet of removedSnippets) {
+    assert.equal(source.includes(snippet), false);
+  }
 
-test("dashboard home places quick actions before operational and metrics sections without duplicates", () => {
-  const source = read(DASHBOARD_PAGE_PATH);
-  const quickActionsTitleIndex = source.indexOf("Accesos rápidos");
+  assert.ok(source.includes("Estado operativo clínica"));
+  assert.ok(source.includes("Métricas operativas"));
+  assert.ok(source.includes("Informes recientes"));
+  assert.ok(source.includes("Visitas de campo"));
+
+  const mainIndex = source.indexOf('<main className="dashboard-main">');
   const operationalStatusIndex = source.indexOf("Estado operativo clínica");
   const metricsIndex = source.indexOf("Métricas operativas");
-  const quickActionsTitleMatches = source.match(/Accesos rápidos/g) ?? [];
 
-  assert.ok(quickActionsTitleIndex >= 0);
+  assert.ok(mainIndex >= 0);
   assert.ok(operationalStatusIndex >= 0);
   assert.ok(metricsIndex >= 0);
-  assert.ok(quickActionsTitleIndex < operationalStatusIndex);
-  assert.ok(quickActionsTitleIndex < metricsIndex);
-  assert.equal(quickActionsTitleMatches.length, 1);
+  assert.ok(mainIndex < operationalStatusIndex);
+  assert.ok(operationalStatusIndex < metricsIndex);
+  assert.equal(
+    source.slice(mainIndex, operationalStatusIndex).includes(quickActionsTitle),
+    false,
+  );
+  assert.equal(
+    source.slice(mainIndex, operationalStatusIndex).includes("dashboard-surface"),
+    false,
+  );
 });
