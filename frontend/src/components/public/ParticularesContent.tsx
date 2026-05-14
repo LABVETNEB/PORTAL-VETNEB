@@ -87,10 +87,18 @@ export function ParticularesContent() {
 
   async function refreshSession() {
     setIsCheckingSession(true);
+    setErrorMessage(null);
 
     try {
       const response = await getParticularSession();
       setSession(response?.particular ?? null);
+    } catch (error) {
+      setSession(null);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo verificar la sesión particular. Intente nuevamente.",
+      );
     } finally {
       setIsCheckingSession(false);
     }
