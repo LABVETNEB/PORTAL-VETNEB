@@ -145,32 +145,64 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.equal(source.includes("ADMIN_READ_CONTRACT_MARKERS"), false);
 });
 
-test("dashboard admin places quick actions before report upload with expected labels and anchors", () => {
+test("dashboard admin removes horizontal quick actions and preserves admin sections", () => {
   const source = read(ADMIN_PAGE_PATH);
-  const quickActionsTitleIndex = source.indexOf("Accesos rápidos");
+  const quickActionsTitle = ["Accesos", "rápidos"].join(" ");
+  const quickActionsDescription = [
+    "Atajos operativos",
+    "para navegar las superficies administrativas clave.",
+  ].join(" ");
+  const removedSnippets = [
+    quickActionsTitle,
+    quickActionsDescription,
+    'label: "Subir informe"',
+    'label: "Estado"',
+    'label: "Tokens particulares"',
+    'label: "Sesiones"',
+    'label: "Roles clínica"',
+    'label: "Auditoría"',
+    'label: "Mantenimiento"',
+    'href: "#admin-report-upload"',
+    'href: "#admin-health"',
+    'href: "#admin-particular-tokens"',
+    'href: "#admin-sessions"',
+    'href: "#admin-users-roles"',
+    'href: "#audit-log"',
+    'href: "#admin-maintenance"',
+    `xl:grid-cols-${7}`,
+  ];
+
+  for (const snippet of removedSnippets) {
+    assert.equal(source.includes(snippet), false);
+  }
+
+  assert.ok(source.includes('id="admin-report-upload"'));
+  assert.ok(source.includes("Carga de informes"));
+  assert.ok(source.includes("Eventos de auditoría"));
+  assert.ok(source.includes("Tipos de evento"));
+  assert.ok(source.includes("Estado del sistema"));
+  assert.ok(source.includes('id="admin-health"'));
+  assert.ok(source.includes('id="admin-maintenance"'));
+  assert.ok(source.includes('id="admin-particular-tokens"'));
+  assert.ok(source.includes('id="admin-sessions"'));
+  assert.ok(source.includes('id="admin-users-roles"'));
+  assert.ok(source.includes('id="audit-role-changes"'));
+  assert.ok(source.includes('id="audit-log"'));
+
+  const mainIndex = source.indexOf('<main className="dashboard-main">');
   const reportUploadTitleIndex = source.indexOf("Carga de informes");
-  const quickActionsTitleMatches = source.match(/Accesos rápidos/g) ?? [];
 
-  assert.ok(quickActionsTitleIndex >= 0);
+  assert.ok(mainIndex >= 0);
   assert.ok(reportUploadTitleIndex >= 0);
-  assert.ok(quickActionsTitleIndex < reportUploadTitleIndex);
-  assert.equal(quickActionsTitleMatches.length, 1);
-
-  assert.ok(source.includes('label: "Subir informe"'));
-  assert.ok(source.includes('label: "Estado"'));
-  assert.ok(source.includes('label: "Tokens particulares"'));
-  assert.ok(source.includes('label: "Sesiones"'));
-  assert.ok(source.includes('label: "Roles clínica"'));
-  assert.ok(source.includes('label: "Auditoría"'));
-  assert.ok(source.includes('label: "Mantenimiento"'));
-
-  assert.ok(source.includes('href: "#admin-report-upload"'));
-  assert.ok(source.includes('href: "#admin-health"'));
-  assert.ok(source.includes('href: "#admin-particular-tokens"'));
-  assert.ok(source.includes('href: "#admin-sessions"'));
-  assert.ok(source.includes('href: "#admin-users-roles"'));
-  assert.ok(source.includes('href: "#audit-log"'));
-  assert.ok(source.includes('href: "#admin-maintenance"'));
+  assert.ok(mainIndex < reportUploadTitleIndex);
+  assert.equal(
+    source.slice(mainIndex, reportUploadTitleIndex).includes(quickActionsTitle),
+    false,
+  );
+  assert.equal(
+    source.slice(mainIndex, reportUploadTitleIndex).includes("dashboard-surface"),
+    false,
+  );
 });
 
 test("dashboard admin surfaces system health fetch failures", () => {
@@ -224,4 +256,3 @@ test("dashboard admin avoids duplicate section ids in navigation anchors", () =>
   assert.equal(adminHealthIdMatches.length, 1);
   assert.equal(source.includes('id="admin-event-summary"'), true);
 });
-

@@ -93,10 +93,11 @@ test("admin dashboard sidebar keeps admin operations and excludes clinic navigat
   assert.ok(source.includes('label: "Auditoría"'));
   assert.ok(source.includes('label: "Mantenimiento"'));
   assert.ok(source.includes("ROUTES.dashboardAdmin"));
+  assert.ok(source.includes('href: `${ROUTES.dashboardAdmin}#admin-users-roles`'));
+  assert.equal(source.includes('href: `${ROUTES.dashboardAdmin}#audit-role-changes`'), false);
   assert.equal(source.includes("clinic-public-profile"), false);
   assert.equal(source.includes("clinic-particular-tokens"), false);
 });
-
 
 
 

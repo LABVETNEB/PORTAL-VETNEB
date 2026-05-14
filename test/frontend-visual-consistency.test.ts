@@ -312,6 +312,9 @@ test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () 
 
 test("dashboard home keeps visual dashboard states and card spacing conventions", () => {
   const source = read(DASHBOARD_HOME_PATH);
+  const removedQuickActionsTitle = "Accesos " + "rápidos";
+  const removedQuickActionsGrid = "xl:grid-cols-" + "5";
+  const removedQuickActionsButton = "h-16 flex-col gap-1 rounded-" + "lg";
 
   assertContainsAll(
     source,
@@ -322,7 +325,6 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
       'className="surface-empty"',
       "recentReports.map((report) =>",
       "recentVisits.map((visit) =>",
-      "Accesos rápidos",
     ],
     "dashboard home shell",
   );
@@ -332,14 +334,15 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
     [
       /className="grid grid-cols-1 gap-6 lg:grid-cols-2"/,
       /className="dashboard-list-row"/,
-      /className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5"/,
-      /className="h-16 flex-col gap-1 rounded-lg"/,
       /className="truncate text-sm font-semibold text-vetneb-ink"/,
       /className="text-xs text-muted-foreground"/,
     ],
     "dashboard home visual patterns",
   );
 
+  assert.equal(source.includes(removedQuickActionsTitle), false);
+  assert.equal(source.includes(removedQuickActionsGrid), false);
+  assert.equal(source.includes(removedQuickActionsButton), false);
   assertInlineStylesAtMost(source, 0, "dashboard home");
   assert.equal(source.includes("fetch("), false, "dashboard home must avoid fetch()");
 });

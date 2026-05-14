@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { Building2, FileText, KeyRound, Map, Route } from "lucide-react";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";
 import { ClinicPublicProfileCard } from "@/components/dashboard/ClinicPublicProfileCard";
@@ -80,58 +79,6 @@ export default async function DashboardPage() {
     <>
       <DashboardTopbar title="Dashboard Clínica" subtitle="Resumen operativo clínica" />
       <main className="dashboard-main">
-        <Card className="dashboard-surface">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Accesos rápidos</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Acciones frecuentes para operación clínica diaria.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-              {[
-                { label: "Informes", href: ROUTES.dashboardInformes, icon: FileText },
-                {
-                  label: "Visitas",
-                  href: ROUTES.dashboardLogisticaVisitas,
-                  icon: Route,
-                },
-                {
-                  label: "Rutas",
-                  href: ROUTES.dashboardLogisticaRutas,
-                  icon: Map,
-                },
-                {
-                  label: "Tokens",
-                  href: `${ROUTES.dashboard}#clinic-particular-tokens`,
-                  icon: KeyRound,
-                },
-                {
-                  label: "Perfil",
-                  href: `${ROUTES.dashboard}#clinic-public-profile`,
-                  icon: Building2,
-                },
-              ].map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <Button
-                    key={item.href}
-                    asChild
-                    variant="outline"
-                    className="h-16 flex-col gap-1 rounded-lg"
-                  >
-                    <Link href={item.href}>
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                      <span className="text-xs">{item.label}</span>
-                    </Link>
-                  </Button>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
         <section className="surface-note-info" aria-labelledby="dashboard-operational-priority">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-3xl">
