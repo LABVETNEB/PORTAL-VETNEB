@@ -291,7 +291,9 @@ export function AdminSessionsReadOnlyCard() {
                   >
                     {isPending
                       ? "Cargando sesiones..."
-                      : "No hay sesiones para los filtros seleccionados."}
+                      : error
+                        ? "No se pudieron cargar las sesiones."
+                        : "No hay sesiones para los filtros seleccionados."}
                   </TableCell>
                 </TableRow>
               )}
