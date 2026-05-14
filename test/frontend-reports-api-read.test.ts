@@ -12,6 +12,19 @@ function read(relativePath: string): string {
   );
 }
 
+function getFunctionSource(source: string, functionName: string): string {
+  const signature = `export async function ${functionName}`;
+  const start = source.indexOf(signature);
+
+  if (start === -1) {
+    return "";
+  }
+
+  const nextFunction = source.indexOf("\nexport async function ", start + signature.length);
+
+  return nextFunction === -1 ? source.slice(start) : source.slice(start, nextFunction);
+}
+
 test("frontend API client reads reports from backend reports endpoint", () => {
   const source = read(API_CLIENT_PATH);
 
@@ -52,13 +65,15 @@ test("frontend API client searches reports with optional query parameters", () =
 
 test("frontend API client requests report download URLs by report id", () => {
   const source = read(API_CLIENT_PATH);
+  const functionSource = getFunctionSource(source, "getReportDownloadUrl");
 
-  assert.ok(source.includes("export async function getReportDownloadUrl("));
-  assert.ok(source.includes("reportId: number,"));
-  assert.ok(source.includes("): Promise<string | null>"));
-  assert.ok(source.includes("`/api/reports/${reportId}/download-url`,"));
-  assert.ok(source.includes("return res.url ?? null;"));
-  assert.ok(source.includes("return null;"));
+  assert.ok(functionSource.includes("export async function getReportDownloadUrl("));
+  assert.ok(functionSource.includes("reportId: number,"));
+  assert.ok(functionSource.includes("): Promise<string | null>"));
+  assert.ok(functionSource.includes("`/api/reports/${reportId}/download-url`,"));
+  assert.ok(functionSource.includes("const res = await apiFetch<{ url: string | null }>("));
+  assert.ok(functionSource.includes("return res.url ?? null;"));
+  assert.equal(functionSource.includes("} catch {"), false);
 });
 
 test("frontend reports API helpers remain typed around Report", () => {

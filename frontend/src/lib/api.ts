@@ -217,14 +217,11 @@ type AdminReportUploadResponse = {
 export async function getReportDownloadUrl(
   reportId: number,
 ): Promise<string | null> {
-  try {
-    const res = await apiFetch<{ url: string }>(
-      `/api/reports/${reportId}/download-url`,
-    );
-    return res.url ?? null;
-  } catch {
-    return null;
-  }
+  const res = await apiFetch<{ url: string | null }>(
+    `/api/reports/${reportId}/download-url`,
+  );
+
+  return res.url ?? null;
 }
 
 export async function uploadAdminReport(
