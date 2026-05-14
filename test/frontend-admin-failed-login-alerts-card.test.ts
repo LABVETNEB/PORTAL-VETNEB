@@ -141,7 +141,12 @@ test("admin failed login alerts card renders filters table columns and rows", ()
 test("admin failed login alerts card keeps empty state pagination and read-only endpoint copy", () => {
   const source = read(ADMIN_FAILED_LOGIN_ALERTS_CARD_PATH);
 
-  assert.ok(source.includes("Cargando intentos fallidos..."));
+  assert.ok(
+    source.includes(
+      'isPending\n                      ? "Cargando intentos fallidos..."\n                      : error',
+    ),
+  );
+  assert.ok(source.includes('                        ? "No se pudieron cargar los intentos fallidos."'));
   assert.ok(source.includes("No hay intentos fallidos para los filtros seleccionados."));
   assert.ok(source.includes("const hasPreviousPage = offset > 0;"));
   assert.ok(source.includes("const hasNextPage = snapshot"));
