@@ -155,6 +155,13 @@
                         "when":  1776442203573,
                         "tag":  "0021_logistics_sla",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  22,
+                        "version":  "7",
+                        "when":  1777000000000,
+                        "tag":  "0022_login_failed_attempts",
+                        "breakpoints":  true
                     }
                 ]
 }
