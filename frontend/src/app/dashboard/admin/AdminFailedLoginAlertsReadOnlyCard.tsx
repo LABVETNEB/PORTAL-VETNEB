@@ -287,7 +287,9 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
                   >
                     {isPending
                       ? "Cargando intentos fallidos..."
-                      : "No hay intentos fallidos para los filtros seleccionados."}
+                      : error
+                        ? "No se pudieron cargar los intentos fallidos."
+                        : "No hay intentos fallidos para los filtros seleccionados."}
                   </TableCell>
                 </TableRow>
               )}
