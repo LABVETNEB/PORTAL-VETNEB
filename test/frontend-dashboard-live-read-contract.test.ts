@@ -44,7 +44,11 @@ test("frontend dashboard page uses API client wrappers", () => {
   assertIncludes(source, "getReports", dashboardPage);
   assertIncludes(source, "getLogisticsFieldVisits", dashboardPage);
   assertIncludes(source, "Promise.all", dashboardPage);
-  assertIncludes(source, "const stats = await getDashboardStats(requestOptions);", dashboardPage);
+  assertIncludes(source, "let stats: Awaited<ReturnType<typeof getDashboardStats>> | null = null;", dashboardPage);
+  assertIncludes(source, "let statsLoadError = false;", dashboardPage);
+  assertIncludes(source, "stats = await getDashboardStats(requestOptions);", dashboardPage);
+  assertIncludes(source, "statsLoadError = true;", dashboardPage);
+  assertIncludes(source, "No se pudieron cargar las métricas operativas. Intente nuevamente.", dashboardPage);
   assertIncludes(source, "let reports: Awaited<ReturnType<typeof getReports>> = [];", dashboardPage);
   assertIncludes(source, "let reportsLoadError = false;", dashboardPage);
   assertIncludes(source, "let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];", dashboardPage);
@@ -74,9 +78,9 @@ test("frontend dashboard stats are computed from live-read wrappers", () => {
     frontendApiClient,
   );
   assertIncludes(source, "options?: RequestInit", frontendApiClient);
-  assertIncludes(source, "getReports(options)", frontendApiClient);
-  assertIncludes(source, "getLogisticsFieldVisits(options)", frontendApiClient);
-  assertIncludes(source, "getRoutePlans(options)", frontendApiClient);
+  assertIncludes(source, "getReports(options, undefined, { throwOnError: true })", frontendApiClient);
+  assertIncludes(source, "getLogisticsFieldVisits(options, { throwOnError: true })", frontendApiClient);
+  assertIncludes(source, "getRoutePlans(options, { throwOnError: true })", frontendApiClient);
   assertIncludes(source, "totalReports: reports.length", frontendApiClient);
   assertIncludes(source, "pendingReports:", frontendApiClient);
   assertIncludes(source, "activeVisits:", frontendApiClient);

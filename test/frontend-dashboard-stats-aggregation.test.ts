@@ -19,9 +19,9 @@ test("frontend API client builds dashboard stats from live read helpers", () => 
   assert.ok(source.includes("options?: RequestInit,"));
   assert.ok(source.includes("): Promise<DashboardStats>"));
   assert.ok(source.includes("const [reports, visits, routePlans] = await Promise.all(["));
-  assert.ok(source.includes("getReports(options),"));
-  assert.ok(source.includes("getLogisticsFieldVisits(options),"));
-  assert.ok(source.includes("getRoutePlans(options),"));
+  assert.ok(source.includes("getReports(options, undefined, { throwOnError: true }),"));
+  assert.ok(source.includes("getLogisticsFieldVisits(options, { throwOnError: true }),"));
+  assert.ok(source.includes("getRoutePlans(options, { throwOnError: true }),"));
 });
 
 test("frontend dashboard stats aggregate report counters explicitly", () => {
