@@ -145,6 +145,34 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.equal(source.includes("ADMIN_READ_CONTRACT_MARKERS"), false);
 });
 
+test("dashboard admin places quick actions before report upload with expected labels and anchors", () => {
+  const source = read(ADMIN_PAGE_PATH);
+  const quickActionsTitleIndex = source.indexOf("Accesos rápidos");
+  const reportUploadTitleIndex = source.indexOf("Carga de informes");
+  const quickActionsTitleMatches = source.match(/Accesos rápidos/g) ?? [];
+
+  assert.ok(quickActionsTitleIndex >= 0);
+  assert.ok(reportUploadTitleIndex >= 0);
+  assert.ok(quickActionsTitleIndex < reportUploadTitleIndex);
+  assert.equal(quickActionsTitleMatches.length, 1);
+
+  assert.ok(source.includes('label: "Subir informe"'));
+  assert.ok(source.includes('label: "Estado"'));
+  assert.ok(source.includes('label: "Tokens particulares"'));
+  assert.ok(source.includes('label: "Sesiones"'));
+  assert.ok(source.includes('label: "Roles clínica"'));
+  assert.ok(source.includes('label: "Auditoría"'));
+  assert.ok(source.includes('label: "Mantenimiento"'));
+
+  assert.ok(source.includes('href: "#admin-report-upload"'));
+  assert.ok(source.includes('href: "#admin-health"'));
+  assert.ok(source.includes('href: "#admin-particular-tokens"'));
+  assert.ok(source.includes('href: "#admin-sessions"'));
+  assert.ok(source.includes('href: "#admin-users-roles"'));
+  assert.ok(source.includes('href: "#audit-log"'));
+  assert.ok(source.includes('href: "#admin-maintenance"'));
+});
+
 test("dashboard admin surfaces system health fetch failures", () => {
   const source = read(ADMIN_PAGE_PATH);
 
@@ -196,5 +224,4 @@ test("dashboard admin avoids duplicate section ids in navigation anchors", () =>
   assert.equal(adminHealthIdMatches.length, 1);
   assert.equal(source.includes('id="admin-event-summary"'), true);
 });
-
 
