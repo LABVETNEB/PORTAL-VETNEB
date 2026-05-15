@@ -212,7 +212,7 @@ test("admin pricing PATCH valida payload y bloquea edición de category/study_na
       cookie: `${ENV.adminCookieName}=admin-session-token`,
     };
 
-    const cases: Array<{ payload: unknown; label: string }> = [
+    const cases: Array<{ payload: Record<string, unknown>; label: string }> = [
       { payload: {}, label: "empty body" },
       { payload: { category: "X" }, label: "category forbidden" },
       { payload: { studyName: "X" }, label: "studyName forbidden" },
