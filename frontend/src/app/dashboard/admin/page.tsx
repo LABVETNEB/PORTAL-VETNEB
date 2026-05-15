@@ -21,6 +21,7 @@ import {
 import { AdminFailedLoginAlertsReadOnlyCard } from "./AdminFailedLoginAlertsReadOnlyCard";
 import { AdminMaintenanceDryRunCard } from "./AdminMaintenanceDryRunCard";
 import { AdminParticularTokensCard } from "./AdminParticularTokensCard";
+import { AdminPricingEditorCard } from "./AdminPricingEditorCard";
 import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";
 import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
 import { UploadReportModal } from "@/components/dashboard/UploadReportModal";
@@ -463,6 +464,9 @@ export default async function AdminPage({
         </section>
         <section id="admin-particular-tokens">
           <AdminParticularTokensCard />
+        </section>
+        <section id="admin-pricing">
+          <AdminPricingEditorCard />
         </section>
         <section id="admin-sessions">
           <AdminSessionsReadOnlyCard />
