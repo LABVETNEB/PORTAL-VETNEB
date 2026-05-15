@@ -6,7 +6,6 @@ import { PublicLayout } from "@/components/layout/PublicLayout";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { getPublicPricing, type PublicPricingCategory } from "@/lib/api";
 import { createPageMetadata, getOrganizationJsonLd, SITE_URL } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
 
@@ -68,31 +67,8 @@ const benefits = [
   },
 ];
 
-function normalizePriceLabel(priceLabel: string | null | undefined): string {
-  const normalizedPriceLabel = priceLabel?.trim();
-
-  return normalizedPriceLabel ? normalizedPriceLabel : "Consultar";
-}
-
-function hasPricingItems(categories: PublicPricingCategory[]): boolean {
-  return categories.some((category) => category.items.length > 0);
-}
-
-export default async function HomePage() {
+export default function HomePage() {
   const jsonLd = getOrganizationJsonLd();
-  let pricingCategories: PublicPricingCategory[] = [];
-  let pricingLoadError = false;
-
-  try {
-    const pricingSnapshot = await getPublicPricing(
-      { cache: "no-store" },
-      { throwOnError: true },
-    );
-
-    pricingCategories = pricingSnapshot.categories;
-  } catch {
-    pricingLoadError = true;
-  }
 
   return (
     <PublicLayout>
@@ -208,52 +184,6 @@ export default async function HomePage() {
                 <Link href={ROUTES.servicios}>Ver todos los servicios</Link>
               </Button>
             </div>
-          </div>
-        </section>
-
-        <section className="py-16 md:py-20" aria-labelledby="pricing-heading">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2
-                id="pricing-heading"
-                className="text-3xl md:text-4xl font-bold text-gray-950 mb-4"
-              >
-                Lista de precios
-              </h2>
-            </div>
-
-            {pricingLoadError ? (
-              <p role="alert" className="surface-empty text-amber-700">
-                No se pudieron cargar los precios. Intente nuevamente.
-              </p>
-            ) : hasPricingItems(pricingCategories) ? (
-              <div className="space-y-6">
-                {pricingCategories.map((category) => (
-                  <Card key={category.category} className="border-vetneb-line/80">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-xl">{category.category}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {category.items.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex flex-col gap-1 rounded-lg border border-slate-100 bg-white/90 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                        >
-                          <p className="text-sm font-medium text-gray-900">
-                            {item.studyName}
-                          </p>
-                          <p className="text-sm font-semibold text-vetneb-navy">
-                            {normalizePriceLabel(item.priceLabel)}
-                          </p>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <p className="surface-empty">No hay precios disponibles.</p>
-            )}
           </div>
         </section>
 

@@ -11,6 +11,7 @@ export const ROUTES = {
   clinicas: "/clinicas",
   particulares: "/particulares",
   contacto: "/contacto",
+  precios: "/precios",
   login: "/login",
 
   // Dashboard (privado)
@@ -33,6 +34,7 @@ export const PUBLIC_ROUTES: AppRoute[] = [
   ROUTES.clinicas,
   ROUTES.particulares,
   ROUTES.contacto,
+  ROUTES.precios,
   ROUTES.login,
 ];
 
