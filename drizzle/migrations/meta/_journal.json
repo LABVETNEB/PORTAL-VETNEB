@@ -162,6 +162,13 @@
                         "when":  1777000000000,
                         "tag":  "0022_login_failed_attempts",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  23,
+                        "version":  "7",
+                        "when":  1777089600000,
+                        "tag":  "0023_pricing_items",
+                        "breakpoints":  true
                     }
                 ]
 }

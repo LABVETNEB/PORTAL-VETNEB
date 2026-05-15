@@ -137,6 +137,7 @@ export const AUDIT_EVENTS = [
   "auth.clinic.login.succeeded",
   "auth.session.revoked",
   "clinic_user.role.changed",
+  "admin.pricing.update",
   "report.status.changed",
   "report.uploaded",
   "study_tracking.case.created",
@@ -434,6 +435,24 @@ export const loginFailedAttempts = pgTable(
     reasonCreatedAtIdx: index(
       "login_failed_attempts_reason_created_at_idx",
     ).on(table.reason, table.createdAt),
+  }),
+);
+
+export const pricingItems = pgTable(
+  "pricing_items",
+  {
+    id: serial("id").primaryKey(),
+    category: varchar("category", { length: 80 }).notNull(),
+    studyName: varchar("study_name", { length: 160 }).notNull(),
+    priceLabel: varchar("price_label", { length: 80 }),
+    displayOrder: integer("display_order").notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    activeCategoryDisplayOrderIdx: index(
+      "pricing_items_active_category_display_order_idx",
+    ).on(table.isActive, table.category, table.displayOrder),
   }),
 );
 
@@ -1112,3 +1131,6 @@ export type NewStudyTrackingNotification = InferInsertModel<
 
 export type ParticularSession = InferSelectModel<typeof particularSessions>;
 export type NewParticularSession = InferInsertModel<typeof particularSessions>;
+
+export type PricingItem = InferSelectModel<typeof pricingItems>;
+export type NewPricingItem = InferInsertModel<typeof pricingItems>;
