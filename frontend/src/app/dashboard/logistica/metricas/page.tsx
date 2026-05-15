@@ -153,11 +153,11 @@ export default async function MetricasPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {routePlansLoadError ? (
-              <div role="alert" className="surface-empty text-amber-700">
+              <div role="alert" className="clinical-alert-warning">
                 No se pudieron cargar los planes de ruta para métricas. Intente nuevamente.
               </div>
             ) : routeMetricsLoadError ? (
-              <div role="alert" className="surface-empty text-amber-700">
+              <div role="alert" className="clinical-alert-warning">
                 No se pudieron cargar las métricas de ruta. Intente nuevamente.
               </div>
             ) : routeMetrics.length ? (

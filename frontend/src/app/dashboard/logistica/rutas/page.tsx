@@ -96,7 +96,7 @@ export default async function RutasPage() {
                     <TableCell
                       colSpan={6}
                       role="alert"
-                      className="px-6 py-10 text-center text-sm text-amber-700"
+                      className="clinical-table-state clinical-alert-warning"
                     >
                       No se pudieron cargar los planes de ruta. Intente nuevamente.
                     </TableCell>
@@ -152,7 +152,7 @@ export default async function RutasPage() {
                   <TableRow>
                     <TableCell
                       colSpan={6}
-                      className="px-6 py-10 text-center text-sm text-gray-500"
+                      className="clinical-table-state"
                     >
                       No hay planes de ruta disponibles.
                     </TableCell>

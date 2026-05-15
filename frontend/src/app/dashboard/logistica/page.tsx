@@ -171,7 +171,7 @@ export default async function LogisticaPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {fieldVisitsLoadError ? (
-              <p role="alert" className="surface-empty text-amber-700">
+              <p role="alert" className="clinical-alert-warning">
                 No se pudieron cargar las visitas recientes. Intente nuevamente.
               </p>
             ) : fieldVisits.length ? (
@@ -214,7 +214,7 @@ export default async function LogisticaPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {routePlansLoadError ? (
-              <p role="alert" className="surface-empty text-amber-700">
+              <p role="alert" className="clinical-alert-warning">
                 No se pudieron cargar los planes de ruta recientes. Intente nuevamente.
               </p>
             ) : routePlans.length ? (

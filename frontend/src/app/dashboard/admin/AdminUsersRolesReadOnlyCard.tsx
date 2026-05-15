@@ -284,13 +284,13 @@ export function AdminUsersRolesReadOnlyCard() {
         </div>
 
         {error ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="clinical-alert-error">
             {error}
           </div>
         ) : null}
 
         {roleChangeMessage ? (
-          <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          <div className="clinical-alert-success">
             {roleChangeMessage}
           </div>
         ) : null}
@@ -318,7 +318,7 @@ export function AdminUsersRolesReadOnlyCard() {
                   return (
                     <TableRow
                       key={userKey}
-                      className={wasChanged ? "bg-green-50/60" : undefined}
+                      className={wasChanged ? "bg-vetneb-teal/10" : undefined}
                     >
                       <TableCell>
                         <div className="flex flex-col gap-1">
@@ -329,7 +329,7 @@ export function AdminUsersRolesReadOnlyCard() {
                             #{user.userId}
                           </span>
                           {wasChanged ? (
-                            <span className="text-xs font-medium text-green-700">
+                            <span className="text-xs font-medium text-vetneb-teal">
                               Actualizado
                             </span>
                           ) : null}
@@ -379,7 +379,7 @@ export function AdminUsersRolesReadOnlyCard() {
                 <TableRow>
                   <TableCell
                     colSpan={7}
-                    className="py-8 text-center text-sm text-gray-400"
+                    className="clinical-table-state"
                   >
                     {isPending
                       ? "Cargando usuarios y roles..."

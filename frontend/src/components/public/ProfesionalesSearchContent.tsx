@@ -166,26 +166,26 @@ export function ProfesionalesSearchContent() {
 
             <div className="mt-8" aria-live="polite">
               {!currentQuery ? (
-                <div className="premium-card-muted p-6 text-sm text-gray-500">
+                <div className="surface-empty p-6">
                   Realice una búsqueda para consultar el banco público y
                   coordinar contacto profesional.
                 </div>
               ) : null}
 
               {state.status === "loading" ? (
-                <div className="clinical-muted-band rounded-lg p-6 text-sm text-vetneb-navy shadow-sm">
+                <div className="clinical-alert-info p-6">
                   Buscando profesionales vinculados a VETNEB...
                 </div>
               ) : null}
 
               {state.status === "error" ? (
-                <div className="rounded-2xl border border-red-100 bg-red-50 p-6 text-sm text-red-700 shadow-sm">
+                <div className="clinical-alert-error p-6">
                   No se pudo realizar la búsqueda. Intente nuevamente.
                 </div>
               ) : null}
 
               {state.status === "success" && state.professionals.length === 0 ? (
-                <div className="premium-card-muted p-6 text-sm text-gray-500">
+                <div className="surface-empty p-6">
                   No se encontraron profesionales para “{currentQuery}”. Revise
                   la ortografía o pruebe otro dato de búsqueda.
                 </div>

@@ -399,7 +399,7 @@ export default async function AdminPage({
             {hasSystemHealthFetchError ? (
               <div
                 role="alert"
-                className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+                className="mb-4 clinical-alert-warning"
               >
                 No se pudo consultar el estado del sistema. Los valores de salud
                 operacional se muestran como desconocidos hasta recuperar la lectura.
@@ -581,7 +581,7 @@ export default async function AdminPage({
                     <TableCell
                       colSpan={7}
                       role="alert"
-                      className="py-8 text-center text-sm text-amber-700"
+                      className="clinical-table-state clinical-alert-warning"
                     >
                       No se pudieron cargar los eventos de auditoría. Intente nuevamente.
                     </TableCell>
@@ -620,7 +620,7 @@ export default async function AdminPage({
                   <TableRow>
                     <TableCell
                       colSpan={7}
-                      className="py-8 text-center text-sm text-gray-400"
+                      className="clinical-table-state"
                     >
                       {hasActiveAuditFilters
                         ? "No hay eventos para los filtros seleccionados."

@@ -121,7 +121,7 @@ export default async function DashboardPage() {
             Vista rápida de informes, pendientes y actividad logística del día.
           </p>
           {statsLoadError ? (
-            <p role="alert" className="mt-3 surface-empty text-amber-700">
+            <p role="alert" className="mt-3 clinical-alert-warning">
               No se pudieron cargar las métricas operativas. Intente nuevamente.
             </p>
           ) : null}
@@ -145,7 +145,7 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-1.5">
               {reportsLoadError ? (
-                <p role="alert" className="surface-empty text-amber-700">
+                <p role="alert" className="clinical-alert-warning">
                   No se pudieron cargar los informes recientes. Intente nuevamente.
                 </p>
               ) : recentReports.length ? (
@@ -192,7 +192,7 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-1.5">
               {visitsLoadError ? (
-                <p role="alert" className="surface-empty text-amber-700">
+                <p role="alert" className="clinical-alert-warning">
                   No se pudieron cargar las visitas de campo recientes. Intente nuevamente.
                 </p>
               ) : recentVisits.length ? (
