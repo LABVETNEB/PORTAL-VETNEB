@@ -1,8 +1,8 @@
 import {
   Activity,
   ClipboardPlus,
-  FileText,
   KeyRound,
+  ReceiptText,
   ScrollText,
   Settings2,
   ShieldCheck,
@@ -38,6 +38,11 @@ const adminNavItems: DashboardNavItem[] = [
     icon: TicketCheck,
   },
   {
+    label: "Precios",
+    href: `${ROUTES.dashboardAdmin}#admin-pricing`,
+    icon: ReceiptText,
+  },
+  {
     label: "Sesiones",
     href: `${ROUTES.dashboardAdmin}#admin-sessions`,
     icon: KeyRound,
@@ -67,6 +72,3 @@ export function AdminDashboardSidebar() {
     />
   );
 }
-
-
-
