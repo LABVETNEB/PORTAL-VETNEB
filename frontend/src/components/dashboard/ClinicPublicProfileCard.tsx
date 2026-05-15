@@ -362,21 +362,21 @@ export function ClinicPublicProfileCard() {
           </label>
 
           {missingRequiredFields.length ? (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <div className="clinical-alert-warning px-3 py-2">
               <p className="font-semibold">Campos obligatorios pendientes:</p>
               <p>{missingRequiredFields.map(getFieldLabel).join(", ")}</p>
             </div>
           ) : null}
 
           {missingRecommendedFields.length ? (
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            <div className="clinical-alert-info px-3 py-2">
               <p className="font-semibold">Recomendados para mejorar calidad:</p>
               <p>{missingRecommendedFields.map(getFieldLabel).join(", ")}</p>
             </div>
           ) : null}
 
           {publicationErrors.length ? (
-            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="clinical-alert-error px-3 py-2">
               {publicationErrors.map((error) => (
                 <p key={error}>{error}</p>
               ))}
@@ -385,7 +385,7 @@ export function ClinicPublicProfileCard() {
 
           {errorMessage ? (
             <p
-              className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              className="clinical-alert-error px-3 py-2"
               role="alert"
             >
               {errorMessage}
@@ -393,7 +393,7 @@ export function ClinicPublicProfileCard() {
           ) : null}
 
           {statusMessage ? (
-            <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+            <p className="clinical-alert-success px-3 py-2">
               {statusMessage}
             </p>
           ) : null}

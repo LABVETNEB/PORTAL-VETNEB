@@ -448,7 +448,7 @@ export function ClinicParticularTokensCard() {
 
           {errorMessage ? (
             <p
-              className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              className="clinical-alert-error px-3 py-2"
               role="alert"
             >
               {errorMessage}
@@ -456,7 +456,7 @@ export function ClinicParticularTokensCard() {
           ) : null}
 
           {statusMessage ? (
-            <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+            <p className="clinical-alert-success px-3 py-2">
               {statusMessage}
             </p>
           ) : null}

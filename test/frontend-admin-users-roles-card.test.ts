@@ -168,7 +168,7 @@ test("admin users roles card renders rows editable clinic actions and admin non-
   assert.ok(source.includes("const userKey = getUserKey(user);"));
   assert.ok(source.includes("const isChanging = changingUserKey === userKey;"));
   assert.ok(source.includes("const wasChanged = changedUserKey === userKey;"));
-  assert.ok(source.includes('className={wasChanged ? "bg-green-50/60" : undefined}'));
+  assert.ok(source.includes('className={wasChanged ? "bg-vetneb-teal/10" : undefined}'));
   assert.ok(source.includes("{user.username}"));
   assert.ok(source.includes("#{user.userId}"));
   assert.ok(source.includes("Actualizado"));

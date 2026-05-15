@@ -98,7 +98,7 @@ export default async function VisitasPage() {
                     <TableCell
                       colSpan={7}
                       role="alert"
-                      className="px-6 py-10 text-center text-sm text-amber-700"
+                      className="clinical-table-state clinical-alert-warning"
                     >
                       No se pudieron cargar las visitas de campo. Intente nuevamente.
                     </TableCell>
@@ -137,7 +137,7 @@ export default async function VisitasPage() {
                   <TableRow>
                     <TableCell
                       colSpan={7}
-                      className="px-6 py-10 text-center text-sm text-gray-500"
+                      className="clinical-table-state"
                     >
                       No hay visitas de campo disponibles.
                     </TableCell>

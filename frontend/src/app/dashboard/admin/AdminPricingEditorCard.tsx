@@ -326,7 +326,7 @@ export function AdminPricingEditorCard() {
         {loadError ? (
           <p
             role="alert"
-            className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+            className="clinical-alert-warning"
           >
             {LOAD_ERROR_MESSAGE}
           </p>
@@ -474,13 +474,13 @@ export function AdminPricingEditorCard() {
                         <div className="mt-4 flex flex-col gap-3 border-t border-vetneb-line pt-4 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-h-5">
                             {formState.errorMessage ? (
-                              <p className="text-sm text-red-700" role="alert">
+                              <p className="clinical-alert-error px-3 py-2" role="alert">
                                 {formState.errorMessage}
                               </p>
                             ) : null}
 
                             {formState.statusMessage ? (
-                              <p className="text-sm text-green-700">
+                              <p className="clinical-alert-success px-3 py-2">
                                 {formState.statusMessage}
                               </p>
                             ) : null}

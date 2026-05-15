@@ -122,7 +122,7 @@ export function AdminMaintenanceDryRunCard() {
 
       <CardContent className="space-y-4">
         {error ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="clinical-alert-error">
             {error}
           </div>
         ) : null}

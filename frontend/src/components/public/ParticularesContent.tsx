@@ -346,7 +346,7 @@ export function ParticularesContent() {
                       </div>
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-vetneb-amber/35 bg-vetneb-amber/10 p-4 text-sm text-amber-900 shadow-sm">
+                    <div className="clinical-alert-warning p-4">
                       El caso todavía no tiene un informe vinculado. El estudio
                       continúa en evaluación profesional y se habilitará cuando
                       finalice la validación diagnóstica.
@@ -355,7 +355,7 @@ export function ParticularesContent() {
 
                   {errorMessage ? (
                     <p
-                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                      className="clinical-alert-error px-3 py-2"
                       role="alert"
                     >
                       {errorMessage}
@@ -404,7 +404,7 @@ export function ParticularesContent() {
 
                   {errorMessage ? (
                     <p
-                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                      className="clinical-alert-error px-3 py-2"
                       role="alert"
                     >
                       {errorMessage}

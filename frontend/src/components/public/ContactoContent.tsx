@@ -237,7 +237,7 @@ export function ContactoContent() {
 
                 {errorMessage ? (
                   <p
-                    className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2"
+                    className="clinical-alert-error px-3 py-2"
                     role="alert"
                   >
                     {errorMessage}
@@ -245,7 +245,7 @@ export function ContactoContent() {
                 ) : null}
 
                 {successMessage ? (
-                  <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+                  <p className="clinical-alert-success px-3 py-2">
                     {successMessage}
                   </p>
                 ) : null}

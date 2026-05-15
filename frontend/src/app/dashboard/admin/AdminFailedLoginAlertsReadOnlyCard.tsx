@@ -225,7 +225,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
         </div>
 
         {error ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="clinical-alert-error">
             {error}
           </div>
         ) : null}
@@ -278,7 +278,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
                 <TableRow>
                   <TableCell
                     colSpan={7}
-                    className="py-8 text-center text-sm text-gray-400"
+                    className="clinical-table-state"
                   >
                     {isPending
                       ? "Cargando intentos fallidos..."

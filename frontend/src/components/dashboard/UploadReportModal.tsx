@@ -490,7 +490,7 @@ export function UploadReportModal() {
 
             {clinicLoadError ? (
               <p
-                className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                className="mt-2 clinical-alert-error px-3 py-2"
                 role="alert"
               >
                 {clinicLoadError}
@@ -503,13 +503,13 @@ export function UploadReportModal() {
               aria-label="Clínicas registradas"
             >
               {isLoadingClinics ? (
-                <p className="px-3 py-2 text-sm text-gray-500">
+                <p className="surface-empty m-2 py-3">
                   Cargando clínicas registradas...
                 </p>
               ) : null}
 
               {!isLoadingClinics && filteredClinicOptions.length === 0 ? (
-                <p className="px-3 py-2 text-sm text-gray-500">
+                <p className="surface-empty m-2 py-3">
                   No hay clínicas registradas que coincidan con la búsqueda.
                 </p>
               ) : null}
@@ -578,14 +578,14 @@ export function UploadReportModal() {
             </p>
 
             {isLoadingParticularTokens ? (
-              <p className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-gray-500">
+              <p className="mt-2 surface-empty py-3">
                 Cargando tokens particulares...
               </p>
             ) : null}
 
             {particularTokenLoadError ? (
               <p
-                className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                className="mt-2 clinical-alert-error px-3 py-2"
                 role="alert"
               >
                 {particularTokenLoadError}
@@ -596,7 +596,7 @@ export function UploadReportModal() {
             !isLoadingParticularTokens &&
             !particularTokenLoadError &&
             particularTokens.length === 0 ? (
-              <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              <p className="mt-2 clinical-alert-warning px-3 py-2">
                 Esta clínica no tiene tokens particulares disponibles.
               </p>
             ) : null}
@@ -687,7 +687,7 @@ export function UploadReportModal() {
 
           {errorMessage ? (
             <p
-              className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+              className="clinical-alert-error px-3 py-2"
               role="alert"
             >
               {errorMessage}
@@ -695,7 +695,7 @@ export function UploadReportModal() {
           ) : null}
 
           {successMessage ? (
-            <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+            <p className="clinical-alert-success px-3 py-2">
               {successMessage}
             </p>
           ) : null}
