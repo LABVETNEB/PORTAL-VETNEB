@@ -17,6 +17,10 @@ import {
   type AdminFailedLoginAlertsNativeRoutesOptions,
 } from "./routes/admin-failed-login-alerts.fastify.ts";
 import {
+  adminPricingNativeRoutes,
+  type AdminPricingNativeRoutesOptions,
+} from "./routes/admin-pricing.fastify.ts";
+import {
   adminParticularTokensNativeRoutes,
   type AdminParticularTokensNativeRoutesOptions,
 } from "./routes/admin-particular-tokens.fastify.ts";
@@ -84,6 +88,10 @@ import {
   publicProfessionalsNativeRoutes,
   type PublicProfessionalsNativeRoutesOptions,
 } from "./routes/public-professionals.fastify.ts";
+import {
+  publicPricingNativeRoutes,
+  type PublicPricingNativeRoutesOptions,
+} from "./routes/public-pricing.fastify.ts";
 import {
   publicReportAccessNativeRoutes,
   type PublicReportAccessNativeRoutesOptions,
@@ -190,6 +198,7 @@ export type CreateFastifyAppOptions = {
   adminAuditRoutes?: AdminAuditNativeRoutesOptions;
   adminAuthRoutes?: AdminAuthNativeRoutesOptions;
   adminFailedLoginAlertsRoutes?: AdminFailedLoginAlertsNativeRoutesOptions;
+  adminPricingRoutes?: AdminPricingNativeRoutesOptions;
   adminParticularTokensRoutes?: AdminParticularTokensNativeRoutesOptions;
   adminReportsRoutes?: AdminReportsNativeRoutesOptions;
   adminSessionsRoutes?: AdminSessionsNativeRoutesOptions;
@@ -206,6 +215,7 @@ export type CreateFastifyAppOptions = {
   particularAuthRoutes?: ParticularAuthNativeRoutesOptions;
   particularStudyTrackingRoutes?: ParticularStudyTrackingNativeRoutesOptions;
   particularTokensRoutes?: ParticularTokensNativeRoutesOptions;
+  publicPricingRoutes?: PublicPricingNativeRoutesOptions;
   publicProfessionalsRoutes?: PublicProfessionalsNativeRoutesOptions;
   publicReportAccessRoutes?: PublicReportAccessNativeRoutesOptions;
   reportAccessTokensRoutes?: ReportAccessTokensNativeRoutesOptions;
@@ -305,6 +315,11 @@ export async function createFastifyApp(
     ...(options.adminFailedLoginAlertsRoutes ?? {}),
   });
 
+  await app.register(adminPricingNativeRoutes, {
+    prefix: "/api/admin/pricing",
+    ...(options.adminPricingRoutes ?? {}),
+  });
+
   await app.register(adminParticularTokensNativeRoutes, {
     prefix: "/api/admin/particular-tokens",
     ...(options.adminParticularTokensRoutes ?? {}),
@@ -400,6 +415,11 @@ export async function createFastifyApp(
     ...(options.publicProfessionalsRoutes ?? {}),
   });
 
+  await app.register(publicPricingNativeRoutes, {
+    prefix: "/api/public/pricing",
+    ...(options.publicPricingRoutes ?? {}),
+  });
+
   await app.register(publicReportAccessNativeRoutes, {
     prefix: "/api/public/report-access",
     ...(options.publicReportAccessRoutes ?? {}),
@@ -447,6 +467,5 @@ export async function createFastifyApp(
 
   return app;
 }
-
 
 
