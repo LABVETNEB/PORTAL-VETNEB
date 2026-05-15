@@ -7,7 +7,7 @@ function Skeleton({
   return (
     <div
       className={cn(
-        "animate-pulse rounded-md bg-gradient-to-r from-vetneb-surface-muted/90 via-vetneb-surface-raised/95 to-vetneb-surface-muted/90",
+        "clinical-skeleton rounded-md",
         className,
       )}
       {...props}

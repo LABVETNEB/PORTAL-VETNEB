@@ -26,7 +26,7 @@ test("table primitive keeps scroll wrapper table ref props and base classes", ()
   assert.ok(source.includes("const Table = React.forwardRef<"));
   assert.ok(source.includes("HTMLTableElement"));
   assert.ok(source.includes("React.HTMLAttributes<HTMLTableElement>"));
-  assert.ok(source.includes('<div className="relative w-full overflow-auto rounded-lg border border-vetneb-line/75 bg-card/86 shadow-[0_10px_30px_rgba(15,45,62,0.06)]">'));
+  assert.ok(source.includes('<div className="relative w-full overflow-auto rounded-lg border border-vetneb-line/75 bg-card/92 shadow-[0_10px_30px_rgba(15,45,62,0.06)]">'));
   assert.ok(source.includes("<table"));
   assert.ok(source.includes("ref={ref}"));
   assert.ok(source.includes('className={cn("w-full caption-bottom text-sm", className)}'));
@@ -56,7 +56,7 @@ test("table primitive keeps row head cell and caption components", () => {
 
   assert.ok(source.includes("const TableRow = React.forwardRef<"));
   assert.ok(source.includes("HTMLTableRowElement"));
-  assert.ok(source.includes('"border-b border-vetneb-line/60 transition-colors hover:bg-accent/35 data-[state=selected]:bg-accent/70"'));
+  assert.ok(source.includes('"border-b border-vetneb-line/60 transition-colors hover:bg-vetneb-surface-muted/45 data-[state=selected]:bg-vetneb-teal/10"'));
   assert.ok(source.includes('TableRow.displayName = "TableRow";'));
 
   assert.ok(source.includes("const TableHead = React.forwardRef<"));
@@ -89,7 +89,7 @@ test("table primitive exports stable component surface", () => {
   assert.ok(source.includes("TableCaption,"));
 });
 
-test("skeleton primitive keeps utility merge props and animation classes", () => {
+test("skeleton primitive keeps utility merge props and clinical loading class", () => {
   const source = read(SKELETON_PATH);
 
   assert.ok(source.includes('import { cn } from "@/lib/utils";'));
@@ -98,7 +98,7 @@ test("skeleton primitive keeps utility merge props and animation classes", () =>
   assert.ok(source.includes("...props"));
   assert.ok(source.includes("React.HTMLAttributes<HTMLDivElement>"));
   assert.ok(source.includes("<div"));
-  assert.ok(source.includes("animate-pulse rounded-md bg-gradient-to-r from-vetneb-surface-muted/90 via-vetneb-surface-raised/95 to-vetneb-surface-muted/90"));
+  assert.ok(source.includes("clinical-skeleton rounded-md"));
   assert.ok(source.includes("{...props}"));
   assert.ok(source.includes("export { Skeleton };"));
 });
