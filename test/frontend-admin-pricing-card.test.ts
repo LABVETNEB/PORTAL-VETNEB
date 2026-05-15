@@ -34,6 +34,7 @@ test("admin pricing card renders explicit title and state messages", () => {
   assert.ok(source.includes("No se pudo actualizar el precio. Intente nuevamente."));
   assert.ok(source.includes("Precio actualizado."));
   assert.ok(source.includes("Activo"));
+  assert.ok(source.includes("Inactivo"));
   assert.ok(source.includes("Consultar"));
 });
 
@@ -47,14 +48,30 @@ test("admin pricing card normalizes priceLabel and supports explicit clearing", 
   assert.ok(source.includes("payload.priceLabel = nextPriceLabel;"));
 });
 
-test("admin pricing card supports display order and active toggle updates", () => {
+test("admin pricing card renders each pricing item as a manual form", () => {
+  const source = read(ADMIN_PRICING_CARD_PATH);
+
+  assert.ok(source.includes("data-admin-pricing-item-form"));
+  assert.ok(source.includes("Estudio"));
+  assert.ok(source.includes("Precio"));
+  assert.ok(source.includes("Orden"));
+  assert.ok(source.includes("Estado"));
+  assert.ok(source.includes("Vista pública"));
+  assert.ok(source.includes("Última actualización"));
+  assert.ok(source.includes("lg:grid-cols-2"));
+  assert.ok(source.includes("bg-vetneb-surface-raised"));
+  assert.ok(source.includes("Guardar precio"));
+});
+
+test("admin pricing card supports display order and active state updates", () => {
   const source = read(ADMIN_PRICING_CARD_PATH);
 
   assert.ok(source.includes("function parseDisplayOrder(value: string): number | null"));
   assert.ok(source.includes("payload.isActive = formState.isActive;"));
   assert.ok(source.includes("payload.displayOrder = nextDisplayOrder;"));
   assert.ok(source.includes('type="number"'));
-  assert.ok(source.includes('type="checkbox"'));
+  assert.ok(source.includes('value={formState.isActive ? "active" : "inactive"}'));
+  assert.ok(source.includes('isActive: event.target.value === "active"'));
 });
 
 test("dashboard admin mounts pricing card in dedicated section", () => {

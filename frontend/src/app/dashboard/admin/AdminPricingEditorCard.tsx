@@ -12,14 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   getAdminPricing,
   updateAdminPricingItem,
   type AdminPricingCategory,
@@ -135,6 +127,14 @@ function applyUpdatedItem(
       ),
     })),
   );
+}
+
+function formatUpdatedAt(value: string): string {
+  if (!value.trim()) {
+    return "—";
+  }
+
+  return value;
 }
 
 export function AdminPricingEditorCard() {
@@ -339,45 +339,60 @@ export function AdminPricingEditorCard() {
         ) : null}
 
         {!loadError && hasPricingItems ? (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {categories.map((category) => (
-              <div
+              <section
                 key={category.category}
-                className="overflow-hidden rounded-xl border border-gray-100"
+                className="overflow-hidden rounded-2xl border border-vetneb-line bg-card shadow-sm"
               >
-                <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
-                  <h3 className="text-sm font-semibold text-gray-900">
+                <header className="border-b border-vetneb-line bg-primary px-4 py-3 text-center text-primary-foreground">
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.18em]">
                     {category.category}
                   </h3>
-                </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Estudio</TableHead>
-                      <TableHead>Precio</TableHead>
-                      <TableHead>Orden</TableHead>
-                      <TableHead>Activo</TableHead>
-                      <TableHead className="text-right">Acción</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {category.items.map((item) => {
-                      const formState = formStateById[item.id];
+                  <p className="mt-1 text-xs text-primary-foreground/80">
+                    {category.items.length} estudios configurables
+                  </p>
+                </header>
 
-                      if (!formState) {
-                        return null;
-                      }
+                <div className="space-y-4 p-4">
+                  {category.items.map((item) => {
+                    const formState = formStateById[item.id];
 
-                      const isSaving = savingItemId === item.id;
+                    if (!formState) {
+                      return null;
+                    }
 
-                      return (
-                        <TableRow key={item.id}>
-                          <TableCell className="align-top">
-                            <p className="text-sm font-medium text-gray-900">
-                              {item.studyName}
-                            </p>
-                          </TableCell>
-                          <TableCell className="min-w-64 align-top">
+                    const isSaving = savingItemId === item.id;
+
+                    return (
+                      <form
+                        key={item.id}
+                        data-admin-pricing-item-form
+                        className="rounded-xl border border-vetneb-line bg-vetneb-surface-raised/70 p-4 shadow-sm"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void handleSaveItem(item.id);
+                        }}
+                      >
+                        <fieldset
+                          className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+                          disabled={isSaving}
+                        >
+                          <label className="space-y-2">
+                            <span className="text-sm font-semibold text-vetneb-ink">
+                              Estudio
+                            </span>
+                            <Input
+                              value={item.studyName}
+                              readOnly
+                              className="bg-card"
+                            />
+                          </label>
+
+                          <label className="space-y-2">
+                            <span className="text-sm font-semibold text-vetneb-ink">
+                              Precio
+                            </span>
                             <Input
                               value={formState.priceLabel}
                               onChange={(event) =>
@@ -388,14 +403,14 @@ export function AdminPricingEditorCard() {
                                   errorMessage: null,
                                 }))
                               }
-                              disabled={isSaving}
                               placeholder="Consultar"
                             />
-                            <p className="mt-1 text-xs text-gray-500">
-                              Vista pública: {normalizePriceLabel(formState.priceLabel)}
-                            </p>
-                          </TableCell>
-                          <TableCell className="w-32 align-top">
+                          </label>
+
+                          <label className="space-y-2">
+                            <span className="text-sm font-semibold text-vetneb-ink">
+                              Orden
+                            </span>
                             <Input
                               type="number"
                               min="0"
@@ -409,57 +424,77 @@ export function AdminPricingEditorCard() {
                                   errorMessage: null,
                                 }))
                               }
-                              disabled={isSaving}
                             />
-                          </TableCell>
-                          <TableCell className="w-36 align-top">
-                            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                              <input
-                                type="checkbox"
-                                checked={formState.isActive}
-                                onChange={(event) =>
-                                  updateItemFormState(item.id, (current) => ({
-                                    ...current,
-                                    isActive: event.target.checked,
-                                    statusMessage: null,
-                                    errorMessage: null,
-                                  }))
-                                }
-                                disabled={isSaving}
-                              />
-                              Activo
-                            </label>
-                          </TableCell>
-                          <TableCell className="w-60 align-top text-right">
-                            <div className="flex flex-col items-end gap-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => void handleSaveItem(item.id)}
-                                disabled={isSaving}
-                              >
-                                {isSaving ? "Guardando..." : "Guardar"}
-                              </Button>
+                          </label>
 
-                              {formState.errorMessage ? (
-                                <p className="text-right text-xs text-red-700" role="alert">
-                                  {formState.errorMessage}
-                                </p>
-                              ) : null}
+                          <label className="space-y-2">
+                            <span className="text-sm font-semibold text-vetneb-ink">
+                              Estado
+                            </span>
+                            <select
+                              value={formState.isActive ? "active" : "inactive"}
+                              onChange={(event) =>
+                                updateItemFormState(item.id, (current) => ({
+                                  ...current,
+                                  isActive: event.target.value === "active",
+                                  statusMessage: null,
+                                  errorMessage: null,
+                                }))
+                              }
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <option value="active">Activo</option>
+                              <option value="inactive">Inactivo</option>
+                            </select>
+                          </label>
 
-                              {formState.statusMessage ? (
-                                <p className="text-right text-xs text-green-700">
-                                  {formState.statusMessage}
-                                </p>
-                              ) : null}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+                          <label className="space-y-2">
+                            <span className="text-sm font-semibold text-vetneb-ink">
+                              Vista pública
+                            </span>
+                            <Input
+                              value={normalizePriceLabel(formState.priceLabel)}
+                              readOnly
+                              className="bg-card"
+                            />
+                          </label>
+
+                          <label className="space-y-2">
+                            <span className="text-sm font-semibold text-vetneb-ink">
+                              Última actualización
+                            </span>
+                            <Input
+                              value={formatUpdatedAt(item.updatedAt)}
+                              readOnly
+                              className="bg-card"
+                            />
+                          </label>
+                        </fieldset>
+
+                        <div className="mt-4 flex flex-col gap-3 border-t border-vetneb-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-h-5">
+                            {formState.errorMessage ? (
+                              <p className="text-sm text-red-700" role="alert">
+                                {formState.errorMessage}
+                              </p>
+                            ) : null}
+
+                            {formState.statusMessage ? (
+                              <p className="text-sm text-green-700">
+                                {formState.statusMessage}
+                              </p>
+                            ) : null}
+                          </div>
+
+                          <Button type="submit" disabled={isSaving}>
+                            {isSaving ? "Guardando..." : "Guardar precio"}
+                          </Button>
+                        </div>
+                      </form>
+                    );
+                  })}
+                </div>
+              </section>
             ))}
           </div>
         ) : null}
