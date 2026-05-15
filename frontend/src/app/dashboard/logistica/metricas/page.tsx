@@ -93,11 +93,6 @@ export default async function MetricasPage() {
         subtitle="Cumplimiento, SLA y reportes operativos"
       />
       <main className="dashboard-main">
-        <div className="surface-note-info">
-          Lectura conectada a{" "}
-          <code>GET /api/logistics/route-plans/:id/metrics</code>.
-        </div>
-
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Card className="border-gray-100">
             <CardHeader className="pb-2">

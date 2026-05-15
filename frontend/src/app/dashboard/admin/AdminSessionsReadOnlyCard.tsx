@@ -302,12 +302,6 @@ export function AdminSessionsReadOnlyCard() {
         </div>
 
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <p className="text-xs text-gray-400">
-            Endpoints: <code>GET /api/admin/sessions</code> y{" "}
-            <code>POST /api/admin/sessions/:sessionType/:sessionId/revoke</code>.
-            La revocación queda auditada.
-          </p>
-
           <div className="flex items-center gap-2">
             <Button
               type="button"

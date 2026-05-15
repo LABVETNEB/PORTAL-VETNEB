@@ -60,9 +60,8 @@ test("dashboard home renders clinic operational summary, stats, reports, and fie
 
   assert.ok(source.includes('title="Dashboard Clínica"'));
   assert.ok(source.includes('subtitle="Resumen operativo clínica"'));
-  assert.ok(source.includes("Lectura conectada a datos operativos clinic-scoped del backend."));
-  assert.ok(source.includes("Esta"));
-  assert.ok(source.includes("Esta superficie usa solo sesión clínica."));
+  assert.ok(source.includes("Estado operativo clínica"));
+  assert.ok(source.includes("Priorice informes pendientes y visitas activas"));
   assert.ok(source.includes("statsLoadError ?"));
   assert.ok(source.includes("No se pudieron cargar las métricas operativas. Intente nuevamente."));
   assert.ok(source.includes("<StatsCards stats={stats} />"));
@@ -75,6 +74,10 @@ test("dashboard home renders clinic operational summary, stats, reports, and fie
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("No hay informes recientes disponibles."));
   assert.ok(source.includes("No hay visitas de campo recientes disponibles."));
+  assert.equal(
+    source.includes("Lectura conectada a datos operativos clinic-" + "scoped"),
+    false,
+  );
 });
 
 test("dashboard home keeps status badges and date formatting wired", () => {

@@ -476,10 +476,6 @@ export default async function AdminPage({
             <CardTitle className="text-base">
               Auditoría de cambios de rol clínica
             </CardTitle>
-            <CardDescription>
-              Acceso rápido a eventos <code>clinic_user.role.changed</code>
-              generados desde usuarios y roles.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">

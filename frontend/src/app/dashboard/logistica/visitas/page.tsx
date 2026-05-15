@@ -52,10 +52,6 @@ export default async function VisitasPage() {
         subtitle="Seguimiento de visitas programadas y en curso"
       />
       <main className="dashboard-main">
-        <div className="surface-note-info">
-          Lectura conectada a <code>GET /api/logistics/field-visits</code>.
-        </div>
-
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {(
             [

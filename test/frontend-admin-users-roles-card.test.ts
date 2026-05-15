@@ -141,10 +141,12 @@ test("admin users roles card changes clinic roles only after confirmation", () =
 
 test("admin users roles card renders title counters filters and table columns", () => {
   const source = read(ADMIN_USERS_ROLES_CARD_PATH);
+  const removedRoleDescription = "Permite cambiar roles de " + "usuarios";
+  const removedLockoutDescription = "de clínica con confirmación explícita y bloqueo anti-" + "lockout.";
 
   assert.ok(source.includes("Usuarios y roles"));
-  assert.ok(source.includes("Permite cambiar roles de usuarios"));
-  assert.ok(source.includes("de clínica con confirmación explícita y bloqueo anti-lockout."));
+  assert.equal(source.includes(removedRoleDescription), false);
+  assert.equal(source.includes(removedLockoutDescription), false);
   assert.ok(source.includes("Total filtrado"));
   assert.ok(source.includes("Admins"));
   assert.ok(source.includes("Clínicas"));
@@ -182,8 +184,10 @@ test("admin users roles card renders rows editable clinic actions and admin non-
   assert.ok(source.includes("No editable"));
 });
 
-test("admin users roles card keeps empty state pagination and sensitive-field notice", () => {
+test("admin users roles card keeps empty state and pagination without sensitive-field notice", () => {
   const source = read(ADMIN_USERS_ROLES_CARD_PATH);
+  const removedUsersRolesEndpoint = "GET " + "/api/admin/users-roles";
+  const removedPatchEndpoint = "PATCH " + "/api/admin/users-roles/clinic/:clinicUserId/role";
 
   assert.ok(source.includes("Cargando usuarios y roles..."));
   assert.ok(source.includes("No hay usuarios para los filtros seleccionados."));
@@ -191,11 +195,10 @@ test("admin users roles card keeps empty state pagination and sensitive-field no
   assert.ok(source.includes("const hasNextPage = snapshot"));
   assert.ok(source.includes("Anterior"));
   assert.ok(source.includes("Siguiente"));
-  assert.ok(source.includes("GET /api/admin/users-roles"));
-  assert.ok(source.includes("PATCH /api/admin/users-roles/clinic/:clinicUserId/role"));
-  assert.ok(source.includes("Admin users no son editables."));
-  assert.ok(source.includes("passwordHash"));
-  assert.ok(source.includes("authProId"));
-  assert.ok(source.includes("tokens no se"));
-  assert.ok(source.includes("renderizan."));
+  assert.equal(source.includes(removedUsersRolesEndpoint), false);
+  assert.equal(source.includes(removedPatchEndpoint), false);
+  assert.equal(source.includes("Admin users no son editables."), false);
+  assert.equal(source.includes("passwordHash"), false);
+  assert.equal(source.includes("authProId"), false);
+  assert.equal(source.includes("tokens no se"), false);
 });

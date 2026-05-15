@@ -110,12 +110,6 @@ export default async function InformesPage({
         subtitle="Consulta de informes médicos veterinarios"
       />
       <main className="dashboard-main">
-        <div className="surface-note-info">
-          Lectura clinic-scoped conectada a <code>GET /api/reports</code>.
-          Las acciones administrativas de carga se gestionan únicamente desde
-          el dashboard administrador.
-        </div>
-
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-gray-500">

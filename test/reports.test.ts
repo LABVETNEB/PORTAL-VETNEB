@@ -54,7 +54,7 @@ test("reports helpers normalizan texto, notas y fechas opcionales", () => {
   assert.equal(parseOptionalDate("   "), undefined);
 });
 
-test("reports helpers calculan scope de lectura clinic-scoped", () => {
+test("reports helpers calculan scope de lectura por clínica", () => {
   assert.deepEqual(getReadClinicScope(undefined, 3), {
     clinicId: 3,
     isForbidden: false,

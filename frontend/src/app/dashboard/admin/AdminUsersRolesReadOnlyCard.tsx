@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -212,10 +211,6 @@ export function AdminUsersRolesReadOnlyCard() {
       <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <CardTitle className="text-base">Usuarios y roles</CardTitle>
-          <CardDescription>
-            Vista Admin de usuarios y roles. Permite cambiar roles de usuarios
-            de clínica con confirmación explícita y bloqueo anti-lockout.
-          </CardDescription>
         </div>
 
         <Button
@@ -397,14 +392,6 @@ export function AdminUsersRolesReadOnlyCard() {
         </div>
 
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <p className="text-xs text-gray-400">
-            Endpoints: <code>GET /api/admin/users-roles</code> y{" "}
-            <code>PATCH /api/admin/users-roles/clinic/:clinicUserId/role</code>.
-            Admin users no son editables. Campos sensibles como{" "}
-            <code>passwordHash</code>, <code>authProId</code> y tokens no se
-            renderizan.
-          </p>
-
           <div className="flex items-center gap-2">
             <Button
               type="button"

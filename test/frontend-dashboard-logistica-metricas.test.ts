@@ -61,16 +61,17 @@ test("dashboard logistica metricas computes aggregate operational metrics", () =
   assert.ok(source.includes("const avgDuration ="));
 });
 
-test("dashboard logistica metricas renders summary cards and read-source notice", () => {
+test("dashboard logistica metricas renders summary cards without technical source copy", () => {
   const source = read(METRICAS_PAGE_PATH);
+  const removedMetricsEndpoint = "GET " + "/api/logistics/route-plans/:id/metrics";
 
   assert.ok(source.includes('title="Métricas de logística"'));
   assert.ok(source.includes('subtitle="Cumplimiento, SLA y reportes operativos"'));
-  assert.ok(source.includes("GET /api/logistics/route-plans/:id/metrics"));
   assert.ok(source.includes("Cumplimiento promedio"));
   assert.ok(source.includes("Paradas completadas"));
   assert.ok(source.includes("Duración promedio"));
   assert.ok(source.includes("Planes analizados"));
+  assert.equal(source.includes(removedMetricsEndpoint), false);
 });
 
 test("dashboard logistica metricas renders per-route metric detail", () => {

@@ -19,17 +19,19 @@ function read(relativePath: string): string {
   );
 }
 
-test("admin particular token generator uses admin-scoped endpoints", () => {
+test("admin particular token generator uses admin helpers without technical copy", () => {
   const card = read(ADMIN_CARD_PATH);
   const api = read(API_PATH);
+  const removedScopedCopy = "Alta admin-" + "scoped";
+  const removedAdminEndpoint = "POST " + "/api/admin/particular-tokens";
 
   assert.ok(card.includes('"use client";'));
   assert.ok(card.includes("createAdminParticularToken"));
   assert.ok(card.includes("getAdminParticularTokens"));
   assert.ok(card.includes("type AdminParticularTokenCreatePayload"));
   assert.ok(card.includes("type AdminParticularTokenSummary"));
-  assert.ok(card.includes("Alta admin-scoped"));
-  assert.ok(card.includes("POST /api/admin/particular-tokens"));
+  assert.equal(card.includes(removedScopedCopy), false);
+  assert.equal(card.includes(removedAdminEndpoint), false);
   assert.ok(api.includes("export async function createAdminParticularToken("));
   assert.ok(api.includes('"/api/admin/particular-tokens"'));
 });
@@ -69,11 +71,12 @@ test("admin dashboard mounts token generator and exposes admin navigation anchor
 test("clinic token generator remains clinic-scoped and separate from admin generator", () => {
   const clinic = read(CLINIC_CARD_PATH);
   const admin = read(ADMIN_CARD_PATH);
+  const removedClinicEndpoint = "POST " + "/api/particular-tokens";
 
   assert.ok(clinic.includes("createClinicParticularToken"));
   assert.ok(clinic.includes("getClinicParticularTokens"));
-  assert.ok(clinic.includes("POST /api/particular-tokens"));
   assert.equal(clinic.includes("createAdminParticularToken"), false);
+  assert.equal(clinic.includes(removedClinicEndpoint), false);
 
   assert.ok(admin.includes("createAdminParticularToken"));
   assert.ok(admin.includes("getAdminParticularTokens"));
