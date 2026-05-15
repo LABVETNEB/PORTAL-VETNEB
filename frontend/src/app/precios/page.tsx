@@ -69,57 +69,75 @@ export default async function PreciosPage() {
 
   return (
     <PublicLayout>
-      <section className="public-soft-canvas py-16 md:py-20" aria-labelledby="pricing-page-title">
+      <section
+        className="public-soft-canvas py-16 md:py-20"
+        aria-labelledby="pricing-page-title"
+      >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-10 text-center">
+          <div className="mx-auto mb-12 max-w-3xl text-center">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+              Valores de referencia
+            </p>
             <h1
               id="pricing-page-title"
               className="text-3xl font-bold text-vetneb-ink md:text-4xl"
             >
               Lista de precios
             </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
+              Referencia orientativa para la coordinación administrativa. Los
+              valores sin definición vigente se muestran como “Consultar”.
+            </p>
           </div>
 
           {pricingLoadError ? (
-            <p role="alert" className="surface-empty text-amber-700">
+            <p
+              role="alert"
+              className="mx-auto max-w-4xl rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-800 shadow-sm"
+            >
               No se pudieron cargar los precios. Intente nuevamente.
             </p>
           ) : hasPricingItems(pricingCategories) ? (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="mx-auto grid max-w-7xl grid-cols-1 gap-7 lg:grid-cols-2">
               {pricingCategories.map((category) => (
                 <Card
                   key={category.category}
-                  className="border-vetneb-line bg-vetneb-surface-raised/80"
+                  className="overflow-hidden border-vetneb-line/90 bg-card shadow-[0_18px_48px_rgba(15,45,62,0.09)] ring-1 ring-slate-200/70"
                 >
-                  <CardHeader className="border-b border-vetneb-line bg-primary py-4 text-center">
-                    <CardTitle className="text-center text-lg font-semibold text-primary-foreground">
+                  <CardHeader className="border-b border-vetneb-line bg-[hsl(var(--vetneb-navy))] px-6 py-5 text-center text-white">
+                    <CardTitle className="text-center text-base font-semibold uppercase tracking-[0.22em] text-white">
                       {category.category}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-0 p-0">
-                    {category.items.map((item, index) => (
-                      <div
-                        key={item.id}
-                        className={`flex items-start justify-between gap-4 px-4 py-3 ${
-                          index < category.items.length - 1
-                            ? "border-b border-vetneb-line/70"
-                            : ""
-                        }`}
-                      >
-                        <p className="text-sm font-medium text-vetneb-ink">
-                          {item.studyName}
-                        </p>
-                        <p className="shrink-0 text-sm font-semibold text-vetneb-ink">
-                          {normalizePriceLabel(item.priceLabel)}
-                        </p>
-                      </div>
-                    ))}
+
+                  <CardContent className="bg-vetneb-surface-raised/60 p-4">
+                    <div className="overflow-hidden rounded-xl border border-vetneb-line bg-card shadow-sm">
+                      {category.items.map((item, index) => (
+                        <div
+                          key={item.id}
+                          className={`flex items-start justify-between gap-5 px-5 py-4 transition-colors hover:bg-vetneb-surface-raised ${
+                            index < category.items.length - 1
+                              ? "border-b border-vetneb-line/80"
+                              : ""
+                          }`}
+                        >
+                          <p className="text-sm font-semibold uppercase tracking-[0.04em] text-vetneb-ink">
+                            {item.studyName}
+                          </p>
+                          <p className="shrink-0 rounded-full border border-vetneb-line bg-vetneb-surface-raised px-3 py-1 text-sm font-bold text-primary shadow-sm">
+                            {normalizePriceLabel(item.priceLabel)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           ) : (
-            <p className="surface-empty">No hay precios disponibles.</p>
+            <p className="surface-empty mx-auto max-w-4xl">
+              No hay precios disponibles.
+            </p>
           )}
         </div>
       </section>
