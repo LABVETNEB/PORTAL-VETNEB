@@ -13,7 +13,7 @@ export function DashboardShellRouter({
   const isAdminDashboard = selectedSegment === "admin";
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-vetneb-surface">
       {isAdminDashboard ? (
         <AdminDashboardSidebar />
       ) : (

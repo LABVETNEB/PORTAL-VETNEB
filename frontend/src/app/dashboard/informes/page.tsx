@@ -110,9 +110,9 @@ export default async function InformesPage({
         subtitle="Consulta de informes médicos veterinarios"
       />
       <main className="dashboard-main">
-        <Card>
+        <Card className="dashboard-surface">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Filtros
             </CardTitle>
           </CardHeader>
@@ -149,7 +149,7 @@ export default async function InformesPage({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="dashboard-surface">
           <CardHeader>
             <CardTitle className="text-base">
               Informes ({reports.length})
@@ -182,19 +182,19 @@ export default async function InformesPage({
                 ) : reports.length ? (
                   reports.map((report) => (
                     <TableRow key={report.id}>
-                      <TableCell className="font-mono text-xs text-gray-400">
+                      <TableCell className="font-mono text-xs text-muted-foreground">
                         #{report.id}
                       </TableCell>
                       <TableCell className="font-medium">
                         {report.patientName ?? "—"}
                       </TableCell>
-                      <TableCell className="text-gray-600">
+                      <TableCell className="text-vetneb-ink/75">
                         {report.studyType ?? "—"}
                       </TableCell>
-                      <TableCell className="text-gray-600 text-sm">
+                      <TableCell className="text-sm text-vetneb-ink/75">
                         {report.clinicName ?? `Clínica #${report.clinicId}`}
                       </TableCell>
-                      <TableCell className="text-gray-500 text-sm">
+                      <TableCell className="text-sm text-muted-foreground">
                         {formatDate(report.uploadDate)}
                       </TableCell>
                       <TableCell>

@@ -63,17 +63,17 @@ export default async function VisitasPage() {
           ).map(({ status, label }) => {
             const count = visits.filter((v) => v.status === status).length;
             return (
-              <Card key={status} className="border-gray-100">
+              <Card key={status} className="dashboard-metric-card p-0">
                 <CardContent className="pt-4">
-                  <p className="text-2xl font-bold text-gray-900">{count}</p>
-                  <p className="text-xs text-gray-500 mt-1">{label}</p>
+                  <p className="text-2xl font-bold text-vetneb-ink">{count}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{label}</p>
                 </CardContent>
               </Card>
             );
           })}
         </div>
 
-        <Card>
+        <Card className="dashboard-surface">
           <CardHeader>
             <CardTitle className="text-base">
               Visitas ({visits.length})
@@ -106,19 +106,19 @@ export default async function VisitasPage() {
                 ) : visits.length ? (
                   visits.map((visit) => (
                     <TableRow key={visit.id}>
-                      <TableCell className="font-mono text-xs text-gray-400">
+                      <TableCell className="font-mono text-xs text-muted-foreground">
                         #{visit.id}
                       </TableCell>
                       <TableCell className="font-medium text-sm">
                         {visit.clinicName ?? `Clínica #${visit.clinicId}`}
                       </TableCell>
-                      <TableCell className="text-gray-600 text-sm max-w-[180px] truncate">
+                      <TableCell className="max-w-[180px] truncate text-sm text-vetneb-ink/75">
                         {visit.address ?? "—"}
                       </TableCell>
-                      <TableCell className="text-gray-500 text-sm">
+                      <TableCell className="text-sm text-muted-foreground">
                         {formatDateTime(visit.scheduledAt)}
                       </TableCell>
-                      <TableCell className="text-gray-500 text-sm">
+                      <TableCell className="text-sm text-muted-foreground">
                         {visit.completedAt
                           ? formatDateTime(visit.completedAt)
                           : "—"}
@@ -128,7 +128,7 @@ export default async function VisitasPage() {
                           {getFieldVisitStatusLabel(visit.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-gray-400 text-xs max-w-[150px] truncate">
+                      <TableCell className="max-w-[150px] truncate text-xs text-muted-foreground">
                         {visit.notes ?? "—"}
                       </TableCell>
                     </TableRow>

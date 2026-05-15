@@ -62,17 +62,17 @@ export default async function RutasPage() {
           ).map(({ status, label }) => {
             const count = routePlans.filter((p) => p.status === status).length;
             return (
-              <Card key={status} className="border-gray-100">
+              <Card key={status} className="dashboard-metric-card p-0">
                 <CardContent className="pt-4">
-                  <p className="text-2xl font-bold text-gray-900">{count}</p>
-                  <p className="text-xs text-gray-500 mt-1">{label}</p>
+                  <p className="text-2xl font-bold text-vetneb-ink">{count}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{label}</p>
                 </CardContent>
               </Card>
             );
           })}
         </div>
 
-        <Card>
+        <Card className="dashboard-surface">
           <CardHeader>
             <CardTitle className="text-base">
               Planes de ruta ({routePlans.length})
@@ -111,23 +111,23 @@ export default async function RutasPage() {
                         : 0;
                     return (
                       <TableRow key={plan.id}>
-                        <TableCell className="font-mono text-xs text-gray-400">
+                        <TableCell className="font-mono text-xs text-muted-foreground">
                           #{plan.id}
                         </TableCell>
                         <TableCell className="font-medium text-sm">
                           {plan.name}
                         </TableCell>
-                        <TableCell className="text-gray-500 text-sm">
+                        <TableCell className="text-sm text-muted-foreground">
                           {formatDate(plan.plannedDate)}
                         </TableCell>
-                        <TableCell className="text-gray-600 text-sm">
+                        <TableCell className="text-sm text-vetneb-ink/75">
                           {plan.completedStops}/{plan.totalStops}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-100 rounded-full h-1.5 max-w-[80px]">
+                            <div className="clinical-progress h-1.5 max-w-[80px] flex-1">
                               <div
-                                className="bg-primary h-1.5 rounded-full transition-all"
+                                className="h-full rounded-full"
                                 style={{ width: `${progress}%` }}
                                 role="progressbar"
                                 aria-valuenow={progress}
@@ -135,7 +135,7 @@ export default async function RutasPage() {
                                 aria-valuemax={100}
                               />
                             </div>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               {progress}%
                             </span>
                           </div>

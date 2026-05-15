@@ -81,6 +81,7 @@ test("stats cards keep four-card loading skeleton", () => {
 
   assert.ok(source.includes("if (loading) {"));
   assert.ok(source.includes("Array.from({ length: 4 }).map((_, i) => ("));
+  assert.ok(source.includes('className="dashboard-metric-card overflow-hidden p-0"'));
   assert.ok(source.includes("<Skeleton"));
   assert.ok(source.includes("h-4 w-24"));
   assert.ok(source.includes("h-8 w-16 mb-1"));
@@ -93,6 +94,8 @@ test("stats cards render configured metrics with fallback and hidden icons", () 
   assert.ok(source.includes("statConfig.map((config) => ("));
   assert.ok(source.includes("key={config.key}"));
   assert.ok(source.includes("<config.icon className=\"h-4 w-4\" />"));
+  assert.ok(source.includes("dashboard-metric-card overflow-hidden p-0"));
+  assert.ok(source.includes("clinical-pill"));
   assert.ok(source.includes("{config.label}"));
   assert.ok(source.includes("{stats ? stats[config.key] : \"—\"}"));
   assert.ok(source.includes("{config.description}"));

@@ -18,6 +18,7 @@ test("dashboard logistica defines non-indexable metadata and dependencies", () =
   assert.ok(source.includes('import type { Metadata } from "next";'));
   assert.ok(source.includes('import { cookies } from "next/headers";'));
   assert.ok(source.includes('import Link from "next/link";'));
+  assert.ok(source.includes('} from "lucide-react";'));
   assert.ok(source.includes('title: "Logística — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
@@ -62,6 +63,10 @@ test("dashboard logistica computes active visits and active route plans explicit
 test("dashboard logistica exposes module cards through route registry", () => {
   const source = read(LOGISTICA_PAGE_PATH);
 
+  assert.ok(source.includes("const logisticsModules = ["));
+  assert.ok(source.includes("icon: Truck"));
+  assert.ok(source.includes("icon: MapPinned"));
+  assert.ok(source.includes("icon: BarChart3"));
   assert.ok(source.includes('title: "Visitas de campo"'));
   assert.ok(source.includes("href: ROUTES.dashboardLogisticaVisitas"));
   assert.ok(source.includes('title: "Planes de ruta"'));
@@ -69,6 +74,10 @@ test("dashboard logistica exposes module cards through route registry", () => {
   assert.ok(source.includes('title: "Métricas"'));
   assert.ok(source.includes("href: ROUTES.dashboardLogisticaMetricas"));
   assert.ok(source.includes("Ver módulo"));
+  assert.ok(source.includes('className="dashboard-surface h-full"'));
+  assert.equal(source.includes("🚐"), false);
+  assert.equal(source.includes("🗺"), false);
+  assert.equal(source.includes("📊"), false);
 });
 
 test("dashboard logistica renders recent visits with status badges dates and empty state", () => {
@@ -81,6 +90,7 @@ test("dashboard logistica renders recent visits with status badges dates and emp
   assert.ok(source.includes("formatDate(visit.scheduledAt)"));
   assert.ok(source.includes("getFieldVisitStatusVariant(visit.status)"));
   assert.ok(source.includes("getFieldVisitStatusLabel(visit.status)"));
+  assert.ok(source.includes('className="dashboard-list-row"'));
   assert.ok(source.includes("fieldVisitsLoadError ?"));
   assert.ok(source.includes("No se pudieron cargar las visitas recientes. Intente nuevamente."));
   assert.ok(source.includes('role="alert"'));
@@ -97,6 +107,7 @@ test("dashboard logistica renders route plans with status badges dates and empty
   assert.ok(source.includes("formatDate(plan.plannedDate)"));
   assert.ok(source.includes("getRoutePlanStatusVariant(plan.status)"));
   assert.ok(source.includes("getRoutePlanStatusLabel(plan.status)"));
+  assert.ok(source.includes('className="dashboard-list-row"'));
   assert.ok(source.includes("routePlansLoadError ?"));
   assert.ok(source.includes("No se pudieron cargar los planes de ruta recientes. Intente nuevamente."));
   assert.ok(source.includes('role="alert"'));
@@ -108,4 +119,14 @@ test("dashboard logistica avoids direct client-side fetch literals", () => {
 
   assert.equal(source.includes("fetch("), false);
   assert.equal(source.includes('"/api"'), false);
+});
+
+test("dashboard logistica uses clinical operational surfaces", () => {
+  const source = read(LOGISTICA_PAGE_PATH);
+
+  assert.ok(source.includes('className="dashboard-metric-card p-0"'));
+  assert.ok(source.includes('className="dashboard-surface"'));
+  assert.ok(source.includes('className="text-3xl font-bold text-vetneb-ink"'));
+  assert.equal(source.includes("border-gray-100"), false);
+  assert.equal(source.includes("border-gray-50"), false);
 });

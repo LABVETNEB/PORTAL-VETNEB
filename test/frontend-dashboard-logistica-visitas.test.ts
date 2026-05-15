@@ -55,6 +55,7 @@ test("dashboard logistica visitas keeps status counters aligned to field visit s
   assert.ok(source.includes('{ status: "in_progress", label: "En curso" }'));
   assert.ok(source.includes('{ status: "done", label: "Completadas" }'));
   assert.ok(source.includes("const count = visits.filter((v) => v.status === status).length;"));
+  assert.ok(source.includes('className="dashboard-metric-card p-0"'));
 });
 
 test("dashboard logistica visitas renders table columns", () => {
@@ -88,6 +89,9 @@ test("dashboard logistica visitas keeps empty state and avoids client-side fetch
 
   assert.ok(source.includes("No hay visitas de campo disponibles."));
   assert.ok(source.includes("colSpan={7}"));
+  assert.ok(source.includes('className="dashboard-surface"'));
+  assert.ok(source.includes('className="clinical-table-state"'));
+  assert.equal(source.includes("border-gray-100"), false);
   assert.equal(source.includes("fetch("), false);
 });
 

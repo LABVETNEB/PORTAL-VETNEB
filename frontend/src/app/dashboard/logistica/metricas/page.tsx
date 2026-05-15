@@ -94,57 +94,57 @@ export default async function MetricasPage() {
       />
       <main className="dashboard-main">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <Card className="border-gray-100">
+          <Card className="dashboard-metric-card p-0">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 Cumplimiento promedio
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-vetneb-ink">
                 {avgCompliance}%
               </p>
             </CardContent>
           </Card>
-          <Card className="border-gray-100">
+          <Card className="dashboard-metric-card p-0">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 Paradas completadas
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-vetneb-ink">
                 {completedStops}/{totalStops}
               </p>
             </CardContent>
           </Card>
-          <Card className="border-gray-100">
+          <Card className="dashboard-metric-card p-0">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 Duración promedio
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-vetneb-ink">
                 {avgDuration !== null ? `${avgDuration} min` : "—"}
               </p>
             </CardContent>
           </Card>
-          <Card className="border-gray-100">
+          <Card className="dashboard-metric-card p-0">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 Planes analizados
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-vetneb-ink">
                 {routeMetrics.length}
               </p>
             </CardContent>
           </Card>
         </div>
 
-        <Card>
+        <Card className="dashboard-surface">
           <CardHeader>
             <CardTitle className="text-base">Métricas por plan de ruta</CardTitle>
             <CardDescription>
@@ -168,10 +168,10 @@ export default async function MetricasPage() {
                 return (
                   <div
                     key={metric.routePlanId}
-                    className="space-y-3 rounded-xl border border-gray-100 p-4"
+                    className="surface-soft space-y-3"
                   >
                     <div className="flex items-center justify-between">
-                      <h3 className="font-medium text-gray-900 text-sm">
+                      <h3 className="text-sm font-semibold text-vetneb-ink">
                         {plan?.name ?? `Plan #${metric.routePlanId}`}
                       </h3>
                       <Badge
@@ -186,33 +186,33 @@ export default async function MetricasPage() {
                         {metric.complianceRate}% cumplimiento
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
                       <div>
-                        <p className="text-gray-400 text-xs">Total paradas</p>
+                        <p className="text-xs text-muted-foreground">Total paradas</p>
                         <p className="font-semibold">{metric.totalStops}</p>
                       </div>
                       <div>
-                        <p className="text-gray-400 text-xs">Completadas</p>
-                        <p className="font-semibold text-green-600">
+                        <p className="text-xs text-muted-foreground">Completadas</p>
+                        <p className="font-semibold text-vetneb-teal">
                           {metric.completedStops}
                         </p>
                       </div>
                       <div>
-                        <p className="text-gray-400 text-xs">Omitidas</p>
-                        <p className="font-semibold text-amber-600">
+                        <p className="text-xs text-muted-foreground">Omitidas</p>
+                        <p className="font-semibold text-vetneb-amber">
                           {metric.skippedStops}
                         </p>
                       </div>
                       <div>
-                        <p className="text-gray-400 text-xs">Sin presencia</p>
-                        <p className="font-semibold text-red-600">
+                        <p className="text-xs text-muted-foreground">Sin presencia</p>
+                        <p className="font-semibold text-destructive">
                           {metric.noShowStops}
                         </p>
                       </div>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div className="clinical-progress h-2 w-full">
                       <div
-                        className="bg-primary h-2 rounded-full"
+                        className="h-full rounded-full"
                         style={{ width: `${metric.complianceRate}%` }}
                         role="progressbar"
                         aria-valuenow={metric.complianceRate}
