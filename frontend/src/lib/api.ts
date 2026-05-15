@@ -664,6 +664,103 @@ export async function getAuditEntries(
   }
 }
 
+export type AdminPricingCategoryItem = {
+  id: number;
+  studyName: string;
+  priceLabel: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  updatedAt: string;
+};
+
+export type AdminPricingCategory = {
+  category: string;
+  items: AdminPricingCategoryItem[];
+};
+
+export type AdminPricingSnapshot = {
+  success: true;
+  categories: AdminPricingCategory[];
+};
+
+export type AdminPricingItem = {
+  id: number;
+  category: string;
+  studyName: string;
+  priceLabel: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  updatedAt: string;
+};
+
+export type AdminPricingUpdatePayload = {
+  priceLabel?: string | null;
+  isActive?: boolean;
+  displayOrder?: number;
+};
+
+export type AdminPricingUpdateResponse = {
+  success: true;
+  pricingItem: AdminPricingItem;
+};
+
+function normalizeAdminPricingPriceLabel(
+  value: string | null | undefined,
+): string | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function buildAdminPricingUpdatePayload(
+  payload: AdminPricingUpdatePayload,
+): AdminPricingUpdatePayload {
+  const normalizedPayload: AdminPricingUpdatePayload = {};
+
+  if (Object.prototype.hasOwnProperty.call(payload, "priceLabel")) {
+    normalizedPayload.priceLabel = normalizeAdminPricingPriceLabel(
+      payload.priceLabel,
+    );
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, "isActive")) {
+    normalizedPayload.isActive = payload.isActive;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, "displayOrder")) {
+    normalizedPayload.displayOrder = payload.displayOrder;
+  }
+
+  return normalizedPayload;
+}
+
+export async function getAdminPricing(
+  options?: RequestInit,
+): Promise<AdminPricingSnapshot> {
+  return apiFetch<AdminPricingSnapshot>("/api/admin/pricing", options);
+}
+
+export async function updateAdminPricingItem(
+  id: number,
+  payload: AdminPricingUpdatePayload,
+  options?: RequestInit,
+): Promise<AdminPricingUpdateResponse> {
+  const normalizedPayload = buildAdminPricingUpdatePayload(payload);
+
+  return apiFetch<AdminPricingUpdateResponse>(`/api/admin/pricing/${id}`, {
+    ...options,
+    method: "PATCH",
+    body: JSON.stringify(normalizedPayload),
+  });
+}
+
 
 export async function getAdminSystemHealth(
   options?: RequestInit,
