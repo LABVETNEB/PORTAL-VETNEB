@@ -67,7 +67,7 @@ export function FooterFaq() {
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-foreground">
                 <span>{item.question}</span>
                 <ChevronDown
-                  className="h-4 w-4 shrink-0 text-primary transition-transform group-open:rotate-180"
+                  className="h-4 w-4 shrink-0 text-primary transition-colors group-open:text-vetneb-teal"
                   aria-hidden="true"
                 />
               </summary>
@@ -123,7 +123,7 @@ export function Footer() {
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <Mail className="mt-0.5 h-4 w-4 shrink-0 text-blue-300" aria-hidden="true" />
+                  <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary-foreground/70" aria-hidden="true" />
                   <span>
                     Mail:{" "}
                     <a

@@ -27,7 +27,7 @@ test("button component defines expected visual variants", () => {
   const source = read(BUTTON_PATH);
 
   assert.ok(source.includes("variant: {"));
-  assert.ok(source.includes("bg-primary text-primary-foreground shadow-[0_10px_26px_hsl(var(--vetneb-navy)/0.20)] hover:bg-primary/92 hover:shadow-[0_14px_32px_hsl(var(--vetneb-navy)/0.24)]"));
+  assert.ok(source.includes("clinical-primary-gradient clinical-primary-gradient-hover text-primary-foreground shadow-[0_10px_26px_hsl(var(--vetneb-navy)/0.20)] hover:shadow-[0_14px_32px_hsl(var(--vetneb-navy)/0.24)]"));
   assert.ok(source.includes("destructive:"));
   assert.ok(source.includes("outline:"));
   assert.ok(source.includes("secondary:"));

@@ -320,13 +320,13 @@ export default async function AdminPage({
         >
           <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase text-blue-700">
+              <p className="text-xs font-semibold uppercase text-vetneb-navy">
                 Panel administrador
               </p>
               <h2 className="mt-2 text-xl font-semibold text-gray-950">
                 Carga de informes
               </h2>
-              <p className="mt-1 max-w-2xl text-sm text-blue-800/80">
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
                 Suba PDFs, asócielos a una clínica y vincule tokens particulares
                 desde una única superficie administrativa.
               </p>
@@ -503,7 +503,7 @@ export default async function AdminPage({
                   href={buildAdminAuditFilterHref({
                     event: "clinic_user.role.changed",
                   })}
-                  className="mt-1 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-900"
+                  className="mt-1 inline-flex text-sm font-semibold text-vetneb-navy hover:text-vetneb-teal"
                 >
                   Ver cambios de rol
                 </Link>
@@ -551,13 +551,13 @@ export default async function AdminPage({
           </CardHeader>
           <CardContent className="space-y-4 p-0">
             {hasActiveAuditFilters ? (
-              <div className="mx-6 mt-4 flex flex-col gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700 md:flex-row md:items-center md:justify-between">
+              <div className="clinical-muted-band mx-6 mt-4 flex flex-col gap-2 rounded-lg px-4 py-3 text-sm text-vetneb-navy md:flex-row md:items-center md:justify-between">
                 <span>
                   Mostrando {filteredAuditEntries.length} de {auditEntries.length} eventos.
                 </span>
                 <Link
                   href="/dashboard/admin#audit-log"
-                  className="font-semibold text-blue-800 hover:text-blue-950"
+                  className="font-semibold text-vetneb-navy hover:text-vetneb-teal"
                 >
                   Limpiar filtros
                 </Link>
@@ -629,7 +629,7 @@ export default async function AdminPage({
                         <div className="mt-2">
                           <Link
                             href="/dashboard/admin#audit-log"
-                            className="font-semibold text-blue-700 hover:text-blue-900"
+                            className="font-semibold text-vetneb-navy hover:text-vetneb-teal"
                           >
                             Limpiar filtros
                           </Link>

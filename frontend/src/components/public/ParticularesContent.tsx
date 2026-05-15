@@ -201,7 +201,7 @@ export function ParticularesContent() {
             ))}
           </div>
 
-          <div className="mt-8 rounded-3xl border border-emerald-100 bg-gradient-to-r from-white/90 via-emerald-50/80 to-blue-50/80 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+          <div className="clinical-muted-band mt-8 rounded-lg p-5 clinical-surface-shadow">
             <div className="flex items-start gap-3">
               <VisualIcon
                 icon={ShieldCheck}
@@ -224,7 +224,7 @@ export function ParticularesContent() {
 
         <PremiumPanel className="overflow-hidden">
           <Card className="border-0 bg-transparent shadow-none">
-            <CardHeader className="border-b border-white/70 bg-gradient-to-r from-white/80 via-blue-50/70 to-emerald-50/70">
+            <CardHeader className="clinical-muted-band border-b">
               <div className="flex items-start gap-3">
                 <VisualIcon
                   icon={session ? UserRound : KeyRound}
@@ -305,7 +305,7 @@ export function ParticularesContent() {
                   </div>
 
                   {session.report ? (
-                    <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-emerald-50 p-4 shadow-sm">
+                    <div className="clinical-muted-band rounded-lg p-4 shadow-sm">
                       <div className="flex items-start gap-3">
                         <VisualIcon
                           icon={FileText}
@@ -313,10 +313,10 @@ export function ParticularesContent() {
                           className="h-10 w-10 shrink-0 rounded-xl"
                         />
                         <div>
-                          <h3 className="font-semibold text-blue-950">
+                          <h3 className="font-semibold text-vetneb-navy">
                             Informe vinculado
                           </h3>
-                          <p className="mt-1 text-sm text-blue-900">
+                          <p className="mt-1 text-sm text-muted-foreground">
                             {session.report.studyType ?? "Estudio"} ·{" "}
                             {session.report.fileName ?? "Archivo disponible"}
                           </p>
@@ -328,7 +328,7 @@ export function ParticularesContent() {
                           type="button"
                           onClick={() => openReport("preview")}
                           disabled={isOpeningReport}
-                          className="bg-gradient-to-r from-blue-700 to-teal-600 shadow-[0_14px_35px_rgba(37,99,235,0.20)] hover:from-blue-800 hover:to-teal-700"
+                          className="clinical-primary-gradient clinical-primary-gradient-hover shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.20)]"
                         >
                           <Eye className="h-4 w-4" aria-hidden="true" />
                           Ver informe
@@ -346,7 +346,7 @@ export function ParticularesContent() {
                       </div>
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 text-sm text-amber-900 shadow-sm">
+                    <div className="rounded-lg border border-vetneb-amber/35 bg-vetneb-amber/10 p-4 text-sm text-amber-900 shadow-sm">
                       El caso todavía no tiene un informe vinculado. El estudio
                       continúa en evaluación profesional y se habilitará cuando
                       finalice la validación diagnóstica.
@@ -413,7 +413,7 @@ export function ParticularesContent() {
 
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-blue-700 to-teal-600 shadow-[0_14px_35px_rgba(37,99,235,0.22)] hover:from-blue-800 hover:to-teal-700"
+                    className="w-full clinical-primary-gradient clinical-primary-gradient-hover shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)]"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? "Validando token..." : "Ingresar"}

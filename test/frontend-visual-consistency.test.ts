@@ -164,7 +164,7 @@ test("servicios page keeps professional section/card structure and responsive la
   assertMatchesAll(
     source,
     [
-      /className="bg-gradient-to-br from-blue-900 to-blue-700 py-16 text-white md:py-20"/,
+      /className="clinical-primary-gradient py-16 text-white md:py-20"/,
       /className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8"/,
       /className="h-full border-gray-100 transition-shadow hover:shadow-md"/,
       /className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center"/,
@@ -374,7 +374,7 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
       /className="surface-soft"/,
       /className="grid grid-cols-1 gap-3 md:grid-cols-3"/,
       /className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"/,
-      /className="mx-6 mt-4 flex flex-col gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700 md:flex-row md:items-center md:justify-between"/,
+      /className="clinical-muted-band mx-6 mt-4 flex flex-col gap-2 rounded-lg px-4 py-3 text-sm text-vetneb-navy md:flex-row md:items-center md:justify-between"/,
       /className="max-w-md whitespace-normal break-words text-xs text-gray-500"/,
     ],
     "dashboard admin visual contracts",

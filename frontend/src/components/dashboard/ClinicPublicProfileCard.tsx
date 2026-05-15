@@ -347,7 +347,7 @@ export function ClinicPublicProfileCard() {
             />
           </div>
 
-          <label className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          <label className="clinical-muted-band flex items-start gap-3 rounded-lg px-4 py-3 text-sm text-vetneb-navy">
             <input
               type="checkbox"
               className="mt-1"
