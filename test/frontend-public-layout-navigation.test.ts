@@ -35,8 +35,27 @@ test("navbar uses centralized public routes for primary navigation", () => {
   assert.ok(source.includes('{ label: "Servicios", href: ROUTES.servicios }'));
   assert.ok(source.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
   assert.ok(source.includes('{ label: "Clínicas", href: ROUTES.clinicas }'));
+  assert.ok(source.includes('{ label: "Particulares", href: ROUTES.particulares }'));
   assert.ok(source.includes('{ label: "Contacto", href: ROUTES.contacto }'));
+  assert.ok(source.includes('{ label: "Precios", href: ROUTES.precios }'));
   assert.ok(source.includes('aria-label="Navegación principal"'));
+});
+
+test("navbar keeps expected public link order including precios", () => {
+  const source = read(NAVBAR_PATH);
+
+  const serviciosIndex = source.indexOf('{ label: "Servicios", href: ROUTES.servicios }');
+  const profesionalesIndex = source.indexOf('{ label: "Profesionales", href: ROUTES.profesionales }');
+  const clinicasIndex = source.indexOf('{ label: "Clínicas", href: ROUTES.clinicas }');
+  const particularesIndex = source.indexOf('{ label: "Particulares", href: ROUTES.particulares }');
+  const contactoIndex = source.indexOf('{ label: "Contacto", href: ROUTES.contacto }');
+  const preciosIndex = source.indexOf('{ label: "Precios", href: ROUTES.precios }');
+
+  assert.ok(serviciosIndex < profesionalesIndex);
+  assert.ok(profesionalesIndex < clinicasIndex);
+  assert.ok(clinicasIndex < particularesIndex);
+  assert.ok(particularesIndex < contactoIndex);
+  assert.ok(contactoIndex < preciosIndex);
 });
 
 test("navbar exposes home login and access CTAs with VETNEB brand", () => {
@@ -81,4 +100,3 @@ test("footer exposes access links and legal copy without redundant brand block",
   assert.equal(source.includes("Laboratorio veterinario digital. Informes, estudios y gestión"), false);
   assert.equal(source.includes("rounded-md bg-primary px-3"), false);
 });
-

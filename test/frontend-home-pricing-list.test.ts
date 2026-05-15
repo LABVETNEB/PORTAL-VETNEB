@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
+const PRECIOS_PAGE_PATH = "frontend/src/app/precios/page.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -12,32 +13,37 @@ function read(relativePath: string): string {
   );
 }
 
-test("home page requests public pricing from backend API", () => {
+test("home page no longer renders public pricing section", () => {
   const source = read(HOME_PAGE_PATH);
 
-  assert.ok(source.includes('import { getPublicPricing, type PublicPricingCategory } from "@/lib/api";'));
-  assert.ok(source.includes("export default async function HomePage()"));
+  assert.equal(source.includes("Lista de precios"), false);
+  assert.equal(source.includes("getPublicPricing("), false);
+  assert.equal(
+    source.includes("No se pudieron cargar los precios. Intente nuevamente."),
+    false,
+  );
+  assert.equal(source.includes("No hay precios disponibles."), false);
+  assert.equal(source.includes("normalizePriceLabel("), false);
+});
+
+test("precios page requests public pricing from backend API", () => {
+  const source = read(PRECIOS_PAGE_PATH);
+
+  assert.ok(source.includes("export default async function PreciosPage()"));
   assert.ok(source.includes("await getPublicPricing("));
   assert.ok(source.includes('{ cache: "no-store" }'));
   assert.ok(source.includes("{ throwOnError: true },"));
 });
 
-test("home page shows public pricing section and normalized label fallback", () => {
-  const source = read(HOME_PAGE_PATH);
+test("precios page keeps public pricing states and fallback label", () => {
+  const source = read(PRECIOS_PAGE_PATH);
 
-  assert.ok(source.includes("Lista de precios"));
-  assert.ok(source.includes("normalizePriceLabel(priceLabel: string | null | undefined): string"));
+  assert.ok(source.includes("function normalizePriceLabel(priceLabel: string | null | undefined): string"));
   assert.ok(source.includes('return normalizedPriceLabel ? normalizedPriceLabel : "Consultar";'));
-  assert.ok(source.includes("{item.studyName}"));
+  assert.ok(source.includes("Lista de precios"));
   assert.ok(source.includes("{normalizePriceLabel(item.priceLabel)}"));
-});
-
-test("home page distinguishes pricing API error and empty states", () => {
-  const source = read(HOME_PAGE_PATH);
-
-  assert.ok(source.includes("pricingLoadError ?"));
-  assert.ok(source.includes('role="alert"'));
+  assert.ok(source.includes("{item.studyName}"));
   assert.ok(source.includes("No se pudieron cargar los precios. Intente nuevamente."));
   assert.ok(source.includes("No hay precios disponibles."));
-  assert.ok(source.includes("hasPricingItems(pricingCategories)"));
+  assert.ok(source.includes('role="alert"'));
 });

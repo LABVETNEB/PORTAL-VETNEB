@@ -20,7 +20,9 @@ test("frontend route registry defines public routes centrally", () => {
   assert.ok(source.includes('servicios: "/servicios",'));
   assert.ok(source.includes('profesionales: "/profesionales",'));
   assert.ok(source.includes('clinicas: "/clinicas",'));
+  assert.ok(source.includes('particulares: "/particulares",'));
   assert.ok(source.includes('contacto: "/contacto",'));
+  assert.ok(source.includes('precios: "/precios",'));
   assert.ok(source.includes('login: "/login",'));
   assert.ok(source.includes("} as const;"));
   assert.ok(source.includes("export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];"));
@@ -34,7 +36,9 @@ test("frontend route registry keeps public route allowlist explicit", () => {
   assert.ok(source.includes("ROUTES.servicios,"));
   assert.ok(source.includes("ROUTES.profesionales,"));
   assert.ok(source.includes("ROUTES.clinicas,"));
+  assert.ok(source.includes("ROUTES.particulares,"));
   assert.ok(source.includes("ROUTES.contacto,"));
+  assert.ok(source.includes("ROUTES.precios,"));
   assert.ok(source.includes("ROUTES.login,"));
 });
 

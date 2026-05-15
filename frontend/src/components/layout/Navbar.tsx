@@ -10,6 +10,7 @@ const navLinks = [
   { label: "Clínicas", href: ROUTES.clinicas },
   { label: "Particulares", href: ROUTES.particulares },
   { label: "Contacto", href: ROUTES.contacto },
+  { label: "Precios", href: ROUTES.precios },
 ];
 
 export function Navbar() {
