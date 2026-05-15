@@ -342,7 +342,11 @@ function parsePatchPayload(
   if (Object.prototype.hasOwnProperty.call(rawBody, "displayOrder")) {
     const value = rawBody.displayOrder;
 
-    if (!Number.isInteger(value) || value < 0) {
+    if (
+      typeof value !== "number" ||
+      !Number.isInteger(value) ||
+      value < 0
+    ) {
       return {
         error: "displayOrder inválido. Debe ser un entero mayor o igual a 0.",
       };
