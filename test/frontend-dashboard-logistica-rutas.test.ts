@@ -37,13 +37,15 @@ test("dashboard logistica rutas forwards cookies and disables cache for live rea
   assert.ok(source.includes("throwOnError: true,"));
 });
 
-test("dashboard logistica rutas renders topbar and read-source notice", () => {
+test("dashboard logistica rutas renders topbar without technical source copy", () => {
   const source = read(RUTAS_PAGE_PATH);
+  const removedSourcePrefix = "Lectura conectada " + "a";
+  const removedRoutePlansEndpoint = "GET " + "/api/logistics/route-plans";
 
   assert.ok(source.includes('title="Planes de ruta"'));
   assert.ok(source.includes('subtitle="Planificación y gestión de rutas de entrega"'));
-  assert.ok(source.includes("Lectura conectada a"));
-  assert.ok(source.includes("GET /api/logistics/route-plans"));
+  assert.equal(source.includes(removedSourcePrefix), false);
+  assert.equal(source.includes(removedRoutePlansEndpoint), false);
 });
 
 test("dashboard logistica rutas keeps status counters aligned to route plan statuses", () => {

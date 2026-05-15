@@ -91,9 +91,6 @@ export default async function DashboardPage() {
               >
                 Priorice informes pendientes y visitas activas para sostener continuidad diagnóstica.
               </p>
-              <p className="mt-1 text-xs text-vetneb-navy/80">
-                Lectura conectada a datos operativos clinic-scoped del backend. Esta superficie usa solo sesión clínica.
-              </p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:min-w-[20rem]">
               <div className="dashboard-kpi-pill" data-tone="critical">

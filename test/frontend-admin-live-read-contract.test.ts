@@ -114,17 +114,17 @@ test("frontend admin failed-login alerts read-only UI queda montada", () => {
     "getAdminFailedLoginAlerts(query)",
     "AdminFailedLoginAlertsReadOnlyCard.tsx",
   );
-  assertIncludes(
+  assertNotIncludes(
     cardSource,
-    "Vista Admin read-only",
+    "Vista Admin read-" + "only",
     "AdminFailedLoginAlertsReadOnlyCard.tsx",
   );
-  assertIncludes(
+  assertNotIncludes(
     cardSource,
     "no bloquea usuarios",
     "AdminFailedLoginAlertsReadOnlyCard.tsx",
   );
-  assertIncludes(
+  assertNotIncludes(
     cardSource,
     "no revoca sesiones",
     "AdminFailedLoginAlertsReadOnlyCard.tsx",
@@ -163,17 +163,12 @@ test("frontend admin failed-login alerts expone export CSV read-only", () => {
     "Exportar CSV",
     "AdminFailedLoginAlertsReadOnlyCard.tsx",
   );
-  assertIncludes(
+  assertNotIncludes(
     cardSource,
-    "GET /api/admin/failed-login-alerts/export.csv",
+    "GET " + "/api/admin/failed-login-alerts/export.csv",
     "AdminFailedLoginAlertsReadOnlyCard.tsx",
   );
-  assertIncludes(
-    cardSource,
-    "no bloquea usuarios",
-    "AdminFailedLoginAlertsReadOnlyCard.tsx",
-  );
-  assertIncludes(
+  assertNotIncludes(
     cardSource,
     "no revoca sesiones",
     "AdminFailedLoginAlertsReadOnlyCard.tsx",
@@ -265,17 +260,17 @@ test("frontend admin failed-login alerts permite limpiar filtros sin mutaciones"
     "Limpiar filtros",
     "AdminFailedLoginAlertsReadOnlyCard.tsx",
   );
-  assertIncludes(
+  assertNotIncludes(
     cardSource,
     "filtros reversibles",
     "AdminFailedLoginAlertsReadOnlyCard.tsx",
   );
-  assertIncludes(
+  assertNotIncludes(
     cardSource,
     "no bloquea usuarios",
     "AdminFailedLoginAlertsReadOnlyCard.tsx",
   );
-  assertIncludes(
+  assertNotIncludes(
     cardSource,
     "no revoca",
     "AdminFailedLoginAlertsReadOnlyCard.tsx",

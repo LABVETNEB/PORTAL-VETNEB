@@ -145,12 +145,16 @@ test("admin sessions card renders rows actions empty state and pagination", () =
   assert.ok(source.includes("Siguiente"));
 });
 
-test("admin sessions card documents admin endpoints and avoids raw token fields", () => {
+test("admin sessions card keeps session helpers and avoids technical endpoint copy", () => {
   const source = read(ADMIN_SESSIONS_CARD_PATH);
+  const removedSessionsEndpoint = "GET " + "/api/admin/sessions";
+  const removedRevokeEndpoint = "POST " + "/api/admin/sessions/:sessionType/:sessionId/revoke";
 
-  assert.ok(source.includes("GET /api/admin/sessions"));
-  assert.ok(source.includes("POST /api/admin/sessions/:sessionType/:sessionId/revoke"));
-  assert.ok(source.includes("La revocación queda auditada."));
+  assert.ok(source.includes("getAdminSessions"));
+  assert.ok(source.includes("revokeAdminSession"));
+  assert.equal(source.includes(removedSessionsEndpoint), false);
+  assert.equal(source.includes(removedRevokeEndpoint), false);
+  assert.equal(source.includes("La revocación queda auditada."), false);
   assert.equal(source.includes("password"), false);
   assert.equal(source.includes("sessionToken"), false);
   assert.equal(source.includes("tokenHash"), false);

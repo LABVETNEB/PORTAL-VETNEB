@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   createClinicParticularToken,
@@ -235,10 +235,6 @@ export function ClinicParticularTokensCard() {
     <Card id="clinic-particular-tokens">
       <CardHeader>
         <CardTitle className="text-base">Generación de tokens particulares</CardTitle>
-        <CardDescription>
-          Alta clinic-scoped en <code>POST /api/particular-tokens</code>. Todos
-          los datos programados son obligatorios, excepto el informe vinculado.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <form className="space-y-4" onSubmit={handleSubmit}>

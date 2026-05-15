@@ -53,11 +53,12 @@ test("frontend upload report modal keeps study type options without placeholder 
 
 test("frontend informes page does not expose admin upload modal in clinic dashboard", () => {
   const source = read(INFORMES_PAGE_PATH);
+  const removedSourceCopy = "Lectura clinic-" + "scoped conectada a";
 
   assert.equal(source.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal"'), false);
   assert.equal(source.includes("<UploadReportModal />"), false);
-  assert.ok(source.includes("Lectura clinic-scoped conectada a"));
-  assert.ok(source.includes("dashboard administrador"));
+  assert.equal(source.includes(removedSourceCopy), false);
+  assert.equal(source.includes("dashboard administrador"), false);
 });
 
 test("frontend admin dashboard exposes upload report modal only in admin surface", () => {

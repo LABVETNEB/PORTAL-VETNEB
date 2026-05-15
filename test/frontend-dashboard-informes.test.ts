@@ -66,16 +66,17 @@ test("dashboard informes keeps status filter options aligned to report statuses"
   assert.ok(source.includes('{ value: "delivered", label: "Entregado" }'));
 });
 
-test("dashboard informes renders read-only clinic source notice", () => {
+test("dashboard informes renders clinic reports surface without technical source copy", () => {
   const source = read(INFORMES_PAGE_PATH);
+  const removedSourceCopy = "Lectura clinic-" + "scoped conectada a";
+  const removedReportsEndpoint = "GET " + "/api/reports";
 
   assert.ok(source.includes('title="Informes"'));
   assert.ok(source.includes('subtitle="Consulta de informes médicos veterinarios"'));
-  assert.ok(source.includes("Lectura clinic-scoped conectada a"));
-  assert.ok(source.includes("GET /api/reports"));
-  assert.ok(source.includes("dashboard administrador"));
   assert.equal(source.includes("<UploadReportModal />"), false);
   assert.equal(source.includes("/api/admin"), false);
+  assert.equal(source.includes(removedSourceCopy), false);
+  assert.equal(source.includes(removedReportsEndpoint), false);
 });
 
 test("dashboard informes renders filters and reports table columns", () => {

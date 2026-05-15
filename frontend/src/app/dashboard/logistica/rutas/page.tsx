@@ -51,10 +51,6 @@ export default async function RutasPage() {
         subtitle="Planificación y gestión de rutas de entrega"
       />
       <main className="dashboard-main">
-        <div className="surface-note-info">
-          Lectura conectada a <code>GET /api/logistics/route-plans</code>.
-        </div>
-
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {(
             [

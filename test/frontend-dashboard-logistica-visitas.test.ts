@@ -36,13 +36,15 @@ test("dashboard logistica visitas forwards cookies and disables cache for live r
   assert.ok(source.includes("{ throwOnError: true },"));
 });
 
-test("dashboard logistica visitas renders topbar and read-source notice", () => {
+test("dashboard logistica visitas renders topbar without technical source copy", () => {
   const source = read(VISITAS_PAGE_PATH);
+  const removedSourcePrefix = "Lectura conectada " + "a";
+  const removedFieldVisitsEndpoint = "GET " + "/api/logistics/field-visits";
 
   assert.ok(source.includes('title="Visitas de campo"'));
   assert.ok(source.includes('subtitle="Seguimiento de visitas programadas y en curso"'));
-  assert.ok(source.includes("Lectura conectada a"));
-  assert.ok(source.includes("GET /api/logistics/field-visits"));
+  assert.equal(source.includes(removedSourcePrefix), false);
+  assert.equal(source.includes(removedFieldVisitsEndpoint), false);
 });
 
 test("dashboard logistica visitas keeps status counters aligned to field visit statuses", () => {

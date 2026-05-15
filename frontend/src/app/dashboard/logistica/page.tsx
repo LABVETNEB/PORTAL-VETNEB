@@ -74,11 +74,6 @@ export default async function LogisticaPage() {
         subtitle="Visitas de campo y planes de ruta"
       />
       <main className="dashboard-main">
-        <div className="surface-note-info">
-          Lectura conectada a <code>GET /api/logistics/field-visits</code> y{" "}
-          <code>GET /api/logistics/route-plans</code>.
-        </div>
-
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card className="border-gray-100">
             <CardHeader className="pb-2">

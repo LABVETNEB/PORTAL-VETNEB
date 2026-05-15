@@ -20,19 +20,20 @@ function read(relativePath: string): string {
 test("clinic dashboard exists as a clinic-only dashboard and keeps admin out", () => {
   const source = read(DASHBOARD_PAGE_PATH);
   const sidebarSource = read(CLINIC_DASHBOARD_SIDEBAR_PATH);
+  const removedSessionScopeCopy = "Esta superficie usa solo sesión " + "clínica.";
 
   assert.ok(source.includes('title: "Dashboard Clínica — Portal VETNEB"'));
   assert.ok(source.includes('title="Dashboard Clínica"'));
-  assert.ok(source.includes("Esta superficie usa solo sesión clínica."));
   assert.ok(source.includes('import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";'));
   assert.ok(source.includes("<ClinicParticularTokensCard />"));
   assert.ok(sidebarSource.includes('label: "Tokens particulares"'));
   assert.ok(sidebarSource.includes('`${ROUTES.dashboard}#clinic-particular-tokens`'));
+  assert.equal(source.includes(removedSessionScopeCopy), false);
   assert.equal(source.includes('label: "Admin"'), false);
   assert.equal(source.includes("ROUTES.dashboardAdmin"), false);
 });
 
-test("clinic particular tokens card exists and uses clinic-scoped endpoints", () => {
+test("clinic particular tokens card exists and uses clinic helpers", () => {
   assert.equal(
     existsSync(resolve(process.cwd(), CLINIC_TOKENS_CARD_PATH)),
     true,
@@ -40,17 +41,18 @@ test("clinic particular tokens card exists and uses clinic-scoped endpoints", ()
   );
 
   const source = read(CLINIC_TOKENS_CARD_PATH);
+  const removedScopedCopy = "Alta clinic-" + "scoped";
+  const removedTokenEndpoint = "POST " + "/api/particular-tokens";
 
   assert.ok(source.includes('"use client";'));
   assert.ok(source.includes("createClinicParticularToken"));
   assert.ok(source.includes("getClinicParticularTokens"));
   assert.ok(source.includes('id="clinic-particular-tokens"'));
-  assert.ok(source.includes("POST /api/particular-tokens"));
-  assert.ok(source.includes("Todos"));
-  assert.ok(source.includes("los datos programados son obligatorios"));
   assert.ok(source.includes("generatedToken"));
   assert.ok(source.includes("El token completo solo se muestra una vez."));
   assert.equal(source.includes("/api/admin/particular-tokens"), false);
+  assert.equal(source.includes(removedScopedCopy), false);
+  assert.equal(source.includes(removedTokenEndpoint), false);
 });
 
 test("clinic token generation requires all programmed data fields", () => {

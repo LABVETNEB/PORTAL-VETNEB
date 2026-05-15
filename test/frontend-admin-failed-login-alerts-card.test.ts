@@ -103,16 +103,17 @@ test("admin failed login alerts card keeps reversible filters and load behavior"
   assert.ok(source.includes("loadFailedLoginAlerts();"));
 });
 
-test("admin failed login alerts card renders safe read-only header and actions", () => {
+test("admin failed login alerts card renders header and actions without technical copy", () => {
   const source = read(ADMIN_FAILED_LOGIN_ALERTS_CARD_PATH);
+  const removedReadOnlyCopy = "Vista Admin read-" + "only";
 
   assert.ok(source.includes('id="failed-login-alerts"'));
   assert.ok(source.includes("Intentos fallidos de login"));
-  assert.ok(source.includes("Vista Admin read-only de intentos fallidos persistidos. No expone"));
-  assert.ok(source.includes("passwords, tokens, hashes ni cookies."));
   assert.ok(source.includes("Limpiar filtros"));
   assert.ok(source.includes("<a href={csvUrl}>Exportar CSV</a>"));
   assert.ok(source.includes('isPending ? "Actualizando..." : "Actualizar"'));
+  assert.equal(source.includes(removedReadOnlyCopy), false);
+  assert.equal(source.includes("passwords, tokens, hashes ni cookies."), false);
 });
 
 test("admin failed login alerts card renders filters table columns and rows", () => {
@@ -138,8 +139,11 @@ test("admin failed login alerts card renders filters table columns and rows", ()
   assert.ok(source.includes("formatDateTime(alert.createdAt)"));
 });
 
-test("admin failed login alerts card keeps empty state pagination and read-only endpoint copy", () => {
+test("admin failed login alerts card keeps empty state and pagination without endpoint copy", () => {
   const source = read(ADMIN_FAILED_LOGIN_ALERTS_CARD_PATH);
+  const removedAlertsEndpoint = "GET " + "/api/admin/failed-login-alerts";
+  const removedAlertsCsvEndpoint = "GET " + "/api/admin/failed-login-alerts/export.csv";
+  const removedReadOnlyFilters = "read-" + "only con filtros reversibles";
 
   assert.ok(
     source.includes(
@@ -152,8 +156,8 @@ test("admin failed login alerts card keeps empty state pagination and read-only 
   assert.ok(source.includes("const hasNextPage = snapshot"));
   assert.ok(source.includes("Anterior"));
   assert.ok(source.includes("Siguiente"));
-  assert.ok(source.includes("GET /api/admin/failed-login-alerts"));
-  assert.ok(source.includes("GET /api/admin/failed-login-alerts/export.csv"));
-  assert.ok(source.includes("read-only con filtros reversibles"));
-  assert.ok(source.includes("no bloquea usuarios, no revoca sesiones y no dispara notificaciones."));
+  assert.equal(source.includes(removedAlertsEndpoint), false);
+  assert.equal(source.includes(removedAlertsCsvEndpoint), false);
+  assert.equal(source.includes(removedReadOnlyFilters), false);
+  assert.equal(source.includes("no bloquea usuarios, no revoca sesiones y no dispara notificaciones."), false);
 });

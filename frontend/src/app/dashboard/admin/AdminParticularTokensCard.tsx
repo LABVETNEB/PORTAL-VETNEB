@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -249,11 +248,6 @@ export function AdminParticularTokensCard() {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Generación de tokens particulares</CardTitle>
-        <CardDescription>
-          Alta admin-scoped en <code>POST /api/admin/particular-tokens</code>.
-          Todos los datos programados son obligatorios, excepto el informe
-          vinculado. El ID de clínica es obligatorio.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <form className="space-y-4" onSubmit={handleSubmit}>

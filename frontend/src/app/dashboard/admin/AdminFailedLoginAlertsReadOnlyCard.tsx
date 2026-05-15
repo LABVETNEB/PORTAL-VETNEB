@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -137,10 +136,6 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           <CardTitle className="text-base">
             Intentos fallidos de login
           </CardTitle>
-          <CardDescription>
-            Vista Admin read-only de intentos fallidos persistidos. No expone
-            passwords, tokens, hashes ni cookies.
-          </CardDescription>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -298,12 +293,6 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
         </div>
 
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <p className="text-xs text-gray-400">
-            Endpoints: <code>GET /api/admin/failed-login-alerts</code> y{" "}
-            <code>GET /api/admin/failed-login-alerts/export.csv</code>. Vista
-            read-only con filtros reversibles: no bloquea usuarios, no revoca sesiones y no dispara notificaciones.
-          </p>
-
           <div className="flex items-center gap-2">
             <Button
               type="button"
