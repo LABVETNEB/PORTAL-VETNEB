@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import {
+  BarChart3,
+  MapPinned,
+  Truck,
+  type LucideIcon,
+} from "lucide-react";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +72,35 @@ export default async function LogisticaPage() {
   const activePlans = routePlans.filter(
     (p) => p.status === "in_progress" || p.status === "released",
   );
+  const logisticsModules = [
+    {
+      title: "Visitas de campo",
+      href: ROUTES.dashboardLogisticaVisitas,
+      icon: Truck,
+      description: "Seguimiento de visitas programadas y en curso.",
+      count: fieldVisits.length,
+    },
+    {
+      title: "Planes de ruta",
+      href: ROUTES.dashboardLogisticaRutas,
+      icon: MapPinned,
+      description: "Planificación y gestión de rutas de entrega.",
+      count: routePlans.length,
+    },
+    {
+      title: "Métricas",
+      href: ROUTES.dashboardLogisticaMetricas,
+      icon: BarChart3,
+      description: "Cumplimiento, SLA y reportes operativos.",
+      count: null,
+    },
+  ] satisfies Array<{
+    title: string;
+    href: string;
+    icon: LucideIcon;
+    description: string;
+    count: number | null;
+  }>;
 
   return (
     <>
@@ -75,38 +110,38 @@ export default async function LogisticaPage() {
       />
       <main className="dashboard-main">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Card className="border-gray-100">
+          <Card className="dashboard-metric-card p-0">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 Visitas activas
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-vetneb-ink">
                 {activeVisits.length}
               </p>
             </CardContent>
           </Card>
-          <Card className="border-gray-100">
+          <Card className="dashboard-metric-card p-0">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 Planes activos
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-vetneb-ink">
                 {activePlans.length}
               </p>
             </CardContent>
           </Card>
-          <Card className="border-gray-100">
+          <Card className="dashboard-metric-card p-0">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 Visitas totales
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-vetneb-ink">
                 {fieldVisits.length}
               </p>
             </CardContent>
@@ -114,55 +149,39 @@ export default async function LogisticaPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {[
-            {
-              title: "Visitas de campo",
-              href: ROUTES.dashboardLogisticaVisitas,
-              icon: "🚐",
-              description: "Seguimiento de visitas programadas y en curso.",
-              count: fieldVisits.length,
-            },
-            {
-              title: "Planes de ruta",
-              href: ROUTES.dashboardLogisticaRutas,
-              icon: "🗺️",
-              description: "Planificación y gestión de rutas de entrega.",
-              count: routePlans.length,
-            },
-            {
-              title: "Métricas",
-              href: ROUTES.dashboardLogisticaMetricas,
-              icon: "📊",
-              description: "Cumplimiento, SLA y reportes operativos.",
-              count: null,
-            },
-          ].map((module) => (
-            <Card
-              key={module.href}
-              className="h-full border-gray-100 transition-shadow hover:shadow-md"
-            >
-              <CardHeader>
-                <div className="text-3xl mb-2" aria-hidden="true">
-                  {module.icon}
-                </div>
-                <CardTitle className="text-base">{module.title}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-gray-500">{module.description}</p>
-                {module.count !== null && (
-                  <p className="text-2xl font-bold text-gray-900">
-                    {module.count}
+          {logisticsModules.map((module) => {
+            const Icon = module.icon;
+
+            return (
+              <Card key={module.href} className="dashboard-surface h-full">
+                <CardHeader>
+                  <span
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-vetneb-teal/25 bg-vetneb-teal/10 text-vetneb-teal"
+                    aria-hidden="true"
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <CardTitle className="text-base">{module.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    {module.description}
                   </p>
-                )}
-                <Button asChild variant="outline" size="sm" className="w-full">
-                  <Link href={module.href}>Ver módulo</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                  {module.count !== null && (
+                    <p className="text-2xl font-bold text-vetneb-ink">
+                      {module.count}
+                    </p>
+                  )}
+                  <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link href={module.href}>Ver módulo</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
-        <Card>
+        <Card className="dashboard-surface">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <CardTitle className="text-base">Visitas recientes</CardTitle>
             <Button asChild variant="ghost" size="sm">
@@ -178,13 +197,13 @@ export default async function LogisticaPage() {
               fieldVisits.slice(0, 4).map((visit) => (
                 <div
                   key={visit.id}
-                  className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
+                  className="dashboard-list-row"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="truncate text-sm font-semibold text-vetneb-ink">
                       {visit.clinicName ?? `Clínica #${visit.clinicId}`}
                     </p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-muted-foreground">
                       {visit.address ?? "Sin dirección"} ·{" "}
                       {formatDate(visit.scheduledAt)}
                     </p>
@@ -205,7 +224,7 @@ export default async function LogisticaPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="dashboard-surface">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <CardTitle className="text-base">Planes de ruta</CardTitle>
             <Button asChild variant="ghost" size="sm">
@@ -221,13 +240,13 @@ export default async function LogisticaPage() {
               routePlans.map((plan) => (
                 <div
                   key={plan.id}
-                  className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"
+                  className="dashboard-list-row"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="truncate text-sm font-semibold text-vetneb-ink">
                       {plan.name}
                     </p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-muted-foreground">
                       {plan.completedStops}/{plan.totalStops} paradas ·{" "}
                       {formatDate(plan.plannedDate)}
                     </p>

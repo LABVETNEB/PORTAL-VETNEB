@@ -68,7 +68,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="overflow-hidden border-vetneb-line/80">
+          <Card key={i} className="dashboard-metric-card overflow-hidden p-0">
             <CardHeader className="pb-2">
               <Skeleton className="h-4 w-24" />
             </CardHeader>
@@ -87,7 +87,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
       {statConfig.map((config) => (
         <Card
           key={config.key}
-          className={cn("overflow-hidden border-vetneb-line/80", config.cardClassName)}
+          className={cn("dashboard-metric-card overflow-hidden p-0", config.cardClassName)}
         >
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold text-vetneb-ink">
@@ -99,7 +99,7 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
               </span>
               <span className="truncate">{config.label}</span>
               {config.emphasisLabel ? (
-                <span className="ml-auto rounded-full border border-vetneb-amber/35 bg-vetneb-amber/10 px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wide text-amber-800">
+                <span className="clinical-pill ml-auto px-2 py-0.5 text-[0.62rem]">
                   {config.emphasisLabel}
                 </span>
               ) : null}

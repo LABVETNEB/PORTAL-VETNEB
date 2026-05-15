@@ -71,6 +71,7 @@ test("dashboard logistica metricas renders summary cards without technical sourc
   assert.ok(source.includes("Paradas completadas"));
   assert.ok(source.includes("Duración promedio"));
   assert.ok(source.includes("Planes analizados"));
+  assert.ok(source.includes('className="dashboard-metric-card p-0"'));
   assert.equal(source.includes(removedMetricsEndpoint), false);
 });
 
@@ -86,6 +87,8 @@ test("dashboard logistica metricas renders per-route metric detail", () => {
   assert.ok(source.includes("Completadas"));
   assert.ok(source.includes("Omitidas"));
   assert.ok(source.includes("Sin presencia"));
+  assert.ok(source.includes('className="surface-soft space-y-3"'));
+  assert.ok(source.includes('className="dashboard-surface"'));
 });
 
 test("dashboard logistica metricas keeps compliance badge thresholds and progress accessibility", () => {
@@ -102,6 +105,9 @@ test("dashboard logistica metricas keeps compliance badge thresholds and progres
   assert.ok(source.includes("aria-valuemin={0}"));
   assert.ok(source.includes("aria-valuemax={100}"));
   assert.ok(source.includes("aria-label={`Cumplimiento: ${metric.complianceRate}%`}"));
+  assert.ok(source.includes('className="clinical-progress h-2 w-full"'));
+  assert.equal(source.includes("bg-gray-100"), false);
+  assert.equal(source.includes("border-gray-100"), false);
 });
 
 test("dashboard logistica metricas separates fetch failures from empty metrics", () => {

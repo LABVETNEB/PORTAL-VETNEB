@@ -56,6 +56,7 @@ test("dashboard logistica rutas keeps status counters aligned to route plan stat
   assert.ok(source.includes('{ status: "in_progress", label: "En curso" }'));
   assert.ok(source.includes('{ status: "completed", label: "Completados" }'));
   assert.ok(source.includes("const count = routePlans.filter((p) => p.status === status).length;"));
+  assert.ok(source.includes('className="dashboard-metric-card p-0"'));
 });
 
 test("dashboard logistica rutas renders table columns", () => {
@@ -83,6 +84,7 @@ test("dashboard logistica rutas keeps row rendering progress badges and dates", 
   assert.ok(source.includes("aria-valuenow={progress}"));
   assert.ok(source.includes("aria-valuemin={0}"));
   assert.ok(source.includes("aria-valuemax={100}"));
+  assert.ok(source.includes('className="clinical-progress h-1.5 max-w-[80px] flex-1"'));
   assert.ok(source.includes("getRoutePlanStatusVariant(plan.status)"));
   assert.ok(source.includes("getRoutePlanStatusLabel(plan.status)"));
 });
@@ -95,5 +97,9 @@ test("dashboard logistica rutas distinguishes load failures from real empty stat
   assert.ok(source.includes("No se pudieron cargar los planes de ruta. Intente nuevamente."));
   assert.ok(source.includes("No hay planes de ruta disponibles."));
   assert.ok(source.includes("colSpan={6}"));
+  assert.ok(source.includes('className="dashboard-surface"'));
+  assert.ok(source.includes('className="clinical-table-state"'));
+  assert.equal(source.includes("bg-gray-100"), false);
+  assert.equal(source.includes("border-gray-100"), false);
   assert.equal(source.includes("fetch("), false);
 });
