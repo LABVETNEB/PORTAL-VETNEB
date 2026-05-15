@@ -40,13 +40,13 @@ test("precios page renders responsive side-by-side category cards with formal me
   const source = read(PRECIOS_PAGE_PATH);
 
   assert.ok(source.includes("mx-auto grid max-w-7xl grid-cols-1 gap-7 lg:grid-cols-2"));
-  assert.ok(source.includes("overflow-hidden border-vetneb-line/90 bg-card"));
-  assert.ok(source.includes("shadow-[0_18px_48px_rgba(15,45,62,0.09)]"));
-  assert.ok(source.includes("ring-1 ring-slate-200/70"));
-  assert.ok(source.includes("bg-[hsl(var(--vetneb-navy))]"));
+  assert.ok(source.includes("clinical-card overflow-hidden"));
+  assert.ok(source.includes("clinical-card-header"));
+  assert.ok(source.includes("border-b border-vetneb-line px-6 py-5 text-center"));
+  assert.equal(source.includes("bg-[hsl(var(--vetneb-navy))]"), false);
   assert.ok(source.includes("text-center text-base font-semibold uppercase"));
   assert.ok(source.includes("bg-vetneb-surface-raised/60"));
-  assert.ok(source.includes("rounded-xl border border-vetneb-line bg-card shadow-sm"));
+  assert.ok(source.includes("rounded-lg border border-vetneb-line bg-card shadow-sm"));
   assert.equal(source.includes("estudios disponibles"), false);
 });
 
@@ -54,10 +54,10 @@ test("precios page renders price rows with bordered pills and clear hierarchy", 
   const source = read(PRECIOS_PAGE_PATH);
 
   assert.ok(source.includes("flex items-start justify-between gap-5 px-5 py-4"));
-  assert.ok(source.includes("hover:bg-vetneb-surface-raised"));
+  assert.ok(source.includes("clinical-hover-row flex items-start justify-between gap-5 px-5 py-4"));
   assert.ok(source.includes("text-sm font-semibold uppercase tracking-[0.04em] text-vetneb-ink"));
-  assert.ok(source.includes("rounded-full border border-vetneb-line bg-vetneb-surface-raised"));
-  assert.ok(source.includes("text-sm font-bold text-primary shadow-sm"));
+  assert.ok(source.includes("clinical-pill shrink-0 px-3 py-1 text-sm font-bold tracking-normal shadow-sm"));
+  assert.ok(source.includes("normalizePriceLabel(item.priceLabel)"));
 });
 
 test("precios page preserves fallback labels and error/empty states", () => {
