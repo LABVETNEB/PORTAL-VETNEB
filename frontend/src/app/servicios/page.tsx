@@ -123,7 +123,7 @@ export default function ServiciosPage() {
       />
 
       <section
-        className="bg-gradient-to-br from-blue-900 to-blue-700 py-16 text-white md:py-20"
+        className="clinical-primary-gradient py-16 text-white md:py-20"
         data-public-hero-depth="true"
       >
         <AmbientOrbs variant="dark" />
@@ -131,7 +131,7 @@ export default function ServiciosPage() {
           <h1 className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl">
             Servicio patológico veterinario
           </h1>
-          <p className="max-w-2xl public-copy text-lg text-blue-100 md:text-xl">
+          <p className="max-w-2xl public-copy text-lg text-primary-foreground/86 md:text-xl">
             La anatomía patológica veterinaria integra evaluación microscópica,
             trazabilidad de muestras e informes clínicos para orientar
             decisiones diagnósticas con respaldo profesional.
@@ -216,7 +216,7 @@ export default function ServiciosPage() {
               <Button
                 asChild
                 size="lg"
-                className="w-full bg-gradient-to-r from-blue-700 to-teal-600 shadow-[0_14px_35px_rgba(37,99,235,0.22)] hover:from-blue-800 hover:to-teal-700 sm:w-auto"
+                className="w-full clinical-primary-gradient clinical-primary-gradient-hover shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)] sm:w-auto"
               >
                 <Link href={ROUTES.contacto}>
                   Solicitar coordinación diagnóstica
@@ -277,7 +277,7 @@ export default function ServiciosPage() {
 
       <section className="py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
-          <div className="rounded-3xl border border-emerald-100 bg-gradient-to-r from-white via-emerald-50 to-blue-50 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
+          <div className="clinical-muted-band rounded-lg p-6 clinical-surface-shadow">
             <div className="flex items-start gap-3">
               <VisualIcon icon={ClipboardCheck} tone="emerald" className="h-11 w-11 shrink-0 rounded-xl" />
               <div>

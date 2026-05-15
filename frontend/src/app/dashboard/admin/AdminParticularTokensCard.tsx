@@ -494,8 +494,8 @@ export function AdminParticularTokensCard() {
           ) : null}
 
           {generatedToken ? (
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-              <p className="text-sm font-semibold text-blue-900">
+            <div className="clinical-muted-band rounded-lg p-4">
+              <p className="text-sm font-semibold text-vetneb-navy">
                 Token generado
               </p>
               <Input
@@ -504,7 +504,7 @@ export function AdminParticularTokensCard() {
                 value={generatedToken}
                 aria-label="Token particular generado por admin"
               />
-              <p className="mt-2 text-xs text-blue-700">
+              <p className="mt-2 text-xs text-muted-foreground">
                 Copiar ahora. El token completo solo se muestra una vez.
               </p>
             </div>

@@ -106,6 +106,54 @@
 }
 
 @layer components {
+  .clinical-primary-gradient {
+    background-image: linear-gradient(90deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal)));
+  }
+
+  .clinical-primary-gradient-hover:hover {
+    background-image: linear-gradient(90deg, hsl(207 76% 20%), hsl(177 68% 25%));
+  }
+
+  .clinical-surface-shadow {
+    box-shadow: 0 16px 46px rgba(15, 45, 62, 0.10);
+  }
+
+  .clinical-card {
+    @apply rounded-lg border border-vetneb-line/80 bg-card/95;
+    box-shadow:
+      inset 0 1px 0 hsl(var(--card) / 0.95),
+      0 16px 46px rgba(15, 45, 62, 0.10),
+      0 1px 2px rgba(15, 45, 62, 0.055);
+  }
+
+  .clinical-card-header {
+    background-image: linear-gradient(90deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal)));
+    color: hsl(var(--primary-foreground));
+  }
+
+  .clinical-muted-band {
+    border: 1px solid hsl(var(--vetneb-line) / 0.82);
+    background:
+      linear-gradient(90deg, hsl(var(--vetneb-navy) / 0.08), hsl(var(--vetneb-teal) / 0.07)),
+      hsl(var(--card) / 0.88);
+  }
+
+  .clinical-pill {
+    @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold tracking-[0.08em];
+    border-color: hsl(var(--vetneb-teal) / 0.38);
+    background: hsl(var(--vetneb-teal) / 0.10);
+    color: hsl(var(--vetneb-navy));
+  }
+
+  .clinical-hover-row {
+    @apply transition-[background-color,border-color,box-shadow,color];
+  }
+
+  .clinical-hover-row:hover {
+    border-color: hsl(var(--vetneb-teal) / 0.42);
+    background: hsl(var(--vetneb-surface-muted) / 0.52);
+    box-shadow: 0 10px 26px rgba(15, 45, 62, 0.07);
+  }
   .dashboard-main {
     @apply flex-1 space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-7;
   }
@@ -178,7 +226,7 @@
     isolation: isolate;
     overflow: hidden;
     background:
-      linear-gradient(115deg, hsl(var(--vetneb-cyan) / 0.10), transparent 38%),
+      linear-gradient(115deg, hsl(var(--vetneb-navy) / 0.08), transparent 38%),
       linear-gradient(180deg, hsl(var(--vetneb-surface-raised)) 0%, hsl(var(--vetneb-surface)) 100%);
   }
 
@@ -189,19 +237,15 @@
     border-radius: var(--radius);
     background: linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--vetneb-surface-raised) / 0.92));
     box-shadow: 0 16px 42px rgba(15, 45, 62, 0.10);
-    transform: translateZ(0);
     transition:
-      transform 180ms ease,
       box-shadow 180ms ease,
       border-color 180ms ease,
       background-color 180ms ease;
-    backface-visibility: hidden;
   }
 
   .render-card:hover {
     border-color: hsl(var(--vetneb-teal) / 0.42);
     box-shadow: 0 20px 58px rgba(15, 45, 62, 0.14);
-    transform: translate3d(0, -2px, 0);
   }
 
   .render-copy {
@@ -211,8 +255,6 @@
   }
 
   .render-gpu-soft {
-    transform: translateZ(0);
-    backface-visibility: hidden;
   }
 
   .diagnostic-field {
@@ -287,9 +329,7 @@
   }
 
   .public-soft-canvas,
-  [data-public-soft-canvas="true"],
-  .public-hero-depth,
-  [data-public-hero-depth="true"] {
+  [data-public-soft-canvas="true"] {
     position: relative;
     isolation: isolate;
     overflow: visible;
@@ -297,60 +337,65 @@
   }
 
   .public-soft-canvas::before,
-  [data-public-soft-canvas="true"]::before,
+  [data-public-soft-canvas="true"]::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  .public-soft-canvas > *,
+  [data-public-soft-canvas="true"] > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* public-hero-depth-clinical-system:start */
+  .public-hero-depth,
+  [data-public-hero-depth="true"] {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background-image: linear-gradient(90deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal))) !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+
   .public-hero-depth::before,
   [data-public-hero-depth="true"]::before {
     content: none !important;
     display: none !important;
   }
 
-  .public-soft-canvas > *,
-  [data-public-soft-canvas="true"] > *,
   .public-hero-depth > *,
   [data-public-hero-depth="true"] > * {
     position: relative;
     z-index: 1;
   }
-
+  /* public-hero-depth-clinical-system:end */
   .public-hero-depth :is(h1, h2, h3),
   [data-public-hero-depth="true"] :is(h1, h2, h3),
   .public-hero-depth [class*="text-white"],
   [data-public-hero-depth="true"] [class*="text-white"] {
-    color: hsl(var(--vetneb-ink)) !important;
+    color: hsl(var(--primary-foreground)) !important;
   }
 
   .public-hero-depth :is(p, span),
   [data-public-hero-depth="true"] :is(p, span),
-  .public-hero-depth [class*="text-blue-50"],
-  [data-public-hero-depth="true"] [class*="text-blue-50"] {
-    color: hsl(var(--muted-foreground)) !important;
-  }
 
   .public-hero-depth [class*="border-white"],
   [data-public-hero-depth="true"] [class*="border-white"] {
-    border-color: hsl(var(--vetneb-line) / 0.85) !important;
+    border-color: hsl(var(--primary-foreground) / 0.58) !important;
   }
 
-  .public-hero-depth [class*="bg-blue-950/20"],
-  [data-public-hero-depth="true"] [class*="bg-blue-950/20"] {
-    background: hsl(var(--card) / 0.82) !important;
-    color: hsl(var(--vetneb-navy)) !important;
-  }
 
   .premium-card {
-    @apply rounded-lg border border-vetneb-line/80 bg-card/90 shadow-[0_16px_46px_rgba(15,45,62,0.10)] transition-[transform,box-shadow,border-color,background-color] duration-200 hover:-translate-y-0.5 hover:border-vetneb-teal/40 hover:shadow-[0_22px_64px_rgba(15,45,62,0.14)];
-    transform: translateZ(0);
-    backface-visibility: hidden;
+    @apply rounded-lg border border-vetneb-line/80 bg-card/90 shadow-[0_16px_46px_rgba(15,45,62,0.10)] transition-[box-shadow,border-color,background-color] duration-200 hover:border-vetneb-teal/40 hover:shadow-[0_22px_64px_rgba(15,45,62,0.14)];
   }
 
   .premium-card-muted {
     @apply rounded-lg border border-vetneb-line/80 bg-vetneb-surface-raised/80 shadow-[0_12px_34px_rgba(15,45,62,0.08)];
-    transform: translateZ(0);
-    backface-visibility: hidden;
   }
 
   .premium-divider {
-    background: linear-gradient(90deg, transparent, hsl(var(--vetneb-cyan) / 0.45), hsl(var(--vetneb-teal) / 0.48), transparent);
+    background: linear-gradient(90deg, transparent, hsl(var(--vetneb-navy) / 0.42), hsl(var(--vetneb-teal) / 0.48), transparent);
   }
 
   [data-services-polished="true"] > [id] {
@@ -361,12 +406,9 @@
     background:
       linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--vetneb-surface-raised) / 0.92)) !important;
     box-shadow: 0 16px 48px rgba(15, 45, 62, 0.10) !important;
-    transform: translateZ(0);
     transition:
-      transform 180ms ease,
       box-shadow 180ms ease,
       border-color 180ms ease;
-    backface-visibility: hidden;
   }
 
   [data-services-polished="true"] > [id]::before {
@@ -374,13 +416,12 @@
     position: absolute;
     inset: 0 0 auto 0;
     height: 3px;
-    background: linear-gradient(90deg, hsl(var(--vetneb-navy) / 0.76), hsl(var(--vetneb-teal) / 0.72), hsl(var(--vetneb-amber) / 0.56));
+    background: linear-gradient(90deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal)));
   }
 
   [data-services-polished="true"] > [id]:hover {
     border-color: hsl(var(--vetneb-teal) / 0.46) !important;
     box-shadow: 0 22px 68px rgba(15, 45, 62, 0.14) !important;
-    transform: translate3d(0, -2px, 0);
   }
 
   /* public-medical-card-system:start */
@@ -398,13 +439,11 @@
     border-radius: var(--radius) !important;
     background:
       linear-gradient(180deg, hsl(var(--card) / 0.99), hsl(var(--vetneb-surface-raised) / 0.96)),
-      linear-gradient(115deg, hsl(var(--vetneb-cyan) / 0.08), transparent 42%) !important;
+      linear-gradient(115deg, hsl(var(--vetneb-navy) / 0.07), transparent 42%) !important;
     box-shadow:
       inset 0 1px 0 hsl(var(--card) / 0.95),
       0 16px 46px rgba(15, 45, 62, 0.105),
       0 1px 2px rgba(15, 45, 62, 0.055) !important;
-    transform: translateZ(0);
-    backface-visibility: hidden;
   }
 
   .public-soft-canvas .premium-card::before,
@@ -423,7 +462,7 @@
       90deg,
       hsl(var(--vetneb-navy) / 0.78),
       hsl(var(--vetneb-teal) / 0.70),
-      hsl(var(--vetneb-cyan) / 0.50)
+      hsl(var(--vetneb-teal) / 0.64)
     );
     opacity: 0.92;
   }
@@ -467,7 +506,6 @@
         inset 0 1px 0 hsl(var(--card) / 0.95),
         0 22px 66px rgba(15, 45, 62, 0.145),
         0 1px 2px rgba(15, 45, 62, 0.06) !important;
-      transform: translate3d(0, -2px, 0);
     }
   }
   /* public-medical-card-system:end */
@@ -522,12 +560,59 @@
     .render-card:hover,
     .premium-card:hover,
     [data-services-polished="true"] > [id]:hover {
-      transform: translateZ(0);
     }
   }
 }
 /* dashboard-auth-visual-system:start */
 @layer components {
+  .clinical-primary-gradient {
+    background-image: linear-gradient(90deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal)));
+  }
+
+  .clinical-primary-gradient-hover:hover {
+    background-image: linear-gradient(90deg, hsl(207 76% 20%), hsl(177 68% 25%));
+  }
+
+  .clinical-surface-shadow {
+    box-shadow: 0 16px 46px rgba(15, 45, 62, 0.10);
+  }
+
+  .clinical-card {
+    @apply rounded-lg border border-vetneb-line/80 bg-card/95;
+    box-shadow:
+      inset 0 1px 0 hsl(var(--card) / 0.95),
+      0 16px 46px rgba(15, 45, 62, 0.10),
+      0 1px 2px rgba(15, 45, 62, 0.055);
+  }
+
+  .clinical-card-header {
+    background-image: linear-gradient(90deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal)));
+    color: hsl(var(--primary-foreground));
+  }
+
+  .clinical-muted-band {
+    border: 1px solid hsl(var(--vetneb-line) / 0.82);
+    background:
+      linear-gradient(90deg, hsl(var(--vetneb-navy) / 0.08), hsl(var(--vetneb-teal) / 0.07)),
+      hsl(var(--card) / 0.88);
+  }
+
+  .clinical-pill {
+    @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold tracking-[0.08em];
+    border-color: hsl(var(--vetneb-teal) / 0.38);
+    background: hsl(var(--vetneb-teal) / 0.10);
+    color: hsl(var(--vetneb-navy));
+  }
+
+  .clinical-hover-row {
+    @apply transition-[background-color,border-color,box-shadow,color];
+  }
+
+  .clinical-hover-row:hover {
+    border-color: hsl(var(--vetneb-teal) / 0.42);
+    background: hsl(var(--vetneb-surface-muted) / 0.52);
+    box-shadow: 0 10px 26px rgba(15, 45, 62, 0.07);
+  }
   .dashboard-main {
     position: relative;
     isolation: isolate;

@@ -519,9 +519,9 @@ export function UploadReportModal() {
                     <button
                       key={option.id}
                       type="button"
-                      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-blue-50 ${
+                      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-accent/60 ${
                         String(option.id) === clinicId
-                          ? "bg-blue-50 text-blue-800"
+                          ? "bg-accent/60 text-vetneb-navy"
                           : "text-gray-700"
                       }`}
                       onClick={() => selectClinic(option)}
@@ -541,7 +541,7 @@ export function UploadReportModal() {
                         </span>
                       </span>
                       {String(option.id) === clinicId ? (
-                        <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                        <span className="clinical-pill shrink-0 px-2 py-0.5 text-xs tracking-normal">
                           Seleccionada
                         </span>
                       ) : null}

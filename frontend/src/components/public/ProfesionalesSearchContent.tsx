@@ -107,7 +107,7 @@ export function ProfesionalesSearchContent() {
 <h1 className="mb-4 max-w-4xl text-4xl font-bold md:text-5xl">
             Red de profesionales veterinarios
           </h1>
-          <p className="max-w-2xl public-copy text-xl text-blue-50">
+          <p className="max-w-2xl public-copy text-xl text-primary-foreground/86">
             Banco público de profesionales vinculados a VETNEB, con búsqueda
             directa, clara y optimizada para coordinar derivaciones e
             interconsultas con datos verificables.
@@ -158,7 +158,7 @@ export function ProfesionalesSearchContent() {
               </div>
               <Button
                 type="submit"
-                className="h-11 bg-gradient-to-r from-blue-700 to-teal-600 shadow-[0_14px_35px_rgba(37,99,235,0.22)] hover:from-blue-800 hover:to-teal-700"
+                className="h-11 clinical-primary-gradient clinical-primary-gradient-hover shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)]"
               >
                 Buscar
               </Button>
@@ -173,7 +173,7 @@ export function ProfesionalesSearchContent() {
               ) : null}
 
               {state.status === "loading" ? (
-                <div className="rounded-2xl border border-blue-100 bg-blue-50/90 p-6 text-sm text-blue-700 shadow-sm">
+                <div className="clinical-muted-band rounded-lg p-6 text-sm text-vetneb-navy shadow-sm">
                   Buscando profesionales vinculados a VETNEB...
                 </div>
               ) : null}
@@ -204,7 +204,7 @@ export function ProfesionalesSearchContent() {
                         key={professional.clinicId}
                         className="premium-card overflow-hidden"
                       >
-                        <CardHeader className="border-b border-slate-100/80 bg-gradient-to-r from-white via-blue-50/50 to-emerald-50/50">
+                        <CardHeader className="clinical-muted-band border-b">
                           <div className="flex items-start gap-3">
                             <VisualIcon icon={BriefcaseMedical} tone="emerald" className="h-11 w-11 rounded-xl" />
                             <div>

@@ -255,14 +255,14 @@ export default function HomePage() {
               <Button
                 asChild
                 size="lg"
-                className="w-full bg-gradient-to-r from-blue-700 to-teal-600 text-white shadow-[0_14px_35px_rgba(37,99,235,0.22)] hover:from-blue-800 hover:to-teal-700 sm:w-auto"
+                className="w-full clinical-primary-gradient clinical-primary-gradient-hover text-white shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)] sm:w-auto"
               >
                 <Link href={ROUTES.login}>Ingresar al portal de informes</Link>
               </Button>
               <Button
                 asChild
                 size="lg"
-                className="w-full border border-blue-200 bg-white/80 font-semibold text-blue-900 shadow-sm backdrop-blur hover:bg-white hover:text-primary sm:w-auto"
+                className="w-full border border-vetneb-line/90 bg-card/90 font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-accent/60 sm:w-auto"
               >
                 <Link href={ROUTES.contacto}>Coordinar muestras y consultas</Link>
               </Button>

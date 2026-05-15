@@ -40,10 +40,10 @@ test("clinicas page exposes hero content and primary CTAs", () => {
 test("clinicas page keeps solicitar acceso CTA visible on blue hero background", () => {
   const source = read(CLINICAS_PAGE_PATH);
 
-  assert.ok(source.includes("border border-white/70"));
-  assert.ok(source.includes("bg-blue-950/20"));
+  assert.ok(source.includes("border border-white/60"));
+  assert.ok(source.includes("bg-white/10"));
   assert.ok(source.includes("font-semibold text-white"));
-  assert.ok(source.includes("hover:bg-white hover:text-blue-900"));
+  assert.ok(source.includes("hover:bg-white/16"));
   assert.equal(source.includes('variant="outline"'), false);
 });
 

@@ -111,7 +111,7 @@ export default function ClinicasPage() {
           <h1 className="mb-5 max-w-4xl text-4xl font-bold md:text-5xl">
             Portal para clínicas veterinarias
           </h1>
-          <p className="max-w-2xl text-xl leading-relaxed text-blue-50">
+          <p className="max-w-2xl text-xl leading-relaxed text-primary-foreground/86">
             Gestión centralizada de informes, estudios y logística para su
             clínica veterinaria. Acceso seguro, trazable y disponible las 24 hs.
           </p>
@@ -119,7 +119,7 @@ export default function ClinicasPage() {
             <Button
               asChild
               size="lg"
-              className="bg-white font-semibold text-blue-900 shadow-[0_18px_45px_rgba(255,255,255,0.20)] hover:bg-blue-50"
+              className="bg-card font-semibold text-vetneb-navy shadow-[0_18px_45px_rgba(255,255,255,0.18)] hover:bg-card/92"
             >
               <Link href={ROUTES.login}>
                 Acceder al portal
@@ -129,7 +129,7 @@ export default function ClinicasPage() {
             <Button
               asChild
               size="lg"
-              className="border border-white/70 bg-blue-950/20 font-semibold text-white shadow-sm backdrop-blur hover:bg-white hover:text-blue-900"
+              className="border border-white/60 bg-white/10 font-semibold text-white shadow-sm hover:bg-white/16"
             >
               <Link href={ROUTES.contacto}>Solicitar acceso</Link>
             </Button>
@@ -187,7 +187,7 @@ export default function ClinicasPage() {
           <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             {steps.map((step) => (
               <div key={step.number} className="premium-card-muted p-5 text-center">
-                <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-700 to-teal-500 text-lg font-bold text-white shadow-[0_14px_35px_rgba(37,99,235,0.22)]">
+                <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg clinical-primary-gradient text-lg font-bold text-white shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)]">
                   {step.number}
                 </div>
                 <h3 className="mb-2 font-semibold text-gray-950">
@@ -200,7 +200,7 @@ export default function ClinicasPage() {
             ))}
           </div>
 
-          <div className="mx-auto mt-10 max-w-3xl rounded-3xl border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-emerald-50 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
+          <div className="clinical-muted-band mx-auto mt-10 max-w-3xl rounded-lg p-6 clinical-surface-shadow">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
                 <VisualIcon icon={ClipboardCheck} tone="emerald" className="h-11 w-11 shrink-0 rounded-xl" />
@@ -213,7 +213,7 @@ export default function ClinicasPage() {
                   </p>
                 </div>
               </div>
-              <Button asChild className="border border-slate-200 bg-white/80 text-primary shadow-sm hover:bg-blue-50">
+              <Button asChild className="border border-vetneb-line/90 bg-card/90 text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-accent/60">
                 <Link href={ROUTES.login}>Ingresar</Link>
               </Button>
             </div>

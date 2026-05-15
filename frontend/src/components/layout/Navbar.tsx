@@ -22,7 +22,7 @@ export function Navbar() {
           className="group flex items-center gap-2.5"
           aria-label="VETNEB — Inicio"
         >
-          <span className="flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-bold text-primary-foreground shadow-[0_10px_26px_hsl(var(--vetneb-navy)/0.20)] ring-1 ring-vetneb-teal/30 transition-transform group-hover:-translate-y-0.5">
+          <span className="flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-bold text-primary-foreground shadow-[0_10px_26px_hsl(var(--vetneb-navy)/0.20)] ring-1 ring-vetneb-teal/30 transition-[background-color,box-shadow,border-color] group-hover:shadow-[0_12px_30px_hsl(var(--vetneb-navy)/0.24)]">
             <Microscope className="h-4 w-4" aria-hidden="true" />
             VETNEB
           </span>

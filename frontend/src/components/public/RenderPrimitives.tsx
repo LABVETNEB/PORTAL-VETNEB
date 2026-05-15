@@ -42,7 +42,7 @@ export function PublicHero({
         {description ? (
           <div
             className={cn(
-              "render-copy max-w-2xl text-lg text-blue-50 md:text-xl",
+              "render-copy max-w-2xl text-lg text-primary-foreground/86 md:text-xl",
               descriptionClassName,
             )}
           >
@@ -126,7 +126,7 @@ type PublicGradientButtonProps = {
 };
 
 const gradientButtonClassName =
-  "render-gpu-soft inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-[0_14px_34px_hsl(var(--vetneb-navy)/0.20)] transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-[0_18px_44px_hsl(var(--vetneb-navy)/0.24)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60";
+  "inline-flex h-11 items-center justify-center gap-2 rounded-md clinical-primary-gradient clinical-primary-gradient-hover px-5 text-sm font-semibold text-primary-foreground shadow-[0_14px_34px_hsl(var(--vetneb-navy)/0.20)] transition-[box-shadow,background-color,border-color] duration-200 hover:shadow-[0_18px_44px_hsl(var(--vetneb-navy)/0.24)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60";
 
 export function PublicGradientButton({
   children,

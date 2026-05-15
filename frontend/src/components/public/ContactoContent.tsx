@@ -101,7 +101,7 @@ export function ContactoContent() {
 <h1 className="mb-4 text-4xl font-bold md:text-5xl">
             Contacto
           </h1>
-          <p className="max-w-2xl public-copy text-xl text-blue-50">
+          <p className="max-w-2xl public-copy text-xl text-primary-foreground/86">
             ¿Desea registrar su clínica, coordinar envío de muestras o resolver
             consultas sobre informes? Comuníquese con nuestro equipo.
           </p>
@@ -252,7 +252,7 @@ export function ContactoContent() {
 
                 <Button
                   type="submit"
-                  className="w-full bg-gradient-to-r from-blue-700 to-teal-600 shadow-[0_14px_35px_rgba(37,99,235,0.22)] hover:from-blue-800 hover:to-teal-700"
+                  className="w-full clinical-primary-gradient clinical-primary-gradient-hover shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)]"
                   disabled={isSubmitting}
                 >
                   <Send className="h-4 w-4" aria-hidden="true" />
@@ -300,11 +300,11 @@ export function ContactoContent() {
                 ))}
               </div>
 
-              <div className="rounded-3xl border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-emerald-50 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
-                <h3 className="font-semibold text-blue-900 mb-2">
+              <div className="clinical-muted-band rounded-lg p-6 clinical-surface-shadow">
+                <h3 className="mb-2 font-semibold text-vetneb-navy">
                   ¿Es una clínica veterinaria?
                 </h3>
-                <p className="text-sm public-copy text-blue-700">
+                <p className="public-copy text-sm text-muted-foreground">
                   Si desea registrar su clínica en Portal VETNEB, indíquelo en
                   su mensaje. Nuestro equipo se pondrá en contacto para
                   configurar su acceso y explicarle el proceso de integración,

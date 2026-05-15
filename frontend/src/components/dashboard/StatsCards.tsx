@@ -32,7 +32,7 @@ const statConfig = [
     description: "En proceso o subidos",
     tone: "text-vetneb-amber bg-vetneb-amber/10 border-vetneb-amber/25",
     cardClassName:
-      "border-vetneb-amber/45 bg-gradient-to-b from-vetneb-amber/10 via-card/95 to-card/95 shadow-[0_16px_44px_rgba(168,116,24,0.16)]",
+      "border-vetneb-amber/45 bg-card/95 shadow-[0_16px_44px_rgba(168,116,24,0.14)]",
     emphasisLabel: "Prioridad",
   },
   {
