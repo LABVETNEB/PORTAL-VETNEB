@@ -70,7 +70,7 @@ export default async function PreciosPage() {
   return (
     <PublicLayout>
       <section
-        className="public-soft-canvas py-16 md:py-20"
+        className="public-page-canvas py-16 md:py-20"
         aria-labelledby="pricing-page-title"
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -93,7 +93,7 @@ export default async function PreciosPage() {
           {pricingLoadError ? (
             <p
               role="alert"
-              className="mx-auto max-w-4xl rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-800 shadow-sm"
+              className="mx-auto max-w-4xl rounded-lg border border-vetneb-amber/35 bg-vetneb-amber/10 px-5 py-4 text-sm font-medium text-amber-900 shadow-sm"
             >
               No se pudieron cargar los precios. Intente nuevamente.
             </p>
@@ -102,20 +102,20 @@ export default async function PreciosPage() {
               {pricingCategories.map((category) => (
                 <Card
                   key={category.category}
-                  className="overflow-hidden border-vetneb-line/90 bg-card shadow-[0_18px_48px_rgba(15,45,62,0.09)] ring-1 ring-slate-200/70"
+                  className="clinical-card overflow-hidden"
                 >
-                  <CardHeader className="border-b border-vetneb-line bg-[hsl(var(--vetneb-navy))] px-6 py-5 text-center text-white">
+                  <CardHeader className="clinical-card-header border-b border-vetneb-line px-6 py-5 text-center">
                     <CardTitle className="text-center text-base font-semibold uppercase tracking-[0.22em] text-white">
                       {category.category}
                     </CardTitle>
                   </CardHeader>
 
                   <CardContent className="bg-vetneb-surface-raised/60 p-4">
-                    <div className="overflow-hidden rounded-xl border border-vetneb-line bg-card shadow-sm">
+                    <div className="overflow-hidden rounded-lg border border-vetneb-line bg-card shadow-sm">
                       {category.items.map((item, index) => (
                         <div
                           key={item.id}
-                          className={`flex items-start justify-between gap-5 px-5 py-4 transition-colors hover:bg-vetneb-surface-raised ${
+                          className={`clinical-hover-row flex items-start justify-between gap-5 px-5 py-4 ${
                             index < category.items.length - 1
                               ? "border-b border-vetneb-line/80"
                               : ""
@@ -124,7 +124,7 @@ export default async function PreciosPage() {
                           <p className="text-sm font-semibold uppercase tracking-[0.04em] text-vetneb-ink">
                             {item.studyName}
                           </p>
-                          <p className="shrink-0 rounded-full border border-vetneb-line bg-vetneb-surface-raised px-3 py-1 text-sm font-bold text-primary shadow-sm">
+                          <p className="clinical-pill shrink-0 px-3 py-1 text-sm font-bold tracking-normal shadow-sm">
                             {normalizePriceLabel(item.priceLabel)}
                           </p>
                         </div>
