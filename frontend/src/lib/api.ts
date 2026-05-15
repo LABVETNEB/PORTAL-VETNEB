@@ -933,6 +933,49 @@ export async function getDashboardStats(
     ).length,
   };
 }
+
+export type PublicPricingItem = {
+  id: number;
+  studyName: string;
+  priceLabel: string | null;
+  displayOrder: number;
+};
+
+export type PublicPricingCategory = {
+  category: string;
+  items: PublicPricingItem[];
+};
+
+export type PublicPricingSnapshot = {
+  success: true;
+  categories: PublicPricingCategory[];
+};
+
+type PublicPricingReadOptions = {
+  throwOnError?: boolean;
+};
+
+export async function getPublicPricing(
+  options?: RequestInit,
+  readOptions: PublicPricingReadOptions = {},
+): Promise<PublicPricingSnapshot> {
+  try {
+    return await apiFetch<PublicPricingSnapshot>(
+      "/api/public/pricing",
+      options,
+    );
+  } catch (error) {
+    if (readOptions.throwOnError ?? true) {
+      throw error;
+    }
+
+    return {
+      success: true,
+      categories: [],
+    };
+  }
+}
+
 export type PublicProfessional = {
   clinicId: number;
   displayName: string;
