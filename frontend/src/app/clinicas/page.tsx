@@ -111,7 +111,7 @@ export default function ClinicasPage() {
           <h1 className="mb-5 max-w-4xl text-4xl font-bold md:text-5xl">
             Portal para clínicas veterinarias
           </h1>
-          <p className="max-w-2xl text-xl leading-relaxed text-primary-foreground/86">
+          <p className="max-w-2xl text-xl leading-relaxed text-primary-foreground/92">
             Gestión centralizada de informes, estudios y logística para su
             clínica veterinaria. Acceso seguro, trazable y disponible las 24 hs.
           </p>
@@ -141,13 +141,13 @@ export default function ClinicasPage() {
       <section className="py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-10 max-w-3xl text-center">
-            <p className="mb-3 text-sm font-semibold uppercase text-primary">
+            <p className="mb-3 inline-flex clinical-pill px-3 py-1 text-[0.66rem]">
               Operación clínica
             </p>
-            <h2 className="text-2xl font-bold text-gray-950 md:text-3xl">
+            <h2 className="text-2xl font-bold text-vetneb-ink md:text-3xl">
               Todo lo que necesita su clínica
             </h2>
-            <p className="mt-3 text-sm leading-relaxed text-gray-600">
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               Un sistema visualmente claro, trazable y preparado para trabajo
               diario de alto volumen.
             </p>
@@ -158,12 +158,12 @@ export default function ClinicasPage() {
               <Card key={feature.title} className="premium-card">
                 <CardHeader>
                   <VisualIcon icon={feature.icon} tone={feature.tone} className="mb-2" />
-                  <CardTitle className="text-lg text-gray-950">
+                  <CardTitle className="text-lg text-vetneb-ink">
                     {feature.title}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <CardDescription className="text-sm leading-relaxed text-gray-600">
+                  <CardDescription className="text-sm leading-relaxed text-muted-foreground">
                     {feature.description}
                   </CardDescription>
                 </CardContent>
@@ -176,24 +176,24 @@ export default function ClinicasPage() {
       <section className="py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-10 max-w-3xl text-center">
-            <p className="mb-3 text-sm font-semibold uppercase text-teal-700">
+            <p className="mb-3 inline-flex clinical-pill px-3 py-1 text-[0.66rem]">
               Implementación guiada
             </p>
-            <h2 className="text-2xl font-bold text-gray-950 md:text-3xl">
+            <h2 className="text-2xl font-bold text-vetneb-ink md:text-3xl">
               Cómo comenzar
             </h2>
           </div>
 
           <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             {steps.map((step) => (
-              <div key={step.number} className="premium-card-muted p-5 text-center">
-                <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg clinical-primary-gradient text-lg font-bold text-white shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)]">
+              <div key={step.number} className="premium-card-muted p-5">
+                <div className="mb-4 inline-flex items-center rounded-full border border-vetneb-teal/35 bg-vetneb-teal/10 px-3 py-1 text-xs font-semibold tracking-[0.08em] text-vetneb-navy">
                   {step.number}
                 </div>
-                <h3 className="mb-2 font-semibold text-gray-950">
+                <h3 className="mb-2 font-semibold text-vetneb-ink">
                   {step.title}
                 </h3>
-                <p className="text-sm leading-relaxed text-gray-500">
+                <p className="text-sm leading-relaxed text-muted-foreground">
                   {step.description}
                 </p>
               </div>
@@ -205,10 +205,10 @@ export default function ClinicasPage() {
               <div className="flex items-start gap-3">
                 <VisualIcon icon={ClipboardCheck} tone="emerald" className="h-11 w-11 shrink-0 rounded-xl" />
                 <div>
-                  <h3 className="font-semibold text-gray-950">
+                  <h3 className="font-semibold text-vetneb-ink">
                     Acceso clínico seguro
                   </h3>
-                  <p className="mt-1 text-sm leading-relaxed text-gray-600">
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                     Credenciales separadas del acceso particular por token.
                   </p>
                 </div>

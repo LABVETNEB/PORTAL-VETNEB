@@ -117,12 +117,12 @@ test("public home page keeps polished visual hierarchy and responsive sections",
       'aria-labelledby="cta-heading"',
       'src="/images/hero-microscope-vetneb.jpg"',
       'sizes="100vw"',
-      "bg-[hsl(var(--vetneb-navy)/0.68)]",
-      "CONSULTÁ LOS RESULTADOS DE SUS INFORMES LAS 24 HS.",
+      "bg-[linear-gradient(110deg,hsl(var(--vetneb-navy)/0.84),hsl(var(--vetneb-navy)/0.66)_45%,hsl(var(--vetneb-teal)/0.42)_100%)]",
+      "Consultá los resultados de sus informes las 24 hs.",
       'href="https://wa.me/5493534138946"',
       "services.map((service) =>",
       "benefits.map((benefit) =>",
-      "transition-shadow hover:shadow-md",
+      "premium-card h-full",
     ],
     "home page visual hierarchy",
   );
@@ -132,8 +132,8 @@ test("public home page keeps polished visual hierarchy and responsive sections",
     [
       /className="relative isolate overflow-hidden text-white"/,
       /className="relative container mx-auto flex min-h-\[calc\(100vh-4\.5rem\)\] items-center px-4 py-16 sm:px-6 lg:px-8"/,
-      /className="text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl"/,
-      /className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4"/,
+      /className="mt-5 text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl"/,
+      /className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center"/,
       /className="public-soft-canvas"/,
       /className="py-16 md:py-20"/,
       /className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4"/,
@@ -156,7 +156,7 @@ test("servicios page keeps professional section/card structure and responsive la
       "const serviceCategories = [",
       "serviceCategories.map((service) =>",
       "service.features.map((feature) =>",
-      "transition-shadow hover:shadow-md",
+      "data-services-polished=\"true\"",
     ],
     "servicios visual structure",
   );
@@ -166,7 +166,7 @@ test("servicios page keeps professional section/card structure and responsive la
     [
       /className="clinical-primary-gradient py-16 text-white md:py-20"/,
       /className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8"/,
-      /className="h-full border-gray-100 transition-shadow hover:shadow-md"/,
+      /className="premium-card h-full"/,
       /className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center"/,
       /className="flex flex-col justify-center gap-3 sm:flex-row"/,
       /className="py-16"/,
@@ -188,7 +188,7 @@ test("login content keeps polished auth card layout and stable visual states", (
       'className="w-full max-w-md"',
       "className=\"field-label\"",
       'className="space-y-4"',
-      'className="w-full"',
+      'className="w-full clinical-primary-gradient clinical-primary-gradient-hover text-primary-foreground',
       'role="alert"',
     ],
     "login content layout contracts",
@@ -197,9 +197,9 @@ test("login content keeps polished auth card layout and stable visual states", (
   assertMatchesAll(
     source,
     [
-      /className="min-h-screen public-page-canvas public-soft-canvas flex items-center justify-center p-4"/,
-      /className="border border-vetneb-line\/80 bg-card\/95 shadow-\[0_22px_76px_rgba\(15,45,62,0\.18\)\]"/,
-      /className="rounded-lg border border-destructive\/25 bg-destructive\/10 px-3 py-2 text-sm text-destructive"/,
+      /className="min-h-screen public-page-canvas flex items-center justify-center p-4"/,
+      /className="border border-vetneb-line\/80 bg-card\/95 shadow-\[0_18px_52px_rgba\(15,45,62,0\.12\)\]"/,
+      /className="clinical-alert-error px-3 py-2"/,
       /className="font-medium text-primary hover:underline"/,
       /className="transition-colors hover:text-primary"/,
     ],
@@ -442,5 +442,5 @@ test("public pages use one single shared canvas background", () => {
   assert.ok(globals.includes("content: none !important;"));
   assert.equal(globals.includes("linear-gradient(135deg, #07365d 0%, #123f7a 42%, #0f766e 100%) !important;"), false);
   assert.equal(globals.includes("public-page-canvas-drift"), false);
-  assert.ok(login.includes("min-h-screen public-page-canvas public-soft-canvas flex items-center justify-center p-4"));
+  assert.ok(login.includes("min-h-screen public-page-canvas flex items-center justify-center p-4"));
 });

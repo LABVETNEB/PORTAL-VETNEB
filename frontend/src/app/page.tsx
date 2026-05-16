@@ -92,51 +92,105 @@ export default function HomePage() {
             className="object-cover object-center"
           />
         </div>
-        <div className="absolute inset-0 bg-[hsl(var(--vetneb-navy)/0.68)]" aria-hidden="true" />
+        <div
+          className="absolute inset-0 bg-[linear-gradient(110deg,hsl(var(--vetneb-navy)/0.84),hsl(var(--vetneb-navy)/0.66)_45%,hsl(var(--vetneb-teal)/0.42)_100%)]"
+          aria-hidden="true"
+        />
         <div className="relative container mx-auto flex min-h-[calc(100vh-4.5rem)] items-center px-4 py-16 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-4xl text-center">
-            <h1
-              id="hero-heading"
-              className="text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl"
-            >
-              <span className="block uppercase">SERVICIO PATOLÓGICO</span>
-              <span className="block uppercase">VETNEB</span>
-            </h1>
-            <p className="mt-4 text-lg font-medium text-slate-100 md:text-xl">
-              Dr. BARBÉ, NICOLÁS E.
-            </p>
-            <p className="mx-auto mt-4 max-w-3xl text-sm text-slate-100 md:text-base">
-              Diagnóstico anatomopatológico veterinario con precisión clínica,
-              trazabilidad de estudios e informes disponibles para seguimiento
-              profesional.
-            </p>
-            <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
-              <Button
-                asChild
-                size="lg"
-                className="w-full whitespace-normal bg-card px-8 text-vetneb-ink hover:bg-vetneb-surface-raised sm:w-auto"
+          <div className="grid w-full items-center gap-10 lg:grid-cols-[1.08fr_0.92fr]">
+            <div className="max-w-3xl">
+              <p className="inline-flex items-center rounded-md border border-white/25 bg-black/16 px-3 py-1.5 text-xs font-semibold tracking-[0.06em] text-primary-foreground/92">
+                Servicio patológico VETNEB
+              </p>
+              <h1
+                id="hero-heading"
+                className="mt-5 text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl"
               >
-                <Link href={ROUTES.login}>
-                  ACCESO A INFORMES Y TRAZABILIDAD DE ESTUDIOS
-                </Link>
-              </Button>
+                Diagnóstico patológico veterinario con criterio clínico y
+                trazabilidad integral
+              </h1>
+              <p className="mt-5 max-w-2xl text-sm leading-relaxed text-primary-foreground/92 md:text-base">
+                Anatomía patológica, citología y tinciones especiales con
+                seguimiento continuo para clínicas y profesionales en una
+                superficie institucional y confiable.
+              </p>
+              <p className="mt-4 text-sm font-medium text-primary-foreground/86 md:text-base">
+                Dr. BARBÉ, NICOLÁS E.
+              </p>
+
+              <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button
+                  asChild
+                  size="lg"
+                  className="w-full clinical-primary-gradient clinical-primary-gradient-hover px-7 text-primary-foreground shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)] sm:w-auto"
+                >
+                  <Link href={ROUTES.login}>Acceder a informes y trazabilidad</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  className="w-full border border-white/35 bg-white/10 text-white shadow-sm hover:bg-white/16 sm:w-auto"
+                >
+                  <Link href={ROUTES.particulares}>Consultar informes 24 hs</Link>
+                </Button>
+              </div>
+
+              <div className="clinical-muted-band mt-7 rounded-lg px-4 py-3 text-vetneb-navy">
+                <p className="text-sm font-semibold">
+                  Consultá los resultados de sus informes las 24 hs.
+                </p>
+                <p className="mt-1 text-xs text-vetneb-navy/90">
+                  Horario de atención Lunes a viernes de 8 a 17hs
+                </p>
+                <p className="mt-1 text-xs">
+                  <a
+                    href="https://wa.me/5493534138946"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold underline decoration-vetneb-navy/55 underline-offset-4 transition hover:text-vetneb-teal"
+                  >
+                    Whatsapp: 3534138946
+                  </a>
+                </p>
+              </div>
             </div>
-            <p className="mt-8 text-sm font-medium text-slate-100">
-              CONSULTÁ LOS RESULTADOS DE SUS INFORMES LAS 24 HS.
-            </p>
-            <p className="mt-3 text-sm text-slate-200">
-              Horario de atención Lunes a viernes de 8 a 17hs
-            </p>
-            <p className="mt-2 text-sm text-slate-100">
-              <a
-                href="https://wa.me/5493534138946"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium underline decoration-white/70 underline-offset-4 transition hover:text-white"
-              >
-                Whatsapp: 3534138946
-              </a>
-            </p>
+
+            <div className="premium-card p-6">
+              <h2 className="text-base font-semibold text-vetneb-ink sm:text-lg">
+                Superficies clínicas orientadas a confianza operativa
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Diseñadas para sostener decisiones diagnósticas con mayor
+                claridad comercial y continuidad entre laboratorio, clínica y
+                tutor.
+              </p>
+              <div className="mt-5 grid grid-cols-1 gap-2.5">
+                <div className="clinical-muted-band rounded-lg px-3 py-2">
+                  <p className="clinical-pill px-2 py-0.5 text-[0.65rem] tracking-[0.07em]">
+                    Trazabilidad
+                  </p>
+                  <p className="mt-1.5 text-xs text-vetneb-ink">
+                    Seguimiento de estudios e informes durante todo el circuito.
+                  </p>
+                </div>
+                <div className="clinical-muted-band rounded-lg px-3 py-2">
+                  <p className="clinical-pill px-2 py-0.5 text-[0.65rem] tracking-[0.07em]">
+                    Integración
+                  </p>
+                  <p className="mt-1.5 text-xs text-vetneb-ink">
+                    Coordinación clínica y apoyo técnico en decisiones de caso.
+                  </p>
+                </div>
+                <div className="clinical-muted-band rounded-lg px-3 py-2">
+                  <p className="clinical-pill px-2 py-0.5 text-[0.65rem] tracking-[0.07em]">
+                    Disponibilidad
+                  </p>
+                  <p className="mt-1.5 text-xs text-vetneb-ink">
+                    Acceso seguro para clínicas y token particular 24 hs.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -151,11 +205,11 @@ export default function HomePage() {
             <div className="text-center mb-12">
               <h2
                 id="services-heading"
-                className="text-3xl md:text-4xl font-bold text-gray-950 mb-4"
+                className="text-3xl font-bold text-vetneb-ink md:text-4xl mb-4"
               >
                 Servicios del laboratorio patológico veterinario
               </h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                 Cobertura diagnóstica con estudio anatomopatológico, citología,
                 tinciones especiales e integración clínico-patológica para
                 sostener decisiones con mayor confianza.
@@ -165,7 +219,7 @@ export default function HomePage() {
               {services.map((service) => (
                 <Card
                   key={service.title}
-                  className="h-full border-vetneb-line/80 transition-shadow hover:shadow-md"
+                  className="premium-card h-full"
                 >
                   <CardHeader>
                     <VisualIcon icon={service.icon} tone={service.tone} className="mb-2" />
@@ -196,11 +250,11 @@ export default function HomePage() {
             <div className="text-center mb-12">
               <h2
                 id="benefits-heading"
-                className="text-3xl md:text-4xl font-bold text-gray-950 mb-4"
+                className="text-3xl md:text-4xl font-bold text-vetneb-ink mb-4"
               >
                 Trabajo interdisciplinario y criterio diagnóstico
               </h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                 Colaboramos de forma permanente con equipos clínicos para evaluar
                 lesiones, integrar contexto médico y reforzar la confianza
                 diagnóstica antes de definir conductas de tratamiento.
@@ -208,7 +262,7 @@ export default function HomePage() {
             </div>
             <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
               {benefits.map((benefit) => (
-                <Card key={benefit.title} className="h-full border-gray-200">
+                <Card key={benefit.title} className="premium-card h-full">
                   <CardHeader>
                     <CardTitle className="text-xl">{benefit.title}</CardTitle>
                   </CardHeader>
@@ -222,7 +276,7 @@ export default function HomePage() {
                           >
                             ✓
                           </span>
-                          <span className="text-sm text-gray-600">{item}</span>
+                          <span className="text-sm text-muted-foreground">{item}</span>
                         </li>
                       ))}
                     </ul>
@@ -241,11 +295,11 @@ export default function HomePage() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2
               id="cta-heading"
-              className="text-3xl md:text-4xl font-bold mb-4 text-gray-950"
+              className="text-3xl md:text-4xl font-bold mb-4 text-vetneb-ink"
             >
               Seguimos trabajando en mejorar
             </h2>
-            <p className="mx-auto mb-8 max-w-xl text-lg text-gray-600">
+            <p className="mx-auto mb-8 max-w-xl text-lg text-muted-foreground">
               Agilizamos la recepción y entrega de informes, mantenemos
               trazabilidad durante todo el proceso y coordinamos con clínicas y
               profesionales para sostener decisiones terapéuticas con mayor

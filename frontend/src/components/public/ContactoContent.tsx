@@ -101,7 +101,7 @@ export function ContactoContent() {
 <h1 className="mb-4 text-4xl font-bold md:text-5xl">
             Contacto
           </h1>
-          <p className="max-w-2xl public-copy text-xl text-primary-foreground/86">
+          <p className="max-w-2xl public-copy text-xl text-primary-foreground/92">
             ¿Desea registrar su clínica, coordinar envío de muestras o resolver
             consultas sobre informes? Comuníquese con nuestro equipo.
           </p>
@@ -111,14 +111,14 @@ export function ContactoContent() {
       <section className="public-soft-canvas py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid max-w-5xl grid-cols-1 gap-12 mx-auto lg:grid-cols-2">
-            <div className="rounded-3xl border border-white/70 bg-white/80 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur">
+            <div className="premium-card p-6">
               <div className="mb-6 flex items-start gap-3">
                 <VisualIcon icon={MessageCircle} tone="blue" className="h-11 w-11 rounded-xl" />
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-950">
+                  <h2 className="text-2xl font-bold text-vetneb-ink">
                     Envíenos un mensaje
                   </h2>
-                  <p className="mt-1 public-copy-tight text-sm text-gray-600">
+                  <p className="mt-1 public-copy-tight text-sm text-muted-foreground">
                     Complete el formulario con su consulta clínica o
                     institucional. Nuestro equipo responderá por el canal
                     indicado para coordinar próximos pasos.
@@ -135,12 +135,12 @@ export function ContactoContent() {
                   <div>
                     <label
                       htmlFor="nombre"
-                      className="block text-sm font-medium text-gray-700 mb-1"
+                      className="field-label"
                     >
                       Nombre
                     </label>
                     <div className="relative">
-                      <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                      <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                       <Input
                         id="nombre"
                         type="text"
@@ -157,7 +157,7 @@ export function ContactoContent() {
                   <div>
                     <label
                       htmlFor="apellido"
-                      className="block text-sm font-medium text-gray-700 mb-1"
+                      className="field-label"
                     >
                       Apellido
                     </label>
@@ -175,12 +175,12 @@ export function ContactoContent() {
                 <div>
                   <label
                     htmlFor="email"
-                    className="block text-sm font-medium text-gray-700 mb-1"
+                    className="field-label"
                   >
                     Email
                   </label>
                   <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                     <Input
                       id="email"
                       type="email"
@@ -197,12 +197,12 @@ export function ContactoContent() {
                 <div>
                   <label
                     htmlFor="clinica"
-                    className="block text-sm font-medium text-gray-700 mb-1"
+                    className="field-label"
                   >
                     Nombre de la clínica (opcional)
                   </label>
                   <div className="relative">
-                    <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                    <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                     <Input
                       id="clinica"
                       type="text"
@@ -218,7 +218,7 @@ export function ContactoContent() {
                 <div>
                   <label
                     htmlFor="mensaje"
-                    className="block text-sm font-medium text-gray-700 mb-1"
+                    className="field-label"
                   >
                     Mensaje
                   </label>
@@ -226,7 +226,7 @@ export function ContactoContent() {
                     id="mensaje"
                     rows={5}
                     placeholder="Describa su consulta o solicitud de acceso, e incluya tipo de muestra cuando corresponda..."
-                    className="flex w-full resize-none rounded-xl border border-input bg-white/90 px-3 py-2 text-sm shadow-inner ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="field-textarea"
                     required
                     minLength={10}
                     value={mensaje}
@@ -265,10 +265,10 @@ export function ContactoContent() {
               <div className="mb-6 flex items-start gap-3">
                 <VisualIcon icon={Phone} tone="emerald" className="h-11 w-11 rounded-xl" />
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-950">
+                  <h2 className="text-2xl font-bold text-vetneb-ink">
                     Información de contacto
                   </h2>
-                  <p className="mt-1 public-copy-tight text-sm text-gray-600">
+                  <p className="mt-1 public-copy-tight text-sm text-muted-foreground">
                     Canales oficiales para coordinación de muestras, seguimiento
                     e integración.
                   </p>
@@ -288,12 +288,12 @@ export function ContactoContent() {
                       {info.href ? (
                         <a
                           href={info.href}
-                          className="text-gray-700 font-medium underline underline-offset-2 hover:text-primary"
+                          className="text-vetneb-ink font-medium underline underline-offset-2 hover:text-primary"
                         >
                           {info.value}
                         </a>
                       ) : (
-                        <p className="text-gray-700 font-medium">{info.value}</p>
+                        <p className="text-vetneb-ink font-medium">{info.value}</p>
                       )}
                     </CardContent>
                   </Card>

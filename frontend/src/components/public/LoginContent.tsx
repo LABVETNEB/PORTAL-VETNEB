@@ -84,7 +84,7 @@ export function LoginContent() {
   const clinicSubmitLabel = isSubmitting ? "Iniciando sesión..." : "Iniciar sesión";
 
   return (
-    <div className="min-h-screen public-page-canvas public-soft-canvas flex items-center justify-center p-4"
+    <div className="min-h-screen public-page-canvas flex items-center justify-center p-4"
       data-auth-login-polish="true">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
@@ -93,16 +93,16 @@ export function LoginContent() {
             className="inline-flex items-center justify-center"
             aria-label="PORTAL VETNEB — Inicio"
           >
-            <span className="text-2xl font-bold uppercase text-vetneb-ink">
+            <span className="text-2xl font-bold text-vetneb-ink">
               PORTAL VETNEB
             </span>
           </Link>
-          <p className="mt-2 text-xs font-semibold uppercase text-muted-foreground">
+          <p className="mt-2 text-xs font-semibold tracking-[0.08em] text-muted-foreground">
             Patología veterinaria
           </p>
         </div>
 
-        <Card className="border border-vetneb-line/80 bg-card/95 shadow-[0_22px_76px_rgba(15,45,62,0.18)]"
+        <Card className="border border-vetneb-line/80 bg-card/95 shadow-[0_18px_52px_rgba(15,45,62,0.12)]"
           data-auth-login-card="true">
           <CardHeader className="pb-4 text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg border border-vetneb-cyan/25 bg-vetneb-cyan/10 text-vetneb-navy ring-1 ring-vetneb-cyan/20">
@@ -119,14 +119,14 @@ export function LoginContent() {
           </CardHeader>
           <CardContent>
             <div
-              className="mb-5 grid grid-cols-2 rounded-lg border border-vetneb-line bg-vetneb-surface-muted p-1"
+              className="mb-5 grid grid-cols-2 rounded-lg border border-vetneb-line/90 bg-vetneb-surface-muted/75 p-1"
               aria-label="Tipo de acceso"
             >
               <button
                 type="button"
                 className={`rounded-md px-3 py-2 text-sm font-medium transition ${
                   mode === "clinic"
-                    ? "bg-card text-vetneb-ink shadow-sm"
+                    ? "border border-vetneb-teal/30 bg-card text-vetneb-ink shadow-sm"
                     : "text-muted-foreground hover:text-vetneb-ink"
                 }`}
                 onClick={() => selectMode("clinic")}
@@ -138,7 +138,7 @@ export function LoginContent() {
                 type="button"
                 className={`rounded-md px-3 py-2 text-sm font-medium transition ${
                   mode === "particular"
-                    ? "bg-card text-vetneb-ink shadow-sm"
+                    ? "border border-vetneb-teal/30 bg-card text-vetneb-ink shadow-sm"
                     : "text-muted-foreground hover:text-vetneb-ink"
                 }`}
                 onClick={() => selectMode("particular")}
@@ -218,14 +218,16 @@ export function LoginContent() {
 
               {errorMessage ? (
                 <p
-                  className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                  className="clinical-alert-error px-3 py-2"
                   role="alert"
                 >
                   {errorMessage}
                 </p>
               ) : null}
 
-              <Button type="submit" className="w-full"
+              <Button
+                type="submit"
+                className="w-full clinical-primary-gradient clinical-primary-gradient-hover text-primary-foreground shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)]"
                 data-auth-login-submit="true" disabled={isSubmitting}>
                 {mode === "particular"
                   ? isSubmitting
