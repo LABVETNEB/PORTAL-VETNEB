@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
-import { AmbientOrbs, VisualIcon } from "@/components/public/VisualAccents";
+import { PublicHero } from "@/components/public/PublicHero";
+import { VisualIcon } from "@/components/public/VisualAccents";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -102,7 +103,6 @@ export function ProfesionalesSearchContent() {
   return (
     <PublicLayout>
       <section className="public-hero-depth py-16 text-white md:py-20">
-        <AmbientOrbs variant="dark" />
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
 <h1 className="mb-4 max-w-4xl text-4xl font-bold md:text-5xl">
             Red de profesionales veterinarios
@@ -308,3 +308,4 @@ export function ProfesionalesSearchContent() {
     </PublicLayout>
   );
 }
+
