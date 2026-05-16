@@ -32,8 +32,8 @@ test("profesionales public page exposes search instead of conversion CTAs", () =
 test("servicios public page exposes conversion CTAs", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
-  assert.ok(source.includes('import Link from "next/link"'));
-  assert.ok(source.includes('import { Button } from "@/components/ui/button"'));
+  assert.ok(source.includes('import { PublicAction } from "@/components/public/PublicAction";'));
+  assert.ok(source.includes('variant="primaryDark"'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes"'));
   assert.ok(source.includes("Coordinación diagnóstica para clínicas y profesionales"));
   assert.ok(source.includes("Solicitar coordinación diagnóstica"));
@@ -41,3 +41,4 @@ test("servicios public page exposes conversion CTAs", () => {
   assert.ok(source.includes("href={ROUTES.contacto}"));
   assert.ok(source.includes("href={ROUTES.clinicas}"));
 });
+
