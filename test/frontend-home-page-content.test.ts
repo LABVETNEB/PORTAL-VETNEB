@@ -34,9 +34,13 @@ test("home page exposes accessible hero and primary CTAs", () => {
   assert.ok(source.includes('import Image from "next/image";'));
   assert.ok(source.includes("SERVICIO PATOLÓGICO"));
   assert.ok(source.includes("VETNEB"));
+  assert.ok(source.includes("Diagnóstico patológico veterinario con criterio clínico y"));
+  assert.ok(source.includes("trazabilidad integral"));
   assert.ok(source.includes("Dr. BARBÉ, NICOLÁS E."));
   assert.ok(source.includes("Acceder a informes y trazabilidad"));
   assert.ok(source.includes("Consultá los resultados de sus informes las 24 hs."));
+  assert.equal(source.includes("inline-flex w-fit flex-col rounded-md border border-white/30"), false);
+  assert.equal(source.includes("text-[0.62rem]"), false);
   assert.ok(source.includes("Horario de atención Lunes a viernes de 8 a 17hs"));
   assert.ok(source.includes("Whatsapp: 3534138946"));
   assert.ok(source.includes('href="https://wa.me/5493534138946"'));
