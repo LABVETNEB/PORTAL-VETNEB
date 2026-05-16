@@ -56,7 +56,7 @@ function getSessionTypeVariant(
 function getStatusVariant(
   value: AdminSessionStatus,
 ): "default" | "secondary" | "destructive" | "outline" {
-  return value === "active" ? "default" : "destructive";
+  return value === "active" ? "default" : "outline";
 }
 
 function formatStatus(value: AdminSessionStatus) {
@@ -146,8 +146,8 @@ export function AdminSessionsReadOnlyCard() {
     : false;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <Card className="dashboard-surface">
+      <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <CardTitle className="text-base">Sesiones activas y expiradas</CardTitle>
           <CardDescription>
@@ -161,17 +161,17 @@ export function AdminSessionsReadOnlyCard() {
         </Button>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <div className="surface-soft">
-            <p className="text-xs text-gray-400">Total filtrado</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
+            <p className="text-xs text-muted-foreground">Total filtrado</p>
+            <p className="mt-1 text-2xl font-bold text-vetneb-ink">
               {snapshot?.total ?? "—"}
             </p>
           </div>
 
           <label className="surface-soft">
-            <span className="text-xs text-gray-400">Tipo de sesión</span>
+            <span className="text-xs text-muted-foreground">Tipo de sesión</span>
             <select
               className="field-select mt-2"
               value={sessionType}
@@ -188,7 +188,7 @@ export function AdminSessionsReadOnlyCard() {
           </label>
 
           <label className="surface-soft">
-            <span className="text-xs text-gray-400">Estado</span>
+            <span className="text-xs text-muted-foreground">Estado</span>
             <select
               className="field-select mt-2"
               value={status}
@@ -204,11 +204,11 @@ export function AdminSessionsReadOnlyCard() {
           </label>
 
           <div className="surface-soft">
-            <p className="text-xs text-gray-400">Página</p>
-            <p className="mt-1 text-sm font-semibold text-gray-700">
+            <p className="text-xs text-muted-foreground">Página</p>
+            <p className="mt-1 text-sm font-semibold text-vetneb-ink">
               {Math.floor(offset / PAGE_SIZE) + 1}
             </p>
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-muted-foreground">
               {snapshot ? `${snapshot.sessions.length} visibles` : "—"}
             </p>
           </div>
@@ -248,12 +248,12 @@ export function AdminSessionsReadOnlyCard() {
                           >
                             {formatSessionType(session.sessionType)}
                           </Badge>
-                          <span className="font-mono text-xs text-gray-400">
+                          <span className="font-mono text-xs text-muted-foreground">
                             #{session.sessionId}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600">
+                      <TableCell className="text-sm text-vetneb-ink/88">
                         {formatActorType(session.actorType)} #{session.actorId}
                       </TableCell>
                       <TableCell>
@@ -261,13 +261,13 @@ export function AdminSessionsReadOnlyCard() {
                           {formatStatus(session.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs text-gray-400">
+                      <TableCell className="text-xs text-muted-foreground">
                         {formatOptionalDate(session.createdAt)}
                       </TableCell>
-                      <TableCell className="text-xs text-gray-400">
+                      <TableCell className="text-xs text-muted-foreground">
                         {formatOptionalDate(session.lastAccess)}
                       </TableCell>
-                      <TableCell className="text-xs text-gray-400">
+                      <TableCell className="text-xs text-muted-foreground">
                         {formatOptionalDate(session.expiresAt)}
                       </TableCell>
                       <TableCell className="text-right">

@@ -207,8 +207,8 @@ export function AdminUsersRolesReadOnlyCard() {
     : false;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <Card className="dashboard-surface">
+      <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <CardTitle className="text-base">Usuarios y roles</CardTitle>
         </div>
@@ -222,31 +222,31 @@ export function AdminUsersRolesReadOnlyCard() {
         </Button>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
           <div className="surface-soft">
-            <p className="text-xs text-gray-400">Total filtrado</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
+            <p className="text-xs text-muted-foreground">Total filtrado</p>
+            <p className="mt-1 text-2xl font-bold text-vetneb-ink">
               {snapshot?.total ?? "—"}
             </p>
           </div>
 
           <div className="surface-soft">
-            <p className="text-xs text-gray-400">Admins</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
+            <p className="text-xs text-muted-foreground">Admins</p>
+            <p className="mt-1 text-2xl font-bold text-vetneb-ink">
               {snapshot?.totals.adminUsers ?? "—"}
             </p>
           </div>
 
           <div className="surface-soft">
-            <p className="text-xs text-gray-400">Clínicas</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
+            <p className="text-xs text-muted-foreground">Clínicas</p>
+            <p className="mt-1 text-2xl font-bold text-vetneb-ink">
               {snapshot?.totals.clinicUsers ?? "—"}
             </p>
           </div>
 
           <label className="surface-soft">
-            <span className="text-xs text-gray-400">Tipo usuario</span>
+            <span className="text-xs text-muted-foreground">Tipo usuario</span>
             <select
               className="field-select mt-2"
               value={userType}
@@ -264,7 +264,7 @@ export function AdminUsersRolesReadOnlyCard() {
           </label>
 
           <label className="surface-soft">
-            <span className="text-xs text-gray-400">Rol</span>
+            <span className="text-xs text-muted-foreground">Rol</span>
             <select
               className="field-select mt-2"
               value={role}
@@ -322,10 +322,10 @@ export function AdminUsersRolesReadOnlyCard() {
                     >
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <span className="text-sm font-semibold text-gray-700">
+                          <span className="text-sm font-semibold text-vetneb-ink/88">
                             {user.username}
                           </span>
-                          <span className="font-mono text-xs text-gray-400">
+                          <span className="font-mono text-xs text-muted-foreground">
                             #{user.userId}
                           </span>
                           {wasChanged ? (
@@ -345,13 +345,13 @@ export function AdminUsersRolesReadOnlyCard() {
                           {formatRole(user.role)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500">
+                      <TableCell className="text-sm text-muted-foreground">
                         {formatClinic(user)}
                       </TableCell>
-                      <TableCell className="text-xs text-gray-400">
+                      <TableCell className="text-xs text-muted-foreground">
                         {formatDateTime(user.createdAt)}
                       </TableCell>
-                      <TableCell className="text-xs text-gray-400">
+                      <TableCell className="text-xs text-muted-foreground">
                         {formatDateTime(user.updatedAt)}
                       </TableCell>
                       <TableCell className="text-right">
@@ -367,7 +367,7 @@ export function AdminUsersRolesReadOnlyCard() {
                               : `Cambiar a ${formatRole(getNextClinicRole(user.role))}`}
                           </Button>
                         ) : (
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-muted-foreground">
                             No editable
                           </span>
                         )}

@@ -45,13 +45,13 @@ function MaintenanceCandidateRow({
   candidate: MaintenancePurgeCandidateGroup;
 }) {
   return (
-    <div className="surface-soft">
+    <div className="clinical-muted-band rounded-lg px-3 py-3">
       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
         <div>
-          <p className="text-sm font-semibold text-gray-800">
+          <p className="text-sm font-semibold text-vetneb-ink">
             {candidate.label}
           </p>
-          <p className="mt-1 font-mono text-xs text-gray-400">
+          <p className="mt-1 font-mono text-xs text-muted-foreground">
             {candidate.category}
           </p>
         </div>
@@ -59,21 +59,21 @@ function MaintenanceCandidateRow({
           <Badge variant={getCandidateVariant(candidate)}>
             {formatSupportLabel(candidate)}
           </Badge>
-          <span className="text-lg font-bold text-gray-900">
+          <span className="clinical-pill px-2.5 py-0.5 text-xs tracking-normal">
             {candidate.count}
           </span>
         </div>
       </div>
 
       {candidate.destructiveAction ? (
-        <p className="mt-2 text-xs text-gray-400">
+        <p className="mt-2 text-xs text-muted-foreground">
           Acción futura:{" "}
           <span className="font-mono">{candidate.destructiveAction}</span>
         </p>
       ) : null}
 
       {candidate.reason ? (
-        <p className="mt-2 text-xs text-amber-700">{candidate.reason}</p>
+        <p className="mt-2 text-xs text-vetneb-navy">{candidate.reason}</p>
       ) : null}
     </div>
   );
@@ -105,8 +105,8 @@ export function AdminMaintenanceDryRunCard() {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+    <Card className="dashboard-surface">
+      <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 md:flex-row md:items-start md:justify-between">
         <div>
           <CardTitle className="text-base">
             Mantenimiento seguro dry-run
@@ -120,7 +120,7 @@ export function AdminMaintenanceDryRunCard() {
         </Button>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         {error ? (
           <div className="clinical-alert-error">
             {error}
@@ -137,32 +137,32 @@ export function AdminMaintenanceDryRunCard() {
           <>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <div className="surface-soft">
-                <p className="text-xs text-gray-400">Dry-run</p>
-                <Badge variant={snapshot.dryRun ? "default" : "destructive"}>
+                <p className="text-xs text-muted-foreground">Dry-run</p>
+                <Badge variant={snapshot.dryRun ? "default" : "outline"}>
                   {snapshot.dryRun ? "true" : "false"}
                 </Badge>
               </div>
               <div className="surface-soft">
-                <p className="text-xs text-gray-400">Candidatos totales</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">
+                <p className="text-xs text-muted-foreground">Candidatos totales</p>
+                <p className="mt-1 text-2xl font-bold text-vetneb-ink">
                   {snapshot.totals.candidateRecords}
                 </p>
               </div>
               <div className="surface-soft">
-                <p className="text-xs text-gray-400">Candidatos soportados</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">
+                <p className="text-xs text-muted-foreground">Candidatos soportados</p>
+                <p className="mt-1 text-2xl font-bold text-vetneb-ink">
                   {snapshot.totals.supportedCandidateRecords}
                 </p>
               </div>
               <div className="surface-soft">
-                <p className="text-xs text-gray-400">Grupos no soportados</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">
+                <p className="text-xs text-muted-foreground">Grupos no soportados</p>
+                <p className="mt-1 text-2xl font-bold text-vetneb-ink">
                   {snapshot.totals.unsupportedGroups}
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-col gap-1 text-xs text-gray-400">
+            <div className="flex flex-col gap-1 text-xs text-muted-foreground">
               <p>Generado: {formatGeneratedAt(snapshot.generatedAt)}</p>
               {snapshot.checkedBy ? (
                 <p>

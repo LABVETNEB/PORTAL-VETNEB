@@ -57,7 +57,7 @@ test("admin failed login alerts card keeps badge variants for surfaces and reaso
   assert.ok(source.includes('if (value === "clinic") return "secondary";'));
   assert.ok(source.includes('return "outline";'));
   assert.ok(source.includes("function getReasonVariant("));
-  assert.ok(source.includes('if (value === "rate_limited") return "destructive";'));
+  assert.ok(source.includes('if (value === "rate_limited") return "secondary";'));
   assert.ok(source.includes('if (value === "invalid_credentials") return "secondary";'));
   assert.ok(source.includes('return "outline";'));
 });

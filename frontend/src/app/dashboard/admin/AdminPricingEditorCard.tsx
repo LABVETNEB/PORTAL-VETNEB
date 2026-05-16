@@ -306,8 +306,8 @@ export function AdminPricingEditorCard() {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <Card className="dashboard-surface">
+      <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <CardTitle className="text-base">Lista de precios</CardTitle>
           <CardDescription>
@@ -322,11 +322,11 @@ export function AdminPricingEditorCard() {
           {isLoading ? "Actualizando..." : "Actualizar"}
         </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         {loadError ? (
           <p
             role="alert"
-            className="clinical-alert-warning"
+            className="clinical-alert-warning px-3 py-2"
           >
             {LOAD_ERROR_MESSAGE}
           </p>
@@ -343,9 +343,9 @@ export function AdminPricingEditorCard() {
             {categories.map((category) => (
               <section
                 key={category.category}
-                className="overflow-hidden rounded-2xl border border-vetneb-line bg-card shadow-sm"
+                className="overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/95 shadow-[0_10px_28px_rgba(15,45,62,0.08)]"
               >
-                <header className="border-b border-vetneb-line bg-primary px-4 py-3 text-center text-primary-foreground">
+                <header className="clinical-card-header border-b border-vetneb-line/70 px-4 py-3 text-center">
                   <h3 className="text-sm font-semibold uppercase tracking-[0.18em]">
                     {category.category}
                   </h3>
@@ -354,7 +354,7 @@ export function AdminPricingEditorCard() {
                   </p>
                 </header>
 
-                <div className="space-y-4 p-4">
+                <div className="space-y-3 p-4">
                   {category.items.map((item) => {
                     const formState = formStateById[item.id];
 
@@ -368,29 +368,29 @@ export function AdminPricingEditorCard() {
                       <form
                         key={item.id}
                         data-admin-pricing-item-form
-                        className="rounded-xl border border-vetneb-line bg-vetneb-surface-raised/70 p-4 shadow-sm"
+                        className="rounded-lg border border-vetneb-line/75 bg-vetneb-surface-raised/76 p-3.5 shadow-[0_8px_22px_rgba(15,45,62,0.07)]"
                         onSubmit={(event) => {
                           event.preventDefault();
                           void handleSaveItem(item.id);
                         }}
                       >
                         <fieldset
-                          className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+                          className="grid grid-cols-1 gap-3 lg:grid-cols-2"
                           disabled={isSaving}
                         >
                           <label className="space-y-2">
-                            <span className="text-sm font-semibold text-vetneb-ink">
+                            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                               Estudio
                             </span>
                             <Input
                               value={item.studyName}
                               readOnly
-                              className="bg-card"
+                              className="bg-card/90"
                             />
                           </label>
 
                           <label className="space-y-2">
-                            <span className="text-sm font-semibold text-vetneb-ink">
+                            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                               Precio
                             </span>
                             <Input
@@ -408,7 +408,7 @@ export function AdminPricingEditorCard() {
                           </label>
 
                           <label className="space-y-2">
-                            <span className="text-sm font-semibold text-vetneb-ink">
+                            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                               Orden
                             </span>
                             <Input
@@ -428,7 +428,7 @@ export function AdminPricingEditorCard() {
                           </label>
 
                           <label className="space-y-2">
-                            <span className="text-sm font-semibold text-vetneb-ink">
+                            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                               Estado
                             </span>
                             <select
@@ -441,7 +441,7 @@ export function AdminPricingEditorCard() {
                                   errorMessage: null,
                                 }))
                               }
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="field-select h-10"
                             >
                               <option value="active">Activo</option>
                               <option value="inactive">Inactivo</option>
@@ -449,29 +449,29 @@ export function AdminPricingEditorCard() {
                           </label>
 
                           <label className="space-y-2">
-                            <span className="text-sm font-semibold text-vetneb-ink">
+                            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                               Vista pública
                             </span>
                             <Input
                               value={normalizePriceLabel(formState.priceLabel)}
                               readOnly
-                              className="bg-card"
+                              className="bg-card/90"
                             />
                           </label>
 
                           <label className="space-y-2">
-                            <span className="text-sm font-semibold text-vetneb-ink">
+                            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                               Última actualización
                             </span>
                             <Input
                               value={formatUpdatedAt(item.updatedAt)}
                               readOnly
-                              className="bg-card"
+                              className="bg-card/90"
                             />
                           </label>
                         </fieldset>
 
-                        <div className="mt-4 flex flex-col gap-3 border-t border-vetneb-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="mt-3 flex flex-col gap-3 border-t border-vetneb-line/65 pt-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-h-5">
                             {formState.errorMessage ? (
                               <p className="clinical-alert-error px-3 py-2" role="alert">

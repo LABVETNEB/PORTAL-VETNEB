@@ -64,10 +64,10 @@ test("dashboard admin keeps status and service formatting helpers", () => {
 
   assert.ok(source.includes("function getEventVariant("));
   assert.ok(source.includes('if (event.includes("login")) return "default";'));
-  assert.ok(source.includes('if (event.includes("revoked") || event.includes("canceled")) return "destructive";'));
+  assert.ok(source.includes('if (event.includes("revoked") || event.includes("canceled")) return "outline";'));
   assert.ok(source.includes("function getServiceVariant("));
   assert.ok(source.includes('if (value === "up") return "default";'));
-  assert.ok(source.includes('if (value === "down") return "destructive";'));
+  assert.ok(source.includes('if (value === "down") return "outline";'));
   assert.ok(source.includes("function formatServiceStatus(value: unknown)"));
   assert.ok(source.includes('if (value === "up") return "Activo";'));
   assert.ok(source.includes('if (value === "down") return "Caído";'));
@@ -201,7 +201,7 @@ test("dashboard admin removes horizontal quick actions and preserves admin secti
   );
   assert.equal(
     source.slice(mainIndex, reportUploadTitleIndex).includes("dashboard-surface"),
-    false,
+    true,
   );
 });
 
