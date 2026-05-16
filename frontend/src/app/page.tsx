@@ -97,18 +97,13 @@ export default function HomePage() {
           aria-hidden="true"
         />
         <div className="relative container mx-auto flex min-h-[calc(100vh-4.5rem)] items-center px-4 py-16 sm:px-6 lg:px-8">
-          <div className="grid w-full items-center gap-10 lg:grid-cols-[1.08fr_0.92fr]">
-            <div className="max-w-3xl">
-              <h1
+          <div className="grid w-full items-center gap-10">
+            <div className="max-w-5xl">
+                            <h1
                 id="hero-heading"
-                className="mt-2 text-5xl font-semibold leading-[0.94] text-white sm:text-6xl lg:text-6xl"
+                className="mt-2 max-w-none text-[clamp(1.85rem,4.6vw,3.75rem)] font-bold uppercase leading-[0.94] tracking-[0.045em] text-primary-foreground"
               >
-                <span className="block text-[0.58em] tracking-[0.10em] text-primary-foreground/92">
-                  SERVICIO PATOLÓGICO
-                </span>
-                <span className="mt-2 block border-t border-white/35 pt-2 font-bold tracking-[0.14em] text-primary-foreground">
-                  VETNEB
-                </span>
+                SERVICIO PATOLÓGICO VETNEB
               </h1>
               <p className="mt-6 max-w-2xl text-xl font-medium leading-tight text-primary-foreground/94 md:text-2xl lg:text-3xl">
                 Diagnóstico patológico veterinario con criterio clínico y
@@ -160,42 +155,6 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="premium-card p-6">
-              <h2 className="text-base font-semibold text-vetneb-ink sm:text-lg">
-                Superficies clínicas orientadas a confianza operativa
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Diseñadas para sostener decisiones diagnósticas con mayor
-                claridad comercial y continuidad entre laboratorio, clínica y
-                tutor.
-              </p>
-              <div className="mt-5 grid grid-cols-1 gap-2.5">
-                <div className="clinical-muted-band rounded-lg px-3 py-2">
-                  <p className="clinical-pill px-2 py-0.5 text-[0.65rem] tracking-[0.07em]">
-                    Trazabilidad
-                  </p>
-                  <p className="mt-1.5 text-xs text-vetneb-ink">
-                    Seguimiento de estudios e informes durante todo el circuito.
-                  </p>
-                </div>
-                <div className="clinical-muted-band rounded-lg px-3 py-2">
-                  <p className="clinical-pill px-2 py-0.5 text-[0.65rem] tracking-[0.07em]">
-                    Integración
-                  </p>
-                  <p className="mt-1.5 text-xs text-vetneb-ink">
-                    Coordinación clínica y apoyo técnico en decisiones de caso.
-                  </p>
-                </div>
-                <div className="clinical-muted-band rounded-lg px-3 py-2">
-                  <p className="clinical-pill px-2 py-0.5 text-[0.65rem] tracking-[0.07em]">
-                    Disponibilidad
-                  </p>
-                  <p className="mt-1.5 text-xs text-vetneb-ink">
-                    Acceso seguro para clínicas y token particular 24 hs.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
