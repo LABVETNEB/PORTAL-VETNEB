@@ -176,10 +176,10 @@ export function ParticularesContent() {
       <AmbientOrbs />
       <div className="container relative z-10 mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_0.95fr] lg:px-8">
         <div>
-<h1 className="max-w-3xl text-4xl font-bold text-gray-950 md:text-5xl">
+<h1 className="max-w-3xl text-4xl font-bold text-vetneb-ink md:text-5xl">
             Acceda al seguimiento y al informe de su caso con token seguro
           </h1>
-          <p className="mt-5 max-w-2xl public-copy text-lg text-gray-600">
+          <p className="mt-5 max-w-2xl public-copy text-lg text-muted-foreground">
             El acceso particular está limitado al caso vinculado al token.
             Permite consultar estado, fechas e informe sin exponer información
             de clínicas, rutas internas, profesionales ni otros estudios.
@@ -193,8 +193,8 @@ export function ParticularesContent() {
                   tone={item.tone}
                   className="mb-4 h-11 w-11 rounded-xl"
                 />
-                <h2 className="font-semibold text-gray-950">{item.title}</h2>
-                <p className="mt-2 public-copy-tight text-sm text-gray-500">
+                <h2 className="font-semibold text-vetneb-ink">{item.title}</h2>
+                <p className="mt-2 public-copy-tight text-sm text-muted-foreground">
                   {item.description}
                 </p>
               </div>
@@ -209,10 +209,10 @@ export function ParticularesContent() {
                 className="h-10 w-10 shrink-0 rounded-xl"
               />
               <div>
-                <h2 className="font-semibold text-gray-950">
+                <h2 className="font-semibold text-vetneb-ink">
                   Sesión separada del portal clínico
                 </h2>
-                <p className="mt-1 public-copy-tight text-sm text-gray-600">
+                <p className="mt-1 public-copy-tight text-sm text-muted-foreground">
                   El token particular funciona en una superficie separada para
                   resguardar confidencialidad y trazabilidad del caso
                   autorizado.
@@ -232,7 +232,7 @@ export function ParticularesContent() {
                   className="h-11 w-11 rounded-xl"
                 />
                 <div>
-                  <CardTitle className="text-xl text-gray-950">
+                  <CardTitle className="text-xl text-vetneb-ink">
                     {session ? "Sesión particular activa" : "Ingresar con token"}
                   </CardTitle>
                   <CardDescription className="mt-1 leading-relaxed">
@@ -246,58 +246,63 @@ export function ParticularesContent() {
 
             <CardContent className="pt-6">
               {isCheckingSession ? (
-                <div className="premium-card-muted p-4 text-sm text-gray-500">
+                <div className="surface-empty p-4 text-sm">
                   Verificando sesión...
                 </div>
               ) : session ? (
                 <div className="space-y-5">
-                  <div className="rounded-2xl border border-slate-200/80 bg-white/75 p-4 shadow-inner">
+                  <div className="clinical-muted-band rounded-lg p-4">
+                    <div className="mb-3">
+                      <span className="clinical-pill px-2 py-0.5 text-[0.65rem] tracking-[0.08em]">
+                        Resumen de caso
+                      </span>
+                    </div>
                     <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                      <div className="rounded-xl bg-slate-50/80 p-3">
-                        <dt className="flex items-center gap-1.5 font-medium text-gray-500">
+                      <div className="surface-soft px-3 py-2.5">
+                        <dt className="flex items-center gap-1.5 font-medium text-muted-foreground">
                           <UserRound className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                           Tutor
                         </dt>
-                        <dd className="mt-1 font-semibold text-gray-950">
+                        <dd className="mt-1 font-semibold text-vetneb-ink">
                           {session.tutorLastName}
                         </dd>
                       </div>
-                      <div className="rounded-xl bg-slate-50/80 p-3">
-                        <dt className="flex items-center gap-1.5 font-medium text-gray-500">
+                      <div className="surface-soft px-3 py-2.5">
+                        <dt className="flex items-center gap-1.5 font-medium text-muted-foreground">
                           <PawPrint className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                           Mascota
                         </dt>
-                        <dd className="mt-1 font-semibold text-gray-950">
+                        <dd className="mt-1 font-semibold text-vetneb-ink">
                           {session.petName}
                         </dd>
                       </div>
-                      <div className="rounded-xl bg-slate-50/80 p-3">
-                        <dt className="font-medium text-gray-500">Especie</dt>
-                        <dd className="mt-1 text-gray-950">
+                      <div className="surface-soft px-3 py-2.5">
+                        <dt className="font-medium text-muted-foreground">Especie</dt>
+                        <dd className="mt-1 text-vetneb-ink">
                           {session.petSpecies}
                         </dd>
                       </div>
-                      <div className="rounded-xl bg-slate-50/80 p-3">
-                        <dt className="font-medium text-gray-500">Raza</dt>
-                        <dd className="mt-1 text-gray-950">
+                      <div className="surface-soft px-3 py-2.5">
+                        <dt className="font-medium text-muted-foreground">Raza</dt>
+                        <dd className="mt-1 text-vetneb-ink">
                           {session.petBreed}
                         </dd>
                       </div>
-                      <div className="rounded-xl bg-slate-50/80 p-3">
-                        <dt className="flex items-center gap-1.5 font-medium text-gray-500">
+                      <div className="surface-soft px-3 py-2.5">
+                        <dt className="flex items-center gap-1.5 font-medium text-muted-foreground">
                           <CalendarDays className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                           Extracción
                         </dt>
-                        <dd className="mt-1 text-gray-950">
+                        <dd className="mt-1 text-vetneb-ink">
                           {formatDate(session.extractionDate)}
                         </dd>
                       </div>
-                      <div className="rounded-xl bg-slate-50/80 p-3">
-                        <dt className="flex items-center gap-1.5 font-medium text-gray-500">
+                      <div className="surface-soft px-3 py-2.5">
+                        <dt className="flex items-center gap-1.5 font-medium text-muted-foreground">
                           <CalendarDays className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                           Envío
                         </dt>
-                        <dd className="mt-1 text-gray-950">
+                        <dd className="mt-1 text-vetneb-ink">
                           {formatDate(session.shippingDate)}
                         </dd>
                       </div>
@@ -366,7 +371,7 @@ export function ParticularesContent() {
                     type="button"
                     variant="secondary"
                     onClick={handleLogout}
-                    className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    className="border border-vetneb-line/90 bg-vetneb-surface-muted/70 text-vetneb-ink hover:bg-vetneb-surface-muted"
                   >
                     <LogOut className="h-4 w-4" aria-hidden="true" />
                     Cerrar sesión particular
@@ -384,7 +389,7 @@ export function ParticularesContent() {
                     </label>
                     <div className="relative">
                       <KeyRound
-                        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
                         aria-hidden="true"
                       />
                       <Input
@@ -419,12 +424,12 @@ export function ParticularesContent() {
                     {isSubmitting ? "Validando token..." : "Ingresar"}
                   </Button>
 
-                  <p className="text-center text-xs text-gray-500">
+                  <p className="text-center text-xs text-muted-foreground">
                     La disponibilidad del informe depende de la complejidad
                     diagnóstica y del proceso de validación profesional.
                   </p>
 
-                  <p className="text-center text-sm text-gray-500">
+                  <p className="text-center text-sm text-muted-foreground">
                     ¿Tiene credenciales de clínica?{" "}
                     <Link
                       href={ROUTES.login}

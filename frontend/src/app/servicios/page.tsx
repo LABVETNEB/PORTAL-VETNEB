@@ -131,7 +131,7 @@ export default function ServiciosPage() {
           <h1 className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl">
             Servicio patológico veterinario
           </h1>
-          <p className="max-w-2xl public-copy text-lg text-primary-foreground/86 md:text-xl">
+          <p className="max-w-2xl public-copy text-lg text-primary-foreground/92 md:text-xl">
             La anatomía patológica veterinaria integra evaluación microscópica,
             trazabilidad de muestras e informes clínicos para orientar
             decisiones diagnósticas con respaldo profesional.
@@ -142,13 +142,13 @@ export default function ServiciosPage() {
       <section className="py-16 md:py-20">
         <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-10 max-w-4xl">
-            <p className="mb-3 text-sm font-semibold uppercase text-primary">
+            <p className="mb-3 inline-flex clinical-pill px-3 py-1 text-[0.66rem]">
               Laboratorio VETNEB
             </p>
-            <h2 className="text-2xl font-bold text-gray-950 md:text-3xl">
+            <h2 className="text-2xl font-bold text-vetneb-ink md:text-3xl">
               Estudios diagnósticos con criterio clínico-patológico
             </h2>
-            <p className="mt-3 public-copy-tight text-sm text-gray-600">
+            <p className="mt-3 public-copy-tight text-sm text-muted-foreground">
               Unificamos histopatología, citología, técnicas complementarias e
               informes trazables para acompañar decisiones clínicas en cada
               etapa del caso.
@@ -166,16 +166,13 @@ export default function ServiciosPage() {
                     : ""
                 }
               >
-                <Card
-                  id={service.id}
-                  className="h-full border-gray-100 transition-shadow hover:shadow-md"
-                >
+                <Card id={service.id} className="premium-card h-full">
                   <CardHeader>
                     <VisualIcon icon={service.icon} tone={service.tone} className="mb-2" />
-                    <CardTitle className="text-xl text-gray-950">
+                    <CardTitle className="text-xl text-vetneb-ink">
                       {service.title}
                     </CardTitle>
-                    <CardDescription className="public-copy-tight text-sm text-gray-600">
+                    <CardDescription className="public-copy-tight text-sm text-muted-foreground">
                       {service.description}
                     </CardDescription>
                   </CardHeader>
@@ -189,7 +186,7 @@ export default function ServiciosPage() {
                           >
                             →
                           </span>
-                          <span className="text-sm text-gray-600">{feature}</span>
+                          <span className="text-sm text-muted-foreground">{feature}</span>
                         </li>
                       ))}
                     </ul>
@@ -203,11 +200,11 @@ export default function ServiciosPage() {
 
       <section className="py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center">
-          <div className="rounded-3xl border border-white/70 bg-white/80 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          <div className="premium-card p-8">
+            <h2 className="text-2xl font-bold text-vetneb-ink mb-4">
               Coordinación diagnóstica para clínicas y profesionales
             </h2>
-            <p className="public-copy text-gray-600 mb-8">
+            <p className="public-copy text-muted-foreground mb-8">
               Coordinamos recepción de muestras, priorización por complejidad y
               entrega de informes trazables. Los tiempos se ajustan al criterio
               diagnóstico y a las necesidades clínicas de cada caso.
@@ -223,7 +220,12 @@ export default function ServiciosPage() {
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="w-full bg-white/80 sm:w-auto">
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="w-full border border-vetneb-line/90 bg-card/90 text-vetneb-navy hover:border-vetneb-teal/45 hover:bg-accent/60 sm:w-auto"
+              >
                 <Link href={ROUTES.clinicas}>Conocer solución para clínicas</Link>
               </Button>
             </div>
@@ -234,17 +236,17 @@ export default function ServiciosPage() {
       <section className="py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
           <div className="premium-card-muted p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            <h2 className="text-2xl font-bold text-vetneb-ink mb-4">
               Diagnóstico integral para medicina veterinaria
             </h2>
-            <p className="public-copy text-gray-600 mb-4">
+            <p className="public-copy text-muted-foreground mb-4">
               El diagnóstico anatomopatológico veterinario requiere integrar no
               sólo el análisis de tejido y citología, sino también el
               conocimiento clínico global de cada paciente. Esta articulación
               permite enriquecer la lectura diagnóstica junto con otras áreas de
               práctica veterinaria.
             </p>
-            <p className="public-copy text-gray-600">
+            <p className="public-copy text-muted-foreground">
               Nuestro objetivo es colaborar de forma permanente con equipos
               quirúrgicos y clínicos, estudiando tejidos extirpados y muestras de
               punción para construir diagnósticos específicos y apoyar planes de
@@ -257,15 +259,15 @@ export default function ServiciosPage() {
       <section className="py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
           <div className="premium-card-muted p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            <h2 className="text-2xl font-bold text-vetneb-ink mb-4">
               Para tener en cuenta
             </h2>
-            <p className="public-copy text-gray-600 mb-4">
+            <p className="public-copy text-muted-foreground mb-4">
               El estudio anatomopatológico requiere integrar datos clínicos con la
               evaluación histológica y citológica realizada por el médico
               veterinario patólogo en microscopía.
             </p>
-            <p className="public-copy text-gray-600">
+            <p className="public-copy text-muted-foreground">
               No se trata de un diagnóstico automatizado, por lo que los tiempos
               son variables según complejidad y técnicas complementarias
               requeridas. En ciertos casos se requiere interconsulta profesional
@@ -281,10 +283,10 @@ export default function ServiciosPage() {
             <div className="flex items-start gap-3">
               <VisualIcon icon={ClipboardCheck} tone="emerald" className="h-11 w-11 shrink-0 rounded-xl" />
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                <h2 className="text-2xl font-bold text-vetneb-ink mb-4">
                   Valores que guían el servicio
                 </h2>
-                <p className="public-copy text-gray-600">
+                <p className="public-copy text-muted-foreground">
                   Basamos nuestro trabajo en compromiso, seriedad, respeto,
                   responsabilidad, confianza, diálogo, trabajo en equipo, empatía y
                   capacitación constante para sostener un servicio patológico

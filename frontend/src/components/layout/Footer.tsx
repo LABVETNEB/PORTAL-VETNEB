@@ -61,10 +61,10 @@ export function FooterFaq() {
           Preguntas frecuentes:
         </h2>
 
-        <div className="divide-y divide-border/70 rounded-3xl border border-white/80 bg-card/95 px-5 shadow-[0_28px_90px_rgba(22,72,99,0.18)] ring-1 ring-white/70 backdrop-blur-md">
+        <div className="divide-y divide-vetneb-line/70 rounded-lg border border-vetneb-line/80 bg-card/95 px-5 shadow-[0_18px_52px_rgba(15,45,62,0.10)] ring-1 ring-white/55">
           {faqItems.map((item) => (
             <details key={item.question} className="group py-4">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-foreground">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-vetneb-ink">
                 <span>{item.question}</span>
                 <ChevronDown
                   className="h-4 w-4 shrink-0 text-primary transition-colors group-open:text-vetneb-teal"
@@ -116,7 +116,7 @@ export function Footer() {
                     WhatsApp:{" "}
                     <a
                       href="https://wa.me/5493534138946"
-                      className="underline underline-offset-2 hover:text-cyan-200"
+                      className="underline underline-offset-2 hover:text-vetneb-teal"
                     >
                       3534138946
                     </a>
@@ -128,7 +128,7 @@ export function Footer() {
                     Mail:{" "}
                     <a
                       href="mailto:lab.vetneb@gmail.com"
-                      className="underline underline-offset-2 hover:text-cyan-200"
+                      className="underline underline-offset-2 hover:text-vetneb-teal"
                     >
                       lab.vetneb@gmail.com
                     </a>
@@ -147,7 +147,7 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-sidebar-foreground/72 transition-colors hover:text-cyan-200"
+                    className="text-sm text-sidebar-foreground/74 transition-colors hover:text-vetneb-teal"
                   >
                     {link.label}
                   </Link>
@@ -164,7 +164,7 @@ export function Footer() {
               <li>
                 <Link
                   href={ROUTES.login}
-                  className="text-sm text-sidebar-foreground/72 transition-colors hover:text-cyan-200"
+                  className="text-sm text-sidebar-foreground/74 transition-colors hover:text-vetneb-teal"
                 >
                   Iniciar sesión
                 </Link>
@@ -172,7 +172,7 @@ export function Footer() {
               <li>
                 <Link
                   href={ROUTES.particulares}
-                  className="text-sm text-sidebar-foreground/72 transition-colors hover:text-cyan-200"
+                  className="text-sm text-sidebar-foreground/74 transition-colors hover:text-vetneb-teal"
                 >
                   Acceso particulares
                 </Link>
@@ -180,7 +180,7 @@ export function Footer() {
               <li>
                 <Link
                   href={ROUTES.contacto}
-                  className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/10 px-3 py-1.5 text-sm text-white shadow-sm transition-colors hover:bg-white/15"
+                  className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/8 px-3 py-1.5 text-sm text-white shadow-sm transition-colors hover:bg-white/14"
                 >
                   <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
                   Solicitar acceso
@@ -189,7 +189,7 @@ export function Footer() {
             </ul>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-white/10 bg-white/10 shadow-[0_18px_54px_rgba(0,0,0,0.20)]">
+          <div className="overflow-hidden rounded-lg border border-white/12 bg-white/10 shadow-[0_12px_36px_rgba(0,0,0,0.18)]">
             <iframe
               title="Ubicación de Servicio Patológico VETNEB en Google Maps"
               src={mapsEmbedUrl}
@@ -205,11 +205,8 @@ export function Footer() {
       <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="premium-divider mb-6 h-px" aria-hidden="true" />
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-muted-foreground">
             &copy; {year} VETNEB. Todos los derechos reservados.
-          </p>
-          <p className="text-xs text-slate-400">
-            
           </p>
         </div>
       </div>

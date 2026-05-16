@@ -15,7 +15,7 @@ const navLinks = [
 
 export function Navbar() {
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-vetneb-line/80 bg-card/88 shadow-[0_10px_34px_rgba(15,45,62,0.08)] backdrop-blur-xl supports-[backdrop-filter]:bg-card/78">
+    <header className="sticky top-0 z-50 w-full border-b border-vetneb-line/80 bg-card/96 shadow-[0_10px_28px_rgba(15,45,62,0.08)]">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href={ROUTES.home}
@@ -32,14 +32,14 @@ export function Navbar() {
         </Link>
 
         <nav
-          className="hidden items-center gap-1 rounded-lg border border-vetneb-line/80 bg-vetneb-surface-raised/80 p-1 shadow-inner md:flex"
+          className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 md:flex"
           aria-label="Navegación principal"
         >
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-md px-3.5 py-2 text-sm font-medium text-foreground/72 transition-colors hover:bg-accent hover:text-accent-foreground"
+              className="rounded-md px-3.5 py-2 text-sm font-medium text-vetneb-ink/80 transition-colors hover:bg-accent/70 hover:text-vetneb-ink"
             >
               {link.label}
             </Link>
