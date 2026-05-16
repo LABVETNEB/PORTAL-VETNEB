@@ -121,6 +121,7 @@ export default function HomePage() {
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button
                   asChild
+                  variant="outline"
                   size="lg"
                   className="w-full border border-vetneb-line/90 bg-card/95 px-7 font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised hover:text-vetneb-navy sm:w-auto"
                 >

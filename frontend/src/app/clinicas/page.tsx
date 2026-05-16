@@ -118,8 +118,9 @@ export default function ClinicasPage() {
           <div className="mt-8 flex flex-col gap-4 sm:flex-row">
             <Button
               asChild
+              variant="outline"
               size="lg"
-              className="bg-card font-semibold text-vetneb-navy shadow-[0_18px_45px_rgba(255,255,255,0.18)] hover:bg-card/92"
+              className="w-full border-vetneb-line/90 bg-card/95 px-7 font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised hover:text-vetneb-navy sm:w-auto"
             >
               <Link href={ROUTES.login}>
                 Acceder al portal
@@ -141,9 +142,6 @@ export default function ClinicasPage() {
       <section className="py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-10 max-w-3xl text-center">
-            <p className="mb-3 inline-flex clinical-pill px-3 py-1 text-[0.66rem]">
-              Operación clínica
-            </p>
             <h2 className="text-2xl font-bold text-vetneb-ink md:text-3xl">
               Todo lo que necesita su clínica
             </h2>
@@ -176,9 +174,6 @@ export default function ClinicasPage() {
       <section className="py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-10 max-w-3xl text-center">
-            <p className="mb-3 inline-flex clinical-pill px-3 py-1 text-[0.66rem]">
-              Implementación guiada
-            </p>
             <h2 className="text-2xl font-bold text-vetneb-ink md:text-3xl">
               Cómo comenzar
             </h2>

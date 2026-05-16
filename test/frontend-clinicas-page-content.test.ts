@@ -37,14 +37,14 @@ test("clinicas page exposes hero content and primary CTAs", () => {
   assert.ok(source.includes("Solicitar acceso"));
 });
 
-test("clinicas page keeps solicitar acceso CTA visible on blue hero background", () => {
+test("clinicas page keeps hero CTAs visible on blue hero background", () => {
   const source = read(CLINICAS_PAGE_PATH);
 
   assert.ok(source.includes("border border-white/60"));
   assert.ok(source.includes("bg-white/10"));
   assert.ok(source.includes("font-semibold text-white"));
   assert.ok(source.includes("hover:bg-white/16"));
-  assert.equal(source.includes('variant="outline"'), false);
+  assert.ok(source.includes('variant="outline"'));
 });
 
 test("clinicas page lists operational feature cards", () => {
@@ -87,4 +87,5 @@ test("clinicas page keeps one continuous soft canvas below hero", () => {
   assert.equal(source.includes('className="bg-white py-16 md:py-20"'), false);
   assert.equal(source.includes('className="public-soft-canvas py-16 md:py-20"'), false);
 });
+
 
