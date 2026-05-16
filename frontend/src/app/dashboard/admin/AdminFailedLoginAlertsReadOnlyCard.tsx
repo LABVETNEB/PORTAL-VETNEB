@@ -53,7 +53,7 @@ function getSurfaceVariant(
 function getReasonVariant(
   value: AdminFailedLoginAlertReason,
 ): "default" | "secondary" | "destructive" | "outline" {
-  if (value === "rate_limited") return "destructive";
+  if (value === "rate_limited") return "secondary";
   if (value === "invalid_credentials") return "secondary";
   return "outline";
 }
@@ -130,8 +130,8 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
     : false;
 
   return (
-    <Card id="failed-login-alerts">
-      <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <Card id="failed-login-alerts" className="dashboard-surface">
+      <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <CardTitle className="text-base">
             Intentos fallidos de login
@@ -164,17 +164,17 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <div className="surface-soft">
-            <p className="text-xs text-gray-400">Total filtrado</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
+            <p className="text-xs text-muted-foreground">Total filtrado</p>
+            <p className="mt-1 text-2xl font-bold text-vetneb-ink">
               {snapshot?.total ?? "—"}
             </p>
           </div>
 
           <label className="surface-soft">
-            <span className="text-xs text-gray-400">Superficie</span>
+            <span className="text-xs text-muted-foreground">Superficie</span>
             <select
               className="field-select mt-2"
               value={surface}
@@ -193,7 +193,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           </label>
 
           <label className="surface-soft">
-            <span className="text-xs text-gray-400">Motivo</span>
+            <span className="text-xs text-muted-foreground">Motivo</span>
             <select
               className="field-select mt-2"
               value={reason}
@@ -212,11 +212,11 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           </label>
 
           <div className="surface-soft">
-            <p className="text-xs text-gray-400">Página</p>
-            <p className="mt-1 text-sm font-semibold text-gray-700">
+            <p className="text-xs text-muted-foreground">Página</p>
+            <p className="mt-1 text-sm font-semibold text-vetneb-ink">
               {Math.floor(offset / PAGE_SIZE) + 1}
             </p>
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-muted-foreground">
               {snapshot
                 ? `${snapshot.failedLoginAlerts.length} visibles`
                 : "—"}
@@ -247,7 +247,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
               {snapshot?.failedLoginAlerts.length ? (
                 snapshot.failedLoginAlerts.map((alert) => (
                   <TableRow key={alert.id}>
-                    <TableCell className="whitespace-nowrap font-mono text-xs text-gray-400">
+                    <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
                       #{alert.id}
                     </TableCell>
                     <TableCell>
@@ -255,7 +255,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
                         {formatSurface(alert.surface)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-600">
+                    <TableCell className="text-sm text-vetneb-ink/88">
                       {formatNullable(alert.username)}
                     </TableCell>
                     <TableCell>
@@ -263,13 +263,13 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
                         {formatReason(alert.reason)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-gray-500">
+                    <TableCell className="text-xs text-muted-foreground">
                       {formatNullable(alert.ipAddress)}
                     </TableCell>
-                    <TableCell className="max-w-xs truncate text-xs text-gray-500">
+                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
                       {formatNullable(alert.userAgent)}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-400">
+                    <TableCell className="text-xs text-muted-foreground">
                       {formatDateTime(alert.createdAt)}
                     </TableCell>
                   </TableRow>

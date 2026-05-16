@@ -245,11 +245,11 @@ export function AdminParticularTokensCard() {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="dashboard-surface">
+      <CardHeader className="border-b border-vetneb-line/70">
         <CardTitle className="text-base">Generación de tokens particulares</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 pt-6">
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
@@ -517,7 +517,7 @@ export function AdminParticularTokensCard() {
 
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-gray-800">
+            <h3 className="text-sm font-semibold text-vetneb-ink">
               Últimos tokens administrados
             </h3>
             <Button
@@ -536,28 +536,87 @@ export function AdminParticularTokensCard() {
               {tokens.map((token) => (
                 <div
                   key={token.id}
-                  className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3"
+                  className="rounded-lg border border-vetneb-line/75 bg-vetneb-surface-raised/74 px-4 py-3 shadow-[0_8px_20px_rgba(15,45,62,0.06)]"
                 >
-                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">
-                        Clínica #{token.clinicId} · {token.petName} ·{" "}
-                        {token.tutorLastName}
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-vetneb-ink">
+                        Clínica #{token.clinicId} · {token.petName}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        Token ****{token.tokenLast4} · {token.petSpecies} ·{" "}
-                        {token.petBreed}
+                      <p className="text-xs text-muted-foreground">
+                        Tutor: {token.tutorLastName} · Token ****{token.tokenLast4}
                       </p>
                     </div>
-                    <Badge variant={token.isActive ? "default" : "destructive"}>
-                      {token.isActive ? "Activo" : "Inactivo"}
-                    </Badge>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={
+                          token.isActive
+                            ? "clinical-pill shrink-0 px-2.5 py-0.5 text-[0.68rem] tracking-[0.08em]"
+                            : "inline-flex shrink-0 items-center rounded-full border border-vetneb-line/90 bg-card/80 px-2.5 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
+                        }
+                      >
+                        {token.isActive ? "Activo" : "Inactivo"}
+                      </span>
+                      <Badge variant={token.hasLinkedReport ? "default" : "outline"}>
+                        {token.hasLinkedReport ? "Informe vinculado" : "Sin informe"}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-gray-500 md:grid-cols-4">
-                    <p>Extracción: {formatDate(token.extractionDate)}</p>
-                    <p>Envío: {formatDate(token.shippingDate)}</p>
-                    <p>Informe: {token.reportId ? `#${token.reportId}` : "—"}</p>
-                    <p>Origen: {formatTokenSource(token)}</p>
+
+                  <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-5">
+                    <div className="clinical-muted-band rounded-lg px-3 py-2">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                        Paciente
+                      </p>
+                      <p className="mt-1 text-xs text-vetneb-ink">
+                        {token.petSpecies} · {token.petBreed} · {token.petSex}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">Edad: {token.petAge}</p>
+                    </div>
+
+                    <div className="clinical-muted-band rounded-lg px-3 py-2">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                        Muestra
+                      </p>
+                      <p className="mt-1 text-xs text-vetneb-ink">{token.sampleLocation}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Evolución: {token.sampleEvolution}
+                      </p>
+                    </div>
+
+                    <div className="clinical-muted-band rounded-lg px-3 py-2">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                        Fechas
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Extracción: {formatDate(token.extractionDate)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Envío: {formatDate(token.shippingDate)}
+                      </p>
+                    </div>
+
+                    <div className="clinical-muted-band rounded-lg px-3 py-2">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                        Publicación
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Informe: {token.reportId ? `#${token.reportId}` : "—"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Último acceso: {token.lastLoginAt ? formatDate(token.lastLoginAt) : "—"}
+                      </p>
+                    </div>
+
+                    <div className="clinical-muted-band rounded-lg px-3 py-2">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                        Vínculo
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">Clínica #{token.clinicId}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Origen: {formatTokenSource(token)}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))}

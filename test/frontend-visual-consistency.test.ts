@@ -368,14 +368,14 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
   assertMatchesAll(
     source,
     [
-      /className="grid grid-cols-1 md:grid-cols-3 gap-4"/,
-      /className="border-gray-100"/,
+      /className="grid grid-cols-1 gap-4 md:grid-cols-3"/,
+      /className="dashboard-surface h-full"/,
       /className="grid grid-cols-1 md:grid-cols-5 gap-3"/,
       /className="surface-soft"/,
       /className="grid grid-cols-1 gap-3 md:grid-cols-3"/,
-      /className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"/,
+      /className="clinical-muted-band flex items-center gap-2 rounded-lg px-3 py-2"/,
       /className="clinical-muted-band mx-6 mt-4 flex flex-col gap-2 rounded-lg px-4 py-3 text-sm text-vetneb-navy md:flex-row md:items-center md:justify-between"/,
-      /className="max-w-md whitespace-normal break-words text-xs text-gray-500"/,
+      /className="max-w-md whitespace-normal break-words text-xs text-muted-foreground"/,
     ],
     "dashboard admin visual contracts",
   );

@@ -428,11 +428,11 @@ export function UploadReportModal() {
 
   const modal = isOpen ? (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-vetneb-ink/45 p-4"
       role="presentation"
     >
       <div
-        className="relative z-[10000] w-full max-w-lg rounded-2xl border border-white/80 bg-white p-6 text-slate-950 shadow-[0_32px_120px_rgba(2,6,23,0.42)]"
+        className="clinical-modal relative z-[10000] w-full max-w-xl p-5 text-card-foreground sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="upload-report-title"
@@ -441,17 +441,18 @@ export function UploadReportModal() {
           <div>
             <h2
               id="upload-report-title"
-              className="text-lg font-semibold text-gray-900"
+              className="text-lg font-semibold text-vetneb-ink"
             >
               Subir informe
             </h2>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               Cargue un PDF y asócielo a una clínica.
             </p>
           </div>
           <Button
             type="button"
             variant="outline"
+            className="border-vetneb-line/90 bg-card/88"
             onClick={closeModal}
             disabled={isSubmitting}
           >
@@ -483,7 +484,7 @@ export function UploadReportModal() {
               value={clinicId}
               readOnly
             />
-            <p id="upload-clinic-help" className="mt-1 text-xs text-gray-500">
+            <p id="upload-clinic-help" className="mt-1 text-xs text-muted-foreground">
               Seleccione una clínica del listado desplegado. La búsqueda admite
               texto parcial, acentos, ID y usuarios asociados.
             </p>
@@ -498,7 +499,7 @@ export function UploadReportModal() {
             ) : null}
 
             <div
-              className="mt-2 max-h-44 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm"
+              className="mt-2 max-h-44 overflow-y-auto rounded-lg border border-vetneb-line/80 bg-card/92"
               role="listbox"
               aria-label="Clínicas registradas"
             >
@@ -519,10 +520,10 @@ export function UploadReportModal() {
                     <button
                       key={option.id}
                       type="button"
-                      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-accent/60 ${
+                      className={`clinical-hover-row flex w-full items-center justify-between gap-2 border-b border-vetneb-line/35 px-3 py-2 text-left text-sm last:border-b-0 ${
                         String(option.id) === clinicId
-                          ? "bg-accent/60 text-vetneb-navy"
-                          : "text-gray-700"
+                          ? "bg-vetneb-teal/12 text-vetneb-navy shadow-[inset_0_0_0_1px_rgba(16,60,96,0.28)]"
+                          : "text-vetneb-ink/88"
                       }`}
                       onClick={() => selectClinic(option)}
                       disabled={isSubmitting}
@@ -533,7 +534,7 @@ export function UploadReportModal() {
                         <span className="block truncate font-medium">
                           {option.name}
                         </span>
-                        <span className="block truncate text-xs text-gray-500">
+                        <span className="block truncate text-xs text-muted-foreground">
                           ID #{option.id}
                           {option.usernames.length
                             ? ` · ${option.usernames.join(", ")}`
@@ -572,7 +573,7 @@ export function UploadReportModal() {
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               Seleccione un token existente para que el informe quede disponible
               en Particulares. Puede cambiar el token antes de subir el informe.
             </p>
@@ -617,13 +618,13 @@ export function UploadReportModal() {
               onChange={handleFileChange}
               className="sr-only"
             />
-            <div className="flex flex-col gap-2 rounded-lg border border-input bg-background px-3 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-              <span className="truncate text-sm text-gray-600">
+            <div className="flex flex-col gap-2 rounded-lg border border-vetneb-line/80 bg-vetneb-surface-raised/75 px-3 py-3 shadow-[0_8px_24px_rgba(15,45,62,0.08)] sm:flex-row sm:items-center sm:justify-between">
+              <span className="truncate text-sm text-muted-foreground">
                 {selectedFileName || "Sin archivo seleccionado"}
               </span>
               <label
                 htmlFor="upload-file"
-                className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md border border-input bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm transition-colors hover:bg-gray-50"
+                className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md border border-vetneb-line/85 bg-card/90 px-4 py-2 text-sm font-medium text-vetneb-ink shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/55"
               >
                 Seleccionar archivo
               </label>
@@ -678,7 +679,7 @@ export function UploadReportModal() {
               disabled={isSubmitting}
               aria-describedby="upload-date-help"
             />
-            <p id="upload-date-help" className="mt-1 text-xs text-gray-500">
+            <p id="upload-date-help" className="mt-1 text-xs text-muted-foreground">
               El seguimiento particular usará esta fecha como recepción y
               calculará entrega automática en 15 días hábiles, excluyendo
               domingos y feriados nacionales argentinos.

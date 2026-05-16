@@ -186,40 +186,40 @@ export function ClinicPublicProfileCard() {
   const publicationErrors = publication?.publicationErrors ?? [];
 
   return (
-    <Card id="clinic-public-profile">
-      <CardHeader>
+    <Card id="clinic-public-profile" className="dashboard-surface">
+      <CardHeader className="border-b border-vetneb-line/70">
         <CardTitle className="text-base">Perfil para banco de especialidades</CardTitle>
         <CardDescription>
           Complete y publique el perfil de la clínica para aparecer en el banco
           público de especialidades y profesionales.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 pt-6">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <div className="surface-soft">
-            <p className="text-xs text-gray-400">Estado</p>
+            <p className="text-xs text-muted-foreground">Estado</p>
             <Badge className="mt-2" variant={getPublicationVariant(profile)}>
               {getPublicationLabel(profile)}
             </Badge>
           </div>
           <div className="surface-soft">
-            <p className="text-xs text-gray-400">Calidad</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
+            <p className="text-xs text-muted-foreground">Calidad</p>
+            <p className="mt-1 text-2xl font-bold text-vetneb-ink">
               {publication ? publication.qualityScore : "—"}
-              <span className="text-sm font-medium text-gray-400">
+              <span className="text-sm font-medium text-muted-foreground">
                 /{publication?.minimumQualityScore ?? 75}
               </span>
             </p>
           </div>
           <div className="surface-soft">
-            <p className="text-xs text-gray-400">Campos obligatorios</p>
-            <p className="mt-1 text-sm font-semibold text-gray-800">
+            <p className="text-xs text-muted-foreground">Campos obligatorios</p>
+            <p className="mt-1 text-sm font-semibold text-vetneb-ink">
               {publication?.hasRequiredPublicFields ? "Completos" : "Pendientes"}
             </p>
           </div>
           <div className="surface-soft">
-            <p className="text-xs text-gray-400">Banco público</p>
-            <p className="mt-1 text-sm font-semibold text-gray-800">
+            <p className="text-xs text-muted-foreground">Banco público</p>
+            <p className="mt-1 text-sm font-semibold text-vetneb-ink">
               {publication?.isSearchEligible ? "Visible" : "No visible"}
             </p>
           </div>
@@ -324,7 +324,7 @@ export function ClinicPublicProfileCard() {
             <textarea
               id="clinic-profile-services"
               name="servicesText"
-              className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="field-textarea min-h-24"
               value={formState.servicesText}
               onChange={(event) => updateField("servicesText", event.target.value)}
               disabled={isLoading || isSubmitting}
@@ -339,7 +339,7 @@ export function ClinicPublicProfileCard() {
             <textarea
               id="clinic-profile-about"
               name="aboutText"
-              className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="field-textarea min-h-28"
               value={formState.aboutText}
               onChange={(event) => updateField("aboutText", event.target.value)}
               disabled={isLoading || isSubmitting}

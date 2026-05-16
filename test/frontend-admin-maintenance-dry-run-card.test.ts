@@ -109,7 +109,7 @@ test("admin maintenance dry-run card renders dry-run totals and audit context", 
   const source = read(ADMIN_MAINTENANCE_CARD_PATH);
 
   assert.ok(source.includes("Dry-run"));
-  assert.ok(source.includes('snapshot.dryRun ? "default" : "destructive"'));
+  assert.ok(source.includes('snapshot.dryRun ? "default" : "outline"'));
   assert.ok(source.includes('snapshot.dryRun ? "true" : "false"'));
   assert.ok(source.includes("Candidatos totales"));
   assert.ok(source.includes("snapshot.totals.candidateRecords"));

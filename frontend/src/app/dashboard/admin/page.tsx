@@ -58,7 +58,7 @@ function getEventVariant(
   event: string,
 ): "default" | "secondary" | "destructive" | "outline" {
   if (event.includes("login")) return "default";
-  if (event.includes("revoked") || event.includes("canceled")) return "destructive";
+  if (event.includes("revoked") || event.includes("canceled")) return "outline";
   if (event.includes("created") || event.includes("uploaded")) return "secondary";
   return "outline";
 }
@@ -68,7 +68,7 @@ function getServiceVariant(
   value: unknown,
 ): "default" | "secondary" | "destructive" | "outline" {
   if (value === "up") return "default";
-  if (value === "down") return "destructive";
+  if (value === "down") return "outline";
   if (value === "unknown" || value === undefined || value === null) {
     return "outline";
   }
@@ -88,7 +88,7 @@ function getSystemStatusVariant(
   status: string,
 ): "default" | "secondary" | "destructive" | "outline" {
   if (status === "ok") return "default";
-  if (status === "down") return "destructive";
+  if (status === "down") return "outline";
   if (status === "degraded") return "secondary";
   return "outline";
 }
@@ -102,8 +102,8 @@ function formatSystemStatus(status: string) {
 
 function getSystemStatusIndicatorClass(status: string) {
   if (status === "ok") return "bg-vetneb-teal";
-  if (status === "degraded") return "bg-amber-500";
-  if (status === "down") return "bg-destructive";
+  if (status === "degraded") return "bg-vetneb-cyan";
+  if (status === "down") return "bg-vetneb-navy";
   return "bg-muted-foreground";
 }
 
@@ -316,14 +316,14 @@ export default async function AdminPage({
       <main className="dashboard-main">
         <section
           id="admin-report-upload"
-          className="surface-note-info overflow-hidden rounded-2xl p-0"
+          className="dashboard-surface overflow-hidden p-0"
         >
           <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase text-vetneb-navy">
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-vetneb-navy">
                 Panel administrador
               </p>
-              <h2 className="mt-2 text-xl font-semibold text-gray-950">
+              <h2 className="mt-2 text-xl font-semibold text-vetneb-ink">
                 Carga de informes
               </h2>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
@@ -336,36 +336,36 @@ export default async function AdminPage({
             </div>
           </div>
         </section>
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-gray-100">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <Card className="dashboard-surface h-full">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">
+              <CardTitle className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 Eventos de auditoría
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-vetneb-ink">
                 {auditEntries.length}
               </p>
-              <p className="text-xs text-gray-400 mt-1">Registros totales</p>
+              <p className="mt-1 text-xs text-muted-foreground">Registros totales</p>
             </CardContent>
           </Card>
-          <Card className="border-gray-100">
+          <Card className="dashboard-surface h-full">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">
+              <CardTitle className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 Tipos de evento
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-3xl font-bold text-vetneb-ink">
                 {Object.keys(eventCounts).length}
               </p>
-              <p className="text-xs text-gray-400 mt-1">Categorías distintas</p>
+              <p className="mt-1 text-xs text-muted-foreground">Categorías distintas</p>
             </CardContent>
           </Card>
-          <Card className="border-gray-100">
+          <Card className="dashboard-surface h-full">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">
+              <CardTitle className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 Estado del sistema
               </CardTitle>
             </CardHeader>
@@ -380,7 +380,7 @@ export default async function AdminPage({
                   {formatSystemStatus(systemStatus)}
                 </Badge>
               </div>
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="mt-2 text-xs text-muted-foreground">
                 {hasSystemHealthFetchError
                   ? "No se pudo consultar el estado del sistema."
                   : formatSystemStatusDetail(serviceChecks)}
@@ -388,7 +388,7 @@ export default async function AdminPage({
             </CardContent>
           </Card>
         </div>
-        <Card id="admin-health">
+        <Card id="admin-health" className="dashboard-surface">
           <CardHeader>
             <CardTitle className="text-base">Estado y mantenimiento</CardTitle>
             <CardDescription>
@@ -407,39 +407,39 @@ export default async function AdminPage({
             ) : null}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               <div className="surface-soft">
-                <p className="text-xs text-gray-400 mb-2">Base de datos</p>
+                <p className="mb-2 text-xs text-muted-foreground">Base de datos</p>
                 <Badge variant={getServiceVariant(serviceChecks.database)}>
                   {formatServiceStatus(serviceChecks.database)}
                 </Badge>
               </div>
               <div className="surface-soft">
-                <p className="text-xs text-gray-400 mb-2">Almacenamiento</p>
+                <p className="mb-2 text-xs text-muted-foreground">Almacenamiento</p>
                 <Badge variant={getServiceVariant(serviceChecks.storage)}>
                   {formatServiceStatus(serviceChecks.storage)}
                 </Badge>
               </div>
               <div className="surface-soft">
-                <p className="text-xs text-gray-400">Backend</p>
-                <p className="text-lg font-semibold text-gray-800 mt-1">
+                <p className="text-xs text-muted-foreground">Backend</p>
+                <p className="mt-1 text-lg font-semibold text-vetneb-ink">
                   {systemHealth?.version ?? "—"}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Versión activa</p>
+                <p className="mt-1 text-xs text-muted-foreground">Versión activa</p>
               </div>
               <div className="surface-soft">
-                <p className="text-xs text-gray-400">Tiempo activo</p>
-                <p className="text-lg font-semibold text-gray-800 mt-1">
+                <p className="text-xs text-muted-foreground">Tiempo activo</p>
+                <p className="mt-1 text-lg font-semibold text-vetneb-ink">
                   {formatUptime(systemHealth?.runtime.uptimeSeconds)}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Control: {formatHealthTimestamp(systemHealth?.health?.timestamp)}
                 </p>
               </div>
               <div className="surface-soft">
-                <p className="text-xs text-gray-400">Memoria runtime</p>
-                <p className="text-lg font-semibold text-gray-800 mt-1">
+                <p className="text-xs text-muted-foreground">Memoria runtime</p>
+                <p className="mt-1 text-lg font-semibold text-vetneb-ink">
                   {systemHealth?.runtime.memory.rssMb ?? "—"} MB
                 </p>
-                <div className="mt-2 space-y-1 text-xs text-gray-400">
+                <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                   <p>RSS: {systemHealth?.runtime.memory.rssMb ?? "—"} MB</p>
                   <p>
                     Heap usado: {systemHealth?.runtime.memory.heapUsedMb ?? "—"} MB
@@ -475,7 +475,7 @@ export default async function AdminPage({
         <section id="admin-users-roles">
           <AdminUsersRolesReadOnlyCard />
         </section>
-        <Card id="audit-role-changes">
+        <Card id="audit-role-changes" className="dashboard-surface">
           <CardHeader>
             <CardTitle className="text-base">
               Auditoría de cambios de rol clínica
@@ -484,21 +484,21 @@ export default async function AdminPage({
           <CardContent>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="surface-soft">
-                <p className="text-xs text-gray-400">Cambios registrados</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">
+                <p className="text-xs text-muted-foreground">Cambios registrados</p>
+                <p className="mt-1 text-2xl font-bold text-vetneb-ink">
                   {roleChangeAuditEntries.length}
                 </p>
               </div>
               <div className="surface-soft">
-                <p className="text-xs text-gray-400">Último cambio</p>
-                <p className="mt-1 text-sm font-semibold text-gray-800">
+                <p className="text-xs text-muted-foreground">Último cambio</p>
+                <p className="mt-1 text-sm font-semibold text-vetneb-ink">
                   {lastRoleChangeAuditEntry
                     ? formatDateTime(lastRoleChangeAuditEntry.createdAt)
                     : "—"}
                 </p>
               </div>
               <div className="surface-soft">
-                <p className="text-xs text-gray-400">Filtro audit</p>
+                <p className="text-xs text-muted-foreground">Filtro audit</p>
                 <Link
                   href={buildAdminAuditFilterHref({
                     event: "clinic_user.role.changed",
@@ -513,7 +513,7 @@ export default async function AdminPage({
         </Card>
 
 
-        <Card id="admin-event-summary">
+        <Card id="admin-event-summary" className="dashboard-surface">
           <CardHeader>
             <CardTitle className="text-base">Resumen por tipo de evento</CardTitle>
             <CardDescription>
@@ -525,12 +525,12 @@ export default async function AdminPage({
               {Object.entries(eventCounts).map(([event, count]) => (
                 <div
                   key={event}
-                  className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
+                  className="clinical-muted-band flex items-center gap-2 rounded-lg px-3 py-2"
                 >
                   <Badge variant={getEventVariant(event)} className="text-xs">
                     {EVENT_LABELS[event] ?? event}
                   </Badge>
-                  <span className="text-sm font-semibold text-gray-700">
+                  <span className="clinical-pill px-2.5 py-0.5 text-xs tracking-normal">
                     {count}
                   </span>
                 </div>
@@ -539,7 +539,7 @@ export default async function AdminPage({
           </CardContent>
         </Card>
 
-        <Card id="audit-log">
+        <Card id="audit-log" className="dashboard-surface">
           <CardHeader>
             <CardTitle className="text-base">
               Log de auditoría ({filteredAuditEntries.length}/{auditEntries.length})
@@ -589,7 +589,7 @@ export default async function AdminPage({
                 ) : filteredAuditEntries.length ? (
                   filteredAuditEntries.map((entry) => (
                     <TableRow key={entry.id}>
-                      <TableCell className="whitespace-nowrap font-mono text-xs text-gray-400">
+                      <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
                         #{entry.id}
                       </TableCell>
                       <TableCell>
@@ -597,21 +597,21 @@ export default async function AdminPage({
                           {EVENT_LABELS[entry.event] ?? entry.event}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600">
+                      <TableCell className="text-sm text-vetneb-ink/88">
                         {entry.actorId ? `#${entry.actorId}` : "—"}
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500">
+                      <TableCell className="text-sm text-muted-foreground">
                         {ACTOR_LABELS[entry.actorType] ?? entry.actorType}
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500">
+                      <TableCell className="text-sm text-muted-foreground">
                         {entry.targetType && entry.targetId
                           ? `${entry.targetType} #${entry.targetId}`
                           : "—"}
                       </TableCell>
-                      <TableCell className="max-w-md whitespace-normal break-words text-xs text-gray-500">
+                      <TableCell className="max-w-md whitespace-normal break-words text-xs text-muted-foreground">
                         {getAuditMetadataSummary(entry)}
                       </TableCell>
-                      <TableCell className="text-gray-400 text-xs">
+                      <TableCell className="text-xs text-muted-foreground">
                         {formatDateTime(entry.createdAt)}
                       </TableCell>
                     </TableRow>
@@ -642,7 +642,7 @@ export default async function AdminPage({
             </Table>
           </CardContent>
         </Card>
-</main>
+      </main>
     </>
   );
 }
