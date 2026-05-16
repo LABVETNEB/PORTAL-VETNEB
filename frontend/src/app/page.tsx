@@ -277,10 +277,11 @@ export default function HomePage() {
               >
                 <Link href={ROUTES.login}>Ingresar al portal de informes</Link>
               </Button>
-              <Button
+                            <Button
                 asChild
+                variant="outline"
                 size="lg"
-                className="w-full border border-vetneb-line/90 bg-card/90 font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-accent/60 sm:w-auto"
+                className="w-full border-vetneb-line/90 bg-card/95 font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised hover:text-vetneb-navy sm:w-auto"
               >
                 <Link href={ROUTES.contacto}>Coordinar muestras y consultas</Link>
               </Button>
