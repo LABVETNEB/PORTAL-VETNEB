@@ -135,7 +135,7 @@ export default function HomePage() {
                 </Button>
               </div>
 
-              <div className="clinical-muted-band mt-7 rounded-lg px-4 py-3 text-vetneb-navy">
+              <div className="clinical-muted-band mt-7 w-fit max-w-full rounded-lg px-4 py-3 text-vetneb-navy">
                 <p className="text-sm font-semibold">
                   Consultá los resultados de sus informes las 24 hs.
                 </p>

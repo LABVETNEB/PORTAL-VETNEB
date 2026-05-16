@@ -39,6 +39,7 @@ test("home page exposes accessible hero and primary CTAs", () => {
   assert.ok(source.includes("Dr. BARBÉ, NICOLÁS E."));
   assert.ok(source.includes("Acceder a informes y trazabilidad"));
   assert.ok(source.includes("Consultá los resultados de sus informes las 24 hs."));
+  assert.ok(source.includes("clinical-muted-band mt-7 w-fit max-w-full"));
   assert.equal(source.includes("inline-flex w-fit flex-col rounded-md border border-white/30"), false);
   assert.equal(source.includes("text-[0.62rem]"), false);
   assert.equal(source.includes("border-t border-white/35"), false);
