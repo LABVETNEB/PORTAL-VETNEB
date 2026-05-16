@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   ArrowRight,
   ClipboardCheck,
@@ -10,8 +11,6 @@ import {
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
-import { PublicAction } from "@/components/public/PublicAction";
-import { PublicHero } from "@/components/public/PublicHero";
 import {
   Card,
   CardContent,
@@ -19,7 +18,8 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { VisualIcon } from "@/components/public/VisualAccents";
+import { Button } from "@/components/ui/button";
+import { AmbientOrbs, VisualIcon } from "@/components/public/VisualAccents";
 import { createPageMetadata, getServicesJsonLd } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
 
@@ -122,17 +122,22 @@ export default function ServiciosPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <PublicHero
-        variant="editorial"
-        title="Servicio patológico veterinario"
-        description={
-          <>
+      <section
+        className="clinical-primary-gradient py-16 text-white md:py-20"
+        data-public-hero-depth="true"
+      >
+        <AmbientOrbs variant="dark" />
+        <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl">
+            Servicio patológico veterinario
+          </h1>
+          <p className="max-w-2xl public-copy text-lg text-primary-foreground/92 md:text-xl">
             La anatomía patológica veterinaria integra evaluación microscópica,
             trazabilidad de muestras e informes clínicos para orientar
             decisiones diagnósticas con respaldo profesional.
-          </>
-        }
-      />
+          </p>
+        </div>
+      </section>
       <div className="public-soft-canvas">
       <section className="py-16 md:py-20">
         <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
@@ -202,20 +207,24 @@ export default function ServiciosPage() {
               diagnóstico y a las necesidades clínicas de cada caso.
             </p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row">
-              <PublicAction
-                href={ROUTES.contacto}
-                variant="primaryDark"
-                icon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
+              <Button
+                asChild
+                size="lg"
+                className="w-full clinical-primary-gradient clinical-primary-gradient-hover shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)] sm:w-auto"
               >
-                Solicitar coordinación diagnóstica
-              </PublicAction>
-              <PublicAction
-                href={ROUTES.clinicas}
-                variant="textLink"
-                className="justify-center px-2 py-3"
+                <Link href={ROUTES.contacto}>
+                  Solicitar coordinación diagnóstica
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="w-full border border-vetneb-line/90 bg-card/90 text-vetneb-navy hover:border-vetneb-teal/45 hover:bg-accent/60 sm:w-auto"
               >
-                Conocer solución para clínicas
-              </PublicAction>
+                <Link href={ROUTES.clinicas}>Conocer solución para clínicas</Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -289,5 +298,4 @@ export default function ServiciosPage() {
     </PublicLayout>
   );
 }
-
 

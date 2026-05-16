@@ -16,8 +16,7 @@ test("servicios page defines metadata JSON-LD and public layout wiring", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
-  assert.ok(source.includes('import { PublicAction } from "@/components/public/PublicAction";'));
-  assert.ok(source.includes('import { PublicHero } from "@/components/public/PublicHero";'));
+  assert.ok(source.includes('import Link from "next/link";'));
   assert.ok(source.includes('import { PublicLayout } from "@/components/layout/PublicLayout";'));
   assert.ok(source.includes('import { createPageMetadata, getServicesJsonLd } from "@/lib/seo";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
@@ -93,4 +92,3 @@ test("servicios page keeps one continuous soft canvas through middle sections", 
   assert.equal(source.includes('className="bg-gray-50 py-16"'), false);
   assert.equal(source.includes('data-public-soft-canvas="true"'), false);
 });
-

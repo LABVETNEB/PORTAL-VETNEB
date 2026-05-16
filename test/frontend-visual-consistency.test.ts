@@ -165,7 +165,7 @@ test("servicios page keeps professional section/card structure and responsive la
   assertMatchesAll(
     source,
     [
-      /<PublicHero[\s\S]*variant="editorial"/,
+      /className="clinical-primary-gradient py-16 text-white md:py-20"/,
       /className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8"/,
       /className="premium-card h-full"/,
       /className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center"/,
@@ -445,4 +445,3 @@ test("public pages use one single shared canvas background", () => {
   assert.equal(globals.includes("public-page-canvas-drift"), false);
   assert.ok(login.includes("min-h-screen public-page-canvas flex items-center justify-center p-4"));
 });
-
