@@ -99,9 +99,14 @@ export default function HomePage() {
         <div className="relative container mx-auto flex min-h-[calc(100vh-4.5rem)] items-center px-4 py-16 sm:px-6 lg:px-8">
           <div className="grid w-full items-center gap-10 lg:grid-cols-[1.08fr_0.92fr]">
             <div className="max-w-3xl">
-              <p className="inline-flex items-center rounded-md border border-white/25 bg-black/16 px-3 py-1.5 text-xs font-semibold tracking-[0.06em] text-primary-foreground/92">
-                Servicio patológico VETNEB
-              </p>
+              <div className="inline-flex w-fit flex-col rounded-md border border-white/30 bg-[linear-gradient(90deg,hsl(var(--vetneb-navy)/0.38),hsl(var(--vetneb-teal)/0.24))] px-3.5 py-2 shadow-[0_8px_20px_rgba(8,35,50,0.16)]">
+                <span className="text-[0.62rem] font-semibold tracking-[0.14em] text-primary-foreground/84">
+                  SERVICIO PATOLÓGICO
+                </span>
+                <span className="mt-0.5 text-lg font-semibold leading-none tracking-[0.12em] text-primary-foreground">
+                  VETNEB
+                </span>
+              </div>
               <h1
                 id="hero-heading"
                 className="mt-5 text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl"
