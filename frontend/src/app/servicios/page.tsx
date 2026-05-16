@@ -142,9 +142,6 @@ export default function ServiciosPage() {
       <section className="py-16 md:py-20">
         <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-10 max-w-4xl">
-            <p className="mb-3 inline-flex clinical-pill px-3 py-1 text-[0.66rem]">
-              Laboratorio VETNEB
-            </p>
             <h2 className="text-2xl font-bold text-vetneb-ink md:text-3xl">
               Estudios diagnósticos con criterio clínico-patológico
             </h2>
