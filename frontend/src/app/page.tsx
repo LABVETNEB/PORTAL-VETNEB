@@ -99,21 +99,21 @@ export default function HomePage() {
         <div className="relative container mx-auto flex min-h-[calc(100vh-4.5rem)] items-center px-4 py-16 sm:px-6 lg:px-8">
           <div className="grid w-full items-center gap-10 lg:grid-cols-[1.08fr_0.92fr]">
             <div className="max-w-3xl">
-              <div className="inline-flex w-fit flex-col rounded-md border border-white/30 bg-[linear-gradient(90deg,hsl(var(--vetneb-navy)/0.38),hsl(var(--vetneb-teal)/0.24))] px-3.5 py-2 shadow-[0_8px_20px_rgba(8,35,50,0.16)]">
-                <span className="text-[0.62rem] font-semibold tracking-[0.14em] text-primary-foreground/84">
-                  SERVICIO PATOLÓGICO
-                </span>
-                <span className="mt-0.5 text-lg font-semibold leading-none tracking-[0.12em] text-primary-foreground">
-                  VETNEB
-                </span>
-              </div>
               <h1
                 id="hero-heading"
-                className="mt-5 text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl"
+                className="mt-2 text-5xl font-semibold leading-[0.94] text-white sm:text-6xl lg:text-6xl"
               >
+                <span className="block text-[0.58em] tracking-[0.10em] text-primary-foreground/92">
+                  SERVICIO PATOLÓGICO
+                </span>
+                <span className="mt-2 block border-t border-white/35 pt-2 font-bold tracking-[0.14em] text-primary-foreground">
+                  VETNEB
+                </span>
+              </h1>
+              <p className="mt-6 max-w-2xl text-xl font-medium leading-tight text-primary-foreground/94 md:text-2xl lg:text-3xl">
                 Diagnóstico patológico veterinario con criterio clínico y
                 trazabilidad integral
-              </h1>
+              </p>
               <p className="mt-5 max-w-2xl text-sm leading-relaxed text-primary-foreground/92 md:text-base">
                 Anatomía patológica, citología y tinciones especiales con
                 seguimiento continuo para clínicas y profesionales en una
