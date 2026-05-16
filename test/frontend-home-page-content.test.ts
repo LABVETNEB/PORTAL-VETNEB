@@ -32,7 +32,8 @@ test("home page exposes accessible hero and primary CTAs", () => {
   assert.ok(source.includes('id="hero-heading"'));
   assert.ok(source.includes('src="/images/hero-microscope-vetneb.jpg"'));
   assert.ok(source.includes('import Image from "next/image";'));
-  assert.ok(source.includes("Servicio patológico VETNEB"));
+  assert.ok(source.includes("SERVICIO PATOLÓGICO"));
+  assert.ok(source.includes("VETNEB"));
   assert.ok(source.includes("Dr. BARBÉ, NICOLÁS E."));
   assert.ok(source.includes("Acceder a informes y trazabilidad"));
   assert.ok(source.includes("Consultá los resultados de sus informes las 24 hs."));
