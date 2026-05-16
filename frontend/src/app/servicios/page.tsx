@@ -122,10 +122,7 @@ export default function ServiciosPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <section
-        className="clinical-primary-gradient py-16 text-white md:py-20"
-        data-public-hero-depth="true"
-      >
+      <section className="public-secondary-hero-surface py-16 text-white md:py-20">
         <AmbientOrbs variant="dark" />
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl">
