@@ -29,7 +29,18 @@ test("globals css defines public CTA contract classes", () => {
   assert.ok(source.includes(".public-cta-secondary"));
   assert.ok(source.includes(".public-cta-outline"));
   assert.ok(source.includes(".public-cta-on-hero"));
-  assert.ok(source.includes("clinical-primary-gradient"));
+  assert.ok(source.includes("transition-duration: 300ms"));
+  assert.ok(source.includes("cubic-bezier(0.2, 0.8, 0.2, 1)"));
+  assert.ok(source.includes("background-image: linear-gradient(135deg, #071F35 0%, #123E63 52%, #185A7C 100%)"));
+  assert.ok(source.includes("background-image: linear-gradient(135deg, #092942 0%, #164D78 52%, #1F6F94 100%)"));
+  assert.ok(source.includes("inset 0 1px 0"));
+  assert.ok(source.includes("box-shadow"));
+  assert.equal(source.includes("backdrop-filter"), false);
+  assert.equal(source.includes("-webkit-backdrop-filter"), false);
+  assert.equal(source.includes(".public-cta-primary::before"), false);
+  assert.equal(source.includes(".public-cta-primary::after"), false);
+  assert.equal(source.includes(".public-cta-on-hero::before"), false);
+  assert.equal(source.includes(".public-cta-on-hero::after"), false);
   assert.equal(source.includes('[data-auth-login-submit="true"]'), false);
 });
 
