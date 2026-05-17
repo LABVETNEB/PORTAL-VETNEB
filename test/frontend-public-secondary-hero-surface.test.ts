@@ -11,6 +11,7 @@ const SECONDARY_HERO_FILES = [
   "frontend/src/app/clinicas/page.tsx",
   "frontend/src/components/public/ContactoContent.tsx",
   "frontend/src/components/public/ParticularesContent.tsx",
+  "frontend/src/app/precios/page.tsx",
 ];
 
 function read(relativePath: string): string {
@@ -38,10 +39,17 @@ test("public secondary hero surface defines the shared visual surface", () => {
   const block = getSecondaryHeroSurfaceBlock(source);
 
   assert.ok(block.includes(".public-secondary-hero-surface"));
-  assert.ok(block.includes(".public-secondary-hero-surface::before"));
-  assert.ok(block.includes(".public-secondary-hero-surface::after"));
-  assert.ok(block.includes("radial-gradient"));
-  assert.ok(block.includes("linear-gradient(135deg"));
+  assert.ok(
+    block.includes(
+      "linear-gradient(135deg, #2B5B88 0%, #5992B1 48%, #97C1C9 100%)",
+    ),
+  );
+  assert.ok(!block.includes(".public-secondary-hero-surface::before"));
+  assert.ok(!block.includes(".public-secondary-hero-surface::after"));
+  assert.ok(!block.includes("linear-gradient(90deg"));
+  assert.ok(!block.includes("linear-gradient(116deg"));
+  assert.ok(!block.includes("background-size: 72px 72px"));
+  assert.ok(!block.includes("mask-image"));
   assert.ok(!block.includes("!important"));
 });
 
@@ -63,7 +71,6 @@ test("services hero no longer uses the legacy hero-depth attribute", () => {
   );
 });
 
-test("home and pricing do not use the secondary hero surface", () => {
+test("home does not use the secondary hero surface", () => {
   assert.ok(!read("frontend/src/app/page.tsx").includes("public-secondary-hero-surface"));
-  assert.ok(!read("frontend/src/app/precios/page.tsx").includes("public-secondary-hero-surface"));
 });

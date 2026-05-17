@@ -70,21 +70,21 @@ export default async function PreciosPage() {
   return (
     <PublicLayout>
       <section
-        className="public-page-canvas py-16 md:py-20"
+        className="public-secondary-hero-surface py-16 text-white md:py-20"
         aria-labelledby="pricing-page-title"
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mx-auto mb-12 max-w-3xl text-center">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-primary-foreground/90">
               Valores de referencia
             </p>
             <h1
               id="pricing-page-title"
-              className="text-3xl font-bold text-vetneb-ink md:text-4xl"
+              className="text-3xl font-bold text-primary-foreground md:text-4xl"
             >
               Lista de precios
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
+            <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-primary-foreground/88 md:text-base">
               Referencia orientativa para la coordinación administrativa. Los
               valores sin definición vigente se muestran como “Consultar”.
             </p>

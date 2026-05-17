@@ -33,7 +33,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  AmbientOrbs,
   PremiumPanel,
   VisualIcon,
 } from "@/components/public/VisualAccents";
@@ -173,7 +172,6 @@ export function ParticularesContent() {
 
   return (
     <section className="public-secondary-hero-surface py-16 md:py-20">
-      <AmbientOrbs />
       <div className="container relative z-10 mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_0.95fr] lg:px-8">
         <div>
 <h1 className="max-w-3xl text-4xl font-bold text-primary-foreground md:text-5xl">

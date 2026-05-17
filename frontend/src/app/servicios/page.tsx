@@ -19,7 +19,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AmbientOrbs, VisualIcon } from "@/components/public/VisualAccents";
+import { VisualIcon } from "@/components/public/VisualAccents";
 import { createPageMetadata, getServicesJsonLd } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
 
@@ -123,7 +123,6 @@ export default function ServiciosPage() {
       />
 
       <section className="public-secondary-hero-surface py-16 text-white md:py-20">
-        <AmbientOrbs variant="dark" />
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl">
             Servicio patológico veterinario
