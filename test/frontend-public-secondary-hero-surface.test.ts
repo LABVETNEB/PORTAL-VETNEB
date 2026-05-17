@@ -41,12 +41,11 @@ test("public secondary hero surface defines the shared visual surface", () => {
   assert.ok(block.includes(".public-secondary-hero-surface"));
   assert.ok(
     block.includes(
-      "linear-gradient(135deg, #2B5B88 0%, #5992B1 48%, #97C1C9 100%)",
+      "linear-gradient(90deg, #103C60 0%, #2B5B88 52%, #BFD6E0 100%)",
     ),
   );
   assert.ok(!block.includes(".public-secondary-hero-surface::before"));
   assert.ok(!block.includes(".public-secondary-hero-surface::after"));
-  assert.ok(!block.includes("linear-gradient(90deg"));
   assert.ok(!block.includes("linear-gradient(116deg"));
   assert.ok(!block.includes("background-size: 72px 72px"));
   assert.ok(!block.includes("mask-image"));
