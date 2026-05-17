@@ -84,7 +84,7 @@ export default function HomePage() {
       >
         <div className="absolute inset-0">
           <Image
-            src="/images/hero-microscope-vetneb.jpg"
+            src="/images/hero-microscope-vetneb.webp"
             alt="Microscopio en laboratorio patológico veterinario"
             fill
             priority
