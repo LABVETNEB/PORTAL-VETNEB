@@ -6,12 +6,22 @@ import test from "node:test";
 const COMPONENT_PATH = "frontend/src/components/public/PublicScrollReveal.tsx";
 const FRONTEND_PACKAGE_PATH = "frontend/package.json";
 const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
-const SCROLL_REVEAL_FORBIDDEN_TERMS = ["lenis", "pinspacing", "scrub", "parallax"];
+const SCROLL_REVEAL_FORBIDDEN_TERMS = [
+  "lenis",
+  "pinspacing",
+  "pin:",
+  "scrub",
+  "parallax",
+];
 
 const PUBLIC_FILES_WITHOUT_USAGE = [
   "frontend/src/app/servicios/page.tsx",
   "frontend/src/app/clinicas/page.tsx",
+  "frontend/src/app/profesionales/page.tsx",
+  "frontend/src/app/particulares/page.tsx",
+  "frontend/src/app/contacto/page.tsx",
   "frontend/src/app/precios/page.tsx",
+  "frontend/src/app/login/page.tsx",
   "frontend/src/components/public/ContactoContent.tsx",
   "frontend/src/components/public/ParticularesContent.tsx",
   "frontend/src/components/public/ProfesionalesSearchContent.tsx",
@@ -21,7 +31,11 @@ const PUBLIC_FILES_WITHOUT_GSAP_IMPORT = [
   "frontend/src/app/page.tsx",
   "frontend/src/app/servicios/page.tsx",
   "frontend/src/app/clinicas/page.tsx",
+  "frontend/src/app/profesionales/page.tsx",
+  "frontend/src/app/particulares/page.tsx",
+  "frontend/src/app/contacto/page.tsx",
   "frontend/src/app/precios/page.tsx",
+  "frontend/src/app/login/page.tsx",
   "frontend/src/components/public/ContactoContent.tsx",
   "frontend/src/components/public/ParticularesContent.tsx",
   "frontend/src/components/public/ProfesionalesSearchContent.tsx",
@@ -49,14 +63,29 @@ test("public scroll reveal infrastructure is client-only and uses safe gsap prim
   assert.ok(source.includes("prefers-reduced-motion"));
   assert.ok(source.includes("matchMedia"));
   assert.ok(source.includes("revert()"));
+  assert.ok(source.includes("PublicScrollRevealVariant"));
+  assert.ok(source.includes('"section" | "cards" | "minimal"'));
+  assert.ok(source.includes("variant?: PublicScrollRevealVariant"));
+  assert.ok(source.includes("PUBLIC_MOTION_POLICY_PRESETS"));
+  assert.ok(source.includes("section: {"));
+  assert.ok(source.includes("cards: {"));
+  assert.ok(source.includes("minimal: {"));
+  assert.ok(source.includes("fromOpacity: 0.98"));
+  assert.ok(source.includes("fromOpacity: 0.96"));
+  assert.ok(source.includes("fromY: 14"));
+  assert.ok(source.includes("fromY: 16"));
+  assert.ok(source.includes("fromY: 8"));
+  assert.ok(source.includes("duration: 0.75"));
+  assert.ok(source.includes("duration: 0.72"));
+  assert.ok(source.includes("duration: 0.55"));
+  assert.ok(source.includes('start: "top 86%"'));
+  assert.ok(source.includes('start: "top 84%"'));
+  assert.ok(source.includes('start: "top 88%"'));
   assert.ok(source.includes("staggerChildren?: boolean"));
   assert.ok(source.includes("childSelector?: string"));
   assert.ok(source.includes('[data-scroll-reveal-item]'));
   assert.ok(source.includes("stagger: 0.07"));
-  assert.ok(source.includes("opacity: 0.96"));
   assert.ok(source.includes("opacity: 1"));
-  assert.ok(source.includes("y: 14"));
-  assert.ok(source.includes("y: 16"));
   assert.ok(source.includes("y: 0"));
   assert.ok(source.includes("once: true"));
 });

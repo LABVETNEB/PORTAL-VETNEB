@@ -5,11 +5,50 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 type PublicScrollRevealTag = "div" | "section" | "article";
+export type PublicScrollRevealVariant = "section" | "cards" | "minimal";
+
+type PublicScrollRevealPreset = {
+  fromOpacity: number;
+  fromY: number;
+  duration: number;
+  ease: "power2.out";
+  start: string;
+  stagger?: number;
+};
+
+const PUBLIC_MOTION_POLICY_PRESETS: Record<
+  PublicScrollRevealVariant,
+  PublicScrollRevealPreset
+> = {
+  section: {
+    fromOpacity: 0.96,
+    fromY: 14,
+    duration: 0.75,
+    ease: "power2.out",
+    start: "top 86%",
+  },
+  cards: {
+    fromOpacity: 0.96,
+    fromY: 16,
+    duration: 0.72,
+    ease: "power2.out",
+    start: "top 84%",
+    stagger: 0.07,
+  },
+  minimal: {
+    fromOpacity: 0.98,
+    fromY: 8,
+    duration: 0.55,
+    ease: "power2.out",
+    start: "top 88%",
+  },
+};
 
 export type PublicScrollRevealProps = {
   children: ReactNode;
   className?: string;
   as?: PublicScrollRevealTag;
+  variant?: PublicScrollRevealVariant;
   staggerChildren?: boolean;
   childSelector?: string;
 };
@@ -18,16 +57,20 @@ export function PublicScrollReveal({
   children,
   className,
   as = "div",
+  variant,
   staggerChildren = false,
   childSelector = "[data-scroll-reveal-item]",
 }: PublicScrollRevealProps) {
   const rootRef = useRef<HTMLElement | null>(null);
+  const resolvedVariant: PublicScrollRevealVariant =
+    variant ?? (staggerChildren ? "cards" : "section");
 
   useEffect(() => {
     const rootElement = rootRef.current;
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
+    const preset = PUBLIC_MOTION_POLICY_PRESETS[resolvedVariant];
 
     if (!rootElement || prefersReducedMotion) {
       return;
@@ -51,20 +94,24 @@ export function PublicScrollReveal({
       ctx = gsap.context(() => {
         if (staggerChildren) {
           const childElements = rootRef.current?.querySelectorAll(childSelector);
+          const staggerValue =
+            preset.stagger ??
+            PUBLIC_MOTION_POLICY_PRESETS.cards.stagger ??
+            0.07;
 
           if (childElements && childElements.length > 0) {
             gsap.fromTo(
               childElements,
-              { opacity: 0.96, y: 16 },
+              { opacity: preset.fromOpacity, y: preset.fromY },
               {
                 opacity: 1,
                 y: 0,
-                duration: 0.72,
-                ease: "power2.out",
-                stagger: 0.07,
+                duration: preset.duration,
+                ease: preset.ease,
+                stagger: staggerValue,
                 scrollTrigger: {
                   trigger: rootRef.current,
-                  start: "top 84%",
+                  start: preset.start,
                   once: true,
                 },
               },
@@ -76,15 +123,15 @@ export function PublicScrollReveal({
 
         gsap.fromTo(
           rootRef.current,
-          { opacity: 0.96, y: 14 },
+          { opacity: preset.fromOpacity, y: preset.fromY },
           {
             opacity: 1,
             y: 0,
-            duration: 0.75,
-            ease: "power2.out",
+            duration: preset.duration,
+            ease: preset.ease,
             scrollTrigger: {
               trigger: rootRef.current,
-              start: "top 86%",
+              start: preset.start,
               once: true,
             },
           },
@@ -98,7 +145,7 @@ export function PublicScrollReveal({
       isDisposed = true;
       ctx?.revert();
     };
-  }, [childSelector, staggerChildren]);
+  }, [childSelector, resolvedVariant, staggerChildren]);
 
   if (as === "section") {
     return (
