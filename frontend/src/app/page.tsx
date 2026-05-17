@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ClipboardCheck, FlaskConical, Microscope, Network } from "lucide-react";
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -166,44 +167,46 @@ export default function HomePage() {
           className="py-16 md:py-20"
           aria-labelledby="services-heading"
         >
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2
-                id="services-heading"
-                className="text-3xl font-bold text-vetneb-ink md:text-4xl mb-4"
-              >
-                Servicios del laboratorio patológico veterinario
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Cobertura diagnóstica con estudio anatomopatológico, citología,
-                tinciones especiales e integración clínico-patológica para
-                sostener decisiones con mayor confianza.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-              {services.map((service) => (
-                <Card
-                  key={service.title}
-                  className="premium-card h-full"
+          <PublicScrollReveal>
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center mb-12">
+                <h2
+                  id="services-heading"
+                  className="text-3xl font-bold text-vetneb-ink md:text-4xl mb-4"
                 >
-                  <CardHeader>
-                    <VisualIcon icon={service.icon} tone={service.tone} className="mb-2" />
-                    <CardTitle className="text-lg">{service.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-sm leading-relaxed">
-                      {service.description}
-                    </CardDescription>
-                  </CardContent>
-                </Card>
-              ))}
+                  Servicios del laboratorio patológico veterinario
+                </h2>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                  Cobertura diagnóstica con estudio anatomopatológico, citología,
+                  tinciones especiales e integración clínico-patológica para
+                  sostener decisiones con mayor confianza.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+                {services.map((service) => (
+                  <Card
+                    key={service.title}
+                    className="premium-card h-full"
+                  >
+                    <CardHeader>
+                      <VisualIcon icon={service.icon} tone={service.tone} className="mb-2" />
+                      <CardTitle className="text-lg">{service.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="text-sm leading-relaxed">
+                        {service.description}
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              <div className="mt-10 text-center">
+                <Button asChild variant="outline">
+                  <Link href={ROUTES.servicios}>Ver todos los servicios</Link>
+                </Button>
+              </div>
             </div>
-            <div className="mt-10 text-center">
-              <Button asChild variant="outline">
-                <Link href={ROUTES.servicios}>Ver todos los servicios</Link>
-              </Button>
-            </div>
-          </div>
+          </PublicScrollReveal>
         </section>
 
         {/* Beneficios */}
@@ -211,45 +214,47 @@ export default function HomePage() {
           className="py-16 md:py-20"
           aria-labelledby="benefits-heading"
         >
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2
-                id="benefits-heading"
-                className="text-3xl md:text-4xl font-bold text-vetneb-ink mb-4"
-              >
-                Trabajo interdisciplinario y criterio diagnóstico
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Colaboramos de forma permanente con equipos clínicos para evaluar
-                lesiones, integrar contexto médico y reforzar la confianza
-                diagnóstica antes de definir conductas de tratamiento.
-              </p>
+          <PublicScrollReveal>
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center mb-12">
+                <h2
+                  id="benefits-heading"
+                  className="text-3xl md:text-4xl font-bold text-vetneb-ink mb-4"
+                >
+                  Trabajo interdisciplinario y criterio diagnóstico
+                </h2>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                  Colaboramos de forma permanente con equipos clínicos para evaluar
+                  lesiones, integrar contexto médico y reforzar la confianza
+                  diagnóstica antes de definir conductas de tratamiento.
+                </p>
+              </div>
+              <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
+                {benefits.map((benefit) => (
+                  <Card key={benefit.title} className="premium-card h-full">
+                    <CardHeader>
+                      <CardTitle className="text-xl">{benefit.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-3">
+                        {benefit.items.map((item) => (
+                          <li key={item} className="flex items-start gap-3">
+                            <span
+                              className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold"
+                              aria-hidden="true"
+                            >
+                              ✓
+                            </span>
+                            <span className="text-sm text-muted-foreground">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
-            <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-              {benefits.map((benefit) => (
-                <Card key={benefit.title} className="premium-card h-full">
-                  <CardHeader>
-                    <CardTitle className="text-xl">{benefit.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-3">
-                      {benefit.items.map((item) => (
-                        <li key={item} className="flex items-start gap-3">
-                          <span
-                            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold"
-                            aria-hidden="true"
-                          >
-                            ✓
-                          </span>
-                          <span className="text-sm text-muted-foreground">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
+          </PublicScrollReveal>
         </section>
 
         {/* CTA final */}
@@ -257,37 +262,39 @@ export default function HomePage() {
           className="py-16 md:py-20"
           aria-labelledby="cta-heading"
         >
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2
-              id="cta-heading"
-              className="text-3xl md:text-4xl font-bold mb-4 text-vetneb-ink"
-            >
-              Seguimos trabajando en mejorar
-            </h2>
-            <p className="mx-auto mb-8 max-w-xl text-lg text-muted-foreground">
-              Agilizamos la recepción y entrega de informes, mantenemos
-              trazabilidad durante todo el proceso y coordinamos con clínicas y
-              profesionales para sostener decisiones terapéuticas con mayor
-              claridad.
-            </p>
-            <div className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
-              <Button
-                asChild
-                size="lg"
-                className="public-cta-primary w-full sm:w-auto"
+          <PublicScrollReveal>
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+              <h2
+                id="cta-heading"
+                className="text-3xl md:text-4xl font-bold mb-4 text-vetneb-ink"
               >
-                <Link href={ROUTES.login}>Ingresar al portal de informes</Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="public-cta-outline w-full sm:w-auto"
-              >
-                <Link href={ROUTES.contacto}>Coordinar muestras y consultas</Link>
-              </Button>
+                Seguimos trabajando en mejorar
+              </h2>
+              <p className="mx-auto mb-8 max-w-xl text-lg text-muted-foreground">
+                Agilizamos la recepción y entrega de informes, mantenemos
+                trazabilidad durante todo el proceso y coordinamos con clínicas y
+                profesionales para sostener decisiones terapéuticas con mayor
+                claridad.
+              </p>
+              <div className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
+                <Button
+                  asChild
+                  size="lg"
+                  className="public-cta-primary w-full sm:w-auto"
+                >
+                  <Link href={ROUTES.login}>Ingresar al portal de informes</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="public-cta-outline w-full sm:w-auto"
+                >
+                  <Link href={ROUTES.contacto}>Coordinar muestras y consultas</Link>
+                </Button>
+              </div>
             </div>
-          </div>
+          </PublicScrollReveal>
         </section>
       </div>
     </PublicLayout>
