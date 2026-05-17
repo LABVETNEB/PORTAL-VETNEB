@@ -121,16 +121,16 @@ export default function HomePage() {
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button
                   asChild
-                  variant="outline"
                   size="lg"
-                  className="w-full border border-vetneb-line/90 bg-card/95 px-7 font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised hover:text-vetneb-navy sm:w-auto"
+                  className="public-cta-primary w-full sm:w-auto"
                 >
                   <Link href={ROUTES.login}>Acceder a informes y trazabilidad</Link>
                 </Button>
                 <Button
                   asChild
+                  variant="outline"
                   size="lg"
-                  className="w-full border border-white/35 bg-white/10 text-white shadow-sm hover:bg-white/16 sm:w-auto"
+                  className="public-cta-on-hero w-full sm:w-auto"
                 >
                   <Link href={ROUTES.particulares}>Consultar informes 24 hs</Link>
                 </Button>
@@ -274,15 +274,15 @@ export default function HomePage() {
               <Button
                 asChild
                 size="lg"
-                className="w-full clinical-primary-gradient clinical-primary-gradient-hover text-white shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)] sm:w-auto"
+                className="public-cta-primary w-full sm:w-auto"
               >
                 <Link href={ROUTES.login}>Ingresar al portal de informes</Link>
               </Button>
-                            <Button
+              <Button
                 asChild
                 variant="outline"
                 size="lg"
-                className="w-full border-vetneb-line/90 bg-card/95 font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised hover:text-vetneb-navy sm:w-auto"
+                className="public-cta-outline w-full sm:w-auto"
               >
                 <Link href={ROUTES.contacto}>Coordinar muestras y consultas</Link>
               </Button>

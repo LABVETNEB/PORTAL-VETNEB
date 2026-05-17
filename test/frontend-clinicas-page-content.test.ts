@@ -40,10 +40,9 @@ test("clinicas page exposes hero content and primary CTAs", () => {
 test("clinicas page keeps hero CTAs visible on blue hero background", () => {
   const source = read(CLINICAS_PAGE_PATH);
 
-  assert.ok(source.includes("border border-white/60"));
-  assert.ok(source.includes("bg-white/10"));
-  assert.ok(source.includes("font-semibold text-white"));
-  assert.ok(source.includes("hover:bg-white/16"));
+  assert.ok(source.includes("public-cta-primary"));
+  assert.ok(source.includes("public-cta-on-hero"));
+  assert.ok(source.includes("w-full sm:w-auto"));
   assert.ok(source.includes('variant="outline"'));
 });
 
@@ -87,5 +86,4 @@ test("clinicas page keeps one continuous soft canvas below hero", () => {
   assert.equal(source.includes('className="bg-white py-16 md:py-20"'), false);
   assert.equal(source.includes('className="public-soft-canvas py-16 md:py-20"'), false);
 });
-
 

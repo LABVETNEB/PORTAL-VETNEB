@@ -189,7 +189,7 @@ test("login content keeps polished auth card layout and stable visual states", (
       'className="w-full max-w-md"',
       "className=\"field-label\"",
       'className="space-y-4"',
-      'className="w-full clinical-primary-gradient clinical-primary-gradient-hover text-primary-foreground',
+      'className="public-cta-primary w-full"',
       'role="alert"',
     ],
     "login content layout contracts",

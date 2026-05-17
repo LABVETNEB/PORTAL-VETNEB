@@ -206,7 +206,7 @@ export default function ServiciosPage() {
               <Button
                 asChild
                 size="lg"
-                className="w-full clinical-primary-gradient clinical-primary-gradient-hover shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)] sm:w-auto"
+                className="public-cta-primary w-full sm:w-auto"
               >
                 <Link href={ROUTES.contacto}>
                   Solicitar coordinación diagnóstica
@@ -217,7 +217,7 @@ export default function ServiciosPage() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="w-full border border-vetneb-line/90 bg-card/90 text-vetneb-navy hover:border-vetneb-teal/45 hover:bg-accent/60 sm:w-auto"
+                className="public-cta-outline w-full sm:w-auto"
               >
                 <Link href={ROUTES.clinicas}>Conocer solución para clínicas</Link>
               </Button>

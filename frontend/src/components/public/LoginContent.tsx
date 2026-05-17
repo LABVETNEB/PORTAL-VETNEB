@@ -124,25 +124,27 @@ export function LoginContent() {
             >
               <button
                 type="button"
-                className={`rounded-md px-3 py-2 text-sm font-medium transition ${
+                className={`rounded-md px-3 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55 ${
                   mode === "clinic"
                     ? "border border-vetneb-teal/30 bg-card text-vetneb-ink shadow-sm"
                     : "text-muted-foreground hover:text-vetneb-ink"
                 }`}
                 onClick={() => selectMode("clinic")}
                 disabled={isSubmitting}
+                aria-pressed={mode === "clinic"}
               >
                 Clínicas
               </button>
               <button
                 type="button"
-                className={`rounded-md px-3 py-2 text-sm font-medium transition ${
+                className={`rounded-md px-3 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55 ${
                   mode === "particular"
                     ? "border border-vetneb-teal/30 bg-card text-vetneb-ink shadow-sm"
                     : "text-muted-foreground hover:text-vetneb-ink"
                 }`}
                 onClick={() => selectMode("particular")}
                 disabled={isSubmitting}
+                aria-pressed={mode === "particular"}
               >
                 Particulares
               </button>
@@ -227,8 +229,10 @@ export function LoginContent() {
 
               <Button
                 type="submit"
-                className="w-full clinical-primary-gradient clinical-primary-gradient-hover text-primary-foreground shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)]"
-                data-auth-login-submit="true" disabled={isSubmitting}>
+                className="public-cta-primary w-full"
+                disabled={isSubmitting}
+                aria-busy={isSubmitting}
+              >
                 {mode === "particular"
                   ? isSubmitting
                     ? "Iniciando sesión..."

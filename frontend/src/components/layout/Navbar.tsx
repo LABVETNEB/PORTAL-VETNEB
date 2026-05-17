@@ -47,13 +47,13 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Button asChild variant="outline" size="sm" className="bg-card/85 shadow-sm">
+          <Button asChild variant="outline" size="sm" className="public-cta-outline">
             <Link href={ROUTES.login}>Iniciar sesión</Link>
           </Button>
           <Button
             asChild
             size="sm"
-            className="hidden shadow-[0_14px_34px_hsl(var(--vetneb-navy)/0.20)] sm:flex"
+            className="public-cta-primary hidden sm:flex"
           >
             <Link href={ROUTES.contacto}>
               Solicitar acceso

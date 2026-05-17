@@ -251,8 +251,9 @@ export function ContactoContent() {
 
                 <Button
                   type="submit"
-                  className="w-full clinical-primary-gradient clinical-primary-gradient-hover shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)]"
+                  className="public-cta-primary w-full"
                   disabled={isSubmitting}
+                  aria-busy={isSubmitting}
                 >
                   <Send className="h-4 w-4" aria-hidden="true" />
                   {isSubmitting ? "Enviando mensaje..." : "Enviar mensaje"}

@@ -331,7 +331,7 @@ export function ParticularesContent() {
                           type="button"
                           onClick={() => openReport("preview")}
                           disabled={isOpeningReport}
-                          className="clinical-primary-gradient clinical-primary-gradient-hover shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.20)]"
+                          className="public-cta-primary"
                         >
                           <Eye className="h-4 w-4" aria-hidden="true" />
                           Ver informe
@@ -341,7 +341,7 @@ export function ParticularesContent() {
                           variant="outline"
                           onClick={() => openReport("download")}
                           disabled={isOpeningReport}
-                          className="bg-white/80"
+                          className="public-cta-outline"
                         >
                           <Download className="h-4 w-4" aria-hidden="true" />
                           Descargar
@@ -369,7 +369,7 @@ export function ParticularesContent() {
                     type="button"
                     variant="secondary"
                     onClick={handleLogout}
-                    className="border border-vetneb-line/90 bg-vetneb-surface-muted/70 text-vetneb-ink hover:bg-vetneb-surface-muted"
+                    className="public-cta-secondary"
                   >
                     <LogOut className="h-4 w-4" aria-hidden="true" />
                     Cerrar sesión particular
@@ -416,8 +416,9 @@ export function ParticularesContent() {
 
                   <Button
                     type="submit"
-                    className="w-full clinical-primary-gradient clinical-primary-gradient-hover shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)]"
+                    className="public-cta-primary w-full"
                     disabled={isSubmitting}
+                    aria-busy={isSubmitting}
                   >
                     {isSubmitting ? "Validando token..." : "Ingresar"}
                   </Button>
