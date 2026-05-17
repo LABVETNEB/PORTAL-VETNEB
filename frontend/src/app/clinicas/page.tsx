@@ -207,7 +207,7 @@ export default function ClinicasPage() {
                   </p>
                 </div>
               </div>
-              <Button asChild className="border border-vetneb-line/90 bg-card/90 text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-accent/60">
+              <Button asChild className="border border-vetneb-teal/30 bg-vetneb-teal text-primary-foreground shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-teal/90 hover:text-primary-foreground">
                 <Link href={ROUTES.login}>Ingresar</Link>
               </Button>
             </div>
