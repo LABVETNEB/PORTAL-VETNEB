@@ -16,11 +16,14 @@ const PUBLIC_FILES_WITHOUT_USAGE = [
   "frontend/src/components/public/ProfesionalesSearchContent.tsx",
 ];
 
-const PUBLIC_SERVER_PAGES = [
+const PUBLIC_FILES_WITHOUT_GSAP_IMPORT = [
   "frontend/src/app/page.tsx",
   "frontend/src/app/servicios/page.tsx",
   "frontend/src/app/clinicas/page.tsx",
   "frontend/src/app/precios/page.tsx",
+  "frontend/src/components/public/ContactoContent.tsx",
+  "frontend/src/components/public/ParticularesContent.tsx",
+  "frontend/src/components/public/ProfesionalesSearchContent.tsx",
 ];
 
 function read(relativePath: string): string {
@@ -44,10 +47,11 @@ test("public scroll reveal infrastructure is client-only and uses safe gsap prim
   assert.ok(source.includes("prefers-reduced-motion"));
   assert.ok(source.includes("matchMedia"));
   assert.ok(source.includes("revert()"));
-  assert.ok(source.includes("opacity: 0"));
+  assert.ok(source.includes("opacity: 0.96"));
   assert.ok(source.includes("opacity: 1"));
-  assert.ok(source.includes("y: 18"));
+  assert.ok(source.includes("y: 14"));
   assert.ok(source.includes("y: 0"));
+  assert.ok(source.includes("once: true"));
 });
 
 test("public pages and public content do not use PublicScrollReveal yet", () => {
@@ -62,8 +66,8 @@ test("public pages and public content do not use PublicScrollReveal yet", () => 
   }
 });
 
-test("public server pages do not import gsap directly", () => {
-  for (const path of PUBLIC_SERVER_PAGES) {
+test("public pages and content do not import gsap directly", () => {
+  for (const path of PUBLIC_FILES_WITHOUT_GSAP_IMPORT) {
     const source = read(path);
 
     assert.equal(

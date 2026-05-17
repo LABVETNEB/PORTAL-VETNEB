@@ -12,14 +12,6 @@ export type PublicScrollRevealProps = {
   as?: PublicScrollRevealTag;
 };
 
-function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 export function PublicScrollReveal({
   children,
   className,
@@ -29,13 +21,16 @@ export function PublicScrollReveal({
 
   useEffect(() => {
     const rootElement = rootRef.current;
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
 
-    if (!rootElement || prefersReducedMotion()) {
+    if (!rootElement || prefersReducedMotion) {
       return;
     }
 
     let isDisposed = false;
-    let context: { revert: () => void } | null = null;
+    let ctx: { revert: () => void } | null = null;
 
     const initialize = async () => {
       const [{ gsap }, { ScrollTrigger }] = await Promise.all([
@@ -49,14 +44,14 @@ export function PublicScrollReveal({
 
       gsap.registerPlugin(ScrollTrigger);
 
-      context = gsap.context(() => {
+      ctx = gsap.context(() => {
         gsap.fromTo(
           rootRef.current,
-          { opacity: 0, y: 18 },
+          { opacity: 0.96, y: 14 },
           {
             opacity: 1,
             y: 0,
-            duration: 0.8,
+            duration: 0.75,
             ease: "power2.out",
             scrollTrigger: {
               trigger: rootRef.current,
@@ -72,7 +67,7 @@ export function PublicScrollReveal({
 
     return () => {
       isDisposed = true;
-      context?.revert();
+      ctx?.revert();
     };
   }, []);
 
