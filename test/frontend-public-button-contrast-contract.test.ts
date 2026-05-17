@@ -1,0 +1,82 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import test from "node:test";
+
+const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
+const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
+const SERVICIOS_PAGE_PATH = "frontend/src/app/servicios/page.tsx";
+const CLINICAS_PAGE_PATH = "frontend/src/app/clinicas/page.tsx";
+const PROFESIONALES_CONTENT_PATH =
+  "frontend/src/components/public/ProfesionalesSearchContent.tsx";
+const PARTICULARES_CONTENT_PATH =
+  "frontend/src/components/public/ParticularesContent.tsx";
+const CONTACTO_CONTENT_PATH = "frontend/src/components/public/ContactoContent.tsx";
+const LOGIN_CONTENT_PATH = "frontend/src/components/public/LoginContent.tsx";
+const NAVBAR_PATH = "frontend/src/components/layout/Navbar.tsx";
+
+function read(relativePath: string): string {
+  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
+    /\r\n/g,
+    "\n",
+  );
+}
+
+test("globals css defines public CTA contract classes", () => {
+  const source = read(GLOBALS_CSS_PATH);
+
+  assert.ok(source.includes(".public-cta-primary"));
+  assert.ok(source.includes(".public-cta-secondary"));
+  assert.ok(source.includes(".public-cta-outline"));
+  assert.ok(source.includes(".public-cta-on-hero"));
+  assert.ok(source.includes("clinical-primary-gradient"));
+  assert.equal(source.includes('[data-auth-login-submit="true"]'), false);
+});
+
+test("public pages use CTA contract classes and avoid low-contrast transparent hero CTA pattern", () => {
+  const home = read(HOME_PAGE_PATH);
+  const servicios = read(SERVICIOS_PAGE_PATH);
+  const clinicas = read(CLINICAS_PAGE_PATH);
+  const profesionales = read(PROFESIONALES_CONTENT_PATH);
+  const particulares = read(PARTICULARES_CONTENT_PATH);
+  const contacto = read(CONTACTO_CONTENT_PATH);
+  const login = read(LOGIN_CONTENT_PATH);
+  const navbar = read(NAVBAR_PATH);
+
+  const sources = [
+    home,
+    servicios,
+    clinicas,
+    profesionales,
+    particulares,
+    contacto,
+    login,
+    navbar,
+  ];
+
+  for (const source of sources) {
+    assert.ok(source.includes("import { Button } from \"@/components/ui/button\";"));
+    assert.ok(source.includes("public-cta-"));
+  }
+
+  assert.ok(home.includes("public-cta-on-hero"));
+  assert.ok(clinicas.includes("public-cta-on-hero"));
+  assert.equal(home.includes("bg-white/10 text-white"), false);
+  assert.equal(clinicas.includes("bg-white/10 font-semibold text-white"), false);
+});
+
+test("login and particulares submit CTAs keep loading semantics and contract class", () => {
+  const login = read(LOGIN_CONTENT_PATH);
+  const particulares = read(PARTICULARES_CONTENT_PATH);
+  const contacto = read(CONTACTO_CONTENT_PATH);
+
+  assert.ok(login.includes("public-cta-primary w-full"));
+  assert.ok(login.includes("aria-busy={isSubmitting}"));
+  assert.ok(login.includes("aria-pressed={mode === \"clinic\"}"));
+  assert.ok(login.includes("aria-pressed={mode === \"particular\"}"));
+
+  assert.ok(particulares.includes("public-cta-primary w-full"));
+  assert.ok(particulares.includes("aria-busy={isSubmitting}"));
+  assert.ok(contacto.includes("public-cta-primary w-full"));
+  assert.ok(contacto.includes("aria-busy={isSubmitting}"));
+});

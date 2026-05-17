@@ -704,17 +704,6 @@
     box-shadow: 0 24px 80px rgba(8, 35, 50, 0.24);
   }
 
-  [data-auth-login-submit="true"] {
-    height: 3rem;
-    border-radius: var(--radius);
-    background-image: linear-gradient(135deg, #0E3556 0%, #2B5B88 52%, #3F7EA2 100%);
-    font-weight: 700;
-    box-shadow: 0 14px 34px hsl(var(--vetneb-navy) / 0.22);
-  }
-
-  [data-auth-login-submit="true"]:hover {
-    background-image: linear-gradient(135deg, #0E3556 0%, #2B5B88 52%, #3F7EA2 100%);
-  }
 }
 /* dashboard-auth-visual-system:end */
 
@@ -785,6 +774,27 @@
 
   .public-contact-method-value {
     @apply mt-1 text-sm leading-relaxed text-primary-foreground/76;
+  }
+
+  .public-cta-primary {
+    @apply font-semibold text-primary-foreground shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)] hover:shadow-[0_18px_44px_hsl(var(--vetneb-navy)/0.26)];
+    background-image: linear-gradient(135deg, #0E3556 0%, #2B5B88 52%, #3F7EA2 100%);
+  }
+
+  .public-cta-primary:hover {
+    background-image: linear-gradient(135deg, #0E3556 0%, #2B5B88 52%, #3F7EA2 100%);
+  }
+
+  .public-cta-secondary {
+    @apply border border-vetneb-line/90 bg-vetneb-surface-muted/70 font-semibold text-vetneb-ink shadow-sm hover:bg-vetneb-surface-muted;
+  }
+
+  .public-cta-outline {
+    @apply border border-vetneb-line/90 bg-card/95 font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised hover:text-vetneb-navy;
+  }
+
+  .public-cta-on-hero {
+    @apply border border-white/55 bg-card/95 font-semibold text-vetneb-navy shadow-[0_12px_34px_rgba(5,28,42,0.16)] hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised hover:text-vetneb-navy;
   }
 }
 /* public-secondary-hero-surface:start */

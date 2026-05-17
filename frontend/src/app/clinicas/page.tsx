@@ -117,9 +117,8 @@ export default function ClinicasPage() {
           <div className="mt-8 flex flex-col gap-4 sm:flex-row">
             <Button
               asChild
-              variant="outline"
               size="lg"
-              className="w-full border-vetneb-line/90 bg-card/95 px-7 font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised hover:text-vetneb-navy sm:w-auto"
+              className="public-cta-primary w-full sm:w-auto"
             >
               <Link href={ROUTES.login}>
                 Acceder al portal
@@ -128,8 +127,9 @@ export default function ClinicasPage() {
             </Button>
             <Button
               asChild
+              variant="outline"
               size="lg"
-              className="border border-white/60 bg-white/10 font-semibold text-white shadow-sm hover:bg-white/16"
+              className="public-cta-on-hero w-full sm:w-auto"
             >
               <Link href={ROUTES.contacto}>Solicitar acceso</Link>
             </Button>
@@ -207,7 +207,7 @@ export default function ClinicasPage() {
                   </p>
                 </div>
               </div>
-              <Button asChild className="border border-vetneb-teal/30 bg-vetneb-teal text-primary-foreground shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-teal/90 hover:text-primary-foreground">
+              <Button asChild className="public-cta-primary">
                 <Link href={ROUTES.login}>Ingresar</Link>
               </Button>
             </div>

@@ -88,11 +88,10 @@ test("home page exposes final conversion CTA without private route metadata", ()
   assert.ok(source.includes("Seguimos trabajando en mejorar"));
   assert.ok(source.includes("Ingresar al portal de informes"));
   assert.ok(source.includes("Coordinar muestras y consultas"));
-  assert.ok(source.includes("clinical-primary-gradient clinical-primary-gradient-hover"));
+  assert.ok(source.includes("public-cta-primary"));
+  assert.ok(source.includes("public-cta-on-hero"));
+  assert.ok(source.includes("public-cta-outline"));
   assert.ok(source.includes('variant="outline"'));
-  assert.ok(source.includes("border-vetneb-line/90 bg-card/95"));
-  assert.ok(source.includes("font-semibold text-vetneb-navy shadow-sm"));
-  assert.ok(source.includes("hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised hover:text-vetneb-navy"));
   assert.equal(source.includes("bg-primary py-16 text-white md:py-20"), false);
   assert.equal(source.includes('"/dashboard"'), false);
   assert.equal(source.includes('"/api"'), false);

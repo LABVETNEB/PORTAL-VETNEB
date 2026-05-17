@@ -157,7 +157,7 @@ export function ProfesionalesSearchContent() {
               </div>
               <Button
                 type="submit"
-                className="h-11 clinical-primary-gradient clinical-primary-gradient-hover shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)]"
+                className="public-cta-primary h-11"
               >
                 Buscar
               </Button>
