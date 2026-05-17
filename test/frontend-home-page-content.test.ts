@@ -30,7 +30,7 @@ test("home page exposes accessible hero and primary CTAs", () => {
 
   assert.ok(source.includes('aria-labelledby="hero-heading"'));
   assert.ok(source.includes('id="hero-heading"'));
-  assert.ok(source.includes('src="/images/hero-microscope-vetneb.jpg"'));
+  assert.ok(source.includes('src="/images/hero-microscope-vetneb.webp"'));
   assert.ok(source.includes('import Image from "next/image";'));
   assert.ok(source.includes("SERVICIO PATOLÓGICO VETNEB"));
   assert.ok(source.includes("VETNEB"));
