@@ -6,6 +6,7 @@ import test from "node:test";
 const COMPONENT_PATH = "frontend/src/components/public/PublicScrollReveal.tsx";
 const FRONTEND_PACKAGE_PATH = "frontend/package.json";
 const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
+const SCROLL_REVEAL_FORBIDDEN_TERMS = ["lenis", "pinspacing", "scrub", "parallax"];
 
 const PUBLIC_FILES_WITHOUT_USAGE = [
   "frontend/src/app/servicios/page.tsx",
@@ -43,18 +44,24 @@ test("public scroll reveal infrastructure is client-only and uses safe gsap prim
   assert.ok(source.includes('"use client";'));
   assert.ok(source.includes('import("gsap")'));
   assert.ok(source.includes("ScrollTrigger"));
+  assert.ok(source.includes("registerPlugin(ScrollTrigger)"));
   assert.ok(source.includes("gsap.context"));
   assert.ok(source.includes("prefers-reduced-motion"));
   assert.ok(source.includes("matchMedia"));
   assert.ok(source.includes("revert()"));
+  assert.ok(source.includes("staggerChildren?: boolean"));
+  assert.ok(source.includes("childSelector?: string"));
+  assert.ok(source.includes('[data-scroll-reveal-item]'));
+  assert.ok(source.includes("stagger: 0.07"));
   assert.ok(source.includes("opacity: 0.96"));
   assert.ok(source.includes("opacity: 1"));
   assert.ok(source.includes("y: 14"));
+  assert.ok(source.includes("y: 16"));
   assert.ok(source.includes("y: 0"));
   assert.ok(source.includes("once: true"));
 });
 
-test("home page imports and uses PublicScrollReveal for the first rollout", () => {
+test("home page imports and uses PublicScrollReveal with card stagger rollout", () => {
   const source = read(HOME_PAGE_PATH);
 
   assert.ok(
@@ -63,6 +70,9 @@ test("home page imports and uses PublicScrollReveal for the first rollout", () =
     ),
   );
   assert.ok(source.includes("<PublicScrollReveal>"));
+  assert.ok(source.includes("<PublicScrollReveal staggerChildren>"));
+  assert.ok(source.includes("data-scroll-reveal-item"));
+  assert.ok(source.includes("staggerChildren"));
 });
 
 test("home page does not import gsap or ScrollTrigger directly", () => {
@@ -93,6 +103,18 @@ test("home keeps hero and hero image untouched by PublicScrollReveal", () => {
   );
 });
 
+test("home and reveal infrastructure do not include advanced scroll effects", () => {
+  const combinedSource = `${read(COMPONENT_PATH)}\n${read(HOME_PAGE_PATH)}`.toLowerCase();
+
+  for (const forbiddenTerm of SCROLL_REVEAL_FORBIDDEN_TERMS) {
+    assert.equal(
+      combinedSource.includes(forbiddenTerm),
+      false,
+      `scroll reveal rollout should not include ${forbiddenTerm}`,
+    );
+  }
+});
+
 test("public pages and public content do not use PublicScrollReveal yet", () => {
   for (const path of PUBLIC_FILES_WITHOUT_USAGE) {
     const source = read(path);
@@ -101,6 +123,18 @@ test("public pages and public content do not use PublicScrollReveal yet", () => 
       source.includes("PublicScrollReveal"),
       false,
       `${path} should not reference PublicScrollReveal yet`,
+    );
+  }
+});
+
+test("staggerChildren is only used in home rollout", () => {
+  for (const path of PUBLIC_FILES_WITHOUT_USAGE) {
+    const source = read(path);
+
+    assert.equal(
+      source.includes("staggerChildren"),
+      false,
+      `${path} should not reference staggerChildren`,
     );
   }
 });
