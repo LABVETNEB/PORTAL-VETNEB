@@ -10,12 +10,16 @@ export type PublicScrollRevealProps = {
   children: ReactNode;
   className?: string;
   as?: PublicScrollRevealTag;
+  staggerChildren?: boolean;
+  childSelector?: string;
 };
 
 export function PublicScrollReveal({
   children,
   className,
   as = "div",
+  staggerChildren = false,
+  childSelector = "[data-scroll-reveal-item]",
 }: PublicScrollRevealProps) {
   const rootRef = useRef<HTMLElement | null>(null);
 
@@ -45,6 +49,31 @@ export function PublicScrollReveal({
       gsap.registerPlugin(ScrollTrigger);
 
       ctx = gsap.context(() => {
+        if (staggerChildren) {
+          const childElements = rootRef.current?.querySelectorAll(childSelector);
+
+          if (childElements && childElements.length > 0) {
+            gsap.fromTo(
+              childElements,
+              { opacity: 0.96, y: 16 },
+              {
+                opacity: 1,
+                y: 0,
+                duration: 0.72,
+                ease: "power2.out",
+                stagger: 0.07,
+                scrollTrigger: {
+                  trigger: rootRef.current,
+                  start: "top 84%",
+                  once: true,
+                },
+              },
+            );
+
+            return;
+          }
+        }
+
         gsap.fromTo(
           rootRef.current,
           { opacity: 0.96, y: 14 },
@@ -69,7 +98,7 @@ export function PublicScrollReveal({
       isDisposed = true;
       ctx?.revert();
     };
-  }, []);
+  }, [childSelector, staggerChildren]);
 
   if (as === "section") {
     return (

@@ -167,8 +167,8 @@ export default function HomePage() {
           className="py-16 md:py-20"
           aria-labelledby="services-heading"
         >
-          <PublicScrollReveal>
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <PublicScrollReveal>
               <div className="text-center mb-12">
                 <h2
                   id="services-heading"
@@ -182,10 +182,14 @@ export default function HomePage() {
                   sostener decisiones con mayor confianza.
                 </p>
               </div>
+            </PublicScrollReveal>
+
+            <PublicScrollReveal staggerChildren>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                 {services.map((service) => (
                   <Card
                     key={service.title}
+                    data-scroll-reveal-item
                     className="premium-card h-full"
                   >
                     <CardHeader>
@@ -200,13 +204,16 @@ export default function HomePage() {
                   </Card>
                 ))}
               </div>
+            </PublicScrollReveal>
+
+            <PublicScrollReveal>
               <div className="mt-10 text-center">
                 <Button asChild variant="outline">
                   <Link href={ROUTES.servicios}>Ver todos los servicios</Link>
                 </Button>
               </div>
-            </div>
-          </PublicScrollReveal>
+            </PublicScrollReveal>
+          </div>
         </section>
 
         {/* Beneficios */}
@@ -214,8 +221,8 @@ export default function HomePage() {
           className="py-16 md:py-20"
           aria-labelledby="benefits-heading"
         >
-          <PublicScrollReveal>
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <PublicScrollReveal>
               <div className="text-center mb-12">
                 <h2
                   id="benefits-heading"
@@ -229,9 +236,16 @@ export default function HomePage() {
                   diagnóstica antes de definir conductas de tratamiento.
                 </p>
               </div>
+            </PublicScrollReveal>
+
+            <PublicScrollReveal staggerChildren>
               <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
                 {benefits.map((benefit) => (
-                  <Card key={benefit.title} className="premium-card h-full">
+                  <Card
+                    key={benefit.title}
+                    data-scroll-reveal-item
+                    className="premium-card h-full"
+                  >
                     <CardHeader>
                       <CardTitle className="text-xl">{benefit.title}</CardTitle>
                     </CardHeader>
@@ -253,8 +267,8 @@ export default function HomePage() {
                   </Card>
                 ))}
               </div>
-            </div>
-          </PublicScrollReveal>
+            </PublicScrollReveal>
+          </div>
         </section>
 
         {/* CTA final */}
