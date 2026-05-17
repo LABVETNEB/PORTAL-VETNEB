@@ -93,7 +93,7 @@ export default async function PreciosPage() {
           {pricingLoadError ? (
             <p
               role="alert"
-              className="mx-auto max-w-4xl rounded-lg bg-vetneb-surface-raised/92 px-5 py-4 text-sm font-medium text-vetneb-navy shadow-none"
+              className="mx-auto max-w-4xl rounded-lg bg-vetneb-surface-raised/92 px-5 py-4 text-center text-sm font-medium text-vetneb-navy shadow-none"
             >
               No se pudieron cargar los precios. Intente nuevamente.
             </p>
