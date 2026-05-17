@@ -107,11 +107,11 @@
 
 @layer components {
   .clinical-primary-gradient {
-    background-image: linear-gradient(90deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal)));
+    background-image: linear-gradient(135deg, #0E3556 0%, #2B5B88 52%, #3F7EA2 100%);
   }
 
   .clinical-primary-gradient-hover:hover {
-    background-image: linear-gradient(90deg, hsl(207 76% 20%), hsl(177 68% 25%));
+    background-image: linear-gradient(135deg, #0E3556 0%, #2B5B88 52%, #3F7EA2 100%);
   }
 
   .clinical-surface-shadow {
@@ -127,7 +127,7 @@
   }
 
   .clinical-card-header {
-    background-image: linear-gradient(90deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal)));
+    background-image: linear-gradient(135deg, #0E3556 0%, #2B5B88 52%, #3F7EA2 100%);
     color: hsl(var(--primary-foreground));
   }
 
@@ -203,7 +203,7 @@
   }
 
   .clinical-progress > * {
-    background-image: linear-gradient(90deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal)));
+    background-image: linear-gradient(135deg, #0E3556 0%, #2B5B88 52%, #3F7EA2 100%);
     transition: width 180ms ease;
   }
 
@@ -420,7 +420,7 @@
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    background-image: linear-gradient(90deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal))) !important;
+    background-image: linear-gradient(135deg, #0E3556 0%, #2B5B88 52%, #3F7EA2 100%) !important;
     color: hsl(var(--primary-foreground)) !important;
   }
 
@@ -482,7 +482,7 @@
     position: absolute;
     inset: 0 0 auto 0;
     height: 3px;
-    background: linear-gradient(90deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal)));
+    background: linear-gradient(135deg, #0E3556 0%, #2B5B88 52%, #3F7EA2 100%);
   }
 
   [data-services-polished="true"] > [id]:hover {
@@ -707,13 +707,13 @@
   [data-auth-login-submit="true"] {
     height: 3rem;
     border-radius: var(--radius);
-    background-image: linear-gradient(90deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal)));
+    background-image: linear-gradient(135deg, #0E3556 0%, #2B5B88 52%, #3F7EA2 100%);
     font-weight: 700;
     box-shadow: 0 14px 34px hsl(var(--vetneb-navy) / 0.22);
   }
 
   [data-auth-login-submit="true"]:hover {
-    background-image: linear-gradient(90deg, hsl(207 76% 20%), hsl(177 68% 25%));
+    background-image: linear-gradient(135deg, #0E3556 0%, #2B5B88 52%, #3F7EA2 100%);
   }
 }
 /* dashboard-auth-visual-system:end */
@@ -794,7 +794,7 @@
     isolation: isolate;
     overflow: hidden;
     color: hsl(var(--primary-foreground));
-    background: linear-gradient(135deg, #2B5B88 0%, #5992B1 48%, #97C1C9 100%);
+    background: linear-gradient(90deg, #103C60 0%, #2B5B88 52%, #BFD6E0 100%);
   }
 }
 /* public-secondary-hero-surface:end */
