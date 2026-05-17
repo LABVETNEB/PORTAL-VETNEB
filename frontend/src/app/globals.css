@@ -787,4 +787,14 @@
     @apply mt-1 text-sm leading-relaxed text-primary-foreground/76;
   }
 }
-
+/* public-secondary-hero-surface:start */
+@layer components {
+  .public-secondary-hero-surface {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    color: hsl(var(--primary-foreground));
+    background: linear-gradient(135deg, #2B5B88 0%, #5992B1 48%, #97C1C9 100%);
+  }
+}
+/* public-secondary-hero-surface:end */

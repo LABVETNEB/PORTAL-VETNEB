@@ -33,7 +33,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  AmbientOrbs,
   PremiumPanel,
   VisualIcon,
 } from "@/components/public/VisualAccents";
@@ -172,14 +171,13 @@ export function ParticularesContent() {
   }
 
   return (
-    <section className="relative overflow-hidden public-soft-canvas py-16 md:py-20">
-      <AmbientOrbs />
+    <section className="public-secondary-hero-surface py-16 md:py-20">
       <div className="container relative z-10 mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_0.95fr] lg:px-8">
         <div>
-<h1 className="max-w-3xl text-4xl font-bold text-vetneb-ink md:text-5xl">
+<h1 className="max-w-3xl text-4xl font-bold text-primary-foreground md:text-5xl">
             Acceda al seguimiento y al informe de su caso con token seguro
           </h1>
-          <p className="mt-5 max-w-2xl public-copy text-lg text-muted-foreground">
+          <p className="mt-5 max-w-2xl public-copy text-lg text-primary-foreground/88">
             El acceso particular está limitado al caso vinculado al token.
             Permite consultar estado, fechas e informe sin exponer información
             de clínicas, rutas internas, profesionales ni otros estudios.

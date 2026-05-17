@@ -165,7 +165,7 @@ test("servicios page keeps professional section/card structure and responsive la
   assertMatchesAll(
     source,
     [
-      /className="clinical-primary-gradient py-16 text-white md:py-20"/,
+      /className="public-secondary-hero-surface py-16 text-white md:py-20"/,
       /className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8"/,
       /className="premium-card h-full"/,
       /className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center"/,

@@ -20,7 +20,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AmbientOrbs, VisualIcon } from "@/components/public/VisualAccents";
+import { VisualIcon } from "@/components/public/VisualAccents";
 import { createPageMetadata } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
 
@@ -105,8 +105,7 @@ const steps = [
 export default function ClinicasPage() {
   return (
     <PublicLayout>
-      <section className="public-hero-depth py-16 text-white md:py-20">
-        <AmbientOrbs variant="dark" />
+      <section className="public-secondary-hero-surface py-16 text-white md:py-20">
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="mb-5 max-w-4xl text-4xl font-bold md:text-5xl">
             Portal para clínicas veterinarias
