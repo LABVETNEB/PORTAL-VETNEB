@@ -24,19 +24,58 @@ function read(relativePath: string): string {
 
 test("globals css defines public CTA contract classes", () => {
   const source = read(GLOBALS_CSS_PATH);
+  const ctaContractStart = source.indexOf(
+    ".public-cta-primary,\n  .public-cta-secondary,\n  .public-cta-outline,\n  .public-cta-on-hero {\n    letter-spacing: 0.01em;",
+  );
+  const ctaContractEnd = source.indexOf("/* public-secondary-hero-surface:start */");
+  const hasValidCtaContractRange =
+    ctaContractStart !== -1 &&
+    ctaContractEnd !== -1 &&
+    ctaContractEnd > ctaContractStart;
 
   assert.ok(source.includes(".public-cta-primary"));
   assert.ok(source.includes(".public-cta-secondary"));
   assert.ok(source.includes(".public-cta-outline"));
   assert.ok(source.includes(".public-cta-on-hero"));
+  assert.ok(hasValidCtaContractRange, "public CTA contract block must exist");
+
+  const ctaContract = source.slice(ctaContractStart, ctaContractEnd);
+
+  assert.ok(ctaContract.includes("inset 0 1px 0"));
+  assert.ok(ctaContract.includes("inset 0 -1px 0"));
+  assert.ok(
+    ctaContract.includes(
+      "transition-property: background-image, background-color, border-color, box-shadow, color, transform;",
+    ),
+  );
   assert.ok(source.includes("transition-duration: 300ms"));
   assert.ok(source.includes("cubic-bezier(0.2, 0.8, 0.2, 1)"));
+  assert.ok(ctaContract.includes("transform: translateY(-0.5px)"));
+  assert.ok(ctaContract.includes("transform: translateY(0)"));
+  assert.ok(ctaContract.includes(":focus-visible"));
   assert.ok(source.includes("background-image: linear-gradient(135deg, #071F35 0%, #123E63 52%, #185A7C 100%)"));
   assert.ok(source.includes("background-image: linear-gradient(135deg, #092942 0%, #164D78 52%, #1F6F94 100%)"));
-  assert.ok(source.includes("inset 0 1px 0"));
-  assert.ok(source.includes("box-shadow"));
-  assert.equal(source.includes("backdrop-filter"), false);
-  assert.equal(source.includes("-webkit-backdrop-filter"), false);
+  assert.ok(ctaContract.includes("box-shadow"));
+
+  for (const forbiddenMarker of [
+    "backdrop-filter",
+    "-webkit-backdrop-filter",
+    "hard-shadow",
+    "text-shadow",
+    "@keyframes",
+    "animation:",
+    "translateY(-1px)",
+    "Lenis",
+    "gsap",
+    "ScrollTrigger",
+  ]) {
+    assert.equal(
+      ctaContract.includes(forbiddenMarker),
+      false,
+      `public CTA contract must not contain ${forbiddenMarker}`,
+    );
+  }
+
   assert.equal(source.includes(".public-cta-primary::before"), false);
   assert.equal(source.includes(".public-cta-primary::after"), false);
   assert.equal(source.includes(".public-cta-on-hero::before"), false);
