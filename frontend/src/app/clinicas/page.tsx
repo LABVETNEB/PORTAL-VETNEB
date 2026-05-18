@@ -106,9 +106,15 @@ const steps = [
 export default function ClinicasPage() {
   return (
     <PublicLayout>
-      <section className="public-secondary-hero-surface py-16 text-white md:py-20">
+      <section
+        className="public-secondary-hero-surface py-16 text-white md:py-20"
+        aria-labelledby="clinicas-page-title"
+      >
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="mb-5 max-w-4xl text-4xl font-bold md:text-5xl">
+          <h1
+            id="clinicas-page-title"
+            className="mb-5 max-w-4xl text-4xl font-bold md:text-5xl"
+          >
             Portal para clínicas veterinarias
           </h1>
           <p className="max-w-2xl text-xl leading-relaxed text-primary-foreground/92">
@@ -139,11 +145,17 @@ export default function ClinicasPage() {
       </section>
 
       <div className="public-soft-canvas">
-        <section className="py-16 md:py-20">
+        <section
+          className="py-16 md:py-20"
+          aria-labelledby="clinicas-features-heading"
+        >
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal variant="section">
               <div className="mx-auto mb-10 max-w-3xl text-center">
-                <h2 className="text-2xl font-bold text-vetneb-ink md:text-3xl">
+                <h2
+                  id="clinicas-features-heading"
+                  className="text-2xl font-bold text-vetneb-ink md:text-3xl"
+                >
                   Todo lo que necesita su clínica
                 </h2>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
@@ -155,37 +167,51 @@ export default function ClinicasPage() {
 
             <PublicScrollReveal variant="cards" staggerChildren>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {features.map((feature) => (
-                  <div key={feature.title} data-scroll-reveal-item>
-                    <Card className="premium-card">
-                      <CardHeader>
-                        <VisualIcon
-                          icon={feature.icon}
-                          tone={feature.tone}
-                          className="mb-2"
-                        />
-                        <CardTitle className="text-lg text-vetneb-ink">
-                          {feature.title}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <CardDescription className="text-sm leading-relaxed text-muted-foreground">
-                          {feature.description}
-                        </CardDescription>
-                      </CardContent>
-                    </Card>
-                  </div>
-                ))}
+                {features.map((feature) => {
+                  const featureHeadingId = `clinicas-feature-${feature.title.toLowerCase().replace(/\s+/g, "-")}`;
+
+                  return (
+                    <article
+                      key={feature.title}
+                      data-scroll-reveal-item
+                      aria-labelledby={featureHeadingId}
+                    >
+                      <Card className="premium-card">
+                        <CardHeader>
+                          <VisualIcon
+                            icon={feature.icon}
+                            tone={feature.tone}
+                            className="mb-2"
+                          />
+                          <CardTitle id={featureHeadingId} className="text-lg text-vetneb-ink">
+                            {feature.title}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <CardDescription className="text-sm leading-relaxed text-muted-foreground">
+                            {feature.description}
+                          </CardDescription>
+                        </CardContent>
+                      </Card>
+                    </article>
+                  );
+                })}
               </div>
             </PublicScrollReveal>
           </div>
         </section>
 
-        <section className="py-16 md:py-20">
+        <section
+          className="py-16 md:py-20"
+          aria-labelledby="clinicas-onboarding-heading"
+        >
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal variant="section">
               <div className="mx-auto mb-10 max-w-3xl text-center">
-                <h2 className="text-2xl font-bold text-vetneb-ink md:text-3xl">
+                <h2
+                  id="clinicas-onboarding-heading"
+                  className="text-2xl font-bold text-vetneb-ink md:text-3xl"
+                >
                   Cómo comenzar
                 </h2>
               </div>
@@ -194,27 +220,34 @@ export default function ClinicasPage() {
             <PublicScrollReveal variant="cards" staggerChildren>
               <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                 {steps.map((step) => (
-                  <div
+                  <article
                     key={step.number}
                     data-scroll-reveal-item
+                    aria-labelledby={`clinicas-step-${step.number}`}
                     className="premium-card-muted p-5"
                   >
                     <div className="mb-4 inline-flex items-center rounded-full border border-vetneb-teal/35 bg-vetneb-teal/10 px-3 py-1 text-xs font-semibold tracking-[0.08em] text-vetneb-navy">
                       {step.number}
                     </div>
-                    <h3 className="mb-2 font-semibold text-vetneb-ink">
+                    <h3
+                      id={`clinicas-step-${step.number}`}
+                      className="mb-2 font-semibold text-vetneb-ink"
+                    >
                       {step.title}
                     </h3>
                     <p className="text-sm leading-relaxed text-muted-foreground">
                       {step.description}
                     </p>
-                  </div>
+                  </article>
                 ))}
               </div>
             </PublicScrollReveal>
 
             <PublicScrollReveal variant="minimal">
-              <div className="clinical-muted-band mx-auto mt-10 max-w-3xl rounded-lg p-6 clinical-surface-shadow">
+              <section
+                className="clinical-muted-band mx-auto mt-10 max-w-3xl rounded-lg p-6 clinical-surface-shadow"
+                aria-labelledby="clinicas-secure-access-heading"
+              >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-3">
                     <VisualIcon
@@ -223,7 +256,10 @@ export default function ClinicasPage() {
                       className="h-11 w-11 shrink-0 rounded-xl"
                     />
                     <div>
-                      <h3 className="font-semibold text-vetneb-ink">
+                      <h3
+                        id="clinicas-secure-access-heading"
+                        className="font-semibold text-vetneb-ink"
+                      >
                         Acceso clínico seguro
                       </h3>
                       <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
@@ -235,7 +271,7 @@ export default function ClinicasPage() {
                     <Link href={ROUTES.login}>Ingresar</Link>
                   </Button>
                 </div>
-              </div>
+              </section>
             </PublicScrollReveal>
           </div>
         </section>

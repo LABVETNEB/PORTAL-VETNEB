@@ -186,23 +186,31 @@ export default function HomePage() {
 
             <PublicScrollReveal staggerChildren>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                {services.map((service) => (
-                  <Card
-                    key={service.title}
-                    data-scroll-reveal-item
-                    className="premium-card h-full"
-                  >
-                    <CardHeader>
-                      <VisualIcon icon={service.icon} tone={service.tone} className="mb-2" />
-                      <CardTitle className="text-lg">{service.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <CardDescription className="text-sm leading-relaxed">
-                        {service.description}
-                      </CardDescription>
-                    </CardContent>
-                  </Card>
-                ))}
+                {services.map((service) => {
+                  const serviceHeadingId = `home-service-${service.title.toLowerCase().replace(/\s+/g, "-")}`;
+
+                  return (
+                    <article
+                      key={service.title}
+                      data-scroll-reveal-item
+                      aria-labelledby={serviceHeadingId}
+                    >
+                      <Card className="premium-card h-full">
+                        <CardHeader>
+                          <VisualIcon icon={service.icon} tone={service.tone} className="mb-2" />
+                          <CardTitle id={serviceHeadingId} className="text-lg">
+                            {service.title}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <CardDescription className="text-sm leading-relaxed">
+                            {service.description}
+                          </CardDescription>
+                        </CardContent>
+                      </Card>
+                    </article>
+                  );
+                })}
               </div>
             </PublicScrollReveal>
 
@@ -240,32 +248,40 @@ export default function HomePage() {
 
             <PublicScrollReveal staggerChildren>
               <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-                {benefits.map((benefit) => (
-                  <Card
-                    key={benefit.title}
-                    data-scroll-reveal-item
-                    className="premium-card h-full"
-                  >
-                    <CardHeader>
-                      <CardTitle className="text-xl">{benefit.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-3">
-                        {benefit.items.map((item) => (
-                          <li key={item} className="flex items-start gap-3">
-                            <span
-                              className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold"
-                              aria-hidden="true"
-                            >
-                              ✓
-                            </span>
-                            <span className="text-sm text-muted-foreground">{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
-                ))}
+                {benefits.map((benefit) => {
+                  const benefitHeadingId = `home-benefit-${benefit.title.toLowerCase().replace(/\s+/g, "-")}`;
+
+                  return (
+                    <article
+                      key={benefit.title}
+                      data-scroll-reveal-item
+                      aria-labelledby={benefitHeadingId}
+                    >
+                      <Card className="premium-card h-full">
+                        <CardHeader>
+                          <CardTitle id={benefitHeadingId} className="text-xl">
+                            {benefit.title}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <ul className="space-y-3">
+                            {benefit.items.map((item) => (
+                              <li key={item} className="flex items-start gap-3">
+                                <span
+                                  className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold"
+                                  aria-hidden="true"
+                                >
+                                  ✓
+                                </span>
+                                <span className="text-sm text-muted-foreground">{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </CardContent>
+                      </Card>
+                    </article>
+                  );
+                })}
               </div>
             </PublicScrollReveal>
           </div>
