@@ -76,6 +76,15 @@ test("public scroll reveal infrastructure is client-only and uses safe gsap prim
   assert.ok(source.includes("prefers-reduced-motion"));
   assert.ok(source.includes("matchMedia"));
   assert.ok(source.includes("revert()"));
+  assert.ok(source.includes("IntersectionObserver"));
+  assert.ok(source.includes('rootMargin: "240px 0px"'));
+  assert.ok(source.includes("threshold: 0.01"));
+  assert.ok(source.includes("requestIdleCallback"));
+  assert.ok(source.includes("cancelIdleCallback"));
+  assert.ok(source.includes("setTimeout(callback, 160)"));
+  assert.ok(source.includes("clearTimeout(timeoutId)"));
+  assert.ok(source.includes("timeout: 1200"));
+  assert.ok(source.includes("disconnect()"));
   assert.ok(source.includes("PublicScrollRevealVariant"));
   assert.ok(source.includes('"section" | "cards" | "minimal"'));
   assert.ok(source.includes("variant?: PublicScrollRevealVariant"));

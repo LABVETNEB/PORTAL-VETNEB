@@ -16,6 +16,14 @@ type PublicScrollRevealPreset = {
   stagger?: number;
 };
 
+type PublicMotionSchedulerWindow = Window & {
+  requestIdleCallback?: (
+    callback: () => void,
+    options?: { timeout?: number },
+  ) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
+
 const PUBLIC_MOTION_POLICY_PRESETS: Record<
   PublicScrollRevealVariant,
   PublicScrollRevealPreset
@@ -43,6 +51,25 @@ const PUBLIC_MOTION_POLICY_PRESETS: Record<
     start: "top 88%",
   },
 };
+
+function schedulePublicMotionInitialization(callback: () => void) {
+  const motionWindow = window as PublicMotionSchedulerWindow;
+
+  if (
+    typeof motionWindow.requestIdleCallback === "function" &&
+    typeof motionWindow.cancelIdleCallback === "function"
+  ) {
+    const idleCallbackId = motionWindow.requestIdleCallback(callback, {
+      timeout: 1200,
+    });
+
+    return () => motionWindow.cancelIdleCallback?.(idleCallbackId);
+  }
+
+  const timeoutId = window.setTimeout(callback, 160);
+
+  return () => window.clearTimeout(timeoutId);
+}
 
 export type PublicScrollRevealProps = {
   children: ReactNode;
@@ -78,6 +105,8 @@ export function PublicScrollReveal({
 
     let isDisposed = false;
     let ctx: { revert: () => void } | null = null;
+    let observer: IntersectionObserver | null = null;
+    let cancelIdleInitialization: (() => void) | null = null;
 
     const initialize = async () => {
       const [{ gsap }, { ScrollTrigger }] = await Promise.all([
@@ -139,10 +168,44 @@ export function PublicScrollReveal({
       }, rootRef);
     };
 
-    void initialize();
+    const scheduleInitialize = () => {
+      if (isDisposed || cancelIdleInitialization) {
+        return;
+      }
+
+      cancelIdleInitialization = schedulePublicMotionInitialization(() => {
+        cancelIdleInitialization = null;
+
+        if (!isDisposed) {
+          void initialize();
+        }
+      });
+    };
+
+    if ("IntersectionObserver" in window) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            observer?.disconnect();
+            observer = null;
+            scheduleInitialize();
+          }
+        },
+        {
+          rootMargin: "240px 0px",
+          threshold: 0.01,
+        },
+      );
+
+      observer.observe(rootElement);
+    } else {
+      scheduleInitialize();
+    }
 
     return () => {
       isDisposed = true;
+      cancelIdleInitialization?.();
+      observer?.disconnect();
       ctx?.revert();
     };
   }, [childSelector, resolvedVariant, staggerChildren]);
