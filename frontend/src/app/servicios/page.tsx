@@ -233,6 +233,16 @@ export default function ServiciosPage() {
                               </li>
                             ))}
                           </ul>
+                          {service.id === "informes" ? (
+                            <div className="mt-5">
+                              <Link
+                                href="/informes-veterinarios"
+                                className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
+                              >
+                                Ver informes veterinarios
+                              </Link>
+                            </div>
+                          ) : null}
                         </CardContent>
                       </Card>
                     </article>
