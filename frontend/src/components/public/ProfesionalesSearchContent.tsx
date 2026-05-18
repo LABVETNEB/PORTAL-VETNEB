@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -117,20 +118,26 @@ export function ProfesionalesSearchContent() {
       <section className="public-soft-canvas py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-4xl">
-            <div className="mb-6 flex items-start gap-4">
-              <VisualIcon icon={UserRoundSearch} tone="blue" className="hidden sm:inline-flex" />
-              <div>
-                <h2 className="mb-3 text-2xl font-bold text-vetneb-ink">
-                  Buscar profesionales
-                </h2>
-                <p className="public-copy-tight text-sm text-muted-foreground">
-                  Ingrese texto libre, incluso una sola letra. La búsqueda
-                  admite coincidencias por nombre, especialidad, servicios,
-                  localidad, país, email, teléfono o descripción, y facilita la
-                  coordinación profesional con trazabilidad de contacto.
-                </p>
+            <PublicScrollReveal variant="section">
+              <div className="mb-6 flex items-start gap-4">
+                <VisualIcon
+                  icon={UserRoundSearch}
+                  tone="blue"
+                  className="hidden sm:inline-flex"
+                />
+                <div>
+                  <h2 className="mb-3 text-2xl font-bold text-vetneb-ink">
+                    Buscar profesionales
+                  </h2>
+                  <p className="public-copy-tight text-sm text-muted-foreground">
+                    Ingrese texto libre, incluso una sola letra. La búsqueda
+                    admite coincidencias por nombre, especialidad, servicios,
+                    localidad, país, email, teléfono o descripción, y facilita la
+                    coordinación profesional con trazabilidad de contacto.
+                  </p>
+                </div>
               </div>
-            </div>
+            </PublicScrollReveal>
 
             <form
               className="premium-card flex flex-col gap-3 p-4 sm:flex-row"
