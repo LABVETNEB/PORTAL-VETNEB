@@ -37,6 +37,8 @@ type PublicProfessionalRow = {
   servicesText: string | null;
   email: string | null;
   phone: string | null;
+  publicAddress?: string | null;
+  mapLink?: string | null;
   locality: string | null;
   country: string | null;
   updatedAt: Date;
@@ -155,6 +157,8 @@ async function serializeProfessional(
   const avatarUrl = row.avatarStoragePath
     ? await createSignedStorageUrl(row.avatarStoragePath)
     : null;
+  const publicAddress = normalizeText(row.publicAddress) ?? null;
+  const mapLink = normalizeText(row.mapLink) ?? null;
 
   return {
     clinicId: row.clinicId,
@@ -167,6 +171,8 @@ async function serializeProfessional(
     locality: row.locality,
     country: row.country,
     aboutText: row.aboutText,
+    ...(publicAddress ? { publicAddress } : {}),
+    ...(mapLink ? { mapLink } : {}),
     updatedAt: row.updatedAt,
     relevance: {
       rank: row.rank ?? 0,
@@ -454,4 +460,3 @@ export const publicProfessionalsNativeRoutes: FastifyPluginAsync<
     },
   );
 };
-

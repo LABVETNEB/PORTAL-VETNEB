@@ -33,6 +33,8 @@ function createProfile(overrides: Record<string, unknown> = {}) {
     servicesText: "Consultas y estudios",
     email: "clinic@example.com",
     phone: "3410000000",
+    publicAddress: "Av. Córdoba 123, Rosario",
+    mapLink: "https://maps.google.com/?q=rosario",
     locality: "Rosario",
     country: "AR",
     isPublic: true,
@@ -97,6 +99,8 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
       clinicName: input.clinic.name,
       avatarUrl: input.avatarUrl,
       displayName: input.profile?.displayName ?? null,
+      publicAddress: input.profile?.publicAddress ?? null,
+      mapLink: input.profile?.mapLink ?? null,
       isPublic: input.profile?.isPublic ?? false,
     }),
     evaluateClinicPublicProfilePublication: () => ({
@@ -125,19 +129,39 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
   return app;
 }
 
-function buildMultipartAvatarPayload() {
+function buildAvatarPngBuffer(width: number, height: number) {
+  const buffer = Buffer.alloc(24);
+  const pngSignature = Buffer.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ]);
+
+  pngSignature.copy(buffer, 0);
+  buffer.writeUInt32BE(13, 8);
+  buffer.write("IHDR", 12, "ascii");
+  buffer.writeUInt32BE(width, 16);
+  buffer.writeUInt32BE(height, 20);
+
+  return buffer;
+}
+
+function buildMultipartAvatarPayload(options?: {
+  fileName?: string;
+  mimeType?: string;
+  fileContent?: Buffer;
+}) {
   const boundary = "----vetneb-boundary";
-  const chunks = [
-    `--${boundary}\r\n`,
-    'Content-Disposition: form-data; name="avatar"; filename="avatar.png"\r\n',
-    "Content-Type: image/png\r\n\r\n",
-    "PNGDATA",
-    `\r\n--${boundary}--\r\n`,
-  ];
+  const fileName = options?.fileName ?? "avatar.png";
+  const mimeType = options?.mimeType ?? "image/png";
+  const fileContent = options?.fileContent ?? buildAvatarPngBuffer(256, 256);
+  const header = Buffer.from(
+    `--${boundary}\r\nContent-Disposition: form-data; name="avatar"; filename="${fileName}"\r\nContent-Type: ${mimeType}\r\n\r\n`,
+    "utf8",
+  );
+  const footer = Buffer.from(`\r\n--${boundary}--\r\n`, "utf8");
 
   return {
     boundary,
-    payload: Buffer.from(chunks.join(""), "utf8"),
+    payload: Buffer.concat([header, fileContent, footer]),
   };
 }
 
@@ -169,6 +193,8 @@ test(
           clinicName: "Clinica Centro",
           avatarUrl: "signed:avatars/3/avatar.png",
           displayName: "Clinica Centro",
+          publicAddress: "Av. Córdoba 123, Rosario",
+          mapLink: "https://maps.google.com/?q=rosario",
           isPublic: true,
         },
         search: {
@@ -233,6 +259,8 @@ test(
         servicesText: undefined,
         email: undefined,
         phone: undefined,
+        publicAddress: undefined,
+        mapLink: undefined,
         locality: "Rosario",
         country: undefined,
         isPublic: false,
@@ -246,6 +274,8 @@ test(
           clinicName: "Clinica Centro",
           avatarUrl: "signed:avatars/3/avatar.png",
           displayName: "Nuevo nombre",
+          publicAddress: "Av. Córdoba 123, Rosario",
+          mapLink: "https://maps.google.com/?q=rosario",
           isPublic: false,
         },
         search: {
@@ -303,6 +333,154 @@ test(
 );
 
 test(
+  "clinicPublicProfileNativeRoutes valida mapLink seguro en PATCH /",
+  async () => {
+    const app = await createTestApp();
+
+    try {
+      const invalidProtocol = await app.inject({
+        method: "PATCH",
+        url: "/api/clinic/profile",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          mapLink: "javascript:alert(1)",
+        },
+      });
+
+      assert.equal(invalidProtocol.statusCode, 400);
+      assert.deepEqual(JSON.parse(invalidProtocol.body), {
+        success: false,
+        error: "El enlace a mapa debe usar https://.",
+      });
+
+      const invalidHost = await app.inject({
+        method: "PATCH",
+        url: "/api/clinic/profile",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          mapLink: "https://example.com/location",
+        },
+      });
+
+      assert.equal(invalidHost.statusCode, 400);
+      assert.deepEqual(JSON.parse(invalidHost.body), {
+        success: false,
+        error:
+          "El enlace a mapa debe usar dominios de mapas permitidos (Google Maps u OpenStreetMap).",
+      });
+
+      const htmlAddress = await app.inject({
+        method: "PATCH",
+        url: "/api/clinic/profile",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          publicAddress: "<b>Dirección</b>",
+        },
+      });
+
+      assert.equal(htmlAddress.statusCode, 400);
+      assert.deepEqual(JSON.parse(htmlAddress.body), {
+        success: false,
+        error: "La dirección pública no puede contener HTML.",
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes valida límites estrictos de avatar",
+  async () => {
+    const app = await createTestApp();
+
+    try {
+      const invalidMimePayload = buildMultipartAvatarPayload({
+        fileName: "avatar.svg",
+        mimeType: "image/svg+xml",
+        fileContent: Buffer.from("<svg></svg>", "utf8"),
+      });
+
+      const invalidMimeResponse = await app.inject({
+        method: "POST",
+        url: "/api/clinic/profile/avatar",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": `multipart/form-data; boundary=${invalidMimePayload.boundary}`,
+        },
+        payload: invalidMimePayload.payload,
+      });
+
+      assert.equal(invalidMimeResponse.statusCode, 400);
+      assert.deepEqual(JSON.parse(invalidMimeResponse.body), {
+        success: false,
+        error: "La imagen debe ser JPG, PNG o WebP.",
+      });
+
+      const oversizedPayload = buildMultipartAvatarPayload({
+        fileContent: Buffer.concat([
+          buildAvatarPngBuffer(256, 256),
+          Buffer.alloc(600 * 1024, 0),
+        ]),
+      });
+
+      const oversizedResponse = await app.inject({
+        method: "POST",
+        url: "/api/clinic/profile/avatar",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": `multipart/form-data; boundary=${oversizedPayload.boundary}`,
+        },
+        payload: oversizedPayload.payload,
+      });
+
+      assert.equal(oversizedResponse.statusCode, 400);
+      assert.deepEqual(JSON.parse(oversizedResponse.body), {
+        success: false,
+        error: "La imagen no debe superar 512 KB.",
+      });
+
+      const smallDimensionsPayload = buildMultipartAvatarPayload({
+        fileContent: buildAvatarPngBuffer(120, 120),
+      });
+
+      const smallDimensionsResponse = await app.inject({
+        method: "POST",
+        url: "/api/clinic/profile/avatar",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": `multipart/form-data; boundary=${smallDimensionsPayload.boundary}`,
+        },
+        payload: smallDimensionsPayload.payload,
+      });
+
+      assert.equal(smallDimensionsResponse.statusCode, 400);
+      assert.deepEqual(JSON.parse(smallDimensionsResponse.body), {
+        success: false,
+        error: "La imagen debe tener al menos 160 x 160 px.",
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
   "clinicPublicProfileNativeRoutes actualiza POST /avatar con upload y reemplazo de avatar previo",
   async () => {
     const uploadCalls: Array<Record<string, unknown>> = [];
@@ -320,7 +498,7 @@ test(
           clinicId: input.clinicId,
           fileName: input.fileName,
           mimeType: input.mimeType,
-          file: input.file.toString("utf8"),
+          fileByteLength: input.file.byteLength,
         });
 
         return "avatars/3/avatar-new.png";
@@ -349,7 +527,7 @@ test(
       assert.equal(uploadCalls[0].clinicId, 3);
       assert.equal(uploadCalls[0].fileName, "avatar.png");
       assert.equal(uploadCalls[0].mimeType, "image/png");
-      assert.equal(uploadCalls[0].file, "PNGDATA");
+      assert.equal(uploadCalls[0].fileByteLength, buildAvatarPngBuffer(256, 256).byteLength);
       assert.deepEqual(deleteCalls, ["avatars/3/avatar.png"]);
 
       assert.deepEqual(JSON.parse(response.body), {
@@ -360,6 +538,8 @@ test(
           clinicName: "Clinica Centro",
           avatarUrl: "signed:avatars/3/avatar-new.png",
           displayName: "Clinica Centro",
+          publicAddress: "Av. Córdoba 123, Rosario",
+          mapLink: "https://maps.google.com/?q=rosario",
           isPublic: true,
         },
         search: {
@@ -410,6 +590,8 @@ test(
           clinicName: "Clinica Centro",
           avatarUrl: null,
           displayName: "Clinica Centro",
+          publicAddress: "Av. Córdoba 123, Rosario",
+          mapLink: "https://maps.google.com/?q=rosario",
           isPublic: true,
         },
         search: {

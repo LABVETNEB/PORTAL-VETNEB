@@ -42,6 +42,8 @@ export type UpsertClinicPublicProfileInput = {
   servicesText?: string | null;
   email?: string | null;
   phone?: string | null;
+  publicAddress?: string | null;
+  mapLink?: string | null;
   locality?: string | null;
   country?: string | null;
   isPublic?: boolean;
@@ -64,6 +66,8 @@ type PublicProfessionalRow = {
   servicesText: string | null;
   email: string | null;
   phone: string | null;
+  publicAddress: string | null;
+  mapLink: string | null;
   locality: string | null;
   country: string | null;
   isPublic: boolean;
@@ -85,6 +89,8 @@ type ProfilePublicationSnapshot = {
   servicesText: string | null;
   email: string | null;
   phone: string | null;
+  publicAddress: string | null;
+  mapLink: string | null;
   locality: string | null;
   country: string | null;
   isPublic: boolean;
@@ -143,6 +149,8 @@ export function evaluateClinicPublicProfilePublication(params: {
   const servicesText = normalizeNullableText(profile?.servicesText ?? null);
   const email = normalizeNullableText(profile?.email ?? clinic.contactEmail ?? null);
   const phone = normalizeNullableText(profile?.phone ?? clinic.contactPhone ?? null);
+  const publicAddress = normalizeNullableText(profile?.publicAddress ?? null);
+  const mapLink = normalizeNullableText(profile?.mapLink ?? null);
   const locality = normalizeNullableText(profile?.locality ?? null);
   const country = normalizeNullableText(profile?.country ?? null);
   const isPublic = Boolean(profile?.isPublic ?? false);
@@ -277,6 +285,7 @@ export function evaluateClinicPublicProfilePublication(params: {
     country,
     email,
     phone,
+    publicAddress,
     aboutText,
   ]);
 
@@ -288,6 +297,8 @@ export function evaluateClinicPublicProfilePublication(params: {
     servicesText,
     email,
     phone,
+    publicAddress,
+    mapLink,
     locality,
     country,
     isPublic,
@@ -335,6 +346,8 @@ export async function upsertClinicPublicProfile(
       servicesText: input.servicesText ?? null,
       email: input.email ?? null,
       phone: input.phone ?? null,
+      publicAddress: input.publicAddress ?? null,
+      mapLink: input.mapLink ?? null,
       locality: input.locality ?? null,
       country: input.country ?? null,
       isPublic: input.isPublic ?? false,
@@ -351,6 +364,8 @@ export async function upsertClinicPublicProfile(
         servicesText: input.servicesText ?? null,
         email: input.email ?? null,
         phone: input.phone ?? null,
+        publicAddress: input.publicAddress ?? null,
+        mapLink: input.mapLink ?? null,
         locality: input.locality ?? null,
         country: input.country ?? null,
         isPublic: input.isPublic ?? false,
@@ -382,6 +397,8 @@ export async function patchClinicPublicProfile(
     servicesText: input.servicesText ?? current?.servicesText ?? null,
     email: input.email ?? current?.email ?? null,
     phone: input.phone ?? current?.phone ?? null,
+    publicAddress: input.publicAddress ?? current?.publicAddress ?? null,
+    mapLink: input.mapLink ?? current?.mapLink ?? null,
     locality: input.locality ?? current?.locality ?? null,
     country: input.country ?? current?.country ?? null,
     isPublic: input.isPublic ?? current?.isPublic ?? false,
@@ -412,6 +429,8 @@ export async function syncClinicPublicSearch(clinicId: number) {
       servicesText: snapshot.servicesText,
       email: snapshot.email,
       phone: snapshot.phone,
+      publicAddress: snapshot.publicAddress,
+      mapLink: snapshot.mapLink,
       locality: snapshot.locality,
       country: snapshot.country,
       isPublic: snapshot.isPublic,
@@ -431,6 +450,8 @@ export async function syncClinicPublicSearch(clinicId: number) {
         servicesText: snapshot.servicesText,
         email: snapshot.email,
         phone: snapshot.phone,
+        publicAddress: snapshot.publicAddress,
+        mapLink: snapshot.mapLink,
         locality: snapshot.locality,
         country: snapshot.country,
         isPublic: snapshot.isPublic,
@@ -641,6 +662,8 @@ export async function searchPublicProfessionals(
         services_text AS "servicesText",
         email,
         phone,
+        public_address AS "publicAddress",
+        map_link AS "mapLink",
         locality,
         country,
         is_public AS "isPublic",
@@ -704,6 +727,8 @@ export function buildClinicPublicProfileResponse(params: {
     servicesText: publication.servicesText,
     email: publication.email,
     phone: publication.phone,
+    publicAddress: publication.publicAddress,
+    mapLink: publication.mapLink,
     locality: publication.locality,
     country: publication.country,
     isPublic: publication.isPublic,

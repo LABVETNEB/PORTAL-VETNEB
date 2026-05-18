@@ -141,6 +141,64 @@ test(
 );
 
 test(
+  "publicProfessionalsNativeRoutes expone dirección y enlace de mapa cuando están disponibles",
+  async () => {
+    const app = await createTestApp({
+      searchPublicProfessionals: async () => ({
+        rows: [
+          {
+            clinicId: 14,
+            displayName: "Clinica Mapa",
+            avatarStoragePath: null,
+            aboutText: "Perfil con ubicación extendida",
+            specialtyText: "Patología clínica",
+            servicesText: "Histopatología",
+            email: "mapa@example.com",
+            phone: "3411111111",
+            publicAddress: "Av. Siempreviva 742, Rosario",
+            mapLink: "https://maps.google.com/?q=rosario",
+            locality: "Rosario",
+            country: "AR",
+            updatedAt: new Date("2026-05-02T12:00:00.000Z"),
+            profileQualityScore: 0.94,
+            rank: 0.7,
+            similarity: 0.6,
+            score: 1.3,
+          },
+        ],
+        total: 1,
+        limit: 20,
+        offset: 0,
+      }),
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search",
+      });
+
+      assert.equal(response.statusCode, 200);
+
+      const body = JSON.parse(response.body) as {
+        professionals: Array<Record<string, unknown>>;
+      };
+
+      assert.equal(
+        body.professionals[0]?.publicAddress,
+        "Av. Siempreviva 742, Rosario",
+      );
+      assert.equal(
+        body.professionals[0]?.mapLink,
+        "https://maps.google.com/?q=rosario",
+      );
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
   "publicProfessionalsNativeRoutes devuelve 400 cuando clinicId es invalido",
   async () => {
     const app = await createTestApp();

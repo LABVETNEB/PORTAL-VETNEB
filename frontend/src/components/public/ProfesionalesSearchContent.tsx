@@ -1,9 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   BriefcaseMedical,
+  ExternalLink,
   Mail,
   MapPin,
   Phone,
@@ -213,7 +215,19 @@ export function ProfesionalesSearchContent() {
                         <CardHeader className="clinical-muted-band border-b">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-start gap-3">
-                              <VisualIcon icon={BriefcaseMedical} tone="emerald" className="h-11 w-11 rounded-xl" />
+                              {professional.avatarUrl ? (
+                                <Image
+                                  src={professional.avatarUrl}
+                                  alt={`Avatar de ${professional.displayName}`}
+                                  width={44}
+                                  height={44}
+                                  className="h-11 w-11 rounded-xl border border-vetneb-line/70 object-cover"
+                                  loading="lazy"
+                                  unoptimized
+                                />
+                              ) : (
+                                <VisualIcon icon={BriefcaseMedical} tone="emerald" className="h-11 w-11 rounded-xl" />
+                              )}
                               <div>
                                 <CardTitle className="text-lg text-vetneb-ink">
                                   {professional.displayName}
@@ -254,7 +268,7 @@ export function ProfesionalesSearchContent() {
                               {professional.aboutText}
                             </p>
                           ) : null}
-                          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                             {professional.locality || professional.country ? (
                               <div className="surface-soft px-3 py-2.5">
                                 <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
@@ -266,6 +280,15 @@ export function ProfesionalesSearchContent() {
                                     .filter(Boolean)
                                     .join(", ")}
                                 </dd>
+                              </div>
+                            ) : null}
+                            {professional.publicAddress ? (
+                              <div className="surface-soft px-3 py-2.5">
+                                <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
+                                  <MapPin className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                                  Dirección
+                                </dt>
+                                <dd className="mt-1">{professional.publicAddress}</dd>
                               </div>
                             ) : null}
                             {professional.email ? (
@@ -296,6 +319,24 @@ export function ProfesionalesSearchContent() {
                                     className="underline underline-offset-2 hover:text-primary"
                                   >
                                     {professional.phone}
+                                  </a>
+                                </dd>
+                              </div>
+                            ) : null}
+                            {professional.mapLink ? (
+                              <div className="surface-soft px-3 py-2.5">
+                                <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
+                                  <ExternalLink className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                                  Mapa
+                                </dt>
+                                <dd className="mt-1">
+                                  <a
+                                    href={professional.mapLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline underline-offset-2 hover:text-primary"
+                                  >
+                                    Ver ubicación en mapa
                                   </a>
                                 </dd>
                               </div>

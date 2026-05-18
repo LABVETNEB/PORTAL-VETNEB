@@ -943,6 +943,8 @@ export type ClinicPublicProfile = {
   servicesText: string | null;
   email: string | null;
   phone: string | null;
+  publicAddress: string | null;
+  mapLink: string | null;
   locality: string | null;
   country: string | null;
   isPublic: boolean;
@@ -974,6 +976,8 @@ export type ClinicPublicProfileUpdatePayload = {
   servicesText?: string | null;
   email?: string | null;
   phone?: string | null;
+  publicAddress?: string | null;
+  mapLink?: string | null;
   locality?: string | null;
   country?: string | null;
   isPublic?: boolean;
@@ -1005,6 +1009,35 @@ export async function updateClinicPublicProfile(
       ...options,
       method: "PATCH",
       body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function uploadClinicPublicProfileAvatar(
+  file: File,
+  options?: RequestInit,
+): Promise<ClinicPublicProfileUpdateResponse> {
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  return apiFetch<ClinicPublicProfileUpdateResponse>(
+    "/api/clinic/profile/avatar",
+    {
+      ...options,
+      method: "POST",
+      body: formData,
+    },
+  );
+}
+
+export async function deleteClinicPublicProfileAvatar(
+  options?: RequestInit,
+): Promise<ClinicPublicProfileUpdateResponse> {
+  return apiFetch<ClinicPublicProfileUpdateResponse>(
+    "/api/clinic/profile/avatar",
+    {
+      ...options,
+      method: "DELETE",
     },
   );
 }
@@ -1081,6 +1114,8 @@ export type PublicProfessional = {
   servicesText: string | null;
   email: string | null;
   phone: string | null;
+  publicAddress?: string | null;
+  mapLink?: string | null;
   locality: string | null;
   country: string | null;
   aboutText: string | null;
