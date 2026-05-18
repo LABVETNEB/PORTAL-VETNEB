@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import {
   Card,
   CardContent,
@@ -138,82 +139,106 @@ export default function ClinicasPage() {
       </section>
 
       <div className="public-soft-canvas">
-      <section className="py-16 md:py-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto mb-10 max-w-3xl text-center">
-            <h2 className="text-2xl font-bold text-vetneb-ink md:text-3xl">
-              Todo lo que necesita su clínica
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Un sistema visualmente claro, trazable y preparado para trabajo
-              diario de alto volumen.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature) => (
-              <Card key={feature.title} className="premium-card">
-                <CardHeader>
-                  <VisualIcon icon={feature.icon} tone={feature.tone} className="mb-2" />
-                  <CardTitle className="text-lg text-vetneb-ink">
-                    {feature.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-sm leading-relaxed text-muted-foreground">
-                    {feature.description}
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-16 md:py-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto mb-10 max-w-3xl text-center">
-            <h2 className="text-2xl font-bold text-vetneb-ink md:text-3xl">
-              Cómo comenzar
-            </h2>
-          </div>
-
-          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {steps.map((step) => (
-              <div key={step.number} className="premium-card-muted p-5">
-                <div className="mb-4 inline-flex items-center rounded-full border border-vetneb-teal/35 bg-vetneb-teal/10 px-3 py-1 text-xs font-semibold tracking-[0.08em] text-vetneb-navy">
-                  {step.number}
-                </div>
-                <h3 className="mb-2 font-semibold text-vetneb-ink">
-                  {step.title}
-                </h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {step.description}
+        <section className="py-16 md:py-20">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <PublicScrollReveal variant="section">
+              <div className="mx-auto mb-10 max-w-3xl text-center">
+                <h2 className="text-2xl font-bold text-vetneb-ink md:text-3xl">
+                  Todo lo que necesita su clínica
+                </h2>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                  Un sistema visualmente claro, trazable y preparado para trabajo
+                  diario de alto volumen.
                 </p>
               </div>
-            ))}
-          </div>
+            </PublicScrollReveal>
 
-          <div className="clinical-muted-band mx-auto mt-10 max-w-3xl rounded-lg p-6 clinical-surface-shadow">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3">
-                <VisualIcon icon={ClipboardCheck} tone="emerald" className="h-11 w-11 shrink-0 rounded-xl" />
-                <div>
-                  <h3 className="font-semibold text-vetneb-ink">
-                    Acceso clínico seguro
-                  </h3>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                    Credenciales separadas del acceso particular por token.
-                  </p>
+            <PublicScrollReveal variant="cards" staggerChildren>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {features.map((feature) => (
+                  <div key={feature.title} data-scroll-reveal-item>
+                    <Card className="premium-card">
+                      <CardHeader>
+                        <VisualIcon
+                          icon={feature.icon}
+                          tone={feature.tone}
+                          className="mb-2"
+                        />
+                        <CardTitle className="text-lg text-vetneb-ink">
+                          {feature.title}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <CardDescription className="text-sm leading-relaxed text-muted-foreground">
+                          {feature.description}
+                        </CardDescription>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ))}
+              </div>
+            </PublicScrollReveal>
+          </div>
+        </section>
+
+        <section className="py-16 md:py-20">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <PublicScrollReveal variant="section">
+              <div className="mx-auto mb-10 max-w-3xl text-center">
+                <h2 className="text-2xl font-bold text-vetneb-ink md:text-3xl">
+                  Cómo comenzar
+                </h2>
+              </div>
+            </PublicScrollReveal>
+
+            <PublicScrollReveal variant="cards" staggerChildren>
+              <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+                {steps.map((step) => (
+                  <div
+                    key={step.number}
+                    data-scroll-reveal-item
+                    className="premium-card-muted p-5"
+                  >
+                    <div className="mb-4 inline-flex items-center rounded-full border border-vetneb-teal/35 bg-vetneb-teal/10 px-3 py-1 text-xs font-semibold tracking-[0.08em] text-vetneb-navy">
+                      {step.number}
+                    </div>
+                    <h3 className="mb-2 font-semibold text-vetneb-ink">
+                      {step.title}
+                    </h3>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {step.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </PublicScrollReveal>
+
+            <PublicScrollReveal variant="minimal">
+              <div className="clinical-muted-band mx-auto mt-10 max-w-3xl rounded-lg p-6 clinical-surface-shadow">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <VisualIcon
+                      icon={ClipboardCheck}
+                      tone="emerald"
+                      className="h-11 w-11 shrink-0 rounded-xl"
+                    />
+                    <div>
+                      <h3 className="font-semibold text-vetneb-ink">
+                        Acceso clínico seguro
+                      </h3>
+                      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                        Credenciales separadas del acceso particular por token.
+                      </p>
+                    </div>
+                  </div>
+                  <Button asChild className="public-cta-primary">
+                    <Link href={ROUTES.login}>Ingresar</Link>
+                  </Button>
                 </div>
               </div>
-              <Button asChild className="public-cta-primary">
-                <Link href={ROUTES.login}>Ingresar</Link>
-              </Button>
-            </div>
+            </PublicScrollReveal>
           </div>
-        </div>
-      </section>
+        </section>
       </div>
     </PublicLayout>
   );
