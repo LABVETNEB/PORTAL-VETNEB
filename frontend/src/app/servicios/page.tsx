@@ -123,9 +123,15 @@ export default function ServiciosPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <section className="public-secondary-hero-surface py-16 text-white md:py-20">
+      <section
+        className="public-secondary-hero-surface py-16 text-white md:py-20"
+        aria-labelledby="services-page-title"
+      >
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl">
+          <h1
+            id="services-page-title"
+            className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl"
+          >
             Servicio patológico veterinario
           </h1>
           <p className="max-w-2xl public-copy text-lg text-primary-foreground/92 md:text-xl">
@@ -136,11 +142,17 @@ export default function ServiciosPage() {
         </div>
       </section>
       <div className="public-soft-canvas">
-        <section className="py-16 md:py-20">
+        <section
+          className="py-16 md:py-20"
+          aria-labelledby="services-categories-heading"
+        >
           <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal variant="section">
               <div className="mx-auto mb-10 max-w-4xl">
-                <h2 className="text-2xl font-bold text-vetneb-ink md:text-3xl">
+                <h2
+                  id="services-categories-heading"
+                  className="text-2xl font-bold text-vetneb-ink md:text-3xl"
+                >
                   Estudios diagnósticos con criterio clínico-patológico
                 </h2>
                 <p className="mt-3 public-copy-tight text-sm text-muted-foreground">
@@ -156,61 +168,69 @@ export default function ServiciosPage() {
                 className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8"
                 data-services-polished="true"
               >
-                {serviceCategories.map((service) => (
-                  <div
-                    key={service.id}
-                    data-scroll-reveal-item
-                    className={
-                      serviceCategories.length % 2 === 1 &&
-                      service.id === serviceCategories[serviceCategories.length - 1]?.id
-                        ? "lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-[calc((100%-2rem)/2)]"
-                        : ""
-                    }
-                  >
-                    <Card id={service.id} className="premium-card h-full">
-                      <CardHeader>
-                        <VisualIcon
-                          icon={service.icon}
-                          tone={service.tone}
-                          className="mb-2"
-                        />
-                        <CardTitle className="text-xl text-vetneb-ink">
-                          {service.title}
-                        </CardTitle>
-                        <CardDescription className="public-copy-tight text-sm text-muted-foreground">
-                          {service.description}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="space-y-2.5">
-                          {service.features.map((feature) => (
-                            <li key={feature} className="flex items-start gap-2">
-                              <span
-                                className="mt-0.5 text-primary font-bold text-xs"
-                                aria-hidden="true"
-                              >
-                                →
-                              </span>
-                              <span className="text-sm text-muted-foreground">
-                                {feature}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  </div>
-                ))}
+                {serviceCategories.map((service) => {
+                  const serviceHeadingId = `service-card-${service.id}-title`;
+
+                  return (
+                    <article
+                      key={service.id}
+                      data-scroll-reveal-item
+                      aria-labelledby={serviceHeadingId}
+                      className={
+                        serviceCategories.length % 2 === 1 &&
+                        service.id === serviceCategories[serviceCategories.length - 1]?.id
+                          ? "lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-[calc((100%-2rem)/2)]"
+                          : ""
+                      }
+                    >
+                      <Card id={service.id} className="premium-card h-full">
+                        <CardHeader>
+                          <VisualIcon
+                            icon={service.icon}
+                            tone={service.tone}
+                            className="mb-2"
+                          />
+                          <CardTitle id={serviceHeadingId} className="text-xl text-vetneb-ink">
+                            {service.title}
+                          </CardTitle>
+                          <CardDescription className="public-copy-tight text-sm text-muted-foreground">
+                            {service.description}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <ul className="space-y-2.5">
+                            {service.features.map((feature) => (
+                              <li key={feature} className="flex items-start gap-2">
+                                <span
+                                  className="mt-0.5 text-primary font-bold text-xs"
+                                  aria-hidden="true"
+                                >
+                                  →
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                  {feature}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </CardContent>
+                      </Card>
+                    </article>
+                  );
+                })}
               </div>
             </PublicScrollReveal>
           </div>
         </section>
 
-        <section className="py-16">
+        <section className="py-16" aria-labelledby="services-coordination-heading">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center">
             <PublicScrollReveal variant="minimal">
               <div className="premium-card p-8">
-                <h2 className="text-2xl font-bold text-vetneb-ink mb-4">
+                <h2
+                  id="services-coordination-heading"
+                  className="text-2xl font-bold text-vetneb-ink mb-4"
+                >
                   Coordinación diagnóstica para clínicas y profesionales
                 </h2>
                 <p className="public-copy text-muted-foreground mb-8">
@@ -245,11 +265,14 @@ export default function ServiciosPage() {
           </div>
         </section>
 
-        <section className="py-16">
+        <section className="py-16" aria-labelledby="services-integral-heading">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
             <PublicScrollReveal variant="section">
               <div className="premium-card-muted p-6">
-                <h2 className="text-2xl font-bold text-vetneb-ink mb-4">
+                <h2
+                  id="services-integral-heading"
+                  className="text-2xl font-bold text-vetneb-ink mb-4"
+                >
                   Diagnóstico integral para medicina veterinaria
                 </h2>
                 <p className="public-copy text-muted-foreground mb-4">
@@ -270,11 +293,14 @@ export default function ServiciosPage() {
           </div>
         </section>
 
-        <section className="py-16">
+        <section className="py-16" aria-labelledby="services-considerations-heading">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
             <PublicScrollReveal variant="section">
               <div className="premium-card-muted p-6">
-                <h2 className="text-2xl font-bold text-vetneb-ink mb-4">
+                <h2
+                  id="services-considerations-heading"
+                  className="text-2xl font-bold text-vetneb-ink mb-4"
+                >
                   Para tener en cuenta
                 </h2>
                 <p className="public-copy text-muted-foreground mb-4">
@@ -294,7 +320,7 @@ export default function ServiciosPage() {
           </div>
         </section>
 
-        <section className="py-16">
+        <section className="py-16" aria-labelledby="services-values-heading">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
             <PublicScrollReveal variant="minimal">
               <div className="clinical-muted-band rounded-lg p-6 clinical-surface-shadow">
@@ -305,7 +331,10 @@ export default function ServiciosPage() {
                     className="h-11 w-11 shrink-0 rounded-xl"
                   />
                   <div>
-                    <h2 className="text-2xl font-bold text-vetneb-ink mb-4">
+                    <h2
+                      id="services-values-heading"
+                      className="text-2xl font-bold text-vetneb-ink mb-4"
+                    >
                       Valores que guían el servicio
                     </h2>
                     <p className="public-copy text-muted-foreground">

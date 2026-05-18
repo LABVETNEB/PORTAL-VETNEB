@@ -26,6 +26,17 @@ function hasPricingItems(categories: PublicPricingCategory[]): boolean {
   return categories.some((category) => category.items.length > 0);
 }
 
+function toSemanticId(value: string): string {
+  return (
+    value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "categoria"
+  );
+}
+
 function sortPricingCategories(
   categories: PublicPricingCategory[],
 ): PublicPricingCategory[] {
@@ -90,55 +101,70 @@ export default async function PreciosPage() {
             </p>
           </div>
 
-          {pricingLoadError ? (
-            <p
-              role="alert"
-              className="mx-auto max-w-4xl rounded-lg bg-vetneb-surface-raised/92 px-5 py-4 text-center text-sm font-medium text-vetneb-navy shadow-none"
-            >
-              No se pudieron cargar los precios. Intente nuevamente.
-            </p>
-          ) : hasPricingItems(pricingCategories) ? (
-            <div className="mx-auto grid max-w-7xl grid-cols-1 gap-7 lg:grid-cols-2">
-              {pricingCategories.map((category) => (
-                <Card
-                  key={category.category}
-                  className="clinical-card overflow-hidden"
-                >
-                  <CardHeader className="clinical-card-header border-b border-vetneb-line px-6 py-5 text-center">
-                    <CardTitle className="text-center text-base font-semibold uppercase tracking-[0.22em] text-white">
-                      {category.category}
-                    </CardTitle>
-                  </CardHeader>
+          <section aria-labelledby="pricing-catalog-heading">
+            <h2 id="pricing-catalog-heading" className="sr-only">
+              Catálogo público de precios por categoría
+            </h2>
 
-                  <CardContent className="bg-vetneb-surface-raised/60 p-4">
-                    <div className="overflow-hidden rounded-lg border border-vetneb-line bg-card shadow-sm">
-                      {category.items.map((item, index) => (
-                        <div
-                          key={item.id}
-                          className={`clinical-hover-row flex items-start justify-between gap-5 px-5 py-4 ${
-                            index < category.items.length - 1
-                              ? "border-b border-vetneb-line/80"
-                              : ""
-                          }`}
-                        >
-                          <p className="text-sm font-semibold uppercase tracking-[0.04em] text-vetneb-ink">
-                            {item.studyName}
-                          </p>
-                          <p className="clinical-pill shrink-0 px-3 py-1 text-sm font-bold tracking-normal shadow-sm">
-                            {normalizePriceLabel(item.priceLabel)}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <p className="surface-empty mx-auto max-w-4xl">
-              No hay precios disponibles.
-            </p>
-          )}
+            {pricingLoadError ? (
+              <p
+                role="alert"
+                className="mx-auto max-w-4xl rounded-lg bg-vetneb-surface-raised/92 px-5 py-4 text-center text-sm font-medium text-vetneb-navy shadow-none"
+              >
+                No se pudieron cargar los precios. Intente nuevamente.
+              </p>
+            ) : hasPricingItems(pricingCategories) ? (
+              <div className="mx-auto grid max-w-7xl grid-cols-1 gap-7 lg:grid-cols-2">
+                {pricingCategories.map((category) => {
+                  const categoryHeadingId = `pricing-category-${toSemanticId(category.category)}`;
+
+                  return (
+                    <article
+                      key={category.category}
+                      aria-labelledby={categoryHeadingId}
+                    >
+                      <Card className="clinical-card overflow-hidden">
+                        <CardHeader className="clinical-card-header border-b border-vetneb-line px-6 py-5 text-center">
+                          <CardTitle
+                            id={categoryHeadingId}
+                            className="text-center text-base font-semibold uppercase tracking-[0.22em] text-white"
+                          >
+                            {category.category}
+                          </CardTitle>
+                        </CardHeader>
+
+                        <CardContent className="bg-vetneb-surface-raised/60 p-4">
+                          <div className="overflow-hidden rounded-lg border border-vetneb-line bg-card shadow-sm">
+                            {category.items.map((item, index) => (
+                              <div
+                                key={item.id}
+                                className={`clinical-hover-row flex items-start justify-between gap-5 px-5 py-4 ${
+                                  index < category.items.length - 1
+                                    ? "border-b border-vetneb-line/80"
+                                    : ""
+                                }`}
+                              >
+                                <p className="text-sm font-semibold uppercase tracking-[0.04em] text-vetneb-ink">
+                                  {item.studyName}
+                                </p>
+                                <p className="clinical-pill shrink-0 px-3 py-1 text-sm font-bold tracking-normal shadow-sm">
+                                  {normalizePriceLabel(item.priceLabel)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="surface-empty mx-auto max-w-4xl">
+                No hay precios disponibles.
+              </p>
+            )}
+          </section>
         </div>
       </section>
     </PublicLayout>

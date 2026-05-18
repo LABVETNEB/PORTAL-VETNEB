@@ -104,9 +104,15 @@ export function ProfesionalesSearchContent() {
 
   return (
     <PublicLayout>
-      <section className="public-secondary-hero-surface py-16 text-white md:py-20">
+      <section
+        className="public-secondary-hero-surface py-16 text-white md:py-20"
+        aria-labelledby="professionals-page-title"
+      >
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-<h1 className="mb-4 max-w-4xl text-4xl font-bold md:text-5xl">
+          <h1
+            id="professionals-page-title"
+            className="mb-4 max-w-4xl text-4xl font-bold md:text-5xl"
+          >
             Red de profesionales veterinarios
           </h1>
           <p className="max-w-2xl public-copy text-xl text-primary-foreground/92">
@@ -117,7 +123,10 @@ export function ProfesionalesSearchContent() {
         </div>
       </section>
 
-      <section className="public-soft-canvas py-16">
+      <section
+        className="public-soft-canvas py-16"
+        aria-labelledby="professionals-search-heading"
+      >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-4xl">
             <PublicScrollReveal variant="section">
@@ -128,7 +137,10 @@ export function ProfesionalesSearchContent() {
                   className="hidden sm:inline-flex"
                 />
                 <div>
-                  <h2 className="mb-3 text-2xl font-bold text-vetneb-ink">
+                  <h2
+                    id="professionals-search-heading"
+                    className="mb-3 text-2xl font-bold text-vetneb-ink"
+                  >
                     Buscar profesionales
                   </h2>
                   <p className="public-copy-tight text-sm text-muted-foreground">
@@ -172,7 +184,14 @@ export function ProfesionalesSearchContent() {
               </Button>
             </form>
 
-            <div className="mt-8" aria-live="polite">
+            <section
+              className="mt-8"
+              aria-labelledby="professionals-results-heading"
+              aria-live="polite"
+            >
+              <h2 id="professionals-results-heading" className="sr-only">
+                Resultados de la búsqueda profesional
+              </h2>
               {!currentQuery ? (
                 <div className="surface-empty p-6">
                   Realice una búsqueda para consultar el banco público y
@@ -207,148 +226,154 @@ export function ProfesionalesSearchContent() {
                     coordinación clínica.
                   </p>
                   <div className="space-y-4">
-                    {state.professionals.map((professional) => (
-                      <Card
-                        key={professional.clinicId}
-                        className="premium-card overflow-hidden"
-                      >
-                        <CardHeader className="clinical-muted-band border-b">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3">
-                              {professional.avatarUrl ? (
-                                <Image
-                                  src={professional.avatarUrl}
-                                  alt={`Avatar de ${professional.displayName}`}
-                                  width={44}
-                                  height={44}
-                                  className="h-11 w-11 rounded-xl border border-vetneb-line/70 object-cover"
-                                  loading="lazy"
-                                  unoptimized
-                                />
-                              ) : (
-                                <VisualIcon icon={BriefcaseMedical} tone="emerald" className="h-11 w-11 rounded-xl" />
-                              )}
-                              <div>
-                                <CardTitle className="text-lg text-vetneb-ink">
-                                  {professional.displayName}
-                                </CardTitle>
-                                {(professional.locality || professional.country) ? (
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    {[professional.locality, professional.country]
-                                      .filter(Boolean)
-                                      .join(", ")}
+                    {state.professionals.map((professional) => {
+                      const resultHeadingId = `professional-result-${professional.clinicId}`;
+
+                      return (
+                        <article
+                          key={professional.clinicId}
+                          aria-labelledby={resultHeadingId}
+                        >
+                          <Card className="premium-card overflow-hidden">
+                            <CardHeader className="clinical-muted-band border-b">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3">
+                                  {professional.avatarUrl ? (
+                                    <Image
+                                      src={professional.avatarUrl}
+                                      alt={`Avatar de ${professional.displayName}`}
+                                      width={44}
+                                      height={44}
+                                      className="h-11 w-11 rounded-xl border border-vetneb-line/70 object-cover"
+                                      loading="lazy"
+                                      unoptimized
+                                    />
+                                  ) : (
+                                    <VisualIcon icon={BriefcaseMedical} tone="emerald" className="h-11 w-11 rounded-xl" />
+                                  )}
+                                  <div>
+                                    <CardTitle id={resultHeadingId} className="text-lg text-vetneb-ink">
+                                      {professional.displayName}
+                                    </CardTitle>
+                                    {(professional.locality || professional.country) ? (
+                                      <p className="mt-1 text-xs text-muted-foreground">
+                                        {[professional.locality, professional.country]
+                                          .filter(Boolean)
+                                          .join(", ")}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                </div>
+                                <span className="clinical-pill px-2 py-0.5 text-[0.65rem] tracking-[0.08em]">
+                                  Perfil verificado
+                                </span>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3 pt-5 text-sm text-muted-foreground">
+                              {professional.specialtyText ? (
+                                <div className="clinical-muted-band rounded-lg px-3 py-2">
+                                  <p className="clinical-pill px-2 py-0.5 text-[0.62rem] tracking-[0.08em]">
+                                    Especialidad
                                   </p>
+                                  <p className="mt-2">{professional.specialtyText}</p>
+                                </div>
+                              ) : null}
+                              {professional.servicesText ? (
+                                <div className="clinical-muted-band rounded-lg px-3 py-2">
+                                  <p className="clinical-pill px-2 py-0.5 text-[0.62rem] tracking-[0.08em]">
+                                    Servicios
+                                  </p>
+                                  <p className="mt-2">{professional.servicesText}</p>
+                                </div>
+                              ) : null}
+                              {professional.aboutText ? (
+                                <p className="leading-relaxed">
+                                  {professional.aboutText}
+                                </p>
+                              ) : null}
+                              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                {professional.locality || professional.country ? (
+                                  <div className="surface-soft px-3 py-2.5">
+                                    <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
+                                      <MapPin className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                                      Ubicación
+                                    </dt>
+                                    <dd className="mt-1 text-muted-foreground">
+                                      {[professional.locality, professional.country]
+                                        .filter(Boolean)
+                                        .join(", ")}
+                                    </dd>
+                                  </div>
                                 ) : null}
-                              </div>
-                            </div>
-                            <span className="clinical-pill px-2 py-0.5 text-[0.65rem] tracking-[0.08em]">
-                              Perfil verificado
-                            </span>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3 pt-5 text-sm text-muted-foreground">
-                          {professional.specialtyText ? (
-                            <div className="clinical-muted-band rounded-lg px-3 py-2">
-                              <p className="clinical-pill px-2 py-0.5 text-[0.62rem] tracking-[0.08em]">
-                                Especialidad
-                              </p>
-                              <p className="mt-2">{professional.specialtyText}</p>
-                            </div>
-                          ) : null}
-                          {professional.servicesText ? (
-                            <div className="clinical-muted-band rounded-lg px-3 py-2">
-                              <p className="clinical-pill px-2 py-0.5 text-[0.62rem] tracking-[0.08em]">
-                                Servicios
-                              </p>
-                              <p className="mt-2">{professional.servicesText}</p>
-                            </div>
-                          ) : null}
-                          {professional.aboutText ? (
-                            <p className="leading-relaxed">
-                              {professional.aboutText}
-                            </p>
-                          ) : null}
-                          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            {professional.locality || professional.country ? (
-                              <div className="surface-soft px-3 py-2.5">
-                                <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
-                                  <MapPin className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                                  Ubicación
-                                </dt>
-                                <dd className="mt-1 text-muted-foreground">
-                                  {[professional.locality, professional.country]
-                                    .filter(Boolean)
-                                    .join(", ")}
-                                </dd>
-                              </div>
-                            ) : null}
-                            {professional.publicAddress ? (
-                              <div className="surface-soft px-3 py-2.5">
-                                <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
-                                  <MapPin className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                                  Dirección
-                                </dt>
-                                <dd className="mt-1">{professional.publicAddress}</dd>
-                              </div>
-                            ) : null}
-                            {professional.email ? (
-                              <div className="surface-soft px-3 py-2.5">
-                                <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
-                                  <Mail className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                                  Email
-                                </dt>
-                                <dd className="mt-1">
-                                  <a
-                                    href={`mailto:${professional.email}`}
-                                    className="underline underline-offset-2 hover:text-primary"
-                                  >
-                                    {professional.email}
-                                  </a>
-                                </dd>
-                              </div>
-                            ) : null}
-                            {professional.phone ? (
-                              <div className="surface-soft px-3 py-2.5">
-                                <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
-                                  <Phone className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                                  Teléfono
-                                </dt>
-                                <dd className="mt-1">
-                                  <a
-                                    href={`https://wa.me/549${professional.phone.replace(/\D/g, "")}`}
-                                    className="underline underline-offset-2 hover:text-primary"
-                                  >
-                                    {professional.phone}
-                                  </a>
-                                </dd>
-                              </div>
-                            ) : null}
-                            {professional.mapLink ? (
-                              <div className="surface-soft px-3 py-2.5">
-                                <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
-                                  <ExternalLink className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                                  Mapa
-                                </dt>
-                                <dd className="mt-1">
-                                  <a
-                                    href={professional.mapLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="underline underline-offset-2 hover:text-primary"
-                                  >
-                                    Ver ubicación en mapa
-                                  </a>
-                                </dd>
-                              </div>
-                            ) : null}
-                          </dl>
-                        </CardContent>
-                      </Card>
-                    ))}
+                                {professional.publicAddress ? (
+                                  <div className="surface-soft px-3 py-2.5">
+                                    <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
+                                      <MapPin className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                                      Dirección
+                                    </dt>
+                                    <dd className="mt-1">{professional.publicAddress}</dd>
+                                  </div>
+                                ) : null}
+                                {professional.email ? (
+                                  <div className="surface-soft px-3 py-2.5">
+                                    <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
+                                      <Mail className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                                      Email
+                                    </dt>
+                                    <dd className="mt-1">
+                                      <a
+                                        href={`mailto:${professional.email}`}
+                                        className="underline underline-offset-2 hover:text-primary"
+                                      >
+                                        {professional.email}
+                                      </a>
+                                    </dd>
+                                  </div>
+                                ) : null}
+                                {professional.phone ? (
+                                  <div className="surface-soft px-3 py-2.5">
+                                    <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
+                                      <Phone className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                                      Teléfono
+                                    </dt>
+                                    <dd className="mt-1">
+                                      <a
+                                        href={`https://wa.me/549${professional.phone.replace(/\D/g, "")}`}
+                                        className="underline underline-offset-2 hover:text-primary"
+                                      >
+                                        {professional.phone}
+                                      </a>
+                                    </dd>
+                                  </div>
+                                ) : null}
+                                {professional.mapLink ? (
+                                  <div className="surface-soft px-3 py-2.5">
+                                    <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
+                                      <ExternalLink className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                                      Mapa
+                                    </dt>
+                                    <dd className="mt-1">
+                                      <a
+                                        href={professional.mapLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="underline underline-offset-2 hover:text-primary"
+                                      >
+                                        Ver ubicación en mapa
+                                      </a>
+                                    </dd>
+                                  </div>
+                                ) : null}
+                              </dl>
+                            </CardContent>
+                          </Card>
+                        </article>
+                      );
+                    })}
                   </div>
                 </div>
               ) : null}
-            </div>
+            </section>
           </div>
         </div>
       </section>

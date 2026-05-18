@@ -94,9 +94,12 @@ export function ContactoContent() {
 
   return (
     <PublicLayout>
-      <section className="public-secondary-hero-surface py-16 text-white md:py-20">
+      <section
+        className="public-secondary-hero-surface py-16 text-white md:py-20"
+        aria-labelledby="contact-page-title"
+      >
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-<h1 className="mb-4 text-4xl font-bold md:text-5xl">
+          <h1 id="contact-page-title" className="mb-4 text-4xl font-bold md:text-5xl">
             Contacto
           </h1>
           <p className="max-w-2xl public-copy text-xl text-primary-foreground/92">
@@ -109,11 +112,14 @@ export function ContactoContent() {
       <section className="public-soft-canvas py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid max-w-5xl grid-cols-1 gap-12 mx-auto lg:grid-cols-2">
-            <div className="premium-card p-6">
+            <section
+              className="premium-card p-6"
+              aria-labelledby="contact-form-heading"
+            >
               <div className="mb-6 flex items-start gap-3">
                 <VisualIcon icon={MessageCircle} tone="blue" className="h-11 w-11 rounded-xl" />
                 <div>
-                  <h2 className="text-2xl font-bold text-vetneb-ink">
+                  <h2 id="contact-form-heading" className="text-2xl font-bold text-vetneb-ink">
                     Envíenos un mensaje
                   </h2>
                   <p className="mt-1 public-copy-tight text-sm text-muted-foreground">
@@ -258,13 +264,13 @@ export function ContactoContent() {
                   {isSubmitting ? "Enviando mensaje..." : "Enviar mensaje"}
                 </Button>
               </form>
-            </div>
+            </section>
 
-            <div>
+            <section aria-labelledby="contact-info-heading">
               <div className="mb-6 flex items-start gap-3">
                 <VisualIcon icon={Phone} tone="emerald" className="h-11 w-11 rounded-xl" />
                 <div>
-                  <h2 className="text-2xl font-bold text-vetneb-ink">
+                  <h2 id="contact-info-heading" className="text-2xl font-bold text-vetneb-ink">
                     Información de contacto
                   </h2>
                   <p className="mt-1 public-copy-tight text-sm text-muted-foreground">
@@ -275,28 +281,34 @@ export function ContactoContent() {
               </div>
 
               <div className="space-y-4 mb-8">
-                {contactInfo.map((info) => (
-                  <Card key={info.label} className="premium-card">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base flex items-center gap-3">
-                        <VisualIcon icon={info.icon} tone={info.tone} className="h-9 w-9 rounded-xl" />
-                        {info.label}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {info.href ? (
-                        <a
-                          href={info.href}
-                          className="text-vetneb-ink font-medium underline underline-offset-2 hover:text-primary"
-                        >
-                          {info.value}
-                        </a>
-                      ) : (
-                        <p className="text-vetneb-ink font-medium">{info.value}</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+                {contactInfo.map((info) => {
+                  const infoHeadingId = `contact-info-${info.label.toLowerCase()}`;
+
+                  return (
+                    <article key={info.label} aria-labelledby={infoHeadingId}>
+                      <Card className="premium-card">
+                        <CardHeader className="pb-2">
+                          <CardTitle id={infoHeadingId} className="text-base flex items-center gap-3">
+                            <VisualIcon icon={info.icon} tone={info.tone} className="h-9 w-9 rounded-xl" />
+                            {info.label}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {info.href ? (
+                            <a
+                              href={info.href}
+                              className="text-vetneb-ink font-medium underline underline-offset-2 hover:text-primary"
+                            >
+                              {info.value}
+                            </a>
+                          ) : (
+                            <p className="text-vetneb-ink font-medium">{info.value}</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </article>
+                  );
+                })}
               </div>
 
               <div className="clinical-muted-band rounded-lg p-6 clinical-surface-shadow">
@@ -310,7 +322,7 @@ export function ContactoContent() {
                   trazabilidad y seguimiento de informes.
                 </p>
               </div>
-            </div>
+            </section>
           </div>
         </div>
       </section>
