@@ -160,6 +160,20 @@ export default function ServiciosPage() {
                   informes trazables para acompañar decisiones clínicas en cada
                   etapa del caso.
                 </p>
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                  <Link
+                    href="/histopatologia-veterinaria"
+                    className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
+                  >
+                    Ver histopatología veterinaria
+                  </Link>
+                  <Link
+                    href="/citologia-veterinaria"
+                    className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
+                  >
+                    Ver citología veterinaria
+                  </Link>
+                </div>
               </div>
             </PublicScrollReveal>
 

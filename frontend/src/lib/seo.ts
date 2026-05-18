@@ -239,6 +239,84 @@ export function getServicesJsonLd() {
   };
 }
 
+
+// ─── JSON-LD para landing de servicio diagnóstico ────────────────────────────
+
+export type DiagnosticServiceJsonLdInput = {
+  path: string;
+  name: string;
+  serviceType: string;
+  description: string;
+  knowsAbout: string[];
+};
+
+export function getDiagnosticServiceJsonLd({
+  path,
+  name,
+  serviceType,
+  description,
+  knowsAbout,
+}: DiagnosticServiceJsonLdInput) {
+  const pageUrl = buildCanonicalUrl(path);
+  const organizationId = `${SITE_URL}/#organization`;
+  const websiteId = `${SITE_URL}/#website`;
+  const breadcrumbId = `${pageUrl}#breadcrumb`;
+  const serviceId = `${pageUrl}#service`;
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "@id": breadcrumbId,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Inicio",
+            item: SITE_URL,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Servicios",
+            item: buildCanonicalUrl("/servicios"),
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name,
+            item: pageUrl,
+          },
+        ],
+      },
+      {
+        "@type": "Service",
+        "@id": serviceId,
+        name,
+        serviceType,
+        description,
+        url: pageUrl,
+        inLanguage: "es-AR",
+        areaServed: {
+          "@type": "Country",
+          name: "Argentina",
+        },
+        provider: {
+          "@id": organizationId,
+        },
+        isPartOf: {
+          "@id": websiteId,
+        },
+        breadcrumb: {
+          "@id": breadcrumbId,
+        },
+        knowsAbout,
+      },
+    ],
+  };
+}
+
 // ─── JSON-LD para página pública de profesionales ────────────────────────────
 
 export function getProfessionalsPageJsonLd() {
@@ -305,3 +383,4 @@ export function getProfessionalsPageJsonLd() {
     ],
   };
 }
+
