@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 import {
-  ArrowRight,
   Building2,
   Mail,
   MapPin,
@@ -310,10 +309,6 @@ export function ContactoContent() {
                   configurar su acceso y explicarle el proceso de integración,
                   trazabilidad y seguimiento de informes.
                 </p>
-                <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary">
-                  Solicitar integración clínica
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </div>
               </div>
             </div>
           </div>
