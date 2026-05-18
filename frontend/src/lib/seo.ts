@@ -8,16 +8,30 @@ import type { Metadata } from "next";
 // ─── Configuración base ───────────────────────────────────────────────────────
 
 export const SITE_NAME = "Portal VETNEB";
-export const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://portal.vetneb.com";
+export const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://portal.vetneb.com"
+).replace(/\/+$/, "");
 export const SITE_DESCRIPTION =
   "La anatomía patológica veterinaria estudia los motivos, el desarrollo y las consecuencias de distintas enfermedades mediante el análisis de tejidos, órganos y muestras celulares. Servicio patológico veterinario con histopatología, citología, citopatología, hematología, diagnóstico hematológico y hemoparásitos.";
 export const SITE_LOCALE = "es_AR";
+export const SITE_OG_IMAGE_PATH = "/images/hero-microscope-vetneb.webp";
+export const SITE_OG_IMAGE_URL = `${SITE_URL}${SITE_OG_IMAGE_PATH}`;
+
+export function buildCanonicalUrl(path: string): string {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
+  if (normalizedPath === "/") {
+    return SITE_URL;
+  }
+
+  return `${SITE_URL}${normalizedPath}`;
+}
 
 // ─── Metadata base ────────────────────────────────────────────────────────────
 
 export const baseMetadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
   title: {
     default: SITE_NAME,
     template: `%s | ${SITE_NAME}`,
@@ -68,9 +82,7 @@ export const baseMetadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [
       {
-        url: `${SITE_URL}/og-image.png`,
-        width: 1200,
-        height: 630,
+        url: SITE_OG_IMAGE_URL,
         alt: "Portal VETNEB — Laboratorio patológico veterinario, histopatología, citología y hematología",
       },
     ],
@@ -79,7 +91,7 @@ export const baseMetadata: Metadata = {
     card: "summary_large_image",
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
-    images: [`${SITE_URL}/og-image.png`],
+    images: [SITE_OG_IMAGE_URL],
   },
   alternates: {
     canonical: SITE_URL,
@@ -93,21 +105,33 @@ export function createPageMetadata(
   description: string,
   path: string,
 ): Metadata {
-  const url = `${SITE_URL}${path}`;
+  const canonicalUrl = buildCanonicalUrl(path);
+
   return {
     title,
     description,
     openGraph: {
+      type: "website",
+      locale: SITE_LOCALE,
+      siteName: SITE_NAME,
       title,
       description,
-      url,
+      url: canonicalUrl,
+      images: [
+        {
+          url: SITE_OG_IMAGE_URL,
+          alt: "Portal VETNEB — Laboratorio patológico veterinario, histopatología, citología y hematología",
+        },
+      ],
     },
     twitter: {
+      card: "summary_large_image",
       title,
       description,
+      images: [SITE_OG_IMAGE_URL],
     },
     alternates: {
-      canonical: url,
+      canonical: canonicalUrl,
     },
   };
 }
@@ -115,34 +139,46 @@ export function createPageMetadata(
 // ─── JSON-LD para organización ────────────────────────────────────────────────
 
 export function getOrganizationJsonLd() {
+  const organizationId = `${SITE_URL}/#organization`;
+  const websiteId = `${SITE_URL}/#website`;
+
   return {
     "@context": "https://schema.org",
-    "@type": "MedicalOrganization",
-    name: "VETNEB",
-    description:
-      "Laboratorio patológico veterinario orientado a diagnóstico integral mediante estudio anatomopatológico, citológico y tinciones especiales para clínicas y profesionales.",
-    url: SITE_URL,
-    logo: `${SITE_URL}/logo.png`,
-    contactPoint: {
-      "@type": "ContactPoint",
-      contactType: "customer service",
-      availableLanguage: "Spanish",
-    },
-    areaServed: {
-      "@type": "Country",
-      name: "Argentina",
-    },
-    medicalSpecialty: "Veterinary",
-    knowsAbout: [
-      "laboratorio patológico veterinario",
-      "servicio patológico veterinario",
-      "histopatología veterinaria",
-      "citología veterinaria",
-      "citopatología veterinaria",
-      "hematología veterinaria",
-      "diagnóstico hematológico veterinario",
-      "hemoparásitos veterinarios",
-      "anatomía patológica veterinaria",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": organizationId,
+        name: "VETNEB",
+        description:
+          "Laboratorio patológico veterinario orientado a diagnóstico integral mediante estudio anatomopatológico, citológico y tinciones especiales para clínicas y profesionales.",
+        url: SITE_URL,
+        areaServed: {
+          "@type": "Country",
+          name: "Argentina",
+        },
+        knowsAbout: [
+          "laboratorio patológico veterinario",
+          "servicio patológico veterinario",
+          "histopatología veterinaria",
+          "citología veterinaria",
+          "citopatología veterinaria",
+          "hematología veterinaria",
+          "diagnóstico hematológico veterinario",
+          "hemoparásitos veterinarios",
+          "anatomía patológica veterinaria",
+        ],
+      },
+      {
+        "@type": "WebSite",
+        "@id": websiteId,
+        url: SITE_URL,
+        name: SITE_NAME,
+        description: SITE_DESCRIPTION,
+        inLanguage: "es-AR",
+        publisher: {
+          "@id": organizationId,
+        },
+      },
     ],
   };
 }
@@ -155,7 +191,7 @@ export function getServicesJsonLd() {
     "@type": "Service",
     serviceType: "Laboratorio patológico veterinario",
     provider: {
-      "@type": "MedicalOrganization",
+      "@type": "Organization",
       name: "VETNEB",
       url: SITE_URL,
     },
