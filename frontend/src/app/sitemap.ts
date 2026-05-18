@@ -18,6 +18,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
+      url: `${SITE_URL}/histopatologia-veterinaria`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.88,
+    },
+    {
+      url: `${SITE_URL}/citologia-veterinaria`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.88,
+    },
+    {
       url: `${SITE_URL}/clinicas`,
       lastModified: now,
       changeFrequency: "monthly",
@@ -43,3 +55,4 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 }
+
