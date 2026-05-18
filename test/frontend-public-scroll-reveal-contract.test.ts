@@ -24,6 +24,17 @@ const PUBLIC_FILES_WITHOUT_USAGE = [
   "frontend/src/app/contacto/page.tsx",
   "frontend/src/app/precios/page.tsx",
   "frontend/src/app/login/page.tsx",
+  "frontend/src/components/public/LoginContent.tsx",
+  "frontend/src/components/public/ContactoContent.tsx",
+  "frontend/src/components/public/ParticularesContent.tsx",
+];
+
+const FUNCTIONAL_PUBLIC_FILES = [
+  "frontend/src/app/login/page.tsx",
+  "frontend/src/app/contacto/page.tsx",
+  "frontend/src/app/precios/page.tsx",
+  "frontend/src/app/particulares/page.tsx",
+  "frontend/src/components/public/LoginContent.tsx",
   "frontend/src/components/public/ContactoContent.tsx",
   "frontend/src/components/public/ParticularesContent.tsx",
 ];
@@ -37,6 +48,7 @@ const PUBLIC_FILES_WITHOUT_GSAP_IMPORT = [
   "frontend/src/app/contacto/page.tsx",
   "frontend/src/app/precios/page.tsx",
   "frontend/src/app/login/page.tsx",
+  "frontend/src/components/public/LoginContent.tsx",
   "frontend/src/components/public/ContactoContent.tsx",
   "frontend/src/components/public/ParticularesContent.tsx",
   "frontend/src/components/public/ProfesionalesSearchContent.tsx",
@@ -244,6 +256,54 @@ test("staggerChildren is only used in home, services and clinicas rollout", () =
       source.includes("staggerChildren"),
       false,
       `${path} should not reference staggerChildren`,
+    );
+  }
+});
+
+test("functional public pages keep strict motion boundaries", () => {
+  for (const path of FUNCTIONAL_PUBLIC_FILES) {
+    const source = read(path);
+    const sourceLower = source.toLowerCase();
+
+    assert.equal(
+      source.includes("PublicScrollReveal"),
+      false,
+      `${path} should not reference PublicScrollReveal`,
+    );
+    assert.equal(
+      source.includes("staggerChildren"),
+      false,
+      `${path} should not reference staggerChildren`,
+    );
+    assert.equal(
+      source.includes("data-scroll-reveal-item"),
+      false,
+      `${path} should not reference data-scroll-reveal-item`,
+    );
+    assert.equal(
+      sourceLower.includes("lenis"),
+      false,
+      `${path} should not reference lenis`,
+    );
+    assert.equal(
+      sourceLower.includes("pinspacing"),
+      false,
+      `${path} should not reference pinSpacing`,
+    );
+    assert.equal(
+      /\bpin\s*:/.test(sourceLower),
+      false,
+      `${path} should not configure pin`,
+    );
+    assert.equal(
+      sourceLower.includes("scrub"),
+      false,
+      `${path} should not reference scrub`,
+    );
+    assert.equal(
+      sourceLower.includes("parallax"),
+      false,
+      `${path} should not reference parallax`,
     );
   }
 });
