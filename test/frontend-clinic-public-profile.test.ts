@@ -43,10 +43,22 @@ test("clinic public profile card exposes required publication fields", () => {
     "aboutText",
     "email",
     "phone",
+    "publicAddress",
+    "mapLink",
     "isPublic",
   ].forEach((field) => {
     assert.ok(source.includes(field), `${field} must be present`);
   });
+
+  assert.ok(source.includes("Avatar o logo"));
+  assert.ok(source.includes("Dirección pública"));
+  assert.ok(source.includes("Enlace a mapa"));
+  assert.ok(source.includes("JPG, PNG o WebP"));
+  assert.ok(source.includes("512 KB"));
+  assert.ok(source.includes("160 x 160 px"));
+  assert.ok(source.includes("1024 x 1024 px"));
+  assert.ok(source.includes('accept="image/jpeg,image/png,image/webp"'));
+  assert.equal(source.includes("image/svg+xml"), false);
 
   assert.ok(source.includes("missingRequiredFields"));
   assert.ok(source.includes("missingRecommendedFields"));
@@ -64,7 +76,10 @@ test("frontend api exposes clinic public profile helpers", () => {
   assert.ok(source.includes("export type ClinicPublicProfileUpdatePayload"));
   assert.ok(source.includes("export async function getClinicPublicProfile("));
   assert.ok(source.includes("export async function updateClinicPublicProfile("));
+  assert.ok(source.includes("export async function uploadClinicPublicProfileAvatar("));
+  assert.ok(source.includes("export async function deleteClinicPublicProfileAvatar("));
   assert.ok(source.includes('"/api/clinic/profile"'));
+  assert.ok(source.includes('"/api/clinic/profile/avatar"'));
 });
 
 test("clinic dashboard renders public profile before token generation and keeps sidebar navigation", () => {

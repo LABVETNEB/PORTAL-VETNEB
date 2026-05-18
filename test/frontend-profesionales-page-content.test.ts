@@ -79,6 +79,11 @@ test("profesionales search content renders professional result cards", () => {
   assert.ok(source.includes("professional.aboutText"));
   assert.ok(source.includes("professional.locality"));
   assert.ok(source.includes("professional.country"));
+  assert.ok(source.includes("professional.publicAddress"));
+  assert.ok(source.includes("professional.mapLink"));
+  assert.ok(source.includes("Ver ubicación en mapa"));
+  assert.ok(source.includes('target="_blank"'));
+  assert.ok(source.includes('rel="noopener noreferrer"'));
   assert.ok(source.includes("mailto:${professional.email}"));
   assert.ok(source.includes("https://wa.me/549"));
 });
