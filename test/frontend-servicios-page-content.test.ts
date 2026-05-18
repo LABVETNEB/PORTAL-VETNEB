@@ -92,3 +92,18 @@ test("servicios page keeps one continuous soft canvas through middle sections", 
   assert.equal(source.includes('className="bg-gray-50 py-16"'), false);
   assert.equal(source.includes('data-public-soft-canvas="true"'), false);
 });
+
+test("servicios page hides service link typography while keeping link semantics", () => {
+  const source = read(SERVICIOS_PAGE_PATH);
+
+  assert.ok(source.includes('href="/laboratorio-patologico-veterinario"'));
+  assert.ok(source.includes('href="/histopatologia-veterinaria"'));
+  assert.ok(source.includes('href="/citologia-veterinaria"'));
+  assert.ok(source.includes('href="/informes-veterinarios"'));
+  assert.ok(source.includes('className="sr-only"'));
+  assert.ok(source.includes("<span"));
+  assert.ok(source.includes("{service.linkLabel}"));
+  assert.ok(source.includes("hover:[&_.premium-card]:bg-sky-50"));
+  assert.ok(source.includes("hover:[&_.premium-card]:border-sky-200"));
+  assert.equal(source.includes("group-hover:text-vetneb-teal"), false);
+});
