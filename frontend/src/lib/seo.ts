@@ -247,6 +247,7 @@ export function getProfessionalsPageJsonLd() {
   const websiteId = `${SITE_URL}/#website`;
   const breadcrumbId = `${pageUrl}#breadcrumb`;
   const searchPageId = `${pageUrl}#search-results-page`;
+  const searchActionTarget = `${pageUrl}?q={search_term_string}`;
 
   return {
     "@context": "https://schema.org",
@@ -270,7 +271,7 @@ export function getProfessionalsPageJsonLd() {
         ],
       },
       {
-        "@type": "SearchResultsPage",
+        "@type": ["WebPage", "SearchResultsPage"],
         "@id": searchPageId,
         url: pageUrl,
         name: "Red de Profesionales Veterinarios",
@@ -292,6 +293,14 @@ export function getProfessionalsPageJsonLd() {
           "laboratorio patológico veterinario",
           "diagnóstico veterinario",
         ],
+        potentialAction: {
+          "@type": "SearchAction",
+          target: {
+            "@type": "EntryPoint",
+            urlTemplate: searchActionTarget,
+          },
+          "query-input": "required name=search_term_string",
+        },
       },
     ],
   };
