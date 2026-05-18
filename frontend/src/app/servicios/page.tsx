@@ -173,25 +173,25 @@ export default function ServiciosPage() {
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                   <Link
                     href="/laboratorio-patologico-veterinario"
-                    className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
+                    className="sr-only"
                   >
                     Ver laboratorio patológico veterinario
                   </Link>
                   <Link
                     href="/histopatologia-veterinaria"
-                    className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
+                    className="sr-only"
                   >
                     Ver histopatología veterinaria
                   </Link>
                   <Link
                     href="/citologia-veterinaria"
-                    className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
+                    className="sr-only"
                   >
                     Ver citología veterinaria
                   </Link>
                   <Link
                     href="/informes-veterinarios"
-                    className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
+                    className="sr-only"
                   >
                     Ver informes veterinarios
                   </Link>
@@ -221,7 +221,7 @@ export default function ServiciosPage() {
                     >
                       <Link
                         href={service.href}
-                        className="group block h-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        className="group block h-full rounded-lg transition duration-200 [&_.premium-card]:transition-colors [&_.premium-card]:duration-200 hover:[&_.premium-card]:bg-sky-50 hover:[&_.premium-card]:border-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                         aria-labelledby={serviceHeadingId}
                       >
                         <Card
@@ -257,7 +257,7 @@ export default function ServiciosPage() {
                                 </li>
                               ))}
                             </ul>
-                            <div className="mt-5 text-sm font-semibold text-primary underline underline-offset-4 transition group-hover:text-vetneb-teal">
+                            <div className="mt-5 text-sm font-semibold text-primary underline underline-offset-4 transition ">
                               {service.linkLabel}
                             </div>
                           </CardContent>
