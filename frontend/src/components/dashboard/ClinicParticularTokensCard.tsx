@@ -35,8 +35,8 @@ const INITIAL_FORM_STATE: ClinicParticularTokenFormState = {
   petName: "",
   petAge: "",
   petBreed: "",
-  petSex: "",
-  petSpecies: "",
+  petSex: "Macho",
+  petSpecies: "Caninos",
   sampleLocation: "",
   sampleEvolution: "",
   detailsLesion: "",
@@ -62,18 +62,20 @@ const REQUIRED_FIELD_LABELS: Array<{
 ];
 
 const PET_SEX_OPTIONS = [
-  { value: "", label: "Seleccionar sexo" },
   { value: "Macho", label: "Macho" },
   { value: "Hembra", label: "Hembra" },
-  { value: "No informado", label: "No informado" },
 ];
 
 const PET_SPECIES_OPTIONS = [
-  { value: "", label: "Seleccionar especie" },
-  { value: "Canina", label: "Canina" },
-  { value: "Felina", label: "Felina" },
-  { value: "Equina", label: "Equina" },
-  { value: "Otra", label: "Otra" },
+  { value: "Caninos", label: "Caninos" },
+  { value: "Felinos", label: "Felinos" },
+  { value: "Exóticos", label: "Exóticos" },
+  { value: "Bovinos", label: "Bovinos" },
+  { value: "Equinos", label: "Equinos" },
+  { value: "Porcinos", label: "Porcinos" },
+  { value: "Ovinos", label: "Ovinos" },
+  { value: "Caprinos", label: "Caprinos" },
+  { value: "Aves", label: "Aves" },
 ];
 
 function toIsoDate(value: string): string {
