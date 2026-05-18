@@ -8,6 +8,8 @@ const FRONTEND_PACKAGE_PATH = "frontend/package.json";
 const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
 const SERVICES_PAGE_PATH = "frontend/src/app/servicios/page.tsx";
 const CLINICAS_PAGE_PATH = "frontend/src/app/clinicas/page.tsx";
+const PROFESSIONALS_CONTENT_PATH =
+  "frontend/src/components/public/ProfesionalesSearchContent.tsx";
 const SCROLL_REVEAL_FORBIDDEN_TERMS = [
   "lenis",
   "pinspacing",
@@ -24,7 +26,6 @@ const PUBLIC_FILES_WITHOUT_USAGE = [
   "frontend/src/app/login/page.tsx",
   "frontend/src/components/public/ContactoContent.tsx",
   "frontend/src/components/public/ParticularesContent.tsx",
-  "frontend/src/components/public/ProfesionalesSearchContent.tsx",
 ];
 
 const PUBLIC_FILES_WITHOUT_GSAP_IMPORT = [
@@ -136,6 +137,19 @@ test("clinicas page imports and uses PublicScrollReveal for controlled rollout",
   assert.ok(source.includes("data-scroll-reveal-item"));
 });
 
+test("profesionales content imports and uses PublicScrollReveal for controlled rollout", () => {
+  const source = read(PROFESSIONALS_CONTENT_PATH);
+
+  assert.ok(
+    source.includes(
+      'import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";',
+    ),
+  );
+  assert.ok(source.includes("<PublicScrollReveal"));
+  assert.ok(source.includes('variant="section"'));
+  assert.equal(source.includes("staggerChildren"), false);
+});
+
 test("home page does not import gsap or ScrollTrigger directly", () => {
   const source = read(HOME_PAGE_PATH);
 
@@ -169,6 +183,17 @@ test("clinicas page does not import gsap or ScrollTrigger directly", () => {
   assert.equal(source.includes("from 'gsap/ScrollTrigger'"), false);
 });
 
+test("profesionales content does not import gsap or ScrollTrigger directly", () => {
+  const source = read(PROFESSIONALS_CONTENT_PATH);
+
+  assert.equal(
+    source.includes('from "gsap"') || source.includes("from 'gsap'"),
+    false,
+  );
+  assert.equal(source.includes('from "gsap/ScrollTrigger"'), false);
+  assert.equal(source.includes("from 'gsap/ScrollTrigger'"), false);
+});
+
 test("home keeps hero and hero image untouched by PublicScrollReveal", () => {
   const source = read(HOME_PAGE_PATH);
   const heroMatch = source.match(
@@ -186,9 +211,9 @@ test("home keeps hero and hero image untouched by PublicScrollReveal", () => {
   );
 });
 
-test("home, services, clinicas and reveal infrastructure do not include advanced scroll effects", () => {
+test("home, services, clinicas, profesionales content and reveal infrastructure do not include advanced scroll effects", () => {
   const combinedSource =
-    `${read(COMPONENT_PATH)}\n${read(HOME_PAGE_PATH)}\n${read(SERVICES_PAGE_PATH)}\n${read(CLINICAS_PAGE_PATH)}`.toLowerCase();
+    `${read(COMPONENT_PATH)}\n${read(HOME_PAGE_PATH)}\n${read(SERVICES_PAGE_PATH)}\n${read(CLINICAS_PAGE_PATH)}\n${read(PROFESSIONALS_CONTENT_PATH)}`.toLowerCase();
 
   for (const forbiddenTerm of SCROLL_REVEAL_FORBIDDEN_TERMS) {
     assert.equal(
