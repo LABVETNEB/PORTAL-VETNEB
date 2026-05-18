@@ -18,6 +18,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
+      url: `${SITE_URL}/laboratorio-patologico-veterinario`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.89,
+    },
+    {
       url: `${SITE_URL}/histopatologia-veterinaria`,
       lastModified: now,
       changeFrequency: "monthly",
@@ -55,4 +61,3 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 }
-
