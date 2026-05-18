@@ -36,6 +36,8 @@ const serviceCategories = [
     title: "Estudio anatomopatológico de tejidos",
     icon: Microscope,
     tone: "blue" as const,
+    href: "/histopatologia-veterinaria",
+    linkLabel: "Ver histopatología veterinaria",
     description:
       "Evaluación de tejidos y órganos para estudiar motivos, desarrollo y consecuencias de enfermedades en pacientes veterinarios.",
     features: [
@@ -52,6 +54,8 @@ const serviceCategories = [
     title: "Estudio citológico de muestras",
     icon: FlaskConical,
     tone: "emerald" as const,
+    href: "/citologia-veterinaria",
+    linkLabel: "Ver citología veterinaria",
     description:
       "Análisis citológico de líquidos y punciones para valorar alteraciones celulares con un enfoque clínico-patológico.",
     features: [
@@ -68,6 +72,8 @@ const serviceCategories = [
     title: "Tinciones especiales aplicadas",
     icon: Sparkles,
     tone: "amber" as const,
+    href: "/laboratorio-patologico-veterinario",
+    linkLabel: "Ver laboratorio patológico veterinario",
     description:
       "Aplicación de tinciones especiales para ampliar hallazgos histológicos y reforzar diagnósticos diferenciales.",
     features: [
@@ -84,6 +90,8 @@ const serviceCategories = [
     title: "Diagnóstico integral interdisciplinario",
     icon: Network,
     tone: "slate" as const,
+    href: "/laboratorio-patologico-veterinario",
+    linkLabel: "Ver laboratorio patológico veterinario",
     description:
       "Integración del análisis histológico y citológico con información clínica para construir un diagnóstico específico por paciente.",
     features: [
@@ -100,6 +108,8 @@ const serviceCategories = [
     title: "Informes y seguimiento",
     icon: MonitorCheck,
     tone: "blue" as const,
+    href: "/informes-veterinarios",
+    linkLabel: "Ver informes veterinarios",
     description:
       "Entrega y seguimiento de informes con comunicación continua para clínicas y profesionales durante todo el proceso diagnóstico.",
     features: [
@@ -179,6 +189,12 @@ export default function ServiciosPage() {
                   >
                     Ver citología veterinaria
                   </Link>
+                  <Link
+                    href="/informes-veterinarios"
+                    className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
+                  >
+                    Ver informes veterinarios
+                  </Link>
                 </div>
               </div>
             </PublicScrollReveal>
@@ -203,49 +219,50 @@ export default function ServiciosPage() {
                           : ""
                       }
                     >
-                      <Card id={service.id} className="premium-card h-full">
-                        <CardHeader>
-                          <VisualIcon
-                            icon={service.icon}
-                            tone={service.tone}
-                            className="mb-2"
-                          />
-                          <CardTitle id={serviceHeadingId} className="text-xl text-vetneb-ink">
-                            {service.title}
-                          </CardTitle>
-                          <CardDescription className="public-copy-tight text-sm text-muted-foreground">
-                            {service.description}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <ul className="space-y-2.5">
-                            {service.features.map((feature) => (
-                              <li key={feature} className="flex items-start gap-2">
-                                <span
-                                  className="mt-0.5 text-primary font-bold text-xs"
-                                  aria-hidden="true"
-                                >
-                                  →
-                                </span>
-                                <span className="text-sm text-muted-foreground">
-                                  {feature}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                          {service.id === "informes" ? (
-                            <div className="mt-5">
-                              <Link
-                                href="/informes-veterinarios"
-                                className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
-                              >
-                                Ver informes veterinarios
-                              </Link>
+                      <Link
+                        href={service.href}
+                        className="group block h-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        aria-labelledby={serviceHeadingId}
+                      >
+                        <Card
+                          id={service.id}
+                          className="premium-card h-full"
+                        >
+                          <CardHeader>
+                            <VisualIcon
+                              icon={service.icon}
+                              tone={service.tone}
+                              className="mb-2"
+                            />
+                            <CardTitle id={serviceHeadingId} className="text-xl text-vetneb-ink">
+                              {service.title}
+                            </CardTitle>
+                            <CardDescription className="public-copy-tight text-sm text-muted-foreground">
+                              {service.description}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <ul className="space-y-2.5">
+                              {service.features.map((feature) => (
+                                <li key={feature} className="flex items-start gap-2">
+                                  <span
+                                    className="mt-0.5 text-primary font-bold text-xs"
+                                    aria-hidden="true"
+                                  >
+                                    →
+                                  </span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {feature}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="mt-5 text-sm font-semibold text-primary underline underline-offset-4 transition group-hover:text-vetneb-teal">
+                              {service.linkLabel}
                             </div>
-                          ) : null}
-                        </CardContent>
-                      </Card>
-                    </article>
+                          </CardContent>
+                        </Card>
+                      </Link>                    </article>
                   );
                 })}
               </div>
