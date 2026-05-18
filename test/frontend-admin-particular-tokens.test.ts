@@ -11,6 +11,17 @@ const ADMIN_SIDEBAR_PATH =
 const API_PATH = "frontend/src/lib/api.ts";
 const CLINIC_CARD_PATH =
   "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx";
+const EXPECTED_SPECIES_OPTIONS = [
+  "Caninos",
+  "Felinos",
+  "Exóticos",
+  "Bovinos",
+  "Equinos",
+  "Porcinos",
+  "Ovinos",
+  "Caprinos",
+  "Aves",
+] as const;
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -81,4 +92,51 @@ test("clinic token generator remains clinic-scoped and separate from admin gener
   assert.ok(admin.includes("createAdminParticularToken"));
   assert.ok(admin.includes("getAdminParticularTokens"));
   assert.equal(admin.includes("createClinicParticularToken"), false);
+});
+
+test("admin and clinic token forms keep normalized sex and species options", () => {
+  const admin = read(ADMIN_CARD_PATH);
+  const clinic = read(CLINIC_CARD_PATH);
+
+  for (const [context, source] of [
+    ["admin", admin],
+    ["clinic", clinic],
+  ] as const) {
+    assert.equal(
+      source.includes('value: "", label: "Seleccionar sexo"'),
+      false,
+      `${context} form must not include selectable sex placeholder`,
+    );
+    assert.equal(
+      source.includes('value: "No informado", label: "No informado"'),
+      false,
+      `${context} form must not include "No informado" sex option`,
+    );
+    assert.equal(
+      source.includes('value: "", label: "Seleccionar especie"'),
+      false,
+      `${context} form must not include selectable species placeholder`,
+    );
+    assert.equal(source.includes('value: "Canina", label: "Canina"'), false);
+    assert.equal(source.includes('value: "Felina", label: "Felina"'), false);
+    assert.equal(source.includes('value: "Equina", label: "Equina"'), false);
+    assert.equal(source.includes('value: "Otra", label: "Otra"'), false);
+
+    assert.ok(source.includes('value: "Macho", label: "Macho"'));
+    assert.ok(source.includes('value: "Hembra", label: "Hembra"'));
+    assert.ok(source.includes('petSex: "Macho"'));
+    assert.ok(source.includes('petSpecies: "Caninos"'));
+
+    let previousIndex = -1;
+    for (const species of EXPECTED_SPECIES_OPTIONS) {
+      const marker = `value: "${species}", label: "${species}"`;
+      const index = source.indexOf(marker);
+      assert.ok(index !== -1, `${context} form must include ${species}`);
+      assert.ok(
+        index > previousIndex,
+        `${context} form must keep species order for ${species}`,
+      );
+      previousIndex = index;
+    }
+  }
 });

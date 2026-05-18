@@ -250,11 +250,6 @@ export function ParticularesContent() {
               ) : session ? (
                 <div className="space-y-5">
                   <div className="clinical-muted-band rounded-lg p-4">
-                    <div className="mb-3">
-                      <span className="clinical-pill px-2 py-0.5 text-[0.65rem] tracking-[0.08em]">
-                        Resumen de caso
-                      </span>
-                    </div>
                     <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                       <div className="surface-soft px-3 py-2.5">
                         <dt className="flex items-center gap-1.5 font-medium text-muted-foreground">
@@ -367,9 +362,9 @@ export function ParticularesContent() {
 
                   <Button
                     type="button"
-                    variant="secondary"
+                    variant="outline"
                     onClick={handleLogout}
-                    className="public-cta-secondary"
+                    className="public-cta-outline"
                   >
                     <LogOut className="h-4 w-4" aria-hidden="true" />
                     Cerrar sesión particular

@@ -36,3 +36,14 @@ test("particulares content surfaces refreshSession fetch failures instead of sil
   assert.ok(source.includes("setIsCheckingSession(false);"));
   assert.ok(source.includes('role="alert"'));
 });
+
+test("particulares content keeps neutral logout control and removes resumen label", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(source.includes("Cerrar sesión particular"));
+  assert.ok(source.includes("variant=\"outline\""));
+  assert.ok(source.includes("className=\"public-cta-outline\""));
+  assert.equal(source.includes("variant=\"secondary\""), false);
+  assert.equal(source.includes("className=\"public-cta-secondary\""), false);
+  assert.equal(source.includes("Resumen de caso"), false);
+});
