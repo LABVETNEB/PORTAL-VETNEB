@@ -66,6 +66,8 @@ test("contacto content keeps clinic onboarding guidance visible", () => {
   assert.ok(source.includes("configurar su acceso"));
   assert.ok(source.includes("Nombre de la clínica (opcional)"));
   assert.ok(source.includes("Describa su consulta o solicitud de acceso"));
+  assert.equal(source.includes("Solicitar integración clínica"), false);
+  assert.equal(source.includes("ArrowRight"), false);
 });
 
 test("contacto page remains public and does not expose private route literals", () => {
