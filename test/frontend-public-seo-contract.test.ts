@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 
@@ -11,6 +11,8 @@ const HOME_PATH = "frontend/src/app/page.tsx";
 const SERVICIOS_PATH = "frontend/src/app/servicios/page.tsx";
 const CLINICAS_PATH = "frontend/src/app/clinicas/page.tsx";
 const PROFESIONALES_PATH = "frontend/src/app/profesionales/page.tsx";
+const PROFESIONALES_DYNAMIC_PROFILE_PATH =
+  "frontend/src/app/profesionales/[clinicId]/page.tsx";
 const CONTACTO_PATH = "frontend/src/app/contacto/page.tsx";
 const PRECIOS_PATH = "frontend/src/app/precios/page.tsx";
 const PARTICULARES_PATH = "frontend/src/app/particulares/page.tsx";
@@ -109,10 +111,11 @@ test("professionals public page exposes verifiable structured data", () => {
 
   assert.ok(seoSource.includes("export function getProfessionalsPageJsonLd()"));
   assert.ok(seoSource.includes('"@type": "BreadcrumbList"'));
-  assert.ok(seoSource.includes('"@type": "SearchResultsPage"'));
+  assert.ok(seoSource.includes('"@type": ["WebPage", "SearchResultsPage"]'));
   assert.ok(seoSource.includes('const pageUrl = buildCanonicalUrl("/profesionales");'));
   assert.ok(seoSource.includes("const breadcrumbId = `${pageUrl}#breadcrumb`;"));
   assert.ok(seoSource.includes("const searchPageId = `${pageUrl}#search-results-page`;"));
+  assert.ok(seoSource.includes("const searchActionTarget = `${pageUrl}?q={search_term_string}`;"));
   assert.ok(seoSource.includes('name: "Inicio"'));
   assert.ok(seoSource.includes('name: "Profesionales"'));
   assert.ok(seoSource.includes("item: SITE_URL"));
@@ -120,6 +123,10 @@ test("professionals public page exposes verifiable structured data", () => {
   assert.ok(seoSource.includes('"@id": websiteId'));
   assert.ok(seoSource.includes('"@id": organizationId'));
   assert.ok(seoSource.includes('"@id": breadcrumbId'));
+  assert.ok(seoSource.includes('"@type": "SearchAction"'));
+  assert.ok(seoSource.includes('"@type": "EntryPoint"'));
+  assert.ok(seoSource.includes("urlTemplate: searchActionTarget"));
+  assert.ok(seoSource.includes('"query-input": "required name=search_term_string"'));
 
   assert.ok(
     profesionalesSource.includes(
@@ -147,9 +154,26 @@ test("professionals structured data avoids unverifiable result entities", () => 
   assert.equal(combined.includes('"@type": "ItemList"'), false);
   assert.equal(combined.includes("AggregateRating"), false);
   assert.equal(combined.includes('"@type": "Review"'), false);
+  assert.equal(combined.includes('"@type": "LocalBusiness"'), false);
+  assert.equal(combined.includes('"@type": "VeterinaryCare"'), false);
   assert.equal(combined.includes("openingHours"), false);
   assert.equal(combined.includes("GeoCoordinates"), false);
   assert.equal(combined.includes("PostalAddress"), false);
+});
+
+test("professionals structured data stays page-level without public profile route", () => {
+  const seoSource = read(SEO_PATH);
+  const profesionalesSource = read(PROFESIONALES_PATH);
+  const combined = `${seoSource}\n${profesionalesSource}`;
+
+  assert.equal(
+    existsSync(resolve(process.cwd(), PROFESIONALES_DYNAMIC_PROFILE_PATH)),
+    false,
+  );
+  assert.equal(combined.includes("getPublicProfessional"), false);
+  assert.equal(combined.includes("/api/public/professionals/"), false);
+  assert.ok(combined.includes('"@type": ["WebPage", "SearchResultsPage"]'));
+  assert.ok(combined.includes('"@type": "SearchAction"'));
 });
 
 test("institutional JSON-LD avoids fake rating/review schema", () => {
@@ -172,4 +196,3 @@ test("server SEO files avoid client-only window/document usage", () => {
   assert.equal(combined.includes("window."), false);
   assert.equal(combined.includes("document."), false);
 });
-
