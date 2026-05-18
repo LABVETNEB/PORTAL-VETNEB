@@ -162,6 +162,12 @@ export default function ServiciosPage() {
                 </p>
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                   <Link
+                    href="/laboratorio-patologico-veterinario"
+                    className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
+                  >
+                    Ver laboratorio patológico veterinario
+                  </Link>
+                  <Link
                     href="/histopatologia-veterinaria"
                     className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
                   >
