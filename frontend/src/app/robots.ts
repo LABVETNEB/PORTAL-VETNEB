@@ -6,8 +6,15 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/servicios", "/profesionales", "/clinicas", "/contacto"],
-        disallow: ["/dashboard/", "/login", "/api/"],
+        allow: [
+          "/",
+          "/servicios",
+          "/clinicas",
+          "/profesionales",
+          "/contacto",
+          "/precios",
+        ],
+        disallow: ["/dashboard", "/api"],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,
