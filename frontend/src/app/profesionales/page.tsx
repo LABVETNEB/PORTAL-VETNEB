@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { ProfesionalesSearchContent } from "@/components/public/ProfesionalesSearchContent";
 import { createPageMetadata } from "@/lib/seo";
+import { getProfessionalsPageJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata(
   "Red de Profesionales Veterinarios",
@@ -11,9 +12,20 @@ export const metadata: Metadata = createPageMetadata(
 );
 
 export default function ProfesionalesPage() {
+  const professionalsPageJsonLd = getProfessionalsPageJsonLd();
+
   return (
-    <Suspense fallback={null}>
-      <ProfesionalesSearchContent />
-    </Suspense>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(professionalsPageJsonLd),
+        }}
+      />
+      <Suspense fallback={null}>
+        <ProfesionalesSearchContent />
+      </Suspense>
+    </>
   );
 }
+

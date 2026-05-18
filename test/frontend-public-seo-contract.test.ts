@@ -103,6 +103,55 @@ test("public pages use metadata helper with stable canonical routes", () => {
   assert.ok(loginSource.includes("robots: { index: false, follow: false },"));
 });
 
+test("professionals public page exposes verifiable structured data", () => {
+  const seoSource = read(SEO_PATH);
+  const profesionalesSource = read(PROFESIONALES_PATH);
+
+  assert.ok(seoSource.includes("export function getProfessionalsPageJsonLd()"));
+  assert.ok(seoSource.includes('"@type": "BreadcrumbList"'));
+  assert.ok(seoSource.includes('"@type": "SearchResultsPage"'));
+  assert.ok(seoSource.includes('const pageUrl = buildCanonicalUrl("/profesionales");'));
+  assert.ok(seoSource.includes("const breadcrumbId = `${pageUrl}#breadcrumb`;"));
+  assert.ok(seoSource.includes("const searchPageId = `${pageUrl}#search-results-page`;"));
+  assert.ok(seoSource.includes('name: "Inicio"'));
+  assert.ok(seoSource.includes('name: "Profesionales"'));
+  assert.ok(seoSource.includes("item: SITE_URL"));
+  assert.ok(seoSource.includes("item: pageUrl"));
+  assert.ok(seoSource.includes('"@id": websiteId'));
+  assert.ok(seoSource.includes('"@id": organizationId'));
+  assert.ok(seoSource.includes('"@id": breadcrumbId'));
+
+  assert.ok(
+    profesionalesSource.includes(
+      'import { getProfessionalsPageJsonLd } from "@/lib/seo";',
+    ),
+  );
+  assert.ok(
+    profesionalesSource.includes(
+      "const professionalsPageJsonLd = getProfessionalsPageJsonLd();",
+    ),
+  );
+  assert.ok(profesionalesSource.includes('type="application/ld+json"'));
+  assert.ok(
+    profesionalesSource.includes(
+      "__html: JSON.stringify(professionalsPageJsonLd),",
+    ),
+  );
+});
+
+test("professionals structured data avoids unverifiable result entities", () => {
+  const seoSource = read(SEO_PATH);
+  const profesionalesSource = read(PROFESIONALES_PATH);
+  const combined = `${seoSource}\n${profesionalesSource}`;
+
+  assert.equal(combined.includes('"@type": "ItemList"'), false);
+  assert.equal(combined.includes("AggregateRating"), false);
+  assert.equal(combined.includes('"@type": "Review"'), false);
+  assert.equal(combined.includes("openingHours"), false);
+  assert.equal(combined.includes("GeoCoordinates"), false);
+  assert.equal(combined.includes("PostalAddress"), false);
+});
+
 test("institutional JSON-LD avoids fake rating/review schema", () => {
   const source = read(SEO_PATH);
 
@@ -123,3 +172,4 @@ test("server SEO files avoid client-only window/document usage", () => {
   assert.equal(combined.includes("window."), false);
   assert.equal(combined.includes("document."), false);
 });
+

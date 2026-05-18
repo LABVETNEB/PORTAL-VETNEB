@@ -238,3 +238,61 @@ export function getServicesJsonLd() {
     },
   };
 }
+
+// ─── JSON-LD para página pública de profesionales ────────────────────────────
+
+export function getProfessionalsPageJsonLd() {
+  const pageUrl = buildCanonicalUrl("/profesionales");
+  const organizationId = `${SITE_URL}/#organization`;
+  const websiteId = `${SITE_URL}/#website`;
+  const breadcrumbId = `${pageUrl}#breadcrumb`;
+  const searchPageId = `${pageUrl}#search-results-page`;
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "@id": breadcrumbId,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Inicio",
+            item: SITE_URL,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Profesionales",
+            item: pageUrl,
+          },
+        ],
+      },
+      {
+        "@type": "SearchResultsPage",
+        "@id": searchPageId,
+        url: pageUrl,
+        name: "Red de Profesionales Veterinarios",
+        description:
+          "Banco público de profesionales vinculados a VETNEB con búsqueda por texto libre y coincidencias aproximadas.",
+        inLanguage: "es-AR",
+        isPartOf: {
+          "@id": websiteId,
+        },
+        publisher: {
+          "@id": organizationId,
+        },
+        breadcrumb: {
+          "@id": breadcrumbId,
+        },
+        about: [
+          "profesionales veterinarios",
+          "clínicas veterinarias",
+          "laboratorio patológico veterinario",
+          "diagnóstico veterinario",
+        ],
+      },
+    ],
+  };
+}
