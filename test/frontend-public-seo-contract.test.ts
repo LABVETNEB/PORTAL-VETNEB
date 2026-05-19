@@ -155,10 +155,12 @@ test("professionals structured data avoids unverifiable result entities", () => 
   assert.equal(combined.includes("AggregateRating"), false);
   assert.equal(combined.includes('"@type": "Review"'), false);
   assert.equal(combined.includes('"@type": "LocalBusiness"'), false);
+  assert.equal(combined.includes('"@type": "MedicalBusiness"'), false);
   assert.equal(combined.includes('"@type": "VeterinaryCare"'), false);
   assert.equal(combined.includes("openingHours"), false);
   assert.equal(combined.includes("GeoCoordinates"), false);
   assert.equal(combined.includes("PostalAddress"), false);
+  assert.equal(combined.includes("priceRange"), false);
 });
 
 test("professionals structured data stays page-level without public profile route", () => {
@@ -174,6 +176,20 @@ test("professionals structured data stays page-level without public profile rout
   assert.equal(combined.includes("/api/public/professionals/"), false);
   assert.ok(combined.includes('"@type": ["WebPage", "SearchResultsPage"]'));
   assert.ok(combined.includes('"@type": "SearchAction"'));
+});
+
+test("professionals SEO remains static at page-level without server fetch wiring", () => {
+  const seoSource = read(SEO_PATH);
+  const profesionalesSource = read(PROFESIONALES_PATH);
+  const combined = `${seoSource}\n${profesionalesSource}`;
+
+  assert.equal(combined.includes("fetch("), false);
+  assert.equal(combined.includes("searchPublicProfessionals("), false);
+  assert.ok(
+    profesionalesSource.includes(
+      "const professionalsPageJsonLd = getProfessionalsPageJsonLd();",
+    ),
+  );
 });
 
 test("institutional JSON-LD avoids fake rating/review schema", () => {
