@@ -50,5 +50,8 @@ export const DASHBOARD_ROUTES: AppRoute[] = [
 ];
 
 export function isDashboardRoute(pathname: string): boolean {
-  return pathname.startsWith("/dashboard");
+  return (
+    pathname === ROUTES.dashboard ||
+    pathname.startsWith(`${ROUTES.dashboard}/`)
+  );
 }

@@ -67,9 +67,12 @@ test("frontend route registry keeps dashboard route allowlist explicit", () => {
   assert.ok(source.includes("ROUTES.dashboardAdmin,"));
 });
 
-test("frontend route registry identifies dashboard paths by prefix", () => {
+test("frontend route registry identifies only real dashboard routes", () => {
   const source = read(ROUTES_PATH);
 
   assert.ok(source.includes("export function isDashboardRoute(pathname: string): boolean"));
-  assert.ok(source.includes('return pathname.startsWith("/dashboard");'));
+  assert.ok(source.includes("pathname === ROUTES.dashboard"));
+  assert.ok(source.includes("pathname.startsWith(`${ROUTES.dashboard}/`)"));
+  assert.equal(source.includes('pathname.startsWith("/dashboard")'), false);
+  assert.equal(source.includes('return pathname.startsWith("/dashboard");'), false);
 });
