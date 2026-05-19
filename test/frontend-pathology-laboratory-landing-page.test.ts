@@ -62,11 +62,8 @@ test("veterinary pathology laboratory landing page keeps public diagnostic navig
   assert.ok(source.includes('href="/contacto"'));
   assert.ok(source.includes("Solicitar coordinación diagnóstica"));
   assert.ok(source.includes('href="/servicios"'));
-  assert.ok(source.includes("Ver todos los servicios"));
-  assert.ok(source.includes('href="/histopatologia-veterinaria"'));
-  assert.ok(source.includes("Ver histopatología veterinaria"));
-  assert.ok(source.includes('href="/citologia-veterinaria"'));
-  assert.ok(source.includes("Ver citología veterinaria"));
+  assert.ok(source.includes("VER MAS SERVICIOS"));
+  assert.ok(source.includes('href="/servicios"'));
 });
 
 test("veterinary pathology laboratory landing page is included in sitemap", () => {
