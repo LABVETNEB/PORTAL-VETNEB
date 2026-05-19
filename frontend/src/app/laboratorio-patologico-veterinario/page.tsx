@@ -261,9 +261,6 @@ export default function LaboratorioPatologicoVeterinarioPage() {
                         según la muestra recibida y la pregunta diagnóstica del
                         caso.
                       </p>
-                      <div className="mt-5 text-sm font-semibold text-primary underline underline-offset-4">
-                        <span aria-hidden="true">Ver más</span>
-                      </div>
                     </div>
                   </div>
                 </div>

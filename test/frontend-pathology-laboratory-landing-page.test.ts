@@ -109,7 +109,7 @@ test("veterinary pathology laboratory related services card links to public serv
   assert.ok(source.includes('className="sr-only"'));
   assert.ok(source.includes("Ver citología veterinaria"));
   assert.ok(source.includes("Ver servicio patológico veterinario"));
-  assert.ok(source.includes('<span aria-hidden="true">Ver más</span>'));
+  assert.equal(source.includes('<span aria-hidden="true">Ver más</span>'), false);
   assert.ok(source.includes("group-hover:bg-sky-50"));
   assert.ok(source.includes("group-hover:border-sky-300"));
   assert.ok(source.includes("group-hover:shadow-xl"));
@@ -117,4 +117,9 @@ test("veterinary pathology laboratory related services card links to public serv
     source.includes("text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"),
     false,
   );
+});
+test("veterinary pathology laboratory hides redundant visible related services teaser", () => {
+  const source = read(PATHOLOGY_LAB_PAGE_PATH);
+
+  assert.equal(source.includes('<span aria-hidden="true">Ver más</span>'), false);
 });

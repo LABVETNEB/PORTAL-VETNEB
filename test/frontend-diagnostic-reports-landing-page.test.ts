@@ -124,3 +124,9 @@ test("veterinary diagnostic reports landing page avoids unverifiable claims", ()
   assert.equal(source.includes("from \"gsap\""), false);
   assert.equal(source.includes("from 'gsap'"), false);
 });
+test("veterinary diagnostic reports hides redundant visible related service links", () => {
+  const source = read(DIAGNOSTIC_REPORTS_PAGE_PATH);
+
+  assert.equal(source.includes("Ver servicios diagnósticos"), false);
+  assert.equal(source.includes("Ver laboratorio patológico veterinario"), false);
+});
