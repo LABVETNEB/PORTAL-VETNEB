@@ -153,7 +153,8 @@ export function LoginContent() {
                   disabled={isSubmitting}
                   className="h-12 rounded-lg"
                 />
-              </div>              <div>
+              </div>
+              <div>
                 <label htmlFor="password" className="field-label">
                   Contraseña
                 </label>
