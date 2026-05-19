@@ -279,20 +279,6 @@ export default function InformesVeterinariosPage() {
                       citología y técnicas complementarias según la pregunta
                       diagnóstica del caso.
                     </p>
-                    <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                      <Link
-                        href="/servicios"
-                        className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
-                      >
-                        Ver servicios diagnósticos
-                      </Link>
-                      <Link
-                        href="/laboratorio-patologico-veterinario"
-                        className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
-                      >
-                        Ver laboratorio patológico veterinario
-                      </Link>
-                    </div>
                   </div>
                 </div>
               </div>
