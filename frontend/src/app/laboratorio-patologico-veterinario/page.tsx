@@ -242,38 +242,41 @@ export default function LaboratorioPatologicoVeterinarioPage() {
         <section className="py-16" aria-labelledby="pathology-lab-related-heading">
           <div className="container mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal variant="minimal">
-              <div className="clinical-muted-band rounded-lg p-6 clinical-surface-shadow">
-                <div className="flex items-start gap-3">
-                  <VisualIcon icon={Network} tone="slate" className="h-11 w-11 shrink-0 rounded-xl" />
-                  <div>
-                    <h2
-                      id="pathology-lab-related-heading"
-                      className="mb-3 text-xl font-bold text-vetneb-ink"
-                    >
-                      Servicios relacionados
-                    </h2>
-                    <p className="public-copy-tight text-sm text-muted-foreground">
-                      El laboratorio articula histopatología, citología,
-                      citopatología, hematología y evaluación de hemoparásitos
-                      según la muestra recibida y la pregunta diagnóstica del
-                      caso.
-                    </p>
-                    <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                      <Link
-                        href="/citologia-veterinaria"
-                        className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
+              <Link
+                href="/servicios"
+                className="group block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                aria-labelledby="pathology-lab-related-heading"
+              >
+                <div className="clinical-muted-band rounded-lg p-6 clinical-surface-shadow transition-colors duration-200 group-hover:bg-sky-50 group-hover:border-sky-300 group-hover:shadow-xl">
+                  <div className="flex items-start gap-3">
+                    <VisualIcon icon={Network} tone="slate" className="h-11 w-11 shrink-0 rounded-xl" />
+                    <div>
+                      <h2
+                        id="pathology-lab-related-heading"
+                        className="mb-3 text-xl font-bold text-vetneb-ink"
                       >
-                        Ver citología veterinaria
-                      </Link>
-                      <Link
-                        href="/servicios"
-                        className="text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"
-                      >
-                        Ver servicio patológico veterinario
-                      </Link>
+                        Servicios relacionados
+                      </h2>
+                      <p className="public-copy-tight text-sm text-muted-foreground">
+                        El laboratorio articula histopatología, citología,
+                        citopatología, hematología y evaluación de hemoparásitos
+                        según la muestra recibida y la pregunta diagnóstica del
+                        caso.
+                      </p>
+                      <div className="mt-5 text-sm font-semibold text-primary underline underline-offset-4">
+                        <span aria-hidden="true">Ver más</span>
+                      </div>
                     </div>
                   </div>
                 </div>
+              </Link>
+              <div className="sr-only">
+                <Link href="/citologia-veterinaria">
+                  Ver citología veterinaria
+                </Link>
+                <Link href="/servicios">
+                  Ver servicio patológico veterinario
+                </Link>
               </div>
             </PublicScrollReveal>
           </div>

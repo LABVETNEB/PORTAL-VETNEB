@@ -103,3 +103,21 @@ test("veterinary pathology laboratory landing page remains public and verifiable
   assert.equal(source.includes("from \"gsap\""), false);
   assert.equal(source.includes("from 'gsap'"), false);
 });
+
+test("veterinary pathology laboratory related services card links to public services", () => {
+  const source = read(PATHOLOGY_LAB_PAGE_PATH);
+
+  assert.ok(source.includes('aria-labelledby="pathology-lab-related-heading"'));
+  assert.ok(source.includes('href="/servicios"'));
+  assert.ok(source.includes('className="sr-only"'));
+  assert.ok(source.includes("Ver citología veterinaria"));
+  assert.ok(source.includes("Ver servicio patológico veterinario"));
+  assert.ok(source.includes('<span aria-hidden="true">Ver más</span>'));
+  assert.ok(source.includes("group-hover:bg-sky-50"));
+  assert.ok(source.includes("group-hover:border-sky-300"));
+  assert.ok(source.includes("group-hover:shadow-xl"));
+  assert.equal(
+    source.includes("text-sm font-semibold text-primary underline underline-offset-4 hover:text-vetneb-teal"),
+    false,
+  );
+});
