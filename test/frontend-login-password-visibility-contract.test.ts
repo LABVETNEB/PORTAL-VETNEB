@@ -21,6 +21,7 @@ test("login password visibility starts hidden and toggles input type safely", ()
     ),
   );
   assert.ok(source.includes('type={isPasswordVisible ? "text" : "password"}'));
+  assert.ok(source.includes('data-auth-password-input="true"'));
 });
 
 test("login password visibility toggle uses explicit button semantics", () => {
@@ -30,6 +31,8 @@ test("login password visibility toggle uses explicit button semantics", () => {
   assert.ok(
     source.includes("onClick={() => setIsPasswordVisible((current) => !current)}"),
   );
+  assert.ok(source.includes('aria-controls="password"'));
+  assert.ok(source.includes('data-auth-password-visibility-toggle="true"'));
 });
 
 test("login password visibility exposes accessible label and pressed state", () => {
@@ -60,10 +63,13 @@ test("login redirects particular surface requests to the dedicated public route"
   assert.ok(source.includes("router.replace(ROUTES.particulares);"));
 });
 
-test("login particular button delegates to openParticularAccess handler", () => {
+test("login particular access uses native Link navigation contract", () => {
   const source = read(LOGIN_CONTENT_PATH);
 
-  assert.ok(source.includes("onClick={openParticularAccess}"));
-  assert.ok(source.includes("function openParticularAccess() {"));
-  assert.ok(source.includes("router.push(ROUTES.particulares);"));
+  assert.ok(source.includes("<Link"));
+  assert.ok(source.includes("href={ROUTES.particulares}"));
+  assert.ok(source.includes('data-auth-particular-access-link="true"'));
+  assert.ok(source.includes('aria-pressed="false"'));
+  assert.equal(source.includes("openParticularAccess"), false);
+  assert.equal(source.includes("router.push(ROUTES.particulares);"), false);
 });

@@ -102,11 +102,6 @@ export function LoginContent() {
     }
   }
 
-  function openParticularAccess() {
-    setErrorMessage(null);
-    router.push(ROUTES.particulares);
-  }
-
   const clinicSubmitLabel = isSubmitting ? "Iniciando sesión..." : "Iniciar sesión";
 
   return (
@@ -153,18 +148,18 @@ export function LoginContent() {
                 className="rounded-md border border-vetneb-teal/30 bg-card px-3 py-2 text-sm font-medium text-vetneb-ink shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55"
                 disabled={isSubmitting}
                 aria-pressed="true"
+                data-auth-clinic-access-tab="true"
               >
                 Clínicas
               </button>
-              <button
-                type="button"
+              <Link
+                href={ROUTES.particulares}
                 className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55"
-                onClick={openParticularAccess}
-                disabled={isSubmitting}
                 aria-pressed="false"
+                data-auth-particular-access-link="true"
               >
                 Particulares
-              </button>
+              </Link>
             </div>
 
             <form
@@ -199,6 +194,7 @@ export function LoginContent() {
                     id="password"
                     name="password"
                     type={isPasswordVisible ? "text" : "password"}
+                    data-auth-password-input="true"
                     placeholder="••••••••"
                     autoComplete="current-password"
                     required
@@ -214,6 +210,8 @@ export function LoginContent() {
                     disabled={isSubmitting}
                     aria-label={isPasswordVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
                     aria-pressed={isPasswordVisible}
+                    aria-controls="password"
+                    data-auth-password-visibility-toggle="true"
                   >
                     {isPasswordVisible ? (
                       <EyeOff className="h-4 w-4" aria-hidden="true" />

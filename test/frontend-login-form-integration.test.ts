@@ -61,6 +61,16 @@ test("login public page handles loading and error states", () => {
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("disabled={isSubmitting}"));
   assert.ok(source.includes('isSubmitting ? "Iniciando sesión..." : "Iniciar sesión"'));
+  assert.ok(source.includes('data-auth-clinic-access-tab="true"'));
+  assert.ok(source.includes('data-auth-password-input="true"'));
+  assert.ok(source.includes('data-auth-password-visibility-toggle="true"'));
+  assert.ok(source.includes('aria-controls="password"'));
+  assert.ok(
+    source.includes(
+      'aria-label={isPasswordVisible ? "Ocultar contraseña" : "Mostrar contraseña"}',
+    ),
+  );
+  assert.ok(source.includes("aria-pressed={isPasswordVisible}"));
 });
 
 test("API client exposes clinic login contract against backend auth endpoint", () => {
@@ -82,5 +92,9 @@ test("login public page routes particular access away from the clinic login form
   assert.ok(source.includes('const requestedSurface = searchParams.get("tipo") ?? searchParams.get("surface");'));
   assert.ok(source.includes('if (requestedSurface === "particular")'));
   assert.ok(source.includes("router.replace(ROUTES.particulares);"));
-  assert.ok(source.includes("router.push(ROUTES.particulares);"));
+  assert.ok(source.includes("<Link"));
+  assert.ok(source.includes("href={ROUTES.particulares}"));
+  assert.ok(source.includes('data-auth-particular-access-link="true"'));
+  assert.equal(source.includes("openParticularAccess"), false);
+  assert.equal(source.includes("router.push(ROUTES.particulares);"), false);
 });
