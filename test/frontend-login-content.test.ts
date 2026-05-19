@@ -28,7 +28,11 @@ test("frontend login content preserves dashboard next path safely", () => {
   const source = read(LOGIN_CONTENT_PATH);
 
   assert.ok(source.includes("function getSafeNextPath(nextPath: string | null): string"));
-  assert.ok(source.includes('nextPath?.startsWith("/dashboard")'));
+  assert.ok(source.includes("candidate === ROUTES.dashboard"));
+  assert.ok(source.includes("candidate.startsWith(`${ROUTES.dashboard}/`)"));
+  assert.ok(source.includes("candidate.startsWith(`${ROUTES.dashboard}?`)"));
+  assert.ok(source.includes("candidate === ROUTES.dashboardAdmin"));
+  assert.ok(source.includes("candidate.startsWith(`${ROUTES.dashboardAdmin}/`)"));
   assert.ok(source.includes("return ROUTES.dashboard"));
 });
 

@@ -18,11 +18,31 @@ import { loginClinic } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 
 function getSafeNextPath(nextPath: string | null): string {
-  if (!nextPath?.startsWith("/dashboard")) {
+  const candidate = nextPath?.trim();
+
+  if (!candidate) {
     return ROUTES.dashboard;
   }
 
-  return nextPath;
+  if (candidate === ROUTES.dashboard) {
+    return candidate;
+  }
+
+  if (
+    candidate === ROUTES.dashboardAdmin ||
+    candidate.startsWith(`${ROUTES.dashboardAdmin}/`)
+  ) {
+    return ROUTES.dashboard;
+  }
+
+  if (
+    candidate.startsWith(`${ROUTES.dashboard}/`) ||
+    candidate.startsWith(`${ROUTES.dashboard}?`)
+  ) {
+    return candidate;
+  }
+
+  return ROUTES.dashboard;
 }
 
 export function LoginContent() {
