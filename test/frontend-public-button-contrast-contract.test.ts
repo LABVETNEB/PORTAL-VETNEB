@@ -124,7 +124,9 @@ test("login and particulares submit CTAs keep loading semantics and contract cla
   assert.ok(login.includes("aria-busy={isSubmitting}"));
   assert.ok(login.includes('aria-pressed="true"'));
   assert.ok(login.includes('aria-pressed="false"'));
-  assert.ok(login.includes("router.push(ROUTES.particulares);"));
+  assert.ok(login.includes("href={ROUTES.particulares}"));
+  assert.ok(login.includes('data-auth-particular-access-link="true"'));
+  assert.equal(login.includes("router.push(ROUTES.particulares);"), false);
 
   assert.ok(particulares.includes("public-cta-primary w-full"));
   assert.ok(particulares.includes("aria-busy={isSubmitting}"));

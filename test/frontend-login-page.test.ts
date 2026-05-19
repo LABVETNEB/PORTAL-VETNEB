@@ -78,11 +78,14 @@ test("login content exposes public navigation affordances without direct fetch",
   const source = read(LOGIN_CONTENT_PATH);
 
   assert.ok(source.includes("href={ROUTES.home}"));
+  assert.ok(source.includes("href={ROUTES.particulares}"));
+  assert.ok(source.includes('data-auth-particular-access-link="true"'));
   assert.ok(source.includes('aria-label="PORTAL VETNEB — Inicio"'));
   assert.ok(source.includes("¿Su clínica no tiene acceso?"));
   assert.ok(source.includes("href={ROUTES.contacto}"));
   assert.ok(source.includes("Solicite acceso"));
   assert.ok(source.includes("← Volver al sitio público"));
+  assert.equal(source.includes("router.push(ROUTES.particulares);"), false);
   assert.equal(source.includes('"/api"'), false);
   assert.equal(source.includes("fetch("), false);
 });
