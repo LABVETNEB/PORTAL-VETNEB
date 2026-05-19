@@ -59,6 +59,23 @@ test("sanitizeUrlForLogs redacts public report path token and sensitive query to
   assert.doesNotMatch(sanitized, new RegExp(rawQueryToken));
   assert.doesNotMatch(sanitized, new RegExp(rawReportAccessToken));
 });
+
+test("sanitizeUrlForLogs redacts repeated sensitive params while preserving safe interleaved params", () => {
+  const rawUrl =
+    "/api/public/report-access/path-secret?safe=1&token=query-secret-a&reportAccessToken=report-secret-a&token=query-secret-b&other=ok&reportAccessToken=report-secret-b";
+  const sanitized = sanitizeUrlForLogs(rawUrl);
+
+  assert.equal(
+    sanitized,
+    "/api/public/report-access/[REDACTED]?safe=1&token=[REDACTED]&reportAccessToken=[REDACTED]&token=[REDACTED]&other=ok&reportAccessToken=[REDACTED]",
+  );
+  assert.doesNotMatch(sanitized, /path-secret/);
+  assert.doesNotMatch(sanitized, /query-secret-a/);
+  assert.doesNotMatch(sanitized, /query-secret-b/);
+  assert.doesNotMatch(sanitized, /report-secret-a/);
+  assert.doesNotMatch(sanitized, /report-secret-b/);
+});
+
 test("sanitizeUrlForLogs preserva fragments mientras redacts token query params", () => {
   const rawUrl = "/api/anything?token=abc123#section-2";
   const sanitized = sanitizeUrlForLogs(rawUrl);
