@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { loginClinic } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 
+const SAFE_LOGIN_REDIRECT_ORIGIN = "https://portal.vetneb.local";
+
 function getSafeNextPath(nextPath: string | null): string {
   const candidate = nextPath?.trim();
 
@@ -24,22 +26,36 @@ function getSafeNextPath(nextPath: string | null): string {
     return ROUTES.dashboard;
   }
 
-  if (candidate === ROUTES.dashboard) {
-    return candidate;
+  if (candidate.startsWith("//")) {
+    return ROUTES.dashboard;
   }
 
+  let parsedNextPath: URL;
+
+  try {
+    parsedNextPath = new URL(candidate, SAFE_LOGIN_REDIRECT_ORIGIN);
+  } catch {
+    return ROUTES.dashboard;
+  }
+
+  if (parsedNextPath.origin !== SAFE_LOGIN_REDIRECT_ORIGIN) {
+    return ROUTES.dashboard;
+  }
+
+  const pathname = parsedNextPath.pathname;
+
   if (
-    candidate === ROUTES.dashboardAdmin ||
-    candidate.startsWith(`${ROUTES.dashboardAdmin}/`)
+    parsedNextPath.pathname === ROUTES.dashboardAdmin ||
+    parsedNextPath.pathname.startsWith(`${ROUTES.dashboardAdmin}/`)
   ) {
     return ROUTES.dashboard;
   }
 
   if (
-    candidate.startsWith(`${ROUTES.dashboard}/`) ||
-    candidate.startsWith(`${ROUTES.dashboard}?`)
+    pathname === ROUTES.dashboard ||
+    pathname.startsWith(`${ROUTES.dashboard}/`)
   ) {
-    return candidate;
+    return `${pathname}${parsedNextPath.search}`;
   }
 
   return ROUTES.dashboard;
