@@ -40,12 +40,24 @@ try {
         services_text text,
         email varchar(255),
         phone varchar(50),
+        public_address varchar(160),
+        map_link varchar(2048),
         locality varchar(255),
         country varchar(255),
         is_public boolean NOT NULL DEFAULT false,
         created_at timestamp NOT NULL DEFAULT now(),
         updated_at timestamp NOT NULL DEFAULT now()
       );
+    `);
+
+    await tx.unsafe(`
+      ALTER TABLE clinic_public_profiles
+      ADD COLUMN IF NOT EXISTS public_address varchar(160);
+    `);
+
+    await tx.unsafe(`
+      ALTER TABLE clinic_public_profiles
+      ADD COLUMN IF NOT EXISTS map_link varchar(2048);
     `);
 
     await tx.unsafe(`
@@ -73,12 +85,24 @@ try {
         services_text text,
         email varchar(255),
         phone varchar(50),
+        public_address varchar(160),
+        map_link varchar(2048),
         locality varchar(255),
         country varchar(255),
         is_public boolean NOT NULL DEFAULT false,
         search_text text NOT NULL,
         updated_at timestamp NOT NULL DEFAULT now()
       );
+    `);
+
+    await tx.unsafe(`
+      ALTER TABLE clinic_public_search
+      ADD COLUMN IF NOT EXISTS public_address varchar(160);
+    `);
+
+    await tx.unsafe(`
+      ALTER TABLE clinic_public_search
+      ADD COLUMN IF NOT EXISTS map_link varchar(2048);
     `);
 
     await tx.unsafe(`
@@ -163,6 +187,8 @@ try {
         services_text,
         email,
         phone,
+        public_address,
+        map_link,
         locality,
         country,
         is_public,
@@ -181,6 +207,8 @@ try {
         NULL,
         c.contact_email,
         c.contact_phone,
+        NULL,
+        NULL,
         NULL,
         NULL,
         false,
@@ -281,16 +309,29 @@ try {
 
   const checks = await sql.unsafe(`
     SELECT
+      table_name,
       column_name
     FROM information_schema.columns
     WHERE table_schema = 'public'
-      AND table_name = 'clinic_public_search'
-      AND column_name IN (
-        'has_required_public_fields',
-        'is_search_eligible',
-        'profile_quality_score'
+      AND (
+        (
+          table_name = 'clinic_public_search'
+          AND column_name IN (
+            'has_required_public_fields',
+            'is_search_eligible',
+            'profile_quality_score',
+            'public_address',
+            'map_link'
+          )
+        ) OR (
+          table_name = 'clinic_public_profiles'
+          AND column_name IN (
+            'public_address',
+            'map_link'
+          )
+        )
       )
-    ORDER BY column_name;
+    ORDER BY table_name, column_name;
   `);
 
   const tables = await sql.unsafe(`
