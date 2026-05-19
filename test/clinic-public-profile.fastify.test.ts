@@ -357,6 +357,44 @@ test(
         error: "El enlace a mapa debe usar https://.",
       });
 
+      const insecureHttpProtocol = await app.inject({
+        method: "PATCH",
+        url: "/api/clinic/profile",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          mapLink: "http://maps.google.com/?q=rosario",
+        },
+      });
+
+      assert.equal(insecureHttpProtocol.statusCode, 400);
+      assert.deepEqual(JSON.parse(insecureHttpProtocol.body), {
+        success: false,
+        error: "El enlace a mapa debe usar https://.",
+      });
+
+      const insecureDataProtocol = await app.inject({
+        method: "PATCH",
+        url: "/api/clinic/profile",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          mapLink: "data:text/html,<b>mapa</b>",
+        },
+      });
+
+      assert.equal(insecureDataProtocol.statusCode, 400);
+      assert.deepEqual(JSON.parse(insecureDataProtocol.body), {
+        success: false,
+        error: "El enlace a mapa debe usar https://.",
+      });
+
       const invalidHost = await app.inject({
         method: "PATCH",
         url: "/api/clinic/profile",
@@ -407,6 +445,29 @@ test(
     const app = await createTestApp();
 
     try {
+      const invalidGifPayload = buildMultipartAvatarPayload({
+        fileName: "avatar.gif",
+        mimeType: "image/gif",
+        fileContent: Buffer.from("GIF89a", "ascii"),
+      });
+
+      const invalidGifResponse = await app.inject({
+        method: "POST",
+        url: "/api/clinic/profile/avatar",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": `multipart/form-data; boundary=${invalidGifPayload.boundary}`,
+        },
+        payload: invalidGifPayload.payload,
+      });
+
+      assert.equal(invalidGifResponse.statusCode, 400);
+      assert.deepEqual(JSON.parse(invalidGifResponse.body), {
+        success: false,
+        error: "La imagen debe ser JPG, PNG o WebP.",
+      });
+
       const invalidMimePayload = buildMultipartAvatarPayload({
         fileName: "avatar.svg",
         mimeType: "image/svg+xml",
