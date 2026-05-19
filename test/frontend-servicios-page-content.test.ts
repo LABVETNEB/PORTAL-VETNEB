@@ -104,6 +104,22 @@ test("servicios page hides service link typography while keeping link semantics"
   assert.ok(source.includes("<span"));
   assert.ok(source.includes("{service.linkLabel}"));
   assert.ok(source.includes("hover:[&_.premium-card]:bg-sky-50"));
-  assert.ok(source.includes("hover:[&_.premium-card]:border-sky-200"));
+  assert.ok(source.includes("hover:[&_.premium-card]:border-sky-300"));
+  assert.ok(source.includes("hover:[&_.premium-card]:shadow-xl"));
   assert.equal(source.includes("group-hover:text-vetneb-teal"), false);
+});
+
+test("servicios page shows unified card CTA while preserving hidden SEO labels", () => {
+  const source = read(SERVICIOS_PAGE_PATH);
+
+  assert.ok(source.includes("<span aria-hidden=\"true\">Ver más</span>"));
+  assert.ok(source.includes("{service.linkLabel}"));
+  assert.ok(source.includes('className="sr-only"'));
+  assert.ok(source.includes("hover:[&_.premium-card]:bg-sky-50"));
+  assert.ok(source.includes("hover:[&_.premium-card]:border-sky-300"));
+  assert.ok(source.includes("hover:[&_.premium-card]:shadow-xl"));
+  assert.equal(source.includes("Ver laboratorio patológico veterinario</div>"), false);
+  assert.equal(source.includes("Ver histopatología veterinaria</div>"), false);
+  assert.equal(source.includes("Ver citología veterinaria</div>"), false);
+  assert.equal(source.includes("Ver informes veterinarios</div>"), false);
 });
