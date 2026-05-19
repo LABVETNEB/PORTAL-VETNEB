@@ -221,7 +221,7 @@ export default function ServiciosPage() {
                     >
                       <Link
                         href={service.href}
-                        className="group block h-full rounded-lg transition duration-200 [&_.premium-card]:transition-colors [&_.premium-card]:duration-200 hover:[&_.premium-card]:bg-sky-50 hover:[&_.premium-card]:border-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        className="group block h-full rounded-lg transition duration-200 [&_.premium-card]:transition-colors [&_.premium-card]:duration-200 hover:[&_.premium-card]:bg-sky-50 hover:[&_.premium-card]:border-sky-300 hover:[&_.premium-card]:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                         aria-labelledby={serviceHeadingId}
                       >
                         <Card
@@ -257,8 +257,11 @@ export default function ServiciosPage() {
                                 </li>
                               ))}
                             </ul>
-                            <div className="mt-5 text-sm font-semibold text-primary underline underline-offset-4 transition ">
-                              {service.linkLabel}
+                            <div className="mt-5 text-sm font-semibold text-primary underline underline-offset-4">
+                              <span className="sr-only">
+                                {service.linkLabel}
+                              </span>
+                              <span aria-hidden="true">Ver más</span>
                             </div>
                           </CardContent>
                         </Card>
