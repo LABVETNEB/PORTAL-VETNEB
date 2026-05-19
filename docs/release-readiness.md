@@ -12,6 +12,8 @@ evidencias sanitizadas.
   log sanitizado o responsable que valida.
 - No ejecutar comandos destructivos contra produccion sin backup reciente y
   ventana aprobada.
+- Runbook PowerShell de smoke staging/produccion:
+  `docs/staging-smoke-runbook.md`.
 
 ## 1. Variables backend
 
@@ -315,6 +317,9 @@ Remove-Item Env:\SMOKE_PASSWORD
 
 Ejecutar contra staging primero y repetir contra produccion despues del deploy.
 No registrar passwords ni tokens en consola, tickets o capturas.
+Para el flujo accionable PowerShell con captura de status code, errores,
+CORS/cookies, frontend publico, particular/token y avatar/storage, usar
+`docs/staging-smoke-runbook.md`.
 
 Smoke rapido post-deploy:
 
@@ -529,3 +534,4 @@ Completar al cerrar el PR de readiness:
 - [ ] `pnpm build`
 - [ ] `pnpm -C frontend build`
 - [ ] Archivo actualizado: `docs/release-readiness.md`
+- [ ] Archivo actualizado: `docs/staging-smoke-runbook.md`
