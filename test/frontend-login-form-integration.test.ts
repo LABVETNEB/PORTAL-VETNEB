@@ -31,13 +31,18 @@ test("login public page redirects safely after successful authentication", () =>
   const source = read(LOGIN_CONTENT_PATH);
 
   assert.ok(source.includes("function getSafeNextPath(nextPath: string | null): string"));
-  assert.ok(source.includes("candidate === ROUTES.dashboard"));
-  assert.ok(source.includes("candidate.startsWith(`${ROUTES.dashboard}/`)"));
-  assert.ok(source.includes("candidate.startsWith(`${ROUTES.dashboard}?`)"));
-  assert.ok(source.includes("candidate === ROUTES.dashboardAdmin"));
-  assert.ok(source.includes("candidate.startsWith(`${ROUTES.dashboardAdmin}/`)"));
+  assert.ok(source.includes("new URL(candidate, SAFE_LOGIN_REDIRECT_ORIGIN)"));
+  assert.ok(source.includes("const pathname = parsedNextPath.pathname;"));
+  assert.ok(source.includes("parsedNextPath.pathname === ROUTES.dashboardAdmin"));
+  assert.ok(source.includes("parsedNextPath.pathname.startsWith(`${ROUTES.dashboardAdmin}/`)"));
+  assert.ok(source.includes("pathname === ROUTES.dashboard"));
+  assert.ok(source.includes("pathname.startsWith(`${ROUTES.dashboard}/`)"));
+  assert.ok(source.includes("return `${pathname}${parsedNextPath.search}`;"));
+  assert.equal(source.includes("safePath === ROUTES.dashboardAdmin"), false);
+  assert.equal(source.includes("safePath.startsWith(`${ROUTES.dashboardAdmin}/`)"), false);
   assert.ok(source.includes("return ROUTES.dashboard;"));
   assert.equal(source.includes("return nextPath;"), false);
+  assert.equal(source.includes("return candidate;"), false);
   assert.ok(source.includes('router.replace(getSafeNextPath(searchParams.get("next")))'));
   assert.ok(source.includes("router.refresh();"));
 });
