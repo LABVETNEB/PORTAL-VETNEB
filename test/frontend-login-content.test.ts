@@ -69,3 +69,14 @@ test("frontend login content keeps particular token entry on the dedicated publi
   assert.ok(source.includes("router.push(ROUTES.particulares);"));
   assert.ok(source.includes("router.replace(ROUTES.particulares);"));
 });
+test("frontend login content allows toggling clinic password visibility", () => {
+  const source = read(LOGIN_CONTENT_PATH);
+
+  assert.ok(source.includes('import { Eye, EyeOff, ShieldCheck } from "lucide-react"'));
+  assert.ok(source.includes('const [isPasswordVisible, setIsPasswordVisible] = useState(false)'));
+  assert.ok(source.includes('type={isPasswordVisible ? "text" : "password"}'));
+  assert.ok(source.includes('className="h-12 rounded-lg pr-12"'));
+  assert.ok(source.includes('onClick={() => setIsPasswordVisible((current) => !current)}'));
+  assert.ok(source.includes('aria-label={isPasswordVisible ? "Ocultar contraseña" : "Mostrar contraseña"}'));
+  assert.ok(source.includes('aria-pressed={isPasswordVisible}'));
+});
