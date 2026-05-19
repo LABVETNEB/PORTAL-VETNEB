@@ -122,8 +122,9 @@ test("login and particulares submit CTAs keep loading semantics and contract cla
 
   assert.ok(login.includes("public-cta-primary w-full"));
   assert.ok(login.includes("aria-busy={isSubmitting}"));
-  assert.ok(login.includes("aria-pressed={mode === \"clinic\"}"));
-  assert.ok(login.includes("aria-pressed={mode === \"particular\"}"));
+  assert.ok(login.includes('aria-pressed="true"'));
+  assert.ok(login.includes('aria-pressed="false"'));
+  assert.ok(login.includes("router.push(ROUTES.particulares);"));
 
   assert.ok(particulares.includes("public-cta-primary w-full"));
   assert.ok(particulares.includes("aria-busy={isSubmitting}"));

@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { KeyRound, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 import {
   Card,
@@ -15,10 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { loginClinic } from "@/lib/api";
-import { loginParticular } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
-
-type LoginMode = "clinic" | "particular";
 
 function getSafeNextPath(nextPath: string | null): string {
   if (!nextPath?.startsWith("/dashboard")) {
@@ -28,21 +25,20 @@ function getSafeNextPath(nextPath: string | null): string {
   return nextPath;
 }
 
-function getInitialLoginMode(value: string | null): LoginMode {
-  return value === "particular" ? "particular" : "clinic";
-}
-
 export function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [mode, setMode] = useState<LoginMode>(() =>
-    getInitialLoginMode(searchParams.get("tipo") ?? searchParams.get("surface")),
-  );
+  const requestedSurface = searchParams.get("tipo") ?? searchParams.get("surface");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [token, setToken] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (requestedSurface === "particular") {
+      router.replace(ROUTES.particulares);
+    }
+  }, [requestedSurface, router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -55,13 +51,6 @@ export function LoginContent() {
     setIsSubmitting(true);
 
     try {
-      if (mode === "particular") {
-        await loginParticular({ token });
-        router.replace(ROUTES.particulares);
-        router.refresh();
-        return;
-      }
-
       await loginClinic({ username, password });
       router.replace(getSafeNextPath(searchParams.get("next")));
       router.refresh();
@@ -76,16 +65,18 @@ export function LoginContent() {
     }
   }
 
-  function selectMode(nextMode: LoginMode) {
-    setMode(nextMode);
+  function openParticularAccess() {
     setErrorMessage(null);
+    router.push(ROUTES.particulares);
   }
 
   const clinicSubmitLabel = isSubmitting ? "Iniciando sesión..." : "Iniciar sesión";
 
   return (
-    <div className="min-h-screen public-page-canvas flex items-center justify-center p-4"
-      data-auth-login-polish="true">
+    <div
+      className="min-h-screen public-page-canvas flex items-center justify-center p-4"
+      data-auth-login-polish="true"
+    >
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link
@@ -102,15 +93,13 @@ export function LoginContent() {
           </p>
         </div>
 
-        <Card className="border border-vetneb-line/80 bg-card/95 shadow-[0_18px_52px_rgba(15,45,62,0.12)]"
-          data-auth-login-card="true">
+        <Card
+          className="border border-vetneb-line/80 bg-card/95 shadow-[0_18px_52px_rgba(15,45,62,0.12)]"
+          data-auth-login-card="true"
+        >
           <CardHeader className="pb-4 text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg border border-vetneb-cyan/25 bg-vetneb-cyan/10 text-vetneb-navy ring-1 ring-vetneb-cyan/20">
-              {mode === "particular" ? (
-                <KeyRound className="h-5 w-5" aria-hidden="true" />
-              ) : (
-                <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-              )}
+              <ShieldCheck className="h-5 w-5" aria-hidden="true" />
             </div>
             <CardTitle className="text-xl">Iniciar sesión</CardTitle>
             <CardDescription>
@@ -124,27 +113,18 @@ export function LoginContent() {
             >
               <button
                 type="button"
-                className={`rounded-md px-3 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55 ${
-                  mode === "clinic"
-                    ? "border border-vetneb-teal/30 bg-card text-vetneb-ink shadow-sm"
-                    : "text-muted-foreground hover:text-vetneb-ink"
-                }`}
-                onClick={() => selectMode("clinic")}
+                className="rounded-md border border-vetneb-teal/30 bg-card px-3 py-2 text-sm font-medium text-vetneb-ink shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55"
                 disabled={isSubmitting}
-                aria-pressed={mode === "clinic"}
+                aria-pressed="true"
               >
                 Clínicas
               </button>
               <button
                 type="button"
-                className={`rounded-md px-3 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55 ${
-                  mode === "particular"
-                    ? "border border-vetneb-teal/30 bg-card text-vetneb-ink shadow-sm"
-                    : "text-muted-foreground hover:text-vetneb-ink"
-                }`}
-                onClick={() => selectMode("particular")}
+                className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55"
+                onClick={openParticularAccess}
                 disabled={isSubmitting}
-                aria-pressed={mode === "particular"}
+                aria-pressed="false"
               >
                 Particulares
               </button>
@@ -155,68 +135,41 @@ export function LoginContent() {
               aria-label="Formulario de inicio de sesión"
               onSubmit={handleSubmit}
             >
-              {mode === "particular" ? (
-                <div>
-                  <label htmlFor="token" className="field-label">
-                    Token de acceso
-                  </label>
-                  <Input
-                    id="token"
-                    name="token"
-                    type="password"
-                    placeholder="Ingrese el token recibido"
-                    autoComplete="one-time-code"
-                    autoFocus
-                    required
-                    value={token}
-                    onChange={(event) => setToken(event.target.value)}
-                    disabled={isSubmitting}
-                    className="h-12 rounded-lg"
-                  />
-                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                    El token habilita una sesión particular limitada al caso
-                    vinculado.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <label htmlFor="username" className="field-label">
-                      Usuario
-                    </label>
-                    <Input
-                      id="username"
-                      name="username"
-                      type="text"
-                      placeholder="nombre_usuario"
-                      autoComplete="username"
-                      autoFocus
-                      required
-                      value={username}
-                      onChange={(event) => setUsername(event.target.value)}
-                      disabled={isSubmitting}
-                      className="h-12 rounded-lg"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="password" className="field-label">
-                      Contraseña
-                    </label>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      placeholder="••••••••"
-                      autoComplete="current-password"
-                      required
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      disabled={isSubmitting}
-                      className="h-12 rounded-lg"
-                    />
-                  </div>
-                </>
-              )}
+              <div>
+                <label htmlFor="username" className="field-label">
+                  Usuario
+                </label>
+                <Input
+                  id="username"
+                  name="username"
+                  type="text"
+                  placeholder="nombre_usuario"
+                  autoComplete="username"
+                  autoFocus
+                  required
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  disabled={isSubmitting}
+                  className="h-12 rounded-lg"
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="field-label">
+                  Contraseña
+                </label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  disabled={isSubmitting}
+                  className="h-12 rounded-lg"
+                />
+              </div>
 
               {errorMessage ? (
                 <p
@@ -233,36 +186,20 @@ export function LoginContent() {
                 disabled={isSubmitting}
                 aria-busy={isSubmitting}
               >
-                {mode === "particular"
-                  ? isSubmitting
-                    ? "Iniciando sesión..."
-                    : "Ingresar con token"
-                  : clinicSubmitLabel}
+                {clinicSubmitLabel}
               </Button>
             </form>
 
             <div className="mt-6 rounded-lg border border-vetneb-cyan/25 bg-vetneb-cyan/10 px-4 py-3 text-center">
-              {mode === "particular" ? (
-                <p className="text-sm text-muted-foreground">
-                  ¿Necesita ayuda con su token?{" "}
-                  <Link
-                    href={ROUTES.contacto}
-                    className="font-medium text-primary hover:underline"
-                  >
-                    Contacte a VETNEB
-                  </Link>
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  ¿Su clínica no tiene acceso?{" "}
-                  <Link
-                    href={ROUTES.contacto}
-                    className="font-medium text-primary hover:underline"
-                  >
-                    Solicite acceso
-                  </Link>
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                ¿Su clínica no tiene acceso?{" "}
+                <Link
+                  href={ROUTES.contacto}
+                  className="font-medium text-primary hover:underline"
+                >
+                  Solicite acceso
+                </Link>
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -276,6 +213,3 @@ export function LoginContent() {
     </div>
   );
 }
-
-
-

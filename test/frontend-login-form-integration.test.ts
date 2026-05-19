@@ -17,7 +17,7 @@ test("login public page submits clinic credentials through the API client", () =
   const source = read(LOGIN_CONTENT_PATH);
 
   assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes('import { FormEvent, useState } from "react";'));
+  assert.ok(source.includes('import { FormEvent, useEffect, useState } from "react";'));
   assert.ok(source.includes('import { useRouter, useSearchParams } from "next/navigation";'));
   assert.ok(source.includes('import { loginClinic } from "@/lib/api";'));
   assert.ok(source.includes("async function handleSubmit"));
@@ -63,4 +63,15 @@ test("API client exposes clinic login contract against backend auth endpoint", (
   assert.ok(source.includes('return apiFetch<AuthUser>("/api/auth/login", {'));
   assert.ok(source.includes('method: "POST",'));
   assert.ok(source.includes("body: JSON.stringify(credentials),"));
+});
+test("login public page routes particular access away from the clinic login form", () => {
+  const source = read(LOGIN_CONTENT_PATH);
+
+  assert.equal(source.includes('import { loginParticular } from "@/lib/api";'), false);
+  assert.equal(source.includes("await loginParticular({ token });"), false);
+  assert.equal(source.includes('const [token, setToken]'), false);
+  assert.ok(source.includes('const requestedSurface = searchParams.get("tipo") ?? searchParams.get("surface");'));
+  assert.ok(source.includes('if (requestedSurface === "particular")'));
+  assert.ok(source.includes("router.replace(ROUTES.particulares);"));
+  assert.ok(source.includes("router.push(ROUTES.particulares);"));
 });
