@@ -17,6 +17,30 @@ evidencias sanitizadas.
 
 Fuente de verdad actual: `.env.example` y `server/lib/env.ts`.
 
+Tabla sin secretos para configurar el runtime backend:
+
+| Variable | Estado release | Default runtime | Fuente/uso |
+|---|---|---:|---|
+| `NODE_ENV` | Obligatoria en prod | `development` | Activa cookies `Secure` y `SameSite=None` cuando vale `production`. |
+| `PORT` | Opcional si el proveedor la inyecta | `3000` | Puerto Fastify. |
+| `SUPABASE_URL` | Obligatoria | - | URL del proyecto Supabase productivo. |
+| `SUPABASE_ANON_KEY` | Obligatoria | - | Key anon; no sustituye la service role. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Obligatoria, solo backend | - | Cliente Supabase server-side y Storage privado. |
+| `SUPABASE_DB_URL` | Obligatoria si no hay `DATABASE_URL` | - | Conexion PostgreSQL usada por runtime, Drizzle y scripts DB. |
+| `DATABASE_URL` | Obligatoria si no hay `SUPABASE_DB_URL` | - | Fallback de conexion PostgreSQL. |
+| `SUPABASE_STORAGE_BUCKET` | Opcional con aprobacion del default | `reports` | Bucket privado para informes y avatars. |
+| `COOKIE_NAME` | Opcional con aprobacion del default | `app_session_id` | Cookie de sesion clinic. |
+| `ADMIN_COOKIE_NAME` | Opcional con aprobacion del default | `admin_session_id` | Cookie de sesion admin. |
+| `PARTICULAR_COOKIE_NAME` | Opcional con aprobacion del default | `particular_session_id` | Cookie de sesion particular. |
+| `CORS_ORIGIN` | Obligatoria para prod | - | Origenes frontend autorizados separados por coma. |
+| `TRUST_PROXY` | Obligatoria de revisar | `1` | `trustProxy` de Fastify; ajustar segun proveedor. |
+| `OWNER_OPEN_ID` | Opcional | `""` | Identificador operativo heredado si aplica. |
+| `LAB_UPLOAD_USERNAMES` | Opcional | `[]` | Lista CSV para permisos operativos heredados si aplica. |
+| `MAX_UPLOAD_FILE_SIZE_MB` | Opcional con aprobacion del default | `20` | Limite de upload de informes/imagenes. |
+| `SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS` | Opcional con aprobacion del default | `900` | Expiracion de signed URLs. |
+| `SESSION_TTL_HOURS` | Opcional con aprobacion del default | `24` | TTL de sesiones. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Condicional | `587`/`false` para puerto/secure | Email se habilita solo si estan todos los campos requeridos. |
+
 ### Requeridas para boot productivo
 
 - [ ] `[BLOCKER]` `NODE_ENV=production`.
@@ -68,26 +92,42 @@ Validar nombres esperados en el entorno local de una shell antes de un smoke:
 $requiredBackend = @(
   "NODE_ENV",
   "SUPABASE_URL",
+  "SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
-  "CORS_ORIGIN",
-  "SUPABASE_STORAGE_BUCKET"
+  "CORS_ORIGIN"
 )
 
-$requiredBackend | ForEach-Object {
+$missingBackend = $requiredBackend | Where-Object {
   if (-not [Environment]::GetEnvironmentVariable($_)) {
-    "MISSING: $_"
+    $_
   }
 }
 
 if (-not [Environment]::GetEnvironmentVariable("SUPABASE_DB_URL") -and
     -not [Environment]::GetEnvironmentVariable("DATABASE_URL")) {
-  "MISSING: SUPABASE_DB_URL or DATABASE_URL"
+  $missingBackend += "SUPABASE_DB_URL or DATABASE_URL"
+}
+
+if ([Environment]::GetEnvironmentVariable("NODE_ENV") -ne "production") {
+  $missingBackend += "NODE_ENV=production"
+}
+
+if ($missingBackend.Count -gt 0) {
+  $missingBackend | ForEach-Object { "MISSING/BLOCKER: $_" }
+  exit 1
 }
 ```
 
 ## 2. Variables frontend
 
 Fuente de verdad actual: `frontend/.env.example` y `frontend/README.md`.
+
+Tabla sin secretos para configurar el build/runtime frontend:
+
+| Variable | Estado release | Default codigo/ejemplo | Uso |
+|---|---|---:|---|
+| `NEXT_PUBLIC_API_URL` | Obligatoria | `http://localhost:3000` | Base URL del backend Fastify usada por `frontend/src/lib/api.ts`; en prod debe ser `https://...` y sin trailing slash. |
+| `NEXT_PUBLIC_SITE_URL` | Obligatoria | `https://portal.vetneb.com` en codigo, `http://localhost:3001` en ejemplo | SEO, canonical, Open Graph, robots y sitemap. |
 
 - [ ] `[BLOCKER]` `NEXT_PUBLIC_API_URL` apunta al backend Fastify productivo,
   con `https://` y sin trailing slash.
@@ -106,10 +146,51 @@ Comandos utiles:
 ```powershell
 cd C:\PORTAL-VETNEB
 Get-Content frontend\.env.example
+
+$requiredFrontend = @("NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_SITE_URL")
+$missingFrontend = $requiredFrontend | Where-Object {
+  -not [Environment]::GetEnvironmentVariable($_)
+}
+
+if ($missingFrontend.Count -gt 0) {
+  $missingFrontend | ForEach-Object { "MISSING/BLOCKER: $_" }
+  exit 1
+}
+
 pnpm -C frontend build
 ```
 
-## 3. Migraciones, staging y produccion
+## 3. Scripts de build, migracion, deploy y smoke
+
+Fuente actual: `package.json`, `frontend/package.json`,
+`.github/workflows/backend-ci.yml`, `.github/workflows/frontend-ci.yml`,
+`scripts/smoke/`, `scripts/db/` y `drizzle.config.ts`.
+
+| Comando/script | Tipo | Uso release |
+|---|---|---|
+| `pnpm install --frozen-lockfile` | Setup | Instalar dependencias en CI/proveedor sin modificar lockfile. |
+| `pnpm db:migrate` | Migracion | Ejecuta Drizzle contra `SUPABASE_DB_URL` o `DATABASE_URL`. |
+| `pnpm build` | Build backend | Genera `dist/index.js` con esbuild. |
+| `pnpm start` | Runtime backend | Ejecuta `node dist/index.js`. |
+| `pnpm test` | Validacion backend | Corre tests Node del backend. |
+| `pnpm typecheck` / `pnpm typecheck:test` | Validacion backend | Typecheck de runtime y tests. |
+| `pnpm smoke:test` | Smoke backend clinic | Health, login clinic, sesion, reports, study-types y logout. |
+| `pnpm smoke:upload` | Smoke backend upload | Login clinic, upload PDF, lectura de reports y logout. |
+| `pnpm -C frontend build` | Build frontend | Build Next.js de produccion. |
+| `pnpm --dir frontend lint` / `pnpm --dir frontend typecheck` | Validacion frontend | Paridad con Frontend CI. |
+| `pnpm --dir frontend e2e` | Smoke frontend | Playwright segun Frontend CI. |
+| `scripts/db/*.mjs` | Operacion DB | Reconciliaciones/listados manuales; usar solo si el release los requiere y con DB env correcto. |
+
+- [ ] `[BLOCKER]` No hay script de deploy productivo dedicado en el repo; el
+  proveedor debe usar los comandos existentes (`pnpm build`, `pnpm start` para
+  backend; `pnpm -C frontend build`, `pnpm -C frontend start` si aplica para
+  frontend) o su equivalente configurado fuera del repositorio.
+- [ ] `[BLOCKER]` El deploy no ejecuta `pnpm db:migrate` implicitamente mas de
+  una vez ni en paralelo.
+- [ ] `[BLOCKER]` Los scripts `scripts/db/*.mjs` no se ejecutan contra
+  produccion salvo que exista una decision explicita del release.
+
+## 4. Migraciones, staging y produccion
 
 Fuente actual: `drizzle.config.ts`, `drizzle/migrations/` y script
 `pnpm db:migrate`.
@@ -131,6 +212,29 @@ Fuente actual: `drizzle.config.ts`, `drizzle/migrations/` y script
 - [ ] `[NON-BLOCKER]` Si hay scripts de reconciliacion en `scripts/db/`, dejar
   evidencia de si aplican o no al lanzamiento.
 
+Orden operativo staging -> produccion:
+
+1. Completar variables backend/frontend de staging y validar que no usen
+   secretos productivos.
+2. Ejecutar `pnpm install --frozen-lockfile`, `pnpm test`, `pnpm build` y
+   `pnpm -C frontend build` en el commit candidato.
+3. Ejecutar `pnpm db:migrate` una sola vez contra la DB de staging.
+4. Desplegar backend staging con `NODE_ENV=production`, `TRUST_PROXY` y
+   `CORS_ORIGIN` equivalentes a la topologia real.
+5. Desplegar frontend staging con `NEXT_PUBLIC_API_URL` y
+   `NEXT_PUBLIC_SITE_URL` de staging.
+6. Ejecutar smoke admin, clinic, particular, Storage y signed URLs en staging.
+7. Tomar backup/snapshot productivo y confirmar rollback de app y DB.
+8. Congelar cambios operativos, verificar env productiva y bloquear el release
+   si falta cualquier variable critica.
+9. Ejecutar `pnpm db:migrate` una sola vez contra la DB productiva, con ventana
+   aprobada y operador identificado.
+10. Desplegar backend productivo y confirmar `/health` con DB y Storage `up`.
+11. Desplegar frontend productivo y confirmar dominio, canonical, sitemap y
+   cookies cross-site.
+12. Ejecutar smoke post-deploy y mantener monitoreo de errores durante las
+   primeras 24 horas.
+
 Comandos utiles:
 
 ```powershell
@@ -139,7 +243,7 @@ Get-ChildItem drizzle\migrations -Filter *.sql | Sort-Object Name | Select-Objec
 pnpm db:migrate
 ```
 
-## 4. CORS, dominio, HTTPS y cookies
+## 5. CORS, dominio, HTTPS y cookies
 
 El backend usa `CORS_ORIGIN` para origenes permitidos y, con
 `NODE_ENV=production`, las cookies salen con `Secure` y `SameSite=None`.
@@ -169,7 +273,7 @@ $Origin = "https://<frontend-productivo>"
 Invoke-WebRequest -Uri "$BaseUrl/health" -Headers @{ Origin = $Origin } -Method GET
 ```
 
-## 5. Supabase Storage, signed URLs y avatars
+## 6. Supabase Storage, signed URLs y avatars
 
 El backend usa bucket privado, crea el bucket si falta al iniciar y genera URLs
 firmadas para informes y avatars. Rutas esperadas:
@@ -207,10 +311,29 @@ pnpm smoke:upload
 Remove-Item Env:\SMOKE_PASSWORD
 ```
 
-## 6. Smoke test admin, clinica y particular
+## 7. Smoke test admin, clinica y particular
 
 Ejecutar contra staging primero y repetir contra produccion despues del deploy.
 No registrar passwords ni tokens en consola, tickets o capturas.
+
+Smoke rapido post-deploy:
+
+```powershell
+$BaseUrl = "https://<backend-productivo>"
+$Origin = "https://<frontend-productivo>"
+
+Invoke-RestMethod "$BaseUrl/health"
+Invoke-RestMethod "$BaseUrl/api/health"
+
+Invoke-WebRequest `
+  -Uri "$BaseUrl/api/auth/login" `
+  -Method OPTIONS `
+  -Headers @{
+    Origin = $Origin
+    "Access-Control-Request-Method" = "POST"
+    "Access-Control-Request-Headers" = "content-type"
+  }
+```
 
 ### Clinica
 
@@ -292,7 +415,7 @@ Invoke-WebRequest -Uri "$BaseUrl/api/particular/auth/logout" -Method POST -WebSe
 Remove-Variable ParticularToken
 ```
 
-## 7. Seguridad final
+## 8. Seguridad final
 
 - [ ] `[BLOCKER]` No hay secretos reales en git, README, docs, issues, PRs,
   logs de CI ni capturas.
@@ -315,7 +438,7 @@ Remove-Variable ParticularToken
 - [ ] `[NON-BLOCKER]` Rotacion post-lanzamiento agendada para credenciales usadas
   durante pruebas manuales.
 
-## 8. Observabilidad, backups y rollback
+## 9. Observabilidad, backups y rollback
 
 - [ ] `[BLOCKER]` `/health` productivo responde `200` y reporta DB y Storage
   `up`.
@@ -342,7 +465,7 @@ Invoke-RestMethod "$BaseUrl/health"
 Invoke-RestMethod "$BaseUrl/api/health"
 ```
 
-## 9. Contenido final, legal y comercial
+## 10. Contenido final, legal y comercial
 
 - [ ] `[BLOCKER]` Home publico, servicios, profesionales, clinicas, contacto,
   login y particulares revisados por negocio.
@@ -360,7 +483,7 @@ Invoke-RestMethod "$BaseUrl/api/health"
 - [ ] `[NON-BLOCKER]` Plan editorial post-lanzamiento documentado para paginas
   no criticas.
 
-## 10. Criterio go/no-go
+## 11. Criterio go/no-go
 
 ### Go
 
@@ -388,6 +511,15 @@ No lanzar si ocurre cualquiera de estos casos:
 - [ ] Upload, signed URLs, avatar upload/delete o descarga de informes fallan.
 - [ ] Admin, clinica o particular no pueden completar su smoke principal.
 - [ ] Hay dudas legales/comerciales bloqueantes sobre contenido publico.
+
+### Env critica faltante
+
+No iniciar deploy ni migraciones productivas si falta cualquiera de estos
+valores: `NODE_ENV=production`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`, `CORS_ORIGIN`, `NEXT_PUBLIC_API_URL`,
+`NEXT_PUBLIC_SITE_URL` y al menos uno entre `SUPABASE_DB_URL` o
+`DATABASE_URL`. Tambien bloquear si `CORS_ORIGIN` productivo contiene origenes
+locales o si `NEXT_PUBLIC_API_URL`/`NEXT_PUBLIC_SITE_URL` no usan HTTPS.
 
 ## Evidencia de validacion del PR
 
