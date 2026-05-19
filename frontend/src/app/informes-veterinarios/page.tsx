@@ -103,7 +103,7 @@ export default function InformesVeterinariosPage() {
         aria-labelledby="diagnostic-reports-page-title"
       >
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-primary-foreground/88">
+          <p className="sr-only">
             Consulta de informes veterinarios
           </p>
           <h1

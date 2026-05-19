@@ -106,3 +106,19 @@ test("diagnostic service pages remain public and avoid backend calls", () => {
   assert.equal(combined.includes("GeoCoordinates"), false);
   assert.equal(combined.includes("PostalAddress"), false);
 });
+test("diagnostic service hero eyebrows remain visually hidden", () => {
+  const pages = [
+    read(HISTOPATHOLOGY_PAGE_PATH),
+    read(CYTOLOGY_PAGE_PATH),
+    read("frontend/src/app/laboratorio-patologico-veterinario/page.tsx"),
+    read("frontend/src/app/informes-veterinarios/page.tsx"),
+  ];
+
+  for (const source of pages) {
+    assert.ok(source.includes('className="sr-only"'));
+    assert.equal(
+      source.includes('className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-primary-foreground/88"'),
+      false,
+    );
+  }
+});
