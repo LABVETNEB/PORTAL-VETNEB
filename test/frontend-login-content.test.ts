@@ -60,3 +60,12 @@ test("frontend login page wraps client search params usage in suspense", () => {
   assert.ok(source.includes("<LoginContent />"));
   assert.ok(source.includes("</Suspense>"));
 });
+test("frontend login content keeps particular token entry on the dedicated public surface", () => {
+  const source = read(LOGIN_CONTENT_PATH);
+
+  assert.equal(source.includes("Token de acceso"), false);
+  assert.equal(source.includes("Ingresar con token"), false);
+  assert.equal(source.includes("Ingrese el token recibido"), false);
+  assert.ok(source.includes("router.push(ROUTES.particulares);"));
+  assert.ok(source.includes("router.replace(ROUTES.particulares);"));
+});
