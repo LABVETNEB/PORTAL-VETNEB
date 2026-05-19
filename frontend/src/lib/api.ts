@@ -39,6 +39,41 @@ import type {
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
+function warnApiFallback(functionName: string, error: unknown): void {
+  switch (functionName) {
+    case "getReports":
+      console.warn("[API] getReports: endpoint no disponible");
+      break;
+    case "searchReports":
+      console.warn("[API] searchReports: endpoint no disponible");
+      break;
+    case "getLogisticsFieldVisits":
+      console.warn("[API] getLogisticsFieldVisits: endpoint no disponible");
+      break;
+    case "getRoutePlans":
+      console.warn("[API] getRoutePlans: endpoint no disponible");
+      break;
+    case "getRoutePlanMetrics":
+      console.warn("[API] getRoutePlanMetrics: endpoint no disponible");
+      break;
+    case "getAuditEntries":
+      console.warn("[API] getAuditEntries: endpoint no disponible");
+      break;
+    case "getAdminSystemHealth":
+      console.warn("[API] getAdminSystemHealth: endpoint no disponible");
+      break;
+    default:
+      console.warn(`[API] ${functionName}: endpoint no disponible`);
+      break;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    const errorDetail =
+      error instanceof Error ? error.message : String(error);
+    console.warn(`[API] ${functionName}: ${errorDetail}`);
+  }
+}
+
 async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
@@ -183,7 +218,7 @@ export async function getReports(
     );
     return res.reports ?? [];
   } catch (error) {
-    console.warn("[API] getReports: endpoint no disponible");
+    warnApiFallback("getReports", error);
     if (readOptions.throwOnError) {
       throw error;
     }
@@ -213,7 +248,7 @@ export async function searchReports(
     );
     return res.reports ?? [];
   } catch (error) {
-    console.warn("[API] searchReports: endpoint no disponible");
+    warnApiFallback("searchReports", error);
     if (readOptions.throwOnError) {
       throw error;
     }
@@ -585,7 +620,7 @@ export async function getLogisticsFieldVisits(
     );
     return res.visits ?? [];
   } catch (error) {
-    console.warn("[API] getLogisticsFieldVisits: endpoint no disponible");
+    warnApiFallback("getLogisticsFieldVisits", error);
     if (readOptions.throwOnError) {
       throw error;
     }
@@ -605,7 +640,7 @@ export async function getRoutePlans(
     );
     return res.plans ?? [];
   } catch (error) {
-    console.warn("[API] getRoutePlans: endpoint no disponible");
+    warnApiFallback("getRoutePlans", error);
     if (readOptions.throwOnError) {
       throw error;
     }
@@ -627,7 +662,7 @@ export async function getRoutePlanMetrics(
       );
       return res.metrics ? [res.metrics] : [];
     } catch (error) {
-      console.warn("[API] getRoutePlanMetrics: endpoint no disponible");
+      warnApiFallback("getRoutePlanMetrics", error);
       if (readOptions.throwOnError) {
         throw error;
       }
@@ -655,7 +690,7 @@ export async function getAuditEntries(
     );
     return res.entries ?? [];
   } catch (error) {
-    console.warn("[API] getAuditEntries: endpoint no disponible");
+    warnApiFallback("getAuditEntries", error);
     if (readOptions.throwOnError) {
       throw error;
     }
@@ -770,8 +805,8 @@ export async function getAdminSystemHealth(
       "/api/admin/system/health",
       options,
     );
-  } catch {
-    console.warn("[API] getAdminSystemHealth: endpoint no disponible");
+  } catch (error) {
+    warnApiFallback("getAdminSystemHealth", error);
     return null;
   }
 }
