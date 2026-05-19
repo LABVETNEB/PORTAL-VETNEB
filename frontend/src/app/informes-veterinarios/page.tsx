@@ -125,7 +125,7 @@ export default function InformesVeterinariosPage() {
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="public-cta-on-hero w-full sm:w-auto">
-              <Link href="/servicios">Ver servicios diagnósticos</Link>
+              <Link href="/servicios">VER MAS SERVICIOS</Link>
             </Button>
           </div>
         </div>
@@ -252,9 +252,7 @@ export default function InformesVeterinariosPage() {
                     <Link href="/contacto">Consultar por un caso</Link>
                   </Button>
                   <Button asChild variant="outline" className="public-cta-outline w-full sm:w-auto">
-                    <Link href="/laboratorio-patologico-veterinario">
-                      Ver laboratorio patológico veterinario
-                    </Link>
+                    <Link href="/servicios">VER MAS SERVICIOS</Link>
                   </Button>
                 </div>
               </div>

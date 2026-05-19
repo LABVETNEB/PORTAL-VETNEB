@@ -109,7 +109,7 @@ export default function LaboratorioPatologicoVeterinarioPage() {
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="public-cta-on-hero w-full sm:w-auto">
-              <Link href="/servicios">Ver todos los servicios</Link>
+              <Link href="/servicios">VER MAS SERVICIOS</Link>
             </Button>
           </div>
         </div>
@@ -229,9 +229,7 @@ export default function LaboratorioPatologicoVeterinarioPage() {
                     <Link href="/contacto">Coordinar envío de muestras</Link>
                   </Button>
                   <Button asChild variant="outline" className="public-cta-outline w-full sm:w-auto">
-                    <Link href="/histopatologia-veterinaria">
-                      Ver histopatología veterinaria
-                    </Link>
+                    <Link href="/servicios">VER MAS SERVICIOS</Link>
                   </Button>
                 </div>
               </div>

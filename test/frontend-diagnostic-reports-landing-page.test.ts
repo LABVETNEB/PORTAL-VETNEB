@@ -79,9 +79,8 @@ test("veterinary diagnostic reports landing page keeps public editorial navigati
   assert.ok(source.includes('href="/contacto"'));
   assert.ok(source.includes("Consultar por informes"));
   assert.ok(source.includes('href="/servicios"'));
-  assert.ok(source.includes("Ver servicios diagnósticos"));
-  assert.ok(source.includes('href="/laboratorio-patologico-veterinario"'));
-  assert.ok(source.includes("Ver laboratorio patológico veterinario"));
+  assert.ok(source.includes("VER MAS SERVICIOS"));
+  assert.ok(source.includes('href="/servicios"'));
   assert.equal(source.includes('"/dashboard"'), false);
   assert.equal(source.includes('href="/dashboard"'), false);
   assert.equal(source.includes('"/api"'), false);

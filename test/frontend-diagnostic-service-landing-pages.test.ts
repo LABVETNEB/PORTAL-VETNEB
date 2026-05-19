@@ -37,7 +37,8 @@ test("histopathology landing page targets transactional veterinary service inten
   assert.ok(source.includes("criterio clínico-patológico"));
   assert.ok(source.includes("const jsonLd = getDiagnosticServiceJsonLd({"));
   assert.ok(source.includes('type="application/ld+json"'));
-  assert.ok(source.includes('href="/citologia-veterinaria"'));
+  assert.ok(source.includes('href="/servicios"'));
+  assert.ok(source.includes("VER MAS SERVICIOS"));
   assert.ok(source.includes('href="/contacto"'));
 });
 
@@ -55,7 +56,8 @@ test("cytology landing page targets transactional veterinary service intent", ()
   assert.ok(source.includes("criterio clínico-patológico"));
   assert.ok(source.includes("const jsonLd = getDiagnosticServiceJsonLd({"));
   assert.ok(source.includes('type="application/ld+json"'));
-  assert.ok(source.includes('href="/histopatologia-veterinaria"'));
+  assert.ok(source.includes('href="/servicios"'));
+  assert.ok(source.includes("VER MAS SERVICIOS"));
   assert.ok(source.includes('href="/contacto"'));
 });
 
