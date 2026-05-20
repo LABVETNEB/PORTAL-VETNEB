@@ -2,6 +2,7 @@
 import type { ClinicUserRole } from "../../drizzle/schema";
 import type { ClinicPermissions } from "../lib/permissions.ts";
 
+import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import { getClinicPermissions, normalizeClinicUserRole } from "../lib/permissions.ts";
 
 export type AuthenticatedUser = {
@@ -19,6 +20,7 @@ export type AuthenticatedUser = {
 type ActiveSessionRecord = {
   clinicUserId: number;
   expiresAt: Date | null;
+  lastAccess?: Date | null;
 };
 
 type ClinicUserRecord = {
@@ -144,7 +146,9 @@ export function createRequireAuth(
         });
       }
 
-      await deps.updateSessionLastAccess(tokenHash);
+      if (shouldRefreshSessionLastAccess(session.lastAccess ?? null, deps.now())) {
+        await deps.updateSessionLastAccess(tokenHash);
+      }
 
       const role = normalizeClinicUserRole(clinicUser.role, "clinic_staff");
       const permissions = getClinicPermissions(role);
@@ -169,5 +173,4 @@ export function createRequireAuth(
 }
 
 export const requireAuth = createRequireAuth();
-
 

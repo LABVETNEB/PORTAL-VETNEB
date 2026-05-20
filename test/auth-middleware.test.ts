@@ -227,13 +227,14 @@ test("requireAuth elimina sesión cuando el usuario clinic no existe", async () 
   assert.equal(nextCalls.length, 0);
 });
 
-test("requireAuth autentica owner y actualiza lastAccess", async () => {
+test("requireAuth autentica owner y actualiza lastAccess si lastAccess es null", async () => {
   const { deps, calls } = createDeps({
     getActiveSessionByToken: async (tokenHash: string) => {
       calls.getActiveSessionByToken.push(tokenHash);
       return {
         clinicUserId: 99,
         expiresAt: new Date("2026-04-21T13:00:00.000Z"),
+        lastAccess: null,
       };
     },
     getClinicUserById: async (id: number) => {
@@ -287,6 +288,111 @@ test("requireAuth autentica owner y actualiza lastAccess", async () => {
   });
   assert.equal(res.statusCode, 200);
   assert.equal(res.jsonPayload, undefined);
+  assert.deepEqual(nextCalls, [undefined]);
+});
+
+test("requireAuth autentica sin actualizar lastAccess si aún no corresponde", async () => {
+  const { deps, calls } = createDeps({
+    getActiveSessionByToken: async (tokenHash: string) => {
+      calls.getActiveSessionByToken.push(tokenHash);
+      return {
+        clinicUserId: 55,
+        expiresAt: new Date("2026-04-21T13:00:00.000Z"),
+        lastAccess: new Date("2026-04-21T11:55:00.000Z"),
+      };
+    },
+    getClinicUserById: async (id: number) => {
+      calls.getClinicUserById.push(id);
+      return {
+        id,
+        clinicId: 8,
+        username: "fresh-user",
+        authProId: null,
+        role: "clinic_staff",
+      };
+    },
+  });
+
+  const middleware = createRequireAuth(deps as any);
+
+  const req: any = {
+    cookies: {
+      clinic_session: "token-fresco",
+    },
+  };
+
+  const res = createMockResponse();
+  const nextCalls: unknown[] = [];
+
+  await middleware(
+    req,
+    res as any,
+    ((error?: unknown) => nextCalls.push(error)) as any,
+  );
+
+  assert.deepEqual(calls.updateSessionLastAccess, []);
+  assert.deepEqual(req.auth, {
+    id: 55,
+    clinicId: 8,
+    username: "fresh-user",
+    authProId: null,
+    role: "clinic_staff",
+    permissions: {
+      canUploadReports: false,
+      canManageClinicUsers: false,
+      canViewLogistics: true,
+      canManageLogisticsFieldVisits: false,
+      canManageLogisticsRoutePlans: false,
+      canManageLogisticsRouteEvents: false,
+      canViewLogisticsSla: true,
+    },
+    canUploadReports: false,
+    canManageClinicUsers: false,
+    sessionToken: "token-fresco",
+  });
+  assert.deepEqual(nextCalls, [undefined]);
+});
+
+test("requireAuth actualiza lastAccess si el intervalo expiró", async () => {
+  const { deps, calls } = createDeps({
+    getActiveSessionByToken: async (tokenHash: string) => {
+      calls.getActiveSessionByToken.push(tokenHash);
+      return {
+        clinicUserId: 66,
+        expiresAt: new Date("2026-04-21T13:00:00.000Z"),
+        lastAccess: new Date("2026-04-21T11:50:00.000Z"),
+      };
+    },
+    getClinicUserById: async (id: number) => {
+      calls.getClinicUserById.push(id);
+      return {
+        id,
+        clinicId: 9,
+        username: "stale-user",
+        authProId: null,
+        role: "clinic_staff",
+      };
+    },
+  });
+
+  const middleware = createRequireAuth(deps as any);
+
+  const req: any = {
+    cookies: {
+      clinic_session: "token-vencido",
+    },
+  };
+
+  const res = createMockResponse();
+  const nextCalls: unknown[] = [];
+
+  await middleware(
+    req,
+    res as any,
+    ((error?: unknown) => nextCalls.push(error)) as any,
+  );
+
+  assert.deepEqual(calls.updateSessionLastAccess, ["hashed:token-vencido"]);
   assert.deepEqual(nextCalls, [undefined]);
 });
 

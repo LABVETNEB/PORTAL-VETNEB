@@ -1,6 +1,6 @@
 ﻿import type { NextFunction, Request, Response } from "../lib/http-types.ts";
 
-const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
+import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 
 type ParticularSessionRecord = {
   particularTokenId: number;
@@ -43,17 +43,6 @@ function getParticularSessionToken(
 
   const trimmed = raw.trim();
   return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function shouldRefreshSessionLastAccess(
-  lastAccess: Date | null | undefined,
-  nowMs: number,
-) {
-  if (!(lastAccess instanceof Date)) {
-    return true;
-  }
-
-  return nowMs - lastAccess.getTime() >= SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS;
 }
 
 let defaultDepsPromise: Promise<ParticularAuthDeps> | null = null;
@@ -171,4 +160,3 @@ export function createRequireParticularAuth(
 }
 
 export const requireParticularAuth = createRequireParticularAuth();
-
