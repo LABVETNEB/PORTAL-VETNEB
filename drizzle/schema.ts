@@ -438,6 +438,20 @@ export const loginFailedAttempts = pgTable(
   }),
 );
 
+export const loginRateLimits = pgTable(
+  "login_rate_limits",
+  {
+    keyHash: text("key_hash").primaryKey(),
+    count: integer("count").notNull(),
+    resetAt: timestamp("reset_at", { mode: "date" }).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    resetAtIdx: index("login_rate_limits_reset_at_idx").on(table.resetAt),
+  }),
+);
+
 export const pricingItems = pgTable(
   "pricing_items",
   {
@@ -1088,6 +1102,9 @@ export type NewReportAccessToken = InferInsertModel<typeof reportAccessTokens>;
 
 export type AuditLog = InferSelectModel<typeof auditLog>;
 export type NewAuditLog = InferInsertModel<typeof auditLog>;
+
+export type LoginRateLimit = InferSelectModel<typeof loginRateLimits>;
+export type NewLoginRateLimit = InferInsertModel<typeof loginRateLimits>;
 
 export type ActiveSession = InferSelectModel<typeof activeSessions>;
 export type NewActiveSession = InferInsertModel<typeof activeSessions>;

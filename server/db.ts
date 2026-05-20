@@ -1,7 +1,7 @@
 import { getReportStudyTypes as getCanonicalReportStudyTypes, REPORT_STUDY_TYPE_LABELS } from "./lib/report-study-types.ts";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { and, desc, eq, ilike, isNotNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, isNotNull, lt, lte, or, sql } from "drizzle-orm";
 import {
   activeSessions,
   adminSessions,
@@ -9,6 +9,7 @@ import {
   clinicUsers,
   clinics,
   loginFailedAttempts,
+  loginRateLimits,
   reports,
   reportStatusHistory,
   type ClinicUserRole,
@@ -144,6 +145,99 @@ export async function recordLoginFailedAttempt(input: {
     .returning();
 
   return result[0];
+}
+
+/* ========================= LOGIN RATE LIMITS ========================= */
+
+export async function getLoginRateLimitEntry(keyHash: string) {
+  const result = await db
+    .select({
+      count: loginRateLimits.count,
+      resetAt: loginRateLimits.resetAt,
+    })
+    .from(loginRateLimits)
+    .where(eq(loginRateLimits.keyHash, keyHash))
+    .limit(1);
+
+  return result[0];
+}
+
+export async function setLoginRateLimitEntry(input: {
+  keyHash: string;
+  count: number;
+  resetAt: Date;
+  now: Date;
+}) {
+  const result = await db
+    .insert(loginRateLimits)
+    .values({
+      keyHash: input.keyHash,
+      count: input.count,
+      resetAt: input.resetAt,
+      createdAt: input.now,
+      updatedAt: input.now,
+    })
+    .onConflictDoUpdate({
+      target: loginRateLimits.keyHash,
+      set: {
+        count: input.count,
+        resetAt: input.resetAt,
+        updatedAt: input.now,
+      },
+    })
+    .returning({
+      count: loginRateLimits.count,
+      resetAt: loginRateLimits.resetAt,
+    });
+
+  return result[0];
+}
+
+export async function incrementLoginRateLimitEntry(input: {
+  keyHash: string;
+  count: number;
+  resetAt: Date;
+  now: Date;
+}) {
+  const result = await db
+    .insert(loginRateLimits)
+    .values({
+      keyHash: input.keyHash,
+      count: input.count,
+      resetAt: input.resetAt,
+      createdAt: input.now,
+      updatedAt: input.now,
+    })
+    .onConflictDoUpdate({
+      target: loginRateLimits.keyHash,
+      set: {
+        count: sql<number>`
+          CASE
+            WHEN ${loginRateLimits.resetAt} <= ${input.now} THEN ${input.count}
+            ELSE ${loginRateLimits.count} + 1
+          END
+        `,
+        resetAt: sql<Date>`
+          CASE
+            WHEN ${loginRateLimits.resetAt} <= ${input.now} THEN ${input.resetAt}
+            ELSE ${loginRateLimits.resetAt}
+          END
+        `,
+        updatedAt: input.now,
+      },
+    })
+    .returning({
+      count: loginRateLimits.count,
+      resetAt: loginRateLimits.resetAt,
+    });
+
+  return result[0];
+}
+
+export async function deleteExpiredLoginRateLimitEntries(now: Date) {
+  await db
+    .delete(loginRateLimits)
+    .where(lt(loginRateLimits.resetAt, now));
 }
 
 /* ========================= CLINIC SESSIONS ========================= */
@@ -561,5 +655,3 @@ export async function getReportStudyTypes(_clinicId: number) {
 }
 
 export const getStudyTypes = getReportStudyTypes;
-
-

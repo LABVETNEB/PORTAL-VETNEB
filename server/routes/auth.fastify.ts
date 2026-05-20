@@ -13,6 +13,7 @@ import {
 } from "../lib/login-rate-limit.ts";
 import {
   createMemoryRateLimitStore,
+  createPersistentRateLimitStore,
   getOrCreateRateLimitEntry,
   incrementRateLimitEntry,
   type RateLimitStore,
@@ -160,10 +161,13 @@ type NativeAuthDeps = Required<
     | "recordLoginFailedAttempt"
   >
 >;
+type NativeAuthDefaultDeps = NativeAuthDeps & {
+  loginRateLimitStore: RateLimitStore;
+};
 
-let defaultDepsPromise: Promise<NativeAuthDeps> | undefined;
+let defaultDepsPromise: Promise<NativeAuthDefaultDeps> | undefined;
 
-async function loadDefaultDeps(): Promise<NativeAuthDeps> {
+async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
@@ -187,6 +191,12 @@ async function loadDefaultDeps(): Promise<NativeAuthDeps> {
           input: AuditWriteInput,
         ) => Promise<void>,
         recordLoginFailedAttempt: db.recordLoginFailedAttempt,
+        loginRateLimitStore: createPersistentRateLimitStore({
+          get: db.getLoginRateLimitEntry,
+          set: db.setLoginRateLimitEntry,
+          increment: db.incrementLoginRateLimitEntry,
+          cleanupExpired: db.deleteExpiredLoginRateLimitEntries,
+        }),
       };
     })();
   }
@@ -574,8 +584,12 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
   const loginRateLimitMaxAttempts =
     options.loginRateLimitMaxAttempts ?? LOGIN_RATE_LIMIT_MAX_ATTEMPTS;
   const allowedOrigins = new Set(getAllowedOrigins());
-  const loginRateLimitStore =
+  const memoryLoginRateLimitStore =
     options.loginRateLimitStore ?? createMemoryRateLimitStore();
+  const loginRateLimitStore =
+    options.loginRateLimitStore ??
+    defaultDeps?.loginRateLimitStore ??
+    memoryLoginRateLimitStore;
 
   app.addHook("onRequest", async (request, reply) => {
     (request as AuthFastifyRequest)[REQUEST_TIMER_KEY] =
@@ -708,6 +722,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         loginRateLimitStore,
         rateLimitKey,
         failureEntry,
+        currentTime,
       );
 
       failureEntry.count = updatedEntry.count;
@@ -883,4 +898,3 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
     });
   });
 };
-
