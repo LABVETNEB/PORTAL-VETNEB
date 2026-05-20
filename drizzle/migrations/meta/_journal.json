@@ -176,6 +176,13 @@
                         "when":  1777107600000,
                         "tag":  "0024_clinic_public_profile_avatar_map",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  25,
+                        "version":  "7",
+                        "when":  1777111200000,
+                        "tag":  "0025_login_rate_limits",
+                        "breakpoints":  true
                     }
                 ]
 }

@@ -15,6 +15,10 @@ const {
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
 } = await import("../server/lib/login-rate-limit.ts");
 const {
+  createPersistentRateLimitStore,
+  hashRateLimitKey,
+} = await import("../server/lib/rate-limit-store.ts");
+const {
   getClinicPermissions,
 } = await import("../server/lib/permissions.ts");
 const {
@@ -46,6 +50,71 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
   });
 
   return app;
+}
+
+type PersistentRateLimitRow = {
+  count: number;
+  resetAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+function createPersistentRateLimitStoreHarness(input?: {
+  rows?: Map<string, PersistentRateLimitRow>;
+  now?: () => number;
+}) {
+  const rows = input?.rows ?? new Map<string, PersistentRateLimitRow>();
+
+  const store = createPersistentRateLimitStore(
+    {
+      get: async (keyHash) => rows.get(keyHash),
+      set: async ({ keyHash, count, resetAt, now }) => {
+        const existing = rows.get(keyHash);
+        const row = {
+          count,
+          resetAt,
+          createdAt: existing?.createdAt ?? now,
+          updatedAt: now,
+        };
+
+        rows.set(keyHash, row);
+
+        return row;
+      },
+      increment: async ({ keyHash, count, resetAt, now }) => {
+        const existing = rows.get(keyHash);
+        const row =
+          !existing || existing.resetAt.getTime() <= now.getTime()
+            ? {
+                count,
+                resetAt,
+                createdAt: existing?.createdAt ?? now,
+                updatedAt: now,
+              }
+            : {
+                ...existing,
+                count: existing.count + 1,
+                updatedAt: now,
+              };
+
+        rows.set(keyHash, row);
+
+        return row;
+      },
+      cleanupExpired: async (now) => {
+        for (const [keyHash, row] of rows) {
+          if (row.resetAt.getTime() < now.getTime()) {
+            rows.delete(keyHash);
+          }
+        }
+      },
+    },
+    {
+      now: input?.now,
+    },
+  );
+
+  return { rows, store };
 }
 
 function getSetCookieHeader(response: { headers: Record<string, unknown> }) {
@@ -434,6 +503,242 @@ test("clinicAuthNativeRoutes responde 401 para password inválida", async () => 
     });
   } finally {
     await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes login fallido incrementa store persistente", async () => {
+  const currentTime = Date.UTC(2026, 4, 8, 0, 0, 0);
+  const { rows, store } = createPersistentRateLimitStoreHarness({
+    now: () => currentTime,
+  });
+
+  const app = await createTestApp({
+    now: () => currentTime,
+    loginRateLimitStore: store,
+    getClinicUserByUsername: async () => null,
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      remoteAddress: "203.0.113.50",
+      payload: {
+        username: "vetneb",
+        password: "incorrecta",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(rows.get(hashRateLimitKey("203.0.113.50"))?.count, 1);
+  } finally {
+    await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes bloquea login al superar límite persistente", async () => {
+  const currentTime = Date.UTC(2026, 4, 8, 0, 0, 0);
+  const { store } = createPersistentRateLimitStoreHarness({
+    now: () => currentTime,
+  });
+
+  const app = await createTestApp({
+    now: () => currentTime,
+    loginRateLimitStore: store,
+    loginRateLimitWindowMs: 60_000,
+    loginRateLimitMaxAttempts: 2,
+    getClinicUserByUsername: async () => null,
+  });
+
+  try {
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      remoteAddress: "203.0.113.51",
+      payload: {
+        username: "vetneb",
+        password: "bad-1",
+      },
+    });
+    const second = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      remoteAddress: "203.0.113.51",
+      payload: {
+        username: "vetneb",
+        password: "bad-2",
+      },
+    });
+    const third = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      remoteAddress: "203.0.113.51",
+      payload: {
+        username: "vetneb",
+        password: "bad-3",
+      },
+    });
+
+    assert.equal(first.statusCode, 401);
+    assert.equal(second.statusCode, 401);
+    assert.equal(third.statusCode, 429);
+    assert.deepEqual(JSON.parse(third.body), {
+      success: false,
+      error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
+    });
+    assert.equal(third.headers["ratelimit-limit"], "2");
+    assert.equal(third.headers["ratelimit-remaining"], "0");
+  } finally {
+    await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes recrea app y store persistente sin resetear contador", async () => {
+  const currentTime = Date.UTC(2026, 4, 8, 0, 0, 0);
+  const rows = new Map<string, PersistentRateLimitRow>();
+  const firstHarness = createPersistentRateLimitStoreHarness({
+    rows,
+    now: () => currentTime,
+  });
+  const firstApp = await createTestApp({
+    now: () => currentTime,
+    loginRateLimitStore: firstHarness.store,
+    loginRateLimitWindowMs: 60_000,
+    loginRateLimitMaxAttempts: 1,
+    getClinicUserByUsername: async () => null,
+  });
+
+  try {
+    const first = await firstApp.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      remoteAddress: "203.0.113.52",
+      payload: {
+        username: "vetneb",
+        password: "bad-1",
+      },
+    });
+
+    assert.equal(first.statusCode, 401);
+  } finally {
+    await firstApp.close();
+  }
+
+  const secondHarness = createPersistentRateLimitStoreHarness({
+    rows,
+    now: () => currentTime,
+  });
+  const secondApp = await createTestApp({
+    now: () => currentTime,
+    loginRateLimitStore: secondHarness.store,
+    loginRateLimitWindowMs: 60_000,
+    loginRateLimitMaxAttempts: 1,
+    getClinicUserByUsername: async () => {
+      throw new Error("rate limited request must not query clinic user");
+    },
+  });
+
+  try {
+    const second = await secondApp.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      remoteAddress: "203.0.113.52",
+      payload: {
+        username: "vetneb",
+        password: "bad-2",
+      },
+    });
+
+    assert.equal(second.statusCode, 429);
+  } finally {
+    await secondApp.close();
+  }
+});
+
+test("clinicAuthNativeRoutes reinicia ventana persistente cuando resetAt venció", async () => {
+  let currentTime = Date.UTC(2026, 4, 8, 0, 0, 0);
+  const rows = new Map<string, PersistentRateLimitRow>();
+  const firstHarness = createPersistentRateLimitStoreHarness({
+    rows,
+    now: () => currentTime,
+  });
+  const firstApp = await createTestApp({
+    now: () => currentTime,
+    loginRateLimitStore: firstHarness.store,
+    loginRateLimitWindowMs: 60_000,
+    loginRateLimitMaxAttempts: 1,
+    getClinicUserByUsername: async () => null,
+  });
+
+  try {
+    const first = await firstApp.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      remoteAddress: "203.0.113.53",
+      payload: {
+        username: "vetneb",
+        password: "bad-1",
+      },
+    });
+
+    assert.equal(first.statusCode, 401);
+  } finally {
+    await firstApp.close();
+  }
+
+  currentTime += 61_000;
+
+  const secondHarness = createPersistentRateLimitStoreHarness({
+    rows,
+    now: () => currentTime,
+  });
+  const secondApp = await createTestApp({
+    now: () => currentTime,
+    loginRateLimitStore: secondHarness.store,
+    loginRateLimitWindowMs: 60_000,
+    loginRateLimitMaxAttempts: 1,
+    getClinicUserByUsername: async () => null,
+  });
+
+  try {
+    const second = await secondApp.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      remoteAddress: "203.0.113.53",
+      payload: {
+        username: "vetneb",
+        password: "bad-2",
+      },
+    });
+
+    assert.equal(second.statusCode, 401);
+    assert.equal(rows.get(hashRateLimitKey("203.0.113.53"))?.count, 1);
+  } finally {
+    await secondApp.close();
   }
 });
 
