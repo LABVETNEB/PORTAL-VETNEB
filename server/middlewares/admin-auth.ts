@@ -1,13 +1,13 @@
 ﻿import type { NextFunction, Request, Response } from "../lib/http-types.ts";
 
+import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
+
 type AuthenticatedAdmin = {
   id: number;
   username: string;
   sessionToken: string;
 };
 
-
-const SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 
 type AdminSessionRecord = {
   adminUserId: number;
@@ -44,17 +44,6 @@ function getAdminSessionToken(
 
   const trimmed = raw.trim();
   return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function shouldRefreshSessionLastAccess(
-  lastAccess: Date | null | undefined,
-  nowMs: number,
-) {
-  if (!(lastAccess instanceof Date)) {
-    return true;
-  }
-
-  return nowMs - lastAccess.getTime() >= SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS;
 }
 
 let defaultDepsPromise: Promise<AdminAuthDeps> | null = null;
@@ -169,4 +158,3 @@ export function createRequireAdminAuth(
 }
 
 export const requireAdminAuth = createRequireAdminAuth();
-
