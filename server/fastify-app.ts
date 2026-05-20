@@ -325,11 +325,6 @@ export async function createFastifyApp(
     ...(options.adminParticularTokensRoutes ?? {}),
   });
 
-  await app.register(adminParticularTokensNativeRoutes, {
-    prefix: "/api/admin/particular/tokens",
-    ...(options.adminParticularTokensRoutes ?? {}),
-  });
-
   await app.register(adminReportsNativeRoutes, {
     prefix: "/api/admin/reports",
     ...(options.adminReportsRoutes ?? {}),
@@ -405,11 +400,6 @@ export async function createFastifyApp(
     ...(options.particularTokensRoutes ?? {}),
   });
 
-  await app.register(particularTokensNativeRoutes, {
-    prefix: "/api/particular/tokens",
-    ...(options.particularTokensRoutes ?? {}),
-  });
-
   await app.register(publicProfessionalsNativeRoutes, {
     prefix: "/api/public/professionals",
     ...(options.publicProfessionalsRoutes ?? {}),
@@ -467,5 +457,4 @@ export async function createFastifyApp(
 
   return app;
 }
-
 
