@@ -32,7 +32,7 @@ export function Navbar() {
         </Link>
 
         <nav
-          className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 md:flex"
+          className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 lg:flex"
           aria-label="Navegación principal"
         >
           {navLinks.map((link) => (
@@ -47,6 +47,14 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="public-cta-outline lg:hidden"
+          >
+            <Link href={ROUTES.profesionales}>Profesionales</Link>
+          </Button>
           <Button asChild variant="outline" size="sm" className="public-cta-outline">
             <Link href={ROUTES.login}>Iniciar sesión</Link>
           </Button>
