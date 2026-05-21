@@ -1,9 +1,20 @@
-import type { PublicPricingSnapshot } from "./api";
+export type PublicPricingRuntimeCacheSnapshot = {
+  success: true;
+  categories: {
+    category: string;
+    items: {
+      id: number;
+      studyName: string;
+      priceLabel: string | null;
+      displayOrder: number;
+    }[];
+  }[];
+};
 
 const PUBLIC_PRICING_RUNTIME_CACHE_TTL_MS = 5 * 60 * 1000;
 
 type PublicPricingRuntimeCacheEntry = {
-  snapshot: PublicPricingSnapshot;
+  snapshot: PublicPricingRuntimeCacheSnapshot;
   expiresAt: number;
 };
 
@@ -11,7 +22,7 @@ let cacheEntry: PublicPricingRuntimeCacheEntry | null = null;
 
 export function getCachedPublicPricingSnapshot(
   now: number = Date.now(),
-): PublicPricingSnapshot | null {
+): PublicPricingRuntimeCacheSnapshot | null {
   if (!cacheEntry) {
     return null;
   }
@@ -25,7 +36,7 @@ export function getCachedPublicPricingSnapshot(
 }
 
 export function setCachedPublicPricingSnapshot(
-  snapshot: PublicPricingSnapshot,
+  snapshot: PublicPricingRuntimeCacheSnapshot,
   now: number = Date.now(),
 ): void {
   if (!snapshot.success) {
