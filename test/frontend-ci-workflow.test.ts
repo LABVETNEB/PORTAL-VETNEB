@@ -126,7 +126,7 @@ test("Frontend CI sube reporte de Playwright solo en fallo", () => {
 
   assertContains(source, "      - name: Upload Playwright report");
   assertContains(source, "        if: failure()");
-  assertContains(source, "        uses: actions/upload-artifact@v4");
+  assertContains(source, "        uses: actions/upload-artifact@v7");
   assertContains(source, "          name: frontend-playwright-report");
   assertContains(source, "          path: frontend/playwright-report/");
   assertContains(source, "          if-no-files-found: ignore");
