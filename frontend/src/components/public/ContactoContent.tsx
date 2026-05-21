@@ -50,6 +50,7 @@ export function ContactoContent() {
   const [mensaje, setMensaje] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -61,6 +62,7 @@ export function ContactoContent() {
 
     setErrorMessage(null);
     setSuccessMessage(null);
+    setWarningMessage(null);
     setIsSubmitting(true);
 
     try {
@@ -75,7 +77,11 @@ export function ContactoContent() {
         message: mensaje.trim(),
       });
 
-      setSuccessMessage(response.message);
+      if (response.sent === false || response.reason === "smtp_disabled") {
+        setWarningMessage(response.message);
+      } else {
+        setSuccessMessage(response.message);
+      }
       setNombre("");
       setApellido("");
       setEmail("");
@@ -251,6 +257,16 @@ export function ContactoContent() {
                 {successMessage ? (
                   <p className="clinical-alert-success px-3 py-2">
                     {successMessage}
+                  </p>
+                ) : null}
+
+                {warningMessage ? (
+                  <p
+                    className="clinical-alert-warning px-3 py-2"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {warningMessage}
                   </p>
                 ) : null}
 

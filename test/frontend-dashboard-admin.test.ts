@@ -70,7 +70,9 @@ test("dashboard admin keeps status and service formatting helpers", () => {
   assert.ok(source.includes('if (value === "down") return "outline";'));
   assert.ok(source.includes("function formatServiceStatus(value: unknown)"));
   assert.ok(source.includes('if (value === "up") return "Activo";'));
+  assert.ok(source.includes('if (value === "configured") return "Configurado";'));
   assert.ok(source.includes('if (value === "down") return "Caído";'));
+  assert.ok(source.includes('if (value === "not_configured") return "No configurado";'));
   assert.ok(source.includes("function getSystemStatusVariant("));
   assert.ok(source.includes("function formatSystemStatus(status: string)"));
   assert.ok(source.includes("function getSystemStatusIndicatorClass(status: string)"));
@@ -140,6 +142,8 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes('id="admin-users-roles"'));
   assert.ok(source.includes('id="admin-event-summary"'));
   assert.ok(source.includes("Estado y mantenimiento"));
+  assert.ok(source.includes("Correo SMTP"));
+  assert.ok(source.includes("serviceChecks.smtp"));
   assert.equal(source.includes("Health & Maintenance"), false);
   assert.equal(source.includes("AdminSourceContractMarkers"), false);
   assert.equal(source.includes("ADMIN_READ_CONTRACT_MARKERS"), false);

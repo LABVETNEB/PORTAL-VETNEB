@@ -2,6 +2,7 @@ import nodemailer, { type Transporter } from "nodemailer";
 import { ENV } from "./env.ts";
 
 let cachedTransporter: Transporter | null = null;
+let cachedTransporterKey: string | null = null;
 
 function isLikelyEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -35,7 +36,14 @@ function getTransporter(): Transporter | null {
     return null;
   }
 
-  if (cachedTransporter) {
+  const transporterKey = JSON.stringify([
+    ENV.smtp.host,
+    ENV.smtp.port,
+    ENV.smtp.secure,
+    ENV.smtp.user,
+  ]);
+
+  if (cachedTransporter && cachedTransporterKey === transporterKey) {
     return cachedTransporter;
   }
 
@@ -48,6 +56,7 @@ function getTransporter(): Transporter | null {
       pass: ENV.smtp.pass,
     },
   });
+  cachedTransporterKey = transporterKey;
 
   return cachedTransporter;
 }
@@ -74,10 +83,10 @@ function buildSpecialStainRequiredText(input: {
   const lines = [
     `Hola,`,
     ``,
-    `Te informamos que el estudio #${input.trackingCaseId} de la clÃƒÂ­nica ${input.clinicName} requiere tinciÃƒÂ³n especial.`,
+    `Te informamos que el estudio #${input.trackingCaseId} de la clínica ${input.clinicName} requiere tinción especial.`,
     ``,
     `Estado actual: ${input.currentStage}`,
-    `RecepciÃƒÂ³n de muestra: ${formatDateTime(input.receptionAt)}`,
+    `Recepción de muestra: ${formatDateTime(input.receptionAt)}`,
     `Fecha estimada de entrega: ${formatDateTime(input.estimatedDeliveryAt)}`,
   ];
 
@@ -94,12 +103,12 @@ function buildSpecialStainRequiredText(input: {
   }
 
   if (input.adminContactPhone) {
-    lines.push(`TelÃƒÂ©fono de contacto administrativo: ${input.adminContactPhone}`);
+    lines.push(`Teléfono de contacto administrativo: ${input.adminContactPhone}`);
   }
 
   lines.push(
     ``,
-    `IngresÃƒÂ¡ al portal para revisar el seguimiento y continuar la gestiÃƒÂ³n.`,
+    `Ingresá al portal para revisar el seguimiento y continuar la gestión.`,
     ``,
     `Equipo VETNEB`,
   );
@@ -119,7 +128,7 @@ function buildContactMessageText(input: {
     "",
     `Nombre: ${input.name}`,
     `Email: ${input.email}`,
-    `Clinica: ${input.clinicName ?? "No informada"}`,
+    `Clínica: ${input.clinicName ?? "No informada"}`,
     "",
     "Mensaje:",
     input.message,
@@ -137,11 +146,13 @@ export async function sendContactMessageEmail(input: {
   | { sent: false; reason: "smtp_disabled" }
   | { sent: true; messageId: string }
 > {
-  const recipient = normalizeRecipients([ENV.smtp.from])[0];
+  const recipients = normalizeRecipients(
+    ENV.contactTo.length > 0 ? ENV.contactTo : [ENV.smtp.from],
+  );
 
   const transporter = getTransporter();
 
-  if (!transporter || !recipient) {
+  if (!transporter || recipients.length === 0) {
     console.info("[EMAIL] contact_message skipped: smtp disabled", {
       email: input.email,
       clinicName: input.clinicName,
@@ -152,7 +163,7 @@ export async function sendContactMessageEmail(input: {
 
   const info = await transporter.sendMail({
     from: ENV.smtp.from,
-    to: recipient,
+    to: recipients.join(", "),
     replyTo: input.email,
     subject: `[VETNEB] Contacto web: ${input.name}`,
     text: buildContactMessageText(input),
@@ -205,7 +216,7 @@ export async function sendSpecialStainRequiredEmail(input: {
   const info = await transporter.sendMail({
     from: ENV.smtp.from,
     to: recipients.join(", "),
-    subject: `[VETNEB] Estudio #${input.trackingCaseId}: requiere tinciÃƒÂ³n especial`,
+    subject: `[VETNEB] Estudio #${input.trackingCaseId}: requiere tinción especial`,
     text: buildSpecialStainRequiredText(input),
   });
 
@@ -220,4 +231,3 @@ export async function sendSpecialStainRequiredEmail(input: {
     messageId: info.messageId,
   };
 }
-

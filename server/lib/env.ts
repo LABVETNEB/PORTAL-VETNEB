@@ -18,10 +18,10 @@ const parseBooleanishEnv = (value: unknown) => {
   return value;
 };
 
-function parseCsvList(value: string | undefined): string[] {
+function parseDelimitedList(value: string | undefined): string[] {
   if (!value) return [];
   return value
-    .split(",")
+    .split(/[;,]/g)
     .map((item) => item.trim())
     .filter(Boolean);
 }
@@ -67,6 +67,7 @@ const envSchema = z.object({
   SMTP_USER: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SMTP_PASS: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SMTP_FROM: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  CONTACT_TO: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
 });
 
 const rawEnv = envSchema.parse(process.env);
@@ -79,7 +80,7 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL o SUPABASE_DB_URL es obligatorio");
 }
 
-const corsOrigins = parseCsvList(rawEnv.CORS_ORIGIN);
+const corsOrigins = parseDelimitedList(rawEnv.CORS_ORIGIN);
 
 const smtpEnabled = Boolean(
   rawEnv.SMTP_HOST &&
@@ -110,7 +111,8 @@ export const ENV = {
     | "none"
     | "lax",
   ownerOpenId: rawEnv.OWNER_OPEN_ID ?? "",
-  labUploadUsernames: parseCsvList(rawEnv.LAB_UPLOAD_USERNAMES),
+  labUploadUsernames: parseDelimitedList(rawEnv.LAB_UPLOAD_USERNAMES),
+  contactTo: parseDelimitedList(rawEnv.CONTACT_TO),
   maxUploadFileSizeMb: rawEnv.MAX_UPLOAD_FILE_SIZE_MB ?? 20,
   signedUrlExpiresInSeconds:
     rawEnv.SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS ?? 60 * 15,
@@ -125,4 +127,3 @@ export const ENV = {
     from: rawEnv.SMTP_FROM ?? "",
   },
 } as const;
-

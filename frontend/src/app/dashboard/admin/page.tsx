@@ -68,7 +68,9 @@ function getServiceVariant(
   value: unknown,
 ): "default" | "secondary" | "destructive" | "outline" {
   if (value === "up") return "default";
+  if (value === "configured") return "default";
   if (value === "down") return "outline";
+  if (value === "not_configured") return "outline";
   if (value === "unknown" || value === undefined || value === null) {
     return "outline";
   }
@@ -77,7 +79,9 @@ function getServiceVariant(
 
 function formatServiceStatus(value: unknown) {
   if (value === "up") return "Activo";
+  if (value === "configured") return "Configurado";
   if (value === "down") return "Caído";
+  if (value === "not_configured") return "No configurado";
   if (value === "unknown" || value === undefined || value === null) {
     return "Desconocido";
   }
@@ -110,7 +114,7 @@ function getSystemStatusIndicatorClass(status: string) {
 function formatSystemStatusDetail(services: Record<string, unknown>) {
   return `Base de datos: ${formatServiceStatus(services.database)} · Almacenamiento: ${formatServiceStatus(
     services.storage,
-  )}`;
+  )} · Correo SMTP: ${formatServiceStatus(services.smtp)}`;
 }
 
 function formatUptime(totalSeconds: number | undefined) {
@@ -420,6 +424,12 @@ export default async function AdminPage({
                 <p className="mb-2 text-xs text-muted-foreground">Almacenamiento</p>
                 <Badge variant={getServiceVariant(serviceChecks.storage)}>
                   {formatServiceStatus(serviceChecks.storage)}
+                </Badge>
+              </div>
+              <div className="surface-soft">
+                <p className="mb-2 text-xs text-muted-foreground">Correo SMTP</p>
+                <Badge variant={getServiceVariant(serviceChecks.smtp)}>
+                  {formatServiceStatus(serviceChecks.smtp)}
                 </Badge>
               </div>
               <div className="surface-soft">

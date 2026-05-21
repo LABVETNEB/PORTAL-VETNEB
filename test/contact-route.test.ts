@@ -146,11 +146,16 @@ test("contact endpoint accepts message when smtp is disabled", async () => {
       success: boolean;
       sent: boolean;
       reason: string;
+      message: string;
     };
 
     assert.equal(body.success, true);
     assert.equal(body.sent, false);
     assert.equal(body.reason, "smtp_disabled");
+    assert.equal(
+      body.message,
+      "Mensaje recibido, pero el envío automático de correo no está configurado. Contacte a VETNEB por los canales oficiales si requiere respuesta inmediata.",
+    );
   } finally {
     await app.close();
   }

@@ -34,10 +34,15 @@ test("contact public page handles loading, success, error and reset states", () 
 
   assert.ok(source.includes("const [errorMessage, setErrorMessage]"));
   assert.ok(source.includes("const [successMessage, setSuccessMessage]"));
+  assert.ok(source.includes("const [warningMessage, setWarningMessage]"));
   assert.ok(source.includes("const [isSubmitting, setIsSubmitting]"));
   assert.ok(source.includes("if (isSubmitting)"));
   assert.ok(source.includes("setIsSubmitting(true);"));
+  assert.ok(source.includes("setWarningMessage(null);"));
+  assert.ok(source.includes('response.reason === "smtp_disabled"'));
+  assert.ok(source.includes("setWarningMessage(response.message);"));
   assert.ok(source.includes("setSuccessMessage(response.message);"));
+  assert.ok(source.includes("clinical-alert-warning"));
   assert.ok(source.includes('setNombre("");'));
   assert.ok(source.includes('setApellido("");'));
   assert.ok(source.includes('setEmail("");'));

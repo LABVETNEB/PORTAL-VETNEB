@@ -248,6 +248,18 @@ function buildRuntimePayload() {
   };
 }
 
+function buildServiceChecksPayload(checks: unknown) {
+  const baseChecks =
+    checks && typeof checks === "object" && !Array.isArray(checks)
+      ? (checks as Record<string, unknown>)
+      : {};
+
+  return {
+    ...baseChecks,
+    smtp: ENV.smtp.enabled ? "configured" : "not_configured",
+  };
+}
+
 export const adminSystemHealthNativeRoutes: FastifyPluginAsync<
   AdminSystemHealthNativeRoutesOptions
 > = async (app, options) => {
@@ -291,6 +303,7 @@ export const adminSystemHealthNativeRoutes: FastifyPluginAsync<
 
     const health = await deps.getSystemHealthSnapshot();
     const healthPayload = health.payload;
+    const serviceChecks = buildServiceChecksPayload(healthPayload.checks);
 
     const status =
       typeof healthPayload.status === "string" ? healthPayload.status : "unknown";
@@ -303,7 +316,7 @@ export const adminSystemHealthNativeRoutes: FastifyPluginAsync<
         adminUserId: admin.id,
         username: admin.username,
       },
-      services: healthPayload.checks ?? {},
+      services: serviceChecks,
       runtime: buildRuntimePayload(),
       health: healthPayload,
     });

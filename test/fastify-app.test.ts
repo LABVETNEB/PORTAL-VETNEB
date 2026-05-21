@@ -2339,6 +2339,7 @@ test(
       assert.deepEqual(body.services, {
         database: "up",
         storage: "up",
+        smtp: ENV.smtp.enabled ? "configured" : "not_configured",
       });
     } finally {
       await app.close();
