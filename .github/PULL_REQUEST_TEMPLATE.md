@@ -1,12 +1,15 @@
 ## Summary
 - Change type:
-- Scope:
-  - [ ] backend
-  - [ ] frontend
-  - [ ] workflows/ci
-  - [ ] migrations/schema
-  - [ ] docs
 - Context / issue:
+- What changed:
+
+## Scope
+- [ ] backend runtime
+- [ ] frontend runtime
+- [ ] workflows/ci
+- [ ] migrations/schema
+- [ ] docs
+- [ ] dependencies
 
 ## Validation
 - [ ] `pnpm typecheck`
@@ -18,15 +21,14 @@
 - [ ] `pnpm --dir frontend build` (if frontend affected)
 - [ ] `pnpm audit --prod` (if dependencies affected)
 - [ ] `pnpm audit` (if dependencies affected)
+- [ ] Relevant CI checks passed (`Backend CI`, `Frontend CI` when applicable)
 
-## Security
+## Security / Regression Checklist
 - [ ] No secret/token exposure in code, logs, or config.
-- [ ] AuthZ/AuthN and data-access impact reviewed.
+- [ ] AuthN/AuthZ and data-access impact reviewed.
 - [ ] Dependency and supply-chain impact reviewed.
-
-## Migrations / Schema
-- [ ] No migration/schema changes.
-- [ ] If applies: migration + backward-compatibility notes included.
+- [ ] No unintended regression in out-of-scope domains.
+- [ ] Migration/schema impact documented or explicitly not applicable.
 
 ## Rollback
 - Trigger:
