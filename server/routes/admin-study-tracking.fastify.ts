@@ -72,6 +72,23 @@ type StudyTrackingEmailInput = Pick<
   | "notes"
 >;
 
+function getStudyTrackingStageLabel(value: unknown): string {
+  switch (value) {
+    case "reception":
+      return "Recepción";
+    case "processing":
+      return "Procesamiento";
+    case "evaluation":
+      return "Evaluación";
+    case "report_development":
+      return "Desarrollo de informe";
+    case "delivered":
+      return "Entregado";
+    default:
+      return String(value);
+  }
+}
+
 export type AdminStudyTrackingNativeRoutesOptions = {
   deleteAdminSession?: (tokenHash: string) => Promise<void>;
   getAdminSessionByToken?: (
@@ -1112,7 +1129,11 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
           ? undefined
           : parsed.data.deliveredAt,
     });
+    const stageChanged =
+      typeof parsed.data.currentStage !== "undefined" &&
+      parsed.data.currentStage !== current.currentStage;
     let updateNotification: StudyTrackingNotification | null = null;
+    let stageChangeNotification: StudyTrackingNotification | null = null;
 
     const updated = await deps.updateStudyTrackingCase(trackingCaseId, {
       reportId:
@@ -1202,6 +1223,20 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       await notifySpecialStainByEmail(finalCase, deps);
     }
 
+    if (stageChanged) {
+      stageChangeNotification = await deps.createStudyTrackingNotification({
+        studyTrackingCaseId: finalCase.id,
+        clinicId: finalCase.clinicId,
+        reportId: finalCase.reportId ?? null,
+        particularTokenId: finalCase.particularTokenId ?? null,
+        type: "stage_changed",
+        title: "Estado de estudio actualizado",
+        message: `El estudio cambió de estado: ${getStudyTrackingStageLabel(current.currentStage)} → ${getStudyTrackingStageLabel(finalCase.currentStage)}.`,
+        isRead: false,
+        readAt: null,
+      });
+    }
+
     await deps.writeAuditLog(createAuditRequestLike(request, admin), {
       event: AUDIT_EVENTS.STUDY_TRACKING_CASE_UPDATED,
       clinicId: finalCase.clinicId,
@@ -1233,6 +1268,24 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       });
     }
 
+    if (stageChangeNotification) {
+      await deps.writeAuditLog(createAuditRequestLike(request, admin), {
+        event: AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED,
+        clinicId: stageChangeNotification.clinicId,
+        reportId: stageChangeNotification.reportId ?? null,
+        metadata: {
+          trackingCaseId: stageChangeNotification.studyTrackingCaseId,
+          notificationId: stageChangeNotification.id,
+          particularTokenId: stageChangeNotification.particularTokenId ?? null,
+          type: stageChangeNotification.type,
+          title: stageChangeNotification.title,
+          fromStage: current.currentStage,
+          toStage: finalCase.currentStage,
+          createdVia: "admin",
+        },
+      });
+    }
+
     return reply.code(200).send({
       success: true,
       message: "Seguimiento actualizado correctamente",
@@ -1240,4 +1293,3 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     });
   });
 };
-
