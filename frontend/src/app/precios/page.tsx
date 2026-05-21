@@ -3,6 +3,10 @@ import type { Metadata } from "next";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPublicPricing, type PublicPricingCategory } from "@/lib/api";
+import {
+  getCachedPublicPricingSnapshot,
+  setCachedPublicPricingSnapshot,
+} from "@/lib/public-pricing-cache";
 import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata(
@@ -68,10 +72,14 @@ export default async function PreciosPage() {
   let pricingLoadError = false;
 
   try {
-    const pricingSnapshot = await getPublicPricing(
-      { cache: "no-store" },
-      { throwOnError: true },
-    );
+    const cachedSnapshot = getCachedPublicPricingSnapshot();
+    const pricingSnapshot =
+      cachedSnapshot ??
+      (await getPublicPricing({ cache: "no-store" }, { throwOnError: true }));
+
+    if (!cachedSnapshot && pricingSnapshot.success) {
+      setCachedPublicPricingSnapshot(pricingSnapshot);
+    }
 
     pricingCategories = sortPricingCategories(pricingSnapshot.categories);
   } catch {

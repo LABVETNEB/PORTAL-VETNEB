@@ -6,6 +6,7 @@ import type {
 
 import { ENV } from "../lib/env.ts";
 import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
+import { clearPublicPricingCache } from "../lib/public-pricing-cache.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import type {
   PricingItem,
@@ -562,6 +563,8 @@ export const adminPricingNativeRoutes: FastifyPluginAsync<
           },
         },
       });
+
+      clearPublicPricingCache();
 
       return reply.code(200).send({
         success: true,
