@@ -216,6 +216,21 @@ test("dashboard admin surfaces system health fetch failures", () => {
   assert.ok(source.includes("formatSystemStatusDetail(serviceChecks)"));
 });
 
+test("dashboard admin surfaces study tracking notifications", () => {
+  const source = read(ADMIN_PAGE_PATH);
+
+  assert.ok(source.includes("const notificationAuditEntries = auditEntries.filter("));
+  assert.ok(source.includes('(entry) => entry.event === "study_tracking.notification.created",'));
+  assert.ok(source.includes("const lastNotificationAuditEntry = notificationAuditEntries[0];"));
+  assert.ok(source.includes('id="admin-notifications"'));
+  assert.ok(source.includes('<CardTitle className="text-base">Notificaciones</CardTitle>'));
+  assert.ok(source.includes("notificationAuditEntries.length"));
+  assert.ok(source.includes("lastNotificationAuditEntry"));
+  assert.ok(source.includes("formatDateTime(lastNotificationAuditEntry.createdAt)"));
+  assert.ok(source.includes('event: "study_tracking.notification.created",'));
+  assert.ok(source.includes("Ver notificaciones"));
+});
+
 test("dashboard admin renders role-change audit and audit log table", () => {
   const source = read(ADMIN_PAGE_PATH);
 
@@ -252,7 +267,10 @@ test("dashboard admin distinguishes audit log load failures from empty states", 
 test("dashboard admin avoids duplicate section ids in navigation anchors", () => {
   const source = read(ADMIN_PAGE_PATH);
   const adminHealthIdMatches = source.match(/id="admin-health"/g) ?? [];
+  const adminNotificationsIdMatches =
+    source.match(/id="admin-notifications"/g) ?? [];
 
   assert.equal(adminHealthIdMatches.length, 1);
+  assert.equal(adminNotificationsIdMatches.length, 1);
   assert.equal(source.includes('id="admin-event-summary"'), true);
 });

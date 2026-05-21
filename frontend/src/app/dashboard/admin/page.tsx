@@ -284,6 +284,10 @@ export default async function AdminPage({
     (entry) => entry.event === "clinic_user.role.changed",
   );
   const lastRoleChangeAuditEntry = roleChangeAuditEntries[0];
+  const notificationAuditEntries = auditEntries.filter(
+    (entry) => entry.event === "study_tracking.notification.created",
+  );
+  const lastNotificationAuditEntry = notificationAuditEntries[0];
   const auditEventOptions = Object.keys(eventCounts).sort();
   const actorTypeOptions = Array.from(
     new Set(auditEntries.map((entry) => entry.actorType)),
@@ -475,6 +479,40 @@ export default async function AdminPage({
         <section id="admin-users-roles">
           <AdminUsersRolesReadOnlyCard />
         </section>
+        <Card id="admin-notifications" className="dashboard-surface">
+          <CardHeader>
+            <CardTitle className="text-base">Notificaciones</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="surface-soft">
+                <p className="text-xs text-muted-foreground">Registradas</p>
+                <p className="mt-1 text-2xl font-bold text-vetneb-ink">
+                  {notificationAuditEntries.length}
+                </p>
+              </div>
+              <div className="surface-soft">
+                <p className="text-xs text-muted-foreground">Última notificación</p>
+                <p className="mt-1 text-sm font-semibold text-vetneb-ink">
+                  {lastNotificationAuditEntry
+                    ? formatDateTime(lastNotificationAuditEntry.createdAt)
+                    : "—"}
+                </p>
+              </div>
+              <div className="surface-soft">
+                <p className="text-xs text-muted-foreground">Auditoría</p>
+                <Link
+                  href={buildAdminAuditFilterHref({
+                    event: "study_tracking.notification.created",
+                  })}
+                  className="mt-1 inline-flex text-sm font-semibold text-vetneb-navy hover:text-vetneb-teal"
+                >
+                  Ver notificaciones
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         <Card id="audit-role-changes" className="dashboard-surface">
           <CardHeader>
             <CardTitle className="text-base">
