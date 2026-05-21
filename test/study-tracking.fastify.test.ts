@@ -183,7 +183,13 @@ test("studyTrackingNativeRoutes expone GET /notifications clinic-scoped", async 
   const app = await createTestApp({
     listStudyTrackingNotifications: async (params: Record<string, unknown>) => {
       listCalls.push(params);
-      return [createNotificationFixture()];
+      return [
+        createNotificationFixture({
+          type: "stage_changed",
+          title: "Estado de estudio actualizado",
+          message: "El estudio cambió de estado: Recepción → Procesamiento.",
+        }),
+      ];
     },
   });
 
@@ -211,6 +217,8 @@ test("studyTrackingNativeRoutes expone GET /notifications clinic-scoped", async 
     assert.equal(body.count, 1);
     assert.equal(body.notifications[0].id, 21);
     assert.equal(body.notifications[0].clinicId, 3);
+    assert.equal(body.notifications[0].particularTokenId, 7);
+    assert.equal(body.notifications[0].type, "stage_changed");
     assert.equal(body.pagination.limit, 5);
     assert.equal(body.pagination.offset, 2);
   } finally {

@@ -385,6 +385,154 @@ test("adminStudyTrackingNativeRoutes expone GET /:trackingCaseId con detalle glo
   }
 });
 
+test("adminStudyTrackingNativeRoutes notifica cambio de etapa en PATCH /:trackingCaseId", async () => {
+  const notificationCalls: Array<Record<string, unknown>> = [];
+  const auditCalls: Array<Record<string, unknown>> = [];
+  const current = createTrackingCaseFixture({ currentStage: "processing" });
+  const updated = createTrackingCaseFixture({ currentStage: "evaluation" });
+
+  const app = await createTestApp({
+    getClinicScopedStudyTrackingCase: async () => current,
+    updateStudyTrackingCase: async (
+      trackingCaseId: number,
+      input: Record<string, unknown>,
+    ) => {
+      assert.equal(trackingCaseId, 11);
+      assert.equal(input.currentStage, "evaluation");
+      return updated;
+    },
+    createStudyTrackingNotification: async (input: Record<string, unknown>) => {
+      notificationCalls.push(input);
+      return createNotificationFixture({ id: 31, ...input });
+    },
+    writeAuditLog: async (_request: unknown, input: Record<string, unknown>) => {
+      auditCalls.push(input);
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/admin/study-tracking/11",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        clinicId: 3,
+        currentStage: "evaluation",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(notificationCalls.length, 1);
+
+    const notification = notificationCalls[0];
+    assert.equal(notification.studyTrackingCaseId, 11);
+    assert.equal(notification.clinicId, 3);
+    assert.equal(notification.reportId, 55);
+    assert.equal(notification.particularTokenId, 7);
+    assert.equal(notification.type, "stage_changed");
+    assert.equal(notification.title, "Estado de estudio actualizado");
+    assert.equal(
+      notification.message,
+      "El estudio cambió de estado: Procesamiento → Evaluación.",
+    );
+    assert.equal(notification.isRead, false);
+    assert.equal(notification.readAt, null);
+
+    const notificationAudit = auditCalls.find((call) => {
+      const metadata = call.metadata as Record<string, unknown> | undefined;
+      return (
+        call.event === "study_tracking.notification.created" &&
+        metadata?.type === "stage_changed"
+      );
+    });
+
+    assert.ok(notificationAudit);
+    const metadata = notificationAudit.metadata as Record<string, unknown>;
+    assert.equal(metadata.trackingCaseId, 11);
+    assert.equal(metadata.notificationId, 31);
+    assert.equal(metadata.particularTokenId, 7);
+    assert.equal(metadata.type, "stage_changed");
+    assert.equal(metadata.title, "Estado de estudio actualizado");
+    assert.equal(metadata.fromStage, "processing");
+    assert.equal(metadata.toStage, "evaluation");
+    assert.equal(metadata.createdVia, "admin");
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminStudyTrackingNativeRoutes no notifica stage_changed si currentStage no cambia", async () => {
+  const withoutStageCalls: Array<Record<string, unknown>> = [];
+  const current = createTrackingCaseFixture({ currentStage: "evaluation" });
+
+  const appWithoutStage = await createTestApp({
+    getClinicScopedStudyTrackingCase: async () => current,
+    updateStudyTrackingCase: async () =>
+      createTrackingCaseFixture({ currentStage: "evaluation" }),
+    createStudyTrackingNotification: async (input: Record<string, unknown>) => {
+      withoutStageCalls.push(input);
+      return createNotificationFixture({ ...input });
+    },
+  });
+
+  try {
+    const response = await appWithoutStage.inject({
+      method: "PATCH",
+      url: "/api/admin/study-tracking/11",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        clinicId: 3,
+        notes: "Actualización administrativa",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(withoutStageCalls.length, 0);
+  } finally {
+    await appWithoutStage.close();
+  }
+
+  const sameStageCalls: Array<Record<string, unknown>> = [];
+  const appSameStage = await createTestApp({
+    getClinicScopedStudyTrackingCase: async () => current,
+    updateStudyTrackingCase: async () =>
+      createTrackingCaseFixture({ currentStage: "evaluation" }),
+    createStudyTrackingNotification: async (input: Record<string, unknown>) => {
+      sameStageCalls.push(input);
+      return createNotificationFixture({ ...input });
+    },
+  });
+
+  try {
+    const response = await appSameStage.inject({
+      method: "PATCH",
+      url: "/api/admin/study-tracking/11",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        clinicId: 3,
+        currentStage: "evaluation",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(sameStageCalls.length, 0);
+  } finally {
+    await appSameStage.close();
+  }
+});
+
 test("adminStudyTrackingNativeRoutes actualiza PATCH /:trackingCaseId y notifica tinción especial", async () => {
   const updateCalls: Array<Record<string, unknown>> = [];
   const notificationCalls: Array<Record<string, unknown>> = [];
@@ -452,8 +600,18 @@ test("adminStudyTrackingNativeRoutes actualiza PATCH /:trackingCaseId y notifica
     assert.equal(updateCalls[0].currentStage, "evaluation");
     assert.equal(updateCalls[0].specialStainRequired, true);
     assert.deepEqual(updateCalls[1], { specialStainNotifiedAt: notifiedAt });
-    assert.equal(notificationCalls.length, 1);
-    assert.equal(notificationCalls[0].type, "special_stain_required");
+    assert.equal(notificationCalls.length, 2);
+    assert.ok(
+      notificationCalls.find((call) => call.type === "special_stain_required"),
+    );
+    const stageNotification = notificationCalls.find(
+      (call) => call.type === "stage_changed",
+    );
+    assert.ok(stageNotification);
+    assert.equal(
+      stageNotification.message,
+      "El estudio cambió de estado: Recepción → Evaluación.",
+    );
     assert.equal(emailCalls.length, 1);
 
     const body = JSON.parse(response.body);
@@ -465,6 +623,5 @@ test("adminStudyTrackingNativeRoutes actualiza PATCH /:trackingCaseId y notifica
     await app.close();
   }
 });
-
 
 
