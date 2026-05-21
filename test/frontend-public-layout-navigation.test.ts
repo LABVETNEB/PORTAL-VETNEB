@@ -41,6 +41,20 @@ test("navbar uses centralized public routes for primary navigation", () => {
   assert.ok(source.includes('aria-label="Navegación principal"'));
 });
 
+test("navbar keeps full navigation desktop-only and exposes compact professionals link", () => {
+  const source = read(NAVBAR_PATH);
+
+  assert.ok(
+    source.includes(
+      'className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 lg:flex"',
+    ),
+  );
+  assert.equal(source.includes("p-1 md:flex"), false);
+  assert.ok(source.includes('className="public-cta-outline lg:hidden"'));
+  assert.ok(source.includes("<Link href={ROUTES.profesionales}>Profesionales</Link>"));
+  assert.ok(source.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
+});
+
 test("navbar keeps expected public link order including precios", () => {
   const source = read(NAVBAR_PATH);
 

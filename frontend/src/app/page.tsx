@@ -162,6 +162,35 @@ export default function HomePage() {
       </section>
 
       <div className="public-soft-canvas">
+        <section
+          className="border-b border-vetneb-line/80 bg-card/72 py-8 md:py-10 lg:hidden"
+          aria-labelledby="mobile-professionals-heading"
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-6">
+              <div>
+                <h2
+                  id="mobile-professionals-heading"
+                  className="text-2xl font-bold text-vetneb-ink md:text-3xl"
+                >
+                  Red de profesionales veterinarios
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+                  Buscá profesionales vinculados a VETNEB para derivaciones,
+                  interconsultas y coordinación clínica.
+                </p>
+              </div>
+              <Button
+                asChild
+                size="lg"
+                className="public-cta-primary w-full sm:w-auto"
+              >
+                <Link href={ROUTES.profesionales}>Buscar profesionales</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+
         {/* Servicios principales */}
         <section
           className="py-16 md:py-20"

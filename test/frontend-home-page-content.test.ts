@@ -52,6 +52,29 @@ test("home page exposes accessible hero and primary CTAs", () => {
   assert.ok(source.includes('href={ROUTES.login}'));
 });
 
+test("home page exposes mobile professionals block before services", () => {
+  const source = read(HOME_PAGE_PATH);
+  const professionalsIndex = source.indexOf("Red de profesionales veterinarios");
+  const servicesIndex = source.indexOf(
+    "Servicios del laboratorio patológico veterinario",
+  );
+
+  assert.ok(professionalsIndex !== -1);
+  assert.ok(servicesIndex !== -1);
+  assert.ok(professionalsIndex < servicesIndex);
+  assert.ok(source.includes('aria-labelledby="mobile-professionals-heading"'));
+  assert.ok(source.includes('id="mobile-professionals-heading"'));
+  assert.ok(
+    source.includes(
+      'className="border-b border-vetneb-line/80 bg-card/72 py-8 md:py-10 lg:hidden"',
+    ),
+  );
+  assert.ok(source.includes("Buscá profesionales vinculados a VETNEB para derivaciones,"));
+  assert.ok(source.includes("interconsultas y coordinación clínica."));
+  assert.ok(source.includes('className="public-cta-primary w-full sm:w-auto"'));
+  assert.ok(source.includes("<Link href={ROUTES.profesionales}>Buscar profesionales</Link>"));
+});
+
 test("home page lists core laboratory services and services route CTA", () => {
   const source = read(HOME_PAGE_PATH);
 
