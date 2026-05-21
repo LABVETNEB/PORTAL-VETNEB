@@ -43,6 +43,14 @@ import {
 } from "../lib/logistics/metrics.ts";
 import { createRuntimeTimer } from "../lib/runtime-timing.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
+import {
+  clearRoutePlanMetricsCacheByPlan,
+  clearRoutePlansCacheByClinic,
+  getCachedRoutePlanMetricsSnapshot,
+  getCachedRoutePlansSnapshot,
+  setCachedRoutePlanMetricsSnapshot,
+  setCachedRoutePlansSnapshot,
+} from "../lib/logistics-route-plans-cache.ts";
 
 type ActiveSessionRecord = {
   clinicUserId: number;
@@ -139,8 +147,78 @@ type NativeLogisticsRoutePlansDeps = Required<
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const MAX_ROUTE_PLAN_FIELD_VISIT_IDS = 100;
+const LOGISTICS_CACHE_STATUS_HEADER = "X-Logistics-Cache";
 
 let defaultDepsPromise: Promise<NativeLogisticsRoutePlansDeps> | undefined;
+
+type RoutePlansListSnapshot = {
+  success: true;
+  count: number;
+  routePlans: Record<string, unknown>[];
+  pagination: {
+    limit: number;
+    offset: number;
+  };
+};
+
+type RoutePlanMetricsSnapshot = {
+  success: true;
+  routePlan: Record<string, unknown>;
+  metrics: ReturnType<typeof calculateRouteStopComplianceMetrics>;
+};
+
+function serializeCacheValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return "";
+}
+
+function buildRoutePlansListCacheKey(input: {
+  clinicId: number;
+  status?: RoutePlanStatus;
+  planningMode?: RoutePlanningMode;
+  objective?: RoutePlanObjective;
+  limit: number;
+  offset: number;
+}): string {
+  return [
+    `clinic:${input.clinicId}`,
+    `status:${input.status ?? ""}`,
+    `planningMode:${input.planningMode ?? ""}`,
+    `objective:${input.objective ?? ""}`,
+    `limit:${input.limit}`,
+    `offset:${input.offset}`,
+  ].join("|");
+}
+
+function buildRoutePlanMetricsCacheKey(input: {
+  clinicId: number;
+  routePlanId: number;
+  distanceTolerancePercent?: unknown;
+  timeToleranceMin?: unknown;
+  toleranceMin?: unknown;
+}): string {
+  return [
+    `clinic:${input.clinicId}`,
+    `plan:${input.routePlanId}`,
+    `distanceTolerancePercent:${serializeCacheValue(input.distanceTolerancePercent)}`,
+    `timeToleranceMin:${serializeCacheValue(input.timeToleranceMin)}`,
+    `toleranceMin:${serializeCacheValue(input.toleranceMin)}`,
+  ].join("|");
+}
+
+function markLogisticsCacheStatus(
+  reply: FastifyReply,
+  cacheStatus: "HIT" | "MISS",
+): void {
+  reply.header(LOGISTICS_CACHE_STATUS_HEADER, cacheStatus);
+}
 
 async function loadDefaultDeps(): Promise<NativeLogisticsRoutePlansDeps> {
   if (!defaultDepsPromise) {
@@ -1588,6 +1666,9 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
+    clearRoutePlansCacheByClinic(auth.clinicId);
+    clearRoutePlanMetricsCacheByPlan(auth.clinicId, result.routePlan.id);
+
     return reply.code(201).send({
       success: true,
       routePlan: serializeRoutePlan(result.routePlan),
@@ -1667,9 +1748,25 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       offset,
     };
 
-    const routePlans = await deps.listClinicRoutePlans(params);
+    const nowMs = now();
+    const cacheKey = buildRoutePlansListCacheKey({
+      clinicId: auth.clinicId,
+      status: status.value,
+      planningMode: planningMode.value,
+      objective: objective.value,
+      limit,
+      offset,
+    });
+    const cachedSnapshot =
+      getCachedRoutePlansSnapshot<RoutePlansListSnapshot>(cacheKey, nowMs);
 
-    return reply.code(200).send({
+    if (cachedSnapshot) {
+      markLogisticsCacheStatus(reply, "HIT");
+      return reply.code(200).send(cachedSnapshot);
+    }
+
+    const routePlans = await deps.listClinicRoutePlans(params);
+    const snapshot: RoutePlansListSnapshot = {
       success: true,
       count: routePlans.length,
       routePlans: routePlans.map((routePlan) =>
@@ -1679,7 +1776,12 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
         limit,
         offset,
       },
-    });
+    };
+
+    setCachedRoutePlansSnapshot(cacheKey, snapshot, nowMs);
+    markLogisticsCacheStatus(reply, "MISS");
+
+    return reply.code(200).send(snapshot);
   });
 
   app.post<{
@@ -1722,6 +1824,8 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
         error: "No se pudo crear el plan de ruta",
       });
     }
+
+    clearRoutePlansCacheByClinic(auth.clinicId);
 
     return reply.code(201).send({
       success: true,
@@ -1835,6 +1939,9 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
+    clearRoutePlansCacheByClinic(auth.clinicId);
+    clearRoutePlanMetricsCacheByPlan(auth.clinicId, routePlanId);
+
     return reply.code(200).send({
       success: true,
       message: "Plan de ruta actualizado correctamente",
@@ -1875,10 +1982,35 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const routePlan = await deps.getClinicScopedRoutePlan(
+    const nowMs = now();
+    const cacheKey = buildRoutePlanMetricsCacheKey({
+      clinicId: auth.clinicId,
       routePlanId,
-      auth.clinicId,
-    );
+      distanceTolerancePercent: request.query.distanceTolerancePercent,
+      timeToleranceMin: request.query.timeToleranceMin,
+      toleranceMin: request.query.toleranceMin,
+    });
+    const cachedSnapshot =
+      getCachedRoutePlanMetricsSnapshot<RoutePlanMetricsSnapshot>(
+        cacheKey,
+        nowMs,
+      );
+
+    if (cachedSnapshot) {
+      markLogisticsCacheStatus(reply, "HIT");
+      return reply.code(200).send(cachedSnapshot);
+    }
+
+    const [routePlan, routeStops] = await Promise.all([
+      deps.getClinicScopedRoutePlan(
+        routePlanId,
+        auth.clinicId,
+      ),
+      deps.listRouteStopsForClinicRoutePlan(
+        routePlanId,
+        auth.clinicId,
+      ),
+    ]);
 
     if (!routePlan) {
       return reply.code(404).send({
@@ -1886,11 +2018,6 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
         error: "Plan de ruta no encontrado",
       });
     }
-
-    const routeStops = await deps.listRouteStopsForClinicRoutePlan(
-      routePlanId,
-      auth.clinicId,
-    );
     const metricInputs = buildRouteStopComplianceInputs(
       routeStops,
       request.query,
@@ -1903,11 +2030,16 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    return reply.send({
+    const snapshot: RoutePlanMetricsSnapshot = {
       success: true,
       routePlan: serializeRoutePlan(routePlan),
       metrics: calculateRouteStopComplianceMetrics(metricInputs.inputs),
-    });
+    };
+
+    setCachedRoutePlanMetricsSnapshot(cacheKey, snapshot, nowMs);
+    markLogisticsCacheStatus(reply, "MISS");
+
+    return reply.code(200).send(snapshot);
   });
   app.get<{
     Params: {
@@ -2012,6 +2144,8 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
+    clearRoutePlanMetricsCacheByPlan(auth.clinicId, routePlanId);
+
     return reply.code(201).send({
       success: true,
       message: "Parada de ruta creada correctamente",
@@ -2085,6 +2219,8 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
+    clearRoutePlanMetricsCacheByPlan(auth.clinicId, routePlanId);
+
     return reply.code(200).send({
       success: true,
       message: "Parada de ruta actualizada correctamente",
@@ -2155,6 +2291,10 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
         status: result.routePlan.status,
       },
     });
+
+    clearRoutePlansCacheByClinic(auth.clinicId);
+    clearRoutePlanMetricsCacheByPlan(auth.clinicId, routePlanId);
+
     return reply.code(200).send({
       success: true,
       message: "Estado del plan de ruta actualizado correctamente",
