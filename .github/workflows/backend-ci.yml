@@ -65,6 +65,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Dependency security audit
+        run: |
+          pnpm audit --prod
+          pnpm audit
+
       - name: Run database migrations
         run: pnpm db:migrate
 
