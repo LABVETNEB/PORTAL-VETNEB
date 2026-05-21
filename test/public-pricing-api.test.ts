@@ -5,6 +5,9 @@ import Fastify from "fastify";
 const { publicPricingNativeRoutes } = await import(
   "../server/routes/public-pricing.fastify.ts"
 );
+const { clearPublicPricingCache } = await import(
+  "../server/lib/public-pricing-cache.ts"
+);
 
 type PublicPricingNativeRoutesOptions = import(
   "../server/routes/public-pricing.fastify.ts"
@@ -33,6 +36,7 @@ function buildDeps(
 }
 
 test("public pricing expone GET /api/public/pricing con contrato agrupado", async () => {
+  clearPublicPricingCache();
   const app = Fastify();
 
   await app.register(
@@ -71,6 +75,11 @@ test("public pricing expone GET /api/public/pricing con contrato agrupado", asyn
     });
 
     assert.equal(response.statusCode, 200);
+    assert.equal(
+      response.headers["cache-control"],
+      "public, max-age=60, stale-while-revalidate=300",
+    );
+    assert.equal(response.headers["x-pricing-cache"], "MISS");
     assert.deepEqual(JSON.parse(response.body), {
       success: true,
       categories: [
@@ -105,11 +114,13 @@ test("public pricing expone GET /api/public/pricing con contrato agrupado", asyn
       ],
     });
   } finally {
+    clearPublicPricingCache();
     await app.close();
   }
 });
 
 test("public pricing devuelve categories vacías cuando no hay items activos", async () => {
+  clearPublicPricingCache();
   const app = Fastify();
 
   await app.register(
@@ -126,16 +137,72 @@ test("public pricing devuelve categories vacías cuando no hay items activos", a
     });
 
     assert.equal(response.statusCode, 200);
+    assert.equal(response.headers["x-pricing-cache"], "MISS");
     assert.deepEqual(JSON.parse(response.body), {
       success: true,
       categories: [],
     });
   } finally {
+    clearPublicPricingCache();
+    await app.close();
+  }
+});
+
+test("public pricing usa cache backend y evita query repetida a DB", async () => {
+  clearPublicPricingCache();
+  const app = Fastify();
+  let listCalls = 0;
+
+  await app.register(
+    publicPricingNativeRoutes,
+    buildDeps({
+      listPublicPricingItems: async () => {
+        listCalls += 1;
+        return [
+          createPricingItem({
+            id: 1,
+            category: "CITOLOGÍAS",
+            studyName: "UNA LESIÓN (VARIOS VIDRIOS)",
+            priceLabel: null,
+            displayOrder: 1,
+          }),
+        ];
+      },
+    }),
+  );
+
+  try {
+    const firstResponse = await app.inject({
+      method: "GET",
+      url: "/",
+    });
+
+    const secondResponse = await app.inject({
+      method: "GET",
+      url: "/",
+    });
+
+    assert.equal(firstResponse.statusCode, 200);
+    assert.equal(secondResponse.statusCode, 200);
+    assert.equal(listCalls, 1);
+    assert.equal(firstResponse.headers["x-pricing-cache"], "MISS");
+    assert.equal(secondResponse.headers["x-pricing-cache"], "HIT");
+    assert.equal(
+      secondResponse.headers["cache-control"],
+      "public, max-age=60, stale-while-revalidate=300",
+    );
+    assert.deepEqual(
+      JSON.parse(secondResponse.body),
+      JSON.parse(firstResponse.body),
+    );
+  } finally {
+    clearPublicPricingCache();
     await app.close();
   }
 });
 
 test("public pricing no usa fallback mock silencioso y responde 500 seguro ante falla DB", async () => {
+  clearPublicPricingCache();
   const app = Fastify();
 
   await app.register(
@@ -159,6 +226,7 @@ test("public pricing no usa fallback mock silencioso y responde 500 seguro ante 
       error: "Error interno del servidor",
     });
   } finally {
+    clearPublicPricingCache();
     await app.close();
   }
 });

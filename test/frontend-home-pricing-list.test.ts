@@ -26,13 +26,18 @@ test("home page no longer renders public pricing section", () => {
   assert.equal(source.includes("normalizePriceLabel("), false);
 });
 
-test("precios page requests public pricing from backend API", () => {
+test("precios page uses runtime pricing cache and backend API on cache miss", () => {
   const source = read(PRECIOS_PAGE_PATH);
 
   assert.ok(source.includes("export default async function PreciosPage()"));
+  assert.ok(source.includes("getCachedPublicPricingSnapshot"));
+  assert.ok(source.includes("setCachedPublicPricingSnapshot"));
+  assert.ok(source.includes("const cachedSnapshot = getCachedPublicPricingSnapshot();"));
+  assert.ok(source.includes("cachedSnapshot ??"));
   assert.ok(source.includes("await getPublicPricing("));
-  assert.ok(source.includes('{ cache: "no-store" }'));
-  assert.ok(source.includes("{ throwOnError: true },"));
+  assert.ok(source.includes("{ throwOnError: true }"));
+  assert.ok(source.includes("if (!cachedSnapshot && pricingSnapshot.success) {"));
+  assert.ok(source.includes("setCachedPublicPricingSnapshot(pricingSnapshot);"));
 });
 
 test("precios page keeps public pricing states and fallback label", () => {

@@ -13,6 +13,11 @@ const { ENV } = await import("../server/lib/env.ts");
 const { adminPricingNativeRoutes } = await import(
   "../server/routes/admin-pricing.fastify.ts"
 );
+const {
+  clearPublicPricingCache,
+  getCachedPublicPricingSnapshot,
+  setCachedPublicPricingSnapshot,
+} = await import("../server/lib/public-pricing-cache.ts");
 
 type AdminPricingNativeRoutesOptions = import(
   "../server/routes/admin-pricing.fastify.ts"
@@ -351,6 +356,62 @@ test("admin pricing PATCH actualiza campos permitidos y responde contrato", asyn
     assert.equal(auditCalls.length, 1);
     assert.equal(auditCalls[0].event, "admin.pricing.update");
   } finally {
+    await app.close();
+  }
+});
+
+test("admin pricing PATCH exitoso invalida cache público de precios", async () => {
+  clearPublicPricingCache();
+  setCachedPublicPricingSnapshot({
+    success: true,
+    categories: [
+      {
+        category: "CITOLOGÍAS",
+        items: [
+          {
+            id: 1,
+            studyName: "UNA LESIÓN (VARIOS VIDRIOS)",
+            priceLabel: "$ 100",
+            displayOrder: 1,
+          },
+        ],
+      },
+    ],
+  });
+
+  const app = Fastify();
+
+  await app.register(
+    adminPricingNativeRoutes,
+    buildDeps({
+      listAdminPricingItems: async () => [createPricingItem()],
+      updatePricingItem: async (id, payload) =>
+        createPricingItem({
+          id,
+          priceLabel: payload.priceLabel ?? null,
+          isActive: payload.isActive ?? true,
+          displayOrder: payload.displayOrder ?? 1,
+          updatedAt: "2026-05-15T13:00:00.000Z",
+        }),
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/1",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+      payload: {
+        priceLabel: "$ 120",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(getCachedPublicPricingSnapshot(), null);
+  } finally {
+    clearPublicPricingCache();
     await app.close();
   }
 });
