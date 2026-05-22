@@ -15,15 +15,17 @@ test("root env example prioritizes public staging/production communication confi
 
   for (const marker of [
     "NODE_ENV=production",
+    "PORT=10000",
     "CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com",
     "SMTP_HOST=smtp.gmail.com",
     "SMTP_PORT=587",
     "SMTP_SECURE=false",
-    "SMTP_USER=",
-    "SMTP_PASS=",
-    "SMTP_FROM=",
-    "CONTACT_TO=",
-    "NEXT_PUBLIC_API_URL=https://<backend-staging>.onrender.com",
+    "SMTP_USER=lab.vetneb@gmail.com",
+    "SMTP_PASS=<GMAIL_APP_PASSWORD_WITHOUT_SPACES>",
+    "SMTP_FROM=lab.vetneb@gmail.com",
+    "CONTACT_TO=lab.vetneb@gmail.com",
+    "NEXT_PUBLIC_API_URL=https://portal-vetneb-backend-staging.onrender.com",
+    "NEXT_PUBLIC_SITE_URL=https://portal-vetneb-frontend-staging.onrender.com",
     "Solo desarrollo local (auxiliar)",
   ]) {
     assert.ok(source.includes(marker), `.env.example missing ${marker}`);
@@ -35,11 +37,30 @@ test("frontend env example requires explicit public API URL", () => {
 
   for (const marker of [
     "Prioridad: staging/production público.",
-    "NEXT_PUBLIC_API_URL=https://<backend-staging>.onrender.com",
+    "NEXT_PUBLIC_API_URL=https://portal-vetneb-backend-staging.onrender.com",
     "NEXT_PUBLIC_SITE_URL=https://portal-vetneb-frontend-staging.onrender.com",
     "Solo desarrollo local (auxiliar)",
   ]) {
     assert.ok(source.includes(marker), `frontend/.env.example missing ${marker}`);
+  }
+
+  for (const forbiddenMarker of [
+    "SMTP_HOST",
+    "SMTP_PORT",
+    "SMTP_SECURE",
+    "SMTP_USER",
+    "SMTP_PASS",
+    "SMTP_FROM",
+    "CONTACT_TO",
+    "DATABASE_URL",
+    "SUPABASE_DB_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+  ]) {
+    assert.equal(
+      source.includes(forbiddenMarker),
+      false,
+      `frontend/.env.example must not include ${forbiddenMarker}`,
+    );
   }
 });
 
@@ -48,7 +69,11 @@ test("public staging docs enforce Render configuration and redeploy", () => {
   const releaseReadiness = read("docs/release-readiness.md");
 
   for (const marker of [
+    "portal-vetneb-backend-staging",
     "portal-vetneb-frontend-staging.onrender.com",
+    "SMTP_PASS=<GMAIL_APP_PASSWORD_WITHOUT_SPACES>",
+    "NEXT_PUBLIC_API_URL=https://portal-vetneb-backend-staging.onrender.com",
+    "CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com",
     "Redeploy backend Render.",
     "Redeploy frontend Render.",
     "Render",
@@ -59,6 +84,11 @@ test("public staging docs enforce Render configuration and redeploy", () => {
 
   for (const marker of [
     "Bloqueos obligatorios para staging público de contacto",
+    "portal-vetneb-backend-staging",
+    "portal-vetneb-frontend-staging",
+    "SMTP_PASS=<GMAIL_APP_PASSWORD_WITHOUT_SPACES>",
+    "NEXT_PUBLIC_API_URL=https://portal-vetneb-backend-staging.onrender.com",
+    "CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com",
     "portal-vetneb-frontend-staging.onrender.com",
     "forzar redeploy de backend/frontend",
     "/contacto",

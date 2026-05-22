@@ -59,7 +59,7 @@ cp frontend/.env.example frontend/.env.local
 
 | Variable | Descripción | Default |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | URL del backend Fastify público | `https://<backend-staging>.onrender.com` |
+| `NEXT_PUBLIC_API_URL` | URL del backend Fastify público | `https://portal-vetneb-backend-staging.onrender.com` |
 | `NEXT_PUBLIC_SITE_URL` | URL pública del frontend | `https://portal-vetneb-frontend-staging.onrender.com` |
 
 ## Build de producción

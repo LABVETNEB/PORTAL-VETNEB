@@ -26,12 +26,26 @@ if ($BackendUrl.EndsWith("/") -or $FrontendUrl.EndsWith("/")) {
 Antes del smoke del formulario de contacto, confirmar en Render que quedaron
 configuradas estas variables y luego ejecutar redeploy:
 
-- Backend staging:
-  `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
-  `SMTP_FROM`, `CONTACT_TO`,
-  `CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com`
-- Frontend staging:
-  `NEXT_PUBLIC_API_URL=https://<backend-staging>.onrender.com`
+- Servicio backend staging: `portal-vetneb-backend-staging`
+  - `NODE_ENV=production`
+  - `PORT=10000`
+  - `CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com`
+  - `SMTP_HOST=smtp.gmail.com`
+  - `SMTP_PORT=587`
+  - `SMTP_SECURE=false`
+  - `SMTP_USER=lab.vetneb@gmail.com`
+  - `SMTP_PASS=<GMAIL_APP_PASSWORD_WITHOUT_SPACES>`
+  - `SMTP_FROM=lab.vetneb@gmail.com`
+  - `CONTACT_TO=lab.vetneb@gmail.com`
+- Servicio frontend staging: `portal-vetneb-frontend-staging`
+  - `NODE_ENV=production`
+  - `NEXT_PUBLIC_API_URL=https://portal-vetneb-backend-staging.onrender.com`
+  - `NEXT_PUBLIC_SITE_URL=https://portal-vetneb-frontend-staging.onrender.com`
+
+Variables prohibidas en frontend staging:
+`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
+`SMTP_FROM`, `CONTACT_TO`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`,
+`SUPABASE_DB_URL`
 
 Sin redeploy posterior al cambio de env, staging puede seguir respondiendo con
 estado degradado de SMTP aunque la configuración ya esté cargada en el panel.
@@ -227,6 +241,61 @@ Si aparece el mensaje:
 `Mensaje recibido, pero el envío automático de correo no está configurado...`,
 tratarlo como `fail` de readiness de staging (configuración runtime incompleta
 o redeploy faltante). Ese estado debe registrarse como `smtp_disabled`.
+
+## 4.2 Smoke público de `OPTIONS/POST /api/contact` (PowerShell)
+
+```powershell
+$BackendUrl = "https://portal-vetneb-backend-staging.onrender.com"
+$Origin = "https://portal-vetneb-frontend-staging.onrender.com"
+
+$ContactPreflight = Invoke-SmokeRequest `
+  -Method OPTIONS `
+  -Uri "$BackendUrl/api/contact" `
+  -Headers @{
+    Origin = $Origin
+    "Access-Control-Request-Method" = "POST"
+    "Access-Control-Request-Headers" = "content-type"
+  }
+
+Show-SmokeResult $ContactPreflight
+Assert-SmokeStatus $ContactPreflight 204 "OPTIONS /api/contact"
+
+$ContactPreflightAllowOrigin = $ContactPreflight.Headers["Access-Control-Allow-Origin"]
+if (-not $ContactPreflightAllowOrigin) {
+  $ContactPreflightAllowOrigin = $ContactPreflight.Headers["access-control-allow-origin"]
+}
+if (($ContactPreflightAllowOrigin -join ",") -ne $Origin) {
+  throw "OPTIONS /api/contact devolvió Access-Control-Allow-Origin distinto al frontend staging"
+}
+
+$ContactPayload = @{
+  name = "Smoke Render"
+  email = "smoke.render@example.com"
+  clinicName = "Clinic Smoke"
+  message = "Validacion publica de contacto desde PowerShell en Render staging."
+}
+
+$ContactPost = Invoke-SmokeRequest `
+  -Method POST `
+  -Uri "$BackendUrl/api/contact" `
+  -Headers @{ Origin = $Origin } `
+  -BodyObject $ContactPayload
+
+Show-SmokeResult $ContactPost -IncludeBody
+
+if ($ContactPost.StatusCode -eq 200) {
+  "PASS: POST /api/contact respondió 200 y email entregado."
+}
+elseif ($ContactPost.StatusCode -eq 202) {
+  throw "FAIL: POST /api/contact respondió smtp_disabled (runtime SMTP/CONTACT_TO incompleto o redeploy pendiente)."
+}
+elseif ($ContactPost.StatusCode -eq 502) {
+  throw "FAIL: POST /api/contact respondió email_delivery_failed. Revisar logs seguros de backend en Render."
+}
+else {
+  throw "FAIL: POST /api/contact devolvió HTTP $($ContactPost.StatusCode)."
+}
+```
 
 ## 5. Login clinica por API
 
