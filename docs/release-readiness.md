@@ -41,7 +41,7 @@ Tabla sin secretos para configurar el runtime backend:
 | `MAX_UPLOAD_FILE_SIZE_MB` | Opcional con aprobacion del default | `20` | Limite de upload de informes/imagenes. |
 | `SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS` | Opcional con aprobacion del default | `900` | Expiracion de signed URLs. |
 | `SESSION_TTL_HOURS` | Opcional con aprobacion del default | `24` | TTL de sesiones. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Condicional | `587`/`false` para puerto/secure | Email se habilita solo si estan todos los campos requeridos. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Condicional | `587`/`false` para puerto/secure (`SMTP_PASS=<GMAIL_APP_PASSWORD_WITHOUT_SPACES>`) | Email se habilita solo si estan todos los campos requeridos. |
 | `CONTACT_TO` | Condicional | - | Destinatarios del formulario de contacto; soporta coma o punto y coma y debe estar configurado explícitamente en staging/prod. |
 
 ### Requeridas para boot productivo
@@ -130,7 +130,7 @@ Tabla sin secretos para configurar el build/runtime frontend:
 
 | Variable | Estado release | Default codigo/ejemplo | Uso |
 |---|---|---:|---|
-| `NEXT_PUBLIC_API_URL` | Obligatoria | `https://<backend-staging>.onrender.com` | Base URL del backend Fastify usada por `frontend/src/lib/api.ts`; en prod debe ser `https://...` y sin trailing slash. |
+| `NEXT_PUBLIC_API_URL` | Obligatoria | `https://portal-vetneb-backend-staging.onrender.com` | Base URL del backend Fastify usada por `frontend/src/lib/api.ts`; en prod debe ser `https://...` y sin trailing slash. |
 | `NEXT_PUBLIC_SITE_URL` | Obligatoria | `https://portal-vetneb-frontend-staging.onrender.com` | SEO, canonical, Open Graph, robots y sitemap. |
 
 - [ ] `[BLOCKER]` `NEXT_PUBLIC_API_URL` apunta al backend Fastify productivo,
@@ -147,6 +147,8 @@ Tabla sin secretos para configurar el build/runtime frontend:
 
 ### Bloqueos obligatorios para staging público de contacto
 
+- [ ] `[BLOCKER]` Servicio backend staging en Render: `portal-vetneb-backend-staging`.
+- [ ] `[BLOCKER]` Servicio frontend staging en Render: `portal-vetneb-frontend-staging`.
 - [ ] `[BLOCKER]` Frontend staging tiene `NEXT_PUBLIC_API_URL` público (`https://...onrender.com`), no vacío y sin localhost/LAN.
 - [ ] `[BLOCKER]` Backend staging tiene `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` completos.
 - [ ] `[BLOCKER]` Backend staging tiene `CONTACT_TO` explícito.
@@ -241,7 +243,7 @@ Orden operativo staging -> produccion:
    `SMTP_FROM`, `CONTACT_TO` y
    `CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com`.
    Frontend staging esperado:
-   `NEXT_PUBLIC_API_URL=https://<backend-staging>.onrender.com`.
+   `NEXT_PUBLIC_API_URL=https://portal-vetneb-backend-staging.onrender.com`.
    Tras cambiar variables en Render, forzar redeploy de backend/frontend para
    aplicar runtime nuevo.
 6. Ejecutar smoke admin, clinic, particular, Storage y signed URLs en staging.
