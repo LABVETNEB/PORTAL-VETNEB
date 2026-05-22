@@ -26,10 +26,18 @@ if ($BackendUrl.EndsWith("/") -or $FrontendUrl.EndsWith("/")) {
 Antes del smoke del formulario de contacto, confirmar en Render que quedaron
 configuradas estas variables y luego ejecutar redeploy:
 
+Transporte preferido cuando Render no logra abrir SMTP Gmail
+(`CONN`/`ETIMEDOUT` en 587 o 465): Gmail API por HTTPS/443. No pegar secretos
+en tickets, logs ni capturas. SMTP queda documentado y disponible como fallback.
+
 - Servicio backend staging: `portal-vetneb-backend-staging`
   - `NODE_ENV=production`
   - `PORT=10000`
   - `CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com`
+  - `GMAIL_API_CLIENT_ID=<google-oauth-client-id>`
+  - `GMAIL_API_CLIENT_SECRET=<google-oauth-client-secret>`
+  - `GMAIL_API_REFRESH_TOKEN=<google-oauth-refresh-token>`
+  - `GMAIL_API_FROM=lab.vetneb@gmail.com`
   - `SMTP_HOST=smtp.gmail.com`
   - `SMTP_PORT=587`
   - `SMTP_SECURE=false`
@@ -43,9 +51,10 @@ configuradas estas variables y luego ejecutar redeploy:
   - `NEXT_PUBLIC_SITE_URL=https://portal-vetneb-frontend-staging.onrender.com`
 
 Variables prohibidas en frontend staging:
-`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
-`SMTP_FROM`, `CONTACT_TO`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`,
-`SUPABASE_DB_URL`
+`GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`, `GMAIL_API_REFRESH_TOKEN`,
+`GMAIL_API_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`,
+`SMTP_PASS`, `SMTP_FROM`, `CONTACT_TO`, `SUPABASE_SERVICE_ROLE_KEY`,
+`DATABASE_URL`, `SUPABASE_DB_URL`
 
 Sin redeploy posterior al cambio de env, staging puede seguir respondiendo con
 estado degradado de SMTP aunque la configuración ya esté cargada en el panel.
@@ -56,8 +65,10 @@ Secuencia mínima obligatoria en staging:
 2. Guardar variables frontend Render.
 3. Redeploy backend Render.
 4. Redeploy frontend Render.
-5. Verificar `/dashboard/admin` autenticado:
-   - `Correo SMTP` = `Configurado`
+5. Verificar `/dashboard/admin` autenticado y, si hace falta, el payload de
+   `/api/admin/system/health`:
+   - `gmail_api=configured` cuando se usa Gmail API HTTPS/443.
+   - `Correo SMTP` = `Configurado` solo si se configuró el fallback SMTP.
    - `Contacto email` = `Configurado`
    - `CORS público` incluye `https://portal-vetneb-frontend-staging.onrender.com`
 
@@ -227,8 +238,10 @@ foreach ($Path in $PublicPaths) {
 1. Abrir `$FrontendUrl/contacto`.
 2. Enviar un formulario válido (nombre, email, mensaje >= 10 caracteres).
 3. Confirmar en `/dashboard/admin` que:
-   - `Correo SMTP` está `Configurado`.
    - `Contacto email` está `Configurado`.
+   - Si se usa Gmail API HTTPS/443, `/api/admin/system/health` expone
+     `gmail_api=configured`.
+   - Si se usa SMTP fallback, `Correo SMTP` está `Configurado`.
    - `CONTACT_TO` figura `Configurado`.
    - `CORS público` muestra el frontend staging activo.
 4. Confirmar en UI mensaje de éxito:
@@ -287,7 +300,7 @@ if ($ContactPost.StatusCode -eq 200) {
   "PASS: POST /api/contact respondió 200 y email entregado."
 }
 elseif ($ContactPost.StatusCode -eq 202) {
-  throw "FAIL: POST /api/contact respondió smtp_disabled (runtime SMTP/CONTACT_TO incompleto o redeploy pendiente)."
+  throw "FAIL: POST /api/contact respondió smtp_disabled (runtime email/CONTACT_TO incompleto o redeploy pendiente)."
 }
 elseif ($ContactPost.StatusCode -eq 502) {
   throw "FAIL: POST /api/contact respondió email_delivery_failed. Revisar logs seguros de backend en Render."

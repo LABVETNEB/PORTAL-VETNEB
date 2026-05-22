@@ -67,6 +67,22 @@ const envSchema = z.object({
   SMTP_USER: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SMTP_PASS: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SMTP_FROM: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  GMAIL_API_CLIENT_ID: z.preprocess(
+    emptyToUndefined,
+    z.string().min(1).optional(),
+  ),
+  GMAIL_API_CLIENT_SECRET: z.preprocess(
+    emptyToUndefined,
+    z.string().min(1).optional(),
+  ),
+  GMAIL_API_REFRESH_TOKEN: z.preprocess(
+    emptyToUndefined,
+    z.string().min(1).optional(),
+  ),
+  GMAIL_API_FROM: z.preprocess(
+    emptyToUndefined,
+    z.string().min(1).optional(),
+  ),
   CONTACT_TO: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
 });
 
@@ -108,6 +124,13 @@ const smtpEnabled = Boolean(
     rawEnv.SMTP_FROM,
 );
 
+const gmailApiEnabled = Boolean(
+  rawEnv.GMAIL_API_CLIENT_ID &&
+    rawEnv.GMAIL_API_CLIENT_SECRET &&
+    rawEnv.GMAIL_API_REFRESH_TOKEN &&
+    rawEnv.GMAIL_API_FROM,
+);
+
 export const ENV = {
   nodeEnv,
   isDevelopment: nodeEnv === "development",
@@ -144,5 +167,12 @@ export const ENV = {
     user: rawEnv.SMTP_USER ?? "",
     pass: rawEnv.SMTP_PASS ?? "",
     from: rawEnv.SMTP_FROM ?? "",
+  },
+  gmailApi: {
+    enabled: gmailApiEnabled,
+    clientId: rawEnv.GMAIL_API_CLIENT_ID ?? "",
+    clientSecret: rawEnv.GMAIL_API_CLIENT_SECRET ?? "",
+    refreshToken: rawEnv.GMAIL_API_REFRESH_TOKEN ?? "",
+    from: rawEnv.GMAIL_API_FROM ?? "",
   },
 } as const;

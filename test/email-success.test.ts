@@ -27,6 +27,13 @@ test("sendSpecialStainRequiredEmail envia correo con payload esperado cuando SMT
     pass: ENV.smtp.pass,
     from: ENV.smtp.from,
   };
+  const originalGmailApi = {
+    enabled: ENV.gmailApi.enabled,
+    clientId: ENV.gmailApi.clientId,
+    clientSecret: ENV.gmailApi.clientSecret,
+    refreshToken: ENV.gmailApi.refreshToken,
+    from: ENV.gmailApi.from,
+  };
 
   const originalCreateTransport = nodemailer.createTransport;
 
@@ -40,6 +47,11 @@ test("sendSpecialStainRequiredEmail envia correo con payload esperado cuando SMT
   (ENV.smtp as any).user = "smtp-user";
   (ENV.smtp as any).pass = "smtp-pass";
   (ENV.smtp as any).from = "noreply@vetneb.com";
+  (ENV.gmailApi as any).enabled = false;
+  (ENV.gmailApi as any).clientId = "";
+  (ENV.gmailApi as any).clientSecret = "";
+  (ENV.gmailApi as any).refreshToken = "";
+  (ENV.gmailApi as any).from = "";
 
   (nodemailer as any).createTransport = (options: unknown) => {
     capturedTransportOptions = options;
@@ -85,6 +97,11 @@ test("sendSpecialStainRequiredEmail envia correo con payload esperado cuando SMT
     (ENV.smtp as any).user = originalSmtp.user;
     (ENV.smtp as any).pass = originalSmtp.pass;
     (ENV.smtp as any).from = originalSmtp.from;
+    (ENV.gmailApi as any).enabled = originalGmailApi.enabled;
+    (ENV.gmailApi as any).clientId = originalGmailApi.clientId;
+    (ENV.gmailApi as any).clientSecret = originalGmailApi.clientSecret;
+    (ENV.gmailApi as any).refreshToken = originalGmailApi.refreshToken;
+    (ENV.gmailApi as any).from = originalGmailApi.from;
   }
 
   assert.deepEqual(capturedTransportOptions, {

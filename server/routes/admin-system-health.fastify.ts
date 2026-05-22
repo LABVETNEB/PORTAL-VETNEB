@@ -306,13 +306,16 @@ function getContactEmailRoutingSnapshot() {
   const explicitRecipients = normalizeContactRecipients(ENV.contactTo);
   const fallbackRecipients = ENV.isProduction
     ? []
-    : normalizeContactRecipients([ENV.smtp.from]);
+    : normalizeContactRecipients([
+        ENV.gmailApi.enabled ? ENV.gmailApi.from : ENV.smtp.from,
+      ]);
   const configuredRecipients =
     explicitRecipients.length > 0 ? explicitRecipients : fallbackRecipients;
   const contactToConfigured = explicitRecipients.length > 0;
   const smtpFromConfigured = ENV.smtp.from.trim().length > 0;
-  const smtpReady = ENV.smtp.enabled;
-  const contactReady = smtpReady && (
+  const gmailApiFromConfigured = ENV.gmailApi.from.trim().length > 0;
+  const emailTransportReady = ENV.gmailApi.enabled || ENV.smtp.enabled;
+  const contactReady = emailTransportReady && (
     ENV.isProduction ? contactToConfigured : configuredRecipients.length > 0
   );
 
@@ -322,6 +325,7 @@ function getContactEmailRoutingSnapshot() {
     recipientCount: configuredRecipients.length,
     contactToConfigured,
     smtpFromConfigured,
+    gmailApiFromConfigured,
   };
 }
 
@@ -337,11 +341,18 @@ function buildServiceChecksPayload(checks: unknown) {
   return {
     ...baseChecks,
     smtp: ENV.smtp.enabled ? "configured" : "not_configured",
+    gmail_api: ENV.gmailApi.enabled ? "configured" : "not_configured",
+    email_transport: ENV.gmailApi.enabled
+      ? "gmail_api"
+      : ENV.smtp.enabled
+        ? "smtp"
+        : "not_configured",
     contact_email: contactRouting.status,
     contact_email_recipients: contactRouting.recipients,
     contact_email_recipient_count: contactRouting.recipientCount,
     contact_to_configured: contactRouting.contactToConfigured,
     smtp_from_configured: contactRouting.smtpFromConfigured,
+    gmail_api_from_configured: contactRouting.gmailApiFromConfigured,
     cors: corsReadiness.status,
     cors_origins: corsReadiness.origins,
     cors_origin_count: corsReadiness.originCount,

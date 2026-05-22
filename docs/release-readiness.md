@@ -41,7 +41,8 @@ Tabla sin secretos para configurar el runtime backend:
 | `MAX_UPLOAD_FILE_SIZE_MB` | Opcional con aprobacion del default | `20` | Limite de upload de informes/imagenes. |
 | `SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS` | Opcional con aprobacion del default | `900` | Expiracion de signed URLs. |
 | `SESSION_TTL_HOURS` | Opcional con aprobacion del default | `24` | TTL de sesiones. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Condicional | `587`/`false` para puerto/secure (`SMTP_PASS=<GMAIL_APP_PASSWORD_WITHOUT_SPACES>`) | Email se habilita solo si estan todos los campos requeridos. |
+| `GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`, `GMAIL_API_REFRESH_TOKEN`, `GMAIL_API_FROM` | Condicional preferida | - | Transporte Gmail API por HTTPS/443; usar cuando Render -> Gmail SMTP falla con `CONN`/`ETIMEDOUT`. No exponer secretos. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Condicional fallback | `587`/`false` para puerto/secure (`SMTP_PASS=<GMAIL_APP_PASSWORD_WITHOUT_SPACES>`) | SMTP se mantiene como fallback si Gmail API no esta configurado. |
 | `CONTACT_TO` | Condicional | - | Destinatarios del formulario de contacto; soporta coma o punto y coma y debe estar configurado explícitamente en staging/prod. |
 
 ### Requeridas para boot productivo
@@ -74,9 +75,13 @@ Tabla sin secretos para configurar el runtime backend:
 
 ### Condicionales
 
-- [ ] `[BLOCKER]` `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`,
-  `SMTP_PASS` y `SMTP_FROM` configurados si el lanzamiento incluye formularios
-  o notificaciones por email.
+- [ ] `[BLOCKER]` Si el lanzamiento incluye formularios o notificaciones por
+  email, configurar Gmail API preferido:
+  `GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`,
+  `GMAIL_API_REFRESH_TOKEN` y `GMAIL_API_FROM`.
+- [ ] `[BLOCKER]` Si Gmail API no se usa o se quiere fallback explícito,
+  configurar `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`,
+  `SMTP_PASS` y `SMTP_FROM`.
 - [ ] `[BLOCKER]` `CONTACT_TO` configurado explícitamente para formularios públicos.
 - [ ] `[NON-BLOCKER]` `OWNER_OPEN_ID` documentado o removido del entorno si no
   forma parte del flujo productivo actual.
@@ -150,10 +155,16 @@ Tabla sin secretos para configurar el build/runtime frontend:
 - [ ] `[BLOCKER]` Servicio backend staging en Render: `portal-vetneb-backend-staging`.
 - [ ] `[BLOCKER]` Servicio frontend staging en Render: `portal-vetneb-frontend-staging`.
 - [ ] `[BLOCKER]` Frontend staging tiene `NEXT_PUBLIC_API_URL` público (`https://...onrender.com`), no vacío y sin localhost/LAN.
-- [ ] `[BLOCKER]` Backend staging tiene `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` completos.
+- [ ] `[BLOCKER]` Backend staging tiene Gmail API completo
+  (`GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`,
+  `GMAIL_API_REFRESH_TOKEN`, `GMAIL_API_FROM`) como transporte preferido
+  HTTPS/443, o SMTP completo como fallback (`SMTP_HOST`, `SMTP_PORT`,
+  `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`).
 - [ ] `[BLOCKER]` Backend staging tiene `CONTACT_TO` explícito.
 - [ ] `[BLOCKER]` Backend staging tiene `CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com`.
-- [ ] `[BLOCKER]` `/api/admin/system/health` en staging muestra `smtp=configured`, `contact_email=configured` y `cors=configured`.
+- [ ] `[BLOCKER]` `/api/admin/system/health` en staging muestra
+  `gmail_api=configured` o `smtp=configured`, `contact_email=configured` y
+  `cors=configured`.
 - [ ] `[BLOCKER]` `/contacto` público de staging no devuelve `smtp_disabled`.
 
 Comandos utiles:
@@ -239,8 +250,10 @@ Orden operativo staging -> produccion:
 5. Desplegar frontend staging con `NEXT_PUBLIC_API_URL` y
    `NEXT_PUBLIC_SITE_URL` de staging.
    Backend staging esperado para contacto:
-   `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
-   `SMTP_FROM`, `CONTACT_TO` y
+   Gmail API preferido (`GMAIL_API_CLIENT_ID`, `GMAIL_API_CLIENT_SECRET`,
+   `GMAIL_API_REFRESH_TOKEN`, `GMAIL_API_FROM`) por HTTPS/443, SMTP fallback
+   (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
+   `SMTP_FROM`), `CONTACT_TO` y
    `CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com`.
    Frontend staging esperado:
    `NEXT_PUBLIC_API_URL=https://portal-vetneb-backend-staging.onrender.com`.
@@ -497,8 +510,10 @@ Invoke-RestMethod "$BaseUrl/api/health"
   login y particulares revisados por negocio.
 - [ ] `[BLOCKER]` Datos comerciales productivos de pricing revisados desde admin
   si el lanzamiento expone precios.
-- [ ] `[BLOCKER]` Formulario de contacto probado end-to-end si SMTP queda
-  incluido en el lanzamiento.
+- [ ] `[BLOCKER]` Formulario de contacto probado end-to-end si Gmail API o SMTP
+  quedan incluidos en el lanzamiento. Gmail API por HTTPS/443 es la alternativa
+  preferida si SMTP Render -> Gmail falla con `CONN`/`ETIMEDOUT`; SMTP queda
+  como fallback.
 - [ ] `[BLOCKER]` Textos legales obligatorios publicados o enlazados segun el
   criterio legal/comercial vigente: privacidad, terminos, tratamiento de datos,
   condiciones de uso de informes y contacto responsable.
@@ -537,7 +552,8 @@ No lanzar si ocurre cualquiera de estos casos:
 - [ ] Upload, signed URLs, avatar upload/delete o descarga de informes fallan.
 - [ ] Admin, clinica o particular no pueden completar su smoke principal.
 - [ ] Hay dudas legales/comerciales bloqueantes sobre contenido publico.
-- [ ] En staging público, el formulario `/contacto` muestra `smtp_disabled` o el health admin queda degradado para SMTP/contacto/CORS.
+- [ ] En staging público, el formulario `/contacto` muestra `smtp_disabled` o
+  el health admin queda degradado para Gmail API/SMTP/contacto/CORS.
 
 ### Env critica faltante
 
