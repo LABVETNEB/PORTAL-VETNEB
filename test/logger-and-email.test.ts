@@ -110,6 +110,7 @@ test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear se
   };
   const infoCalls: unknown[][] = [];
   const sendMailCalls: Array<Record<string, unknown>> = [];
+  const transportCalls: unknown[] = [];
 
   console.info = (...args: unknown[]) => {
     infoCalls.push(args);
@@ -119,19 +120,23 @@ test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear se
     "contacto@vetneb.com; ops@vetneb.com, CONTACTO@vetneb.com",
   ];
   (ENV.smtp as any).enabled = true;
-  (ENV.smtp as any).host = "smtp.contact.example";
+  (ENV.smtp as any).host = "smtp.gmail.com";
   (ENV.smtp as any).port = 587;
   (ENV.smtp as any).secure = false;
   (ENV.smtp as any).user = "smtp-user-contact";
   (ENV.smtp as any).pass = "smtp-pass-contact";
   (ENV.smtp as any).from = "fallback@vetneb.com";
 
-  (nodemailer as any).createTransport = () => ({
+  (nodemailer as any).createTransport = (options: unknown) => {
+    transportCalls.push(options);
+
+    return {
     sendMail: async (payload: Record<string, unknown>) => {
       sendMailCalls.push(payload);
       return { messageId: `contact-${sendMailCalls.length}` };
     },
-  });
+  };
+  };
 
   try {
     const contactToResult = await sendContactMessageEmail({
@@ -176,7 +181,27 @@ test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear se
   assert.equal(sendMailCalls[0].replyTo, "maria@example.com");
   assert.equal(sendMailCalls[1].to, "fallback@vetneb.com");
   assert.equal(sendMailCalls[1].replyTo, "juan@example.com");
+  assert.equal(transportCalls.length, 1);
+  const transport = transportCalls[0] as {
+    family?: unknown;
+    host?: unknown;
+    port?: unknown;
+    secure?: unknown;
+    tls?: { servername?: unknown };
+    auth?: { user?: unknown; pass?: unknown };
+  };
+  assert.equal(transport.family, 4);
+  assert.equal(transport.host, "smtp.gmail.com");
+  assert.equal(transport.port, 587);
+  assert.equal(transport.secure, false);
+  assert.deepEqual(transport.tls, {
+    servername: "smtp.gmail.com",
+  });
+  assert.equal(transport.auth?.user, "smtp-user-contact");
+  assert.equal(transport.auth?.pass, "smtp-pass-contact");
   assert.equal(JSON.stringify(infoCalls).includes("smtp-pass-contact"), false);
+  assert.equal(JSON.stringify(infoCalls).includes("smtp-user-contact"), false);
+  assert.equal(JSON.stringify(infoCalls).toLowerCase().includes("auth"), false);
 });
 
 test("sendContactMessageEmail exige CONTACT_TO explícito en entorno público", async () => {

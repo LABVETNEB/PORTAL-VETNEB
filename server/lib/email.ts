@@ -1,4 +1,5 @@
 import nodemailer, { type Transporter } from "nodemailer";
+import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import { ENV } from "./env.ts";
 
 let cachedTransporter: Transporter | null = null;
@@ -47,15 +48,21 @@ function getTransporter(): Transporter | null {
     return cachedTransporter;
   }
 
-  cachedTransporter = nodemailer.createTransport({
+  const transportOptions: SMTPTransport.Options = {
     host: ENV.smtp.host,
     port: ENV.smtp.port,
     secure: ENV.smtp.secure,
+    family: 4,
+    tls: {
+      servername: ENV.smtp.host,
+    },
     auth: {
       user: ENV.smtp.user,
       pass: ENV.smtp.pass,
     },
-  });
+  };
+
+  cachedTransporter = nodemailer.createTransport(transportOptions);
   cachedTransporterKey = transporterKey;
 
   return cachedTransporter;
