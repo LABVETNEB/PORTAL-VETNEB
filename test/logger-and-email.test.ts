@@ -1,5 +1,8 @@
 ﻿import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import nodemailer from "nodemailer";
 import {
   logError,
   logInfo,
@@ -14,7 +17,7 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const { ENV } = await import("../server/lib/env.ts");
-const { sendSpecialStainRequiredEmail } = await import("../server/lib/email.ts");
+const { sendContactMessageEmail, sendSpecialStainRequiredEmail } = await import("../server/lib/email.ts");
 
 test("logInfo agrega prefijo [INFO]", () => {
   const original = console.log;
@@ -88,6 +91,111 @@ test("serializeError deja intactos valores no Error", () => {
   assert.equal(serializeError(payload), payload);
   assert.equal(serializeError("texto"), "texto");
   assert.equal(serializeError(null), null);
+});
+
+test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear secretos", async () => {
+  const originalInfo = console.info;
+  const originalCreateTransport = nodemailer.createTransport;
+  const originalEnv = {
+    contactTo: ENV.contactTo,
+    smtp: {
+      enabled: ENV.smtp.enabled,
+      host: ENV.smtp.host,
+      port: ENV.smtp.port,
+      secure: ENV.smtp.secure,
+      user: ENV.smtp.user,
+      pass: ENV.smtp.pass,
+      from: ENV.smtp.from,
+    },
+  };
+  const infoCalls: unknown[][] = [];
+  const sendMailCalls: Array<Record<string, unknown>> = [];
+
+  console.info = (...args: unknown[]) => {
+    infoCalls.push(args);
+  };
+
+  (ENV as any).contactTo = ["contacto@vetneb.com", "ops@vetneb.com"];
+  (ENV.smtp as any).enabled = true;
+  (ENV.smtp as any).host = "smtp.contact.example";
+  (ENV.smtp as any).port = 587;
+  (ENV.smtp as any).secure = false;
+  (ENV.smtp as any).user = "smtp-user-contact";
+  (ENV.smtp as any).pass = "smtp-pass-contact";
+  (ENV.smtp as any).from = "fallback@vetneb.com";
+
+  (nodemailer as any).createTransport = () => ({
+    sendMail: async (payload: Record<string, unknown>) => {
+      sendMailCalls.push(payload);
+      return { messageId: `contact-${sendMailCalls.length}` };
+    },
+  });
+
+  try {
+    const contactToResult = await sendContactMessageEmail({
+      name: "Maria Gomez",
+      email: "maria@example.com",
+      clinicName: "Clínica Sur",
+      message: "Necesito coordinar una consulta clínica.",
+    });
+
+    (ENV as any).contactTo = [];
+
+    const fallbackResult = await sendContactMessageEmail({
+      name: "Juan Perez",
+      email: "juan@example.com",
+      clinicName: null,
+      message: "Necesito registrar mi clínica en el portal.",
+    });
+
+    assert.deepEqual(contactToResult, {
+      sent: true,
+      messageId: "contact-1",
+    });
+    assert.deepEqual(fallbackResult, {
+      sent: true,
+      messageId: "contact-2",
+    });
+  } finally {
+    console.info = originalInfo;
+    (nodemailer as any).createTransport = originalCreateTransport;
+    (ENV as any).contactTo = originalEnv.contactTo;
+    (ENV.smtp as any).enabled = originalEnv.smtp.enabled;
+    (ENV.smtp as any).host = originalEnv.smtp.host;
+    (ENV.smtp as any).port = originalEnv.smtp.port;
+    (ENV.smtp as any).secure = originalEnv.smtp.secure;
+    (ENV.smtp as any).user = originalEnv.smtp.user;
+    (ENV.smtp as any).pass = originalEnv.smtp.pass;
+    (ENV.smtp as any).from = originalEnv.smtp.from;
+  }
+
+  assert.equal(sendMailCalls.length, 2);
+  assert.equal(sendMailCalls[0].to, "contacto@vetneb.com, ops@vetneb.com");
+  assert.equal(sendMailCalls[0].replyTo, "maria@example.com");
+  assert.equal(sendMailCalls[1].to, "fallback@vetneb.com");
+  assert.equal(sendMailCalls[1].replyTo, "juan@example.com");
+  assert.equal(JSON.stringify(infoCalls).includes("smtp-pass-contact"), false);
+});
+
+test("templates de email no tienen mojibake visible", () => {
+  const source = readFileSync(
+    resolve(process.cwd(), "server/lib/email.ts"),
+    "utf8",
+  );
+
+  for (const expected of [
+    "clínica",
+    "tinción",
+    "Recepción",
+    "Teléfono",
+    "Ingresá",
+    "gestión",
+    "Clínica",
+  ]) {
+    assert.ok(source.includes(expected), `email.ts debe incluir ${expected}`);
+  }
+
+  assert.doesNotMatch(source, /Ã|Â|�/);
 });
 
 test("sendSpecialStainRequiredEmail omite envío cuando no hay destinatarios válidos", async () => {

@@ -31,6 +31,7 @@ test("ENV expone un contrato base consistente", () => {
 test("ENV expone colecciones limpias y strings no vacíos donde corresponde", () => {
   assert.equal(Array.isArray(ENV.corsOrigins), true);
   assert.equal(Array.isArray(ENV.labUploadUsernames), true);
+  assert.equal(Array.isArray(ENV.contactTo), true);
 
   for (const origin of ENV.corsOrigins) {
     assert.equal(typeof origin, "string");
@@ -42,6 +43,12 @@ test("ENV expone colecciones limpias y strings no vacíos donde corresponde", ()
     assert.equal(typeof username, "string");
     assert.equal(username.trim(), username);
     assert.equal(username.length > 0, true);
+  }
+
+  for (const recipient of ENV.contactTo) {
+    assert.equal(typeof recipient, "string");
+    assert.equal(recipient.trim(), recipient);
+    assert.equal(recipient.length > 0, true);
   }
 
   assert.equal(typeof ENV.cookieName, "string");
@@ -72,4 +79,3 @@ test("ENV.smtp mantiene tipos e invariantes esperadas", () => {
     assert.equal(ENV.smtp.from.length > 0, true);
   }
 });
-

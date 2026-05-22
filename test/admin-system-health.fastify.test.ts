@@ -109,6 +109,7 @@ test("admin system health expone servicios, runtime y versión para admin autent
     assert.deepEqual(body.services, {
       database: "up",
       storage: "up",
+      smtp: ENV.smtp.enabled ? "configured" : "not_configured",
     });
     assert.deepEqual(body.checkedBy, {
       adminUserId: 1,

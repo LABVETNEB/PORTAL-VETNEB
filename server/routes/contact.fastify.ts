@@ -251,7 +251,7 @@ export const contactNativeRoutes: FastifyPluginAsync<
       reason: result.sent ? undefined : result.reason,
       message: result.sent
         ? "Mensaje enviado correctamente"
-        : "Mensaje recibido. SMTP no configurado para envío inmediato.",
+        : "Mensaje recibido, pero el envío automático de correo no está configurado. Contacte a VETNEB por los canales oficiales si requiere respuesta inmediata.",
     });
   });
 };
