@@ -6,6 +6,7 @@ import type {
 
 import { ENV } from "../lib/env.ts";
 import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
+import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import type {
   AdminClinicUserRoleChangeInput,
@@ -15,6 +16,10 @@ import type {
   AdminUsersRolesQuery,
   AdminUsersRolesSnapshot,
 } from "../db-admin-users-roles.ts";
+import type {
+  AdminClinicUserCredentialsUpdateInput,
+  AdminClinicUserCredentialsUpdateResult,
+} from "../db-admin-clinics.ts";
 
 type AdminClinicUserRole = Exclude<AdminRoleUserRole, "admin">;
 
@@ -50,6 +55,15 @@ type AdminUsersRolesRoleChangeBody = {
   role?: unknown;
 };
 
+type AdminUsersRolesCredentialsChangeParams = {
+  clinicUserId: string;
+};
+
+type AdminUsersRolesCredentialsChangeBody = {
+  username?: unknown;
+  password?: unknown;
+};
+
 export type AdminUsersRolesNativeRoutesOptions = {
   deleteAdminSession?: (tokenHash: string) => Promise<void>;
   getAdminSessionByToken?: (
@@ -66,6 +80,10 @@ export type AdminUsersRolesNativeRoutesOptions = {
   changeClinicUserRole?: (
     input: AdminClinicUserRoleChangeInput,
   ) => Promise<AdminClinicUserRoleChangeResult>;
+  updateAdminClinicUserCredentials?: (
+    input: AdminClinicUserCredentialsUpdateInput,
+  ) => Promise<AdminClinicUserCredentialsUpdateResult>;
+  hashPassword?: (password: string) => Promise<string>;
   writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
   now?: () => number;
 };
@@ -80,6 +98,8 @@ type NativeAdminUsersRolesDeps = Required<
     | "hashSessionToken"
     | "getAdminUsersRolesSnapshot"
     | "changeClinicUserRole"
+    | "updateAdminClinicUserCredentials"
+    | "hashPassword"
     | "writeAuditLog"
   >
 >;
@@ -93,6 +113,7 @@ async function loadDefaultDeps(): Promise<NativeAdminUsersRolesDeps> {
       const authSecurity = await import("../lib/auth-security.ts");
       const audit = await import("../lib/audit.ts");
       const usersRoles = await import("../db-admin-users-roles.ts");
+      const adminClinics = await import("../db-admin-clinics.ts");
 
       return {
         deleteAdminSession: db.deleteAdminSession,
@@ -102,6 +123,9 @@ async function loadDefaultDeps(): Promise<NativeAdminUsersRolesDeps> {
         hashSessionToken: authSecurity.hashSessionToken,
         getAdminUsersRolesSnapshot: usersRoles.getAdminUsersRolesSnapshot,
         changeClinicUserRole: usersRoles.changeClinicUserRole,
+        updateAdminClinicUserCredentials:
+          adminClinics.updateAdminClinicUserCredentials,
+        hashPassword: authSecurity.hashPassword,
         writeAuditLog: audit.writeAuditLog as (
           req: unknown,
           input: AuditWriteInput,
@@ -205,59 +229,14 @@ async function authenticateAdminUser(
   deps: NativeAdminUsersRolesDeps,
   now: () => number,
 ): Promise<AuthenticatedAdminUser | null> {
-  const token = getAdminSessionToken(request);
-
-  if (!token) {
-    reply.code(401).send({
-      success: false,
-      error: "Admin no autenticado",
-    });
-    return null;
-  }
-
-  const tokenHash = deps.hashSessionToken(token);
-  const session = await deps.getAdminSessionByToken(tokenHash);
-
-  if (!session) {
-    reply.code(401).send({
-      success: false,
-      error: "Sesión admin inválida",
-    });
-    return null;
-  }
-
-  if (session.expiresAt && session.expiresAt.getTime() <= now()) {
-    await deps.deleteAdminSession(tokenHash);
-
-    reply.header("set-cookie", buildClearAdminSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Sesión admin expirada",
-    });
-    return null;
-  }
-
-  const adminUser = await deps.getAdminUserById(session.adminUserId);
-
-  if (!adminUser) {
-    await deps.deleteAdminSession(tokenHash);
-
-    reply.header("set-cookie", buildClearAdminSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Usuario admin de sesión no encontrado",
-    });
-    return null;
-  }
-
-  if (shouldRefreshSessionLastAccess(session.lastAccess ?? null, now())) {
-    await deps.updateAdminSessionLastAccess(tokenHash);
-  }
-
-  return {
-    id: adminUser.id,
-    username: adminUser.username,
-  };
+  return authenticateFastifyAdmin(request, reply, {
+    deleteAdminSession: deps.deleteAdminSession,
+    getAdminSessionByToken: deps.getAdminSessionByToken,
+    getAdminUserById: deps.getAdminUserById,
+    updateAdminSessionLastAccess: deps.updateAdminSessionLastAccess,
+    hashSessionToken: deps.hashSessionToken,
+    now,
+  });
 }
 
 function parseUserType(value: string | undefined): AdminRoleUserType | undefined | null {
@@ -286,6 +265,83 @@ function parseClinicUserRole(value: unknown): AdminClinicUserRole | null {
   }
 
   return null;
+}
+
+function parseClinicUserCredentialsBody(
+  body: AdminUsersRolesCredentialsChangeBody | undefined,
+):
+  | {
+      ok: true;
+      data: {
+        username?: string;
+        password?: string;
+        updatedFields: string[];
+      };
+    }
+  | { ok: false; error: string } {
+  const data: {
+    username?: string;
+    password?: string;
+    updatedFields: string[];
+  } = {
+    updatedFields: [],
+  };
+
+  if (body?.username !== undefined) {
+    if (typeof body.username !== "string") {
+      return {
+        ok: false,
+        error: "username debe ser texto.",
+      };
+    }
+
+    const username = body.username.trim();
+
+    if (username.length < 3) {
+      return {
+        ok: false,
+        error: "username debe tener al menos 3 caracteres.",
+      };
+    }
+
+    if (username.length > 100) {
+      return {
+        ok: false,
+        error: "username excede 100 caracteres.",
+      };
+    }
+
+    data.username = username;
+    data.updatedFields.push("username");
+  }
+
+  if (body?.password !== undefined) {
+    if (
+      typeof body.password !== "string" ||
+      body.password.length < 8 ||
+      body.password.trim().length < 8
+    ) {
+      return {
+        ok: false,
+        error: "La contraseña debe tener al menos 8 caracteres.",
+      };
+    }
+
+    data.password = body.password;
+    data.updatedFields.push("accessCredential");
+  }
+
+  if (data.updatedFields.length === 0) {
+    return {
+      ok: false,
+      error: "Debe enviar username y/o contraseña para actualizar.",
+    };
+  }
+
+  return {
+    ok: true,
+    data,
+  };
 }
 
 function parseIntegerParam(
@@ -377,6 +433,8 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
       !!options.hashSessionToken &&
       !!options.getAdminUsersRolesSnapshot &&
       !!options.changeClinicUserRole &&
+      !!options.updateAdminClinicUserCredentials &&
+      !!options.hashPassword &&
       !!options.writeAuditLog;
 
     const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
@@ -398,6 +456,10 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
         defaultDeps!.getAdminUsersRolesSnapshot,
       changeClinicUserRole:
         options.changeClinicUserRole ?? defaultDeps!.changeClinicUserRole,
+      updateAdminClinicUserCredentials:
+        options.updateAdminClinicUserCredentials ??
+        defaultDeps!.updateAdminClinicUserCredentials,
+      hashPassword: options.hashPassword ?? defaultDeps!.hashPassword,
       writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
     };
   }
@@ -501,6 +563,90 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
         previousRole: result.previousRole,
         newRole: result.user.role,
         roleChanged: result.roleChanged,
+      },
+    });
+
+    return reply.code(200).send({
+      success: true,
+      user: result.user,
+      changedBy: {
+        adminUserId: admin.id,
+        username: admin.username,
+      },
+    });
+  });
+
+  app.patch<{
+    Params: AdminUsersRolesCredentialsChangeParams;
+    Body: AdminUsersRolesCredentialsChangeBody;
+  }>("/clinic/:clinicUserId/credentials", async (request, reply) => {
+    const deps = await resolveDeps();
+    const admin = await authenticateAdminUser(request, reply, deps, now);
+
+    if (!admin) {
+      return reply;
+    }
+
+    const clinicUserId = parsePositiveIntegerParam(request.params.clinicUserId);
+
+    if (clinicUserId === null) {
+      return reply.code(400).send({
+        success: false,
+        error: "clinicUserId inválido.",
+      });
+    }
+
+    const parsed = parseClinicUserCredentialsBody(request.body);
+
+    if (!parsed.ok) {
+      return reply.code(400).send({
+        success: false,
+        error: parsed.error,
+      });
+    }
+
+    const passwordHash = parsed.data.password
+      ? await deps.hashPassword(parsed.data.password)
+      : undefined;
+    const result = await deps.updateAdminClinicUserCredentials({
+      clinicUserId,
+      username: parsed.data.username,
+      passwordHash,
+      now: new Date(now()),
+    });
+
+    if (!result.ok && result.reason === "not_found") {
+      return reply.code(404).send({
+        success: false,
+        error: "Usuario de clínica no encontrado.",
+      });
+    }
+
+    if (!result.ok && result.reason === "username_conflict") {
+      return reply.code(409).send({
+        success: false,
+        error: "El username de clínica ya existe.",
+      });
+    }
+
+    if (!result.ok) {
+      return reply.code(500).send({
+        success: false,
+        error: "No se pudieron actualizar las credenciales.",
+      });
+    }
+
+    await deps.writeAuditLog(createAuditRequestLike(request, admin), {
+      event: AUDIT_EVENTS.CLINIC_USER_CREDENTIALS_UPDATED,
+      clinicId: result.user.clinicId,
+      targetClinicUserId: result.user.userId,
+      metadata: {
+        previousUsername: result.previousUsername,
+        newUsername: result.user.username,
+        clinicName: result.user.clinicName,
+        usernameChanged: result.usernameChanged,
+        credentialUpdated: result.credentialUpdated,
+        updatedFields: parsed.data.updatedFields,
       },
     });
 

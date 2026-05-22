@@ -30,6 +30,13 @@ import type {
   AdminUsersRolesQuery,
   AdminUsersRolesSnapshot,
   AdminClinicUserRoleChangeResponse,
+  AdminClinicCreatePayload,
+  AdminClinicCreateResponse,
+  AdminClinicsSnapshot,
+  AdminClinicUpdatePayload,
+  AdminClinicUpdateResponse,
+  AdminClinicUserCredentialsUpdatePayload,
+  AdminClinicUserCredentialsUpdateResponse,
   ClinicUserRole,
   AdminSessionRevocationResponse,
   AdminSessionType,
@@ -907,6 +914,72 @@ export async function changeAdminClinicUserRole(
       ...options,
       method: "PATCH",
       body: JSON.stringify({ role }),
+    },
+  );
+}
+
+export async function getAdminClinics(
+  params: {
+    limit?: number;
+    offset?: number;
+  } = {},
+  options?: RequestInit,
+): Promise<AdminClinicsSnapshot> {
+  const query = new URLSearchParams();
+
+  if (typeof params.limit === "number") {
+    query.set("limit", String(params.limit));
+  }
+
+  if (typeof params.offset === "number") {
+    query.set("offset", String(params.offset));
+  }
+
+  const qs = query.toString();
+
+  return apiFetch<AdminClinicsSnapshot>(
+    `/api/admin/clinics${qs ? `?${qs}` : ""}`,
+    options,
+  );
+}
+
+export async function createAdminClinicWithUser(
+  payload: AdminClinicCreatePayload,
+  options?: RequestInit,
+): Promise<AdminClinicCreateResponse> {
+  return apiFetch<AdminClinicCreateResponse>("/api/admin/clinics", {
+    ...options,
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminClinic(
+  clinicId: number,
+  payload: AdminClinicUpdatePayload,
+  options?: RequestInit,
+): Promise<AdminClinicUpdateResponse> {
+  return apiFetch<AdminClinicUpdateResponse>(
+    `/api/admin/clinics/${clinicId}`,
+    {
+      ...options,
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function updateAdminClinicUserCredentials(
+  clinicUserId: number,
+  payload: AdminClinicUserCredentialsUpdatePayload,
+  options?: RequestInit,
+): Promise<AdminClinicUserCredentialsUpdateResponse> {
+  return apiFetch<AdminClinicUserCredentialsUpdateResponse>(
+    `/api/admin/users-roles/clinic/${clinicUserId}/credentials`,
+    {
+      ...options,
+      method: "PATCH",
+      body: JSON.stringify(payload),
     },
   );
 }

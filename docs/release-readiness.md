@@ -398,6 +398,13 @@ Remove-Item Env:\SMOKE_PASSWORD
 - [ ] `[BLOCKER]` Sesion admin funciona: `GET /api/admin/auth/me`.
 - [ ] `[BLOCKER]` Panel admin carga health, sesiones, audit log, usuarios/roles,
   pricing, mantenimiento y tokens particulares segun permisos actuales.
+- [ ] `[BLOCKER]` Panel admin permite crear clinica, crear usuario/contraseña
+  inicial, editar nombre/email/telefono, cambiar username, reemplazar
+  contraseña y cambiar rol sin exponer passwords, hashes ni secretos.
+- [ ] `[BLOCKER]` Audit log admin registra `clinic.created`,
+  `clinic.updated`, `clinic_user.created`,
+  `clinic_user.credentials.updated` y `clinic_user.role.changed` con metadata
+  sanitizada.
 - [ ] `[BLOCKER]` Upload admin de PDF funciona y queda visible para la clinica
   correcta.
 - [ ] `[BLOCKER]` Logout admin invalida sesion.

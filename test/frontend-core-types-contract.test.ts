@@ -70,5 +70,9 @@ test("frontend core types expose admin sessions and users roles contracts", () =
   assert.ok(source.includes("export type AdminUsersRolesQuery = {"));
   assert.ok(source.includes("export type AdminUsersRolesSnapshot = {"));
   assert.ok(source.includes("export type AdminClinicUserRoleChangeResponse = {"));
+  assert.ok(source.includes("export type AdminClinicsSnapshot = {"));
+  assert.ok(source.includes("export type AdminClinicCreatePayload = {"));
+  assert.ok(source.includes("export type AdminClinicUpdatePayload = {"));
+  assert.ok(source.includes("export type AdminClinicUserCredentialsUpdatePayload = {"));
   assert.ok(source.includes("export type ClinicUserRole = (typeof CLINIC_USER_ROLES)[number];"));
 });

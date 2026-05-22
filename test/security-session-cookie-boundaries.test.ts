@@ -47,6 +47,9 @@ const ADMIN_SESSION_FILES = [
   "server/routes/admin-users-roles.fastify.ts",
 ] as const;
 
+const ADMIN_FASTIFY_AUTH_ADAPTER_FILE = "server/lib/fastify-admin-auth.ts";
+const ADMIN_AUTH_MIDDLEWARE_FILE = "server/middlewares/admin-auth.ts";
+
 const PARTICULAR_SESSION_FILES = [
   "server/routes/particular-auth.fastify.ts",
   "server/routes/particular-audit.fastify.ts",
@@ -174,6 +177,26 @@ test("session lookup hash delete and clear-cookie flows stay domain specific", (
 
   for (const file of ADMIN_SESSION_FILES) {
     const source = readSource(file);
+
+    if (source.includes("authenticateFastifyAdmin")) {
+      const adapterSource = readSource(ADMIN_FASTIFY_AUTH_ADAPTER_FILE);
+      const middlewareSource = readSource(ADMIN_AUTH_MIDDLEWARE_FILE);
+
+      assertContains(source, "authenticateFastifyAdmin", `${file} admin fastify auth adapter`);
+      assertContains(adapterSource, "createRequireAdminAuth", `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} shared admin auth middleware`);
+      assertContains(adapterSource, "cookieName: ENV.adminCookieName", `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} admin cookie env`);
+      assertContains(adapterSource, "buildClearAdminSessionCookie", `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} admin clear cookie builder`);
+      assertContains(
+        adapterSource,
+        'reply.header("set-cookie", buildClearAdminSessionCookie())',
+        `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} admin clear cookie header`,
+      );
+      assertContains(middlewareSource, "hashSessionToken(token)", `${ADMIN_AUTH_MIDDLEWARE_FILE} hashes admin session token`);
+      assertContains(middlewareSource, "getAdminSessionByToken", `${ADMIN_AUTH_MIDDLEWARE_FILE} admin session lookup`);
+      assertContains(middlewareSource, "deleteAdminSession", `${ADMIN_AUTH_MIDDLEWARE_FILE} admin session delete`);
+      assertContains(middlewareSource, "session.expiresAt", `${ADMIN_AUTH_MIDDLEWARE_FILE} admin expiration check`);
+      continue;
+    }
 
     assertContains(source, "hashSessionToken(token)", `${file} hashes admin session token`);
     assertContains(source, "getAdminSessionByToken", `${file} admin session lookup`);

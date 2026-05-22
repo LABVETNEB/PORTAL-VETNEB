@@ -310,7 +310,46 @@ else {
 }
 ```
 
-## 5. Login clinica por API
+## 5. Administrador operativo
+
+Validar este bloque solo despues de confirmar que staging apunta a las URLs y
+cookies esperadas. No pegar usuarios, passwords ni capturas con credenciales
+visibles.
+
+1. Abrir el dashboard administrador desde una terminal local:
+
+```powershell
+cd C:\PORTAL-VETNEB
+powershell -ExecutionPolicy Bypass -File scripts/dev/open-admin-dashboard.ps1
+```
+
+2. Iniciar sesion admin en el navegador si el script lo solicita.
+3. Abrir `$FrontendUrl/dashboard/admin`.
+4. En la seccion `Clínicas`, crear una clinica nueva desde `Alta de clínica`:
+   - nombre de clinica,
+   - email de contacto,
+   - telefono opcional,
+   - usuario de acceso,
+   - contraseña inicial ingresada manualmente,
+   - rol inicial `Owner clínica` salvo que negocio pida `Staff clínica`.
+5. Confirmar que la respuesta visual no muestra contraseña, hashes ni secretos.
+6. En la misma seccion, cambiar nombre/email/telefono de la clinica y guardar.
+7. Cambiar el username del usuario de clinica y confirmar que el listado se
+   actualiza.
+8. Cambiar la contraseña del usuario de clinica. Confirmar el dialogo:
+   `La contraseña se reemplaza; no se puede consultar la actual.`
+9. Cambiar rol `Owner clínica`/`Staff clínica` usando la accion existente de rol.
+10. Revisar `Log de auditoría` y confirmar eventos sanitizados:
+   - `clinic.created`
+   - `clinic.updated`
+   - `clinic_user.created`
+   - `clinic_user.credentials.updated`
+   - `clinic_user.role.changed`
+11. Cerrar sesion admin.
+12. Pasar al dashboard clinica con el usuario creado o actualizado y validar
+   login, `GET /api/auth/me` y carga inicial del dashboard.
+
+## 6. Login clinica por API
 
 Usar una cuenta de clinica autorizada para staging o produccion. La password se
 lee sin eco en pantalla y no debe guardarse.
@@ -351,7 +390,7 @@ En el navegador, iniciar sesion con la misma cuenta de clinica. Revisar en
 DevTools > Network que `POST /api/auth/login` responda 200, reciba `Set-Cookie`
 con `Secure` y `SameSite=None`, y que las llamadas posteriores usen cookies.
 
-## 6. Validaciones clinic autenticadas
+## 7. Validaciones clinic autenticadas
 
 Estos endpoints deben responder con la sesion de clinica recien creada.
 
@@ -390,7 +429,7 @@ if (-not ($ParticularTokens.Json.particularTokens -is [array])) {
 }
 ```
 
-## 7. Particular/token manual sin exponer token
+## 8. Particular/token manual sin exponer token
 
 Pedir a negocio un token particular activo de staging o produccion. No pegarlo
 en chat, tickets, capturas ni logs.
@@ -452,7 +491,7 @@ Validacion manual en navegador:
    esperado.
 4. Si se necesita evidencia, limpiar el campo del token antes de capturar.
 
-## 8. CORS y cookies desde navegador
+## 9. CORS y cookies desde navegador
 
 Preflight esperado desde el origen frontend:
 
@@ -512,7 +551,7 @@ await fetch("https://<backend-staging-or-production>/api/auth/me", {
 
 El resultado esperado es `status: 200` mientras la sesion clinic siga activa.
 
-## 9. Avatar y Storage manual
+## 10. Avatar y Storage manual
 
 Validar desde el navegador con una imagen JPEG, PNG o WebP de prueba que no
 contenga datos sensibles.
@@ -563,7 +602,7 @@ if ($PSVersionTable.PSVersion.Major -ge 7 -and (Test-Path $AvatarFile)) {
 }
 ```
 
-## 10. Logout clinic
+## 11. Logout clinic
 
 Cerrar la sesion clinic usada por el smoke.
 
@@ -586,7 +625,7 @@ Assert-SmokeStatus $MeAfterLogout 401 "GET /api/auth/me despues de logout"
 Remove-Variable ClinicCredential -ErrorAction SilentlyContinue
 ```
 
-## 11. Criterio pass/fail
+## 12. Criterio pass/fail
 
 Pass:
 
@@ -615,7 +654,7 @@ Fail:
 - Un endpoint autenticado devuelve 401/403 con credenciales validas.
 - Aparece un secreto, token real o signed URL completa en evidencia.
 
-## 12. Rollback trigger
+## 13. Rollback trigger
 
 Disparar rollback o no-go si ocurre cualquiera de estos casos:
 

@@ -29,6 +29,9 @@ type AdminRoleUserSummary = import(
 type AdminClinicUserRoleChangeResult = import(
   "../server/db-admin-users-roles.ts"
 ).AdminClinicUserRoleChangeResult;
+type AdminClinicUserCredentialsUpdateResult = import(
+  "../server/db-admin-clinics.ts"
+).AdminClinicUserCredentialsUpdateResult;
 
 const demoClinicUser: Extract<AdminRoleUserSummary, { userType: "clinic" }> = {
   userType: "clinic",
@@ -76,6 +79,15 @@ function buildDeps(
         previousRole: "clinic_staff",
         roleChanged: true,
       }),
+    updateAdminClinicUserCredentials:
+      async (): Promise<AdminClinicUserCredentialsUpdateResult> => ({
+        ok: true,
+        user: demoClinicUser,
+        previousUsername: "clinic-owner",
+        usernameChanged: false,
+        credentialUpdated: false,
+      }),
+    hashPassword: async (password: string) => `argon:${password.length}`,
     writeAuditLog: async () => {},
     now: () => Date.UTC(2026, 4, 8, 0, 0, 0),
     ...overrides,
@@ -412,6 +424,200 @@ test("admin users roles devuelve 404 si clinic user no existe", async () => {
     });
 
     assert.equal(response.statusCode, 404);
+    assert.equal(JSON.parse(response.body).success, false);
+    assert.equal(auditCalled, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin users roles cambia username de clínica y audita sin secretos", async () => {
+  const app = Fastify();
+  const auditWrites: Array<{
+    input: {
+      event?: string;
+      clinicId?: number | null;
+      targetClinicUserId?: number | null;
+      metadata?: Record<string, unknown>;
+    };
+  }> = [];
+
+  await app.register(
+    adminUsersRolesNativeRoutes,
+    buildDeps({
+      updateAdminClinicUserCredentials: async (input) => {
+        assert.deepEqual(input, {
+          clinicUserId: 2,
+          username: "nueva-clinica",
+          passwordHash: undefined,
+          now: new Date("2026-05-08T00:00:00.000Z"),
+        });
+
+        return {
+          ok: true,
+          user: {
+            ...demoClinicUser,
+            username: "nueva-clinica",
+          },
+          previousUsername: "clinic-owner",
+          usernameChanged: true,
+          credentialUpdated: false,
+        };
+      },
+      writeAuditLog: async (_req, input) => {
+        auditWrites.push({ input });
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/clinic/2/credentials",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+      payload: {
+        username: "nueva-clinica",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+
+    assert.equal(body.success, true);
+    assert.equal(body.user.username, "nueva-clinica");
+    assert.equal(body.user.passwordHash, undefined);
+    assert.equal(JSON.stringify(body).includes("password"), false);
+    assert.equal(JSON.stringify(body).includes("argon:"), false);
+
+    assert.equal(auditWrites.length, 1);
+    assert.equal(auditWrites[0].input.event, "clinic_user.credentials.updated");
+    assert.equal(auditWrites[0].input.clinicId, 10);
+    assert.equal(auditWrites[0].input.targetClinicUserId, 2);
+    assert.deepEqual(auditWrites[0].input.metadata, {
+      previousUsername: "clinic-owner",
+      newUsername: "nueva-clinica",
+      clinicName: "Clínica Demo",
+      usernameChanged: true,
+      credentialUpdated: false,
+      updatedFields: ["username"],
+    });
+    assert.equal(JSON.stringify(auditWrites).includes("password"), false);
+    assert.equal(JSON.stringify(auditWrites).includes("hash"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin users roles cambia contraseña sin devolver hash ni auditar valor", async () => {
+  const app = Fastify();
+  const auditWrites: Array<{
+    input: {
+      event?: string;
+      metadata?: Record<string, unknown>;
+    };
+  }> = [];
+
+  await app.register(
+    adminUsersRolesNativeRoutes,
+    buildDeps({
+      hashPassword: async (password: string) => `argon:${password.length}`,
+      updateAdminClinicUserCredentials: async (input) => {
+        assert.deepEqual(input, {
+          clinicUserId: 2,
+          username: undefined,
+          passwordHash: "argon:12",
+          now: new Date("2026-05-08T00:00:00.000Z"),
+        });
+
+        return {
+          ok: true,
+          user: demoClinicUser,
+          previousUsername: "clinic-owner",
+          usernameChanged: false,
+          credentialUpdated: true,
+        };
+      },
+      writeAuditLog: async (_req, input) => {
+        auditWrites.push({ input });
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/clinic/2/credentials",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+      payload: {
+        password: "nuevaClave12",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+
+    assert.equal(body.success, true);
+    assert.equal(body.user.userId, 2);
+    assert.equal(body.user.passwordHash, undefined);
+    assert.equal(JSON.stringify(body).includes("nuevaClave12"), false);
+    assert.equal(JSON.stringify(body).includes("argon:"), false);
+
+    assert.equal(auditWrites.length, 1);
+    assert.equal(auditWrites[0].input.event, "clinic_user.credentials.updated");
+    assert.deepEqual(auditWrites[0].input.metadata, {
+      previousUsername: "clinic-owner",
+      newUsername: "clinic-owner",
+      clinicName: "Clínica Demo",
+      usernameChanged: false,
+      credentialUpdated: true,
+      updatedFields: ["accessCredential"],
+    });
+    assert.equal(JSON.stringify(auditWrites).includes("nuevaClave12"), false);
+    assert.equal(JSON.stringify(auditWrites).includes("argon:"), false);
+    assert.equal(JSON.stringify(auditWrites).includes("password"), false);
+    assert.equal(JSON.stringify(auditWrites).includes("hash"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin users roles devuelve 409 si username de clínica ya existe", async () => {
+  const app = Fastify();
+  let auditCalled = false;
+
+  await app.register(
+    adminUsersRolesNativeRoutes,
+    buildDeps({
+      updateAdminClinicUserCredentials:
+        async (): Promise<AdminClinicUserCredentialsUpdateResult> => ({
+          ok: false,
+          reason: "username_conflict",
+        }),
+      writeAuditLog: async () => {
+        auditCalled = true;
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/clinic/2/credentials",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+      payload: {
+        username: "existente",
+      },
+    });
+
+    assert.equal(response.statusCode, 409);
     assert.equal(JSON.parse(response.body).success, false);
     assert.equal(auditCalled, false);
   } finally {

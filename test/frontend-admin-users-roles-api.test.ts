@@ -57,3 +57,23 @@ test("frontend admin users roles API helpers remain typed around role snapshots"
   assert.ok(source.includes("AdminClinicUserRoleChangeResponse,"));
   assert.ok(source.includes("ClinicUserRole,"));
 });
+
+test("frontend API client exposes admin clinics management endpoints", () => {
+  const source = read(API_CLIENT_PATH);
+
+  assert.ok(source.includes("export async function getAdminClinics("));
+  assert.ok(source.includes("): Promise<AdminClinicsSnapshot>"));
+  assert.ok(source.includes("`/api/admin/clinics${qs ? `?${qs}` : \"\"}`,"));
+  assert.ok(source.includes("export async function createAdminClinicWithUser("));
+  assert.ok(source.includes("payload: AdminClinicCreatePayload,"));
+  assert.ok(source.includes("): Promise<AdminClinicCreateResponse>"));
+  assert.ok(source.includes('"/api/admin/clinics"'));
+  assert.ok(source.includes("export async function updateAdminClinic("));
+  assert.ok(source.includes("clinicId: number,"));
+  assert.ok(source.includes("payload: AdminClinicUpdatePayload,"));
+  assert.ok(source.includes("`/api/admin/clinics/${clinicId}`,"));
+  assert.ok(source.includes("export async function updateAdminClinicUserCredentials("));
+  assert.ok(source.includes("payload: AdminClinicUserCredentialsUpdatePayload,"));
+  assert.ok(source.includes("): Promise<AdminClinicUserCredentialsUpdateResponse>"));
+  assert.ok(source.includes("`/api/admin/users-roles/clinic/${clinicUserId}/credentials`,"));
+});

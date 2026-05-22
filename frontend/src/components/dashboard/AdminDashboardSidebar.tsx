@@ -1,5 +1,6 @@
 import {
   Activity,
+  Building2,
   ClipboardPlus,
   KeyRound,
   ReceiptText,
@@ -31,6 +32,11 @@ const adminNavItems: DashboardNavItem[] = [
     label: "Estado",
     href: `${ROUTES.dashboardAdmin}#admin-health`,
     icon: Activity,
+  },
+  {
+    label: "Clínicas",
+    href: `${ROUTES.dashboardAdmin}#admin-clinics`,
+    icon: Building2,
   },
   {
     label: "Tokens particulares",

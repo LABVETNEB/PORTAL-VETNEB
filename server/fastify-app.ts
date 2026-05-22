@@ -13,6 +13,10 @@ import {
   type AdminAuthNativeRoutesOptions,
 } from "./routes/admin-auth.fastify.ts";
 import {
+  adminClinicsNativeRoutes,
+  type AdminClinicsNativeRoutesOptions,
+} from "./routes/admin-clinics.fastify.ts";
+import {
   adminFailedLoginAlertsNativeRoutes,
   type AdminFailedLoginAlertsNativeRoutesOptions,
 } from "./routes/admin-failed-login-alerts.fastify.ts";
@@ -197,6 +201,7 @@ export type CreateFastifyAppOptions = {
   getServiceInfoPayload?: ServiceInfoFactory;
   adminAuditRoutes?: AdminAuditNativeRoutesOptions;
   adminAuthRoutes?: AdminAuthNativeRoutesOptions;
+  adminClinicsRoutes?: AdminClinicsNativeRoutesOptions;
   adminFailedLoginAlertsRoutes?: AdminFailedLoginAlertsNativeRoutesOptions;
   adminPricingRoutes?: AdminPricingNativeRoutesOptions;
   adminParticularTokensRoutes?: AdminParticularTokensNativeRoutesOptions;
@@ -308,6 +313,11 @@ export async function createFastifyApp(
   await app.register(adminAuthNativeRoutes, {
     prefix: "/api/admin/auth",
     ...(options.adminAuthRoutes ?? {}),
+  });
+
+  await app.register(adminClinicsNativeRoutes, {
+    prefix: "/api/admin/clinics",
+    ...(options.adminClinicsRoutes ?? {}),
   });
 
   await app.register(adminFailedLoginAlertsNativeRoutes, {
@@ -457,4 +467,3 @@ export async function createFastifyApp(
 
   return app;
 }
-

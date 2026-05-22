@@ -47,6 +47,10 @@ export type RouteStopStatus = (typeof ROUTE_STOP_STATUSES)[number];
 export const AUDIT_EVENTS = [
   "auth.admin.login.succeeded",
   "auth.clinic.login.succeeded",
+  "clinic.created",
+  "clinic.updated",
+  "clinic_user.created",
+  "clinic_user.credentials.updated",
   "clinic_user.role.changed",
   "report.status.changed",
   "report.uploaded",
@@ -266,6 +270,75 @@ export type AdminUsersRolesQuery = {
 };
 
 export type AdminClinicUserRoleChangeResponse = {
+  success: true;
+  user: Extract<AdminRoleUserSummary, { userType: "clinic" }>;
+  changedBy: {
+    adminUserId: number;
+    username: string;
+  };
+};
+
+export type AdminClinicSummary = {
+  clinicId: number;
+  clinicName: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminClinicManagementSummary = AdminClinicSummary & {
+  users: Extract<AdminRoleUserSummary, { userType: "clinic" }>[];
+};
+
+export type AdminClinicsSnapshot = {
+  success: true;
+  clinics: AdminClinicManagementSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type AdminClinicCreatePayload = {
+  clinicName: string;
+  contactEmail: string;
+  contactPhone?: string | null;
+  username: string;
+  password: string;
+  role?: ClinicUserRole;
+};
+
+export type AdminClinicCreateResponse = {
+  success: true;
+  clinic: AdminClinicSummary;
+  user: Extract<AdminRoleUserSummary, { userType: "clinic" }>;
+  createdBy: {
+    adminUserId: number;
+    username: string;
+  };
+};
+
+export type AdminClinicUpdatePayload = {
+  clinicName?: string;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+};
+
+export type AdminClinicUpdateResponse = {
+  success: true;
+  clinic: AdminClinicSummary;
+  changedBy: {
+    adminUserId: number;
+    username: string;
+  };
+};
+
+export type AdminClinicUserCredentialsUpdatePayload = {
+  username?: string;
+  password?: string;
+};
+
+export type AdminClinicUserCredentialsUpdateResponse = {
   success: true;
   user: Extract<AdminRoleUserSummary, { userType: "clinic" }>;
   changedBy: {

@@ -87,6 +87,7 @@ test("admin dashboard sidebar keeps admin operations and excludes clinic navigat
   assert.ok(source.includes('label: "Administración"'));
   assert.ok(source.includes('label: "Subir informe"'));
   assert.ok(source.includes('label: "Estado"'));
+  assert.ok(source.includes('label: "Clínicas"'));
   assert.ok(source.includes('label: "Tokens particulares"'));
   assert.ok(source.includes('label: "Precios"'));
   assert.ok(source.includes('label: "Sesiones"'));
@@ -94,6 +95,7 @@ test("admin dashboard sidebar keeps admin operations and excludes clinic navigat
   assert.ok(source.includes('label: "Auditoría"'));
   assert.ok(source.includes('label: "Mantenimiento"'));
   assert.ok(source.includes("ROUTES.dashboardAdmin"));
+  assert.ok(source.includes('href: `${ROUTES.dashboardAdmin}#admin-clinics`'));
   assert.ok(source.includes('href: `${ROUTES.dashboardAdmin}#admin-pricing`'));
   assert.ok(source.includes('href: `${ROUTES.dashboardAdmin}#admin-users-roles`'));
   assert.equal(source.includes('href: `${ROUTES.dashboardAdmin}#audit-role-changes`'), false);
