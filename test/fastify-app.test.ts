@@ -11,6 +11,24 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 const { ENV } = await import("../server/lib/env.ts");
 const { createFastifyApp } = await import("../server/fastify-app.ts");
 
+function buildExpectedContactServiceSnapshot() {
+  const recipients = Array.from(
+    new Set(
+      (ENV.contactTo.length > 0 ? ENV.contactTo : [ENV.smtp.from])
+        .flatMap((value) => value.split(/[;,]/g))
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  return {
+    contact_email:
+      ENV.smtp.enabled && recipients.length > 0 ? "configured" : "degraded",
+    contact_email_recipients: recipients,
+    contact_email_recipient_count: recipients.length,
+  };
+}
+
 function buildAdminAuditRouteStubs() {
   return {
     deleteAdminSession: async () => {},
@@ -2340,6 +2358,7 @@ test(
         database: "up",
         storage: "up",
         smtp: ENV.smtp.enabled ? "configured" : "not_configured",
+        ...buildExpectedContactServiceSnapshot(),
       });
     } finally {
       await app.close();

@@ -40,6 +40,11 @@ pnpm dev
 El frontend corre en `http://localhost:3000` por defecto (o el puerto que configure Next.js).
 
 > **Nota:** El backend Fastify debe estar corriendo en el puerto configurado en `NEXT_PUBLIC_API_URL`.
+>
+> Referencia recomendada de trabajo local/LAN:
+> - Backend: `http://127.0.0.1:3000` o `http://<LAN-IP>:3000`
+> - Frontend: `http://localhost:3001` o `http://<LAN-IP>:3001`
+> - En staging/prod, `NEXT_PUBLIC_API_URL` debe apuntar al backend desplegado real.
 
 ## Variables de entorno
 

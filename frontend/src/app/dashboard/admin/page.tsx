@@ -69,6 +69,7 @@ function getServiceVariant(
 ): "default" | "secondary" | "destructive" | "outline" {
   if (value === "up") return "default";
   if (value === "configured") return "default";
+  if (value === "degraded") return "secondary";
   if (value === "down") return "outline";
   if (value === "not_configured") return "outline";
   if (value === "unknown" || value === undefined || value === null) {
@@ -80,6 +81,7 @@ function getServiceVariant(
 function formatServiceStatus(value: unknown) {
   if (value === "up") return "Activo";
   if (value === "configured") return "Configurado";
+  if (value === "degraded") return "Degradado";
   if (value === "down") return "Caído";
   if (value === "not_configured") return "No configurado";
   if (value === "unknown" || value === undefined || value === null) {
@@ -114,7 +116,20 @@ function getSystemStatusIndicatorClass(status: string) {
 function formatSystemStatusDetail(services: Record<string, unknown>) {
   return `Base de datos: ${formatServiceStatus(services.database)} · Almacenamiento: ${formatServiceStatus(
     services.storage,
-  )} · Correo SMTP: ${formatServiceStatus(services.smtp)}`;
+  )} · Correo SMTP: ${formatServiceStatus(services.smtp)} · Contacto email: ${formatServiceStatus(services.contact_email)}`;
+}
+
+function getConfiguredContactRecipients(services: Record<string, unknown>): string[] {
+  const recipients = services.contact_email_recipients;
+
+  if (!Array.isArray(recipients)) {
+    return [];
+  }
+
+  return recipients.filter(
+    (recipient): recipient is string =>
+      typeof recipient === "string" && recipient.trim().length > 0,
+  );
 }
 
 function formatUptime(totalSeconds: number | undefined) {
@@ -276,6 +291,7 @@ export default async function AdminPage({
   const systemHealth = await getAdminSystemHealth(await getAdminRequestOptions());
   const hasSystemHealthFetchError = systemHealth === null;
   const serviceChecks = systemHealth?.services ?? {};
+  const contactRecipients = getConfiguredContactRecipients(serviceChecks);
   const systemStatus = systemHealth?.status ?? "unknown";
   const eventCounts = auditEntries.reduce(
     (acc, entry) => {
@@ -431,6 +447,17 @@ export default async function AdminPage({
                 <Badge variant={getServiceVariant(serviceChecks.smtp)}>
                   {formatServiceStatus(serviceChecks.smtp)}
                 </Badge>
+              </div>
+              <div className="surface-soft">
+                <p className="mb-2 text-xs text-muted-foreground">Contacto email</p>
+                <Badge variant={getServiceVariant(serviceChecks.contact_email)}>
+                  {formatServiceStatus(serviceChecks.contact_email)}
+                </Badge>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {contactRecipients.length > 0
+                    ? `Destino: ${contactRecipients.join(", ")}`
+                    : "Sin destinatarios configurados"}
+                </p>
               </div>
               <div className="surface-soft">
                 <p className="text-xs text-muted-foreground">Backend</p>

@@ -45,7 +45,11 @@ test("frontend contact form exposes feedback and no longer blocks submit", () =>
 
   assert.ok(source.includes("const [errorMessage, setErrorMessage]"));
   assert.ok(source.includes("const [successMessage, setSuccessMessage]"));
+  assert.ok(source.includes("const [warningMessage, setWarningMessage]"));
   assert.ok(source.includes("const [isSubmitting, setIsSubmitting]"));
+  assert.ok(source.includes("resolveContactSubmitErrorMessage"));
+  assert.ok(source.includes('"No se pudo contactar al servidor. Verifique la conexión o intente nuevamente."'));
+  assert.ok(source.includes('setErrorMessage(resolveContactSubmitErrorMessage(error));'));
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("disabled={isSubmitting}"));
   assert.ok(source.includes("Enviar mensaje"));

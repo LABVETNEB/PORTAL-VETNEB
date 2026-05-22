@@ -115,7 +115,9 @@ test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear se
     infoCalls.push(args);
   };
 
-  (ENV as any).contactTo = ["contacto@vetneb.com", "ops@vetneb.com"];
+  (ENV as any).contactTo = [
+    "contacto@vetneb.com; ops@vetneb.com, CONTACTO@vetneb.com",
+  ];
   (ENV.smtp as any).enabled = true;
   (ENV.smtp as any).host = "smtp.contact.example";
   (ENV.smtp as any).port = 587;

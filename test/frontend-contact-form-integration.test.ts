@@ -37,6 +37,10 @@ test("contact public page handles loading, feedback cleanup and conditional rese
   assert.ok(source.includes("const [warningMessage, setWarningMessage]"));
   assert.ok(source.includes("const [isSubmitting, setIsSubmitting]"));
   assert.ok(source.includes("function clearFeedbackMessages()"));
+  assert.ok(source.includes("function resolveContactSubmitErrorMessage(error: unknown)"));
+  assert.ok(source.includes('"No se pudo contactar al servidor. Verifique la conexión o intente nuevamente."'));
+  assert.ok(source.includes('normalizedMessageLower === "failed to fetch"'));
+  assert.ok(source.includes('normalizedMessageLower === "fetch failed"'));
   assert.ok(source.includes("setErrorMessage(null);"));
   assert.ok(source.includes("setSuccessMessage(null);"));
   assert.ok(source.includes("if (isSubmitting)"));
@@ -94,6 +98,21 @@ test("contact public page handles loading, feedback cleanup and conditional rese
   assert.ok(successBranchMatch[1]?.includes('setEmail("");'));
   assert.ok(successBranchMatch[1]?.includes('setClinica("");'));
   assert.ok(successBranchMatch[1]?.includes('setMensaje("");'));
+  const catchBranchMatch = source.match(
+    /catch \(error\) \{([\s\S]*?)\}\s*finally \{/,
+  );
+  assert.ok(catchBranchMatch);
+  assert.ok(
+    catchBranchMatch[1]?.includes(
+      "setErrorMessage(resolveContactSubmitErrorMessage(error));",
+    ),
+  );
+  assert.equal(
+    /setNombre\(""\)|setApellido\(""\)|setEmail\(""\)|setClinica\(""\)|setMensaje\(""\)/.test(
+      catchBranchMatch[1] ?? "",
+    ),
+    false,
+  );
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("disabled={isSubmitting}"));
   assert.ok(source.includes('isSubmitting ? "Enviando mensaje..." : "Enviar mensaje"'));

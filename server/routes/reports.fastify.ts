@@ -386,7 +386,7 @@ async function authenticateClinicUser(
   if (!session) {
     reply.code(401).send({
       success: false,
-      error: "SesiÃƒÆ’Ã‚Â³n invÃƒÆ’Ã‚Â¡lida",
+      error: "Sesión inválida",
     });
     return null;
   }
@@ -397,7 +397,7 @@ async function authenticateClinicUser(
     reply.header("set-cookie", buildClearSessionCookie());
     reply.code(401).send({
       success: false,
-      error: "SesiÃƒÆ’Ã‚Â³n expirada",
+      error: "Sesión expirada",
     });
     return null;
   }
@@ -410,7 +410,7 @@ async function authenticateClinicUser(
     reply.header("set-cookie", buildClearSessionCookie());
     reply.code(401).send({
       success: false,
-      error: "Usuario de sesiÃƒÆ’Ã‚Â³n no encontrado",
+      error: "Usuario de sesión no encontrado",
     });
     return null;
   }

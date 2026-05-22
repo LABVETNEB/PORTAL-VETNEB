@@ -187,7 +187,7 @@ test("updateStudyTrackingSchema rechaza adminContactEmail invalido", () => {
   }
 
   assert.equal(parsed.success, false);
-  assert.equal(parsed.error.issues[0]?.message, "adminContactEmail invÃ¡lido");
+  assert.equal(parsed.error.issues[0]?.message, "adminContactEmail inválido");
 });
 
 test("updateStudyTrackingSchema rechaza adminContactPhone y notes fuera de limite", () => {

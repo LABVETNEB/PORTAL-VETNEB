@@ -21,6 +21,21 @@ if ($BackendUrl.EndsWith("/") -or $FrontendUrl.EndsWith("/")) {
 }
 ```
 
+### Preflight Render para comunicaciones
+
+Antes del smoke del formulario de contacto, confirmar en Render que quedaron
+configuradas estas variables y luego ejecutar redeploy:
+
+- Backend staging:
+  `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
+  `SMTP_FROM`, `CONTACT_TO`,
+  `CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com`
+- Frontend staging:
+  `NEXT_PUBLIC_API_URL=https://<backend-staging>.onrender.com`
+
+Sin redeploy posterior al cambio de env, staging puede seguir respondiendo con
+estado degradado de SMTP aunque la configuración ya esté cargada en el panel.
+
 ## 2. Helpers para status code y errores
 
 Estos helpers capturan status code tambien cuando `Invoke-WebRequest` lanza
@@ -181,6 +196,22 @@ foreach ($Path in $PublicPaths) {
   Assert-SmokeStatus $PublicSmoke 200 "Frontend publico $Path"
 }
 ```
+
+## 4.1 Smoke manual del formulario de contacto
+
+1. Abrir `$FrontendUrl/contacto`.
+2. Enviar un formulario válido (nombre, email, mensaje >= 10 caracteres).
+3. Confirmar en UI mensaje de éxito:
+   `Mensaje enviado correctamente`.
+4. Confirmar que el correo llega a `CONTACT_TO` (o `SMTP_FROM` si aplica
+   fallback).
+5. Confirmar que el email recibido conserva `replyTo` con el email del
+   solicitante.
+
+Si aparece el mensaje:
+`Mensaje recibido, pero el envío automático de correo no está configurado...`,
+tratarlo como `fail` de readiness de staging (configuración runtime incompleta
+o redeploy faltante).
 
 ## 5. Login clinica por API
 

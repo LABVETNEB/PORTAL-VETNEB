@@ -484,7 +484,7 @@ async function authenticateAdminUser(
   if (!session) {
     reply.code(401).send({
       success: false,
-      error: "Sesi�n admin inv�lida",
+      error: "Sesión admin inválida",
     });
     return null;
   }
@@ -495,7 +495,7 @@ async function authenticateAdminUser(
     reply.header("set-cookie", buildClearAdminSessionCookie());
     reply.code(401).send({
       success: false,
-      error: "Sesi�n admin expirada",
+      error: "Sesión admin expirada",
     });
     return null;
   }
@@ -508,7 +508,7 @@ async function authenticateAdminUser(
     reply.header("set-cookie", buildClearAdminSessionCookie());
     reply.code(401).send({
       success: false,
-      error: "Usuario admin de sesi�n no encontrado",
+      error: "Usuario admin de sesión no encontrado",
     });
     return null;
   }
@@ -568,10 +568,16 @@ async function notifySpecialStainByEmail(
       notes: trackingCase.notes,
     });
   } catch (error) {
+    const errorCode =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code?: unknown }).code ?? "")
+        : undefined;
+
     console.error("[EMAIL] special_stain_required failed", {
       trackingCaseId: trackingCase.id,
       clinicId: trackingCase.clinicId,
-      error,
+      errorName: error instanceof Error ? error.name : "unknown_error",
+      errorCode: errorCode && errorCode.trim().length > 0 ? errorCode : undefined,
     });
   }
 }
@@ -770,7 +776,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     if (!clinic) {
       return reply.code(404).send({
         success: false,
-        error: "Cl�nica no encontrada",
+        error: "Clínica no encontrada",
       });
     }
 
@@ -787,7 +793,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       if (report.clinicId !== parsed.data.clinicId) {
         return reply.code(400).send({
           success: false,
-          error: "El informe no pertenece a la cl�nica indicada",
+          error: "El informe no pertenece a la clínica indicada",
         });
       }
     }
@@ -807,7 +813,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       if (particularToken.clinicId !== parsed.data.clinicId) {
         return reply.code(400).send({
           success: false,
-          error: "El token particular no pertenece a la cl�nica indicada",
+          error: "El token particular no pertenece a la clínica indicada",
         });
       }
     }
@@ -865,9 +871,9 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
         reportId: created.reportId ?? null,
         particularTokenId: created.particularTokenId ?? null,
         type: "special_stain_required",
-        title: "Se requiere tinci�n especial",
+        title: "Se requiere tinción especial",
         message:
-          "El estudio ingres� a evaluaci�n y requiere tinci�n especial para continuar.",
+          "El estudio ingresó a evaluación y requiere tinción especial para continuar.",
         isRead: false,
         readAt: null,
       });
@@ -981,7 +987,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     if (typeof trackingCaseId !== "number") {
       return reply.code(400).send({
         success: false,
-        error: "ID de seguimiento inv�lido",
+        error: "ID de seguimiento inválido",
       });
     }
 
@@ -1028,7 +1034,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     if (typeof trackingCaseId !== "number") {
       return reply.code(400).send({
         success: false,
-        error: "ID de seguimiento inv�lido",
+        error: "ID de seguimiento inválido",
       });
     }
 
@@ -1070,7 +1076,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       if (report.clinicId !== current.clinicId) {
         return reply.code(400).send({
           success: false,
-          error: "El informe no pertenece a la cl�nica del seguimiento",
+          error: "El informe no pertenece a la clínica del seguimiento",
         });
       }
     }
@@ -1090,7 +1096,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       if (particularToken.clinicId !== current.clinicId) {
         return reply.code(400).send({
           success: false,
-          error: "El token particular no pertenece a la cl�nica del seguimiento",
+          error: "El token particular no pertenece a la clínica del seguimiento",
         });
       }
     }
@@ -1208,9 +1214,9 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
         reportId: updated.reportId ?? null,
         particularTokenId: updated.particularTokenId ?? null,
         type: "special_stain_required",
-        title: "Se requiere tinci�n especial",
+        title: "Se requiere tinción especial",
         message:
-          "El estudio requiere tinci�n especial. Revis� el seguimiento para continuar la gesti�n.",
+          "El estudio requiere tinción especial. Revisá el seguimiento para continuar la gestión.",
         isRead: false,
         readAt: null,
       });
