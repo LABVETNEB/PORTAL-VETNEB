@@ -18,6 +18,17 @@ type ContactMessageInput = {
   message: string;
 };
 
+type SafeContactEmailErrorDiagnostics = {
+  errorName: string;
+  errorCode?: string;
+  errorCommand?: string;
+  errorResponseCode?: number;
+  errorSyscall?: string;
+  errorHostname?: string;
+  errorPort?: number;
+  errorAddress?: string;
+};
+
 export type ContactNativeRoutesOptions = {
   sendContactMessageEmail?: (
     input: ContactMessageInput,
@@ -184,6 +195,102 @@ function normalizeOptionalText(value: string | null | undefined) {
   return trimmed ? trimmed : null;
 }
 
+function getKnownErrorProperty(error: unknown, propertyName: string): unknown {
+  if (!error || typeof error !== "object") {
+    return undefined;
+  }
+
+  return (error as Record<string, unknown>)[propertyName];
+}
+
+function toSafeNonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function toSafeNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const parsed = Number(trimmed);
+
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function extractSafeContactEmailErrorDiagnostics(
+  error: unknown,
+): SafeContactEmailErrorDiagnostics {
+  const diagnostics: SafeContactEmailErrorDiagnostics = {
+    errorName:
+      toSafeNonEmptyString(error instanceof Error ? error.name : undefined) ??
+      "unknown_error",
+  };
+
+  const errorCode = toSafeNonEmptyString(getKnownErrorProperty(error, "code"));
+  const errorCommand = toSafeNonEmptyString(
+    getKnownErrorProperty(error, "command"),
+  );
+  const errorResponseCode = toSafeNumber(
+    getKnownErrorProperty(error, "responseCode"),
+  );
+  const errorSyscall = toSafeNonEmptyString(
+    getKnownErrorProperty(error, "syscall"),
+  );
+  const errorHostname = toSafeNonEmptyString(
+    getKnownErrorProperty(error, "hostname"),
+  );
+  const errorPort = toSafeNumber(getKnownErrorProperty(error, "port"));
+  const errorAddress = toSafeNonEmptyString(
+    getKnownErrorProperty(error, "address"),
+  );
+
+  if (errorCode) {
+    diagnostics.errorCode = errorCode;
+  }
+
+  if (errorCommand) {
+    diagnostics.errorCommand = errorCommand;
+  }
+
+  if (typeof errorResponseCode === "number") {
+    diagnostics.errorResponseCode = errorResponseCode;
+  }
+
+  if (errorSyscall) {
+    diagnostics.errorSyscall = errorSyscall;
+  }
+
+  if (errorHostname) {
+    diagnostics.errorHostname = errorHostname;
+  }
+
+  if (typeof errorPort === "number") {
+    diagnostics.errorPort = errorPort;
+  }
+
+  if (errorAddress) {
+    diagnostics.errorAddress = errorAddress;
+  }
+
+  return diagnostics;
+}
+
 export const contactNativeRoutes: FastifyPluginAsync<
   ContactNativeRoutesOptions
 > = async (app, options) => {
@@ -250,20 +357,17 @@ export const contactNativeRoutes: FastifyPluginAsync<
         message: parsed.data.message,
       });
     } catch (error) {
-      const errorCode =
-        error && typeof error === "object" && "code" in error
-          ? String((error as { code?: unknown }).code ?? "")
-          : undefined;
+      const diagnostics = extractSafeContactEmailErrorDiagnostics(error);
 
       console.error("[EMAIL] contact_message failed", {
         email: parsed.data.email,
         clinicName: normalizedClinicName,
-        errorName: error instanceof Error ? error.name : "unknown_error",
-        errorCode: errorCode && errorCode.trim().length > 0 ? errorCode : undefined,
+        ...diagnostics,
       });
 
       return reply.code(502).send({
         success: false,
+        reason: "email_delivery_failed",
         error:
           "No se pudo enviar el mensaje en este momento. Intente nuevamente más tarde.",
       });
