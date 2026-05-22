@@ -263,18 +263,65 @@ function normalizeContactRecipients(values: string[]): string[] {
   return Array.from(unique);
 }
 
+function isLocalOrLanHostname(hostname: string): boolean {
+  const normalizedHostname = hostname.trim().toLowerCase();
+
+  if (
+    normalizedHostname === "localhost" ||
+    normalizedHostname === "127.0.0.1" ||
+    normalizedHostname === "::1"
+  ) {
+    return true;
+  }
+
+  return normalizedHostname.startsWith("192.168.");
+}
+
+function buildCorsReadinessSnapshot() {
+  const origins = Array.from(
+    new Set(
+      ENV.corsOrigins
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  const hasLocalOrLanOrigins = origins.some((origin) => {
+    try {
+      return isLocalOrLanHostname(new URL(origin).hostname);
+    } catch {
+      return false;
+    }
+  });
+
+  return {
+    status: origins.length > 0 ? "configured" : "not_configured",
+    origins,
+    originCount: origins.length,
+    hasLocalOrLanOrigins,
+  };
+}
+
 function getContactEmailRoutingSnapshot() {
-  const configuredRecipients = normalizeContactRecipients(
-    ENV.contactTo.length > 0 ? ENV.contactTo : [ENV.smtp.from],
+  const explicitRecipients = normalizeContactRecipients(ENV.contactTo);
+  const fallbackRecipients = ENV.isProduction
+    ? []
+    : normalizeContactRecipients([ENV.smtp.from]);
+  const configuredRecipients =
+    explicitRecipients.length > 0 ? explicitRecipients : fallbackRecipients;
+  const contactToConfigured = explicitRecipients.length > 0;
+  const smtpFromConfigured = ENV.smtp.from.trim().length > 0;
+  const smtpReady = ENV.smtp.enabled;
+  const contactReady = smtpReady && (
+    ENV.isProduction ? contactToConfigured : configuredRecipients.length > 0
   );
 
   return {
-    status:
-      ENV.smtp.enabled && configuredRecipients.length > 0
-        ? "configured"
-        : "degraded",
+    status: contactReady ? "configured" : "degraded",
     recipients: configuredRecipients,
     recipientCount: configuredRecipients.length,
+    contactToConfigured,
+    smtpFromConfigured,
   };
 }
 
@@ -285,6 +332,7 @@ function buildServiceChecksPayload(checks: unknown) {
       : {};
 
   const contactRouting = getContactEmailRoutingSnapshot();
+  const corsReadiness = buildCorsReadinessSnapshot();
 
   return {
     ...baseChecks,
@@ -292,6 +340,13 @@ function buildServiceChecksPayload(checks: unknown) {
     contact_email: contactRouting.status,
     contact_email_recipients: contactRouting.recipients,
     contact_email_recipient_count: contactRouting.recipientCount,
+    contact_to_configured: contactRouting.contactToConfigured,
+    smtp_from_configured: contactRouting.smtpFromConfigured,
+    cors: corsReadiness.status,
+    cors_origins: corsReadiness.origins,
+    cors_origin_count: corsReadiness.originCount,
+    cors_has_local_or_lan_origins: corsReadiness.hasLocalOrLanOrigins,
+    node_env: ENV.nodeEnv,
   };
 }
 

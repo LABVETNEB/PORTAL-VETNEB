@@ -17,7 +17,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   // El frontend se ejecuta como aplicación separada del backend Fastify
-  // Para producción, configurar NEXT_PUBLIC_API_URL apuntando al backend
+  // En staging/producción, NEXT_PUBLIC_API_URL debe apuntar explícitamente al backend público
   compress: true,
   poweredByHeader: false,
   images: {

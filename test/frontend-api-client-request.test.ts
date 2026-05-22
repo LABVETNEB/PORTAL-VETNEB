@@ -12,11 +12,19 @@ function read(relativePath: string): string {
   );
 }
 
-test("frontend API client uses configured backend base URL with local fallback", () => {
+test("frontend API client resolves backend base URL with explicit public safeguards", () => {
   const source = read(API_CLIENT_PATH);
 
-  assert.ok(source.includes("const API_BASE_URL ="));
-  assert.ok(source.includes('process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";'));
+  assert.ok(source.includes("const LOCAL_DEVELOPMENT_API_BASE_URL = \"http://localhost:3000\";"));
+  assert.ok(source.includes("export const PUBLIC_API_CONFIGURATION_ERROR_MESSAGE ="));
+  assert.ok(source.includes("El servicio público no está configurado para recibir solicitudes."));
+  assert.ok(source.includes("export function resolveApiBaseUrlForRuntime("));
+  assert.ok(source.includes("const nodeEnv = input.nodeEnv ?? process.env.NODE_ENV ?? \"development\";"));
+  assert.ok(source.includes("if (!nextPublicApiUrl) {"));
+  assert.ok(source.includes("if (isDevelopment) {"));
+  assert.ok(source.includes("return LOCAL_DEVELOPMENT_API_BASE_URL;"));
+  assert.ok(source.includes("throw new Error(PUBLIC_API_CONFIGURATION_ERROR_MESSAGE);"));
+  assert.ok(source.includes("if (!isDevelopment && isLocalOrLanHostname(parsedUrl.hostname)) {"));
   assert.ok(source.includes("async function apiFetch<T>("));
   assert.ok(source.includes("path: string,"));
   assert.ok(source.includes("options: RequestInit = {},"));
@@ -25,10 +33,21 @@ test("frontend API client uses configured backend base URL with local fallback",
 test("frontend API client sends cookies by default", () => {
   const source = read(API_CLIENT_PATH);
 
-  assert.ok(source.includes("await fetch(`${API_BASE_URL}${path}`, {"));
+  assert.ok(source.includes("const apiBaseUrl = resolveApiBaseUrlForRuntime();"));
+  assert.ok(source.includes("await fetch(`${apiBaseUrl}${path}`, {"));
   assert.ok(source.includes("...options,"));
   assert.ok(source.includes('credentials: options.credentials ?? "include",'));
   assert.ok(source.includes("headers,"));
+});
+
+test("frontend API client keeps localhost fallback restricted to development-only", () => {
+  const source = read(API_CLIENT_PATH);
+
+  assert.ok(source.includes("function isLocalOrLanHostname(hostname: string): boolean"));
+  assert.ok(source.includes('normalizedHost === "localhost"'));
+  assert.ok(source.includes('normalizedHost === "127.0.0.1"'));
+  assert.ok(source.includes('return normalizedHost.startsWith("192.168.");'));
+  assert.ok(source.includes("if (!isDevelopment && isLocalOrLanHostname(parsedUrl.hostname)) {"));
 });
 
 test("frontend API client manages JSON content type without overriding FormData", () => {

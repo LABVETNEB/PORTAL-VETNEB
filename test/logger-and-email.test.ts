@@ -179,6 +179,77 @@ test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear se
   assert.equal(JSON.stringify(infoCalls).includes("smtp-pass-contact"), false);
 });
 
+test("sendContactMessageEmail exige CONTACT_TO explícito en entorno público", async () => {
+  const originalInfo = console.info;
+  const originalCreateTransport = nodemailer.createTransport;
+  const originalEnv = {
+    isProduction: ENV.isProduction,
+    contactTo: ENV.contactTo,
+    smtp: {
+      enabled: ENV.smtp.enabled,
+      host: ENV.smtp.host,
+      port: ENV.smtp.port,
+      secure: ENV.smtp.secure,
+      user: ENV.smtp.user,
+      pass: ENV.smtp.pass,
+      from: ENV.smtp.from,
+    },
+  };
+  const infoCalls: unknown[][] = [];
+  const sendMailCalls: Array<Record<string, unknown>> = [];
+
+  console.info = (...args: unknown[]) => {
+    infoCalls.push(args);
+  };
+
+  (ENV as any).isProduction = true;
+  (ENV as any).contactTo = [];
+  (ENV.smtp as any).enabled = true;
+  (ENV.smtp as any).host = "smtp.contact.example";
+  (ENV.smtp as any).port = 587;
+  (ENV.smtp as any).secure = false;
+  (ENV.smtp as any).user = "smtp-user-contact";
+  (ENV.smtp as any).pass = "smtp-pass-contact";
+  (ENV.smtp as any).from = "fallback@vetneb.com";
+
+  (nodemailer as any).createTransport = () => ({
+    sendMail: async (payload: Record<string, unknown>) => {
+      sendMailCalls.push(payload);
+      return { messageId: `contact-${sendMailCalls.length}` };
+    },
+  });
+
+  try {
+    const result = await sendContactMessageEmail({
+      name: "Producción sin CONTACT_TO",
+      email: "ops@example.com",
+      clinicName: "Clínica Norte",
+      message: "Debe marcarse como smtp_disabled por configuración pública incompleta.",
+    });
+
+    assert.deepEqual(result, {
+      sent: false,
+      reason: "smtp_disabled",
+    });
+  } finally {
+    console.info = originalInfo;
+    (nodemailer as any).createTransport = originalCreateTransport;
+    (ENV as any).isProduction = originalEnv.isProduction;
+    (ENV as any).contactTo = originalEnv.contactTo;
+    (ENV.smtp as any).enabled = originalEnv.smtp.enabled;
+    (ENV.smtp as any).host = originalEnv.smtp.host;
+    (ENV.smtp as any).port = originalEnv.smtp.port;
+    (ENV.smtp as any).secure = originalEnv.smtp.secure;
+    (ENV.smtp as any).user = originalEnv.smtp.user;
+    (ENV.smtp as any).pass = originalEnv.smtp.pass;
+    (ENV.smtp as any).from = originalEnv.smtp.from;
+  }
+
+  assert.equal(sendMailCalls.length, 0);
+  assert.equal(infoCalls.length, 1);
+  assert.equal(infoCalls[0][0], "[EMAIL] contact_message skipped: smtp disabled");
+});
+
 test("templates de email no tienen mojibake visible", () => {
   const source = readFileSync(
     resolve(process.cwd(), "server/lib/email.ts"),

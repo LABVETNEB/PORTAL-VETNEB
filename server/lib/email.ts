@@ -137,6 +137,20 @@ function buildContactMessageText(input: {
   ].join("\n");
 }
 
+function resolveContactRecipients(): string[] {
+  const explicitRecipients = normalizeRecipients(ENV.contactTo);
+
+  if (explicitRecipients.length > 0) {
+    return explicitRecipients;
+  }
+
+  if (!ENV.isProduction) {
+    return normalizeRecipients([ENV.smtp.from]);
+  }
+
+  return [];
+}
+
 export async function sendContactMessageEmail(input: {
   name: string;
   email: string;
@@ -146,9 +160,7 @@ export async function sendContactMessageEmail(input: {
   | { sent: false; reason: "smtp_disabled" }
   | { sent: true; messageId: string }
 > {
-  const recipients = normalizeRecipients(
-    ENV.contactTo.length > 0 ? ENV.contactTo : [ENV.smtp.from],
-  );
+  const recipients = resolveContactRecipients();
 
   const transporter = getTransporter();
 

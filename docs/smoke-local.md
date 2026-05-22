@@ -1,11 +1,14 @@
 # Smoke local
 
 Los scripts de smoke validan el backend contra un servidor ya levantado.
+Este flujo es solo de desarrollo local y no reemplaza validaciones públicas en staging/producción.
 
 Referencias locales/LAN recomendadas para comunicaciones:
 
 - Backend local: `http://127.0.0.1:3000` o `http://<LAN-IP>:3000`
 - Frontend local: `http://localhost:3001` o `http://<LAN-IP>:3001`
+
+Importante: un smoke local exitoso no valida readiness pública de Render.
 
 ## Requisitos
 

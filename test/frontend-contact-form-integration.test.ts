@@ -17,7 +17,8 @@ test("contact public page submits messages through the API client", () => {
   const source = read(CONTACTO_CONTENT_PATH);
 
   assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes('import { submitContactMessage } from "@/lib/api";'));
+  assert.ok(source.includes("PUBLIC_API_CONFIGURATION_ERROR_MESSAGE"));
+  assert.ok(source.includes("submitContactMessage"));
   assert.ok(source.includes("async function handleSubmit"));
   assert.ok(source.includes("event.preventDefault();"));
   assert.ok(source.includes("await submitContactMessage({"));
@@ -38,6 +39,7 @@ test("contact public page handles loading, feedback cleanup and conditional rese
   assert.ok(source.includes("const [isSubmitting, setIsSubmitting]"));
   assert.ok(source.includes("function clearFeedbackMessages()"));
   assert.ok(source.includes("function resolveContactSubmitErrorMessage(error: unknown)"));
+  assert.ok(source.includes("normalizedMessage === PUBLIC_API_CONFIGURATION_ERROR_MESSAGE"));
   assert.ok(source.includes('"No se pudo contactar al servidor. Verifique la conexión o intente nuevamente."'));
   assert.ok(source.includes('normalizedMessageLower === "failed to fetch"'));
   assert.ok(source.includes('normalizedMessageLower === "fetch failed"'));

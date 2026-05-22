@@ -25,6 +25,7 @@ function ensureContactRouteTestEnv() {
   process.env.SUPABASE_URL ??= "https://example.supabase.co";
   process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
   process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
+  process.env.CORS_ORIGIN ??= "https://portal-vetneb-frontend-staging.onrender.com";
 }
 
 async function createContactTestApp(options: ContactNativeRoutesOptions) {
@@ -90,7 +91,7 @@ test("contact endpoint sends valid public contact payload", async () => {
       method: "POST",
       url: "/",
       headers: {
-        origin: "http://localhost:3001",
+        origin: "https://portal-vetneb-frontend-staging.onrender.com",
       },
       payload: {
         name: "Juan Perez",
@@ -103,7 +104,7 @@ test("contact endpoint sends valid public contact payload", async () => {
     assert.equal(response.statusCode, 200);
     assert.equal(
       response.headers["access-control-allow-origin"],
-      "http://localhost:3001",
+      "https://portal-vetneb-frontend-staging.onrender.com",
     );
     assert.deepEqual(sentPayloads, [
       {
@@ -141,7 +142,7 @@ test("contact endpoint responde OPTIONS con CORS para origin permitido", async (
       method: "OPTIONS",
       url: "/",
       headers: {
-        origin: "http://localhost:3001",
+        origin: "https://portal-vetneb-frontend-staging.onrender.com",
         "access-control-request-method": "POST",
         "access-control-request-headers": "content-type,x-trace-id",
       },
@@ -150,7 +151,7 @@ test("contact endpoint responde OPTIONS con CORS para origin permitido", async (
     assert.equal(response.statusCode, 204);
     assert.equal(
       response.headers["access-control-allow-origin"],
-      "http://localhost:3001",
+      "https://portal-vetneb-frontend-staging.onrender.com",
     );
     assert.equal(
       response.headers["access-control-allow-methods"],

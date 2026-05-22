@@ -15,20 +15,70 @@ const { adminSystemHealthNativeRoutes } = await import(
 );
 
 function buildExpectedContactSnapshot() {
-  const recipients = Array.from(
+  const explicitRecipients = Array.from(
     new Set(
-      (ENV.contactTo.length > 0 ? ENV.contactTo : [ENV.smtp.from])
+      ENV.contactTo
         .flatMap((value) => value.split(/[;,]/g))
         .map((value) => value.trim())
         .filter(Boolean),
     ),
   );
+  const fallbackRecipients = ENV.isProduction
+    ? []
+    : Array.from(
+      new Set(
+        [ENV.smtp.from]
+          .flatMap((value) => value.split(/[;,]/g))
+          .map((value) => value.trim())
+          .filter(Boolean),
+      ),
+    );
+  const recipients = explicitRecipients.length > 0
+    ? explicitRecipients
+    : fallbackRecipients;
+  const contactReady = ENV.smtp.enabled && (
+    ENV.isProduction ? explicitRecipients.length > 0 : recipients.length > 0
+  );
 
   return {
-    contact_email:
-      ENV.smtp.enabled && recipients.length > 0 ? "configured" : "degraded",
+    contact_email: contactReady ? "configured" : "degraded",
     contact_email_recipients: recipients,
     contact_email_recipient_count: recipients.length,
+    contact_to_configured: explicitRecipients.length > 0,
+    smtp_from_configured: ENV.smtp.from.trim().length > 0,
+  };
+}
+
+function isLocalOrLanHostname(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase();
+
+  if (normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1") {
+    return true;
+  }
+
+  return normalized.startsWith("192.168.");
+}
+
+function buildExpectedCorsSnapshot() {
+  const origins = Array.from(
+    new Set(
+      ENV.corsOrigins.map((origin) => origin.trim()).filter(Boolean),
+    ),
+  );
+  const hasLocalOrLanOrigins = origins.some((origin) => {
+    try {
+      return isLocalOrLanHostname(new URL(origin).hostname);
+    } catch {
+      return false;
+    }
+  });
+
+  return {
+    cors: origins.length > 0 ? "configured" : "not_configured",
+    cors_origins: origins,
+    cors_origin_count: origins.length,
+    cors_has_local_or_lan_origins: hasLocalOrLanOrigins,
+    node_env: ENV.nodeEnv,
   };
 }
 
@@ -129,6 +179,7 @@ test("admin system health expone servicios, runtime y versión para admin autent
       storage: "up",
       smtp: ENV.smtp.enabled ? "configured" : "not_configured",
       ...buildExpectedContactSnapshot(),
+      ...buildExpectedCorsSnapshot(),
     });
     assert.deepEqual(body.checkedBy, {
       adminUserId: 1,
