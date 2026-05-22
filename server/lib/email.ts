@@ -12,6 +12,48 @@ type VetnebSmtpTransportOptions =
     };
   };
 
+type EmailTransportMessage = {
+  to: string[];
+  replyTo?: string | null;
+  subject: string;
+  text: string;
+};
+
+type EmailTransportResult = {
+  transport: "gmail_api" | "smtp";
+  messageId: string;
+};
+
+type SafeEmailTransportErrorInput = {
+  code: string;
+  command: string;
+  responseCode?: number;
+  hostname: string;
+};
+
+const GMAIL_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GMAIL_MESSAGES_SEND_URL =
+  "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
+
+class SafeEmailTransportError extends Error {
+  code: string;
+  command: string;
+  responseCode?: number;
+  hostname: string;
+
+  constructor(message: string, input: SafeEmailTransportErrorInput) {
+    super(message);
+    this.name = "EmailTransportError";
+    this.code = input.code;
+    this.command = input.command;
+    this.hostname = input.hostname;
+
+    if (typeof input.responseCode === "number") {
+      this.responseCode = input.responseCode;
+    }
+  }
+}
+
 function isLikelyEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
@@ -73,6 +115,222 @@ function getTransporter(): Transporter | null {
   cachedTransporterKey = transporterKey;
 
   return cachedTransporter;
+}
+
+function sanitizeHeaderValue(value: string): string {
+  return value
+    .replace(/[\r\n]+/g, " ")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]+/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+}
+
+function base64UrlEncode(value: string): string {
+  return Buffer.from(value, "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function buildTextMimeMessage(input: {
+  from: string;
+  to: string[];
+  replyTo?: string | null;
+  subject: string;
+  text: string;
+}) {
+  const headers = [
+    `From: ${sanitizeHeaderValue(input.from)}`,
+    `To: ${input.to.map(sanitizeHeaderValue).join(", ")}`,
+    `Subject: ${sanitizeHeaderValue(input.subject)}`,
+    `Date: ${new Date().toUTCString()}`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: 8bit",
+  ];
+
+  const replyTo = input.replyTo ? sanitizeHeaderValue(input.replyTo) : "";
+
+  if (replyTo) {
+    headers.splice(2, 0, `Reply-To: ${replyTo}`);
+  }
+
+  return `${headers.join("\r\n")}\r\n\r\n${input.text}`;
+}
+
+function buildGmailApiError(
+  message: string,
+  input: {
+    code: string;
+    command: string;
+    url: string;
+    responseCode?: number;
+  },
+) {
+  return new SafeEmailTransportError(message, {
+    code: input.code,
+    command: input.command,
+    responseCode: input.responseCode,
+    hostname: new URL(input.url).hostname,
+  });
+}
+
+async function fetchGmailApi(
+  url: string,
+  init: RequestInit,
+  input: {
+    code: string;
+    command: string;
+    message: string;
+  },
+) {
+  try {
+    return await fetch(url, init);
+  } catch {
+    throw buildGmailApiError(input.message, {
+      code: input.code,
+      command: input.command,
+      url,
+    });
+  }
+}
+
+async function readJsonObject(response: Response): Promise<Record<string, unknown>> {
+  const payload = await response.json().catch(() => null);
+
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return {};
+  }
+
+  return payload as Record<string, unknown>;
+}
+
+async function getGmailApiAccessToken() {
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    client_id: ENV.gmailApi.clientId,
+    client_secret: ENV.gmailApi.clientSecret,
+    refresh_token: ENV.gmailApi.refreshToken,
+  });
+
+  const response = await fetchGmailApi(
+    GMAIL_OAUTH_TOKEN_URL,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body,
+    },
+    {
+      code: "GMAIL_API_TOKEN_FAILED",
+      command: "TOKEN",
+      message: "Gmail API token request failed",
+    },
+  );
+
+  if (!response.ok) {
+    throw buildGmailApiError("Gmail API token request failed", {
+      code: "GMAIL_API_TOKEN_FAILED",
+      command: "TOKEN",
+      url: GMAIL_OAUTH_TOKEN_URL,
+      responseCode: response.status,
+    });
+  }
+
+  const payload = await readJsonObject(response);
+  const accessToken =
+    typeof payload.access_token === "string" ? payload.access_token.trim() : "";
+
+  if (!accessToken) {
+    throw buildGmailApiError("Gmail API token response invalid", {
+      code: "GMAIL_API_TOKEN_INVALID",
+      command: "TOKEN",
+      url: GMAIL_OAUTH_TOKEN_URL,
+      responseCode: response.status,
+    });
+  }
+
+  return accessToken;
+}
+
+async function sendGmailApiMessage(
+  input: EmailTransportMessage,
+): Promise<EmailTransportResult> {
+  const accessToken = await getGmailApiAccessToken();
+  const raw = base64UrlEncode(
+    buildTextMimeMessage({
+      from: ENV.gmailApi.from,
+      to: input.to,
+      replyTo: input.replyTo,
+      subject: input.subject,
+      text: input.text,
+    }),
+  );
+
+  const response = await fetchGmailApi(
+    GMAIL_MESSAGES_SEND_URL,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ raw }),
+    },
+    {
+      code: "GMAIL_API_SEND_FAILED",
+      command: "SEND",
+      message: "Gmail API send request failed",
+    },
+  );
+
+  if (!response.ok) {
+    throw buildGmailApiError("Gmail API send request failed", {
+      code: "GMAIL_API_SEND_FAILED",
+      command: "SEND",
+      url: GMAIL_MESSAGES_SEND_URL,
+      responseCode: response.status,
+    });
+  }
+
+  const payload = await readJsonObject(response);
+  const messageId = typeof payload.id === "string" && payload.id.trim()
+    ? payload.id.trim()
+    : "gmail-api-message-sent";
+
+  return {
+    transport: "gmail_api",
+    messageId,
+  };
+}
+
+async function sendConfiguredEmailMessage(
+  input: EmailTransportMessage,
+): Promise<EmailTransportResult | null> {
+  if (ENV.gmailApi.enabled) {
+    return sendGmailApiMessage(input);
+  }
+
+  const transporter = getTransporter();
+
+  if (!transporter) {
+    return null;
+  }
+
+  const info = await transporter.sendMail({
+    from: ENV.smtp.from,
+    to: input.to.join(", "),
+    replyTo: input.replyTo ?? undefined,
+    subject: input.subject,
+    text: input.text,
+  });
+
+  return {
+    transport: "smtp",
+    messageId: info.messageId,
+  };
 }
 
 function formatDateTime(value: Date): string {
@@ -158,7 +416,11 @@ function resolveContactRecipients(): string[] {
   }
 
   if (!ENV.isProduction) {
-    return normalizeRecipients([ENV.smtp.from]);
+    const fallbackFrom = ENV.gmailApi.enabled
+      ? ENV.gmailApi.from
+      : ENV.smtp.from;
+
+    return normalizeRecipients([fallbackFrom]);
   }
 
   return [];
@@ -175,9 +437,7 @@ export async function sendContactMessageEmail(input: {
 > {
   const recipients = resolveContactRecipients();
 
-  const transporter = getTransporter();
-
-  if (!transporter || recipients.length === 0) {
+  if (recipients.length === 0) {
     console.info("[EMAIL] contact_message skipped: smtp disabled", {
       email: input.email,
       clinicName: input.clinicName,
@@ -186,23 +446,32 @@ export async function sendContactMessageEmail(input: {
     return { sent: false, reason: "smtp_disabled" as const };
   }
 
-  const info = await transporter.sendMail({
-    from: ENV.smtp.from,
-    to: recipients.join(", "),
+  const delivery = await sendConfiguredEmailMessage({
+    to: recipients,
     replyTo: input.email,
     subject: `[VETNEB] Contacto web: ${input.name}`,
     text: buildContactMessageText(input),
   });
 
+  if (!delivery) {
+    console.info("[EMAIL] contact_message skipped: smtp disabled", {
+      email: input.email,
+      clinicName: input.clinicName,
+    });
+
+    return { sent: false, reason: "smtp_disabled" as const };
+  }
+
   console.info("[EMAIL] contact_message sent", {
     email: input.email,
     clinicName: input.clinicName,
-    messageId: info.messageId,
+    messageId: delivery.messageId,
+    transport: delivery.transport,
   });
 
   return {
     sent: true,
-    messageId: info.messageId,
+    messageId: delivery.messageId,
   };
 }
 
@@ -228,9 +497,13 @@ export async function sendSpecialStainRequiredEmail(input: {
     return { sent: false, reason: "no_recipients" as const };
   }
 
-  const transporter = getTransporter();
+  const delivery = await sendConfiguredEmailMessage({
+    to: recipients,
+    subject: `[VETNEB] Estudio #${input.trackingCaseId}: requiere tinción especial`,
+    text: buildSpecialStainRequiredText(input),
+  });
 
-  if (!transporter) {
+  if (!delivery) {
     console.info("[EMAIL] special_stain_required skipped: smtp disabled", {
       trackingCaseId: input.trackingCaseId,
       recipients,
@@ -239,21 +512,20 @@ export async function sendSpecialStainRequiredEmail(input: {
     return { sent: false, reason: "smtp_disabled" as const };
   }
 
-  const info = await transporter.sendMail({
-    from: ENV.smtp.from,
-    to: recipients.join(", "),
-    subject: `[VETNEB] Estudio #${input.trackingCaseId}: requiere tinción especial`,
-    text: buildSpecialStainRequiredText(input),
-  });
-
-  console.info("[EMAIL] special_stain_required sent", {
+  const logPayload: Record<string, unknown> = {
     trackingCaseId: input.trackingCaseId,
     recipients,
-    messageId: info.messageId,
-  });
+    messageId: delivery.messageId,
+  };
+
+  if (delivery.transport === "gmail_api") {
+    logPayload.transport = delivery.transport;
+  }
+
+  console.info("[EMAIL] special_stain_required sent", logPayload);
 
   return {
     sent: true,
-    messageId: info.messageId,
+    messageId: delivery.messageId,
   };
 }

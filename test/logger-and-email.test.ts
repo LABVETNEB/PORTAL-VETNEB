@@ -107,6 +107,13 @@ test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear se
       pass: ENV.smtp.pass,
       from: ENV.smtp.from,
     },
+    gmailApi: {
+      enabled: ENV.gmailApi.enabled,
+      clientId: ENV.gmailApi.clientId,
+      clientSecret: ENV.gmailApi.clientSecret,
+      refreshToken: ENV.gmailApi.refreshToken,
+      from: ENV.gmailApi.from,
+    },
   };
   const infoCalls: unknown[][] = [];
   const sendMailCalls: Array<Record<string, unknown>> = [];
@@ -126,6 +133,11 @@ test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear se
   (ENV.smtp as any).user = "smtp-user-contact";
   (ENV.smtp as any).pass = "smtp-pass-contact";
   (ENV.smtp as any).from = "fallback@vetneb.com";
+  (ENV.gmailApi as any).enabled = false;
+  (ENV.gmailApi as any).clientId = "";
+  (ENV.gmailApi as any).clientSecret = "";
+  (ENV.gmailApi as any).refreshToken = "";
+  (ENV.gmailApi as any).from = "";
 
   (nodemailer as any).createTransport = (options: unknown) => {
     transportCalls.push(options);
@@ -174,6 +186,11 @@ test("sendContactMessageEmail usa CONTACT_TO y fallback SMTP_FROM sin loguear se
     (ENV.smtp as any).user = originalEnv.smtp.user;
     (ENV.smtp as any).pass = originalEnv.smtp.pass;
     (ENV.smtp as any).from = originalEnv.smtp.from;
+    (ENV.gmailApi as any).enabled = originalEnv.gmailApi.enabled;
+    (ENV.gmailApi as any).clientId = originalEnv.gmailApi.clientId;
+    (ENV.gmailApi as any).clientSecret = originalEnv.gmailApi.clientSecret;
+    (ENV.gmailApi as any).refreshToken = originalEnv.gmailApi.refreshToken;
+    (ENV.gmailApi as any).from = originalEnv.gmailApi.from;
   }
 
   assert.equal(sendMailCalls.length, 2);
@@ -219,6 +236,13 @@ test("sendContactMessageEmail exige CONTACT_TO explícito en entorno público", 
       pass: ENV.smtp.pass,
       from: ENV.smtp.from,
     },
+    gmailApi: {
+      enabled: ENV.gmailApi.enabled,
+      clientId: ENV.gmailApi.clientId,
+      clientSecret: ENV.gmailApi.clientSecret,
+      refreshToken: ENV.gmailApi.refreshToken,
+      from: ENV.gmailApi.from,
+    },
   };
   const infoCalls: unknown[][] = [];
   const sendMailCalls: Array<Record<string, unknown>> = [];
@@ -236,6 +260,11 @@ test("sendContactMessageEmail exige CONTACT_TO explícito en entorno público", 
   (ENV.smtp as any).user = "smtp-user-contact";
   (ENV.smtp as any).pass = "smtp-pass-contact";
   (ENV.smtp as any).from = "fallback@vetneb.com";
+  (ENV.gmailApi as any).enabled = false;
+  (ENV.gmailApi as any).clientId = "";
+  (ENV.gmailApi as any).clientSecret = "";
+  (ENV.gmailApi as any).refreshToken = "";
+  (ENV.gmailApi as any).from = "";
 
   (nodemailer as any).createTransport = () => ({
     sendMail: async (payload: Record<string, unknown>) => {
@@ -268,6 +297,11 @@ test("sendContactMessageEmail exige CONTACT_TO explícito en entorno público", 
     (ENV.smtp as any).user = originalEnv.smtp.user;
     (ENV.smtp as any).pass = originalEnv.smtp.pass;
     (ENV.smtp as any).from = originalEnv.smtp.from;
+    (ENV.gmailApi as any).enabled = originalEnv.gmailApi.enabled;
+    (ENV.gmailApi as any).clientId = originalEnv.gmailApi.clientId;
+    (ENV.gmailApi as any).clientSecret = originalEnv.gmailApi.clientSecret;
+    (ENV.gmailApi as any).refreshToken = originalEnv.gmailApi.refreshToken;
+    (ENV.gmailApi as any).from = originalEnv.gmailApi.from;
   }
 
   assert.equal(sendMailCalls.length, 0);
@@ -336,11 +370,23 @@ test("sendSpecialStainRequiredEmail normaliza destinatarios y omite envío si SM
   }
 
   const original = console.info;
+  const originalGmailApi = {
+    enabled: ENV.gmailApi.enabled,
+    clientId: ENV.gmailApi.clientId,
+    clientSecret: ENV.gmailApi.clientSecret,
+    refreshToken: ENV.gmailApi.refreshToken,
+    from: ENV.gmailApi.from,
+  };
   const calls: unknown[][] = [];
 
   console.info = (...args: unknown[]) => {
     calls.push(args);
   };
+  (ENV.gmailApi as any).enabled = false;
+  (ENV.gmailApi as any).clientId = "";
+  (ENV.gmailApi as any).clientSecret = "";
+  (ENV.gmailApi as any).refreshToken = "";
+  (ENV.gmailApi as any).from = "";
 
   try {
     const result = await sendSpecialStainRequiredEmail({
@@ -366,6 +412,11 @@ test("sendSpecialStainRequiredEmail normaliza destinatarios y omite envío si SM
     });
   } finally {
     console.info = original;
+    (ENV.gmailApi as any).enabled = originalGmailApi.enabled;
+    (ENV.gmailApi as any).clientId = originalGmailApi.clientId;
+    (ENV.gmailApi as any).clientSecret = originalGmailApi.clientSecret;
+    (ENV.gmailApi as any).refreshToken = originalGmailApi.refreshToken;
+    (ENV.gmailApi as any).from = originalGmailApi.from;
   }
 
   assert.equal(calls.length, 1);

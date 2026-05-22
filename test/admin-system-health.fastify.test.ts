@@ -27,7 +27,7 @@ function buildExpectedContactSnapshot() {
     ? []
     : Array.from(
       new Set(
-        [ENV.smtp.from]
+        [ENV.gmailApi.enabled ? ENV.gmailApi.from : ENV.smtp.from]
           .flatMap((value) => value.split(/[;,]/g))
           .map((value) => value.trim())
           .filter(Boolean),
@@ -36,7 +36,8 @@ function buildExpectedContactSnapshot() {
   const recipients = explicitRecipients.length > 0
     ? explicitRecipients
     : fallbackRecipients;
-  const contactReady = ENV.smtp.enabled && (
+  const emailTransportReady = ENV.gmailApi.enabled || ENV.smtp.enabled;
+  const contactReady = emailTransportReady && (
     ENV.isProduction ? explicitRecipients.length > 0 : recipients.length > 0
   );
 
@@ -46,6 +47,7 @@ function buildExpectedContactSnapshot() {
     contact_email_recipient_count: recipients.length,
     contact_to_configured: explicitRecipients.length > 0,
     smtp_from_configured: ENV.smtp.from.trim().length > 0,
+    gmail_api_from_configured: ENV.gmailApi.from.trim().length > 0,
   };
 }
 
@@ -178,6 +180,12 @@ test("admin system health expone servicios, runtime y versión para admin autent
       database: "up",
       storage: "up",
       smtp: ENV.smtp.enabled ? "configured" : "not_configured",
+      gmail_api: ENV.gmailApi.enabled ? "configured" : "not_configured",
+      email_transport: ENV.gmailApi.enabled
+        ? "gmail_api"
+        : ENV.smtp.enabled
+          ? "smtp"
+          : "not_configured",
       ...buildExpectedContactSnapshot(),
       ...buildExpectedCorsSnapshot(),
     });

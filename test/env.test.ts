@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -10,6 +11,53 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const { ENV } = await import("../server/lib/env.ts");
+
+function readGmailApiEnvFromChild(overrides: Record<string, string>) {
+  const env = {
+    ...process.env,
+    NODE_ENV: "test",
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_ANON_KEY: "test-anon-key",
+    SUPABASE_SERVICE_ROLE_KEY: "test-service-role-key",
+    DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/postgres",
+    SUPABASE_DB_URL:
+      "postgresql://postgres:postgres@127.0.0.1:5432/postgres",
+    GMAIL_API_CLIENT_ID: "",
+    GMAIL_API_CLIENT_SECRET: "",
+    GMAIL_API_REFRESH_TOKEN: "",
+    GMAIL_API_FROM: "",
+    ...overrides,
+  };
+  const script = [
+    'const { ENV } = await import("./server/lib/env.ts");',
+    "process.stdout.write(JSON.stringify(ENV.gmailApi));",
+  ].join("\n");
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--experimental-strip-types",
+      "--experimental-specifier-resolution=node",
+      "--input-type=module",
+      "-e",
+      script,
+    ],
+    {
+      cwd: resolve(process.cwd()),
+      env,
+      encoding: "utf8",
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+
+  return JSON.parse(result.stdout) as {
+    enabled: boolean;
+    clientId: string;
+    clientSecret: string;
+    refreshToken: string;
+    from: string;
+  };
+}
 
 test("ENV expone un contrato base consistente", () => {
   assert.ok(["development", "test", "production"].includes(ENV.nodeEnv));
@@ -80,6 +128,53 @@ test("ENV.smtp mantiene tipos e invariantes esperadas", () => {
     assert.equal(ENV.smtp.pass.length > 0, true);
     assert.equal(ENV.smtp.from.length > 0, true);
   }
+});
+
+test("ENV.gmailApi mantiene tipos e invariantes esperadas", () => {
+  assert.equal(typeof ENV.gmailApi.enabled, "boolean");
+  assert.equal(typeof ENV.gmailApi.clientId, "string");
+  assert.equal(typeof ENV.gmailApi.clientSecret, "string");
+  assert.equal(typeof ENV.gmailApi.refreshToken, "string");
+  assert.equal(typeof ENV.gmailApi.from, "string");
+
+  if (ENV.gmailApi.enabled) {
+    assert.equal(ENV.gmailApi.clientId.length > 0, true);
+    assert.equal(ENV.gmailApi.clientSecret.length > 0, true);
+    assert.equal(ENV.gmailApi.refreshToken.length > 0, true);
+    assert.equal(ENV.gmailApi.from.length > 0, true);
+  }
+});
+
+test("ENV.gmailApi queda deshabilitado cuando faltan variables requeridas", () => {
+  const gmailApi = readGmailApiEnvFromChild({
+    GMAIL_API_CLIENT_ID: "google-client-id",
+    GMAIL_API_CLIENT_SECRET: "google-client-secret",
+    GMAIL_API_REFRESH_TOKEN: "",
+    GMAIL_API_FROM: "lab.vetneb@gmail.com",
+  });
+
+  assert.equal(gmailApi.enabled, false);
+  assert.equal(gmailApi.clientId, "google-client-id");
+  assert.equal(gmailApi.clientSecret, "google-client-secret");
+  assert.equal(gmailApi.refreshToken, "");
+  assert.equal(gmailApi.from, "lab.vetneb@gmail.com");
+});
+
+test("ENV.gmailApi queda habilitado cuando las variables requeridas estan completas", () => {
+  const gmailApi = readGmailApiEnvFromChild({
+    GMAIL_API_CLIENT_ID: "google-client-id",
+    GMAIL_API_CLIENT_SECRET: "google-client-secret",
+    GMAIL_API_REFRESH_TOKEN: "google-refresh-token",
+    GMAIL_API_FROM: "lab.vetneb@gmail.com",
+  });
+
+  assert.deepEqual(gmailApi, {
+    enabled: true,
+    clientId: "google-client-id",
+    clientSecret: "google-client-secret",
+    refreshToken: "google-refresh-token",
+    from: "lab.vetneb@gmail.com",
+  });
 });
 
 test("ENV exige CORS_ORIGIN explícito en producción", () => {
