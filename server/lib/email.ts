@@ -1,9 +1,16 @@
 import nodemailer, { type Transporter } from "nodemailer";
-import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import { ENV } from "./env.ts";
 
 let cachedTransporter: Transporter | null = null;
 let cachedTransporterKey: string | null = null;
+
+type VetnebSmtpTransportOptions =
+  Parameters<typeof nodemailer.createTransport>[0] & {
+    family: 4;
+    tls: {
+      servername: string;
+    };
+  };
 
 function isLikelyEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -48,21 +55,21 @@ function getTransporter(): Transporter | null {
     return cachedTransporter;
   }
 
-  const transportOptions: SMTPTransport.Options = {
+  const transporterOptions = {
     host: ENV.smtp.host,
     port: ENV.smtp.port,
     secure: ENV.smtp.secure,
-    family: 4,
-    tls: {
-      servername: ENV.smtp.host,
-    },
     auth: {
       user: ENV.smtp.user,
       pass: ENV.smtp.pass,
     },
-  };
+    family: 4,
+    tls: {
+      servername: ENV.smtp.host,
+    },
+  } as VetnebSmtpTransportOptions;
 
-  cachedTransporter = nodemailer.createTransport(transportOptions);
+  cachedTransporter = nodemailer.createTransport(transporterOptions);
   cachedTransporterKey = transporterKey;
 
   return cachedTransporter;
@@ -122,7 +129,6 @@ function buildSpecialStainRequiredText(input: {
 
   return lines.join("\n");
 }
-
 
 function buildContactMessageText(input: {
   name: string;
@@ -199,6 +205,7 @@ export async function sendContactMessageEmail(input: {
     messageId: info.messageId,
   };
 }
+
 export async function sendSpecialStainRequiredEmail(input: {
   to: Array<string | null | undefined>;
   clinicName: string;
