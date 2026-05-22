@@ -1,0 +1,335 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import Fastify from "fastify";
+
+process.env.NODE_ENV ??= "development";
+process.env.SUPABASE_URL ??= "https://example.supabase.co";
+process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
+process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
+process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
+process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
+
+const { ENV } = await import("../server/lib/env.ts");
+const { adminClinicsNativeRoutes } = await import(
+  "../server/routes/admin-clinics.fastify.ts"
+);
+
+type AdminClinicsNativeRoutesOptions = import(
+  "../server/routes/admin-clinics.fastify.ts"
+).AdminClinicsNativeRoutesOptions;
+type AdminClinicCreateResult = import(
+  "../server/db-admin-clinics.ts"
+).AdminClinicCreateResult;
+type AdminClinicSummary = import(
+  "../server/db-admin-clinics.ts"
+).AdminClinicSummary;
+
+const demoClinic: AdminClinicSummary = {
+  clinicId: 10,
+  clinicName: "Clínica Demo",
+  contactEmail: "demo@clinic.test",
+  contactPhone: "1144556677",
+  createdAt: "2026-05-08T00:00:00.000Z",
+  updatedAt: "2026-05-08T00:00:00.000Z",
+};
+
+const demoClinicUser = {
+  userType: "clinic" as const,
+  userId: 2,
+  username: "clinic-owner",
+  role: "clinic_owner" as const,
+  clinicId: 10,
+  clinicName: "Clínica Demo",
+  createdAt: "2026-05-08T00:00:00.000Z",
+  updatedAt: "2026-05-08T00:00:00.000Z",
+};
+
+function buildDeps(
+  overrides: Partial<AdminClinicsNativeRoutesOptions> = {},
+): AdminClinicsNativeRoutesOptions {
+  return {
+    deleteAdminSession: async () => {},
+    getAdminSessionByToken: async () => ({
+      id: 1,
+      adminUserId: 1,
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      lastAccess: new Date("2026-05-07T00:00:00.000Z"),
+    }),
+    getAdminUserById: async () => ({
+      id: 1,
+      username: "VETNEB",
+    }),
+    updateAdminSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    hashPassword: async (password: string) => `argon:${password.length}`,
+    listAdminClinics: async () => ({
+      success: true,
+      clinics: [
+        {
+          ...demoClinic,
+          users: [demoClinicUser],
+        },
+      ],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    }),
+    createAdminClinicWithUser: async (): Promise<AdminClinicCreateResult> => ({
+      ok: true,
+      clinic: demoClinic,
+      user: demoClinicUser,
+    }),
+    updateAdminClinic: async () => demoClinic,
+    writeAuditLog: async () => {},
+    now: () => Date.UTC(2026, 4, 8, 0, 0, 0),
+    ...overrides,
+  };
+}
+
+test("admin clinics requiere sesión admin", async () => {
+  const app = Fastify();
+
+  await app.register(
+    adminClinicsNativeRoutes,
+    buildDeps({
+      getAdminSessionByToken: async () => null,
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/",
+      payload: {},
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Admin no autenticado",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin clinics lista clínicas y usuarios sanitizados", async () => {
+  const app = Fastify();
+
+  await app.register(adminClinicsNativeRoutes, buildDeps());
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?limit=25&offset=0",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+
+    assert.equal(body.success, true);
+    assert.equal(body.clinics[0].clinicName, "Clínica Demo");
+    assert.equal(body.clinics[0].users[0].username, "clinic-owner");
+    assert.equal(body.clinics[0].users[0].passwordHash, undefined);
+    assert.equal(JSON.stringify(body).includes("password"), false);
+    assert.equal(JSON.stringify(body).includes("argon:"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin clinics crea clínica y usuario con hash existente y respuesta sanitizada", async () => {
+  const app = Fastify();
+  const auditWrites: Array<{
+    input: {
+      event?: string;
+      clinicId?: number | null;
+      targetClinicUserId?: number | null;
+      metadata?: Record<string, unknown>;
+    };
+  }> = [];
+
+  await app.register(
+    adminClinicsNativeRoutes,
+    buildDeps({
+      createAdminClinicWithUser: async (input) => {
+        assert.deepEqual(input, {
+          clinicName: "Clínica Demo",
+          contactEmail: "demo@clinic.test",
+          contactPhone: "1144556677",
+          username: "clinic-owner",
+          passwordHash: "argon:12",
+          role: "clinic_owner",
+          now: new Date("2026-05-08T00:00:00.000Z"),
+        });
+
+        return {
+          ok: true,
+          clinic: demoClinic,
+          user: demoClinicUser,
+        };
+      },
+      writeAuditLog: async (_req, input) => {
+        auditWrites.push({ input });
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+      payload: {
+        clinicName: "Clínica Demo",
+        contactEmail: "demo@clinic.test",
+        contactPhone: "1144556677",
+        username: "clinic-owner",
+        password: "claveSegura1",
+        role: "clinic_owner",
+      },
+    });
+
+    assert.equal(response.statusCode, 201);
+
+    const body = JSON.parse(response.body);
+
+    assert.equal(body.success, true);
+    assert.equal(body.clinic.clinicName, "Clínica Demo");
+    assert.equal(body.user.username, "clinic-owner");
+    assert.equal(body.user.passwordHash, undefined);
+    assert.equal(JSON.stringify(body).includes("claveSegura1"), false);
+    assert.equal(JSON.stringify(body).includes("argon:"), false);
+
+    assert.equal(auditWrites.length, 2);
+    assert.equal(auditWrites[0].input.event, "clinic.created");
+    assert.equal(auditWrites[1].input.event, "clinic_user.created");
+    assert.equal(JSON.stringify(auditWrites).includes("claveSegura1"), false);
+    assert.equal(JSON.stringify(auditWrites).includes("argon:"), false);
+    assert.equal(JSON.stringify(auditWrites).includes("password"), false);
+    assert.equal(JSON.stringify(auditWrites).includes("hash"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin clinics devuelve 409 al crear usuario duplicado", async () => {
+  const app = Fastify();
+  let auditCalled = false;
+
+  await app.register(
+    adminClinicsNativeRoutes,
+    buildDeps({
+      createAdminClinicWithUser:
+        async (): Promise<AdminClinicCreateResult> => ({
+          ok: false,
+          reason: "username_conflict",
+        }),
+      writeAuditLog: async () => {
+        auditCalled = true;
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+      payload: {
+        clinicName: "Clínica Demo",
+        contactEmail: "demo@clinic.test",
+        username: "clinic-owner",
+        password: "claveSegura1",
+      },
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.equal(JSON.parse(response.body).success, false);
+    assert.equal(auditCalled, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin clinics cambia datos básicos de clínica y audita", async () => {
+  const app = Fastify();
+  const auditWrites: Array<{
+    input: {
+      event?: string;
+      clinicId?: number | null;
+      metadata?: Record<string, unknown>;
+    };
+  }> = [];
+
+  await app.register(
+    adminClinicsNativeRoutes,
+    buildDeps({
+      updateAdminClinic: async (input) => {
+        assert.deepEqual(input, {
+          clinicId: 10,
+          clinicName: "Clínica Nueva",
+          contactEmail: "nueva@clinic.test",
+          contactPhone: null,
+          now: new Date("2026-05-08T00:00:00.000Z"),
+        });
+
+        return {
+          ...demoClinic,
+          clinicName: "Clínica Nueva",
+          contactEmail: "nueva@clinic.test",
+          contactPhone: null,
+        };
+      },
+      writeAuditLog: async (_req, input) => {
+        auditWrites.push({ input });
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/10",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+      payload: {
+        clinicName: "Clínica Nueva",
+        contactEmail: "nueva@clinic.test",
+        contactPhone: "",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+
+    assert.equal(body.success, true);
+    assert.equal(body.clinic.clinicName, "Clínica Nueva");
+    assert.equal(body.clinic.passwordHash, undefined);
+    assert.equal(JSON.stringify(body).includes("password"), false);
+
+    assert.equal(auditWrites.length, 1);
+    assert.equal(auditWrites[0].input.event, "clinic.updated");
+    assert.equal(auditWrites[0].input.clinicId, 10);
+    assert.deepEqual(auditWrites[0].input.metadata, {
+      clinicName: "Clínica Nueva",
+      contactEmail: "nueva@clinic.test",
+      contactPhone: null,
+      updatedFields: ["clinicName", "contactEmail", "contactPhone"],
+    });
+    assert.equal(JSON.stringify(auditWrites).includes("password"), false);
+    assert.equal(JSON.stringify(auditWrites).includes("hash"), false);
+  } finally {
+    await app.close();
+  }
+});

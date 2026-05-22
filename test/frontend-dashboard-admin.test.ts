@@ -28,6 +28,7 @@ test("dashboard admin defines non-indexable metadata and admin dependencies", ()
 test("dashboard admin includes read-only admin cards", () => {
   const source = read(ADMIN_PAGE_PATH);
 
+  assert.ok(source.includes('import { AdminClinicsManagementCard } from "./AdminClinicsManagementCard";'));
   assert.ok(source.includes('import { AdminFailedLoginAlertsReadOnlyCard } from "./AdminFailedLoginAlertsReadOnlyCard";'));
   assert.ok(source.includes('import { AdminMaintenanceDryRunCard } from "./AdminMaintenanceDryRunCard";'));
   assert.ok(source.includes('import { AdminParticularTokensCard } from "./AdminParticularTokensCard";'));
@@ -35,6 +36,7 @@ test("dashboard admin includes read-only admin cards", () => {
   assert.ok(source.includes('import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";'));
   assert.ok(source.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'));
   assert.ok(source.includes("<AdminMaintenanceDryRunCard />"));
+  assert.ok(source.includes("<AdminClinicsManagementCard />"));
   assert.ok(source.includes("<AdminParticularTokensCard />"));
   assert.ok(source.includes("<AdminSessionsReadOnlyCard />"));
   assert.ok(source.includes("<AdminFailedLoginAlertsReadOnlyCard />"));
@@ -47,6 +49,10 @@ test("dashboard admin keeps audit event and actor labels", () => {
   assert.ok(source.includes("const EVENT_LABELS: Record<string, string> = {"));
   assert.ok(source.includes('"auth.admin.login.succeeded": "Login admin"'));
   assert.ok(source.includes('"auth.clinic.login.succeeded": "Login clínica"'));
+  assert.ok(source.includes('"clinic.created": "Clínica creada"'));
+  assert.ok(source.includes('"clinic.updated": "Clínica actualizada"'));
+  assert.ok(source.includes('"clinic_user.created": "Usuario clínica creado"'));
+  assert.ok(source.includes('"clinic_user.credentials.updated": "Credenciales clínica"'));
   assert.ok(source.includes('"clinic_user.role.changed": "Cambio rol clínica"'));
   assert.ok(source.includes('"report.status.changed": "Estado informe"'));
   assert.ok(source.includes('"report.uploaded": "Informe subido"'));
@@ -139,6 +145,7 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes("única superficie administrativa"));
   assert.ok(source.includes("<UploadReportModal />"));
   assert.ok(source.includes('id="admin-health"'));
+  assert.ok(source.includes("<AdminClinicsManagementCard />"));
   assert.ok(source.includes('id="admin-maintenance"'));
   assert.ok(source.includes('id="admin-sessions"'));
   assert.ok(source.includes('id="admin-particular-tokens"'));
@@ -174,6 +181,7 @@ test("dashboard admin removes horizontal quick actions and preserves admin secti
     quickActionsDescription,
     'label: "Subir informe"',
     'label: "Estado"',
+    'label: "Clínicas"',
     'label: "Tokens particulares"',
     'label: "Sesiones"',
     'label: "Roles clínica"',
@@ -181,6 +189,7 @@ test("dashboard admin removes horizontal quick actions and preserves admin secti
     'label: "Mantenimiento"',
     'href: "#admin-report-upload"',
     'href: "#admin-health"',
+    'href: "#admin-clinics"',
     'href: "#admin-particular-tokens"',
     'href: "#admin-sessions"',
     'href: "#admin-users-roles"',
@@ -199,6 +208,7 @@ test("dashboard admin removes horizontal quick actions and preserves admin secti
   assert.ok(source.includes("Tipos de evento"));
   assert.ok(source.includes("Estado del sistema"));
   assert.ok(source.includes('id="admin-health"'));
+  assert.ok(source.includes("<AdminClinicsManagementCard />"));
   assert.ok(source.includes('id="admin-maintenance"'));
   assert.ok(source.includes('id="admin-particular-tokens"'));
   assert.ok(source.includes('id="admin-sessions"'));

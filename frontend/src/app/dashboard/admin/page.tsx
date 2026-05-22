@@ -18,6 +18,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { AdminClinicsManagementCard } from "./AdminClinicsManagementCard";
 import { AdminFailedLoginAlertsReadOnlyCard } from "./AdminFailedLoginAlertsReadOnlyCard";
 import { AdminMaintenanceDryRunCard } from "./AdminMaintenanceDryRunCard";
 import { AdminParticularTokensCard } from "./AdminParticularTokensCard";
@@ -36,6 +37,10 @@ export const metadata: Metadata = {
 const EVENT_LABELS: Record<string, string> = {
   "auth.admin.login.succeeded": "Login admin",
   "auth.clinic.login.succeeded": "Login clínica",
+  "clinic.created": "Clínica creada",
+  "clinic.updated": "Clínica actualizada",
+  "clinic_user.created": "Usuario clínica creado",
+  "clinic_user.credentials.updated": "Credenciales clínica",
   "clinic_user.role.changed": "Cambio rol clínica",
   "report.status.changed": "Estado informe",
   "report.uploaded": "Informe subido",
@@ -557,6 +562,7 @@ export default async function AdminPage({
         <section id="admin-maintenance">
           <AdminMaintenanceDryRunCard />
         </section>
+        <AdminClinicsManagementCard />
         <section id="admin-particular-tokens">
           <AdminParticularTokensCard />
         </section>
