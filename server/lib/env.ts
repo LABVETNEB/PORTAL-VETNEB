@@ -80,7 +80,20 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL o SUPABASE_DB_URL es obligatorio");
 }
 
-const corsOrigins = parseDelimitedList(rawEnv.CORS_ORIGIN);
+const LOCAL_CORS_ORIGINS = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3001",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+];
+
+const configuredCorsOrigins = parseDelimitedList(rawEnv.CORS_ORIGIN);
+const corsOrigins =
+  nodeEnv === "production"
+    ? configuredCorsOrigins
+    : Array.from(new Set([...configuredCorsOrigins, ...LOCAL_CORS_ORIGINS]));
 
 const smtpEnabled = Boolean(
   rawEnv.SMTP_HOST &&

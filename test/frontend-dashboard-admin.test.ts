@@ -67,12 +67,15 @@ test("dashboard admin keeps status and service formatting helpers", () => {
   assert.ok(source.includes('if (event.includes("revoked") || event.includes("canceled")) return "outline";'));
   assert.ok(source.includes("function getServiceVariant("));
   assert.ok(source.includes('if (value === "up") return "default";'));
+  assert.ok(source.includes('if (value === "degraded") return "secondary";'));
   assert.ok(source.includes('if (value === "down") return "outline";'));
   assert.ok(source.includes("function formatServiceStatus(value: unknown)"));
   assert.ok(source.includes('if (value === "up") return "Activo";'));
   assert.ok(source.includes('if (value === "configured") return "Configurado";'));
+  assert.ok(source.includes('if (value === "degraded") return "Degradado";'));
   assert.ok(source.includes('if (value === "down") return "Caído";'));
   assert.ok(source.includes('if (value === "not_configured") return "No configurado";'));
+  assert.ok(source.includes("function getConfiguredContactRecipients(services: Record<string, unknown>)"));
   assert.ok(source.includes("function getSystemStatusVariant("));
   assert.ok(source.includes("function formatSystemStatus(status: string)"));
   assert.ok(source.includes("function getSystemStatusIndicatorClass(status: string)"));
@@ -143,7 +146,10 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes('id="admin-event-summary"'));
   assert.ok(source.includes("Estado y mantenimiento"));
   assert.ok(source.includes("Correo SMTP"));
+  assert.ok(source.includes("Contacto email"));
   assert.ok(source.includes("serviceChecks.smtp"));
+  assert.ok(source.includes("serviceChecks.contact_email"));
+  assert.ok(source.includes("contactRecipients.length > 0"));
   assert.equal(source.includes("Health & Maintenance"), false);
   assert.equal(source.includes("AdminSourceContractMarkers"), false);
   assert.equal(source.includes("ADMIN_READ_CONTRACT_MARKERS"), false);

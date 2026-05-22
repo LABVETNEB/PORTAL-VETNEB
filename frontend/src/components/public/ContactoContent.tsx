@@ -59,6 +59,32 @@ export function ContactoContent() {
     setWarningMessage(null);
   }
 
+  function resolveContactSubmitErrorMessage(error: unknown) {
+    const fallbackMessage = "No se pudo enviar el mensaje. Intente nuevamente.";
+
+    if (!(error instanceof Error)) {
+      return fallbackMessage;
+    }
+
+    const normalizedMessage = error.message.trim();
+
+    if (!normalizedMessage) {
+      return fallbackMessage;
+    }
+
+    const normalizedMessageLower = normalizedMessage.toLowerCase();
+
+    if (
+      normalizedMessageLower === "failed to fetch" ||
+      normalizedMessageLower === "fetch failed" ||
+      normalizedMessageLower.includes("networkerror")
+    ) {
+      return "No se pudo contactar al servidor. Verifique la conexión o intente nuevamente.";
+    }
+
+    return normalizedMessage;
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -92,11 +118,7 @@ export function ContactoContent() {
         setMensaje("");
       }
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "No se pudo enviar el mensaje. Intente nuevamente.",
-      );
+      setErrorMessage(resolveContactSubmitErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }

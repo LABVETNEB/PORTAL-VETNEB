@@ -42,6 +42,7 @@ Tabla sin secretos para configurar el runtime backend:
 | `SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS` | Opcional con aprobacion del default | `900` | Expiracion de signed URLs. |
 | `SESSION_TTL_HOURS` | Opcional con aprobacion del default | `24` | TTL de sesiones. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Condicional | `587`/`false` para puerto/secure | Email se habilita solo si estan todos los campos requeridos. |
+| `CONTACT_TO` | Condicional | Fallback a `SMTP_FROM` | Destinatarios del formulario de contacto; soporta coma o punto y coma. |
 
 ### Requeridas para boot productivo
 
@@ -76,6 +77,8 @@ Tabla sin secretos para configurar el runtime backend:
 - [ ] `[BLOCKER]` `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`,
   `SMTP_PASS` y `SMTP_FROM` configurados si el lanzamiento incluye formularios
   o notificaciones por email.
+- [ ] `[BLOCKER]` `CONTACT_TO` configurado para formularios públicos (si no está,
+  se usa fallback a `SMTP_FROM`).
 - [ ] `[NON-BLOCKER]` `OWNER_OPEN_ID` documentado o removido del entorno si no
   forma parte del flujo productivo actual.
 - [ ] `[NON-BLOCKER]` `LAB_UPLOAD_USERNAMES` revisado si se usa para permisos
@@ -225,6 +228,14 @@ Orden operativo staging -> produccion:
    `CORS_ORIGIN` equivalentes a la topologia real.
 5. Desplegar frontend staging con `NEXT_PUBLIC_API_URL` y
    `NEXT_PUBLIC_SITE_URL` de staging.
+   Backend staging esperado para contacto:
+   `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
+   `SMTP_FROM`, `CONTACT_TO` y
+   `CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com`.
+   Frontend staging esperado:
+   `NEXT_PUBLIC_API_URL=https://<backend-staging>.onrender.com`.
+   Tras cambiar variables en Render, forzar redeploy de backend/frontend para
+   aplicar runtime nuevo.
 6. Ejecutar smoke admin, clinic, particular, Storage y signed URLs en staging.
 7. Tomar backup/snapshot productivo y confirmar rollback de app y DB.
 8. Congelar cambios operativos, verificar env productiva y bloquear el release

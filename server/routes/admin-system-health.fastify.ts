@@ -248,15 +248,50 @@ function buildRuntimePayload() {
   };
 }
 
+function normalizeContactRecipients(values: string[]): string[] {
+  const unique = new Set<string>();
+
+  for (const value of values) {
+    for (const recipient of value
+      .split(/[;,]/g)
+      .map((entry) => entry.trim())
+      .filter(Boolean)) {
+      unique.add(recipient);
+    }
+  }
+
+  return Array.from(unique);
+}
+
+function getContactEmailRoutingSnapshot() {
+  const configuredRecipients = normalizeContactRecipients(
+    ENV.contactTo.length > 0 ? ENV.contactTo : [ENV.smtp.from],
+  );
+
+  return {
+    status:
+      ENV.smtp.enabled && configuredRecipients.length > 0
+        ? "configured"
+        : "degraded",
+    recipients: configuredRecipients,
+    recipientCount: configuredRecipients.length,
+  };
+}
+
 function buildServiceChecksPayload(checks: unknown) {
   const baseChecks =
     checks && typeof checks === "object" && !Array.isArray(checks)
       ? (checks as Record<string, unknown>)
       : {};
 
+  const contactRouting = getContactEmailRoutingSnapshot();
+
   return {
     ...baseChecks,
     smtp: ENV.smtp.enabled ? "configured" : "not_configured",
+    contact_email: contactRouting.status,
+    contact_email_recipients: contactRouting.recipients,
+    contact_email_recipient_count: contactRouting.recipientCount,
   };
 }
 

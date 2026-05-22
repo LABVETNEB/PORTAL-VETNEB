@@ -59,7 +59,7 @@ const booleanishSchema = z
 
     const normalized = value.trim().toLowerCase();
 
-    if (["true", "1", "yes", "si", "sÃ­"].includes(normalized)) {
+    if (["true", "1", "yes", "si", "sí"].includes(normalized)) {
       return true;
     }
 
@@ -97,7 +97,7 @@ export const adminCreateStudyTrackingSchema = z.object({
   paymentUrl: optionalTrimmedText(2000, "paymentUrl"),
   adminContactEmail: optionalTrimmedText(255, "adminContactEmail").refine(
     (value) => typeof value === "undefined" || z.string().email().safeParse(value).success,
-    "adminContactEmail invÃ¡lido",
+    "adminContactEmail inválido",
   ),
   adminContactPhone: optionalTrimmedText(50, "adminContactPhone"),
   notes: optionalTrimmedText(10000, "notes"),
@@ -204,7 +204,7 @@ export const updateStudyTrackingSchema = z.object({
       value === null ||
       typeof value === "undefined" ||
       (value.length <= 255 && z.string().email().safeParse(value).success),
-    "adminContactEmail invÃ¡lido",
+    "adminContactEmail inválido",
   ),
   adminContactPhone: z.union([z.string(), z.null(), z.undefined()]).transform((value) => {
     if (value === null) {
@@ -282,7 +282,7 @@ export function parseBooleanQuery(value: unknown): boolean | undefined {
 
   const normalized = value.trim().toLowerCase();
 
-  if (["true", "1", "yes", "si", "sÃ­"].includes(normalized)) {
+  if (["true", "1", "yes", "si", "sí"].includes(normalized)) {
     return true;
   }
 
@@ -294,7 +294,7 @@ export function parseBooleanQuery(value: unknown): boolean | undefined {
 }
 
 export function buildValidationError(error: z.ZodError): string {
-  return error.issues[0]?.message ?? "Datos invÃ¡lidos";
+  return error.issues[0]?.message ?? "Datos inválidos";
 }
 
 function getEasterSunday(year: number): Date {
@@ -425,7 +425,7 @@ export function calculateEstimatedDeliveryAt(
   requiredBusinessDays = 15,
 ): Date {
   if (!(receptionAt instanceof Date) || Number.isNaN(receptionAt.getTime())) {
-    throw new Error("receptionAt invÃ¡lido");
+    throw new Error("receptionAt inválido");
   }
 
   let remaining = requiredBusinessDays;

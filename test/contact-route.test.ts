@@ -89,6 +89,9 @@ test("contact endpoint sends valid public contact payload", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/",
+      headers: {
+        origin: "http://localhost:3001",
+      },
       payload: {
         name: "Juan Perez",
         email: "juan@example.com",
@@ -98,6 +101,10 @@ test("contact endpoint sends valid public contact payload", async () => {
     });
 
     assert.equal(response.statusCode, 200);
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      "http://localhost:3001",
+    );
     assert.deepEqual(sentPayloads, [
       {
         name: "Juan Perez",
@@ -116,6 +123,43 @@ test("contact endpoint sends valid public contact payload", async () => {
     assert.equal(body.success, true);
     assert.equal(body.sent, true);
     assert.equal(body.message, "Mensaje enviado correctamente");
+  } finally {
+    await app.close();
+  }
+});
+
+test("contact endpoint responde OPTIONS con CORS para origin permitido", async () => {
+  const app = await createContactTestApp({
+    sendContactMessageEmail: async () => ({
+      sent: true,
+      messageId: "should-not-run",
+    }),
+  });
+
+  try {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/",
+      headers: {
+        origin: "http://localhost:3001",
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type,x-trace-id",
+      },
+    });
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      "http://localhost:3001",
+    );
+    assert.equal(
+      response.headers["access-control-allow-methods"],
+      "POST,OPTIONS",
+    );
+    assert.equal(
+      response.headers["access-control-allow-headers"],
+      "content-type,x-trace-id",
+    );
   } finally {
     await app.close();
   }
@@ -155,6 +199,41 @@ test("contact endpoint accepts message when smtp is disabled", async () => {
     assert.equal(
       body.message,
       "Mensaje recibido, pero el envío automático de correo no está configurado. Contacte a VETNEB por los canales oficiales si requiere respuesta inmediata.",
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("contact endpoint returns controlled error when smtp sender fails", async () => {
+  const app = await createContactTestApp({
+    sendContactMessageEmail: async () => {
+      throw new Error("SMTP transport failure");
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/",
+      payload: {
+        name: "Maria Gomez",
+        email: "maria@example.com",
+        message: "Necesito confirmar una recepción de muestras.",
+      },
+    });
+
+    assert.equal(response.statusCode, 502);
+
+    const body = response.json() as {
+      success: boolean;
+      error: string;
+    };
+
+    assert.equal(body.success, false);
+    assert.equal(
+      body.error,
+      "No se pudo enviar el mensaje en este momento. Intente nuevamente más tarde.",
     );
   } finally {
     await app.close();

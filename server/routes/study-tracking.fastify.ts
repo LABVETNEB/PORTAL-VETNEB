@@ -590,10 +590,16 @@ async function notifySpecialStainByEmail(
       notes: trackingCase.notes,
     });
   } catch (error) {
+    const errorCode =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code?: unknown }).code ?? "")
+        : undefined;
+
     console.error("[EMAIL] special_stain_required failed", {
       trackingCaseId: trackingCase.id,
       clinicId: trackingCase.clinicId,
-      error,
+      errorName: error instanceof Error ? error.name : "unknown_error",
+      errorCode: errorCode && errorCode.trim().length > 0 ? errorCode : undefined,
     });
   }
 }

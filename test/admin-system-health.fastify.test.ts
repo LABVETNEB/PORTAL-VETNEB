@@ -14,6 +14,24 @@ const { adminSystemHealthNativeRoutes } = await import(
   "../server/routes/admin-system-health.fastify.ts"
 );
 
+function buildExpectedContactSnapshot() {
+  const recipients = Array.from(
+    new Set(
+      (ENV.contactTo.length > 0 ? ENV.contactTo : [ENV.smtp.from])
+        .flatMap((value) => value.split(/[;,]/g))
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  return {
+    contact_email:
+      ENV.smtp.enabled && recipients.length > 0 ? "configured" : "degraded",
+    contact_email_recipients: recipients,
+    contact_email_recipient_count: recipients.length,
+  };
+}
+
 test("admin system health requiere sesión admin", async () => {
   const app = Fastify();
 
@@ -110,6 +128,7 @@ test("admin system health expone servicios, runtime y versión para admin autent
       database: "up",
       storage: "up",
       smtp: ENV.smtp.enabled ? "configured" : "not_configured",
+      ...buildExpectedContactSnapshot(),
     });
     assert.deepEqual(body.checkedBy, {
       adminUserId: 1,

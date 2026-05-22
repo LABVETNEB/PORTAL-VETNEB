@@ -237,13 +237,37 @@ export const contactNativeRoutes: FastifyPluginAsync<
       });
     }
 
+    const normalizedClinicName = normalizeOptionalText(parsed.data.clinicName);
     const deps = await resolveDeps(options);
-    const result = await deps.sendContactMessageEmail({
-      name: parsed.data.name,
-      email: parsed.data.email,
-      clinicName: normalizeOptionalText(parsed.data.clinicName),
-      message: parsed.data.message,
-    });
+
+    let result: ContactEmailResult;
+
+    try {
+      result = await deps.sendContactMessageEmail({
+        name: parsed.data.name,
+        email: parsed.data.email,
+        clinicName: normalizedClinicName,
+        message: parsed.data.message,
+      });
+    } catch (error) {
+      const errorCode =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code?: unknown }).code ?? "")
+          : undefined;
+
+      console.error("[EMAIL] contact_message failed", {
+        email: parsed.data.email,
+        clinicName: normalizedClinicName,
+        errorName: error instanceof Error ? error.name : "unknown_error",
+        errorCode: errorCode && errorCode.trim().length > 0 ? errorCode : undefined,
+      });
+
+      return reply.code(502).send({
+        success: false,
+        error:
+          "No se pudo enviar el mensaje en este momento. Intente nuevamente más tarde.",
+      });
+    }
 
     return reply.code(result.sent ? 200 : 202).send({
       success: true,
