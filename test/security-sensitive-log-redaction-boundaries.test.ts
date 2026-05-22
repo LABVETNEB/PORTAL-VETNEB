@@ -188,6 +188,49 @@ test("environment secret names are parsed but not logged directly", () => {
   assertNotContains(envSource, "console.error", "env module direct console.error");
 });
 
+test("contact smtp failure logging keeps diagnostics allowlist and avoids secret fields", () => {
+  const contactRouteSource = readSource("server/routes/contact.fastify.ts");
+
+  assertContains(
+    contactRouteSource,
+    "extractSafeContactEmailErrorDiagnostics",
+    "contact route smtp diagnostics helper",
+  );
+  assertContains(
+    contactRouteSource,
+    'reason: "email_delivery_failed"',
+    "contact route public smtp failure reason",
+  );
+  assertContains(
+    contactRouteSource,
+    'console.error("[EMAIL] contact_message failed", {',
+    "contact route smtp error logging",
+  );
+
+  for (const marker of [
+    'getKnownErrorProperty(error, "code")',
+    'getKnownErrorProperty(error, "command")',
+    'getKnownErrorProperty(error, "responseCode")',
+    'getKnownErrorProperty(error, "syscall")',
+    'getKnownErrorProperty(error, "hostname")',
+    'getKnownErrorProperty(error, "port")',
+    'getKnownErrorProperty(error, "address")',
+  ]) {
+    assertContains(contactRouteSource, marker, "contact route smtp diagnostics allowlist");
+  }
+
+  for (const forbidden of [
+    'getKnownErrorProperty(error, "message")',
+    "SMTP_PASS",
+    "accessToken",
+    "refreshToken",
+    "password",
+    "auth:",
+  ]) {
+    assertNotContains(contactRouteSource, forbidden, "contact route smtp diagnostics forbidden fields");
+  }
+});
+
 test("runtime tests remain explicit for redaction and secret-safe logging", () => {
   const requestLoggerTests = readSource("test/request-logger.test.ts");
   const requestLoggerEdgeTests = readSource("test/request-logger-edge.test.ts");

@@ -206,10 +206,43 @@ test("contact endpoint accepts message when smtp is disabled", async () => {
   }
 });
 
-test("contact endpoint returns controlled error when smtp sender fails", async () => {
+test("contact endpoint returns controlled smtp error and logs only safe diagnostics", async () => {
+  const originalConsoleError = console.error;
+  const errorCalls: unknown[][] = [];
+  const sensitivePass = "smtp-pass-super-secret";
+  const sensitiveUser = "smtp-user-sensitive@example.com";
+  const sensitiveAccessToken = "sensitive-access-token";
+  const sensitiveRefreshToken = "sensitive-refresh-token";
+
+  console.error = (...args: unknown[]) => {
+    errorCalls.push(args);
+  };
+
   const app = await createContactTestApp({
     sendContactMessageEmail: async () => {
-      throw new Error("SMTP transport failure");
+      throw Object.assign(
+        new Error(
+          `SMTP auth failure for ${sensitiveUser} using pass ${sensitivePass}`,
+        ),
+        {
+          code: "ESOCKET",
+          command: "CONN",
+          syscall: "connect",
+          hostname: "smtp.gmail.com",
+          port: 587,
+          responseCode: 421,
+          address: "74.125.140.108",
+          pass: sensitivePass,
+          password: sensitivePass,
+          auth: {
+            user: sensitiveUser,
+            pass: sensitivePass,
+          },
+          SMTP_PASS: sensitivePass,
+          accessToken: sensitiveAccessToken,
+          refreshToken: sensitiveRefreshToken,
+        },
+      );
     },
   });
 
@@ -220,6 +253,7 @@ test("contact endpoint returns controlled error when smtp sender fails", async (
       payload: {
         name: "Maria Gomez",
         email: "maria@example.com",
+        clinicName: "Clinica Sur",
         message: "Necesito confirmar una recepción de muestras.",
       },
     });
@@ -228,17 +262,52 @@ test("contact endpoint returns controlled error when smtp sender fails", async (
 
     const body = response.json() as {
       success: boolean;
+      reason: string;
       error: string;
     };
 
     assert.equal(body.success, false);
+    assert.equal(body.reason, "email_delivery_failed");
     assert.equal(
       body.error,
       "No se pudo enviar el mensaje en este momento. Intente nuevamente más tarde.",
     );
   } finally {
+    console.error = originalConsoleError;
     await app.close();
   }
+
+  assert.equal(errorCalls.length, 1);
+  assert.equal(errorCalls[0]?.[0], "[EMAIL] contact_message failed");
+
+  const payload = errorCalls[0]?.[1] as Record<string, unknown>;
+  assert.equal(payload.email, "maria@example.com");
+  assert.equal(payload.clinicName, "Clinica Sur");
+  assert.equal(payload.errorName, "Error");
+  assert.equal(payload.errorCode, "ESOCKET");
+  assert.equal(payload.errorCommand, "CONN");
+  assert.equal(payload.errorSyscall, "connect");
+  assert.equal(payload.errorHostname, "smtp.gmail.com");
+  assert.equal(payload.errorPort, 587);
+  assert.equal(payload.errorResponseCode, 421);
+  assert.equal(payload.errorAddress, "74.125.140.108");
+
+  for (const forbiddenKey of [
+    "pass",
+    "password",
+    "auth",
+    "SMTP_PASS",
+    "accessToken",
+    "refreshToken",
+  ]) {
+    assert.equal(forbiddenKey in payload, false);
+  }
+
+  const serializedPayload = JSON.stringify(payload);
+  assert.equal(serializedPayload.includes(sensitivePass), false);
+  assert.equal(serializedPayload.includes(sensitiveUser), false);
+  assert.equal(serializedPayload.includes(sensitiveAccessToken), false);
+  assert.equal(serializedPayload.includes(sensitiveRefreshToken), false);
 });
 
 test("contact endpoint rejects untrusted unsafe origins", async () => {
