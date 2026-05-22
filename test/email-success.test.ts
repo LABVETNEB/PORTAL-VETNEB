@@ -91,6 +91,10 @@ test("sendSpecialStainRequiredEmail envia correo con payload esperado cuando SMT
     host: "smtp.example.com",
     port: 587,
     secure: false,
+    family: 4,
+    tls: {
+      servername: "smtp.example.com",
+    },
     auth: {
       user: "smtp-user",
       pass: "smtp-pass",
