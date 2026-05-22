@@ -16,7 +16,10 @@ import { VisualIcon } from "@/components/public/VisualAccents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { submitContactMessage } from "@/lib/api";
+import {
+  PUBLIC_API_CONFIGURATION_ERROR_MESSAGE,
+  submitContactMessage,
+} from "@/lib/api";
 
 const contactInfo = [
   {
@@ -70,6 +73,10 @@ export function ContactoContent() {
 
     if (!normalizedMessage) {
       return fallbackMessage;
+    }
+
+    if (normalizedMessage === PUBLIC_API_CONFIGURATION_ERROR_MESSAGE) {
+      return normalizedMessage;
     }
 
     const normalizedMessageLower = normalizedMessage.toLowerCase();

@@ -116,7 +116,7 @@ function getSystemStatusIndicatorClass(status: string) {
 function formatSystemStatusDetail(services: Record<string, unknown>) {
   return `Base de datos: ${formatServiceStatus(services.database)} · Almacenamiento: ${formatServiceStatus(
     services.storage,
-  )} · Correo SMTP: ${formatServiceStatus(services.smtp)} · Contacto email: ${formatServiceStatus(services.contact_email)}`;
+  )} · Correo SMTP: ${formatServiceStatus(services.smtp)} · Contacto email: ${formatServiceStatus(services.contact_email)} · CORS: ${formatServiceStatus(services.cors)}`;
 }
 
 function getConfiguredContactRecipients(services: Record<string, unknown>): string[] {
@@ -130,6 +130,23 @@ function getConfiguredContactRecipients(services: Record<string, unknown>): stri
     (recipient): recipient is string =>
       typeof recipient === "string" && recipient.trim().length > 0,
   );
+}
+
+function getConfiguredCorsOrigins(services: Record<string, unknown>): string[] {
+  const origins = services.cors_origins;
+
+  if (!Array.isArray(origins)) {
+    return [];
+  }
+
+  return origins.filter(
+    (origin): origin is string =>
+      typeof origin === "string" && origin.trim().length > 0,
+  );
+}
+
+function formatConfigurationFlag(value: unknown) {
+  return value === true ? "Configurado" : "No configurado";
 }
 
 function formatUptime(totalSeconds: number | undefined) {
@@ -292,6 +309,10 @@ export default async function AdminPage({
   const hasSystemHealthFetchError = systemHealth === null;
   const serviceChecks = systemHealth?.services ?? {};
   const contactRecipients = getConfiguredContactRecipients(serviceChecks);
+  const corsOrigins = getConfiguredCorsOrigins(serviceChecks);
+  const nodeEnv = typeof serviceChecks.node_env === "string"
+    ? serviceChecks.node_env
+    : "unknown";
   const systemStatus = systemHealth?.status ?? "unknown";
   const eventCounts = auditEntries.reduce(
     (acc, entry) => {
@@ -458,6 +479,39 @@ export default async function AdminPage({
                     ? `Destino: ${contactRecipients.join(", ")}`
                     : "Sin destinatarios configurados"}
                 </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  CONTACT_TO: {formatConfigurationFlag(serviceChecks.contact_to_configured)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  SMTP_FROM: {formatConfigurationFlag(serviceChecks.smtp_from_configured)}
+                </p>
+              </div>
+              <div className="surface-soft">
+                <p className="mb-2 text-xs text-muted-foreground">CORS público</p>
+                <Badge variant={getServiceVariant(serviceChecks.cors)}>
+                  {formatServiceStatus(serviceChecks.cors)}
+                </Badge>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {corsOrigins.length > 0
+                    ? `${corsOrigins.length} origen(es) activo(s)`
+                    : "Sin orígenes configurados"}
+                </p>
+                {corsOrigins.length > 0 ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {corsOrigins.join(", ")}
+                  </p>
+                ) : null}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Orígenes locales/LAN:{" "}
+                  {serviceChecks.cors_has_local_or_lan_origins === true ? "Presentes" : "No"}
+                </p>
+              </div>
+              <div className="surface-soft">
+                <p className="text-xs text-muted-foreground">Entorno</p>
+                <p className="mt-1 text-lg font-semibold text-vetneb-ink">
+                  {nodeEnv}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">nodeEnv activo</p>
               </div>
               <div className="surface-soft">
                 <p className="text-xs text-muted-foreground">Backend</p>

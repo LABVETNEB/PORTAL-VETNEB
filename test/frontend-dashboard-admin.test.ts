@@ -147,9 +147,16 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes("Estado y mantenimiento"));
   assert.ok(source.includes("Correo SMTP"));
   assert.ok(source.includes("Contacto email"));
+  assert.ok(source.includes("CORS público"));
+  assert.ok(source.includes("Entorno"));
   assert.ok(source.includes("serviceChecks.smtp"));
   assert.ok(source.includes("serviceChecks.contact_email"));
+  assert.ok(source.includes("serviceChecks.cors"));
+  assert.ok(source.includes("serviceChecks.contact_to_configured"));
+  assert.ok(source.includes("serviceChecks.smtp_from_configured"));
+  assert.ok(source.includes("serviceChecks.node_env"));
   assert.ok(source.includes("contactRecipients.length > 0"));
+  assert.ok(source.includes("corsOrigins.length > 0"));
   assert.equal(source.includes("Health & Maintenance"), false);
   assert.equal(source.includes("AdminSourceContractMarkers"), false);
   assert.equal(source.includes("ADMIN_READ_CONTRACT_MARKERS"), false);

@@ -1,5 +1,7 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -12,6 +14,7 @@ const { ENV } = await import("../server/lib/env.ts");
 test("ENV expone un contrato base consistente", () => {
   assert.ok(["development", "test", "production"].includes(ENV.nodeEnv));
   assert.equal(typeof ENV.isDevelopment, "boolean");
+  assert.equal(typeof ENV.isTest, "boolean");
   assert.equal(typeof ENV.isProduction, "boolean");
   assert.equal(typeof ENV.port, "number");
   assert.equal(Number.isInteger(ENV.port), true);
@@ -25,7 +28,6 @@ test("ENV expone un contrato base consistente", () => {
     ENV.cookieSameSite,
     ENV.isProduction ? "none" : "lax",
   );
-
 });
 
 test("ENV expone colecciones limpias y strings no vacíos donde corresponde", () => {
@@ -78,4 +80,14 @@ test("ENV.smtp mantiene tipos e invariantes esperadas", () => {
     assert.equal(ENV.smtp.pass.length > 0, true);
     assert.equal(ENV.smtp.from.length > 0, true);
   }
+});
+
+test("ENV exige CORS_ORIGIN explícito en producción", () => {
+  const source = readFileSync(
+    resolve(process.cwd(), "server/lib/env.ts"),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+
+  assert.ok(source.includes("if (nodeEnv === \"production\" && configuredCorsOrigins.length === 0) {"));
+  assert.ok(source.includes("throw new Error(\"CORS_ORIGIN es obligatorio cuando NODE_ENV=production\");"));
 });

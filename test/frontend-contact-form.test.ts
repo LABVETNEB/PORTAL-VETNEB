@@ -29,7 +29,8 @@ test("frontend contact form submits public contact payload", () => {
 
   assert.ok(source.includes('"use client"'));
   assert.ok(source.includes('import { FormEvent, useState } from "react"'));
-  assert.ok(source.includes('import { submitContactMessage } from "@/lib/api"'));
+  assert.ok(source.includes("PUBLIC_API_CONFIGURATION_ERROR_MESSAGE"));
+  assert.ok(source.includes('submitContactMessage'));
   assert.ok(source.includes("async function handleSubmit"));
   assert.ok(source.includes("event.preventDefault()"));
   assert.ok(source.includes("await submitContactMessage({"));
@@ -48,6 +49,7 @@ test("frontend contact form exposes feedback and no longer blocks submit", () =>
   assert.ok(source.includes("const [warningMessage, setWarningMessage]"));
   assert.ok(source.includes("const [isSubmitting, setIsSubmitting]"));
   assert.ok(source.includes("resolveContactSubmitErrorMessage"));
+  assert.ok(source.includes("normalizedMessage === PUBLIC_API_CONFIGURATION_ERROR_MESSAGE"));
   assert.ok(source.includes('"No se pudo contactar al servidor. Verifique la conexión o intente nuevamente."'));
   assert.ok(source.includes('setErrorMessage(resolveContactSubmitErrorMessage(error));'));
   assert.ok(source.includes('role="alert"'));

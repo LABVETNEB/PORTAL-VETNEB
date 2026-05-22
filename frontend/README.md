@@ -37,14 +37,17 @@ cd frontend
 pnpm dev
 ```
 
-El frontend corre en `http://localhost:3000` por defecto (o el puerto que configure Next.js).
+El entorno local es auxiliar de desarrollo. La referencia principal operativa debe
+ser staging/producción pública en Render.
+
+El frontend corre en `http://localhost:3000` por defecto (o el puerto que configure Next.js) solo para desarrollo.
 
 > **Nota:** El backend Fastify debe estar corriendo en el puerto configurado en `NEXT_PUBLIC_API_URL`.
 >
-> Referencia recomendada de trabajo local/LAN:
+> Referencia local/LAN (development-only):
 > - Backend: `http://127.0.0.1:3000` o `http://<LAN-IP>:3000`
 > - Frontend: `http://localhost:3001` o `http://<LAN-IP>:3001`
-> - En staging/prod, `NEXT_PUBLIC_API_URL` debe apuntar al backend desplegado real.
+> - En staging/prod, `NEXT_PUBLIC_API_URL` debe apuntar explícitamente al backend público (`https://...onrender.com`) y no usar localhost/LAN.
 
 ## Variables de entorno
 
@@ -56,8 +59,8 @@ cp frontend/.env.example frontend/.env.local
 
 | Variable | Descripción | Default |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | URL del backend Fastify | `http://localhost:3000` |
-| `NEXT_PUBLIC_SITE_URL` | URL pública del frontend | `http://localhost:3001` |
+| `NEXT_PUBLIC_API_URL` | URL del backend Fastify público | `https://<backend-staging>.onrender.com` |
+| `NEXT_PUBLIC_SITE_URL` | URL pública del frontend | `https://portal-vetneb-frontend-staging.onrender.com` |
 
 ## Build de producción
 

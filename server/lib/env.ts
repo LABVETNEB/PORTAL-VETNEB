@@ -90,6 +90,11 @@ const LOCAL_CORS_ORIGINS = [
 ];
 
 const configuredCorsOrigins = parseDelimitedList(rawEnv.CORS_ORIGIN);
+
+if (nodeEnv === "production" && configuredCorsOrigins.length === 0) {
+  throw new Error("CORS_ORIGIN es obligatorio cuando NODE_ENV=production");
+}
+
 const corsOrigins =
   nodeEnv === "production"
     ? configuredCorsOrigins
@@ -106,6 +111,7 @@ const smtpEnabled = Boolean(
 export const ENV = {
   nodeEnv,
   isDevelopment: nodeEnv === "development",
+  isTest: nodeEnv === "test",
   isProduction: nodeEnv === "production",
   port,
   databaseUrl,

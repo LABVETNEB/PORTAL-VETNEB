@@ -2,7 +2,8 @@
  * API Client — Portal VETNEB Frontend
  *
  * Funciones wrapper para consumir el backend Fastify existente.
- * El backend corre en: process.env.NEXT_PUBLIC_API_URL (default: http://localhost:3000)
+ * El backend corre en: process.env.NEXT_PUBLIC_API_URL.
+ * En desarrollo local puede usar fallback a http://localhost:3000.
  *
  * Convención:
  * - Si el endpoint está confirmado en el backend, se llama directamente.
@@ -36,8 +37,61 @@ import type {
   AdminFailedLoginAlertsSnapshot,
 } from "@/types";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const LOCAL_DEVELOPMENT_API_BASE_URL = "http://localhost:3000";
+
+export const PUBLIC_API_CONFIGURATION_ERROR_MESSAGE =
+  "El servicio público no está configurado para recibir solicitudes. Contacte a VETNEB por los canales oficiales.";
+
+function isLocalOrLanHostname(hostname: string): boolean {
+  const normalizedHost = hostname.trim().toLowerCase();
+
+  if (
+    normalizedHost === "localhost" ||
+    normalizedHost === "127.0.0.1" ||
+    normalizedHost === "::1"
+  ) {
+    return true;
+  }
+
+  return normalizedHost.startsWith("192.168.");
+}
+
+function normalizeApiBaseUrl(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+export function resolveApiBaseUrlForRuntime(input: {
+  nodeEnv?: string;
+  nextPublicApiUrl?: string;
+} = {}): string {
+  const nodeEnv = input.nodeEnv ?? process.env.NODE_ENV ?? "development";
+  const nextPublicApiUrl = (
+    input.nextPublicApiUrl ?? process.env.NEXT_PUBLIC_API_URL ?? ""
+  ).trim();
+  const isDevelopment = nodeEnv === "development";
+
+  if (!nextPublicApiUrl) {
+    if (isDevelopment) {
+      return LOCAL_DEVELOPMENT_API_BASE_URL;
+    }
+
+    throw new Error(PUBLIC_API_CONFIGURATION_ERROR_MESSAGE);
+  }
+
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(nextPublicApiUrl);
+  } catch {
+    throw new Error(PUBLIC_API_CONFIGURATION_ERROR_MESSAGE);
+  }
+
+  if (!isDevelopment && isLocalOrLanHostname(parsedUrl.hostname)) {
+    throw new Error(PUBLIC_API_CONFIGURATION_ERROR_MESSAGE);
+  }
+
+  return normalizeApiBaseUrl(nextPublicApiUrl);
+}
 
 function warnApiFallback(functionName: string, error: unknown): void {
   switch (functionName) {
@@ -78,6 +132,7 @@ async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  const apiBaseUrl = resolveApiBaseUrlForRuntime();
   const headers = new Headers(options.headers);
 
   const hasFormDataBody =
@@ -91,7 +146,7 @@ async function apiFetch<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(`${apiBaseUrl}${path}`, {
     ...options,
     credentials: options.credentials ?? "include",
     headers,
@@ -950,9 +1005,10 @@ export async function getAdminFailedLoginAlerts(
 export function buildAdminFailedLoginAlertsCsvUrl(
   params: AdminFailedLoginAlertsQuery = {},
 ) {
+  const apiBaseUrl = resolveApiBaseUrlForRuntime();
   const qs = buildAdminFailedLoginAlertsQueryString(params);
 
-  return `${API_BASE_URL}/api/admin/failed-login-alerts/export.csv${qs ? `?${qs}` : ""}`;
+  return `${apiBaseUrl}/api/admin/failed-login-alerts/export.csv${qs ? `?${qs}` : ""}`;
 }
 
 

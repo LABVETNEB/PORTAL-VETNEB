@@ -36,6 +36,17 @@ configuradas estas variables y luego ejecutar redeploy:
 Sin redeploy posterior al cambio de env, staging puede seguir respondiendo con
 estado degradado de SMTP aunque la configuración ya esté cargada en el panel.
 
+Secuencia mínima obligatoria en staging:
+
+1. Guardar variables backend Render.
+2. Guardar variables frontend Render.
+3. Redeploy backend Render.
+4. Redeploy frontend Render.
+5. Verificar `/dashboard/admin` autenticado:
+   - `Correo SMTP` = `Configurado`
+   - `Contacto email` = `Configurado`
+   - `CORS público` incluye `https://portal-vetneb-frontend-staging.onrender.com`
+
 ## 2. Helpers para status code y errores
 
 Estos helpers capturan status code tambien cuando `Invoke-WebRequest` lanza
@@ -201,17 +212,21 @@ foreach ($Path in $PublicPaths) {
 
 1. Abrir `$FrontendUrl/contacto`.
 2. Enviar un formulario válido (nombre, email, mensaje >= 10 caracteres).
-3. Confirmar en UI mensaje de éxito:
+3. Confirmar en `/dashboard/admin` que:
+   - `Correo SMTP` está `Configurado`.
+   - `Contacto email` está `Configurado`.
+   - `CONTACT_TO` figura `Configurado`.
+   - `CORS público` muestra el frontend staging activo.
+4. Confirmar en UI mensaje de éxito:
    `Mensaje enviado correctamente`.
-4. Confirmar que el correo llega a `CONTACT_TO` (o `SMTP_FROM` si aplica
-   fallback).
-5. Confirmar que el email recibido conserva `replyTo` con el email del
+5. Confirmar que el correo llega a `CONTACT_TO`.
+6. Confirmar que el email recibido conserva `replyTo` con el email del
    solicitante.
 
 Si aparece el mensaje:
 `Mensaje recibido, pero el envío automático de correo no está configurado...`,
 tratarlo como `fail` de readiness de staging (configuración runtime incompleta
-o redeploy faltante).
+o redeploy faltante). Ese estado debe registrarse como `smtp_disabled`.
 
 ## 5. Login clinica por API
 

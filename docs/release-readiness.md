@@ -42,7 +42,7 @@ Tabla sin secretos para configurar el runtime backend:
 | `SUPABASE_SIGNED_URL_EXPIRES_IN_SECONDS` | Opcional con aprobacion del default | `900` | Expiracion de signed URLs. |
 | `SESSION_TTL_HOURS` | Opcional con aprobacion del default | `24` | TTL de sesiones. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Condicional | `587`/`false` para puerto/secure | Email se habilita solo si estan todos los campos requeridos. |
-| `CONTACT_TO` | Condicional | Fallback a `SMTP_FROM` | Destinatarios del formulario de contacto; soporta coma o punto y coma. |
+| `CONTACT_TO` | Condicional | - | Destinatarios del formulario de contacto; soporta coma o punto y coma y debe estar configurado explícitamente en staging/prod. |
 
 ### Requeridas para boot productivo
 
@@ -77,8 +77,7 @@ Tabla sin secretos para configurar el runtime backend:
 - [ ] `[BLOCKER]` `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`,
   `SMTP_PASS` y `SMTP_FROM` configurados si el lanzamiento incluye formularios
   o notificaciones por email.
-- [ ] `[BLOCKER]` `CONTACT_TO` configurado para formularios públicos (si no está,
-  se usa fallback a `SMTP_FROM`).
+- [ ] `[BLOCKER]` `CONTACT_TO` configurado explícitamente para formularios públicos.
 - [ ] `[NON-BLOCKER]` `OWNER_OPEN_ID` documentado o removido del entorno si no
   forma parte del flujo productivo actual.
 - [ ] `[NON-BLOCKER]` `LAB_UPLOAD_USERNAMES` revisado si se usa para permisos
@@ -131,8 +130,8 @@ Tabla sin secretos para configurar el build/runtime frontend:
 
 | Variable | Estado release | Default codigo/ejemplo | Uso |
 |---|---|---:|---|
-| `NEXT_PUBLIC_API_URL` | Obligatoria | `http://localhost:3000` | Base URL del backend Fastify usada por `frontend/src/lib/api.ts`; en prod debe ser `https://...` y sin trailing slash. |
-| `NEXT_PUBLIC_SITE_URL` | Obligatoria | `https://portal.vetneb.com` en codigo, `http://localhost:3001` en ejemplo | SEO, canonical, Open Graph, robots y sitemap. |
+| `NEXT_PUBLIC_API_URL` | Obligatoria | `https://<backend-staging>.onrender.com` | Base URL del backend Fastify usada por `frontend/src/lib/api.ts`; en prod debe ser `https://...` y sin trailing slash. |
+| `NEXT_PUBLIC_SITE_URL` | Obligatoria | `https://portal-vetneb-frontend-staging.onrender.com` | SEO, canonical, Open Graph, robots y sitemap. |
 
 - [ ] `[BLOCKER]` `NEXT_PUBLIC_API_URL` apunta al backend Fastify productivo,
   con `https://` y sin trailing slash.
@@ -145,6 +144,15 @@ Tabla sin secretos para configurar el build/runtime frontend:
   `NEXT_PUBLIC_`.
 - [ ] `[NON-BLOCKER]` Canonicals, sitemap y metadata usan el dominio final
   esperado por negocio.
+
+### Bloqueos obligatorios para staging público de contacto
+
+- [ ] `[BLOCKER]` Frontend staging tiene `NEXT_PUBLIC_API_URL` público (`https://...onrender.com`), no vacío y sin localhost/LAN.
+- [ ] `[BLOCKER]` Backend staging tiene `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` completos.
+- [ ] `[BLOCKER]` Backend staging tiene `CONTACT_TO` explícito.
+- [ ] `[BLOCKER]` Backend staging tiene `CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com`.
+- [ ] `[BLOCKER]` `/api/admin/system/health` en staging muestra `smtp=configured`, `contact_email=configured` y `cors=configured`.
+- [ ] `[BLOCKER]` `/contacto` público de staging no devuelve `smtp_disabled`.
 
 Comandos utiles:
 
@@ -527,6 +535,7 @@ No lanzar si ocurre cualquiera de estos casos:
 - [ ] Upload, signed URLs, avatar upload/delete o descarga de informes fallan.
 - [ ] Admin, clinica o particular no pueden completar su smoke principal.
 - [ ] Hay dudas legales/comerciales bloqueantes sobre contenido publico.
+- [ ] En staging público, el formulario `/contacto` muestra `smtp_disabled` o el health admin queda degradado para SMTP/contacto/CORS.
 
 ### Env critica faltante
 
