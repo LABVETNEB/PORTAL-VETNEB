@@ -53,6 +53,12 @@ export function ContactoContent() {
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  function clearFeedbackMessages() {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setWarningMessage(null);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -60,9 +66,7 @@ export function ContactoContent() {
       return;
     }
 
-    setErrorMessage(null);
-    setSuccessMessage(null);
-    setWarningMessage(null);
+    clearFeedbackMessages();
     setIsSubmitting(true);
 
     try {
@@ -79,14 +83,14 @@ export function ContactoContent() {
 
       if (response.sent === false || response.reason === "smtp_disabled") {
         setWarningMessage(response.message);
-      } else {
+      } else if (response.sent === true) {
         setSuccessMessage(response.message);
+        setNombre("");
+        setApellido("");
+        setEmail("");
+        setClinica("");
+        setMensaje("");
       }
-      setNombre("");
-      setApellido("");
-      setEmail("");
-      setClinica("");
-      setMensaje("");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -158,7 +162,10 @@ export function ContactoContent() {
                         autoComplete="given-name"
                         required
                         value={nombre}
-                        onChange={(event) => setNombre(event.target.value)}
+                        onChange={(event) => {
+                          clearFeedbackMessages();
+                          setNombre(event.target.value);
+                        }}
                         disabled={isSubmitting}
                         className="pl-10"
                       />
@@ -177,7 +184,10 @@ export function ContactoContent() {
                       placeholder="Su apellido"
                       autoComplete="family-name"
                       value={apellido}
-                      onChange={(event) => setApellido(event.target.value)}
+                      onChange={(event) => {
+                        clearFeedbackMessages();
+                        setApellido(event.target.value);
+                      }}
                       disabled={isSubmitting}
                     />
                   </div>
@@ -198,7 +208,10 @@ export function ContactoContent() {
                       autoComplete="email"
                       required
                       value={email}
-                      onChange={(event) => setEmail(event.target.value)}
+                      onChange={(event) => {
+                        clearFeedbackMessages();
+                        setEmail(event.target.value);
+                      }}
                       disabled={isSubmitting}
                       className="pl-10"
                     />
@@ -219,7 +232,10 @@ export function ContactoContent() {
                       placeholder="Clínica Veterinaria..."
                       autoComplete="organization"
                       value={clinica}
-                      onChange={(event) => setClinica(event.target.value)}
+                      onChange={(event) => {
+                        clearFeedbackMessages();
+                        setClinica(event.target.value);
+                      }}
                       disabled={isSubmitting}
                       className="pl-10"
                     />
@@ -240,7 +256,10 @@ export function ContactoContent() {
                     required
                     minLength={10}
                     value={mensaje}
-                    onChange={(event) => setMensaje(event.target.value)}
+                    onChange={(event) => {
+                      clearFeedbackMessages();
+                      setMensaje(event.target.value);
+                    }}
                     disabled={isSubmitting}
                   />
                 </div>

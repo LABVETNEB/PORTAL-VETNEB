@@ -29,25 +29,71 @@ test("contact public page submits messages through the API client", () => {
   assert.ok(source.includes("onSubmit={handleSubmit}"));
 });
 
-test("contact public page handles loading, success, error and reset states", () => {
+test("contact public page handles loading, feedback cleanup and conditional reset states", () => {
   const source = read(CONTACTO_CONTENT_PATH);
 
   assert.ok(source.includes("const [errorMessage, setErrorMessage]"));
   assert.ok(source.includes("const [successMessage, setSuccessMessage]"));
   assert.ok(source.includes("const [warningMessage, setWarningMessage]"));
   assert.ok(source.includes("const [isSubmitting, setIsSubmitting]"));
+  assert.ok(source.includes("function clearFeedbackMessages()"));
+  assert.ok(source.includes("setErrorMessage(null);"));
+  assert.ok(source.includes("setSuccessMessage(null);"));
   assert.ok(source.includes("if (isSubmitting)"));
+  assert.ok(source.includes("clearFeedbackMessages();"));
   assert.ok(source.includes("setIsSubmitting(true);"));
-  assert.ok(source.includes("setWarningMessage(null);"));
   assert.ok(source.includes('response.reason === "smtp_disabled"'));
   assert.ok(source.includes("setWarningMessage(response.message);"));
   assert.ok(source.includes("setSuccessMessage(response.message);"));
   assert.ok(source.includes("clinical-alert-warning"));
-  assert.ok(source.includes('setNombre("");'));
-  assert.ok(source.includes('setApellido("");'));
-  assert.ok(source.includes('setEmail("");'));
-  assert.ok(source.includes('setClinica("");'));
-  assert.ok(source.includes('setMensaje("");'));
+  assert.ok(
+    /onChange=\{\(event\) => \{\s*clearFeedbackMessages\(\);\s*setNombre\(event\.target\.value\);\s*\}\}/.test(
+      source,
+    ),
+  );
+  assert.ok(
+    /onChange=\{\(event\) => \{\s*clearFeedbackMessages\(\);\s*setApellido\(event\.target\.value\);\s*\}\}/.test(
+      source,
+    ),
+  );
+  assert.ok(
+    /onChange=\{\(event\) => \{\s*clearFeedbackMessages\(\);\s*setEmail\(event\.target\.value\);\s*\}\}/.test(
+      source,
+    ),
+  );
+  assert.ok(
+    /onChange=\{\(event\) => \{\s*clearFeedbackMessages\(\);\s*setClinica\(event\.target\.value\);\s*\}\}/.test(
+      source,
+    ),
+  );
+  assert.ok(
+    /onChange=\{\(event\) => \{\s*clearFeedbackMessages\(\);\s*setMensaje\(event\.target\.value\);\s*\}\}/.test(
+      source,
+    ),
+  );
+
+  const warningBranchMatch = source.match(
+    /if \(response\.sent === false \|\| response\.reason === "smtp_disabled"\) \{([\s\S]*?)\}\s*else if \(response\.sent === true\)/,
+  );
+  assert.ok(warningBranchMatch);
+  assert.ok(warningBranchMatch[1]?.includes("setWarningMessage(response.message);"));
+  assert.equal(
+    /setNombre\(""\)|setApellido\(""\)|setEmail\(""\)|setClinica\(""\)|setMensaje\(""\)/.test(
+      warningBranchMatch[1] ?? "",
+    ),
+    false,
+  );
+
+  const successBranchMatch = source.match(
+    /else if \(response\.sent === true\) \{([\s\S]*?)\n\s*\}/,
+  );
+  assert.ok(successBranchMatch);
+  assert.ok(successBranchMatch[1]?.includes("setSuccessMessage(response.message);"));
+  assert.ok(successBranchMatch[1]?.includes('setNombre("");'));
+  assert.ok(successBranchMatch[1]?.includes('setApellido("");'));
+  assert.ok(successBranchMatch[1]?.includes('setEmail("");'));
+  assert.ok(successBranchMatch[1]?.includes('setClinica("");'));
+  assert.ok(successBranchMatch[1]?.includes('setMensaje("");'));
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("disabled={isSubmitting}"));
   assert.ok(source.includes('isSubmitting ? "Enviando mensaje..." : "Enviar mensaje"'));
