@@ -395,6 +395,7 @@ export type AdminSessionsSnapshot = {
   total: number;
   limit: number;
   offset: number;
+  currentAdminSessionId?: number;
   checkedBy?: {
     adminUserId: number;
     username: string;

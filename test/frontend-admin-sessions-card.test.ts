@@ -131,7 +131,8 @@ test("admin sessions card renders rows actions empty state and pagination", () =
   assert.ok(source.includes("formatOptionalDate(session.lastAccess)"));
   assert.ok(source.includes("formatOptionalDate(session.expiresAt)"));
   assert.ok(source.includes("onClick={() => void handleRevokeSession(session)}"));
-  assert.ok(source.includes('isRevoking ? "Revocando..." : "Revocar"'));
+  assert.ok(source.includes('"Revocando..."'));
+  assert.ok(source.includes('"Revocar"'));
   assert.ok(
     source.includes(
       'isPending\n                      ? "Cargando sesiones..."\n                      : error',
@@ -158,4 +159,28 @@ test("admin sessions card keeps session helpers and avoids technical endpoint co
   assert.equal(source.includes("password"), false);
   assert.equal(source.includes("sessionToken"), false);
   assert.equal(source.includes("tokenHash"), false);
+});
+
+test("admin sessions card detecta sesión actual via currentAdminSessionId y deshabilita Revocar", () => {
+  const source = read(ADMIN_SESSIONS_CARD_PATH);
+
+  assert.ok(source.includes("isCurrentAdminSession"));
+  assert.ok(source.includes('session.sessionType === "admin"'));
+  assert.ok(source.includes("snapshot.currentAdminSessionId"));
+  assert.ok(source.includes("session.sessionId === snapshot.currentAdminSessionId"));
+  assert.ok(source.includes("disabled={isRevoking || isCurrentAdminSession}"));
+});
+
+test("admin sessions card muestra texto Sesión actual para sesión admin propia", () => {
+  const source = read(ADMIN_SESSIONS_CARD_PATH);
+
+  assert.ok(source.includes('"Sesión actual"'));
+});
+
+test("admin sessions card no expone token, cookie ni hash en UI", () => {
+  const source = read(ADMIN_SESSIONS_CARD_PATH);
+
+  assert.equal(source.includes("sessionToken"), false);
+  assert.equal(source.includes("tokenHash"), false);
+  assert.equal(source.includes("password"), false);
 });

@@ -574,6 +574,7 @@ export const adminSessionsNativeRoutes: FastifyPluginAsync<
 
       return reply.code(200).send({
         ...snapshot,
+        currentAdminSessionId: admin.sessionId,
         checkedBy: {
           adminUserId: admin.id,
           username: admin.username,

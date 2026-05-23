@@ -390,3 +390,81 @@ test("admin sessions revoke bloquea origin no permitido", async () => {
     await app.close();
   }
 });
+
+test("admin sessions GET expone currentAdminSessionId igual al sessionId autenticado", async () => {
+  const app = Fastify();
+
+  await app.register(
+    adminSessionsNativeRoutes,
+    buildDeps({
+      getAdminSessionsSnapshot: async (): Promise<AdminSessionsSnapshot> => ({
+        success: true,
+        sessions: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
+      }),
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+
+    assert.equal(body.success, true);
+    assert.equal(typeof body.currentAdminSessionId, "number");
+    assert.equal(body.currentAdminSessionId, 99);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin sessions GET no expone token, cookie, hash ni sessionToken en currentAdminSessionId", async () => {
+  const app = Fastify();
+
+  await app.register(
+    adminSessionsNativeRoutes,
+    buildDeps({
+      getAdminSessionsSnapshot: async (): Promise<AdminSessionsSnapshot> => ({
+        success: true,
+        sessions: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
+      }),
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+
+    const body = JSON.parse(response.body);
+    const serialized = JSON.stringify(body);
+
+    assert.equal(typeof body.currentAdminSessionId, "number");
+    assert.equal(body.sessionToken, undefined);
+    assert.equal(body.tokenHash, undefined);
+    assert.equal(body.cookie, undefined);
+    assert.equal(serialized.includes("admin-session-token"), false);
+    assert.equal(serialized.includes("hash:"), false);
+  } finally {
+    await app.close();
+  }
+});
