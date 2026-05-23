@@ -589,6 +589,44 @@ function isUniqueViolation(error: unknown) {
   );
 }
 
+function hasPostgresErrorCode(error: unknown, code: string) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === code
+  );
+}
+
+function getSanitizedDbErrorDetails(error: unknown) {
+  if (typeof error !== "object" || error === null) {
+    return {
+      errorName: "UnknownError",
+      errorCode: "unknown",
+      constraintName: null,
+      tableName: null,
+      columnName: null,
+    };
+  }
+
+  const err = error as {
+    name?: unknown;
+    code?: unknown;
+    constraint_name?: unknown;
+    table_name?: unknown;
+    column_name?: unknown;
+  };
+
+  return {
+    errorName: typeof err.name === "string" ? err.name : "UnknownError",
+    errorCode: typeof err.code === "string" ? err.code : "unknown",
+    constraintName:
+      typeof err.constraint_name === "string" ? err.constraint_name : null,
+    tableName: typeof err.table_name === "string" ? err.table_name : null,
+    columnName: typeof err.column_name === "string" ? err.column_name : null,
+  };
+}
+
 function getErrorName(error: unknown) {
   if (error instanceof Error) {
     return error.name || "Error";
@@ -817,6 +855,20 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
           });
         }
 
+        if (hasPostgresErrorCode(error, "23502")) {
+          console.error("[ADMIN_CLINICS_CREATE_SCHEMA_MISMATCH]", {
+            requestPath: request.url,
+            adminUserId: admin.id,
+            ...getSanitizedDbErrorDetails(error),
+          });
+
+          return reply.code(500).send({
+            success: false,
+            error:
+              "No se pudo crear la clínica por incompatibilidad de esquema de base de datos.",
+          });
+        }
+
         throw error;
       }
     },
@@ -947,7 +999,28 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const deletedClinic = await deps.deleteAdminClinic({ clinicId });
+    let deletedClinic: AdminClinicSummary | null;
+
+    try {
+      deletedClinic = await deps.deleteAdminClinic({ clinicId });
+    } catch (error) {
+      if (hasPostgresErrorCode(error, "23503")) {
+        console.error("[ADMIN_CLINICS_DELETE_DEPENDENCY_BLOCK]", {
+          requestPath: request.url,
+          clinicId,
+          adminUserId: admin.id,
+          ...getSanitizedDbErrorDetails(error),
+        });
+
+        return reply.code(409).send({
+          success: false,
+          error:
+            "No se pudo eliminar la clínica porque tiene dependencias activas. Revise informes, tokens o sesiones asociados.",
+        });
+      }
+
+      throw error;
+    }
 
     if (!deletedClinic) {
       return reply.code(404).send({
