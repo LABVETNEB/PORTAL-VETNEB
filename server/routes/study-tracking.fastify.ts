@@ -9,7 +9,7 @@ import type {
   Report,
   StudyTrackingCase,
   StudyTrackingNotification,
-} from "../../drizzle/schema";
+} from "../../drizzle/schema.ts";
 import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {

@@ -1,11 +1,11 @@
-﻿import { and, desc, eq } from "drizzle-orm";
-import { db } from "./db";
+import { and, desc, eq } from "drizzle-orm";
+import { db } from "./db.ts";
 import {
   studyTrackingCases,
   studyTrackingNotifications,
   type NewStudyTrackingCase,
   type NewStudyTrackingNotification,
-} from "../drizzle/schema";
+} from "../drizzle/schema.ts";
 
 export async function createStudyTrackingCase(
   input: Omit<NewStudyTrackingCase, "id" | "createdAt" | "updatedAt">,

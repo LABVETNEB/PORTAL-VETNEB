@@ -13,6 +13,8 @@ import type {
   UpdatePricingItemInput,
 } from "../db-pricing.ts";
 
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
 type AdminSessionRecord = {
   id: number;
   adminUserId: number;
@@ -272,6 +274,120 @@ async function authenticateAdminUser(
   };
 }
 
+function getAllowedOrigins(): string[] {
+  const configuredOrigins = ENV.corsOrigins.map((origin) =>
+    origin.trim().toLowerCase(),
+  );
+
+  if (configuredOrigins.length > 0) {
+    return configuredOrigins;
+  }
+
+  if (ENV.isDevelopment) {
+    return [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "http://localhost:3001",
+      "http://127.0.0.1:3001",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+    ];
+  }
+
+  return [];
+}
+
+function normalizeOrigin(value: string): string | null {
+  try {
+    return new URL(value).origin.trim().toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function getOriginHeader(request: FastifyRequest) {
+  return typeof request.headers.origin === "string"
+    ? request.headers.origin.trim()
+    : "";
+}
+
+function getAllowedOriginForCors(
+  request: FastifyRequest,
+  allowedOrigins: ReadonlySet<string>,
+) {
+  const rawOrigin = getOriginHeader(request);
+
+  if (!rawOrigin) {
+    return null;
+  }
+
+  const normalizedOrigin = normalizeOrigin(rawOrigin);
+
+  if (!normalizedOrigin || !allowedOrigins.has(normalizedOrigin)) {
+    return null;
+  }
+
+  return rawOrigin;
+}
+
+function getRequestOrigin(request: FastifyRequest): string | null {
+  const originHeader = getOriginHeader(request);
+
+  if (originHeader) {
+    return normalizeOrigin(originHeader);
+  }
+
+  const refererHeader =
+    typeof request.headers.referer === "string"
+      ? request.headers.referer.trim()
+      : "";
+
+  if (refererHeader) {
+    return normalizeOrigin(refererHeader);
+  }
+
+  return null;
+}
+
+function applyCorsHeaders(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  allowedOrigins: ReadonlySet<string>,
+) {
+  const allowedOrigin = getAllowedOriginForCors(request, allowedOrigins);
+
+  if (!allowedOrigin) {
+    return;
+  }
+
+  reply.header("vary", "Origin");
+  reply.header("access-control-allow-origin", allowedOrigin);
+  reply.header("access-control-allow-credentials", "true");
+}
+
+function enforceTrustedOrigin(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  allowedOrigins: ReadonlySet<string>,
+) {
+  if (!UNSAFE_METHODS.has(request.method.toUpperCase())) {
+    return true;
+  }
+
+  const requestOrigin = getRequestOrigin(request);
+
+  if (!requestOrigin || allowedOrigins.has(requestOrigin)) {
+    return true;
+  }
+
+  reply.code(403).send({
+    success: false,
+    error: "Origen no permitido",
+  });
+
+  return false;
+}
+
 function parsePositiveInteger(value: unknown): number | null {
   if (typeof value === "number") {
     return Number.isInteger(value) && value > 0 ? value : null;
@@ -430,6 +546,7 @@ export const adminPricingNativeRoutes: FastifyPluginAsync<
   AdminPricingNativeRoutesOptions
 > = async (app, options) => {
   const now = options.now ?? (() => Date.now());
+  const allowedOrigins = new Set(getAllowedOrigins());
 
   async function resolveDeps(): Promise<NativeAdminPricingDeps> {
     const hasAllInjectedDeps =
@@ -463,6 +580,38 @@ export const adminPricingNativeRoutes: FastifyPluginAsync<
     };
   }
 
+  app.addHook("onRequest", async (request, reply) => {
+    applyCorsHeaders(request, reply, allowedOrigins);
+  });
+
+  const optionsHandler = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ) => {
+    const requestOrigin = getRequestOrigin(request);
+
+    if (requestOrigin && !allowedOrigins.has(requestOrigin)) {
+      return reply.code(403).send({
+        success: false,
+        error: "Origen no permitido",
+      });
+    }
+
+    applyCorsHeaders(request, reply, allowedOrigins);
+    reply.header("access-control-allow-methods", "GET,PATCH,OPTIONS");
+
+    const requestedHeaders =
+      typeof request.headers["access-control-request-headers"] === "string"
+        ? request.headers["access-control-request-headers"]
+        : "content-type";
+
+    reply.header("access-control-allow-headers", requestedHeaders);
+    return reply.code(204).send();
+  };
+
+  app.options("/", optionsHandler);
+  app.options("/:id", optionsHandler);
+
   app.get("/", async (request, reply) => {
     try {
       const deps = await resolveDeps();
@@ -486,7 +635,7 @@ export const adminPricingNativeRoutes: FastifyPluginAsync<
 
       return reply.code(500).send({
         success: false,
-        error: "Error interno del servidor",
+        error: "No se pudieron cargar los precios administrables.",
       });
     }
   });
@@ -495,6 +644,10 @@ export const adminPricingNativeRoutes: FastifyPluginAsync<
     Params: AdminPricingRequestParams;
     Body: AdminPricingPatchBody;
   }>("/:id", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
     try {
       const deps = await resolveDeps();
       const admin = await authenticateAdminUser(request, reply, deps, now);
@@ -578,7 +731,7 @@ export const adminPricingNativeRoutes: FastifyPluginAsync<
 
       return reply.code(500).send({
         success: false,
-        error: "Error interno del servidor",
+        error: "No se pudieron guardar los cambios de precio.",
       });
     }
   });

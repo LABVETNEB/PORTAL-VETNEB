@@ -4,7 +4,7 @@ import type {
   FastifyRequest,
 } from "fastify";
 
-import type { Report, ReportAccessToken } from "../../drizzle/schema";
+import type { Report, ReportAccessToken } from "../../drizzle/schema.ts";
 import { AUDIT_EVENTS } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {

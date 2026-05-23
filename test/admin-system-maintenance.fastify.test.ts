@@ -8,11 +8,14 @@ process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
+process.env.CORS_ORIGIN ??=
+  "https://portal-vetneb-frontend-staging.onrender.com";
 
 const { ENV } = await import("../server/lib/env.ts");
 const { adminSystemMaintenanceNativeRoutes } = await import(
   "../server/routes/admin-system-maintenance.fastify.ts"
 );
+const STAGING_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 
 test("admin maintenance purge dry-run requiere sesión admin", async () => {
   const app = Fastify();
@@ -122,6 +125,101 @@ test("admin maintenance purge dry-run devuelve candidatos sin borrar", async () 
     assert.equal(body.totals.candidateRecords, 2);
     assert.equal(body.totals.unsupportedGroups, 1);
     assert.equal(updatedLastAccess, true);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin maintenance purge dry-run responde preflight OPTIONS", async () => {
+  const app = Fastify();
+
+  await app.register(adminSystemMaintenanceNativeRoutes, {
+    deleteAdminSession: async () => {},
+    getAdminSessionByToken: async () => null,
+    getAdminUserById: async () => null,
+    updateAdminSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    getMaintenancePurgeDryRunSnapshot: async () => ({
+      dryRun: true,
+      generatedAt: "2026-05-07T00:00:00.000Z",
+      candidates: [],
+      totals: {
+        candidateRecords: 0,
+        supportedCandidateRecords: 0,
+        unsupportedGroups: 0,
+      },
+    }),
+  });
+
+  try {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/purge-dry-run",
+      headers: {
+        origin: STAGING_ORIGIN,
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      STAGING_ORIGIN,
+    );
+    assert.equal(response.headers["access-control-allow-credentials"], "true");
+    assert.equal(
+      response.headers["access-control-allow-methods"],
+      "POST,OPTIONS",
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin maintenance purge dry-run bloquea origin no permitido", async () => {
+  const app = Fastify();
+
+  await app.register(adminSystemMaintenanceNativeRoutes, {
+    deleteAdminSession: async () => {},
+    getAdminSessionByToken: async () => ({
+      adminUserId: 1,
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+    }),
+    getAdminUserById: async () => ({
+      id: 1,
+      username: "VETNEB",
+    }),
+    updateAdminSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    getMaintenancePurgeDryRunSnapshot: async () => ({
+      dryRun: true,
+      generatedAt: "2026-05-07T00:00:00.000Z",
+      candidates: [],
+      totals: {
+        candidateRecords: 0,
+        supportedCandidateRecords: 0,
+        unsupportedGroups: 0,
+      },
+    }),
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/purge-dry-run",
+      headers: {
+        origin: "https://evil.example",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Origen no permitido",
+    });
   } finally {
     await app.close();
   }

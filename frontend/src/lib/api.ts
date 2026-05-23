@@ -50,6 +50,8 @@ export const PUBLIC_API_CONFIGURATION_ERROR_MESSAGE =
   "El servicio público no está configurado para recibir solicitudes. Contacte a VETNEB por los canales oficiales.";
 export const BACKEND_CONNECTION_ERROR_MESSAGE =
   "No se pudo conectar con el backend. Verifique sesión admin, CORS y despliegue backend/frontend.";
+export const BACKEND_OPERATION_ERROR_MESSAGE =
+  "El backend no pudo completar la operación. Reintentá y, si persiste, revisá estado del sistema y logs de backend.";
 
 function isLocalOrLanHostname(hostname: string): boolean {
   const normalizedHost = hostname.trim().toLowerCase();
@@ -189,7 +191,15 @@ async function apiFetch<T>(
           ? body.message
           : null;
 
-    throw new Error(backendMessage ?? `HTTP ${res.status}`);
+    if (backendMessage) {
+      throw new Error(backendMessage);
+    }
+
+    if (res.status >= 500) {
+      throw new Error(BACKEND_OPERATION_ERROR_MESSAGE);
+    }
+
+    throw new Error(`HTTP ${res.status}`);
   }
 
   if (res.status === 204) {
@@ -504,6 +514,25 @@ export async function linkAdminParticularTokenReport(
   );
 }
 
+export type AdminParticularTokenRevokeResponse = {
+  success: true;
+  message: string;
+  particularToken: AdminParticularTokenDetail | null;
+};
+
+export async function revokeAdminParticularToken(
+  tokenId: number,
+  options?: RequestInit,
+): Promise<AdminParticularTokenRevokeResponse> {
+  return apiFetch<AdminParticularTokenRevokeResponse>(
+    `/api/admin/particular-tokens/${tokenId}/revoke`,
+    {
+      ...options,
+      method: "PATCH",
+    },
+  );
+}
+
 
 
 
@@ -772,11 +801,11 @@ export async function getAuditEntries(
   readOptions: AdminReadOptions = {},
 ): Promise<AuditEntry[]> {
   try {
-    const res = await apiFetch<{ entries: AuditEntry[] }>(
+    const res = await apiFetch<{ entries?: AuditEntry[]; items?: AuditEntry[] }>(
       "/api/admin/audit-log",
       options,
     );
-    return res.entries ?? [];
+    return res.items ?? res.entries ?? [];
   } catch (error) {
     warnApiFallback("getAuditEntries", error);
     if (readOptions.throwOnError) {
@@ -990,6 +1019,42 @@ export async function updateAdminClinic(
     {
       ...options,
       method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export type AdminClinicDeletePayload = {
+  confirmClinicName: string;
+};
+
+export type AdminClinicDeleteResponse = {
+  success: true;
+  message: string;
+  clinic: {
+    clinicId: number;
+    clinicName: string;
+    contactEmail: string | null;
+    contactPhone: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+  deletedBy: {
+    adminUserId: number;
+    username: string;
+  };
+};
+
+export async function deleteAdminClinic(
+  clinicId: number,
+  payload: AdminClinicDeletePayload,
+  options?: RequestInit,
+): Promise<AdminClinicDeleteResponse> {
+  return apiFetch<AdminClinicDeleteResponse>(
+    `/api/admin/clinics/${clinicId}`,
+    {
+      ...options,
+      method: "DELETE",
       body: JSON.stringify(payload),
     },
   );

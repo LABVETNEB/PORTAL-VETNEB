@@ -3,7 +3,7 @@ import type {
   Report,
   ReportAccessToken,
   ReportStatus,
-} from "../../drizzle/schema";
+} from "../../drizzle/schema.ts";
 
 const rawTokenPattern = /^[a-f0-9]{64}$/i;
 

@@ -1,7 +1,7 @@
-﻿import type { AuditActorType, AuditEvent } from "../drizzle/schema";
+import type { AuditActorType, AuditEvent } from "../drizzle/schema.ts";
 import type { AuditListFilters } from "./lib/audit-log.ts";
 import { serializeAuditLogListItem } from "./lib/audit-log.ts";
-import { pgClient } from "./db";
+import { pgClient } from "./db.ts";
 
 type CreateAuditLogInput = {
   event: AuditEvent;

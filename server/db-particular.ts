@@ -1,11 +1,11 @@
 import { and, desc, eq, lte } from "drizzle-orm";
-import { db } from "./db";
+import { db } from "./db.ts";
 import {
   particularSessions,
   particularTokens,
   type NewParticularSession,
   type NewParticularToken,
-} from "../drizzle/schema";
+} from "../drizzle/schema.ts";
 
 export async function createParticularToken(
   input: Omit<NewParticularToken, "id" | "createdAt" | "updatedAt">,
@@ -78,6 +78,19 @@ export async function updateParticularTokenReport(
     .update(particularTokens)
     .set({
       reportId,
+      updatedAt: new Date(),
+    })
+    .where(eq(particularTokens.id, id))
+    .returning();
+
+  return result[0];
+}
+
+export async function revokeParticularToken(id: number) {
+  const result = await db
+    .update(particularTokens)
+    .set({
+      isActive: false,
       updatedAt: new Date(),
     })
     .where(eq(particularTokens.id, id))

@@ -4,7 +4,7 @@ import type {
   FastifyRequest,
 } from "fastify";
 
-import type { ParticularToken, Report } from "../../drizzle/schema";
+import type { ParticularToken, Report } from "../../drizzle/schema.ts";
 import { ENV } from "../lib/env.ts";
 import {
   buildValidationError,

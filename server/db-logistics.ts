@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gt, inArray, lte, or, sql } from "drizzle-orm";
-import { db } from "./db";
+import { db } from "./db.ts";
 import {
   fieldVisits,
   routeEvents,
@@ -22,7 +22,7 @@ import {
   type SlaInstanceStatus,
   type SlaTargetType,
   type VisitLocationGeoQuality,
-} from "../drizzle/schema";
+} from "../drizzle/schema.ts";
 import {
   assertValidTimeWindowRange,
   normalizeTimeWindowTimezone,

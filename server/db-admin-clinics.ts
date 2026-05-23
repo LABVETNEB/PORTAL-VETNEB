@@ -5,7 +5,7 @@ import {
   clinicUsers,
   clinics,
   type ClinicUserRole,
-} from "../drizzle/schema";
+} from "../drizzle/schema.ts";
 
 export type AdminClinicUserSummary = {
   userType: "clinic";
@@ -62,6 +62,10 @@ export type AdminClinicUserCredentialsUpdateInput = {
   username?: string;
   passwordHash?: string;
   now?: Date;
+};
+
+export type AdminClinicDeleteInput = {
+  clinicId: number;
 };
 
 export type AdminClinicCreateResult =
@@ -340,6 +344,43 @@ export async function updateAdminClinic(
     });
 
   return updated[0] ? serializeClinic(updated[0]) : null;
+}
+
+export async function getAdminClinicById(
+  clinicId: number,
+): Promise<AdminClinicSummary | null> {
+  const rows = await db
+    .select({
+      clinicId: clinics.id,
+      clinicName: clinics.name,
+      contactEmail: clinics.contactEmail,
+      contactPhone: clinics.contactPhone,
+      createdAt: clinics.createdAt,
+      updatedAt: clinics.updatedAt,
+    })
+    .from(clinics)
+    .where(eq(clinics.id, clinicId))
+    .limit(1);
+
+  return rows[0] ? serializeClinic(rows[0]) : null;
+}
+
+export async function deleteAdminClinic(
+  input: AdminClinicDeleteInput,
+): Promise<AdminClinicSummary | null> {
+  const deleted = await db
+    .delete(clinics)
+    .where(eq(clinics.id, input.clinicId))
+    .returning({
+      clinicId: clinics.id,
+      clinicName: clinics.name,
+      contactEmail: clinics.contactEmail,
+      contactPhone: clinics.contactPhone,
+      createdAt: clinics.createdAt,
+      updatedAt: clinics.updatedAt,
+    });
+
+  return deleted[0] ? serializeClinic(deleted[0]) : null;
 }
 
 export async function updateAdminClinicUserCredentials(

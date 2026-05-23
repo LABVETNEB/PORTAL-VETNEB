@@ -8,7 +8,7 @@ import type {
   ParticularToken,
   StudyTrackingCase,
   StudyTrackingNotification,
-} from "../../drizzle/schema";
+} from "../../drizzle/schema.ts";
 import { ENV } from "../lib/env.ts";
 import {
   parseBooleanQuery,

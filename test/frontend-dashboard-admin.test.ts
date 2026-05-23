@@ -152,11 +152,13 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes('id="admin-users-roles"'));
   assert.ok(source.includes('id="admin-event-summary"'));
   assert.ok(source.includes("Estado y mantenimiento"));
-  assert.ok(source.includes("Correo SMTP"));
+  assert.ok(source.includes("Transporte de correo"));
+  assert.ok(source.includes("Gmail API"));
   assert.ok(source.includes("Contacto email"));
   assert.ok(source.includes("CORS público"));
   assert.ok(source.includes("Entorno"));
-  assert.ok(source.includes("serviceChecks.smtp"));
+  assert.ok(source.includes("serviceChecks.email_transport"));
+  assert.ok(source.includes("serviceChecks.gmail_api"));
   assert.ok(source.includes("serviceChecks.contact_email"));
   assert.ok(source.includes("serviceChecks.cors"));
   assert.ok(source.includes("serviceChecks.contact_to_configured"));

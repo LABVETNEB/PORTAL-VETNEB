@@ -1,11 +1,11 @@
-﻿import { sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
-import { bootstrapHttpServer, type HttpServerHandle } from "./bootstrap";
-import { closeDbConnection, db, deleteExpiredAdminSessions, deleteExpiredSessions } from "./db";
-import { deleteExpiredParticularSessions } from "./db-particular";
-import { createFastifyApp } from "./fastify-app";
-import { ENV } from "./lib/env";
-import { ensureStorageBucketExists } from "./lib/supabase";
+import { bootstrapHttpServer, type HttpServerHandle } from "./bootstrap.ts";
+import { closeDbConnection, db, deleteExpiredAdminSessions, deleteExpiredSessions } from "./db.ts";
+import { deleteExpiredParticularSessions } from "./db-particular.ts";
+import { createFastifyApp } from "./fastify-app.ts";
+import { ENV } from "./lib/env.ts";
+import { ensureStorageBucketExists } from "./lib/supabase.ts";
 
 async function preflight() {
   await db.execute(sql`select 1`);

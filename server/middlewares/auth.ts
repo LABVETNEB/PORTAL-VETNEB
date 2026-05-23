@@ -1,5 +1,5 @@
-﻿import type { NextFunction, Request, Response } from "../lib/http-types.ts";
-import type { ClinicUserRole } from "../../drizzle/schema";
+import type { NextFunction, Request, Response } from "../lib/http-types.ts";
+import type { ClinicUserRole } from "../../drizzle/schema.ts";
 import type { ClinicPermissions } from "../lib/permissions.ts";
 
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";

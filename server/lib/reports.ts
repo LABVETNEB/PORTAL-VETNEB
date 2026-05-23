@@ -1,4 +1,4 @@
-import type { ReportStatus } from "../../drizzle/schema";
+import type { ReportStatus } from "../../drizzle/schema.ts";
 import { normalizeReportStatus } from "./report-status.ts";
 
 export function parsePositiveInt(value: unknown, fallback: number, max?: number) {

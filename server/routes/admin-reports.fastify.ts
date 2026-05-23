@@ -6,7 +6,7 @@ import type {
 } from "fastify";
 import multer from "multer";
 
-import type { Report } from "../../drizzle/schema";
+import type { Report } from "../../drizzle/schema.ts";
 import type { Multer } from "multer";
 import { AUDIT_EVENTS } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";

@@ -20,6 +20,7 @@ test("admin clinics management card is client-side and imports admin APIs", () =
   assert.ok(source.includes("createAdminClinicWithUser"));
   assert.ok(source.includes("getAdminClinics"));
   assert.ok(source.includes("updateAdminClinic"));
+  assert.ok(source.includes("deleteAdminClinic"));
   assert.ok(source.includes("updateAdminClinicUserCredentials"));
   assert.ok(source.includes("BACKEND_CONNECTION_ERROR_MESSAGE"));
   assert.ok(source.includes('import { Input } from "@/components/ui/input";'));
@@ -52,6 +53,13 @@ test("admin clinics management card lists clinics users and editable actions wit
   assert.ok(source.includes("<TableHead>Usuario</TableHead>"));
   assert.ok(source.includes("Guardar clínica"));
   assert.ok(source.includes("Guardar acceso"));
+  assert.ok(source.includes("Eliminar clínica"));
+  assert.ok(
+    source.includes(
+      "Vas a eliminar definitivamente la clínica",
+    ),
+  );
+  assert.ok(source.includes("confirmClinicName"));
   assert.ok(source.includes("formatDateTime(clinic.createdAt)"));
   assert.ok(source.includes("formatDateTime(clinic.updatedAt)"));
   assert.equal(source.includes("Cambiar rol"), false);

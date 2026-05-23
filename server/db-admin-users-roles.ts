@@ -6,7 +6,7 @@ import {
   clinicUsers,
   clinics,
   type ClinicUserRole,
-} from "../drizzle/schema";
+} from "../drizzle/schema.ts";
 
 export type AdminRoleUserType = "admin" | "clinic";
 export type AdminRoleUserRole = "admin" | ClinicUserRole;

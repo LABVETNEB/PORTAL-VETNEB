@@ -47,11 +47,14 @@ export type RouteStopStatus = (typeof ROUTE_STOP_STATUSES)[number];
 export const AUDIT_EVENTS = [
   "auth.admin.login.succeeded",
   "auth.clinic.login.succeeded",
+  "auth.session.revoked",
   "clinic.created",
   "clinic.updated",
+  "clinic.deleted",
   "clinic_user.created",
   "clinic_user.credentials.updated",
   "clinic_user.role.changed",
+  "admin.pricing.update",
   "report.status.changed",
   "report.uploaded",
   "study_tracking.case.created",
@@ -60,6 +63,8 @@ export const AUDIT_EVENTS = [
   "report_access_token.created",
   "report_access_token.revoked",
   "report.public_accessed",
+  "logistics.route_plan.lifecycle_changed",
+  "logistics.route_event.created",
 ] as const;
 export type AuditEvent = (typeof AUDIT_EVENTS)[number];
 

@@ -3,7 +3,7 @@ import type {
   FastifyReply,
   FastifyRequest,
 } from "fastify";
-import type { Report, ReportAccessToken } from "../../drizzle/schema";
+import type { Report, ReportAccessToken } from "../../drizzle/schema.ts";
 
 import {
   AUDIT_EVENTS,

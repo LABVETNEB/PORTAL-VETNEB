@@ -16,9 +16,9 @@ import {
   type LoginFailedAttemptReason,
   type LoginFailedAttemptSurface,
   type ReportStatus,
-} from "../drizzle/schema";
-import { ENV } from "./lib/env";
-import { normalizeClinicUserRole } from "./lib/permissions";
+} from "../drizzle/schema.ts";
+import { ENV } from "./lib/env.ts";
+import { normalizeClinicUserRole } from "./lib/permissions.ts";
 
 const client = postgres(ENV.databaseUrl, {
   prepare: false,

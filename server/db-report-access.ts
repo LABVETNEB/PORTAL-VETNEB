@@ -1,10 +1,10 @@
 import { and, desc, eq, sql } from "drizzle-orm";
-import { db } from "./db";
+import { db } from "./db.ts";
 import {
   reportAccessTokens,
   reports,
   type NewReportAccessToken,
-} from "../drizzle/schema";
+} from "../drizzle/schema.ts";
 
 export async function createReportAccessToken(
   input: Omit<

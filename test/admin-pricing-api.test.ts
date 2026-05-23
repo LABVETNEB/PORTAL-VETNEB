@@ -444,7 +444,40 @@ test("admin pricing mantiene error 500 seguro cuando falla persistencia", async 
     assert.equal(response.statusCode, 500);
     assert.deepEqual(JSON.parse(response.body), {
       success: false,
-      error: "Error interno del servidor",
+      error: "No se pudieron guardar los cambios de precio.",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin pricing PATCH bloquea origin no permitido", async () => {
+  const app = Fastify();
+
+  await app.register(
+    adminPricingNativeRoutes,
+    buildDeps({
+      listAdminPricingItems: async () => [createPricingItem()],
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/1",
+      headers: {
+        origin: "https://evil.example",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+      payload: {
+        isActive: false,
+      },
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Origen no permitido",
     });
   } finally {
     await app.close();
