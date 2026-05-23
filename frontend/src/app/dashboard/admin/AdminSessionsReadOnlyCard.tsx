@@ -238,6 +238,10 @@ export function AdminSessionsReadOnlyCard() {
                 snapshot.sessions.map((session) => {
                   const sessionKey = `${session.sessionType}-${session.sessionId}`;
                   const isRevoking = revokingSessionKey === sessionKey;
+                  const isCurrentAdminSession =
+                    session.sessionType === "admin" &&
+                    typeof snapshot.currentAdminSessionId === "number" &&
+                    session.sessionId === snapshot.currentAdminSessionId;
 
                   return (
                     <TableRow key={sessionKey}>
@@ -274,10 +278,14 @@ export function AdminSessionsReadOnlyCard() {
                         <Button
                           type="button"
                           variant="outline"
-                          disabled={isRevoking}
+                          disabled={isRevoking || isCurrentAdminSession}
                           onClick={() => void handleRevokeSession(session)}
                         >
-                          {isRevoking ? "Revocando..." : "Revocar"}
+                          {isCurrentAdminSession
+                            ? "Sesión actual"
+                            : isRevoking
+                              ? "Revocando..."
+                              : "Revocar"}
                         </Button>
                       </TableCell>
                     </TableRow>
