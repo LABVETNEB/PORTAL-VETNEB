@@ -163,11 +163,47 @@ export function AdminPricingEditorCard() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [savingItemId, setSavingItemId] = useState<number | null>(null);
+  const [isSavingAll, setIsSavingAll] = useState(false);
 
   const hasPricingItems = useMemo(
     () => categories.some((category) => category.items.length > 0),
     [categories],
   );
+
+  const { pendingItemIds, hasPendingValidationErrors } = useMemo(() => {
+    const ids: number[] = [];
+    let hasErrors = false;
+
+    for (const id of Object.keys(formStateById).map(Number)) {
+      const original = originalItemsById[id];
+      const form = formStateById[id];
+
+      if (!original || !form) {
+        continue;
+      }
+
+      const nextDisplayOrder = parseDisplayOrder(form.displayOrder);
+
+      if (nextDisplayOrder === null) {
+        ids.push(id);
+        hasErrors = true;
+        continue;
+      }
+
+      const nextPriceLabel = normalizePriceLabelForPayload(form.priceLabel);
+      const prevPriceLabel = normalizePriceLabelForPayload(original.priceLabel ?? "");
+
+      if (
+        nextPriceLabel !== prevPriceLabel ||
+        form.isActive !== original.isActive ||
+        nextDisplayOrder !== original.displayOrder
+      ) {
+        ids.push(id);
+      }
+    }
+
+    return { pendingItemIds: ids, hasPendingValidationErrors: hasErrors };
+  }, [formStateById, originalItemsById]);
 
   async function loadPricing() {
     setIsLoading(true);
@@ -259,8 +295,52 @@ export function AdminPricingEditorCard() {
     return { payload, errorMessage: null };
   }
 
+  async function handleSaveAll() {
+    if (savingItemId !== null || isSavingAll || pendingItemIds.length === 0 || hasPendingValidationErrors) {
+      return;
+    }
+
+    setIsSavingAll(true);
+
+    const toSave = pendingItemIds
+      .map((id) => ({ id, ...getUpdatePayload(id) }))
+      .filter(
+        (item): item is typeof item & { payload: AdminPricingUpdatePayload } =>
+          item.payload !== null && item.errorMessage === null,
+      );
+
+    for (const { id, payload } of toSave) {
+      try {
+        const response = await updateAdminPricingItem(id, payload);
+        const updatedItem = response.pricingItem;
+
+        setCategories((current) => applyUpdatedItem(current, updatedItem));
+        setOriginalItemsById((current) => ({
+          ...current,
+          [updatedItem.id]: updatedItem,
+        }));
+        setFormStateById((current) => ({
+          ...current,
+          [updatedItem.id]: {
+            ...toFormState(updatedItem),
+            statusMessage: SAVE_SUCCESS_MESSAGE,
+            errorMessage: null,
+          },
+        }));
+      } catch (error) {
+        updateItemFormState(id, (current) => ({
+          ...current,
+          statusMessage: null,
+          errorMessage: formatAdminPricingError(error, SAVE_ERROR_MESSAGE),
+        }));
+      }
+    }
+
+    setIsSavingAll(false);
+  }
+
   async function handleSaveItem(itemId: number) {
-    if (savingItemId !== null) {
+    if (savingItemId !== null || isSavingAll) {
       return;
     }
 
@@ -329,13 +409,34 @@ export function AdminPricingEditorCard() {
             Gestión manual de etiquetas de precio por estudio.
           </CardDescription>
         </div>
-        <Button
-          type="button"
-          onClick={() => void loadPricing()}
-          disabled={isLoading || savingItemId !== null}
-        >
-          {isLoading ? "Actualizando..." : "Actualizar"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void handleSaveAll()}
+            disabled={
+              isLoading ||
+              savingItemId !== null ||
+              isSavingAll ||
+              pendingItemIds.length === 0 ||
+              hasPendingValidationErrors
+            }
+            data-save-all
+          >
+            {isSavingAll
+              ? "Guardando todos..."
+              : pendingItemIds.length > 0
+                ? `Guardar todos (${pendingItemIds.length})`
+                : "Guardar todos"}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => void loadPricing()}
+            disabled={isLoading || savingItemId !== null || isSavingAll}
+          >
+            {isLoading ? "Actualizando..." : "Actualizar"}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4 pt-6">
         {loadError ? (
@@ -391,7 +492,7 @@ export function AdminPricingEditorCard() {
                       >
                         <fieldset
                           className="grid grid-cols-1 gap-3 lg:grid-cols-2"
-                          disabled={isSaving}
+                          disabled={isSaving || isSavingAll}
                         >
                           <label className="space-y-2">
                             <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -501,7 +602,7 @@ export function AdminPricingEditorCard() {
                             ) : null}
                           </div>
 
-                          <Button type="submit" disabled={isSaving}>
+                          <Button type="submit" disabled={isSaving || isSavingAll}>
                             {isSaving ? "Guardando..." : "Guardar precio"}
                           </Button>
                         </div>
