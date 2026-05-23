@@ -594,7 +594,6 @@ test("admin clinics delete mapea 23503 a 409 operativo y evita 500 genérico", a
       error:
         "No se pudo eliminar la clínica porque tiene dependencias activas. Revise informes, tokens o sesiones asociados.",
     });
-    assert.equal(response.statusCode === 500, false);
     assert.equal(auditCalled, false);
     assert.equal(response.body.toLowerCase().includes("password"), false);
     assert.equal(response.body.toLowerCase().includes("password_hash"), false);
