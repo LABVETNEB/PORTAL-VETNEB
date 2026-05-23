@@ -48,6 +48,8 @@ const LOCAL_DEVELOPMENT_API_BASE_URL = "http://localhost:3000";
 
 export const PUBLIC_API_CONFIGURATION_ERROR_MESSAGE =
   "El servicio público no está configurado para recibir solicitudes. Contacte a VETNEB por los canales oficiales.";
+export const BACKEND_CONNECTION_ERROR_MESSAGE =
+  "No se pudo conectar con el backend. Verifique sesión admin, CORS y despliegue backend/frontend.";
 
 function isLocalOrLanHostname(hostname: string): boolean {
   const normalizedHost = hostname.trim().toLowerCase();
@@ -153,17 +155,41 @@ async function apiFetch<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(`${apiBaseUrl}${path}`, {
-    ...options,
-    credentials: options.credentials ?? "include",
-    headers,
-  });
+  let res: Response;
+
+  try {
+    res = await fetch(`${apiBaseUrl}${path}`, {
+      ...options,
+      credentials: options.credentials ?? "include",
+      headers,
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      const errorDetail =
+        error instanceof Error ? error.message : String(error);
+      console.warn(`[API] ${path}: ${errorDetail}`);
+    }
+
+    if (error instanceof TypeError) {
+      throw new Error(BACKEND_CONNECTION_ERROR_MESSAGE);
+    }
+
+    throw error;
+  }
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(
-      (body as { error?: string }).error ?? `HTTP ${res.status}`,
-    );
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: unknown;
+      message?: unknown;
+    };
+    const backendMessage =
+      typeof body.error === "string" && body.error.trim()
+        ? body.error
+        : typeof body.message === "string" && body.message.trim()
+          ? body.message
+          : null;
+
+    throw new Error(backendMessage ?? `HTTP ${res.status}`);
   }
 
   if (res.status === 204) {

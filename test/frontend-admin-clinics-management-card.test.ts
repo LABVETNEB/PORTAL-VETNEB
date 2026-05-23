@@ -21,13 +21,13 @@ test("admin clinics management card is client-side and imports admin APIs", () =
   assert.ok(source.includes("getAdminClinics"));
   assert.ok(source.includes("updateAdminClinic"));
   assert.ok(source.includes("updateAdminClinicUserCredentials"));
-  assert.ok(source.includes("changeAdminClinicUserRole"));
+  assert.ok(source.includes("BACKEND_CONNECTION_ERROR_MESSAGE"));
   assert.ok(source.includes('import { Input } from "@/components/ui/input";'));
   assert.ok(source.includes('import { Button } from "@/components/ui/button";'));
-  assert.ok(source.includes('import { Badge } from "@/components/ui/badge";'));
+  assert.equal(source.includes('import { Badge } from "@/components/ui/badge";'), false);
 });
 
-test("admin clinics management card contains alta clínica form fields", () => {
+test("admin clinics management card contains alta clínica form fields without roles", () => {
   const source = read(ADMIN_CLINICS_CARD_PATH);
 
   assert.ok(source.includes("Nombre clínica"));
@@ -35,36 +35,49 @@ test("admin clinics management card contains alta clínica form fields", () => {
   assert.ok(source.includes("Teléfono"));
   assert.ok(source.includes("Usuario de acceso"));
   assert.ok(source.includes("Contraseña inicial"));
-  assert.ok(source.includes("Rol inicial"));
   assert.ok(source.includes("Crear clínica"));
-  assert.ok(source.includes('value={createForm.role}'));
-  assert.ok(source.includes('<option value="clinic_owner">Owner clínica</option>'));
-  assert.ok(source.includes('<option value="clinic_staff">Staff clínica</option>'));
+  assert.equal(source.includes("Rol inicial"), false);
+  assert.equal(source.includes("<TableHead>Rol</TableHead>"), false);
+  assert.equal(source.includes("Owner clínica"), false);
+  assert.equal(source.includes("Staff clínica"), false);
+  assert.equal(source.includes("createForm.role"), false);
 });
 
-test("admin clinics management card lists clinics users and editable actions", () => {
+test("admin clinics management card lists clinics users and editable actions without role actions", () => {
   const source = read(ADMIN_CLINICS_CARD_PATH);
 
   assert.ok(source.includes('<Card id="admin-clinics"'));
   assert.ok(source.includes("<TableHead>Clínica</TableHead>"));
   assert.ok(source.includes("<TableHead>Contacto</TableHead>"));
   assert.ok(source.includes("<TableHead>Usuario</TableHead>"));
-  assert.ok(source.includes("<TableHead>Rol</TableHead>"));
   assert.ok(source.includes("Guardar clínica"));
   assert.ok(source.includes("Guardar acceso"));
-  assert.ok(source.includes("Cambiar rol"));
   assert.ok(source.includes("formatDateTime(clinic.createdAt)"));
   assert.ok(source.includes("formatDateTime(clinic.updatedAt)"));
+  assert.equal(source.includes("Cambiar rol"), false);
+  assert.equal(source.includes("handleChangeRole"), false);
+  assert.equal(source.includes("ShieldCheck"), false);
 });
 
-test("admin clinics management card confirms credential replacement and avoids hashes", () => {
+test("admin clinics management card keeps admin-entered passwords visible and avoids hashes", () => {
   const source = read(ADMIN_CLINICS_CARD_PATH);
 
   assert.ok(source.includes("window.confirm("));
-  assert.ok(source.includes("La contraseña se reemplaza; no se puede consultar la actual."));
+  assert.ok(source.includes("Se reemplazará la contraseña de acceso de esta clínica. ¿Confirmás el cambio?"));
+  assert.ok(source.includes("La contraseña anterior no se puede consultar. Para recuperación,"));
   assert.ok(source.includes("Nueva contraseña"));
+  assert.equal(source.includes('type="password"'), false);
+  assert.ok(source.includes('type="text"'));
   assert.equal(source.includes("passwordHash"), false);
   assert.equal(source.includes("password_hash"), false);
   assert.equal(source.includes("hash"), false);
   assert.equal(source.includes("contraseña actual"), false);
+});
+
+test("admin clinics management card maps fetch failures to an operational backend message", () => {
+  const source = read(ADMIN_CLINICS_CARD_PATH);
+
+  assert.ok(source.includes("formatAdminClinicsError"));
+  assert.ok(source.includes("BACKEND_CONNECTION_ERROR_MESSAGE"));
+  assert.ok(source.includes('includes("failed to fetch")'));
 });

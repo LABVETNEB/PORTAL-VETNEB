@@ -77,3 +77,14 @@ test("frontend API client exposes admin clinics management endpoints", () => {
   assert.ok(source.includes("): Promise<AdminClinicUserCredentialsUpdateResponse>"));
   assert.ok(source.includes("`/api/admin/users-roles/clinic/${clinicUserId}/credentials`,"));
 });
+
+test("frontend admin clinic create contract keeps role optional outside the visible form", () => {
+  const typesSource = read("frontend/src/types/index.ts");
+  const cardSource = read("frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx");
+
+  assert.ok(typesSource.includes("export type AdminClinicCreatePayload = {"));
+  assert.ok(typesSource.includes("role?: ClinicUserRole;"));
+  assert.ok(cardSource.includes('role: "clinic_owner"'));
+  assert.equal(cardSource.includes("Rol inicial"), false);
+  assert.equal(cardSource.includes("createForm.role"), false);
+});
