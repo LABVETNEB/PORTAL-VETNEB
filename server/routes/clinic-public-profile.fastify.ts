@@ -4,7 +4,6 @@ import type {
   FastifyRequest,
 } from "fastify";
 import multer from "multer";
-import type { Multer } from "multer";
 
 import { ENV } from "../lib/env.ts";
 import {
