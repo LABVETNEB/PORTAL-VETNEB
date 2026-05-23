@@ -2,9 +2,27 @@ import { asc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "./db.ts";
 import {
+  activeSessions,
+  clinicPublicProfiles,
+  clinicPublicSearch,
   clinicUsers,
   clinics,
+  fieldVisits,
+  particularSessions,
+  particularTokens,
+  reportAccessTokens,
+  reportStatusHistory,
+  reports,
+  routeEvents,
+  routePlans,
+  routeStops,
+  slaInstances,
+  slaPolicies,
+  studyTrackingCases,
+  studyTrackingNotifications,
+  timeWindows,
   type ClinicUserRole,
+  visitLocations,
 } from "../drizzle/schema.ts";
 
 export type AdminClinicUserSummary = {
@@ -110,6 +128,54 @@ type ClinicUserRow = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+let requiresLegacyClinicIdCache: boolean | null = null;
+
+type LegacyClinicIdColumnRow = {
+  isNullable: string;
+};
+
+function buildLegacyClinicExternalId(clinicId: number) {
+  return `clinic-${clinicId}`;
+}
+
+async function requiresLegacyClinicId(tx: DbTransaction): Promise<boolean> {
+  if (requiresLegacyClinicIdCache !== null) {
+    return requiresLegacyClinicIdCache;
+  }
+
+  const rows = await tx.execute<LegacyClinicIdColumnRow>(sql`
+    select is_nullable as "isNullable"
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'clinics'
+      and column_name = 'clinic_id'
+    limit 1
+  `);
+  const column = rows[0];
+  requiresLegacyClinicIdCache = column?.isNullable === "NO";
+
+  return requiresLegacyClinicIdCache;
+}
+
+type ReservedClinicIdRow = {
+  clinicId: number;
+};
+
+async function reserveNextClinicId(tx: DbTransaction): Promise<number> {
+  const rows = await tx.execute<ReservedClinicIdRow>(sql`
+    select nextval(pg_get_serial_sequence('public.clinics', 'id'))::int as "clinicId"
+  `);
+  const reserved = rows[0];
+
+  if (!reserved?.clinicId || !Number.isInteger(reserved.clinicId)) {
+    throw new Error("No se pudo reservar el id de clínica.");
+  }
+
+  return reserved.clinicId;
+}
 
 function toIsoDate(value: Date) {
   return value.toISOString();
@@ -255,23 +321,57 @@ export async function createAdminClinicWithUser(
 
   return db.transaction(async (tx) => {
     const now = input.now ?? new Date();
-    const insertedClinics = await tx
-      .insert(clinics)
-      .values({
-        name: input.clinicName.trim(),
-        contactEmail: input.contactEmail.trim(),
-        contactPhone: input.contactPhone?.trim() || null,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning({
-        clinicId: clinics.id,
-        clinicName: clinics.name,
-        contactEmail: clinics.contactEmail,
-        contactPhone: clinics.contactPhone,
-        createdAt: clinics.createdAt,
-        updatedAt: clinics.updatedAt,
-      });
+    const useLegacyClinicId = await requiresLegacyClinicId(tx);
+    const insertedClinics = useLegacyClinicId
+      ? await (async () => {
+          const reservedClinicId = await reserveNextClinicId(tx);
+          const legacyClinicId = buildLegacyClinicExternalId(reservedClinicId);
+
+          return tx.execute<ClinicRow>(sql`
+            insert into "clinics" (
+              "id",
+              "clinic_id",
+              "name",
+              "contact_email",
+              "contact_phone",
+              "created_at",
+              "updated_at"
+            )
+            values (
+              ${reservedClinicId},
+              ${legacyClinicId},
+              ${input.clinicName.trim()},
+              ${input.contactEmail.trim()},
+              ${input.contactPhone?.trim() || null},
+              ${now},
+              ${now}
+            )
+            returning
+              "id" as "clinicId",
+              "name" as "clinicName",
+              "contact_email" as "contactEmail",
+              "contact_phone" as "contactPhone",
+              "created_at" as "createdAt",
+              "updated_at" as "updatedAt"
+          `);
+        })()
+      : await tx
+          .insert(clinics)
+          .values({
+            name: input.clinicName.trim(),
+            contactEmail: input.contactEmail.trim(),
+            contactPhone: input.contactPhone?.trim() || null,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .returning({
+            clinicId: clinics.id,
+            clinicName: clinics.name,
+            contactEmail: clinics.contactEmail,
+            contactPhone: clinics.contactPhone,
+            createdAt: clinics.createdAt,
+            updatedAt: clinics.updatedAt,
+          });
     const clinic = insertedClinics[0];
     const insertedUsers = await tx
       .insert(clinicUsers)
@@ -368,19 +468,153 @@ export async function getAdminClinicById(
 export async function deleteAdminClinic(
   input: AdminClinicDeleteInput,
 ): Promise<AdminClinicSummary | null> {
-  const deleted = await db
-    .delete(clinics)
-    .where(eq(clinics.id, input.clinicId))
-    .returning({
-      clinicId: clinics.id,
-      clinicName: clinics.name,
-      contactEmail: clinics.contactEmail,
-      contactPhone: clinics.contactPhone,
-      createdAt: clinics.createdAt,
-      updatedAt: clinics.updatedAt,
-    });
+  return db.transaction(async (tx) => {
+    const clinicRows = await tx
+      .select({
+        clinicId: clinics.id,
+        clinicName: clinics.name,
+        contactEmail: clinics.contactEmail,
+        contactPhone: clinics.contactPhone,
+        createdAt: clinics.createdAt,
+        updatedAt: clinics.updatedAt,
+      })
+      .from(clinics)
+      .where(eq(clinics.id, input.clinicId))
+      .limit(1);
+    const clinic = clinicRows[0];
 
-  return deleted[0] ? serializeClinic(deleted[0]) : null;
+    if (!clinic) {
+      return null;
+    }
+
+    const [clinicUserRows, reportRows, particularTokenRows, fieldVisitRows, routePlanRows] =
+      await Promise.all([
+        tx
+          .select({ id: clinicUsers.id })
+          .from(clinicUsers)
+          .where(eq(clinicUsers.clinicId, input.clinicId)),
+        tx
+          .select({ id: reports.id })
+          .from(reports)
+          .where(eq(reports.clinicId, input.clinicId)),
+        tx
+          .select({ id: particularTokens.id })
+          .from(particularTokens)
+          .where(eq(particularTokens.clinicId, input.clinicId)),
+        tx
+          .select({ id: fieldVisits.id })
+          .from(fieldVisits)
+          .where(eq(fieldVisits.clinicId, input.clinicId)),
+        tx
+          .select({ id: routePlans.id })
+          .from(routePlans)
+          .where(eq(routePlans.clinicId, input.clinicId)),
+      ]);
+
+    const clinicUserIds = clinicUserRows.map((row) => row.id);
+    const reportIds = reportRows.map((row) => row.id);
+    const particularTokenIds = particularTokenRows.map((row) => row.id);
+    const fieldVisitIds = fieldVisitRows.map((row) => row.id);
+    const routePlanIds = routePlanRows.map((row) => row.id);
+
+    if (reportIds.length > 0) {
+      await tx
+        .delete(reportAccessTokens)
+        .where(inArray(reportAccessTokens.reportId, reportIds));
+      await tx
+        .delete(reportStatusHistory)
+        .where(inArray(reportStatusHistory.reportId, reportIds));
+    }
+
+    await tx
+      .delete(reportAccessTokens)
+      .where(eq(reportAccessTokens.clinicId, input.clinicId));
+
+    if (particularTokenIds.length > 0) {
+      await tx
+        .delete(particularSessions)
+        .where(inArray(particularSessions.particularTokenId, particularTokenIds));
+    }
+
+    if (clinicUserIds.length > 0) {
+      await tx
+        .delete(activeSessions)
+        .where(inArray(activeSessions.clinicUserId, clinicUserIds));
+    }
+
+    await tx
+      .delete(studyTrackingNotifications)
+      .where(eq(studyTrackingNotifications.clinicId, input.clinicId));
+
+    await tx
+      .delete(routeEvents)
+      .where(eq(routeEvents.clinicId, input.clinicId));
+
+    if (routePlanIds.length > 0) {
+      await tx
+        .delete(routeStops)
+        .where(inArray(routeStops.routePlanId, routePlanIds));
+    }
+
+    if (fieldVisitIds.length > 0) {
+      await tx
+        .delete(routeStops)
+        .where(inArray(routeStops.fieldVisitId, fieldVisitIds));
+      await tx
+        .delete(visitLocations)
+        .where(inArray(visitLocations.fieldVisitId, fieldVisitIds));
+      await tx
+        .delete(timeWindows)
+        .where(inArray(timeWindows.fieldVisitId, fieldVisitIds));
+    }
+
+    await tx
+      .delete(studyTrackingCases)
+      .where(eq(studyTrackingCases.clinicId, input.clinicId));
+    await tx
+      .delete(slaInstances)
+      .where(eq(slaInstances.clinicId, input.clinicId));
+    await tx
+      .delete(slaPolicies)
+      .where(eq(slaPolicies.clinicId, input.clinicId));
+    await tx
+      .delete(routePlans)
+      .where(eq(routePlans.clinicId, input.clinicId));
+    await tx
+      .delete(fieldVisits)
+      .where(eq(fieldVisits.clinicId, input.clinicId));
+    await tx
+      .delete(particularTokens)
+      .where(eq(particularTokens.clinicId, input.clinicId));
+    await tx
+      .delete(reports)
+      .where(eq(reports.clinicId, input.clinicId));
+    await tx
+      .delete(clinicPublicSearch)
+      .where(eq(clinicPublicSearch.clinicId, input.clinicId));
+    await tx
+      .delete(clinicPublicProfiles)
+      .where(eq(clinicPublicProfiles.clinicId, input.clinicId));
+    await tx
+      .delete(clinicUsers)
+      .where(eq(clinicUsers.clinicId, input.clinicId));
+    await tx
+      .execute(sql`update "audit_log" set "clinic_id" = null where "clinic_id" = ${input.clinicId}`);
+
+    const deleted = await tx
+      .delete(clinics)
+      .where(eq(clinics.id, input.clinicId))
+      .returning({
+        clinicId: clinics.id,
+        clinicName: clinics.name,
+        contactEmail: clinics.contactEmail,
+        contactPhone: clinics.contactPhone,
+        createdAt: clinics.createdAt,
+        updatedAt: clinics.updatedAt,
+      });
+
+    return deleted[0] ? serializeClinic(deleted[0]) : serializeClinic(clinic);
+  });
 }
 
 export async function updateAdminClinicUserCredentials(

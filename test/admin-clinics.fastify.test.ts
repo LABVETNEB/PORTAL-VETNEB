@@ -312,6 +312,59 @@ test("admin clinics devuelve 409 al crear usuario duplicado", async () => {
   }
 });
 
+test("admin clinics devuelve 500 operativo cuando create falla por incompatibilidad de esquema (23502)", async () => {
+  const app = Fastify();
+  let auditCalled = false;
+
+  await app.register(
+    adminClinicsNativeRoutes,
+    buildDeps({
+      createAdminClinicWithUser: async () => {
+        throw {
+          name: "PostgresError",
+          code: "23502",
+          constraint_name: "clinics_clinic_id_not_null",
+          column_name: "clinic_id",
+        };
+      },
+      writeAuditLog: async () => {
+        auditCalled = true;
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        origin: STAGING_ORIGIN,
+      },
+      payload: {
+        clinicName: "Clínica Demo",
+        contactEmail: "demo@clinic.test",
+        username: "clinic-owner",
+        password: "claveSegura1",
+      },
+    });
+
+    assert.equal(response.statusCode, 500);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error:
+        "No se pudo crear la clínica por incompatibilidad de esquema de base de datos.",
+    });
+    assert.equal(auditCalled, false);
+    assert.equal(response.body.includes("claveSegura1"), false);
+    assert.equal(response.body.toLowerCase().includes("password"), false);
+    assert.equal(response.body.toLowerCase().includes("password_hash"), false);
+    assert.equal(response.body.toLowerCase().includes("token"), false);
+  } finally {
+    await app.close();
+  }
+});
+
 test("admin clinics cambia datos básicos de clínica y audita", async () => {
   const app = Fastify();
   const auditWrites: Array<{
@@ -427,6 +480,11 @@ test("admin clinics elimina clínica con confirmación exacta y audita evento se
     assert.equal(body.success, true);
     assert.equal(body.clinic.clinicId, 10);
     assert.equal(body.message, "Clínica eliminada definitivamente.");
+    assert.equal(body.clinic.passwordHash, undefined);
+    assert.equal(body.clinic.password_hash, undefined);
+    assert.equal(JSON.stringify(body).includes("password"), false);
+    assert.equal(JSON.stringify(body).includes("password_hash"), false);
+    assert.equal(JSON.stringify(body).includes("token"), false);
     assert.deepEqual(deleteCalls, [{ clinicId: 10 }]);
     assert.equal(auditWrites.length, 1);
     assert.equal(auditWrites[0].input.event, "clinic.deleted");
@@ -490,6 +548,57 @@ test("admin clinics delete exige confirmación exacta y trusted origin", async (
       error: "Origen no permitido",
     });
     assert.equal(deleteCalled, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin clinics delete mapea 23503 a 409 operativo y evita 500 genérico", async () => {
+  const app = Fastify();
+  let auditCalled = false;
+
+  await app.register(
+    adminClinicsNativeRoutes,
+    buildDeps({
+      getAdminClinicById: async () => demoClinic,
+      deleteAdminClinic: async () => {
+        throw {
+          name: "PostgresError",
+          code: "23503",
+          constraint_name: "report_access_tokens_clinic_id_fkey",
+        };
+      },
+      writeAuditLog: async () => {
+        auditCalled = true;
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/10",
+      headers: {
+        origin: STAGING_ORIGIN,
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        confirmClinicName: "Clínica Demo",
+      },
+    });
+
+    assert.equal(response.statusCode, 409);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error:
+        "No se pudo eliminar la clínica porque tiene dependencias activas. Revise informes, tokens o sesiones asociados.",
+    });
+    assert.equal(response.statusCode === 500, false);
+    assert.equal(auditCalled, false);
+    assert.equal(response.body.toLowerCase().includes("password"), false);
+    assert.equal(response.body.toLowerCase().includes("password_hash"), false);
+    assert.equal(response.body.toLowerCase().includes("hash"), false);
   } finally {
     await app.close();
   }
