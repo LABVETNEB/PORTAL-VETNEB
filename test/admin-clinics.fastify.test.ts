@@ -8,6 +8,7 @@ process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
+process.env.CORS_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 
 const { ENV } = await import("../server/lib/env.ts");
 const { adminClinicsNativeRoutes } = await import(
@@ -43,6 +44,8 @@ const demoClinicUser = {
   createdAt: "2026-05-08T00:00:00.000Z",
   updatedAt: "2026-05-08T00:00:00.000Z",
 };
+
+const STAGING_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 
 function buildDeps(
   overrides: Partial<AdminClinicsNativeRoutesOptions> = {},
@@ -113,6 +116,43 @@ test("admin clinics requiere sesión admin", async () => {
   }
 });
 
+test("admin clinics responde preflight OPTIONS para frontend staging", async () => {
+  const app = Fastify();
+
+  await app.register(adminClinicsNativeRoutes, buildDeps());
+
+  try {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/",
+      headers: {
+        origin: STAGING_ORIGIN,
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(response.body, "");
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      STAGING_ORIGIN,
+    );
+    assert.equal(response.headers["access-control-allow-credentials"], "true");
+    assert.equal(
+      response.headers["access-control-allow-methods"],
+      "GET,POST,PATCH,OPTIONS",
+    );
+    assert.equal(
+      response.headers["access-control-allow-headers"],
+      "content-type",
+    );
+    assert.equal(response.headers["set-cookie"], undefined);
+  } finally {
+    await app.close();
+  }
+});
+
 test("admin clinics lista clínicas y usuarios sanitizados", async () => {
   const app = Fastify();
 
@@ -142,7 +182,7 @@ test("admin clinics lista clínicas y usuarios sanitizados", async () => {
   }
 });
 
-test("admin clinics crea clínica y usuario con hash existente y respuesta sanitizada", async () => {
+test("admin clinics crea clínica y usuario sin role visible con default owner y respuesta sanitizada", async () => {
   const app = Fastify();
   const auditWrites: Array<{
     input: {
@@ -192,7 +232,6 @@ test("admin clinics crea clínica y usuario con hash existente y respuesta sanit
         contactPhone: "1144556677",
         username: "clinic-owner",
         password: "claveSegura1",
-        role: "clinic_owner",
       },
     });
 
@@ -204,8 +243,10 @@ test("admin clinics crea clínica y usuario con hash existente y respuesta sanit
     assert.equal(body.clinic.clinicName, "Clínica Demo");
     assert.equal(body.user.username, "clinic-owner");
     assert.equal(body.user.passwordHash, undefined);
+    assert.equal(body.user.password_hash, undefined);
     assert.equal(JSON.stringify(body).includes("claveSegura1"), false);
     assert.equal(JSON.stringify(body).includes("argon:"), false);
+    assert.equal(JSON.stringify(body).includes("password_hash"), false);
 
     assert.equal(auditWrites.length, 2);
     assert.equal(auditWrites[0].input.event, "clinic.created");
@@ -213,6 +254,7 @@ test("admin clinics crea clínica y usuario con hash existente y respuesta sanit
     assert.equal(JSON.stringify(auditWrites).includes("claveSegura1"), false);
     assert.equal(JSON.stringify(auditWrites).includes("argon:"), false);
     assert.equal(JSON.stringify(auditWrites).includes("password"), false);
+    assert.equal(JSON.stringify(auditWrites).includes("password_hash"), false);
     assert.equal(JSON.stringify(auditWrites).includes("hash"), false);
   } finally {
     await app.close();

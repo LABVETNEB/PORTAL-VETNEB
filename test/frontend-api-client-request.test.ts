@@ -28,13 +28,14 @@ test("frontend API client resolves backend base URL with explicit public safegua
   assert.ok(source.includes("async function apiFetch<T>("));
   assert.ok(source.includes("path: string,"));
   assert.ok(source.includes("options: RequestInit = {},"));
+  assert.ok(source.includes("export const BACKEND_CONNECTION_ERROR_MESSAGE ="));
 });
 
 test("frontend API client sends cookies by default", () => {
   const source = read(API_CLIENT_PATH);
 
   assert.ok(source.includes("const apiBaseUrl = resolveApiBaseUrlForRuntime();"));
-  assert.ok(source.includes("await fetch(`${apiBaseUrl}${path}`, {"));
+  assert.ok(source.includes("res = await fetch(`${apiBaseUrl}${path}`, {"));
   assert.ok(source.includes("...options,"));
   assert.ok(source.includes('credentials: options.credentials ?? "include",'));
   assert.ok(source.includes("headers,"));
@@ -66,9 +67,22 @@ test("frontend API client surfaces backend errors safely", () => {
   const source = read(API_CLIENT_PATH);
 
   assert.ok(source.includes("if (!res.ok) {"));
-  assert.ok(source.includes("const body = await res.json().catch(() => ({}));"));
-  assert.ok(source.includes("throw new Error("));
-  assert.ok(source.includes('(body as { error?: string }).error ?? `HTTP ${res.status}`,'));
+  assert.ok(source.includes("const body = (await res.json().catch(() => ({}))) as {"));
+  assert.ok(source.includes("error?: unknown;"));
+  assert.ok(source.includes("message?: unknown;"));
+  assert.ok(source.includes("const backendMessage ="));
+  assert.ok(source.includes("throw new Error(backendMessage ?? `HTTP ${res.status}`);"));
+});
+
+test("frontend API client maps fetch network and CORS errors to operational admin guidance", () => {
+  const source = read(API_CLIENT_PATH);
+
+  assert.ok(source.includes("try {"));
+  assert.ok(source.includes("} catch (error) {"));
+  assert.ok(source.includes("console.warn(`[API] ${path}: ${errorDetail}`);"));
+  assert.ok(source.includes("if (error instanceof TypeError) {"));
+  assert.ok(source.includes("throw new Error(BACKEND_CONNECTION_ERROR_MESSAGE);"));
+  assert.ok(source.includes("No se pudo conectar con el backend. Verifique sesión admin, CORS y despliegue backend/frontend."));
 });
 
 test("frontend API client handles empty and JSON responses", () => {

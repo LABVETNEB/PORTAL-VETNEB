@@ -1,8 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
-import { KeyRound, Plus, RefreshCw, Save, ShieldCheck } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { KeyRound, Plus, RefreshCw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  changeAdminClinicUserRole,
+  BACKEND_CONNECTION_ERROR_MESSAGE,
   createAdminClinicWithUser,
   getAdminClinics,
   updateAdminClinic,
@@ -30,7 +29,6 @@ import { formatDateTime } from "@/lib/utils";
 import type {
   AdminClinicManagementSummary,
   AdminClinicsSnapshot,
-  ClinicUserRole,
 } from "@/types";
 
 const PAGE_SIZE = 50;
@@ -41,7 +39,6 @@ type CreateClinicForm = {
   contactPhone: string;
   username: string;
   password: string;
-  role: ClinicUserRole;
 };
 
 type ClinicDraft = {
@@ -53,7 +50,6 @@ type ClinicDraft = {
 type UserDraft = {
   username: string;
   password: string;
-  role: ClinicUserRole;
 };
 
 type ClinicUserRow = {
@@ -68,18 +64,7 @@ function getInitialCreateForm(): CreateClinicForm {
     contactPhone: "",
     username: "",
     password: "",
-    role: "clinic_owner",
   };
-}
-
-function formatRole(value: ClinicUserRole) {
-  return value === "clinic_owner" ? "Owner clínica" : "Staff clínica";
-}
-
-function getRoleVariant(
-  value: ClinicUserRole,
-): "default" | "secondary" | "destructive" | "outline" {
-  return value === "clinic_owner" ? "secondary" : "outline";
 }
 
 function getUserDraftKey(userId: number) {
@@ -111,6 +96,20 @@ function getClinicUserRows(snapshot: AdminClinicsSnapshot | null): ClinicUserRow
   return rows;
 }
 
+function formatAdminClinicsError(error: unknown, fallback: string) {
+  if (error instanceof TypeError) {
+    return BACKEND_CONNECTION_ERROR_MESSAGE;
+  }
+
+  if (error instanceof Error) {
+    return error.message.toLowerCase().includes("failed to fetch")
+      ? BACKEND_CONNECTION_ERROR_MESSAGE
+      : error.message;
+  }
+
+  return fallback;
+}
+
 export function AdminClinicsManagementCard() {
   const [snapshot, setSnapshot] = useState<AdminClinicsSnapshot | null>(null);
   const [createForm, setCreateForm] = useState<CreateClinicForm>(
@@ -139,7 +138,6 @@ export function AdminClinicsManagementCard() {
         nextUserDrafts[getUserDraftKey(user.userId)] = {
           username: user.username,
           password: "",
-          role: user.role,
         };
       }
     }
@@ -157,11 +155,10 @@ export function AdminClinicsManagementCard() {
         try {
           applySnapshot(await getAdminClinics({ limit: PAGE_SIZE, offset: 0 }));
         } catch (err) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "No se pudieron cargar las clínicas.",
-          );
+          setError(formatAdminClinicsError(
+            err,
+            "No se pudieron cargar las clínicas.",
+          ));
         }
       })();
     });
@@ -195,7 +192,7 @@ export function AdminClinicsManagementCard() {
         contactPhone: createForm.contactPhone.trim() || null,
         username: createForm.username,
         password: createForm.password,
-        role: createForm.role,
+        role: "clinic_owner",
       });
 
       setCreateForm(getInitialCreateForm());
@@ -204,9 +201,7 @@ export function AdminClinicsManagementCard() {
       );
       loadClinics();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "No se pudo crear la clínica.",
-      );
+      setError(formatAdminClinicsError(err, "No se pudo crear la clínica."));
     } finally {
       setActiveActionKey(null);
     }
@@ -233,9 +228,10 @@ export function AdminClinicsManagementCard() {
       setSuccessMessage(`Clínica actualizada: ${result.clinic.clinicName}.`);
       loadClinics();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "No se pudo actualizar la clínica.",
-      );
+      setError(formatAdminClinicsError(
+        err,
+        "No se pudo actualizar la clínica.",
+      ));
     } finally {
       setActiveActionKey(null);
     }
@@ -260,7 +256,7 @@ export function AdminClinicsManagementCard() {
 
     if (draft.password.trim()) {
       const confirmed = window.confirm(
-        "La contraseña se reemplaza; no se puede consultar la actual. ¿Confirmás el cambio?",
+        "Se reemplazará la contraseña de acceso de esta clínica. ¿Confirmás el cambio?",
       );
 
       if (!confirmed) {
@@ -285,57 +281,10 @@ export function AdminClinicsManagementCard() {
       setSuccessMessage(`Credenciales actualizadas para ${result.user.username}.`);
       loadClinics();
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudieron actualizar las credenciales.",
-      );
-    } finally {
-      setActiveActionKey(null);
-    }
-  }
-
-  async function handleChangeRole(userId: number) {
-    const key = getUserDraftKey(userId);
-    const draft = userDrafts[key];
-    const currentUser = snapshot?.clinics
-      .flatMap((clinic) => clinic.users)
-      .find((user) => user.userId === userId);
-
-    if (!draft || !currentUser || isBusy) {
-      return;
-    }
-
-    if (draft.role === currentUser.role) {
-      setError("No hay cambio de rol para guardar.");
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `¿Cambiar el rol de ${currentUser.username} de ${formatRole(
-        currentUser.role,
-      )} a ${formatRole(draft.role)}?`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setError(null);
-    setSuccessMessage(null);
-    setActiveActionKey(`role-${userId}`);
-
-    try {
-      const result = await changeAdminClinicUserRole(userId, draft.role);
-
-      setSuccessMessage(
-        `Rol actualizado: ${result.user.username} ahora es ${formatRole(
-          result.user.role,
-        )}.`,
-      );
-      loadClinics();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo cambiar el rol.");
+      setError(formatAdminClinicsError(
+        err,
+        "No se pudieron actualizar las credenciales.",
+      ));
     } finally {
       setActiveActionKey(null);
     }
@@ -417,7 +366,7 @@ export function AdminClinicsManagementCard() {
           <label className="space-y-1">
             <span className="text-xs text-muted-foreground">Contraseña inicial</span>
             <Input
-              type="password"
+              type="text"
               value={createForm.password}
               disabled={isBusy}
               minLength={8}
@@ -429,24 +378,10 @@ export function AdminClinicsManagementCard() {
             />
           </label>
 
-          <label className="space-y-1">
-            <span className="text-xs text-muted-foreground">Rol inicial</span>
-            <select
-              className="field-select"
-              value={createForm.role}
-              disabled={isBusy}
-              onChange={(event) =>
-                updateCreateField("role", event.target.value as ClinicUserRole)
-              }
-            >
-              <option value="clinic_owner">Owner clínica</option>
-              <option value="clinic_staff">Staff clínica</option>
-            </select>
-          </label>
-
           <div className="flex items-end xl:col-span-5">
             <p className="text-xs text-muted-foreground">
-              La contraseña se reemplaza; no se puede consultar la actual.
+              La contraseña anterior no se puede consultar. Para recuperación,
+              cargue una nueva contraseña visible y guárdela.
             </p>
           </div>
 
@@ -481,7 +416,6 @@ export function AdminClinicsManagementCard() {
                 <TableHead>Clínica</TableHead>
                 <TableHead>Contacto</TableHead>
                 <TableHead>Usuario</TableHead>
-                <TableHead>Rol</TableHead>
                 <TableHead>Fechas</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -495,7 +429,6 @@ export function AdminClinicsManagementCard() {
                     ? userDrafts[getUserDraftKey(user.userId)] ?? {
                         username: user.username,
                         password: "",
-                        role: user.role,
                       }
                     : null;
 
@@ -579,7 +512,7 @@ export function AdminClinicsManagementCard() {
                               }
                             />
                             <Input
-                              type="password"
+                              type="text"
                               value={userDraft.password}
                               disabled={isBusy}
                               minLength={8}
@@ -603,35 +536,6 @@ export function AdminClinicsManagementCard() {
                           <span className="text-sm text-muted-foreground">
                             Sin usuario de clínica
                           </span>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="min-w-[170px] align-top">
-                        {user && userDraft ? (
-                          <div className="space-y-2">
-                            <Badge variant={getRoleVariant(user.role)}>
-                              {formatRole(user.role)}
-                            </Badge>
-                            <select
-                              className="field-select"
-                              value={userDraft.role}
-                              disabled={isBusy}
-                              onChange={(event) =>
-                                setUserDrafts((current) => ({
-                                  ...current,
-                                  [getUserDraftKey(user.userId)]: {
-                                    ...userDraft,
-                                    role: event.target.value as ClinicUserRole,
-                                  },
-                                }))
-                              }
-                            >
-                              <option value="clinic_owner">Owner clínica</option>
-                              <option value="clinic_staff">Staff clínica</option>
-                            </select>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">—</span>
                         )}
                       </TableCell>
 
@@ -670,17 +574,6 @@ export function AdminClinicsManagementCard() {
                                   ? "Guardando..."
                                   : "Guardar acceso"}
                               </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                disabled={isBusy}
-                                onClick={() => void handleChangeRole(user.userId)}
-                              >
-                                <ShieldCheck aria-hidden="true" />
-                                {activeActionKey === `role-${user.userId}`
-                                  ? "Cambiando..."
-                                  : "Cambiar rol"}
-                              </Button>
                             </>
                           ) : null}
                         </div>
@@ -690,7 +583,7 @@ export function AdminClinicsManagementCard() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="clinical-table-state">
+                  <TableCell colSpan={5} className="clinical-table-state">
                     {isPending
                       ? "Cargando clínicas..."
                       : "No hay clínicas para mostrar."}

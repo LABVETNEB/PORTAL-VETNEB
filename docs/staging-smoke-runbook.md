@@ -330,15 +330,16 @@ powershell -ExecutionPolicy Bypass -File scripts/dev/open-admin-dashboard.ps1
    - email de contacto,
    - telefono opcional,
    - usuario de acceso,
-   - contraseña inicial ingresada manualmente,
-   - rol inicial `Owner clínica` salvo que negocio pida `Staff clínica`.
+   - contraseña inicial visible mientras se ingresa.
 5. Confirmar que la respuesta visual no muestra contraseña, hashes ni secretos.
 6. En la misma seccion, cambiar nombre/email/telefono de la clinica y guardar.
 7. Cambiar el username del usuario de clinica y confirmar que el listado se
    actualiza.
-8. Cambiar la contraseña del usuario de clinica. Confirmar el dialogo:
-   `La contraseña se reemplaza; no se puede consultar la actual.`
-9. Cambiar rol `Owner clínica`/`Staff clínica` usando la accion existente de rol.
+8. Para recuperacion de contraseña, asignar una nueva contraseña visible y
+   guardar. La contraseña anterior no se consulta ni se recupera. Confirmar el
+   dialogo: `Se reemplazará la contraseña de acceso de esta clínica. ¿Confirmás el cambio?`
+9. Confirmar que `Clínicas` no muestra selector, columna ni acciones de rol.
+   Los roles se gestionan aparte en `Roles clínica`, si aplica.
 10. Revisar `Log de auditoría` y confirmar eventos sanitizados:
    - `clinic.created`
    - `clinic.updated`
@@ -527,6 +528,21 @@ $BadOrigin = Invoke-SmokeRequest `
   -Headers @{ Origin = "https://example.invalid" }
 Show-SmokeResult $BadOrigin
 Assert-SmokeStatus $BadOrigin 403 "Unsafe method con Origin no autorizado"
+```
+
+Preflight admin para alta de clinicas:
+
+```powershell
+$AdminClinicsPreflight = Invoke-SmokeRequest `
+  -Method OPTIONS `
+  -Uri "$BackendUrl/api/admin/clinics" `
+  -Headers @{
+    Origin = $Origin
+    "Access-Control-Request-Method" = "POST"
+    "Access-Control-Request-Headers" = "content-type"
+  }
+Show-SmokeResult $AdminClinicsPreflight
+Assert-SmokeStatus $AdminClinicsPreflight 204 "OPTIONS /api/admin/clinics"
 ```
 
 Validacion en DevTools:
