@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import type { Viewport } from "next";
 import { Inter, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 
+import { PwaServiceWorkerRegistrar } from "@/components/pwa/PwaServiceWorkerRegistrar";
 import { baseMetadata, getOrganizationJsonLd } from "@/lib/seo";
+import { SITE_THEME_COLOR } from "@/lib/seo";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -20,6 +23,10 @@ const sourceSans = Source_Sans_3({
 
 export const metadata: Metadata = baseMetadata;
 
+export const viewport: Viewport = {
+  themeColor: SITE_THEME_COLOR,
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -36,6 +43,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background antialiased">
+        <PwaServiceWorkerRegistrar />
         {children}
       </body>
     </html>

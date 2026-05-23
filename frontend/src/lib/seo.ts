@@ -16,6 +16,8 @@ export const SITE_DESCRIPTION =
 export const SITE_LOCALE = "es_AR";
 export const SITE_OG_IMAGE_PATH = "/images/hero-microscope-vetneb.webp";
 export const SITE_OG_IMAGE_URL = `${SITE_URL}${SITE_OG_IMAGE_PATH}`;
+export const SITE_THEME_COLOR = "#0c354e";
+export const SITE_BACKGROUND_COLOR = "#f7fbfb";
 
 export function buildCanonicalUrl(path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
@@ -32,6 +34,20 @@ export function buildCanonicalUrl(path: string): string {
 export const baseMetadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: SITE_NAME,
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "VETNEB",
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   title: {
     default: SITE_NAME,
     template: `%s | ${SITE_NAME}`,
