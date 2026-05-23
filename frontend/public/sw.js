@@ -95,8 +95,15 @@ async function putIfCacheable(cacheName, request, response) {
     return;
   }
 
-  const cache = await caches.open(cacheName);
-  await cache.put(request, response.clone());
+  // `response` debe ser un clon entregado por el caller antes de cualquier
+  // consumo del body. No se llama .clone() aquí para evitar el error
+  // "Response body is already used" si el body original ya fue leído.
+  try {
+    const cache = await caches.open(cacheName);
+    await cache.put(request, response);
+  } catch {
+    // Error de caché no es crítico; se descarta para evitar unhandled rejection.
+  }
 }
 
 self.addEventListener("install", (event) => {
@@ -141,7 +148,9 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => {
           if (!requestHasCredentials(request)) {
-            void putIfCacheable(RUNTIME, request, response);
+            // Clonar de forma sincrónica antes de retornar al browser.
+            // El clon se entrega a putIfCacheable; el original va a la página.
+            void putIfCacheable(RUNTIME, request, response.clone());
           }
 
           return response;
@@ -162,7 +171,8 @@ self.addEventListener("fetch", (event) => {
         }
 
         return fetch(request).then((response) => {
-          void putIfCacheable(RUNTIME, request, response);
+          // Clonar de forma sincrónica antes de retornar al browser.
+          void putIfCacheable(RUNTIME, request, response.clone());
           return response;
         });
       }),
