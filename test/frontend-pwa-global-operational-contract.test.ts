@@ -126,7 +126,7 @@ test("service worker cachea solo navegación pública permitida y assets públic
   assert.ok(swSource.includes('url.pathname.startsWith("/_next/static/")'));
   assert.ok(swSource.includes('url.pathname.startsWith("/images/")'));
   assert.ok(swSource.includes('url.pathname.startsWith("/icons/")'));
-  assert.ok(swSource.includes("putIfCacheable(RUNTIME, request, response)"));
+  assert.ok(swSource.includes("putIfCacheable(RUNTIME, request, response.clone())"));
   assert.ok(swSource.includes("if (response.headers.has(\"Set-Cookie\"))"));
   assert.ok(swSource.includes("if (!requestHasCredentials(request))"));
 
@@ -169,6 +169,67 @@ test("service worker conserva privado/admin/API como network-only sin cache", ()
   assert.equal(swSource.includes("/api/public"), false, "no debe añadirse excepción amplia de API pública en SW");
   assert.equal(swSource.includes("/api/admin"), false, "no debe cachearse admin de forma específica");
   assert.equal(swSource.includes("/api/reports"), false, "no debe cachearse reports de forma específica");
+});
+
+test("putIfCacheable no llama .clone() internamente — el clon viene del caller", () => {
+  const swSource = read("frontend/public/sw.js");
+
+  // Extraer el cuerpo de la función putIfCacheable
+  const fnMatch = swSource.match(/async function putIfCacheable\b[\s\S]*?\n\}/);
+  assert.ok(fnMatch, "putIfCacheable debe existir en sw.js");
+  const fnBody = fnMatch[0];
+
+  // Eliminar comentarios de línea antes de buscar patrones de código
+  const fnBodyNoComments = fnBody.replace(/\/\/[^\n]*/g, "");
+
+  assert.equal(
+    fnBodyNoComments.includes(".clone()"),
+    false,
+    "putIfCacheable no debe llamar .clone() en código (excluidos comentarios); el clone es responsabilidad del caller",
+  );
+
+  // Debe usar cache.put(request, response) sin clonar dentro
+  assert.ok(fnBodyNoComments.includes("cache.put(request, response)"), "putIfCacheable debe hacer cache.put con la response recibida directamente");
+});
+
+test("putIfCacheable envuelve operaciones async en try/catch para evitar unhandled rejection", () => {
+  const swSource = read("frontend/public/sw.js");
+
+  const fnMatch = swSource.match(/async function putIfCacheable\b[\s\S]*?\n\}/);
+  assert.ok(fnMatch, "putIfCacheable debe existir en sw.js");
+  const fnBody = fnMatch[0];
+
+  assert.ok(fnBody.includes("try {"), "putIfCacheable debe tener try/catch para capturar errores de caché");
+  assert.ok(fnBody.includes("} catch"), "putIfCacheable debe tener catch para evitar unhandled promise rejection");
+});
+
+test("call sites de putIfCacheable pasan response.clone() como argumento", () => {
+  const swSource = read("frontend/public/sw.js");
+
+  // Contar ocurrencias de putIfCacheable(RUNTIME, request, response.clone())
+  const callsWithClone = (swSource.match(/putIfCacheable\(RUNTIME, request, response\.clone\(\)\)/g) ?? []).length;
+  // Contar ocurrencias sin clone (el patrón inseguro)
+  const callsWithoutClone = (swSource.match(/putIfCacheable\(RUNTIME, request, response\)/g) ?? []).length;
+
+  assert.ok(callsWithClone >= 2, `todos los call sites deben pasar response.clone() — encontrados: ${callsWithClone}`);
+  assert.equal(
+    callsWithoutClone,
+    0,
+    `no debe haber call sites que pasen response sin clonar — encontrados: ${callsWithoutClone}`,
+  );
+});
+
+test("service worker no contiene el patrón inseguro de clone después de await", () => {
+  const swSource = read("frontend/public/sw.js");
+
+  // El patrón peligroso es: await algo; ... response.clone() (dentro de putIfCacheable)
+  // Verificamos que dentro de putIfCacheable no exista ningún .clone() en código (excluidos comentarios)
+  const fnMatch = swSource.match(/async function putIfCacheable\b[\s\S]*?\n\}/);
+  assert.ok(fnMatch, "putIfCacheable debe existir");
+  const fnBodyNoComments = fnMatch[0].replace(/\/\/[^\n]*/g, "");
+
+  const awaitBeforeClone = /await[\s\S]*?\.clone\(\)/.test(fnBodyNoComments);
+  assert.equal(awaitBeforeClone, false, "no debe haber .clone() en código después de un await dentro de putIfCacheable");
 });
 
 test("superficies clínica, admin, particular, logística y backend siguen declaradas para operación online", () => {
