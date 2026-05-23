@@ -155,7 +155,9 @@ try {
       value = $adminCookie.Value
       url = $BackendUrl
       path = "/"
-      sameSite = "Lax"
+      # Required for cross-origin fetch(..., { credentials: "include" }) from frontend staging.
+      sameSite = "None"
+      secure = $true
     }
 
   Send-CDP `

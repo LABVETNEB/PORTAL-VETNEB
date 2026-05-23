@@ -323,6 +323,11 @@ cd C:\PORTAL-VETNEB
 powershell -ExecutionPolicy Bypass -File scripts/dev/open-admin-dashboard.ps1
 ```
 
+El launcher inicia sesion admin contra backend e inyecta la cookie
+`admin_session_id` tanto para frontend como para backend. Para staging
+cross-origin, la cookie backend se inyecta con `SameSite=None` y `Secure` para
+habilitar operaciones admin desde frontend con `credentials: "include"`.
+
 2. Iniciar sesion admin en el navegador si el script lo solicita.
 3. Abrir `$FrontendUrl/dashboard/admin`.
 4. En la seccion `Clínicas`, crear una clinica nueva desde `Alta de clínica`:

@@ -44,3 +44,41 @@ test("local admin dashboard launcher does not hardcode admin password", () => {
   assert.equal(source.includes('"password":"'), false);
   assert.equal(source.includes("'password':'"), false);
 });
+
+test("local admin dashboard launcher configures frontend/backend cookies for cross-origin admin calls", () => {
+  const source = read(ADMIN_LAUNCHER_PATH);
+
+  const frontendCookieStart = source.indexOf("-Id 3");
+  const backendCookieStart = source.indexOf("-Id 4");
+  const navigateStart = source.indexOf("-Id 5");
+
+  assert.ok(frontendCookieStart >= 0);
+  assert.ok(backendCookieStart > frontendCookieStart);
+  assert.ok(navigateStart > backendCookieStart);
+
+  const frontendCookieBlock = source.slice(frontendCookieStart, backendCookieStart);
+  const backendCookieBlock = source.slice(backendCookieStart, navigateStart);
+
+  assert.ok(frontendCookieBlock.includes("url = $FrontendUrl"));
+  assert.ok(frontendCookieBlock.includes('sameSite = "Lax"'));
+
+  assert.ok(backendCookieBlock.includes("url = $BackendUrl"));
+  assert.ok(backendCookieBlock.includes('sameSite = "None"'));
+  assert.ok(backendCookieBlock.includes("secure = $true"));
+});
+
+test("local admin dashboard launcher never prints admin cookie value", () => {
+  const source = read(ADMIN_LAUNCHER_PATH);
+
+  const sensitiveOutputPatterns = [
+    /\bWrite-Host\b[^\n]*\$adminCookie\.Value/,
+    /\bWrite-Output\b[^\n]*\$adminCookie\.Value/,
+    /\becho\b[^\n]*\$adminCookie\.Value/,
+    /\bWrite-Verbose\b[^\n]*\$adminCookie\.Value/,
+    /\bWrite-Debug\b[^\n]*\$adminCookie\.Value/,
+  ];
+
+  for (const pattern of sensitiveOutputPatterns) {
+    assert.equal(pattern.test(source), false);
+  }
+});
