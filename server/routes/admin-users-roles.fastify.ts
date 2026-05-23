@@ -7,7 +7,6 @@ import type {
 import { ENV } from "../lib/env.ts";
 import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
 import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
-import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import type {
   AdminClinicUserRoleChangeInput,
   AdminClinicUserRoleChangeResult,
