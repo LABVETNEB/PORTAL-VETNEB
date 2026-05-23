@@ -138,6 +138,7 @@ export const AUDIT_EVENTS = [
   "auth.session.revoked",
   "clinic.created",
   "clinic.updated",
+  "clinic.deleted",
   "clinic_user.created",
   "clinic_user.credentials.updated",
   "clinic_user.role.changed",

@@ -2,7 +2,7 @@ import { z } from "zod";
 import type {
   StudyTrackingCase,
   StudyTrackingNotification,
-} from "../../drizzle/schema";
+} from "../../drizzle/schema.ts";
 
 export const STUDY_TRACKING_STAGES = [
   "reception",

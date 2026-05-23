@@ -72,6 +72,10 @@ test("frontend API client exposes admin clinics management endpoints", () => {
   assert.ok(source.includes("clinicId: number,"));
   assert.ok(source.includes("payload: AdminClinicUpdatePayload,"));
   assert.ok(source.includes("`/api/admin/clinics/${clinicId}`,"));
+  assert.ok(source.includes("export async function deleteAdminClinic("));
+  assert.ok(source.includes("payload: AdminClinicDeletePayload,"));
+  assert.ok(source.includes("): Promise<AdminClinicDeleteResponse>"));
+  assert.ok(source.includes('method: "DELETE",'));
   assert.ok(source.includes("export async function updateAdminClinicUserCredentials("));
   assert.ok(source.includes("payload: AdminClinicUserCredentialsUpdatePayload,"));
   assert.ok(source.includes("): Promise<AdminClinicUserCredentialsUpdateResponse>"));
@@ -84,7 +88,7 @@ test("frontend admin clinic create contract keeps role optional outside the visi
 
   assert.ok(typesSource.includes("export type AdminClinicCreatePayload = {"));
   assert.ok(typesSource.includes("role?: ClinicUserRole;"));
-  assert.ok(cardSource.includes('role: "clinic_owner"'));
+  assert.equal(cardSource.includes('role: "clinic_owner"'), false);
   assert.equal(cardSource.includes("Rol inicial"), false);
   assert.equal(cardSource.includes("createForm.role"), false);
 });

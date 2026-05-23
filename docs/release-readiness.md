@@ -396,18 +396,29 @@ Remove-Item Env:\SMOKE_PASSWORD
 
 - [ ] `[BLOCKER]` Login admin funciona: `POST /api/admin/auth/login`.
 - [ ] `[BLOCKER]` Sesion admin funciona: `GET /api/admin/auth/me`.
+- [ ] `[BLOCKER]` Panel admin valida todas las secciones visibles:
+  `Administración`, `Subir informe`, `Estado`, `Clínicas`,
+  `Tokens particulares`, `Precios`, `Sesiones`, `Roles clínica`,
+  `Auditoría`, `Mantenimiento`.
 - [ ] `[BLOCKER]` Panel admin carga health, sesiones, audit log, usuarios/roles,
-  pricing, mantenimiento y tokens particulares segun permisos actuales.
+  pricing, mantenimiento y tokens particulares con datos reales.
 - [ ] `[BLOCKER]` Panel admin permite crear clinica sin seleccionar rol,
   crear usuario/contraseña inicial visible durante la carga, editar
-  nombre/email/telefono, cambiar username y reemplazar contraseña visible
+  nombre/email/telefono, cambiar username (email real de clínica) y reemplazar contraseña visible
   durante la carga sin exponer passwords, hashes ni secretos.
+- [ ] `[BLOCKER]` Panel admin permite eliminar clínicas desde UI con confirmación
+  exacta por nombre y advertencia destructiva explícita.
 - [ ] `[BLOCKER]` Audit log admin registra `clinic.created`,
-  `clinic.updated`, `clinic_user.created`,
+  `clinic.updated`, `clinic.deleted`, `clinic_user.created`,
   `clinic_user.credentials.updated` y `clinic_user.role.changed` con metadata
   sanitizada.
 - [ ] `[BLOCKER]` Upload admin de PDF funciona y queda visible para la clinica
   correcta.
+- [ ] `[BLOCKER]` Estado admin refleja transporte de correo real
+  (`Gmail API HTTPS` o `SMTP`) y no induce a error de transporte.
+- [ ] `[BLOCKER]` No se usa demo/smoke/smock como operación real. Si existen
+  datos heredados de ese tipo, se eliminan solo desde Admin > Clínicas con
+  confirmación exacta.
 - [ ] `[BLOCKER]` Logout admin invalida sesion.
 
 ```powershell

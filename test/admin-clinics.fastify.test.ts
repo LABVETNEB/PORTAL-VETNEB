@@ -82,7 +82,9 @@ function buildDeps(
       clinic: demoClinic,
       user: demoClinicUser,
     }),
+    getAdminClinicById: async () => demoClinic,
     updateAdminClinic: async () => demoClinic,
+    deleteAdminClinic: async () => demoClinic,
     writeAuditLog: async () => {},
     now: () => Date.UTC(2026, 4, 8, 0, 0, 0),
     ...overrides,
@@ -103,6 +105,9 @@ test("admin clinics requiere sesión admin", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/",
+      headers: {
+        origin: STAGING_ORIGIN,
+      },
       payload: {},
     });
 
@@ -141,7 +146,7 @@ test("admin clinics responde preflight OPTIONS para frontend staging", async () 
     assert.equal(response.headers["access-control-allow-credentials"], "true");
     assert.equal(
       response.headers["access-control-allow-methods"],
-      "GET,POST,PATCH,OPTIONS",
+      "GET,POST,PATCH,DELETE,OPTIONS",
     );
     assert.equal(
       response.headers["access-control-allow-headers"],
@@ -225,6 +230,7 @@ test("admin clinics crea clínica y usuario sin role visible con default owner y
       url: "/",
       headers: {
         cookie: `${ENV.adminCookieName}=admin-session-token`,
+        origin: STAGING_ORIGIN,
       },
       payload: {
         clinicName: "Clínica Demo",
@@ -285,6 +291,7 @@ test("admin clinics devuelve 409 al crear usuario duplicado", async () => {
       url: "/",
       headers: {
         cookie: `${ENV.adminCookieName}=admin-session-token`,
+        origin: STAGING_ORIGIN,
       },
       payload: {
         clinicName: "Clínica Demo",
@@ -295,7 +302,10 @@ test("admin clinics devuelve 409 al crear usuario duplicado", async () => {
     });
 
     assert.equal(response.statusCode, 409);
-    assert.equal(JSON.parse(response.body).success, false);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "El usuario de acceso ya existe.",
+    });
     assert.equal(auditCalled, false);
   } finally {
     await app.close();
@@ -343,6 +353,7 @@ test("admin clinics cambia datos básicos de clínica y audita", async () => {
       url: "/10",
       headers: {
         cookie: `${ENV.adminCookieName}=admin-session-token`,
+        origin: STAGING_ORIGIN,
       },
       payload: {
         clinicName: "Clínica Nueva",
@@ -371,6 +382,153 @@ test("admin clinics cambia datos básicos de clínica y audita", async () => {
     });
     assert.equal(JSON.stringify(auditWrites).includes("password"), false);
     assert.equal(JSON.stringify(auditWrites).includes("hash"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin clinics elimina clínica con confirmación exacta y audita evento seguro", async () => {
+  const app = Fastify();
+  const auditWrites: Array<{ input: { event?: string; clinicId?: number | null } }> =
+    [];
+  const deleteCalls: Array<{ clinicId: number }> = [];
+
+  await app.register(
+    adminClinicsNativeRoutes,
+    buildDeps({
+      getAdminClinicById: async (clinicId) =>
+        clinicId === 10 ? { ...demoClinic, clinicId } : null,
+      deleteAdminClinic: async (input) => {
+        deleteCalls.push(input);
+        return { ...demoClinic, clinicId: input.clinicId };
+      },
+      writeAuditLog: async (_req, input) => {
+        auditWrites.push({ input });
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/10",
+      headers: {
+        origin: STAGING_ORIGIN,
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        confirmClinicName: "Clínica Demo",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = JSON.parse(response.body);
+    assert.equal(body.success, true);
+    assert.equal(body.clinic.clinicId, 10);
+    assert.equal(body.message, "Clínica eliminada definitivamente.");
+    assert.deepEqual(deleteCalls, [{ clinicId: 10 }]);
+    assert.equal(auditWrites.length, 1);
+    assert.equal(auditWrites[0].input.event, "clinic.deleted");
+    assert.equal(auditWrites[0].input.clinicId, 10);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin clinics delete exige confirmación exacta y trusted origin", async () => {
+  const app = Fastify();
+  let deleteCalled = false;
+
+  await app.register(
+    adminClinicsNativeRoutes,
+    buildDeps({
+      deleteAdminClinic: async () => {
+        deleteCalled = true;
+        return demoClinic;
+      },
+    }),
+  );
+
+  try {
+    const mismatchResponse = await app.inject({
+      method: "DELETE",
+      url: "/10",
+      headers: {
+        origin: STAGING_ORIGIN,
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        confirmClinicName: "Otra clínica",
+      },
+    });
+
+    assert.equal(mismatchResponse.statusCode, 400);
+    assert.deepEqual(JSON.parse(mismatchResponse.body), {
+      success: false,
+      error: "La confirmación no coincide con el nombre exacto de la clínica.",
+    });
+    assert.equal(deleteCalled, false);
+
+    const forbiddenOriginResponse = await app.inject({
+      method: "DELETE",
+      url: "/10",
+      headers: {
+        origin: "https://evil.example",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        confirmClinicName: "Clínica Demo",
+      },
+    });
+
+    assert.equal(forbiddenOriginResponse.statusCode, 403);
+    assert.deepEqual(JSON.parse(forbiddenOriginResponse.body), {
+      success: false,
+      error: "Origen no permitido",
+    });
+    assert.equal(deleteCalled, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin clinics no falla si la auditoría de delete falla después de persistir", async () => {
+  const app = Fastify();
+  let deleteCalled = false;
+
+  await app.register(
+    adminClinicsNativeRoutes,
+    buildDeps({
+      deleteAdminClinic: async () => {
+        deleteCalled = true;
+        return demoClinic;
+      },
+      writeAuditLog: async () => {
+        throw new Error("audit unavailable");
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/10",
+      headers: {
+        origin: STAGING_ORIGIN,
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        confirmClinicName: "Clínica Demo",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(deleteCalled, true);
+    assert.equal(JSON.parse(response.body).success, true);
   } finally {
     await app.close();
   }

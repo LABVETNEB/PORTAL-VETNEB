@@ -1,13 +1,13 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { db, pgClient } from "./db";
+import { db, pgClient } from "./db.ts";
 import {
   clinicPublicProfiles,
   clinicPublicSearch,
   clinics,
   type Clinic,
   type ClinicPublicProfile,
-} from "../drizzle/schema";
+} from "../drizzle/schema.ts";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;

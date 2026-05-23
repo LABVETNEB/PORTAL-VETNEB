@@ -37,11 +37,14 @@ export const metadata: Metadata = {
 const EVENT_LABELS: Record<string, string> = {
   "auth.admin.login.succeeded": "Login admin",
   "auth.clinic.login.succeeded": "Login clínica",
+  "auth.session.revoked": "Sesión revocada",
   "clinic.created": "Clínica creada",
   "clinic.updated": "Clínica actualizada",
+  "clinic.deleted": "Clínica eliminada",
   "clinic_user.created": "Usuario clínica creado",
   "clinic_user.credentials.updated": "Credenciales clínica",
   "clinic_user.role.changed": "Cambio rol clínica",
+  "admin.pricing.update": "Precio actualizado",
   "report.status.changed": "Estado informe",
   "report.uploaded": "Informe subido",
   "study_tracking.case.created": "Caso creado",
@@ -95,6 +98,28 @@ function formatServiceStatus(value: unknown) {
   return String(value);
 }
 
+function getEmailTransportBadgeVariant(
+  value: unknown,
+): "default" | "secondary" | "destructive" | "outline" {
+  if (value === "gmail_api" || value === "smtp") {
+    return "default";
+  }
+
+  if (value === "not_configured") {
+    return "outline";
+  }
+
+  return "secondary";
+}
+
+function formatEmailTransport(value: unknown) {
+  if (value === "gmail_api") return "Gmail API HTTPS";
+  if (value === "smtp") return "SMTP";
+  if (value === "not_configured") return "No configurado";
+
+  return "Desconocido";
+}
+
 function getSystemStatusVariant(
   status: string,
 ): "default" | "secondary" | "destructive" | "outline" {
@@ -121,7 +146,7 @@ function getSystemStatusIndicatorClass(status: string) {
 function formatSystemStatusDetail(services: Record<string, unknown>) {
   return `Base de datos: ${formatServiceStatus(services.database)} · Almacenamiento: ${formatServiceStatus(
     services.storage,
-  )} · Correo SMTP: ${formatServiceStatus(services.smtp)} · Contacto email: ${formatServiceStatus(services.contact_email)} · CORS: ${formatServiceStatus(services.cors)}`;
+  )} · Transporte correo: ${formatEmailTransport(services.email_transport)} · Contacto email: ${formatServiceStatus(services.contact_email)} · CORS: ${formatServiceStatus(services.cors)}`;
 }
 
 function getConfiguredContactRecipients(services: Record<string, unknown>): string[] {
@@ -469,10 +494,22 @@ export default async function AdminPage({
                 </Badge>
               </div>
               <div className="surface-soft">
-                <p className="mb-2 text-xs text-muted-foreground">Correo SMTP</p>
-                <Badge variant={getServiceVariant(serviceChecks.smtp)}>
-                  {formatServiceStatus(serviceChecks.smtp)}
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Transporte de correo
+                </p>
+                <Badge
+                  variant={getEmailTransportBadgeVariant(
+                    serviceChecks.email_transport,
+                  )}
+                >
+                  {formatEmailTransport(serviceChecks.email_transport)}
                 </Badge>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Gmail API: {formatServiceStatus(serviceChecks.gmail_api)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  SMTP: {formatServiceStatus(serviceChecks.smtp)}
+                </p>
               </div>
               <div className="surface-soft">
                 <p className="mb-2 text-xs text-muted-foreground">Contacto email</p>

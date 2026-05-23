@@ -8,6 +8,8 @@ process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
+process.env.CORS_ORIGIN ??=
+  "https://portal-vetneb-frontend-staging.onrender.com";
 
 const { ENV } = await import("../server/lib/env.ts");
 const { adminUsersRolesNativeRoutes } = await import(
@@ -32,6 +34,7 @@ type AdminClinicUserRoleChangeResult = import(
 type AdminClinicUserCredentialsUpdateResult = import(
   "../server/db-admin-clinics.ts"
 ).AdminClinicUserCredentialsUpdateResult;
+const STAGING_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 
 const demoClinicUser: Extract<AdminRoleUserSummary, { userType: "clinic" }> = {
   userType: "clinic",
@@ -620,6 +623,64 @@ test("admin users roles devuelve 409 si username de clínica ya existe", async (
     assert.equal(response.statusCode, 409);
     assert.equal(JSON.parse(response.body).success, false);
     assert.equal(auditCalled, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin users roles responde preflight OPTIONS para mutaciones", async () => {
+  const app = Fastify();
+  await app.register(adminUsersRolesNativeRoutes, buildDeps());
+
+  try {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/clinic/2/credentials",
+      headers: {
+        origin: STAGING_ORIGIN,
+        "access-control-request-method": "PATCH",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      STAGING_ORIGIN,
+    );
+    assert.equal(response.headers["access-control-allow-credentials"], "true");
+    assert.equal(
+      response.headers["access-control-allow-methods"],
+      "GET,PATCH,OPTIONS",
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin users roles bloquea mutaciones con origin no permitido", async () => {
+  const app = Fastify();
+  await app.register(adminUsersRolesNativeRoutes, buildDeps());
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/clinic/2/role",
+      headers: {
+        origin: "https://evil.example",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        role: "clinic_owner",
+      },
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Origen no permitido",
+    });
   } finally {
     await app.close();
   }

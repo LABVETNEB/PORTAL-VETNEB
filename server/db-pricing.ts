@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 
 import { db } from "./db.ts";
-import { pricingItems } from "../drizzle/schema";
+import { pricingItems } from "../drizzle/schema.ts";
 
 export type PricingItem = {
   id: number;

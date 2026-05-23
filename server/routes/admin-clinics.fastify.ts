@@ -15,9 +15,10 @@ import type {
   AdminClinicCreateResult,
   AdminClinicsSnapshot,
   AdminClinicSummary,
+  AdminClinicDeleteInput,
   AdminClinicUpdateInput,
 } from "../db-admin-clinics.ts";
-import type { ClinicUserRole } from "../../drizzle/schema";
+import type { ClinicUserRole } from "../../drizzle/schema.ts";
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -53,6 +54,10 @@ type AdminClinicUpdateBody = {
   contactPhone?: unknown;
 };
 
+type AdminClinicDeleteBody = {
+  confirmClinicName?: unknown;
+};
+
 type AdminClinicParams = {
   clinicId: string;
 };
@@ -79,8 +84,12 @@ export type AdminClinicsNativeRoutesOptions = {
   createAdminClinicWithUser?: (
     input: AdminClinicCreateInput,
   ) => Promise<AdminClinicCreateResult>;
+  getAdminClinicById?: (clinicId: number) => Promise<AdminClinicSummary | null>;
   updateAdminClinic?: (
     input: AdminClinicUpdateInput,
+  ) => Promise<AdminClinicSummary | null>;
+  deleteAdminClinic?: (
+    input: AdminClinicDeleteInput,
   ) => Promise<AdminClinicSummary | null>;
   writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
   now?: () => number;
@@ -97,7 +106,9 @@ type NativeAdminClinicsDeps = Required<
     | "hashPassword"
     | "listAdminClinics"
     | "createAdminClinicWithUser"
+    | "getAdminClinicById"
     | "updateAdminClinic"
+    | "deleteAdminClinic"
     | "writeAuditLog"
   >
 >;
@@ -137,7 +148,9 @@ async function loadDefaultDeps(): Promise<NativeAdminClinicsDeps> {
         hashPassword: authSecurity.hashPassword,
         listAdminClinics: adminClinics.listAdminClinics,
         createAdminClinicWithUser: adminClinics.createAdminClinicWithUser,
+        getAdminClinicById: adminClinics.getAdminClinicById,
         updateAdminClinic: adminClinics.updateAdminClinic,
+        deleteAdminClinic: adminClinics.deleteAdminClinic,
         writeAuditLog: audit.writeAuditLog as (
           req: unknown,
           input: AuditWriteInput,
@@ -530,6 +543,26 @@ function parseClinicUpdateBody(
   };
 }
 
+function parseClinicDeleteBody(
+  body: AdminClinicDeleteBody | undefined,
+): { ok: true; confirmClinicName: string } | { ok: false; error: string } {
+  const confirmClinicName = parseRequiredString({
+    value: body?.confirmClinicName,
+    field: "confirmClinicName",
+    label: "Confirmación de clínica",
+    maxLength: 255,
+  });
+
+  if (!confirmClinicName.ok) {
+    return confirmClinicName;
+  }
+
+  return {
+    ok: true,
+    confirmClinicName: confirmClinicName.value,
+  };
+}
+
 function createAuditRequestLike(
   request: FastifyRequest,
   admin: FastifyAuthenticatedAdmin,
@@ -556,6 +589,33 @@ function isUniqueViolation(error: unknown) {
   );
 }
 
+function getErrorName(error: unknown) {
+  if (error instanceof Error) {
+    return error.name || "Error";
+  }
+
+  return "UnknownError";
+}
+
+async function safeWriteAuditLog(
+  deps: NativeAdminClinicsDeps,
+  request: FastifyRequest,
+  admin: FastifyAuthenticatedAdmin,
+  input: AuditWriteInput,
+) {
+  try {
+    await deps.writeAuditLog(createAuditRequestLike(request, admin), input);
+  } catch (error) {
+    console.error("[ADMIN_CLINICS_AUDIT_WRITE_ERROR]", {
+      event: input.event,
+      clinicId: input.clinicId ?? null,
+      targetClinicUserId: input.targetClinicUserId ?? null,
+      requestPath: request.url,
+      errorName: getErrorName(error),
+    });
+  }
+}
+
 export const adminClinicsNativeRoutes: FastifyPluginAsync<
   AdminClinicsNativeRoutesOptions
 > = async (app, options) => {
@@ -572,7 +632,9 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       !!options.hashPassword &&
       !!options.listAdminClinics &&
       !!options.createAdminClinicWithUser &&
+      !!options.getAdminClinicById &&
       !!options.updateAdminClinic &&
+      !!options.deleteAdminClinic &&
       !!options.writeAuditLog;
     const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -594,8 +656,12 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       createAdminClinicWithUser:
         options.createAdminClinicWithUser ??
         defaultDeps!.createAdminClinicWithUser,
+      getAdminClinicById:
+        options.getAdminClinicById ?? defaultDeps!.getAdminClinicById,
       updateAdminClinic:
         options.updateAdminClinic ?? defaultDeps!.updateAdminClinic,
+      deleteAdminClinic:
+        options.deleteAdminClinic ?? defaultDeps!.deleteAdminClinic,
       writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
     };
   }
@@ -618,7 +684,10 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
     }
 
     applyCorsHeaders(request, reply, allowedOrigins);
-    reply.header("access-control-allow-methods", "GET,POST,PATCH,OPTIONS");
+    reply.header(
+      "access-control-allow-methods",
+      "GET,POST,PATCH,DELETE,OPTIONS",
+    );
 
     const requestedHeaders =
       typeof request.headers["access-control-request-headers"] === "string"
@@ -700,7 +769,7 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
         if (!result.ok && result.reason === "username_conflict") {
           return reply.code(409).send({
             success: false,
-            error: "El username de clínica ya existe.",
+            error: "El usuario de acceso ya existe.",
           });
         }
 
@@ -711,7 +780,7 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
           });
         }
 
-        await deps.writeAuditLog(createAuditRequestLike(request, admin), {
+        await safeWriteAuditLog(deps, request, admin, {
           event: AUDIT_EVENTS.CLINIC_CREATED,
           clinicId: result.clinic.clinicId,
           metadata: {
@@ -720,7 +789,7 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
             contactPhone: result.clinic.contactPhone,
           },
         });
-        await deps.writeAuditLog(createAuditRequestLike(request, admin), {
+        await safeWriteAuditLog(deps, request, admin, {
           event: AUDIT_EVENTS.CLINIC_USER_CREATED,
           clinicId: result.clinic.clinicId,
           targetClinicUserId: result.user.userId,
@@ -744,7 +813,7 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
         if (isUniqueViolation(error)) {
           return reply.code(409).send({
             success: false,
-            error: "El username de clínica ya existe.",
+            error: "El usuario de acceso ya existe.",
           });
         }
 
@@ -804,7 +873,7 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    await deps.writeAuditLog(createAuditRequestLike(request, admin), {
+    await safeWriteAuditLog(deps, request, admin, {
       event: AUDIT_EVENTS.CLINIC_UPDATED,
       clinicId: clinic.clinicId,
       metadata: {
@@ -819,6 +888,89 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       success: true,
       clinic,
       changedBy: {
+        adminUserId: admin.id,
+        username: admin.username,
+      },
+    });
+  });
+
+  app.delete<{
+    Params: AdminClinicParams;
+    Body: AdminClinicDeleteBody;
+  }>("/:clinicId", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const deps = await resolveDeps();
+    const admin = await authenticateFastifyAdmin(request, reply, {
+      ...deps,
+      now,
+    });
+
+    if (!admin) {
+      return reply;
+    }
+
+    const clinicId = parsePositiveIntegerParam(request.params.clinicId);
+
+    if (clinicId === null) {
+      return reply.code(400).send({
+        success: false,
+        error: "clinicId inválido.",
+      });
+    }
+
+    const parsedDelete = parseClinicDeleteBody(request.body);
+
+    if (!parsedDelete.ok) {
+      return reply.code(400).send({
+        success: false,
+        error: parsedDelete.error,
+      });
+    }
+
+    const clinic = await deps.getAdminClinicById(clinicId);
+
+    if (!clinic) {
+      return reply.code(404).send({
+        success: false,
+        error: "Clínica no encontrada.",
+      });
+    }
+
+    if (parsedDelete.confirmClinicName !== clinic.clinicName) {
+      return reply.code(400).send({
+        success: false,
+        error:
+          "La confirmación no coincide con el nombre exacto de la clínica.",
+      });
+    }
+
+    const deletedClinic = await deps.deleteAdminClinic({ clinicId });
+
+    if (!deletedClinic) {
+      return reply.code(404).send({
+        success: false,
+        error: "Clínica no encontrada.",
+      });
+    }
+
+    await safeWriteAuditLog(deps, request, admin, {
+      event: AUDIT_EVENTS.CLINIC_DELETED,
+      clinicId: deletedClinic.clinicId,
+      metadata: {
+        clinicName: deletedClinic.clinicName,
+        contactEmail: deletedClinic.contactEmail,
+        contactPhone: deletedClinic.contactPhone,
+      },
+    });
+
+    return reply.code(200).send({
+      success: true,
+      message: "Clínica eliminada definitivamente.",
+      clinic: deletedClinic,
+      deletedBy: {
         adminUserId: admin.id,
         username: admin.username,
       },

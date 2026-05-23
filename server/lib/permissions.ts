@@ -1,4 +1,4 @@
-import type { ClinicUserRole } from "../../drizzle/schema";
+import type { ClinicUserRole } from "../../drizzle/schema.ts";
 
 export function isClinicUserRole(value: unknown): value is ClinicUserRole {
   return value === "clinic_owner" || value === "clinic_staff";

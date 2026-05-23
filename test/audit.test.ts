@@ -14,6 +14,7 @@ test("AUDIT_EVENTS conserva los eventos públicos esperados", () => {
     CLINIC_LOGIN_SUCCEEDED: "auth.clinic.login.succeeded",
     CLINIC_CREATED: "clinic.created",
     CLINIC_UPDATED: "clinic.updated",
+    CLINIC_DELETED: "clinic.deleted",
     CLINIC_USER_CREATED: "clinic_user.created",
     CLINIC_USER_CREDENTIALS_UPDATED: "clinic_user.credentials.updated",
     CLINIC_USER_ROLE_CHANGED: "clinic_user.role.changed",

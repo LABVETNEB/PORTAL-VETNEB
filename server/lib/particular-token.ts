@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ParticularToken, Report } from "../../drizzle/schema";
+import type { ParticularToken, Report } from "../../drizzle/schema.ts";
 
 const requiredText = (max: number, label: string) =>
   z.string().trim().min(1, `${label} es obligatorio`).max(max);

@@ -8,6 +8,7 @@ process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
+process.env.CORS_ORIGIN ??= "http://localhost:3000";
 
 const { ENV } = await import("../server/lib/env.ts");
 const {
@@ -97,6 +98,10 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     getParticularTokenById: async () => createParticularTokenFixture(),
     listParticularTokens: async () => [createParticularTokenFixture()],
     updateParticularTokenReport: async () => createParticularTokenFixture(),
+    revokeParticularToken: async () =>
+      createParticularTokenFixture({
+        isActive: false,
+      }),
     ...overrides,
   });
 
@@ -429,6 +434,73 @@ test(
       assert.equal(body.particularToken.id, 7);
       assert.equal(body.particularToken.reportId, 55);
       assert.equal(body.particularToken.report.id, 55);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "adminParticularTokensNativeRoutes revoca PATCH /:tokenId/revoke con mensaje y token sanitizado",
+  async () => {
+    const activeToken = createParticularTokenFixture({ isActive: true });
+    const revokedToken = createParticularTokenFixture({ isActive: false });
+    const report = createReportFixture();
+    const revokeCalls: number[] = [];
+
+    const app = await createTestApp({
+      getParticularTokenById: async () => activeToken,
+      revokeParticularToken: async (tokenId: number) => {
+        revokeCalls.push(tokenId);
+        return revokedToken;
+      },
+      getReportById: async () => report,
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/admin/particular-tokens/7/revoke",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(revokeCalls, [7]);
+      const body = JSON.parse(response.body);
+      assert.equal(body.success, true);
+      assert.equal(body.message, "Token particular revocado correctamente");
+      assert.equal(body.particularToken.id, 7);
+      assert.equal(body.particularToken.isActive, false);
+      assert.equal(body.particularToken.tokenHash, undefined);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "adminParticularTokensNativeRoutes bloquea revoke con origin no permitido",
+  async () => {
+    const app = await createTestApp();
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/admin/particular-tokens/7/revoke",
+        headers: {
+          origin: "https://evil.example",
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      assert.equal(response.statusCode, 403);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: "Origen no permitido",
+      });
     } finally {
       await app.close();
     }

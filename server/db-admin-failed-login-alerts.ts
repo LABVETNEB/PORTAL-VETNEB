@@ -5,7 +5,7 @@ import {
   loginFailedAttempts,
   type LoginFailedAttemptReason,
   type LoginFailedAttemptSurface,
-} from "../drizzle/schema";
+} from "../drizzle/schema.ts";
 
 export type AdminFailedLoginAlertSurface = LoginFailedAttemptSurface;
 export type AdminFailedLoginAlertReason = LoginFailedAttemptReason;

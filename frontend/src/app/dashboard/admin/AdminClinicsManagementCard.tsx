@@ -21,6 +21,7 @@ import {
 import {
   BACKEND_CONNECTION_ERROR_MESSAGE,
   createAdminClinicWithUser,
+  deleteAdminClinic,
   getAdminClinics,
   updateAdminClinic,
   updateAdminClinicUserCredentials,
@@ -192,7 +193,6 @@ export function AdminClinicsManagementCard() {
         contactPhone: createForm.contactPhone.trim() || null,
         username: createForm.username,
         password: createForm.password,
-        role: "clinic_owner",
       });
 
       setCreateForm(getInitialCreateForm());
@@ -285,6 +285,57 @@ export function AdminClinicsManagementCard() {
         err,
         "No se pudieron actualizar las credenciales.",
       ));
+    } finally {
+      setActiveActionKey(null);
+    }
+  }
+
+  async function handleDeleteClinic(clinic: AdminClinicManagementSummary) {
+    if (isBusy) {
+      return;
+    }
+
+    const confirmedDestructiveAction = window.confirm(
+      `Vas a eliminar definitivamente la clínica "${clinic.clinicName}" y sus datos relacionados. Esta acción es irreversible. ¿Deseás continuar?`,
+    );
+
+    if (!confirmedDestructiveAction) {
+      return;
+    }
+
+    const typedClinicName = window.prompt(
+      `Para confirmar, escribí exactamente el nombre de la clínica:\n\n${clinic.clinicName}`,
+      "",
+    );
+
+    if (typedClinicName === null) {
+      return;
+    }
+
+    if (typedClinicName.trim() !== clinic.clinicName) {
+      setError(
+        "La confirmación no coincide con el nombre exacto de la clínica.",
+      );
+      return;
+    }
+
+    setError(null);
+    setSuccessMessage(null);
+    setActiveActionKey(`delete-${clinic.clinicId}`);
+
+    try {
+      const result = await deleteAdminClinic(clinic.clinicId, {
+        confirmClinicName: typedClinicName.trim(),
+      });
+
+      setSuccessMessage(
+        `${result.clinic.clinicName} fue eliminada definitivamente.`,
+      );
+      loadClinics();
+    } catch (err) {
+      setError(
+        formatAdminClinicsError(err, "No se pudo eliminar la clínica."),
+      );
     } finally {
       setActiveActionKey(null);
     }
@@ -576,6 +627,16 @@ export function AdminClinicsManagementCard() {
                               </Button>
                             </>
                           ) : null}
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            disabled={isBusy}
+                            onClick={() => void handleDeleteClinic(clinic)}
+                          >
+                            {activeActionKey === `delete-${clinic.clinicId}`
+                              ? "Eliminando..."
+                              : "Eliminar clínica"}
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

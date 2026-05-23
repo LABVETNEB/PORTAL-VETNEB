@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
+  BACKEND_CONNECTION_ERROR_MESSAGE,
   getAdminPricing,
   updateAdminPricingItem,
   type AdminPricingCategory,
@@ -137,6 +138,20 @@ function formatUpdatedAt(value: string): string {
   return value;
 }
 
+function formatAdminPricingError(error: unknown, fallback: string) {
+  if (error instanceof TypeError) {
+    return BACKEND_CONNECTION_ERROR_MESSAGE;
+  }
+
+  if (error instanceof Error) {
+    return error.message.toLowerCase().includes("failed to fetch")
+      ? BACKEND_CONNECTION_ERROR_MESSAGE
+      : error.message;
+  }
+
+  return fallback;
+}
+
 export function AdminPricingEditorCard() {
   const [categories, setCategories] = useState<AdminPricingCategory[]>([]);
   const [originalItemsById, setOriginalItemsById] = useState<
@@ -166,8 +181,8 @@ export function AdminPricingEditorCard() {
       setCategories(sortedCategories);
       setOriginalItemsById(nextOriginalItemsById);
       setFormStateById(buildFormStateById(nextOriginalItemsById));
-    } catch {
-      setLoadError(LOAD_ERROR_MESSAGE);
+    } catch (error) {
+      setLoadError(formatAdminPricingError(error, LOAD_ERROR_MESSAGE));
       setCategories([]);
       setOriginalItemsById({});
       setFormStateById({});
@@ -294,11 +309,11 @@ export function AdminPricingEditorCard() {
           errorMessage: null,
         },
       }));
-    } catch {
+    } catch (error) {
       updateItemFormState(itemId, (current) => ({
         ...current,
         statusMessage: null,
-        errorMessage: SAVE_ERROR_MESSAGE,
+        errorMessage: formatAdminPricingError(error, SAVE_ERROR_MESSAGE),
       }));
     } finally {
       setSavingItemId(null);
@@ -328,7 +343,7 @@ export function AdminPricingEditorCard() {
             role="alert"
             className="clinical-alert-warning px-3 py-2"
           >
-            {LOAD_ERROR_MESSAGE}
+            {loadError}
           </p>
         ) : null}
 

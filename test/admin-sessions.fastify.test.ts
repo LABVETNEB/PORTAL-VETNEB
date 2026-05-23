@@ -8,6 +8,8 @@ process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
+process.env.CORS_ORIGIN ??=
+  "https://portal-vetneb-frontend-staging.onrender.com";
 
 const { ENV } = await import("../server/lib/env.ts");
 const { adminSessionsNativeRoutes } = await import(
@@ -29,6 +31,7 @@ type AdminSessionSummary = import(
 type AdminSessionRevocationResult = import(
   "../server/db-admin-sessions.ts"
 ).AdminSessionRevocationResult;
+const STAGING_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 
 function buildDeps(
   overrides: Partial<AdminSessionsNativeRoutesOptions> = {},
@@ -329,6 +332,60 @@ test("admin sessions devuelve 404 si la sesión a revocar no existe", async () =
     assert.equal(response.statusCode, 404);
     assert.equal(JSON.parse(response.body).success, false);
     assert.equal(auditCalled, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin sessions responde preflight OPTIONS para revoke", async () => {
+  const app = Fastify();
+  await app.register(adminSessionsNativeRoutes, buildDeps());
+
+  try {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/clinic/20/revoke",
+      headers: {
+        origin: STAGING_ORIGIN,
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      STAGING_ORIGIN,
+    );
+    assert.equal(response.headers["access-control-allow-credentials"], "true");
+    assert.equal(
+      response.headers["access-control-allow-methods"],
+      "GET,POST,OPTIONS",
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin sessions revoke bloquea origin no permitido", async () => {
+  const app = Fastify();
+  await app.register(adminSessionsNativeRoutes, buildDeps());
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/clinic/20/revoke",
+      headers: {
+        origin: "https://evil.example",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Origen no permitido",
+    });
   } finally {
     await app.close();
   }

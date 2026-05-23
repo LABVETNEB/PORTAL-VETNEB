@@ -4,7 +4,7 @@ import type {
   FastifyRequest,
 } from "fastify";
 
-import type { ParticularToken, Report } from "../../drizzle/schema";
+import type { ParticularToken, Report } from "../../drizzle/schema.ts";
 import { ENV } from "../lib/env.ts";
 import {
   adminCreateParticularTokenSchema,
@@ -93,6 +93,9 @@ export type AdminParticularTokensNativeRoutesOptions = {
     id: number,
     reportId: number | null,
   ) => Promise<ParticularToken | null | undefined>;
+  revokeParticularToken?: (
+    id: number,
+  ) => Promise<ParticularToken | null | undefined>;
   now?: () => number;
 };
 
@@ -118,6 +121,7 @@ type NativeAdminParticularTokensDeps = Required<
     | "getParticularTokenById"
     | "listParticularTokens"
     | "updateParticularTokenReport"
+    | "revokeParticularToken"
   >
 >;
 
@@ -143,6 +147,7 @@ async function loadDefaultDeps(): Promise<NativeAdminParticularTokensDeps> {
         getParticularTokenById: dbParticular.getParticularTokenById,
         listParticularTokens: dbParticular.listParticularTokens,
         updateParticularTokenReport: dbParticular.updateParticularTokenReport,
+        revokeParticularToken: dbParticular.revokeParticularToken,
       };
     })();
   }
@@ -432,7 +437,8 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
     !!options.createParticularToken &&
     !!options.getParticularTokenById &&
     !!options.listParticularTokens &&
-    !!options.updateParticularTokenReport;
+    !!options.updateParticularTokenReport &&
+    !!options.revokeParticularToken;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -461,6 +467,8 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
     updateParticularTokenReport:
       options.updateParticularTokenReport ??
       defaultDeps!.updateParticularTokenReport,
+    revokeParticularToken:
+      options.revokeParticularToken ?? defaultDeps!.revokeParticularToken,
   };
 
   const now = options.now ?? (() => Date.now());
@@ -522,6 +530,7 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
   app.options("/", optionsHandler);
   app.options("/:tokenId", optionsHandler);
   app.options("/:tokenId/report", optionsHandler);
+  app.options("/:tokenId/revoke", optionsHandler);
 
   app.post<{
     Body: {
@@ -779,6 +788,61 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       particularToken: updated
         ? serializeParticularTokenDetail(updated, report)
         : null,
+    });
+  });
+
+  app.patch<{
+    Params: {
+      tokenId: string;
+    };
+  }>("/:tokenId/revoke", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const admin = await authenticateAdminUser(request, reply, deps, now);
+
+    if (!admin) {
+      return reply;
+    }
+
+    const tokenId = parseEntityId(request.params.tokenId);
+
+    if (typeof tokenId !== "number") {
+      return reply.code(400).send({
+        success: false,
+        error: "ID de token inválido",
+      });
+    }
+
+    const existing = await deps.getParticularTokenById(tokenId);
+
+    if (!existing) {
+      return reply.code(404).send({
+        success: false,
+        error: "Token particular no encontrado",
+      });
+    }
+
+    const revoked = await deps.revokeParticularToken(tokenId);
+    const report =
+      revoked && typeof revoked.reportId === "number"
+        ? await deps.getReportById(revoked.reportId)
+        : null;
+
+    if (!revoked) {
+      return reply.code(404).send({
+        success: false,
+        error: "Token particular no encontrado",
+      });
+    }
+
+    return reply.code(200).send({
+      success: true,
+      message: existing.isActive
+        ? "Token particular revocado correctamente"
+        : "Token particular ya estaba inactivo",
+      particularToken: serializeParticularTokenDetail(revoked, report),
     });
   });
 };

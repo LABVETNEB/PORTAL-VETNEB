@@ -5,7 +5,7 @@ import type {
   FastifyRequest,
 } from "fastify";
 
-import type { Report, ReportStatus } from "../../drizzle/schema";
+import type { Report, ReportStatus } from "../../drizzle/schema.ts";
 import { ENV } from "../lib/env.ts";
 import {
   getReadClinicScope,

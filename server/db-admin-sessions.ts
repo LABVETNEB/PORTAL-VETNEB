@@ -5,7 +5,7 @@ import {
   activeSessions,
   adminSessions,
   particularSessions,
-} from "../drizzle/schema";
+} from "../drizzle/schema.ts";
 
 export type AdminSessionType = "admin" | "clinic" | "particular";
 export type AdminSessionStatus = "active" | "expired";

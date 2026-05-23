@@ -1,4 +1,4 @@
-import type { ReportStatus } from "../../drizzle/schema";
+import type { ReportStatus } from "../../drizzle/schema.ts";
 
 export const REPORT_STATUSES: ReadonlyArray<ReportStatus> = [
   "uploaded",

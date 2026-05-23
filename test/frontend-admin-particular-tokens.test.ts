@@ -39,12 +39,17 @@ test("admin particular token generator uses admin helpers without technical copy
   assert.ok(card.includes('"use client";'));
   assert.ok(card.includes("createAdminParticularToken"));
   assert.ok(card.includes("getAdminParticularTokens"));
+  assert.ok(card.includes("revokeAdminParticularToken"));
   assert.ok(card.includes("type AdminParticularTokenCreatePayload"));
   assert.ok(card.includes("type AdminParticularTokenSummary"));
   assert.equal(card.includes(removedScopedCopy), false);
   assert.equal(card.includes(removedAdminEndpoint), false);
   assert.ok(api.includes("export async function createAdminParticularToken("));
   assert.ok(api.includes('"/api/admin/particular-tokens"'));
+  assert.ok(api.includes("export async function revokeAdminParticularToken("));
+  assert.ok(
+    api.includes("`/api/admin/particular-tokens/${tokenId}/revoke`,"),
+  );
 });
 
 test("admin particular token generator requires clinic id and programmed fields", () => {

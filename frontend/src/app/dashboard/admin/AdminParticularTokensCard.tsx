@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import {
   createAdminParticularToken,
   getAdminParticularTokens,
+  revokeAdminParticularToken,
   type AdminParticularTokenCreatePayload,
   type AdminParticularTokenSummary,
 } from "@/lib/api";
@@ -164,6 +165,7 @@ export function AdminParticularTokensCard() {
   const [tokens, setTokens] = useState<AdminParticularTokenSummary[]>([]);
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
+  const [revokingTokenId, setRevokingTokenId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -243,6 +245,39 @@ export function AdminParticularTokensCard() {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleRevokeToken(token: AdminParticularTokenSummary) {
+    if (revokingTokenId !== null) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `¿Revocar el token ****${token.tokenLast4} de ${token.petName}? Esta acción inhabilita su uso para acceso particular.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setStatusMessage(null);
+    setGeneratedToken(null);
+    setRevokingTokenId(token.id);
+
+    try {
+      const response = await revokeAdminParticularToken(token.id);
+      setStatusMessage(response.message);
+      await loadTokens();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo revocar el token particular.",
+      );
+    } finally {
+      setRevokingTokenId(null);
     }
   }
 
@@ -619,6 +654,22 @@ export function AdminParticularTokensCard() {
                         Origen: {formatTokenSource(token)}
                       </p>
                     </div>
+                  </div>
+
+                  <div className="mt-3 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      disabled={!token.isActive || revokingTokenId === token.id}
+                      onClick={() => void handleRevokeToken(token)}
+                    >
+                      {revokingTokenId === token.id
+                        ? "Revocando..."
+                        : token.isActive
+                          ? "Revocar token"
+                          : "Token inactivo"}
+                    </Button>
                   </div>
                 </div>
               ))}

@@ -68,7 +68,8 @@ Secuencia mínima obligatoria en staging:
 5. Verificar `/dashboard/admin` autenticado y, si hace falta, el payload de
    `/api/admin/system/health`:
    - `gmail_api=configured` cuando se usa Gmail API HTTPS/443.
-   - `Correo SMTP` = `Configurado` solo si se configuró el fallback SMTP.
+   - `Transporte de correo` en UI admin muestra `Gmail API HTTPS` o `SMTP`.
+   - `SMTP` = `Configurado` solo si se configuró el fallback SMTP.
    - `Contacto email` = `Configurado`
    - `CORS público` incluye `https://portal-vetneb-frontend-staging.onrender.com`
 
@@ -241,7 +242,8 @@ foreach ($Path in $PublicPaths) {
    - `Contacto email` está `Configurado`.
    - Si se usa Gmail API HTTPS/443, `/api/admin/system/health` expone
      `gmail_api=configured`.
-   - Si se usa SMTP fallback, `Correo SMTP` está `Configurado`.
+   - `Transporte de correo` muestra `Gmail API HTTPS` o `SMTP`.
+   - Si se usa SMTP fallback, `SMTP` está `Configurado`.
    - `CONTACT_TO` figura `Configurado`.
    - `CORS público` muestra el frontend staging activo.
 4. Confirmar en UI mensaje de éxito:
@@ -330,30 +332,48 @@ habilitar operaciones admin desde frontend con `credentials: "include"`.
 
 2. Iniciar sesion admin en el navegador si el script lo solicita.
 3. Abrir `$FrontendUrl/dashboard/admin`.
-4. En la seccion `Clínicas`, crear una clinica nueva desde `Alta de clínica`:
+4. Validar secciones visibles del sidebar admin con datos reales:
+   - `Administración` (resumen y auditoría),
+   - `Subir informe`,
+   - `Estado`,
+   - `Clínicas`,
+   - `Tokens particulares`,
+   - `Precios`,
+   - `Sesiones`,
+   - `Roles clínica`,
+   - `Auditoría`,
+   - `Mantenimiento`.
+5. En la seccion `Clínicas`, crear una clinica nueva desde `Alta de clínica`:
    - nombre de clinica,
    - email de contacto,
    - telefono opcional,
-   - usuario de acceso,
+   - usuario de acceso (usar email real de la clínica),
    - contraseña inicial visible mientras se ingresa.
-5. Confirmar que la respuesta visual no muestra contraseña, hashes ni secretos.
-6. En la misma seccion, cambiar nombre/email/telefono de la clinica y guardar.
-7. Cambiar el username del usuario de clinica y confirmar que el listado se
+6. Confirmar que la respuesta visual no muestra contraseña, hashes ni secretos.
+7. En la misma seccion, cambiar nombre/email/telefono de la clinica y guardar.
+8. Cambiar el username del usuario de clinica y confirmar que el listado se
    actualiza.
-8. Para recuperacion de contraseña, asignar una nueva contraseña visible y
+9. Para recuperacion de contraseña, asignar una nueva contraseña visible y
    guardar. La contraseña anterior no se consulta ni se recupera. Confirmar el
    dialogo: `Se reemplazará la contraseña de acceso de esta clínica. ¿Confirmás el cambio?`
-9. Confirmar que `Clínicas` no muestra selector, columna ni acciones de rol.
+10. Confirmar que `Clínicas` no muestra selector, columna ni acciones de rol.
    Los roles se gestionan aparte en `Roles clínica`, si aplica.
-10. Revisar `Log de auditoría` y confirmar eventos sanitizados:
+11. Revisar `Log de auditoría` y confirmar eventos sanitizados:
    - `clinic.created`
    - `clinic.updated`
+   - `clinic.deleted`
    - `clinic_user.created`
    - `clinic_user.credentials.updated`
    - `clinic_user.role.changed`
-11. Cerrar sesion admin.
-12. Pasar al dashboard clinica con el usuario creado o actualizado y validar
+12. Si hay datos demo/smoke/smock heredados, eliminarlos solo desde
+    `Clínicas` con confirmación exacta por nombre. No usar borrado masivo ni
+    escritura DB manual.
+13. Cerrar sesion admin.
+14. Pasar al dashboard clinica con el usuario creado o actualizado y validar
    login, `GET /api/auth/me` y carga inicial del dashboard.
+
+Regla operativa: staging/prod no usa clínicas demo/smoke/smock como flujo
+normal. Esos datos solo se retiran con eliminación explícita desde UI admin.
 
 ## 6. Login clinica por API
 
