@@ -146,3 +146,44 @@ test("serializeClinicUser no expone passwordHash, authProId ni campos sensibles"
     "serializeClinicUser debe serializar updatedAt como ISO",
   );
 });
+
+test("migración 0026 existe y añade contact_email y contact_phone con ADD COLUMN IF NOT EXISTS", () => {
+  const source = read("drizzle/migrations/0026_clinics_contact_columns_reconciliation.sql");
+
+  assert.ok(
+    source.includes('ADD COLUMN IF NOT EXISTS "contact_email"'),
+    "la migración debe añadir contact_email con IF NOT EXISTS",
+  );
+  assert.ok(
+    source.includes('ADD COLUMN IF NOT EXISTS "contact_phone"'),
+    "la migración debe añadir contact_phone con IF NOT EXISTS",
+  );
+  assert.ok(
+    source.includes("varchar(255)"),
+    "contact_email debe ser varchar(255)",
+  );
+  assert.ok(
+    source.includes("varchar(50)"),
+    "contact_phone debe ser varchar(50)",
+  );
+  assert.ok(
+    !source.includes("NOT NULL"),
+    "las columnas nuevas no deben tener NOT NULL (son opcionales)",
+  );
+});
+
+test("journal de migraciones incluye 0026 como última entrada", () => {
+  const raw = read("drizzle/migrations/meta/_journal.json");
+  const journal = JSON.parse(raw) as {
+    entries: Array<{ idx: number; tag: string }>;
+  };
+
+  const last = journal.entries[journal.entries.length - 1];
+
+  assert.equal(
+    last?.tag,
+    "0026_clinics_contact_columns_reconciliation",
+    "la última entrada del journal debe ser 0026_clinics_contact_columns_reconciliation",
+  );
+  assert.equal(last?.idx, 26, "idx de la última migración debe ser 26");
+});

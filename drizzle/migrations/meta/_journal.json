@@ -183,6 +183,13 @@
                         "when":  1777111200000,
                         "tag":  "0025_login_rate_limits",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  26,
+                        "version":  "7",
+                        "when":  1777114800000,
+                        "tag":  "0026_clinics_contact_columns_reconciliation",
+                        "breakpoints":  true
                     }
                 ]
 }
