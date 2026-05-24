@@ -22,6 +22,7 @@ import { normalizeClinicUserRole } from "./lib/permissions.ts";
 
 const client = postgres(ENV.databaseUrl, {
   prepare: false,
+  max: ENV.databaseMaxConnections,
 });
 
 export const pgClient = client;

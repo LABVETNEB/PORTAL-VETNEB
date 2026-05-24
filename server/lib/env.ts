@@ -1,4 +1,4 @@
-﻿import "dotenv/config";
+import "dotenv/config";
 import { z } from "zod";
 
 const emptyToUndefined = (value: unknown) => {
@@ -26,11 +26,22 @@ function parseDelimitedList(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+
+function parseDatabaseMaxConnections(value: string | undefined): number {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return 3;
+  }
+
+  return Math.min(Math.max(Math.trunc(parsed), 1), 10);
+}
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).optional(),
   PORT: z.coerce.number().int().positive().optional(),
   DATABASE_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SUPABASE_DB_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  DATABASE_MAX_CONNECTIONS: z.preprocess(emptyToUndefined, z.string().optional()),
   SUPABASE_URL: z.preprocess(emptyToUndefined, z.string().url()),
   SUPABASE_ANON_KEY: z.preprocess(emptyToUndefined, z.string().min(1)),
   SUPABASE_SERVICE_ROLE_KEY: z.preprocess(emptyToUndefined, z.string().min(1)),
@@ -94,7 +105,10 @@ const port = rawEnv.PORT ?? 3000;
 const databaseUrl = rawEnv.SUPABASE_DB_URL ?? rawEnv.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error("DATABASE_URL o SUPABASE_DB_URL es obligatorio");
-}
+}const DB_MAX_CONNECTIONS_DEFAULT = 3;
+const DB_MAX_CONNECTIONS_FLOOR = 1;
+const DB_MAX_CONNECTIONS_CEILING = 10;
+const databaseMaxConnections = parseDatabaseMaxConnections(rawEnv.DATABASE_MAX_CONNECTIONS);
 
 const LOCAL_CORS_ORIGINS = [
   "http://localhost:3000",
@@ -138,6 +152,7 @@ export const ENV = {
   isProduction: nodeEnv === "production",
   port,
   databaseUrl,
+  databaseMaxConnections,
   supabaseUrl: rawEnv.SUPABASE_URL,
   supabaseAnonKey: rawEnv.SUPABASE_ANON_KEY,
   supabaseServiceRoleKey: rawEnv.SUPABASE_SERVICE_ROLE_KEY,
