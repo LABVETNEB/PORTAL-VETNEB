@@ -1,13 +1,6 @@
 import { sql } from "drizzle-orm";
 
-import { type StartupCleanupSummary } from "./bootstrap.ts";
-import {
-  db,
-  deleteExpiredAdminSessions,
-  deleteExpiredSessions,
-} from "./db.ts";
-import { deleteExpiredParticularSessions } from "./db-particular.ts";
-import { ensureStorageBucketExists } from "./lib/supabase.ts";
+import type { StartupCleanupSummary } from "./bootstrap.ts";
 
 const POOL_EXHAUSTED_PATTERNS = [
   "max clients reached",
@@ -44,6 +37,7 @@ export async function safeCleanupStep(
       );
       return 0;
     }
+
     throw err;
   }
 }
@@ -51,20 +45,34 @@ export async function safeCleanupStep(
 export async function preflight(
   deps: { logger?: LoggerLike } = {},
 ): Promise<StartupCleanupSummary> {
-  await db.execute(sql`select 1`);
-  await ensureStorageBucketExists();
+  const [
+    dbModule,
+    particularModule,
+    supabaseModule,
+  ] = await Promise.all([
+    import("./db.ts"),
+    import("./db-particular.ts"),
+    import("./lib/supabase.ts"),
+  ]);
 
   const logger = deps.logger ?? console;
+
+  await dbModule.db.execute(sql`select 1`);
+  await supabaseModule.ensureStorageBucketExists();
 
   const [
     deletedClinicSessions,
     deletedAdminSessions,
     deletedParticularSessions,
   ] = await Promise.all([
-    safeCleanupStep(deleteExpiredSessions, "clinic_sessions", logger),
-    safeCleanupStep(deleteExpiredAdminSessions, "admin_sessions", logger),
+    safeCleanupStep(dbModule.deleteExpiredSessions, "clinic_sessions", logger),
     safeCleanupStep(
-      deleteExpiredParticularSessions,
+      dbModule.deleteExpiredAdminSessions,
+      "admin_sessions",
+      logger,
+    ),
+    safeCleanupStep(
+      particularModule.deleteExpiredParticularSessions,
       "particular_sessions",
       logger,
     ),
