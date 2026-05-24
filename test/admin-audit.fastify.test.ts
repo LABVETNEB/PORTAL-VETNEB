@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import Fastify from "fastify";
 
@@ -8,6 +8,7 @@ process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
+process.env.CORS_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 
 const { ENV } = await import("../server/lib/env.ts");
 const {
@@ -281,3 +282,144 @@ test(
     }
   },
 );
+
+
+const STAGING_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
+
+test("CORS: preflight OPTIONS / devuelve 204 con headers correctos", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/admin/audit-log/",
+      headers: {
+        origin: STAGING_ORIGIN,
+        "access-control-request-method": "GET",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      STAGING_ORIGIN,
+    );
+    assert.equal(
+      response.headers["access-control-allow-credentials"],
+      "true",
+    );
+    assert.equal(
+      response.headers["access-control-allow-methods"],
+      "GET,OPTIONS",
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: preflight OPTIONS /export.csv devuelve 204 con headers correctos", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/admin/audit-log/export.csv",
+      headers: {
+        origin: STAGING_ORIGIN,
+        "access-control-request-method": "GET",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      STAGING_ORIGIN,
+    );
+    assert.equal(
+      response.headers["access-control-allow-credentials"],
+      "true",
+    );
+    assert.equal(
+      response.headers["access-control-allow-methods"],
+      "GET,OPTIONS",
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: GET / origin permitido devuelve access-control-allow-origin", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/audit-log/",
+      headers: {
+        origin: STAGING_ORIGIN,
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      STAGING_ORIGIN,
+    );
+    assert.equal(
+      response.headers["access-control-allow-credentials"],
+      "true",
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: origin no permitido no recibe access-control-allow-origin", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/audit-log/",
+      headers: {
+        origin: "https://evil.example.com",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      undefined,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: 401 sin sesion mantiene CORS header para origin permitido", async () => {
+  const app = await createTestApp({
+    getAdminSessionByToken: async () => null,
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/audit-log/",
+      headers: {
+        origin: STAGING_ORIGIN,
+        cookie: `${ENV.adminCookieName}=bad-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      STAGING_ORIGIN,
+    );
+  } finally {
+    await app.close();
+  }
+});

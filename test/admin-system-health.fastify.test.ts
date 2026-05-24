@@ -8,6 +8,7 @@ process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
+process.env.CORS_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 
 const { ENV } = await import("../server/lib/env.ts");
 const { adminSystemHealthNativeRoutes } = await import(
@@ -197,6 +198,144 @@ test("admin system health expone servicios, runtime y versión para admin autent
     assert.equal(typeof body.runtime.memory.rssMb, "number");
     assert.equal(body.health.status, "ok");
     assert.equal(updatedLastAccess, true);
+  } finally {
+    await app.close();
+  }
+});
+
+
+const STAGING_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
+
+function buildHealthDeps(overrides: Record<string, unknown> = {}) {
+  return {
+    deleteAdminSession: async () => {},
+    getAdminSessionByToken: async () => ({
+      adminUserId: 1,
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+    }),
+    getAdminUserById: async () => ({ id: 1, username: "VETNEB" }),
+    updateAdminSessionLastAccess: async () => {},
+    hashSessionToken: (token: string) => `hash:${token}`,
+    getSystemHealthSnapshot: async () => ({
+      statusCode: 200,
+      payload: {
+        success: true,
+        status: "ok",
+        checks: { database: "up", storage: "up" },
+      },
+    }),
+    getBackendVersion: () => "test-version",
+    ...overrides,
+  };
+}
+
+test("CORS: preflight OPTIONS / en system-health devuelve 204 con headers correctos", async () => {
+  const app = Fastify();
+  await app.register(adminSystemHealthNativeRoutes, buildHealthDeps());
+
+  try {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/",
+      headers: {
+        origin: STAGING_ORIGIN,
+        "access-control-request-method": "GET",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      STAGING_ORIGIN,
+    );
+    assert.equal(
+      response.headers["access-control-allow-credentials"],
+      "true",
+    );
+    assert.equal(
+      response.headers["access-control-allow-methods"],
+      "GET,OPTIONS",
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: GET / en system-health con origin permitido devuelve access-control-allow-origin", async () => {
+  const app = Fastify();
+  await app.register(adminSystemHealthNativeRoutes, buildHealthDeps());
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/",
+      headers: {
+        origin: STAGING_ORIGIN,
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      STAGING_ORIGIN,
+    );
+    assert.equal(
+      response.headers["access-control-allow-credentials"],
+      "true",
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: 401 sin sesion en system-health mantiene CORS header para origin permitido", async () => {
+  const app = Fastify();
+  await app.register(
+    adminSystemHealthNativeRoutes,
+    buildHealthDeps({ getAdminSessionByToken: async () => null }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/",
+      headers: {
+        origin: STAGING_ORIGIN,
+        cookie: `${ENV.adminCookieName}=bad-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      STAGING_ORIGIN,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: origin no permitido en system-health no recibe access-control-allow-origin", async () => {
+  const app = Fastify();
+  await app.register(adminSystemHealthNativeRoutes, buildHealthDeps());
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/",
+      headers: {
+        origin: "https://evil.example.com",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(
+      response.headers["access-control-allow-origin"],
+      undefined,
+    );
   } finally {
     await app.close();
   }
