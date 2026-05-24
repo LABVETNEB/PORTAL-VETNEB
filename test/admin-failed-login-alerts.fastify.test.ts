@@ -8,6 +8,10 @@ process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
+process.env.CORS_ORIGIN ??=
+  "https://portal-vetneb-frontend-staging.onrender.com";
+
+const STAGING_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 
 const { ENV } = await import("../server/lib/env.ts");
 const { adminFailedLoginAlertsNativeRoutes } = await import(
@@ -76,7 +80,7 @@ function buildDeps(
   };
 }
 
-test("admin failed-login alerts requiere sesión admin", async () => {
+test("admin failed-login alerts requiere sesion admin", async () => {
   const app = Fastify();
 
   await app.register(
@@ -186,7 +190,7 @@ test("admin failed-login alerts devuelve intentos sanitizados", async () => {
   }
 });
 
-test("admin failed-login alerts rechaza filtros inválidos", async () => {
+test("admin failed-login alerts rechaza filtros invalidos", async () => {
   const app = Fastify();
   let listCalled = false;
 
@@ -228,7 +232,6 @@ test("admin failed-login alerts rechaza filtros inválidos", async () => {
     await app.close();
   }
 });
-
 
 test("admin failed-login alerts exporta CSV sanitizado", async () => {
   const app = Fastify();
@@ -287,10 +290,7 @@ test("admin failed-login alerts exporta CSV sanitizado", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.equal(
-      response.headers["content-type"],
-      "text/csv; charset=utf-8",
-    );
+    assert.equal(response.headers["content-type"], "text/csv; charset=utf-8");
     assert.equal(
       response.headers["content-disposition"],
       'attachment; filename="admin-failed-login-alerts-test.csv"',
@@ -302,15 +302,13 @@ test("admin failed-login alerts exporta CSV sanitizado", async () => {
       offset: 0,
     });
 
-    assert.equal(
-      response.body,
-      [
-        "id,surface,username,reason,ipAddress,userAgent,createdAt",
-        "20,clinic,clinic-user,invalid_credentials,203.0.113.20,csv-test-agent,2026-05-08T00:02:00.000Z",
-        "21,particular,,rate_limited,203.0.113.21,csv-test-agent-2,2026-05-08T00:03:00.000Z",
-      ].join("\n"),
-    );
+    const expectedCsv = [
+      "id,surface,username,reason,ipAddress,userAgent,createdAt",
+      "20,clinic,clinic-user,invalid_credentials,203.0.113.20,csv-test-agent,2026-05-08T00:02:00.000Z",
+      "21,particular,,rate_limited,203.0.113.21,csv-test-agent-2,2026-05-08T00:03:00.000Z",
+    ].join("\n");
 
+    assert.equal(response.body, expectedCsv);
     assert.equal(response.body.includes("tokenHash"), false);
     assert.equal(response.body.includes("hash:"), false);
     assert.equal(response.body.includes("password"), false);
@@ -320,7 +318,7 @@ test("admin failed-login alerts exporta CSV sanitizado", async () => {
   }
 });
 
-test("admin failed-login alerts export rechaza filtros inválidos", async () => {
+test("admin failed-login alerts export rechaza filtros invalidos", async () => {
   const app = Fastify();
   let listCalled = false;
 
@@ -358,6 +356,187 @@ test("admin failed-login alerts export rechaza filtros inválidos", async () => 
     assert.equal(response.statusCode, 400);
     assert.equal(JSON.parse(response.body).success, false);
     assert.equal(listCalled, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: GET / origin permitido devuelve access-control-allow-origin exacto", async () => {
+  const app = Fastify();
+  await app.register(adminFailedLoginAlertsNativeRoutes, buildDeps());
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?limit=25&offset=0",
+      headers: {
+        origin: STAGING_ORIGIN,
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers["access-control-allow-origin"], STAGING_ORIGIN);
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: GET / origin permitido devuelve access-control-allow-credentials true", async () => {
+  const app = Fastify();
+  await app.register(adminFailedLoginAlertsNativeRoutes, buildDeps());
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?limit=25&offset=0",
+      headers: {
+        origin: STAGING_ORIGIN,
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers["access-control-allow-credentials"], "true");
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: GET /export.csv origin permitido devuelve CORS correcto", async () => {
+  const app = Fastify();
+  await app.register(adminFailedLoginAlertsNativeRoutes, buildDeps());
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/export.csv",
+      headers: {
+        origin: STAGING_ORIGIN,
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.headers["access-control-allow-origin"], STAGING_ORIGIN);
+    assert.equal(response.headers["access-control-allow-credentials"], "true");
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: preflight OPTIONS / devuelve 204 con headers correctos", async () => {
+  const app = Fastify();
+  await app.register(adminFailedLoginAlertsNativeRoutes, buildDeps());
+
+  try {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/",
+      headers: {
+        origin: STAGING_ORIGIN,
+        "access-control-request-method": "GET",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(response.headers["access-control-allow-origin"], STAGING_ORIGIN);
+    assert.equal(response.headers["access-control-allow-credentials"], "true");
+    assert.equal(response.headers["access-control-allow-methods"], "GET,OPTIONS");
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: preflight OPTIONS /export.csv devuelve 204 con headers correctos", async () => {
+  const app = Fastify();
+  await app.register(adminFailedLoginAlertsNativeRoutes, buildDeps());
+
+  try {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/export.csv",
+      headers: {
+        origin: STAGING_ORIGIN,
+        "access-control-request-method": "GET",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(response.headers["access-control-allow-origin"], STAGING_ORIGIN);
+    assert.equal(response.headers["access-control-allow-credentials"], "true");
+    assert.equal(response.headers["access-control-allow-methods"], "GET,OPTIONS");
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: origin no permitido no recibe access-control-allow-origin", async () => {
+  const app = Fastify();
+  await app.register(adminFailedLoginAlertsNativeRoutes, buildDeps());
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?limit=25&offset=0",
+      headers: {
+        origin: "https://evil.example.com",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.headers["access-control-allow-origin"], undefined);
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: 401 sesion invalida mantiene CORS header para origin permitido", async () => {
+  const app = Fastify();
+  await app.register(
+    adminFailedLoginAlertsNativeRoutes,
+    buildDeps({ getAdminSessionByToken: async () => null }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?limit=25&offset=0",
+      headers: {
+        origin: STAGING_ORIGIN,
+        cookie: `${ENV.adminCookieName}=bad-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(response.headers["access-control-allow-origin"], STAGING_ORIGIN);
+    assert.equal(response.headers["access-control-allow-credentials"], "true");
+  } finally {
+    await app.close();
+  }
+});
+
+test("CORS: respuesta no expone token cookie hash ni password", async () => {
+  const app = Fastify();
+  await app.register(adminFailedLoginAlertsNativeRoutes, buildDeps());
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?limit=25&offset=0",
+      headers: {
+        origin: STAGING_ORIGIN,
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.includes("sessionToken"), false);
+    assert.equal(response.body.includes("tokenHash"), false);
+    assert.equal(response.body.includes("hash:"), false);
+    assert.equal(response.body.includes("password"), false);
   } finally {
     await app.close();
   }
