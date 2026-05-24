@@ -343,8 +343,8 @@ export async function createAdminClinicWithUser(
               ${input.clinicName.trim()},
               ${input.contactEmail.trim()},
               ${input.contactPhone?.trim() || null},
-              ${now},
-              ${now}
+              ${now.toISOString()}::timestamptz,
+              ${now.toISOString()}::timestamptz
             )
             returning
               "id" as "clinicId",
