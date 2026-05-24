@@ -1,29 +1,8 @@
-import { sql } from "drizzle-orm";
-
 import { bootstrapHttpServer, type HttpServerHandle } from "./bootstrap.ts";
-import { closeDbConnection, db, deleteExpiredAdminSessions, deleteExpiredSessions } from "./db.ts";
-import { deleteExpiredParticularSessions } from "./db-particular.ts";
+import { closeDbConnection } from "./db.ts";
 import { createFastifyApp } from "./fastify-app.ts";
 import { ENV } from "./lib/env.ts";
-import { ensureStorageBucketExists } from "./lib/supabase.ts";
-
-async function preflight() {
-  await db.execute(sql`select 1`);
-  await ensureStorageBucketExists();
-
-  const [deletedClinicSessions, deletedAdminSessions, deletedParticularSessions] =
-    await Promise.all([
-      deleteExpiredSessions(),
-      deleteExpiredAdminSessions(),
-      deleteExpiredParticularSessions(),
-    ]);
-
-  return {
-    deletedClinicSessions,
-    deletedAdminSessions,
-    deletedParticularSessions,
-  };
-}
+import { preflight } from "./preflight.ts";
 
 async function closeResources() {
   await closeDbConnection();
