@@ -226,7 +226,13 @@ export function UploadReportModal() {
     return () => {
       cancelled = true;
     };
-  }, [clinicOptions.length, isLoadingClinics, isOpen]);
+  // isLoadingClinics is intentionally omitted from the dep array:
+  // including it causes React to run cleanup (setting cancelled=true) the moment
+  // setIsLoadingClinics(true) fires inside loadClinicOptions, which prevents the
+  // finally block from ever calling setIsLoadingClinics(false) and leaves the
+  // modal permanently stuck on "Cargando clínicas registradas...".
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clinicOptions.length, isOpen]);
 
   useEffect(() => {
     if (!isOpen || typeof selectedClinicId !== "number") {
