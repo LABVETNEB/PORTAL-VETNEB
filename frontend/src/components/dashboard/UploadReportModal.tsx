@@ -159,7 +159,7 @@ export function UploadReportModal() {
   }, []);
 
   useEffect(() => {
-    if (!isOpen || clinicOptions.length > 0 || isLoadingClinics) {
+    if (!isOpen || isLoadingClinics) {
       return;
     }
 
@@ -231,8 +231,12 @@ export function UploadReportModal() {
   // setIsLoadingClinics(true) fires inside loadClinicOptions, which prevents the
   // finally block from ever calling setIsLoadingClinics(false) and leaves the
   // modal permanently stuck on "Cargando clínicas registradas...".
+  // clinicOptions.length is intentionally excluded: its presence blocked the re-fetch
+  // on subsequent opens when the catalog was already populated (stale catalog bug).
+  // Depending only on isOpen ensures the catalog refreshes from backend every time
+  // the modal opens, so newly created clinics are visible without hardcoding.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clinicOptions.length, isOpen]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || typeof selectedClinicId !== "number") {
