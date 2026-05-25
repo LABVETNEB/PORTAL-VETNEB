@@ -187,3 +187,24 @@ test("journal de migraciones incluye 0026 como última entrada", () => {
   );
   assert.equal(last?.idx, 26, "idx de la última migración debe ser 26");
 });
+
+test("toIsoDate acepta Date o string devuelto por raw SQL postgres-js", () => {
+  const source = read("server/db-admin-clinics.ts");
+
+  const toIsoDateStart = source.indexOf("function toIsoDate(");
+  const toIsoDateEnd = source.indexOf("function serializeClinic(");
+  const toIsoDateFn = source.slice(toIsoDateStart, toIsoDateEnd);
+
+  assert.ok(
+    toIsoDateFn.includes("value instanceof Date"),
+    "toIsoDate debe manejar Date nativo",
+  );
+  assert.ok(
+    toIsoDateFn.includes("new Date(value)"),
+    "toIsoDate debe aceptar string/number devuelto por raw SQL",
+  );
+  assert.ok(
+    toIsoDateFn.includes("Number.isNaN(date.getTime())"),
+    "toIsoDate debe validar fechas inválidas",
+  );
+});
