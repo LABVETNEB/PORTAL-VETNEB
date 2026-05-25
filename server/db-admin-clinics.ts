@@ -177,8 +177,18 @@ async function reserveNextClinicId(tx: DbTransaction): Promise<number> {
   return reserved.clinicId;
 }
 
-function toIsoDate(value: Date) {
-  return value.toISOString();
+function toIsoDate(value: Date | string | number) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Fecha inválida recibida desde DB.");
+  }
+
+  return date.toISOString();
 }
 
 function serializeClinic(row: ClinicRow): AdminClinicSummary {
