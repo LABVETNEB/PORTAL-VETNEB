@@ -187,3 +187,142 @@ test("report download button renders labels titles disabled and alert state", ()
   assert.ok(source.includes("{errorMessage}"));
 });
 
+// --- fix(admin): load registered clinics in report upload modal ---
+
+test("upload modal clinic loader: isLoadingClinics excluded from effect deps to prevent cancellation race", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+
+  // The dep array must NOT include isLoadingClinics – its presence causes React
+  // to run the effect cleanup (setting cancelled=true) the moment
+  // setIsLoadingClinics(true) fires, which prevents the finally block from
+  // ever calling setIsLoadingClinics(false) and leaves the modal stuck on
+  // "Cargando clínicas registradas...".
+  assert.ok(
+    source.includes("}, [clinicOptions.length, isOpen]);"),
+    "dep array must be [clinicOptions.length, isOpen] — isLoadingClinics must be absent",
+  );
+  assert.equal(
+    source.includes("}, [clinicOptions.length, isLoadingClinics, isOpen]);"),
+    false,
+    "dep array must NOT include isLoadingClinics",
+  );
+});
+
+test("upload modal clinic loader: eslint disable comment documents intentional dep omission", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+
+  assert.ok(
+    source.includes("eslint-disable-next-line react-hooks/exhaustive-deps"),
+    "intentional dep omission must be documented with eslint-disable comment",
+  );
+  assert.ok(
+    source.includes("isLoadingClinics is intentionally omitted"),
+    "comment must explain why isLoadingClinics is omitted from the dep array",
+  );
+});
+
+test("upload modal clinic loader: finally block always calls setIsLoadingClinics(false)", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+
+  // The finally block is the only place setIsLoadingClinics(false) is called,
+  // guarded by !cancelled so loading resolves after the fetch completes.
+  assert.ok(source.includes("} finally {"));
+  assert.ok(source.includes("if (!cancelled) {"));
+  assert.ok(source.includes("setIsLoadingClinics(false);"));
+});
+
+test("upload modal clinic loader: guard prevents duplicate load while in flight", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+
+  // The guard inside the effect (not in deps) still short-circuits re-entry.
+  assert.ok(
+    source.includes("if (!isOpen || clinicOptions.length > 0 || isLoadingClinics) {"),
+    "guard must check isLoadingClinics to block duplicate concurrent loads",
+  );
+});
+
+test("upload modal clinic loader: uses getAdminUsersRoles with userType clinic and pagination", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+
+  assert.ok(source.includes('import { getAdminUsersRoles } from "@/lib/api";'));
+  assert.ok(source.includes('getAdminUsersRoles({'));
+  assert.ok(source.includes('userType: "clinic",'));
+  assert.ok(source.includes('limit,'));
+  assert.ok(source.includes('offset,'));
+  assert.ok(source.includes('total = snapshot.total;'));
+  assert.ok(source.includes('offset += snapshot.users.length;'));
+});
+
+test("upload modal clinic loader: normalizes and searches clinic by name, username and ID", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+
+  // normalizeSearchText strips accents and lowercases — MIBABAU matches mibabau
+  assert.ok(source.includes('function normalizeSearchText(value: string)'));
+  assert.ok(source.includes('.normalize("NFD")'));
+  assert.ok(source.includes('.replace(/\\p{Diacritic}/gu, "")'));
+  assert.ok(source.includes('.toLowerCase()'));
+  assert.ok(source.includes('.trim()'));
+
+  // buildClinicSearchText joins id + name + usernames for full-text search
+  assert.ok(source.includes('function buildClinicSearchText(option: ClinicOption)'));
+  assert.ok(
+    source.includes('[option.id, option.name, ...option.usernames].join(" ")'),
+    "search text must include id, name and usernames so MIBABAU matches by username",
+  );
+
+  // matchClinicOption supports partial tokens
+  assert.ok(source.includes('function matchClinicOption(option: ClinicOption, query: string)'));
+  assert.ok(source.includes('tokens.every((token) => searchable.includes(token))'));
+
+  // filteredClinicOptions applies matchClinicOption with clinicSearch
+  assert.ok(source.includes('const filteredClinicOptions = clinicOptions'));
+  assert.ok(source.includes('.filter((option) => matchClinicOption(option, clinicSearch))'));
+});
+
+test("upload modal clinic loader: selectClinic sets clinicId and clears validation error", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+
+  assert.ok(source.includes('function selectClinic(option: ClinicOption)'));
+  assert.ok(source.includes('setClinicId(String(option.id));'));
+  assert.ok(source.includes('setClinicSearch(option.name);'));
+  // Selecting a clinic from the listbox clears the error message so the
+  // "Seleccione una clínica registrada del listado." banner disappears.
+  assert.ok(source.includes('setErrorMessage(null);'));
+});
+
+test("upload modal submit: no validation error when clinicId and selectedClinic are set", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+
+  // Validation only fires when BOTH clinicId and selectedClinic are falsy.
+  // After selectClinic() is called, clinicId = String(option.id) (truthy) and
+  // selectedClinic resolves via clinicOptions.find — so this branch is skipped.
+  assert.ok(source.includes('if (!clinicId || !selectedClinic) {'));
+  assert.ok(source.includes('"Seleccione una clínica registrada del listado."'));
+
+  // selectedClinic is derived — not a separate state — to stay consistent.
+  assert.ok(
+    source.includes('const selectedClinic = clinicOptions.find('),
+    "selectedClinic must be derived from clinicOptions so it resolves once clinicId is set",
+  );
+  assert.ok(source.includes('(option) => String(option.id) === clinicId,'));
+});
+
+test("upload modal clinic loader: deduplicates and sorts options by clinic id", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+
+  assert.ok(source.includes('function dedupeClinicOptions(options: ClinicOption[])'));
+  assert.ok(source.includes('const byId = new Map<number, ClinicOption>()'));
+  assert.ok(source.includes('byId.get(option.id)'));
+  assert.ok(source.includes('return Array.from(byId.values()).sort(sortClinicOptions)'));
+  assert.ok(source.includes('setClinicOptions(dedupeClinicOptions(options));'));
+});
+
+test("upload modal clinic loader: apiFetch wrapper uses credentials include by default", () => {
+  const API_PATH = "frontend/src/lib/api.ts";
+  const source = read(API_PATH);
+
+  assert.ok(
+    source.includes('credentials: options.credentials ?? "include"'),
+    'apiFetch must default credentials to "include" for admin session cookie',
+  );
+});
