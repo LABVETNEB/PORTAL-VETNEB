@@ -344,30 +344,32 @@ test("upload modal clinic loader: apiFetch wrapper uses credentials include by d
 // Unit tests for the pure search/dedup functions and structural invariants.
 // All clinic data is fictional — no real staging names are used.
 
-function testNormalize(value) {
-  return value
+type TestClinicOption = { id: number; name: string; usernames: string[] };
+
+function testNormalize(value: string | number): string {
+  return String(value)
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
     .toLowerCase()
     .trim();
 }
 
-function testBuildSearchText(opt) {
+function testBuildSearchText(opt: TestClinicOption): string {
   return testNormalize([opt.id, opt.name, ...opt.usernames].join(" "));
 }
 
-function testMatch(opt, query) {
+function testMatch(opt: TestClinicOption, query: string): boolean {
   const nq = testNormalize(query);
   if (!nq) return true;
   const searchable = testBuildSearchText(opt);
   return nq
     .split(/\s+/)
     .filter(Boolean)
-    .every((t) => searchable.includes(t));
+    .every((t: string) => searchable.includes(t));
 }
 
-function testDedupe(options) {
-  const byId = new Map();
+function testDedupe(options: TestClinicOption[]): TestClinicOption[] {
+  const byId = new Map<number, TestClinicOption>();
   for (const opt of options) {
     const cur = byId.get(opt.id);
     if (!cur) {
