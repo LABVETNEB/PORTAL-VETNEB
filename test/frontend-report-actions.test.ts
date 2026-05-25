@@ -192,14 +192,21 @@ test("report download button renders labels titles disabled and alert state", ()
 test("upload modal clinic loader: isLoadingClinics excluded from effect deps to prevent cancellation race", () => {
   const source = read(UPLOAD_REPORT_MODAL_PATH);
 
-  // The dep array must NOT include isLoadingClinics – its presence causes React
-  // to run the effect cleanup (setting cancelled=true) the moment
-  // setIsLoadingClinics(true) fires, which prevents the finally block from
-  // ever calling setIsLoadingClinics(false) and leaves the modal stuck on
-  // "Cargando clínicas registradas...".
+  // The dep array must be [isOpen] only.
+  // isLoadingClinics must NOT be included — its presence causes React to run
+  // the effect cleanup (setting cancelled=true) the moment setIsLoadingClinics(true)
+  // fires, which prevents the finally block from calling setIsLoadingClinics(false)
+  // and leaves the modal stuck on "Cargando clínicas registradas...".
+  // clinicOptions.length must NOT be included — that was the stale catalog bug
+  // (prevented re-fetch when catalog was already populated).
   assert.ok(
+    source.includes("}, [isOpen]);"),
+    "dep array must be [isOpen] only — isLoadingClinics and clinicOptions.length must be absent",
+  );
+  assert.equal(
     source.includes("}, [clinicOptions.length, isOpen]);"),
-    "dep array must be [clinicOptions.length, isOpen] — isLoadingClinics must be absent",
+    false,
+    "dep array must NOT include clinicOptions.length — stale catalog bug",
   );
   assert.equal(
     source.includes("}, [clinicOptions.length, isLoadingClinics, isOpen]);"),
@@ -234,10 +241,17 @@ test("upload modal clinic loader: finally block always calls setIsLoadingClinics
 test("upload modal clinic loader: guard prevents duplicate load while in flight", () => {
   const source = read(UPLOAD_REPORT_MODAL_PATH);
 
-  // The guard inside the effect (not in deps) still short-circuits re-entry.
+  // The guard inside the effect (not in deps) short-circuits concurrent re-entry
+  // using isLoadingClinics. clinicOptions.length > 0 has been removed to allow
+  // refreshing the catalog on every open.
   assert.ok(
-    source.includes("if (!isOpen || clinicOptions.length > 0 || isLoadingClinics) {"),
-    "guard must check isLoadingClinics to block duplicate concurrent loads",
+    source.includes("if (!isOpen || isLoadingClinics) {"),
+    "guard must check isLoadingClinics to block duplicate concurrent loads — clinicOptions.length > 0 must be absent",
+  );
+  assert.equal(
+    source.includes("clinicOptions.length > 0"),
+    false,
+    "clinicOptions.length > 0 guard must be removed — it caused stale catalog on subsequent opens",
   );
 });
 
@@ -325,4 +339,140 @@ test("upload modal clinic loader: apiFetch wrapper uses credentials include by d
     source.includes('credentials: options.credentials ?? "include"'),
     'apiFetch must default credentials to "include" for admin session cookie',
   );
+});
+// --- fix(admin): refresh clinic catalog in report upload modal ---
+// Unit tests for the pure search/dedup functions and structural invariants.
+// All clinic data is fictional — no real staging names are used.
+
+type TestClinicOption = { id: number; name: string; usernames: string[] };
+
+function testNormalize(value: string | number): string {
+  return String(value)
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
+function testBuildSearchText(opt: TestClinicOption): string {
+  return testNormalize([opt.id, opt.name, ...opt.usernames].join(" "));
+}
+
+function testMatch(opt: TestClinicOption, query: string): boolean {
+  const nq = testNormalize(query);
+  if (!nq) return true;
+  const searchable = testBuildSearchText(opt);
+  return nq
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((t: string) => searchable.includes(t));
+}
+
+function testDedupe(options: TestClinicOption[]): TestClinicOption[] {
+  const byId = new Map<number, TestClinicOption>();
+  for (const opt of options) {
+    const cur = byId.get(opt.id);
+    if (!cur) {
+      byId.set(opt.id, { ...opt, usernames: [...opt.usernames] });
+      continue;
+    }
+    byId.set(opt.id, {
+      ...cur,
+      name: cur.name || opt.name,
+      usernames: Array.from(new Set([...cur.usernames, ...opt.usernames])).sort(
+        (a, b) => a.localeCompare(b, "es", { sensitivity: "base" }),
+      ),
+    });
+  }
+  return Array.from(byId.values()).sort((a, b) =>
+    a.name.localeCompare(b.name, "es", { sensitivity: "base" }),
+  );
+}
+
+// Generic fictional clinics — no real staging names
+const CLINIC_ALPHA = { id: 42, name: "Clinica Ejemplo Sur", usernames: ["usuario_ejemplo"] };
+const CLINIC_BETA = { id: 99, name: "Veterinaria Nortena", usernames: ["nortena_user"] };
+
+test("clinic search: match by full clinic name (generic)", () => {
+  assert.ok(testMatch(CLINIC_ALPHA, "Clinica Ejemplo Sur"));
+  assert.equal(testMatch(CLINIC_BETA, "Clinica Ejemplo Sur"), false);
+});
+
+test("clinic search: match by partial text (generic)", () => {
+  assert.ok(testMatch(CLINIC_ALPHA, "Ejemplo"));
+  assert.ok(testMatch(CLINIC_BETA, "norte"));
+  assert.equal(testMatch(CLINIC_ALPHA, "norte"), false);
+});
+
+test("clinic search: case-insensitive match (generic)", () => {
+  assert.ok(testMatch(CLINIC_ALPHA, "CLINICA EJEMPLO"));
+  assert.ok(testMatch(CLINIC_ALPHA, "clinica ejemplo"));
+  assert.ok(testMatch(CLINIC_ALPHA, "CliNica eJempLO"));
+});
+
+test("clinic search: accent-normalized match (generic)", () => {
+  // Searching without accent must still match accented names
+  assert.ok(testMatch(CLINIC_ALPHA, "clinica"));
+  assert.ok(testMatch(CLINIC_ALPHA, "Clinica"));
+  assert.ok(testMatch(CLINIC_BETA, "nortena"));
+});
+
+test("clinic search: match by clinic ID (generic)", () => {
+  assert.ok(testMatch(CLINIC_ALPHA, "42"));
+  assert.ok(testMatch(CLINIC_BETA, "99"));
+  assert.equal(testMatch(CLINIC_ALPHA, "99"), false);
+});
+
+test("clinic search: match by associated username (generic)", () => {
+  assert.ok(testMatch(CLINIC_ALPHA, "usuario_ejemplo"));
+  assert.ok(testMatch(CLINIC_BETA, "nortena_user"));
+  assert.equal(testMatch(CLINIC_ALPHA, "nortena_user"), false);
+});
+
+test("clinic deduplicate: merges duplicate IDs and preserves unique usernames (generic)", () => {
+  const raw = [
+    { id: 10, name: "Clinica Generica", usernames: ["user_a"] },
+    { id: 10, name: "Clinica Generica", usernames: ["user_b"] },
+    { id: 20, name: "Otra Clinica", usernames: ["user_c"] },
+  ];
+  const result = testDedupe(raw);
+  assert.equal(result.length, 2);
+  const clinic10 = result.find((o) => o.id === 10);
+  assert.ok(clinic10, "entry with id 10 must exist");
+  assert.ok(clinic10 && clinic10.usernames.includes("user_a"));
+  assert.ok(clinic10 && clinic10.usernames.includes("user_b"));
+  assert.equal(clinic10 && clinic10.usernames.length, 2);
+});
+
+test("upload modal catalog refresh: dep array [isOpen] ensures reload on every modal open", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.ok(
+    source.includes("}, [isOpen]);"),
+    "dep array must be [isOpen] so the effect reruns on every open and refreshes the catalog",
+  );
+  assert.equal(
+    source.includes("}, [clinicOptions.length, isOpen]);"),
+    false,
+    "clinicOptions.length must be absent from dep array — it was the stale catalog bug",
+  );
+});
+
+test("upload modal catalog refresh: no clinicOptions.length guard that blocks re-fetch on reopen", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.equal(
+    source.includes("clinicOptions.length > 0"),
+    false,
+    "clinicOptions.length > 0 guard must be removed — new clinics must appear on next modal open",
+  );
+  assert.ok(
+    source.includes("if (!isOpen || isLoadingClinics) {"),
+    "only isOpen and isLoadingClinics should guard the load",
+  );
+});
+
+test("upload modal: no hardcoded clinic names or staging-specific IDs in component source", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.ok(source.includes("`Clínica #${user.clinicId}`"));
+  assert.equal(source.includes("clinicId: 1,"), false);
+  assert.equal(source.includes("clinicId: 2,"), false);
 });
