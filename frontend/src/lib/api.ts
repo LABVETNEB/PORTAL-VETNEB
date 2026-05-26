@@ -913,6 +913,95 @@ export async function updateAdminPricingItem(
   });
 }
 
+export type AdminReportWorkflowStage =
+  | "sample_received"
+  | "processing"
+  | "evaluation"
+  | "report_development"
+  | "delivered";
+
+export type AdminReportWorkflowItem = {
+  id: number;
+  clinicId: number;
+  clinicName: string | null;
+  patientName: string | null;
+  fileName: string | null;
+  studyType: string | null;
+  uploadDate: string | null;
+  createdAt: string;
+  workflowStage: AdminReportWorkflowStage;
+  specialStainRequested: boolean;
+  specialStainAt: string | null;
+  workflowUpdatedAt: string | null;
+};
+
+export type AdminReportWorkflowSnapshot = {
+  success: true;
+  reports: AdminReportWorkflowItem[];
+  pagination: {
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+};
+
+export type AdminReportWorkflowUpdateResponse = {
+  success: true;
+  report: AdminReportWorkflowItem;
+};
+
+export async function getAdminReportWorkflow(
+  params: { limit?: number; offset?: number } = {},
+  options?: RequestInit,
+): Promise<AdminReportWorkflowSnapshot> {
+  const query = new URLSearchParams();
+
+  if (typeof params.limit === "number") {
+    query.set("limit", String(params.limit));
+  }
+
+  if (typeof params.offset === "number") {
+    query.set("offset", String(params.offset));
+  }
+
+  const qs = query.toString();
+
+  return apiFetch<AdminReportWorkflowSnapshot>(
+    `/api/admin/report-workflow${qs ? `?${qs}` : ""}`,
+    options,
+  );
+}
+
+export async function updateAdminReportWorkflowStage(
+  reportId: number,
+  stage: AdminReportWorkflowStage,
+  options?: RequestInit,
+): Promise<AdminReportWorkflowUpdateResponse> {
+  return apiFetch<AdminReportWorkflowUpdateResponse>(
+    `/api/admin/report-workflow/${reportId}/stage`,
+    {
+      ...options,
+      method: "PATCH",
+      body: JSON.stringify({ stage }),
+    },
+  );
+}
+
+export async function updateAdminReportSpecialStain(
+  reportId: number,
+  requested: boolean,
+  options?: RequestInit,
+): Promise<AdminReportWorkflowUpdateResponse> {
+  return apiFetch<AdminReportWorkflowUpdateResponse>(
+    `/api/admin/report-workflow/${reportId}/special-stain`,
+    {
+      ...options,
+      method: "PATCH",
+      body: JSON.stringify({ requested }),
+    },
+  );
+}
+
 
 export async function getAdminSystemHealth(
   options?: RequestInit,

@@ -14,6 +14,8 @@ export const AUDIT_EVENTS = {
   ADMIN_PRICING_UPDATED: "admin.pricing.update",
   REPORT_STATUS_CHANGED: "report.status.changed",
   REPORT_UPLOADED: "report.uploaded",
+  REPORT_WORKFLOW_STAGE_CHANGED: "report.workflow_stage.changed",
+  REPORT_SPECIAL_STAIN_CHANGED: "report.special_stain.changed",
   STUDY_TRACKING_CASE_CREATED: "study_tracking.case.created",
   STUDY_TRACKING_CASE_UPDATED: "study_tracking.case.updated",
   STUDY_TRACKING_NOTIFICATION_CREATED: "study_tracking.notification.created",

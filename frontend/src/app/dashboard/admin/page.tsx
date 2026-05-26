@@ -25,6 +25,7 @@ import { AdminParticularTokensCard } from "./AdminParticularTokensCard";
 import { AdminPricingEditorCard } from "./AdminPricingEditorCard";
 import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";
 import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
+import { AdminReportWorkflowViewerCard } from "@/components/dashboard/AdminReportWorkflowViewerCard";
 import { UploadReportModal } from "@/components/dashboard/UploadReportModal";
 import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
@@ -47,6 +48,8 @@ const EVENT_LABELS: Record<string, string> = {
   "admin.pricing.update": "Precio actualizado",
   "report.status.changed": "Estado informe",
   "report.uploaded": "Informe subido",
+  "report.workflow_stage.changed": "Etapa de informe",
+  "report.special_stain.changed": "Tinción especial",
   "study_tracking.case.created": "Caso creado",
   "study_tracking.case.updated": "Caso actualizado",
   "study_tracking.notification.created": "Notificación",
@@ -410,6 +413,9 @@ export default async function AdminPage({
               <UploadReportModal />
             </div>
           </div>
+        </section>
+        <section id="admin-report-workflow">
+          <AdminReportWorkflowViewerCard />
         </section>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Card className="dashboard-surface h-full">

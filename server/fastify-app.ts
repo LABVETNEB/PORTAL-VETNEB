@@ -37,6 +37,10 @@ import {
   type AdminReportsNativeRoutesOptions,
 } from "./routes/admin-reports.fastify.ts";
 import {
+  adminReportWorkflowNativeRoutes,
+  type AdminReportWorkflowNativeRoutesOptions,
+} from "./routes/admin-report-workflow.fastify.ts";
+import {
   adminSessionsNativeRoutes,
   type AdminSessionsNativeRoutesOptions,
 } from "./routes/admin-sessions.fastify.ts";
@@ -206,6 +210,7 @@ export type CreateFastifyAppOptions = {
   adminPricingRoutes?: AdminPricingNativeRoutesOptions;
   adminParticularTokensRoutes?: AdminParticularTokensNativeRoutesOptions;
   adminReportsRoutes?: AdminReportsNativeRoutesOptions;
+  adminReportWorkflowRoutes?: AdminReportWorkflowNativeRoutesOptions;
   adminSessionsRoutes?: AdminSessionsNativeRoutesOptions;
   adminReportAccessTokensRoutes?: AdminReportAccessTokensNativeRoutesOptions;
   adminStudyTrackingRoutes?: AdminStudyTrackingNativeRoutesOptions;
@@ -338,6 +343,11 @@ export async function createFastifyApp(
   await app.register(adminReportsNativeRoutes, {
     prefix: "/api/admin/reports",
     ...(options.adminReportsRoutes ?? {}),
+  });
+
+  await app.register(adminReportWorkflowNativeRoutes, {
+    prefix: "/api/admin/report-workflow",
+    ...(options.adminReportWorkflowRoutes ?? {}),
   });
 
   await app.register(adminReportAccessTokensNativeRoutes, {

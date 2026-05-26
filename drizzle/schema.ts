@@ -23,6 +23,14 @@ export const REPORT_STATUSES = [
   "delivered",
 ] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
+export const REPORT_WORKFLOW_STAGES = [
+  "sample_received",
+  "processing",
+  "evaluation",
+  "report_development",
+  "delivered",
+] as const;
+export type ReportWorkflowStage = (typeof REPORT_WORKFLOW_STAGES)[number];
 export const FIELD_VISIT_SOURCE_TYPES = [
   "report",
   "study_tracking_case",
@@ -145,6 +153,8 @@ export const AUDIT_EVENTS = [
   "admin.pricing.update",
   "report.status.changed",
   "report.uploaded",
+  "report.workflow_stage.changed",
+  "report.special_stain.changed",
   "study_tracking.case.created",
   "study_tracking.case.updated",
   "study_tracking.notification.created",
@@ -245,6 +255,19 @@ export const reports = pgTable(
       () => adminUsers.id,
       { onDelete: "set null" },
     ),
+    workflowStage: text("workflow_stage")
+      .$type<ReportWorkflowStage>()
+      .notNull()
+      .default("sample_received"),
+    specialStainRequested: boolean("special_stain_requested").default(false).notNull(),
+    specialStainAt: timestamp("special_stain_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
+    workflowUpdatedAt: timestamp("workflow_updated_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
   },

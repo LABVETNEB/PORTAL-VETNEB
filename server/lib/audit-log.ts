@@ -20,6 +20,8 @@ export const AUDIT_EVENTS = [
   "admin.pricing.update",
   "report.status.changed",
   "report.uploaded",
+  "report.workflow_stage.changed",
+  "report.special_stain.changed",
   "study_tracking.case.created",
   "study_tracking.case.updated",
   "study_tracking.notification.created",
