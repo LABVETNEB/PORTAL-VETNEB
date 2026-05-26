@@ -50,7 +50,7 @@ test("Backend CI uses the pinned pnpm and Node toolchain", () => {
     "concurrency:\n  group: backend-ci-${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true",
   );
   assertContains(workflow, "uses: actions/checkout@v6");
-  assertContains(workflow, "uses: pnpm/action-setup@v6");
+  assertContains(workflow, "uses: pnpm/action-setup@v4");
   assertContains(workflow, "version: 10.8.1");
   assertContains(workflow, "uses: actions/setup-node@v6");
   assertContains(workflow, "node-version: 24");
@@ -63,7 +63,7 @@ test("Backend CI installs dependencies after toolchain setup", () => {
   const workflow = readTextFile(".github", "workflows", "backend-ci.yml");
 
   assertOrdered(workflow, [
-    "      - name: Setup pnpm\n        uses: pnpm/action-setup@v6",
+    "      - name: Setup pnpm\n        uses: pnpm/action-setup@v4",
     "      - name: Setup Node.js\n        uses: actions/setup-node@v6",
     "      - name: Install dependencies\n        run: pnpm install --frozen-lockfile",
   ]);
