@@ -42,12 +42,19 @@ test("frontend upload report modal keeps file picker fully localized", () => {
 test("frontend upload report modal keeps study type options without placeholder option", () => {
   const source = read(UPLOAD_MODAL_PATH);
 
-  assert.ok(source.includes('{ value: "histopathology", label: "Histopatología" }'));
-  assert.ok(source.includes('{ value: "cytology", label: "Citología" }'));
-  assert.ok(source.includes('{ value: "immunohistochemistry", label: "Inmunohistoquímica" }'));
-  assert.ok(source.includes('{ value: "special_stain", label: "Hematología" }'));
+  // Backend accepts Spanish slugs only: citologia, histopatologia, hemoparasitos
+  assert.ok(source.includes('{ value: "histopatologia", label: "Histopatología" }'));
+  assert.ok(source.includes('{ value: "citologia", label: "Citología" }'));
+  assert.ok(source.includes('{ value: "hemoparasitos", label: "Hemoparásitos" }'));
+  // Legacy English slugs must NOT be present — backend rejects them with "Tipo de estudio inválido"
+  assert.equal(source.includes('"histopathology"'), false);
+  assert.equal(source.includes('"cytology"'), false);
+  assert.equal(source.includes('"immunohistochemistry"'), false);
+  assert.equal(source.includes('"special_stain"'), false);
+  // Default and reset still use the first option
   assert.ok(source.includes("useState(STUDY_TYPE_OPTIONS[0].value)"));
   assert.ok(source.includes("setStudyType(STUDY_TYPE_OPTIONS[0].value)"));
+  // No empty placeholder
   assert.equal(source.includes('{ value: "", label: "Tipo de estudio" }'), false);
 });
 
