@@ -29,6 +29,11 @@ const adminNavItems: DashboardNavItem[] = [
     icon: ClipboardPlus,
   },
   {
+    label: "Seguimiento de informes",
+    href: `${ROUTES.dashboardAdmin}#admin-report-workflow`,
+    icon: ScrollText,
+  },
+  {
     label: "Estado",
     href: `${ROUTES.dashboardAdmin}#admin-health`,
     icon: Activity,

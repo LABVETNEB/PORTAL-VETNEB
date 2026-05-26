@@ -6,6 +6,8 @@ import test from "node:test";
 const PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const CARD_PATH =
   "frontend/src/components/dashboard/AdminReportWorkflowViewerCard.tsx";
+const SIDEBAR_PATH =
+  "frontend/src/components/dashboard/AdminDashboardSidebar.tsx";
 const API_PATH = "frontend/src/lib/api.ts";
 
 function read(relativePath: string): string {
@@ -27,6 +29,18 @@ test("dashboard Admin integra la tarjeta de seguimiento sin retirar la carga PDF
   assert.ok(page.includes("<AdminReportWorkflowViewerCard />"));
   assert.ok(page.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'));
   assert.ok(page.includes("<UploadReportModal />"));
+});
+
+test("sidebar Admin enlaza al seguimiento de informes renderizado", () => {
+  const sidebar = read(SIDEBAR_PATH);
+  const page = read(PAGE_PATH);
+
+  assert.ok(sidebar.includes('label: "Seguimiento de informes"'));
+  assert.ok(
+    sidebar.includes('href: `${ROUTES.dashboardAdmin}#admin-report-workflow`'),
+  );
+  assert.ok(page.includes('id="admin-report-workflow"'));
+  assert.ok(page.includes("<AdminReportWorkflowViewerCard />"));
 });
 
 test("tarjeta presenta cinco etapas globales y tinción especial como alerta aparte", () => {
