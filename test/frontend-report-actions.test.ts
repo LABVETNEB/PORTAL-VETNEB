@@ -32,10 +32,15 @@ test("upload report modal keeps study type options", () => {
 
   assert.ok(source.includes("const STUDY_TYPE_OPTIONS = ["));
   assert.equal(source.includes('{ value: "", label: "Tipo de estudio" }'), false);
-  assert.ok(source.includes('{ value: "histopathology", label: "Histopatología" }'));
-  assert.ok(source.includes('{ value: "cytology", label: "Citología" }'));
-  assert.ok(source.includes('{ value: "immunohistochemistry", label: "Inmunohistoquímica" }'));
-  assert.ok(source.includes('{ value: "special_stain", label: "Hematología" }'));
+  // Backend accepts Spanish slugs: citologia, histopatologia, hemoparasitos
+  assert.ok(source.includes('{ value: "histopatologia", label: "Histopatología" }'));
+  assert.ok(source.includes('{ value: "citologia", label: "Citología" }'));
+  assert.ok(source.includes('{ value: "hemoparasitos", label: "Hemoparásitos" }'));
+  // Legacy English slugs must NOT be present — backend rejects them
+  assert.equal(source.includes('"histopathology"'), false, "histopathology slug is invalid — backend rejects it");
+  assert.equal(source.includes('"cytology"'), false, "cytology slug is invalid — backend rejects it");
+  assert.equal(source.includes('"immunohistochemistry"'), false, "immunohistochemistry slug is not in backend enum");
+  assert.equal(source.includes('"special_stain"'), false, "special_stain slug is not in backend enum");
 });
 
 test("upload report modal keeps form state reset and file ref handling", () => {
@@ -288,8 +293,11 @@ test("upload modal clinic loader: normalizes and searches clinic by name, userna
   assert.ok(source.includes('function matchClinicOption(option: ClinicOption, query: string)'));
   assert.ok(source.includes('tokens.every((token) => searchable.includes(token))'));
 
-  // filteredClinicOptions applies matchClinicOption with clinicSearch
-  assert.ok(source.includes('const filteredClinicOptions = clinicOptions'));
+  // filteredClinicOptions applies matchClinicOption with clinicSearch when query is active
+  assert.ok(
+    source.includes('const filteredClinicOptions = hasClinicQuery'),
+    "filteredClinicOptions must be gated on hasClinicQuery — full catalog must not show on empty input",
+  );
   assert.ok(source.includes('.filter((option) => matchClinicOption(option, clinicSearch))'));
 });
 
@@ -475,4 +483,210 @@ test("upload modal: no hardcoded clinic names or staging-specific IDs in compone
   assert.ok(source.includes("`Clínica #${user.clinicId}`"));
   assert.equal(source.includes("clinicId: 1,"), false);
   assert.equal(source.includes("clinicId: 2,"), false);
+});
+
+// --- fix(admin): align report upload modal study type and token optionality ---
+
+// 1. Clinic list hidden when search is empty and no clinic selected
+test("upload modal: clinic list hidden when search is empty and no clinic selected", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.ok(
+    source.includes("const hasClinicQuery = normalizeSearchText(clinicSearch).length > 0;"),
+    "hasClinicQuery must be derived from normalized clinicSearch",
+  );
+  assert.ok(
+    source.includes("const filteredClinicOptions = hasClinicQuery"),
+    "filteredClinicOptions must depend on hasClinicQuery",
+  );
+  assert.ok(
+    source.includes(": [];"),
+    "filteredClinicOptions must return [] when query is empty and no clinic is selected",
+  );
+});
+
+// 2. "No hay clinicas registradas..." not shown when search is empty
+test("upload modal: no-match message not shown when search is empty", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.ok(
+    source.includes("!isLoadingClinics && hasClinicQuery && filteredClinicOptions.length === 0"),
+    "no-match message must require hasClinicQuery — must not appear with empty input",
+  );
+  assert.equal(
+    source.includes("!isLoadingClinics && filteredClinicOptions.length === 0 ?"),
+    false,
+    "bare filteredClinicOptions.length === 0 check must be gone — it showed message on empty input",
+  );
+});
+
+// 3. Results appear when user types a search query
+test("upload modal: results appear when clinicSearch has text", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.ok(
+    source.includes(".filter((option) => matchClinicOption(option, clinicSearch))"),
+    "filter must still use matchClinicOption with clinicSearch",
+  );
+  assert.ok(
+    source.includes(".slice(0, 20)"),
+    "results must be capped at 20 items",
+  );
+});
+
+// 4. "No hay clinicas registradas..." appears when search has text and no matches
+test("upload modal: no-match message shown when search has text and no matches", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.ok(
+    source.includes("No hay clínicas registradas que coincidan con la búsqueda."),
+    "no-match message must still exist in the component",
+  );
+  assert.ok(
+    source.includes("hasClinicQuery && filteredClinicOptions.length === 0"),
+    "no-match message must be gated on hasClinicQuery AND empty results",
+  );
+});
+
+// 5. Selected clinic stays visible when search input is cleared
+test("upload modal: selected clinic remains visible when search is cleared", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.ok(
+    source.includes(": selectedClinic"),
+    "when query is empty and a clinic is selected, filteredClinicOptions must return [selectedClinic]",
+  );
+  assert.ok(
+    source.includes("? [selectedClinic]"),
+    "selectedClinic entry must be wrapped in an array",
+  );
+});
+
+// 6. Catalog refreshes on every modal open (dep array invariant maintained)
+test("upload modal: catalog refreshes on every open — dep array still [isOpen]", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.ok(
+    source.includes("}, [isOpen]);"),
+    "dep array must remain [isOpen] so catalog is refreshed on every open",
+  );
+});
+
+// 7. clinicOptions.length not reintroduced as dep-array blocker
+test("upload modal: clinicOptions.length not reintroduced in dep array", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.equal(
+    source.includes("}, [clinicOptions.length, isOpen]);"),
+    false,
+    "clinicOptions.length must not be in dep array — stale catalog bug",
+  );
+  assert.equal(
+    source.includes("clinicOptions.length > 0"),
+    false,
+    "clinicOptions.length > 0 guard must not be reintroduced",
+  );
+});
+
+// 8. isLoadingClinics not reintroduced in dep array
+test("upload modal: isLoadingClinics not reintroduced in dep array", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.equal(
+    source.includes("}, [isLoadingClinics, isOpen]);"),
+    false,
+    "isLoadingClinics must not be in dep array — causes cancellation race",
+  );
+  assert.equal(
+    source.includes("}, [clinicOptions.length, isLoadingClinics, isOpen]);"),
+    false,
+  );
+});
+
+// 9. Label "Citologia" sends valid backend studyType
+test("upload modal: label Citología maps to backend-valid studyType slug", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.ok(
+    source.includes('{ value: "citologia", label: "Citología" }'),
+    "Citología must use value 'citologia' — the backend-accepted slug",
+  );
+  assert.equal(
+    source.includes('"cytology"'),
+    false,
+    "English slug 'cytology' is invalid — backend returns Tipo de estudio inválido",
+  );
+});
+
+// 10. Label "Histopatologia" sends valid backend studyType
+test("upload modal: label Histopatología maps to backend-valid studyType slug", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.ok(
+    source.includes('{ value: "histopatologia", label: "Histopatología" }'),
+    "Histopatología must use value 'histopatologia' — the backend-accepted slug",
+  );
+  assert.equal(
+    source.includes('"histopathology"'),
+    false,
+    "English slug 'histopathology' is invalid — backend returns Tipo de estudio inválido",
+  );
+});
+
+// 11. No token ID sent when "Sin token particular vinculado" is selected
+test("upload modal: no invalid token ID sent when no particular token is selected", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.ok(
+    source.includes('const [particularTokenId, setParticularTokenId] = useState("");'),
+    "particularTokenId defaults to empty string",
+  );
+  assert.ok(
+    source.includes("if (selectedParticularToken) {"),
+    "tracking case creation must be gated on selectedParticularToken",
+  );
+  assert.equal(
+    source.includes('formData.append("particularTokenId"'),
+    false,
+    "particularTokenId must NOT be appended to formData directly — only used for tracking",
+  );
+});
+
+// 12. Lack of particular tokens does not block submit
+test("upload modal: missing particular tokens do not block submit button", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.equal(
+    source.includes("disabled={isSubmitting || particularTokens"),
+    false,
+    "submit button must not be disabled by particularTokens state",
+  );
+  assert.equal(
+    source.includes("disabled={particularTokens"),
+    false,
+    "submit button must not be disabled by particularTokens state",
+  );
+  assert.ok(
+    source.includes("clinical-alert-warning"),
+    "token warning must use clinical-alert-warning (informative), not clinical-alert-error",
+  );
+  assert.ok(
+    source.includes("Esta clínica no tiene tokens particulares disponibles."),
+    "informative warning message must be present",
+  );
+});
+
+// 13. Valid token ID is sent when a particular token is selected
+test("upload modal: valid token ID is passed to tracking case when selected", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.ok(
+    source.includes("particularTokenId: selectedParticularToken.id,"),
+    "when a token is selected, its ID must be passed to createAdminStudyTrackingCase",
+  );
+  assert.ok(
+    source.includes("const selectedParticularToken = particularTokens.find("),
+    "selectedParticularToken must be derived from particularTokenId state",
+  );
+  assert.ok(
+    source.includes("(token) => String(token.id) === particularTokenId,"),
+    "lookup must compare by string-coerced ID",
+  );
+});
+
+// 14. No hardcoded real clinic names in component
+test("upload modal: no hardcoded real clinic names in component source", () => {
+  const source = read(UPLOAD_REPORT_MODAL_PATH);
+  assert.ok(source.includes("`Clínica #${user.clinicId}`"));
+  assert.equal(source.includes("clinicId: 1,"), false);
+  assert.equal(source.includes("clinicId: 2,"), false);
+  assert.equal(source.includes('"immunohistochemistry"'), false);
+  assert.equal(source.includes('"special_stain"'), false);
 });

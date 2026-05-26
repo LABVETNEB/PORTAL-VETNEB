@@ -22,10 +22,9 @@ type ClinicOption = {
 };
 
 const STUDY_TYPE_OPTIONS = [
-  { value: "histopathology", label: "Histopatología" },
-  { value: "cytology", label: "Citología" },
-  { value: "immunohistochemistry", label: "Inmunohistoquímica" },
-  { value: "special_stain", label: "Hematología" },
+  { value: "histopatologia", label: "Histopatología" },
+  { value: "citologia", label: "Citología" },
+  { value: "hemoparasitos", label: "Hemoparásitos" },
 ];
 
 function normalizeSearchText(value: string) {
@@ -150,9 +149,19 @@ export function UploadReportModal() {
     (token) => String(token.id) === particularTokenId,
   );
 
-  const filteredClinicOptions = clinicOptions
-    .filter((option) => matchClinicOption(option, clinicSearch))
-    .slice(0, 20);
+  const hasClinicQuery = normalizeSearchText(clinicSearch).length > 0;
+
+  // Show results only when there is an active search query, to avoid rendering
+  // the full catalog when the input is empty.  When a clinic is already selected
+  // and the user clears the input we keep showing that single entry so the
+  // selection remains visible.
+  const filteredClinicOptions = hasClinicQuery
+    ? clinicOptions
+        .filter((option) => matchClinicOption(option, clinicSearch))
+        .slice(0, 20)
+    : selectedClinic
+      ? [selectedClinic]
+      : [];
 
   useEffect(() => {
     setIsMounted(true);
@@ -519,7 +528,7 @@ export function UploadReportModal() {
                 </p>
               ) : null}
 
-              {!isLoadingClinics && filteredClinicOptions.length === 0 ? (
+              {!isLoadingClinics && hasClinicQuery && filteredClinicOptions.length === 0 ? (
                 <p className="surface-empty m-2 py-3">
                   No hay clínicas registradas que coincidan con la búsqueda.
                 </p>
@@ -711,7 +720,7 @@ export function UploadReportModal() {
             </p>
           ) : null}
 
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Subiendo informe..." : "Subir informe"}
           </Button>
         </form>
