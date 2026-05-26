@@ -197,6 +197,13 @@
                         "when":  1777118400000,
                         "tag":  "0027_report_workflow",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  28,
+                        "version":  "7",
+                        "when":  1777122000000,
+                        "tag":  "0028_ensure_report_workflow_columns",
+                        "breakpoints":  true
                     }
                 ]
 }
