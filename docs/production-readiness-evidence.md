@@ -6,6 +6,7 @@ criterios formales de salida.
 
 ## 1. Estado general
 
+- Snapshot de auditoría sin credenciales: `docs/production-readiness-snapshot-2026-05-27.md`
 - Decision actual: **NO-GO hasta cerrar todos los P0**.
 - El codigo ya cuenta con guardrails avanzados (health checks, smoke y schema
   verify), pero **produccion requiere evidencia runtime/staging/produccion**.

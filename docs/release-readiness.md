@@ -560,6 +560,7 @@ Checklist legal/comercial detallada y registro de aprobación formal:
 
 ## 11. Criterio go/no-go
 
+Snapshot de auditoría sin credenciales: `docs/production-readiness-snapshot-2026-05-27.md`.
 Referencia de evidencia formal para decision de salida:
 `docs/production-readiness-evidence.md`.
 Referencia de procedimiento operativo de backup/restore/rollback:
