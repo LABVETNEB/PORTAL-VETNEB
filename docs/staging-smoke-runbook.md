@@ -24,6 +24,26 @@ if ($BackendUrl.EndsWith("/") -or $FrontendUrl.EndsWith("/")) {
 }
 ```
 
+## 1.1 Smoke autenticado opcional (`pnpm smoke:staging`)
+
+Si estan disponibles credenciales de smoke, `pnpm smoke:staging` ejecuta checks
+autenticados de admin, clinic y particular. Si faltan, esos checks quedan en
+`SKIP` sin exponer secretos.
+
+```powershell
+$env:SMOKE_ADMIN_USERNAME = "<admin-user>"
+$env:SMOKE_ADMIN_PASSWORD = Read-Host "Admin password"
+$env:SMOKE_CLINIC_USERNAME = "<clinic-user>"
+$env:SMOKE_CLINIC_PASSWORD = Read-Host "Clinic password"
+$env:SMOKE_PARTICULAR_TOKEN = Read-Host "Particular token"
+
+pnpm smoke:staging
+
+Remove-Item Env:\SMOKE_ADMIN_PASSWORD -ErrorAction SilentlyContinue
+Remove-Item Env:\SMOKE_CLINIC_PASSWORD -ErrorAction SilentlyContinue
+Remove-Item Env:\SMOKE_PARTICULAR_TOKEN -ErrorAction SilentlyContinue
+```
+
 ### Preflight Render para comunicaciones
 
 Antes del smoke del formulario de contacto, confirmar en Render que quedaron
