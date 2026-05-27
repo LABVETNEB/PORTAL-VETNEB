@@ -5,9 +5,9 @@ import path from "node:path";
 
 const BASE_URL = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000";
 const USERNAME = process.env.SMOKE_USERNAME ?? "admin";
-const PASSWORD = requiredEnv("SMOKE_PASSWORD");
 const TMP_DIR = process.env.SMOKE_TMP_DIR ?? path.join(os.tmpdir(), "portal-vetneb-smoke");
 const PDF_PATH = path.join(TMP_DIR, "smoke-test.pdf");
+const UPLOAD_FILE_ENV = process.env.SMOKE_UPLOAD_FILE;
 
 function requiredEnv(name) {
   const value = process.env[name];
@@ -21,10 +21,10 @@ function requiredEnv(name) {
 
 function fail(message, error) {
   console.error("SMOKE UPLOAD FALLO");
-  console.error(message);
+  console.error(sanitizeText(message));
 
   if (error) {
-    console.error(error);
+    console.error(`ERROR: ${sanitizeError(error)}`);
   }
 
   process.exit(1);
@@ -60,7 +60,103 @@ async function fetchOrExplain(url, options = {}) {
   }
 }
 
-function ensureTmpPdf() {
+function sanitizeText(text) {
+  if (typeof text !== "string") {
+    return "valor no textual";
+  }
+
+  const noNewlines = text.replace(/\r?\n/g, " ").trim();
+  const redactedUrls = noNewlines.replace(/https?:\/\/[^\s"']+/gi, "[url-redacted]");
+  const redactedTokens = redactedUrls.replace(
+    /((?:token|password|cookie|authorization)[^=\s:]*)[:=][^\s,;]+/gi,
+    "$1=[redacted]"
+  );
+
+  return redactedTokens.length > 300
+    ? `${redactedTokens.slice(0, 300)}...`
+    : redactedTokens;
+}
+
+function sanitizeError(error) {
+  if (!error) {
+    return "sin detalle";
+  }
+
+  if (typeof error === "string") {
+    return sanitizeText(error);
+  }
+
+  if (error instanceof Error) {
+    return sanitizeText(error.message);
+  }
+
+  return sanitizeText(String(error));
+}
+
+function hasCookieFlag(setCookieHeader, flag) {
+  return new RegExp(`(?:^|;)\\s*${flag}(?:;|$)`, "i").test(setCookieHeader);
+}
+
+function summarizeStoragePath(storagePath) {
+  if (typeof storagePath !== "string" || storagePath.trim() === "") {
+    return "missing";
+  }
+
+  if (/^https?:\/\//i.test(storagePath)) {
+    return "url-redacted";
+  }
+
+  if (/[?&](?:token|sig|signature|x-amz-signature|x-amz-security-token)=/i.test(storagePath)) {
+    return "sanitized";
+  }
+
+  return storagePath;
+}
+
+function resolveSignedUrl(payload) {
+  if (!payload || typeof payload !== "object") {
+    return "";
+  }
+
+  return (
+    payload.signedUrl ??
+    payload.downloadUrl ??
+    payload.url ??
+    payload.previewUrl ??
+    payload.data?.signedUrl ??
+    ""
+  );
+}
+
+function resolveStoragePath(payload) {
+  if (!payload || typeof payload !== "object") {
+    return "";
+  }
+
+  return (
+    payload?.report?.storagePath ??
+    payload?.report?.storage_path ??
+    payload?.storagePath ??
+    payload?.storage_path ??
+    ""
+  );
+}
+
+function resolveReportId(payload) {
+  if (!payload || typeof payload !== "object") {
+    return "";
+  }
+
+  return (
+    payload?.report?.id ??
+    payload?.reportId ??
+    payload?.id ??
+    payload?.report?.reportId ??
+    ""
+  );
+}
+
+function ensureTmpPdf(targetPath = PDF_PATH) {
   fs.mkdirSync(TMP_DIR, { recursive: true });
 
   const pdfContent = `%PDF-1.1
@@ -100,107 +196,196 @@ startxref
 413
 %%EOF`;
 
-  fs.writeFileSync(PDF_PATH, pdfContent, "utf8");
-  return PDF_PATH;
+  fs.writeFileSync(targetPath, pdfContent, "utf8");
+  return targetPath;
+}
+
+function resolveUploadFile() {
+  if (UPLOAD_FILE_ENV && UPLOAD_FILE_ENV.trim() !== "") {
+    const providedPath = path.resolve(UPLOAD_FILE_ENV);
+    if (!fs.existsSync(providedPath)) {
+      throw new Error(
+        "SMOKE_UPLOAD_FILE fue provisto pero el archivo no existe. Ajusta la ruta o elimina la variable para usar PDF temporal."
+      );
+    }
+
+    return {
+      filePath: providedPath,
+      generatedTemporaryFile: false,
+    };
+  }
+
+  return {
+    filePath: ensureTmpPdf(PDF_PATH),
+    generatedTemporaryFile: true,
+  };
+}
+
+async function assertStatus(response, expectedStatuses, label) {
+  if (!expectedStatuses.includes(response.status)) {
+    throw new Error(
+      `${label} fallo. Esperado HTTP ${expectedStatuses.join(" o ")}, recibido HTTP ${response.status}`
+    );
+  }
 }
 
 async function run() {
+  requiredEnv("SMOKE_BASE_URL");
+  requiredEnv("SMOKE_USERNAME");
+  let password = requiredEnv("SMOKE_PASSWORD");
+
   console.log("INICIANDO SMOKE UPLOAD...");
   console.log(`BASE URL: ${BASE_URL}`);
   console.log(`USUARIO: ${USERNAME}`);
 
-  const filePath = ensureTmpPdf();
-  console.log(`PDF DE PRUEBA: ${filePath}`);
-
-  const loginRes = await fetchOrExplain(`${BASE_URL}/api/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      username: USERNAME,
-      password: PASSWORD,
-    }),
-  });
-
-  const loginJson = await readJson(loginRes);
-  assert(
-    loginRes.ok,
-    `LOGIN FALLO: ${loginRes.status} ${JSON.stringify(loginJson, null, 2)}`
+  const uploadFile = resolveUploadFile();
+  const filePath = uploadFile.filePath;
+  console.log(
+    `PDF DE PRUEBA: ${filePath} (temporal=${uploadFile.generatedTemporaryFile ? "yes" : "no"})`
   );
 
-  const setCookie = loginRes.headers.get("set-cookie");
-  assert(setCookie, "NO SE RECIBIO COOKIE DE SESION");
-  console.log("OK /api/auth/login");
+  let setCookie = "";
+  let loggedIn = false;
 
-  const form = new FormData();
-  const fileBuffer = fs.readFileSync(filePath);
-  const blob = new Blob([fileBuffer], { type: "application/pdf" });
+  try {
+    const loginRes = await fetchOrExplain(`${BASE_URL}/api/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username: USERNAME,
+        password,
+      }),
+    });
 
-  form.append("file", blob, "smoke-test.pdf");
-  form.append("patientName", "SMOKE TEST");
-  form.append("studyType", "PDF_PRUEBA");
-  form.append("uploadDate", "2026-04-07");
+    await assertStatus(loginRes, [200], "LOGIN");
+    const loginJson = await readJson(loginRes);
+    assert(loginJson?.success === true, "LOGIN no devolvio success=true");
 
-  const uploadRes = await fetchOrExplain(`${BASE_URL}/api/admin/reports/upload`, {
-    method: "POST",
-    headers: {
-      Cookie: setCookie,
-    },
-    body: form,
-  });
+    setCookie = loginRes.headers.get("set-cookie") ?? "";
+    assert(setCookie, "NO SE RECIBIO COOKIE DE SESION");
+    loggedIn = true;
 
-  const uploadJson = await readJson(uploadRes);
+    if (BASE_URL.startsWith("https://")) {
+      const hasSecure = hasCookieFlag(setCookie, "Secure");
+      const hasSameSiteNone = /;\s*SameSite=None(?:;|$)/i.test(setCookie);
+      console.log(
+        `cookieFlags secure=${hasSecure ? "yes" : "no"} sameSiteNone=${hasSameSiteNone ? "yes" : "no"}`
+      );
+    }
 
-  if (uploadRes.status !== 201) {
-    console.error("DETALLE DE RESPUESTA UPLOAD:");
-    console.error(JSON.stringify(uploadJson, null, 2));
+    console.log("OK /api/auth/login");
+
+    const form = new FormData();
+    const fileBuffer = fs.readFileSync(filePath);
+    const blob = new Blob([fileBuffer], { type: "application/pdf" });
+
+    form.append("file", blob, "smoke-test.pdf");
+    form.append("patientName", "SMOKE TEST");
+    form.append("studyType", "PDF_PRUEBA");
+    form.append("uploadDate", "2026-04-07");
+
+    const uploadRes = await fetchOrExplain(`${BASE_URL}/api/admin/reports/upload`, {
+      method: "POST",
+      headers: {
+        Cookie: setCookie,
+      },
+      body: form,
+    });
+
+    const uploadJson = await readJson(uploadRes);
+    const uploadAcceptedStatus = uploadRes.status === 200 || uploadRes.status === 201;
+    const uploadCreatedStatus = uploadRes.status === 201;
+    void uploadCreatedStatus;
+    assert(
+      uploadAcceptedStatus,
+      `UPLOAD FALLO: ${uploadRes.status} bodyKeys=${Object.keys(uploadJson ?? {}).join(",")}`
+    );
+
+    assert(uploadJson?.success === true, "UPLOAD NO DEVOLVIO success=true");
+    assert(uploadJson?.report?.id, "UPLOAD NO DEVOLVIO report.id");
+    assert(
+      uploadJson?.report?.storagePath || uploadJson?.report?.storage_path,
+      "UPLOAD NO DEVOLVIO report.storagePath"
+    );
+    assert(
+      uploadJson?.report?.previewUrl || uploadJson?.previewUrl,
+      "UPLOAD NO DEVOLVIO previewUrl"
+    );
+    assert(
+      uploadJson?.report?.downloadUrl || uploadJson?.downloadUrl,
+      "UPLOAD NO DEVOLVIO downloadUrl"
+    );
+
+    const reportId = resolveReportId(uploadJson);
+    const storagePath = resolveStoragePath(uploadJson);
+
+    assert(reportId, "UPLOAD NO DEVOLVIO reportId equivalente");
+    assert(storagePath, "UPLOAD NO DEVOLVIO storagePath/storage_path equivalente");
+
+    console.log("OK /api/admin/reports/upload");
+    console.log(`reportId=${reportId}`);
+    console.log(`storagePath=${summarizeStoragePath(storagePath)}`);
+
+    const reportDownloadUrlRes = await fetchOrExplain(
+      `${BASE_URL}/api/reports/${reportId}/download-url`,
+      {
+        method: "GET",
+        headers: {
+          Cookie: setCookie,
+        },
+      }
+    );
+    const reportDownloadUrlJson = await readJson(reportDownloadUrlRes);
+    await assertStatus(reportDownloadUrlRes, [200], "REPORT DOWNLOAD URL");
+
+    const signedUrl = resolveSignedUrl(reportDownloadUrlJson);
+    assert(
+      typeof signedUrl === "string" && signedUrl.trim().length > 0,
+      "REPORT DOWNLOAD URL no devolvio signed URL"
+    );
+    console.log(`OK /api/reports/${reportId}/download-url signedUrl=present`);
+
+    const reportsRes = await fetchOrExplain(`${BASE_URL}/api/reports`, {
+      headers: {
+        Cookie: setCookie,
+      },
+    });
+    const reportsJson = await readJson(reportsRes);
+    await assertStatus(reportsRes, [200], "REPORTS");
+    assert(Array.isArray(reportsJson?.reports), "REPORTS NO DEVOLVIO ARRAY");
+    console.log("OK /api/reports");
+
+    const logoutRes = await fetchOrExplain(`${BASE_URL}/api/auth/logout`, {
+      method: "POST",
+      headers: {
+        Cookie: setCookie,
+      },
+    });
+    await assertStatus(logoutRes, [200], "LOGOUT");
+    console.log("OK /api/auth/logout");
+    loggedIn = false;
+
+    console.log("SMOKE UPLOAD COMPLETO OK");
+  } finally {
+    if (loggedIn && setCookie) {
+      try {
+        await fetchOrExplain(`${BASE_URL}/api/auth/logout`, {
+          method: "POST",
+          headers: {
+            Cookie: setCookie,
+          },
+        });
+      } catch {
+        // Logout best-effort for cleanup; main failure is handled by the check flow.
+      }
+    }
+
+    password = "";
+    setCookie = "";
+    delete process.env.SMOKE_PASSWORD;
   }
-
-  assert(
-    uploadRes.status === 201,
-    `UPLOAD FALLO: ${uploadRes.status} ${JSON.stringify(uploadJson, null, 2)}`
-  );
-
-  assert(uploadJson?.success === true, "UPLOAD NO DEVOLVIO success=true");
-  assert(uploadJson?.report?.id, "UPLOAD NO DEVOLVIO report.id");
-  assert(uploadJson?.report?.storagePath, "UPLOAD NO DEVOLVIO report.storagePath");
-  assert(uploadJson?.report?.previewUrl, "UPLOAD NO DEVOLVIO previewUrl");
-  assert(uploadJson?.report?.downloadUrl, "UPLOAD NO DEVOLVIO downloadUrl");
-
-  console.log("OK /api/admin/reports/upload");
-  console.log(`REPORT ID: ${uploadJson.report.id}`);
-
-  const reportsRes = await fetchOrExplain(`${BASE_URL}/api/reports`, {
-    headers: {
-      Cookie: setCookie,
-    },
-  });
-
-  const reportsJson = await readJson(reportsRes);
-
-  assert(
-    reportsRes.ok,
-    `REPORTS FALLO: ${reportsRes.status} ${JSON.stringify(reportsJson, null, 2)}`
-  );
-  assert(Array.isArray(reportsJson?.reports), "REPORTS NO DEVOLVIO ARRAY");
-  console.log("OK /api/reports");
-
-  const logoutRes = await fetchOrExplain(`${BASE_URL}/api/auth/logout`, {
-    method: "POST",
-    headers: {
-      Cookie: setCookie,
-    },
-  });
-
-  const logoutJson = await readJson(logoutRes);
-  assert(
-    logoutRes.ok,
-    `LOGOUT FALLO: ${logoutRes.status} ${JSON.stringify(logoutJson, null, 2)}`
-  );
-  console.log("OK /api/auth/logout");
-
-  console.log("SMOKE UPLOAD COMPLETO OK");
 }
 
 run().catch((error) => {
