@@ -4,6 +4,10 @@ Checklist operativo para validar el lanzamiento productivo de Portal VETNEB.
 Mantener este documento sin secretos: usar nombres de variables, placeholders y
 evidencias sanitizadas.
 
+> [!IMPORTANT]
+> La evidencia formal del release se centraliza en
+> `docs/production-readiness-evidence.md`.
+
 ## Uso
 
 - `[BLOCKER]`: debe quedar resuelto antes de publicar produccion.
@@ -544,6 +548,9 @@ Invoke-RestMethod "$BaseUrl/api/health"
   no criticas.
 
 ## 11. Criterio go/no-go
+
+Referencia de evidencia formal para decision de salida:
+`docs/production-readiness-evidence.md`.
 
 ### Go
 
