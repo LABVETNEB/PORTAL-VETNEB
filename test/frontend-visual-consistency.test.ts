@@ -6,6 +6,8 @@ import test from "node:test";
 const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
 const SERVICIOS_PAGE_PATH = "frontend/src/app/servicios/page.tsx";
+const HISTOPATOLOGIA_PAGE_PATH =
+  "frontend/src/app/histopatologia-veterinaria/page.tsx";
 const LOGIN_CONTENT_PATH = "frontend/src/components/public/LoginContent.tsx";
 const DASHBOARD_SIDEBAR_FRAME_PATH =
   "frontend/src/components/dashboard/DashboardSidebarFrame.tsx";
@@ -118,16 +120,20 @@ test("globals css keeps visual tokens and shared frontend surface utilities", ()
   );
 });
 
-test("globals css disables text selection globally while preserving editable controls", () => {
+test("globals css disables text selection and native callouts globally while preserving editable controls", () => {
   const source = read(GLOBALS_CSS_PATH);
 
+  assert.match(
+    source,
+    /\*\s*\{[\s\S]*-webkit-touch-callout:\s*none;[\s\S]*-webkit-tap-highlight-color:\s*transparent;[\s\S]*\}/,
+  );
   assert.match(
     source,
     /\*\s*\{[\s\S]*-webkit-user-select:\s*none;[\s\S]*-ms-user-select:\s*none;[\s\S]*user-select:\s*none;[\s\S]*\}/,
   );
   assert.match(
     source,
-    /input,\s*textarea,\s*select,\s*\[contenteditable="true"\]\s*\{[\s\S]*-webkit-user-select:\s*text;[\s\S]*-ms-user-select:\s*text;[\s\S]*user-select:\s*text;[\s\S]*\}/,
+    /input,\s*textarea,\s*select,\s*\[contenteditable="true"\]\s*\{[\s\S]*-webkit-touch-callout:\s*default;[\s\S]*-webkit-user-select:\s*text;[\s\S]*-ms-user-select:\s*text;[\s\S]*user-select:\s*text;[\s\S]*\}/,
   );
 
   for (const filePath of listFrontendSourceFiles()) {
@@ -139,6 +145,8 @@ test("globals css disables text selection globally while preserving editable con
       "onpaste",
       "onselectstart",
       "oncontextmenu",
+      "onmousedown",
+      "ontouchstart",
     ]) {
       assert.equal(
         frontendSource.includes(forbiddenHandler),
@@ -147,6 +155,27 @@ test("globals css disables text selection globally while preserving editable con
       );
     }
   }
+});
+
+test("public diagnostic service cards avoid native title tooltips", () => {
+  const serviciosSource = read(SERVICIOS_PAGE_PATH);
+  const histopatologiaSource = read(HISTOPATOLOGIA_PAGE_PATH);
+
+  assert.equal(
+    serviciosSource.includes('href="/histopatologia-veterinaria"'),
+    true,
+    "services page keeps the histopathology public href",
+  );
+  assert.equal(
+    serviciosSource.includes("title="),
+    false,
+    "services page cards and links must not use native title tooltips",
+  );
+  assert.equal(
+    histopatologiaSource.includes("title="),
+    false,
+    "histopathology page links must not use native title tooltips",
+  );
 });
 
 test("public home page keeps polished visual hierarchy and responsive sections", () => {
