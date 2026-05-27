@@ -4,6 +4,9 @@ Runbook accionable para validar staging y repetir el mismo smoke despues del
 deploy productivo. No pegar secretos, passwords, tokens reales ni signed URLs en
 logs, issues, PRs o capturas.
 
+Registrar evidencia sanitizada del smoke en:
+`docs/production-readiness-evidence.md`.
+
 ## 1. Variables requeridas
 
 Ejecutar en PowerShell desde una terminal limpia. Los dos valores publicos son
