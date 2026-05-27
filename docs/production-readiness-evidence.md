@@ -38,9 +38,9 @@ criterios formales de salida.
 | P0-005 | Config produccion | P0 | Abierto | Variables Render produccion configuradas y sanitizadas | Verificacion manual en Render (captura con valores ocultos) | Variables requeridas presentes, sin secretos expuestos |
 | P0-006 | DB staging | P0 | Abierto | DB staging migrada + `schema:verify` OK | `pnpm schema:verify` sobre entorno staging controlado | Migraciones aplicadas y verify en verde |
 | P0-007 | DB produccion | P0 | Abierto | Backup previo antes de migrar | Evidencia de backup previo con fecha/hora | No se migra sin backup confirmado del mismo dia |
-| P0-008 | Storage | P0 | Abierto | Supabase Storage privado verificado | Revisión en dashboard + prueba de acceso autenticado | Bucket privado, sin lectura publica no autorizada |
-| P0-009 | Upload PDF | P0 | Abierto | Upload PDF funcional en staging | `pnpm smoke:staging` o runbook upload | PDF sube, persiste y queda trazable |
-| P0-010 | Signed URL | P0 | Abierto | Signed URL staging sin exposicion en logs | Descarga controlada + revision de logs sanitizados | URLs firmadas no aparecen completas en logs |
+| P0-008 | Storage | P0 | Abierto | Supabase Storage privado verificado + evidencia de `storagePath/storage_path` | `pnpm smoke:upload` + revision dashboard storage (sanitizada) | Bucket privado, sin lectura publica no autorizada; evidencia runtime/staging pendiente |
+| P0-009 | Upload PDF | P0 | Abierto | Upload PDF funcional en staging con reporte persistido | `pnpm smoke:upload` | Login clinic + upload OK + `reportId` trazable; evidencia runtime/staging pendiente |
+| P0-010 | Signed URL | P0 | Abierto | Signed URL staging validada sin exposicion en logs | `pnpm smoke:upload` (esperar `signedUrl=present`) + revision de logs sanitizados | URLs firmadas no aparecen completas en logs; evidencia runtime/staging pendiente |
 | P0-011 | Avatar/logo | P0 | Abierto | Upload de avatar/logo funcional en staging | Ejecutar flujo manual de avatar/logo en staging | Upload/update/delete correcto por permisos esperados |
 | P0-012 | Contacto/email | P0 | Abierto | Contacto/email staging E2E o exclusion formal de release | Smoke manual de `/contacto` + decision documentada | Envio confirmado o fuera de alcance aprobado |
 | P0-013 | CORS staging | P0 | Abierto | CORS exacto en staging (preflight OPTIONS) | `pnpm smoke:staging` (check `OPTIONS /api/auth/login` con `Origin=$FrontendUrl`) | `Access-Control-Allow-Origin` coincide con frontend staging y `Access-Control-Allow-Credentials=true`; evidencia runtime/staging pendiente |

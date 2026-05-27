@@ -44,6 +44,26 @@ Remove-Item Env:\SMOKE_CLINIC_PASSWORD -ErrorAction SilentlyContinue
 Remove-Item Env:\SMOKE_PARTICULAR_TOKEN -ErrorAction SilentlyContinue
 ```
 
+## 1.2 Smoke de Storage/upload y signed URL (`pnpm smoke:upload`)
+
+Este smoke valida login clinic, upload PDF, evidencia de `storagePath` y
+obtencion de signed URL sin exponer secretos ni URLs firmadas completas.
+La salida esperada debe mostrar `signedUrl=present` y nunca la URL completa.
+
+```powershell
+$env:SMOKE_BASE_URL = "https://<backend-staging-or-production>"
+$env:SMOKE_USERNAME = "<clinic-user>"
+$env:SMOKE_PASSWORD = Read-Host "Clinic password"
+$env:SMOKE_TMP_DIR = "$env:TEMP\portal-vetneb-smoke"
+# Opcional:
+# $env:SMOKE_UPLOAD_FILE = "C:\path\to\portal-vetneb-smoke-upload.pdf"
+
+pnpm smoke:upload
+
+Remove-Item Env:\SMOKE_PASSWORD -ErrorAction SilentlyContinue
+Remove-Item Env:\SMOKE_UPLOAD_FILE -ErrorAction SilentlyContinue
+```
+
 ### Preflight Render para comunicaciones
 
 Antes del smoke del formulario de contacto, confirmar en Render que quedaron
