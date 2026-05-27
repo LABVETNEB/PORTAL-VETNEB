@@ -24,6 +24,7 @@ import type {
   ParticularLoginCredentials,
   DashboardStats,
   SystemHealth,
+  AdminSchemaHealthSnapshot,
   MaintenancePurgeDryRunSnapshot,
   AdminSessionsQuery,
   AdminSessionsSnapshot,
@@ -52,6 +53,8 @@ export const BACKEND_CONNECTION_ERROR_MESSAGE =
   "No se pudo conectar con el backend. Verifique sesión admin, CORS y despliegue backend/frontend.";
 export const BACKEND_OPERATION_ERROR_MESSAGE =
   "El backend no pudo completar la operación. Reintentá y, si persiste, revisá estado del sistema y logs de backend.";
+export const ADMIN_SCHEMA_HEALTH_UNAUTHORIZED_MESSAGE =
+  "Sesión admin no autenticada o inválida. Iniciá sesión nuevamente.";
 
 function isLocalOrLanHostname(hostname: string): boolean {
   const normalizedHost = hostname.trim().toLowerCase();
@@ -1015,6 +1018,87 @@ export async function getAdminSystemHealth(
     warnApiFallback("getAdminSystemHealth", error);
     return null;
   }
+}
+
+function readBackendMessageFromBody(body: unknown): string | null {
+  if (!body || typeof body !== "object") {
+    return null;
+  }
+
+  const bodyRecord = body as Record<string, unknown>;
+  const errorValue = bodyRecord.error;
+  const messageValue = bodyRecord.message;
+
+  if (typeof errorValue === "string" && errorValue.trim()) {
+    return errorValue;
+  }
+
+  if (typeof messageValue === "string" && messageValue.trim()) {
+    return messageValue;
+  }
+
+  return null;
+}
+
+export async function getAdminSchemaHealth(
+  options?: RequestInit,
+): Promise<AdminSchemaHealthSnapshot> {
+  const apiBaseUrl = resolveApiBaseUrlForRuntime();
+  const headers = new Headers(options?.headers);
+
+  let res: Response;
+
+  try {
+    res = await fetch(`${apiBaseUrl}/api/admin/system/schema-health`, {
+      ...options,
+      credentials: options?.credentials ?? "include",
+      headers,
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      const errorDetail =
+        error instanceof Error ? error.message : String(error);
+      console.warn(`[API] /api/admin/system/schema-health: ${errorDetail}`);
+    }
+
+    if (error instanceof TypeError) {
+      throw new Error(BACKEND_CONNECTION_ERROR_MESSAGE);
+    }
+
+    throw error;
+  }
+
+  const body = (await res.json().catch(() => null)) as unknown;
+  const backendMessage = readBackendMessageFromBody(body);
+
+  if (res.status === 401) {
+    throw new Error(ADMIN_SCHEMA_HEALTH_UNAUTHORIZED_MESSAGE);
+  }
+
+  const parsedSnapshot =
+    body && typeof body === "object"
+      ? (body as Partial<AdminSchemaHealthSnapshot>)
+      : null;
+  const parsedStatus = parsedSnapshot?.status;
+  const hasValidSchemaHealthStatus =
+    parsedStatus === "ok" || parsedStatus === "degraded";
+
+  if (
+    (res.status === 200 || res.status === 503) &&
+    hasValidSchemaHealthStatus
+  ) {
+    return parsedSnapshot as AdminSchemaHealthSnapshot;
+  }
+
+  if (backendMessage) {
+    throw new Error(backendMessage);
+  }
+
+  if (res.status >= 500) {
+    throw new Error(BACKEND_OPERATION_ERROR_MESSAGE);
+  }
+
+  throw new Error(`HTTP ${res.status}`);
 }
 
 export async function getAdminUsersRoles(
