@@ -502,6 +502,9 @@ Remove-Variable ParticularToken
 
 ## 9. Observabilidad, backups y rollback
 
+Runbook operativo obligatorio:
+`docs/ops/BACKUP_RESTORE_ROLLBACK.md`.
+
 - [ ] `[BLOCKER]` `/health` productivo responde `200` y reporta DB y Storage
   `up`.
 - [ ] `[BLOCKER]` `/api/admin/system/health` visible para admin productivo y sin
@@ -551,6 +554,8 @@ Invoke-RestMethod "$BaseUrl/api/health"
 
 Referencia de evidencia formal para decision de salida:
 `docs/production-readiness-evidence.md`.
+Referencia de procedimiento operativo de backup/restore/rollback:
+`docs/ops/BACKUP_RESTORE_ROLLBACK.md`.
 
 ### Go
 
