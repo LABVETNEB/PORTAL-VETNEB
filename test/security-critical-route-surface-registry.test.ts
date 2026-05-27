@@ -55,6 +55,8 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           'prefix: "/api/admin/system/health"',
           "adminSystemMaintenanceNativeRoutes",
           'prefix: "/api/admin/system/maintenance"',
+          "adminSystemSchemaHealthNativeRoutes",
+          'prefix: "/api/admin/system/schema-health"',
           "adminUsersRolesNativeRoutes",
           'prefix: "/api/admin/users-roles"',
         ],
@@ -101,6 +103,10 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
       },
       {
         path: "server/routes/admin-system-maintenance.fastify.ts",
+        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+      },
+      {
+        path: "server/routes/admin-system-schema-health.fastify.ts",
         markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
       },
       {

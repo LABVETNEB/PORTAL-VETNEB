@@ -44,6 +44,7 @@ const ADMIN_SESSION_FILES = [
   "server/routes/admin-study-tracking.fastify.ts",
   "server/routes/admin-system-health.fastify.ts",
   "server/routes/admin-system-maintenance.fastify.ts",
+  "server/routes/admin-system-schema-health.fastify.ts",
   "server/routes/admin-users-roles.fastify.ts",
 ] as const;
 
