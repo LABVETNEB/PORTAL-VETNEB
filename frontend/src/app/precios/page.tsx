@@ -146,16 +146,16 @@ export default async function PreciosPage() {
                             {category.items.map((item, index) => (
                               <div
                                 key={item.id}
-                                className={`clinical-hover-row flex items-start justify-between gap-5 px-5 py-4 ${
+                                className={`clinical-hover-row flex flex-col items-start gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-5 ${
                                   index < category.items.length - 1
                                     ? "border-b border-vetneb-line/80"
                                     : ""
                                 }`}
                               >
-                                <p className="text-sm font-semibold uppercase tracking-[0.04em] text-vetneb-ink">
+                                <p className="w-full min-w-0 break-words text-sm font-semibold uppercase tracking-[0.04em] text-vetneb-ink sm:flex-1">
                                   {item.studyName}
                                 </p>
-                                <p className="clinical-pill shrink-0 px-3 py-1 text-sm font-bold tracking-normal shadow-sm">
+                                <p className="clinical-pill max-w-full self-start break-words px-3 py-1 text-sm font-bold tracking-normal shadow-sm sm:ml-auto sm:shrink-0">
                                   {normalizePriceLabel(item.priceLabel)}
                                 </p>
                               </div>
