@@ -32,6 +32,7 @@ test("navbar uses centralized public routes for primary navigation", () => {
 
   assert.ok(source.includes('import Link from "next/link";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
+  assert.ok(source.includes('const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];'));
   assert.ok(source.includes('{ label: "Servicios", href: ROUTES.servicios }'));
   assert.ok(source.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
   assert.ok(source.includes('{ label: "Clínicas", href: ROUTES.clinicas }'));
@@ -41,7 +42,7 @@ test("navbar uses centralized public routes for primary navigation", () => {
   assert.ok(source.includes('aria-label="Navegación principal"'));
 });
 
-test("navbar keeps full navigation desktop-only and exposes compact professionals link", () => {
+test("navbar keeps full navigation desktop-only and exposes mobile dropdown", () => {
   const source = read(NAVBAR_PATH);
 
   assert.ok(
@@ -50,9 +51,26 @@ test("navbar keeps full navigation desktop-only and exposes compact professional
     ),
   );
   assert.equal(source.includes("p-1 md:flex"), false);
-  assert.ok(source.includes('className="public-cta-outline lg:hidden"'));
-  assert.ok(source.includes("<Link href={ROUTES.profesionales}>Profesionales</Link>"));
+  assert.ok(source.includes('className="relative lg:hidden"'));
+  assert.ok(source.includes("<details"));
+  assert.ok(source.includes("<summary"));
+  assert.ok(source.includes('aria-label="Navegación mobile"'));
+  assert.ok(source.includes("{mobileNavLinks.map((link) => ("));
+  assert.equal(source.includes('className="public-cta-outline lg:hidden"'), false);
+  assert.equal(source.includes("<Link href={ROUTES.profesionales}>Profesionales</Link>"), false);
   assert.ok(source.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
+});
+
+test("navbar mobile dropdown includes expected public links", () => {
+  const source = read(NAVBAR_PATH);
+
+  assert.ok(source.includes('const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];'));
+  assert.ok(source.includes('{ label: "Servicios", href: ROUTES.servicios }'));
+  assert.ok(source.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
+  assert.ok(source.includes('{ label: "Clínicas", href: ROUTES.clinicas }'));
+  assert.ok(source.includes('{ label: "Particulares", href: ROUTES.particulares }'));
+  assert.ok(source.includes('{ label: "Contacto", href: ROUTES.contacto }'));
+  assert.ok(source.includes('{ label: "Precios", href: ROUTES.precios }'));
 });
 
 test("navbar keeps expected public link order including precios", () => {
