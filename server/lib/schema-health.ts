@@ -151,12 +151,18 @@ export function buildSchemaHealthSnapshotFromRows(
 }
 
 export async function getSchemaHealthSnapshot(): Promise<SchemaHealthSnapshot> {
-  const rows = await pgClient`
+  const result = await pgClient`
     SELECT table_schema, table_name, column_name
     FROM information_schema.columns
     WHERE table_schema = 'public'
     AND table_name IN ('reports', 'report_status_history', 'report_access_tokens')
   `;
+
+  const rows = Array.from(result).map((row) => ({
+    table_schema: String(row.table_schema),
+    table_name: String(row.table_name),
+    column_name: String(row.column_name),
+  }));
 
   return buildSchemaHealthSnapshotFromRows(rows, new Date().toISOString());
 }
