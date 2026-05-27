@@ -360,9 +360,6 @@
     text-wrap: pretty;
   }
 
-  .render-gpu-soft {
-  }
-
   .diagnostic-field {
     position: absolute;
     inset: 0;
@@ -648,10 +645,6 @@
       animation: none;
     }
 
-    .render-card:hover,
-    .premium-card:hover,
-    [data-services-polished="true"] > [id]:hover {
-    }
   }
 }
 @keyframes clinical-skeleton-pulse {
