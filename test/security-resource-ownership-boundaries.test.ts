@@ -248,3 +248,23 @@ test("critical ownership tests remain explicit and runtime-backed", () => {
     "particular study tracking notification ownership tests",
   );
 });
+
+test("resource ownership guardrail references cross-tenant IDOR contract registry", () => {
+  const crossTenantIdorContract = readSource("test/security-cross-tenant-idor-contract.test.ts");
+
+  assertContains(
+    crossTenantIdorContract,
+    "const CROSS_TENANT_IDOR_CONTRACTS",
+    "cross-tenant IDOR guardrail matrix",
+  );
+  assertContains(
+    crossTenantIdorContract,
+    "CTIDOR-001",
+    "cross-tenant IDOR guardrail matrix",
+  );
+  assertContains(
+    crossTenantIdorContract,
+    "pending_runtime_staging_evidence",
+    "cross-tenant IDOR readiness status",
+  );
+});
