@@ -404,6 +404,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "rate limit isolation guardrail source stays ascii only",
         ],
       },
+      {
+        path: "test/security-cross-tenant-idor-contract.test.ts",
+        markers: [
+          "cross-tenant IDOR contract matrix has unique IDs",
+          "cross-tenant IDOR matrix covers critical production attack surfaces",
+          "pending_runtime_staging_evidence",
+        ],
+      },
     ],
   },
   {
@@ -653,6 +661,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-write-attribution-boundaries.test.ts",
     "test/security-access-lifecycle-boundaries.test.ts",
     "test/security-response-disclosure-boundaries.test.ts",
+    "test/security-cross-tenant-idor-contract.test.ts",
     "test/security-trusted-origin-cors-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",
     "test/security-validation-cutoff-boundaries.test.ts",

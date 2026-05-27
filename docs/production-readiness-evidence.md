@@ -45,7 +45,7 @@ criterios formales de salida.
 | P0-012 | Contacto/email | P0 | Abierto | Contacto/email staging E2E o exclusion formal de release | Smoke manual de `/contacto` + decision documentada | Envio confirmado o fuera de alcance aprobado |
 | P0-013 | CORS staging | P0 | Abierto | CORS exacto en staging | `Invoke-WebRequest -Method Options "$BackendUrl/api/auth/login" -Headers @{Origin=$Origin;"Access-Control-Request-Method"="POST"}` | Header `Access-Control-Allow-Origin` coincide con frontend staging |
 | P0-014 | Cookies staging | P0 | Abierto | Cookies `Secure` y `SameSite=None` en staging HTTPS | Inspeccion de `Set-Cookie` en login staging | Flags correctas en cookies de sesion |
-| P0-015 | Seguridad | P0 | Abierto | Smoke cross-tenant / IDOR minimo | Pruebas manuales con sesiones separadas | Sin acceso a recursos de otro tenant |
+| P0-015 | Seguridad | P0 | Abierto | Smoke cross-tenant / IDOR minimo + contrato `test/security-cross-tenant-idor-contract.test.ts` | `pnpm test` (guardrail) + pruebas manuales con sesiones separadas en staging/produccion | Sin acceso a recursos de otro tenant; evidencia runtime/staging pendiente |
 | P0-016 | Backup | P0 | Abierto | Backup productivo reciente | Evidencia de backup con fecha, tamano y estado | Backup vigente dentro de ventana acordada |
 | P0-017 | Restore | P0 | Abierto | Restore probado en staging/no productivo | Acta de restore de prueba (sanitizada) | Restore validado y documentado |
 | P0-018 | Rollback app | P0 | Abierto | Rollback app Render documentado | Runbook de rollback con pasos y responsables | Procedimiento repetible validado |
@@ -142,4 +142,3 @@ Invoke-WebRequest -Method Options -Uri "$BackendUrl/api/auth/login" -Headers @{
 |  |  |  |  |  |  |
 |  |  |  |  |  |  |
 |  |  |  |  |  |  |
-
