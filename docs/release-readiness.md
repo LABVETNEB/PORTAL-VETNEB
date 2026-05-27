@@ -479,6 +479,11 @@ Remove-Variable ParticularToken
 
 ## 8. Seguridad final
 
+Matrices documentales obligatorias para RBAC/permisos/cobertura de tests:
+`docs/security/RBAC_MATRIX.md`,
+`docs/security/ENDPOINT_PERMISSION_MATRIX.md`,
+`docs/security/ENDPOINT_TEST_MATRIX.md`.
+
 - [ ] `[BLOCKER]` No hay secretos reales en git, README, docs, issues, PRs,
   logs de CI ni capturas.
 - [ ] `[BLOCKER]` Secretos productivos viven solo en el proveedor de runtime
@@ -556,6 +561,10 @@ Referencia de evidencia formal para decision de salida:
 `docs/production-readiness-evidence.md`.
 Referencia de procedimiento operativo de backup/restore/rollback:
 `docs/ops/BACKUP_RESTORE_ROLLBACK.md`.
+Referencia de matrices RBAC/endpoints/tests:
+`docs/security/RBAC_MATRIX.md`,
+`docs/security/ENDPOINT_PERMISSION_MATRIX.md`,
+`docs/security/ENDPOINT_TEST_MATRIX.md`.
 
 ### Go
 
