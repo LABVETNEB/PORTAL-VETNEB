@@ -15,6 +15,7 @@
     "db:migrate": "drizzle-kit migrate",
     "smoke:test": "node scripts/smoke/smoke-test.mjs",
     "smoke:upload": "node scripts/smoke/smoke-upload.mjs",
+    "smoke:staging": "powershell -ExecutionPolicy Bypass -File scripts/dev/smoke-staging.ps1",
     "test": "node --experimental-strip-types --experimental-specifier-resolution=node --test test/**/*.test.ts",
     "schema:verify": "node scripts/schema-verify.mjs",
     "validate:local": "pnpm typecheck && pnpm typecheck:test && pnpm test && pnpm build"
