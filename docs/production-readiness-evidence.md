@@ -46,10 +46,10 @@ criterios formales de salida.
 | P0-013 | CORS staging | P0 | Abierto | CORS exacto en staging (preflight OPTIONS) | `pnpm smoke:staging` (check `OPTIONS /api/auth/login` con `Origin=$FrontendUrl`) | `Access-Control-Allow-Origin` coincide con frontend staging y `Access-Control-Allow-Credentials=true`; evidencia runtime/staging pendiente |
 | P0-014 | Cookies staging | P0 | Abierto | Cookies `Secure` y `SameSite=None` en staging HTTPS | `pnpm smoke:staging` (logins autenticados opcionales admin/clinic validan flags de cookie) | Flags correctas en cookies de sesion; evidencia runtime/staging pendiente |
 | P0-015 | Seguridad | P0 | Abierto | Smoke cross-tenant / IDOR minimo + contrato `test/security-cross-tenant-idor-contract.test.ts` | `pnpm test` (guardrail) + pruebas manuales con sesiones separadas en staging/produccion | Sin acceso a recursos de otro tenant; evidencia runtime/staging pendiente |
-| P0-016 | Backup | P0 | Abierto | Backup productivo reciente | Evidencia de backup con fecha, tamano y estado | Backup vigente dentro de ventana acordada |
-| P0-017 | Restore | P0 | Abierto | Restore probado en staging/no productivo | Acta de restore de prueba (sanitizada) | Restore validado y documentado |
-| P0-018 | Rollback app | P0 | Abierto | Rollback app Render documentado | Runbook de rollback con pasos y responsables | Procedimiento repetible validado |
-| P0-019 | Rollback DB | P0 | Abierto | Rollback DB documentado | Runbook DB con precondiciones y riesgos | Procedimiento aprobado por responsable tecnico |
+| P0-016 | Backup | P0 | Abierto | Backup productivo reciente (DB y storage) | `docs/ops/BACKUP_RESTORE_ROLLBACK.md` + evidencia de backup con fecha, tamano y estado (sanitizada) | Backup vigente dentro de ventana acordada |
+| P0-017 | Restore | P0 | Abierto | Restore probado en staging/no productivo | `docs/ops/BACKUP_RESTORE_ROLLBACK.md` + acta de restore de prueba (sanitizada) | Restore validado y documentado |
+| P0-018 | Rollback app | P0 | Abierto | Rollback app Render documentado | `docs/ops/BACKUP_RESTORE_ROLLBACK.md` (pasos, responsables y evidencia sanitizada) | Procedimiento repetible validado |
+| P0-019 | Rollback DB | P0 | Abierto | Rollback DB documentado | `docs/ops/BACKUP_RESTORE_ROLLBACK.md` (criterio NO-GO, restore y decision registrada) | Procedimiento aprobado por responsable tecnico |
 | P0-020 | Dominio/HTTPS | P0 | Abierto | Dominio HTTPS productivo operativo | `Invoke-WebRequest "$FrontendUrl"` y certificados validos | Frontend/back con HTTPS valido y sin mixed content critico |
 | P0-021 | CORS/cookies prod | P0 | Abierto | CORS y cookies correctas en produccion | `OPTIONS` login + inspeccion de cookies en prod | Login/sesion funcional y politicas correctas |
 | P0-022 | Smoke prod | P0 | Abierto | Smoke produccion post-deploy | Runbook productivo ejecutado y firmado | Smoke minimo verde tras deploy |
