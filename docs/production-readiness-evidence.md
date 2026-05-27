@@ -32,8 +32,8 @@ criterios formales de salida.
 | ID | Grupo | Severidad | Estado | Evidencia requerida | Comando PowerShell / accion | Criterio de cierre |
 |---|---|---|---|---|---|---|
 | P0-001 | CI | P0 | Abierto | Backend y frontend verdes en commit candidato | Revisar runs CI del commit (`gh run list --commit a65a43e`) o panel CI | Ambos pipelines exitosos, sin jobs requeridos en rojo |
-| P0-002 | Staging smoke | P0 | Abierto | Smoke autenticado admin/clinic/particular | `pnpm smoke:staging` + evidencia manual sanitizada | Flujos core de los 3 perfiles completan sin error |
-| P0-003 | Schema health | P0 | Abierto | Estado de esquema admin en staging | `Invoke-RestMethod "$BackendUrl/api/admin/system/schema-health"` (con sesion valida) | Resultado consistente y sin drift bloqueante |
+| P0-002 | Staging smoke | P0 | Abierto | Smoke autenticado admin/clinic/particular | `pnpm smoke:staging` (modo autenticado opcional con `SMOKE_*`) + evidencia manual sanitizada | Flujos core de los 3 perfiles completan sin error; si faltan credenciales, checks autenticados quedan en SKIP |
+| P0-003 | Schema health | P0 | Abierto | Estado de esquema admin en staging (smoke autenticado) | `pnpm smoke:staging` con `SMOKE_ADMIN_USERNAME` y `SMOKE_ADMIN_PASSWORD` (check `/api/admin/system/schema-health`) | `status=ok` para cierre; `status=degraded` mantiene P0 Abierto y evidencia runtime/staging pendiente |
 | P0-004 | Config staging | P0 | Abierto | Variables Render staging configuradas y sanitizadas | Verificacion manual en Render (captura con valores ocultos) | Variables requeridas presentes, sin secretos expuestos |
 | P0-005 | Config produccion | P0 | Abierto | Variables Render produccion configuradas y sanitizadas | Verificacion manual en Render (captura con valores ocultos) | Variables requeridas presentes, sin secretos expuestos |
 | P0-006 | DB staging | P0 | Abierto | DB staging migrada + `schema:verify` OK | `pnpm schema:verify` sobre entorno staging controlado | Migraciones aplicadas y verify en verde |
@@ -43,8 +43,8 @@ criterios formales de salida.
 | P0-010 | Signed URL | P0 | Abierto | Signed URL staging sin exposicion en logs | Descarga controlada + revision de logs sanitizados | URLs firmadas no aparecen completas en logs |
 | P0-011 | Avatar/logo | P0 | Abierto | Upload de avatar/logo funcional en staging | Ejecutar flujo manual de avatar/logo en staging | Upload/update/delete correcto por permisos esperados |
 | P0-012 | Contacto/email | P0 | Abierto | Contacto/email staging E2E o exclusion formal de release | Smoke manual de `/contacto` + decision documentada | Envio confirmado o fuera de alcance aprobado |
-| P0-013 | CORS staging | P0 | Abierto | CORS exacto en staging | `Invoke-WebRequest -Method Options "$BackendUrl/api/auth/login" -Headers @{Origin=$Origin;"Access-Control-Request-Method"="POST"}` | Header `Access-Control-Allow-Origin` coincide con frontend staging |
-| P0-014 | Cookies staging | P0 | Abierto | Cookies `Secure` y `SameSite=None` en staging HTTPS | Inspeccion de `Set-Cookie` en login staging | Flags correctas en cookies de sesion |
+| P0-013 | CORS staging | P0 | Abierto | CORS exacto en staging (preflight OPTIONS) | `pnpm smoke:staging` (check `OPTIONS /api/auth/login` con `Origin=$FrontendUrl`) | `Access-Control-Allow-Origin` coincide con frontend staging y `Access-Control-Allow-Credentials=true`; evidencia runtime/staging pendiente |
+| P0-014 | Cookies staging | P0 | Abierto | Cookies `Secure` y `SameSite=None` en staging HTTPS | `pnpm smoke:staging` (logins autenticados opcionales admin/clinic validan flags de cookie) | Flags correctas en cookies de sesion; evidencia runtime/staging pendiente |
 | P0-015 | Seguridad | P0 | Abierto | Smoke cross-tenant / IDOR minimo + contrato `test/security-cross-tenant-idor-contract.test.ts` | `pnpm test` (guardrail) + pruebas manuales con sesiones separadas en staging/produccion | Sin acceso a recursos de otro tenant; evidencia runtime/staging pendiente |
 | P0-016 | Backup | P0 | Abierto | Backup productivo reciente | Evidencia de backup con fecha, tamano y estado | Backup vigente dentro de ventana acordada |
 | P0-017 | Restore | P0 | Abierto | Restore probado en staging/no productivo | Acta de restore de prueba (sanitizada) | Restore validado y documentado |
