@@ -18,7 +18,8 @@
     "smoke:staging": "powershell -ExecutionPolicy Bypass -File scripts/dev/smoke-staging.ps1",
     "test": "node --experimental-strip-types --experimental-specifier-resolution=node --test test/**/*.test.ts",
     "schema:verify": "node scripts/schema-verify.mjs",
-    "validate:local": "pnpm typecheck && pnpm typecheck:test && pnpm test && pnpm build"
+    "validate:local": "pnpm typecheck && pnpm typecheck:test && pnpm test && pnpm build",
+    "validate:local:schema": "pnpm validate:local && pnpm schema:verify"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
