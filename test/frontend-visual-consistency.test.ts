@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 
@@ -22,6 +22,20 @@ function read(relativePath: string): string {
     /\r\n/g,
     "\n",
   );
+}
+
+function listFrontendSourceFiles(relativeDir = "frontend/src"): string[] {
+  return readdirSync(resolve(process.cwd(), relativeDir), {
+    withFileTypes: true,
+  }).flatMap((entry) => {
+    const entryPath = `${relativeDir}/${entry.name}`;
+
+    if (entry.isDirectory()) {
+      return listFrontendSourceFiles(entryPath);
+    }
+
+    return /\.(?:ts|tsx|js|jsx)$/.test(entry.name) ? [entryPath] : [];
+  });
 }
 
 function assertContainsAll(
@@ -102,6 +116,37 @@ test("globals css keeps visual tokens and shared frontend surface utilities", ()
     ],
     "globals.css utility contracts",
   );
+});
+
+test("globals css disables text selection globally while preserving editable controls", () => {
+  const source = read(GLOBALS_CSS_PATH);
+
+  assert.match(
+    source,
+    /\*\s*\{[\s\S]*-webkit-user-select:\s*none;[\s\S]*-ms-user-select:\s*none;[\s\S]*user-select:\s*none;[\s\S]*\}/,
+  );
+  assert.match(
+    source,
+    /input,\s*textarea,\s*select,\s*\[contenteditable="true"\]\s*\{[\s\S]*-webkit-user-select:\s*text;[\s\S]*-ms-user-select:\s*text;[\s\S]*user-select:\s*text;[\s\S]*\}/,
+  );
+
+  for (const filePath of listFrontendSourceFiles()) {
+    const frontendSource = read(filePath).toLowerCase();
+
+    for (const forbiddenHandler of [
+      "oncopy",
+      "oncut",
+      "onpaste",
+      "onselectstart",
+      "oncontextmenu",
+    ]) {
+      assert.equal(
+        frontendSource.includes(forbiddenHandler),
+        false,
+        `${filePath} must not introduce ${forbiddenHandler}`,
+      );
+    }
+  }
 });
 
 test("public home page keeps polished visual hierarchy and responsive sections", () => {
