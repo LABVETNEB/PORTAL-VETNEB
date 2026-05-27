@@ -53,10 +53,25 @@ test("precios page renders responsive side-by-side category cards with formal me
 test("precios page renders price rows with bordered pills and clear hierarchy", () => {
   const source = read(PRECIOS_PAGE_PATH);
 
-  assert.ok(source.includes("flex items-start justify-between gap-5 px-5 py-4"));
-  assert.ok(source.includes("clinical-hover-row flex items-start justify-between gap-5 px-5 py-4"));
-  assert.ok(source.includes("text-sm font-semibold uppercase tracking-[0.04em] text-vetneb-ink"));
-  assert.ok(source.includes("clinical-pill shrink-0 px-3 py-1 text-sm font-bold tracking-normal shadow-sm"));
+  assert.ok(
+    source.includes(
+      "clinical-hover-row flex flex-col items-start gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-5",
+    ),
+  );
+  assert.equal(
+    source.includes("clinical-hover-row flex items-start justify-between gap-5 px-5 py-4"),
+    false,
+  );
+  assert.ok(
+    source.includes(
+      "w-full min-w-0 break-words text-sm font-semibold uppercase tracking-[0.04em] text-vetneb-ink sm:flex-1",
+    ),
+  );
+  assert.ok(
+    source.includes(
+      "clinical-pill max-w-full self-start break-words px-3 py-1 text-sm font-bold tracking-normal shadow-sm sm:ml-auto sm:shrink-0",
+    ),
+  );
   assert.ok(source.includes("normalizePriceLabel(item.priceLabel)"));
 });
 
