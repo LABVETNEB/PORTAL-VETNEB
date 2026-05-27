@@ -537,6 +537,9 @@ Invoke-RestMethod "$BaseUrl/api/health"
 
 ## 10. Contenido final, legal y comercial
 
+Checklist legal/comercial detallada y registro de aprobación formal:
+`docs/legal-commercial-readiness.md`.
+
 - [ ] `[BLOCKER]` Home publico, servicios, profesionales, clinicas, contacto,
   login y particulares revisados por negocio.
 - [ ] `[BLOCKER]` Datos comerciales productivos de pricing revisados desde admin

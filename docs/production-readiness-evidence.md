@@ -42,7 +42,7 @@ criterios formales de salida.
 | P0-009 | Upload PDF | P0 | Abierto | Upload PDF funcional en staging con reporte persistido | `pnpm smoke:upload` | Login clinic + upload OK + `reportId` trazable; evidencia runtime/staging pendiente |
 | P0-010 | Signed URL | P0 | Abierto | Signed URL staging validada sin exposicion en logs | `pnpm smoke:upload` (esperar `signedUrl=present`) + revision de logs sanitizados | URLs firmadas no aparecen completas en logs; evidencia runtime/staging pendiente |
 | P0-011 | Avatar/logo | P0 | Abierto | Upload de avatar/logo funcional en staging | Ejecutar flujo manual de avatar/logo en staging | Upload/update/delete correcto por permisos esperados |
-| P0-012 | Contacto/email | P0 | Abierto | Contacto/email staging E2E o exclusion formal de release | Smoke manual de `/contacto` + decision documentada | Envio confirmado o fuera de alcance aprobado |
+| P0-012 | Contacto/email | P0 | Abierto | Contacto/email staging E2E o exclusion formal de release. Ver criterios y evidencia permitida en `docs/legal-commercial-readiness.md` secciones 5 (LC-003, LC-004) y 6. | Smoke manual de `/contacto` + decision documentada | Envio confirmado (smoke E2E sanitizado) o exclusion aprobada registrada en `docs/legal-commercial-readiness.md` |
 | P0-013 | CORS staging | P0 | Abierto | CORS exacto en staging (preflight OPTIONS) | `pnpm smoke:staging` (check `OPTIONS /api/auth/login` con `Origin=$FrontendUrl`) | `Access-Control-Allow-Origin` coincide con frontend staging y `Access-Control-Allow-Credentials=true`; evidencia runtime/staging pendiente |
 | P0-014 | Cookies staging | P0 | Abierto | Cookies `Secure` y `SameSite=None` en staging HTTPS | `pnpm smoke:staging` (logins autenticados opcionales admin/clinic validan flags de cookie) | Flags correctas en cookies de sesion; evidencia runtime/staging pendiente |
 | P0-015 | Seguridad | P0 | Abierto | Smoke cross-tenant / IDOR minimo + contrato `test/security-cross-tenant-idor-contract.test.ts` + matrices `docs/security/RBAC_MATRIX.md`, `docs/security/ENDPOINT_PERMISSION_MATRIX.md`, `docs/security/ENDPOINT_TEST_MATRIX.md` | `pnpm test` (guardrails) + revision de matrices + pruebas manuales con sesiones separadas en staging/produccion | Sin acceso a recursos de otro tenant; evidencia runtime/staging pendiente |
@@ -54,8 +54,8 @@ criterios formales de salida.
 | P0-021 | CORS/cookies prod | P0 | Abierto | CORS y cookies correctas en produccion | `OPTIONS` login + inspeccion de cookies en prod | Login/sesion funcional y politicas correctas |
 | P0-022 | Smoke prod | P0 | Abierto | Smoke produccion post-deploy | Runbook productivo ejecutado y firmado | Smoke minimo verde tras deploy |
 | P0-023 | Logs | P0 | Abierto | Logs sin secretos ni signed URLs completas | Revision de logs backend sanitizados | Cero exposicion de datos sensibles |
-| P0-024 | Legal/comercial | P0 | Abierto | Aprobacion legal/comercial minima | Acta o comentario formal de aprobacion | Riesgo legal/comercial aceptado |
-| P0-025 | Gobernanza | P0 | Abierto | Aprobacion responsable tecnico y negocio | Registro de decision firmado | Ambos responsables aprueban salida |
+| P0-024 | Legal/comercial | P0 | Abierto | Aprobacion legal/comercial minima. Checklist completa en `docs/legal-commercial-readiness.md` (LC-001 a LC-015). | Acta o comentario formal de aprobacion + evidencia sanitizada por criterio | LC-001 a LC-015 con evidencia o exclusion aprobada; ver `docs/legal-commercial-readiness.md` |
+| P0-025 | Gobernanza | P0 | Abierto | Aprobacion responsable tecnico y negocio. Ver registro de aprobacion en `docs/legal-commercial-readiness.md` seccion 11. | Registro de decision con fecha, commit, responsable tecnico y responsable negocio | Ambos responsables aprueban salida; evidencia en registro de aprobacion de `docs/legal-commercial-readiness.md` |
 
 ## 4. Evidencia sanitizada requerida
 
