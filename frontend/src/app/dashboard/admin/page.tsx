@@ -23,6 +23,7 @@ import { AdminFailedLoginAlertsReadOnlyCard } from "./AdminFailedLoginAlertsRead
 import { AdminMaintenanceDryRunCard } from "./AdminMaintenanceDryRunCard";
 import { AdminParticularTokensCard } from "./AdminParticularTokensCard";
 import { AdminPricingEditorCard } from "./AdminPricingEditorCard";
+import { AdminSchemaHealthStatusCard } from "./AdminSchemaHealthStatusCard";
 import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";
 import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
 import { AdminReportWorkflowViewerCard } from "@/components/dashboard/AdminReportWorkflowViewerCard";
@@ -602,6 +603,9 @@ export default async function AdminPage({
             </div>
           </CardContent>
         </Card>
+        <section id="admin-schema-health">
+          <AdminSchemaHealthStatusCard />
+        </section>
         <section id="admin-maintenance">
           <AdminMaintenanceDryRunCard />
         </section>

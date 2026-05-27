@@ -507,3 +507,49 @@ export type SystemHealth = {
   };
   health?: Record<string, unknown>;
 };
+
+export type AdminSchemaHealthStatus = "ok" | "degraded";
+
+export type AdminSchemaHealthCheckedBy = {
+  adminUserId: string | number;
+  username: string;
+};
+
+export type AdminSchemaHealthSummary = {
+  requiredTables: number;
+  requiredColumns: number;
+  presentColumns: number;
+  missingColumns: number;
+};
+
+export type AdminSchemaHealthColumn = {
+  name: string;
+  present: boolean;
+};
+
+export type AdminSchemaHealthTable = {
+  schema: string;
+  table: string;
+  status: AdminSchemaHealthStatus;
+  requiredColumns: number;
+  presentColumns: number;
+  missingColumns: number;
+  columns: AdminSchemaHealthColumn[];
+  missingColumnNames: string[];
+};
+
+export type AdminSchemaHealthMissingColumn = {
+  schema: string;
+  table: string;
+  column: string;
+};
+
+export type AdminSchemaHealthSnapshot = {
+  success: boolean;
+  checkedBy?: AdminSchemaHealthCheckedBy;
+  status: AdminSchemaHealthStatus;
+  generatedAt: string;
+  summary: AdminSchemaHealthSummary;
+  tables: AdminSchemaHealthTable[];
+  missing: AdminSchemaHealthMissingColumn[];
+};
