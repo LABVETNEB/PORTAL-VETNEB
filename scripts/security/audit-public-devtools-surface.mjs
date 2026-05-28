@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { createReadStream, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, relative, resolve } from "node:path";
+import { StringDecoder } from "node:string_decoder";
 
 const ROOT = process.cwd();
 const JSON_OUTPUT = process.argv.includes("--json");
@@ -65,6 +66,12 @@ const TEXT_EXTENSIONS = new Set([
 ]);
 
 const FRONTEND_CODE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
+const OVERSIZED_FILE_BYTES = 6 * 1024 * 1024;
+const DEFAULT_STREAM_CHUNK_SIZE = 64 * 1024;
+const STREAM_CHUNK_SIZE = getPositiveInteger(
+  process.env.PUBLIC_SURFACE_STREAM_CHUNK_SIZE,
+  DEFAULT_STREAM_CHUNK_SIZE,
+);
 
 const EXPLICIT_BLOCKED_IDENTIFIERS = [
   "SUPABASE_SERVICE_ROLE_KEY",
@@ -131,7 +138,7 @@ const findings = [];
 const notes = [];
 
 const discoveredSurfaces = collectSurfaces();
-runAudit();
+await runAudit();
 
 const publicFailures = findings.filter((item) => item.publicExposure);
 const summary = {
@@ -152,7 +159,7 @@ if (!summary.ok) {
   process.exitCode = 1;
 }
 
-function runAudit() {
+async function runAudit() {
   auditSourceMaps();
   auditFrontendConsole();
   auditStorageUsage();
@@ -160,8 +167,8 @@ function runAudit() {
   auditDataAttributes();
   auditSensitiveAccessibilityAttributes();
   auditNavigationContract();
-  auditSensitiveIdentifiers();
-  auditEnvValueLeaks();
+  await auditSensitiveIdentifiers();
+  await auditEnvValueLeaks();
 }
 
 function collectSurfaces() {
@@ -548,64 +555,58 @@ function auditNavigationContract() {
   }
 }
 
-function auditSensitiveIdentifiers() {
+async function auditSensitiveIdentifiers() {
   for (const surface of discoveredSurfaces) {
     for (const file of surface.files) {
-      const content = readText(file);
-      if (!content) {
-        continue;
-      }
+      const matches = await scanSensitiveIdentifierMarkers(file);
+      const publicExposure = surface.public && !isKnownServerOnlyFrontendFile(file);
 
-      for (const item of EXPLICIT_IDENTIFIER_REGEXES) {
-        if (!item.regex.test(content)) {
-          continue;
-        }
-
-        if (item.name === "TOKEN" || item.name === "SECRET" || item.name === "PASSWORD") {
+      for (const identifier of matches.explicitIdentifiers) {
+        if (identifier === "TOKEN" || identifier === "SECRET" || identifier === "PASSWORD") {
           continue;
         }
 
         addFinding({
           rule: "explicit-sensitive-identifier",
           file,
-          message: `Sensitive identifier marker "${item.name}" is present.`,
-          publicExposure: surface.public && !isKnownServerOnlyFrontendFile(file),
+          message: `Sensitive identifier marker "${identifier}" is present.`,
+          publicExposure,
         });
       }
 
-      const uppercaseMatches = matchAll(UPPERCASE_SENSITIVE_IDENTIFIER_REGEX, content)
-        .map((match) => match.groups[0])
-        .filter((name) => !name.startsWith("NEXT_PUBLIC_"));
-
-      for (const identifier of unique(uppercaseMatches)) {
+      for (const identifier of matches.uppercaseIdentifiers) {
         addFinding({
           rule: "uppercase-sensitive-identifier",
           file,
           message: `Sensitive uppercase identifier marker "${identifier}" is present.`,
-          publicExposure: surface.public && !isKnownServerOnlyFrontendFile(file),
+          publicExposure,
         });
       }
 
-      const nonPublicApiKeys = matchAll(NON_PUBLIC_API_KEY_IDENTIFIER_REGEX, content)
-        .map((match) => match.groups[0])
-        .filter((name) => !name.startsWith("NEXT_PUBLIC_"));
-
-      for (const identifier of unique(nonPublicApiKeys)) {
+      for (const identifier of matches.nonPublicApiKeys) {
         addFinding({
           rule: "non-public-api-key-identifier",
           file,
           message: `API_KEY identifier without NEXT_PUBLIC prefix found: "${identifier}".`,
-          publicExposure: surface.public && !isKnownServerOnlyFrontendFile(file),
+          publicExposure,
         });
       }
     }
   }
 }
 
-function auditEnvValueLeaks() {
+async function auditEnvValueLeaks() {
   const envEntries = readEnvEntries();
   if (envEntries.length === 0) {
     notes.push("No .env, .env.local or frontend/.env.local file found for env-value leak matching.");
+    return;
+  }
+
+  const sensitiveEntries = envEntries.filter(
+    (entry) => isSensitiveEnvKey(entry.key) && isSearchableSecretValue(entry.value),
+  );
+
+  if (sensitiveEntries.length === 0) {
     return;
   }
 
@@ -617,35 +618,106 @@ function auditEnvValueLeaks() {
     publicFiles.push(...surface.files);
   }
 
-  for (const entry of envEntries) {
-    if (!isSensitiveEnvKey(entry.key)) {
+  for (const file of publicFiles) {
+    if (isKnownServerOnlyFrontendFile(file)) {
       continue;
     }
 
-    if (!isSearchableSecretValue(entry.value)) {
-      continue;
-    }
-
-    for (const file of publicFiles) {
-      if (isKnownServerOnlyFrontendFile(file)) {
-        continue;
-      }
-
-      const content = readText(file);
-      if (!content) {
-        continue;
-      }
-
-      if (content.includes(entry.value)) {
-        addFinding({
-          rule: "env-sensitive-value-leak",
-          file,
-          message: `Sensitive env value leaked from ${entry.sourceFile}: variable "${entry.key}" appears in public surface.`,
-          publicExposure: true,
-        });
-      }
+    const leaks = await scanEnvValueLeaksInFile(file, sensitiveEntries);
+    for (const entry of leaks) {
+      addFinding({
+        rule: "env-sensitive-value-leak",
+        file,
+        message: `Sensitive env value leaked from ${entry.sourceFile}: variable "${entry.key}" appears in public surface.`,
+        publicExposure: true,
+      });
     }
   }
+}
+
+async function scanSensitiveIdentifierMarkers(relativePath) {
+  const explicitIdentifiers = new Set();
+  const uppercaseIdentifiers = new Set();
+  const nonPublicApiKeys = new Set();
+
+  const scanned = await streamTextWindows(relativePath, STREAM_CHUNK_SIZE, (window) => {
+    for (const item of EXPLICIT_IDENTIFIER_REGEXES) {
+      if (item.regex.test(window)) {
+        explicitIdentifiers.add(item.name);
+      }
+    }
+
+    for (const match of matchAll(UPPERCASE_SENSITIVE_IDENTIFIER_REGEX, window)) {
+      const identifier = match.groups[0];
+      if (!identifier.startsWith("NEXT_PUBLIC_")) {
+        uppercaseIdentifiers.add(identifier);
+      }
+    }
+
+    for (const match of matchAll(NON_PUBLIC_API_KEY_IDENTIFIER_REGEX, window)) {
+      const identifier = match.groups[0];
+      if (!identifier.startsWith("NEXT_PUBLIC_")) {
+        nonPublicApiKeys.add(identifier);
+      }
+    }
+  });
+
+  if (!scanned) {
+    return {
+      explicitIdentifiers: [],
+      uppercaseIdentifiers: [],
+      nonPublicApiKeys: [],
+    };
+  }
+
+  return {
+    explicitIdentifiers: [...explicitIdentifiers],
+    uppercaseIdentifiers: [...uppercaseIdentifiers],
+    nonPublicApiKeys: [...nonPublicApiKeys],
+  };
+}
+
+async function scanEnvValueLeaksInFile(relativePath, envEntries) {
+  if (envEntries.length === 0) {
+    return [];
+  }
+
+  const entriesByValue = new Map();
+  for (const entry of envEntries) {
+    if (!entriesByValue.has(entry.value)) {
+      entriesByValue.set(entry.value, []);
+    }
+    entriesByValue.get(entry.value).push(entry);
+  }
+
+  const pendingValues = new Set(entriesByValue.keys());
+  const leakedEntries = [];
+
+  let carryoverLength = 0;
+  for (const value of pendingValues) {
+    carryoverLength = Math.max(carryoverLength, Math.max(0, value.length - 1));
+  }
+
+  const scanned = await streamTextWindows(relativePath, carryoverLength, (window) => {
+    if (pendingValues.size === 0) {
+      return;
+    }
+
+    for (const value of [...pendingValues]) {
+      if (!window.includes(value)) {
+        continue;
+      }
+
+      leakedEntries.push(...(entriesByValue.get(value) ?? []));
+      pendingValues.delete(value);
+    }
+  });
+
+  if (!scanned) {
+    return [];
+  }
+
+  return leakedEntries;
 }
 
 function readEnvEntries() {
@@ -755,6 +827,65 @@ function collectDirectoryFiles(absoluteRoot) {
   return files;
 }
 
+async function streamTextWindows(relativePath, carryoverLength, onWindow) {
+  const absolutePath = resolve(ROOT, relativePath);
+  if (!existsSync(absolutePath)) {
+    return false;
+  }
+
+  const extension = extname(relativePath).toLowerCase();
+  if (extension && !TEXT_EXTENSIONS.has(extension)) {
+    return false;
+  }
+
+  const info = statSync(absolutePath);
+  if (!info.isFile()) {
+    return false;
+  }
+
+  const effectiveCarryoverLength = Math.max(0, carryoverLength);
+  const decoder = new StringDecoder("utf8");
+  let carryover = "";
+  let isBinary = false;
+
+  const stream = createReadStream(absolutePath, {
+    highWaterMark: STREAM_CHUNK_SIZE,
+  });
+
+  for await (const chunk of stream) {
+    if (chunk.includes(0)) {
+      isBinary = true;
+      break;
+    }
+
+    const chunkText = decoder.write(chunk).replace(/\r\n/g, "\n");
+    if (chunkText.length === 0 && carryover.length === 0) {
+      continue;
+    }
+
+    const window = carryover + chunkText;
+    if (window.length > 0) {
+      onWindow(window);
+    }
+
+    carryover = effectiveCarryoverLength > 0 ? window.slice(-effectiveCarryoverLength) : "";
+  }
+
+  if (isBinary) {
+    return false;
+  }
+
+  const tail = decoder.end().replace(/\r\n/g, "\n");
+  if (tail.length > 0) {
+    const window = carryover + tail;
+    if (window.length > 0) {
+      onWindow(window);
+    }
+  }
+
+  return true;
+}
+
 function readText(relativePath) {
   const absolutePath = resolve(ROOT, relativePath);
   if (!existsSync(absolutePath)) {
@@ -771,8 +902,7 @@ function readText(relativePath) {
     return null;
   }
 
-  if (info.size > 6 * 1024 * 1024) {
-    notes.push(`Skipped oversized file (>6MB): ${relativePath}`);
+  if (info.size > OVERSIZED_FILE_BYTES) {
     return null;
   }
 
@@ -827,6 +957,14 @@ function unique(values) {
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getPositiveInteger(rawValue, fallback) {
+  const parsed = Number.parseInt(String(rawValue ?? ""), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
 }
 
 function matchAll(regex, content) {
