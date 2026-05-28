@@ -1,58 +1,79 @@
 import type { NextConfig } from "next";
 
-const isProduction = process.env.NODE_ENV === "production";
+import {
+  buildCspReportingEndpointConfig,
+  buildReportOnlyCsp,
+  CSP_REPORT_URI_PATH,
+} from "./src/lib/security/csp-policy";
 
-const cspReportOnlyDirectives = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
-  "style-src 'self' 'unsafe-inline'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  "connect-src 'self' https:",
-  "frame-src https://www.google.com https://maps.google.com",
-  "manifest-src 'self'",
-  "worker-src 'self' blob:",
-  "upgrade-insecure-requests",
-  "report-uri /api/security/csp-report",
-];
+const isProductionBuild = process.env.NODE_ENV === "production";
 
-const contentSecurityPolicyReportOnly = cspReportOnlyDirectives.join("; ");
+type SecurityHeader = {
+  key: string;
+  value: string;
+};
 
-const securityHeaders = [
-  {
-    key: "X-Content-Type-Options",
-    value: "nosniff",
-  },
-  {
-    key: "X-Frame-Options",
-    value: "DENY",
-  },
-  {
-    key: "Referrer-Policy",
-    value: "strict-origin-when-cross-origin",
-  },
-  {
-    key: "Permissions-Policy",
-    value:
-      "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), hid=()",
-  },
-  ...(isProduction
-    ? [
-        {
-          key: "Strict-Transport-Security",
-          value: "max-age=63072000; includeSubDomains",
-        },
-      ]
-    : []),
-  {
-    key: "Content-Security-Policy-Report-Only",
-    value: contentSecurityPolicyReportOnly,
-  },
-];
+export type BuildSecurityHeadersOptions = {
+  isProduction?: boolean;
+  siteUrl?: string | null;
+};
+
+export function buildSecurityHeaders(
+  options: BuildSecurityHeadersOptions = {},
+): SecurityHeader[] {
+  const isProduction = options.isProduction ?? isProductionBuild;
+  const siteUrl =
+    options.siteUrl === undefined
+      ? process.env.NEXT_PUBLIC_SITE_URL
+      : options.siteUrl;
+  const reportingConfig = buildCspReportingEndpointConfig(siteUrl);
+  const contentSecurityPolicyReportOnly = buildReportOnlyCsp({
+    reportUri: CSP_REPORT_URI_PATH,
+    reportTo: reportingConfig?.reportToGroup,
+  });
+
+  return [
+    {
+      key: "X-Content-Type-Options",
+      value: "nosniff",
+    },
+    {
+      key: "X-Frame-Options",
+      value: "DENY",
+    },
+    {
+      key: "Referrer-Policy",
+      value: "strict-origin-when-cross-origin",
+    },
+    {
+      key: "Permissions-Policy",
+      value:
+        "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), hid=()",
+    },
+    ...(isProduction
+      ? [
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains",
+          },
+        ]
+      : []),
+    ...(reportingConfig
+      ? [
+          {
+            key: "Reporting-Endpoints",
+            value: reportingConfig.reportingEndpointsHeaderValue,
+          },
+        ]
+      : []),
+    {
+      key: "Content-Security-Policy-Report-Only",
+      value: contentSecurityPolicyReportOnly,
+    },
+  ];
+}
+
+const securityHeaders = buildSecurityHeaders();
 
 const nextConfig: NextConfig = {
   compress: true,
