@@ -17,6 +17,7 @@ const cspReportOnlyDirectives = [
   "manifest-src 'self'",
   "worker-src 'self' blob:",
   "upgrade-insecure-requests",
+  "report-uri /api/security/csp-report",
 ];
 
 const contentSecurityPolicyReportOnly = cspReportOnlyDirectives.join("; ");
