@@ -2,6 +2,25 @@ import type { NextConfig } from "next";
 
 const isProduction = process.env.NODE_ENV === "production";
 
+const cspReportOnlyDirectives = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "style-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "connect-src 'self' https:",
+  "frame-src https://www.google.com https://maps.google.com",
+  "manifest-src 'self'",
+  "worker-src 'self' blob:",
+  "upgrade-insecure-requests",
+];
+
+const contentSecurityPolicyReportOnly = cspReportOnlyDirectives.join("; ");
+
 const securityHeaders = [
   {
     key: "X-Content-Type-Options",
@@ -28,6 +47,10 @@ const securityHeaders = [
         },
       ]
     : []),
+  {
+    key: "Content-Security-Policy-Report-Only",
+    value: contentSecurityPolicyReportOnly,
+  },
 ];
 
 const nextConfig: NextConfig = {
