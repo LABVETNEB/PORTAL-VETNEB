@@ -1,12 +1,23 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { extname, resolve } from "node:path";
 import test from "node:test";
 
 const FRONTEND_SRC_ROOT = "frontend/src";
 const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
 const NEXT_STATIC_ROOT = "frontend/.next/static";
+const NEXT_MAIN_CHUNK_PATH = "frontend/.next/static/chunks/main-app.js";
+const OVERSIZED_FILE_BYTES = 6 * 1024 * 1024 + 512;
+const STREAM_CHUNK_SIZE_FOR_TEST = 64;
+const AUDITOR_SCRIPT = resolve(process.cwd(), "scripts/security/audit-public-devtools-surface.mjs");
+
+type AuditResult = {
+  ok: boolean;
+  findings: Array<{ message: string; file: string; rule: string; publicExposure: boolean }>;
+  notes?: string[];
+};
 
 const FRONTEND_CODE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
 const CONSOLE_REGEX = /\bconsole\.(log|debug|table)\s*\(/;
@@ -53,6 +64,67 @@ function collectFiles(relativeRoot: string): string[] {
 
 function isFrontendCodeFile(file: string): boolean {
   return FRONTEND_CODE_EXTENSIONS.has(extname(file).toLowerCase());
+}
+
+function runAuditor(cwd: string, extraEnv: Record<string, string> = {}): AuditResult {
+  try {
+    const stdout = execFileSync(process.execPath, [AUDITOR_SCRIPT, "--json"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, ...extraEnv },
+    });
+
+    return JSON.parse(stdout) as AuditResult;
+  } catch (error) {
+    const stdout =
+      typeof error === "object" && error !== null && "stdout" in error
+        ? String((error as { stdout?: unknown }).stdout ?? "")
+        : "";
+
+    if (stdout.trim().length > 0) {
+      return JSON.parse(stdout) as AuditResult;
+    }
+
+    throw error;
+  }
+}
+
+function withTempWorkspace(run: (workspaceRoot: string) => void): void {
+  const workspaceRoot = mkdtempSync(resolve(tmpdir(), "public-surface-audit-"));
+
+  try {
+    run(workspaceRoot);
+  } finally {
+    rmSync(workspaceRoot, { recursive: true, force: true });
+  }
+}
+
+function createMinimalPublicWorkspace(workspaceRoot: string): void {
+  mkdirSync(resolve(workspaceRoot, "frontend/src/components/layout"), { recursive: true });
+  mkdirSync(resolve(workspaceRoot, "frontend/public"), { recursive: true });
+  mkdirSync(resolve(workspaceRoot, "frontend/.next/static/chunks"), { recursive: true });
+
+  writeFileSync(
+    resolve(workspaceRoot, FOOTER_PATH),
+    [
+      "export default function Footer() {",
+      "  return (",
+      "    <footer>",
+      '      <iframe aria-hidden="true" tabIndex={-1} className="pointer-events-none" />',
+      "      <PublicExternalControl />",
+      "    </footer>",
+      "  );",
+      "}",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+}
+
+function writeOversizedMainChunk(workspaceRoot: string, content: string): void {
+  assert.ok(Buffer.byteLength(content, "utf8") > OVERSIZED_FILE_BYTES);
+  writeFileSync(resolve(workspaceRoot, NEXT_MAIN_CHUNK_PATH), content, "utf8");
 }
 
 test("no public source maps are expected in production static assets", () => {
@@ -133,21 +205,7 @@ test("public navigation hardening contract remains intact (no next/link, no <a>,
 });
 
 test("public devtools auditor script passes with no exposure findings", () => {
-  const stdout = execFileSync(
-    process.execPath,
-    ["scripts/security/audit-public-devtools-surface.mjs", "--json"],
-    {
-      cwd: process.cwd(),
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  );
-
-  const result = JSON.parse(stdout) as {
-    ok: boolean;
-    findings: Array<{ message: string; file: string; rule: string; publicExposure: boolean }>;
-    notes?: string[];
-  };
+  const result = runAuditor(process.cwd());
 
   const publicFindings = result.findings.filter((item) => item.publicExposure);
   assert.equal(
@@ -155,4 +213,83 @@ test("public devtools auditor script passes with no exposure findings", () => {
     true,
     `Auditor reported public findings: ${JSON.stringify(publicFindings, null, 2)}`,
   );
+
+  if (existsSync(resolve(process.cwd(), NEXT_MAIN_CHUNK_PATH))) {
+    const hasMainChunkSkip = (result.notes ?? []).some(
+      (note) =>
+        note.includes("Skipped oversized file") &&
+        note.includes("frontend/.next/static/chunks/main-app.js"),
+    );
+    assert.equal(
+      hasMainChunkSkip,
+      false,
+      "Oversized frontend/.next/static/chunks/main-app.js must be scanned, not skipped.",
+    );
+  }
+});
+
+test("oversized public bundle is scanned without skip notes", () => {
+  withTempWorkspace((workspaceRoot) => {
+    createMinimalPublicWorkspace(workspaceRoot);
+
+    const oversizedContent = "a".repeat(OVERSIZED_FILE_BYTES + 2048);
+    writeOversizedMainChunk(workspaceRoot, oversizedContent);
+
+    const result = runAuditor(workspaceRoot, {
+      PUBLIC_SURFACE_STREAM_CHUNK_SIZE: String(STREAM_CHUNK_SIZE_FOR_TEST),
+    });
+    const hasSkipNote = (result.notes ?? []).some((note) => note.includes("Skipped oversized file"));
+
+    assert.equal(hasSkipNote, false, `Unexpected oversized skip notes: ${JSON.stringify(result.notes)}`);
+  });
+});
+
+test("sensitive marker inside oversized public bundle is detected", () => {
+  withTempWorkspace((workspaceRoot) => {
+    createMinimalPublicWorkspace(workspaceRoot);
+
+    const marker = "SUPABASE_SERVICE_ROLE_KEY";
+    const oversizedContent = `${"a".repeat(OVERSIZED_FILE_BYTES + 1024)} ${marker} `;
+    writeOversizedMainChunk(workspaceRoot, oversizedContent);
+
+    const result = runAuditor(workspaceRoot, {
+      PUBLIC_SURFACE_STREAM_CHUNK_SIZE: String(STREAM_CHUNK_SIZE_FOR_TEST),
+    });
+
+    const hit = result.findings.find(
+      (finding) =>
+        finding.file === NEXT_MAIN_CHUNK_PATH &&
+        finding.rule === "explicit-sensitive-identifier" &&
+        finding.message.includes(`"${marker}"`),
+    );
+    assert.ok(hit, `Expected sensitive marker finding for oversized bundle: ${JSON.stringify(result)}`);
+  });
+});
+
+test("sensitive marker split across chunks in oversized public bundle is detected", () => {
+  withTempWorkspace((workspaceRoot) => {
+    createMinimalPublicWorkspace(workspaceRoot);
+
+    const marker = "SUPABASE_SERVICE_ROLE_KEY";
+    const markerSplitOffset = STREAM_CHUNK_SIZE_FOR_TEST - 4;
+    const prefix = `${"a".repeat(markerSplitOffset - 1)} `;
+    const suffixLength = OVERSIZED_FILE_BYTES + 2048 - (prefix.length + marker.length + 1);
+    const oversizedContent = `${prefix}${marker} ${"a".repeat(Math.max(0, suffixLength))}`;
+    writeOversizedMainChunk(workspaceRoot, oversizedContent);
+
+    const result = runAuditor(workspaceRoot, {
+      PUBLIC_SURFACE_STREAM_CHUNK_SIZE: String(STREAM_CHUNK_SIZE_FOR_TEST),
+    });
+
+    const hit = result.findings.find(
+      (finding) =>
+        finding.file === NEXT_MAIN_CHUNK_PATH &&
+        finding.rule === "explicit-sensitive-identifier" &&
+        finding.message.includes(`"${marker}"`),
+    );
+    assert.ok(
+      hit,
+      `Expected split-chunk marker to be detected in oversized bundle: ${JSON.stringify(result)}`,
+    );
+  });
 });
