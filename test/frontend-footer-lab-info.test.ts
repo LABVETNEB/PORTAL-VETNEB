@@ -5,6 +5,7 @@ import test from "node:test";
 
 const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
 const PUBLIC_LAYOUT_PATH = "frontend/src/components/layout/PublicLayout.tsx";
+const FOOTER_MAP_COORDINATES = "-32.412848872416426,-63.25287495004902";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -41,7 +42,9 @@ test("footer unifies laboratory info navigation access and non-interactive real 
   const source = read(FOOTER_PATH);
 
   assert.ok(source.includes("Servicio Patológico VETNEB"));
-  assert.ok(source.includes("Blvd. Italia 274 - Villa María - Córdoba"));
+  assert.ok(source.includes("Villa María, Córdoba"));
+  assert.equal(source.includes("Blvd. Italia 274"), false);
+  assert.equal(source.includes("Italia Blvd. 274"), false);
   assert.ok(source.includes("Lunes a viernes de 8 a 17hs"));
   assert.ok(source.includes("3534138946"));
   assert.ok(source.includes("lab.vetneb@gmail.com"));
@@ -50,8 +53,17 @@ test("footer unifies laboratory info navigation access and non-interactive real 
   assert.ok(source.includes("Acceso"));
   assert.ok(source.includes("footerLinks.map((link) =>"));
   assert.ok(source.includes("lg:grid-cols-[1.35fr_0.75fr_0.75fr_1.15fr]"));
-  assert.ok(source.includes("https://www.google.com/maps?q="));
-  assert.ok(source.includes("https://www.google.com/maps?output=embed&q="));
+  assert.ok(source.includes(`const mapsCoordinates = "${FOOTER_MAP_COORDINATES}";`));
+  assert.ok(
+    source.includes(
+      "const mapsLocationUrl = `https://www.google.com/maps?q=${mapsCoordinates}`;",
+    ),
+  );
+  assert.ok(
+    source.includes(
+      "const mapsEmbedUrl = `https://www.google.com/maps?output=embed&q=${mapsCoordinates}`;",
+    ),
+  );
   assert.ok(source.includes("mapsEmbedUrl"));
   assert.ok(source.includes("mapsLocationUrl"));
   assert.ok(source.includes("<iframe"));
@@ -62,8 +74,8 @@ test("footer unifies laboratory info navigation access and non-interactive real 
   assert.ok(source.includes('aria-hidden="true"'));
   assert.ok(source.includes("tabIndex={-1}"));
   assert.ok(source.includes("pointer-events-none"));
-  assert.ok(source.includes("Blvd. Italia 274, Villa María"));
-  assert.ok(source.includes("Córdoba, Argentina"));
+  assert.ok(source.includes("Villa María, Córdoba"));
+  assert.ok(source.includes("Argentina"));
   assert.ok(source.includes("Ver ubicación en Maps"));
   assert.ok(source.includes("Ver ubicación del laboratorio en Google Maps"));
   assert.equal(/<a\b/.test(source), false);

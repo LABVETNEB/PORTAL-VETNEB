@@ -19,6 +19,7 @@ const RENDER_PRIMITIVES_PATH = "frontend/src/components/public/RenderPrimitives.
 const OFFLINE_ACTIONS_PATH = "frontend/src/components/pwa/OfflineActions.tsx";
 const DASHBOARD_SIDEBAR_PATH =
   "frontend/src/components/dashboard/DashboardSidebarFrame.tsx";
+const FOOTER_MAP_COORDINATES = "-32.412848872416426,-63.25287495004902";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -169,8 +170,18 @@ test("footer map surface uses a single non-interactive iframe and keeps external
   const footer = read(FOOTER_PATH);
 
   assert.ok(footer.includes("<iframe"));
+  assert.ok(footer.includes(`const mapsCoordinates = "${FOOTER_MAP_COORDINATES}";`));
   assert.ok(footer.includes("mapsEmbedUrl"));
-  assert.ok(footer.includes("https://www.google.com/maps?output=embed&q="));
+  assert.ok(
+    footer.includes(
+      "const mapsEmbedUrl = `https://www.google.com/maps?output=embed&q=${mapsCoordinates}`;",
+    ),
+  );
+  assert.ok(
+    footer.includes(
+      "const mapsLocationUrl = `https://www.google.com/maps?q=${mapsCoordinates}`;",
+    ),
+  );
   assert.ok(footer.includes('title="Mapa de ubicación de Servicio Patológico VETNEB"'));
   assert.ok(footer.includes("src={mapsEmbedUrl}"));
   assert.ok(footer.includes('loading="lazy"'));
@@ -178,6 +189,8 @@ test("footer map surface uses a single non-interactive iframe and keeps external
   assert.ok(footer.includes('aria-hidden="true"'));
   assert.ok(footer.includes("tabIndex={-1}"));
   assert.ok(footer.includes("pointer-events-none"));
+  assert.equal(footer.includes("Blvd. Italia 274"), false);
+  assert.equal(footer.includes("Italia Blvd. 274"), false);
   assert.ok(footer.includes("mapsLocationUrl"));
   assert.ok(footer.includes("<PublicExternalControl"));
   assert.ok(footer.includes("href={mapsLocationUrl}"));
