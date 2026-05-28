@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PublicExternalControl } from "@/components/public/PublicRouteControl";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -363,13 +364,13 @@ export function ContactoContent() {
                         </CardHeader>
                         <CardContent>
                           {info.href ? (
-                            <a
+                            <PublicExternalControl
                               href={info.href}
-                              {...(info.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                              target={info.href.startsWith("http") ? "_blank" : "_self"}
                               className="text-vetneb-ink font-medium underline underline-offset-2 hover:text-primary"
                             >
                               {info.value}
-                            </a>
+                            </PublicExternalControl>
                           ) : (
                             <p className="text-vetneb-ink font-medium">{info.value}</p>
                           )}

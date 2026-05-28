@@ -47,10 +47,16 @@ test("home page exposes accessible hero and primary CTAs", () => {
   assert.equal(source.includes("premium-card p-6"), false);
   assert.ok(source.includes("Horario de atención Lunes a viernes de 8 a 17hs"));
   assert.ok(source.includes("Whatsapp: 3534138946"));
+  assert.ok(source.includes("<PublicExternalControl"));
   assert.ok(source.includes('href="https://wa.me/5493534138946"'));
   assert.ok(source.includes('target="_blank"'));
-  assert.ok(source.includes('rel="noopener noreferrer"'));
+  assert.equal(/<a\b/.test(source), false);
   assert.ok(source.includes('href={ROUTES.login}'));
+  assert.ok(
+    source.includes(
+      'className="public-cta-on-hero w-full text-vetneb-navy hover:text-vetneb-navy active:text-vetneb-navy focus-visible:text-vetneb-navy sm:w-auto"',
+    ),
+  );
 });
 
 test("home page exposes mobile professionals block before services", () => {

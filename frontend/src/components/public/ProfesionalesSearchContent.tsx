@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PublicExternalControl } from "@/components/public/PublicRouteControl";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { Button } from "@/components/ui/button";
@@ -321,12 +322,13 @@ export function ProfesionalesSearchContent() {
                                       Email
                                     </dt>
                                     <dd className="mt-1">
-                                      <a
+                                      <PublicExternalControl
                                         href={`mailto:${professional.email}`}
+                                        target="_self"
                                         className="underline underline-offset-2 hover:text-primary"
                                       >
                                         {professional.email}
-                                      </a>
+                                      </PublicExternalControl>
                                     </dd>
                                   </div>
                                 ) : null}
@@ -337,12 +339,13 @@ export function ProfesionalesSearchContent() {
                                       Teléfono
                                     </dt>
                                     <dd className="mt-1">
-                                      <a
+                                      <PublicExternalControl
                                         href={`https://wa.me/549${professional.phone.replace(/\D/g, "")}`}
+                                        target="_blank"
                                         className="underline underline-offset-2 hover:text-primary"
                                       >
                                         {professional.phone}
-                                      </a>
+                                      </PublicExternalControl>
                                     </dd>
                                   </div>
                                 ) : null}
@@ -353,14 +356,13 @@ export function ProfesionalesSearchContent() {
                                       Mapa
                                     </dt>
                                     <dd className="mt-1">
-                                      <a
+                                      <PublicExternalControl
                                         href={professional.mapLink}
                                         target="_blank"
-                                        rel="noopener noreferrer"
                                         className="underline underline-offset-2 hover:text-primary"
                                       >
                                         Ver ubicación en mapa
-                                      </a>
+                                      </PublicExternalControl>
                                     </dd>
                                   </div>
                                 ) : null}

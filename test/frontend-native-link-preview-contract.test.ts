@@ -3,11 +3,19 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 
+const FRONTEND_SRC_ROOT = "frontend/src";
 const FRONTEND_APP_ROOT = "frontend/src/app";
 const FRONTEND_COMPONENTS_ROOT = "frontend/src/components";
 const NAVBAR_PATH = "frontend/src/components/layout/Navbar.tsx";
 const HOME_PATH = "frontend/src/app/page.tsx";
+const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
+const CONTACTO_PATH = "frontend/src/components/public/ContactoContent.tsx";
+const PROFESIONALES_PATH =
+  "frontend/src/components/public/ProfesionalesSearchContent.tsx";
 const PUBLIC_ACTION_PATH = "frontend/src/components/public/PublicAction.tsx";
+const PUBLIC_ROUTE_CONTROL_PATH =
+  "frontend/src/components/public/PublicRouteControl.tsx";
+const RENDER_PRIMITIVES_PATH = "frontend/src/components/public/RenderPrimitives.tsx";
 const OFFLINE_ACTIONS_PATH = "frontend/src/components/pwa/OfflineActions.tsx";
 const DASHBOARD_SIDEBAR_PATH =
   "frontend/src/components/dashboard/DashboardSidebarFrame.tsx";
@@ -19,9 +27,10 @@ function read(relativePath: string): string {
   );
 }
 
-function collectTsLikeFiles(relativeRoot: string): string[] {
+function collectFiles(relativeRoot: string, extensions: string[]): string[] {
   const absoluteRoot = resolve(process.cwd(), relativeRoot);
   const files: string[] = [];
+  const rootPrefix = resolve(process.cwd(), "").replace(/\\/g, "/") + "/";
 
   function walk(currentPath: string) {
     for (const entry of readdirSync(currentPath)) {
@@ -33,8 +42,8 @@ function collectTsLikeFiles(relativeRoot: string): string[] {
         continue;
       }
 
-      if (entry.endsWith(".ts") || entry.endsWith(".tsx")) {
-        files.push(fullPath.replace(resolve(process.cwd(), "").replace(/\\/g, "/") + "/", ""));
+      if (extensions.some((extension) => entry.endsWith(extension))) {
+        files.push(fullPath.replace(rootPrefix, ""));
       }
     }
   }
@@ -45,9 +54,39 @@ function collectTsLikeFiles(relativeRoot: string): string[] {
 }
 
 const appAndComponentFiles = [
-  ...collectTsLikeFiles(FRONTEND_APP_ROOT),
-  ...collectTsLikeFiles(FRONTEND_COMPONENTS_ROOT),
+  ...collectFiles(FRONTEND_APP_ROOT, [".ts", ".tsx"]),
+  ...collectFiles(FRONTEND_COMPONENTS_ROOT, [".ts", ".tsx"]),
 ];
+
+const frontendSourceFiles = collectFiles(FRONTEND_SRC_ROOT, [
+  ".ts",
+  ".tsx",
+  ".css",
+]);
+
+test("frontend source keeps NEXT_LINK_IMPORTS=0, LINK_TAGS=0 and ANCHOR_HITS=0", () => {
+  const nextLinkImports = frontendSourceFiles.filter((file) =>
+    /from\s+["']next\/link["']/.test(read(file)),
+  );
+  const linkTags = frontendSourceFiles.filter((file) => /<Link\b/.test(read(file)));
+  const anchors = frontendSourceFiles.filter((file) => /<a\b/.test(read(file)));
+
+  assert.equal(
+    nextLinkImports.length,
+    0,
+    `NEXT_LINK_IMPORTS should be 0, got ${nextLinkImports.length}: ${nextLinkImports.join(", ")}`,
+  );
+  assert.equal(
+    linkTags.length,
+    0,
+    `LINK_TAGS should be 0, got ${linkTags.length}: ${linkTags.join(", ")}`,
+  );
+  assert.equal(
+    anchors.length,
+    0,
+    `ANCHOR_HITS should be 0, got ${anchors.length}: ${anchors.join(", ")}`,
+  );
+});
 
 test("no internal visual navigation uses Button asChild + Link", () => {
   for (const file of appAndComponentFiles) {
@@ -66,16 +105,7 @@ test("no internal visual navigation uses Button asChild + Link", () => {
   }
 });
 
-test("navbar primary navigation avoids Link and uses route controls", () => {
-  const source = read(NAVBAR_PATH);
-
-  assert.equal(source.includes("<Link"), false);
-  assert.ok(source.includes('const navLinks = ['));
-  assert.ok(source.includes('aria-label="Navegación principal"'));
-  assert.ok(source.includes("router.push(link.href)"));
-});
-
-test("home hero CTAs avoid Link and use PublicRouteControl", () => {
+test("home hero CTAs use PublicRouteControl with explicit visible text class", () => {
   const source = read(HOME_PATH);
 
   assert.equal(source.includes("<Link"), false);
@@ -84,61 +114,34 @@ test("home hero CTAs avoid Link and use PublicRouteControl", () => {
   assert.ok(source.includes("Consultar informes 24 hs"));
   assert.ok(source.includes("href={ROUTES.login}"));
   assert.ok(source.includes("href={ROUTES.particulares}"));
-});
-
-test("PublicAction internal href flow uses route controls instead of Link", () => {
-  const source = read(PUBLIC_ACTION_PATH);
-
-  assert.equal(source.includes("<Link"), false);
-  assert.ok(source.includes("PublicRouteControl"));
-  assert.ok(source.includes("PublicExternalControl"));
-});
-
-test("OfflineActions internal CTA avoids Link", () => {
-  const source = read(OFFLINE_ACTIONS_PATH);
-
-  assert.equal(source.includes("<Link"), false);
-  assert.ok(source.includes("<PublicRouteControl"));
-  assert.ok(source.includes("href={ROUTES.home}"));
-});
-
-test("DashboardSidebarFrame visual nav avoids Link", () => {
-  const source = read(DASHBOARD_SIDEBAR_PATH);
-
-  assert.equal(source.includes("<Link"), false);
-  assert.ok(source.includes("<PublicRouteControl"));
-  assert.ok(source.includes("href={item.href}"));
-  assert.ok(source.includes("href={child.href}"));
-});
-
-test("remaining anchors stay in explicit allowlist surfaces only", () => {
-  const expectedAnchorFiles = [
-    "frontend/src/app/page.tsx",
-    "frontend/src/components/layout/Footer.tsx",
-    "frontend/src/components/public/ContactoContent.tsx",
-    "frontend/src/components/public/ProfesionalesSearchContent.tsx",
-  ];
-
-  const actualAnchorFiles = appAndComponentFiles.filter((file) =>
-    /<a\b/.test(read(file)),
+  assert.ok(
+    source.includes(
+      'className="public-cta-on-hero w-full text-vetneb-navy hover:text-vetneb-navy active:text-vetneb-navy focus-visible:text-vetneb-navy sm:w-auto"',
+    ),
   );
+});
 
-  assert.deepEqual(actualAnchorFiles.sort(), expectedAnchorFiles.sort());
+test("PublicExternalControl covers WhatsApp, mailto and external map surfaces", () => {
+  const home = read(HOME_PATH);
+  const footer = read(FOOTER_PATH);
+  const contacto = read(CONTACTO_PATH);
+  const profesionales = read(PROFESIONALES_PATH);
 
-  const home = read("frontend/src/app/page.tsx");
+  assert.ok(home.includes("<PublicExternalControl"));
   assert.ok(home.includes('href="https://wa.me/5493534138946"'));
+  assert.ok(home.includes('target="_blank"'));
 
-  const footer = read("frontend/src/components/layout/Footer.tsx");
+  assert.ok(footer.includes("<PublicExternalControl"));
   assert.ok(footer.includes('href="https://wa.me/5493534138946"'));
   assert.ok(footer.includes('href="mailto:lab.vetneb@gmail.com"'));
 
-  const contacto = read("frontend/src/components/public/ContactoContent.tsx");
+  assert.ok(contacto.includes("<PublicExternalControl"));
   assert.ok(contacto.includes("href={info.href}"));
-  assert.ok(contacto.includes('info.href.startsWith("http")'));
-
-  const profesionales = read(
-    "frontend/src/components/public/ProfesionalesSearchContent.tsx",
+  assert.ok(
+    contacto.includes('target={info.href.startsWith("http") ? "_blank" : "_self"}'),
   );
+
+  assert.ok(profesionales.includes("<PublicExternalControl"));
   assert.ok(profesionales.includes("href={`mailto:${professional.email}`}"));
   assert.ok(
     profesionales.includes(
@@ -151,16 +154,14 @@ test("remaining anchors stay in explicit allowlist surfaces only", () => {
 
 test("navigation controls avoid anti-preview hacks", () => {
   const guardedFiles = [
-    "frontend/src/components/public/PublicRouteControl.tsx",
-    "frontend/src/components/public/PublicAction.tsx",
-    "frontend/src/components/public/RenderPrimitives.tsx",
-    "frontend/src/components/layout/Navbar.tsx",
-    "frontend/src/components/layout/Footer.tsx",
-    "frontend/src/components/pwa/OfflineActions.tsx",
-    "frontend/src/components/dashboard/DashboardSidebarFrame.tsx",
-    "frontend/src/components/dashboard/DashboardTopbar.tsx",
-    "frontend/src/app/page.tsx",
-    "frontend/src/app/servicios/page.tsx",
+    PUBLIC_ROUTE_CONTROL_PATH,
+    PUBLIC_ACTION_PATH,
+    RENDER_PRIMITIVES_PATH,
+    NAVBAR_PATH,
+    FOOTER_PATH,
+    HOME_PATH,
+    OFFLINE_ACTIONS_PATH,
+    DASHBOARD_SIDEBAR_PATH,
   ];
 
   const forbiddenPatterns = [

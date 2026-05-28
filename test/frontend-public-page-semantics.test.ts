@@ -98,8 +98,9 @@ test("profesionales content keeps semantic search/result structure and map safet
   assert.ok(source.includes("searchPublicProfessionals("));
   assert.ok(source.includes("router.push(`${ROUTES.profesionales}${params.size ? `?${params}` : \"\"}`)"));
   assert.ok(source.includes("Ver ubicación en mapa"));
+  assert.ok(source.includes("<PublicExternalControl"));
   assert.ok(source.includes('target="_blank"'));
-  assert.ok(source.includes('rel="noopener noreferrer"'));
+  assert.equal(/<a\b/.test(source), false);
   assert.equal(source.includes('from "gsap"'), false);
 });
 

@@ -33,7 +33,7 @@ const actionClasses: Record<
   primaryDark:
     "w-full clinical-primary-gradient clinical-primary-gradient-hover px-7 font-semibold text-primary-foreground shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)] sm:w-auto",
   secondaryOutline:
-    "w-full border border-white/60 bg-white/10 px-7 font-semibold text-white shadow-sm hover:bg-white/16 sm:w-auto",
+    "w-full border border-white/60 bg-white/10 px-7 font-semibold text-vetneb-navy shadow-sm hover:bg-white/16 hover:text-vetneb-navy active:text-vetneb-navy focus-visible:text-vetneb-navy sm:w-auto",
 };
 
 export function PublicAction({

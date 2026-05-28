@@ -10,6 +10,7 @@ import {
   Phone,
 } from "lucide-react";
 
+import { PublicExternalControl } from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
 
 const faqItems = [
@@ -117,26 +118,26 @@ export function Footer() {
                   <Phone className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
                   <span>
                     WhatsApp:{" "}
-                    <a
+                    <PublicExternalControl
                       href="https://wa.me/5493534138946"
                       target="_blank"
-                      rel="noopener noreferrer"
                       className="underline underline-offset-2 hover:text-vetneb-teal"
                     >
                       3534138946
-                    </a>
+                    </PublicExternalControl>
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary-foreground/70" aria-hidden="true" />
                   <span>
                     Mail:{" "}
-                    <a
+                    <PublicExternalControl
                       href="mailto:lab.vetneb@gmail.com"
+                      target="_self"
                       className="underline underline-offset-2 hover:text-vetneb-teal"
                     >
                       lab.vetneb@gmail.com
-                    </a>
+                    </PublicExternalControl>
                   </span>
                 </li>
               </ul>
