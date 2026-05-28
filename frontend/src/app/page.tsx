@@ -7,7 +7,7 @@ import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { createPageMetadata, getOrganizationJsonLd, SITE_URL } from "@/lib/seo";
+import { createPageMetadata } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
 
 export const metadata: Metadata = createPageMetadata(
@@ -69,15 +69,8 @@ const benefits = [
 ];
 
 export default function HomePage() {
-  const jsonLd = getOrganizationJsonLd();
-
   return (
     <PublicLayout>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-
       {/* Hero */}
       <section
         className="relative isolate overflow-hidden text-white"

@@ -162,7 +162,7 @@ test("public diagnostic service cards avoid native title tooltips", () => {
   const histopatologiaSource = read(HISTOPATOLOGIA_PAGE_PATH);
 
   assert.equal(
-    serviciosSource.includes('href="/histopatologia-veterinaria"'),
+    serviciosSource.includes('href: "/histopatologia-veterinaria"'),
     true,
     "services page keeps the histopathology public href",
   );

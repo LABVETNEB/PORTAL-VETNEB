@@ -103,9 +103,6 @@ export default function InformesVeterinariosPage() {
         aria-labelledby="diagnostic-reports-page-title"
       >
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="sr-only">
-            Consulta de informes veterinarios
-          </p>
           <h1
             id="diagnostic-reports-page-title"
             className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl"
@@ -125,7 +122,7 @@ export default function InformesVeterinariosPage() {
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="public-cta-on-hero w-full sm:w-auto">
-              <Link href="/servicios">VER MAS SERVICIOS</Link>
+              <Link href="/servicios">Ver más servicios</Link>
             </Button>
           </div>
         </div>
@@ -252,7 +249,7 @@ export default function InformesVeterinariosPage() {
                     <Link href="/contacto">Consultar por un caso</Link>
                   </Button>
                   <Button asChild variant="outline" className="public-cta-outline w-full sm:w-auto">
-                    <Link href="/servicios">VER MAS SERVICIOS</Link>
+                    <Link href="/servicios">Ver más servicios</Link>
                   </Button>
                 </div>
               </div>

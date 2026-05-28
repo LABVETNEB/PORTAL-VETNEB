@@ -116,6 +116,8 @@ export function Footer() {
                     WhatsApp:{" "}
                     <a
                       href="https://wa.me/5493534138946"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="underline underline-offset-2 hover:text-vetneb-teal"
                     >
                       3534138946
@@ -213,5 +215,3 @@ export function Footer() {
     </footer>
   );
 }
-
-

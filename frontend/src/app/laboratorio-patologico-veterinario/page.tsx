@@ -87,9 +87,6 @@ export default function LaboratorioPatologicoVeterinarioPage() {
         aria-labelledby="pathology-lab-page-title"
       >
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="sr-only">
-            Anatomía patológica veterinaria
-          </p>
           <h1
             id="pathology-lab-page-title"
             className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl"
@@ -109,7 +106,7 @@ export default function LaboratorioPatologicoVeterinarioPage() {
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="public-cta-on-hero w-full sm:w-auto">
-              <Link href="/servicios">VER MAS SERVICIOS</Link>
+              <Link href="/servicios">Ver más servicios</Link>
             </Button>
           </div>
         </div>
@@ -229,7 +226,7 @@ export default function LaboratorioPatologicoVeterinarioPage() {
                     <Link href="/contacto">Coordinar envío de muestras</Link>
                   </Button>
                   <Button asChild variant="outline" className="public-cta-outline w-full sm:w-auto">
-                    <Link href="/servicios">VER MAS SERVICIOS</Link>
+                    <Link href="/servicios">Ver más servicios</Link>
                   </Button>
                 </div>
               </div>
@@ -265,14 +262,6 @@ export default function LaboratorioPatologicoVeterinarioPage() {
                   </div>
                 </div>
               </Link>
-              <div className="sr-only">
-                <Link href="/citologia-veterinaria">
-                  Ver citología veterinaria
-                </Link>
-                <Link href="/servicios">
-                  Ver servicio patológico veterinario
-                </Link>
-              </div>
             </PublicScrollReveal>
           </div>
         </section>

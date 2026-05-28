@@ -303,7 +303,11 @@ export function ContactoContent() {
                 ) : null}
 
                 {successMessage ? (
-                  <p className="clinical-alert-success px-3 py-2">
+                  <p
+                    className="clinical-alert-success px-3 py-2"
+                    role="status"
+                    aria-live="polite"
+                  >
                     {successMessage}
                   </p>
                 ) : null}
@@ -361,6 +365,7 @@ export function ContactoContent() {
                           {info.href ? (
                             <a
                               href={info.href}
+                              {...(info.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                               className="text-vetneb-ink font-medium underline underline-offset-2 hover:text-primary"
                             >
                               {info.value}
