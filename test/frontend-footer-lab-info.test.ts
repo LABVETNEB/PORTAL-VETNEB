@@ -37,7 +37,7 @@ test("footer includes public FAQ content in the lower frontend area", () => {
   assert.ok(source.includes("tinciones especiales"));
 });
 
-test("footer unifies laboratory info navigation access and reduced map", () => {
+test("footer unifies laboratory info navigation access and static map card", () => {
   const source = read(FOOTER_PATH);
 
   assert.ok(source.includes("Servicio Patológico VETNEB"));
@@ -51,9 +51,11 @@ test("footer unifies laboratory info navigation access and reduced map", () => {
   assert.ok(source.includes("footerLinks.map((link) =>"));
   assert.ok(source.includes("lg:grid-cols-[1.35fr_0.75fr_0.75fr_1.15fr]"));
   assert.ok(source.includes("https://www.google.com/maps?q="));
-  assert.ok(source.includes("output=embed"));
-  assert.ok(source.includes('className="h-40 w-full"'));
-  assert.ok(source.includes("Ubicación de Servicio Patológico VETNEB en Google Maps"));
+  assert.ok(source.includes("mapsLocationUrl"));
+  assert.ok(source.includes("Ver ubicación en Maps"));
+  assert.ok(source.includes("Ver ubicación del laboratorio en Google Maps"));
+  assert.equal(source.includes("<iframe"), false);
+  assert.equal(source.includes("output=embed"), false);
 });
 
 test("footer removes redundant brand block and keeps public routes safe", () => {
