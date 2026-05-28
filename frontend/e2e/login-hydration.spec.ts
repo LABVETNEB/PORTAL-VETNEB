@@ -39,7 +39,7 @@ async function expectInitialLoginState(page: Page) {
   const submit = form.getByRole("button", { name: "Iniciar sesión" });
   const clinicTab = page.getByRole("button", { name: "Clínicas" });
   const passwordToggle = form.locator(
-    '[data-auth-password-visibility-toggle="true"]',
+    '[data-auth-credential-visibility-toggle="true"]',
   );
 
   await expect(form).toBeVisible();
