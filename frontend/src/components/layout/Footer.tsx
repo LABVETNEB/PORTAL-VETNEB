@@ -55,6 +55,8 @@ const footerLinks = [
 
 const mapsLocationUrl =
   "https://www.google.com/maps?q=Blvd.%20Italia%20274%2C%20Villa%20Maria%2C%20Cordoba%2C%20Argentina";
+const mapsEmbedUrl =
+  "https://www.google.com/maps?output=embed&q=Blvd.%20Italia%20274%2C%20Villa%20Maria%2C%20Cordoba%2C%20Argentina";
 
 export function FooterFaq() {
   return (
@@ -199,45 +201,35 @@ export function Footer() {
             </ul>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-white/14 bg-[linear-gradient(165deg,rgba(255,255,255,0.16),rgba(255,255,255,0.08))] shadow-[0_14px_38px_rgba(0,0,0,0.22)]">
-            <div className="relative overflow-hidden p-4">
-              <div
+          <div className="overflow-hidden rounded-xl border border-white/14 bg-sidebar/96 shadow-[0_14px_38px_rgba(0,0,0,0.22)]">
+            <div className="relative h-52 overflow-hidden border-b border-white/18">
+              <iframe
+                title="Mapa de ubicación de Servicio Patológico VETNEB"
+                src={mapsEmbedUrl}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
                 aria-hidden="true"
-                className="absolute inset-0 opacity-45 [background-image:radial-gradient(rgba(156,214,231,0.32)_1px,transparent_1px)] [background-size:16px_16px]"
+                tabIndex={-1}
+                className="h-full w-full border-0 pointer-events-none"
               />
-              <div
-                aria-hidden="true"
-                className="absolute -left-7 top-5 h-20 w-24 rounded-full border border-cyan-200/35"
-              />
-              <div
-                aria-hidden="true"
-                className="absolute bottom-[-1.2rem] right-[-2.2rem] h-24 w-36 rounded-full border border-sky-200/30"
-              />
-              <div className="relative rounded-lg border border-white/16 bg-sidebar/72 p-4 backdrop-blur-[1px]">
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cyan-200/22 text-cyan-100 ring-1 ring-cyan-100/30">
-                    <MapPin className="h-4 w-4" aria-hidden="true" />
-                  </span>
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100/92">
-                      Ubicación
-                    </p>
-                    <p className="mt-1 text-sm font-semibold leading-tight text-white">
-                      Blvd. Italia 274, Villa María
-                    </p>
-                    <p className="mt-1 text-xs text-sidebar-foreground/86">
-                      Córdoba, Argentina
-                    </p>
-                  </div>
-                </div>
+              <div className="pointer-events-none absolute inset-x-3 top-3 rounded-md border border-white/24 bg-sidebar/86 px-3 py-2 text-white shadow-[0_10px_24px_rgba(0,0,0,0.35)] backdrop-blur-[2px]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100/95">
+                  Ubicación
+                </p>
+                <p className="mt-0.5 text-sm font-semibold leading-tight">
+                  Blvd. Italia 274, Villa María
+                </p>
+                <p className="mt-0.5 text-xs text-sidebar-foreground/90">
+                  Córdoba, Argentina
+                </p>
               </div>
             </div>
-            <div className="border-t border-white/18 bg-sidebar/88 p-3">
+            <div className="bg-sidebar/92 p-3">
               <PublicExternalControl
                 href={mapsLocationUrl}
                 target="_blank"
                 aria-label="Ver ubicación del laboratorio en Google Maps"
-                className="inline-flex w-full items-center justify-center rounded-md border border-white/22 bg-white px-3 py-2 text-sm font-semibold text-vetneb-navy shadow-[0_6px_14px_rgba(255,255,255,0.22)] transition-colors hover:bg-vetneb-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar/80"
+                className="inline-flex w-full items-center justify-center rounded-md border border-white/22 bg-white px-3 py-2 text-sm font-semibold text-vetneb-navy shadow-[0_6px_14px_rgba(255,255,255,0.22)] transition-colors hover:bg-vetneb-surface-raised hover:text-vetneb-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar/80"
               >
                 Ver ubicación en Maps
               </PublicExternalControl>
