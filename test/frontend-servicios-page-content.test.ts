@@ -123,3 +123,16 @@ test("servicios page shows unified card CTA while preserving hidden SEO labels",
   assert.equal(source.includes("Ver citología veterinaria</div>"), false);
   assert.equal(source.includes("Ver informes veterinarios</div>"), false);
 });
+
+test("servicios page card links are constrained to explicit CTAs not full card wrappers", () => {
+  const source = read(SERVICIOS_PAGE_PATH);
+
+  // No Link wrapping the full card surface
+  assert.equal(source.includes("group block h-full"), false);
+  assert.equal(source.includes('"group block'), false);
+  // No absolute overlay link trick
+  assert.equal(source.includes("absolute inset-0"), false);
+  // Explicit constrained CTA exists inside card
+  assert.ok(source.includes("inline-flex w-fit"));
+  assert.ok(source.includes("href={service.href}"));
+});

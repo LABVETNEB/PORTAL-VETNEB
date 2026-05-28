@@ -125,3 +125,18 @@ test("veterinary pathology laboratory hides redundant visible related services t
 
   assert.equal(source.includes('<span aria-hidden="true">Ver más</span>'), false);
 });
+
+test("veterinary pathology laboratory related services section does not use link as full surface wrapper", () => {
+  const source = read(PATHOLOGY_LAB_PAGE_PATH);
+
+  // Outer container of related-services band must not be a block Link
+  assert.equal(source.includes('"group block rounded-lg'), false);
+  // No absolute overlay link trick
+  assert.equal(source.includes("absolute inset-0"), false);
+  // Explicit CTA still navigates to /servicios
+  assert.ok(source.includes('href="/servicios"'));
+  // Hover effects preserved on inner container via group parent
+  assert.ok(source.includes("group-hover:bg-sky-50"));
+  assert.ok(source.includes("group-hover:border-sky-300"));
+  assert.ok(source.includes("group-hover:shadow-xl"));
+});

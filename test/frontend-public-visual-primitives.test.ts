@@ -53,3 +53,15 @@ test("public hero primitive separates dark conversion heroes from editorial surf
   assert.ok(source.includes('const isDark = variant === "brand" || variant === "conversion";'));
   assert.ok(source.includes('<AmbientOrbs variant="dark" />'));
 });
+
+test("public action contactCard variant renders non-interactive div container not Link wrapper", () => {
+  const source = read(PUBLIC_ACTION_PATH);
+
+  assert.ok(source.includes('"contactCard"'));
+  // contactCard container must be a div not a Link wrapping the whole card
+  assert.ok(source.includes("group flex items-center justify-between gap-4 rounded-lg"));
+  // No absolute inset-0 overlay trick
+  assert.equal(source.includes("absolute inset-0"), false);
+  // Explicit constrained Link CTA inside the contactCard branch
+  assert.ok(source.includes("inline-flex shrink-0"));
+});
