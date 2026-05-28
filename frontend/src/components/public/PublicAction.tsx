@@ -61,23 +61,27 @@ export function PublicAction({
 
   if (variant === "contactCard") {
     return (
-      <Link
-        href={href}
+      <div
         className={cn(
-          "group flex items-center justify-between gap-4 rounded-lg border border-vetneb-line/85 bg-card/95 px-4 py-3 text-left shadow-sm transition hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised",
+          "group flex items-center justify-between gap-4 rounded-lg border border-vetneb-line/85 bg-card/95 px-4 py-3 shadow-sm transition hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised",
           className,
         )}
-        rel={rel}
-        target={target}
-        {...props}
       >
         <span className="text-sm font-semibold text-vetneb-navy">{children}</span>
-        {icon ? (
-          <span className="text-vetneb-teal transition group-hover:translate-x-0.5">
-            {icon}
+        <Link
+          href={href}
+          rel={rel}
+          target={target}
+          className="inline-flex shrink-0 text-vetneb-teal transition group-hover:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
+          tabIndex={0}
+          {...props}
+        >
+          <span className="sr-only">
+            {typeof children === "string" ? children : "Ver"}
           </span>
-        ) : null}
-      </Link>
+          {icon ? <span aria-hidden="true">{icon}</span> : null}
+        </Link>
+      </div>
     );
   }
 

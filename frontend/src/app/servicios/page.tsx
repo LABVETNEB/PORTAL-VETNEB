@@ -10,6 +10,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { cn } from "@/lib/utils";
+
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import {
@@ -186,60 +188,58 @@ export default function ServiciosPage() {
                       key={service.id}
                       data-scroll-reveal-item
                       aria-labelledby={serviceHeadingId}
-                      className={
+                      className={cn(
+                        "[&_.premium-card]:transition-colors [&_.premium-card]:duration-200 hover:[&_.premium-card]:bg-sky-50 hover:[&_.premium-card]:border-sky-300 hover:[&_.premium-card]:shadow-xl",
                         serviceCategories.length % 2 === 1 &&
                         service.id === serviceCategories[serviceCategories.length - 1]?.id
                           ? "lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-[calc((100%-2rem)/2)]"
-                          : ""
-                      }
+                          : "",
+                      )}
                     >
-                      <Link
-                        href={service.href}
-                        className="group block h-full rounded-lg transition duration-200 [&_.premium-card]:transition-colors [&_.premium-card]:duration-200 hover:[&_.premium-card]:bg-sky-50 hover:[&_.premium-card]:border-sky-300 hover:[&_.premium-card]:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                        aria-labelledby={serviceHeadingId}
+                      <Card
+                        id={service.id}
+                        className="premium-card h-full"
                       >
-                        <Card
-                          id={service.id}
-                          className="premium-card h-full"
-                        >
-                          <CardHeader>
-                            <VisualIcon
-                              icon={service.icon}
-                              tone={service.tone}
-                              className="mb-2"
-                            />
-                            <CardTitle id={serviceHeadingId} className="text-xl text-vetneb-ink">
-                              {service.title}
-                            </CardTitle>
-                            <CardDescription className="public-copy-tight text-sm text-muted-foreground">
-                              {service.description}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <ul className="space-y-2.5">
-                              {service.features.map((feature) => (
-                                <li key={feature} className="flex items-start gap-2">
-                                  <span
-                                    className="mt-0.5 text-primary font-bold text-xs"
-                                    aria-hidden="true"
-                                  >
-                                    →
-                                  </span>
-                                  <span className="text-sm text-muted-foreground">
-                                    {feature}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                            <div className="mt-5 text-sm font-semibold text-primary underline underline-offset-4">
-                              <span className="sr-only">
-                                {service.linkLabel}
-                              </span>
-                              <span aria-hidden="true">Ver más</span>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>                    </article>
+                        <CardHeader>
+                          <VisualIcon
+                            icon={service.icon}
+                            tone={service.tone}
+                            className="mb-2"
+                          />
+                          <CardTitle id={serviceHeadingId} className="text-xl text-vetneb-ink">
+                            {service.title}
+                          </CardTitle>
+                          <CardDescription className="public-copy-tight text-sm text-muted-foreground">
+                            {service.description}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <ul className="space-y-2.5">
+                            {service.features.map((feature) => (
+                              <li key={feature} className="flex items-start gap-2">
+                                <span
+                                  className="mt-0.5 text-primary font-bold text-xs"
+                                  aria-hidden="true"
+                                >
+                                  →
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                  {feature}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                          <Link
+                            href={service.href}
+                            className="mt-5 inline-flex w-fit items-center gap-2 rounded-md text-sm font-semibold text-primary underline underline-offset-4 transition hover:text-vetneb-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                          >
+                            <span className="sr-only">{service.linkLabel}</span>
+                            <span aria-hidden="true">Ver más</span>
+                            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                          </Link>
+                        </CardContent>
+                      </Card>
+                    </article>
                   );
                 })}
               </div>

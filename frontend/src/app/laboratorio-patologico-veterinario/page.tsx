@@ -237,9 +237,8 @@ export default function LaboratorioPatologicoVeterinarioPage() {
         <section className="py-16" aria-labelledby="pathology-lab-related-heading">
           <div className="container mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal variant="minimal">
-              <Link
-                href="/servicios"
-                className="group block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              <div
+                className="group rounded-lg"
                 aria-labelledby="pathology-lab-related-heading"
               >
                 <div className="clinical-muted-band rounded-lg p-6 clinical-surface-shadow transition-colors duration-200 group-hover:bg-sky-50 group-hover:border-sky-300 group-hover:shadow-xl">
@@ -258,10 +257,17 @@ export default function LaboratorioPatologicoVeterinarioPage() {
                         según la muestra recibida y la pregunta diagnóstica del
                         caso.
                       </p>
+                      <Link
+                        href="/servicios"
+                        className="mt-5 inline-flex w-fit items-center gap-2 rounded-md text-sm font-semibold text-primary underline underline-offset-4 transition hover:text-vetneb-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      >
+                        Ver servicios relacionados
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </Link>
                     </div>
                   </div>
                 </div>
-              </Link>
+              </div>
             </PublicScrollReveal>
           </div>
         </section>
