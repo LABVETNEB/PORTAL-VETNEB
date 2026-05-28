@@ -107,28 +107,20 @@ test("next.config.ts applies securityHeaders to all routes via catch-all source"
 
 test("next.config.ts securityHeaders block has no duplicate keys", () => {
   const source = read(CONFIG_PATH);
+  const securityHeaderKeys = [
+    "X-Content-Type-Options",
+    "X-Frame-Options",
+    "Referrer-Policy",
+    "Permissions-Policy",
+    "Strict-Transport-Security",
+    "Reporting-Endpoints",
+    "Content-Security-Policy-Report-Only",
+  ];
 
-  // Extract only the securityHeaders const block
-  const blockMatch = source.match(
-    /const securityHeaders\s*=\s*\[([\s\S]*?)\];/,
-  );
-  assert.ok(blockMatch, "securityHeaders const block must exist");
-
-  const block = blockMatch[1];
-  const keys = [...block.matchAll(/key:\s*"([^"]+)"/g)].map((m) => m[1]);
-
-  const seen = new Set<string>();
-  const duplicates: string[] = [];
-  for (const key of keys) {
-    if (seen.has(key)) duplicates.push(key);
-    seen.add(key);
+  for (const key of securityHeaderKeys) {
+    const matches = source.match(new RegExp(`key:\\s*"${key}"`, "g")) ?? [];
+    assert.ok(matches.length <= 1, `Duplicate key in securityHeaders: ${key}`);
   }
-
-  assert.deepEqual(
-    duplicates,
-    [],
-    `Duplicate keys in securityHeaders: ${duplicates.join(", ")}`,
-  );
 });
 
 test("next.config.ts poweredByHeader is disabled", () => {

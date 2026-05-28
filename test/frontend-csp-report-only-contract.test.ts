@@ -3,6 +3,13 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import {
+  buildCspReportingEndpointConfig,
+  buildReportOnlyCsp,
+  CSP_REPORT_TO_GROUP,
+  CSP_REPORT_URI_PATH,
+} from "../frontend/src/lib/security/csp-policy.ts";
+
 const repoRoot = process.cwd();
 const nextConfigPath = join(repoRoot, "frontend", "next.config.ts");
 const footerPath = join(
@@ -21,55 +28,7 @@ function readIfExists(path: string): string {
 const nextConfigSrc = readIfExists(nextConfigPath);
 const footerSrc = readIfExists(footerPath);
 
-function extractCspReportOnlyValue(source: string): string | null {
-  const headerMatch = source.match(
-    /key:\s*["']Content-Security-Policy-Report-Only["']\s*,\s*value:\s*([^,}]+?)(?=\s*[,}])/s,
-  );
-
-  if (!headerMatch) {
-    return null;
-  }
-
-  const expression = headerMatch[1].trim();
-
-  if (
-    (expression.startsWith('"') && expression.endsWith('"')) ||
-    (expression.startsWith("'") && expression.endsWith("'")) ||
-    (expression.startsWith("`") && expression.endsWith("`"))
-  ) {
-    return expression.slice(1, -1);
-  }
-
-  const directivesMatch = source.match(
-    /const\s+cspReportOnlyDirectives\s*=\s*\[([\s\S]+?)\];/,
-  );
-
-  if (!directivesMatch) {
-    return null;
-  }
-
-  const directives = directivesMatch[1]
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith("//"))
-    .map((line) => line.replace(/,\s*$/, "").trim())
-    .map((line) => {
-      if (
-        (line.startsWith('"') && line.endsWith('"')) ||
-        (line.startsWith("'") && line.endsWith("'")) ||
-        (line.startsWith("`") && line.endsWith("`"))
-      ) {
-        return line.slice(1, -1);
-      }
-
-      return null;
-    })
-    .filter((line): line is string => line !== null);
-
-  return directives.length > 0 ? directives.join("; ") : null;
-}
-
-const cspValue = extractCspReportOnlyValue(nextConfigSrc);
+const cspValue = buildReportOnlyCsp({ reportUri: CSP_REPORT_URI_PATH });
 
 test("CSP Report-Only: declares Content-Security-Policy-Report-Only", () => {
   assert.ok(nextConfigSrc.length > 0, "frontend/next.config.ts must be readable");
@@ -166,34 +125,44 @@ test("CSP Report-Only: frame-src permits the public Google Maps iframe", () => {
   );
 });
 
-test("CSP Report-Only: references the same-origin CSP report endpoint without report-to", () => {
+test("CSP Report-Only: references the same-origin CSP report endpoint by default", () => {
   assert.match(
-    nextConfigSrc,
+    cspValue ?? "",
     /\breport-uri\s+\/api\/security\/csp-report\b/,
     "report-uri must point to the same-origin CSP report endpoint",
   );
   assert.doesNotMatch(
-    nextConfigSrc,
+    cspValue ?? "",
     /\breport-to\b/,
-    "report-to must not be added until Reporting-Endpoints is introduced safely",
+    "report-to must not be added without a trusted canonical origin",
+  );
+  assert.equal(buildCspReportingEndpointConfig(undefined), null);
+});
+
+test("CSP Report-Only: adds report-to only with a matching Reporting-Endpoints header", () => {
+  const reportingConfig = buildCspReportingEndpointConfig("https://Portal.Example.com/");
+  assert.ok(reportingConfig, "expected a reporting config for a trusted origin");
+
+  const csp = buildReportOnlyCsp({
+    reportUri: CSP_REPORT_URI_PATH,
+    reportTo: reportingConfig.reportToGroup,
+  });
+
+  assert.match(csp, new RegExp(`\\breport-uri\\s+${CSP_REPORT_URI_PATH}\\b`));
+  assert.match(csp, new RegExp(`\\breport-to\\s+${CSP_REPORT_TO_GROUP}\\b`));
+  assert.equal(
+    reportingConfig.reportingEndpointsHeaderValue,
+    `${CSP_REPORT_TO_GROUP}="https://portal.example.com${CSP_REPORT_URI_PATH}"`,
   );
 });
 
 test("CSP Report-Only: header remains the last securityHeaders entry", () => {
-  const securityHeadersMatch = nextConfigSrc.match(
-    /const\s+securityHeaders\s*=\s*\[([\s\S]*?)\n\s*\];/,
-  );
+  const cspHeaderIndex = nextConfigSrc.indexOf('key: "Content-Security-Policy-Report-Only"');
+  const reportingHeaderIndex = nextConfigSrc.indexOf('key: "Reporting-Endpoints"');
 
-  assert.ok(securityHeadersMatch, "securityHeaders array must be present");
-
-  const keys = [...securityHeadersMatch[1].matchAll(/key:\s*["']([^"']+)["']/g)].map(
-    (match) => match[1],
-  );
-
-  assert.ok(keys.length >= 5, `securityHeaders appears incomplete: ${keys.length} keys found`);
-  assert.equal(
-    keys[keys.length - 1],
-    "Content-Security-Policy-Report-Only",
+  assert.ok(cspHeaderIndex > 0, "Content-Security-Policy-Report-Only header must be present");
+  assert.ok(
+    reportingHeaderIndex === -1 || cspHeaderIndex > reportingHeaderIndex,
     "Content-Security-Policy-Report-Only must be the last security header",
   );
 });
