@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import Link from "next/link";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";
 import { ClinicPublicProfileCard } from "@/components/dashboard/ClinicPublicProfileCard";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 import {
   getDashboardStats,
@@ -139,9 +138,13 @@ export default async function DashboardPage() {
                   Últimos estudios cargados y su estado actual.
                 </p>
               </div>
-              <Button asChild variant="ghost" size="sm">
-                <Link href={ROUTES.dashboardInformes}>Ver todos</Link>
-              </Button>
+              <PublicRouteControl
+                href={ROUTES.dashboardInformes}
+                variant="bare"
+                className="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-semibold text-foreground/80 transition-[background-color,color] duration-150 hover:bg-accent/70 hover:text-accent-foreground"
+              >
+                Ver todos
+              </PublicRouteControl>
             </CardHeader>
             <CardContent className="space-y-1.5">
               {reportsLoadError ? (
@@ -186,9 +189,13 @@ export default async function DashboardPage() {
                   Programación logística con seguimiento en curso.
                 </p>
               </div>
-              <Button asChild variant="ghost" size="sm">
-                <Link href={ROUTES.dashboardLogisticaVisitas}>Ver todas</Link>
-              </Button>
+              <PublicRouteControl
+                href={ROUTES.dashboardLogisticaVisitas}
+                variant="bare"
+                className="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-semibold text-foreground/80 transition-[background-color,color] duration-150 hover:bg-accent/70 hover:text-accent-foreground"
+              >
+                Ver todas
+              </PublicRouteControl>
             </CardHeader>
             <CardContent className="space-y-1.5">
               {visitsLoadError ? (

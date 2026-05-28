@@ -92,9 +92,10 @@ test("login public page routes particular access away from the clinic login form
   assert.ok(source.includes('const requestedSurface = searchParams.get("tipo") ?? searchParams.get("surface");'));
   assert.ok(source.includes('if (requestedSurface === "particular")'));
   assert.ok(source.includes("router.replace(ROUTES.particulares);"));
-  assert.ok(source.includes("<Link"));
+  assert.ok(source.includes("<PublicRouteControl"));
   assert.ok(source.includes("href={ROUTES.particulares}"));
   assert.ok(source.includes('data-auth-particular-access-link="true"'));
+  assert.equal(source.includes("<Link"), false);
   assert.equal(source.includes("openParticularAccess"), false);
   assert.equal(source.includes("router.push(ROUTES.particulares);"), false);
 });

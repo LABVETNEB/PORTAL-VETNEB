@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
   ArrowRight,
   ClipboardCheck,
@@ -11,9 +10,9 @@ import {
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import { VisualIcon } from "@/components/public/VisualAccents";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   createPageMetadata,
@@ -115,15 +114,21 @@ export default function InformesVeterinariosPage() {
             resguardo de la información clínica de cada caso.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button asChild size="lg" className="public-cta-primary w-full sm:w-auto">
-              <Link href="/contacto">
-                Consultar por informes
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="public-cta-on-hero w-full sm:w-auto">
-              <Link href="/servicios">Ver más servicios</Link>
-            </Button>
+            <PublicRouteControl
+              href="/contacto"
+              variant="primaryDark"
+              className="public-cta-primary w-full sm:w-auto"
+            >
+              Consultar por informes
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </PublicRouteControl>
+            <PublicRouteControl
+              href="/servicios"
+              variant="secondaryOutline"
+              className="public-cta-on-hero w-full sm:w-auto"
+            >
+              Ver más servicios
+            </PublicRouteControl>
           </div>
         </div>
       </section>
@@ -245,12 +250,20 @@ export default function InformesVeterinariosPage() {
                   para todos los casos.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Button asChild className="public-cta-primary w-full sm:w-auto">
-                    <Link href="/contacto">Consultar por un caso</Link>
-                  </Button>
-                  <Button asChild variant="outline" className="public-cta-outline w-full sm:w-auto">
-                    <Link href="/servicios">Ver más servicios</Link>
-                  </Button>
+                  <PublicRouteControl
+                    href="/contacto"
+                    variant="primaryDark"
+                    className="public-cta-primary w-full sm:w-auto"
+                  >
+                    Consultar por un caso
+                  </PublicRouteControl>
+                  <PublicRouteControl
+                    href="/servicios"
+                    variant="primaryLight"
+                    className="public-cta-outline w-full sm:w-auto"
+                  >
+                    Ver más servicios
+                  </PublicRouteControl>
                 </div>
               </div>
             </PublicScrollReveal>

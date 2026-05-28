@@ -16,10 +16,12 @@ function read(relativePath: string): string {
 test("dashboard topbar keeps route-registry logout action and UI dependencies", () => {
   const source = read(DASHBOARD_TOPBAR_PATH);
 
-  assert.ok(source.includes('import Link from "next/link";'));
-  assert.ok(source.includes('import { Button } from "@/components/ui/button";'));
+  assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
-  assert.ok(source.includes("<Link href={ROUTES.login}>Cerrar sesión</Link>"));
+  assert.ok(source.includes("<PublicRouteControl"));
+  assert.ok(source.includes("href={ROUTES.login}"));
+  assert.ok(source.includes("Cerrar sesión"));
+  assert.equal(source.includes('import Link from "next/link";'), false);
   assert.equal(source.includes('href="/login"'), false);
 });
 
@@ -41,7 +43,8 @@ test("dashboard topbar keeps protected dashboard header shell without mock sessi
 
   assert.ok(source.includes('<header'));
   assert.ok(source.includes("sticky top-0 z-40"));
-  assert.ok(source.includes('<Button asChild variant="outline" size="sm">'));
+  assert.ok(source.includes('variant="bare"'));
+  assert.ok(source.includes("border border-input bg-card/95"));
   assert.equal(source.includes("Usuario mock"), false);
   assert.equal(source.includes("Clínica Demo"), false);
   assert.equal(source.includes(">CL<"), false);

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
   ArrowRight,
   ClipboardCheck,
@@ -9,9 +8,9 @@ import {
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import { VisualIcon } from "@/components/public/VisualAccents";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   createPageMetadata,
@@ -99,15 +98,21 @@ export default function LaboratorioPatologicoVeterinarioPage() {
             clínico-patológico.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button asChild size="lg" className="public-cta-primary w-full sm:w-auto">
-              <Link href="/contacto">
-                Solicitar coordinación diagnóstica
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="public-cta-on-hero w-full sm:w-auto">
-              <Link href="/servicios">Ver más servicios</Link>
-            </Button>
+            <PublicRouteControl
+              href="/contacto"
+              variant="primaryDark"
+              className="public-cta-primary w-full sm:w-auto"
+            >
+              Solicitar coordinación diagnóstica
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </PublicRouteControl>
+            <PublicRouteControl
+              href="/servicios"
+              variant="secondaryOutline"
+              className="public-cta-on-hero w-full sm:w-auto"
+            >
+              Ver más servicios
+            </PublicRouteControl>
           </div>
         </div>
       </section>
@@ -222,12 +227,20 @@ export default function LaboratorioPatologicoVeterinarioPage() {
                   para decisiones terapéuticas responsables.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Button asChild className="public-cta-primary w-full sm:w-auto">
-                    <Link href="/contacto">Coordinar envío de muestras</Link>
-                  </Button>
-                  <Button asChild variant="outline" className="public-cta-outline w-full sm:w-auto">
-                    <Link href="/servicios">Ver más servicios</Link>
-                  </Button>
+                  <PublicRouteControl
+                    href="/contacto"
+                    variant="primaryDark"
+                    className="public-cta-primary w-full sm:w-auto"
+                  >
+                    Coordinar envío de muestras
+                  </PublicRouteControl>
+                  <PublicRouteControl
+                    href="/servicios"
+                    variant="primaryLight"
+                    className="public-cta-outline w-full sm:w-auto"
+                  >
+                    Ver más servicios
+                  </PublicRouteControl>
                 </div>
               </div>
             </PublicScrollReveal>
@@ -257,13 +270,14 @@ export default function LaboratorioPatologicoVeterinarioPage() {
                         según la muestra recibida y la pregunta diagnóstica del
                         caso.
                       </p>
-                      <Link
+                      <PublicRouteControl
                         href="/servicios"
+                        variant="bare"
                         className="mt-5 inline-flex w-fit items-center gap-2 rounded-md text-sm font-semibold text-primary underline underline-offset-4 transition hover:text-vetneb-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                       >
                         Ver servicios relacionados
                         <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                      </Link>
+                      </PublicRouteControl>
                     </div>
                   </div>
                 </div>

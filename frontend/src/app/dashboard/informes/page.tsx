@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ReportDownloadButton } from "@/components/dashboard/ReportDownloadButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -141,9 +142,14 @@ export default async function InformesPage({
                 <Button type="submit" size="sm">
                   Filtrar
                 </Button>
-                <Button size="sm" variant="ghost" asChild>
-                  <a href="/dashboard/informes">Limpiar</a>
-                </Button>
+                <PublicRouteControl
+                  href="/dashboard/informes"
+                  replace
+                  variant="bare"
+                  className="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-semibold text-foreground/80 transition-[background-color,color] duration-150 hover:bg-accent/70 hover:text-accent-foreground"
+                >
+                  Limpiar
+                </PublicRouteControl>
               </div>
             </form>
           </CardContent>

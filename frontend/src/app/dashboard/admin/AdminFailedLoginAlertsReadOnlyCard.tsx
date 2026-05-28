@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { PublicExternalControl } from "@/components/public/PublicRouteControl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -147,13 +148,13 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           >
             Limpiar filtros
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            asChild
+          <PublicExternalControl
+            href={csvUrl}
+            target="_self"
+            className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-card/95 px-4 text-sm font-semibold text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-55"
           >
-            <a href={csvUrl}>Exportar CSV</a>
-          </Button>
+            Exportar CSV
+          </PublicExternalControl>
           <Button
             type="button"
             onClick={loadFailedLoginAlerts}

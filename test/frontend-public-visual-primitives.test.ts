@@ -27,10 +27,15 @@ test("public action primitive defines intentional action variants", () => {
 test("public action primitive avoids accidental default gradient on light CTAs", () => {
   const source = read(PUBLIC_ACTION_PATH);
 
-  assert.ok(source.includes('variant={variant === "primaryDark" ? "default" : "outline"}'));
+  assert.ok(source.includes('import {'));
+  assert.ok(source.includes("PublicRouteControl"));
+  assert.ok(source.includes("PublicExternalControl"));
+  assert.ok(source.includes("if (external) {"));
   assert.ok(source.includes("bg-card/95"));
   assert.ok(source.includes("text-vetneb-navy"));
   assert.ok(source.includes("clinical-primary-gradient"));
+  assert.equal(source.includes("<Link"), false);
+  assert.equal(source.includes("asChild"), false);
 });
 
 test("public hero primitive defines page-intent variants", () => {
@@ -62,6 +67,6 @@ test("public action contactCard variant renders non-interactive div container no
   assert.ok(source.includes("group flex items-center justify-between gap-4 rounded-lg"));
   // No absolute inset-0 overlay trick
   assert.equal(source.includes("absolute inset-0"), false);
-  // Explicit constrained Link CTA inside the contactCard branch
+  // Explicit constrained CTA control inside the contactCard branch
   assert.ok(source.includes("inline-flex shrink-0"));
 });

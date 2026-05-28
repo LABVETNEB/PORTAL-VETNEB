@@ -1,8 +1,11 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import {
+  PublicExternalControl,
+  PublicRouteControl,
+} from "@/components/public/PublicRouteControl";
 
 type PublicHeroProps = {
   eyebrow?: ReactNode;
@@ -120,6 +123,9 @@ type PublicGradientButtonProps = {
   className?: string;
   href?: string;
   showArrow?: boolean;
+  replace?: boolean;
+  prefetch?: boolean;
+  external?: boolean;
   type?: ButtonHTMLAttributes<HTMLButtonElement>["type"];
   disabled?: boolean;
   onClick?: ButtonHTMLAttributes<HTMLButtonElement>["onClick"];
@@ -133,6 +139,9 @@ export function PublicGradientButton({
   className,
   href,
   showArrow = false,
+  replace = false,
+  prefetch = true,
+  external = false,
   type = "button",
   disabled,
   onClick,
@@ -145,10 +154,38 @@ export function PublicGradientButton({
   );
 
   if (href) {
+    const useExternalControl =
+      external ||
+      href.startsWith("http://") ||
+      href.startsWith("https://") ||
+      href.startsWith("mailto:") ||
+      href.startsWith("tel:");
+
+    if (useExternalControl) {
+      return (
+        <PublicExternalControl
+          href={href}
+          disabled={disabled}
+          onClick={onClick}
+          className={cn(gradientButtonClassName, className)}
+        >
+          {content}
+        </PublicExternalControl>
+      );
+    }
+
     return (
-      <Link href={href} className={cn(gradientButtonClassName, className)}>
+      <PublicRouteControl
+        href={href}
+        variant="bare"
+        replace={replace}
+        prefetch={prefetch}
+        disabled={disabled}
+        onClick={onClick}
+        className={cn(gradientButtonClassName, className)}
+      >
         {content}
-      </Link>
+      </PublicRouteControl>
     );
   }
 

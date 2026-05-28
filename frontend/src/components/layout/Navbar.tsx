@@ -1,4 +1,6 @@
-import Link from "next/link";
+"use client";
+
+import { useRouter } from "next/navigation";
 import { ArrowRight, ChevronDown, Microscope } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,8 @@ const navLinks = [
 const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];
 
 export function Navbar() {
+  const router = useRouter();
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-vetneb-line/80 bg-card/96 shadow-[0_10px_28px_rgba(15,45,62,0.08)]">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -36,12 +40,13 @@ export function Navbar() {
               <ul className="flex flex-col gap-1">
                 {mobileNavLinks.map((link) => (
                   <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="block rounded-md px-3 py-2.5 text-sm font-medium text-vetneb-ink/85 transition-colors hover:bg-accent/70 hover:text-vetneb-ink"
+                    <button
+                      type="button"
+                      onClick={() => router.push(link.href)}
+                      className="block w-full rounded-md px-3 py-2.5 text-left text-sm font-medium text-vetneb-ink/85 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
                     >
                       {link.label}
-                    </Link>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -49,10 +54,11 @@ export function Navbar() {
           </details>
         </div>
 
-        <Link
-          href={ROUTES.home}
-          className="group hidden items-center gap-2.5 lg:flex"
+        <button
+          type="button"
+          onClick={() => router.push(ROUTES.home)}
           aria-label="VETNEB — Inicio"
+          className="group hidden cursor-pointer items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 lg:flex"
         >
           <span className="flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-bold text-primary-foreground shadow-[0_10px_26px_hsl(var(--vetneb-navy)/0.20)] ring-1 ring-vetneb-teal/30 transition-[background-color,box-shadow,border-color] group-hover:shadow-[0_12px_30px_hsl(var(--vetneb-navy)/0.24)]">
             <Microscope className="h-4 w-4" aria-hidden="true" />
@@ -61,36 +67,42 @@ export function Navbar() {
           <span className="hidden text-xs font-semibold text-muted-foreground lg:inline">
             Patología veterinaria
           </span>
-        </Link>
+        </button>
 
         <nav
           className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 lg:flex"
           aria-label="Navegación principal"
         >
           {navLinks.map((link) => (
-            <Link
+            <button
               key={link.href}
-              href={link.href}
-              className="rounded-md px-3.5 py-2 text-sm font-medium text-vetneb-ink/80 transition-colors hover:bg-accent/70 hover:text-vetneb-ink"
+              type="button"
+              onClick={() => router.push(link.href)}
+              className="rounded-md px-3.5 py-2 text-sm font-medium text-vetneb-ink/80 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
             >
               {link.label}
-            </Link>
+            </button>
           ))}
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <Button asChild variant="outline" size="sm" className="public-cta-outline">
-            <Link href={ROUTES.login}>Iniciar sesión</Link>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="public-cta-outline"
+            onClick={() => router.push(ROUTES.login)}
+          >
+            Iniciar sesión
           </Button>
           <Button
-            asChild
+            type="button"
             size="sm"
             className="public-cta-primary hidden sm:flex"
+            onClick={() => router.push(ROUTES.contacto)}
           >
-            <Link href={ROUTES.contacto}>
-              Solicitar acceso
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
+            Solicitar acceso
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
       </div>

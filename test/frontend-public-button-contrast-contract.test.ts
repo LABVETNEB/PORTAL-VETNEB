@@ -105,7 +105,10 @@ test("public pages use CTA contract classes and avoid low-contrast transparent h
   ];
 
   for (const source of sources) {
-    assert.ok(source.includes("import { Button } from \"@/components/ui/button\";"));
+    assert.ok(
+      source.includes("import { Button } from \"@/components/ui/button\";") ||
+        source.includes("PublicRouteControl"),
+    );
     assert.ok(source.includes("public-cta-"));
   }
 

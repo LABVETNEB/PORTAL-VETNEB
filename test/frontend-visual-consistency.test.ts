@@ -365,7 +365,7 @@ test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () 
       "title: string;",
       "subtitle?: string;",
       "{subtitle && (",
-      "<Button asChild variant=\"outline\" size=\"sm\">",
+      "<PublicRouteControl",
     ],
     "dashboard topbar hierarchy",
   );

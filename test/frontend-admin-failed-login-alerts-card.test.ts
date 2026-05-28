@@ -20,6 +20,7 @@ test("admin failed login alerts card is client-side and imports required depende
   assert.ok(source.includes('import { useEffect, useMemo, useState, useTransition } from "react";'));
   assert.ok(source.includes('import { Badge } from "@/components/ui/badge";'));
   assert.ok(source.includes('import { Button } from "@/components/ui/button";'));
+  assert.ok(source.includes('import { PublicExternalControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes("buildAdminFailedLoginAlertsCsvUrl"));
   assert.ok(source.includes("getAdminFailedLoginAlerts"));
   assert.ok(source.includes('import { formatDateTime } from "@/lib/utils";'));
@@ -110,7 +111,10 @@ test("admin failed login alerts card renders header and actions without technica
   assert.ok(source.includes('id="failed-login-alerts"'));
   assert.ok(source.includes("Intentos fallidos de login"));
   assert.ok(source.includes("Limpiar filtros"));
-  assert.ok(source.includes("<a href={csvUrl}>Exportar CSV</a>"));
+  assert.ok(source.includes("<PublicExternalControl"));
+  assert.ok(source.includes("href={csvUrl}"));
+  assert.ok(source.includes('target="_self"'));
+  assert.ok(source.includes("Exportar CSV"));
   assert.ok(source.includes('isPending ? "Actualizando..." : "Actualizar"'));
   assert.equal(source.includes(removedReadOnlyCopy), false);
   assert.equal(source.includes("passwords, tokens, hashes ni cookies."), false);

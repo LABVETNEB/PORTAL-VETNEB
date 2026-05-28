@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { RotateCcw } from "lucide-react";
 
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 
@@ -17,9 +17,13 @@ export function OfflineActions() {
         <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
         Reintentar conexión
       </Button>
-      <Button asChild variant="outline" className="w-full sm:w-auto">
-        <Link href={ROUTES.home}>Volver al inicio disponible</Link>
-      </Button>
+      <PublicRouteControl
+        href={ROUTES.home}
+        variant="primaryLight"
+        className="w-full sm:w-auto"
+      >
+        Volver al inicio disponible
+      </PublicRouteControl>
     </div>
   );
 }

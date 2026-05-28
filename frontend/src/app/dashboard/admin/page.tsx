@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -645,14 +645,15 @@ export default async function AdminPage({
               </div>
               <div className="surface-soft">
                 <p className="text-xs text-muted-foreground">Auditoría</p>
-                <Link
+                <PublicRouteControl
                   href={buildAdminAuditFilterHref({
                     event: "study_tracking.notification.created",
                   })}
+                  variant="textLink"
                   className="mt-1 inline-flex text-sm font-semibold text-vetneb-navy hover:text-vetneb-teal"
                 >
                   Ver notificaciones
-                </Link>
+                </PublicRouteControl>
               </div>
             </div>
           </CardContent>
@@ -681,14 +682,15 @@ export default async function AdminPage({
               </div>
               <div className="surface-soft">
                 <p className="text-xs text-muted-foreground">Filtro audit</p>
-                <Link
+                <PublicRouteControl
                   href={buildAdminAuditFilterHref({
                     event: "clinic_user.role.changed",
                   })}
+                  variant="textLink"
                   className="mt-1 inline-flex text-sm font-semibold text-vetneb-navy hover:text-vetneb-teal"
                 >
                   Ver cambios de rol
-                </Link>
+                </PublicRouteControl>
               </div>
             </div>
           </CardContent>
@@ -737,12 +739,14 @@ export default async function AdminPage({
                 <span>
                   Mostrando {filteredAuditEntries.length} de {auditEntries.length} eventos.
                 </span>
-                <Link
+                <PublicRouteControl
                   href="/dashboard/admin#audit-log"
+                  replace
+                  variant="textLink"
                   className="font-semibold text-vetneb-navy hover:text-vetneb-teal"
                 >
                   Limpiar filtros
-                </Link>
+                </PublicRouteControl>
               </div>
             ) : null}
             <Table>
@@ -809,12 +813,14 @@ export default async function AdminPage({
                         : "No hay eventos de auditoría disponibles."}
                       {hasActiveAuditFilters ? (
                         <div className="mt-2">
-                          <Link
+                          <PublicRouteControl
                             href="/dashboard/admin#audit-log"
+                            replace
+                            variant="textLink"
                             className="font-semibold text-vetneb-navy hover:text-vetneb-teal"
                           >
                             Limpiar filtros
-                          </Link>
+                          </PublicRouteControl>
                         </div>
                       ) : null}
                     </TableCell>

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
   ArrowRight,
   ClipboardCheck,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import {
   Card,
@@ -20,7 +20,6 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { createPageMetadata } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
@@ -122,24 +121,21 @@ export default function ClinicasPage() {
             clínica veterinaria. Acceso seguro, trazable y disponible las 24 hs.
           </p>
           <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-            <Button
-              asChild
-              size="lg"
+            <PublicRouteControl
+              href={ROUTES.login}
+              variant="primaryDark"
               className="public-cta-primary w-full sm:w-auto"
             >
-              <Link href={ROUTES.login}>
-                Acceder al portal
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
+              Acceder al portal
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </PublicRouteControl>
+            <PublicRouteControl
+              href={ROUTES.contacto}
+              variant="secondaryOutline"
               className="public-cta-on-hero w-full sm:w-auto"
             >
-              <Link href={ROUTES.contacto}>Solicitar acceso</Link>
-            </Button>
+              Solicitar acceso
+            </PublicRouteControl>
           </div>
         </div>
       </section>
@@ -267,9 +263,13 @@ export default function ClinicasPage() {
                       </p>
                     </div>
                   </div>
-                  <Button asChild className="public-cta-primary">
-                    <Link href={ROUTES.login}>Ingresar</Link>
-                  </Button>
+                  <PublicRouteControl
+                    href={ROUTES.login}
+                    variant="primaryDark"
+                    className="public-cta-primary"
+                  >
+                    Ingresar
+                  </PublicRouteControl>
                 </div>
               </section>
             </PublicScrollReveal>

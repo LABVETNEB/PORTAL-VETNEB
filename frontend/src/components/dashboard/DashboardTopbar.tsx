@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
 
 interface DashboardTopbarProps {
@@ -37,9 +36,13 @@ export function DashboardTopbar({ title, subtitle }: DashboardTopbarProps) {
       </div>
 
       <div className="ml-3 flex shrink-0 items-center gap-2 sm:gap-3">
-        <Button asChild variant="outline" size="sm">
-          <Link href={ROUTES.login}>Cerrar sesión</Link>
-        </Button>
+        <PublicRouteControl
+          href={ROUTES.login}
+          variant="bare"
+          className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-sm font-semibold text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground"
+        >
+          Cerrar sesión
+        </PublicRouteControl>
       </div>
     </header>
   );
