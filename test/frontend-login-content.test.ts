@@ -89,12 +89,12 @@ test("frontend login content allows toggling clinic password visibility", () => 
   assert.ok(source.includes('import { Eye, EyeOff, ShieldCheck } from "lucide-react"'));
   assert.ok(source.includes('const [isPasswordVisible, setIsPasswordVisible] = useState(false)'));
   assert.ok(source.includes('type={isPasswordVisible ? "text" : "password"}'));
-  assert.ok(source.includes('data-auth-password-input="true"'));
+  assert.ok(source.includes('data-auth-credential-input="true"'));
   assert.ok(source.includes('className="h-12 rounded-lg pr-12"'));
   assert.ok(source.includes('onClick={() => setIsPasswordVisible((current) => !current)}'));
   assert.ok(source.includes('aria-label={isPasswordVisible ? "Ocultar contraseña" : "Mostrar contraseña"}'));
   assert.ok(source.includes('aria-pressed={isPasswordVisible}'));
   assert.ok(source.includes('aria-controls="password"'));
-  assert.ok(source.includes('data-auth-password-visibility-toggle="true"'));
+  assert.ok(source.includes('data-auth-credential-visibility-toggle="true"'));
   assert.ok(source.includes('data-auth-clinic-access-tab="true"'));
 });

@@ -21,7 +21,7 @@ test("login password visibility starts hidden and toggles input type safely", ()
     ),
   );
   assert.ok(source.includes('type={isPasswordVisible ? "text" : "password"}'));
-  assert.ok(source.includes('data-auth-password-input="true"'));
+  assert.ok(source.includes('data-auth-credential-input="true"'));
 });
 
 test("login password visibility toggle uses explicit button semantics", () => {
@@ -32,7 +32,7 @@ test("login password visibility toggle uses explicit button semantics", () => {
     source.includes("onClick={() => setIsPasswordVisible((current) => !current)}"),
   );
   assert.ok(source.includes('aria-controls="password"'));
-  assert.ok(source.includes('data-auth-password-visibility-toggle="true"'));
+  assert.ok(source.includes('data-auth-credential-visibility-toggle="true"'));
 });
 
 test("login password visibility exposes accessible label and pressed state", () => {
