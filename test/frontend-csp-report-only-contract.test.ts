@@ -166,16 +166,16 @@ test("CSP Report-Only: frame-src permits the public Google Maps iframe", () => {
   );
 });
 
-test("CSP Report-Only: does not add report-uri or report-to without a safe endpoint", () => {
-  assert.doesNotMatch(
+test("CSP Report-Only: references the same-origin CSP report endpoint without report-to", () => {
+  assert.match(
     nextConfigSrc,
-    /\breport-uri\b/,
-    "report-uri must not be added until a safe report endpoint exists",
+    /\breport-uri\s+\/api\/security\/csp-report\b/,
+    "report-uri must point to the same-origin CSP report endpoint",
   );
   assert.doesNotMatch(
     nextConfigSrc,
     /\breport-to\b/,
-    "report-to must not be added until a safe report endpoint exists",
+    "report-to must not be added until Reporting-Endpoints is introduced safely",
   );
 });
 
