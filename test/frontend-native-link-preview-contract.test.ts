@@ -64,7 +64,7 @@ const frontendSourceFiles = collectFiles(FRONTEND_SRC_ROOT, [
   ".css",
 ]);
 
-test("frontend source keeps NEXT_LINK_IMPORTS=0, LINK_TAGS=0, ANCHOR_HITS=0 and IFRAME_HITS=0", () => {
+test("frontend source keeps NEXT_LINK_IMPORTS=0, LINK_TAGS=0, ANCHOR_HITS=0 and IFRAME_HITS=1 (footer map only)", () => {
   const nextLinkImports = frontendSourceFiles.filter((file) =>
     /from\s+["']next\/link["']/.test(read(file)),
   );
@@ -89,8 +89,13 @@ test("frontend source keeps NEXT_LINK_IMPORTS=0, LINK_TAGS=0, ANCHOR_HITS=0 and 
   );
   assert.equal(
     iframes.length,
-    0,
-    `IFRAME_HITS should be 0, got ${iframes.length}: ${iframes.join(", ")}`,
+    1,
+    `IFRAME_HITS should be 1, got ${iframes.length}: ${iframes.join(", ")}`,
+  );
+  assert.deepEqual(
+    iframes,
+    [FOOTER_PATH],
+    `IFRAME_HITS can only come from ${FOOTER_PATH}, got: ${iframes.join(", ")}`,
   );
 });
 
@@ -160,14 +165,26 @@ test("PublicExternalControl covers WhatsApp, mailto and external map surfaces", 
   assert.ok(profesionales.includes('target="_blank"'));
 });
 
-test("frontend map surfaces avoid embedded Google Maps previews", () => {
+test("footer map surface uses a single non-interactive iframe and keeps external map control", () => {
   const footer = read(FOOTER_PATH);
 
-  assert.equal(footer.includes("<iframe"), false);
-  assert.equal(footer.includes("output=embed"), false);
-  assert.equal(footer.includes("mapsEmbedUrl"), false);
+  assert.ok(footer.includes("<iframe"));
+  assert.ok(footer.includes("mapsEmbedUrl"));
+  assert.ok(footer.includes("https://www.google.com/maps?output=embed&q="));
+  assert.ok(footer.includes('title="Mapa de ubicación de Servicio Patológico VETNEB"'));
+  assert.ok(footer.includes("src={mapsEmbedUrl}"));
+  assert.ok(footer.includes('loading="lazy"'));
+  assert.ok(footer.includes('referrerPolicy="no-referrer-when-downgrade"'));
+  assert.ok(footer.includes('aria-hidden="true"'));
+  assert.ok(footer.includes("tabIndex={-1}"));
+  assert.ok(footer.includes("pointer-events-none"));
   assert.ok(footer.includes("mapsLocationUrl"));
   assert.ok(footer.includes("<PublicExternalControl"));
+  assert.ok(footer.includes("href={mapsLocationUrl}"));
+  assert.ok(footer.includes('target="_blank"'));
+  assert.ok(footer.includes("Ver ubicación en Maps"));
+  assert.equal(/<a\b/.test(footer), false);
+  assert.equal(/<Link\b/.test(footer), false);
 });
 
 test("navigation controls avoid anti-preview hacks", () => {

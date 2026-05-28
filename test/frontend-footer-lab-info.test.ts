@@ -37,7 +37,7 @@ test("footer includes public FAQ content in the lower frontend area", () => {
   assert.ok(source.includes("tinciones especiales"));
 });
 
-test("footer unifies laboratory info navigation access and static map card", () => {
+test("footer unifies laboratory info navigation access and non-interactive real map card", () => {
   const source = read(FOOTER_PATH);
 
   assert.ok(source.includes("Servicio Patológico VETNEB"));
@@ -51,11 +51,23 @@ test("footer unifies laboratory info navigation access and static map card", () 
   assert.ok(source.includes("footerLinks.map((link) =>"));
   assert.ok(source.includes("lg:grid-cols-[1.35fr_0.75fr_0.75fr_1.15fr]"));
   assert.ok(source.includes("https://www.google.com/maps?q="));
+  assert.ok(source.includes("https://www.google.com/maps?output=embed&q="));
+  assert.ok(source.includes("mapsEmbedUrl"));
   assert.ok(source.includes("mapsLocationUrl"));
+  assert.ok(source.includes("<iframe"));
+  assert.ok(source.includes('title="Mapa de ubicación de Servicio Patológico VETNEB"'));
+  assert.ok(source.includes("src={mapsEmbedUrl}"));
+  assert.ok(source.includes('loading="lazy"'));
+  assert.ok(source.includes('referrerPolicy="no-referrer-when-downgrade"'));
+  assert.ok(source.includes('aria-hidden="true"'));
+  assert.ok(source.includes("tabIndex={-1}"));
+  assert.ok(source.includes("pointer-events-none"));
+  assert.ok(source.includes("Blvd. Italia 274, Villa María"));
+  assert.ok(source.includes("Córdoba, Argentina"));
   assert.ok(source.includes("Ver ubicación en Maps"));
   assert.ok(source.includes("Ver ubicación del laboratorio en Google Maps"));
-  assert.equal(source.includes("<iframe"), false);
-  assert.equal(source.includes("output=embed"), false);
+  assert.equal(/<a\b/.test(source), false);
+  assert.equal(/<Link\b/.test(source), false);
 });
 
 test("footer removes redundant brand block and keeps public routes safe", () => {
