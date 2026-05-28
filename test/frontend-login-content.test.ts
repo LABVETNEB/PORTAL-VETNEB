@@ -76,9 +76,10 @@ test("frontend login content keeps particular token entry on the dedicated publi
   assert.equal(source.includes("Ingresar con token"), false);
   assert.equal(source.includes("Ingrese el token recibido"), false);
   assert.ok(source.includes("router.replace(ROUTES.particulares);"));
-  assert.ok(source.includes("<Link"));
+  assert.ok(source.includes("<PublicRouteControl"));
   assert.ok(source.includes("href={ROUTES.particulares}"));
   assert.ok(source.includes('data-auth-particular-access-link="true"'));
+  assert.equal(source.includes("<Link"), false);
   assert.equal(source.includes("openParticularAccess"), false);
   assert.equal(source.includes("router.push(ROUTES.particulares);"), false);
 });

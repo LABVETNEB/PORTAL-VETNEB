@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, ShieldCheck } from "lucide-react";
 
@@ -14,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { loginClinic } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 
@@ -111,15 +111,16 @@ export function LoginContent() {
     >
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <Link
+          <PublicRouteControl
             href={ROUTES.home}
+            variant="bare"
             className="inline-flex items-center justify-center"
             aria-label="PORTAL VETNEB — Inicio"
           >
             <span className="text-2xl font-bold text-vetneb-ink">
               PORTAL VETNEB
             </span>
-          </Link>
+          </PublicRouteControl>
           <p className="mt-2 text-xs font-semibold tracking-[0.08em] text-muted-foreground">
             Patología veterinaria
           </p>
@@ -152,14 +153,15 @@ export function LoginContent() {
               >
                 Clínicas
               </button>
-              <Link
+              <PublicRouteControl
                 href={ROUTES.particulares}
+                variant="bare"
                 className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55"
                 aria-pressed="false"
                 data-auth-particular-access-link="true"
               >
                 Particulares
-              </Link>
+              </PublicRouteControl>
             </div>
 
             <form
@@ -244,21 +246,26 @@ export function LoginContent() {
             <div className="mt-6 rounded-lg border border-vetneb-cyan/25 bg-vetneb-cyan/10 px-4 py-3 text-center">
               <p className="text-sm text-muted-foreground">
                 ¿Su clínica no tiene acceso?{" "}
-                <Link
+                <PublicRouteControl
                   href={ROUTES.contacto}
+                  variant="textLink"
                   className="font-medium text-primary hover:underline"
                 >
                   Solicite acceso
-                </Link>
+                </PublicRouteControl>
               </p>
             </div>
           </CardContent>
         </Card>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          <Link href={ROUTES.home} className="transition-colors hover:text-primary">
+          <PublicRouteControl
+            href={ROUTES.home}
+            variant="textLink"
+            className="transition-colors hover:text-primary"
+          >
             ← Volver al sitio público
-          </Link>
+          </PublicRouteControl>
         </p>
       </div>
     </div>

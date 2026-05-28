@@ -26,7 +26,7 @@ test("veterinary diagnostic reports landing page defines public SEO metadata", (
   const source = read(DIAGNOSTIC_REPORTS_PAGE_PATH);
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
-  assert.ok(source.includes('import Link from "next/link";'));
+  assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('import { PublicLayout } from "@/components/layout/PublicLayout";'));
   assert.ok(source.includes('import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";'));
   assert.ok(source.includes('import { VisualIcon } from "@/components/public/VisualAccents";'));

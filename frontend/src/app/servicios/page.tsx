@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
   ArrowRight,
   ClipboardCheck,
@@ -14,6 +13,7 @@ import { cn } from "@/lib/utils";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import {
   Card,
   CardContent,
@@ -21,7 +21,6 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { createPageMetadata, getServicesJsonLd } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
@@ -153,6 +152,7 @@ export default function ServiciosPage() {
           </p>
         </div>
       </section>
+
       <div className="public-soft-canvas">
         <section
           className="py-16 md:py-20"
@@ -229,14 +229,15 @@ export default function ServiciosPage() {
                               </li>
                             ))}
                           </ul>
-                          <Link
+                          <PublicRouteControl
                             href={service.href}
+                            variant="bare"
                             className="mt-5 inline-flex w-fit items-center gap-2 rounded-md text-sm font-semibold text-primary underline underline-offset-4 transition hover:text-vetneb-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                           >
                             <span className="sr-only">{service.linkLabel}</span>
                             <span aria-hidden="true">Ver más</span>
                             <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                          </Link>
+                          </PublicRouteControl>
                         </CardContent>
                       </Card>
                     </article>
@@ -263,26 +264,21 @@ export default function ServiciosPage() {
                   diagnóstico y a las necesidades clínicas de cada caso.
                 </p>
                 <div className="flex flex-col justify-center gap-3 sm:flex-row">
-                  <Button
-                    asChild
-                    size="lg"
+                  <PublicRouteControl
+                    href={ROUTES.contacto}
+                    variant="primaryDark"
                     className="public-cta-primary w-full sm:w-auto"
                   >
-                    <Link href={ROUTES.contacto}>
-                      Solicitar coordinación diagnóstica
-                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                  </Button>
-                  <Button
-                    asChild
-                    size="lg"
-                    variant="outline"
+                    Solicitar coordinación diagnóstica
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </PublicRouteControl>
+                  <PublicRouteControl
+                    href={ROUTES.clinicas}
+                    variant="primaryLight"
                     className="public-cta-outline w-full sm:w-auto"
                   >
-                    <Link href={ROUTES.clinicas}>
-                      Conocer solución para clínicas
-                    </Link>
-                  </Button>
+                    Conocer solución para clínicas
+                  </PublicRouteControl>
                 </div>
               </div>
             </PublicScrollReveal>
@@ -363,9 +359,11 @@ export default function ServiciosPage() {
                     </h2>
                     <p className="public-copy text-muted-foreground">
                       Basamos nuestro trabajo en compromiso, seriedad, respeto,
-                      responsabilidad, confianza, diálogo, trabajo en equipo,
-                      empatía y capacitación constante para sostener un servicio
-                      patológico veterinario confiable.
+                      responsabilidad, confianza, diálogo, criterio clínico y ética
+                      profesional. Queremos ser un laboratorio de anatomía
+                      patológica veterinaria confiable, comprometido con la calidad
+                      diagnóstica y con el bienestar animal en cada caso que
+                      recibimos.
                     </p>
                   </div>
                 </div>
@@ -377,4 +375,3 @@ export default function ServiciosPage() {
     </PublicLayout>
   );
 }
-

@@ -23,7 +23,7 @@ test("veterinary pathology laboratory landing page targets laboratory service in
   const source = read(PATHOLOGY_LAB_PAGE_PATH);
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
-  assert.ok(source.includes('import Link from "next/link";'));
+  assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('import { PublicLayout } from "@/components/layout/PublicLayout";'));
   assert.ok(source.includes('import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";'));
   assert.ok(source.includes("export const metadata: Metadata = createPageMetadata("));

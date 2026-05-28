@@ -1,4 +1,6 @@
-import Link from "next/link";
+"use client";
+
+import { useRouter } from "next/navigation";
 import {
   ChevronDown,
   Mail,
@@ -83,6 +85,7 @@ export function FooterFaq() {
 }
 
 export function Footer() {
+  const router = useRouter();
   const year = new Date().getFullYear();
 
   return (
@@ -147,12 +150,13 @@ export function Footer() {
             <ul className="space-y-3">
               {footerLinks.map((link) => (
                 <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-sidebar-foreground/74 transition-colors hover:text-vetneb-teal"
+                  <button
+                    type="button"
+                    onClick={() => router.push(link.href)}
+                    className="text-sm text-sidebar-foreground/74 transition-colors hover:text-vetneb-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
                   >
                     {link.label}
-                  </Link>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -164,29 +168,32 @@ export function Footer() {
             </h3>
             <ul className="space-y-3">
               <li>
-                <Link
-                  href={ROUTES.login}
-                  className="text-sm text-sidebar-foreground/74 transition-colors hover:text-vetneb-teal"
+                <button
+                  type="button"
+                  onClick={() => router.push(ROUTES.login)}
+                  className="text-sm text-sidebar-foreground/74 transition-colors hover:text-vetneb-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
                 >
                   Iniciar sesión
-                </Link>
+                </button>
               </li>
               <li>
-                <Link
-                  href={ROUTES.particulares}
-                  className="text-sm text-sidebar-foreground/74 transition-colors hover:text-vetneb-teal"
+                <button
+                  type="button"
+                  onClick={() => router.push(ROUTES.particulares)}
+                  className="text-sm text-sidebar-foreground/74 transition-colors hover:text-vetneb-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
                 >
                   Acceso particulares
-                </Link>
+                </button>
               </li>
               <li>
-                <Link
-                  href={ROUTES.contacto}
-                  className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/8 px-3 py-1.5 text-sm text-white shadow-sm transition-colors hover:bg-white/14"
+                <button
+                  type="button"
+                  onClick={() => router.push(ROUTES.contacto)}
+                  className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/8 px-3 py-1.5 text-sm text-white shadow-sm transition-colors hover:bg-white/14 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
                 >
                   <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
                   Solicitar acceso
-                </Link>
+                </button>
               </li>
             </ul>
           </div>

@@ -1,0 +1,211 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import type {
+  ComponentPropsWithoutRef,
+  FocusEvent,
+  MouseEvent,
+  ReactNode,
+} from "react";
+
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+export type PublicRouteControlVariant =
+  | "primaryLight"
+  | "primaryDark"
+  | "secondaryOutline"
+  | "textLink"
+  | "bare";
+
+type PublicRouteControlProps = {
+  href: string;
+  children: ReactNode;
+  variant?: PublicRouteControlVariant;
+  className?: string;
+  icon?: ReactNode;
+  replace?: boolean;
+  prefetch?: boolean;
+} & Omit<ComponentPropsWithoutRef<"button">, "type" | "children" | "className">;
+
+const styledClasses: Record<
+  Exclude<PublicRouteControlVariant, "textLink" | "bare">,
+  string
+> = {
+  primaryLight:
+    "w-full border-vetneb-line/90 bg-card/95 px-7 font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised hover:text-vetneb-navy sm:w-auto",
+  primaryDark:
+    "w-full clinical-primary-gradient clinical-primary-gradient-hover px-7 font-semibold text-primary-foreground shadow-[0_14px_35px_hsl(var(--vetneb-navy)/0.22)] sm:w-auto",
+  secondaryOutline:
+    "w-full border border-white/60 bg-white/10 px-7 font-semibold text-white shadow-sm hover:bg-white/16 sm:w-auto",
+};
+
+export function PublicRouteControl({
+  href,
+  children,
+  variant = "primaryLight",
+  className,
+  icon,
+  replace = false,
+  prefetch = true,
+  disabled,
+  onClick,
+  onMouseEnter,
+  onFocus,
+  ...props
+}: PublicRouteControlProps) {
+  const router = useRouter();
+
+  const navigate = () => {
+    if (replace) {
+      router.replace(href);
+      return;
+    }
+
+    router.push(href);
+  };
+
+  const prefetchRoute = () => {
+    if (!prefetch || !href.startsWith("/")) {
+      return;
+    }
+
+    router.prefetch(href);
+  };
+
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    onClick?.(event);
+
+    if (event.defaultPrevented || disabled) {
+      return;
+    }
+
+    navigate();
+  };
+
+  const handleMouseEnter = (event: MouseEvent<HTMLButtonElement>) => {
+    onMouseEnter?.(event);
+
+    if (event.defaultPrevented || disabled) {
+      return;
+    }
+
+    prefetchRoute();
+  };
+
+  const handleFocus = (event: FocusEvent<HTMLButtonElement>) => {
+    onFocus?.(event);
+
+    if (event.defaultPrevented || disabled) {
+      return;
+    }
+
+    prefetchRoute();
+  };
+
+  if (variant === "textLink") {
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={handleClick}
+        onMouseEnter={handleMouseEnter}
+        onFocus={handleFocus}
+        className={cn(
+          "inline-flex items-center gap-2 text-sm font-semibold text-vetneb-navy underline-offset-4 transition hover:text-vetneb-teal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2",
+          className,
+        )}
+        {...props}
+      >
+        <span>{children}</span>
+        {icon}
+      </button>
+    );
+  }
+
+  if (variant === "bare") {
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={handleClick}
+        onMouseEnter={handleMouseEnter}
+        onFocus={handleFocus}
+        className={cn(
+          "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </button>
+    );
+  }
+
+  return (
+    <Button
+      type="button"
+      disabled={disabled}
+      variant={variant === "primaryDark" ? "default" : "outline"}
+      size="lg"
+      className={cn(styledClasses[variant], className)}
+      onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
+      onFocus={handleFocus}
+      {...props}
+    >
+      {children}
+      {icon}
+    </Button>
+  );
+}
+
+type PublicExternalControlProps = {
+  href: string;
+  children: ReactNode;
+  className?: string;
+  icon?: ReactNode;
+  target?: "_blank" | "_self";
+} & Omit<ComponentPropsWithoutRef<"button">, "type" | "children" | "className">;
+
+export function PublicExternalControl({
+  href,
+  children,
+  className,
+  icon,
+  target = "_blank",
+  disabled,
+  onClick,
+  ...props
+}: PublicExternalControlProps) {
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    onClick?.(event);
+
+    if (event.defaultPrevented || disabled) {
+      return;
+    }
+
+    if (target === "_self") {
+      window.location.assign(href);
+      return;
+    }
+
+    window.open(href, target, "noopener,noreferrer");
+  };
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={handleClick}
+      className={cn(
+        "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+      {icon}
+    </button>
+  );
+}

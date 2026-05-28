@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import Link from "next/link";
 import {
   CalendarDays,
   Download,
@@ -36,6 +35,7 @@ import {
   PremiumPanel,
   VisualIcon,
 } from "@/components/public/VisualAccents";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 
 function formatDate(value: string | null | undefined) {
   if (!value) {
@@ -425,12 +425,13 @@ export function ParticularesContent() {
 
                   <p className="text-center text-sm text-muted-foreground">
                     ¿Tiene credenciales de clínica?{" "}
-                    <Link
+                    <PublicRouteControl
                       href={ROUTES.login}
+                      variant="textLink"
                       className="font-medium text-primary hover:underline"
                     >
                       Inicie sesión en el portal
-                    </Link>
+                    </PublicRouteControl>
                   </p>
                 </form>
               )}

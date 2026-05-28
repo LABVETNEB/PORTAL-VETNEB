@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { ClipboardCheck, FlaskConical, Microscope, Network } from "lucide-react";
+
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { VisualIcon } from "@/components/public/VisualAccents";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { createPageMetadata } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
@@ -93,7 +93,7 @@ export default function HomePage() {
         <div className="relative container mx-auto flex min-h-[calc(100vh-4.5rem)] items-center px-4 py-16 sm:px-6 lg:px-8">
           <div className="grid w-full items-center gap-10">
             <div className="max-w-5xl">
-                            <h1
+              <h1
                 id="hero-heading"
                 className="mt-2 max-w-none text-[clamp(1.85rem,4.6vw,3.75rem)] font-bold uppercase leading-[0.94] tracking-[0.045em] text-primary-foreground"
               >
@@ -113,21 +113,20 @@ export default function HomePage() {
               </p>
 
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Button
-                  asChild
-                  size="lg"
+                <PublicRouteControl
+                  href={ROUTES.login}
+                  variant="primaryDark"
                   className="public-cta-primary w-full sm:w-auto"
                 >
-                  <Link href={ROUTES.login}>Acceder a informes y trazabilidad</Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
+                  Acceder a informes y trazabilidad
+                </PublicRouteControl>
+                <PublicRouteControl
+                  href={ROUTES.particulares}
+                  variant="secondaryOutline"
                   className="public-cta-on-hero w-full sm:w-auto"
                 >
-                  <Link href={ROUTES.particulares}>Consultar informes 24 hs</Link>
-                </Button>
+                  Consultar informes 24 hs
+                </PublicRouteControl>
               </div>
 
               <div className="clinical-muted-band mt-7 w-fit max-w-full rounded-lg px-4 py-3 text-vetneb-navy">
@@ -173,13 +172,13 @@ export default function HomePage() {
                   interconsultas y coordinación clínica.
                 </p>
               </div>
-              <Button
-                asChild
-                size="lg"
+              <PublicRouteControl
+                href={ROUTES.profesionales}
+                variant="primaryDark"
                 className="public-cta-primary w-full sm:w-auto"
               >
-                <Link href={ROUTES.profesionales}>Buscar profesionales</Link>
-              </Button>
+                Buscar profesionales
+              </PublicRouteControl>
             </div>
           </div>
         </section>
@@ -238,9 +237,13 @@ export default function HomePage() {
 
             <PublicScrollReveal>
               <div className="mt-10 text-center">
-                <Button asChild variant="outline">
-                  <Link href={ROUTES.servicios}>Ver todos los servicios</Link>
-                </Button>
+                <PublicRouteControl
+                  href={ROUTES.servicios}
+                  variant="secondaryOutline"
+                  className="border-vetneb-line/80 bg-transparent text-vetneb-ink hover:bg-accent/60 hover:border-vetneb-teal/45"
+                >
+                  Ver todos los servicios
+                </PublicRouteControl>
               </div>
             </PublicScrollReveal>
           </div>
@@ -329,21 +332,20 @@ export default function HomePage() {
                 claridad.
               </p>
               <div className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
-                <Button
-                  asChild
-                  size="lg"
+                <PublicRouteControl
+                  href={ROUTES.login}
+                  variant="primaryDark"
                   className="public-cta-primary w-full sm:w-auto"
                 >
-                  <Link href={ROUTES.login}>Ingresar al portal de informes</Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
+                  Ingresar al portal de informes
+                </PublicRouteControl>
+                <PublicRouteControl
+                  href={ROUTES.contacto}
+                  variant="primaryLight"
                   className="public-cta-outline w-full sm:w-auto"
                 >
-                  <Link href={ROUTES.contacto}>Coordinar muestras y consultas</Link>
-                </Button>
+                  Coordinar muestras y consultas
+                </PublicRouteControl>
               </div>
             </div>
           </PublicScrollReveal>

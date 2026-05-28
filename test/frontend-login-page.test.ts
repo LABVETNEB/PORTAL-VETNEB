@@ -39,7 +39,7 @@ test("login content keeps standalone login shell and form landmarks", () => {
   const source = read(LOGIN_CONTENT_PATH);
 
   assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes('import Link from "next/link";'));
+  assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('import { loginClinic } from "@/lib/api";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
   assert.ok(source.includes("min-h-screen public-page-canvas flex items-center justify-center p-4"));
@@ -79,6 +79,7 @@ test("login content exposes public navigation affordances without direct fetch",
 
   assert.ok(source.includes("href={ROUTES.home}"));
   assert.ok(source.includes("href={ROUTES.particulares}"));
+  assert.ok(source.includes("<PublicRouteControl"));
   assert.ok(source.includes('data-auth-particular-access-link="true"'));
   assert.ok(source.includes('aria-label="PORTAL VETNEB — Inicio"'));
   assert.ok(source.includes("¿Su clínica no tiene acceso?"));

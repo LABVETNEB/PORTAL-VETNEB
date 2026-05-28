@@ -16,7 +16,7 @@ test("clinicas page defines metadata and public layout wiring", () => {
   const source = read(CLINICAS_PAGE_PATH);
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
-  assert.ok(source.includes('import Link from "next/link";'));
+  assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('import { PublicLayout } from "@/components/layout/PublicLayout";'));
   assert.ok(source.includes('import { createPageMetadata } from "@/lib/seo";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
@@ -43,7 +43,7 @@ test("clinicas page keeps hero CTAs visible on blue hero background", () => {
   assert.ok(source.includes("public-cta-primary"));
   assert.ok(source.includes("public-cta-on-hero"));
   assert.ok(source.includes("w-full sm:w-auto"));
-  assert.ok(source.includes('variant="outline"'));
+  assert.ok(source.includes('variant="secondaryOutline"'));
 });
 
 test("clinicas page lists operational feature cards", () => {
@@ -86,4 +86,3 @@ test("clinicas page keeps one continuous soft canvas below hero", () => {
   assert.equal(source.includes('className="bg-white py-16 md:py-20"'), false);
   assert.equal(source.includes('className="public-soft-canvas py-16 md:py-20"'), false);
 });
-

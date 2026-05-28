@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import Link from "next/link";
 import {
   BarChart3,
   MapPinned,
@@ -8,9 +7,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 import {
   getLogisticsFieldVisits,
@@ -172,9 +171,13 @@ export default async function LogisticaPage() {
                       {module.count}
                     </p>
                   )}
-                  <Button asChild variant="outline" size="sm" className="w-full">
-                    <Link href={module.href}>Ver módulo</Link>
-                  </Button>
+                  <PublicRouteControl
+                    href={module.href}
+                    variant="bare"
+                    className="inline-flex h-9 w-full items-center justify-center rounded-md border border-input bg-card/95 px-3 text-sm font-semibold text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground"
+                  >
+                    Ver módulo
+                  </PublicRouteControl>
                 </CardContent>
               </Card>
             );
@@ -184,9 +187,13 @@ export default async function LogisticaPage() {
         <Card className="dashboard-surface">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <CardTitle className="text-base">Visitas recientes</CardTitle>
-            <Button asChild variant="ghost" size="sm">
-              <Link href={ROUTES.dashboardLogisticaVisitas}>Ver todas</Link>
-            </Button>
+            <PublicRouteControl
+              href={ROUTES.dashboardLogisticaVisitas}
+              variant="bare"
+              className="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-semibold text-foreground/80 transition-[background-color,color] duration-150 hover:bg-accent/70 hover:text-accent-foreground"
+            >
+              Ver todas
+            </PublicRouteControl>
           </CardHeader>
           <CardContent className="space-y-3">
             {fieldVisitsLoadError ? (
@@ -227,9 +234,13 @@ export default async function LogisticaPage() {
         <Card className="dashboard-surface">
           <CardHeader className="flex flex-row items-center justify-between pb-4">
             <CardTitle className="text-base">Planes de ruta</CardTitle>
-            <Button asChild variant="ghost" size="sm">
-              <Link href={ROUTES.dashboardLogisticaRutas}>Ver todos</Link>
-            </Button>
+            <PublicRouteControl
+              href={ROUTES.dashboardLogisticaRutas}
+              variant="bare"
+              className="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-semibold text-foreground/80 transition-[background-color,color] duration-150 hover:bg-accent/70 hover:text-accent-foreground"
+            >
+              Ver todos
+            </PublicRouteControl>
           </CardHeader>
           <CardContent className="space-y-3">
             {routePlansLoadError ? (

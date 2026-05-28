@@ -30,7 +30,7 @@ test("public layout wraps pages with navbar main landmark and footer", () => {
 test("navbar uses centralized public routes for primary navigation", () => {
   const source = read(NAVBAR_PATH);
 
-  assert.ok(source.includes('import Link from "next/link";'));
+  assert.ok(source.includes('import { useRouter } from "next/navigation";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
   assert.ok(source.includes('const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];'));
   assert.ok(source.includes('{ label: "Servicios", href: ROUTES.servicios }'));
@@ -93,23 +93,23 @@ test("navbar keeps expected public link order including precios", () => {
 test("navbar exposes home login and access CTAs with VETNEB brand", () => {
   const source = read(NAVBAR_PATH);
 
-  assert.ok(source.includes("href={ROUTES.home}"));
+  assert.ok(source.includes("router.push(ROUTES.home)"));
   assert.ok(source.includes('aria-label="VETNEB — Inicio"'));
   assert.ok(source.includes("rounded-md bg-primary px-3"));
   assert.ok(source.includes("font-bold text-primary-foreground"));
   assert.ok(source.includes("VETNEB"));
   assert.equal(source.includes(">VN<"), false);
   assert.equal(source.includes("Portal VETNEB"), false);
-  assert.ok(source.includes("href={ROUTES.login}"));
+  assert.ok(source.includes("router.push(ROUTES.login)"));
   assert.ok(source.includes("Iniciar sesión"));
-  assert.ok(source.includes("href={ROUTES.contacto}"));
+  assert.ok(source.includes("router.push(ROUTES.contacto)"));
   assert.ok(source.includes("Solicitar acceso"));
 });
 
 test("footer uses centralized public routes and contentinfo landmark", () => {
   const source = read(FOOTER_PATH);
 
-  assert.ok(source.includes('import Link from "next/link";'));
+  assert.ok(source.includes('import { useRouter } from "next/navigation";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
   assert.ok(source.includes('role="contentinfo"'));
   assert.ok(source.includes('const footerLinks = ['));
@@ -123,9 +123,9 @@ test("footer uses centralized public routes and contentinfo landmark", () => {
 test("footer exposes access links and legal copy without redundant brand block", () => {
   const source = read(FOOTER_PATH);
 
-  assert.ok(source.includes("href={ROUTES.login}"));
+  assert.ok(source.includes("router.push(ROUTES.login)"));
   assert.ok(source.includes("Iniciar sesión"));
-  assert.ok(source.includes("href={ROUTES.contacto}"));
+  assert.ok(source.includes("router.push(ROUTES.contacto)"));
   assert.ok(source.includes("Solicitar acceso"));
   assert.ok(source.includes("Todos los derechos reservados"));
   assert.equal(source.includes("Laboratorio veterinario digital — Argentina"), false);

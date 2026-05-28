@@ -16,7 +16,7 @@ test("dashboard admin defines non-indexable metadata and admin dependencies", ()
   const source = read(ADMIN_PAGE_PATH);
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
-  assert.ok(source.includes('import Link from "next/link";'));
+  assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('import { cookies } from "next/headers";'));
   assert.ok(source.includes('title: "Administración — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));

@@ -16,7 +16,7 @@ test("servicios page defines metadata JSON-LD and public layout wiring", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
-  assert.ok(source.includes('import Link from "next/link";'));
+  assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('import { PublicLayout } from "@/components/layout/PublicLayout";'));
   assert.ok(source.includes('import { createPageMetadata, getServicesJsonLd } from "@/lib/seo";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
@@ -70,7 +70,7 @@ test("servicios page exposes conversion CTAs and SEO copy", () => {
   assert.ok(source.includes("Diagnóstico integral para medicina veterinaria"));
   assert.ok(source.includes("Para tener en cuenta"));
   assert.ok(source.includes("Valores que guían el servicio"));
-  assert.ok(source.includes("veterinario confiable"));
+  assert.ok(source.includes("veterinaria confiable"));
 });
 
 test("servicios page remains public and avoids direct backend/API calls", () => {

@@ -73,7 +73,9 @@ test("home page exposes mobile professionals block before services", () => {
   assert.ok(source.includes("Buscá profesionales vinculados a VETNEB para derivaciones,"));
   assert.ok(source.includes("interconsultas y coordinación clínica."));
   assert.ok(source.includes('className="public-cta-primary w-full sm:w-auto"'));
-  assert.ok(source.includes("<Link href={ROUTES.profesionales}>Buscar profesionales</Link>"));
+  assert.ok(source.includes("<PublicRouteControl"));
+  assert.ok(source.includes("href={ROUTES.profesionales}"));
+  assert.equal(source.includes("<Link"), false);
 });
 
 test("home page lists core laboratory services and services route CTA", () => {
@@ -115,7 +117,7 @@ test("home page exposes final conversion CTA without private route metadata", ()
   assert.ok(source.includes("public-cta-primary"));
   assert.ok(source.includes("public-cta-on-hero"));
   assert.ok(source.includes("public-cta-outline"));
-  assert.ok(source.includes('variant="outline"'));
+  assert.ok(source.includes('variant="primaryLight"'));
   assert.equal(source.includes("bg-primary py-16 text-white md:py-20"), false);
   assert.equal(source.includes('"/dashboard"'), false);
   assert.equal(source.includes('"/api"'), false);

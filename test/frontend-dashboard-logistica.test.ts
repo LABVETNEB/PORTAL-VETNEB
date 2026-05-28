@@ -17,7 +17,7 @@ test("dashboard logistica defines non-indexable metadata and dependencies", () =
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
   assert.ok(source.includes('import { cookies } from "next/headers";'));
-  assert.ok(source.includes('import Link from "next/link";'));
+  assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('} from "lucide-react";'));
   assert.ok(source.includes('title: "Logística — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
