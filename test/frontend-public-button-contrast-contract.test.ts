@@ -14,6 +14,8 @@ const PARTICULARES_CONTENT_PATH =
 const CONTACTO_CONTENT_PATH = "frontend/src/components/public/ContactoContent.tsx";
 const LOGIN_CONTENT_PATH = "frontend/src/components/public/LoginContent.tsx";
 const NAVBAR_PATH = "frontend/src/components/layout/Navbar.tsx";
+const PUBLIC_ROUTE_CONTROL_PATH =
+  "frontend/src/components/public/PublicRouteControl.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -113,9 +115,23 @@ test("public pages use CTA contract classes and avoid low-contrast transparent h
   }
 
   assert.ok(home.includes("public-cta-on-hero"));
+  assert.ok(
+    home.includes(
+      'className="public-cta-on-hero w-full text-vetneb-navy hover:text-vetneb-navy active:text-vetneb-navy focus-visible:text-vetneb-navy sm:w-auto"',
+    ),
+  );
   assert.ok(clinicas.includes("public-cta-on-hero"));
   assert.equal(home.includes("bg-white/10 text-white"), false);
   assert.equal(clinicas.includes("bg-white/10 font-semibold text-white"), false);
+});
+
+test("secondaryOutline CTA variant keeps explicit readable text in all interaction states", () => {
+  const source = read(PUBLIC_ROUTE_CONTROL_PATH);
+
+  assert.ok(source.includes('text-vetneb-navy'));
+  assert.ok(source.includes("hover:text-vetneb-navy"));
+  assert.ok(source.includes("active:text-vetneb-navy"));
+  assert.ok(source.includes("focus-visible:text-vetneb-navy"));
 });
 
 test("login and particulares submit CTAs keep loading semantics and contract class", () => {

@@ -4,7 +4,10 @@ import { ClipboardCheck, FlaskConical, Microscope, Network } from "lucide-react"
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
-import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import {
+  PublicExternalControl,
+  PublicRouteControl,
+} from "@/components/public/PublicRouteControl";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { createPageMetadata } from "@/lib/seo";
@@ -123,7 +126,7 @@ export default function HomePage() {
                 <PublicRouteControl
                   href={ROUTES.particulares}
                   variant="secondaryOutline"
-                  className="public-cta-on-hero w-full sm:w-auto"
+                  className="public-cta-on-hero w-full text-vetneb-navy hover:text-vetneb-navy active:text-vetneb-navy focus-visible:text-vetneb-navy sm:w-auto"
                 >
                   Consultar informes 24 hs
                 </PublicRouteControl>
@@ -137,14 +140,13 @@ export default function HomePage() {
                   Horario de atención Lunes a viernes de 8 a 17hs
                 </p>
                 <p className="mt-1 text-xs">
-                  <a
+                  <PublicExternalControl
                     href="https://wa.me/5493534138946"
                     target="_blank"
-                    rel="noopener noreferrer"
                     className="font-semibold underline decoration-vetneb-navy/55 underline-offset-4 transition hover:text-vetneb-teal"
                   >
                     Whatsapp: 3534138946
-                  </a>
+                  </PublicExternalControl>
                 </p>
               </div>
             </div>
