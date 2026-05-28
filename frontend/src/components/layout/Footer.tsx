@@ -41,7 +41,7 @@ const faqItems = [
 ];
 
 const labInfo = [
-  "Villa María, Córdoba",
+  "Blvd. Italia 274 - Villa María - Córdoba",
   "Horario: Lunes a viernes de 8 a 17hs",
 ];
 
@@ -53,9 +53,10 @@ const footerLinks = [
   { label: "Contacto", href: ROUTES.contacto },
 ];
 
-const mapsCoordinates = "-32.412848872416426,-63.25287495004902";
-const mapsLocationUrl = `https://www.google.com/maps?q=${mapsCoordinates}`;
-const mapsEmbedUrl = `https://www.google.com/maps?output=embed&q=${mapsCoordinates}`;
+const mapsLocationUrl =
+  "https://www.google.com/maps?q=Blvd.%20Italia%20274%2C%20Villa%20Maria%2C%20Cordoba%2C%20Argentina";
+const mapsEmbedUrl =
+  "https://www.google.com/maps?output=embed&q=Blvd.%20Italia%20274%2C%20Villa%20Maria%2C%20Cordoba%2C%20Argentina";
 
 export function FooterFaq() {
   return (
@@ -216,10 +217,10 @@ export function Footer() {
                   Ubicación
                 </p>
                 <p className="mt-0.5 text-sm font-semibold leading-tight">
-                  Villa María, Córdoba
+                  Blvd. Italia 274, Villa María
                 </p>
                 <p className="mt-0.5 text-xs text-sidebar-foreground/90">
-                  Argentina
+                  Córdoba, Argentina
                 </p>
               </div>
             </div>
