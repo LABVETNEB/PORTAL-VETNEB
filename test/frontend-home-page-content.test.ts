@@ -12,17 +12,18 @@ function read(relativePath: string): string {
   );
 }
 
-test("home page defines public metadata and organization JSON-LD", () => {
+test("home page defines public metadata — organization JSON-LD is emitted by root layout", () => {
   const source = read(HOME_PAGE_PATH);
 
+  // Metadata
   assert.ok(source.includes('import type { Metadata } from "next";'));
-  assert.ok(source.includes('import { createPageMetadata, getOrganizationJsonLd, SITE_URL } from "@/lib/seo";'));
+  assert.ok(source.includes('import { createPageMetadata } from "@/lib/seo";'));
   assert.ok(source.includes("export const metadata: Metadata = createPageMetadata("));
   assert.ok(source.includes('"Portal VETNEB — Laboratorio Patológico Veterinario"'));
   assert.ok(source.includes('"/"'));
-  assert.ok(source.includes("const jsonLd = getOrganizationJsonLd();"));
-  assert.ok(source.includes('type="application/ld+json"'));
-  assert.ok(source.includes("dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}"));
+  // Organization JSON-LD is injected by layout.tsx to avoid duplication on the home page
+  assert.equal(source.includes("getOrganizationJsonLd"), false);
+  assert.equal(source.includes("const jsonLd ="), false);
 });
 
 test("home page exposes accessible hero and primary CTAs", () => {

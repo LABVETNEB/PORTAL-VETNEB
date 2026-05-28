@@ -170,32 +170,6 @@ export default function ServiciosPage() {
                   informes trazables para acompañar decisiones clínicas en cada
                   etapa del caso.
                 </p>
-                <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                  <Link
-                    href="/laboratorio-patologico-veterinario"
-                    className="sr-only"
-                  >
-                    Ver laboratorio patológico veterinario
-                  </Link>
-                  <Link
-                    href="/histopatologia-veterinaria"
-                    className="sr-only"
-                  >
-                    Ver histopatología veterinaria
-                  </Link>
-                  <Link
-                    href="/citologia-veterinaria"
-                    className="sr-only"
-                  >
-                    Ver citología veterinaria
-                  </Link>
-                  <Link
-                    href="/informes-veterinarios"
-                    className="sr-only"
-                  >
-                    Ver informes veterinarios
-                  </Link>
-                </div>
               </div>
             </PublicScrollReveal>
 

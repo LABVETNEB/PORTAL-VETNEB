@@ -79,7 +79,7 @@ test("veterinary diagnostic reports landing page keeps public editorial navigati
   assert.ok(source.includes('href="/contacto"'));
   assert.ok(source.includes("Consultar por informes"));
   assert.ok(source.includes('href="/servicios"'));
-  assert.ok(source.includes("VER MAS SERVICIOS"));
+  assert.ok(source.includes("Ver más servicios"));
   assert.ok(source.includes('href="/servicios"'));
   assert.equal(source.includes('"/dashboard"'), false);
   assert.equal(source.includes('href="/dashboard"'), false);
@@ -91,7 +91,7 @@ test("services page links editorially to veterinary diagnostic reports", () => {
   const source = read(SERVICES_PAGE_PATH);
 
   assert.ok(source.includes('id: "informes"'));
-  assert.ok(source.includes('href="/informes-veterinarios"'));
+  assert.ok(source.includes('href: "/informes-veterinarios"'));
   assert.ok(source.includes("Ver informes veterinarios"));
   assert.equal(source.includes('href="/dashboard"'), false);
 });

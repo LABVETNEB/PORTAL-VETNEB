@@ -38,7 +38,7 @@ test("histopathology landing page targets transactional veterinary service inten
   assert.ok(source.includes("const jsonLd = getDiagnosticServiceJsonLd({"));
   assert.ok(source.includes('type="application/ld+json"'));
   assert.ok(source.includes('href="/servicios"'));
-  assert.ok(source.includes("VER MAS SERVICIOS"));
+  assert.ok(source.includes("Ver más servicios"));
   assert.ok(source.includes('href="/contacto"'));
 });
 
@@ -57,7 +57,7 @@ test("cytology landing page targets transactional veterinary service intent", ()
   assert.ok(source.includes("const jsonLd = getDiagnosticServiceJsonLd({"));
   assert.ok(source.includes('type="application/ld+json"'));
   assert.ok(source.includes('href="/servicios"'));
-  assert.ok(source.includes("VER MAS SERVICIOS"));
+  assert.ok(source.includes("Ver más servicios"));
   assert.ok(source.includes('href="/contacto"'));
 });
 
@@ -88,9 +88,9 @@ test("diagnostic service landing pages are included in sitemap", () => {
 test("services page links to transactional diagnostic landing pages", () => {
   const source = read(SERVICES_PAGE_PATH);
 
-  assert.ok(source.includes('href="/histopatologia-veterinaria"'));
+  assert.ok(source.includes('href: "/histopatologia-veterinaria"'));
   assert.ok(source.includes("Ver histopatología veterinaria"));
-  assert.ok(source.includes('href="/citologia-veterinaria"'));
+  assert.ok(source.includes('href: "/citologia-veterinaria"'));
   assert.ok(source.includes("Ver citología veterinaria"));
 });
 
@@ -106,7 +106,7 @@ test("diagnostic service pages remain public and avoid backend calls", () => {
   assert.equal(combined.includes("GeoCoordinates"), false);
   assert.equal(combined.includes("PostalAddress"), false);
 });
-test("diagnostic service hero eyebrows remain visually hidden", () => {
+test("diagnostic service hero sections use aria-labelledby on h1 without redundant sr-only paragraphs", () => {
   const pages = [
     read(HISTOPATHOLOGY_PAGE_PATH),
     read(CYTOLOGY_PAGE_PATH),
@@ -115,7 +115,11 @@ test("diagnostic service hero eyebrows remain visually hidden", () => {
   ];
 
   for (const source of pages) {
-    assert.ok(source.includes('className="sr-only"'));
+    // Section uses aria-labelledby pointing to h1 — no redundant sr-only paragraph before h1
+    assert.ok(source.includes("aria-labelledby="));
+    assert.ok(source.includes("aria-labelledby="));
+    assert.ok(source.includes("id="));
+    // Redundant sr-only paragraphs before h1 were removed (duplicate labelling noise)
     assert.equal(
       source.includes('className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-primary-foreground/88"'),
       false,

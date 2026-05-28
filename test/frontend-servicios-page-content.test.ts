@@ -96,10 +96,10 @@ test("servicios page keeps one continuous soft canvas through middle sections", 
 test("servicios page hides service link typography while keeping link semantics", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
-  assert.ok(source.includes('href="/laboratorio-patologico-veterinario"'));
-  assert.ok(source.includes('href="/histopatologia-veterinaria"'));
-  assert.ok(source.includes('href="/citologia-veterinaria"'));
-  assert.ok(source.includes('href="/informes-veterinarios"'));
+  assert.ok(source.includes('href: "/laboratorio-patologico-veterinario"'));
+  assert.ok(source.includes('href: "/histopatologia-veterinaria"'));
+  assert.ok(source.includes('href: "/citologia-veterinaria"'));
+  assert.ok(source.includes('href: "/informes-veterinarios"'));
   assert.ok(source.includes('className="sr-only"'));
   assert.ok(source.includes("<span"));
   assert.ok(source.includes("{service.linkLabel}"));

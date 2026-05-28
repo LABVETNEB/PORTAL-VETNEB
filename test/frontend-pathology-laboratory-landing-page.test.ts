@@ -30,7 +30,7 @@ test("veterinary pathology laboratory landing page targets laboratory service in
   assert.ok(source.includes('"Laboratorio Patológico Veterinario | Anatomía Patológica Veterinaria"'));
   assert.ok(source.includes('"/laboratorio-patologico-veterinario"'));
   assert.ok(source.includes("Laboratorio patológico veterinario"));
-  assert.ok(source.includes("Anatomía patológica veterinaria"));
+  assert.ok(source.includes("anatomía patológica veterinaria"));
   assert.ok(source.includes("histopatología"));
   assert.ok(source.includes("citología"));
   assert.ok(source.includes("tinciones especiales"));
@@ -62,7 +62,7 @@ test("veterinary pathology laboratory landing page keeps public diagnostic navig
   assert.ok(source.includes('href="/contacto"'));
   assert.ok(source.includes("Solicitar coordinación diagnóstica"));
   assert.ok(source.includes('href="/servicios"'));
-  assert.ok(source.includes("VER MAS SERVICIOS"));
+  assert.ok(source.includes("Ver más servicios"));
   assert.ok(source.includes('href="/servicios"'));
 });
 
@@ -82,7 +82,7 @@ test("veterinary pathology laboratory landing page is included in sitemap", () =
 test("services page links to veterinary pathology laboratory landing page", () => {
   const source = read(SERVICES_PAGE_PATH);
 
-  assert.ok(source.includes('href="/laboratorio-patologico-veterinario"'));
+  assert.ok(source.includes('href: "/laboratorio-patologico-veterinario"'));
   assert.ok(source.includes("Ver laboratorio patológico veterinario"));
 });
 
@@ -101,15 +101,17 @@ test("veterinary pathology laboratory landing page remains public and verifiable
   assert.equal(source.includes("from 'gsap'"), false);
 });
 
-test("veterinary pathology laboratory related services card links to public services", () => {
+test("veterinary pathology laboratory related services card links to public services without nested anchors", () => {
   const source = read(PATHOLOGY_LAB_PAGE_PATH);
 
+  // Outer Link still wraps the entire card → /servicios
   assert.ok(source.includes('aria-labelledby="pathology-lab-related-heading"'));
   assert.ok(source.includes('href="/servicios"'));
-  assert.ok(source.includes('className="sr-only"'));
-  assert.ok(source.includes("Ver citología veterinaria"));
-  assert.ok(source.includes("Ver servicio patológico veterinario"));
+  // Nested sr-only Links removed — they created invalid nested anchor HTML (bug from #725 pattern)
+  assert.equal(source.includes("Ver citología veterinaria"), false);
+  assert.equal(source.includes("Ver servicio patológico veterinario"), false);
   assert.equal(source.includes('<span aria-hidden="true">Ver más</span>'), false);
+  // Hover effects remain on the card container
   assert.ok(source.includes("group-hover:bg-sky-50"));
   assert.ok(source.includes("group-hover:border-sky-300"));
   assert.ok(source.includes("group-hover:shadow-xl"));
