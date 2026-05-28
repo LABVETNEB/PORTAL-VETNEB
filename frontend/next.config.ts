@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const securityHeaders = [
   {
     key: "X-Content-Type-Options",
@@ -10,14 +12,25 @@ const securityHeaders = [
     value: "DENY",
   },
   {
-    key: "X-XSS-Protection",
-    value: "1; mode=block",
+    key: "Referrer-Policy",
+    value: "strict-origin-when-cross-origin",
   },
+  {
+    key: "Permissions-Policy",
+    value:
+      "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), hid=()",
+  },
+  ...(isProduction
+    ? [
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains",
+        },
+      ]
+    : []),
 ];
 
 const nextConfig: NextConfig = {
-  // El frontend se ejecuta como aplicación separada del backend Fastify
-  // En staging/producción, NEXT_PUBLIC_API_URL debe apuntar explícitamente al backend público
   compress: true,
   poweredByHeader: false,
   images: {
