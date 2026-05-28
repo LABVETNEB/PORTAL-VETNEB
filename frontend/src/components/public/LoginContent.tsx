@@ -196,7 +196,7 @@ export function LoginContent() {
                     id="password"
                     name="password"
                     type={isPasswordVisible ? "text" : "password"}
-                    data-auth-password-input="true"
+                    data-auth-credential-input="true"
                     placeholder="••••••••"
                     autoComplete="current-password"
                     required
@@ -213,7 +213,7 @@ export function LoginContent() {
                     aria-label={isPasswordVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
                     aria-pressed={isPasswordVisible}
                     aria-controls="password"
-                    data-auth-password-visibility-toggle="true"
+                    data-auth-credential-visibility-toggle="true"
                   >
                     {isPasswordVisible ? (
                       <EyeOff className="h-4 w-4" aria-hidden="true" />

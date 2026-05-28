@@ -62,8 +62,8 @@ test("login public page handles loading and error states", () => {
   assert.ok(source.includes("disabled={isSubmitting}"));
   assert.ok(source.includes('isSubmitting ? "Iniciando sesión..." : "Iniciar sesión"'));
   assert.ok(source.includes('data-auth-clinic-access-tab="true"'));
-  assert.ok(source.includes('data-auth-password-input="true"'));
-  assert.ok(source.includes('data-auth-password-visibility-toggle="true"'));
+  assert.ok(source.includes('data-auth-credential-input="true"'));
+  assert.ok(source.includes('data-auth-credential-visibility-toggle="true"'));
   assert.ok(source.includes('aria-controls="password"'));
   assert.ok(
     source.includes(
