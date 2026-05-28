@@ -53,8 +53,8 @@ const footerLinks = [
   { label: "Contacto", href: ROUTES.contacto },
 ];
 
-const mapsEmbedUrl =
-  "https://www.google.com/maps?q=Blvd.%20Italia%20274%2C%20Villa%20Maria%2C%20Cordoba%2C%20Argentina&output=embed";
+const mapsLocationUrl =
+  "https://www.google.com/maps?q=Blvd.%20Italia%20274%2C%20Villa%20Maria%2C%20Cordoba%2C%20Argentina";
 
 export function FooterFaq() {
   return (
@@ -200,14 +200,38 @@ export function Footer() {
           </div>
 
           <div className="overflow-hidden rounded-lg border border-white/12 bg-white/10 shadow-[0_12px_36px_rgba(0,0,0,0.18)]">
-            <iframe
-              title="Ubicación de Servicio Patológico VETNEB en Google Maps"
-              src={mapsEmbedUrl}
-              className="h-40 w-full"
-              loading="lazy"
-              allowFullScreen
-              referrerPolicy="no-referrer-when-downgrade"
-            />
+            <div className="relative h-40 overflow-hidden bg-gradient-to-br from-cyan-100 via-sky-100 to-slate-200">
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 opacity-70 [background-image:linear-gradient(to_right,rgba(15,45,62,0.10)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,45,62,0.10)_1px,transparent_1px)] [background-size:24px_24px]"
+              />
+              <div
+                aria-hidden="true"
+                className="absolute -left-4 top-6 h-12 w-44 rounded-full border border-sky-300/75 bg-sky-200/55"
+              />
+              <div
+                aria-hidden="true"
+                className="absolute right-[-2.5rem] top-14 h-16 w-52 rounded-full border border-cyan-300/75 bg-cyan-200/50"
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-white/86 p-3 backdrop-blur-[1px]">
+                <p className="text-xs font-semibold text-vetneb-navy">
+                  Blvd. Italia 274, Villa María
+                </p>
+                <p className="text-[11px] text-vetneb-navy/80">
+                  Córdoba, Argentina
+                </p>
+              </div>
+            </div>
+            <div className="border-t border-white/18 bg-sidebar/88 p-3">
+              <PublicExternalControl
+                href={mapsLocationUrl}
+                target="_blank"
+                aria-label="Ver ubicación del laboratorio en Google Maps"
+                className="inline-flex w-full items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-vetneb-navy shadow-sm transition-colors hover:bg-vetneb-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+              >
+                Ver ubicación en Maps
+              </PublicExternalControl>
+            </div>
           </div>
         </div>
       </section>
