@@ -199,27 +199,37 @@ export function Footer() {
             </ul>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-white/12 bg-white/10 shadow-[0_12px_36px_rgba(0,0,0,0.18)]">
-            <div className="relative h-40 overflow-hidden bg-gradient-to-br from-cyan-100 via-sky-100 to-slate-200">
+          <div className="overflow-hidden rounded-xl border border-white/14 bg-[linear-gradient(165deg,rgba(255,255,255,0.16),rgba(255,255,255,0.08))] shadow-[0_14px_38px_rgba(0,0,0,0.22)]">
+            <div className="relative overflow-hidden p-4">
               <div
                 aria-hidden="true"
-                className="absolute inset-0 opacity-70 [background-image:linear-gradient(to_right,rgba(15,45,62,0.10)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,45,62,0.10)_1px,transparent_1px)] [background-size:24px_24px]"
+                className="absolute inset-0 opacity-45 [background-image:radial-gradient(rgba(156,214,231,0.32)_1px,transparent_1px)] [background-size:16px_16px]"
               />
               <div
                 aria-hidden="true"
-                className="absolute -left-4 top-6 h-12 w-44 rounded-full border border-sky-300/75 bg-sky-200/55"
+                className="absolute -left-7 top-5 h-20 w-24 rounded-full border border-cyan-200/35"
               />
               <div
                 aria-hidden="true"
-                className="absolute right-[-2.5rem] top-14 h-16 w-52 rounded-full border border-cyan-300/75 bg-cyan-200/50"
+                className="absolute bottom-[-1.2rem] right-[-2.2rem] h-24 w-36 rounded-full border border-sky-200/30"
               />
-              <div className="absolute inset-x-0 bottom-0 bg-white/86 p-3 backdrop-blur-[1px]">
-                <p className="text-xs font-semibold text-vetneb-navy">
-                  Blvd. Italia 274, Villa María
-                </p>
-                <p className="text-[11px] text-vetneb-navy/80">
-                  Córdoba, Argentina
-                </p>
+              <div className="relative rounded-lg border border-white/16 bg-sidebar/72 p-4 backdrop-blur-[1px]">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cyan-200/22 text-cyan-100 ring-1 ring-cyan-100/30">
+                    <MapPin className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100/92">
+                      Ubicación
+                    </p>
+                    <p className="mt-1 text-sm font-semibold leading-tight text-white">
+                      Blvd. Italia 274, Villa María
+                    </p>
+                    <p className="mt-1 text-xs text-sidebar-foreground/86">
+                      Córdoba, Argentina
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="border-t border-white/18 bg-sidebar/88 p-3">
@@ -227,7 +237,7 @@ export function Footer() {
                 href={mapsLocationUrl}
                 target="_blank"
                 aria-label="Ver ubicación del laboratorio en Google Maps"
-                className="inline-flex w-full items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-vetneb-navy shadow-sm transition-colors hover:bg-vetneb-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+                className="inline-flex w-full items-center justify-center rounded-md border border-white/22 bg-white px-3 py-2 text-sm font-semibold text-vetneb-navy shadow-[0_6px_14px_rgba(255,255,255,0.22)] transition-colors hover:bg-vetneb-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar/80"
               >
                 Ver ubicación en Maps
               </PublicExternalControl>
