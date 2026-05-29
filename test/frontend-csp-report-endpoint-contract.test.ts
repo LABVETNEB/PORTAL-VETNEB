@@ -217,3 +217,57 @@ test("POST does not echo raw payload in response body", async () => {
   const text = await res.text();
   assert.equal(text, "", "204 response must have empty body");
 });
+
+// ─── Payload contract additions (#752) ───────────────────────────────────────
+// Browsers send content-type parameters (charset), flat bodies without the
+// csp-report wrapper, application/json as a fallback, and Reporting API batches
+// that may contain mixed report types. These four cases were not covered above.
+
+test("POST accepts application/csp-report with charset parameter (browsers send this)", async () => {
+  // Browsers commonly send: Content-Type: application/csp-report; charset=utf-8
+  // extractBaseContentType() must strip the parameter before the Set lookup.
+  const body = JSON.stringify({
+    "csp-report": { "violated-directive": "script-src" },
+  });
+  const res = await POST(
+    makeRequest(body, "application/csp-report; charset=utf-8"),
+  );
+  assert.equal(
+    res.status,
+    204,
+    "content-type with charset parameter must not be rejected as 415",
+  );
+});
+
+test("POST accepts application/json content type (functional)", async () => {
+  // application/json is listed as an accepted fallback for tests / curl.
+  // Verify the functional path, not just the source constant.
+  const body = JSON.stringify({
+    "csp-report": { "violated-directive": "style-src" },
+  });
+  const res = await POST(makeRequest(body, "application/json"));
+  assert.equal(res.status, 204);
+});
+
+test("POST returns 204 for flat body without csp-report wrapper", async () => {
+  // pickReportBody() treats a bare object with no recognized wrapper as flat body.
+  // This covers test clients and edge cases where browsers omit the wrapper.
+  const body = JSON.stringify({
+    effectiveDirective: "img-src",
+    documentURL: "https://example.test/page",
+    disposition: "report",
+  });
+  const res = await POST(makeRequest(body));
+  assert.equal(res.status, 204);
+});
+
+test("POST returns 204 silently for Reporting API array with no csp-violation entries", async () => {
+  // A browser may batch mixed report types. Entries with unknown types must be
+  // ignored gracefully. pickReportBody() returns null; endpoint must still 204.
+  const body = JSON.stringify([
+    { type: "deprecation", age: 0, url: "https://example.test/", body: {} },
+    { type: "intervention", age: 0, url: "https://example.test/", body: {} },
+  ]);
+  const res = await POST(makeRequest(body, "application/reports+json"));
+  assert.equal(res.status, 204);
+});
