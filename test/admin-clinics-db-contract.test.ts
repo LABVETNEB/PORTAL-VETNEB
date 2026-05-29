@@ -216,3 +216,183 @@ test("toIsoDate acepta Date o string devuelto por raw SQL postgres-js", () => {
     "toIsoDate debe validar fechas inválidas",
   );
 });
+
+/* ============================================================================
+ * Contrato global: clínica registrada debe poder iniciar sesión por username
+ * o por contact_email. Tests source-only sobre server/db-admin-clinics.ts y
+ * server/db.ts. No tocan DB, no exponen secretos, no validan frontend.
+ * ========================================================================== */
+
+test("createAdminClinicWithUser persiste contact_email aplicando trim al input", () => {
+  const source = read("server/db-admin-clinics.ts");
+
+  const fnStart = source.indexOf(
+    "export async function createAdminClinicWithUser(",
+  );
+  assert.ok(fnStart >= 0, "createAdminClinicWithUser debe estar exportado");
+
+  const fnEnd = source.indexOf("\nexport ", fnStart + 1);
+  const fnBody = source.slice(fnStart, fnEnd === -1 ? source.length : fnEnd);
+
+  assert.ok(
+    fnBody.includes("input.contactEmail.trim()"),
+    "createAdminClinicWithUser debe persistir contactEmail con .trim() en ambas ramas (legacy + drizzle)",
+  );
+
+  const trimOccurrences =
+    (fnBody.match(/input\.contactEmail\.trim\(\)/g) ?? []).length;
+  assert.ok(
+    trimOccurrences >= 2,
+    "se esperan al menos 2 usos de input.contactEmail.trim() (legacy raw SQL + drizzle insert), encontrados: " +
+      String(trimOccurrences),
+  );
+});
+
+test("createAdminClinicWithUser asocia el clinic_user creado al clinic recién insertado vía clinicId", () => {
+  const source = read("server/db-admin-clinics.ts");
+
+  const fnStart = source.indexOf(
+    "export async function createAdminClinicWithUser(",
+  );
+  const fnEnd = source.indexOf("\nexport ", fnStart + 1);
+  const fnBody = source.slice(fnStart, fnEnd === -1 ? source.length : fnEnd);
+
+  assert.ok(
+    fnBody.includes("const clinic = insertedClinics[0]"),
+    "debe tomar la clínica recién insertada como referencia para el user",
+  );
+  assert.ok(
+    fnBody.includes(".insert(clinicUsers)"),
+    "debe insertar el clinic_user en la misma transacción",
+  );
+  assert.ok(
+    fnBody.includes("clinicId: clinic.clinicId"),
+    "el clinic_user debe asociarse al clinicId de la clínica recién creada",
+  );
+});
+
+test("createAdminClinicWithUser persiste username trim y role del input en clinic_user", () => {
+  const source = read("server/db-admin-clinics.ts");
+
+  const fnStart = source.indexOf(
+    "export async function createAdminClinicWithUser(",
+  );
+  const fnEnd = source.indexOf("\nexport ", fnStart + 1);
+  const fnBody = source.slice(fnStart, fnEnd === -1 ? source.length : fnEnd);
+
+  assert.ok(
+    fnBody.includes("const username = input.username.trim()"),
+    "debe normalizar input.username con trim() antes de persistir",
+  );
+
+  const userInsertStart = fnBody.indexOf(".insert(clinicUsers)");
+  assert.ok(userInsertStart >= 0, "debe existir insert sobre clinicUsers");
+
+  const userInsertBlock = fnBody.slice(userInsertStart, userInsertStart + 600);
+  assert.ok(
+    userInsertBlock.includes("username,"),
+    "el insert de clinic_user debe persistir el username normalizado",
+  );
+  assert.ok(
+    userInsertBlock.includes("role: input.role"),
+    "el insert de clinic_user debe persistir el role recibido por input",
+  );
+  assert.ok(
+    userInsertBlock.includes("passwordHash: input.passwordHash"),
+    "el insert de clinic_user debe persistir el passwordHash (no hardcoded)",
+  );
+});
+
+test("getClinicUserByIdentifier en server/db.ts resuelve por username y por clinics.contact_email con lower(trim(...))", () => {
+  const source = read("server/db.ts");
+
+  const fnStart = source.indexOf(
+    "export async function getClinicUserByIdentifier(",
+  );
+  assert.ok(
+    fnStart >= 0,
+    "getClinicUserByIdentifier debe existir y estar exportado en server/db.ts",
+  );
+
+  const fnEnd = source.indexOf("\nexport ", fnStart + 1);
+  const fnBody = source.slice(fnStart, fnEnd === -1 ? source.length : fnEnd);
+
+  assert.ok(
+    fnBody.includes("identifier.trim()") ||
+      fnBody.includes("normalizeLoginIdentifierForLookup"),
+    "getClinicUserByIdentifier debe normalizar el identifier con trim() (directo o por helper)",
+  );
+
+  assert.ok(
+    fnBody.includes("eq(clinicUsers.username,"),
+    "debe matchear por clinicUsers.username (rama username)",
+  );
+
+  assert.ok(
+    fnBody.includes("lower(trim(") &&
+      fnBody.includes("clinics.contactEmail"),
+    "debe matchear por lower(trim(clinics.contactEmail)) (rama email contacto de la clínica)",
+  );
+
+  assert.ok(
+    fnBody.includes(".limit(1)"),
+    "debe limitar a un solo registro",
+  );
+});
+
+test("getClinicUserByIdentifier usa join con clinics y NO referencia columna inexistente clinic_users.email", () => {
+  const source = read("server/db.ts");
+
+  const fnStart = source.indexOf(
+    "export async function getClinicUserByIdentifier(",
+  );
+  const fnEnd = source.indexOf("\nexport ", fnStart + 1);
+  const fnBody = source.slice(fnStart, fnEnd === -1 ? source.length : fnEnd);
+
+  assert.ok(
+    fnBody.includes("leftJoin(clinics,") ||
+      fnBody.includes("innerJoin(clinics,"),
+    "debe hacer join sobre la tabla clinics para acceder a contact_email (la columna no vive en clinic_users)",
+  );
+
+  assert.ok(
+    fnBody.includes("clinicUsers.clinicId") &&
+      fnBody.includes("clinics.id"),
+    "el join debe ser por clinicUsers.clinicId = clinics.id",
+  );
+
+  assert.equal(
+    fnBody.includes("clinicUsers.email"),
+    false,
+    "NO debe referenciar clinicUsers.email: esa columna no existe en el schema",
+  );
+  assert.equal(
+    /\bclinic_users\.email\b/.test(fnBody),
+    false,
+    "NO debe referenciar clinic_users.email como columna: vive en clinics.contact_email",
+  );
+});
+
+test("getClinicUserByIdentifier devuelve la forma mínima esperada por el contrato de auth (id, clinicId, username, passwordHash, authProId, role)", () => {
+  const source = read("server/db.ts");
+
+  const fnStart = source.indexOf(
+    "export async function getClinicUserByIdentifier(",
+  );
+  const fnEnd = source.indexOf("\nexport ", fnStart + 1);
+  const fnBody = source.slice(fnStart, fnEnd === -1 ? source.length : fnEnd);
+
+  for (const field of [
+    "id: clinicUsers.id",
+    "clinicId: clinicUsers.clinicId",
+    "username: clinicUsers.username",
+    "passwordHash: clinicUsers.passwordHash",
+    "authProId: clinicUsers.authProId",
+    "role: clinicUsers.role",
+  ]) {
+    assert.ok(
+      fnBody.includes(field),
+      "getClinicUserByIdentifier debe seleccionar el campo: " + field,
+    );
+  }
+});
