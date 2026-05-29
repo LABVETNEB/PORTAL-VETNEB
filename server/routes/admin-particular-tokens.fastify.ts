@@ -41,6 +41,10 @@ type ClinicRecord = {
   id: number;
 };
 
+type ParticularTokenEmailResult =
+  | { sent: true; messageId: string }
+  | { sent: false; reason: "no_recipients" | "smtp_disabled" };
+
 type AuthenticatedAdminUser = {
   id: number;
   username: string;
@@ -96,6 +100,12 @@ export type AdminParticularTokensNativeRoutesOptions = {
   revokeParticularToken?: (
     id: number,
   ) => Promise<ParticularToken | null | undefined>;
+  sendParticularTokenEmail?: (input: {
+    to: string;
+    token: string;
+    tutorLastName: string;
+    petName: string;
+  }) => Promise<ParticularTokenEmailResult>;
   now?: () => number;
 };
 
@@ -122,6 +132,7 @@ type NativeAdminParticularTokensDeps = Required<
     | "listParticularTokens"
     | "updateParticularTokenReport"
     | "revokeParticularToken"
+    | "sendParticularTokenEmail"
   >
 >;
 
@@ -133,6 +144,7 @@ async function loadDefaultDeps(): Promise<NativeAdminParticularTokensDeps> {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const dbParticular = await import("../db-particular.ts");
+      const email = await import("../lib/email.ts");
 
       return {
         deleteAdminSession: db.deleteAdminSession,
@@ -148,6 +160,7 @@ async function loadDefaultDeps(): Promise<NativeAdminParticularTokensDeps> {
         listParticularTokens: dbParticular.listParticularTokens,
         updateParticularTokenReport: dbParticular.updateParticularTokenReport,
         revokeParticularToken: dbParticular.revokeParticularToken,
+        sendParticularTokenEmail: email.sendParticularTokenEmail,
       };
     })();
   }
@@ -359,6 +372,26 @@ function buildClearAdminSessionCookie() {
   });
 }
 
+function getSafeErrorName(error: unknown) {
+  return error instanceof Error && error.name.trim()
+    ? error.name
+    : "unknown_error";
+}
+
+async function revokeParticularTokenAfterEmailFailure(
+  deps: NativeAdminParticularTokensDeps,
+  tokenId: number,
+) {
+  try {
+    await deps.revokeParticularToken(tokenId);
+  } catch (error) {
+    console.error("[EMAIL] particular_token cleanup failed", {
+      tokenId,
+      errorName: getSafeErrorName(error),
+    });
+  }
+}
+
 
 async function authenticateAdminUser(
   request: FastifyRequest,
@@ -438,7 +471,8 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
     !!options.getParticularTokenById &&
     !!options.listParticularTokens &&
     !!options.updateParticularTokenReport &&
-    !!options.revokeParticularToken;
+    !!options.revokeParticularToken &&
+    !!options.sendParticularTokenEmail;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -469,6 +503,9 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       defaultDeps!.updateParticularTokenReport,
     revokeParticularToken:
       options.revokeParticularToken ?? defaultDeps!.revokeParticularToken,
+    sendParticularTokenEmail:
+      options.sendParticularTokenEmail ??
+      defaultDeps!.sendParticularTokenEmail,
   };
 
   const now = options.now ?? (() => Date.now());
@@ -547,6 +584,7 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       detailsLesion?: unknown;
       extractionDate?: unknown;
       shippingDate?: unknown;
+      recipientEmail?: unknown;
     };
   }>("/", async (request, reply) => {
     if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
@@ -620,6 +658,40 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       isActive: true,
       lastLoginAt: null,
     });
+
+    try {
+      const emailResult = await deps.sendParticularTokenEmail({
+        to: parsed.data.recipientEmail,
+        token: rawToken,
+        tutorLastName: parsed.data.tutorLastName,
+        petName: parsed.data.petName,
+      });
+
+      if (!emailResult.sent) {
+        await revokeParticularTokenAfterEmailFailure(deps, particularToken.id);
+
+        return reply.code(503).send({
+          success: false,
+          reason: emailResult.reason,
+          error:
+            "No se pudo enviar el email del token particular. El token fue desactivado; reintentá la generación cuando el servicio de email esté disponible.",
+        });
+      }
+    } catch (error) {
+      await revokeParticularTokenAfterEmailFailure(deps, particularToken.id);
+
+      console.error("[EMAIL] particular_token failed", {
+        tokenId: particularToken.id,
+        errorName: getSafeErrorName(error),
+      });
+
+      return reply.code(502).send({
+        success: false,
+        reason: "email_delivery_failed",
+        error:
+          "No se pudo enviar el email del token particular. El token fue desactivado; reintentá la generación más tarde.",
+      });
+    }
 
     return reply.code(201).send({
       success: true,

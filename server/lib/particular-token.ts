@@ -24,6 +24,11 @@ const reportIdSchema = z.union([
 ]);
 
 export const particularTokenBaseSchema = z.object({
+  recipientEmail: z
+    .string()
+    .trim()
+    .email("Email del particular inválido")
+    .max(255, "Email del particular no puede superar 255 caracteres"),
   tutorLastName: requiredText(255, "Tutor: apellido"),
   petName: requiredText(255, "Mascota: nombre"),
   petAge: requiredText(100, "Mascota: edad"),

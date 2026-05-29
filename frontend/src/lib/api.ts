@@ -449,6 +449,7 @@ export type AdminParticularTokenReportLinkResponse = {
 export type AdminParticularTokenCreatePayload = {
   clinicId: number;
   reportId?: number | null;
+  recipientEmail: string;
   tutorLastName: string;
   petName: string;
   petAge: string;
@@ -564,6 +565,7 @@ export type ClinicParticularTokensSnapshot = {
 
 export type ClinicParticularTokenCreatePayload = {
   reportId?: number | null;
+  recipientEmail: string;
   tutorLastName: string;
   petName: string;
   petAge: string;
