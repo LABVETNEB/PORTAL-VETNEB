@@ -854,3 +854,124 @@ test("clinicAuthNativeRoutes persiste failed login sin secretos", async () => {
     await app.close();
   }
 });
+
+test(
+  "clinicAuthNativeRoutes clínica registrada con hash argon2 puede iniciar sesión",
+  async () => {
+    const { hashPassword, verifyPassword } = await import(
+      "../server/lib/auth-security.ts"
+    );
+
+    const storedHash = await hashPassword("clave-inicial-segura");
+    const sessionCalls: Array<{
+      clinicUserId: number;
+      tokenHash: string;
+      expiresAt: Date;
+    }> = [];
+
+    const app = await createTestApp({
+      now: () => Date.UTC(2026, 4, 1, 0, 0, 0),
+      getClinicUserByUsername: async (username: string) => {
+        if (username === "clinica-registrada") {
+          return {
+            id: 99,
+            clinicId: 7,
+            username: "clinica-registrada",
+            passwordHash: storedHash,
+            authProId: null,
+            role: "clinic_owner",
+          };
+        }
+        return null;
+      },
+      verifyPassword,
+      generateSessionToken: () => "real-session-token",
+      hashSessionToken: (token: string) => `hash:${token}`,
+      createActiveSession: async (input: {
+        clinicUserId: number;
+        tokenHash: string;
+        expiresAt: Date;
+      }) => {
+        sessionCalls.push(input);
+      },
+      writeAuditLog: async () => {},
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        headers: { origin: "http://localhost:3000" },
+        payload: { username: "clinica-registrada", password: "clave-inicial-segura" },
+      });
+
+      assert.equal(response.statusCode, 200);
+
+      const body = JSON.parse(response.body);
+
+      assert.equal(body.success, true);
+      assert.equal(body.clinicUser.id, 99);
+      assert.equal(body.clinicUser.clinicId, 7);
+      assert.equal(body.clinicUser.username, "clinica-registrada");
+      assert.equal(body.clinicUser.role, "clinic_owner");
+      assert.equal(body.clinicUser.passwordHash, undefined);
+
+      assert.equal(sessionCalls.length, 1);
+      assert.equal(sessionCalls[0].clinicUserId, 99);
+      assert.equal(sessionCalls[0].tokenHash, "hash:real-session-token");
+
+      const setCookie = getSetCookieHeader(response);
+
+      assert.ok(setCookie.includes(`${ENV.cookieName}=`));
+      assert.ok(setCookie.includes("HttpOnly"));
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicAuthNativeRoutes password incorrecto rechaza clínica registrada",
+  async () => {
+    const { hashPassword, verifyPassword } = await import(
+      "../server/lib/auth-security.ts"
+    );
+
+    const storedHash = await hashPassword("clave-correcta-123");
+
+    const app = await createTestApp({
+      getClinicUserByUsername: async (username: string) => {
+        if (username === "clinica-registrada") {
+          return {
+            id: 99,
+            clinicId: 7,
+            username: "clinica-registrada",
+            passwordHash: storedHash,
+            authProId: null,
+            role: "clinic_owner",
+          };
+        }
+        return null;
+      },
+      verifyPassword,
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        headers: { origin: "http://localhost:3000" },
+        payload: { username: "clinica-registrada", password: "clave-incorrecta" },
+      });
+
+      assert.equal(response.statusCode, 401);
+
+      const body = JSON.parse(response.body);
+
+      assert.equal(body.success, false);
+      assert.ok(typeof body.error === "string" && body.error.length > 0);
+    } finally {
+      await app.close();
+    }
+  },
+);

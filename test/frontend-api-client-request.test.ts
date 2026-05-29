@@ -96,3 +96,29 @@ test("frontend API client handles empty and JSON responses", () => {
   assert.ok(source.includes("return undefined as T;"));
   assert.ok(source.includes("return res.json() as Promise<T>;"));
 });
+
+const NEXT_CONFIG_PATH = "frontend/next.config.ts";
+
+test("resolveApiBaseUrlForRuntime retorna path relativo para que la cookie quede en el dominio del frontend", () => {
+  const source = read(API_CLIENT_PATH);
+
+  assert.ok(
+    source.includes('return "";'),
+    "con NEXT_PUBLIC_API_URL configurado debe retornar string vacío y dejar que las rewrites proxyen la llamada",
+  );
+});
+
+test("next.config.ts declara rewrites que proxyan /api/** al backend cuando NEXT_PUBLIC_API_URL está configurado", () => {
+  const source = read(NEXT_CONFIG_PATH);
+
+  assert.ok(source.includes("async rewrites()"), "debe exportar rewrites()");
+  assert.ok(source.includes('source: "/api/:path*"'), "debe reescribir /api/**");
+  assert.ok(
+    source.includes("NEXT_PUBLIC_API_URL"),
+    "debe leer NEXT_PUBLIC_API_URL para la destination",
+  );
+  assert.ok(
+    source.includes('destination: `${apiUrl}/api/:path*`'),
+    "destination debe proxiar al backend",
+  );
+});
