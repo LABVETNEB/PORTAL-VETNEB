@@ -268,6 +268,10 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
       const dbParticular = await import("../db-particular.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const audit = await import("../lib/audit.ts");
+      const getClinicUserByIdentifier = async (identifier: string) =>
+        (await db.getClinicUserByIdentifier(identifier)) ?? null;
+      const getAdminUserByIdentifier = async (identifier: string) =>
+        (await db.getAdminUserByIdentifier(identifier)) ?? null;
 
       return {
         createActiveSession: db.createActiveSession,
@@ -275,7 +279,7 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
         getActiveSessionByToken: db.getActiveSessionByToken,
         getClinicUserById: db.getClinicUserById,
         getClinicUserByUsername: db.getClinicUserByUsername,
-        getClinicUserByIdentifier: db.getClinicUserByIdentifier,
+        getClinicUserByIdentifier,
         updateSessionLastAccess: db.updateSessionLastAccess,
         upsertClinicUser: db.upsertClinicUser,
         generateSessionToken: authSecurity.generateSessionToken,
@@ -284,7 +288,7 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
         verifyPassword: authSecurity.verifyPassword,
         createAdminSession: db.createAdminSession,
         getAdminUserByUsername: db.getAdminUserByUsername,
-        getAdminUserByIdentifier: db.getAdminUserByIdentifier,
+        getAdminUserByIdentifier,
         writeAdminAuditLog: audit.writeAuditLog as (
           req: unknown,
           input: AdminAuditWriteInput,
@@ -309,7 +313,12 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
     })();
   }
 
-  return defaultDepsPromise;
+  const depsPromise = defaultDepsPromise;
+  if (!depsPromise) {
+    throw new Error("No se pudieron inicializar dependencias de autenticación");
+  }
+
+  return depsPromise;
 }
 
 function getAllowedOrigins(): string[] {
