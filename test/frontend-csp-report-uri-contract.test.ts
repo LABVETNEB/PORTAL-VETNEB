@@ -160,3 +160,96 @@ test("HSTS still has no preload (per #745 contract)", () => {
     `HSTS must NOT include preload, got: ${hstsValueMatch![0]}`,
   );
 });
+
+// ─── Smoke: CSP reporting header assembly for the 3 NEXT_PUBLIC_SITE_URL scenarios ─────
+//
+// next.config.ts cannot be imported directly in this test runner because it uses
+// the bare specifier "./src/lib/security/csp-policy" (no .ts extension) which
+// --experimental-specifier-resolution=node does not resolve for TypeScript files.
+// The smoke below replicates the assembly from buildSecurityHeaders() using the
+// same exported builders; source-text assertions above already confirm
+// next.config.ts wires these builders in exactly this pattern.
+
+type SmokeHeaders = {
+  cspReportOnly: string;
+  reportingEndpoints: string | null;
+};
+
+function assembleReportingHeaders(siteUrl: string | null | undefined): SmokeHeaders {
+  const reportingConfig = buildCspReportingEndpointConfig(siteUrl);
+  return {
+    cspReportOnly: buildReportOnlyCsp({
+      reportUri: CSP_REPORT_URI_PATH,
+      reportTo: reportingConfig?.reportToGroup,
+    }),
+    reportingEndpoints: reportingConfig?.reportingEndpointsHeaderValue ?? null,
+  };
+}
+
+test("smoke(no siteUrl): Content-Security-Policy-Report-Only present, report-uri /api/security/csp-report present, no report-to, no Reporting-Endpoints", () => {
+  const { cspReportOnly, reportingEndpoints } = assembleReportingHeaders(null);
+
+  assert.ok(cspReportOnly, "Content-Security-Policy-Report-Only value must be non-empty");
+  assert.match(
+    cspReportOnly,
+    new RegExp(`report-uri\\s+${CSP_REPORT_URI_PATH.replaceAll("/", "\\/")}`),
+    "report-uri /api/security/csp-report must be present",
+  );
+  assert.doesNotMatch(
+    cspReportOnly,
+    /\breport-to\b/,
+    "report-to must not appear without a trusted canonical origin",
+  );
+  assert.equal(
+    reportingEndpoints,
+    null,
+    "Reporting-Endpoints must not be emitted without a trusted canonical origin",
+  );
+});
+
+test("smoke(secure siteUrl): Content-Security-Policy-Report-Only present, report-uri present, report-to csp-endpoint present, Reporting-Endpoints points to canonical endpoint", () => {
+  const siteUrl = "https://example.com";
+  const { cspReportOnly, reportingEndpoints } = assembleReportingHeaders(siteUrl);
+
+  assert.ok(cspReportOnly, "Content-Security-Policy-Report-Only value must be non-empty");
+  assert.match(
+    cspReportOnly,
+    new RegExp(`report-uri\\s+${CSP_REPORT_URI_PATH.replaceAll("/", "\\/")}`),
+    "report-uri /api/security/csp-report must be present",
+  );
+  assert.match(
+    cspReportOnly,
+    new RegExp(`\\breport-to\\s+${CSP_REPORT_TO_GROUP}\\b`),
+    "report-to csp-endpoint must be present with a trusted canonical origin",
+  );
+  assert.ok(
+    reportingEndpoints,
+    "Reporting-Endpoints must be emitted with a trusted canonical origin",
+  );
+  assert.equal(
+    reportingEndpoints,
+    `${CSP_REPORT_TO_GROUP}="${siteUrl}${CSP_REPORT_URI_PATH}"`,
+    "Reporting-Endpoints must point to the canonical CSP report endpoint using normalized origin",
+  );
+});
+
+test("smoke(insecure siteUrl): report-uri /api/security/csp-report preserved, no report-to, no Reporting-Endpoints", () => {
+  const { cspReportOnly, reportingEndpoints } = assembleReportingHeaders("http://example.com");
+
+  assert.ok(cspReportOnly, "Content-Security-Policy-Report-Only value must be non-empty");
+  assert.match(
+    cspReportOnly,
+    new RegExp(`report-uri\\s+${CSP_REPORT_URI_PATH.replaceAll("/", "\\/")}`),
+    "report-uri /api/security/csp-report must still be present with an insecure origin",
+  );
+  assert.doesNotMatch(
+    cspReportOnly,
+    /\breport-to\b/,
+    "report-to must not appear with an insecure (http) origin",
+  );
+  assert.equal(
+    reportingEndpoints,
+    null,
+    "Reporting-Endpoints must not be emitted with an insecure (http) origin",
+  );
+});
