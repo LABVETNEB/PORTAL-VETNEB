@@ -299,3 +299,17 @@ test("frontend CSP report route file is at the correct App Router path and expor
     cspPolicyFile,
   );
 });
+
+test("next.config.ts declara Content-Security-Policy-Report-Only y no el enforcing", () => {
+  // Production invariant: Report-Only must always be emitted.
+  // Enforcing Content-Security-Policy must remain absent until a dedicated PR
+  // with violation evidence is opened (see docs/security/csp-reporting-rollout.md).
+  const file = "frontend/next.config.ts";
+  const source = read(file);
+
+  assertContains(source, 'key: "Content-Security-Policy-Report-Only"', file);
+
+  // 'key: "Content-Security-Policy"' with a closing quote is NOT a substring of
+  // 'key: "Content-Security-Policy-Report-Only"', so this guard is unambiguous.
+  assertNotContains(source, 'key: "Content-Security-Policy"', file);
+});
