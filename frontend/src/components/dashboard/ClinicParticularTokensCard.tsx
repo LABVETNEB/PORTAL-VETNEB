@@ -54,10 +54,11 @@ const INITIAL_FORM_STATE: ClinicParticularTokenFormState = {
 const REQUIRED_FIELD_LABELS: Array<{
   key: keyof Omit<
     ClinicParticularTokenFormState,
-    "reportId" | "particularEmail"
+    "reportId"
   >;
   label: string;
 }> = [
+  { key: "particularEmail", label: "Email del particular" },
   { key: "tutorLastName", label: "Apellido del tutor" },
   { key: "petName", label: "Nombre del paciente" },
   { key: "petAge", label: "Edad" },
@@ -133,6 +134,7 @@ function buildPayload(
 
   return {
     reportId: parseOptionalReportId(formState.reportId),
+    recipientEmail: normalizeText(formState.particularEmail),
     tutorLastName: normalizeText(formState.tutorLastName),
     petName: normalizeText(formState.petName),
     petAge: normalizeText(formState.petAge),
@@ -352,6 +354,7 @@ export function ClinicParticularTokensCard() {
                 name="particularEmail"
                 type="email"
                 placeholder="email@ejemplo.com"
+                required
                 value={formState.particularEmail}
                 onChange={(event) =>
                   updateField("particularEmail", event.target.value)
@@ -363,8 +366,8 @@ export function ClinicParticularTokensCard() {
                 id="clinic-token-particular-email-help"
                 className="mt-1 text-xs text-muted-foreground"
               >
-                Opcional. Se usa solo para preparar la comunicación manual del
-                token; no se envía automáticamente.
+                Obligatorio. El backend enviará el token a este email usando la
+                configuración de correo de VETNEB.
               </p>
             </div>
 
@@ -594,15 +597,14 @@ export function ClinicParticularTokensCard() {
                   IMPORTANTE: el token completo solo se muestra una vez.
                 </p>
                 <p className="mt-1 text-sm">
-                  Antes de cerrar este bloque, verificá que el email del
-                  particular sea correcto y que el token haya sido copiado o
-                  comunicado por el canal acordado.
+                  Antes de cerrar este bloque, verificá que el token haya sido
+                  copiado si necesitás respaldo operativo.
                 </p>
               </div>
               <p className="text-sm text-vetneb-ink">
                 {generatedTokenRecipientEmail
-                  ? `Email indicado: ${generatedTokenRecipientEmail}`
-                  : "No se indicó email del particular. Copiá el token por el canal acordado antes de cerrar este bloque."}
+                  ? `Email enviado a: ${generatedTokenRecipientEmail}`
+                  : "El backend informó envío correcto del email."}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Button
@@ -634,8 +636,8 @@ export function ClinicParticularTokensCard() {
                   }
                 />
                 <span>
-                  Confirmo que copié o comuniqué el token al destinatario
-                  correcto.
+                  Confirmo que registré el token visible o que no necesito copia
+                  adicional.
                 </span>
               </label>
               <Button

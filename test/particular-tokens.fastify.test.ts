@@ -92,6 +92,14 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     getClinicScopedParticularToken: async () => createParticularTokenFixture(),
     listParticularTokens: async () => [createParticularTokenFixture()],
     updateParticularTokenReport: async () => createParticularTokenFixture(),
+    revokeParticularToken: async () =>
+      createParticularTokenFixture({
+        isActive: false,
+      }),
+    sendParticularTokenEmail: async () => ({
+      sent: true,
+      messageId: "particular-email-1",
+    }),
     ...overrides,
   });
 
@@ -107,6 +115,7 @@ test(
       tokenHash: `hash:${rawToken}`,
     });
     const createCalls: Array<Record<string, unknown>> = [];
+    const emailCalls: Array<Record<string, unknown>> = [];
 
     const app = await createTestApp({
       generateSessionToken: () => rawToken,
@@ -117,6 +126,10 @@ test(
       createParticularToken: async (input: Record<string, unknown>) => {
         createCalls.push(input);
         return createdToken;
+      },
+      sendParticularTokenEmail: async (input: Record<string, unknown>) => {
+        emailCalls.push(input);
+        return { sent: true, messageId: "particular-email-1" };
       },
     });
 
@@ -131,6 +144,7 @@ test(
         },
         payload: {
           reportId: 55,
+          recipientEmail: "tutor@example.com",
           tutorLastName: "Gomez",
           petName: "Luna",
           petAge: "8 años",
@@ -157,6 +171,15 @@ test(
       assert.equal(createCalls[0].createdByClinicUserId, 9);
       assert.equal(createCalls[0].tokenHash, `hash:${rawToken}`);
       assert.equal(createCalls[0].tokenLast4, "aaaa");
+      assert.equal(createCalls[0].recipientEmail, undefined);
+      assert.deepEqual(emailCalls, [
+        {
+          to: "tutor@example.com",
+          token: rawToken,
+          tutorLastName: "Gomez",
+          petName: "Luna",
+        },
+      ]);
 
       assert.deepEqual(JSON.parse(response.body), {
         success: true,
@@ -187,6 +210,115 @@ test(
           hasLinkedReport: true,
         },
       });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "particularTokensNativeRoutes valida recipientEmail antes de crear token",
+  async () => {
+    const createCalls: Array<Record<string, unknown>> = [];
+    const emailCalls: Array<Record<string, unknown>> = [];
+
+    const app = await createTestApp({
+      createParticularToken: async (input: Record<string, unknown>) => {
+        createCalls.push(input);
+        return createParticularTokenFixture();
+      },
+      sendParticularTokenEmail: async (input: Record<string, unknown>) => {
+        emailCalls.push(input);
+        return { sent: true, messageId: "particular-email-1" };
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/particular-tokens",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          recipientEmail: "no-es-email",
+          tutorLastName: "Gomez",
+          petName: "Luna",
+          petAge: "8 años",
+          petBreed: "Caniche",
+          petSex: "Hembra",
+          petSpecies: "Canina",
+          sampleLocation: "Pabellón auricular",
+          sampleEvolution: "15 días",
+          detailsLesion: "Lesión nodular pequeña",
+          extractionDate: "2026-04-20T00:00:00.000Z",
+          shippingDate: "2026-04-21T00:00:00.000Z",
+        },
+      });
+
+      assert.equal(response.statusCode, 400);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: "Email del particular inválido",
+      });
+      assert.equal(createCalls.length, 0);
+      assert.equal(emailCalls.length, 0);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "particularTokensNativeRoutes desactiva token si el servicio de email falla",
+  async () => {
+    const createdToken = createParticularTokenFixture();
+    const revokeCalls: number[] = [];
+
+    const app = await createTestApp({
+      createParticularToken: async () => createdToken,
+      revokeParticularToken: async (tokenId: number) => {
+        revokeCalls.push(tokenId);
+        return createParticularTokenFixture({ id: tokenId, isActive: false });
+      },
+      sendParticularTokenEmail: async () => {
+        throw new Error("smtp unavailable");
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/particular-tokens",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          recipientEmail: "tutor@example.com",
+          tutorLastName: "Gomez",
+          petName: "Luna",
+          petAge: "8 años",
+          petBreed: "Caniche",
+          petSex: "Hembra",
+          petSpecies: "Canina",
+          sampleLocation: "Pabellón auricular",
+          sampleEvolution: "15 días",
+          detailsLesion: "Lesión nodular pequeña",
+          extractionDate: "2026-04-20T00:00:00.000Z",
+          shippingDate: "2026-04-21T00:00:00.000Z",
+        },
+      });
+
+      const body = JSON.parse(response.body);
+      assert.equal(response.statusCode, 502);
+      assert.equal(body.success, false);
+      assert.equal(body.reason, "email_delivery_failed");
+      assert.equal(body.token, undefined);
+      assert.deepEqual(revokeCalls, [7]);
     } finally {
       await app.close();
     }

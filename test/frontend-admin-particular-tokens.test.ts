@@ -190,7 +190,7 @@ test("admin particular token generator keeps programmed fields", () => {
   assert.ok(source.includes("shippingDate"));
 });
 
-test("admin particular token form keeps recipient email frontend only", () => {
+test("admin particular token form sends recipient email through backend contract", () => {
   const source = read(ADMIN_CARD_PATH);
   const api = read(API_PATH);
   const payloadType = sectionBetween(
@@ -213,13 +213,15 @@ test("admin particular token form keeps recipient email frontend only", () => {
   assert.ok(source.includes('name="particularEmail"'));
   assert.ok(source.includes('type="email"'));
   assert.ok(source.includes('placeholder="email@ejemplo.com"'));
+  assert.ok(source.includes("recipientEmail: normalizeText(formState.particularEmail),"));
+  assert.ok(source.includes('required'));
   assert.ok(source.includes("Email del particular"));
   assert.ok(
     source.includes(
-      "Opcional. Se usa solo para preparar la comunicación manual del",
+      "Obligatorio. El backend enviará el token a este email usando la",
     ),
   );
-  assert.ok(source.includes("token; no se envía automáticamente."));
+  assert.ok(source.includes("configuración de correo de VETNEB."));
   assert.ok(source.includes("const generatedRecipientEmail = formState.particularEmail.trim();"));
   assert.ok(
     source.includes("const response = await createAdminParticularToken(payload);"),
@@ -231,9 +233,9 @@ test("admin particular token form keeps recipient email frontend only", () => {
   );
   assert.ok(submitSuccess.includes("setGeneratedTokenDetails(nextGeneratedTokenDetails);"));
   assert.equal(payloadType.includes("particularEmail"), false);
-  assert.equal(payloadType.includes("recipientEmail"), false);
-  assert.equal(payloadBuilder.includes("particularEmail"), false);
-  assert.equal(payloadBuilder.includes("recipientEmail"), false);
+  assert.ok(payloadType.includes("recipientEmail: string;"));
+  assert.ok(payloadBuilder.includes("formState.particularEmail"));
+  assert.ok(payloadBuilder.includes("recipientEmail: normalizeText(formState.particularEmail),"));
   assert.equal(payloadBuilder.includes("email:"), false);
 });
 
@@ -248,12 +250,12 @@ test("admin generated token block requires manual communication confirmation", (
   assert.ok(source.includes("IMPORTANTE: el token completo solo se muestra una vez."));
   assert.ok(
     source.includes(
-      "Antes de cerrar este bloque, verificá que el email del",
+      "Antes de cerrar este bloque, verificá que el token haya sido",
     ),
   );
-  assert.ok(source.includes("particular sea correcto y que el token haya sido copiado o"));
-  assert.ok(source.includes("Email indicado:"));
-  assert.ok(source.includes("No se indicó email del particular."));
+  assert.ok(source.includes("copiado si necesitás respaldo operativo."));
+  assert.ok(source.includes("Email enviado a:"));
+  assert.ok(source.includes("El backend informó envío correcto del email."));
   assert.ok(source.includes("Copiar mensaje para enviar"));
   assert.ok(source.includes("navigator.clipboard?.writeText"));
   assert.ok(source.includes("buildManualTokenMessage(generatedToken, generatedTokenDetails)"));
@@ -265,7 +267,7 @@ test("admin generated token block requires manual communication confirmation", (
   assert.ok(source.includes('type="checkbox"'));
   assert.ok(
     source.includes(
-      "Confirmo que copié o comuniqué el token al destinatario",
+      "Confirmo que registré el token visible o que no necesito copia",
     ),
   );
   assert.ok(source.includes("Cerrar token visible"));

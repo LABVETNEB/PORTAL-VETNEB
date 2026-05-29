@@ -10,6 +10,7 @@ import {
 
 test("clinicCreateParticularTokenSchema acepta reportId positivo y detailsLesion al limite", () => {
   const parsed = clinicCreateParticularTokenSchema.safeParse({
+    recipientEmail: "tutor@example.com",
     tutorLastName: " Gomez ",
     petName: " Luna ",
     petAge: " 8 años ",
@@ -36,6 +37,7 @@ test("clinicCreateParticularTokenSchema acepta reportId positivo y detailsLesion
 
 test("clinicCreateParticularTokenSchema rechaza detailsLesion fuera de limite", () => {
   const parsed = clinicCreateParticularTokenSchema.safeParse({
+    recipientEmail: "tutor@example.com",
     tutorLastName: "Gomez",
     petName: "Luna",
     petAge: "8 años",
@@ -64,6 +66,7 @@ test("clinicCreateParticularTokenSchema rechaza detailsLesion fuera de limite", 
 
 test("clinicCreateParticularTokenSchema rechaza fechas invalidas", () => {
   const parsed = clinicCreateParticularTokenSchema.safeParse({
+    recipientEmail: "tutor@example.com",
     tutorLastName: "Gomez",
     petName: "Luna",
     petAge: "8 años",
@@ -95,6 +98,7 @@ test("clinicCreateParticularTokenSchema rechaza fechas invalidas", () => {
 test("adminCreateParticularTokenSchema acepta reportId positivo y rechaza clinicId no numerico", () => {
   const valid = adminCreateParticularTokenSchema.safeParse({
     clinicId: "8",
+    recipientEmail: "tutor@example.com",
     tutorLastName: "Gomez",
     petName: "Luna",
     petAge: "8 años",
@@ -110,6 +114,7 @@ test("adminCreateParticularTokenSchema acepta reportId positivo y rechaza clinic
 
   const invalidClinic = adminCreateParticularTokenSchema.safeParse({
     clinicId: "abc",
+    recipientEmail: "tutor@example.com",
     tutorLastName: "Gomez",
     petName: "Luna",
     petAge: "8 años",

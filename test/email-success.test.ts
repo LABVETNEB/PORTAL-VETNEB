@@ -9,7 +9,97 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const { ENV } = await import("../server/lib/env.ts");
-const { sendSpecialStainRequiredEmail } = await import("../server/lib/email.ts");
+const {
+  sendParticularTokenEmail,
+  sendSpecialStainRequiredEmail,
+} = await import("../server/lib/email.ts");
+
+test("sendParticularTokenEmail envia token particular con payload minimo", async () => {
+  const originalInfo = console.info;
+  const infoCalls: unknown[][] = [];
+  console.info = (...args: unknown[]) => {
+    infoCalls.push(args);
+  };
+
+  const originalSmtp = {
+    enabled: ENV.smtp.enabled,
+    host: ENV.smtp.host,
+    port: ENV.smtp.port,
+    secure: ENV.smtp.secure,
+    user: ENV.smtp.user,
+    pass: ENV.smtp.pass,
+    from: ENV.smtp.from,
+  };
+  const originalGmailApi = {
+    enabled: ENV.gmailApi.enabled,
+    clientId: ENV.gmailApi.clientId,
+    clientSecret: ENV.gmailApi.clientSecret,
+    refreshToken: ENV.gmailApi.refreshToken,
+    from: ENV.gmailApi.from,
+  };
+  const originalCreateTransport = nodemailer.createTransport;
+  const sendMailCalls: Array<Record<string, unknown>> = [];
+
+  (ENV.smtp as any).enabled = true;
+  (ENV.smtp as any).host = "smtp-particular.example.com";
+  (ENV.smtp as any).port = 587;
+  (ENV.smtp as any).secure = false;
+  (ENV.smtp as any).user = "smtp-user";
+  (ENV.smtp as any).pass = "smtp-pass";
+  (ENV.smtp as any).from = "noreply@vetneb.com";
+  (ENV.gmailApi as any).enabled = false;
+  (ENV.gmailApi as any).clientId = "";
+  (ENV.gmailApi as any).clientSecret = "";
+  (ENV.gmailApi as any).refreshToken = "";
+  (ENV.gmailApi as any).from = "";
+
+  (nodemailer as any).createTransport = () => ({
+    sendMail: async (payload: Record<string, unknown>) => {
+      sendMailCalls.push(payload);
+      return { messageId: "particular-message-123" };
+    },
+  });
+
+  try {
+    const result = await sendParticularTokenEmail({
+      to: " TUTOR@Example.com ",
+      token: "token-visible-una-sola-vez",
+      tutorLastName: "Gomez",
+      petName: "Luna",
+    });
+
+    assert.deepEqual(result, {
+      sent: true,
+      messageId: "particular-message-123",
+    });
+  } finally {
+    console.info = originalInfo;
+    (nodemailer as any).createTransport = originalCreateTransport;
+    (ENV.smtp as any).enabled = originalSmtp.enabled;
+    (ENV.smtp as any).host = originalSmtp.host;
+    (ENV.smtp as any).port = originalSmtp.port;
+    (ENV.smtp as any).secure = originalSmtp.secure;
+    (ENV.smtp as any).user = originalSmtp.user;
+    (ENV.smtp as any).pass = originalSmtp.pass;
+    (ENV.smtp as any).from = originalSmtp.from;
+    (ENV.gmailApi as any).enabled = originalGmailApi.enabled;
+    (ENV.gmailApi as any).clientId = originalGmailApi.clientId;
+    (ENV.gmailApi as any).clientSecret = originalGmailApi.clientSecret;
+    (ENV.gmailApi as any).refreshToken = originalGmailApi.refreshToken;
+    (ENV.gmailApi as any).from = originalGmailApi.from;
+  }
+
+  assert.equal(sendMailCalls.length, 1);
+  const payload = sendMailCalls[0];
+  assert.equal(payload.from, "noreply@vetneb.com");
+  assert.equal(payload.to, "tutor@example.com");
+  assert.equal(payload.subject, "[VETNEB] Token de acceso particular");
+  assert.equal(typeof payload.text, "string");
+  assert.equal(String(payload.text).includes("token-visible-una-sola-vez"), true);
+  assert.equal(String(payload.text).includes("Tutor/a: Gomez"), true);
+  assert.equal(String(payload.text).includes("Paciente: Luna"), true);
+  assert.equal(JSON.stringify(infoCalls).includes("token-visible-una-sola-vez"), false);
+});
 
 test("sendSpecialStainRequiredEmail envia correo con payload esperado cuando SMTP esta habilitado", async () => {
   const originalInfo = console.info;

@@ -7,6 +7,7 @@ import {
 test("adminCreateParticularTokenSchema requiere clinicId válido y normaliza campos base", () => {
   const parsed = adminCreateParticularTokenSchema.safeParse({
     clinicId: "5",
+    recipientEmail: " tutor@example.com ",
     tutorLastName: " Gomez ",
     petName: " Luna ",
     petAge: " 8 años ",
@@ -28,6 +29,7 @@ test("adminCreateParticularTokenSchema requiere clinicId válido y normaliza cam
   assert.equal(parsed.success, true);
 
   assert.equal(parsed.data.clinicId, 5);
+  assert.equal(parsed.data.recipientEmail, "tutor@example.com");
   assert.equal(parsed.data.detailsLesion, undefined);
   assert.equal(parsed.data.reportId, null);
   assert.equal(parsed.data.tutorLastName, "Gomez");
@@ -40,6 +42,7 @@ test("adminCreateParticularTokenSchema requiere clinicId válido y normaliza cam
 
 test("adminCreateParticularTokenSchema rechaza clinicId ausente", () => {
   const parsed = adminCreateParticularTokenSchema.safeParse({
+    recipientEmail: "tutor@example.com",
     tutorLastName: "Gomez",
     petName: "Luna",
     petAge: "8 años",
@@ -59,6 +62,7 @@ test("adminCreateParticularTokenSchema rechaza clinicId ausente", () => {
 test("adminCreateParticularTokenSchema rechaza clinicId no positivo", () => {
   const parsed = adminCreateParticularTokenSchema.safeParse({
     clinicId: "0",
+    recipientEmail: "tutor@example.com",
     tutorLastName: "Gomez",
     petName: "Luna",
     petAge: "8 años",
@@ -78,6 +82,7 @@ test("adminCreateParticularTokenSchema rechaza clinicId no positivo", () => {
 test("adminCreateParticularTokenSchema conserva detailsLesion cuando viene con texto", () => {
   const parsed = adminCreateParticularTokenSchema.safeParse({
     clinicId: "8",
+    recipientEmail: "tutor@example.com",
     tutorLastName: "Gomez",
     petName: "Luna",
     petAge: "8 años",

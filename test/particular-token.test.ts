@@ -13,6 +13,7 @@ import {
 
 test("clinicCreateParticularTokenSchema normaliza detailsLesion vacío y reportId null", () => {
   const parsed = clinicCreateParticularTokenSchema.safeParse({
+    recipientEmail: " tutor@example.com ",
     tutorLastName: " Gomez ",
     petName: " Luna ",
     petAge: " 8 años ",
@@ -34,6 +35,7 @@ test("clinicCreateParticularTokenSchema normaliza detailsLesion vacío y reportI
   assert.equal(parsed.success, true);
 
   assert.equal(parsed.data.detailsLesion, undefined);
+  assert.equal(parsed.data.recipientEmail, "tutor@example.com");
   assert.equal(parsed.data.reportId, null);
   assert.equal(parsed.data.tutorLastName, "Gomez");
   assert.equal(parsed.data.petName, "Luna");
@@ -72,6 +74,7 @@ test("helpers numéricos de particular-token respetan fallback y límites", () =
 
 test("buildValidationError devuelve el primer mensaje del schema", () => {
   const parsed = clinicCreateParticularTokenSchema.safeParse({
+    recipientEmail: "tutor@example.com",
     tutorLastName: "",
     petName: "",
     petAge: "",

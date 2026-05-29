@@ -210,7 +210,7 @@ test("clinic report link remains optional and distinct from clinic identity", ()
   assert.equal(source.includes("ID de clínica"), false);
 });
 
-test("clinic particular token form keeps recipient email frontend only", () => {
+test("clinic particular token form sends recipient email through backend contract", () => {
   const source = read(CLINIC_TOKENS_CARD_PATH);
   const api = read(API_PATH);
   const payloadType = sectionBetween(
@@ -233,13 +233,15 @@ test("clinic particular token form keeps recipient email frontend only", () => {
   assert.ok(source.includes('name="particularEmail"'));
   assert.ok(source.includes('type="email"'));
   assert.ok(source.includes('placeholder="email@ejemplo.com"'));
+  assert.ok(source.includes("recipientEmail: normalizeText(formState.particularEmail),"));
+  assert.ok(source.includes('required'));
   assert.ok(source.includes("Email del particular"));
   assert.ok(
     source.includes(
-      "Opcional. Se usa solo para preparar la comunicación manual del",
+      "Obligatorio. El backend enviará el token a este email usando la",
     ),
   );
-  assert.ok(source.includes("token; no se envía automáticamente."));
+  assert.ok(source.includes("configuración de correo de VETNEB."));
   assert.ok(source.includes("const generatedRecipientEmail = formState.particularEmail.trim();"));
   assert.ok(
     source.includes("const response = await createClinicParticularToken(payload);"),
@@ -251,9 +253,9 @@ test("clinic particular token form keeps recipient email frontend only", () => {
   );
   assert.ok(submitSuccess.includes("setGeneratedTokenDetails(nextGeneratedTokenDetails);"));
   assert.equal(payloadType.includes("particularEmail"), false);
-  assert.equal(payloadType.includes("recipientEmail"), false);
-  assert.equal(payloadBuilder.includes("particularEmail"), false);
-  assert.equal(payloadBuilder.includes("recipientEmail"), false);
+  assert.ok(payloadType.includes("recipientEmail: string;"));
+  assert.ok(payloadBuilder.includes("formState.particularEmail"));
+  assert.ok(payloadBuilder.includes("recipientEmail: normalizeText(formState.particularEmail),"));
   assert.equal(payloadBuilder.includes("email:"), false);
 });
 
@@ -269,8 +271,8 @@ test("clinic token generation keeps generated token block list refresh and reset
   assert.ok(source.includes('aria-label="Token particular generado"'));
   assert.ok(source.includes("El token completo solo se muestra una vez."));
   assert.ok(source.includes("IMPORTANTE: el token completo solo se muestra una vez."));
-  assert.ok(source.includes("Email indicado:"));
-  assert.ok(source.includes("No se indicó email del particular."));
+  assert.ok(source.includes("Email enviado a:"));
+  assert.ok(source.includes("El backend informó envío correcto del email."));
   assert.ok(source.includes("Copiar mensaje para enviar"));
   assert.ok(source.includes('type="checkbox"'));
   assert.ok(source.includes("Cerrar token visible"));
@@ -303,7 +305,7 @@ test("clinic generated token block clears only through confirmation close", () =
   );
   assert.ok(
     source.includes(
-      "Confirmo que copié o comuniqué el token al destinatario",
+      "Confirmo que registré el token visible o que no necesito copia",
     ),
   );
   assert.ok(clearGeneratedToken.includes("setGeneratedToken(null);"));

@@ -187,6 +187,11 @@ function buildAdminParticularTokensRouteStubs() {
     getParticularTokenById: async () => null,
     listParticularTokens: async () => [],
     updateParticularTokenReport: async () => null,
+    revokeParticularToken: async () => null,
+    sendParticularTokenEmail: async () => ({
+      sent: true as const,
+      messageId: "particular-email-1",
+    }),
   };
 }
 function buildAdminReportsRouteStubs() {
@@ -463,6 +468,11 @@ function buildParticularTokensRouteStubs() {
     getClinicScopedParticularToken: async () => null,
     listParticularTokens: async () => [],
     updateParticularTokenReport: async () => null,
+    revokeParticularToken: async () => null,
+    sendParticularTokenEmail: async () => ({
+      sent: true as const,
+      messageId: "particular-email-1",
+    }),
   };
 }
 function buildStudyTrackingRouteStubs() {

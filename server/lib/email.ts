@@ -408,6 +408,26 @@ function buildContactMessageText(input: {
   ].join("\n");
 }
 
+function buildParticularTokenText(input: {
+  token: string;
+  tutorLastName: string;
+  petName: string;
+}) {
+  return [
+    "Hola,",
+    "",
+    `VETNEB generó un token de acceso particular para consultar el seguimiento o informe de ${input.petName}.`,
+    "",
+    `Tutor/a: ${input.tutorLastName}`,
+    `Paciente: ${input.petName}`,
+    `Token de acceso: ${input.token}`,
+    "",
+    "Ingresá al portal VETNEB para usarlo. Conservá este token y no lo compartas.",
+    "",
+    "Equipo VETNEB",
+  ].join("\n");
+}
+
 function resolveContactRecipients(): string[] {
   const explicitRecipients = normalizeRecipients(ENV.contactTo);
 
@@ -465,6 +485,49 @@ export async function sendContactMessageEmail(input: {
   console.info("[EMAIL] contact_message sent", {
     email: input.email,
     clinicName: input.clinicName,
+    messageId: delivery.messageId,
+    transport: delivery.transport,
+  });
+
+  return {
+    sent: true,
+    messageId: delivery.messageId,
+  };
+}
+
+export async function sendParticularTokenEmail(input: {
+  to: string;
+  token: string;
+  tutorLastName: string;
+  petName: string;
+}): Promise<
+  | { sent: false; reason: "no_recipients" | "smtp_disabled" }
+  | { sent: true; messageId: string }
+> {
+  const recipients = normalizeRecipients([input.to]);
+
+  if (recipients.length === 0) {
+    console.info("[EMAIL] particular_token skipped: no recipients");
+
+    return { sent: false, reason: "no_recipients" as const };
+  }
+
+  const delivery = await sendConfiguredEmailMessage({
+    to: recipients,
+    subject: "[VETNEB] Token de acceso particular",
+    text: buildParticularTokenText(input),
+  });
+
+  if (!delivery) {
+    console.info("[EMAIL] particular_token skipped: smtp disabled", {
+      recipients,
+    });
+
+    return { sent: false, reason: "smtp_disabled" as const };
+  }
+
+  console.info("[EMAIL] particular_token sent", {
+    recipients,
     messageId: delivery.messageId,
     transport: delivery.transport,
   });
