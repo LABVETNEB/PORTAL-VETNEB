@@ -3,6 +3,7 @@ import { and, asc, eq, ne } from "drizzle-orm";
 import { db } from "./db.ts";
 import {
   adminUsers,
+  clinicPublicProfiles,
   clinicUsers,
   clinics,
   type ClinicUserRole,
@@ -29,6 +30,7 @@ export type AdminRoleUserSummary =
       role: ClinicUserRole;
       clinicId: number;
       clinicName: string | null;
+      clinicLocality?: string | null;
       createdAt: string;
       updatedAt: string;
     };
@@ -76,6 +78,7 @@ type ClinicUserRoleRow = {
   role: ClinicUserRole;
   clinicId: number;
   clinicName: string | null;
+  clinicLocality: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -118,6 +121,7 @@ function serializeClinicUserRoleRow(
     role: row.role,
     clinicId: row.clinicId,
     clinicName: row.clinicName ?? null,
+    clinicLocality: row.clinicLocality ?? null,
     createdAt: toIsoDate(row.createdAt),
     updatedAt: toIsoDate(row.updatedAt),
   };
@@ -133,11 +137,16 @@ async function getClinicUserRoleRow(
       role: clinicUsers.role,
       clinicId: clinicUsers.clinicId,
       clinicName: clinics.name,
+      clinicLocality: clinicPublicProfiles.locality,
       createdAt: clinicUsers.createdAt,
       updatedAt: clinicUsers.updatedAt,
     })
     .from(clinicUsers)
     .leftJoin(clinics, eq(clinics.id, clinicUsers.clinicId))
+    .leftJoin(
+      clinicPublicProfiles,
+      eq(clinicPublicProfiles.clinicId, clinicUsers.clinicId),
+    )
     .where(eq(clinicUsers.id, clinicUserId))
     .limit(1);
 
@@ -175,11 +184,16 @@ export async function getAdminUsersRolesSnapshot(
             role: clinicUsers.role,
             clinicId: clinicUsers.clinicId,
             clinicName: clinics.name,
+            clinicLocality: clinicPublicProfiles.locality,
             createdAt: clinicUsers.createdAt,
             updatedAt: clinicUsers.updatedAt,
           })
           .from(clinicUsers)
           .leftJoin(clinics, eq(clinics.id, clinicUsers.clinicId))
+          .leftJoin(
+            clinicPublicProfiles,
+            eq(clinicPublicProfiles.clinicId, clinicUsers.clinicId),
+          )
           .orderBy(asc(clinicUsers.username))
       : Promise.resolve([]),
   ]);
@@ -202,6 +216,7 @@ export async function getAdminUsersRolesSnapshot(
         role: row.role,
         clinicId: row.clinicId,
         clinicName: row.clinicName ?? null,
+        clinicLocality: row.clinicLocality ?? null,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
       }),
