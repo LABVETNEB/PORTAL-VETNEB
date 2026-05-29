@@ -57,6 +57,7 @@ type SessionClinicUserRecord = {
 type AdminUserRecord = {
   id: number;
   username: string;
+  email?: string | null;
   passwordHash: string;
 };
 
@@ -168,6 +169,9 @@ export type AuthNativeRoutesOptions = {
   getClinicUserByUsername?: (
     username: string,
   ) => Promise<ClinicUserRecord | null>;
+  getClinicUserByIdentifier?: (
+    identifier: string,
+  ) => Promise<ClinicUserRecord | null>;
   updateSessionLastAccess?: (tokenHash: string) => Promise<void>;
   upsertClinicUser?: (input: {
     clinicId: number;
@@ -190,6 +194,9 @@ export type AuthNativeRoutesOptions = {
   }) => Promise<unknown>;
   getAdminUserByUsername?: (
     username: string,
+  ) => Promise<AdminUserRecord | null>;
+  getAdminUserByIdentifier?: (
+    identifier: string,
   ) => Promise<AdminUserRecord | null>;
   writeAdminAuditLog?: (
     req: unknown,
@@ -230,6 +237,7 @@ type NativeAuthDeps = Required<
     | "getActiveSessionByToken"
     | "getClinicUserById"
     | "getClinicUserByUsername"
+    | "getClinicUserByIdentifier"
     | "updateSessionLastAccess"
     | "upsertClinicUser"
     | "generateSessionToken"
@@ -238,6 +246,7 @@ type NativeAuthDeps = Required<
     | "verifyPassword"
     | "createAdminSession"
     | "getAdminUserByUsername"
+    | "getAdminUserByIdentifier"
     | "writeAdminAuditLog"
     | "createParticularSession"
     | "getParticularTokenByTokenHash"
@@ -259,6 +268,10 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
       const dbParticular = await import("../db-particular.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const audit = await import("../lib/audit.ts");
+      const getClinicUserByIdentifier = async (identifier: string) =>
+        (await db.getClinicUserByIdentifier(identifier)) ?? null;
+      const getAdminUserByIdentifier = async (identifier: string) =>
+        (await db.getAdminUserByIdentifier(identifier)) ?? null;
 
       return {
         createActiveSession: db.createActiveSession,
@@ -266,6 +279,7 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
         getActiveSessionByToken: db.getActiveSessionByToken,
         getClinicUserById: db.getClinicUserById,
         getClinicUserByUsername: db.getClinicUserByUsername,
+        getClinicUserByIdentifier,
         updateSessionLastAccess: db.updateSessionLastAccess,
         upsertClinicUser: db.upsertClinicUser,
         generateSessionToken: authSecurity.generateSessionToken,
@@ -274,6 +288,7 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
         verifyPassword: authSecurity.verifyPassword,
         createAdminSession: db.createAdminSession,
         getAdminUserByUsername: db.getAdminUserByUsername,
+        getAdminUserByIdentifier,
         writeAdminAuditLog: audit.writeAuditLog as (
           req: unknown,
           input: AdminAuditWriteInput,
@@ -298,7 +313,12 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
     })();
   }
 
-  return defaultDepsPromise;
+  const depsPromise = defaultDepsPromise;
+  if (!depsPromise) {
+    throw new Error("No se pudieron inicializar dependencias de autenticación");
+  }
+
+  return depsPromise;
 }
 
 function getAllowedOrigins(): string[] {
@@ -616,7 +636,7 @@ async function authenticateAdminCandidate(
     currentTime: number;
   },
 ): Promise<AuthenticatedAdminCandidate | null> {
-  const admin = await deps.getAdminUserByUsername(input.identifier);
+  const admin = await deps.getAdminUserByIdentifier(input.identifier);
 
   if (!admin) {
     return null;
@@ -669,7 +689,7 @@ async function authenticateClinicCandidate(
     currentTime: number;
   },
 ): Promise<AuthenticatedClinicCandidate | null> {
-  const clinicUser = await deps.getClinicUserByUsername(input.identifier);
+  const clinicUser = await deps.getClinicUserByIdentifier(input.identifier);
 
   if (!clinicUser) {
     return null;
@@ -880,6 +900,11 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       options.getClinicUserById ?? defaultDeps!.getClinicUserById,
     getClinicUserByUsername:
       options.getClinicUserByUsername ?? defaultDeps!.getClinicUserByUsername,
+    getClinicUserByIdentifier:
+      options.getClinicUserByIdentifier ??
+      defaultDeps?.getClinicUserByIdentifier ??
+      options.getClinicUserByUsername ??
+      defaultDeps!.getClinicUserByUsername,
     updateSessionLastAccess:
       options.updateSessionLastAccess ?? defaultDeps!.updateSessionLastAccess,
     upsertClinicUser:
@@ -895,6 +920,12 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       defaultDeps?.createAdminSession ??
       (async () => undefined),
     getAdminUserByUsername:
+      options.getAdminUserByUsername ??
+      defaultDeps?.getAdminUserByUsername ??
+      (async () => null),
+    getAdminUserByIdentifier:
+      options.getAdminUserByIdentifier ??
+      defaultDeps?.getAdminUserByIdentifier ??
       options.getAdminUserByUsername ??
       defaultDeps?.getAdminUserByUsername ??
       (async () => null),

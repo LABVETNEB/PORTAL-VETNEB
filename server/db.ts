@@ -66,6 +66,55 @@ export async function getClinicUserByUsername(username: string) {
   return result[0];
 }
 
+function normalizeLoginIdentifierForLookup(identifier: string) {
+  const trimmedIdentifier = identifier.trim();
+  const normalizedEmail = trimmedIdentifier.toLowerCase();
+  const canMatchEmail = normalizedEmail.includes("@");
+
+  return {
+    trimmedIdentifier,
+    normalizedEmail,
+    canMatchEmail,
+  };
+}
+
+export async function getClinicUserByIdentifier(identifier: string) {
+  const { trimmedIdentifier, normalizedEmail, canMatchEmail } =
+    normalizeLoginIdentifierForLookup(identifier);
+
+  if (!trimmedIdentifier) {
+    return undefined;
+  }
+
+  const whereClauses = [eq(clinicUsers.username, trimmedIdentifier)];
+
+  if (canMatchEmail) {
+    whereClauses.push(
+      sql`lower(trim(${clinics.contactEmail})) = ${normalizedEmail}`,
+    );
+  }
+
+  const result = await db
+    .select({
+      id: clinicUsers.id,
+      clinicId: clinicUsers.clinicId,
+      username: clinicUsers.username,
+      passwordHash: clinicUsers.passwordHash,
+      authProId: clinicUsers.authProId,
+      role: clinicUsers.role,
+    })
+    .from(clinicUsers)
+    .leftJoin(clinics, eq(clinicUsers.clinicId, clinics.id))
+    .where(or(...whereClauses)!)
+    .orderBy(
+      sql`CASE WHEN ${clinicUsers.username} = ${trimmedIdentifier} THEN 0 ELSE 1 END`,
+      clinicUsers.id,
+    )
+    .limit(1);
+
+  return result[0];
+}
+
 export async function upsertClinicUser(user: {
   clinicId: number;
   username: string;
@@ -118,6 +167,35 @@ export async function getAdminUserByUsername(username: string) {
     .select()
     .from(adminUsers)
     .where(eq(adminUsers.username, username.trim()))
+    .limit(1);
+
+  return result[0];
+}
+
+export async function getAdminUserByIdentifier(identifier: string) {
+  const { trimmedIdentifier, normalizedEmail, canMatchEmail } =
+    normalizeLoginIdentifierForLookup(identifier);
+
+  if (!trimmedIdentifier) {
+    return undefined;
+  }
+
+  const whereClauses = [eq(adminUsers.username, trimmedIdentifier)];
+
+  if (canMatchEmail) {
+    whereClauses.push(
+      sql`lower(trim(${adminUsers.email})) = ${normalizedEmail}`,
+    );
+  }
+
+  const result = await db
+    .select()
+    .from(adminUsers)
+    .where(or(...whereClauses)!)
+    .orderBy(
+      sql`CASE WHEN ${adminUsers.username} = ${trimmedIdentifier} THEN 0 ELSE 1 END`,
+      adminUsers.id,
+    )
     .limit(1);
 
   return result[0];
