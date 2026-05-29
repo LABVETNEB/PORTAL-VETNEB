@@ -20,6 +20,8 @@ import type {
   AuditEntry,
   AuthUser,
   LoginCredentials,
+  UnifiedLoginCredentials,
+  UnifiedLoginResponse,
   ParticularAuthResponse,
   ParticularLoginCredentials,
   DashboardStats,
@@ -216,6 +218,15 @@ export async function loginClinic(
   credentials: LoginCredentials,
 ): Promise<AuthUser> {
   return apiFetch<AuthUser>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify(credentials),
+  });
+}
+
+export async function loginUnified(
+  credentials: UnifiedLoginCredentials,
+): Promise<UnifiedLoginResponse> {
+  return apiFetch<UnifiedLoginResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify(credentials),
   });

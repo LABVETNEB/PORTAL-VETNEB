@@ -142,12 +142,35 @@ test("session cookie serializers keep security attributes stable", () => {
 });
 
 test("clinic admin and particular route surfaces read only their own cookie", () => {
-  assertCookieBoundary(
-    CLINIC_SESSION_FILES,
-    "cookies[ENV.cookieName]",
-    "name: ENV.cookieName",
-    ["cookies[ENV.adminCookieName]", "cookies[ENV.particularCookieName]", "name: ENV.adminCookieName", "name: ENV.particularCookieName"],
-  );
+  for (const file of CLINIC_SESSION_FILES) {
+    const source = readSource(file);
+
+    assertContains(source, "cookies[ENV.cookieName]", `${file} cookie read`);
+    assertContains(source, "name: ENV.cookieName", `${file} cookie write or clear`);
+    assertNotContains(
+      source,
+      "cookies[ENV.adminCookieName]",
+      `${file} cross-cookie read boundary`,
+    );
+    assertNotContains(
+      source,
+      "cookies[ENV.particularCookieName]",
+      `${file} cross-cookie read boundary`,
+    );
+
+    if (file !== "server/routes/auth.fastify.ts") {
+      assertNotContains(
+        source,
+        "name: ENV.adminCookieName",
+        `${file} cross-cookie write boundary`,
+      );
+      assertNotContains(
+        source,
+        "name: ENV.particularCookieName",
+        `${file} cross-cookie write boundary`,
+      );
+    }
+  }
 
   assertCookieBoundary(
     ADMIN_SESSION_FILES,

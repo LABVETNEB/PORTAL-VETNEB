@@ -40,7 +40,7 @@ test("login content keeps standalone login shell and form landmarks", () => {
 
   assert.ok(source.includes('"use client";'));
   assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
-  assert.ok(source.includes('import { loginClinic } from "@/lib/api";'));
+  assert.ok(source.includes('import { loginUnified } from "@/lib/api";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
   assert.ok(source.includes("min-h-screen public-page-canvas flex items-center justify-center p-4"));
   assert.equal(source.includes("bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800"), false);
@@ -71,7 +71,9 @@ test("login content keeps safe dashboard redirect and error handling", () => {
   assert.equal(source.includes("safePath === ROUTES.dashboardAdmin"), false);
   assert.equal(source.includes("safePath.startsWith(`${ROUTES.dashboardAdmin}/`)"), false);
   assert.ok(source.includes("return ROUTES.dashboard;"));
-  assert.ok(source.includes('router.replace(getSafeNextPath(searchParams.get("next")))'));
+  assert.ok(source.includes("const destination ="));
+  assert.ok(source.includes("response.redirectTo"));
+  assert.ok(source.includes("router.replace(destination);"));
   assert.ok(source.includes("router.refresh();"));
   assert.ok(source.includes("setErrorMessage("));
   assert.ok(source.includes('role="alert"'));

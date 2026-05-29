@@ -19,10 +19,12 @@ test("login public page submits clinic credentials through the API client", () =
   assert.ok(source.includes('"use client";'));
   assert.ok(source.includes('import { FormEvent, useEffect, useState } from "react";'));
   assert.ok(source.includes('import { useRouter, useSearchParams } from "next/navigation";'));
-  assert.ok(source.includes('import { loginClinic } from "@/lib/api";'));
+  assert.ok(source.includes('import { loginUnified } from "@/lib/api";'));
   assert.ok(source.includes("async function handleSubmit"));
   assert.ok(source.includes("event.preventDefault();"));
-  assert.ok(source.includes("await loginClinic({ username, password });"));
+  assert.ok(source.includes("const response = await loginUnified({"));
+  assert.ok(source.includes("identifier: username,"));
+  assert.ok(source.includes("password,"));
   assert.ok(source.includes('aria-label="Formulario de inicio de sesión"'));
   assert.ok(source.includes("onSubmit={handleSubmit}"));
 });
@@ -43,7 +45,9 @@ test("login public page redirects safely after successful authentication", () =>
   assert.ok(source.includes("return ROUTES.dashboard;"));
   assert.equal(source.includes("return nextPath;"), false);
   assert.equal(source.includes("return candidate;"), false);
-  assert.ok(source.includes('router.replace(getSafeNextPath(searchParams.get("next")))'));
+  assert.ok(source.includes("const destination ="));
+  assert.ok(source.includes("response.redirectTo"));
+  assert.ok(source.includes("router.replace(destination);"));
   assert.ok(source.includes("router.refresh();"));
 });
 
@@ -73,13 +77,13 @@ test("login public page handles loading and error states", () => {
   assert.ok(source.includes("aria-pressed={isPasswordVisible}"));
 });
 
-test("API client exposes clinic login contract against backend auth endpoint", () => {
+test("API client exposes unified login contract against backend auth endpoint", () => {
   const source = read(API_CLIENT_PATH);
 
-  assert.ok(source.includes("export async function loginClinic("));
-  assert.ok(source.includes("credentials: LoginCredentials,"));
-  assert.ok(source.includes("Promise<AuthUser>"));
-  assert.ok(source.includes('return apiFetch<AuthUser>("/api/auth/login", {'));
+  assert.ok(source.includes("export async function loginUnified("));
+  assert.ok(source.includes("credentials: UnifiedLoginCredentials,"));
+  assert.ok(source.includes("Promise<UnifiedLoginResponse>"));
+  assert.ok(source.includes('return apiFetch<UnifiedLoginResponse>("/api/auth/login", {'));
   assert.ok(source.includes('method: "POST",'));
   assert.ok(source.includes("body: JSON.stringify(credentials),"));
 });
