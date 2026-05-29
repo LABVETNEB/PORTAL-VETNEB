@@ -210,6 +210,53 @@ test("clinic report link remains optional and distinct from clinic identity", ()
   assert.equal(source.includes("ID de clínica"), false);
 });
 
+test("clinic particular token form keeps recipient email frontend only", () => {
+  const source = read(CLINIC_TOKENS_CARD_PATH);
+  const api = read(API_PATH);
+  const payloadType = sectionBetween(
+    api,
+    "export type ClinicParticularTokenCreatePayload = {",
+    "};",
+  );
+  const payloadBuilder = sectionBetween(
+    source,
+    "function buildPayload(",
+    "function formatTokenSource",
+  );
+  const submitSuccess = sectionBetween(
+    source,
+    "const response = await createClinicParticularToken(payload);",
+    "} catch (error) {",
+  );
+
+  assert.ok(source.includes("particularEmail: string;"));
+  assert.ok(source.includes('name="particularEmail"'));
+  assert.ok(source.includes('type="email"'));
+  assert.ok(source.includes('placeholder="email@ejemplo.com"'));
+  assert.ok(source.includes("Email del particular"));
+  assert.ok(
+    source.includes(
+      "Opcional. Se usa solo para preparar la comunicación manual del",
+    ),
+  );
+  assert.ok(source.includes("token; no se envía automáticamente."));
+  assert.ok(source.includes("const generatedRecipientEmail = formState.particularEmail.trim();"));
+  assert.ok(
+    source.includes("const response = await createClinicParticularToken(payload);"),
+  );
+  assert.ok(
+    submitSuccess.includes(
+      "setGeneratedTokenRecipientEmail(generatedRecipientEmail || null);",
+    ),
+  );
+  assert.ok(submitSuccess.includes("setGeneratedTokenDetails(nextGeneratedTokenDetails);"));
+  assert.equal(payloadType.includes("particularEmail"), false);
+  assert.equal(payloadType.includes("recipientEmail"), false);
+  assert.equal(payloadBuilder.includes("particularEmail"), false);
+  assert.equal(payloadBuilder.includes("recipientEmail"), false);
+  assert.equal(payloadBuilder.includes("email:"), false);
+});
+
 test("clinic token generation keeps generated token block list refresh and reset", () => {
   const source = read(CLINIC_TOKENS_CARD_PATH);
   const submitSuccess = sectionBetween(
@@ -221,6 +268,13 @@ test("clinic token generation keeps generated token block list refresh and reset
   assert.ok(source.includes("Token generado"));
   assert.ok(source.includes('aria-label="Token particular generado"'));
   assert.ok(source.includes("El token completo solo se muestra una vez."));
+  assert.ok(source.includes("IMPORTANTE: el token completo solo se muestra una vez."));
+  assert.ok(source.includes("Email indicado:"));
+  assert.ok(source.includes("No se indicó email del particular."));
+  assert.ok(source.includes("Copiar mensaje para enviar"));
+  assert.ok(source.includes('type="checkbox"'));
+  assert.ok(source.includes("Cerrar token visible"));
+  assert.ok(source.includes("disabled={!isGeneratedTokenConfirmed}"));
   assert.ok(source.includes("Últimos tokens de la clínica"));
   assert.ok(source.includes('onClick={() => void loadTokens()}'));
   assert.ok(source.includes("setFormState(INITIAL_FORM_STATE);"));
@@ -230,6 +284,33 @@ test("clinic token generation keeps generated token block list refresh and reset
     "resetForm();",
     "await loadTokens();",
   ]);
+});
+
+test("clinic generated token block clears only through confirmation close", () => {
+  const source = read(CLINIC_TOKENS_CARD_PATH);
+  const clearGeneratedToken = sectionBetween(
+    source,
+    "function clearGeneratedTokenState()",
+    "async function handleCopyManualMessage()",
+  );
+
+  assert.ok(source.includes("navigator.clipboard?.writeText"));
+  assert.ok(source.includes("buildManualTokenMessage(generatedToken, generatedTokenDetails)"));
+  assert.ok(
+    source.includes(
+      "Hola. VETNEB informa que ya podés consultar el seguimiento/informe de",
+    ),
+  );
+  assert.ok(
+    source.includes(
+      "Confirmo que copié o comuniqué el token al destinatario",
+    ),
+  );
+  assert.ok(clearGeneratedToken.includes("setGeneratedToken(null);"));
+  assert.ok(clearGeneratedToken.includes("setGeneratedTokenRecipientEmail(null);"));
+  assert.ok(clearGeneratedToken.includes("setIsGeneratedTokenConfirmed(false);"));
+  assert.ok(clearGeneratedToken.includes("setCopyStatusMessage(null);"));
+  assert.ok(source.includes("disabled={isSubmitting || generatedToken !== null}"));
 });
 
 test("frontend api exposes clinic-scoped particular token helpers", () => {

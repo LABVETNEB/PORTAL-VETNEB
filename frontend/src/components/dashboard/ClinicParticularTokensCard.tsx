@@ -16,6 +16,7 @@ import { formatDate } from "@/lib/utils";
 
 type ClinicParticularTokenFormState = {
   reportId: string;
+  particularEmail: string;
   tutorLastName: string;
   petName: string;
   petAge: string;
@@ -29,8 +30,14 @@ type ClinicParticularTokenFormState = {
   shippingDate: string;
 };
 
+type GeneratedTokenDetails = {
+  petName: string;
+  tutorLastName: string;
+};
+
 const INITIAL_FORM_STATE: ClinicParticularTokenFormState = {
   reportId: "",
+  particularEmail: "",
   tutorLastName: "",
   petName: "",
   petAge: "",
@@ -45,7 +52,10 @@ const INITIAL_FORM_STATE: ClinicParticularTokenFormState = {
 };
 
 const REQUIRED_FIELD_LABELS: Array<{
-  key: keyof Omit<ClinicParticularTokenFormState, "reportId">;
+  key: keyof Omit<
+    ClinicParticularTokenFormState,
+    "reportId" | "particularEmail"
+  >;
   label: string;
 }> = [
   { key: "tutorLastName", label: "Apellido del tutor" },
@@ -84,6 +94,10 @@ function toIsoDate(value: string): string {
 
 function normalizeText(value: string): string {
   return value.trim();
+}
+
+function buildManualTokenMessage(token: string, details: GeneratedTokenDetails): string {
+  return `Hola. VETNEB informa que ya podés consultar el seguimiento/informe de ${details.petName}. Token de acceso: ${token}. Conservá este token; es personal y permite acceder a la consulta particular.`;
 }
 
 function parseOptionalReportId(value: string): number | null {
@@ -150,6 +164,16 @@ export function ClinicParticularTokensCard() {
     useState<ClinicParticularTokenFormState>(INITIAL_FORM_STATE);
   const [tokens, setTokens] = useState<ClinicParticularTokenSummary[]>([]);
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
+  const [generatedTokenRecipientEmail, setGeneratedTokenRecipientEmail] =
+    useState<string | null>(null);
+  const [generatedTokenDetails, setGeneratedTokenDetails] =
+    useState<GeneratedTokenDetails | null>(null);
+  const [isGeneratedTokenConfirmed, setIsGeneratedTokenConfirmed] =
+    useState(false);
+  const [copyStatusMessage, setCopyStatusMessage] = useState<string | null>(
+    null,
+  );
+  const [copyErrorMessage, setCopyErrorMessage] = useState<string | null>(null);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -185,6 +209,50 @@ export function ClinicParticularTokensCard() {
     setStatusMessage(null);
   }
 
+  function clearGeneratedTokenState() {
+    setGeneratedToken(null);
+    setGeneratedTokenRecipientEmail(null);
+    setGeneratedTokenDetails(null);
+    setIsGeneratedTokenConfirmed(false);
+    setCopyStatusMessage(null);
+    setCopyErrorMessage(null);
+  }
+
+  async function handleCopyManualMessage() {
+    if (!generatedToken || !generatedTokenDetails) {
+      return;
+    }
+
+    setCopyStatusMessage(null);
+    setCopyErrorMessage(null);
+
+    if (!navigator.clipboard?.writeText) {
+      setCopyErrorMessage(
+        "No se pudo acceder al portapapeles. Copiá el token manualmente antes de cerrar este bloque.",
+      );
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(
+        buildManualTokenMessage(generatedToken, generatedTokenDetails),
+      );
+      setCopyStatusMessage("Mensaje copiado al portapapeles.");
+    } catch {
+      setCopyErrorMessage(
+        "No se pudo copiar el mensaje. Copiá el token manualmente antes de cerrar este bloque.",
+      );
+    }
+  }
+
+  function handleCloseGeneratedToken() {
+    if (!isGeneratedTokenConfirmed) {
+      return;
+    }
+
+    clearGeneratedTokenState();
+  }
+
   function resetForm() {
     setFormState(INITIAL_FORM_STATE);
   }
@@ -198,7 +266,13 @@ export function ClinicParticularTokensCard() {
 
     setErrorMessage(null);
     setStatusMessage(null);
-    setGeneratedToken(null);
+
+    if (generatedToken) {
+      setErrorMessage(
+        "Cerrá el token visible luego de confirmar la comunicación antes de generar otro.",
+      );
+      return;
+    }
 
     let payload: ClinicParticularTokenCreatePayload;
 
@@ -213,12 +287,23 @@ export function ClinicParticularTokensCard() {
       return;
     }
 
+    const generatedRecipientEmail = formState.particularEmail.trim();
+    const nextGeneratedTokenDetails: GeneratedTokenDetails = {
+      petName: payload.petName,
+      tutorLastName: payload.tutorLastName,
+    };
+
     setIsSubmitting(true);
 
     try {
       const response = await createClinicParticularToken(payload);
 
       setGeneratedToken(response.token);
+      setGeneratedTokenRecipientEmail(generatedRecipientEmail || null);
+      setGeneratedTokenDetails(nextGeneratedTokenDetails);
+      setIsGeneratedTokenConfirmed(false);
+      setCopyStatusMessage(null);
+      setCopyErrorMessage(null);
       setStatusMessage(response.message);
       resetForm();
       await loadTokens();
@@ -256,6 +341,31 @@ export function ClinicParticularTokensCard() {
                 onChange={(event) => updateField("reportId", event.target.value)}
                 disabled={isSubmitting}
               />
+            </div>
+
+            <div>
+              <label htmlFor="clinic-token-particular-email" className="field-label">
+                Email del particular
+              </label>
+              <Input
+                id="clinic-token-particular-email"
+                name="particularEmail"
+                type="email"
+                placeholder="email@ejemplo.com"
+                value={formState.particularEmail}
+                onChange={(event) =>
+                  updateField("particularEmail", event.target.value)
+                }
+                disabled={isSubmitting}
+                aria-describedby="clinic-token-particular-email-help"
+              />
+              <p
+                id="clinic-token-particular-email-help"
+                className="mt-1 text-xs text-muted-foreground"
+              >
+                Opcional. Se usa solo para preparar la comunicación manual del
+                token; no se envía automáticamente.
+              </p>
             </div>
 
             <div>
@@ -466,7 +576,7 @@ export function ClinicParticularTokensCard() {
           ) : null}
 
           {generatedToken ? (
-            <div className="clinical-muted-band rounded-lg p-4">
+            <div className="clinical-muted-band space-y-3 rounded-lg p-4">
               <p className="text-sm font-semibold text-vetneb-navy">
                 Token generado
               </p>
@@ -479,10 +589,68 @@ export function ClinicParticularTokensCard() {
               <p className="mt-2 text-xs text-muted-foreground">
                 Copiar ahora. El token completo solo se muestra una vez.
               </p>
+              <div className="clinical-alert-error px-3 py-2">
+                <p className="text-sm font-semibold">
+                  IMPORTANTE: el token completo solo se muestra una vez.
+                </p>
+                <p className="mt-1 text-sm">
+                  Antes de cerrar este bloque, verificá que el email del
+                  particular sea correcto y que el token haya sido copiado o
+                  comunicado por el canal acordado.
+                </p>
+              </div>
+              <p className="text-sm text-vetneb-ink">
+                {generatedTokenRecipientEmail
+                  ? `Email indicado: ${generatedTokenRecipientEmail}`
+                  : "No se indicó email del particular. Copiá el token por el canal acordado antes de cerrar este bloque."}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleCopyManualMessage()}
+                >
+                  Copiar mensaje para enviar
+                </Button>
+              </div>
+              {copyStatusMessage ? (
+                <p className="clinical-alert-success px-3 py-2 text-sm">
+                  {copyStatusMessage}
+                </p>
+              ) : null}
+              {copyErrorMessage ? (
+                <p className="clinical-alert-error px-3 py-2 text-sm" role="alert">
+                  {copyErrorMessage}
+                </p>
+              ) : null}
+              <label className="flex items-start gap-2 text-sm text-vetneb-ink">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={isGeneratedTokenConfirmed}
+                  onChange={(event) =>
+                    setIsGeneratedTokenConfirmed(event.target.checked)
+                  }
+                />
+                <span>
+                  Confirmo que copié o comuniqué el token al destinatario
+                  correcto.
+                </span>
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCloseGeneratedToken}
+                disabled={!isGeneratedTokenConfirmed}
+              >
+                Cerrar token visible
+              </Button>
             </div>
           ) : null}
 
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting || generatedToken !== null}>
             {isSubmitting ? "Generando token..." : "Generar token particular"}
           </Button>
         </form>
