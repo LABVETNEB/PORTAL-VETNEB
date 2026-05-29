@@ -115,18 +115,27 @@ The smoke contract tests (`smoke(no siteUrl)`, `smoke(secure siteUrl)`,
 `smoke(insecure siteUrl)`) in `test/frontend-csp-report-uri-contract.test.ts`
 cover the three `NEXT_PUBLIC_SITE_URL` scenarios without booting Next.js.
 
-## 9. Expected signals before promoting to enforcement
+## 9. Pre-enforcement readiness — expected signals before promoting to enforcement
+
+**This PR does not activate enforcement.** `Content-Security-Policy-Report-Only` remains
+the only CSP mode active. Promoting to enforcement requires a dedicated PR with evidence
+from violation analysis — it must not be done unilaterally. All items in this
+pre-enforcement checklist must be satisfied before that PR is opened.
 
 Do not open a `Content-Security-Policy` enforcement PR until all of the
 following conditions are met:
 
 - [ ] Report-Only has been active in production for a minimum observed period (recommended: ≥ 2 weeks).
-- [ ] CSP violation reports collected at `/api/security/csp-report` show no violations from legitimate first-party resources.
+- [ ] CSP violation reports collected at `/api/security/csp-report` show no violations from legitimate first-party resources and zero unexplained violations remain.
+- [ ] Decision on `unsafe-inline` and `unsafe-eval` is explicit and documented in the enforcement PR: either eliminated (preferred) or retained with a justified nonce/hash strategy. Currently both are present in `script-src` and `style-src` as a temporary measure (see `#747`).
 - [ ] All legitimate inline scripts and styles are either removed or covered by a nonce or hash (requires nonce PR first).
-- [ ] `frame-src` and `connect-src` allowlists are confirmed accurate for all production integrations (Google Maps, etc.).
-- [ ] A rollback plan for the enforcement PR is documented and tested.
+- [ ] `frame-src` and `connect-src` allowlists are confirmed accurate for all production integrations. Google Maps iframes (Footer and public pages) are covered by `frame-src https://www.google.com https://maps.google.com` — confirm no new iframe sources were added.
+- [ ] External navigation via `PublicExternalControl` has been validated: no bare `<a>` tags reintroduced (covered by `Footer uses PublicExternalControl for external navigation` in `test/frontend-next-config-security-headers.test.ts`).
+- [ ] SSG public pages (static-export paths such as `/sitemap.ts`, `/robots.ts`, and service landing pages) have been validated: all external resources referenced in statically generated HTML comply with CSP directives.
+- [ ] A rollback plan for the enforcement PR is documented and tested (see Section 10).
 - [ ] `pnpm security:public-surface` passes.
 - [ ] All CSP contract tests pass.
+- [ ] Explicit approval to activate `Content-Security-Policy` (enforcing) is documented in the enforcement PR description — do not open the enforcement PR without this sign-off.
 
 Promoting to enforcement while violations from legitimate resources exist
 will break the application for real users. Report-Only + violation analysis

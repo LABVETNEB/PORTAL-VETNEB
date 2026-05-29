@@ -313,3 +313,30 @@ test("next.config.ts declara Content-Security-Policy-Report-Only y no el enforci
   // 'key: "Content-Security-Policy-Report-Only"', so this guard is unambiguous.
   assertNotContains(source, 'key: "Content-Security-Policy"', file);
 });
+
+test("docs/security/csp-reporting-rollout.md contiene términos críticos de enforcement readiness", () => {
+  // Contract: the rollout doc must not lose critical terms that gate enforcement.
+  // If any term is missing, Section 9 (pre-enforcement checklist) has been eroded.
+  const file = "docs/security/csp-reporting-rollout.md";
+  const source = read(file);
+
+  const criticalTerms = [
+    "Content-Security-Policy-Report-Only",
+    "Content-Security-Policy",
+    "Report-Only",
+    "/api/security/csp-report",
+    "report-uri",
+    "report-to",
+    "Reporting-Endpoints",
+    "nonce",
+    "unsafe-inline",
+    "unsafe-eval",
+    "preload",
+    "rollback",
+    "pre-enforcement",
+  ];
+
+  for (const term of criticalTerms) {
+    assertContains(source, term, file);
+  }
+});
