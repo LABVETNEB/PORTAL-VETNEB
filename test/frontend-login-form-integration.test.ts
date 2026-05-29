@@ -61,7 +61,7 @@ test("login public page handles loading and error states", () => {
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("disabled={isSubmitting}"));
   assert.ok(source.includes('isSubmitting ? "Iniciando sesión..." : "Iniciar sesión"'));
-  assert.ok(source.includes('data-auth-clinic-access-tab="true"'));
+  assert.ok(source.includes("Usuario o email"));
   assert.ok(source.includes('data-auth-credential-input="true"'));
   assert.ok(source.includes('data-auth-credential-visibility-toggle="true"'));
   assert.ok(source.includes('aria-controls="password"'));
@@ -92,9 +92,11 @@ test("login public page routes particular access away from the clinic login form
   assert.ok(source.includes('const requestedSurface = searchParams.get("tipo") ?? searchParams.get("surface");'));
   assert.ok(source.includes('if (requestedSurface === "particular")'));
   assert.ok(source.includes("router.replace(ROUTES.particulares);"));
-  assert.ok(source.includes("<PublicRouteControl"));
-  assert.ok(source.includes("href={ROUTES.particulares}"));
-  assert.ok(source.includes('data-auth-particular-access-link="true"'));
+  assert.ok(source.includes("Acceda al portal privado con sus credenciales."));
+  assert.equal(source.includes("Clínicas"), false);
+  assert.equal(source.includes("Particulares"), false);
+  assert.equal(source.includes('data-auth-particular-access-link="true"'), false);
+  assert.equal(source.includes('data-auth-clinic-access-tab="true"'), false);
   assert.equal(source.includes("<Link"), false);
   assert.equal(source.includes("openParticularAccess"), false);
   assert.equal(source.includes("router.push(ROUTES.particulares);"), false);

@@ -49,9 +49,12 @@ test("login content keeps standalone login shell and form landmarks", () => {
   assert.equal(source.includes(">VN<"), false);
   assert.equal(source.includes("Laboratorio veterinario digital"), false);
   assert.ok(source.includes("Iniciar sesión"));
+  assert.ok(source.includes("Acceda al portal privado con sus credenciales."));
   assert.ok(source.includes('aria-label="Formulario de inicio de sesión"'));
-  assert.ok(source.includes("Usuario"));
+  assert.ok(source.includes("Usuario o email"));
   assert.ok(source.includes("Contraseña"));
+  assert.equal(source.includes("Clínicas"), false);
+  assert.equal(source.includes("Particulares"), false);
 });
 
 test("login content keeps safe dashboard redirect and error handling", () => {
@@ -78,9 +81,10 @@ test("login content exposes public navigation affordances without direct fetch",
   const source = read(LOGIN_CONTENT_PATH);
 
   assert.ok(source.includes("href={ROUTES.home}"));
-  assert.ok(source.includes("href={ROUTES.particulares}"));
+  assert.ok(source.includes('if (requestedSurface === "particular")'));
+  assert.ok(source.includes("router.replace(ROUTES.particulares);"));
   assert.ok(source.includes("<PublicRouteControl"));
-  assert.ok(source.includes('data-auth-particular-access-link="true"'));
+  assert.equal(source.includes('data-auth-particular-access-link="true"'), false);
   assert.ok(source.includes('aria-label="PORTAL VETNEB — Inicio"'));
   assert.ok(source.includes("¿Su clínica no tiene acceso?"));
   assert.ok(source.includes("href={ROUTES.contacto}"));

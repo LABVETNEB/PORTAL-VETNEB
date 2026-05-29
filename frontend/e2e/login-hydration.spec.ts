@@ -34,17 +34,20 @@ function collectHydrationFailures(page: Page) {
 
 async function expectInitialLoginState(page: Page) {
   const form = page.getByRole("form", { name: loginFormName });
-  const username = page.getByLabel("Usuario", { exact: true });
+  const heading = page.getByRole("heading", { name: "Iniciar sesión" });
+  const username = page.getByLabel("Usuario o email", { exact: true });
   const password = page.getByLabel("Contraseña", { exact: true });
   const submit = form.getByRole("button", { name: "Iniciar sesión" });
   const clinicTab = page.getByRole("button", { name: "Clínicas" });
+  const particularesTab = page.getByRole("link", { name: "Particulares" });
   const passwordToggle = form.locator(
     '[data-auth-credential-visibility-toggle="true"]',
   );
 
+  await expect(heading).toBeVisible();
   await expect(form).toBeVisible();
-  await expect(clinicTab).toBeEnabled();
-  await expect(clinicTab).toHaveAttribute("aria-pressed", "true");
+  await expect(clinicTab).toHaveCount(0);
+  await expect(particularesTab).toHaveCount(0);
   await expect(username).toHaveValue("");
   await expect(username).toBeEnabled();
   await expect(password).toHaveValue("");
