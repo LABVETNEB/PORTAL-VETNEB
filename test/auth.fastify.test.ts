@@ -44,6 +44,12 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
       valid: false,
       needsRehash: false,
     }),
+    createAdminSession: async () => {},
+    getAdminUserByUsername: async () => null,
+    writeAdminAuditLog: async () => {},
+    createParticularSession: async () => {},
+    getParticularTokenByTokenHash: async () => null,
+    updateParticularTokenLastLogin: async () => {},
     writeAuditLog: async () => {},
     recordLoginFailedAttempt: async () => {},
     ...overrides,
@@ -223,6 +229,367 @@ test(
       assert.equal(auditCalls[0].event, AUDIT_EVENTS.CLINIC_LOGIN_SUCCEEDED);
       assert.equal(auditCalls[0].clinicId, 3);
       assert.equal(auditCalls[0].targetClinicUserId, 7);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicAuthNativeRoutes login unificado autentica admin y crea cookie admin",
+  async () => {
+    const adminSessionCalls: Array<{
+      adminUserId: number;
+      tokenHash: string;
+      expiresAt: Date;
+    }> = [];
+
+    const app = await createTestApp({
+      now: () => 0,
+      getAdminUserByUsername: async (username: string) => {
+        assert.equal(username, "admin@vetneb");
+
+        return {
+          id: 101,
+          username: "admin@vetneb",
+          passwordHash: "admin-hash",
+        };
+      },
+      getClinicUserByUsername: async () => {
+        throw new Error("no debe evaluar clinic cuando admin autenticó");
+      },
+      verifyPassword: async (password: string, passwordHash: string) => {
+        assert.equal(password, "secret");
+        assert.equal(passwordHash, "admin-hash");
+
+        return {
+          valid: true,
+          needsRehash: false,
+        };
+      },
+      generateSessionToken: () => "admin-token-123",
+      hashSessionToken: (token: string) => `hash:${token}`,
+      createAdminSession: async (input: {
+        adminUserId: number;
+        tokenHash: string;
+        expiresAt: Date;
+      }) => {
+        adminSessionCalls.push(input);
+      },
+      writeAdminAuditLog: async () => {},
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        headers: {
+          origin: "http://localhost:3000",
+        },
+        payload: {
+          identifier: " admin@vetneb ",
+          password: "secret",
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: true,
+        role: "admin",
+        redirectTo: "/dashboard/admin",
+      });
+
+      const setCookie = getSetCookieHeader(response);
+      assert.ok(setCookie.includes(`${ENV.adminCookieName}=admin-token-123`));
+      assert.equal(setCookie.includes(`${ENV.cookieName}=`), false);
+      assert.equal(setCookie.includes(`${ENV.particularCookieName}=`), false);
+
+      assert.equal(adminSessionCalls.length, 1);
+      assert.equal(adminSessionCalls[0].adminUserId, 101);
+      assert.equal(adminSessionCalls[0].tokenHash, "hash:admin-token-123");
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicAuthNativeRoutes login unificado autentica clínica y crea cookie app_session_id",
+  async () => {
+    const clinicSessionCalls: Array<{
+      clinicUserId: number;
+      tokenHash: string;
+      expiresAt: Date;
+    }> = [];
+
+    const app = await createTestApp({
+      now: () => 0,
+      getAdminUserByUsername: async () => null,
+      getClinicUserByUsername: async (username: string) => {
+        assert.equal(username, "clinica@vetneb");
+
+        return {
+          id: 77,
+          clinicId: 9,
+          username: "clinica@vetneb",
+          passwordHash: "clinic-hash",
+          authProId: null,
+          role: "clinic_staff",
+        };
+      },
+      verifyPassword: async (password: string, passwordHash: string) => {
+        assert.equal(password, "secret");
+        assert.equal(passwordHash, "clinic-hash");
+
+        return {
+          valid: true,
+          needsRehash: false,
+        };
+      },
+      generateSessionToken: () => "clinic-token-123",
+      hashSessionToken: (token: string) => `hash:${token}`,
+      createActiveSession: async (input: {
+        clinicUserId: number;
+        tokenHash: string;
+        expiresAt: Date;
+      }) => {
+        clinicSessionCalls.push(input);
+      },
+      writeAuditLog: async () => {},
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        headers: {
+          origin: "http://localhost:3000",
+        },
+        payload: {
+          identifier: "clinica@vetneb",
+          password: "secret",
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: true,
+        role: "clinic",
+        redirectTo: "/dashboard",
+      });
+
+      const setCookie = getSetCookieHeader(response);
+      assert.ok(setCookie.includes(`${ENV.cookieName}=clinic-token-123`));
+      assert.equal(setCookie.includes(`${ENV.adminCookieName}=`), false);
+      assert.equal(setCookie.includes(`${ENV.particularCookieName}=`), false);
+
+      assert.equal(clinicSessionCalls.length, 1);
+      assert.equal(clinicSessionCalls[0].clinicUserId, 77);
+      assert.equal(clinicSessionCalls[0].tokenHash, "hash:clinic-token-123");
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicAuthNativeRoutes login unificado autentica particular y crea cookie particular_session_id",
+  async () => {
+    const particularSessionCalls: Array<{
+      particularTokenId: number;
+      tokenHash: string;
+      lastAccess: Date;
+      expiresAt: Date;
+    }> = [];
+    const lastLoginCalls: number[] = [];
+
+    const app = await createTestApp({
+      now: () => Date.UTC(2026, 4, 9, 0, 0, 0),
+      getAdminUserByUsername: async () => null,
+      getClinicUserByUsername: async () => null,
+      getParticularTokenByTokenHash: async (tokenHash: string) => {
+        assert.equal(tokenHash, "hash:PARTICULAR-TOKEN-1");
+
+        return {
+          id: 501,
+          clinicId: 7,
+          reportId: 301,
+          isActive: true,
+        };
+      },
+      generateSessionToken: () => "particular-session-123",
+      hashSessionToken: (token: string) => `hash:${token}`,
+      createParticularSession: async (input: {
+        particularTokenId: number;
+        tokenHash: string;
+        lastAccess: Date;
+        expiresAt: Date;
+      }) => {
+        particularSessionCalls.push(input);
+      },
+      updateParticularTokenLastLogin: async (tokenId: number) => {
+        lastLoginCalls.push(tokenId);
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        headers: {
+          origin: "http://localhost:3000",
+        },
+        payload: {
+          identifier: "PARTICULAR-TOKEN-1",
+          password: "PARTICULAR-TOKEN-1",
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: true,
+        role: "particular",
+        redirectTo: "/particulares",
+      });
+
+      const setCookie = getSetCookieHeader(response);
+      assert.ok(
+        setCookie.includes(`${ENV.particularCookieName}=particular-session-123`),
+      );
+      assert.equal(setCookie.includes(`${ENV.cookieName}=`), false);
+      assert.equal(setCookie.includes(`${ENV.adminCookieName}=`), false);
+
+      assert.equal(particularSessionCalls.length, 1);
+      assert.equal(particularSessionCalls[0].particularTokenId, 501);
+      assert.equal(
+        particularSessionCalls[0].tokenHash,
+        "hash:particular-session-123",
+      );
+      assert.deepEqual(lastLoginCalls, [501]);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test("clinicAuthNativeRoutes login unificado responde error genérico para credenciales inválidas", async () => {
+  const app = await createTestApp({
+    getAdminUserByUsername: async () => null,
+    getClinicUserByUsername: async () => null,
+    getParticularTokenByTokenHash: async () => null,
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      payload: {
+        identifier: "desconocido",
+        password: "incorrecta",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Credenciales inválidas",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes login unificado valida payload inválido sin stacktrace", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      payload: {
+        identifier: " ",
+        password: "",
+      },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Identificador y contraseña requeridos",
+    });
+    assert.equal(response.body.toLowerCase().includes("error interno"), false);
+    assert.equal(response.body.toLowerCase().includes("stack"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test(
+  "clinicAuthNativeRoutes login unificado prioriza admin ante colisión de identifier",
+  async () => {
+    let clinicLookupCalls = 0;
+
+    const app = await createTestApp({
+      now: () => 0,
+      getAdminUserByUsername: async (username: string) => {
+        if (username === "shared-user") {
+          return {
+            id: 1,
+            username: "shared-user",
+            passwordHash: "shared-hash",
+          };
+        }
+
+        return null;
+      },
+      getClinicUserByUsername: async () => {
+        clinicLookupCalls += 1;
+
+        return {
+          id: 7,
+          clinicId: 3,
+          username: "shared-user",
+          passwordHash: "shared-hash",
+          authProId: null,
+          role: "clinic_owner",
+        };
+      },
+      verifyPassword: async (password: string, passwordHash: string) => ({
+        valid: password === "secret" && passwordHash === "shared-hash",
+        needsRehash: false,
+      }),
+      generateSessionToken: () => "admin-priority-token",
+      hashSessionToken: (token: string) => `hash:${token}`,
+      createAdminSession: async () => {},
+      writeAdminAuditLog: async () => {},
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        headers: {
+          origin: "http://localhost:3000",
+        },
+        payload: {
+          identifier: "shared-user",
+          password: "secret",
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: true,
+        role: "admin",
+        redirectTo: "/dashboard/admin",
+      });
+      assert.equal(clinicLookupCalls, 0);
     } finally {
       await app.close();
     }

@@ -172,6 +172,19 @@ export type LoginCredentials = {
   password: string;
 };
 
+export type UnifiedLoginCredentials = {
+  identifier: string;
+  password: string;
+};
+
+export type UnifiedLoginRole = "admin" | "clinic" | "particular";
+
+export type UnifiedLoginResponse = {
+  success: true;
+  role: UnifiedLoginRole;
+  redirectTo: string;
+};
+
 export type ParticularLoginCredentials = {
   token: string;
 };

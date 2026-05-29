@@ -32,7 +32,9 @@ test("login next redirect helper keeps strict dashboard boundary checks", () => 
   assert.equal(source.includes("safePath === ROUTES.dashboardAdmin"), false);
   assert.equal(source.includes("safePath.startsWith(`${ROUTES.dashboardAdmin}/`)"), false);
   assert.equal(source.includes('if (!nextPath?.startsWith("/dashboard"))'), false);
-  assert.ok(source.includes('router.replace(getSafeNextPath(searchParams.get("next")))'));
+  assert.ok(source.includes("const destination ="));
+  assert.ok(source.includes("response.redirectTo"));
+  assert.ok(source.includes("router.replace(destination);"));
   assert.ok(source.includes('requestedSurface === "particular"'));
   assert.ok(source.includes("router.replace(ROUTES.particulares);"));
 });

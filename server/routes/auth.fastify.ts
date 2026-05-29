@@ -53,6 +53,19 @@ type SessionClinicUserRecord = {
   role: unknown;
 };
 
+type AdminUserRecord = {
+  id: number;
+  username: string;
+  passwordHash: string;
+};
+
+type ParticularTokenAuthRecord = {
+  id: number;
+  clinicId: number;
+  reportId: number | null;
+  isActive: boolean;
+};
+
 type ActiveSessionRecord = {
   clinicUserId: number;
   expiresAt: Date | null;
@@ -81,6 +94,16 @@ type AuditWriteInput = {
   };
 };
 
+type AdminAuditWriteInput = {
+  event: string;
+  targetAdminUserId?: number | null;
+  metadata?: Record<string, unknown>;
+  actor?: {
+    type: string;
+    adminUserId?: number | null;
+  };
+};
+
 type LoginFailedAttemptReason =
   | "missing_credentials"
   | "invalid_credentials"
@@ -94,6 +117,39 @@ type RecordLoginFailedAttemptInput = {
   userAgent?: string | null;
   createdAt: Date;
 };
+
+type UnifiedLoginRole = "admin" | "clinic" | "particular";
+
+type AuthenticatedAdminCandidate = {
+  role: "admin";
+  redirectTo: string;
+  setCookie: string;
+};
+
+type AuthenticatedClinicCandidate = {
+  role: "clinic";
+  redirectTo: string;
+  setCookie: string;
+  clinicUser: {
+    id: number;
+    clinicId: number;
+    username: string;
+    authProId: string | null;
+    role: ReturnType<typeof normalizeClinicUserRole>;
+  };
+  permissions: ReturnType<typeof getClinicPermissions>;
+};
+
+type AuthenticatedParticularCandidate = {
+  role: "particular";
+  redirectTo: string;
+  setCookie: string;
+};
+
+type UnifiedAuthenticatedCandidate =
+  | AuthenticatedAdminCandidate
+  | AuthenticatedClinicCandidate
+  | AuthenticatedParticularCandidate;
 
 export type AuthNativeRoutesOptions = {
   createActiveSession?: (input: {
@@ -126,6 +182,28 @@ export type AuthNativeRoutesOptions = {
     password: string,
     passwordHash: string,
   ) => Promise<VerifyPasswordResult>;
+  createAdminSession?: (input: {
+    adminUserId: number;
+    tokenHash: string;
+    expiresAt: Date;
+  }) => Promise<unknown>;
+  getAdminUserByUsername?: (
+    username: string,
+  ) => Promise<AdminUserRecord | null>;
+  writeAdminAuditLog?: (
+    req: unknown,
+    input: AdminAuditWriteInput,
+  ) => Promise<void>;
+  createParticularSession?: (input: {
+    particularTokenId: number;
+    tokenHash: string;
+    lastAccess: Date;
+    expiresAt: Date;
+  }) => Promise<unknown>;
+  getParticularTokenByTokenHash?: (
+    tokenHash: string,
+  ) => Promise<ParticularTokenAuthRecord | null>;
+  updateParticularTokenLastLogin?: (tokenId: number) => Promise<void>;
   writeAuditLog?: (req: unknown, input: AuditWriteInput) => Promise<void>;
   recordLoginFailedAttempt?: (
     input: RecordLoginFailedAttemptInput,
@@ -157,6 +235,12 @@ type NativeAuthDeps = Required<
     | "hashPassword"
     | "hashSessionToken"
     | "verifyPassword"
+    | "createAdminSession"
+    | "getAdminUserByUsername"
+    | "writeAdminAuditLog"
+    | "createParticularSession"
+    | "getParticularTokenByTokenHash"
+    | "updateParticularTokenLastLogin"
     | "writeAuditLog"
     | "recordLoginFailedAttempt"
   >
@@ -171,6 +255,7 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
+      const dbParticular = await import("../db-particular.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const audit = await import("../lib/audit.ts");
 
@@ -186,6 +271,17 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
         hashPassword: authSecurity.hashPassword,
         hashSessionToken: authSecurity.hashSessionToken,
         verifyPassword: authSecurity.verifyPassword,
+        createAdminSession: db.createAdminSession,
+        getAdminUserByUsername: db.getAdminUserByUsername,
+        writeAdminAuditLog: audit.writeAuditLog as (
+          req: unknown,
+          input: AdminAuditWriteInput,
+        ) => Promise<void>,
+        createParticularSession: dbParticular.createParticularSession,
+        getParticularTokenByTokenHash:
+          dbParticular.getParticularTokenByTokenHash,
+        updateParticularTokenLastLogin:
+          dbParticular.updateParticularTokenLastLogin,
         writeAuditLog: audit.writeAuditLog as (
           req: unknown,
           input: AuditWriteInput,
@@ -409,6 +505,22 @@ function buildSessionCookie(token: string) {
   });
 }
 
+function buildAdminSessionCookie(token: string) {
+  return serializeCookie({
+    name: ENV.adminCookieName,
+    value: token,
+    maxAgeSeconds: ENV.sessionTtlHours * 60 * 60,
+  });
+}
+
+function buildParticularSessionCookie(token: string) {
+  return serializeCookie({
+    name: ENV.particularCookieName,
+    value: token,
+    maxAgeSeconds: ENV.sessionTtlHours * 60 * 60,
+  });
+}
+
 function buildClearSessionCookie() {
   return serializeCookie({
     name: ENV.cookieName,
@@ -459,6 +571,212 @@ function createAuditRequestLike(
     ip: request.ip,
     headers: request.headers,
     auth,
+  };
+}
+
+function createAdminAuditRequestLike(
+  request: FastifyRequest,
+  admin: Pick<AdminUserRecord, "id" | "username">,
+) {
+  return {
+    method: request.method,
+    originalUrl: request.url,
+    ip: request.ip,
+    headers: request.headers,
+    adminAuth: {
+      id: admin.id,
+      username: admin.username,
+    },
+  };
+}
+
+function normalizeLoginIdentifier(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function resolveRoleRedirect(role: UnifiedLoginRole) {
+  if (role === "admin") {
+    return "/dashboard/admin";
+  }
+
+  if (role === "particular") {
+    return "/particulares";
+  }
+
+  return "/dashboard";
+}
+
+async function authenticateAdminCandidate(
+  request: FastifyRequest,
+  deps: NativeAuthDeps,
+  input: {
+    identifier: string;
+    password: string;
+    currentTime: number;
+  },
+): Promise<AuthenticatedAdminCandidate | null> {
+  const admin = await deps.getAdminUserByUsername(input.identifier);
+
+  if (!admin) {
+    return null;
+  }
+
+  const valid = await deps.verifyPassword(input.password, admin.passwordHash);
+
+  if (!valid.valid) {
+    return null;
+  }
+
+  const token = deps.generateSessionToken();
+  const tokenHash = deps.hashSessionToken(token);
+  const expiresAt = new Date(
+    input.currentTime + ENV.sessionTtlHours * 60 * 60 * 1000,
+  );
+
+  await deps.createAdminSession({
+    adminUserId: admin.id,
+    tokenHash,
+    expiresAt,
+  });
+
+  await deps.writeAdminAuditLog(createAdminAuditRequestLike(request, admin), {
+    event: AUDIT_EVENTS.ADMIN_LOGIN_SUCCEEDED,
+    targetAdminUserId: admin.id,
+    metadata: {
+      username: admin.username,
+      sessionExpiresAt: expiresAt,
+    },
+    actor: {
+      type: "admin_user",
+      adminUserId: admin.id,
+    },
+  });
+
+  return {
+    role: "admin",
+    redirectTo: resolveRoleRedirect("admin"),
+    setCookie: buildAdminSessionCookie(token),
+  };
+}
+
+async function authenticateClinicCandidate(
+  request: FastifyRequest,
+  deps: NativeAuthDeps,
+  input: {
+    identifier: string;
+    password: string;
+    currentTime: number;
+  },
+): Promise<AuthenticatedClinicCandidate | null> {
+  const clinicUser = await deps.getClinicUserByUsername(input.identifier);
+
+  if (!clinicUser) {
+    return null;
+  }
+
+  const passwordCheck = await deps.verifyPassword(
+    input.password,
+    clinicUser.passwordHash,
+  );
+
+  if (!passwordCheck.valid) {
+    return null;
+  }
+
+  const role = normalizeClinicUserRole(clinicUser.role, "clinic_staff");
+
+  if (passwordCheck.needsRehash) {
+    const newHash = await deps.hashPassword(input.password);
+
+    await deps.upsertClinicUser({
+      clinicId: clinicUser.clinicId,
+      username: clinicUser.username,
+      passwordHash: newHash,
+      authProId: clinicUser.authProId ?? null,
+      role,
+    });
+  }
+
+  const token = deps.generateSessionToken();
+  const tokenHash = deps.hashSessionToken(token);
+  const expiresAt = new Date(
+    input.currentTime + ENV.sessionTtlHours * 60 * 60 * 1000,
+  );
+
+  await deps.createActiveSession({
+    clinicUserId: clinicUser.id,
+    tokenHash,
+    expiresAt,
+  });
+
+  await deps.writeAuditLog(createAuditRequestLike(request), {
+    event: AUDIT_EVENTS.CLINIC_LOGIN_SUCCEEDED,
+    clinicId: clinicUser.clinicId,
+    targetClinicUserId: clinicUser.id,
+    metadata: {
+      username: clinicUser.username,
+      role,
+      sessionExpiresAt: expiresAt,
+    },
+    actor: {
+      type: "clinic_user",
+      clinicUserId: clinicUser.id,
+    },
+  });
+
+  return {
+    role: "clinic",
+    redirectTo: resolveRoleRedirect("clinic"),
+    setCookie: buildSessionCookie(token),
+    clinicUser: {
+      id: clinicUser.id,
+      clinicId: clinicUser.clinicId,
+      username: clinicUser.username,
+      authProId: clinicUser.authProId ?? null,
+      role,
+    },
+    permissions: getClinicPermissions(role),
+  };
+}
+
+async function authenticateParticularCandidate(
+  deps: NativeAuthDeps,
+  input: {
+    identifier: string;
+    password: string;
+    currentTime: number;
+  },
+): Promise<AuthenticatedParticularCandidate | null> {
+  if (input.identifier !== input.password) {
+    return null;
+  }
+
+  const tokenHash = deps.hashSessionToken(input.identifier);
+  const particularToken = await deps.getParticularTokenByTokenHash(tokenHash);
+
+  if (!particularToken || !particularToken.isActive) {
+    return null;
+  }
+
+  const sessionToken = deps.generateSessionToken();
+  const sessionTokenHash = deps.hashSessionToken(sessionToken);
+  const expiresAt = new Date(
+    input.currentTime + ENV.sessionTtlHours * 60 * 60 * 1000,
+  );
+
+  await deps.createParticularSession({
+    particularTokenId: particularToken.id,
+    tokenHash: sessionTokenHash,
+    lastAccess: new Date(input.currentTime),
+    expiresAt,
+  });
+
+  await deps.updateParticularTokenLastLogin(particularToken.id);
+
+  return {
+    role: "particular",
+    redirectTo: resolveRoleRedirect("particular"),
+    setCookie: buildParticularSessionCookie(sessionToken),
   };
 }
 
@@ -571,6 +889,30 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
     hashSessionToken:
       options.hashSessionToken ?? defaultDeps!.hashSessionToken,
     verifyPassword: options.verifyPassword ?? defaultDeps!.verifyPassword,
+    createAdminSession:
+      options.createAdminSession ??
+      defaultDeps?.createAdminSession ??
+      (async () => undefined),
+    getAdminUserByUsername:
+      options.getAdminUserByUsername ??
+      defaultDeps?.getAdminUserByUsername ??
+      (async () => null),
+    writeAdminAuditLog:
+      options.writeAdminAuditLog ??
+      defaultDeps?.writeAdminAuditLog ??
+      (async () => undefined),
+    createParticularSession:
+      options.createParticularSession ??
+      defaultDeps?.createParticularSession ??
+      (async () => undefined),
+    getParticularTokenByTokenHash:
+      options.getParticularTokenByTokenHash ??
+      defaultDeps?.getParticularTokenByTokenHash ??
+      (async () => null),
+    updateParticularTokenLastLogin:
+      options.updateParticularTokenLastLogin ??
+      defaultDeps?.updateParticularTokenLastLogin ??
+      (async () => undefined),
     writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
     recordLoginFailedAttempt:
       options.recordLoginFailedAttempt ??
@@ -647,6 +989,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
 
   app.post<{
     Body: {
+      identifier?: unknown;
       username?: unknown;
       password?: unknown;
     };
@@ -698,13 +1041,12 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         now: currentTime,
       });
 
-      const attemptedUsername =
-        typeof request.body?.username === "string"
-          ? request.body.username.trim()
-          : "";
+      const attemptedIdentifier =
+        normalizeLoginIdentifier(request.body?.identifier) ||
+        normalizeLoginIdentifier(request.body?.username);
 
       await recordFailedLoginAttempt({
-        username: attemptedUsername,
+        username: attemptedIdentifier,
         reason: "rate_limited",
       });
 
@@ -749,47 +1091,91 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       });
     };
 
-    const username =
-      typeof request.body?.username === "string"
-        ? request.body.username.trim()
-        : "";
+    const identifier = normalizeLoginIdentifier(request.body?.identifier);
+    const username = normalizeLoginIdentifier(request.body?.username);
+    const loginIdentifier = identifier || username;
+    const isUnifiedPayload =
+      !!request.body &&
+      typeof request.body === "object" &&
+      Object.prototype.hasOwnProperty.call(request.body, "identifier");
     const password =
       typeof request.body?.password === "string" ? request.body.password : "";
 
-    if (!username || !password) {
+    if (!loginIdentifier || !password) {
       await markFailure({
-        username,
+        username: loginIdentifier,
         reason: "missing_credentials",
       });
 
       return reply.code(400).send({
         success: false,
-        error: "Usuario y contrasena son obligatorios",
+        error: isUnifiedPayload
+          ? "Identificador y contraseña requeridos"
+          : "Usuario y contrasena son obligatorios",
       });
     }
 
-    const clinicUser = await deps.getClinicUserByUsername(username);
+    if (isUnifiedPayload) {
+      const candidateResolvers: Array<
+        () => Promise<UnifiedAuthenticatedCandidate | null>
+      > = [
+        () =>
+          authenticateAdminCandidate(request, deps, {
+            identifier: loginIdentifier,
+            password,
+            currentTime,
+          }),
+        () =>
+          authenticateClinicCandidate(request, deps, {
+            identifier: loginIdentifier,
+            password,
+            currentTime,
+          }),
+        () =>
+          authenticateParticularCandidate(deps, {
+            identifier: loginIdentifier,
+            password,
+            currentTime,
+          }),
+      ];
 
-    if (!clinicUser) {
+      for (const resolveCandidate of candidateResolvers) {
+        const candidate = await resolveCandidate();
+
+        if (!candidate) {
+          continue;
+        }
+
+        reply.header("set-cookie", candidate.setCookie);
+        markSuccess();
+
+        return reply.code(200).send({
+          success: true,
+          role: candidate.role,
+          redirectTo: candidate.redirectTo,
+        });
+      }
+
       await markFailure({
-        username,
+        username: loginIdentifier,
         reason: "invalid_credentials",
       });
 
       return reply.code(401).send({
         success: false,
-        error: "Usuario o contraseña inválidos",
+        error: "Credenciales inválidas",
       });
     }
 
-    const passwordCheck = await deps.verifyPassword(
+    const clinicCandidate = await authenticateClinicCandidate(request, deps, {
+      identifier: loginIdentifier,
       password,
-      clinicUser.passwordHash,
-    );
+      currentTime,
+    });
 
-    if (!passwordCheck.valid) {
+    if (!clinicCandidate) {
       await markFailure({
-        username,
+        username: loginIdentifier,
         reason: "invalid_credentials",
       });
 
@@ -799,60 +1185,13 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const role = normalizeClinicUserRole(clinicUser.role, "clinic_staff");
-
-    if (passwordCheck.needsRehash) {
-      const newHash = await deps.hashPassword(password);
-
-      await deps.upsertClinicUser({
-        clinicId: clinicUser.clinicId,
-        username: clinicUser.username,
-        passwordHash: newHash,
-        authProId: clinicUser.authProId ?? null,
-        role,
-      });
-    }
-
-    const token = deps.generateSessionToken();
-    const tokenHash = deps.hashSessionToken(token);
-    const expiresAt = new Date(
-      currentTime + ENV.sessionTtlHours * 60 * 60 * 1000,
-    );
-
-    await deps.createActiveSession({
-      clinicUserId: clinicUser.id,
-      tokenHash,
-      expiresAt,
-    });
-
-    await deps.writeAuditLog(createAuditRequestLike(request), {
-      event: AUDIT_EVENTS.CLINIC_LOGIN_SUCCEEDED,
-      clinicId: clinicUser.clinicId,
-      targetClinicUserId: clinicUser.id,
-      metadata: {
-        username: clinicUser.username,
-        role,
-        sessionExpiresAt: expiresAt,
-      },
-      actor: {
-        type: "clinic_user",
-        clinicUserId: clinicUser.id,
-      },
-    });
-
-    reply.header("set-cookie", buildSessionCookie(token));
+    reply.header("set-cookie", clinicCandidate.setCookie);
     markSuccess();
 
     return reply.code(200).send({
       success: true,
-      clinicUser: {
-        id: clinicUser.id,
-        clinicId: clinicUser.clinicId,
-        username: clinicUser.username,
-        authProId: clinicUser.authProId ?? null,
-        role,
-      },
-      permissions: getClinicPermissions(role),
+      clinicUser: clinicCandidate.clinicUser,
+      permissions: clinicCandidate.permissions,
     });
   });
 

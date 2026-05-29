@@ -165,13 +165,22 @@ test("auth login audit happens after session persistence and before success resp
     clinicAuth,
     [
       "if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {",
+      "const clinicCandidate = await authenticateClinicCandidate(request, deps, {",
+      "return reply.code(200).send({",
+    ],
+    "clinic auth login audit phase",
+  );
+
+  assertContainsInOrder(
+    clinicAuth,
+    [
+      "async function authenticateClinicCandidate(",
       "const token = deps.generateSessionToken();",
       "await deps.createActiveSession({",
       "await deps.writeAuditLog(createAuditRequestLike(request), {",
       "event: AUDIT_EVENTS.CLINIC_LOGIN_SUCCEEDED",
-      "return reply.code(200).send({",
     ],
-    "clinic auth login audit phase",
+    "clinic auth candidate audit phase",
   );
 
   assertContainsInOrder(

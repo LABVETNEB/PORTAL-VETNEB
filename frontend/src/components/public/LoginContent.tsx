@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
-import { loginClinic } from "@/lib/api";
+import { loginUnified } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 
 const SAFE_LOGIN_REDIRECT_ORIGIN = "https://portal.vetneb.local";
@@ -88,8 +88,18 @@ export function LoginContent() {
     setIsSubmitting(true);
 
     try {
-      await loginClinic({ username, password });
-      router.replace(getSafeNextPath(searchParams.get("next")));
+      const response = await loginUnified({
+        identifier: username,
+        password,
+      });
+
+      const safeNextPath = getSafeNextPath(searchParams.get("next"));
+      const destination =
+        response.role === "clinic" && response.redirectTo === ROUTES.dashboard
+          ? safeNextPath
+          : response.redirectTo;
+
+      router.replace(destination);
       router.refresh();
     } catch (error) {
       setErrorMessage(

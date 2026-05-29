@@ -17,10 +17,13 @@ test("frontend login content calls clinic login and redirects to dashboard", () 
   const source = read(LOGIN_CONTENT_PATH);
 
   assert.ok(source.includes('"use client"'));
-  assert.ok(source.includes('import { loginClinic } from "@/lib/api"'));
+  assert.ok(source.includes('import { loginUnified } from "@/lib/api"'));
   assert.ok(source.includes('import { useRouter, useSearchParams } from "next/navigation"'));
-  assert.ok(source.includes("await loginClinic({ username, password })"));
-  assert.ok(source.includes('router.replace(getSafeNextPath(searchParams.get("next")))'));
+  assert.ok(source.includes("const response = await loginUnified({"));
+  assert.ok(source.includes("identifier: username,"));
+  assert.ok(source.includes("const destination ="));
+  assert.ok(source.includes("response.redirectTo"));
+  assert.ok(source.includes("router.replace(destination)"));
   assert.ok(source.includes("router.refresh()"));
 });
 
