@@ -1838,3 +1838,281 @@ test(
     }
   },
 );
+
+/* ============================================================================
+ * Contrato global del login unificado para clínica recién registrada.
+ *
+ * Garantiza que una clínica creada vía createAdminClinicWithUser puede iniciar
+ * sesión por ambas vías:
+ *   (a) username (el usuario propio del clinic_user)
+ *   (b) contact email de la clínica
+ *
+ * Verifica además:
+ *   - role=clinic, redirectTo=/dashboard
+ *   - Cookie app_session_id presente
+ *   - Cookies admin_session_id / particular_session_id ausentes
+ *   - Body no expone passwordHash, token ni cookies
+ *   - El handler usa getClinicUserByIdentifier explícito (no solo fallback
+ *     getClinicUserByUsername)
+ * ========================================================================== */
+
+test(
+  "login unificado: clínica registrada puede iniciar sesión por username (contrato global, app_session_id exclusiva)",
+  async () => {
+    const identifierLookups: string[] = [];
+    let usernameFallbackCalls = 0;
+    const sessionCalls: Array<{
+      clinicUserId: number;
+      tokenHash: string;
+      expiresAt: Date;
+    }> = [];
+
+    const app = await createTestApp({
+      now: () => 0,
+      getAdminUserByUsername: async () => null,
+      getAdminUserByIdentifier: async () => null,
+      getClinicUserByUsername: async () => {
+        usernameFallbackCalls += 1;
+        return null;
+      },
+      getClinicUserByIdentifier: async (identifier: string) => {
+        identifierLookups.push(identifier);
+
+        if (identifier === "clinica-registrada") {
+          return {
+            id: 4242,
+            clinicId: 808,
+            username: "clinica-registrada",
+            passwordHash: "stored-hash",
+            authProId: null,
+            role: "clinic_owner",
+          };
+        }
+        return null;
+      },
+      verifyPassword: async () => ({ valid: true, needsRehash: false }),
+      generateSessionToken: () => "username-login-token",
+      hashSessionToken: (token: string) => `hash:${token}`,
+      createActiveSession: async (input: {
+        clinicUserId: number;
+        tokenHash: string;
+        expiresAt: Date;
+      }) => {
+        sessionCalls.push(input);
+      },
+      writeAuditLog: async () => {},
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        headers: { origin: "http://localhost:3000" },
+        payload: {
+          identifier: "clinica-registrada",
+          password: "clave-secreta",
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+
+      const body = JSON.parse(response.body);
+
+      assert.equal(body.success, true);
+      assert.equal(body.role, "clinic");
+      assert.equal(body.redirectTo, "/dashboard");
+
+      // El handler debe haber usado el lookup unificado explícito,
+      // no haber caído al fallback de username puro.
+      assert.equal(identifierLookups.length, 1);
+      assert.equal(identifierLookups[0], "clinica-registrada");
+      assert.equal(
+        usernameFallbackCalls,
+        0,
+        "getClinicUserByUsername no debe llamarse cuando getClinicUserByIdentifier responde",
+      );
+
+      assert.equal(sessionCalls.length, 1);
+      assert.equal(sessionCalls[0].clinicUserId, 4242);
+      assert.equal(sessionCalls[0].tokenHash, "hash:username-login-token");
+
+      const setCookie = getSetCookieHeader(response);
+
+      // Cookie de clínica presente
+      assert.ok(
+        setCookie.includes(`${ENV.cookieName}=username-login-token`),
+        "debe emitir cookie app_session_id (ENV.cookieName) con el token de sesión clínica",
+      );
+      assert.ok(setCookie.includes("HttpOnly"));
+
+      // Cookies de otras superficies ausentes
+      assert.equal(
+        setCookie.includes(`${ENV.adminCookieName}=`),
+        false,
+        "no debe emitir cookie admin_session_id en login de clínica",
+      );
+      assert.equal(
+        setCookie.includes(`${ENV.particularCookieName}=`),
+        false,
+        "no debe emitir cookie particular_session_id en login de clínica",
+      );
+
+      // Body no debe filtrar secretos
+      const rawBody = response.body.toLowerCase();
+      assert.equal(
+        rawBody.includes("passwordhash"),
+        false,
+        "el body no debe exponer passwordHash",
+      );
+      assert.equal(
+        rawBody.includes("password_hash"),
+        false,
+        "el body no debe exponer password_hash",
+      );
+      assert.equal(
+        rawBody.includes("stored-hash"),
+        false,
+        "el body no debe filtrar el hash almacenado",
+      );
+      assert.equal(
+        rawBody.includes("clave-secreta"),
+        false,
+        "el body no debe reflejar el password en claro",
+      );
+      assert.equal(
+        rawBody.includes("username-login-token"),
+        false,
+        "el body no debe exponer el session token (solo la cookie httpOnly debe transportarlo)",
+      );
+      assert.equal(
+        rawBody.includes("cookie"),
+        false,
+        "el body no debe mencionar cookies",
+      );
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "login unificado: clínica registrada puede iniciar sesión por contact_email asociado (contrato global, app_session_id exclusiva)",
+  async () => {
+    const identifierLookups: string[] = [];
+    let usernameFallbackCalls = 0;
+    const sessionCalls: Array<{
+      clinicUserId: number;
+      tokenHash: string;
+      expiresAt: Date;
+    }> = [];
+
+    const app = await createTestApp({
+      now: () => 0,
+      getAdminUserByUsername: async () => null,
+      getAdminUserByIdentifier: async () => null,
+      getClinicUserByUsername: async () => {
+        usernameFallbackCalls += 1;
+        return null;
+      },
+      getClinicUserByIdentifier: async (identifier: string) => {
+        // El handler/route debe pasar el identifier tal cual lo recibió
+        // (la normalización lower/trim ocurre dentro de getClinicUserByIdentifier
+        // en server/db.ts, no en la ruta).
+        identifierLookups.push(identifier);
+
+        if (identifier.trim().toLowerCase() === "contacto@clinica-registrada.com") {
+          return {
+            id: 4242,
+            clinicId: 808,
+            username: "clinica-registrada",
+            passwordHash: "stored-hash",
+            authProId: null,
+            role: "clinic_owner",
+          };
+        }
+        return null;
+      },
+      verifyPassword: async () => ({ valid: true, needsRehash: false }),
+      generateSessionToken: () => "email-login-token",
+      hashSessionToken: (token: string) => `hash:${token}`,
+      createActiveSession: async (input: {
+        clinicUserId: number;
+        tokenHash: string;
+        expiresAt: Date;
+      }) => {
+        sessionCalls.push(input);
+      },
+      writeAuditLog: async () => {},
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        headers: { origin: "http://localhost:3000" },
+        payload: {
+          // Espacios + mayúsculas para verificar que el contrato tolera
+          // identificadores email "sucios" entregados por el frontend.
+          identifier: "  Contacto@Clinica-Registrada.com  ",
+          password: "clave-secreta",
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+
+      const body = JSON.parse(response.body);
+
+      assert.equal(body.success, true);
+      assert.equal(body.role, "clinic");
+      assert.equal(body.redirectTo, "/dashboard");
+
+      assert.equal(
+        identifierLookups.length,
+        1,
+        "getClinicUserByIdentifier debe ser invocado exactamente una vez",
+      );
+      assert.equal(
+        usernameFallbackCalls,
+        0,
+        "getClinicUserByUsername no debe usarse como fallback cuando getClinicUserByIdentifier está disponible y responde",
+      );
+
+      assert.equal(sessionCalls.length, 1);
+      assert.equal(sessionCalls[0].clinicUserId, 4242);
+      assert.equal(sessionCalls[0].tokenHash, "hash:email-login-token");
+
+      const setCookie = getSetCookieHeader(response);
+
+      assert.ok(
+        setCookie.includes(`${ENV.cookieName}=email-login-token`),
+        "debe emitir cookie app_session_id (ENV.cookieName) con el token de sesión clínica",
+      );
+      assert.ok(setCookie.includes("HttpOnly"));
+
+      assert.equal(
+        setCookie.includes(`${ENV.adminCookieName}=`),
+        false,
+        "no debe emitir cookie admin_session_id en login de clínica por email",
+      );
+      assert.equal(
+        setCookie.includes(`${ENV.particularCookieName}=`),
+        false,
+        "no debe emitir cookie particular_session_id en login de clínica por email",
+      );
+
+      const rawBody = response.body.toLowerCase();
+      assert.equal(rawBody.includes("passwordhash"), false);
+      assert.equal(rawBody.includes("password_hash"), false);
+      assert.equal(rawBody.includes("stored-hash"), false);
+      assert.equal(rawBody.includes("clave-secreta"), false);
+      assert.equal(
+        rawBody.includes("email-login-token"),
+        false,
+        "el body no debe exponer el session token de login por email",
+      );
+      assert.equal(rawBody.includes("cookie"), false);
+    } finally {
+      await app.close();
+    }
+  },
+);
