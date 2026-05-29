@@ -276,6 +276,7 @@ export type AdminRoleUserSummary =
       role: ClinicUserRole;
       clinicId: number;
       clinicName: string | null;
+      clinicLocality?: string | null;
       createdAt: string;
       updatedAt: string;
     };

@@ -38,6 +38,7 @@ test("admin particular token generator uses admin helpers without technical copy
 
   assert.ok(card.includes('"use client";'));
   assert.ok(card.includes("createAdminParticularToken"));
+  assert.ok(card.includes("getAdminUsersRoles"));
   assert.ok(card.includes("getAdminParticularTokens"));
   assert.ok(card.includes("revokeAdminParticularToken"));
   assert.ok(card.includes("type AdminParticularTokenCreatePayload"));
@@ -52,13 +53,119 @@ test("admin particular token generator uses admin helpers without technical copy
   );
 });
 
-test("admin particular token generator requires clinic id and programmed fields", () => {
+test("admin particular token generator uses registered clinic selector instead of manual clinic id", () => {
   const source = read(ADMIN_CARD_PATH);
+  const types = read("frontend/src/types/index.ts");
 
   assert.ok(source.includes("clinicId: string;"));
-  assert.ok(source.includes('{ key: "clinicId", label: "ID de clínica" }'));
+  assert.equal(source.includes('{ key: "clinicId", label: "ID de clínica" }'), false);
+  assert.equal(source.includes('htmlFor="admin-token-clinic-id"'), false);
+  assert.equal(source.includes('name="clinicId"\n                type="number"'), false);
+  assert.ok(source.includes('htmlFor="admin-token-clinic-search"'));
+  assert.ok(source.includes("Clínica"));
+  assert.ok(
+    source.includes(
+      'placeholder="Buscar clínica por nombre, localidad, usuario o ID..."',
+    ),
+  );
   assert.ok(source.includes('id="admin-token-clinic-id"'));
-  assert.ok(source.includes("clinicId: parsePositiveInteger(formState.clinicId"));
+  assert.ok(source.includes('name="clinicId"'));
+  assert.ok(source.includes('type="hidden"'));
+  assert.ok(source.includes("const selectedClinic = clinicOptions.find("));
+  assert.ok(source.includes("payload = buildPayload(formState, selectedClinic);"));
+  assert.ok(source.includes("clinicId: selectedClinic.id"));
+  assert.ok(
+    source.includes('"Seleccione una clínica registrada del listado."'),
+  );
+  assert.ok(source.includes('role="listbox"'));
+  assert.ok(source.includes('role="option"'));
+  assert.ok(source.includes("aria-selected"));
+  assert.ok(types.includes("clinicLocality?: string | null;"));
+  assert.equal(source.includes("veterinario"), false);
+});
+
+test("admin particular token clinic selector loads deduped clinics by name user id and locality", () => {
+  const source = read(ADMIN_CARD_PATH);
+
+  assert.ok(source.includes('import {\n  createAdminParticularToken,\n  getAdminUsersRoles,'));
+  assert.ok(source.includes("getAdminUsersRoles({"));
+  assert.ok(source.includes('userType: "clinic",'));
+  assert.ok(source.includes("limit,"));
+  assert.ok(source.includes("offset,"));
+  assert.ok(source.includes("total = snapshot.total;"));
+  assert.ok(source.includes("offset += snapshot.users.length;"));
+  assert.ok(source.includes("function normalizeSearchText(value: string | number): string"));
+  assert.ok(source.includes('.normalize("NFD")'));
+  assert.ok(source.includes('.replace(/\\p{Diacritic}/gu, "")'));
+  assert.ok(source.includes("[option.id, option.name, option.locality ?? \"\", ...option.usernames].join("));
+  assert.ok(source.includes("function matchClinicOption(option: ClinicOption, query: string): boolean"));
+  assert.ok(source.includes("function dedupeClinicOptions(options: ClinicOption[]): ClinicOption[]"));
+  assert.ok(source.includes("const byId = new Map<number, ClinicOption>();"));
+  assert.ok(source.includes("locality: current.locality ?? option.locality"));
+  assert.ok(source.includes("user.clinicLocality ?? null"));
+  assert.ok(source.includes("Localidad:"));
+  assert.ok(source.includes("{option.locality ?? \"No informada\"}"));
+  assert.ok(source.includes("Usuarios:"));
+  assert.ok(source.includes("option.usernames.join(\", \")"));
+});
+
+type TestClinicOption = {
+  id: number;
+  name: string;
+  usernames: string[];
+  locality: string | null;
+};
+
+function testNormalize(value: string | number): string {
+  return String(value)
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
+function testBuildSearchText(option: TestClinicOption): string {
+  return testNormalize(
+    [option.id, option.name, option.locality ?? "", ...option.usernames].join(
+      " ",
+    ),
+  );
+}
+
+function testMatch(option: TestClinicOption, query: string): boolean {
+  const normalizedQuery = testNormalize(query);
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const searchable = testBuildSearchText(option);
+
+  return normalizedQuery
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((token) => searchable.includes(token));
+}
+
+test("admin particular token clinic selector matches by available locality contract", () => {
+  const clinic = {
+    id: 42,
+    name: "Clínica Ejemplo Sur",
+    usernames: ["usuario_ejemplo"],
+    locality: "Córdoba Capital",
+  };
+
+  assert.ok(testMatch(clinic, "Clinica Ejemplo"));
+  assert.ok(testMatch(clinic, "usuario_ejemplo"));
+  assert.ok(testMatch(clinic, "42"));
+  assert.ok(testMatch(clinic, "cordoba"));
+  assert.equal(testMatch(clinic, "rosario"), false);
+});
+
+test("admin particular token generator keeps programmed fields", () => {
+  const source = read(ADMIN_CARD_PATH);
+
+  assert.ok(source.includes('id="admin-token-clinic-id"'));
   assert.ok(source.includes("Complete el campo obligatorio"));
   assert.ok(source.includes("tutorLastName"));
   assert.ok(source.includes("petName"));
@@ -91,6 +198,9 @@ test("clinic token generator remains clinic-scoped and separate from admin gener
 
   assert.ok(clinic.includes("createClinicParticularToken"));
   assert.ok(clinic.includes("getClinicParticularTokens"));
+  assert.equal(clinic.includes("clinicId: string;"), false);
+  assert.equal(clinic.includes('name="clinicId"'), false);
+  assert.equal(clinic.includes("getAdminUsersRoles"), false);
   assert.equal(clinic.includes("createAdminParticularToken"), false);
   assert.equal(clinic.includes(removedClinicEndpoint), false);
 

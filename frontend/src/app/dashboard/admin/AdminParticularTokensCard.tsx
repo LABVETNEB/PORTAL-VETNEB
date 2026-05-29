@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   createAdminParticularToken,
+  getAdminUsersRoles,
   getAdminParticularTokens,
   revokeAdminParticularToken,
   type AdminParticularTokenCreatePayload,
@@ -36,6 +37,13 @@ type AdminParticularTokenFormState = {
   shippingDate: string;
 };
 
+type ClinicOption = {
+  id: number;
+  name: string;
+  usernames: string[];
+  locality: string | null;
+};
+
 const INITIAL_FORM_STATE: AdminParticularTokenFormState = {
   clinicId: "",
   reportId: "",
@@ -53,10 +61,9 @@ const INITIAL_FORM_STATE: AdminParticularTokenFormState = {
 };
 
 const REQUIRED_FIELD_LABELS: Array<{
-  key: keyof Omit<AdminParticularTokenFormState, "reportId">;
+  key: keyof Omit<AdminParticularTokenFormState, "clinicId" | "reportId">;
   label: string;
 }> = [
-  { key: "clinicId", label: "ID de clínica" },
   { key: "tutorLastName", label: "Apellido del tutor" },
   { key: "petName", label: "Nombre del paciente" },
   { key: "petAge", label: "Edad" },
@@ -86,6 +93,70 @@ const PET_SPECIES_OPTIONS = [
   { value: "Caprinos", label: "Caprinos" },
   { value: "Aves", label: "Aves" },
 ];
+
+function normalizeSearchText(value: string | number): string {
+  return String(value)
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
+function buildClinicSearchText(option: ClinicOption): string {
+  return normalizeSearchText(
+    [option.id, option.name, option.locality ?? "", ...option.usernames].join(
+      " ",
+    ),
+  );
+}
+
+function matchClinicOption(option: ClinicOption, query: string): boolean {
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const searchable = buildClinicSearchText(option);
+  const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+
+  return tokens.every((token) => searchable.includes(token));
+}
+
+function sortClinicOptions(a: ClinicOption, b: ClinicOption): number {
+  const nameComparison = a.name.localeCompare(b.name, "es", {
+    sensitivity: "base",
+  });
+
+  return nameComparison || a.id - b.id;
+}
+
+function dedupeClinicOptions(options: ClinicOption[]): ClinicOption[] {
+  const byId = new Map<number, ClinicOption>();
+
+  for (const option of options) {
+    const current = byId.get(option.id);
+
+    if (!current) {
+      byId.set(option.id, {
+        ...option,
+        usernames: [...option.usernames],
+      });
+      continue;
+    }
+
+    byId.set(option.id, {
+      ...current,
+      name: current.name || option.name,
+      locality: current.locality ?? option.locality,
+      usernames: Array.from(
+        new Set([...current.usernames, ...option.usernames]),
+      ).sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" })),
+    });
+  }
+
+  return Array.from(byId.values()).sort(sortClinicOptions);
+}
 
 function toIsoDate(value: string): string {
   return `${value}T00:00:00.000Z`;
@@ -127,11 +198,16 @@ function validateFormState(formState: AdminParticularTokenFormState): void {
 
 function buildPayload(
   formState: AdminParticularTokenFormState,
+  selectedClinic: ClinicOption | undefined,
 ): AdminParticularTokenCreatePayload {
   validateFormState(formState);
 
+  if (!selectedClinic) {
+    throw new Error("Seleccione una clínica registrada del listado.");
+  }
+
   return {
-    clinicId: parsePositiveInteger(formState.clinicId, "El ID de clínica"),
+    clinicId: selectedClinic.id,
     reportId: parseOptionalReportId(formState.reportId),
     tutorLastName: normalizeText(formState.tutorLastName),
     petName: normalizeText(formState.petName),
@@ -162,6 +238,10 @@ function formatTokenSource(token: AdminParticularTokenSummary): string {
 export function AdminParticularTokensCard() {
   const [formState, setFormState] =
     useState<AdminParticularTokenFormState>(INITIAL_FORM_STATE);
+  const [clinicSearch, setClinicSearch] = useState("");
+  const [clinicOptions, setClinicOptions] = useState<ClinicOption[]>([]);
+  const [isLoadingClinics, setIsLoadingClinics] = useState(false);
+  const [clinicLoadError, setClinicLoadError] = useState<string | null>(null);
   const [tokens, setTokens] = useState<AdminParticularTokenSummary[]>([]);
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
@@ -169,6 +249,18 @@ export function AdminParticularTokensCard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const selectedClinic = clinicOptions.find(
+    (option) => String(option.id) === formState.clinicId,
+  );
+  const hasClinicQuery = normalizeSearchText(clinicSearch).length > 0;
+  const filteredClinicOptions = hasClinicQuery
+    ? clinicOptions
+        .filter((option) => matchClinicOption(option, clinicSearch))
+        .slice(0, 20)
+    : selectedClinic
+      ? [selectedClinic]
+      : [];
 
   async function loadTokens() {
     setIsLoadingTokens(true);
@@ -191,6 +283,73 @@ export function AdminParticularTokensCard() {
     void loadTokens();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadClinicOptions() {
+      setIsLoadingClinics(true);
+      setClinicLoadError(null);
+
+      try {
+        const limit = 100;
+        let offset = 0;
+        let total = Number.POSITIVE_INFINITY;
+        const options: ClinicOption[] = [];
+
+        while (offset < total) {
+          const snapshot = await getAdminUsersRoles({
+            userType: "clinic",
+            limit,
+            offset,
+          });
+
+          total = snapshot.total;
+
+          for (const user of snapshot.users) {
+            if (user.userType !== "clinic") {
+              continue;
+            }
+
+            options.push({
+              id: user.clinicId,
+              name: user.clinicName ?? `Clínica #${user.clinicId}`,
+              usernames: [user.username],
+              locality: user.clinicLocality ?? null,
+            });
+          }
+
+          offset += snapshot.users.length;
+
+          if (snapshot.users.length === 0) {
+            break;
+          }
+        }
+
+        if (!cancelled) {
+          setClinicOptions(dedupeClinicOptions(options));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setClinicLoadError(
+            error instanceof Error
+              ? error.message
+              : "No se pudieron cargar las clínicas registradas.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingClinics(false);
+        }
+      }
+    }
+
+    void loadClinicOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function updateField(
     field: keyof AdminParticularTokenFormState,
     value: string,
@@ -202,6 +361,22 @@ export function AdminParticularTokensCard() {
 
   function resetForm() {
     setFormState(INITIAL_FORM_STATE);
+    setClinicSearch("");
+    setErrorMessage(null);
+  }
+
+  function selectClinic(option: ClinicOption) {
+    setFormState((current) => ({ ...current, clinicId: String(option.id) }));
+    setClinicSearch(option.name);
+    setErrorMessage(null);
+    setStatusMessage(null);
+  }
+
+  function handleClinicSearchChange(value: string) {
+    setClinicSearch(value);
+    setFormState((current) => ({ ...current, clinicId: "" }));
+    setErrorMessage(null);
+    setStatusMessage(null);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -218,7 +393,7 @@ export function AdminParticularTokensCard() {
     let payload: AdminParticularTokenCreatePayload;
 
     try {
-      payload = buildPayload(formState);
+      payload = buildPayload(formState, selectedClinic);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -289,21 +464,104 @@ export function AdminParticularTokensCard() {
       <CardContent className="space-y-6 pt-6">
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
-              <label htmlFor="admin-token-clinic-id" className="field-label">
-                ID de clínica
+            <div className="md:col-span-2">
+              <label htmlFor="admin-token-clinic-search" className="field-label">
+                Clínica
               </label>
               <Input
+                id="admin-token-clinic-search"
+                name="clinicSearch"
+                type="text"
+                placeholder="Buscar clínica por nombre, localidad, usuario o ID..."
+                autoComplete="off"
+                required
+                value={clinicSearch}
+                onChange={(event) => handleClinicSearchChange(event.target.value)}
+                disabled={isSubmitting}
+                aria-describedby="admin-token-clinic-help"
+              />
+              <input
                 id="admin-token-clinic-id"
                 name="clinicId"
-                type="number"
-                min="1"
-                inputMode="numeric"
-                required
+                type="hidden"
                 value={formState.clinicId}
-                onChange={(event) => updateField("clinicId", event.target.value)}
-                disabled={isSubmitting}
+                readOnly
               />
+              <p
+                id="admin-token-clinic-help"
+                className="mt-1 text-xs text-muted-foreground"
+              >
+                Seleccione una clínica del listado. La búsqueda admite texto
+                parcial, acentos, localidad, ID y usuarios asociados.
+              </p>
+
+              {clinicLoadError ? (
+                <p
+                  className="mt-2 clinical-alert-error px-3 py-2"
+                  role="alert"
+                >
+                  {clinicLoadError}
+                </p>
+              ) : null}
+
+              <div
+                className="mt-2 max-h-44 overflow-y-auto rounded-lg border border-vetneb-line/80 bg-card/92"
+                role="listbox"
+                aria-label="Clínicas registradas"
+              >
+                {isLoadingClinics ? (
+                  <p className="surface-empty m-2 py-3">
+                    Cargando clínicas registradas...
+                  </p>
+                ) : null}
+
+                {!isLoadingClinics &&
+                hasClinicQuery &&
+                filteredClinicOptions.length === 0 ? (
+                  <p className="surface-empty m-2 py-3">
+                    No hay clínicas registradas que coincidan con la búsqueda.
+                  </p>
+                ) : null}
+
+                {!isLoadingClinics
+                  ? filteredClinicOptions.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={`clinical-hover-row flex w-full items-center justify-between gap-2 border-b border-vetneb-line/35 px-3 py-2 text-left text-sm last:border-b-0 ${
+                          String(option.id) === formState.clinicId
+                            ? "bg-vetneb-teal/12 text-vetneb-navy shadow-[inset_0_0_0_1px_rgba(16,60,96,0.28)]"
+                            : "text-vetneb-ink/88"
+                        }`}
+                        onClick={() => selectClinic(option)}
+                        disabled={isSubmitting}
+                        role="option"
+                        aria-selected={String(option.id) === formState.clinicId}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">
+                            {option.name}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            ID #{option.id} · Localidad:{" "}
+                            {option.locality ?? "No informada"}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            Usuarios:{" "}
+                            {option.usernames.length
+                              ? option.usernames.join(", ")
+                              : "Sin usuarios asociados"}
+                          </span>
+                        </span>
+                        {String(option.id) === formState.clinicId ? (
+                          <span className="clinical-pill shrink-0 px-2 py-0.5 text-xs tracking-normal">
+                            Seleccionada
+                          </span>
+                        ) : null}
+                      </button>
+                    ))
+                  : null}
+              </div>
             </div>
 
             <div>
