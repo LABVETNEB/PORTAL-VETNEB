@@ -4,7 +4,7 @@
 
 This document is documentation-only. It does not add schema, routes,
 migrations, dependencies, middleware, layout changes or runtime behavior.
-It records the operative state of CSP reporting as of PRs #748–#753 and
+It records the operative state of CSP reporting as of PRs #748–#756 and
 the conditions required before any future promotion to enforcement.
 
 ## 2. Current state
@@ -168,3 +168,45 @@ failures). No user-facing impact.
 - Configuring CSP violation alert thresholds or rate limits on the report endpoint.
 - Defining report retention policy.
 - Any migration, schema, dependency, UI, or auth change.
+
+## 12. Inline/eval blocker audit
+
+Before opening a `Content-Security-Policy` enforcement PR, run the inline blocker audit
+to confirm the frontend source is free of patterns that require `'unsafe-inline'` or
+`'unsafe-eval'`.
+
+### How to run
+
+```powershell
+node --experimental-strip-types --experimental-specifier-resolution=node `
+     --test test/frontend-csp-inline-blockers-contract.test.ts
+```
+
+Or as part of the full test suite:
+
+```powershell
+pnpm test
+```
+
+### What is audited
+
+| Pattern | CSP impact | Current status |
+|---|---|---|
+| `eval()` | Requires `'unsafe-eval'` in `script-src` | **0 occurrences** ✓ |
+| `new Function()` | Requires `'unsafe-eval'` in `script-src` | **0 occurrences** ✓ |
+| Inline event handler strings (`onclick="..."`) | Requires `'unsafe-inline'` | **0 occurrences** ✓ |
+| Bare `<script>` (no `type="application/ld+json"`) | Requires `'unsafe-inline'` or nonce | **0 occurrences** ✓ (all 7 `<script>` tags are JSON-LD) |
+| `dangerouslySetInnerHTML` without JSON-LD guard | Requires `'unsafe-inline'` or nonce | **0 violations** ✓ (7 uses, all JSON-LD guarded) |
+
+### Interpreting results
+
+A **PASS** means the frontend source is free of the audited blockers.
+
+A **FAIL** means the failing pattern must be resolved before enforcement:
+- `eval()` / `new Function()` → refactor to avoid dynamic code evaluation.
+- Inline event handler string → migrate to React synthetic event prop.
+- Bare `<script>` → add `type="application/ld+json"` or move to `next/script` with strategy.
+- `dangerouslySetInnerHTML` without JSON-LD guard → refactor or add a nonce PR first.
+
+Note: `'unsafe-inline'` and `'unsafe-eval'` remain in the current Report-Only CSP (see `#747`).
+Removing them requires resolving the above patterns AND a nonce strategy PR. See Section 9.
