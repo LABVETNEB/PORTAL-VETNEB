@@ -62,6 +62,8 @@ test("login public page handles loading and error states", () => {
   assert.ok(source.includes("setErrorMessage(null);"));
   assert.ok(source.includes("setIsSubmitting(true);"));
   assert.ok(source.includes("setIsSubmitting(false);"));
+  assert.ok(source.includes("error instanceof Error"));
+  assert.ok(source.includes("? error.message"));
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("disabled={isSubmitting}"));
   assert.ok(source.includes('isSubmitting ? "Iniciando sesión..." : "Iniciar sesión"'));

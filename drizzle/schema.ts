@@ -221,6 +221,7 @@ export const clinicUsers = pgTable(
 export const adminUsers = pgTable("admin_users", {
   id: serial("id").primaryKey(),
   username: varchar("username", { length: 100 }).notNull().unique(),
+  email: varchar("email", { length: 255 }),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),

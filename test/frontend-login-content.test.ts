@@ -60,6 +60,8 @@ test("frontend login content handles controlled credentials loading and errors",
   assert.ok(source.includes('const [password, setPassword] = useState("")'));
   assert.ok(source.includes("const [errorMessage, setErrorMessage]"));
   assert.ok(source.includes("const [isSubmitting, setIsSubmitting]"));
+  assert.ok(source.includes("error instanceof Error"));
+  assert.ok(source.includes("? error.message"));
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("disabled={isSubmitting}"));
 });
