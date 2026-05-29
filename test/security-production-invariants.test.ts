@@ -274,3 +274,28 @@ test("logs de request sanitizan tokens y accesos públicos antes de escribir con
     assertContains(source, "buildRequestLogLine({", file);
   }
 });
+
+test("frontend CSP report route file is at the correct App Router path and exports required handlers", () => {
+  // Production invariant: if frontend/src/app/api/security/csp-report/route.ts is
+  // moved or renamed, the production URL /api/security/csp-report silently changes.
+  // Browsers sending CSP reports would get 404s without any test failure in the
+  // endpoint contract tests (which import by absolute path, not by URL).
+  const ROUTE_FILE = "frontend/src/app/api/security/csp-report/route.ts";
+  const routeSource = read(ROUTE_FILE);
+
+  assert.ok(routeSource.length > 0, `${ROUTE_FILE} must exist and be non-empty`);
+  assertContains(routeSource, "export async function POST(", ROUTE_FILE);
+  assertContains(routeSource, "{ status: 204 }", ROUTE_FILE);
+  assertContains(routeSource, "{ status: 405, headers:", ROUTE_FILE);
+
+  // Verify the CSP_REPORT_URI_PATH constant in csp-policy.ts still matches
+  // the App Router file path segment. A drift here means the header points
+  // browsers to an endpoint that no longer exists at the declared URL.
+  const cspPolicyFile = "frontend/src/lib/security/csp-policy.ts";
+  const cspPolicySource = read(cspPolicyFile);
+  assertContains(
+    cspPolicySource,
+    'CSP_REPORT_URI_PATH = "/api/security/csp-report"',
+    cspPolicyFile,
+  );
+});

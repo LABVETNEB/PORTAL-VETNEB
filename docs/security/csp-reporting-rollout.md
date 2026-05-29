@@ -4,7 +4,7 @@
 
 This document is documentation-only. It does not add schema, routes,
 migrations, dependencies, middleware, layout changes or runtime behavior.
-It records the operative state of CSP reporting as of PRs #748–#750 and
+It records the operative state of CSP reporting as of PRs #748–#752 and
 the conditions required before any future promotion to enforcement.
 
 ## 2. Current state
@@ -97,6 +97,7 @@ to all inline scripts and styles — a separate PR.
 | CSP report endpoint | `frontend/src/app/api/security/csp-report/route.ts` |
 | Smoke contract | `test/frontend-csp-report-uri-contract.test.ts` (tests 13–15) |
 | Builder contract | `test/frontend-csp-policy-builder-contract.test.ts` |
+| Payload contract | `test/frontend-csp-report-endpoint-contract.test.ts` |
 
 ## 8. Local validation
 
