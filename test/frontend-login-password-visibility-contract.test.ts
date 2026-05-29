@@ -63,13 +63,17 @@ test("login redirects particular surface requests to the dedicated public route"
   assert.ok(source.includes("router.replace(ROUTES.particulares);"));
 });
 
-test("login particular access uses internal route control contract", () => {
+test("login removes explicit role tabs from the clinic form surface", () => {
   const source = read(LOGIN_CONTENT_PATH);
 
-  assert.ok(source.includes("<PublicRouteControl"));
-  assert.ok(source.includes("href={ROUTES.particulares}"));
-  assert.ok(source.includes('data-auth-particular-access-link="true"'));
-  assert.ok(source.includes('aria-pressed="false"'));
+  assert.ok(source.includes('aria-label="Formulario de inicio de sesión"'));
+  assert.ok(source.includes("Usuario o email"));
+  assert.ok(source.includes("Contraseña"));
+  assert.equal(source.includes("Clínicas"), false);
+  assert.equal(source.includes("Particulares"), false);
+  assert.equal(source.includes('data-auth-particular-access-link="true"'), false);
+  assert.equal(source.includes('data-auth-clinic-access-tab="true"'), false);
+  assert.equal(source.includes('aria-label="Tipo de acceso"'), false);
   assert.equal(source.includes("<Link"), false);
   assert.equal(source.includes("openParticularAccess"), false);
   assert.equal(source.includes("router.push(ROUTES.particulares);"), false);

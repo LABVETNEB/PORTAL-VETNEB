@@ -136,34 +136,10 @@ export function LoginContent() {
             </div>
             <CardTitle className="text-xl">Iniciar sesión</CardTitle>
             <CardDescription>
-              Acceda como clínica o ingrese con token particular
+              Acceda al portal privado con sus credenciales.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div
-              className="mb-5 grid grid-cols-2 rounded-lg border border-vetneb-line/90 bg-vetneb-surface-muted/75 p-1"
-              aria-label="Tipo de acceso"
-            >
-              <button
-                type="button"
-                className="rounded-md border border-vetneb-teal/30 bg-card px-3 py-2 text-sm font-medium text-vetneb-ink shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55"
-                disabled={isSubmitting}
-                aria-pressed="true"
-                data-auth-clinic-access-tab="true"
-              >
-                Clínicas
-              </button>
-              <PublicRouteControl
-                href={ROUTES.particulares}
-                variant="bare"
-                className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55"
-                aria-pressed="false"
-                data-auth-particular-access-link="true"
-              >
-                Particulares
-              </PublicRouteControl>
-            </div>
-
             <form
               className="space-y-4"
               aria-label="Formulario de inicio de sesión"
@@ -171,13 +147,13 @@ export function LoginContent() {
             >
               <div>
                 <label htmlFor="username" className="field-label">
-                  Usuario
+                  Usuario o email
                 </label>
                 <Input
                   id="username"
                   name="username"
                   type="text"
-                  placeholder="nombre_usuario"
+                  placeholder="nombre_usuario o email@dominio.com"
                   autoComplete="username"
                   autoFocus
                   required

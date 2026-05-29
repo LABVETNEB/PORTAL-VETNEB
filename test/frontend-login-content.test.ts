@@ -69,19 +69,30 @@ test("frontend login page wraps client search params usage in suspense", () => {
   assert.ok(source.includes("<LoginContent />"));
   assert.ok(source.includes("</Suspense>"));
 });
-test("frontend login content keeps particular token entry on the dedicated public surface", () => {
+test("frontend login content keeps particular token access on the dedicated public surface", () => {
   const source = read(LOGIN_CONTENT_PATH);
 
   assert.equal(source.includes("Token de acceso"), false);
   assert.equal(source.includes("Ingresar con token"), false);
   assert.equal(source.includes("Ingrese el token recibido"), false);
   assert.ok(source.includes("router.replace(ROUTES.particulares);"));
-  assert.ok(source.includes("<PublicRouteControl"));
-  assert.ok(source.includes("href={ROUTES.particulares}"));
-  assert.ok(source.includes('data-auth-particular-access-link="true"'));
+  assert.ok(source.includes('if (requestedSurface === "particular")'));
   assert.equal(source.includes("<Link"), false);
   assert.equal(source.includes("openParticularAccess"), false);
   assert.equal(source.includes("router.push(ROUTES.particulares);"), false);
+});
+
+test("frontend login content removes role tabs and keeps a single login surface", () => {
+  const source = read(LOGIN_CONTENT_PATH);
+
+  assert.ok(source.includes("Iniciar sesión"));
+  assert.ok(source.includes("Acceda al portal privado con sus credenciales."));
+  assert.ok(source.includes("Usuario o email"));
+  assert.equal(source.includes('data-auth-clinic-access-tab="true"'), false);
+  assert.equal(source.includes('data-auth-particular-access-link="true"'), false);
+  assert.equal(source.includes("aria-label=\"Tipo de acceso\""), false);
+  assert.equal(source.includes("Clínicas"), false);
+  assert.equal(source.includes("Particulares"), false);
 });
 test("frontend login content allows toggling clinic password visibility", () => {
   const source = read(LOGIN_CONTENT_PATH);
@@ -96,5 +107,5 @@ test("frontend login content allows toggling clinic password visibility", () => 
   assert.ok(source.includes('aria-pressed={isPasswordVisible}'));
   assert.ok(source.includes('aria-controls="password"'));
   assert.ok(source.includes('data-auth-credential-visibility-toggle="true"'));
-  assert.ok(source.includes('data-auth-clinic-access-tab="true"'));
+  assert.ok(source.includes('className="public-cta-primary w-full"'));
 });
