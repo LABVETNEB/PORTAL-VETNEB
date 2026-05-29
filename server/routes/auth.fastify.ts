@@ -16,6 +16,7 @@ import {
   createPersistentRateLimitStore,
   getOrCreateRateLimitEntry,
   incrementRateLimitEntry,
+  type RateLimitEntry,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
 import {
@@ -998,14 +999,54 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const rateLimitKey = request.ip || "unknown";
     const currentTime = now();
-    const failureEntry = await getOrCreateRateLimitEntry(
-      loginRateLimitStore,
-      rateLimitKey,
-      loginRateLimitWindowMs,
-      currentTime,
-    );
+    const identifier = normalizeLoginIdentifier(request.body?.identifier);
+    const username = normalizeLoginIdentifier(request.body?.username);
+    const loginIdentifier = identifier || username;
+    const isUnifiedPayload =
+      !!request.body &&
+      typeof request.body === "object" &&
+      Object.prototype.hasOwnProperty.call(request.body, "identifier");
+    const password =
+      typeof request.body?.password === "string" ? request.body.password : "";
+
+    if (!loginIdentifier || !password) {
+      return reply.code(400).send({
+        success: false,
+        error: isUnifiedPayload
+          ? "Identificador y contraseña requeridos"
+          : "Usuario y contrasena son obligatorios",
+      });
+    }
+
+    const rateLimitKey = request.ip || "unknown";
+    const failureEntry: RateLimitEntry = {
+      count: 0,
+      resetAt: currentTime + loginRateLimitWindowMs,
+    };
+    let canUseRateLimitStore = true;
+
+    try {
+      const existingEntry = await getOrCreateRateLimitEntry(
+        loginRateLimitStore,
+        rateLimitKey,
+        loginRateLimitWindowMs,
+        currentTime,
+      );
+
+      failureEntry.count = existingEntry.count;
+      failureEntry.resetAt = existingEntry.resetAt;
+    } catch (error) {
+      canUseRateLimitStore = false;
+      request.log.error(
+        {
+          err: error,
+          code: "AUTH_LOGIN_RATE_LIMIT_GET_FAILED",
+          route: "/api/auth/login",
+        },
+        "No se pudo leer el rate limit de login unificado",
+      );
+    }
 
     const recordFailedLoginAttempt = async (input: {
       username?: string | null;
@@ -1024,6 +1065,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         request.log.warn(
           {
             err: error,
+            code: "AUTH_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
             surface: "clinic",
             reason: input.reason,
           },
@@ -1032,7 +1074,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       }
     };
 
-    if (failureEntry.count >= loginRateLimitMaxAttempts) {
+    if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
@@ -1041,12 +1083,8 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         now: currentTime,
       });
 
-      const attemptedIdentifier =
-        normalizeLoginIdentifier(request.body?.identifier) ||
-        normalizeLoginIdentifier(request.body?.username);
-
       await recordFailedLoginAttempt({
-        username: attemptedIdentifier,
+        username: loginIdentifier,
         reason: "rate_limited",
       });
 
@@ -1060,28 +1098,46 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       username?: string | null;
       reason: LoginFailedAttemptReason;
     }) => {
-      const updatedEntry = await incrementRateLimitEntry(
-        loginRateLimitStore,
-        rateLimitKey,
-        failureEntry,
-        currentTime,
-      );
+      if (canUseRateLimitStore) {
+        try {
+          const updatedEntry = await incrementRateLimitEntry(
+            loginRateLimitStore,
+            rateLimitKey,
+            failureEntry,
+            currentTime,
+          );
 
-      failureEntry.count = updatedEntry.count;
-      failureEntry.resetAt = updatedEntry.resetAt;
+          failureEntry.count = updatedEntry.count;
+          failureEntry.resetAt = updatedEntry.resetAt;
 
-      setLoginRateLimitHeaders(reply, {
-        max: loginRateLimitMaxAttempts,
-        windowMs: loginRateLimitWindowMs,
-        failedCount: failureEntry.count,
-        resetAt: failureEntry.resetAt,
-        now: currentTime,
-      });
+          setLoginRateLimitHeaders(reply, {
+            max: loginRateLimitMaxAttempts,
+            windowMs: loginRateLimitWindowMs,
+            failedCount: failureEntry.count,
+            resetAt: failureEntry.resetAt,
+            now: currentTime,
+          });
+        } catch (error) {
+          canUseRateLimitStore = false;
+          request.log.error(
+            {
+              err: error,
+              code: "AUTH_LOGIN_RATE_LIMIT_INCREMENT_FAILED",
+              route: "/api/auth/login",
+            },
+            "No se pudo actualizar el rate limit de login unificado",
+          );
+        }
+      }
 
       await recordFailedLoginAttempt(input);
     };
 
     const markSuccess = () => {
+      if (!canUseRateLimitStore) {
+        return;
+      }
+
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
@@ -1090,30 +1146,6 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         now: currentTime,
       });
     };
-
-    const identifier = normalizeLoginIdentifier(request.body?.identifier);
-    const username = normalizeLoginIdentifier(request.body?.username);
-    const loginIdentifier = identifier || username;
-    const isUnifiedPayload =
-      !!request.body &&
-      typeof request.body === "object" &&
-      Object.prototype.hasOwnProperty.call(request.body, "identifier");
-    const password =
-      typeof request.body?.password === "string" ? request.body.password : "";
-
-    if (!loginIdentifier || !password) {
-      await markFailure({
-        username: loginIdentifier,
-        reason: "missing_credentials",
-      });
-
-      return reply.code(400).send({
-        success: false,
-        error: isUnifiedPayload
-          ? "Identificador y contraseña requeridos"
-          : "Usuario y contrasena son obligatorios",
-      });
-    }
 
     if (isUnifiedPayload) {
       const candidateResolvers: Array<

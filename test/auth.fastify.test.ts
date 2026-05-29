@@ -314,6 +314,84 @@ test(
 );
 
 test(
+  "clinicAuthNativeRoutes login unificado autentica admin VETNEB y mantiene cookie admin exclusiva",
+  async () => {
+    const adminSessionCalls: Array<{
+      adminUserId: number;
+      tokenHash: string;
+      expiresAt: Date;
+    }> = [];
+
+    const app = await createTestApp({
+      now: () => 0,
+      getAdminUserByUsername: async (username: string) => {
+        assert.equal(username, "VETNEB");
+
+        return {
+          id: 109,
+          username: "VETNEB",
+          passwordHash: "admin-hash",
+        };
+      },
+      getClinicUserByUsername: async () => {
+        throw new Error("no debe evaluar clinic cuando admin autenticó");
+      },
+      verifyPassword: async (password: string, passwordHash: string) => {
+        assert.equal(password, "secret");
+        assert.equal(passwordHash, "admin-hash");
+
+        return {
+          valid: true,
+          needsRehash: false,
+        };
+      },
+      generateSessionToken: () => "admin-vetneb-token",
+      hashSessionToken: (token: string) => `hash:${token}`,
+      createAdminSession: async (input: {
+        adminUserId: number;
+        tokenHash: string;
+        expiresAt: Date;
+      }) => {
+        adminSessionCalls.push(input);
+      },
+      writeAdminAuditLog: async () => {},
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        headers: {
+          origin: "http://localhost:3000",
+        },
+        payload: {
+          identifier: "VETNEB",
+          password: "secret",
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: true,
+        role: "admin",
+        redirectTo: "/dashboard/admin",
+      });
+
+      const setCookie = getSetCookieHeader(response);
+      assert.ok(setCookie.includes(`${ENV.adminCookieName}=admin-vetneb-token`));
+      assert.equal(setCookie.includes(`${ENV.cookieName}=`), false);
+      assert.equal(setCookie.includes(`${ENV.particularCookieName}=`), false);
+
+      assert.equal(adminSessionCalls.length, 1);
+      assert.equal(adminSessionCalls[0].adminUserId, 109);
+      assert.equal(adminSessionCalls[0].tokenHash, "hash:admin-vetneb-token");
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
   "clinicAuthNativeRoutes login unificado autentica clínica y crea cookie app_session_id",
   async () => {
     const clinicSessionCalls: Array<{
@@ -525,6 +603,187 @@ test("clinicAuthNativeRoutes login unificado valida payload inválido sin stackt
     });
     assert.equal(response.body.toLowerCase().includes("error interno"), false);
     assert.equal(response.body.toLowerCase().includes("stack"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes login unificado valida payload inválido antes de rate-limit y auditoría", async () => {
+  const rateLimitCalls = {
+    get: 0,
+    set: 0,
+    increment: 0,
+  };
+  const failedAttempts: Array<Record<string, unknown>> = [];
+
+  const app = await createTestApp({
+    loginRateLimitStore: {
+      get: async () => {
+        rateLimitCalls.get += 1;
+        throw new Error("rate limit get failed");
+      },
+      set: async () => {
+        rateLimitCalls.set += 1;
+        throw new Error("rate limit set failed");
+      },
+      increment: async () => {
+        rateLimitCalls.increment += 1;
+        throw new Error("rate limit increment failed");
+      },
+    },
+    recordLoginFailedAttempt: async (input: Record<string, unknown>) => {
+      failedAttempts.push(input);
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      payload: {
+        identifier: " ",
+        password: "",
+      },
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Identificador y contraseña requeridos",
+    });
+    assert.deepEqual(rateLimitCalls, {
+      get: 0,
+      set: 0,
+      increment: 0,
+    });
+    assert.equal(failedAttempts.length, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla lectura de rate-limit store", async () => {
+  const app = await createTestApp({
+    loginRateLimitStore: {
+      get: async () => {
+        throw new Error("rate limit get failed");
+      },
+      set: async () => {
+        throw new Error("rate limit set failed");
+      },
+      increment: async () => {
+        throw new Error("rate limit increment failed");
+      },
+    },
+    getAdminUserByUsername: async () => null,
+    getClinicUserByUsername: async () => null,
+    getParticularTokenByTokenHash: async () => null,
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      payload: {
+        identifier: "desconocido",
+        password: "incorrecta",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Credenciales inválidas",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes login unificado mantiene 401 cuando falla incremento de rate-limit store", async () => {
+  const app = await createTestApp({
+    loginRateLimitStore: {
+      get: async () => ({
+        count: 0,
+        resetAt: Date.now() + 60_000,
+      }),
+      set: async () => {},
+      increment: async () => {
+        throw new Error("rate limit increment failed");
+      },
+    },
+    getAdminUserByUsername: async () => null,
+    getClinicUserByUsername: async () => null,
+    getParticularTokenByTokenHash: async () => null,
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      payload: {
+        identifier: "desconocido",
+        password: "incorrecta",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Credenciales inválidas",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes login unificado fallido mantiene 401 aunque falle registro auxiliar", async () => {
+  const app = await createTestApp({
+    getAdminUserByUsername: async () => null,
+    getClinicUserByUsername: async () => null,
+    getParticularTokenByTokenHash: async () => null,
+    recordLoginFailedAttempt: async () => {
+      throw new Error("auxiliar login failed");
+    },
+    writeAuditLog: async () => {
+      throw new Error("no debe invocarse auditoría de éxito en login fallido");
+    },
+    writeAdminAuditLog: async () => {
+      throw new Error("no debe invocarse auditoría de éxito en login fallido");
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      payload: {
+        identifier: "desconocido",
+        password: "incorrecta",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Credenciales inválidas",
+    });
+    assert.equal(
+      response.body.toLowerCase().includes("error interno del servidor"),
+      false,
+    );
   } finally {
     await app.close();
   }
