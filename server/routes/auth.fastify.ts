@@ -1050,7 +1050,8 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const rateLimitKey = request.ip || "unknown";
+    const rateLimitKey = `login:${request.ip || "unknown"}`;
+
     const failureEntry: RateLimitEntry = {
       count: 0,
       resetAt: currentTime + loginRateLimitWindowMs,

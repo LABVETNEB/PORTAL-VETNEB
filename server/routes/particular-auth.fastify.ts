@@ -623,7 +623,7 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const rateLimitKey = request.ip || "unknown";
+    const rateLimitKey = `particular:${request.ip || "unknown"}`;
     const currentTime = now();
     const failureEntry = await getOrCreateRateLimitEntry(
       loginRateLimitStore,

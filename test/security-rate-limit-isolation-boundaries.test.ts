@@ -253,9 +253,17 @@ test("auth login rate limits keep separate in-memory stores per auth domain", ()
       "options.loginRateLimitMaxAttempts ?? LOGIN_RATE_LIMIT_MAX_ATTEMPTS",
       `${file} login max attempts`,
     );
+    const realmKeyByFile = {
+      "server/routes/auth.fastify.ts":
+        'const rateLimitKey = `login:${request.ip || "unknown"}`;',
+      "server/routes/admin-auth.fastify.ts":
+        'const rateLimitKey = `admin:${request.ip || "unknown"}`;',
+      "server/routes/particular-auth.fastify.ts":
+        'const rateLimitKey = `particular:${request.ip || "unknown"}`;',
+    };
     assertContains(
       source,
-      "const rateLimitKey = request.ip || \"unknown\";",
+      realmKeyByFile[file],
       `${file} login key`,
     );
     assertContains(
