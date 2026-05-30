@@ -29,6 +29,10 @@ type SafeEmailTransportErrorInput = {
   command: string;
   responseCode?: number;
   hostname: string;
+  providerError?: string;
+  providerStatus?: string;
+  providerReason?: string;
+  providerMessage?: string;
 };
 
 const GMAIL_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -40,6 +44,10 @@ class SafeEmailTransportError extends Error {
   command: string;
   responseCode?: number;
   hostname: string;
+  providerError?: string;
+  providerStatus?: string;
+  providerReason?: string;
+  providerMessage?: string;
 
   constructor(message: string, input: SafeEmailTransportErrorInput) {
     super(message);
@@ -51,7 +59,50 @@ class SafeEmailTransportError extends Error {
     if (typeof input.responseCode === "number") {
       this.responseCode = input.responseCode;
     }
+
+    if (typeof input.providerError === "string") {
+      this.providerError = input.providerError;
+    }
+
+    if (typeof input.providerStatus === "string") {
+      this.providerStatus = input.providerStatus;
+    }
+
+    if (typeof input.providerReason === "string") {
+      this.providerReason = input.providerReason;
+    }
+
+    if (typeof input.providerMessage === "string") {
+      this.providerMessage = input.providerMessage;
+    }
   }
+}
+
+const MAX_SAFE_LOG_STRING_LENGTH = 200;
+
+const SENSITIVE_REDACTION_PATTERNS: Array<[RegExp, string]> = [
+  [/ya29\.[A-Za-z0-9_\-]{4,}/g, "[REDACTED:access_token]"],
+  [/1\/\/[A-Za-z0-9_\-]{4,}/g, "[REDACTED:refresh_token]"],
+  [/Bearer\s+\S+/gi, "Bearer [REDACTED]"],
+  [/"refresh_token"\s*:\s*"[^"]*"/g, '"refresh_token":"[REDACTED]"'],
+  [/"access_token"\s*:\s*"[^"]*"/g, '"access_token":"[REDACTED]"'],
+  [/"client_secret"\s*:\s*"[^"]*"/g, '"client_secret":"[REDACTED]"'],
+  [/\btoken=[^\s&"]+/gi, "token=[REDACTED]"],
+  [/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g, "[REDACTED:email]"],
+];
+
+function sanitizeLogString(value: string): string {
+  let result = value;
+
+  for (const [pattern, replacement] of SENSITIVE_REDACTION_PATTERNS) {
+    result = result.replace(pattern, replacement);
+  }
+
+  if (result.length > MAX_SAFE_LOG_STRING_LENGTH) {
+    result = `${result.slice(0, MAX_SAFE_LOG_STRING_LENGTH)}...[truncated]`;
+  }
+
+  return result;
 }
 
 function isLikelyEmail(value: string): boolean {
@@ -166,6 +217,10 @@ function buildGmailApiError(
     command: string;
     url: string;
     responseCode?: number;
+    providerError?: string;
+    providerStatus?: string;
+    providerReason?: string;
+    providerMessage?: string;
   },
 ) {
   return new SafeEmailTransportError(message, {
@@ -173,6 +228,10 @@ function buildGmailApiError(
     command: input.command,
     responseCode: input.responseCode,
     hostname: new URL(input.url).hostname,
+    providerError: input.providerError,
+    providerStatus: input.providerStatus,
+    providerReason: input.providerReason,
+    providerMessage: input.providerMessage,
   });
 }
 
@@ -231,11 +290,15 @@ async function getGmailApiAccessToken() {
   );
 
   if (!response.ok) {
+    const errorBody = await readJsonObject(response);
+
     throw buildGmailApiError("Gmail API token request failed", {
       code: "GMAIL_API_TOKEN_FAILED",
       command: "TOKEN",
       url: GMAIL_OAUTH_TOKEN_URL,
       responseCode: response.status,
+      providerError: typeof errorBody.error === "string" ? errorBody.error : undefined,
+      providerReason: typeof errorBody.error_description === "string" ? errorBody.error_description : undefined,
     });
   }
 
@@ -287,11 +350,25 @@ async function sendGmailApiMessage(
   );
 
   if (!response.ok) {
+    const errorBody = await readJsonObject(response);
+    const providerErrorObj =
+      errorBody.error !== null &&
+      typeof errorBody.error === "object" &&
+      !Array.isArray(errorBody.error)
+        ? (errorBody.error as Record<string, unknown>)
+        : null;
+
     throw buildGmailApiError("Gmail API send request failed", {
       code: "GMAIL_API_SEND_FAILED",
       command: "SEND",
       url: GMAIL_MESSAGES_SEND_URL,
       responseCode: response.status,
+      providerError: providerErrorObj && typeof providerErrorObj.status === "string"
+        ? providerErrorObj.status
+        : undefined,
+      providerMessage: providerErrorObj && typeof providerErrorObj.message === "string"
+        ? providerErrorObj.message
+        : undefined,
     });
   }
 
@@ -446,6 +523,95 @@ function resolveContactRecipients(): string[] {
   return [];
 }
 
+export function getSafeEmailTransportErrorMetadata(
+  error: unknown,
+): Record<string, unknown> {
+  if (error instanceof SafeEmailTransportError) {
+    const metadata: Record<string, unknown> = {
+      errorName: error.name,
+      code: error.code,
+      command: error.command,
+      hostname: error.hostname,
+    };
+
+    if (typeof error.responseCode === "number") {
+      metadata.responseCode = error.responseCode;
+    }
+
+    if (typeof error.providerError === "string") {
+      metadata.providerError = sanitizeLogString(error.providerError);
+    }
+
+    if (typeof error.providerStatus === "string") {
+      metadata.providerStatus = sanitizeLogString(error.providerStatus);
+    }
+
+    if (typeof error.providerReason === "string") {
+      metadata.providerReason = sanitizeLogString(error.providerReason);
+    }
+
+    if (typeof error.providerMessage === "string") {
+      metadata.providerMessage = sanitizeLogString(error.providerMessage);
+    }
+
+    return metadata;
+  }
+
+
+  const metadata: Record<string, unknown> = {
+    errorName:
+      error instanceof Error && error.name.trim()
+        ? error.name
+        : "unknown_error",
+  };
+
+  if (!error || typeof error !== "object") {
+    return metadata;
+  }
+
+  const record = error as Record<string, unknown>;
+
+  const code =
+    typeof record.code === "string" && record.code.trim()
+      ? record.code.trim()
+      : undefined;
+  const command =
+    typeof record.command === "string" && record.command.trim()
+      ? record.command.trim()
+      : undefined;
+  const responseCode =
+    typeof record.responseCode === "number" &&
+    Number.isFinite(record.responseCode)
+      ? record.responseCode
+      : undefined;
+  const syscall =
+    typeof record.syscall === "string" && record.syscall.trim()
+      ? record.syscall.trim()
+      : undefined;
+  const hostname =
+    typeof record.hostname === "string" && record.hostname.trim()
+      ? sanitizeLogString(record.hostname.trim())
+      : undefined;
+  const port =
+    typeof record.port === "number" && Number.isFinite(record.port)
+      ? record.port
+      : undefined;
+  const address =
+    typeof record.address === "string" && record.address.trim()
+      ? sanitizeLogString(record.address.trim())
+      : undefined;
+
+  if (code !== undefined) metadata.code = code;
+  if (command !== undefined) metadata.command = command;
+  if (responseCode !== undefined) metadata.responseCode = responseCode;
+  if (syscall !== undefined) metadata.errorSyscall = syscall;
+  if (hostname !== undefined) metadata.hostname = hostname;
+  if (port !== undefined) metadata.errorPort = port;
+  if (address !== undefined) metadata.errorAddress = address;
+
+  return metadata;
+}
+
 export async function sendContactMessageEmail(input: {
   name: string;
   email: string;
@@ -459,8 +625,8 @@ export async function sendContactMessageEmail(input: {
 
   if (recipients.length === 0) {
     console.info("[EMAIL] contact_message skipped: smtp disabled", {
-      email: input.email,
-      clinicName: input.clinicName,
+      hasReplyTo: Boolean(input.email),
+      hasClinicName: Boolean(input.clinicName),
     });
 
     return { sent: false, reason: "smtp_disabled" as const };
@@ -475,16 +641,17 @@ export async function sendContactMessageEmail(input: {
 
   if (!delivery) {
     console.info("[EMAIL] contact_message skipped: smtp disabled", {
-      email: input.email,
-      clinicName: input.clinicName,
+      hasReplyTo: Boolean(input.email),
+      hasClinicName: Boolean(input.clinicName),
     });
 
     return { sent: false, reason: "smtp_disabled" as const };
   }
 
   console.info("[EMAIL] contact_message sent", {
-    email: input.email,
-    clinicName: input.clinicName,
+    hasReplyTo: Boolean(input.email),
+    hasClinicName: Boolean(input.clinicName),
+    recipientCount: recipients.length,
     messageId: delivery.messageId,
     transport: delivery.transport,
   });

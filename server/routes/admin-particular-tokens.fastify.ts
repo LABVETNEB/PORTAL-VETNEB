@@ -25,6 +25,7 @@ import {
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
+import { getSafeEmailTransportErrorMetadata } from "../lib/email.ts";
 
 type AdminUserRecord = {
   id: number;
@@ -682,7 +683,7 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
 
       console.error("[EMAIL] particular_token failed", {
         tokenId: particularToken.id,
-        errorName: getSafeErrorName(error),
+        ...getSafeEmailTransportErrorMetadata(error),
       });
 
       return reply.code(502).send({
