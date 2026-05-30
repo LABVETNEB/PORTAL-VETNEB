@@ -281,15 +281,16 @@ test("contact endpoint returns controlled smtp error and logs only safe diagnost
   assert.equal(errorCalls[0]?.[0], "[EMAIL] contact_message failed");
 
   const payload = errorCalls[0]?.[1] as Record<string, unknown>;
-  assert.equal(payload.email, "maria@example.com");
-  assert.equal(payload.clinicName, "Clinica Sur");
+  assert.equal("email" in payload, false, "contact email must not appear in error log");
+  assert.equal(payload.hasClinicName, true);
+  assert.equal("clinicName" in payload, false);
   assert.equal(payload.errorName, "Error");
-  assert.equal(payload.errorCode, "ESOCKET");
-  assert.equal(payload.errorCommand, "CONN");
+  assert.equal(payload.code, "ESOCKET");
+  assert.equal(payload.command, "CONN");
   assert.equal(payload.errorSyscall, "connect");
-  assert.equal(payload.errorHostname, "smtp.gmail.com");
+  assert.equal(payload.hostname, "smtp.gmail.com");
   assert.equal(payload.errorPort, 587);
-  assert.equal(payload.errorResponseCode, 421);
+  assert.equal(payload.responseCode, 421);
   assert.equal(payload.errorAddress, "74.125.140.108");
 
   for (const forbiddenKey of [
@@ -304,6 +305,7 @@ test("contact endpoint returns controlled smtp error and logs only safe diagnost
   }
 
   const serializedPayload = JSON.stringify(payload);
+  assert.equal(serializedPayload.includes("maria@example.com"), false, "contact email must not appear serialized");
   assert.equal(serializedPayload.includes(sensitivePass), false);
   assert.equal(serializedPayload.includes(sensitiveUser), false);
   assert.equal(serializedPayload.includes(sensitiveAccessToken), false);

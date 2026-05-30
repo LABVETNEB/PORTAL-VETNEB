@@ -1,3 +1,4 @@
+import { getSafeEmailTransportErrorMetadata } from "../lib/email.ts";
 import type {
   FastifyPluginAsync,
   FastifyReply,
@@ -357,12 +358,9 @@ export const contactNativeRoutes: FastifyPluginAsync<
         message: parsed.data.message,
       });
     } catch (error) {
-      const diagnostics = extractSafeContactEmailErrorDiagnostics(error);
-
       console.error("[EMAIL] contact_message failed", {
-        email: parsed.data.email,
-        clinicName: normalizedClinicName,
-        ...diagnostics,
+        hasClinicName: Boolean(normalizedClinicName),
+        ...getSafeEmailTransportErrorMetadata(error),
       });
 
       return reply.code(502).send({

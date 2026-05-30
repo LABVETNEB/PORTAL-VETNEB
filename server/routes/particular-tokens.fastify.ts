@@ -29,6 +29,7 @@ import {
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
+import { getSafeEmailTransportErrorMetadata } from "../lib/email.ts";
 
 type ClinicUserRecord = {
   id: number;
@@ -705,7 +706,7 @@ export const particularTokensNativeRoutes: FastifyPluginAsync<
 
       console.error("[EMAIL] particular_token failed", {
         tokenId: particularToken.id,
-        errorName: getSafeErrorName(error),
+        ...getSafeEmailTransportErrorMetadata(error),
       });
 
       return reply.code(502).send({
