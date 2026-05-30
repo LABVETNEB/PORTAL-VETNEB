@@ -185,24 +185,33 @@ test("sendContactMessageEmail usa Gmail API si esta habilitado y construye MIME 
   assert.ok(rawMessage.length > 0);
 
   const mime = decodeBase64Url(rawMessage);
-  const [headers, body] = mime.split("\r\n\r\n");
+  // multipart/alternative: split at first double CRLF to get outer headers
+  const firstBlankLine = mime.indexOf("\r\n\r\n");
+  const outerHeaders = mime.slice(0, firstBlankLine);
+  const outerBody = mime.slice(firstBlankLine + 4);
 
-  assert.ok(headers.includes("From: lab.vetneb@gmail.com"));
-  assert.ok(headers.includes("To: ops@vetneb.com, lab@vetneb.com"));
-  assert.ok(headers.includes("Reply-To: maria@example.com"));
+  assert.ok(outerHeaders.includes("From: lab.vetneb@gmail.com"));
+  assert.ok(outerHeaders.includes("To: ops@vetneb.com, lab@vetneb.com"));
+  assert.ok(outerHeaders.includes("Reply-To: maria@example.com"));
   assert.ok(
-    headers.includes(
+    outerHeaders.includes(
       "Subject: [VETNEB] Contacto web: Maria Bcc: hidden@example.com",
     ),
   );
-  assert.ok(headers.includes("MIME-Version: 1.0"));
-  assert.ok(headers.includes("Content-Type: text/plain; charset=UTF-8"));
-  assert.equal(headers.includes("\r\nBcc: hidden@example.com"), false);
-  assert.ok(body.includes("Nuevo mensaje desde el formulario de contacto"));
-  assert.ok(body.includes("Nombre: Maria"));
-  assert.ok(body.includes("Email: maria@example.com"));
-  assert.ok(body.includes("Clinica Sur"));
-  assert.ok(body.includes("Necesito coordinar una recepcion de muestras."));
+  assert.ok(outerHeaders.includes("MIME-Version: 1.0"));
+  assert.ok(outerHeaders.includes("Content-Type: multipart/alternative;"));
+  assert.equal(outerHeaders.includes("\r\nBcc: hidden@example.com"), false);
+  // text/plain part present
+  assert.ok(outerBody.includes("Content-Type: text/plain; charset=UTF-8"));
+  assert.ok(outerBody.includes("Nuevo mensaje desde el formulario de contacto"));
+  assert.ok(outerBody.includes("Nombre: Maria"));
+  assert.ok(outerBody.includes("Email: maria@example.com"));
+  assert.ok(outerBody.includes("Clinica Sur"));
+  assert.ok(outerBody.includes("Necesito coordinar una recepcion de muestras."));
+  // html part present
+  assert.ok(outerBody.includes("Content-Type: text/html; charset=UTF-8"));
+  assert.ok(outerBody.includes("<!DOCTYPE html>"));
+  assert.ok(outerBody.includes("VETNEB"));
   assert.equal(JSON.stringify(infoCalls).includes("google-client-secret"), false);
   assert.equal(JSON.stringify(infoCalls).includes("google-refresh-token"), false);
   assert.equal(JSON.stringify(infoCalls).includes("gmail-access-token"), false);
@@ -312,12 +321,14 @@ test("sendContactMessageEmail usa SMTP como fallback cuando Gmail API no esta co
   }
 
   assert.equal(sendMailCalls.length, 1);
-  assert.deepEqual(sendMailCalls[0], {
-    from: "smtp-from@vetneb.com",
-    to: "contacto@vetneb.com, ops@vetneb.com",
-    replyTo: "juan@example.com",
-    subject: "[VETNEB] Contacto web: Juan Perez",
-    text: [
+  const smtpPayload = sendMailCalls[0];
+  assert.equal(smtpPayload.from, "smtp-from@vetneb.com");
+  assert.equal(smtpPayload.to, "contacto@vetneb.com, ops@vetneb.com");
+  assert.equal(smtpPayload.replyTo, "juan@example.com");
+  assert.equal(smtpPayload.subject, "[VETNEB] Contacto web: Juan Perez");
+  assert.equal(
+    smtpPayload.text,
+    [
       "Nuevo mensaje desde el formulario de contacto de Portal VETNEB",
       "",
       "Nombre: Juan Perez",
@@ -329,5 +340,9 @@ test("sendContactMessageEmail usa SMTP como fallback cuando Gmail API no esta co
       "",
       "Equipo VETNEB",
     ].join("\n"),
-  });
+  );
+  assert.equal(typeof smtpPayload.html, "string");
+  assert.ok(String(smtpPayload.html).includes("<!DOCTYPE html>"));
+  assert.ok(String(smtpPayload.html).includes("VETNEB"));
+  assert.ok(String(smtpPayload.html).includes("Juan Perez"));
 });

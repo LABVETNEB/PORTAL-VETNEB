@@ -98,6 +98,14 @@ test("sendParticularTokenEmail envia token particular con payload minimo", async
   assert.equal(String(payload.text).includes("token-visible-una-sola-vez"), true);
   assert.equal(String(payload.text).includes("Tutor/a: Gomez"), true);
   assert.equal(String(payload.text).includes("Paciente: Luna"), true);
+  // html template present
+  assert.equal(typeof payload.html, "string");
+  assert.ok(String(payload.html).includes("<!DOCTYPE html>"));
+  assert.ok(String(payload.html).includes("VETNEB"));
+  // token must appear in html (escaped but visible as text)
+  assert.ok(String(payload.html).includes("token-visible-una-sola-vez"));
+  assert.ok(String(payload.html).includes("Gomez"));
+  assert.ok(String(payload.html).includes("Luna"));
   assert.equal(JSON.stringify(infoCalls).includes("token-visible-una-sola-vez"), false);
 });
 
