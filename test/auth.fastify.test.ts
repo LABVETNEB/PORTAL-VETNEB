@@ -204,6 +204,8 @@ test(
       assert.ok(setCookie.includes(`${ENV.cookieName}=token-123`));
       assert.ok(setCookie.includes("Path=/"));
       assert.ok(setCookie.includes("HttpOnly"));
+      assert.ok(setCookie.includes(`Max-Age=${ENV.sessionTtlHours * 60 * 60}`));
+      assert.equal(setCookie.includes("Max-Age=0"), false);
 
       assert.deepEqual(JSON.parse(response.body), {
         success: true,
@@ -301,6 +303,8 @@ test(
 
       const setCookie = getSetCookieHeader(response);
       assert.ok(setCookie.includes(`${ENV.adminCookieName}=admin-token-123`));
+      assert.ok(setCookie.includes(`Max-Age=${ENV.sessionTtlHours * 60 * 60}`));
+      assert.equal(setCookie.includes("Max-Age=0"), false);
       assert.equal(setCookie.includes(`${ENV.cookieName}=`), false);
       assert.equal(setCookie.includes(`${ENV.particularCookieName}=`), false);
 
@@ -704,6 +708,8 @@ test(
       assert.ok(
         setCookie.includes(`${ENV.particularCookieName}=particular-session-123`),
       );
+      assert.ok(setCookie.includes(`Max-Age=${ENV.sessionTtlHours * 60 * 60}`));
+      assert.equal(setCookie.includes("Max-Age=0"), false);
       assert.equal(setCookie.includes(`${ENV.cookieName}=`), false);
       assert.equal(setCookie.includes(`${ENV.adminCookieName}=`), false);
 
