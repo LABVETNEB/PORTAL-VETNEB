@@ -1396,7 +1396,7 @@ test("clinicAuthNativeRoutes login fallido incrementa store persistente", async 
     });
 
     assert.equal(response.statusCode, 401);
-    assert.equal(rows.get(hashRateLimitKey("203.0.113.50"))?.count, 1);
+    assert.equal(rows.get(hashRateLimitKey("login:203.0.113.50"))?.count, 1);
   } finally {
     await app.close();
   }
@@ -1599,7 +1599,7 @@ test("clinicAuthNativeRoutes reinicia ventana persistente cuando resetAt venció
     });
 
     assert.equal(second.statusCode, 401);
-    assert.equal(rows.get(hashRateLimitKey("203.0.113.53"))?.count, 1);
+    assert.equal(rows.get(hashRateLimitKey("login:203.0.113.53"))?.count, 1);
   } finally {
     await secondApp.close();
   }

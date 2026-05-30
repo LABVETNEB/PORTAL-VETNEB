@@ -615,7 +615,7 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const rateLimitKey = request.ip || "unknown";
+    const rateLimitKey = `admin:${request.ip || "unknown"}`;
     const currentTime = now();
     const failureEntry = await getOrCreateRateLimitEntry(
       loginRateLimitStore,
