@@ -121,6 +121,8 @@ test(
       assert.ok(setCookie.includes(`${ENV.adminCookieName}=admin-token-123`));
       assert.ok(setCookie.includes("Path=/"));
       assert.ok(setCookie.includes("HttpOnly"));
+      assert.ok(setCookie.includes(`Max-Age=${ENV.sessionTtlHours * 60 * 60}`));
+      assert.equal(setCookie.includes("Max-Age=0"), false);
 
       assert.deepEqual(JSON.parse(response.body), {
         success: true,

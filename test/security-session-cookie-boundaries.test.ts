@@ -288,17 +288,23 @@ test("runtime middleware and fastify tests remain explicit for cookie contracts"
   assertContains(clinicAuthTests, "setCookie.includes(`${ENV.cookieName}=token-123`)", "clinic login set cookie");
   assertContains(clinicAuthTests, 'setCookie.includes("Path=/")', "clinic login cookie path");
   assertContains(clinicAuthTests, 'setCookie.includes("HttpOnly")', "clinic login cookie httpOnly");
+  assertContains(clinicAuthTests, "setCookie.includes(`Max-Age=${ENV.sessionTtlHours * 60 * 60}`)", "clinic login cookie persistent max age");
+  assertContains(clinicAuthTests, 'setCookie.includes("Max-Age=0"), false', "clinic login cookie not session cookie");
   assertContains(clinicAuthTests, 'setCookie.includes("Max-Age=0")', "clinic logout max age");
 
   assertContains(adminAuthTests, "setCookie.includes(`${ENV.adminCookieName}=admin-token-123`)", "admin login set cookie");
   assertContains(adminAuthTests, 'setCookie.includes("Path=/")', "admin login cookie path");
   assertContains(adminAuthTests, 'setCookie.includes("HttpOnly")', "admin login cookie httpOnly");
+  assertContains(adminAuthTests, "setCookie.includes(`Max-Age=${ENV.sessionTtlHours * 60 * 60}`)", "admin login cookie persistent max age");
+  assertContains(adminAuthTests, 'setCookie.includes("Max-Age=0"), false', "admin login cookie not session cookie");
   assertContains(adminAuthTests, 'setCookie.includes("Max-Age=0")', "admin logout max age");
 
   assertContains(particularAuthTests, "setCookie.includes(", "particular login set cookie");
   assertContains(particularAuthTests, "ENV.particularCookieName", "particular login uses env cookie");
   assertContains(particularAuthTests, 'setCookie.includes("Path=/")', "particular login cookie path");
   assertContains(particularAuthTests, 'setCookie.includes("HttpOnly")', "particular login cookie httpOnly");
+  assertContains(particularAuthTests, "setCookie.includes(`Max-Age=${ENV.sessionTtlHours * 60 * 60}`)", "particular login cookie persistent max age");
+  assertContains(particularAuthTests, 'setCookie.includes("Max-Age=0"), false', "particular login cookie not session cookie");
   assertContains(particularAuthTests, 'setCookie.includes("Max-Age=0")', "particular logout max age");
 });
 
