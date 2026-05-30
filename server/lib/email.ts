@@ -17,6 +17,7 @@ type EmailTransportMessage = {
   replyTo?: string | null;
   subject: string;
   text: string;
+  html?: string;
 };
 
 type EmailTransportResult = {
@@ -210,6 +211,65 @@ function buildTextMimeMessage(input: {
   return `${headers.join("\r\n")}\r\n\r\n${input.text}`;
 }
 
+function buildMultipartMimeMessage(input: {
+  from: string;
+  to: string[];
+  replyTo?: string | null;
+  subject: string;
+  text: string;
+  html: string;
+}): string {
+  const boundary = `----=_Part_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+
+  const headers = [
+    `From: ${sanitizeHeaderValue(input.from)}`,
+    `To: ${input.to.map(sanitizeHeaderValue).join(", ")}`,
+    `Subject: ${sanitizeHeaderValue(input.subject)}`,
+    `Date: ${new Date().toUTCString()}`,
+    "MIME-Version: 1.0",
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+  ];
+
+  const replyTo = input.replyTo ? sanitizeHeaderValue(input.replyTo) : "";
+
+  if (replyTo) {
+    headers.splice(2, 0, `Reply-To: ${replyTo}`);
+  }
+
+  const textPart = [
+    `--${boundary}`,
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    input.text,
+  ].join("\r\n");
+
+  const htmlPart = [
+    `--${boundary}`,
+    "Content-Type: text/html; charset=UTF-8",
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    input.html,
+  ].join("\r\n");
+
+  return `${headers.join("\r\n")}\r\n\r\n${textPart}\r\n\r\n${htmlPart}\r\n\r\n--${boundary}--`;
+}
+
+function buildMimeMessage(input: {
+  from: string;
+  to: string[];
+  replyTo?: string | null;
+  subject: string;
+  text: string;
+  html?: string;
+}): string {
+  if (input.html) {
+    return buildMultipartMimeMessage({ ...input, html: input.html });
+  }
+
+  return buildTextMimeMessage(input);
+}
+
 function buildGmailApiError(
   message: string,
   input: {
@@ -323,12 +383,13 @@ async function sendGmailApiMessage(
 ): Promise<EmailTransportResult> {
   const accessToken = await getGmailApiAccessToken();
   const raw = base64UrlEncode(
-    buildTextMimeMessage({
+    buildMimeMessage({
       from: ENV.gmailApi.from,
       to: input.to,
       replyTo: input.replyTo,
       subject: input.subject,
       text: input.text,
+      html: input.html,
     }),
   );
 
@@ -402,6 +463,7 @@ async function sendConfiguredEmailMessage(
     replyTo: input.replyTo ?? undefined,
     subject: input.subject,
     text: input.text,
+    ...(input.html ? { html: input.html } : {}),
   });
 
   return {
@@ -504,6 +566,127 @@ function buildParticularTokenText(input: {
     "Equipo VETNEB",
   ].join("\n");
 }
+
+// ─── HTML helpers ────────────────────────────────────────────────────────────
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
+function buildVetnebEmailHtml(input: { title: string; body: string }): string {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(input.title)}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f3f4f6;">
+  <tr>
+    <td align="center" style="padding:40px 16px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px;">
+        <!-- Header -->
+        <tr>
+          <td style="background-color:#103C61;border-radius:8px 8px 0 0;padding:28px 32px;">
+            <span style="font-size:22px;font-weight:700;color:#ffffff;letter-spacing:0.04em;">VETNEB</span>
+            <span style="font-size:13px;color:#a8c8e8;margin-left:10px;vertical-align:middle;">Portal Veterinario</span>
+          </td>
+        </tr>
+        <!-- Card body -->
+        <tr>
+          <td style="background-color:#ffffff;padding:32px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+            ${input.body}
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="background-color:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:20px 32px;text-align:center;">
+            <p style="margin:0;font-size:12px;color:#64748b;">VETNEB &mdash; Servicio de Anatomía Patológica Veterinaria</p>
+            <p style="margin:6px 0 0;font-size:11px;color:#94a3b8;">Este es un mensaje automático. Por favor no responda directamente a este correo.</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+}
+
+function buildParticularTokenHtml(input: {
+  token: string;
+  tutorLastName: string;
+  petName: string;
+}): string {
+  const body = `
+<h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#103C61;">Token de acceso particular</h1>
+<p style="margin:0 0 24px;font-size:14px;color:#64748b;">Portal VETNEB generó un token de acceso para consultar el seguimiento o informe.</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:24px;">
+  <tr>
+    <td style="padding:8px 0;border-bottom:1px solid #f1f5f9;">
+      <span style="font-size:13px;color:#64748b;display:inline-block;width:140px;">Tutor/a</span>
+      <span style="font-size:14px;font-weight:600;color:#1e293b;">${escapeHtml(input.tutorLastName)}</span>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:8px 0;">
+      <span style="font-size:13px;color:#64748b;display:inline-block;width:140px;">Paciente</span>
+      <span style="font-size:14px;font-weight:600;color:#1e293b;">${escapeHtml(input.petName)}</span>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">Token de acceso</p>
+<div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #1D827D;border-radius:4px;padding:16px 20px;margin-bottom:24px;">
+  <code style="font-family:'Courier New',Courier,monospace;font-size:15px;color:#103C61;word-break:break-all;display:block;">${escapeHtml(input.token)}</code>
+</div>
+
+<p style="margin:0;font-size:13px;color:#64748b;">Ingresá al <strong>Portal VETNEB</strong> para usarlo. <strong>Conservá este token y no lo compartas.</strong></p>`;
+
+  return buildVetnebEmailHtml({ title: "Token de acceso particular – VETNEB", body });
+}
+
+function buildContactMessageHtml(input: {
+  name: string;
+  email: string;
+  clinicName: string | null;
+  message: string;
+}): string {
+  const body = `
+<h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#103C61;">Nuevo mensaje de contacto</h1>
+<p style="margin:0 0 24px;font-size:14px;color:#64748b;">Recibiste un mensaje desde el formulario de contacto del Portal VETNEB.</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:24px;border:1px solid #e2e8f0;border-radius:4px;">
+  <tr style="background-color:#f8fafc;">
+    <td style="padding:10px 16px;font-size:13px;color:#64748b;font-weight:600;width:120px;border-bottom:1px solid #e2e8f0;">Nombre</td>
+    <td style="padding:10px 16px;font-size:14px;color:#1e293b;border-bottom:1px solid #e2e8f0;">${escapeHtml(input.name)}</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 16px;font-size:13px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">Email</td>
+    <td style="padding:10px 16px;font-size:14px;color:#1e293b;border-bottom:1px solid #e2e8f0;">${escapeHtml(input.email)}</td>
+  </tr>
+  <tr style="background-color:#f8fafc;">
+    <td style="padding:10px 16px;font-size:13px;color:#64748b;font-weight:600;">Clínica</td>
+    <td style="padding:10px 16px;font-size:14px;color:#1e293b;">${escapeHtml(input.clinicName ?? "No informada")}</td>
+  </tr>
+</table>
+
+<p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">Mensaje</p>
+<div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:16px 20px;margin-bottom:8px;">
+  <p style="margin:0;font-size:14px;color:#1e293b;white-space:pre-wrap;">${escapeHtml(input.message)}</p>
+</div>`;
+
+  return buildVetnebEmailHtml({ title: "Nuevo contacto web – VETNEB", body });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function resolveContactRecipients(): string[] {
   const explicitRecipients = normalizeRecipients(ENV.contactTo);
@@ -637,6 +820,7 @@ export async function sendContactMessageEmail(input: {
     replyTo: input.email,
     subject: `[VETNEB] Contacto web: ${input.name}`,
     text: buildContactMessageText(input),
+    html: buildContactMessageHtml(input),
   });
 
   if (!delivery) {
@@ -683,6 +867,7 @@ export async function sendParticularTokenEmail(input: {
     to: recipients,
     subject: "[VETNEB] Token de acceso particular",
     text: buildParticularTokenText(input),
+    html: buildParticularTokenHtml(input),
   });
 
   if (!delivery) {
