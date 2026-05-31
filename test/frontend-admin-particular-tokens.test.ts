@@ -50,7 +50,7 @@ test("admin particular token generator uses admin helpers without technical copy
   assert.ok(card.includes("createAdminParticularToken"));
   assert.ok(card.includes("getAdminUsersRoles"));
   assert.ok(card.includes("getAdminParticularTokens"));
-  assert.ok(card.includes("revokeAdminParticularToken"));
+  assert.ok(card.includes("deleteAdminParticularToken"));
   assert.ok(card.includes("type AdminParticularTokenCreatePayload"));
   assert.ok(card.includes("type AdminParticularTokenSummary"));
   assert.equal(card.includes(removedScopedCopy), false);
@@ -58,8 +58,12 @@ test("admin particular token generator uses admin helpers without technical copy
   assert.ok(api.includes("export async function createAdminParticularToken("));
   assert.ok(api.includes('"/api/admin/particular-tokens"'));
   assert.ok(api.includes("export async function revokeAdminParticularToken("));
+  assert.ok(api.includes("export async function deleteAdminParticularToken("));
   assert.ok(
     api.includes("`/api/admin/particular-tokens/${tokenId}/revoke`,"),
+  );
+  assert.ok(
+    api.includes("`/api/admin/particular-tokens/${tokenId}`"),
   );
 });
 
@@ -97,7 +101,7 @@ test("admin particular token generator uses registered clinic selector instead o
 test("admin particular token clinic selector loads deduped clinics by name user id and locality", () => {
   const source = read(ADMIN_CARD_PATH);
 
-  assert.ok(source.includes('import {\n  createAdminParticularToken,\n  getAdminUsersRoles,'));
+  assert.ok(source.includes('import {\n  createAdminParticularToken,\n  deleteAdminParticularToken,\n  getAdminUsersRoles,'));
   assert.ok(source.includes("getAdminUsersRoles({"));
   assert.ok(source.includes('userType: "clinic",'));
   assert.ok(source.includes("limit,"));
@@ -353,4 +357,72 @@ test("admin and clinic token forms keep normalized sex and species options", () 
       previousIndex = index;
     }
   }
+});
+
+test("admin particular token form has autoComplete off on form element and all sensitive inputs", () => {
+  const source = read(ADMIN_CARD_PATH);
+
+  assert.ok(source.includes('autoComplete="off"'), "form or inputs must have autoComplete off");
+  assert.ok(source.includes('<form') && source.includes('autoComplete="off"'), "form container must disable autocomplete");
+  assert.equal(source.includes('autoComplete="on"'), false, "no autoComplete=on allowed");
+
+  const sensitiveInputIds = [
+    "admin-token-particular-email",
+    "admin-token-tutor-last-name",
+    "admin-token-pet-name",
+    "admin-token-pet-age",
+    "admin-token-pet-breed",
+    "admin-token-sample-location",
+    "admin-token-sample-evolution",
+    "admin-token-extraction-date",
+    "admin-token-shipping-date",
+    "admin-token-report-id",
+  ];
+
+  for (const id of sensitiveInputIds) {
+    const idx = source.indexOf(`id="${id}"`);
+    assert.ok(idx !== -1, `input ${id} must exist`);
+    const block = source.slice(idx, idx + 400);
+    assert.ok(block.includes('autoComplete="off"'), `input ${id} must have autoComplete="off"`);
+  }
+});
+
+test("clinic particular token form has autoComplete off on form element and all sensitive inputs", () => {
+  const source = read(CLINIC_CARD_PATH);
+
+  assert.ok(source.includes('autoComplete="off"'), "clinic form must have autoComplete off");
+  assert.equal(source.includes('autoComplete="on"'), false, "no autoComplete=on in clinic form");
+
+  const sensitiveInputIds = [
+    "clinic-token-particular-email",
+    "clinic-token-tutor-last-name",
+    "clinic-token-pet-name",
+    "clinic-token-pet-age",
+    "clinic-token-pet-breed",
+    "clinic-token-sample-location",
+    "clinic-token-sample-evolution",
+    "clinic-token-extraction-date",
+    "clinic-token-shipping-date",
+    "clinic-token-report-id",
+  ];
+
+  for (const id of sensitiveInputIds) {
+    const idx = source.indexOf(`id="${id}"`);
+    assert.ok(idx !== -1, `clinic input ${id} must exist`);
+    const block = source.slice(idx, idx + 400);
+    assert.ok(block.includes('autoComplete="off"'), `clinic input ${id} must have autoComplete="off"`);
+  }
+});
+
+test("admin token card delete handler uses deleteAdminParticularToken not revokeAdminParticularToken", () => {
+  const card = read(ADMIN_CARD_PATH);
+  const api = read(API_PATH);
+
+  assert.ok(card.includes("deleteAdminParticularToken"), "card must import deleteAdminParticularToken");
+  assert.equal(card.includes("revokeAdminParticularToken"), false, "card must not reference revokeAdminParticularToken");
+  assert.ok(card.includes("handleDeleteToken"), "card must have handleDeleteToken function");
+  assert.ok(card.includes("Eliminar token"), "card must show delete terminology");
+  assert.equal(card.includes("Token inactivo"), false, "card must not show Token inactivo state");
+  assert.ok(api.includes("export type AdminParticularTokenDeleteResponse"), "api must export AdminParticularTokenDeleteResponse type");
+  assert.ok(api.includes('method: "DELETE"'), "deleteAdminParticularToken must use DELETE method");
 });

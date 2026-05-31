@@ -102,6 +102,7 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
       createParticularTokenFixture({
         isActive: false,
       }),
+    deleteParticularToken: async (id: number) => ({ id }),
     sendParticularTokenEmail: async () => ({
       sent: true,
       messageId: "particular-email-1",
@@ -578,20 +579,17 @@ test(
 );
 
 test(
-  "adminParticularTokensNativeRoutes revoca PATCH /:tokenId/revoke con mensaje y token sanitizado",
+  "adminParticularTokensNativeRoutes PATCH /:tokenId/revoke ahora hard-deletea y responde deletedTokenId",
   async () => {
     const activeToken = createParticularTokenFixture({ isActive: true });
-    const revokedToken = createParticularTokenFixture({ isActive: false });
-    const report = createReportFixture();
-    const revokeCalls: number[] = [];
+    const deleteCalls: number[] = [];
 
     const app = await createTestApp({
       getParticularTokenById: async () => activeToken,
-      revokeParticularToken: async (tokenId: number) => {
-        revokeCalls.push(tokenId);
-        return revokedToken;
+      deleteParticularToken: async (tokenId: number) => {
+        deleteCalls.push(tokenId);
+        return { id: tokenId };
       },
-      getReportById: async () => report,
     });
 
     try {
@@ -605,13 +603,13 @@ test(
       });
 
       assert.equal(response.statusCode, 200);
-      assert.deepEqual(revokeCalls, [7]);
+      assert.deepEqual(deleteCalls, [7]);
       const body = JSON.parse(response.body);
       assert.equal(body.success, true);
-      assert.equal(body.message, "Token particular revocado correctamente");
-      assert.equal(body.particularToken.id, 7);
-      assert.equal(body.particularToken.isActive, false);
-      assert.equal(body.particularToken.tokenHash, undefined);
+      assert.equal(body.message, "Token particular eliminado correctamente");
+      assert.equal(body.deletedTokenId, 7);
+      assert.equal(body.particularToken, undefined);
+      assert.equal(body.tokenHash, undefined);
     } finally {
       await app.close();
     }
@@ -619,14 +617,81 @@ test(
 );
 
 test(
-  "adminParticularTokensNativeRoutes bloquea revoke con origin no permitido",
+  "adminParticularTokensNativeRoutes DELETE /:tokenId elimina físicamente y responde deletedTokenId",
+  async () => {
+    const activeToken = createParticularTokenFixture({ isActive: true });
+    const deleteCalls: number[] = [];
+
+    const app = await createTestApp({
+      getParticularTokenById: async () => activeToken,
+      deleteParticularToken: async (tokenId: number) => {
+        deleteCalls.push(tokenId);
+        return { id: tokenId };
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "DELETE",
+        url: "/api/admin/particular-tokens/7",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(deleteCalls, [7]);
+      const body = JSON.parse(response.body);
+      assert.equal(body.success, true);
+      assert.equal(body.message, "Token particular eliminado correctamente");
+      assert.equal(body.deletedTokenId, 7);
+      assert.equal(body.particularToken, undefined);
+      assert.equal(body.tokenHash, undefined);
+      assert.equal(body.tokenLast4, undefined);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "adminParticularTokensNativeRoutes DELETE /:tokenId devuelve 404 si token no existe",
+  async () => {
+    const app = await createTestApp({
+      getParticularTokenById: async () => undefined,
+    });
+
+    try {
+      const response = await app.inject({
+        method: "DELETE",
+        url: "/api/admin/particular-tokens/999",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      assert.equal(response.statusCode, 404);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: "Token particular no encontrado",
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "adminParticularTokensNativeRoutes DELETE /:tokenId bloquea origin no permitido",
   async () => {
     const app = await createTestApp();
 
     try {
       const response = await app.inject({
-        method: "PATCH",
-        url: "/api/admin/particular-tokens/7/revoke",
+        method: "DELETE",
+        url: "/api/admin/particular-tokens/7",
         headers: {
           origin: "https://evil.example",
           cookie: `${ENV.adminCookieName}=admin-session-token`,
@@ -638,6 +703,33 @@ test(
         success: false,
         error: "Origen no permitido",
       });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "adminParticularTokensNativeRoutes GET / no devuelve tokenHash en listado",
+  async () => {
+    const token = createParticularTokenFixture();
+    const app = await createTestApp({
+      listParticularTokens: async () => [token],
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/particular-tokens",
+        headers: {
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      const body = JSON.parse(response.body);
+      assert.equal(body.particularTokens[0].tokenHash, undefined);
+      assert.ok(body.particularTokens[0].tokenLast4);
     } finally {
       await app.close();
     }

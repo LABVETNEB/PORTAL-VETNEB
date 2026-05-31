@@ -548,8 +548,24 @@ export async function revokeAdminParticularToken(
   );
 }
 
+export type AdminParticularTokenDeleteResponse = {
+  success: true;
+  message: string;
+  deletedTokenId: number;
+};
 
-
+export async function deleteAdminParticularToken(
+  tokenId: number,
+  options?: RequestInit,
+): Promise<AdminParticularTokenDeleteResponse> {
+  return apiFetch<AdminParticularTokenDeleteResponse>(
+    `/api/admin/particular-tokens/${tokenId}`,
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+}
 
 export type ClinicParticularTokenSummary = AdminParticularTokenSummary;
 
