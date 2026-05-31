@@ -84,3 +84,26 @@ test("precios page preserves fallback labels and error/empty states", () => {
   assert.ok(source.includes("hasPricingItems(pricingCategories)"));
   assert.ok(source.includes('role="alert"'));
 });
+
+test("precios page only shows load error when getPublicPricing fails", () => {
+  const source = read(PRECIOS_PAGE_PATH);
+
+  assert.ok(source.includes("let pricingLoadError = false;"));
+  assert.ok(source.includes("try {"));
+  assert.ok(source.includes("pricingCategories = sortPricingCategories(pricingSnapshot.categories);"));
+  assert.ok(source.includes("} catch {"));
+  assert.ok(source.includes("pricingLoadError = true;"));
+  assert.ok(source.includes("pricingLoadError ? ("));
+  assert.ok(source.includes(": hasPricingItems(pricingCategories) ? ("));
+});
+
+test("precios page renders grouped categories and study items when categories exist", () => {
+  const source = read(PRECIOS_PAGE_PATH);
+
+  assert.ok(source.includes("{pricingCategories.map((category) => {"));
+  assert.ok(source.includes("key={category.category}"));
+  assert.ok(source.includes("{category.items.map((item, index) => ("));
+  assert.ok(source.includes("index < category.items.length - 1"));
+  assert.ok(source.includes("{item.studyName}"));
+  assert.ok(source.includes("{normalizePriceLabel(item.priceLabel)}"));
+});

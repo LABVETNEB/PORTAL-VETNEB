@@ -106,7 +106,7 @@ export function resolveApiBaseUrlForRuntime(input: {
     throw new Error(PUBLIC_API_CONFIGURATION_ERROR_MESSAGE);
   }
 
-  return "";
+  return normalizeApiBaseUrl(nextPublicApiUrl);
 }
 
 function warnApiFallback(functionName: string, error: unknown): void {
