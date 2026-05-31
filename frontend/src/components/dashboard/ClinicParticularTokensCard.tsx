@@ -785,3 +785,6 @@ export function ClinicParticularTokensCard() {
           )}
         </div>
       </CardContent>
+    </Card>
+  );
+}
