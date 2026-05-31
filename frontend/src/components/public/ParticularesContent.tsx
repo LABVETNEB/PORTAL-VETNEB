@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import {
   CalendarDays,
+  Clipboard,
   Download,
   Eye,
   FileText,
@@ -83,16 +84,20 @@ export function ParticularesContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOpeningReport, setIsOpeningReport] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [sessionCheckError, setSessionCheckError] = useState(false);
+  const [clipboardSupported, setClipboardSupported] = useState(false);
+  const [isPasting, setIsPasting] = useState(false);
 
   async function refreshSession() {
     setIsCheckingSession(true);
     setErrorMessage(null);
+    setSessionCheckError(false);
 
     try {
       const response = await getParticularSession();
       setSession(response?.particular ?? null);
     } catch (error) {
-      setSession(null);
+      setSessionCheckError(true);
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -107,6 +112,13 @@ export function ParticularesContent() {
     void refreshSession();
   }, []);
 
+  useEffect(() => {
+    setClipboardSupported(
+      typeof navigator !== "undefined" &&
+        typeof navigator.clipboard?.readText === "function",
+    );
+  }, []);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -115,6 +127,7 @@ export function ParticularesContent() {
     }
 
     setErrorMessage(null);
+    setSessionCheckError(false);
     setIsSubmitting(true);
 
     try {
@@ -141,6 +154,26 @@ export function ParticularesContent() {
       // La salida local se completa aunque el backend ya no tenga sesión activa.
     } finally {
       setSession(null);
+    }
+  }
+
+  async function handlePasteToken() {
+    if (!navigator.clipboard?.readText || isPasting) {
+      return;
+    }
+
+    setIsPasting(true);
+
+    try {
+      const text = await navigator.clipboard?.readText?.();
+      const cleaned = text.trim();
+      if (cleaned) {
+        setToken(cleaned);
+      }
+    } catch {
+      // Usuario denegó permiso o portapapeles no disponible — fallo silencioso.
+    } finally {
+      setIsPasting(false);
     }
   }
 
@@ -173,7 +206,8 @@ export function ParticularesContent() {
   return (
     <section className="public-secondary-hero-surface py-16 md:py-20">
       <div className="container relative z-10 mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_0.95fr] lg:px-8">
-        <div>
+        {/* Columna info: oculta en móvil cuando la sesión está activa para evitar duplicación visual */}
+        <div className={session !== null ? "hidden lg:block" : ""}>
 <h1 className="max-w-3xl text-4xl font-bold text-primary-foreground md:text-5xl">
             Acceda al seguimiento y al informe de su caso con token seguro
           </h1>
@@ -398,15 +432,40 @@ export function ParticularesContent() {
                         className="pl-10"
                       />
                     </div>
+                    {clipboardSupported ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handlePasteToken}
+                        disabled={isSubmitting || isPasting}
+                        className="mt-2 w-full public-cta-outline text-sm"
+                        aria-label="Pegar token del portapapeles"
+                      >
+                        <Clipboard className="h-4 w-4" aria-hidden="true" />
+                        {isPasting ? "Pegando..." : "Pegar desde portapapeles"}
+                      </Button>
+                    ) : null}
                   </div>
 
                   {errorMessage ? (
-                    <p
-                      className="clinical-alert-error px-3 py-2"
-                      role="alert"
-                    >
-                      {errorMessage}
-                    </p>
+                    <div role="alert">
+                      <p className="clinical-alert-error px-3 py-2">
+                        {errorMessage}
+                      </p>
+                      {sessionCheckError ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => { void refreshSession(); }}
+                          disabled={isCheckingSession}
+                          className="mt-2 w-full public-cta-outline text-sm"
+                        >
+                          {isCheckingSession
+                            ? "Verificando..."
+                            : "Reintentar verificación"}
+                        </Button>
+                      ) : null}
+                    </div>
                   ) : null}
 
                   <Button
