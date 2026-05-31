@@ -551,8 +551,9 @@ function buildParticularTokenText(input: {
   token: string;
   tutorLastName: string;
   petName: string;
+  portalUrl?: string | null;
 }) {
-  return [
+  const lines = [
     "Hola,",
     "",
     `VETNEB generó un token de acceso particular para consultar el seguimiento o informe de ${input.petName}.`,
@@ -561,10 +562,23 @@ function buildParticularTokenText(input: {
     `Paciente: ${input.petName}`,
     `Token de acceso: ${input.token}`,
     "",
-    "Ingresá al portal VETNEB para usarlo. Conservá este token y no lo compartas.",
+  ];
+
+  if (input.portalUrl) {
+    lines.push(`Abrí el portal VETNEB: ${input.portalUrl}`);
+    lines.push("");
+  }
+
+  lines.push(
+    "Copiá este token y pegalo en el portal para acceder.",
+    "Por seguridad, el token no se copia automáticamente. Copialo manualmente.",
+    "",
+    "Conservá este token y no lo compartas.",
     "",
     "Equipo VETNEB",
-  ].join("\n");
+  );
+
+  return lines.join("\n");
 }
 
 // ─── HTML helpers ────────────────────────────────────────────────────────────
@@ -619,11 +633,35 @@ function buildVetnebEmailHtml(input: { title: string; body: string }): string {
 </html>`;
 }
 
+function resolveParticularPortalUrl(corsOrigins: string[]): string | null {
+  const httpsOrigin = corsOrigins.find((o) => /^https:\/\//.test(o));
+  return httpsOrigin ? `${httpsOrigin}/particulares` : null;
+}
+
 function buildParticularTokenHtml(input: {
   token: string;
   tutorLastName: string;
   petName: string;
+  portalUrl?: string | null;
 }): string {
+  const safePortalUrl = input.portalUrl ?? null;
+
+  const ctaButton = safePortalUrl
+    ? `
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 16px;">
+  <tr>
+    <td align="center" style="border-radius:6px;background-color:#1D827D;">
+      <a href="${escapeHtml(safePortalUrl)}"
+         target="_blank"
+         rel="noopener noreferrer"
+         style="display:inline-block;padding:12px 28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:6px;background-color:#1D827D;">
+        Abrir Portal VETNEB
+      </a>
+    </td>
+  </tr>
+</table>`
+    : "";
+
   const body = `
 <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#103C61;">Token de acceso particular</h1>
 <p style="margin:0 0 24px;font-size:14px;color:#64748b;">Portal VETNEB generó un token de acceso para consultar el seguimiento o informe.</p>
@@ -644,11 +682,13 @@ function buildParticularTokenHtml(input: {
 </table>
 
 <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">Token de acceso</p>
+<p style="margin:0 0 8px;font-size:13px;color:#64748b;">Copiá este token y pegalo en el portal.</p>
 <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #1D827D;border-radius:4px;padding:16px 20px;margin-bottom:24px;">
-  <code style="font-family:'Courier New',Courier,monospace;font-size:15px;color:#103C61;word-break:break-all;display:block;">${escapeHtml(input.token)}</code>
+  <code style="font-family:'Courier New',Courier,monospace;font-size:15px;color:#103C61;word-break:break-all;display:block;-webkit-user-select:text;user-select:text;">${escapeHtml(input.token)}</code>
 </div>
-
-<p style="margin:0;font-size:13px;color:#64748b;">Ingresá al <strong>Portal VETNEB</strong> para usarlo. <strong>Conservá este token y no lo compartas.</strong></p>`;
+${ctaButton}
+<p style="margin:0 0 8px;font-size:13px;color:#64748b;">Por seguridad, el token no se copia automáticamente desde el email. Copialo manualmente y pegalo en el portal.</p>
+<p style="margin:0;font-size:13px;color:#64748b;"><strong>Conservá este token y no lo compartas.</strong></p>`;
 
   return buildVetnebEmailHtml({ title: "Token de acceso particular – VETNEB", body });
 }
@@ -863,11 +903,13 @@ export async function sendParticularTokenEmail(input: {
     return { sent: false, reason: "no_recipients" as const };
   }
 
+  const portalUrl = resolveParticularPortalUrl(ENV.corsOrigins);
+
   const delivery = await sendConfiguredEmailMessage({
     to: recipients,
     subject: "[VETNEB] Token de acceso particular",
-    text: buildParticularTokenText(input),
-    html: buildParticularTokenHtml(input),
+    text: buildParticularTokenText({ ...input, portalUrl }),
+    html: buildParticularTokenHtml({ ...input, portalUrl }),
   });
 
   if (!delivery) {
