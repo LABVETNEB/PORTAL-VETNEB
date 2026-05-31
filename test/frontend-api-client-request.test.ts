@@ -99,12 +99,26 @@ test("frontend API client handles empty and JSON responses", () => {
 
 const NEXT_CONFIG_PATH = "frontend/next.config.ts";
 
-test("resolveApiBaseUrlForRuntime retorna path relativo para que la cookie quede en el dominio del frontend", () => {
+test("resolveApiBaseUrlForRuntime retorna NEXT_PUBLIC_API_URL normalizado cuando es válido", () => {
   const source = read(API_CLIENT_PATH);
 
   assert.ok(
+    source.includes("function normalizeApiBaseUrl(value: string): string"),
+  );
+  assert.ok(source.includes('return value.replace(/\\/+$/, "");'));
+  assert.ok(
+    source.includes("return normalizeApiBaseUrl(nextPublicApiUrl);"),
+    "con NEXT_PUBLIC_API_URL válido debe retornar base absoluta normalizada",
+  );
+});
+
+test("resolveApiBaseUrlForRuntime no retorna string vacío en producción con NEXT_PUBLIC_API_URL válido", () => {
+  const source = read(API_CLIENT_PATH);
+
+  assert.equal(
     source.includes('return "";'),
-    "con NEXT_PUBLIC_API_URL configurado debe retornar string vacío y dejar que las rewrites proxyen la llamada",
+    false,
+    "no debe dejar base vacía cuando NEXT_PUBLIC_API_URL es válido",
   );
 });
 
