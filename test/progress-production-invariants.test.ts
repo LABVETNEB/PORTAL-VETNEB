@@ -1,0 +1,367 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import test from "node:test";
+
+function read(relativePath: string): string {
+  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
+    /\r\n/g,
+    "\n",
+  );
+}
+
+function assertIncludes(source: string, expected: string, context: string): void {
+  assert.ok(
+    source.includes(expected),
+    `${context}: missing invariant marker -> ${expected}`,
+  );
+}
+
+function assertNotIncludes(
+  source: string,
+  forbidden: string,
+  context: string,
+): void {
+  assert.ok(
+    !source.includes(forbidden),
+    `${context}: forbidden marker detected -> ${forbidden}`,
+  );
+}
+
+function sectionBetween(
+  source: string,
+  start: string,
+  end: string,
+  context: string,
+): string {
+  const startIndex = source.indexOf(start);
+  assert.notEqual(startIndex, -1, `${context}: missing start marker -> ${start}`);
+
+  const endIndex = source.indexOf(end, startIndex + start.length);
+  assert.notEqual(endIndex, -1, `${context}: missing end marker -> ${end}`);
+
+  return source.slice(startIndex, endIndex);
+}
+
+function assertInputAutocompleteOff(
+  source: string,
+  file: string,
+  inputId: string,
+): void {
+  const idMarker = `id="${inputId}"`;
+  const index = source.indexOf(idMarker);
+  assert.notEqual(index, -1, `${file}: missing sensitive input -> ${inputId}`);
+  const block = source.slice(index, index + 420);
+  assert.ok(
+    block.includes('autoComplete="off"'),
+    `${file}: input ${inputId} must keep autoComplete=\"off\"`,
+  );
+}
+
+test("public pricing invariants: runtime base URL and /precios success rendering stay locked", () => {
+  const apiFile = "frontend/src/lib/api.ts";
+  const apiSource = read(apiFile);
+
+  assertIncludes(
+    apiSource,
+    "return normalizeApiBaseUrl(nextPublicApiUrl);",
+    apiFile,
+  );
+  assertNotIncludes(apiSource, 'return "";', apiFile);
+
+  const preciosPageFile = "frontend/src/app/precios/page.tsx";
+  const preciosPageSource = read(preciosPageFile);
+
+  assert.match(
+    preciosPageSource,
+    /getPublicPricing\(\{ cache: "no-store" \}, \{ throwOnError: true \}\)/,
+    `${preciosPageFile}: must fetch public pricing with throwOnError`,
+  );
+  assertIncludes(
+    preciosPageSource,
+    "if (!cachedSnapshot && pricingSnapshot.success)",
+    preciosPageFile,
+  );
+  assertIncludes(
+    preciosPageSource,
+    "pricingCategories = sortPricingCategories(pricingSnapshot.categories);",
+    preciosPageFile,
+  );
+  assertIncludes(
+    preciosPageSource,
+    ": hasPricingItems(pricingCategories) ? (",
+    preciosPageFile,
+  );
+  assertIncludes(
+    preciosPageSource,
+    "{pricingCategories.map((category) => {",
+    preciosPageFile,
+  );
+  assertIncludes(
+    preciosPageSource,
+    "{category.items.map((item, index) => (",
+    preciosPageFile,
+  );
+
+  const publicPricingRouteFile = "server/routes/public-pricing.fastify.ts";
+  const publicPricingRouteSource = read(publicPricingRouteFile);
+
+  assertIncludes(
+    publicPricingRouteSource,
+    "const snapshot: PublicPricingSnapshot = {",
+    publicPricingRouteFile,
+  );
+  assertIncludes(publicPricingRouteSource, "success: true,", publicPricingRouteFile);
+  assertIncludes(
+    publicPricingRouteSource,
+    "categories: groupPublicPricingItems(items),",
+    publicPricingRouteFile,
+  );
+});
+
+test("email invariants: branded HTML CTA remains safe and HTML transport stays enabled", () => {
+  const emailFile = "server/lib/email.ts";
+  const emailSource = read(emailFile);
+
+  assertIncludes(
+    emailSource,
+    "Content-Type: multipart/alternative; boundary",
+    emailFile,
+  );
+  assertIncludes(emailSource, "html: input.html,", emailFile);
+  assertIncludes(
+    emailSource,
+    "...(input.html ? { html: input.html } : {}),",
+    emailFile,
+  );
+  assertIncludes(emailSource, "Abrir Portal VETNEB", emailFile);
+
+  const particularHtmlSection = sectionBetween(
+    emailSource,
+    "function buildParticularTokenHtml(",
+    "function buildContactMessageHtml(",
+    "buildParticularTokenHtml section",
+  );
+
+  assertIncludes(
+    particularHtmlSection,
+    'href="${escapeHtml(safePortalUrl)}"',
+    "buildParticularTokenHtml",
+  );
+  assertIncludes(
+    particularHtmlSection,
+    "${escapeHtml(input.token)}",
+    "buildParticularTokenHtml",
+  );
+  assertNotIncludes(
+    particularHtmlSection,
+    "javascript:",
+    "buildParticularTokenHtml",
+  );
+  assertNotIncludes(particularHtmlSection, "onclick", "buildParticularTokenHtml");
+  assertNotIncludes(particularHtmlSection, "<script", "buildParticularTokenHtml");
+  assertNotIncludes(particularHtmlSection, "?token=", "buildParticularTokenHtml");
+
+  const hrefValues = [...particularHtmlSection.matchAll(/href="([^"]*)"/g)].map(
+    (match) => match[1],
+  );
+  assert.ok(hrefValues.length > 0, "buildParticularTokenHtml: expected href markers");
+
+  for (const href of hrefValues) {
+    assert.equal(
+      href.includes("${escapeHtml(input.token)}"),
+      false,
+      `token must not be embedded in href -> ${href}`,
+    );
+    assert.equal(
+      href.includes("token="),
+      false,
+      `token query must not exist in href -> ${href}`,
+    );
+  }
+});
+
+test("auth session invariants: persistent Max-Age on login and explicit Max-Age=0 on logout", () => {
+  const authRouteContracts = [
+    {
+      file: "server/routes/auth.fastify.ts",
+      clearFn: "buildClearSessionCookie",
+    },
+    {
+      file: "server/routes/admin-auth.fastify.ts",
+      clearFn: "buildClearAdminSessionCookie",
+    },
+    {
+      file: "server/routes/particular-auth.fastify.ts",
+      clearFn: "buildClearParticularSessionCookie",
+    },
+  ] as const;
+
+  for (const contract of authRouteContracts) {
+    const source = read(contract.file);
+
+    assertIncludes(
+      source,
+      "maxAgeSeconds: ENV.sessionTtlHours * 60 * 60",
+      contract.file,
+    );
+    assertIncludes(source, "function serializeCookie(input:", contract.file);
+    assertIncludes(source, "Max-Age=${input.maxAgeSeconds}", contract.file);
+    assertIncludes(source, `function ${contract.clearFn}()`, contract.file);
+
+    const clearSection = sectionBetween(
+      source,
+      `function ${contract.clearFn}() {`,
+      "function setLoginRateLimitHeaders(",
+      `${contract.file}:${contract.clearFn}`,
+    );
+    assertIncludes(clearSection, "maxAgeSeconds: 0", contract.file);
+    assertIncludes(
+      clearSection,
+      'expires: "Thu, 01 Jan 1970 00:00:00 GMT"',
+      contract.file,
+    );
+  }
+});
+
+test("particular token invariants: hard delete, legacy revoke hard-delete, cascade invalidation and safe UI", () => {
+  const dbParticularFile = "server/db-particular.ts";
+  const dbParticularSource = read(dbParticularFile);
+
+  const deleteFnSection = sectionBetween(
+    dbParticularSource,
+    "export async function deleteParticularToken(id: number) {",
+    "export async function updateParticularTokenLastLogin(",
+    dbParticularFile,
+  );
+  assertIncludes(deleteFnSection, ".delete(particularTokens)", dbParticularFile);
+  assertNotIncludes(deleteFnSection, ".update(particularTokens)", dbParticularFile);
+
+  const adminTokenRouteFile = "server/routes/admin-particular-tokens.fastify.ts";
+  const adminTokenRouteSource = read(adminTokenRouteFile);
+
+  const deleteRouteSection = sectionBetween(
+    adminTokenRouteSource,
+    "app.delete<{",
+    "app.patch<{",
+    `${adminTokenRouteFile}:DELETE`,
+  );
+  assertIncludes(
+    deleteRouteSection,
+    "const deleted = await deps.deleteParticularToken(tokenId);",
+    `${adminTokenRouteFile}:DELETE`,
+  );
+  assertIncludes(
+    deleteRouteSection,
+    "deletedTokenId: tokenId,",
+    `${adminTokenRouteFile}:DELETE`,
+  );
+  assertNotIncludes(deleteRouteSection, "tokenHash", `${adminTokenRouteFile}:DELETE`);
+  assertNotIncludes(deleteRouteSection, "tokenLast4", `${adminTokenRouteFile}:DELETE`);
+
+  const revokeRouteSection = sectionBetween(
+    adminTokenRouteSource,
+    '}>("/:tokenId/revoke", async (request, reply) => {',
+    "\n  });\n};",
+    `${adminTokenRouteFile}:PATCH /revoke`,
+  );
+  assertIncludes(
+    revokeRouteSection,
+    "const deleted = await deps.deleteParticularToken(tokenId);",
+    `${adminTokenRouteFile}:PATCH /revoke`,
+  );
+  assertIncludes(
+    revokeRouteSection,
+    "deletedTokenId: tokenId,",
+    `${adminTokenRouteFile}:PATCH /revoke`,
+  );
+  assertNotIncludes(
+    revokeRouteSection,
+    "tokenHash",
+    `${adminTokenRouteFile}:PATCH /revoke`,
+  );
+  assertNotIncludes(
+    revokeRouteSection,
+    "tokenLast4",
+    `${adminTokenRouteFile}:PATCH /revoke`,
+  );
+
+  const schemaFile = "drizzle/schema.ts";
+  const schemaSource = read(schemaFile);
+  const particularSessionsSection = sectionBetween(
+    schemaSource,
+    "export const particularSessions = pgTable(",
+    "export type Clinic = InferSelectModel<typeof clinics>;",
+    schemaFile,
+  );
+  assertIncludes(
+    particularSessionsSection,
+    '.references(() => particularTokens.id, { onDelete: "cascade" }),',
+    schemaFile,
+  );
+
+  const adminCardFile = "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
+  const adminCardSource = read(adminCardFile);
+
+  assertIncludes(adminCardSource, "Eliminar token", adminCardFile);
+  assertNotIncludes(adminCardSource, "Token inactivo", adminCardFile);
+  assertNotIncludes(adminCardSource, "Revocar token", adminCardFile);
+  assertIncludes(
+    adminCardSource,
+    '<form className="space-y-4" onSubmit={handleSubmit} autoComplete="off">',
+    adminCardFile,
+  );
+  assertNotIncludes(adminCardSource, 'autoComplete="on"', adminCardFile);
+
+  assertInputAutocompleteOff(
+    adminCardSource,
+    adminCardFile,
+    "admin-token-particular-email",
+  );
+  assertInputAutocompleteOff(
+    adminCardSource,
+    adminCardFile,
+    "admin-token-tutor-last-name",
+  );
+  assertInputAutocompleteOff(
+    adminCardSource,
+    adminCardFile,
+    "admin-token-pet-name",
+  );
+  assertInputAutocompleteOff(
+    adminCardSource,
+    adminCardFile,
+    "admin-token-report-id",
+  );
+
+  const clinicCardFile = "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx";
+  const clinicCardSource = read(clinicCardFile);
+
+  assertIncludes(
+    clinicCardSource,
+    '<form className="space-y-4" onSubmit={handleSubmit} autoComplete="off">',
+    clinicCardFile,
+  );
+  assertNotIncludes(clinicCardSource, 'autoComplete="on"', clinicCardFile);
+
+  assertInputAutocompleteOff(
+    clinicCardSource,
+    clinicCardFile,
+    "clinic-token-particular-email",
+  );
+  assertInputAutocompleteOff(
+    clinicCardSource,
+    clinicCardFile,
+    "clinic-token-tutor-last-name",
+  );
+  assertInputAutocompleteOff(
+    clinicCardSource,
+    clinicCardFile,
+    "clinic-token-pet-name",
+  );
+  assertInputAutocompleteOff(
+    clinicCardSource,
+    clinicCardFile,
+    "clinic-token-report-id",
+  );
+});
