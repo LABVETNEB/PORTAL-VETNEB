@@ -447,11 +447,11 @@ export function UploadReportModal() {
 
   const modal = isOpen ? (
     <div
-      className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-vetneb-ink/45 p-4 sm:items-center"
+      className="fixed inset-0 z-9999 flex items-start justify-center overflow-y-auto bg-vetneb-ink/45 p-4 sm:items-center"
       role="presentation"
     >
       <div
-        className="clinical-modal relative z-[10000] my-auto w-full max-w-xl p-5 text-card-foreground sm:p-6"
+        className="clinical-modal relative z-10000 my-auto w-full max-w-xl p-5 text-card-foreground sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="upload-report-title"
