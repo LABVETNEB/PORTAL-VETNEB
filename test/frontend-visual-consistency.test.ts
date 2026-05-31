@@ -304,7 +304,7 @@ test("dashboard sidebar keeps shell consistency and responsive navigation classe
   assertMatchesAll(
     source,
     [
-      /className="sticky top-0 flex h-screen w-\[4\.5rem\] shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground sm:w-64"/,
+      /className="sticky top-0 flex h-dvh w-\[4\.5rem\] shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground sm:w-64"/,
       /className="flex items-center justify-center gap-3 border-b border-sidebar-border px-2 py-5 sm:justify-start sm:px-6"/,
       /className="flex-1 space-y-1 px-2 py-4 sm:px-3"/,
       /"flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-semibold transition-colors sm:justify-start sm:px-3"/,
