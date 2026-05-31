@@ -326,7 +326,7 @@ export function ClinicParticularTokensCard() {
         <CardTitle className="text-base">Generación de tokens particulares</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={handleSubmit} autoComplete="off">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
               <label htmlFor="clinic-token-report-id" className="field-label">
@@ -336,6 +336,7 @@ export function ClinicParticularTokensCard() {
                 id="clinic-token-report-id"
                 name="reportId"
                 type="number"
+                autoComplete="off"
                 min="1"
                 inputMode="numeric"
                 placeholder="Opcional"
@@ -353,6 +354,7 @@ export function ClinicParticularTokensCard() {
                 id="clinic-token-particular-email"
                 name="particularEmail"
                 type="email"
+                autoComplete="off"
                 placeholder="email@ejemplo.com"
                 required
                 value={formState.particularEmail}
@@ -379,6 +381,7 @@ export function ClinicParticularTokensCard() {
                 id="clinic-token-tutor-last-name"
                 name="tutorLastName"
                 type="text"
+                autoComplete="off"
                 required
                 value={formState.tutorLastName}
                 onChange={(event) =>
@@ -396,6 +399,7 @@ export function ClinicParticularTokensCard() {
                 id="clinic-token-pet-name"
                 name="petName"
                 type="text"
+                autoComplete="off"
                 required
                 value={formState.petName}
                 onChange={(event) => updateField("petName", event.target.value)}
@@ -411,6 +415,7 @@ export function ClinicParticularTokensCard() {
                 id="clinic-token-pet-age"
                 name="petAge"
                 type="text"
+                autoComplete="off"
                 required
                 value={formState.petAge}
                 onChange={(event) => updateField("petAge", event.target.value)}
@@ -426,6 +431,7 @@ export function ClinicParticularTokensCard() {
                 id="clinic-token-pet-breed"
                 name="petBreed"
                 type="text"
+                autoComplete="off"
                 required
                 value={formState.petBreed}
                 onChange={(event) => updateField("petBreed", event.target.value)}
@@ -485,6 +491,7 @@ export function ClinicParticularTokensCard() {
                 id="clinic-token-sample-location"
                 name="sampleLocation"
                 type="text"
+                autoComplete="off"
                 required
                 value={formState.sampleLocation}
                 onChange={(event) =>
@@ -502,6 +509,7 @@ export function ClinicParticularTokensCard() {
                 id="clinic-token-sample-evolution"
                 name="sampleEvolution"
                 type="text"
+                autoComplete="off"
                 required
                 value={formState.sampleEvolution}
                 onChange={(event) =>
@@ -519,6 +527,7 @@ export function ClinicParticularTokensCard() {
                 id="clinic-token-extraction-date"
                 name="extractionDate"
                 type="date"
+                autoComplete="off"
                 required
                 value={formState.extractionDate}
                 onChange={(event) =>
@@ -536,6 +545,7 @@ export function ClinicParticularTokensCard() {
                 id="clinic-token-shipping-date"
                 name="shippingDate"
                 type="date"
+                autoComplete="off"
                 required
                 value={formState.shippingDate}
                 onChange={(event) =>
@@ -554,6 +564,7 @@ export function ClinicParticularTokensCard() {
               id="clinic-token-details-lesion"
               name="detailsLesion"
               className="field-textarea"
+              autoComplete="off"
               required
               value={formState.detailsLesion}
               onChange={(event) =>
@@ -774,6 +785,3 @@ export function ClinicParticularTokensCard() {
           )}
         </div>
       </CardContent>
-    </Card>
-  );
-}

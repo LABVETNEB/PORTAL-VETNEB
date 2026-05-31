@@ -99,6 +99,15 @@ export async function revokeParticularToken(id: number) {
   return result[0];
 }
 
+export async function deleteParticularToken(id: number) {
+  const result = await db
+    .delete(particularTokens)
+    .where(eq(particularTokens.id, id))
+    .returning({ id: particularTokens.id });
+
+  return result[0] ?? null;
+}
+
 export async function updateParticularTokenLastLogin(id: number) {
   await db
     .update(particularTokens)

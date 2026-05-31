@@ -101,6 +101,9 @@ export type AdminParticularTokensNativeRoutesOptions = {
   revokeParticularToken?: (
     id: number,
   ) => Promise<ParticularToken | null | undefined>;
+  deleteParticularToken?: (
+    id: number,
+  ) => Promise<{ id: number } | null>;
   sendParticularTokenEmail?: (input: {
     to: string;
     token: string;
@@ -133,6 +136,7 @@ type NativeAdminParticularTokensDeps = Required<
     | "listParticularTokens"
     | "updateParticularTokenReport"
     | "revokeParticularToken"
+    | "deleteParticularToken"
     | "sendParticularTokenEmail"
   >
 >;
@@ -161,6 +165,7 @@ async function loadDefaultDeps(): Promise<NativeAdminParticularTokensDeps> {
         listParticularTokens: dbParticular.listParticularTokens,
         updateParticularTokenReport: dbParticular.updateParticularTokenReport,
         revokeParticularToken: dbParticular.revokeParticularToken,
+        deleteParticularToken: dbParticular.deleteParticularToken,
         sendParticularTokenEmail: email.sendParticularTokenEmail,
       };
     })();
@@ -473,6 +478,7 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
     !!options.listParticularTokens &&
     !!options.updateParticularTokenReport &&
     !!options.revokeParticularToken &&
+    !!options.deleteParticularToken &&
     !!options.sendParticularTokenEmail;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
@@ -504,6 +510,8 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       defaultDeps!.updateParticularTokenReport,
     revokeParticularToken:
       options.revokeParticularToken ?? defaultDeps!.revokeParticularToken,
+    deleteParticularToken:
+      options.deleteParticularToken ?? defaultDeps!.deleteParticularToken,
     sendParticularTokenEmail:
       options.sendParticularTokenEmail ??
       defaultDeps!.sendParticularTokenEmail,
@@ -554,7 +562,7 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
     }
 
     applyCorsHeaders(request, reply, allowedOrigins);
-    reply.header("access-control-allow-methods", "GET,POST,PATCH,OPTIONS");
+    reply.header("access-control-allow-methods", "GET,POST,PATCH,DELETE,OPTIONS");
 
     const requestedHeaders =
       typeof request.headers["access-control-request-headers"] === "string"
@@ -864,6 +872,55 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
     });
   });
 
+  app.delete<{
+    Params: {
+      tokenId: string;
+    };
+  }>("/:tokenId", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const admin = await authenticateAdminUser(request, reply, deps, now);
+
+    if (!admin) {
+      return reply;
+    }
+
+    const tokenId = parseEntityId(request.params.tokenId);
+
+    if (typeof tokenId !== "number") {
+      return reply.code(400).send({
+        success: false,
+        error: "ID de token inválido",
+      });
+    }
+
+    const existing = await deps.getParticularTokenById(tokenId);
+
+    if (!existing) {
+      return reply.code(404).send({
+        success: false,
+        error: "Token particular no encontrado",
+      });
+    }
+
+    const deleted = await deps.deleteParticularToken(tokenId);
+
+    if (!deleted) {
+      return reply.code(404).send({
+        success: false,
+        error: "Token particular no encontrado",
+      });
+    }
+
+    return reply.code(200).send({
+      success: true,
+      message: "Token particular eliminado correctamente",
+      deletedTokenId: tokenId,
+    });
+  });
+
   app.patch<{
     Params: {
       tokenId: string;
@@ -897,13 +954,9 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const revoked = await deps.revokeParticularToken(tokenId);
-    const report =
-      revoked && typeof revoked.reportId === "number"
-        ? await deps.getReportById(revoked.reportId)
-        : null;
+    const deleted = await deps.deleteParticularToken(tokenId);
 
-    if (!revoked) {
+    if (!deleted) {
       return reply.code(404).send({
         success: false,
         error: "Token particular no encontrado",
@@ -912,10 +965,8 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
 
     return reply.code(200).send({
       success: true,
-      message: existing.isActive
-        ? "Token particular revocado correctamente"
-        : "Token particular ya estaba inactivo",
-      particularToken: serializeParticularTokenDetail(revoked, report),
+      message: "Token particular eliminado correctamente",
+      deletedTokenId: tokenId,
     });
   });
 };

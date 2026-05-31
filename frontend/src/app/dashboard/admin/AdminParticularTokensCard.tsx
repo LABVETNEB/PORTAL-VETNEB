@@ -13,9 +13,9 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   createAdminParticularToken,
+  deleteAdminParticularToken,
   getAdminUsersRoles,
   getAdminParticularTokens,
-  revokeAdminParticularToken,
   type AdminParticularTokenCreatePayload,
   type AdminParticularTokenSummary,
 } from "@/lib/api";
@@ -510,13 +510,13 @@ export function AdminParticularTokensCard() {
     }
   }
 
-  async function handleRevokeToken(token: AdminParticularTokenSummary) {
+  async function handleDeleteToken(token: AdminParticularTokenSummary) {
     if (revokingTokenId !== null) {
       return;
     }
 
     const confirmed = window.confirm(
-      `¿Revocar el token ****${token.tokenLast4} de ${token.petName}? Esta acción inhabilita su uso para acceso particular.`,
+      `¿Eliminar permanentemente el token ****${token.tokenLast4} de ${token.petName}? Esta acción no se puede deshacer y eliminará el token del servidor.`,
     );
 
     if (!confirmed) {
@@ -528,14 +528,14 @@ export function AdminParticularTokensCard() {
     setRevokingTokenId(token.id);
 
     try {
-      const response = await revokeAdminParticularToken(token.id);
+      const response = await deleteAdminParticularToken(token.id);
       setStatusMessage(response.message);
-      await loadTokens();
+      setTokens((current) => current.filter((t) => t.id !== token.id));
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "No se pudo revocar el token particular.",
+          : "No se pudo eliminar el token particular.",
       );
     } finally {
       setRevokingTokenId(null);
@@ -548,7 +548,7 @@ export function AdminParticularTokensCard() {
         <CardTitle className="text-base">Generación de tokens particulares</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={handleSubmit} autoComplete="off">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="md:col-span-2">
               <label htmlFor="admin-token-clinic-search" className="field-label">
@@ -661,6 +661,7 @@ export function AdminParticularTokensCard() {
                 min="1"
                 inputMode="numeric"
                 placeholder="Opcional"
+                autoComplete="off"
                 value={formState.reportId}
                 onChange={(event) => updateField("reportId", event.target.value)}
                 disabled={isSubmitting}
@@ -676,6 +677,7 @@ export function AdminParticularTokensCard() {
                 name="particularEmail"
                 type="email"
                 placeholder="email@ejemplo.com"
+                autoComplete="off"
                 required
                 value={formState.particularEmail}
                 onChange={(event) =>
@@ -701,6 +703,7 @@ export function AdminParticularTokensCard() {
                 id="admin-token-tutor-last-name"
                 name="tutorLastName"
                 type="text"
+                autoComplete="off"
                 required
                 value={formState.tutorLastName}
                 onChange={(event) =>
@@ -718,6 +721,7 @@ export function AdminParticularTokensCard() {
                 id="admin-token-pet-name"
                 name="petName"
                 type="text"
+                autoComplete="off"
                 required
                 value={formState.petName}
                 onChange={(event) => updateField("petName", event.target.value)}
@@ -733,6 +737,7 @@ export function AdminParticularTokensCard() {
                 id="admin-token-pet-age"
                 name="petAge"
                 type="text"
+                autoComplete="off"
                 required
                 value={formState.petAge}
                 onChange={(event) => updateField("petAge", event.target.value)}
@@ -748,6 +753,7 @@ export function AdminParticularTokensCard() {
                 id="admin-token-pet-breed"
                 name="petBreed"
                 type="text"
+                autoComplete="off"
                 required
                 value={formState.petBreed}
                 onChange={(event) => updateField("petBreed", event.target.value)}
@@ -807,6 +813,7 @@ export function AdminParticularTokensCard() {
                 id="admin-token-sample-location"
                 name="sampleLocation"
                 type="text"
+                autoComplete="off"
                 required
                 value={formState.sampleLocation}
                 onChange={(event) =>
@@ -824,6 +831,7 @@ export function AdminParticularTokensCard() {
                 id="admin-token-sample-evolution"
                 name="sampleEvolution"
                 type="text"
+                autoComplete="off"
                 required
                 value={formState.sampleEvolution}
                 onChange={(event) =>
@@ -841,6 +849,7 @@ export function AdminParticularTokensCard() {
                 id="admin-token-extraction-date"
                 name="extractionDate"
                 type="date"
+                autoComplete="off"
                 required
                 value={formState.extractionDate}
                 onChange={(event) =>
@@ -858,6 +867,7 @@ export function AdminParticularTokensCard() {
                 id="admin-token-shipping-date"
                 name="shippingDate"
                 type="date"
+                autoComplete="off"
                 required
                 value={formState.shippingDate}
                 onChange={(event) =>
@@ -876,6 +886,7 @@ export function AdminParticularTokensCard() {
               id="admin-token-details-lesion"
               name="detailsLesion"
               className="field-textarea"
+              autoComplete="off"
               required
               value={formState.detailsLesion}
               onChange={(event) =>
@@ -1088,14 +1099,10 @@ export function AdminParticularTokensCard() {
                       type="button"
                       variant="destructive"
                       size="sm"
-                      disabled={!token.isActive || revokingTokenId === token.id}
-                      onClick={() => void handleRevokeToken(token)}
+                      disabled={revokingTokenId === token.id}
+                      onClick={() => void handleDeleteToken(token)}
                     >
-                      {revokingTokenId === token.id
-                        ? "Revocando..."
-                        : token.isActive
-                          ? "Revocar token"
-                          : "Token inactivo"}
+                      {revokingTokenId === token.id ? "Eliminando..." : "Eliminar token"}
                     </Button>
                   </div>
                 </div>
