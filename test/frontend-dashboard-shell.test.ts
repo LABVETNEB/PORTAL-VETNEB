@@ -53,7 +53,7 @@ test("dashboard sidebar frame is the shared visual shell for both roles", () => 
   assert.ok(source.includes("dashboardLabel: string;"));
   assert.ok(source.includes("navItems: DashboardNavItem[];"));
   assert.ok(source.includes('aria-label="Navegación del dashboard"'));
-  assert.ok(source.includes("sticky top-0 flex h-screen"));
+  assert.ok(source.includes("sticky top-0 flex h-dvh"));
   assert.ok(source.includes("overflow-y-auto"));
   assert.ok(source.includes('aria-label="Menú principal"'));
   assert.ok(source.includes("function isActive(href: string, exact = false)"));
