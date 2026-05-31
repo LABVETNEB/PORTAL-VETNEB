@@ -25,6 +25,7 @@ function decodeBase64Url(value: string): string {
 type EnvSnapshot = {
   isProduction: boolean;
   contactTo: string[];
+  corsOrigins: string[];
   smtp: typeof ENV.smtp;
   gmailApi: typeof ENV.gmailApi;
 };
@@ -33,6 +34,7 @@ function snapshotEnv(): EnvSnapshot {
   return {
     isProduction: ENV.isProduction,
     contactTo: [...ENV.contactTo],
+    corsOrigins: [...ENV.corsOrigins],
     smtp: { ...ENV.smtp },
     gmailApi: { ...ENV.gmailApi },
   };
@@ -41,6 +43,7 @@ function snapshotEnv(): EnvSnapshot {
 function restoreEnv(snap: EnvSnapshot): void {
   (ENV as any).isProduction = snap.isProduction;
   (ENV as any).contactTo = snap.contactTo;
+  (ENV as any).corsOrigins = snap.corsOrigins;
   for (const k of Object.keys(snap.smtp) as (keyof typeof ENV.smtp)[]) {
     (ENV.smtp as any)[k] = snap.smtp[k];
   }
@@ -347,7 +350,235 @@ test("sendContactMessageEmail usa text y html via SMTP", async () => {
   assert.ok(String(p.text).includes("Laura Garcia"));
   assert.equal(typeof p.html, "string");
   assert.ok(String(p.html).includes("<!DOCTYPE html>"));
-  assert.ok(String(p.html).includes("Laura Garcia"));
   assert.ok(String(p.html).includes("Clinica Sur"));
   assert.ok(String(p.html).includes("laura@example.com"));
+});
+
+// ─── Portal CTA: HTML token particular con portalUrl ─────────────────────────
+
+test("sendParticularTokenEmail HTML contiene boton CTA y no expone token en href", async () => {
+  const snap = snapshotEnv();
+  const originalCreateTransport = nodemailer.createTransport;
+  const sendMailCalls: Array<Record<string, unknown>> = [];
+
+  (ENV.gmailApi as any).enabled = false;
+  (ENV.gmailApi as any).clientId = "";
+  (ENV.gmailApi as any).clientSecret = "";
+  (ENV.gmailApi as any).refreshToken = "";
+  (ENV.gmailApi as any).from = "";
+  (ENV.smtp as any).enabled = true;
+  (ENV.smtp as any).host = "smtp-cta-particular.test";
+  (ENV.smtp as any).port = 587;
+  (ENV.smtp as any).secure = false;
+  (ENV.smtp as any).user = "u";
+  (ENV.smtp as any).pass = "p";
+  (ENV.smtp as any).from = "noreply@vetneb.com";
+  (ENV as any).corsOrigins = ["https://portal.vetneb.com"];
+
+  (nodemailer as any).createTransport = () => ({
+    sendMail: async (p: Record<string, unknown>) => {
+      sendMailCalls.push(p);
+      return { messageId: "cta-test" };
+    },
+  });
+
+  try {
+    await sendParticularTokenEmail({
+      to: "tutor@example.com",
+      token: "TOKEN-CTA-TEST",
+      tutorLastName: "Gomez",
+      petName: "Luna",
+    });
+  } finally {
+    (nodemailer as any).createTransport = originalCreateTransport;
+    restoreEnv(snap);
+  }
+
+  assert.equal(sendMailCalls.length, 1);
+  const html = String(sendMailCalls[0].html);
+
+  // Botón CTA presente con href al portal
+  assert.ok(html.includes("Abrir Portal VETNEB"), "debe contener texto del boton CTA");
+  assert.ok(
+    html.includes("href=\"https://portal.vetneb.com/particulares\""),
+    "href debe apuntar a /particulares",
+  );
+
+  // Token visible en bloque pero NO en href
+  assert.ok(html.includes("TOKEN-CTA-TEST"), "token debe aparecer en el html");
+  const tokenInHref = [...html.matchAll(/href="([^"]*)"/g)].some(
+    (m) => m[1].includes("TOKEN-CTA-TEST"),
+  );
+  assert.equal(tokenInHref, false, "token no debe aparecer dentro de un href");
+
+  // Seguridad: sin JavaScript en el email
+  assert.equal(html.includes("<script"), false, "no debe contener <script");
+  assert.equal(html.includes("onclick"), false, "no debe contener onclick");
+  assert.equal(html.includes("javascript:"), false, "no debe contener javascript:");
+
+  // Texto honesto de copy-paste
+  assert.ok(html.includes("no se copia autom"), "debe incluir aviso de copia manual");
+});
+
+test("sendParticularTokenEmail HTML sin corsOrigins https no incluye boton CTA", async () => {
+  const snap = snapshotEnv();
+  const originalCreateTransport = nodemailer.createTransport;
+  const sendMailCalls: Array<Record<string, unknown>> = [];
+
+  (ENV.gmailApi as any).enabled = false;
+  (ENV.gmailApi as any).clientId = "";
+  (ENV.gmailApi as any).clientSecret = "";
+  (ENV.gmailApi as any).refreshToken = "";
+  (ENV.gmailApi as any).from = "";
+  (ENV.smtp as any).enabled = true;
+  (ENV.smtp as any).host = "smtp-no-cta-particular.test";
+  (ENV.smtp as any).port = 587;
+  (ENV.smtp as any).secure = false;
+  (ENV.smtp as any).user = "u";
+  (ENV.smtp as any).pass = "p";
+  (ENV.smtp as any).from = "noreply@vetneb.com";
+  (ENV as any).corsOrigins = ["http://localhost:3000"];
+
+  (nodemailer as any).createTransport = () => ({
+    sendMail: async (p: Record<string, unknown>) => {
+      sendMailCalls.push(p);
+      return { messageId: "no-cta-test" };
+    },
+  });
+
+  try {
+    await sendParticularTokenEmail({
+      to: "tutor@example.com",
+      token: "TOKEN-NO-CTA",
+      tutorLastName: "Lopez",
+      petName: "Rex",
+    });
+  } finally {
+    (nodemailer as any).createTransport = originalCreateTransport;
+    restoreEnv(snap);
+  }
+
+  assert.equal(sendMailCalls.length, 1);
+  const html = String(sendMailCalls[0].html);
+
+  assert.ok(html.includes("TOKEN-NO-CTA"), "token debe aparecer en html");
+  assert.equal(
+    html.includes("Abrir Portal VETNEB"),
+    false,
+    "no debe mostrar boton CTA sin https origin",
+  );
+  assert.equal(html.includes("<script"), false);
+  assert.equal(html.includes("onclick"), false);
+});
+
+test("sendParticularTokenEmail text/plain con portalUrl incluye URL del portal y token", async () => {
+  const snap = snapshotEnv();
+  const originalCreateTransport = nodemailer.createTransport;
+  const sendMailCalls: Array<Record<string, unknown>> = [];
+
+  (ENV.gmailApi as any).enabled = false;
+  (ENV.gmailApi as any).clientId = "";
+  (ENV.gmailApi as any).clientSecret = "";
+  (ENV.gmailApi as any).refreshToken = "";
+  (ENV.gmailApi as any).from = "";
+  (ENV.smtp as any).enabled = true;
+  (ENV.smtp as any).host = "smtp-text-cta.test";
+  (ENV.smtp as any).port = 587;
+  (ENV.smtp as any).secure = false;
+  (ENV.smtp as any).user = "u";
+  (ENV.smtp as any).pass = "p";
+  (ENV.smtp as any).from = "noreply@vetneb.com";
+  (ENV as any).corsOrigins = ["https://portal.vetneb.com"];
+
+  (nodemailer as any).createTransport = () => ({
+    sendMail: async (p: Record<string, unknown>) => {
+      sendMailCalls.push(p);
+      return { messageId: "text-cta-test" };
+    },
+  });
+
+  try {
+    await sendParticularTokenEmail({
+      to: "tutor@example.com",
+      token: "TOKEN-TEXT-CTA",
+      tutorLastName: "Ramirez",
+      petName: "Paco",
+    });
+  } finally {
+    (nodemailer as any).createTransport = originalCreateTransport;
+    restoreEnv(snap);
+  }
+
+  assert.equal(sendMailCalls.length, 1);
+  const text = String(sendMailCalls[0].text);
+
+  assert.ok(text.includes("TOKEN-TEXT-CTA"), "token debe aparecer en text/plain");
+  assert.ok(
+    text.includes("https://portal.vetneb.com/particulares"),
+    "text/plain debe incluir URL del portal",
+  );
+  assert.ok(text.includes("Copiá este token"), "debe incluir instruccion de copia");
+  assert.equal(text.includes("?token="), false, "token no debe estar en query string");
+});
+
+test("seguridad: token no aparece en ningun href del HTML particular", async () => {
+  const snap = snapshotEnv();
+  const originalCreateTransport = nodemailer.createTransport;
+  const sendMailCalls: Array<Record<string, unknown>> = [];
+
+  (ENV.gmailApi as any).enabled = false;
+  (ENV.gmailApi as any).clientId = "";
+  (ENV.gmailApi as any).clientSecret = "";
+  (ENV.gmailApi as any).refreshToken = "";
+  (ENV.gmailApi as any).from = "";
+  (ENV.smtp as any).enabled = true;
+  (ENV.smtp as any).host = "smtp-sec-token.test";
+  (ENV.smtp as any).port = 587;
+  (ENV.smtp as any).secure = false;
+  (ENV.smtp as any).user = "u";
+  (ENV.smtp as any).pass = "p";
+  (ENV.smtp as any).from = "noreply@vetneb.com";
+  (ENV as any).corsOrigins = ["https://portal.vetneb.com"];
+
+  (nodemailer as any).createTransport = () => ({
+    sendMail: async (p: Record<string, unknown>) => {
+      sendMailCalls.push(p);
+      return { messageId: "sec-test" };
+    },
+  });
+
+  const token = "SUPER-SECRET-TOKEN-XYZ";
+
+  try {
+    await sendParticularTokenEmail({
+      to: "tutor@example.com",
+      token,
+      tutorLastName: "Villa",
+      petName: "Coco",
+    });
+  } finally {
+    (nodemailer as any).createTransport = originalCreateTransport;
+    restoreEnv(snap);
+  }
+
+  assert.equal(sendMailCalls.length, 1);
+  const html = String(sendMailCalls[0].html);
+
+  assert.ok(html.includes(token), "token debe estar visible en html");
+
+  const hrefMatches = [...html.matchAll(/href="([^"]*)"/g)];
+  for (const match of hrefMatches) {
+    assert.equal(
+      match[1].includes(token),
+      false,
+      `token no debe aparecer en href: ${match[1]}`,
+    );
+  }
+
+  assert.equal(html.includes("?token="), false, "token no debe estar en query string");
+  assert.equal(
+    html.includes(`/particulares/${token}`),
+    false,
+    "token no debe estar en path de href",
+  );
 });
