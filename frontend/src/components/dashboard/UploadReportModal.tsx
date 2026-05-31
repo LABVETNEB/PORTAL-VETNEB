@@ -738,7 +738,3 @@ export function UploadReportModal() {
     </div>
   );
 }
-nt.body) : null}
-    </div>
-  );
-}
