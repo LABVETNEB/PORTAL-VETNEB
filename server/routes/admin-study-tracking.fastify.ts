@@ -165,6 +165,12 @@ export type AdminStudyTrackingNativeRoutesOptions = {
     limit: number;
     offset: number;
   }) => Promise<StudyTrackingNotification[]>;
+  markStudyTrackingNotificationRead?: (
+    id: number,
+  ) => Promise<StudyTrackingNotification | null | undefined>;
+  markAllStudyTrackingNotificationsRead?: (params?: {
+    clinicId?: number;
+  }) => Promise<{ updatedCount: number }>;
   sendSpecialStainRequiredEmail?: (input: {
     to: Array<string | null | undefined>;
     clinicName: string;
@@ -208,6 +214,8 @@ type NativeAdminStudyTrackingDeps = Required<
     | "listStudyTrackingCases"
     | "createStudyTrackingNotification"
     | "listStudyTrackingNotifications"
+    | "markStudyTrackingNotificationRead"
+    | "markAllStudyTrackingNotificationsRead"
     | "sendSpecialStainRequiredEmail"
     | "writeAuditLog"
   >
@@ -245,6 +253,10 @@ async function loadDefaultDeps(): Promise<NativeAdminStudyTrackingDeps> {
           dbStudyTracking.createStudyTrackingNotification,
         listStudyTrackingNotifications:
           dbStudyTracking.listStudyTrackingNotifications,
+        markStudyTrackingNotificationRead:
+          dbStudyTracking.markStudyTrackingNotificationRead,
+        markAllStudyTrackingNotificationsRead:
+          dbStudyTracking.markAllStudyTrackingNotificationsRead,
         sendSpecialStainRequiredEmail: email.sendSpecialStainRequiredEmail,
         writeAuditLog: audit.writeAuditLog as (
           req: unknown,
@@ -602,6 +614,8 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     !!options.listStudyTrackingCases &&
     !!options.createStudyTrackingNotification &&
     !!options.listStudyTrackingNotifications &&
+    !!options.markStudyTrackingNotificationRead &&
+    !!options.markAllStudyTrackingNotificationsRead &&
     !!options.sendSpecialStainRequiredEmail &&
     !!options.writeAuditLog;
 
@@ -643,6 +657,12 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     listStudyTrackingNotifications:
       options.listStudyTrackingNotifications ??
       defaultDeps!.listStudyTrackingNotifications,
+    markStudyTrackingNotificationRead:
+      options.markStudyTrackingNotificationRead ??
+      defaultDeps!.markStudyTrackingNotificationRead,
+    markAllStudyTrackingNotificationsRead:
+      options.markAllStudyTrackingNotificationsRead ??
+      defaultDeps!.markAllStudyTrackingNotificationsRead,
     sendSpecialStainRequiredEmail:
       options.sendSpecialStainRequiredEmail ??
       defaultDeps!.sendSpecialStainRequiredEmail,
@@ -708,6 +728,8 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
 
   app.options("/", optionsHandler);
   app.options("/notifications", optionsHandler);
+  app.options("/notifications/:notificationId/read", optionsHandler);
+  app.options("/notifications/read-all", optionsHandler);
   app.options("/:trackingCaseId", optionsHandler);
 
   app.get<{
@@ -718,9 +740,14 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       offset?: unknown;
     };
   }>("/notifications", async (request, reply) => {
-    const admin = await authenticateAdminUser(request, reply, deps, now);
+    const authenticatedAdmin = await authenticateAdminUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
 
-    if (!admin) {
+    if (!authenticatedAdmin) {
       return reply;
     }
 
@@ -746,6 +773,78 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
         limit,
         offset,
       },
+    });
+  });
+
+  app.patch<{
+    Params: {
+      notificationId: string;
+    };
+  }>("/notifications/:notificationId/read", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const authenticatedAdmin = await authenticateAdminUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
+
+    if (!authenticatedAdmin) {
+      return reply;
+    }
+
+    const notificationId = parseEntityId(request.params.notificationId);
+
+    if (typeof notificationId !== "number") {
+      return reply.code(400).send({
+        success: false,
+        error: "ID de notificación inválido",
+      });
+    }
+
+    const notification = await deps.markStudyTrackingNotificationRead(
+      notificationId,
+    );
+
+    if (!notification) {
+      return reply.code(404).send({
+        success: false,
+        error: "Notificación no encontrada",
+      });
+    }
+
+    return reply.code(200).send({
+      success: true,
+      notification: serializeStudyTrackingNotification(notification),
+    });
+  });
+
+  app.patch<{
+    Querystring: {
+      clinicId?: unknown;
+    };
+  }>("/notifications/read-all", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const admin = await authenticateAdminUser(request, reply, deps, now);
+
+    if (!admin) {
+      return reply;
+    }
+
+    const clinicId = parseEntityId(request.query.clinicId);
+    const result = await deps.markAllStudyTrackingNotificationsRead({
+      clinicId,
+    });
+
+    return reply.code(200).send({
+      success: true,
+      updatedCount: result.updatedCount,
     });
   });
 
@@ -1139,6 +1238,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       typeof parsed.data.currentStage !== "undefined" &&
       parsed.data.currentStage !== current.currentStage;
     let updateNotification: StudyTrackingNotification | null = null;
+    let specialStainResolvedNotification: StudyTrackingNotification | null = null;
     let stageChangeNotification: StudyTrackingNotification | null = null;
 
     const updated = await deps.updateStudyTrackingCase(trackingCaseId, {
@@ -1229,6 +1329,21 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       await notifySpecialStainByEmail(finalCase, deps);
     }
 
+    if (current.specialStainRequired && !updated.specialStainRequired) {
+      specialStainResolvedNotification =
+        await deps.createStudyTrackingNotification({
+          studyTrackingCaseId: updated.id,
+          clinicId: updated.clinicId,
+          reportId: updated.reportId ?? null,
+          particularTokenId: updated.particularTokenId ?? null,
+          type: "special_stain_resolved",
+          title: "Tinción especial resuelta",
+          message: "La solicitud de tinción especial fue resuelta.",
+          isRead: false,
+          readAt: null,
+        });
+    }
+
     if (stageChanged) {
       stageChangeNotification = await deps.createStudyTrackingNotification({
         studyTrackingCaseId: finalCase.id,
@@ -1287,6 +1402,23 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
           title: stageChangeNotification.title,
           fromStage: current.currentStage,
           toStage: finalCase.currentStage,
+          createdVia: "admin",
+        },
+      });
+    }
+
+    if (specialStainResolvedNotification) {
+      await deps.writeAuditLog(createAuditRequestLike(request, admin), {
+        event: AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED,
+        clinicId: specialStainResolvedNotification.clinicId,
+        reportId: specialStainResolvedNotification.reportId ?? null,
+        metadata: {
+          trackingCaseId: specialStainResolvedNotification.studyTrackingCaseId,
+          notificationId: specialStainResolvedNotification.id,
+          particularTokenId:
+            specialStainResolvedNotification.particularTokenId ?? null,
+          type: specialStainResolvedNotification.type,
+          title: specialStainResolvedNotification.title,
           createdVia: "admin",
         },
       });

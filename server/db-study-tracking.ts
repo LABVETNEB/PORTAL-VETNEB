@@ -192,3 +192,40 @@ export async function listStudyTrackingNotifications(params?: {
     .limit(limit)
     .offset(offset);
 }
+
+export async function markStudyTrackingNotificationRead(id: number) {
+  const now = new Date();
+  const result = await db
+    .update(studyTrackingNotifications)
+    .set({
+      isRead: true,
+      readAt: now,
+    })
+    .where(eq(studyTrackingNotifications.id, id))
+    .returning();
+
+  return result[0];
+}
+
+export async function markAllStudyTrackingNotificationsRead(params?: {
+  clinicId?: number;
+}) {
+  const filters = [eq(studyTrackingNotifications.isRead, false)];
+
+  if (typeof params?.clinicId === "number") {
+    filters.push(eq(studyTrackingNotifications.clinicId, params.clinicId));
+  }
+
+  const updated = await db
+    .update(studyTrackingNotifications)
+    .set({
+      isRead: true,
+      readAt: new Date(),
+    })
+    .where(and(...filters))
+    .returning({ id: studyTrackingNotifications.id });
+
+  return {
+    updatedCount: updated.length,
+  };
+}

@@ -140,6 +140,19 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     getStudyTrackingCaseByReportId: async () => null,
     createStudyTrackingCase: async () => createTrackingCaseFixture(),
     updateStudyTrackingCase: async () => createTrackingCaseFixture(),
+    createStudyTrackingNotification: async () => ({
+      id: 29,
+      studyTrackingCaseId: 11,
+      clinicId: 3,
+      reportId: 55,
+      particularTokenId: 7,
+      type: "token_created",
+      title: "Token particular generado",
+      message: "Se generó un token particular para Luna.",
+      isRead: false,
+      readAt: null,
+      createdAt: new Date("2026-04-20T13:00:00.000Z"),
+    }),
     ...overrides,
   });
 
@@ -157,6 +170,7 @@ test(
     });
     const createCalls: Array<Record<string, unknown>> = [];
     const emailCalls: Array<Record<string, unknown>> = [];
+    const notificationCalls: Array<Record<string, unknown>> = [];
 
     const app = await createTestApp({
       generateSessionToken: () => rawToken,
@@ -175,6 +189,22 @@ test(
       sendParticularTokenEmail: async (input: Record<string, unknown>) => {
         emailCalls.push(input);
         return { sent: true, messageId: "particular-email-1" };
+      },
+      createStudyTrackingNotification: async (input: Record<string, unknown>) => {
+        notificationCalls.push(input);
+        return {
+          id: 29,
+          studyTrackingCaseId: 11,
+          clinicId: 3,
+          reportId: 55,
+          particularTokenId: 7,
+          type: "token_created",
+          title: "Token particular generado",
+          message: "Se generó un token particular para Luna.",
+          isRead: false,
+          readAt: null,
+          createdAt: new Date("2026-04-20T13:00:00.000Z"),
+        };
       },
     });
 
@@ -226,6 +256,18 @@ test(
           petName: "Luna",
         },
       ]);
+      assert.equal(notificationCalls.length, 1);
+      assert.equal(notificationCalls[0].studyTrackingCaseId, 11);
+      assert.equal(notificationCalls[0].clinicId, 3);
+      assert.equal(notificationCalls[0].reportId, 55);
+      assert.equal(notificationCalls[0].particularTokenId, 7);
+      assert.equal(notificationCalls[0].type, "token_created");
+      assert.equal(notificationCalls[0].title, "Token particular generado");
+      assert.equal(
+        notificationCalls[0].message,
+        "Se generó un token particular para Luna.",
+      );
+      assert.equal(String(notificationCalls[0].message).includes(rawToken), false);
 
       assert.deepEqual(JSON.parse(response.body), {
         success: true,
@@ -312,6 +354,73 @@ test(
       });
       assert.equal(createCalls.length, 0);
       assert.equal(emailCalls.length, 0);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "adminParticularTokensNativeRoutes mantiene creación si ensureTrackingForToken falla",
+  async () => {
+    const createdToken = createParticularTokenFixture();
+    const notificationCalls: Array<Record<string, unknown>> = [];
+
+    const app = await createTestApp({
+      createParticularToken: async () => createdToken,
+      getParticularStudyTrackingCase: async () => {
+        throw new Error("db timeout");
+      },
+      createStudyTrackingNotification: async (input: Record<string, unknown>) => {
+        notificationCalls.push(input);
+        return {
+          id: 33,
+          studyTrackingCaseId: 11,
+          clinicId: 3,
+          reportId: 55,
+          particularTokenId: 7,
+          type: "token_created",
+          title: "Token particular generado",
+          message: "Se generó un token particular para Luna.",
+          isRead: false,
+          readAt: null,
+          createdAt: new Date("2026-04-20T13:00:00.000Z"),
+        };
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/admin/particular-tokens",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          clinicId: 3,
+          reportId: 55,
+          recipientEmail: "tutor@example.com",
+          tutorLastName: "Gomez",
+          petName: "Luna",
+          petAge: "8 años",
+          petBreed: "Caniche",
+          petSex: "Hembra",
+          petSpecies: "Canina",
+          sampleLocation: "Pabellón auricular",
+          sampleEvolution: "15 días",
+          detailsLesion: "Lesión nodular pequeña",
+          extractionDate: "2026-04-20T00:00:00.000Z",
+          shippingDate: "2026-04-21T00:00:00.000Z",
+        },
+      });
+
+      assert.equal(response.statusCode, 201);
+      assert.equal(notificationCalls.length, 0);
+      const body = JSON.parse(response.body);
+      assert.equal(body.success, true);
+      assert.ok(body.token);
     } finally {
       await app.close();
     }

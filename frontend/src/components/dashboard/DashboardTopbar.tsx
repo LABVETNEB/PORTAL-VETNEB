@@ -1,12 +1,18 @@
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
+import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
 
 interface DashboardTopbarProps {
   title: string;
   subtitle?: string;
+  notifications?: "admin" | false;
 }
 
-export function DashboardTopbar({ title, subtitle }: DashboardTopbarProps) {
+export function DashboardTopbar({
+  title,
+  subtitle,
+  notifications = false,
+}: DashboardTopbarProps) {
   return (
     <header
       className="sticky top-0 z-40 flex min-h-[4.5rem] items-center justify-between border-b border-vetneb-line/80 bg-card/90 px-4 py-2.5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/78 sm:px-6"
@@ -36,6 +42,7 @@ export function DashboardTopbar({ title, subtitle }: DashboardTopbarProps) {
       </div>
 
       <div className="ml-3 flex shrink-0 items-center gap-2 sm:gap-3">
+        {notifications === "admin" ? <DashboardNotificationsBell /> : null}
         <PublicRouteControl
           href={ROUTES.login}
           variant="bare"

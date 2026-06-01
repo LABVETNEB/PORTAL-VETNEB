@@ -26,7 +26,6 @@ import { AdminPricingEditorCard } from "./AdminPricingEditorCard";
 import { AdminSchemaHealthStatusCard } from "./AdminSchemaHealthStatusCard";
 import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";
 import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
-import { AdminReportWorkflowViewerCard } from "@/components/dashboard/AdminReportWorkflowViewerCard";
 import { UploadReportModal } from "@/components/dashboard/UploadReportModal";
 import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
@@ -391,6 +390,7 @@ export default async function AdminPage({
       <DashboardTopbar
         title="Administración"
         subtitle="Auditoría, reportes y estado operacional"
+        notifications="admin"
       />
       <main className="dashboard-main">
         <section
@@ -414,9 +414,6 @@ export default async function AdminPage({
               <UploadReportModal />
             </div>
           </div>
-        </section>
-        <section id="admin-report-workflow">
-          <AdminReportWorkflowViewerCard />
         </section>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Card className="dashboard-surface h-full">
