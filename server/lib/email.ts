@@ -646,8 +646,9 @@ function buildParticularTokenHtml(input: {
 }): string {
   const safePortalUrl = input.portalUrl ?? null;
 
-  const ctaButton = safePortalUrl
+  const ctaSection = safePortalUrl
     ? `
+<p style="margin:0 0 8px;font-size:13px;color:#64748b;">1.&nbsp;Copiá el token de abajo.&nbsp;&nbsp;2.&nbsp;Presioná <strong>Abrir Portal VETNEB</strong>.&nbsp;&nbsp;3.&nbsp;Pegá el token en el portal.</p>
 <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 16px;">
   <tr>
     <td align="center" style="border-radius:6px;background-color:#1D827D;">
@@ -660,7 +661,7 @@ function buildParticularTokenHtml(input: {
     </td>
   </tr>
 </table>`
-    : "";
+    : `<p style="margin:0 0 8px;font-size:13px;color:#64748b;">Copiá este token y pegalo en el portal.</p>`;
 
   const body = `
 <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#103C61;">Token de acceso particular</h1>
@@ -682,11 +683,10 @@ function buildParticularTokenHtml(input: {
 </table>
 
 <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.06em;">Token de acceso</p>
-<p style="margin:0 0 8px;font-size:13px;color:#64748b;">Copiá este token y pegalo en el portal.</p>
 <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #1D827D;border-radius:4px;padding:16px 20px;margin-bottom:24px;">
   <code style="font-family:'Courier New',Courier,monospace;font-size:15px;color:#103C61;word-break:break-all;display:block;-webkit-user-select:text;user-select:text;">${escapeHtml(input.token)}</code>
 </div>
-${ctaButton}
+${ctaSection}
 <p style="margin:0 0 8px;font-size:13px;color:#64748b;">Por seguridad, el token no se copia automáticamente desde el email. Copialo manualmente y pegalo en el portal.</p>
 <p style="margin:0;font-size:13px;color:#64748b;"><strong>Conservá este token y no lo compartas.</strong></p>`;
 

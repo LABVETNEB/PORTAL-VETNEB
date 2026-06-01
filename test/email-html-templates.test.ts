@@ -582,3 +582,53 @@ test("seguridad: token no aparece en ningun href del HTML particular", async () 
     "token no debe estar en path de href",
   );
 });
+
+// ─── Guardrail: ausencia de JS y clipboard en email HTML particular ───────────
+
+test("guardrail: email html particular no contiene navigator.clipboard ni scripts de lado cliente", async () => {
+  const snap = snapshotEnv();
+  const originalCreateTransport = nodemailer.createTransport;
+  const sendMailCalls: Array<Record<string, unknown>> = [];
+
+  (ENV.gmailApi as any).enabled = false;
+  (ENV.gmailApi as any).clientId = "";
+  (ENV.gmailApi as any).clientSecret = "";
+  (ENV.gmailApi as any).refreshToken = "";
+  (ENV.gmailApi as any).from = "";
+  (ENV.smtp as any).enabled = true;
+  (ENV.smtp as any).host = "smtp-guardrail-clipboard.test";
+  (ENV.smtp as any).port = 587;
+  (ENV.smtp as any).secure = false;
+  (ENV.smtp as any).user = "u";
+  (ENV.smtp as any).pass = "p";
+  (ENV.smtp as any).from = "noreply@vetneb.com";
+  (ENV as any).corsOrigins = ["https://portal.vetneb.com"];
+
+  (nodemailer as any).createTransport = () => ({
+    sendMail: async (p: Record<string, unknown>) => {
+      sendMailCalls.push(p);
+      return { messageId: "guardrail-clipboard" };
+    },
+  });
+
+  try {
+    await sendParticularTokenEmail({
+      to: "tutor@example.com",
+      token: "GUARDRAIL-TOKEN-001",
+      tutorLastName: "Perez",
+      petName: "Milo",
+    });
+  } finally {
+    (nodemailer as any).createTransport = originalCreateTransport;
+    restoreEnv(snap);
+  }
+
+  assert.equal(sendMailCalls.length, 1);
+  const html = String(sendMailCalls[0].html);
+
+  assert.equal(html.includes("navigator.clipboard"), false, "email html no debe contener navigator.clipboard");
+  assert.equal(html.includes("<script"), false, "email html no debe contener <script");
+  assert.equal(html.includes("onclick"), false, "email html no debe contener onclick");
+  assert.equal(html.includes("javascript:"), false, "email html no debe contener javascript:");
+  assert.equal(html.includes("?token="), false, "token no debe aparecer en query string del html");
+});
