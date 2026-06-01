@@ -16,6 +16,8 @@ import {
   deleteAdminParticularToken,
   getAdminUsersRoles,
   getAdminParticularTokens,
+  getAdminStudyTrackingCases,
+  type AdminStudyTrackingCaseSummary,
   type AdminParticularTokenCreatePayload,
   type AdminParticularTokenSummary,
 } from "@/lib/api";
@@ -251,6 +253,20 @@ function formatTokenSource(token: AdminParticularTokenSummary): string {
   return "Sistema";
 }
 
+const TRACKING_STAGE_LABELS: Record<AdminStudyTrackingCaseSummary["currentStage"], string> = {
+  reception: "Recepción de muestra",
+  processing: "Procesamiento",
+  evaluation: "Evaluación",
+  report_development: "Desarrollo de informe",
+  delivered: "Informe disponible / Publicado",
+};
+
+function getTrackingStageLabel(
+  stage: AdminStudyTrackingCaseSummary["currentStage"],
+): string {
+  return TRACKING_STAGE_LABELS[stage] ?? stage;
+}
+
 export function AdminParticularTokensCard() {
   const [formState, setFormState] =
     useState<AdminParticularTokenFormState>(INITIAL_FORM_STATE);
@@ -259,6 +275,10 @@ export function AdminParticularTokensCard() {
   const [isLoadingClinics, setIsLoadingClinics] = useState(false);
   const [clinicLoadError, setClinicLoadError] = useState<string | null>(null);
   const [tokens, setTokens] = useState<AdminParticularTokenSummary[]>([]);
+  const [trackingCasesByTokenId, setTrackingCasesByTokenId] = useState<
+    Record<number, AdminStudyTrackingCaseSummary>
+  >({});
+  const [trackingLoadError, setTrackingLoadError] = useState<string | null>(null);
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [generatedTokenRecipientEmail, setGeneratedTokenRecipientEmail] =
     useState<string | null>(null);
@@ -290,16 +310,54 @@ export function AdminParticularTokensCard() {
 
   async function loadTokens() {
     setIsLoadingTokens(true);
+    setTrackingLoadError(null);
 
     try {
       const snapshot = await getAdminParticularTokens({ limit: 10, offset: 0 });
       setTokens(snapshot.particularTokens);
+
+      if (snapshot.particularTokens.length === 0) {
+        setTrackingCasesByTokenId({});
+        return;
+      }
+
+      try {
+        const trackingEntries = await Promise.all(
+          snapshot.particularTokens.map(async (token) => {
+            const trackingSnapshot = await getAdminStudyTrackingCases({
+              particularTokenId: token.id,
+              limit: 1,
+              offset: 0,
+            });
+
+            return [token.id, trackingSnapshot.trackingCases[0] ?? null] as const;
+          }),
+        );
+
+        const nextTrackingByTokenId: Record<number, AdminStudyTrackingCaseSummary> = {};
+
+        for (const [tokenId, trackingCase] of trackingEntries) {
+          if (trackingCase) {
+            nextTrackingByTokenId[tokenId] = trackingCase;
+          }
+        }
+
+        setTrackingCasesByTokenId(nextTrackingByTokenId);
+      } catch (error) {
+        setTrackingCasesByTokenId({});
+        setTrackingLoadError(
+          error instanceof Error
+            ? error.message
+            : "No se pudo cargar el seguimiento de los tokens listados.",
+        );
+      }
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
           : "No se pudieron cargar los tokens particulares.",
       );
+      setTrackingCasesByTokenId({});
     } finally {
       setIsLoadingTokens(false);
     }
@@ -531,6 +589,11 @@ export function AdminParticularTokensCard() {
       const response = await deleteAdminParticularToken(token.id);
       setStatusMessage(response.message);
       setTokens((current) => current.filter((t) => t.id !== token.id));
+      setTrackingCasesByTokenId((current) => {
+        const next = { ...current };
+        delete next[token.id];
+        return next;
+      });
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -1006,13 +1069,22 @@ export function AdminParticularTokensCard() {
             </Button>
           </div>
 
+          {trackingLoadError ? (
+            <p className="clinical-alert-warning px-3 py-2 text-sm" role="alert">
+              {trackingLoadError}
+            </p>
+          ) : null}
+
           {tokens.length ? (
             <div className="space-y-2">
-              {tokens.map((token) => (
-                <div
-                  key={token.id}
-                  className="rounded-lg border border-vetneb-line/75 bg-vetneb-surface-raised/74 px-4 py-3 shadow-[0_8px_20px_rgba(15,45,62,0.06)]"
-                >
+              {tokens.map((token) => {
+                const trackingCase = trackingCasesByTokenId[token.id];
+
+                return (
+                  <div
+                    key={token.id}
+                    className="rounded-lg border border-vetneb-line/75 bg-vetneb-surface-raised/74 px-4 py-3 shadow-[0_8px_20px_rgba(15,45,62,0.06)]"
+                  >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="space-y-1">
                       <p className="text-sm font-semibold text-vetneb-ink">
@@ -1038,7 +1110,7 @@ export function AdminParticularTokensCard() {
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-5">
+                  <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-6">
                     <div className="clinical-muted-band rounded-lg px-3 py-2">
                       <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
                         Paciente
@@ -1092,6 +1164,28 @@ export function AdminParticularTokensCard() {
                         Origen: {formatTokenSource(token)}
                       </p>
                     </div>
+
+                    <div className="clinical-muted-band rounded-lg px-3 py-2">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                        Seguimiento
+                      </p>
+                      {trackingCase ? (
+                        <>
+                          <p className="mt-1 text-xs text-vetneb-ink">
+                            Etapa: {getTrackingStageLabel(trackingCase.currentStage)}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {trackingCase.specialStainRequired
+                              ? "Alerta: Solicitud de tinción especial"
+                              : "Sin alerta de tinción especial"}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Sin seguimiento vinculado.
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   <div className="mt-3 flex justify-end">
@@ -1105,8 +1199,9 @@ export function AdminParticularTokensCard() {
                       {revokingTokenId === token.id ? "Eliminando..." : "Eliminar token"}
                     </Button>
                   </div>
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="surface-empty">

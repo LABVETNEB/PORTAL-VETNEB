@@ -426,3 +426,15 @@ test("admin token card delete handler uses deleteAdminParticularToken not revoke
   assert.ok(api.includes("export type AdminParticularTokenDeleteResponse"), "api must export AdminParticularTokenDeleteResponse type");
   assert.ok(api.includes('method: "DELETE"'), "deleteAdminParticularToken must use DELETE method");
 });
+
+test("admin token card consume seguimiento por token desde study-tracking", () => {
+  const card = read(ADMIN_CARD_PATH);
+  const api = read(API_PATH);
+
+  assert.ok(card.includes("getAdminStudyTrackingCases"));
+  assert.ok(card.includes("trackingCasesByTokenId"));
+  assert.ok(card.includes("Seguimiento"));
+  assert.ok(card.includes("getTrackingStageLabel("));
+  assert.ok(card.includes("Alerta: Solicitud de tinción especial"));
+  assert.ok(api.includes("export async function getAdminStudyTrackingCases("));
+});
