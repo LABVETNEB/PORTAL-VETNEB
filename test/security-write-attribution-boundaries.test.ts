@@ -189,8 +189,12 @@ test("runtime attribution tests remain explicit for critical writes", () => {
   assertContains(reportsStatusTests, "changedByClinicUserId: 9", "clinic report status runtime attribution");
   assertContains(reportsStatusTests, "changedByAdminUserId: null", "clinic report status runtime attribution");
 
-  assertContains(studyTrackingTests, "assert.equal(createCalls[0].createdByAdminId, null)", "clinic study tracking runtime attribution");
-  assertContains(studyTrackingTests, "assert.equal(createCalls[0].createdByClinicUserId, 9)", "clinic study tracking runtime attribution");
+  assertContains(studyTrackingTests, "assert.equal(response.statusCode, 403)", "clinic study tracking runtime authorization");
+  assertContains(
+    studyTrackingTests,
+    'error: "Solo administración puede crear seguimientos"',
+    "clinic study tracking runtime authorization",
+  );
 
   assertContains(adminStudyTrackingTests, "assert.equal(createCalls[0].createdByAdminId, 1)", "admin study tracking runtime attribution");
   assertContains(adminStudyTrackingTests, "assert.equal(createCalls[0].createdByClinicUserId, null)", "admin study tracking runtime attribution");

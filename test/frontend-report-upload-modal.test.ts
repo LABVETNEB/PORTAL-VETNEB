@@ -23,7 +23,11 @@ test("frontend upload report modal remains available as admin-only implementatio
   assert.ok(source.includes("uploadAdminReport"));
   assert.ok(source.includes("getAdminUsersRoles"));
   assert.ok(source.includes("getAdminParticularTokens"));
-  assert.ok(source.includes("createAdminStudyTrackingCase"));
+  assert.ok(
+    source.includes(
+      'formData.append("particularTokenId", String(selectedParticularToken.id));',
+    ),
+  );
   assert.ok(source.includes("uploadAdminReport"));
 });
 

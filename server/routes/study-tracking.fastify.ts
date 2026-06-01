@@ -532,13 +532,9 @@ function requireStudyTrackingManagementPermission(
   auth: AuthenticatedClinicUser,
   reply: FastifyReply,
 ) {
-  if (auth.canManageClinicUsers) {
-    return true;
-  }
-
   reply.code(403).send({
     success: false,
-    error: "No autorizado para administrar recursos de la clinica",
+    error: "Solo administración puede crear seguimientos",
   });
 
   return false;

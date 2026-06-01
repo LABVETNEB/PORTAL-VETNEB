@@ -4,7 +4,7 @@ import type {
   FastifyRequest,
 } from "fastify";
 
-import type { ParticularToken, Report } from "../../drizzle/schema.ts";
+import type { ParticularToken, Report, StudyTrackingCase } from "../../drizzle/schema.ts";
 import { ENV } from "../lib/env.ts";
 import {
   adminCreateParticularTokenSchema,
@@ -26,6 +26,7 @@ import {
 } from "../lib/runtime-timing.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import { getSafeEmailTransportErrorMetadata } from "../lib/email.ts";
+import { ensureStudyTrackingCaseForToken } from "../lib/token-study-tracking.ts";
 
 type AdminUserRecord = {
   id: number;
@@ -110,6 +111,19 @@ export type AdminParticularTokensNativeRoutesOptions = {
     tutorLastName: string;
     petName: string;
   }) => Promise<ParticularTokenEmailResult>;
+  getParticularStudyTrackingCase?: (
+    particularTokenId: number,
+  ) => Promise<StudyTrackingCase | null | undefined>;
+  getStudyTrackingCaseByReportId?: (
+    reportId: number,
+  ) => Promise<StudyTrackingCase | null | undefined>;
+  createStudyTrackingCase?: (
+    input: Omit<StudyTrackingCase, "id" | "createdAt" | "updatedAt">,
+  ) => Promise<StudyTrackingCase>;
+  updateStudyTrackingCase?: (
+    id: number,
+    input: Partial<Omit<StudyTrackingCase, "id" | "createdAt" | "updatedAt">>,
+  ) => Promise<StudyTrackingCase | null | undefined>;
   now?: () => number;
 };
 
@@ -138,6 +152,10 @@ type NativeAdminParticularTokensDeps = Required<
     | "revokeParticularToken"
     | "deleteParticularToken"
     | "sendParticularTokenEmail"
+    | "getParticularStudyTrackingCase"
+    | "getStudyTrackingCaseByReportId"
+    | "createStudyTrackingCase"
+    | "updateStudyTrackingCase"
   >
 >;
 
@@ -149,6 +167,7 @@ async function loadDefaultDeps(): Promise<NativeAdminParticularTokensDeps> {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const dbParticular = await import("../db-particular.ts");
+      const dbStudyTracking = await import("../db-study-tracking.ts");
       const email = await import("../lib/email.ts");
 
       return {
@@ -167,6 +186,12 @@ async function loadDefaultDeps(): Promise<NativeAdminParticularTokensDeps> {
         revokeParticularToken: dbParticular.revokeParticularToken,
         deleteParticularToken: dbParticular.deleteParticularToken,
         sendParticularTokenEmail: email.sendParticularTokenEmail,
+        getParticularStudyTrackingCase:
+          dbStudyTracking.getParticularStudyTrackingCase,
+        getStudyTrackingCaseByReportId:
+          dbStudyTracking.getStudyTrackingCaseByReportId,
+        createStudyTrackingCase: dbStudyTracking.createStudyTrackingCase,
+        updateStudyTrackingCase: dbStudyTracking.updateStudyTrackingCase,
       };
     })();
   }
@@ -479,7 +504,11 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
     !!options.updateParticularTokenReport &&
     !!options.revokeParticularToken &&
     !!options.deleteParticularToken &&
-    !!options.sendParticularTokenEmail;
+    !!options.sendParticularTokenEmail &&
+    !!options.getParticularStudyTrackingCase &&
+    !!options.getStudyTrackingCaseByReportId &&
+    !!options.createStudyTrackingCase &&
+    !!options.updateStudyTrackingCase;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -515,10 +544,48 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
     sendParticularTokenEmail:
       options.sendParticularTokenEmail ??
       defaultDeps!.sendParticularTokenEmail,
+    getParticularStudyTrackingCase:
+      options.getParticularStudyTrackingCase ??
+      defaultDeps!.getParticularStudyTrackingCase,
+    getStudyTrackingCaseByReportId:
+      options.getStudyTrackingCaseByReportId ??
+      defaultDeps!.getStudyTrackingCaseByReportId,
+    createStudyTrackingCase:
+      options.createStudyTrackingCase ?? defaultDeps!.createStudyTrackingCase,
+    updateStudyTrackingCase:
+      options.updateStudyTrackingCase ?? defaultDeps!.updateStudyTrackingCase,
   };
 
   const now = options.now ?? (() => Date.now());
   const allowedOrigins = new Set(getAllowedOrigins());
+
+  async function ensureTrackingForToken(
+    token: ParticularToken,
+    createdByAdminId: number | null,
+  ) {
+    try {
+      await ensureStudyTrackingCaseForToken(
+        {
+          getParticularStudyTrackingCase: deps.getParticularStudyTrackingCase,
+          getStudyTrackingCaseByReportId: deps.getStudyTrackingCaseByReportId,
+          createStudyTrackingCase: deps.createStudyTrackingCase,
+          updateStudyTrackingCase: deps.updateStudyTrackingCase,
+        },
+        {
+          token,
+          createdByAdminId,
+          createdByClinicUserId: token.createdByClinicUserId ?? null,
+          now: new Date(now()),
+        },
+      );
+    } catch (error) {
+      console.error("[TRACKING] ensure-by-token failed", {
+        tokenId: token.id,
+        clinicId: token.clinicId,
+        errorName: getSafeErrorName(error),
+      });
+    }
+  }
 
   app.addHook("onRequest", async (request, reply) => {
     (request as AdminParticularTokensFastifyRequest)[REQUEST_TIMER_KEY] =
@@ -702,6 +769,8 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
+    await ensureTrackingForToken(particularToken, admin.id);
+
     return reply.code(201).send({
       success: true,
       message: "Token particular creado correctamente",
@@ -732,6 +801,10 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       limit,
       offset,
     });
+
+    await Promise.all(
+      tokens.map((token) => ensureTrackingForToken(token, admin.id)),
+    );
 
     return reply.code(200).send({
       success: true,
@@ -775,6 +848,8 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
         error: "Token particular no encontrado",
       });
     }
+
+    await ensureTrackingForToken(token, admin.id);
 
     const report =
       typeof token.reportId === "number"
@@ -854,6 +929,10 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       tokenId,
       parsed.data.reportId,
     );
+
+    if (updated) {
+      await ensureTrackingForToken(updated, admin.id);
+    }
 
     const report =
       updated && typeof updated.reportId === "number"

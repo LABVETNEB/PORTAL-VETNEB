@@ -31,6 +31,63 @@ function createReportFixture(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function createParticularTokenFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 7,
+    clinicId: 3,
+    reportId: null,
+    tokenHash: "hash:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    tokenLast4: "aaaa",
+    tutorLastName: "Gomez",
+    petName: "Luna",
+    petAge: "8 años",
+    petBreed: "Caniche",
+    petSex: "Hembra",
+    petSpecies: "Canina",
+    sampleLocation: "Pabellón auricular",
+    sampleEvolution: "15 días",
+    detailsLesion: "Lesión nodular pequeña",
+    extractionDate: new Date("2026-04-20T00:00:00.000Z"),
+    shippingDate: new Date("2026-04-21T00:00:00.000Z"),
+    isActive: true,
+    lastLoginAt: null,
+    createdAt: new Date("2026-04-20T12:00:00.000Z"),
+    updatedAt: new Date("2026-04-20T12:30:00.000Z"),
+    createdByAdminId: 1,
+    createdByClinicUserId: null,
+    ...overrides,
+  };
+}
+
+function createTrackingCaseFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 11,
+    clinicId: 3,
+    reportId: 88,
+    particularTokenId: 7,
+    createdByAdminId: 1,
+    createdByClinicUserId: null,
+    receptionAt: new Date("2026-04-20T00:00:00.000Z"),
+    estimatedDeliveryAt: new Date("2026-05-08T00:00:00.000Z"),
+    estimatedDeliveryAutoCalculatedAt: new Date("2026-05-08T00:00:00.000Z"),
+    estimatedDeliveryWasManuallyAdjusted: false,
+    currentStage: "delivered",
+    processingAt: null,
+    evaluationAt: null,
+    reportDevelopmentAt: null,
+    deliveredAt: new Date("2026-04-22T12:00:00.000Z"),
+    specialStainRequired: false,
+    specialStainNotifiedAt: null,
+    paymentUrl: null,
+    adminContactEmail: null,
+    adminContactPhone: null,
+    notes: "Lesión nodular pequeña",
+    createdAt: new Date("2026-04-20T12:00:00.000Z"),
+    updatedAt: new Date("2026-04-22T12:00:00.000Z"),
+    ...overrides,
+  };
+}
+
 function createAuthStubs(overrides: Record<string, unknown> = {}) {
   return {
     deleteAdminSession: async () => {},
@@ -58,6 +115,16 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     getClinicById: async () => ({ id: 3 }),
     uploadReport: async () => "reports/3/luna-report.pdf",
     upsertReport: async () => createReportFixture(),
+    getParticularTokenById: async () => null,
+    updateParticularTokenReport: async () => null,
+    getParticularStudyTrackingCase: async () => null,
+    getStudyTrackingCaseByReportId: async () => null,
+    createStudyTrackingCase: async () => {
+      throw new Error(
+        "createStudyTrackingCase no debe ejecutarse sin particularTokenId",
+      );
+    },
+    updateStudyTrackingCase: async () => null,
     createSignedReportUrl: async (storagePath: string) =>
       `signed-preview:${storagePath}`,
     createSignedReportDownloadUrl: async (
@@ -240,6 +307,9 @@ test("adminReportsNativeRoutes crea POST /upload con clinicId explicito y metada
               studyType: "histopatologia",
               uploadDate: "2026-04-22T09:00:00.000Z",
               uploadedVia: "admin",
+              particularTokenId: null,
+              trackingCaseId: null,
+              trackingStage: null,
             },
           },
         },
@@ -413,6 +483,287 @@ test("adminReportsNativeRoutes devuelve 404 cuando clinicId no existe", async ()
       error: "Clinica no encontrada",
     });
     assert.equal(uploadCalls, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminReportsNativeRoutes valida particularTokenId antes de storage", async () => {
+  const multipart = buildMultipartReportPayload({
+    clinicId: "3",
+    particularTokenId: "invalid",
+  });
+  let uploadCalls = 0;
+
+  const app = await createTestApp({
+    uploadReport: async () => {
+      uploadCalls += 1;
+      return "reports/3/luna-report.pdf";
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/admin/reports/upload",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+      },
+      payload: multipart.payload,
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "particularTokenId inválido",
+    });
+    assert.equal(uploadCalls, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminReportsNativeRoutes devuelve 404 cuando particularTokenId no existe", async () => {
+  const multipart = buildMultipartReportPayload({
+    clinicId: "3",
+    particularTokenId: "7",
+  });
+  let uploadCalls = 0;
+
+  const app = await createTestApp({
+    getParticularTokenById: async () => null,
+    uploadReport: async () => {
+      uploadCalls += 1;
+      return "reports/3/luna-report.pdf";
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/admin/reports/upload",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+      },
+      payload: multipart.payload,
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Token particular no encontrado",
+    });
+    assert.equal(uploadCalls, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminReportsNativeRoutes bloquea upload si particularTokenId pertenece a otra clínica", async () => {
+  const multipart = buildMultipartReportPayload({
+    clinicId: "3",
+    particularTokenId: "7",
+  });
+  let uploadCalls = 0;
+
+  const app = await createTestApp({
+    getParticularTokenById: async () =>
+      createParticularTokenFixture({
+        clinicId: 999,
+      }),
+    uploadReport: async () => {
+      uploadCalls += 1;
+      return "reports/3/luna-report.pdf";
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/admin/reports/upload",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+      },
+      payload: multipart.payload,
+    });
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "El token particular no pertenece a la clínica indicada",
+    });
+    assert.equal(uploadCalls, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminReportsNativeRoutes vincula token y cierra tracking en delivered al subir informe", async () => {
+  const multipart = buildMultipartReportPayload({
+    clinicId: "3",
+    particularTokenId: "7",
+    patientName: " Luna ",
+    studyType: " histopatologia ",
+    uploadDate: "2026-04-22T09:00:00.000Z",
+  });
+  const nowDate = new Date("2026-04-22T12:00:00.000Z");
+  const selectedToken = createParticularTokenFixture({
+    reportId: null,
+  });
+  const linkedToken = createParticularTokenFixture({
+    reportId: 88,
+    updatedAt: nowDate,
+  });
+  const updateTokenCalls: Array<Record<string, unknown>> = [];
+  const createTrackingCalls: Array<Record<string, unknown>> = [];
+  const updateTrackingCalls: Array<Record<string, unknown>> = [];
+  const auditCalls: Array<Record<string, unknown>> = [];
+
+  const app = await createTestApp({
+    now: () => nowDate.getTime(),
+    getParticularTokenById: async () => selectedToken,
+    updateParticularTokenReport: async (id: number, reportId: number | null) => {
+      updateTokenCalls.push({ id, reportId });
+      return linkedToken;
+    },
+    getParticularStudyTrackingCase: async () => null,
+    getStudyTrackingCaseByReportId: async () => null,
+    createStudyTrackingCase: async (input: Record<string, unknown>) => {
+      createTrackingCalls.push(input);
+      return createTrackingCaseFixture({
+        reportId: 88,
+        particularTokenId: 7,
+        currentStage: "delivered",
+        deliveredAt: nowDate,
+      });
+    },
+    updateStudyTrackingCase: async (
+      id: number,
+      input: Record<string, unknown>,
+    ) => {
+      updateTrackingCalls.push({ id, input });
+      return createTrackingCaseFixture({
+        id,
+        ...input,
+      });
+    },
+    writeAuditLog: async (_req: unknown, input: Record<string, unknown>) => {
+      auditCalls.push(input);
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/admin/reports/upload",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+      },
+      payload: multipart.payload,
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.deepEqual(updateTokenCalls, [{ id: 7, reportId: 88 }]);
+    assert.equal(createTrackingCalls.length, 1);
+    assert.equal(createTrackingCalls[0].reportId, 88);
+    assert.equal(createTrackingCalls[0].particularTokenId, 7);
+    assert.equal(createTrackingCalls[0].currentStage, "delivered");
+    assert.equal(createTrackingCalls[0].specialStainRequired, false);
+    assert.equal(updateTrackingCalls.length, 0);
+    assert.equal(auditCalls.length, 1);
+    assert.equal(
+      (auditCalls[0].metadata as Record<string, unknown>).particularTokenId,
+      7,
+    );
+    assert.equal(
+      (auditCalls[0].metadata as Record<string, unknown>).trackingCaseId,
+      11,
+    );
+    assert.equal(
+      (auditCalls[0].metadata as Record<string, unknown>).trackingStage,
+      "delivered",
+    );
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.success, true);
+    assert.equal(body.report.id, 88);
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminReportsNativeRoutes cierra tracking por reportId en delivered cuando no hay token", async () => {
+  const multipart = buildMultipartReportPayload({
+    clinicId: "3",
+    patientName: "Luna",
+  });
+  const nowDate = new Date("2026-04-22T12:00:00.000Z");
+  const trackingCase = createTrackingCaseFixture({
+    id: 22,
+    reportId: 88,
+    particularTokenId: null,
+    currentStage: "evaluation",
+    deliveredAt: null,
+  });
+  const updateTrackingCalls: Array<Record<string, unknown>> = [];
+  const auditCalls: Array<Record<string, unknown>> = [];
+
+  const app = await createTestApp({
+    now: () => nowDate.getTime(),
+    getStudyTrackingCaseByReportId: async () => trackingCase,
+    updateStudyTrackingCase: async (id: number, input: Record<string, unknown>) => {
+      updateTrackingCalls.push({ id, input });
+      return createTrackingCaseFixture({
+        ...trackingCase,
+        id,
+        ...input,
+      });
+    },
+    writeAuditLog: async (_req: unknown, input: Record<string, unknown>) => {
+      auditCalls.push(input);
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/admin/reports/upload",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+      },
+      payload: multipart.payload,
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.deepEqual(updateTrackingCalls, [
+      {
+        id: 22,
+        input: {
+          reportId: 88,
+          currentStage: "delivered",
+          deliveredAt: nowDate,
+        },
+      },
+    ]);
+    assert.equal(auditCalls.length, 1);
+    assert.equal(
+      (auditCalls[0].metadata as Record<string, unknown>).trackingCaseId,
+      22,
+    );
+    assert.equal(
+      (auditCalls[0].metadata as Record<string, unknown>).trackingStage,
+      "delivered",
+    );
   } finally {
     await app.close();
   }

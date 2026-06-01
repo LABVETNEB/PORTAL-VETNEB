@@ -192,6 +192,10 @@ function buildAdminParticularTokensRouteStubs() {
       sent: true as const,
       messageId: "particular-email-1",
     }),
+    getParticularStudyTrackingCase: async () => null,
+    getStudyTrackingCaseByReportId: async () => null,
+    createStudyTrackingCase: async () => ({} as any),
+    updateStudyTrackingCase: async () => null,
   };
 }
 function buildAdminReportsRouteStubs() {
@@ -216,12 +220,19 @@ function buildAdminReportsRouteStubs() {
       updatedAt: new Date("2026-04-22T09:30:00.000Z"),
       storagePath: "reports/admin-test.pdf",
     } as any),
+    getParticularTokenById: async () => null,
+    updateParticularTokenReport: async () => null,
+    getParticularStudyTrackingCase: async () => null,
+    getStudyTrackingCaseByReportId: async () => null,
+    createStudyTrackingCase: async () => ({} as any),
+    updateStudyTrackingCase: async () => null,
     createSignedReportUrl: async (storagePath: string) =>
       `signed-preview:${storagePath}`,
     createSignedReportDownloadUrl: async (
       storagePath: string,
       fileName?: string,
     ) => `signed-download:${storagePath}:${fileName ?? ""}`,
+    writeAuditLog: async () => {},
   };
 }
 
@@ -473,6 +484,10 @@ function buildParticularTokensRouteStubs() {
       sent: true as const,
       messageId: "particular-email-1",
     }),
+    getParticularStudyTrackingCase: async () => null,
+    getStudyTrackingCaseByReportId: async () => null,
+    createStudyTrackingCase: async () => ({} as any),
+    updateStudyTrackingCase: async () => null,
   };
 }
 function buildStudyTrackingRouteStubs() {
