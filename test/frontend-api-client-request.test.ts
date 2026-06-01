@@ -72,11 +72,22 @@ test("frontend API client surfaces backend errors safely", () => {
   assert.ok(source.includes("error?: unknown;"));
   assert.ok(source.includes("message?: unknown;"));
   assert.ok(source.includes("const backendMessage ="));
+  assert.ok(source.includes("if (res.status === 429) {"));
+  assert.ok(source.includes("buildRateLimitErrorMessage(backendMessage, res.headers)"));
   assert.ok(source.includes("if (backendMessage) {"));
   assert.ok(source.includes("throw new Error(backendMessage);"));
   assert.ok(source.includes("if (res.status >= 500) {"));
   assert.ok(source.includes("throw new Error(BACKEND_OPERATION_ERROR_MESSAGE);"));
   assert.ok(source.includes("throw new Error(`HTTP ${res.status}`);"));
+});
+
+test("frontend API client formats 429 login rate-limit guidance from headers", () => {
+  const source = read(API_CLIENT_PATH);
+
+  assert.ok(source.includes("export const LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE ="));
+  assert.ok(source.includes('headers.get("Retry-After") ?? headers.get("RateLimit-Reset")'));
+  assert.ok(source.includes("function buildRateLimitErrorMessage("));
+  assert.ok(source.includes("Reintente en"));
 });
 
 test("frontend API client maps fetch network and CORS errors to operational admin guidance", () => {

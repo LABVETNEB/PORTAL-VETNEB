@@ -7,6 +7,7 @@ import type {
 import { AUDIT_EVENTS } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
+  buildLoginRateLimitKey,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
@@ -412,7 +413,7 @@ function applyCorsHeaders(
   reply.header("access-control-allow-credentials", "true");
   reply.header(
     "access-control-expose-headers",
-    "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset",
+    "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After",
   );
 }
 
@@ -572,8 +573,15 @@ function setLoginRateLimitHeaders(
   );
   reply.header(
     "RateLimit-Reset",
-    String(Math.max(Math.ceil((input.resetAt - input.now) / 1000), 0)),
+    String(getLoginRateLimitResetSeconds(input)),
   );
+}
+
+function getLoginRateLimitResetSeconds(input: {
+  resetAt: number;
+  now: number;
+}) {
+  return Math.max(Math.ceil((input.resetAt - input.now) / 1000), 0);
 }
 
 function getUserAgent(request: FastifyRequest) {
@@ -1050,7 +1058,11 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const rateLimitKey = `login:${request.ip || "unknown"}`;
+    const rateLimitKey = buildLoginRateLimitKey({
+      surface: isUnifiedPayload ? "unified" : "clinic",
+      identifier: loginIdentifier,
+      ipAddress: request.ip || null,
+    });
 
     const failureEntry: RateLimitEntry = {
       count: 0,
@@ -1114,6 +1126,15 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         resetAt: failureEntry.resetAt,
         now: currentTime,
       });
+      reply.header(
+        "Retry-After",
+        String(
+          getLoginRateLimitResetSeconds({
+            resetAt: failureEntry.resetAt,
+            now: currentTime,
+          }),
+        ),
+      );
 
       await recordFailedLoginAttempt({
         username: loginIdentifier,

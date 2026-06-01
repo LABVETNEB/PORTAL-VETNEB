@@ -58,6 +58,8 @@ export const BACKEND_OPERATION_ERROR_MESSAGE =
   "El backend no pudo completar la operación. Reintentá y, si persiste, revisá estado del sistema y logs de backend.";
 export const ADMIN_SCHEMA_HEALTH_UNAUTHORIZED_MESSAGE =
   "Sesión admin no autenticada o inválida. Iniciá sesión nuevamente.";
+export const LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE =
+  "Demasiados intentos de inicio de sesión. Intente más tarde.";
 
 function isLocalOrLanHostname(hostname: string): boolean {
   const normalizedHost = hostname.trim().toLowerCase();
@@ -154,6 +156,46 @@ function warnApiFallback(functionName: string, error: unknown): void {
   }
 }
 
+function readRetryAfterSeconds(headers: Headers): number | null {
+  const retryAfterValue =
+    headers.get("Retry-After") ?? headers.get("RateLimit-Reset");
+
+  if (!retryAfterValue) {
+    return null;
+  }
+
+  const retryAfterSeconds = Number.parseInt(retryAfterValue, 10);
+
+  if (!Number.isFinite(retryAfterSeconds) || retryAfterSeconds <= 0) {
+    return null;
+  }
+
+  return retryAfterSeconds;
+}
+
+function buildRateLimitErrorMessage(
+  backendMessage: string | null,
+  headers: Headers,
+): string {
+  const baseMessage = backendMessage ?? LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE;
+  const retryAfterSeconds = readRetryAfterSeconds(headers);
+
+  if (!retryAfterSeconds) {
+    return baseMessage;
+  }
+
+  if (retryAfterSeconds >= 60) {
+    const retryAfterMinutes = Math.ceil(retryAfterSeconds / 60);
+    const unit = retryAfterMinutes === 1 ? "minuto" : "minutos";
+
+    return `${baseMessage} Reintente en ${retryAfterMinutes} ${unit}.`;
+  }
+
+  const unit = retryAfterSeconds === 1 ? "segundo" : "segundos";
+
+  return `${baseMessage} Reintente en ${retryAfterSeconds} ${unit}.`;
+}
+
 async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
@@ -205,6 +247,10 @@ async function apiFetch<T>(
         : typeof body.message === "string" && body.message.trim()
           ? body.message
           : null;
+
+    if (res.status === 429) {
+      throw new Error(buildRateLimitErrorMessage(backendMessage, res.headers));
+    }
 
     if (backendMessage) {
       throw new Error(backendMessage);

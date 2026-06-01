@@ -12,6 +12,7 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 const { ENV } = await import("../server/lib/env.ts");
 const { AUDIT_EVENTS } = await import("../server/lib/audit.ts");
 const {
+  buildLoginRateLimitKey,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
 } = await import("../server/lib/login-rate-limit.ts");
 const {
@@ -1402,7 +1403,18 @@ test("clinicAuthNativeRoutes login fallido incrementa store persistente", async 
     });
 
     assert.equal(response.statusCode, 401);
-    assert.equal(rows.get(hashRateLimitKey("login:203.0.113.50"))?.count, 1);
+    assert.equal(
+      rows.get(
+        hashRateLimitKey(
+          buildLoginRateLimitKey({
+            surface: "clinic",
+            identifier: "vetneb",
+            ipAddress: "203.0.113.50",
+          }),
+        ),
+      )?.count,
+      1,
+    );
   } finally {
     await app.close();
   }
@@ -1469,6 +1481,64 @@ test("clinicAuthNativeRoutes bloquea login al superar límite persistente", asyn
     });
     assert.equal(third.headers["ratelimit-limit"], "2");
     assert.equal(third.headers["ratelimit-remaining"], "0");
+    assert.equal(third.headers["retry-after"], "60");
+  } finally {
+    await app.close();
+  }
+});
+
+test("clinicAuthNativeRoutes no agrupa identificadores distintos bajo la misma IP", async () => {
+  const currentTime = Date.UTC(2026, 4, 8, 0, 0, 0);
+  const { store } = createPersistentRateLimitStoreHarness({
+    now: () => currentTime,
+  });
+  const seenIdentifiers: string[] = [];
+
+  const app = await createTestApp({
+    now: () => currentTime,
+    loginRateLimitStore: store,
+    loginRateLimitWindowMs: 60_000,
+    loginRateLimitMaxAttempts: 1,
+    getAdminUserByIdentifier: async () => null,
+    getClinicUserByIdentifier: async (identifier: string) => {
+      seenIdentifiers.push(identifier);
+      return null;
+    },
+    getParticularTokenByTokenHash: async () => null,
+  });
+
+  try {
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      remoteAddress: "203.0.113.51",
+      payload: {
+        identifier: "clinica-a@example.test",
+        password: "bad-1",
+      },
+    });
+    const second = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+      remoteAddress: "203.0.113.51",
+      payload: {
+        identifier: "clinica-b@example.test",
+        password: "bad-2",
+      },
+    });
+
+    assert.equal(first.statusCode, 401);
+    assert.equal(second.statusCode, 401);
+    assert.deepEqual(seenIdentifiers, [
+      "clinica-a@example.test",
+      "clinica-b@example.test",
+    ]);
   } finally {
     await app.close();
   }
@@ -1605,7 +1675,18 @@ test("clinicAuthNativeRoutes reinicia ventana persistente cuando resetAt venció
     });
 
     assert.equal(second.statusCode, 401);
-    assert.equal(rows.get(hashRateLimitKey("login:203.0.113.53"))?.count, 1);
+    assert.equal(
+      rows.get(
+        hashRateLimitKey(
+          buildLoginRateLimitKey({
+            surface: "clinic",
+            identifier: "vetneb",
+            ipAddress: "203.0.113.53",
+          }),
+        ),
+      )?.count,
+      1,
+    );
   } finally {
     await secondApp.close();
   }
