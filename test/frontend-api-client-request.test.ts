@@ -16,6 +16,7 @@ test("frontend API client resolves backend base URL with explicit public safegua
   const source = read(API_CLIENT_PATH);
 
   assert.ok(source.includes("const LOCAL_DEVELOPMENT_API_BASE_URL = \"http://localhost:3000\";"));
+  assert.ok(source.includes('const SAME_ORIGIN_API_BASE_URL = "";'));
   assert.ok(source.includes("export const PUBLIC_API_CONFIGURATION_ERROR_MESSAGE ="));
   assert.ok(source.includes("El servicio público no está configurado para recibir solicitudes."));
   assert.ok(source.includes("export function resolveApiBaseUrlForRuntime("));
@@ -112,13 +113,24 @@ test("resolveApiBaseUrlForRuntime retorna NEXT_PUBLIC_API_URL normalizado cuando
   );
 });
 
-test("resolveApiBaseUrlForRuntime no retorna string vacío en producción con NEXT_PUBLIC_API_URL válido", () => {
+test("resolveApiBaseUrlForRuntime usa same-origin en browser para que rewrites preserven cookies de sesión", () => {
   const source = read(API_CLIENT_PATH);
 
-  assert.equal(
-    source.includes('return "";'),
-    false,
-    "no debe dejar base vacía cuando NEXT_PUBLIC_API_URL es válido",
+  assert.ok(
+    source.includes("const isBrowserRuntime ="),
+    "debe detectar runtime browser/server",
+  );
+  assert.ok(
+    source.includes('input.isBrowserRuntime ?? typeof window !== "undefined"'),
+    "debe permitir branch explícito de browser en tests y runtime",
+  );
+  assert.ok(
+    source.includes("if (isBrowserRuntime) {"),
+    "en browser debe usar base same-origin",
+  );
+  assert.ok(
+    source.includes("return SAME_ORIGIN_API_BASE_URL;"),
+    "en browser la base debe resolver al proxy same-origin",
   );
 });
 

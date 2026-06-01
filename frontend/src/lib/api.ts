@@ -48,6 +48,7 @@ import type {
 } from "@/types";
 
 const LOCAL_DEVELOPMENT_API_BASE_URL = "http://localhost:3000";
+const SAME_ORIGIN_API_BASE_URL = "";
 
 export const PUBLIC_API_CONFIGURATION_ERROR_MESSAGE =
   "El servicio público no está configurado para recibir solicitudes. Contacte a VETNEB por los canales oficiales.";
@@ -79,12 +80,15 @@ function normalizeApiBaseUrl(value: string): string {
 export function resolveApiBaseUrlForRuntime(input: {
   nodeEnv?: string;
   nextPublicApiUrl?: string;
+  isBrowserRuntime?: boolean;
 } = {}): string {
   const nodeEnv = input.nodeEnv ?? process.env.NODE_ENV ?? "development";
   const nextPublicApiUrl = (
     input.nextPublicApiUrl ?? process.env.NEXT_PUBLIC_API_URL ?? ""
   ).trim();
   const isDevelopment = nodeEnv === "development";
+  const isBrowserRuntime =
+    input.isBrowserRuntime ?? typeof window !== "undefined";
 
   if (!nextPublicApiUrl) {
     if (isDevelopment) {
@@ -104,6 +108,12 @@ export function resolveApiBaseUrlForRuntime(input: {
 
   if (!isDevelopment && isLocalOrLanHostname(parsedUrl.hostname)) {
     throw new Error(PUBLIC_API_CONFIGURATION_ERROR_MESSAGE);
+  }
+
+  // In browser runtime we intentionally keep API calls same-origin so Next rewrites
+  // can proxy `/api/*` and session cookies stay bound to the frontend host.
+  if (isBrowserRuntime) {
+    return SAME_ORIGIN_API_BASE_URL;
   }
 
   return normalizeApiBaseUrl(nextPublicApiUrl);
