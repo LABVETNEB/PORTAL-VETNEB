@@ -55,6 +55,46 @@ test("staging smoke script contains authenticated endpoints", () => {
   }
 });
 
+test("staging smoke script forces json body for logout endpoints", () => {
+  const source = readSource(SCRIPT_PATH);
+
+  assert.match(
+    source,
+    /\$adminLogout[\s\S]*?\/api\/admin\/auth\/logout[\s\S]*?-BodyObject @\{\}/,
+    "admin logout must include -BodyObject @{}",
+  );
+  assert.match(
+    source,
+    /\$clinicLogout[\s\S]*?\/api\/auth\/logout[\s\S]*?-BodyObject @\{\}/,
+    "clinic logout must include -BodyObject @{}",
+  );
+  assert.match(
+    source,
+    /\$particularLogout[\s\S]*?\/api\/particular\/auth\/logout[\s\S]*?-BodyObject @\{\}/,
+    "particular logout must include -BodyObject @{}",
+  );
+});
+
+test("staging smoke script accepts 409 for particular report urls", () => {
+  const source = readSource(SCRIPT_PATH);
+
+  assert.match(
+    source,
+    /\$particularPreviewUrl[\s\S]*?\/api\/particular\/auth\/report\/preview-url[\s\S]*?-ExpectedStatusCodes @\(200, 409\)/,
+    "particular preview url must accept HTTP 200 and 409",
+  );
+  assert.match(
+    source,
+    /\$particularDownloadUrl[\s\S]*?\/api\/particular\/auth\/report\/download-url[\s\S]*?-ExpectedStatusCodes @\(200, 409\)/,
+    "particular download url must accept HTTP 200 and 409",
+  );
+  assertContains(
+    source,
+    "HTTP 409 sin informe vinculado",
+    "particular report url checks must document unlinked report token state",
+  );
+});
+
 test("staging smoke script validates bad origin rejection", () => {
   const source = readSource(SCRIPT_PATH);
 

@@ -558,6 +558,7 @@ if ($hasAdminCreds) {
     -Retries $Retries `
     -ExpectedStatusCodes @(200) `
     -RequestHeaders @{ Origin = $FrontendUrl } `
+    -BodyObject @{} `
     -WebSession $adminSession
 
   Add-CheckResult -Name "Admin logout (/api/admin/auth/logout)" -Status ($(if ($adminLogout.Success) { "OK" } else { "FAIL" })) -Required $true -Detail ($(if ($adminLogout.Success) { "HTTP 200" } else { "Esperado HTTP 200. " + $adminLogout.Error }))
@@ -616,7 +617,7 @@ if ($hasClinicCreds) {
   $clinicParticularTokens = Invoke-SmokeRequest -Method "GET" -Url "$BackendUrl/api/particular-tokens?limit=10&offset=0" -TimeoutSec $TimeoutSec -Retries $Retries -ExpectedStatusCodes @(200) -RequestHeaders @{ Origin = $FrontendUrl } -WebSession $clinicSession
   Add-CheckResult -Name "Clinic particular tokens list (/api/particular-tokens?limit=10&offset=0)" -Status ($(if ($clinicParticularTokens.Success) { "OK" } else { "FAIL" })) -Required $true -Detail ($(if ($clinicParticularTokens.Success) { "HTTP 200" } else { "Esperado HTTP 200. " + $clinicParticularTokens.Error }))
 
-  $clinicLogout = Invoke-SmokeRequest -Method "POST" -Url "$BackendUrl/api/auth/logout" -TimeoutSec $TimeoutSec -Retries $Retries -ExpectedStatusCodes @(200) -RequestHeaders @{ Origin = $FrontendUrl } -WebSession $clinicSession
+  $clinicLogout = Invoke-SmokeRequest -Method "POST" -Url "$BackendUrl/api/auth/logout" -TimeoutSec $TimeoutSec -Retries $Retries -ExpectedStatusCodes @(200) -RequestHeaders @{ Origin = $FrontendUrl } -BodyObject @{} -WebSession $clinicSession
   Add-CheckResult -Name "Clinic logout (/api/auth/logout)" -Status ($(if ($clinicLogout.Success) { "OK" } else { "FAIL" })) -Required $true -Detail ($(if ($clinicLogout.Success) { "HTTP 200" } else { "Esperado HTTP 200. " + $clinicLogout.Error }))
 } else {
   Mark-CredentialCheckSkipSet -CheckNames @(
@@ -651,9 +652,11 @@ if ($hasParticularToken) {
   $particularMe = Invoke-SmokeRequest -Method "GET" -Url "$BackendUrl/api/particular/auth/me" -TimeoutSec $TimeoutSec -Retries $Retries -ExpectedStatusCodes @(200) -RequestHeaders @{ Origin = $FrontendUrl } -WebSession $particularSession
   Add-CheckResult -Name "Particular me (/api/particular/auth/me)" -Status ($(if ($particularMe.Success) { "OK" } else { "FAIL" })) -Required $true -Detail ($(if ($particularMe.Success) { "HTTP 200" } else { "Esperado HTTP 200. " + $particularMe.Error }))
 
-  $particularPreviewUrl = Invoke-SmokeRequest -Method "GET" -Url "$BackendUrl/api/particular/auth/report/preview-url" -TimeoutSec $TimeoutSec -Retries $Retries -ExpectedStatusCodes @(200) -RequestHeaders @{ Origin = $FrontendUrl } -WebSession $particularSession
+  $particularPreviewUrl = Invoke-SmokeRequest -Method "GET" -Url "$BackendUrl/api/particular/auth/report/preview-url" -TimeoutSec $TimeoutSec -Retries $Retries -ExpectedStatusCodes @(200, 409) -RequestHeaders @{ Origin = $FrontendUrl } -WebSession $particularSession
   if (-not $particularPreviewUrl.Success) {
-    Add-CheckResult -Name "Particular report preview (/api/particular/auth/report/preview-url)" -Status "FAIL" -Required $true -Detail ("Esperado HTTP 200. " + $particularPreviewUrl.Error)
+    Add-CheckResult -Name "Particular report preview (/api/particular/auth/report/preview-url)" -Status "FAIL" -Required $true -Detail ("Esperado HTTP 200 o 409. " + $particularPreviewUrl.Error)
+  } elseif ($particularPreviewUrl.StatusCode -eq 409) {
+    Add-CheckResult -Name "Particular report preview (/api/particular/auth/report/preview-url)" -Status "OK" -Required $true -Detail "HTTP 409 sin informe vinculado"
   } else {
     $previewPresent = $false
     if ($null -ne $particularPreviewUrl.Json -and $null -ne $particularPreviewUrl.Json.previewUrl) {
@@ -662,9 +665,11 @@ if ($hasParticularToken) {
     Add-CheckResult -Name "Particular report preview (/api/particular/auth/report/preview-url)" -Status "OK" -Required $true -Detail ("HTTP 200 signedUrl=" + ($(if ($previewPresent) { "present" } else { "missing" })))
   }
 
-  $particularDownloadUrl = Invoke-SmokeRequest -Method "GET" -Url "$BackendUrl/api/particular/auth/report/download-url" -TimeoutSec $TimeoutSec -Retries $Retries -ExpectedStatusCodes @(200) -RequestHeaders @{ Origin = $FrontendUrl } -WebSession $particularSession
+  $particularDownloadUrl = Invoke-SmokeRequest -Method "GET" -Url "$BackendUrl/api/particular/auth/report/download-url" -TimeoutSec $TimeoutSec -Retries $Retries -ExpectedStatusCodes @(200, 409) -RequestHeaders @{ Origin = $FrontendUrl } -WebSession $particularSession
   if (-not $particularDownloadUrl.Success) {
-    Add-CheckResult -Name "Particular report download (/api/particular/auth/report/download-url)" -Status "FAIL" -Required $true -Detail ("Esperado HTTP 200. " + $particularDownloadUrl.Error)
+    Add-CheckResult -Name "Particular report download (/api/particular/auth/report/download-url)" -Status "FAIL" -Required $true -Detail ("Esperado HTTP 200 o 409. " + $particularDownloadUrl.Error)
+  } elseif ($particularDownloadUrl.StatusCode -eq 409) {
+    Add-CheckResult -Name "Particular report download (/api/particular/auth/report/download-url)" -Status "OK" -Required $true -Detail "HTTP 409 sin informe vinculado"
   } else {
     $downloadPresent = $false
     if ($null -ne $particularDownloadUrl.Json -and $null -ne $particularDownloadUrl.Json.downloadUrl) {
@@ -673,7 +678,7 @@ if ($hasParticularToken) {
     Add-CheckResult -Name "Particular report download (/api/particular/auth/report/download-url)" -Status "OK" -Required $true -Detail ("HTTP 200 signedUrl=" + ($(if ($downloadPresent) { "present" } else { "missing" })))
   }
 
-  $particularLogout = Invoke-SmokeRequest -Method "POST" -Url "$BackendUrl/api/particular/auth/logout" -TimeoutSec $TimeoutSec -Retries $Retries -ExpectedStatusCodes @(200) -RequestHeaders @{ Origin = $FrontendUrl } -WebSession $particularSession
+  $particularLogout = Invoke-SmokeRequest -Method "POST" -Url "$BackendUrl/api/particular/auth/logout" -TimeoutSec $TimeoutSec -Retries $Retries -ExpectedStatusCodes @(200) -RequestHeaders @{ Origin = $FrontendUrl } -BodyObject @{} -WebSession $particularSession
   Add-CheckResult -Name "Particular logout (/api/particular/auth/logout)" -Status ($(if ($particularLogout.Success) { "OK" } else { "FAIL" })) -Required $true -Detail ($(if ($particularLogout.Success) { "HTTP 200" } else { "Esperado HTTP 200. " + $particularLogout.Error }))
 } else {
   Mark-CredentialCheckSkipSet -CheckNames @(
