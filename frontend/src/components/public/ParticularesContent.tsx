@@ -439,10 +439,10 @@ export function ParticularesContent() {
                         onClick={handlePasteToken}
                         disabled={isSubmitting || isPasting}
                         className="mt-2 w-full public-cta-outline text-sm"
-                        aria-label="Pegar token del portapapeles"
+                        aria-label="Pegar token"
                       >
                         <Clipboard className="h-4 w-4" aria-hidden="true" />
-                        {isPasting ? "Pegando..." : "Pegar desde portapapeles"}
+                        {isPasting ? "Pegando..." : "Pegar token"}
                       </Button>
                     ) : null}
                   </div>

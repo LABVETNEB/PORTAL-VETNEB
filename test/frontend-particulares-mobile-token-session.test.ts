@@ -68,7 +68,7 @@ test("particulares content incluye soporte de pegado desde portapapeles", () => 
     "debe definir handlePasteToken",
   );
   assert.ok(
-    source.includes("Pegar desde portapapeles"),
+    source.includes("Pegar token"),
     "debe tener label visible del botón de pegado",
   );
   assert.ok(
@@ -195,4 +195,61 @@ test("particulares content mantiene invariante de sesión separada por rol", () 
   assert.equal(source.includes("useRouter"), false);
   assert.equal(source.includes("useSearchParams"), false);
   assert.equal(source.includes("ROUTES.dashboard"), false);
+});
+
+// ─── Guardrails: botón Pegar token y clipboard seguro ────────────────────────────────
+
+test("guardrail: portal particular muestra Pegar token y no Pegar desde portapapeles", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(
+    source.includes("Pegar token"),
+    "botón de pegado debe mostrar 'Pegar token'",
+  );
+  assert.equal(
+    source.includes("Pegar desde portapapeles"),
+    false,
+    "texto anterior 'Pegar desde portapapeles' no debe existir (reemplazado por 'Pegar token')",
+  );
+  assert.ok(
+    source.includes('aria-label="Pegar token"'),
+    "aria-label del botón debe ser 'Pegar token'",
+  );
+});
+
+test("guardrail: portal conserva navigator.clipboard?.readText?.() con doble optional chaining", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(
+    source.includes("navigator.clipboard?.readText?.()"),
+    "la lectura de clipboard debe usar doble optional chaining para evitar excepciones en entornos sin soporte",
+  );
+});
+
+test("guardrail: clipboard no se lee en useEffect solo bajo gesto del usuario", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  // Un capability check dentro de useEffect es válido:
+  //   typeof navigator.clipboard?.readText === "function"
+  // Una llamada real (readText?.() o readText()) dentro de useEffect no lo es.
+  const useEffectBlocks = source.split("useEffect(");
+  for (let i = 1; i < useEffectBlocks.length; i++) {
+    const block = useEffectBlocks[i].slice(0, 400);
+    const hasRealCall =
+      block.includes("readText?.()") || block.includes("readText()");
+    assert.equal(
+      hasRealCall,
+      false,
+      "readText no debe llamarse (readText?.() o readText()) dentro de un useEffect; " +
+        "solo capability check (typeof ... readText === \"function\") está permitida",
+    );
+  }
+  assert.ok(
+    source.includes("onClick={handlePasteToken}"),
+    "handlePasteToken debe estar en onClick para que la lectura real sea bajo gesto del usuario",
+  );
+  assert.ok(
+    source.includes("navigator.clipboard?.readText?.()"),
+    "la llamada real al clipboard debe ocurrir con doble optional chaining en el handler",
+  );
 });
