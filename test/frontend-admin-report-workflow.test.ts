@@ -4,12 +4,13 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
-const CARD_PATH =
-  "frontend/src/components/dashboard/AdminReportWorkflowViewerCard.tsx";
-const ADMIN_PARTICULAR_TOKENS_CARD_PATH =
-  "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
+const TOPBAR_PATH = "frontend/src/components/dashboard/DashboardTopbar.tsx";
 const SIDEBAR_PATH =
   "frontend/src/components/dashboard/AdminDashboardSidebar.tsx";
+const ADMIN_PARTICULAR_TOKENS_CARD_PATH =
+  "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
+const BELL_PATH =
+  "frontend/src/components/dashboard/DashboardNotificationsBell.tsx";
 const API_PATH = "frontend/src/lib/api.ts";
 
 function read(relativePath: string): string {
@@ -19,99 +20,101 @@ function read(relativePath: string): string {
   );
 }
 
-test("dashboard Admin integra la tarjeta de seguimiento sin retirar la carga PDF", () => {
+test("dashboard admin elimina la sección de seguimiento redundante sin tocar la carga de informes", () => {
   const page = read(PAGE_PATH);
 
-  assert.ok(
+  assert.equal(
     page.includes(
       'import { AdminReportWorkflowViewerCard } from "@/components/dashboard/AdminReportWorkflowViewerCard";',
     ),
+    false,
   );
-  assert.ok(page.includes('id="admin-report-workflow"'));
-  assert.ok(page.includes("<AdminReportWorkflowViewerCard />"));
-  assert.ok(page.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'));
+  assert.equal(page.includes('id="admin-report-workflow"'), false);
+  assert.equal(page.includes("<AdminReportWorkflowViewerCard />"), false);
+  assert.ok(
+    page.includes(
+      'import { UploadReportModal } from "@/components/dashboard/UploadReportModal";',
+    ),
+  );
   assert.ok(page.includes("<UploadReportModal />"));
 });
 
-test("sidebar Admin enlaza al seguimiento de informes renderizado", () => {
+test("sidebar admin no muestra seguimiento de informes y conserva anclas operativas", () => {
   const sidebar = read(SIDEBAR_PATH);
-  const page = read(PAGE_PATH);
 
-  assert.ok(sidebar.includes('label: "Seguimiento de informes"'));
-  assert.ok(
-    sidebar.includes('href: `${ROUTES.dashboardAdmin}#admin-report-workflow`'),
-  );
-  assert.ok(page.includes('id="admin-report-workflow"'));
-  assert.ok(page.includes("<AdminReportWorkflowViewerCard />"));
+  assert.equal(sidebar.includes('label: "Seguimiento de informes"'), false);
+  assert.equal(sidebar.includes("#admin-report-workflow"), false);
+  assert.ok(sidebar.includes('label: "Tokens particulares"'));
+  assert.ok(sidebar.includes('label: "Auditoría"'));
 });
 
-test("tarjeta presenta cinco etapas globales y tinción especial como alerta aparte", () => {
-  const card = read(CARD_PATH);
-  const stagesStart = card.indexOf("const WORKFLOW_STAGES");
-  const stagesEnd = card.indexOf("];", stagesStart);
-  const stages = card.slice(stagesStart, stagesEnd);
-
-  for (const stage of [
-    "Recepción de muestra",
-    "Procesamiento",
-    "Evaluación",
-    "Desarrollo de informe",
-    "Informe disponible / Publicado",
-  ]) {
-    assert.ok(stages.includes(stage), `debe mostrar ${stage}`);
-  }
-
-  assert.equal(stages.includes("tinción"), false);
-  assert.ok(card.includes("Seguimiento de informes"));
-  assert.ok(card.includes("Alerta tinción especial"));
-  assert.ok(card.includes("Solicitar"));
-  assert.ok(card.includes("Resolver"));
-  assert.ok(card.includes("Reporte / token"));
-  assert.equal(card.includes("citologia"), false);
-  assert.equal(card.includes("histopatologia"), false);
-  assert.equal(card.includes("hemoparasitos"), false);
-});
-
-test("tarjeta y cliente API soportan paginación y mutaciones manuales", () => {
-  const card = read(CARD_PATH);
-  const api = read(API_PATH);
-
-  assert.ok(card.includes("const PAGE_LIMIT = 20;"));
-  assert.ok(card.includes("limit: PAGE_LIMIT"));
-  assert.ok(card.includes("Anterior"));
-  assert.ok(card.includes("Siguiente"));
-  assert.ok(card.includes("handleStageChange"));
-  assert.ok(card.includes("handleSpecialStainChange"));
-  assert.ok(api.includes("export async function getAdminStudyTrackingCases("));
-  assert.ok(api.includes("export async function updateAdminStudyTrackingCase("));
-  assert.ok(api.includes("`/api/admin/study-tracking${qs ? `?${qs}` : \"\"}`"));
-  assert.ok(api.includes("`/api/admin/study-tracking/${trackingCaseId}`"));
-  assert.ok(api.includes('credentials: options.credentials ?? "include",'));
-});
-
-test("admin tokens card permite cambiar etapa de seguimiento desde la card", () => {
+test("admin tokens card permite solicitar y resolver tinción especial por tracking case", () => {
   const card = read(ADMIN_PARTICULAR_TOKENS_CARD_PATH);
 
-  assert.ok(card.includes("updateAdminStudyTrackingCase"));
-  assert.ok(card.includes("Cambiar etapa del seguimiento"));
-  assert.ok(card.includes('id={`admin-tracking-stage-${trackingCase.id}`}'));
-  assert.ok(card.includes("value={trackingCase.currentStage}"));
+  assert.ok(card.includes("handleSpecialStainChange("));
   assert.ok(card.includes("updateAdminStudyTrackingCase(trackingCase.id, {"));
-  assert.ok(card.includes("currentStage: nextStage"));
-  assert.ok(card.includes("No se pudo cambiar la etapa del seguimiento."));
+  assert.ok(card.includes("specialStainRequired: !trackingCase.specialStainRequired"));
+  assert.ok(card.includes("Solicitar tinción especial"));
+  assert.ok(card.includes("Resolver tinción especial"));
+  assert.ok(card.includes("Alerta: Solicitud de tinción especial"));
+  assert.ok(card.includes("Sin alerta de tinción especial"));
+  assert.ok(card.includes("No se pudo actualizar la alerta de tinción especial."));
   assert.ok(card.includes("[tokenId]: response.trackingCase"));
 });
 
-test("admin tokens card reutiliza las cinco etapas de seguimiento", () => {
-  const card = read(ADMIN_PARTICULAR_TOKENS_CARD_PATH);
+test("dashboard topbar soporta notifications='admin' y monta la campana", () => {
+  const topbar = read(TOPBAR_PATH);
+  const page = read(PAGE_PATH);
 
-  for (const stage of [
-    "Recepción de muestra",
-    "Procesamiento",
-    "Evaluación",
-    "Desarrollo de informe",
-    "Informe disponible / Publicado",
-  ]) {
-    assert.ok(card.includes(stage), `debe incluir la etapa ${stage}`);
-  }
+  assert.ok(
+    topbar.includes(
+      'import { DashboardNotificationsBell } from "./DashboardNotificationsBell";',
+    ),
+  );
+  assert.ok(topbar.includes('notifications?: "admin" | false;'));
+  assert.ok(topbar.includes("notifications = false,"));
+  assert.ok(
+    topbar.includes(
+      '{notifications === "admin" ? <DashboardNotificationsBell /> : null}',
+    ),
+  );
+  assert.ok(page.includes('notifications="admin"'));
+});
+
+test("campana de notificaciones admin existe con UX in-app y polling", () => {
+  const bell = read(BELL_PATH);
+
+  assert.ok(bell.includes('"use client";'));
+  assert.ok(bell.includes('import { Bell } from "lucide-react";'));
+  assert.ok(bell.includes("aria-label=\"Notificaciones\""));
+  assert.ok(bell.includes("Notificaciones"));
+  assert.ok(bell.includes("Activar notificaciones"));
+  assert.ok(bell.includes("Actualizar"));
+  assert.ok(bell.includes("No hay notificaciones."));
+  assert.ok(bell.includes("No se pudieron cargar las notificaciones."));
+  assert.ok(bell.includes("POLLING_INTERVAL_MS = 30_000"));
+  assert.ok(bell.includes("window.setInterval(() => {"));
+  assert.ok(bell.includes("window.clearInterval(intervalId);"));
+});
+
+test("campana usa API de notificaciones admin para listar y marcar leídas", () => {
+  const bell = read(BELL_PATH);
+
+  assert.ok(bell.includes("getAdminStudyTrackingNotifications("));
+  assert.ok(bell.includes("markAdminStudyTrackingNotificationRead("));
+  assert.ok(bell.includes("setNotifications(response.notifications);"));
+  assert.ok(bell.includes("response.notification"));
+});
+
+test("api frontend expone funciones de notificaciones admin", () => {
+  const api = read(API_PATH);
+
+  assert.ok(api.includes("export type AdminStudyTrackingNotificationSummary = {"));
+  assert.ok(api.includes("export async function getAdminStudyTrackingNotifications("));
+  assert.ok(api.includes("unreadOnly?: boolean;"));
+  assert.ok(api.includes("`/api/admin/study-tracking/notifications${qs ? `?${qs}` : \"\"}`"));
+  assert.ok(api.includes("export async function markAdminStudyTrackingNotificationRead("));
+  assert.ok(api.includes("`/api/admin/study-tracking/notifications/${notificationId}/read`"));
+  assert.ok(api.includes("export async function markAllAdminStudyTrackingNotificationsRead("));
+  assert.ok(api.includes('"/api/admin/study-tracking/notifications/read-all"'));
 });

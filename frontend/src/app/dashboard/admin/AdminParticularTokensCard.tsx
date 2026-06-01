@@ -656,6 +656,36 @@ export function AdminParticularTokensCard() {
     }
   }
 
+  async function handleSpecialStainChange(
+    tokenId: number,
+    trackingCase: AdminStudyTrackingCaseSummary,
+  ) {
+    setErrorMessage(null);
+    setUpdatingTrackingCaseIds((current) => ({
+      ...current,
+      [trackingCase.id]: true,
+    }));
+
+    try {
+      const response = await updateAdminStudyTrackingCase(trackingCase.id, {
+        specialStainRequired: !trackingCase.specialStainRequired,
+      });
+
+      setTrackingCasesByTokenId((current) => ({
+        ...current,
+        [tokenId]: response.trackingCase,
+      }));
+    } catch {
+      setErrorMessage("No se pudo actualizar la alerta de tinción especial.");
+    } finally {
+      setUpdatingTrackingCaseIds((current) => {
+        const next = { ...current };
+        delete next[trackingCase.id];
+        return next;
+      });
+    }
+  }
+
   return (
     <Card className="dashboard-surface">
       <CardHeader className="border-b border-vetneb-line/70">
@@ -1258,6 +1288,20 @@ export function AdminParticularTokensCard() {
                               ? "Alerta: Solicitud de tinción especial"
                               : "Sin alerta de tinción especial"}
                           </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 w-full"
+                            onClick={() =>
+                              void handleSpecialStainChange(token.id, trackingCase)
+                            }
+                            disabled={isUpdatingTrackingCase}
+                          >
+                            {trackingCase.specialStainRequired
+                              ? "Resolver tinción especial"
+                              : "Solicitar tinción especial"}
+                          </Button>
                         </>
                       ) : (
                         <p className="mt-1 text-xs text-muted-foreground">

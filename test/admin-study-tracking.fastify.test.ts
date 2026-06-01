@@ -135,6 +135,11 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     listStudyTrackingCases: async () => [createTrackingCaseFixture()],
     createStudyTrackingNotification: async () => createNotificationFixture(),
     listStudyTrackingNotifications: async () => [createNotificationFixture()],
+    markStudyTrackingNotificationRead: async () => createNotificationFixture({
+      isRead: true,
+      readAt: new Date("2026-04-21T12:00:00.000Z"),
+    }),
+    markAllStudyTrackingNotificationsRead: async () => ({ updatedCount: 1 }),
     sendSpecialStainRequiredEmail: async () => ({ sent: true }),
     writeAuditLog: async () => {},
     now: () => new Date("2026-04-24T00:00:00.000Z").getTime(),
@@ -180,6 +185,75 @@ test("adminStudyTrackingNativeRoutes expone GET /notifications con filtros admin
     assert.equal(body.notifications[0].clinicId, 3);
     assert.equal(body.pagination.limit, 5);
     assert.equal(body.pagination.offset, 2);
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminStudyTrackingNativeRoutes expone PATCH /notifications/:notificationId/read y marca leída", async () => {
+  const markCalls: number[] = [];
+  const readAt = new Date("2026-04-21T12:00:00.000Z");
+  const app = await createTestApp({
+    markStudyTrackingNotificationRead: async (notificationId: number) => {
+      markCalls.push(notificationId);
+      return createNotificationFixture({
+        id: notificationId,
+        isRead: true,
+        readAt,
+      });
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/admin/study-tracking/notifications/21/read",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(markCalls, [21]);
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.success, true);
+    assert.equal(body.notification.id, 21);
+    assert.equal(body.notification.isRead, true);
+    assert.equal(body.notification.readAt, readAt.toISOString());
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminStudyTrackingNativeRoutes expone PATCH /notifications/read-all y marca todas", async () => {
+  const markAllCalls: Array<Record<string, unknown>> = [];
+  const app = await createTestApp({
+    markAllStudyTrackingNotificationsRead: async (
+      params?: Record<string, unknown>,
+    ) => {
+      markAllCalls.push(params ?? {});
+      return { updatedCount: 4 };
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/admin/study-tracking/notifications/read-all?clinicId=3",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(markAllCalls, [{ clinicId: 3 }]);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: true,
+      updatedCount: 4,
+    });
   } finally {
     await app.close();
   }
@@ -624,4 +698,54 @@ test("adminStudyTrackingNativeRoutes actualiza PATCH /:trackingCaseId y notifica
   }
 });
 
+test("adminStudyTrackingNativeRoutes notifica special_stain_resolved cuando la alerta pasa a false", async () => {
+  const notificationCalls: Array<Record<string, unknown>> = [];
+  const current = createTrackingCaseFixture({
+    currentStage: "evaluation",
+    specialStainRequired: true,
+    specialStainNotifiedAt: new Date("2026-04-20T13:30:00.000Z"),
+  });
+  const updated = createTrackingCaseFixture({
+    currentStage: "evaluation",
+    specialStainRequired: false,
+    specialStainNotifiedAt: new Date("2026-04-20T13:30:00.000Z"),
+  });
 
+  const app = await createTestApp({
+    getClinicScopedStudyTrackingCase: async () => current,
+    updateStudyTrackingCase: async () => updated,
+    createStudyTrackingNotification: async (input: Record<string, unknown>) => {
+      notificationCalls.push(input);
+      return createNotificationFixture({ id: 61, ...input });
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/admin/study-tracking/11",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        clinicId: 3,
+        specialStainRequired: false,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(notificationCalls.length, 1);
+    assert.equal(notificationCalls[0].type, "special_stain_resolved");
+    assert.equal(notificationCalls[0].title, "Tinción especial resuelta");
+    assert.equal(
+      notificationCalls[0].message,
+      "La solicitud de tinción especial fue resuelta.",
+    );
+    assert.equal(notificationCalls[0].isRead, false);
+    assert.equal(notificationCalls[0].readAt, null);
+  } finally {
+    await app.close();
+  }
+});

@@ -4,7 +4,12 @@ import type {
   FastifyRequest,
 } from "fastify";
 
-import type { ParticularToken, Report, StudyTrackingCase } from "../../drizzle/schema.ts";
+import type {
+  ParticularToken,
+  Report,
+  StudyTrackingCase,
+  StudyTrackingNotification,
+} from "../../drizzle/schema.ts";
 import { ENV } from "../lib/env.ts";
 import {
   adminCreateParticularTokenSchema,
@@ -124,6 +129,17 @@ export type AdminParticularTokensNativeRoutesOptions = {
     id: number,
     input: Partial<Omit<StudyTrackingCase, "id" | "createdAt" | "updatedAt">>,
   ) => Promise<StudyTrackingCase | null | undefined>;
+  createStudyTrackingNotification?: (input: {
+    studyTrackingCaseId: number;
+    clinicId: number;
+    reportId: number | null;
+    particularTokenId: number | null;
+    type: string;
+    title: string;
+    message: string;
+    isRead: boolean;
+    readAt: Date | null;
+  }) => Promise<StudyTrackingNotification>;
   now?: () => number;
 };
 
@@ -156,6 +172,7 @@ type NativeAdminParticularTokensDeps = Required<
     | "getStudyTrackingCaseByReportId"
     | "createStudyTrackingCase"
     | "updateStudyTrackingCase"
+    | "createStudyTrackingNotification"
   >
 >;
 
@@ -192,6 +209,8 @@ async function loadDefaultDeps(): Promise<NativeAdminParticularTokensDeps> {
           dbStudyTracking.getStudyTrackingCaseByReportId,
         createStudyTrackingCase: dbStudyTracking.createStudyTrackingCase,
         updateStudyTrackingCase: dbStudyTracking.updateStudyTrackingCase,
+        createStudyTrackingNotification:
+          dbStudyTracking.createStudyTrackingNotification,
       };
     })();
   }
@@ -508,7 +527,8 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
     !!options.getParticularStudyTrackingCase &&
     !!options.getStudyTrackingCaseByReportId &&
     !!options.createStudyTrackingCase &&
-    !!options.updateStudyTrackingCase;
+    !!options.updateStudyTrackingCase &&
+    !!options.createStudyTrackingNotification;
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -554,6 +574,9 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       options.createStudyTrackingCase ?? defaultDeps!.createStudyTrackingCase,
     updateStudyTrackingCase:
       options.updateStudyTrackingCase ?? defaultDeps!.updateStudyTrackingCase,
+    createStudyTrackingNotification:
+      options.createStudyTrackingNotification ??
+      defaultDeps!.createStudyTrackingNotification,
   };
 
   const now = options.now ?? (() => Date.now());
@@ -562,9 +585,9 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
   async function ensureTrackingForToken(
     token: ParticularToken,
     createdByAdminId: number | null,
-  ) {
+  ): Promise<StudyTrackingCase | null> {
     try {
-      await ensureStudyTrackingCaseForToken(
+      return await ensureStudyTrackingCaseForToken(
         {
           getParticularStudyTrackingCase: deps.getParticularStudyTrackingCase,
           getStudyTrackingCaseByReportId: deps.getStudyTrackingCaseByReportId,
@@ -584,6 +607,7 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
         clinicId: token.clinicId,
         errorName: getSafeErrorName(error),
       });
+      return null;
     }
   }
 
@@ -769,7 +793,30 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    await ensureTrackingForToken(particularToken, admin.id);
+    const trackingCase = await ensureTrackingForToken(particularToken, admin.id);
+
+    if (trackingCase) {
+      try {
+        await deps.createStudyTrackingNotification({
+          studyTrackingCaseId: trackingCase.id,
+          clinicId: particularToken.clinicId,
+          reportId:
+            particularToken.reportId ?? trackingCase.reportId ?? null,
+          particularTokenId: particularToken.id,
+          type: "token_created",
+          title: "Token particular generado",
+          message: `Se generó un token particular para ${particularToken.petName}.`,
+          isRead: false,
+          readAt: null,
+        });
+      } catch (error) {
+        console.error("[TRACKING] notification token_created failed", {
+          tokenId: particularToken.id,
+          trackingCaseId: trackingCase.id,
+          errorName: getSafeErrorName(error),
+        });
+      }
+    }
 
     return reply.code(201).send({
       success: true,

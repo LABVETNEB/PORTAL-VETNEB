@@ -848,6 +848,95 @@ export async function updateAdminStudyTrackingCase(
   );
 }
 
+export type AdminStudyTrackingNotificationSummary = {
+  id: number;
+  studyTrackingCaseId: number;
+  clinicId: number;
+  reportId: number | null;
+  particularTokenId: number | null;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export type AdminStudyTrackingNotificationsSnapshot = {
+  success: true;
+  count: number;
+  notifications: AdminStudyTrackingNotificationSummary[];
+  pagination: {
+    limit: number;
+    offset: number;
+  };
+};
+
+export type AdminStudyTrackingNotificationReadResponse = {
+  success: true;
+  notification: AdminStudyTrackingNotificationSummary;
+};
+
+export type AdminStudyTrackingNotificationsReadAllResponse = {
+  success: true;
+  updatedCount: number;
+};
+
+export async function getAdminStudyTrackingNotifications(
+  params: {
+    unreadOnly?: boolean;
+    limit?: number;
+    offset?: number;
+  } = {},
+  options?: RequestInit,
+): Promise<AdminStudyTrackingNotificationsSnapshot> {
+  const query = new URLSearchParams();
+
+  if (typeof params.unreadOnly === "boolean") {
+    query.set("unreadOnly", String(params.unreadOnly));
+  }
+
+  if (typeof params.limit === "number") {
+    query.set("limit", String(params.limit));
+  }
+
+  if (typeof params.offset === "number") {
+    query.set("offset", String(params.offset));
+  }
+
+  const qs = query.toString();
+
+  return apiFetch<AdminStudyTrackingNotificationsSnapshot>(
+    `/api/admin/study-tracking/notifications${qs ? `?${qs}` : ""}`,
+    options,
+  );
+}
+
+export async function markAdminStudyTrackingNotificationRead(
+  notificationId: number,
+  options?: RequestInit,
+): Promise<AdminStudyTrackingNotificationReadResponse> {
+  return apiFetch<AdminStudyTrackingNotificationReadResponse>(
+    `/api/admin/study-tracking/notifications/${notificationId}/read`,
+    {
+      ...options,
+      method: "PATCH",
+    },
+  );
+}
+
+export async function markAllAdminStudyTrackingNotificationsRead(
+  options?: RequestInit,
+): Promise<AdminStudyTrackingNotificationsReadAllResponse> {
+  return apiFetch<AdminStudyTrackingNotificationsReadAllResponse>(
+    "/api/admin/study-tracking/notifications/read-all",
+    {
+      ...options,
+      method: "PATCH",
+    },
+  );
+}
+
 export type ClinicStudyTrackingCaseSummary = AdminStudyTrackingCaseSummary;
 
 export type ClinicStudyTrackingSnapshot = {

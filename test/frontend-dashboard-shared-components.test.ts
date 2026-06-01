@@ -31,11 +31,28 @@ test("dashboard topbar keeps typed title and optional subtitle props", () => {
   assert.ok(source.includes("interface DashboardTopbarProps"));
   assert.ok(source.includes("title: string;"));
   assert.ok(source.includes("subtitle?: string;"));
-  assert.ok(source.includes("export function DashboardTopbar({ title, subtitle }: DashboardTopbarProps)"));
+  assert.ok(source.includes('notifications?: "admin" | false;'));
+  assert.ok(source.includes("notifications = false,"));
+  assert.ok(source.includes("export function DashboardTopbar({"));
   assert.ok(source.includes("<h1"));
   assert.ok(source.includes("{title}"));
   assert.ok(source.includes("{subtitle && ("));
   assert.ok(source.includes("{subtitle}"));
+});
+
+test("dashboard topbar renders notifications bell only in admin mode", () => {
+  const source = read(DASHBOARD_TOPBAR_PATH);
+
+  assert.ok(
+    source.includes(
+      'import { DashboardNotificationsBell } from "./DashboardNotificationsBell";',
+    ),
+  );
+  assert.ok(
+    source.includes(
+      '{notifications === "admin" ? <DashboardNotificationsBell /> : null}',
+    ),
+  );
 });
 
 test("dashboard topbar keeps protected dashboard header shell without mock session chip", () => {

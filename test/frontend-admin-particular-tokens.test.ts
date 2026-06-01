@@ -436,5 +436,10 @@ test("admin token card consume seguimiento por token desde study-tracking", () =
   assert.ok(card.includes("Seguimiento"));
   assert.ok(card.includes("getTrackingStageLabel("));
   assert.ok(card.includes("Alerta: Solicitud de tinción especial"));
+  assert.ok(card.includes("Solicitar tinción especial"));
+  assert.ok(card.includes("Resolver tinción especial"));
+  assert.ok(card.includes("handleSpecialStainChange("));
+  assert.ok(card.includes("specialStainRequired: !trackingCase.specialStainRequired"));
+  assert.ok(card.includes("No se pudo actualizar la alerta de tinción especial."));
   assert.ok(api.includes("export async function getAdminStudyTrackingCases("));
 });
