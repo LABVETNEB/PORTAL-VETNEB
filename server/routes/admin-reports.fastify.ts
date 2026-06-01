@@ -6,7 +6,7 @@ import type {
 } from "fastify";
 import multer from "multer";
 
-import type { Report } from "../../drizzle/schema.ts";
+import type { ParticularToken, Report, StudyTrackingCase } from "../../drizzle/schema.ts";
 import type { Multer } from "multer";
 import { AUDIT_EVENTS } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
@@ -25,6 +25,7 @@ import {
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
+import { ensureStudyTrackingCaseForToken } from "../lib/token-study-tracking.ts";
 
 type AdminUserRecord = {
   id: number;
@@ -97,6 +98,26 @@ export type AdminReportsNativeRoutesOptions = {
   getClinicById?: (clinicId: number) => Promise<ClinicRecord | null>;
   uploadReport?: (input: ReportUploadInput) => Promise<string>;
   upsertReport?: (input: UpsertReportInput) => Promise<Report>;
+  getParticularTokenById?: (
+    tokenId: number,
+  ) => Promise<ParticularToken | null | undefined>;
+  updateParticularTokenReport?: (
+    id: number,
+    reportId: number | null,
+  ) => Promise<ParticularToken | null | undefined>;
+  getParticularStudyTrackingCase?: (
+    particularTokenId: number,
+  ) => Promise<StudyTrackingCase | null | undefined>;
+  getStudyTrackingCaseByReportId?: (
+    reportId: number,
+  ) => Promise<StudyTrackingCase | null | undefined>;
+  createStudyTrackingCase?: (
+    input: Omit<StudyTrackingCase, "id" | "createdAt" | "updatedAt">,
+  ) => Promise<StudyTrackingCase>;
+  updateStudyTrackingCase?: (
+    id: number,
+    input: Partial<Omit<StudyTrackingCase, "id" | "createdAt" | "updatedAt">>,
+  ) => Promise<StudyTrackingCase | null | undefined>;
   createSignedReportUrl?: (storagePath: string) => Promise<string>;
   createSignedReportDownloadUrl?: (
     storagePath: string,
@@ -145,6 +166,12 @@ type NativeAdminReportsDeps = Required<
     | "getClinicById"
     | "uploadReport"
     | "upsertReport"
+    | "getParticularTokenById"
+    | "updateParticularTokenReport"
+    | "getParticularStudyTrackingCase"
+    | "getStudyTrackingCaseByReportId"
+    | "createStudyTrackingCase"
+    | "updateStudyTrackingCase"
     | "createSignedReportUrl"
     | "createSignedReportDownloadUrl"
     | "writeAuditLog"
@@ -160,6 +187,8 @@ async function loadDefaultDeps(): Promise<NativeAdminReportsDeps> {
       const authSecurity = await import("../lib/auth-security.ts");
       const storage = await import("../lib/supabase.ts");
       const audit = await import("../lib/audit.ts");
+      const dbParticular = await import("../db-particular.ts");
+      const dbStudyTracking = await import("../db-study-tracking.ts");
 
       return {
         deleteAdminSession: db.deleteAdminSession,
@@ -170,6 +199,14 @@ async function loadDefaultDeps(): Promise<NativeAdminReportsDeps> {
         getClinicById: db.getClinicById,
         uploadReport: storage.uploadReport,
         upsertReport: db.upsertReport,
+        getParticularTokenById: dbParticular.getParticularTokenById,
+        updateParticularTokenReport: dbParticular.updateParticularTokenReport,
+        getParticularStudyTrackingCase:
+          dbStudyTracking.getParticularStudyTrackingCase,
+        getStudyTrackingCaseByReportId:
+          dbStudyTracking.getStudyTrackingCaseByReportId,
+        createStudyTrackingCase: dbStudyTracking.createStudyTrackingCase,
+        updateStudyTrackingCase: dbStudyTracking.updateStudyTrackingCase,
         createSignedReportUrl: storage.createSignedReportUrl,
         createSignedReportDownloadUrl: storage.createSignedReportDownloadUrl,
         writeAuditLog: audit.writeAuditLog as (
@@ -193,6 +230,12 @@ function hasAllInjectedDeps(options: AdminReportsNativeRoutesOptions) {
     !!options.getClinicById &&
     !!options.uploadReport &&
     !!options.upsertReport &&
+    !!options.getParticularTokenById &&
+    !!options.updateParticularTokenReport &&
+    !!options.getParticularStudyTrackingCase &&
+    !!options.getStudyTrackingCaseByReportId &&
+    !!options.createStudyTrackingCase &&
+    !!options.updateStudyTrackingCase &&
     !!options.createSignedReportUrl &&
     !!options.createSignedReportDownloadUrl &&
     !!options.writeAuditLog
@@ -219,6 +262,21 @@ async function resolveDeps(
     getClinicById: options.getClinicById ?? defaultDeps!.getClinicById,
     uploadReport: options.uploadReport ?? defaultDeps!.uploadReport,
     upsertReport: options.upsertReport ?? defaultDeps!.upsertReport,
+    getParticularTokenById:
+      options.getParticularTokenById ?? defaultDeps!.getParticularTokenById,
+    updateParticularTokenReport:
+      options.updateParticularTokenReport ??
+      defaultDeps!.updateParticularTokenReport,
+    getParticularStudyTrackingCase:
+      options.getParticularStudyTrackingCase ??
+      defaultDeps!.getParticularStudyTrackingCase,
+    getStudyTrackingCaseByReportId:
+      options.getStudyTrackingCaseByReportId ??
+      defaultDeps!.getStudyTrackingCaseByReportId,
+    createStudyTrackingCase:
+      options.createStudyTrackingCase ?? defaultDeps!.createStudyTrackingCase,
+    updateStudyTrackingCase:
+      options.updateStudyTrackingCase ?? defaultDeps!.updateStudyTrackingCase,
     createSignedReportUrl:
       options.createSignedReportUrl ?? defaultDeps!.createSignedReportUrl,
     createSignedReportDownloadUrl:
@@ -537,6 +595,51 @@ function createAuditRequestLike(
   };
 }
 
+async function ensureDeliveredTrackingByReportId(
+  deps: NativeAdminReportsDeps,
+  reportId: number,
+  nowDate: Date,
+) {
+  const trackingCase =
+    (await deps.getStudyTrackingCaseByReportId(reportId)) ?? null;
+
+  if (!trackingCase || trackingCase.currentStage === "delivered") {
+    return trackingCase;
+  }
+
+  return (
+    (await deps.updateStudyTrackingCase(trackingCase.id, {
+      reportId,
+      currentStage: "delivered",
+      deliveredAt: trackingCase.deliveredAt ?? nowDate,
+    })) ?? trackingCase
+  );
+}
+
+async function ensureTrackingForLinkedToken(
+  deps: NativeAdminReportsDeps,
+  token: ParticularToken,
+  input: {
+    adminUserId: number;
+    nowDate: Date;
+  },
+) {
+  return ensureStudyTrackingCaseForToken(
+    {
+      getParticularStudyTrackingCase: deps.getParticularStudyTrackingCase,
+      getStudyTrackingCaseByReportId: deps.getStudyTrackingCaseByReportId,
+      createStudyTrackingCase: deps.createStudyTrackingCase,
+      updateStudyTrackingCase: deps.updateStudyTrackingCase,
+    },
+    {
+      token,
+      createdByAdminId: input.adminUserId,
+      createdByClinicUserId: token.createdByClinicUserId ?? null,
+      now: input.nowDate,
+    },
+  );
+}
+
 async function serializeReport(report: Report, deps: NativeAdminReportsDeps) {
   const [previewUrl, downloadUrl] = await Promise.all([
     deps.createSignedReportUrl(report.storagePath),
@@ -648,11 +751,26 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
 
     const body = getMultipartBody(request);
     const clinicId = parseReportId(body.clinicId);
+    const rawParticularTokenId =
+      typeof body.particularTokenId === "string" ||
+      typeof body.particularTokenId === "number"
+        ? String(body.particularTokenId).trim()
+        : "";
+    const particularTokenId = rawParticularTokenId
+      ? parseReportId(rawParticularTokenId)
+      : undefined;
 
     if (typeof clinicId !== "number") {
       return reply.code(400).send({
         success: false,
         error: "clinicId es obligatorio",
+      });
+    }
+
+    if (rawParticularTokenId && typeof particularTokenId !== "number") {
+      return reply.code(400).send({
+        success: false,
+        error: "particularTokenId inválido",
       });
     }
 
@@ -669,6 +787,28 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       return reply.code(400).send({
         success: false,
         error: "No se proporciono ningun archivo",
+      });
+    }
+
+    const selectedParticularToken =
+      typeof particularTokenId === "number"
+        ? await deps.getParticularTokenById(particularTokenId)
+        : null;
+
+    if (typeof particularTokenId === "number" && !selectedParticularToken) {
+      return reply.code(404).send({
+        success: false,
+        error: "Token particular no encontrado",
+      });
+    }
+
+    if (
+      selectedParticularToken &&
+      selectedParticularToken.clinicId !== clinicId
+    ) {
+      return reply.code(400).send({
+        success: false,
+        error: "El token particular no pertenece a la clínica indicada",
       });
     }
 
@@ -693,6 +833,36 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       createdByAdminUserId: admin.id,
     });
 
+    const nowDate = new Date(now());
+    let trackingCase: StudyTrackingCase | null = null;
+    let linkedTokenId: number | null = null;
+
+    if (selectedParticularToken) {
+      const updatedToken = await deps.updateParticularTokenReport(
+        selectedParticularToken.id,
+        report.id,
+      );
+      const tokenForTracking = {
+        ...selectedParticularToken,
+        reportId: report.id,
+        updatedAt: nowDate,
+      } as ParticularToken;
+      const linkedToken = updatedToken ?? tokenForTracking;
+
+      linkedTokenId = linkedToken.id;
+      trackingCase = await ensureTrackingForLinkedToken(deps, linkedToken, {
+        adminUserId: admin.id,
+        nowDate,
+      });
+    } else {
+      trackingCase = await ensureDeliveredTrackingByReportId(
+        deps,
+        report.id,
+        nowDate,
+      );
+      linkedTokenId = trackingCase?.particularTokenId ?? null;
+    }
+
     await deps.writeAuditLog(createAuditRequestLike(request, admin), {
       event: AUDIT_EVENTS.REPORT_UPLOADED,
       clinicId: report.clinicId,
@@ -705,6 +875,9 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
         studyType: studyType ?? null,
         uploadDate: uploadDate ?? null,
         uploadedVia: "admin",
+        particularTokenId: linkedTokenId,
+        trackingCaseId: trackingCase?.id ?? null,
+        trackingStage: trackingCase?.currentStage ?? null,
       },
     });
 

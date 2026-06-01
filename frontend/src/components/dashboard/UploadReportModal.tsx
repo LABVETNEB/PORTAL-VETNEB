@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { uploadAdminReport } from "@/lib/api";
 import { getAdminUsersRoles } from "@/lib/api";
 import {
-  createAdminStudyTrackingCase,
   getAdminParticularTokens,
   type AdminParticularTokenSummary,
 } from "@/lib/api";
@@ -88,28 +87,6 @@ function buildParticularTokenLabel(token: AdminParticularTokenSummary) {
     : "sin informe vinculado";
 
   return `Token ****${token.tokenLast4} · ${token.petName} · ${token.tutorLastName} · ${linkedLabel}`;
-}
-
-function getTrackingReceptionAt(uploadDate: string) {
-  if (uploadDate) {
-    return `${uploadDate}T00:00:00.000Z`;
-  }
-
-  return new Date().toISOString();
-}
-
-function formatTrackingDateLabel(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "calculada automáticamente";
-  }
-
-  return new Intl.DateTimeFormat("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
 }
 
 export function UploadReportModal() {
@@ -409,28 +386,13 @@ export function UploadReportModal() {
       formData.append("uploadDate", uploadDate);
     }
 
+    if (selectedParticularToken) {
+      formData.append("particularTokenId", String(selectedParticularToken.id));
+    }
+
     try {
       const response = await uploadAdminReport(formData);
-
-      if (selectedParticularToken) {
-        const trackingResponse = await createAdminStudyTrackingCase({
-          clinicId: Number(clinicId),
-          reportId: response.report.id,
-          particularTokenId: selectedParticularToken.id,
-          receptionAt: getTrackingReceptionAt(uploadDate),
-          currentStage: "reception",
-        });
-
-        const estimatedDelivery = formatTrackingDateLabel(
-          trackingResponse.trackingCase.estimatedDeliveryAt,
-        );
-
-        setSuccessMessage(
-          `${response.message}. Seguimiento particular creado con entrega estimada ${estimatedDelivery}.`,
-        );
-      } else {
-        setSuccessMessage(response.message);
-      }
+      setSuccessMessage(response.message);
 
       resetForm();
       router.refresh();

@@ -81,11 +81,7 @@ test("study-tracking exige management permission nativa al crear casos", () => {
   );
   assert.match(
     source,
-    /if \(auth\.canManageClinicUsers\) \{\s*return true;/s,
-  );
-  assert.match(
-    source,
-    /error: "No autorizado para administrar recursos de la clinica"/,
+    /error: "Solo administración puede crear seguimientos"/,
   );
 
   assert.match(
@@ -93,4 +89,3 @@ test("study-tracking exige management permission nativa al crear casos", () => {
     /app\.post<[\s\S]*?>\(\s*"\/"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?requireStudyTrackingManagementPermission\(auth, reply\)/s,
   );
 });
-

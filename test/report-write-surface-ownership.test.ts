@@ -133,6 +133,12 @@ async function createAdminReportUploadApp(overrides: Record<string, unknown> = {
     getClinicById: async () => ({ id: 3 }),
     uploadReport: async () => "reports/3/luna-report.pdf",
     upsertReport: async () => createReportFixture(),
+    getParticularTokenById: async () => null,
+    updateParticularTokenReport: async () => null,
+    getParticularStudyTrackingCase: async () => null,
+    getStudyTrackingCaseByReportId: async () => null,
+    createStudyTrackingCase: async () => ({} as any),
+    updateStudyTrackingCase: async () => null,
     createSignedReportUrl: async (storagePath: string) =>
       `signed-preview:${storagePath}`,
     createSignedReportDownloadUrl: async (

@@ -252,7 +252,20 @@ test("permission helpers devuelven 403 estable antes de mutaciones sensibles", (
 
       assertContains(helperSource, "reply.code(403).send", `${file} ${helper}`);
       assertContains(helperSource, "return false;", `${file} ${helper}`);
-      assertContains(helperSource, "return true;", `${file} ${helper}`);
+
+      const isClinicStudyTrackingHelper =
+        file === "server/routes/study-tracking.fastify.ts" &&
+        helper === "requireStudyTrackingManagementPermission";
+
+      if (isClinicStudyTrackingHelper) {
+        assertContains(
+          helperSource,
+          'error: "Solo administración puede crear seguimientos"',
+          `${file} ${helper}`,
+        );
+      } else {
+        assertContains(helperSource, "return true;", `${file} ${helper}`);
+      }
     }
   }
 });

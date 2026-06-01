@@ -62,6 +62,16 @@ export async function getParticularStudyTrackingCase(particularTokenId: number) 
   return result[0];
 }
 
+export async function getStudyTrackingCaseByReportId(reportId: number) {
+  const result = await db
+    .select()
+    .from(studyTrackingCases)
+    .where(eq(studyTrackingCases.reportId, reportId))
+    .limit(1);
+
+  return result[0];
+}
+
 export async function listStudyTrackingCases(params?: {
   clinicId?: number;
   reportId?: number;

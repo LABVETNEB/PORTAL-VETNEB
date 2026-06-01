@@ -24,7 +24,7 @@ test("upload report modal is client-side and imports upload dependencies", () =>
   assert.ok(source.includes('import { uploadAdminReport } from "@/lib/api";'));
   assert.ok(source.includes('import { getAdminUsersRoles } from "@/lib/api";'));
   assert.ok(source.includes("getAdminParticularTokens"));
-  assert.ok(source.includes("createAdminStudyTrackingCase"));
+  assert.equal(source.includes("createAdminStudyTrackingCase"), false);
 });
 
 test("upload report modal keeps study type options", () => {
@@ -80,16 +80,24 @@ test("upload report modal validates PDF file and submits FormData safely", () =>
   assert.ok(source.includes('formData.append("patientName", patientName.trim());'));
   assert.ok(source.includes('formData.append("studyType", studyType);'));
   assert.ok(source.includes('formData.append("uploadDate", uploadDate);'));
+  assert.ok(source.includes("if (selectedParticularToken) {"));
+  assert.ok(
+    source.includes(
+      'formData.append("particularTokenId", String(selectedParticularToken.id));',
+    ),
+  );
 });
 
 test("upload report modal calls upload API refreshes dashboard and handles errors", () => {
   const source = read(UPLOAD_REPORT_MODAL_PATH);
 
   assert.ok(source.includes("const response = await uploadAdminReport(formData);"));
-  assert.ok(source.includes("const trackingResponse = await createAdminStudyTrackingCase({"));
-  assert.ok(source.includes("response.report.id"));
-  assert.ok(source.includes("trackingResponse.trackingCase.estimatedDeliveryAt"));
-  assert.ok(source.includes("Seguimiento particular creado con entrega estimada"));
+  assert.equal(source.includes("createAdminStudyTrackingCase"), false);
+  assert.equal(source.includes("trackingResponse"), false);
+  assert.equal(
+    source.includes("Seguimiento particular creado con entrega estimada"),
+    false,
+  );
   assert.ok(source.includes("setSuccessMessage(response.message);"));
   assert.ok(source.includes("resetForm();"));
   assert.ok(source.includes("router.refresh();"));
@@ -632,12 +640,13 @@ test("upload modal: no invalid token ID sent when no particular token is selecte
   );
   assert.ok(
     source.includes("if (selectedParticularToken) {"),
-    "tracking case creation must be gated on selectedParticularToken",
+    "particularTokenId append must be gated on selectedParticularToken",
   );
-  assert.equal(
-    source.includes('formData.append("particularTokenId"'),
-    false,
-    "particularTokenId must NOT be appended to formData directly — only used for tracking",
+  assert.ok(
+    source.includes(
+      'formData.append("particularTokenId", String(selectedParticularToken.id));',
+    ),
+    "particularTokenId must be appended only when a valid token is selected",
   );
 });
 
@@ -665,12 +674,15 @@ test("upload modal: missing particular tokens do not block submit button", () =>
 });
 
 // 13. Valid token ID is sent when a particular token is selected
-test("upload modal: valid token ID is passed to tracking case when selected", () => {
+test("upload modal: valid token ID is appended to upload payload when selected", () => {
   const source = read(UPLOAD_REPORT_MODAL_PATH);
   assert.ok(
-    source.includes("particularTokenId: selectedParticularToken.id,"),
-    "when a token is selected, its ID must be passed to createAdminStudyTrackingCase",
+    source.includes(
+      'formData.append("particularTokenId", String(selectedParticularToken.id));',
+    ),
+    "when a token is selected, its ID must be sent in multipart upload",
   );
+  assert.equal(source.includes("createAdminStudyTrackingCase"), false);
   assert.ok(
     source.includes("const selectedParticularToken = particularTokens.find("),
     "selectedParticularToken must be derived from particularTokenId state",

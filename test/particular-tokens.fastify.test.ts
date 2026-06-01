@@ -59,6 +59,35 @@ function createParticularTokenFixture(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function createTrackingCaseFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 11,
+    clinicId: 3,
+    reportId: 55,
+    particularTokenId: 7,
+    createdByAdminId: null,
+    createdByClinicUserId: 9,
+    receptionAt: new Date("2026-04-20T00:00:00.000Z"),
+    estimatedDeliveryAt: new Date("2026-05-08T00:00:00.000Z"),
+    estimatedDeliveryAutoCalculatedAt: new Date("2026-05-08T00:00:00.000Z"),
+    estimatedDeliveryWasManuallyAdjusted: false,
+    currentStage: "reception",
+    processingAt: null,
+    evaluationAt: null,
+    reportDevelopmentAt: null,
+    deliveredAt: null,
+    specialStainRequired: false,
+    specialStainNotifiedAt: null,
+    paymentUrl: null,
+    adminContactEmail: null,
+    adminContactPhone: null,
+    notes: null,
+    createdAt: new Date("2026-04-20T12:00:00.000Z"),
+    updatedAt: new Date("2026-04-20T12:30:00.000Z"),
+    ...overrides,
+  };
+}
+
 function createAuthStubs(overrides: Record<string, unknown> = {}) {
   return {
     deleteActiveSession: async () => {},
@@ -100,6 +129,10 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
       sent: true,
       messageId: "particular-email-1",
     }),
+    getParticularStudyTrackingCase: async () => createTrackingCaseFixture(),
+    getStudyTrackingCaseByReportId: async () => null,
+    createStudyTrackingCase: async () => createTrackingCaseFixture(),
+    updateStudyTrackingCase: async () => createTrackingCaseFixture(),
     ...overrides,
   });
 

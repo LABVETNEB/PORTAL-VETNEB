@@ -226,22 +226,16 @@ test("studyTrackingNativeRoutes expone GET /notifications clinic-scoped", async 
   }
 });
 
-test("studyTrackingNativeRoutes crea POST / con vínculos y notificación especial", async () => {
+test("studyTrackingNativeRoutes bloquea POST / porque el workflow es admin-only", async () => {
   const createCalls: Array<Record<string, unknown>> = [];
   const updateTokenCalls: Array<Record<string, unknown>> = [];
   const notificationCalls: Array<Record<string, unknown>> = [];
   const emailCalls: Array<Record<string, unknown>> = [];
-  const notifiedAt = new Date("2026-04-20T13:30:00.000Z");
-  const created = createTrackingCaseFixture({ specialStainRequired: true });
-  const updated = createTrackingCaseFixture({
-    specialStainRequired: true,
-    specialStainNotifiedAt: notifiedAt,
-  });
 
   const app = await createTestApp({
     createStudyTrackingCase: async (input: Record<string, unknown>) => {
       createCalls.push(input);
-      return created;
+      return createTrackingCaseFixture({ specialStainRequired: true });
     },
     updateParticularTokenReport: async (
       particularTokenId: number,
@@ -254,19 +248,10 @@ test("studyTrackingNativeRoutes crea POST / con vínculos y notificación especi
       notificationCalls.push(input);
       return createNotificationFixture();
     },
-    updateStudyTrackingCase: async (
-      trackingCaseId: number,
-      input: Record<string, unknown>,
-    ) => {
-      assert.equal(trackingCaseId, 11);
-      assert.deepEqual(input, { specialStainNotifiedAt: notifiedAt });
-      return updated;
-    },
     sendSpecialStainRequiredEmail: async (input: Record<string, unknown>) => {
       emailCalls.push(input);
       return { sent: true };
     },
-    createDate: () => notifiedAt,
   });
 
   try {
@@ -291,34 +276,21 @@ test("studyTrackingNativeRoutes crea POST / con vínculos y notificación especi
       },
     });
 
-    assert.equal(response.statusCode, 201);
+    assert.equal(response.statusCode, 403);
     assert.equal(
       response.headers["access-control-allow-origin"],
       "http://localhost:3000",
     );
-    assert.equal(createCalls.length, 1);
-    assert.equal(createCalls[0].clinicId, 3);
-    assert.equal(createCalls[0].reportId, 55);
-    assert.equal(createCalls[0].particularTokenId, 7);
-    assert.equal(createCalls[0].createdByAdminId, null);
-    assert.equal(createCalls[0].createdByClinicUserId, 9);
-    assert.equal(createCalls[0].specialStainRequired, true);
-    assert.equal(createCalls[0].estimatedDeliveryWasManuallyAdjusted, false);
-    assert.ok(createCalls[0].estimatedDeliveryAt instanceof Date);
-    assert.deepEqual(updateTokenCalls, [{ particularTokenId: 7, reportId: 55 }]);
-    assert.equal(notificationCalls.length, 1);
-    assert.equal(notificationCalls[0].studyTrackingCaseId, 11);
-    assert.equal(notificationCalls[0].clinicId, 3);
-    assert.equal(notificationCalls[0].type, "special_stain_required");
-    assert.equal(emailCalls.length, 1);
-    assert.deepEqual(emailCalls[0].to, ["clinic@example.com", "admin@example.com"]);
+    assert.equal(createCalls.length, 0);
+    assert.equal(updateTokenCalls.length, 0);
+    assert.equal(notificationCalls.length, 0);
+    assert.equal(emailCalls.length, 0);
 
     const body = JSON.parse(response.body);
-    assert.equal(body.success, true);
-    assert.equal(body.message, "Seguimiento creado correctamente");
-    assert.equal(body.trackingCase.id, 11);
-    assert.equal(body.trackingCase.clinicId, 3);
-    assert.equal(body.trackingCase.specialStainNotifiedAt, notifiedAt.toISOString());
+    assert.deepEqual(body, {
+      success: false,
+      error: "Solo administración puede crear seguimientos",
+    });
   } finally {
     await app.close();
   }
