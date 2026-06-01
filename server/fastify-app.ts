@@ -251,6 +251,28 @@ export async function createFastifyApp(
     trustProxy: ENV.trustProxy,
   });
 
+  // Garantiza que rutas API autenticadas no sean cacheadas por proxies ni
+  // navegador. Las rutas públicas con caché propia (ej. /api/public/pricing)
+  // ya setean su propio Cache-Control y no son sobreescritas.
+  app.addHook(
+    "onSend",
+    async (request: FastifyRequest, reply: FastifyReply, _payload) => {
+      const url = request.url ?? "";
+
+      if (!url.startsWith("/api/")) {
+        return;
+      }
+
+      if (url.startsWith("/api/public/")) {
+        return;
+      }
+
+      if (!reply.hasHeader("cache-control")) {
+        reply.header("cache-control", "no-store");
+      }
+    },
+  );
+
   app.setNotFoundHandler((request, reply) => {
     return reply.code(404).send({
       success: false,
