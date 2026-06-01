@@ -54,7 +54,7 @@ test("tarjeta presenta cinco etapas globales y tinción especial como alerta apa
     "Procesamiento",
     "Evaluación",
     "Desarrollo de informe",
-    "Entrega",
+    "Informe disponible / Publicado",
   ]) {
     assert.ok(stages.includes(stage), `debe mostrar ${stage}`);
   }
@@ -64,7 +64,7 @@ test("tarjeta presenta cinco etapas globales y tinción especial como alerta apa
   assert.ok(card.includes("Alerta tinción especial"));
   assert.ok(card.includes("Solicitar"));
   assert.ok(card.includes("Resolver"));
-  assert.ok(card.includes("Tipo de estudio"));
+  assert.ok(card.includes("Reporte / token"));
   assert.equal(card.includes("citologia"), false);
   assert.equal(card.includes("histopatologia"), false);
   assert.equal(card.includes("hemoparasitos"), false);
@@ -80,10 +80,9 @@ test("tarjeta y cliente API soportan paginación y mutaciones manuales", () => {
   assert.ok(card.includes("Siguiente"));
   assert.ok(card.includes("handleStageChange"));
   assert.ok(card.includes("handleSpecialStainChange"));
-  assert.ok(api.includes("export async function getAdminReportWorkflow("));
-  assert.ok(api.includes("export async function updateAdminReportWorkflowStage("));
-  assert.ok(api.includes("export async function updateAdminReportSpecialStain("));
-  assert.ok(api.includes("`/api/admin/report-workflow/${reportId}/stage`"));
-  assert.ok(api.includes("`/api/admin/report-workflow/${reportId}/special-stain`"));
+  assert.ok(api.includes("export async function getAdminStudyTrackingCases("));
+  assert.ok(api.includes("export async function updateAdminStudyTrackingCase("));
+  assert.ok(api.includes("`/api/admin/study-tracking${qs ? `?${qs}` : \"\"}`"));
+  assert.ok(api.includes("`/api/admin/study-tracking/${trackingCaseId}`"));
   assert.ok(api.includes('credentials: options.credentials ?? "include",'));
 });

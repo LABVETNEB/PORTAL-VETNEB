@@ -305,6 +305,33 @@ export async function getParticularReportDownloadUrl(): Promise<string> {
   return response.downloadUrl;
 }
 
+const PARTICULAR_STUDY_TRACKING_RECOVERABLE_ERRORS = new Set([
+  "Particular no autenticado",
+  "Sesión particular inválida",
+  "Sesión particular expirada",
+  "Token particular inválido o inactivo",
+  "Seguimiento no encontrado para el token particular autenticado",
+]);
+
+export async function getParticularStudyTrackingCase(): Promise<AdminStudyTrackingCaseSummary | null> {
+  try {
+    const response = await apiFetch<{
+      success: true;
+      trackingCase: AdminStudyTrackingCaseSummary;
+    }>("/api/particular/study-tracking/me");
+    return response.trackingCase;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      PARTICULAR_STUDY_TRACKING_RECOVERABLE_ERRORS.has(error.message)
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 type ReportReadOptions = {
   throwOnError?: boolean;
 };
@@ -736,6 +763,135 @@ export async function createAdminStudyTrackingCase(
       method: "POST",
       body: JSON.stringify(payload),
     },
+  );
+}
+
+export type AdminStudyTrackingSnapshot = {
+  success: true;
+  count: number;
+  trackingCases: AdminStudyTrackingCaseSummary[];
+  pagination: {
+    limit: number;
+    offset: number;
+  };
+};
+
+export type AdminStudyTrackingUpdatePayload = {
+  reportId?: number | null;
+  particularTokenId?: number | null;
+  currentStage?: AdminStudyTrackingStage;
+  specialStainRequired?: boolean;
+  paymentUrl?: string | null;
+  adminContactEmail?: string | null;
+  adminContactPhone?: string | null;
+  notes?: string | null;
+};
+
+export type AdminStudyTrackingUpdateResponse = {
+  success: true;
+  message: string;
+  trackingCase: AdminStudyTrackingCaseSummary;
+};
+
+export async function getAdminStudyTrackingCases(
+  params: {
+    clinicId?: number;
+    reportId?: number;
+    particularTokenId?: number;
+    limit?: number;
+    offset?: number;
+  } = {},
+  options?: RequestInit,
+): Promise<AdminStudyTrackingSnapshot> {
+  const query = new URLSearchParams();
+
+  if (typeof params.clinicId === "number") {
+    query.set("clinicId", String(params.clinicId));
+  }
+
+  if (typeof params.reportId === "number") {
+    query.set("reportId", String(params.reportId));
+  }
+
+  if (typeof params.particularTokenId === "number") {
+    query.set("particularTokenId", String(params.particularTokenId));
+  }
+
+  if (typeof params.limit === "number") {
+    query.set("limit", String(params.limit));
+  }
+
+  if (typeof params.offset === "number") {
+    query.set("offset", String(params.offset));
+  }
+
+  const qs = query.toString();
+
+  return apiFetch<AdminStudyTrackingSnapshot>(
+    `/api/admin/study-tracking${qs ? `?${qs}` : ""}`,
+    options,
+  );
+}
+
+export async function updateAdminStudyTrackingCase(
+  trackingCaseId: number,
+  payload: AdminStudyTrackingUpdatePayload,
+  options?: RequestInit,
+): Promise<AdminStudyTrackingUpdateResponse> {
+  return apiFetch<AdminStudyTrackingUpdateResponse>(
+    `/api/admin/study-tracking/${trackingCaseId}`,
+    {
+      ...options,
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export type ClinicStudyTrackingCaseSummary = AdminStudyTrackingCaseSummary;
+
+export type ClinicStudyTrackingSnapshot = {
+  success: true;
+  count: number;
+  trackingCases: ClinicStudyTrackingCaseSummary[];
+  pagination: {
+    limit: number;
+    offset: number;
+  };
+};
+
+export async function getClinicStudyTrackingCases(
+  params: {
+    reportId?: number;
+    particularTokenId?: number;
+    limit?: number;
+    offset?: number;
+  } = {},
+  options?: RequestInit,
+): Promise<ClinicStudyTrackingSnapshot> {
+  const query = new URLSearchParams();
+
+  if (typeof params.reportId === "number") {
+    query.set("reportId", String(params.reportId));
+  }
+
+  if (typeof params.particularTokenId === "number") {
+    query.set("particularTokenId", String(params.particularTokenId));
+  }
+
+  if (typeof params.limit === "number") {
+    query.set("limit", String(params.limit));
+  }
+
+  if (typeof params.offset === "number") {
+    query.set("offset", String(params.offset));
+  }
+
+  const qs = query.toString();
+
+  return apiFetch<ClinicStudyTrackingSnapshot>(
+    `/api/study-tracking${qs ? `?${qs}` : ""}`,
+    options,
   );
 }
 

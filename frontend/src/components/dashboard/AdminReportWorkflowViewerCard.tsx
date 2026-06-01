@@ -20,32 +20,31 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  getAdminReportWorkflow,
-  updateAdminReportSpecialStain,
-  updateAdminReportWorkflowStage,
-  type AdminReportWorkflowItem,
-  type AdminReportWorkflowStage,
+  getAdminStudyTrackingCases,
+  updateAdminStudyTrackingCase,
+  type AdminStudyTrackingCaseSummary,
+  type AdminStudyTrackingStage,
 } from "@/lib/api";
 
 const PAGE_LIMIT = 20;
 
 const WORKFLOW_STAGES: Array<{
-  value: AdminReportWorkflowStage;
+  value: AdminStudyTrackingStage;
   label: string;
 }> = [
-  { value: "sample_received", label: "Recepción de muestra" },
+  { value: "reception", label: "Recepción de muestra" },
   { value: "processing", label: "Procesamiento" },
   { value: "evaluation", label: "Evaluación" },
   { value: "report_development", label: "Desarrollo de informe" },
-  { value: "delivered", label: "Entrega" },
+  { value: "delivered", label: "Informe disponible / Publicado" },
 ];
 
-function getStageLabel(stage: AdminReportWorkflowStage) {
+function getStageLabel(stage: AdminStudyTrackingStage) {
   return WORKFLOW_STAGES.find((option) => option.value === stage)?.label ?? stage;
 }
 
 function getStageVariant(
-  stage: AdminReportWorkflowStage,
+  stage: AdminStudyTrackingStage,
 ): "default" | "secondary" | "outline" {
   if (stage === "delivered") return "default";
   if (stage === "report_development" || stage === "evaluation") {
@@ -73,11 +72,11 @@ function formatReportDate(value: string | null) {
 }
 
 export function AdminReportWorkflowViewerCard() {
-  const [reports, setReports] = useState<AdminReportWorkflowItem[]>([]);
+  const [trackingCases, setTrackingCases] = useState<AdminStudyTrackingCaseSummary[]>([]);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [busyReportId, setBusyReportId] = useState<number | null>(null);
+  const [busyTrackingCaseId, setBusyTrackingCaseId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadWorkflow = useCallback(async (nextOffset: number) => {
@@ -85,19 +84,19 @@ export function AdminReportWorkflowViewerCard() {
     setErrorMessage(null);
 
     try {
-      const snapshot = await getAdminReportWorkflow({
-        limit: PAGE_LIMIT,
+      const snapshot = await getAdminStudyTrackingCases({
+        limit: PAGE_LIMIT + 1,
         offset: nextOffset,
       });
-      setReports(snapshot.reports);
-      setHasMore(snapshot.pagination.hasMore);
+      setTrackingCases(snapshot.trackingCases.slice(0, PAGE_LIMIT));
+      setHasMore(snapshot.trackingCases.length > PAGE_LIMIT);
     } catch (error) {
-      setReports([]);
+      setTrackingCases([]);
       setHasMore(false);
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "No se pudo cargar el seguimiento de informes.",
+          : "No se pudo cargar el seguimiento de estudios.",
       );
     } finally {
       setIsLoading(false);
@@ -109,45 +108,50 @@ export function AdminReportWorkflowViewerCard() {
   }, [loadWorkflow, offset]);
 
   async function handleStageChange(
-    report: AdminReportWorkflowItem,
-    stage: AdminReportWorkflowStage,
+    trackingCase: AdminStudyTrackingCaseSummary,
+    stage: AdminStudyTrackingStage,
   ) {
-    if (stage === report.workflowStage || busyReportId !== null) {
+    if (stage === trackingCase.currentStage || busyTrackingCaseId !== null) {
       return;
     }
 
-    setBusyReportId(report.id);
+    setBusyTrackingCaseId(trackingCase.id);
     setErrorMessage(null);
 
     try {
-      const response = await updateAdminReportWorkflowStage(report.id, stage);
-      setReports((current) =>
-        current.map((item) => (item.id === report.id ? response.report : item)),
+      const response = await updateAdminStudyTrackingCase(trackingCase.id, {
+        currentStage: stage,
+      });
+      setTrackingCases((current) =>
+        current.map((item) =>
+          item.id === trackingCase.id ? response.trackingCase : item,
+        ),
       );
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "No se pudo cambiar la etapa.",
       );
     } finally {
-      setBusyReportId(null);
+      setBusyTrackingCaseId(null);
     }
   }
 
-  async function handleSpecialStainChange(report: AdminReportWorkflowItem) {
-    if (busyReportId !== null) {
+  async function handleSpecialStainChange(trackingCase: AdminStudyTrackingCaseSummary) {
+    if (busyTrackingCaseId !== null) {
       return;
     }
 
-    setBusyReportId(report.id);
+    setBusyTrackingCaseId(trackingCase.id);
     setErrorMessage(null);
 
     try {
-      const response = await updateAdminReportSpecialStain(
-        report.id,
-        !report.specialStainRequested,
-      );
-      setReports((current) =>
-        current.map((item) => (item.id === report.id ? response.report : item)),
+      const response = await updateAdminStudyTrackingCase(trackingCase.id, {
+        specialStainRequired: !trackingCase.specialStainRequired,
+      });
+      setTrackingCases((current) =>
+        current.map((item) =>
+          item.id === trackingCase.id ? response.trackingCase : item,
+        ),
       );
     } catch (error) {
       setErrorMessage(
@@ -156,7 +160,7 @@ export function AdminReportWorkflowViewerCard() {
           : "No se pudo actualizar la tinción especial.",
       );
     } finally {
-      setBusyReportId(null);
+      setBusyTrackingCaseId(null);
     }
   }
 
@@ -166,7 +170,7 @@ export function AdminReportWorkflowViewerCard() {
         <div>
           <CardTitle className="text-base">Seguimiento de informes</CardTitle>
           <CardDescription>
-            Etapas globales del informe y solicitudes manuales de tinción especial
+            Fuente única de etapas y alertas clínicas para admin, clínica y particular
           </CardDescription>
         </div>
         <Button
@@ -189,9 +193,8 @@ export function AdminReportWorkflowViewerCard() {
           <TableHeader>
             <TableRow>
               <TableHead>Clínica</TableHead>
-              <TableHead>Paciente / informe</TableHead>
-              <TableHead>Tipo de estudio</TableHead>
-              <TableHead>Fecha de carga / recepción</TableHead>
+              <TableHead>Reporte / token</TableHead>
+              <TableHead>Fechas clave</TableHead>
               <TableHead>Etapa actual</TableHead>
               <TableHead>Alerta tinción especial</TableHead>
               <TableHead>Acciones</TableHead>
@@ -200,63 +203,70 @@ export function AdminReportWorkflowViewerCard() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="clinical-table-state">
-                  Cargando informes...
+                <TableCell colSpan={6} className="clinical-table-state">
+                  Cargando seguimientos...
                 </TableCell>
               </TableRow>
-            ) : reports.length === 0 ? (
+            ) : trackingCases.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="clinical-table-state">
-                  No hay informes disponibles para seguimiento.
+                <TableCell colSpan={6} className="clinical-table-state">
+                  No hay seguimientos disponibles.
                 </TableCell>
               </TableRow>
             ) : (
-              reports.map((report) => {
-                const busy = busyReportId === report.id;
+              trackingCases.map((trackingCase) => {
+                const busy = busyTrackingCaseId === trackingCase.id;
 
                 return (
-                  <TableRow key={report.id}>
+                  <TableRow key={trackingCase.id}>
                     <TableCell className="text-sm text-vetneb-ink">
-                      {report.clinicName ?? `Clínica #${report.clinicId}`}
+                      Clínica #{trackingCase.clinicId}
                     </TableCell>
                     <TableCell className="text-sm">
                       <p className="font-medium text-vetneb-ink">
-                        {report.patientName ?? "Sin paciente informado"}
+                        Reporte:{" "}
+                        {typeof trackingCase.reportId === "number"
+                          ? `#${trackingCase.reportId}`
+                          : "Sin vínculo"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {report.fileName ?? `Informe #${report.id}`}
+                        Token particular:{" "}
+                        {typeof trackingCase.particularTokenId === "number"
+                          ? `#${trackingCase.particularTokenId}`
+                          : "Sin vínculo"}
                       </p>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {report.studyType ?? "-"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatReportDate(report.uploadDate ?? report.createdAt)}
+                      <p>Recepción: {formatReportDate(trackingCase.receptionAt)}</p>
+                      <p>Actualizado: {formatReportDate(trackingCase.updatedAt)}</p>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getStageVariant(report.workflowStage)}>
-                        {getStageLabel(report.workflowStage)}
+                      <Badge variant={getStageVariant(trackingCase.currentStage)}>
+                        {getStageLabel(trackingCase.currentStage)}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {report.specialStainRequested ? (
-                        <Badge variant="secondary">Solicitada</Badge>
+                      {trackingCase.specialStainRequired ? (
+                        <Badge variant="secondary">Solicitud de tinción especial</Badge>
                       ) : (
                         <Badge variant="outline">Sin alerta</Badge>
                       )}
                     </TableCell>
                     <TableCell>
                       <div className="flex min-w-[270px] items-center gap-2">
-                        <label className="sr-only" htmlFor={`workflow-stage-${report.id}`}>
+                        <label
+                          className="sr-only"
+                          htmlFor={`workflow-stage-${trackingCase.id}`}
+                        >
                           Cambiar etapa
                         </label>
                         <select
-                          id={`workflow-stage-${report.id}`}
-                          value={report.workflowStage}
+                          id={`workflow-stage-${trackingCase.id}`}
+                          value={trackingCase.currentStage}
                           onChange={(event) =>
                             void handleStageChange(
-                              report,
-                              event.target.value as AdminReportWorkflowStage,
+                              trackingCase,
+                              event.target.value as AdminStudyTrackingStage,
                             )
                           }
                           disabled={busy}
@@ -273,9 +283,9 @@ export function AdminReportWorkflowViewerCard() {
                           variant="outline"
                           size="sm"
                           disabled={busy}
-                          onClick={() => void handleSpecialStainChange(report)}
+                          onClick={() => void handleSpecialStainChange(trackingCase)}
                         >
-                          {report.specialStainRequested ? "Resolver" : "Solicitar"}
+                          {trackingCase.specialStainRequired ? "Resolver" : "Solicitar"}
                         </Button>
                       </div>
                     </TableCell>
@@ -287,7 +297,7 @@ export function AdminReportWorkflowViewerCard() {
         </Table>
         <div className="flex items-center justify-between px-6 pb-5 text-sm text-muted-foreground">
           <span>
-            Mostrando hasta {PAGE_LIMIT} informes
+            Mostrando hasta {PAGE_LIMIT} seguimientos
             {offset > 0 ? ` desde el registro ${offset + 1}` : ""}
           </span>
           <div className="flex gap-2">

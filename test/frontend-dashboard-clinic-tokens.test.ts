@@ -327,3 +327,15 @@ test("frontend api exposes clinic-scoped particular token helpers", () => {
   assert.ok(source.includes("`/api/particular-tokens${qs ? `?${qs}` : \"\"}`"));
   assert.ok(source.includes("`/api/particular-tokens/${tokenId}/report`"));
 });
+
+test("clinic token card muestra seguimiento y alerta de tinción especial desde study-tracking", () => {
+  const card = read(CLINIC_TOKENS_CARD_PATH);
+  const api = read(API_PATH);
+
+  assert.ok(card.includes("getClinicStudyTrackingCases"));
+  assert.ok(card.includes("trackingCasesByTokenId"));
+  assert.ok(card.includes("Seguimiento"));
+  assert.ok(card.includes("getTrackingStageLabel("));
+  assert.ok(card.includes("Alerta: Solicitud de tinción especial"));
+  assert.ok(api.includes("export async function getClinicStudyTrackingCases("));
+});

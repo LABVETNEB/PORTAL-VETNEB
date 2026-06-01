@@ -47,3 +47,13 @@ test("particulares content keeps neutral logout control and removes resumen labe
   assert.equal(source.includes("className=\"public-cta-secondary\""), false);
   assert.equal(source.includes("Resumen de caso"), false);
 });
+
+test("particulares content muestra estado y alerta desde study-tracking en sesión activa", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(source.includes("getParticularStudyTrackingCase"));
+  assert.ok(source.includes("Seguimiento del estudio"));
+  assert.ok(source.includes("Estado del estudio:"));
+  assert.ok(source.includes("Alerta: Solicitud de tinción especial."));
+  assert.ok(source.includes("trackingCase"));
+});

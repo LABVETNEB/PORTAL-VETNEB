@@ -17,9 +17,11 @@ import {
 import {
   getParticularReportDownloadUrl,
   getParticularReportPreviewUrl,
+  getParticularStudyTrackingCase,
   getParticularSession,
   loginParticular,
   logoutParticular,
+  type AdminStudyTrackingCaseSummary,
 } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 import type { ParticularSession } from "@/types";
@@ -56,6 +58,20 @@ function formatDate(value: string | null | undefined) {
   }).format(date);
 }
 
+const TRACKING_STAGE_LABELS: Record<AdminStudyTrackingCaseSummary["currentStage"], string> = {
+  reception: "Recepción de muestra",
+  processing: "Procesamiento",
+  evaluation: "Evaluación",
+  report_development: "Desarrollo de informe",
+  delivered: "Informe disponible / Publicado",
+};
+
+function getTrackingStageLabel(
+  stage: AdminStudyTrackingCaseSummary["currentStage"],
+) {
+  return TRACKING_STAGE_LABELS[stage] ?? stage;
+}
+
 const accessHighlights = [
   {
     title: "Token",
@@ -83,6 +99,8 @@ export function ParticularesContent() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOpeningReport, setIsOpeningReport] = useState(false);
+  const [trackingCase, setTrackingCase] = useState<AdminStudyTrackingCaseSummary | null>(null);
+  const [trackingLoadError, setTrackingLoadError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [sessionCheckError, setSessionCheckError] = useState(false);
   const [clipboardSupported, setClipboardSupported] = useState(false);
@@ -92,12 +110,31 @@ export function ParticularesContent() {
     setIsCheckingSession(true);
     setErrorMessage(null);
     setSessionCheckError(false);
+    setTrackingLoadError(null);
 
     try {
       const response = await getParticularSession();
       setSession(response?.particular ?? null);
+      const nextSession = response?.particular ?? null;
+
+      if (nextSession) {
+        try {
+          const trackingSnapshot = await getParticularStudyTrackingCase();
+          setTrackingCase(trackingSnapshot);
+        } catch (error) {
+          setTrackingCase(null);
+          setTrackingLoadError(
+            error instanceof Error
+              ? error.message
+              : "No se pudo cargar el seguimiento del estudio.",
+          );
+        }
+      } else {
+        setTrackingCase(null);
+      }
     } catch (error) {
       setSessionCheckError(true);
+      setTrackingCase(null);
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -133,8 +170,21 @@ export function ParticularesContent() {
     try {
       const response = await loginParticular({ token });
       setSession(response.particular);
+      setTrackingLoadError(null);
+      try {
+        const trackingSnapshot = await getParticularStudyTrackingCase();
+        setTrackingCase(trackingSnapshot);
+      } catch (error) {
+        setTrackingCase(null);
+        setTrackingLoadError(
+          error instanceof Error
+            ? error.message
+            : "No se pudo cargar el seguimiento del estudio.",
+        );
+      }
       setToken("");
     } catch (error) {
+      setTrackingCase(null);
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -147,6 +197,7 @@ export function ParticularesContent() {
 
   async function handleLogout() {
     setErrorMessage(null);
+    setTrackingLoadError(null);
 
     try {
       await logoutParticular();
@@ -154,6 +205,7 @@ export function ParticularesContent() {
       // La salida local se completa aunque el backend ya no tenga sesión activa.
     } finally {
       setSession(null);
+      setTrackingCase(null);
     }
   }
 
@@ -336,6 +388,34 @@ export function ParticularesContent() {
                     </dl>
                   </div>
 
+                  <div className="clinical-muted-band rounded-lg p-4 shadow-sm">
+                    <h3 className="font-semibold text-vetneb-navy">
+                      Seguimiento del estudio
+                    </h3>
+                    {trackingCase ? (
+                      <div className="mt-2 space-y-2">
+                        <p className="text-sm text-vetneb-ink">
+                          Estado del estudio:{" "}
+                          <span className="font-semibold">
+                            {getTrackingStageLabel(trackingCase.currentStage)}
+                          </span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Actualizado: {formatDate(trackingCase.updatedAt)}
+                        </p>
+                        {trackingCase.specialStainRequired ? (
+                          <div className="clinical-alert-warning p-3 text-sm">
+                            Alerta: Solicitud de tinción especial.
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        No hay seguimiento operativo vinculado para esta sesión.
+                      </p>
+                    )}
+                  </div>
+
                   {session.report ? (
                     <div className="clinical-muted-band rounded-lg p-4 shadow-sm">
                       <div className="flex items-start gap-3">
@@ -379,11 +459,20 @@ export function ParticularesContent() {
                     </div>
                   ) : (
                     <div className="clinical-alert-warning p-4">
-                      El caso todavía no tiene un informe vinculado. El estudio
-                      continúa en evaluación profesional y se habilitará cuando
-                      finalice la validación diagnóstica.
+                      {trackingCase
+                        ? `El caso todavía no tiene un informe vinculado. Estado del estudio: ${getTrackingStageLabel(trackingCase.currentStage)}.`
+                        : "El caso todavía no tiene un informe vinculado. El estudio continúa en evaluación profesional y se habilitará cuando finalice la validación diagnóstica."}
                     </div>
                   )}
+
+                  {trackingLoadError ? (
+                    <p
+                      className="clinical-alert-warning px-3 py-2 text-sm"
+                      role="alert"
+                    >
+                      {trackingLoadError}
+                    </p>
+                  ) : null}
 
                   {errorMessage ? (
                     <p
