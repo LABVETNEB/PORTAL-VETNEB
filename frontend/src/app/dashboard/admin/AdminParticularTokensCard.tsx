@@ -17,6 +17,8 @@ import {
   getAdminUsersRoles,
   getAdminParticularTokens,
   getAdminStudyTrackingCases,
+  updateAdminStudyTrackingCase,
+  type AdminStudyTrackingStage,
   type AdminStudyTrackingCaseSummary,
   type AdminParticularTokenCreatePayload,
   type AdminParticularTokenSummary,
@@ -261,6 +263,17 @@ const TRACKING_STAGE_LABELS: Record<AdminStudyTrackingCaseSummary["currentStage"
   delivered: "Informe disponible / Publicado",
 };
 
+const TRACKING_STAGE_OPTIONS: Array<{
+  value: AdminStudyTrackingStage;
+  label: string;
+}> = [
+  { value: "reception", label: "Recepción de muestra" },
+  { value: "processing", label: "Procesamiento" },
+  { value: "evaluation", label: "Evaluación" },
+  { value: "report_development", label: "Desarrollo de informe" },
+  { value: "delivered", label: "Informe disponible / Publicado" },
+];
+
 function getTrackingStageLabel(
   stage: AdminStudyTrackingCaseSummary["currentStage"],
 ): string {
@@ -292,6 +305,9 @@ export function AdminParticularTokensCard() {
   const [copyErrorMessage, setCopyErrorMessage] = useState<string | null>(null);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const [revokingTokenId, setRevokingTokenId] = useState<number | null>(null);
+  const [updatingTrackingCaseIds, setUpdatingTrackingCaseIds] = useState<
+    Record<number, boolean>
+  >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -602,6 +618,41 @@ export function AdminParticularTokensCard() {
       );
     } finally {
       setRevokingTokenId(null);
+    }
+  }
+
+  async function handleTrackingStageChange(
+    tokenId: number,
+    trackingCase: AdminStudyTrackingCaseSummary,
+    nextStage: AdminStudyTrackingStage,
+  ) {
+    if (trackingCase.currentStage === nextStage) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setUpdatingTrackingCaseIds((current) => ({
+      ...current,
+      [trackingCase.id]: true,
+    }));
+
+    try {
+      const response = await updateAdminStudyTrackingCase(trackingCase.id, {
+        currentStage: nextStage,
+      });
+
+      setTrackingCasesByTokenId((current) => ({
+        ...current,
+        [tokenId]: response.trackingCase,
+      }));
+    } catch {
+      setErrorMessage("No se pudo cambiar la etapa del seguimiento.");
+    } finally {
+      setUpdatingTrackingCaseIds((current) => {
+        const next = { ...current };
+        delete next[trackingCase.id];
+        return next;
+      });
     }
   }
 
@@ -1079,6 +1130,9 @@ export function AdminParticularTokensCard() {
             <div className="space-y-2">
               {tokens.map((token) => {
                 const trackingCase = trackingCasesByTokenId[token.id];
+                const isUpdatingTrackingCase = trackingCase
+                  ? Boolean(updatingTrackingCaseIds[trackingCase.id])
+                  : false;
 
                 return (
                   <div
@@ -1174,6 +1228,31 @@ export function AdminParticularTokensCard() {
                           <p className="mt-1 text-xs text-vetneb-ink">
                             Etapa: {getTrackingStageLabel(trackingCase.currentStage)}
                           </p>
+                          <label
+                            htmlFor={`admin-tracking-stage-${trackingCase.id}`}
+                            className="mt-2 block text-xs font-semibold text-vetneb-navy"
+                          >
+                            Cambiar etapa del seguimiento
+                          </label>
+                          <select
+                            id={`admin-tracking-stage-${trackingCase.id}`}
+                            className="field-select mt-1 text-xs"
+                            value={trackingCase.currentStage}
+                            onChange={(event) =>
+                              void handleTrackingStageChange(
+                                token.id,
+                                trackingCase,
+                                event.target.value as AdminStudyTrackingStage,
+                              )
+                            }
+                            disabled={isUpdatingTrackingCase}
+                          >
+                            {TRACKING_STAGE_OPTIONS.map((stageOption) => (
+                              <option key={stageOption.value} value={stageOption.value}>
+                                {stageOption.label}
+                              </option>
+                            ))}
+                          </select>
                           <p className="mt-1 text-xs text-muted-foreground">
                             {trackingCase.specialStainRequired
                               ? "Alerta: Solicitud de tinción especial"
