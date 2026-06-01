@@ -6,6 +6,8 @@ import test from "node:test";
 const PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const CARD_PATH =
   "frontend/src/components/dashboard/AdminReportWorkflowViewerCard.tsx";
+const ADMIN_PARTICULAR_TOKENS_CARD_PATH =
+  "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
 const SIDEBAR_PATH =
   "frontend/src/components/dashboard/AdminDashboardSidebar.tsx";
 const API_PATH = "frontend/src/lib/api.ts";
@@ -85,4 +87,31 @@ test("tarjeta y cliente API soportan paginación y mutaciones manuales", () => {
   assert.ok(api.includes("`/api/admin/study-tracking${qs ? `?${qs}` : \"\"}`"));
   assert.ok(api.includes("`/api/admin/study-tracking/${trackingCaseId}`"));
   assert.ok(api.includes('credentials: options.credentials ?? "include",'));
+});
+
+test("admin tokens card permite cambiar etapa de seguimiento desde la card", () => {
+  const card = read(ADMIN_PARTICULAR_TOKENS_CARD_PATH);
+
+  assert.ok(card.includes("updateAdminStudyTrackingCase"));
+  assert.ok(card.includes("Cambiar etapa del seguimiento"));
+  assert.ok(card.includes('id={`admin-tracking-stage-${trackingCase.id}`}'));
+  assert.ok(card.includes("value={trackingCase.currentStage}"));
+  assert.ok(card.includes("updateAdminStudyTrackingCase(trackingCase.id, {"));
+  assert.ok(card.includes("currentStage: nextStage"));
+  assert.ok(card.includes("No se pudo cambiar la etapa del seguimiento."));
+  assert.ok(card.includes("[tokenId]: response.trackingCase"));
+});
+
+test("admin tokens card reutiliza las cinco etapas de seguimiento", () => {
+  const card = read(ADMIN_PARTICULAR_TOKENS_CARD_PATH);
+
+  for (const stage of [
+    "Recepción de muestra",
+    "Procesamiento",
+    "Evaluación",
+    "Desarrollo de informe",
+    "Informe disponible / Publicado",
+  ]) {
+    assert.ok(card.includes(stage), `debe incluir la etapa ${stage}`);
+  }
 });
