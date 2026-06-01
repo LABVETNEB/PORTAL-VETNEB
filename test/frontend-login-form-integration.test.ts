@@ -79,6 +79,15 @@ test("login public page handles loading and error states", () => {
   assert.ok(source.includes("aria-pressed={isPasswordVisible}"));
 });
 
+test("login public page prevents mobile double submit while request is pending", () => {
+  const source = read(LOGIN_CONTENT_PATH);
+
+  assert.ok(source.includes("if (isSubmitting)"));
+  assert.ok(source.includes("return;"));
+  assert.ok(source.includes("disabled={isSubmitting}"));
+  assert.ok(source.includes("aria-busy={isSubmitting}"));
+});
+
 test("API client exposes unified login contract against backend auth endpoint", () => {
   const source = read(API_CLIENT_PATH);
 

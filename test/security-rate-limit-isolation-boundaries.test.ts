@@ -29,6 +29,7 @@ const RATE_LIMIT_ISOLATION_BOUNDARIES = {
     "429 does not set session cookies",
     "429 returns before DB storage signing or audit work",
     "request logs mark 429 as RATE_LIMITED",
+    "login key includes surface identifier and IP",
   ],
 } as const;
 
@@ -110,6 +111,7 @@ test("rate limit isolation matrix documents the protected contract", () => {
       "429 does not set session cookies",
       "429 returns before DB storage signing or audit work",
       "request logs mark 429 as RATE_LIMITED",
+      "login key includes surface identifier and IP",
     ],
   });
 });
@@ -254,18 +256,23 @@ test("auth login rate limits keep separate in-memory stores per auth domain", ()
       `${file} login max attempts`,
     );
     const realmKeyByFile = {
-      "server/routes/auth.fastify.ts":
-        'const rateLimitKey = `login:${request.ip || "unknown"}`;',
-      "server/routes/admin-auth.fastify.ts":
+      "server/routes/auth.fastify.ts": [
+        "buildLoginRateLimitKey({",
+        'surface: isUnifiedPayload ? "unified" : "clinic",',
+        "identifier: loginIdentifier,",
+        "ipAddress: request.ip || null,",
+      ],
+      "server/routes/admin-auth.fastify.ts": [
         'const rateLimitKey = `admin:${request.ip || "unknown"}`;',
-      "server/routes/particular-auth.fastify.ts":
+      ],
+      "server/routes/particular-auth.fastify.ts": [
         'const rateLimitKey = `particular:${request.ip || "unknown"}`;',
-    };
-    assertContains(
-      source,
-      realmKeyByFile[file],
-      `${file} login key`,
-    );
+      ],
+    } satisfies Record<(typeof file), readonly string[]>;
+
+    for (const marker of realmKeyByFile[file]) {
+      assertContains(source, marker, `${file} login key`);
+    }
     assertContains(
       source,
       "error: LOGIN_RATE_LIMIT_ERROR_MESSAGE",
