@@ -727,20 +727,8 @@ async function createReportDeliveredNotificationSafely(
   }
 }
 
-async function serializeReport(report: Report, deps: NativeAdminReportsDeps) {
-  const [previewUrl, downloadUrl] = await Promise.all([
-    deps.createSignedReportUrl(report.storagePath),
-    deps.createSignedReportDownloadUrl(
-      report.storagePath,
-      report.fileName ?? undefined,
-    ),
-  ]);
-
-  return {
-    ...serializeSafeReport(report),
-    previewUrl,
-    downloadUrl,
-  };
+function serializeReport(report: Report, _deps: NativeAdminReportsDeps) {
+  return serializeSafeReport(report);
 }
 
 export const adminReportsNativeRoutes: FastifyPluginAsync<

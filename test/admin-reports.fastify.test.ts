@@ -491,11 +491,10 @@ test("adminReportsNativeRoutes crea POST /upload con clinicId explicito y metada
     assert.equal(body.report.hasFile, true);
     assert.equal(body.report.storagePath, undefined);
     assert.equal(response.body.includes("storagePath"), false);
-    assert.equal(body.report.previewUrl, "signed-preview:reports/3/luna-report.pdf");
-    assert.equal(
-      body.report.downloadUrl,
-      "signed-download:reports/3/luna-report.pdf:luna-report.pdf",
-    );
+    assert.equal(body.report.previewUrl, undefined);
+    assert.equal(body.report.downloadUrl, undefined);
+    assert.equal(response.body.includes("previewUrl"), false);
+    assert.equal(response.body.includes("downloadUrl"), false);
   } finally {
     await app.close();
   }

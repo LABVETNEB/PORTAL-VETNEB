@@ -431,24 +431,8 @@ async function authenticateClinicUser(
   };
 }
 
-async function serializeReport(report: Report, deps: NativeReportsDeps) {
-  const [previewUrl, downloadUrl] = await Promise.all([
-    deps.createSignedReportUrl(report.storagePath),
-    deps.createSignedReportDownloadUrl(
-      report.storagePath,
-      report.fileName ?? undefined,
-    ),
-  ]);
-
-  return {
-    ...serializeSafeReport(report),
-    previewUrl,
-    downloadUrl,
-  };
-}
-
-async function serializeReports(reports: Report[], deps: NativeReportsDeps) {
-  return Promise.all(reports.map((report) => serializeReport(report, deps)));
+function serializeReports(reports: Report[], _deps: NativeReportsDeps) {
+  return reports.map((report) => serializeSafeReport(report));
 }
 
 async function getAuthorizedReport(
