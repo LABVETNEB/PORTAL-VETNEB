@@ -7,7 +7,8 @@ type SensitiveMutationRoute = {
   file: string;
   method: "post" | "patch" | "delete";
   path: string;
-  permissionGuard: string;
+  authGuard: string;
+  permissionGuard?: string;
   protectedCalls: readonly string[];
 };
 
@@ -16,6 +17,7 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     file: "server/routes/reports-status.fastify.ts",
     method: "patch",
     path: "/:reportId/status",
+    authGuard: "authenticateClinicUser",
     permissionGuard: "requireReportStatusWritePermission",
     protectedCalls: ["deps.updateReportStatus", "deps.writeAuditLog"],
   },
@@ -23,6 +25,7 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     file: "server/routes/report-access-tokens.fastify.ts",
     method: "post",
     path: "/",
+    authGuard: "authenticateClinicUser",
     permissionGuard: "requireReportAccessTokenManagementPermission",
     protectedCalls: ["deps.createReportAccessToken", "deps.writeAuditLog"],
   },
@@ -30,6 +33,7 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     file: "server/routes/report-access-tokens.fastify.ts",
     method: "patch",
     path: "/:tokenId/revoke",
+    authGuard: "authenticateClinicUser",
     permissionGuard: "requireReportAccessTokenManagementPermission",
     protectedCalls: ["deps.revokeReportAccessToken", "deps.writeAuditLog"],
   },
@@ -37,6 +41,7 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     file: "server/routes/particular-tokens.fastify.ts",
     method: "post",
     path: "/",
+    authGuard: "authenticateClinicUser",
     permissionGuard: "requireParticularTokenManagementPermission",
     protectedCalls: ["deps.createParticularToken"],
   },
@@ -44,13 +49,29 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     file: "server/routes/particular-tokens.fastify.ts",
     method: "patch",
     path: "/:tokenId/report",
+    authGuard: "authenticateClinicUser",
     permissionGuard: "requireParticularTokenManagementPermission",
     protectedCalls: ["deps.updateParticularTokenReport"],
   },
   {
     file: "server/routes/study-tracking.fastify.ts",
+    method: "patch",
+    path: "/notifications/:notificationId/read",
+    authGuard: "authenticateClinicUser",
+    protectedCalls: ["deps.markStudyTrackingNotificationReadScoped"],
+  },
+  {
+    file: "server/routes/study-tracking.fastify.ts",
+    method: "patch",
+    path: "/notifications/read-all",
+    authGuard: "authenticateClinicUser",
+    protectedCalls: ["deps.markAllStudyTrackingNotificationsReadScoped"],
+  },
+  {
+    file: "server/routes/study-tracking.fastify.ts",
     method: "post",
     path: "/",
+    authGuard: "authenticateClinicUser",
     permissionGuard: "requireStudyTrackingManagementPermission",
     protectedCalls: [
       "deps.createStudyTrackingCase",
@@ -60,9 +81,24 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     ],
   },
   {
+    file: "server/routes/particular-study-tracking.fastify.ts",
+    method: "patch",
+    path: "/notifications/:notificationId/read",
+    authGuard: "authenticateParticularUser",
+    protectedCalls: ["deps.markStudyTrackingNotificationReadScoped"],
+  },
+  {
+    file: "server/routes/particular-study-tracking.fastify.ts",
+    method: "patch",
+    path: "/notifications/read-all",
+    authGuard: "authenticateParticularUser",
+    protectedCalls: ["deps.markAllStudyTrackingNotificationsReadScoped"],
+  },
+  {
     file: "server/routes/clinic-public-profile.fastify.ts",
     method: "patch",
     path: "/",
+    authGuard: "authenticateClinicUser",
     permissionGuard: "requireClinicManagementPermission",
     protectedCalls: [
       "deps.patchClinicPublicProfile",
@@ -73,6 +109,7 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     file: "server/routes/clinic-public-profile.fastify.ts",
     method: "post",
     path: "/avatar",
+    authGuard: "authenticateClinicUser",
     permissionGuard: "requireClinicManagementPermission",
     protectedCalls: [
       "runAvatarUpload",
@@ -86,6 +123,7 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     file: "server/routes/clinic-public-profile.fastify.ts",
     method: "delete",
     path: "/avatar",
+    authGuard: "authenticateClinicUser",
     permissionGuard: "requireClinicManagementPermission",
     protectedCalls: [
       "deps.removeClinicPublicAvatar",
@@ -208,13 +246,19 @@ test("rutas mutantes sensibles validan origin, sesión y permiso antes de operar
     const block = extractRouteBlock(route);
 
     assertContains(block, "enforceTrustedOrigin", context);
-    assertContains(block, "authenticateClinicUser", context);
-    assertContains(block, route.permissionGuard, context);
+    assertContains(block, route.authGuard, context);
+
+    if (route.permissionGuard) {
+      assertContains(block, route.permissionGuard, context);
+    }
 
     for (const protectedCall of route.protectedCalls) {
       assertBefore(block, "enforceTrustedOrigin", protectedCall, context);
-      assertBefore(block, "authenticateClinicUser", protectedCall, context);
-      assertBefore(block, route.permissionGuard, protectedCall, context);
+      assertBefore(block, route.authGuard, protectedCall, context);
+
+      if (route.permissionGuard) {
+        assertBefore(block, route.permissionGuard, protectedCall, context);
+      }
     }
   }
 });
@@ -223,7 +267,7 @@ test("permission helpers devuelven 403 estable antes de mutaciones sensibles", (
   const helpersByFile = new Map<string, string[]>();
 
   for (const route of SENSITIVE_MUTATION_ROUTES) {
-    if (route.permissionGuard === "auth.canUploadReports") {
+    if (!route.permissionGuard || route.permissionGuard === "auth.canUploadReports") {
       continue;
     }
 

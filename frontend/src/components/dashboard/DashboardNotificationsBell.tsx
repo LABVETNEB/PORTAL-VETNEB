@@ -4,19 +4,28 @@ import { Bell } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  getAdminStudyTrackingNotifications,
-  markAdminStudyTrackingNotificationRead,
+  getDashboardNotifications,
+  markAllDashboardNotificationsRead,
+  markDashboardNotificationRead,
   type AdminStudyTrackingNotificationSummary,
+  type DashboardNotificationSurface,
 } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 
 const NOTIFICATIONS_LIMIT = 20;
 const POLLING_INTERVAL_MS = 30_000;
 
-export function DashboardNotificationsBell() {
+type DashboardNotificationsBellProps = {
+  surface: DashboardNotificationSurface;
+};
+
+export function DashboardNotificationsBell({
+  surface,
+}: DashboardNotificationsBellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isPollingEnabled, setIsPollingEnabled] = useState(false);
+  const [isMarkingAllAsRead, setIsMarkingAllAsRead] = useState(false);
   const [notifications, setNotifications] = useState<
     AdminStudyTrackingNotificationSummary[]
   >([]);
@@ -39,7 +48,7 @@ export function DashboardNotificationsBell() {
     setErrorMessage(null);
 
     try {
-      const response = await getAdminStudyTrackingNotifications({
+      const response = await getDashboardNotifications(surface, {
         limit: NOTIFICATIONS_LIMIT,
         offset: 0,
       });
@@ -50,7 +59,7 @@ export function DashboardNotificationsBell() {
       isFetchingRef.current = false;
       setIsLoading(false);
     }
-  }, []);
+  }, [surface]);
 
   useEffect(() => {
     if (!isPollingEnabled) {
@@ -88,7 +97,11 @@ export function DashboardNotificationsBell() {
   async function handleMarkAsRead(
     notification: AdminStudyTrackingNotificationSummary,
   ) {
-    if (notification.isRead || updatingNotificationId !== null) {
+    if (
+      notification.isRead ||
+      updatingNotificationId !== null ||
+      isMarkingAllAsRead
+    ) {
       return;
     }
 
@@ -96,7 +109,8 @@ export function DashboardNotificationsBell() {
     setErrorMessage(null);
 
     try {
-      const response = await markAdminStudyTrackingNotificationRead(
+      const response = await markDashboardNotificationRead(
+        surface,
         notification.id,
       );
       setNotifications((current) =>
@@ -110,6 +124,35 @@ export function DashboardNotificationsBell() {
       setErrorMessage("No se pudieron cargar las notificaciones.");
     } finally {
       setUpdatingNotificationId(null);
+    }
+  }
+
+  async function handleMarkAllAsRead() {
+    if (isMarkingAllAsRead || updatingNotificationId !== null) {
+      return;
+    }
+
+    setIsMarkingAllAsRead(true);
+    setErrorMessage(null);
+
+    try {
+      await markAllDashboardNotificationsRead(surface);
+      const readAt = new Date().toISOString();
+      setNotifications((current) =>
+        current.map((notification) =>
+          notification.isRead
+            ? notification
+            : {
+                ...notification,
+                isRead: true,
+                readAt,
+              },
+        ),
+      );
+    } catch {
+      setErrorMessage("No se pudieron cargar las notificaciones.");
+    } finally {
+      setIsMarkingAllAsRead(false);
     }
   }
 
@@ -130,7 +173,7 @@ export function DashboardNotificationsBell() {
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 z-50 mt-2 w-[20rem] rounded-lg border border-vetneb-line/80 bg-card p-3 shadow-xl">
+        <div className="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-1rem))] rounded-lg border border-vetneb-line/80 bg-card p-3 shadow-xl">
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="text-sm font-semibold text-vetneb-ink">Notificaciones</p>
             <div className="flex items-center gap-2">
@@ -153,6 +196,22 @@ export function DashboardNotificationsBell() {
                 disabled={isLoading}
               >
                 {isLoading ? "Actualizando..." : "Actualizar"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void handleMarkAllAsRead()}
+                disabled={
+                  isLoading ||
+                  isMarkingAllAsRead ||
+                  updatingNotificationId !== null ||
+                  unreadCount === 0
+                }
+              >
+                {isMarkingAllAsRead
+                  ? "Marcando..."
+                  : "Marcar todas como leídas"}
               </Button>
             </div>
           </div>

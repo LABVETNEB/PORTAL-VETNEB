@@ -12,6 +12,7 @@ import type {
 import { ENV } from "../lib/env.ts";
 import {
   parseBooleanQuery,
+  parseEntityId,
   parseOffset,
   parsePositiveInt,
   serializeStudyTrackingCase,
@@ -66,10 +67,20 @@ export type ParticularStudyTrackingNativeRoutesOptions = {
     limit: number;
     offset: number;
   }) => Promise<StudyTrackingNotification[]>;
+  markStudyTrackingNotificationReadScoped?: (params: {
+    id: number;
+    clinicId?: number;
+    particularTokenId?: number;
+  }) => Promise<StudyTrackingNotification | null | undefined>;
+  markAllStudyTrackingNotificationsReadScoped?: (params: {
+    clinicId?: number;
+    particularTokenId?: number;
+  }) => Promise<{ updatedCount: number }>;
   now?: () => number;
 };
 
 const REQUEST_TIMER_KEY = "__particularStudyTrackingRequestTimer";
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 type ParticularStudyTrackingFastifyRequest = FastifyRequest & {
   [REQUEST_TIMER_KEY]?: RuntimeTimer;
@@ -85,6 +96,8 @@ type NativeParticularStudyTrackingDeps = Required<
     | "hashSessionToken"
     | "getParticularStudyTrackingCase"
     | "listStudyTrackingNotifications"
+    | "markStudyTrackingNotificationReadScoped"
+    | "markAllStudyTrackingNotificationsReadScoped"
   >
 >;
 
@@ -111,6 +124,10 @@ async function loadDefaultDeps(): Promise<NativeParticularStudyTrackingDeps> {
           dbStudyTracking.getParticularStudyTrackingCase,
         listStudyTrackingNotifications:
           dbStudyTracking.listStudyTrackingNotifications,
+        markStudyTrackingNotificationReadScoped:
+          dbStudyTracking.markStudyTrackingNotificationReadScoped,
+        markAllStudyTrackingNotificationsReadScoped:
+          dbStudyTracking.markAllStudyTrackingNotificationsReadScoped,
       };
     })();
   }
@@ -128,7 +145,9 @@ function hasAllInjectedDeps(
     !!options.updateParticularSessionLastAccess &&
     !!options.hashSessionToken &&
     !!options.getParticularStudyTrackingCase &&
-    !!options.listStudyTrackingNotifications
+    !!options.listStudyTrackingNotifications &&
+    !!options.markStudyTrackingNotificationReadScoped &&
+    !!options.markAllStudyTrackingNotificationsReadScoped
   );
 }
 
@@ -158,6 +177,12 @@ async function resolveDeps(
     listStudyTrackingNotifications:
       options.listStudyTrackingNotifications ??
       defaultDeps!.listStudyTrackingNotifications,
+    markStudyTrackingNotificationReadScoped:
+      options.markStudyTrackingNotificationReadScoped ??
+      defaultDeps!.markStudyTrackingNotificationReadScoped,
+    markAllStudyTrackingNotificationsReadScoped:
+      options.markAllStudyTrackingNotificationsReadScoped ??
+      defaultDeps!.markAllStudyTrackingNotificationsReadScoped,
   };
 }
 
@@ -234,6 +259,28 @@ function getRequestOrigin(request: FastifyRequest): string | null {
   }
 
   return null;
+}
+
+function enforceTrustedOrigin(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  allowedOrigins: ReadonlySet<string>,
+) {
+  if (!UNSAFE_METHODS.has(request.method.toUpperCase())) {
+    return true;
+  }
+
+  const requestOrigin = getRequestOrigin(request);
+
+  if (!requestOrigin || !allowedOrigins.has(requestOrigin)) {
+    reply.code(403).send({
+      success: false,
+      error: "Origen no permitido",
+    });
+    return false;
+  }
+
+  return true;
 }
 
 function applyCorsHeaders(
@@ -451,7 +498,7 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
     }
 
     applyCorsHeaders(request, reply, allowedOrigins);
-    reply.header("access-control-allow-methods", "GET,OPTIONS");
+    reply.header("access-control-allow-methods", "GET,PATCH,OPTIONS");
 
     const requestedHeaders =
       typeof request.headers["access-control-request-headers"] === "string"
@@ -464,6 +511,8 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
 
   app.options("/me", optionsHandler);
   app.options("/notifications", optionsHandler);
+  app.options("/notifications/:notificationId/read", optionsHandler);
+  app.options("/notifications/read-all", optionsHandler);
 
   app.get("/me", async (request, reply) => {
     const deps = await resolveDeps(options);
@@ -535,6 +584,81 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
         limit,
         offset,
       },
+    });
+  });
+
+  app.patch<{
+    Params: {
+      notificationId: string;
+    };
+  }>("/notifications/:notificationId/read", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const deps = await resolveDeps(options);
+    const particular = await authenticateParticularUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
+
+    if (!particular) {
+      return reply;
+    }
+
+    const notificationId = parseEntityId(request.params.notificationId);
+
+    if (typeof notificationId !== "number") {
+      return reply.code(400).send({
+        success: false,
+        error: "ID de notificación inválido",
+      });
+    }
+
+    const notification = await deps.markStudyTrackingNotificationReadScoped({
+      id: notificationId,
+      particularTokenId: particular.tokenId,
+    });
+
+    if (!notification) {
+      return reply.code(404).send({
+        success: false,
+        error: "Notificación no encontrada",
+      });
+    }
+
+    return reply.code(200).send({
+      success: true,
+      notification: serializeStudyTrackingNotification(notification),
+    });
+  });
+
+  app.patch("/notifications/read-all", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const deps = await resolveDeps(options);
+    const particular = await authenticateParticularUser(
+      request,
+      reply,
+      deps,
+      now,
+    );
+
+    if (!particular) {
+      return reply;
+    }
+
+    const result = await deps.markAllStudyTrackingNotificationsReadScoped({
+      particularTokenId: particular.tokenId,
+    });
+
+    return reply.code(200).send({
+      success: true,
+      updatedCount: result.updatedCount,
     });
   });
 };

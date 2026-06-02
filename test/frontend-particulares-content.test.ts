@@ -57,3 +57,14 @@ test("particulares content muestra estado y alerta desde study-tracking en sesi�
   assert.ok(source.includes("Alerta: Solicitud de tinción especial."));
   assert.ok(source.includes("trackingCase"));
 });
+
+test("particulares content integra campana token-scoped en sesión activa", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(
+    source.includes(
+      'import { DashboardNotificationsBell } from "@/components/dashboard/DashboardNotificationsBell";',
+    ),
+  );
+  assert.ok(source.includes('<DashboardNotificationsBell surface="particular" />'));
+});

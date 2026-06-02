@@ -226,6 +226,7 @@ function buildAdminReportsRouteStubs() {
     getStudyTrackingCaseByReportId: async () => null,
     createStudyTrackingCase: async () => ({} as any),
     updateStudyTrackingCase: async () => null,
+    createStudyTrackingNotification: async () => ({} as any),
     createSignedReportUrl: async (storagePath: string) =>
       `signed-preview:${storagePath}`,
     createSignedReportDownloadUrl: async (
@@ -507,6 +508,10 @@ function buildStudyTrackingRouteStubs() {
     listStudyTrackingCases: async () => [],
     createStudyTrackingNotification: async () => ({} as any),
     listStudyTrackingNotifications: async () => [],
+    markStudyTrackingNotificationReadScoped: async () => null,
+    markAllStudyTrackingNotificationsReadScoped: async () => ({
+      updatedCount: 0,
+    }),
     writeAuditLog: async () => {},
     sendSpecialStainRequiredEmail: async () => ({ sent: true }),
   };
@@ -573,6 +578,10 @@ function buildParticularStudyTrackingRouteStubs() {
     hashSessionToken: (token: string) => `hash:${token}`,
     getParticularStudyTrackingCase: async () => null,
     listStudyTrackingNotifications: async () => [],
+    markStudyTrackingNotificationReadScoped: async () => null,
+    markAllStudyTrackingNotificationsReadScoped: async () => ({
+      updatedCount: 0,
+    }),
   };
 }
 

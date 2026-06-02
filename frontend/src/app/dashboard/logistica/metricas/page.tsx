@@ -91,6 +91,7 @@ export default async function MetricasPage() {
       <DashboardTopbar
         title="Métricas de logística"
         subtitle="Cumplimiento, SLA y reportes operativos"
+        notifications="clinic"
       />
       <main className="dashboard-main">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

@@ -106,6 +106,7 @@ export default async function LogisticaPage() {
       <DashboardTopbar
         title="Logística"
         subtitle="Visitas de campo y planes de ruta"
+        notifications="clinic"
       />
       <main className="dashboard-main">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

@@ -60,6 +60,7 @@ test("dashboard home renders clinic operational summary, stats, reports, and fie
 
   assert.ok(source.includes('title="Dashboard Clínica"'));
   assert.ok(source.includes('subtitle="Resumen operativo clínica"'));
+  assert.ok(source.includes('notifications="clinic"'));
   assert.ok(source.includes("Estado operativo clínica"));
   assert.ok(source.includes("Priorice informes pendientes y visitas activas"));
   assert.ok(source.includes("statsLoadError ?"));

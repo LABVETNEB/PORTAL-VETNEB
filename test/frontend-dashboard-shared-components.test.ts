@@ -31,7 +31,9 @@ test("dashboard topbar keeps typed title and optional subtitle props", () => {
   assert.ok(source.includes("interface DashboardTopbarProps"));
   assert.ok(source.includes("title: string;"));
   assert.ok(source.includes("subtitle?: string;"));
-  assert.ok(source.includes('notifications?: "admin" | false;'));
+  assert.ok(
+    source.includes('notifications?: "admin" | "clinic" | "particular" | false;'),
+  );
   assert.ok(source.includes("notifications = false,"));
   assert.ok(source.includes("export function DashboardTopbar({"));
   assert.ok(source.includes("<h1"));
@@ -40,7 +42,7 @@ test("dashboard topbar keeps typed title and optional subtitle props", () => {
   assert.ok(source.includes("{subtitle}"));
 });
 
-test("dashboard topbar renders notifications bell only in admin mode", () => {
+test("dashboard topbar renders notifications bell for configured dashboard surface", () => {
   const source = read(DASHBOARD_TOPBAR_PATH);
 
   assert.ok(
@@ -50,7 +52,7 @@ test("dashboard topbar renders notifications bell only in admin mode", () => {
   );
   assert.ok(
     source.includes(
-      '{notifications === "admin" ? <DashboardNotificationsBell /> : null}',
+      "{notifications ? <DashboardNotificationsBell surface={notifications} /> : null}",
     ),
   );
 });

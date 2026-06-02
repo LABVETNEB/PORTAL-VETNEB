@@ -928,14 +928,33 @@ export type AdminStudyTrackingNotificationsReadAllResponse = {
   updatedCount: number;
 };
 
-export async function getAdminStudyTrackingNotifications(
-  params: {
-    unreadOnly?: boolean;
-    limit?: number;
-    offset?: number;
-  } = {},
-  options?: RequestInit,
-): Promise<AdminStudyTrackingNotificationsSnapshot> {
+export type DashboardNotificationSurface =
+  | "admin"
+  | "clinic"
+  | "particular";
+
+type DashboardNotificationsQuery = {
+  unreadOnly?: boolean;
+  limit?: number;
+  offset?: number;
+};
+
+function buildDashboardNotificationsPath(surface: DashboardNotificationSurface) {
+  switch (surface) {
+    case "admin":
+      return "/api/admin/study-tracking/notifications";
+    case "clinic":
+      return "/api/study-tracking/notifications";
+    case "particular":
+      return "/api/particular/study-tracking/notifications";
+    default:
+      return "/api/admin/study-tracking/notifications";
+  }
+}
+
+function buildDashboardNotificationsQuery(
+  params: DashboardNotificationsQuery = {},
+) {
   const query = new URLSearchParams();
 
   if (typeof params.unreadOnly === "boolean") {
@@ -950,37 +969,116 @@ export async function getAdminStudyTrackingNotifications(
     query.set("offset", String(params.offset));
   }
 
-  const qs = query.toString();
+  return query.toString();
+}
+
+export async function getDashboardNotifications(
+  surface: DashboardNotificationSurface,
+  params: {
+    unreadOnly?: boolean;
+    limit?: number;
+    offset?: number;
+  } = {},
+  options?: RequestInit,
+): Promise<AdminStudyTrackingNotificationsSnapshot> {
+  const qs = buildDashboardNotificationsQuery(params);
+  const basePath = buildDashboardNotificationsPath(surface);
 
   return apiFetch<AdminStudyTrackingNotificationsSnapshot>(
-    `/api/admin/study-tracking/notifications${qs ? `?${qs}` : ""}`,
+    `${basePath}${qs ? `?${qs}` : ""}`,
     options,
   );
+}
+
+export async function markDashboardNotificationRead(
+  surface: DashboardNotificationSurface,
+  notificationId: number,
+  options?: RequestInit,
+): Promise<AdminStudyTrackingNotificationReadResponse> {
+  const basePath = buildDashboardNotificationsPath(surface);
+
+  return apiFetch<AdminStudyTrackingNotificationReadResponse>(
+    `${basePath}/${notificationId}/read`,
+    {
+      ...options,
+      method: "PATCH",
+    },
+  );
+}
+
+export async function markAllDashboardNotificationsRead(
+  surface: DashboardNotificationSurface,
+  options?: RequestInit,
+): Promise<AdminStudyTrackingNotificationsReadAllResponse> {
+  const basePath = buildDashboardNotificationsPath(surface);
+
+  return apiFetch<AdminStudyTrackingNotificationsReadAllResponse>(
+    `${basePath}/read-all`,
+    {
+      ...options,
+      method: "PATCH",
+    },
+  );
+}
+
+export async function getAdminStudyTrackingNotifications(
+  params: DashboardNotificationsQuery = {},
+  options?: RequestInit,
+): Promise<AdminStudyTrackingNotificationsSnapshot> {
+  return getDashboardNotifications("admin", params, options);
 }
 
 export async function markAdminStudyTrackingNotificationRead(
   notificationId: number,
   options?: RequestInit,
 ): Promise<AdminStudyTrackingNotificationReadResponse> {
-  return apiFetch<AdminStudyTrackingNotificationReadResponse>(
-    `/api/admin/study-tracking/notifications/${notificationId}/read`,
-    {
-      ...options,
-      method: "PATCH",
-    },
-  );
+  return markDashboardNotificationRead("admin", notificationId, options);
 }
 
 export async function markAllAdminStudyTrackingNotificationsRead(
   options?: RequestInit,
 ): Promise<AdminStudyTrackingNotificationsReadAllResponse> {
-  return apiFetch<AdminStudyTrackingNotificationsReadAllResponse>(
-    "/api/admin/study-tracking/notifications/read-all",
-    {
-      ...options,
-      method: "PATCH",
-    },
-  );
+  return markAllDashboardNotificationsRead("admin", options);
+}
+
+export async function getClinicStudyTrackingNotifications(
+  params: DashboardNotificationsQuery = {},
+  options?: RequestInit,
+): Promise<AdminStudyTrackingNotificationsSnapshot> {
+  return getDashboardNotifications("clinic", params, options);
+}
+
+export async function markClinicStudyTrackingNotificationRead(
+  notificationId: number,
+  options?: RequestInit,
+): Promise<AdminStudyTrackingNotificationReadResponse> {
+  return markDashboardNotificationRead("clinic", notificationId, options);
+}
+
+export async function markAllClinicStudyTrackingNotificationsRead(
+  options?: RequestInit,
+): Promise<AdminStudyTrackingNotificationsReadAllResponse> {
+  return markAllDashboardNotificationsRead("clinic", options);
+}
+
+export async function getParticularStudyTrackingNotifications(
+  params: DashboardNotificationsQuery = {},
+  options?: RequestInit,
+): Promise<AdminStudyTrackingNotificationsSnapshot> {
+  return getDashboardNotifications("particular", params, options);
+}
+
+export async function markParticularStudyTrackingNotificationRead(
+  notificationId: number,
+  options?: RequestInit,
+): Promise<AdminStudyTrackingNotificationReadResponse> {
+  return markDashboardNotificationRead("particular", notificationId, options);
+}
+
+export async function markAllParticularStudyTrackingNotificationsRead(
+  options?: RequestInit,
+): Promise<AdminStudyTrackingNotificationsReadAllResponse> {
+  return markAllDashboardNotificationsRead("particular", options);
 }
 
 export type ClinicStudyTrackingCaseSummary = AdminStudyTrackingCaseSummary;

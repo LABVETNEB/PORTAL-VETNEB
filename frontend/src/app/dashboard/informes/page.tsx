@@ -109,6 +109,7 @@ export default async function InformesPage({
       <DashboardTopbar
         title="Informes"
         subtitle="Consulta de informes médicos veterinarios"
+        notifications="clinic"
       />
       <main className="dashboard-main">
         <Card className="dashboard-surface">

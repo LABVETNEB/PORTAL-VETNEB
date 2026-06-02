@@ -76,7 +76,11 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <DashboardTopbar title="Dashboard Clínica" subtitle="Resumen operativo clínica" />
+      <DashboardTopbar
+        title="Dashboard Clínica"
+        subtitle="Resumen operativo clínica"
+        notifications="clinic"
+      />
       <main className="dashboard-main">
         <section className="surface-note-info" aria-labelledby="dashboard-operational-priority">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

@@ -39,6 +39,7 @@ import {
   VisualIcon,
 } from "@/components/public/VisualAccents";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { DashboardNotificationsBell } from "@/components/dashboard/DashboardNotificationsBell";
 
 function formatDate(value: string | null | undefined) {
   if (!value) {
@@ -309,22 +310,25 @@ export function ParticularesContent() {
         <PremiumPanel className="overflow-hidden">
           <Card className="border-0 bg-transparent shadow-none">
             <CardHeader className="clinical-muted-band border-b">
-              <div className="flex items-start gap-3">
-                <VisualIcon
-                  icon={session ? UserRound : KeyRound}
-                  tone={session ? "emerald" : "blue"}
-                  className="h-11 w-11 rounded-xl"
-                />
-                <div>
-                  <CardTitle className="text-xl text-vetneb-ink">
-                    {session ? "Sesión particular activa" : "Ingresar con token"}
-                  </CardTitle>
-                  <CardDescription className="mt-1 leading-relaxed">
-                    {session
-                      ? "Datos visibles del caso autenticado con seguimiento trazable del proceso diagnóstico."
-                      : "Pegue el token recibido para consultar el estado del estudio y acceder al informe cuando esté disponible."}
-                  </CardDescription>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <VisualIcon
+                    icon={session ? UserRound : KeyRound}
+                    tone={session ? "emerald" : "blue"}
+                    className="h-11 w-11 rounded-xl"
+                  />
+                  <div>
+                    <CardTitle className="text-xl text-vetneb-ink">
+                      {session ? "Sesión particular activa" : "Ingresar con token"}
+                    </CardTitle>
+                    <CardDescription className="mt-1 leading-relaxed">
+                      {session
+                        ? "Datos visibles del caso autenticado con seguimiento trazable del proceso diagnóstico."
+                        : "Pegue el token recibido para consultar el estado del estudio y acceder al informe cuando esté disponible."}
+                    </CardDescription>
+                  </div>
                 </div>
+                {session ? <DashboardNotificationsBell surface="particular" /> : null}
               </div>
             </CardHeader>
 

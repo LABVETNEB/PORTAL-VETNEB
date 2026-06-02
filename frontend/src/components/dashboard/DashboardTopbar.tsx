@@ -5,7 +5,7 @@ import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
 interface DashboardTopbarProps {
   title: string;
   subtitle?: string;
-  notifications?: "admin" | false;
+  notifications?: "admin" | "clinic" | "particular" | false;
 }
 
 export function DashboardTopbar({
@@ -42,7 +42,7 @@ export function DashboardTopbar({
       </div>
 
       <div className="ml-3 flex shrink-0 items-center gap-2 sm:gap-3">
-        {notifications === "admin" ? <DashboardNotificationsBell /> : null}
+        {notifications ? <DashboardNotificationsBell surface={notifications} /> : null}
         <PublicRouteControl
           href={ROUTES.login}
           variant="bare"

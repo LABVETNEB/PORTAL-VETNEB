@@ -43,6 +43,7 @@ test("dashboard logistica visitas renders topbar without technical source copy",
 
   assert.ok(source.includes('title="Visitas de campo"'));
   assert.ok(source.includes('subtitle="Seguimiento de visitas programadas y en curso"'));
+  assert.ok(source.includes('notifications="clinic"'));
   assert.equal(source.includes(removedSourcePrefix), false);
   assert.equal(source.includes(removedFieldVisitsEndpoint), false);
 });

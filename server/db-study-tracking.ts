@@ -7,6 +7,33 @@ import {
   type NewStudyTrackingNotification,
 } from "../drizzle/schema.ts";
 
+type NotificationScope = {
+  clinicId?: number;
+  particularTokenId?: number;
+};
+
+function buildStudyTrackingNotificationScopeFilters(scope: NotificationScope) {
+  const scopeFilters = [];
+
+  if (typeof scope.clinicId === "number") {
+    scopeFilters.push(eq(studyTrackingNotifications.clinicId, scope.clinicId));
+  }
+
+  if (typeof scope.particularTokenId === "number") {
+    scopeFilters.push(
+      eq(studyTrackingNotifications.particularTokenId, scope.particularTokenId),
+    );
+  }
+
+  if (scopeFilters.length === 0) {
+    throw new Error(
+      "markStudyTrackingNotificationReadScoped requires clinicId or particularTokenId",
+    );
+  }
+
+  return scopeFilters;
+}
+
 export async function createStudyTrackingCase(
   input: Omit<NewStudyTrackingCase, "id" | "createdAt" | "updatedAt">,
 ) {
@@ -223,6 +250,44 @@ export async function markAllStudyTrackingNotificationsRead(params?: {
       readAt: new Date(),
     })
     .where(and(...filters))
+    .returning({ id: studyTrackingNotifications.id });
+
+  return {
+    updatedCount: updated.length,
+  };
+}
+
+export async function markStudyTrackingNotificationReadScoped(params: {
+  id: number;
+  clinicId?: number;
+  particularTokenId?: number;
+}) {
+  const scopeFilters = buildStudyTrackingNotificationScopeFilters(params);
+  const now = new Date();
+  const result = await db
+    .update(studyTrackingNotifications)
+    .set({
+      isRead: true,
+      readAt: now,
+    })
+    .where(and(eq(studyTrackingNotifications.id, params.id), ...scopeFilters))
+    .returning();
+
+  return result[0];
+}
+
+export async function markAllStudyTrackingNotificationsReadScoped(params: {
+  clinicId?: number;
+  particularTokenId?: number;
+}) {
+  const scopeFilters = buildStudyTrackingNotificationScopeFilters(params);
+  const updated = await db
+    .update(studyTrackingNotifications)
+    .set({
+      isRead: true,
+      readAt: new Date(),
+    })
+    .where(and(eq(studyTrackingNotifications.isRead, false), ...scopeFilters))
     .returning({ id: studyTrackingNotifications.id });
 
   return {
