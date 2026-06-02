@@ -306,7 +306,8 @@ test("admin autenticado puede subir informe y queda como owner de escritura", as
     const body = JSON.parse(response.body);
     assert.equal(body.success, true);
     assert.equal(body.report.clinicId, 3);
-    assert.equal(body.report.previewUrl, "signed-preview:reports/3/luna-report.pdf");
+    assert.equal(body.report.previewUrl, undefined);
+    assert.equal(response.body.includes("previewUrl"), false);
   } finally {
     await app.close();
   }

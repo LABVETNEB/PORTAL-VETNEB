@@ -134,11 +134,10 @@ test("reportsStatusNativeRoutes actualiza PATCH /:reportId/status y escribe audi
     assert.equal(body.report.hasFile, true);
     assert.equal(body.report.storagePath, undefined);
     assert.equal(response.body.includes("storagePath"), false);
-    assert.equal(body.report.previewUrl, "preview:reports/3/luna.pdf");
-    assert.equal(
-      body.report.downloadUrl,
-      "download:reports/3/luna.pdf:luna.pdf",
-    );
+    assert.equal(body.report.previewUrl, undefined);
+    assert.equal(body.report.downloadUrl, undefined);
+    assert.equal(response.body.includes("previewUrl"), false);
+    assert.equal(response.body.includes("downloadUrl"), false);
   } finally {
     await app.close();
   }

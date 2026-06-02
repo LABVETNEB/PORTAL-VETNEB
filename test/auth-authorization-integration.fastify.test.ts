@@ -246,8 +246,10 @@ test("auth integration permite usar cookie de login en endpoint protegido y resp
     assert.equal(reportsBody.success, true);
     assert.equal(reportsBody.count, 1);
     assert.equal(reportsBody.reports[0].id, 55);
-    assert.equal(reportsBody.reports[0].previewUrl, "preview:reports/3/luna.pdf");
-    assert.equal(reportsBody.reports[0].downloadUrl, "download:reports/3/luna.pdf:luna.pdf");
+    assert.equal(reportsBody.reports[0].previewUrl, undefined);
+    assert.equal(reportsBody.reports[0].downloadUrl, undefined);
+    assert.equal(reportsResponse.body.includes("previewUrl"), false);
+    assert.equal(reportsResponse.body.includes("downloadUrl"), false);
 
     assert.deepEqual(reportCalls, [
       {

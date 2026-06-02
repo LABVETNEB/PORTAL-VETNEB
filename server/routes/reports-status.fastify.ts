@@ -531,20 +531,8 @@ async function getAuthorizedReport(
   };
 }
 
-async function serializeReport(report: Report, deps: NativeReportsStatusDeps) {
-  const [previewUrl, downloadUrl] = await Promise.all([
-    deps.createSignedReportUrl(report.storagePath),
-    deps.createSignedReportDownloadUrl(
-      report.storagePath,
-      report.fileName ?? undefined,
-    ),
-  ]);
-
-  return {
-    ...serializeSafeReport(report),
-    previewUrl,
-    downloadUrl,
-  };
+function serializeReport(report: Report, _deps: NativeReportsStatusDeps) {
+  return serializeSafeReport(report);
 }
 
 export const reportsStatusNativeRoutes: FastifyPluginAsync<

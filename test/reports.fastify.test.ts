@@ -158,11 +158,10 @@ test("reportsNativeRoutes expone GET / con lista clinic-scoped", async () => {
     assert.equal(body.reports[0].hasFile, true);
     assert.equal(body.reports[0].storagePath, undefined);
     assert.equal(response.body.includes("storagePath"), false);
-    assert.equal(body.reports[0].previewUrl, "preview:reports/3/luna.pdf");
-    assert.equal(
-      body.reports[0].downloadUrl,
-      "download:reports/3/luna.pdf:luna.pdf",
-    );
+    assert.equal(body.reports[0].previewUrl, undefined);
+    assert.equal(body.reports[0].downloadUrl, undefined);
+    assert.equal(response.body.includes("previewUrl"), false);
+    assert.equal(response.body.includes("downloadUrl"), false);
     assert.equal(body.filters.status, "ready");
     assert.equal(body.pagination.limit, 5);
     assert.equal(body.pagination.offset, 2);
