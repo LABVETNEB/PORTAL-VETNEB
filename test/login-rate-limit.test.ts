@@ -1,7 +1,13 @@
 ﻿import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildLoginRateLimitKeyMetadata,
   buildLoginRateLimitKey,
+  buildMissingCredentialsLoginRateLimitKey,
+  getLoginRateLimitKeyMetadata,
+  hashLoginRateLimitIdentifier,
+  hashLoginRateLimitIpAddress,
+  LOGIN_RATE_LIMIT_KEY_VERSION,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
@@ -63,4 +69,57 @@ test("buildLoginRateLimitKey con ipAddress null usa 'unknown'", () => {
     ipAddress: null,
   });
   assert.equal(key, "login:v2:clinic:clinica@test.com:ip:unknown");
+});
+
+test("login rate limit metadata usa hashes seguros y version estable", () => {
+  const metadata = buildLoginRateLimitKeyMetadata({
+    surface: "admin",
+    identifier: "  Admin@Vetneb.test ",
+    ipAddress: "203.0.113.50",
+  });
+
+  assert.equal(metadata.surface, "admin");
+  assert.equal(metadata.keyVersion, LOGIN_RATE_LIMIT_KEY_VERSION);
+  assert.equal(metadata.identifierHash.length, 64);
+  assert.equal(metadata.ipHash.length, 64);
+  assert.equal(metadata.identifierHash, hashLoginRateLimitIdentifier("admin@vetneb.test"));
+  assert.equal(metadata.ipHash, hashLoginRateLimitIpAddress("203.0.113.50"));
+  assert.notEqual(metadata.identifierHash, "admin@vetneb.test");
+  assert.notEqual(metadata.ipHash, "203.0.113.50");
+});
+
+test("login rate limit metadata se puede derivar desde la key persistida", () => {
+  const key = buildLoginRateLimitKey({
+    surface: "particular",
+    identifier: "TOKEN-RAW",
+    ipAddress: "2001:db8::51",
+  });
+
+  assert.deepEqual(getLoginRateLimitKeyMetadata(key), {
+    surface: "particular",
+    identifierHash: hashLoginRateLimitIdentifier("token-raw"),
+    ipHash: hashLoginRateLimitIpAddress("2001:db8::51"),
+    keyVersion: LOGIN_RATE_LIMIT_KEY_VERSION,
+  });
+});
+
+test("missing credentials usa bucket separado por surface e IP", () => {
+  assert.equal(
+    buildMissingCredentialsLoginRateLimitKey({
+      surface: "unified",
+      ipAddress: "203.0.113.52",
+    }),
+    "login:v2:unified:missing:ip:203.0.113.52",
+  );
+  assert.notEqual(
+    buildMissingCredentialsLoginRateLimitKey({
+      surface: "unified",
+      ipAddress: "203.0.113.52",
+    }),
+    buildLoginRateLimitKey({
+      surface: "unified",
+      identifier: "usuario@vetneb.com",
+      ipAddress: "203.0.113.52",
+    }),
+  );
 });

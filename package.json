@@ -13,6 +13,7 @@
     "typecheck:test": "tsc -p ./test/tsconfig.json --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "auth:reset-login-rate-limit": "tsx scripts/dev/reset-login-rate-limit.ts",
     "smoke:test": "node scripts/smoke/smoke-test.mjs",
     "smoke:upload": "node scripts/smoke/smoke-upload.mjs",
     "smoke:staging": "powershell -ExecutionPolicy Bypass -File scripts/dev/smoke-staging.ps1",

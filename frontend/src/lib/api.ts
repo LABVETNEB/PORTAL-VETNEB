@@ -60,6 +60,16 @@ export const ADMIN_SCHEMA_HEALTH_UNAUTHORIZED_MESSAGE =
   "Sesión admin no autenticada o inválida. Iniciá sesión nuevamente.";
 export const LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE =
   "Demasiados intentos de inicio de sesión. Intente más tarde.";
+export const LOGIN_RATE_LIMIT_HEADERS_MISSING_MESSAGE =
+  "El backend no informó cuándo reintentar el inicio de sesión. Reintentá más tarde o contactá a VETNEB.";
+
+const LOGIN_RATE_LIMIT_REQUIRED_HEADERS = [
+  "Retry-After",
+  "RateLimit-Policy",
+  "RateLimit-Limit",
+  "RateLimit-Remaining",
+  "RateLimit-Reset",
+];
 
 function isLocalOrLanHostname(hostname: string): boolean {
   const normalizedHost = hostname.trim().toLowerCase();
@@ -183,6 +193,21 @@ function readRetryAfterSeconds(headers: Headers): number | null {
   return retryAfterSeconds;
 }
 
+function isLoginRateLimitPath(path: string): boolean {
+  return (
+    path === "/api/auth/login" ||
+    path === "/api/admin/auth/login" ||
+    path === "/api/particular/auth/login"
+  );
+}
+
+function hasRequiredLoginRateLimitHeaders(headers: Headers): boolean {
+  return LOGIN_RATE_LIMIT_REQUIRED_HEADERS.every((headerName) => {
+    const value = headers.get(headerName);
+    return typeof value === "string" && value.trim().length > 0;
+  });
+}
+
 function buildRateLimitErrorMessage(
   backendMessage: string | null,
   headers: Headers,
@@ -259,9 +284,21 @@ async function apiFetch<T>(
           : null;
 
     if (res.status === 429) {
+      const retryAfterSeconds = readRetryAfterSeconds(res.headers);
+
+      if (
+        isLoginRateLimitPath(path) &&
+        (!retryAfterSeconds || !hasRequiredLoginRateLimitHeaders(res.headers))
+      ) {
+        throw new RateLimitError(
+          LOGIN_RATE_LIMIT_HEADERS_MISSING_MESSAGE,
+          null,
+        );
+      }
+
       throw new RateLimitError(
         buildRateLimitErrorMessage(backendMessage, res.headers),
-        readRetryAfterSeconds(res.headers),
+        retryAfterSeconds,
       );
     }
 

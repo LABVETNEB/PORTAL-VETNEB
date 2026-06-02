@@ -7,7 +7,11 @@ import type { ParticularToken, Report } from "../../drizzle/schema.ts";
 
 import { ENV } from "../lib/env.ts";
 import {
+  buildLoginRateLimitHeaders,
   buildLoginRateLimitKey,
+  buildMissingCredentialsLoginRateLimitKey,
+  getLoginRateLimitKeyMetadata,
+  getLoginRateLimitResetSeconds,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
@@ -159,13 +163,18 @@ async function loadDefaultDeps(): Promise<NativeParticularAuthDefaultDeps> {
         generateSessionToken: authSecurity.generateSessionToken,
         hashSessionToken: authSecurity.hashSessionToken,
         recordLoginFailedAttempt: db.recordLoginFailedAttempt,
-        loginRateLimitStore: createPersistentRateLimitStore({
-          get: db.getLoginRateLimitEntry,
-          set: db.setLoginRateLimitEntry,
-          increment: db.incrementLoginRateLimitEntry,
-          cleanupExpired: db.deleteExpiredLoginRateLimitEntries,
-          delete: db.deleteLoginRateLimitEntry,
-        }),
+        loginRateLimitStore: createPersistentRateLimitStore(
+          {
+            get: db.getLoginRateLimitEntry,
+            set: db.setLoginRateLimitEntry,
+            increment: db.incrementLoginRateLimitEntry,
+            cleanupExpired: db.deleteExpiredLoginRateLimitEntries,
+            delete: db.deleteLoginRateLimitEntry,
+          },
+          {
+            metadataForKey: getLoginRateLimitKeyMetadata,
+          },
+        ),
       };
     })();
   }
@@ -399,19 +408,11 @@ function setLoginRateLimitHeaders(
     now: number;
   },
 ) {
-  reply.header(
-    "RateLimit-Policy",
-    `${input.max};w=${Math.ceil(input.windowMs / 1000)}`,
-  );
-  reply.header("RateLimit-Limit", String(input.max));
-  reply.header(
-    "RateLimit-Remaining",
-    String(Math.max(input.max - input.failedCount, 0)),
-  );
-  reply.header(
-    "RateLimit-Reset",
-    String(Math.max(Math.ceil((input.resetAt - input.now) / 1000), 0)),
-  );
+  for (const [headerName, headerValue] of Object.entries(
+    buildLoginRateLimitHeaders(input),
+  )) {
+    reply.header(headerName, headerValue);
+  }
 }
 
 function getUserAgent(request: FastifyRequest) {
@@ -645,9 +646,86 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     const providedToken =
       typeof request.body?.token === "string" ? request.body.token.trim() : "";
 
+    const recordFailedLoginAttempt = async (input: {
+      reason: LoginFailedAttemptReason;
+    }) => {
+      try {
+        await deps.recordLoginFailedAttempt({
+          surface: "particular",
+          username: null,
+          reason: input.reason,
+          ipAddress: request.ip || null,
+          userAgent: getUserAgent(request),
+          createdAt: new Date(currentTime),
+        });
+      } catch (error) {
+        request.log.warn(
+          {
+            err: error,
+            code: "PARTICULAR_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
+            surface: "particular",
+            reason: input.reason,
+          },
+          "No se pudo persistir intento fallido de login particular",
+        );
+      }
+    };
+
+    const markMissingCredentials = async () => {
+      const missingRateLimitKey = buildMissingCredentialsLoginRateLimitKey({
+        surface: "particular",
+        ipAddress: request.ip || null,
+      });
+
+      try {
+        const missingEntry = await getOrCreateRateLimitEntry(
+          loginRateLimitStore,
+          missingRateLimitKey,
+          loginRateLimitWindowMs,
+          currentTime,
+        );
+        const updatedMissingEntry = await incrementRateLimitEntry(
+          loginRateLimitStore,
+          missingRateLimitKey,
+          missingEntry,
+          currentTime,
+        );
+
+        setLoginRateLimitHeaders(reply, {
+          max: loginRateLimitMaxAttempts,
+          windowMs: loginRateLimitWindowMs,
+          failedCount: updatedMissingEntry.count,
+          resetAt: updatedMissingEntry.resetAt,
+          now: currentTime,
+        });
+      } catch (error) {
+        request.log.error(
+          {
+            err: error,
+            code: "PARTICULAR_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED",
+            route: "/api/particular/auth/login",
+          },
+          "No se pudo actualizar el rate limit de token faltante particular",
+        );
+      }
+
+      await recordFailedLoginAttempt({
+        reason: "missing_credentials",
+      });
+    };
+
+    if (!providedToken) {
+      await markMissingCredentials();
+
+      return reply.code(400).send({
+        success: false,
+        error: "Token obligatorio",
+      });
+    }
+
     const rateLimitKey = buildLoginRateLimitKey({
       surface: "particular",
-      identifier: providedToken || "unknown",
+      identifier: providedToken,
       ipAddress: request.ip || null,
     });
 
@@ -679,36 +757,11 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
       );
     }
 
-    const recordFailedLoginAttempt = async (input: {
-      reason: LoginFailedAttemptReason;
-    }) => {
-      try {
-        await deps.recordLoginFailedAttempt({
-          surface: "particular",
-          username: null,
-          reason: input.reason,
-          ipAddress: request.ip || null,
-          userAgent: getUserAgent(request),
-          createdAt: new Date(currentTime),
-        });
-      } catch (error) {
-        request.log.warn(
-          {
-            err: error,
-            code: "PARTICULAR_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
-            surface: "particular",
-            reason: input.reason,
-          },
-          "No se pudo persistir intento fallido de login particular",
-        );
-      }
-    };
-
     if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
-      const resetSeconds = Math.max(
-        Math.ceil((failureEntry.resetAt - currentTime) / 1000),
-        0,
-      );
+      const resetSeconds = getLoginRateLimitResetSeconds({
+        resetAt: failureEntry.resetAt,
+        now: currentTime,
+      });
 
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
@@ -795,17 +848,6 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
         now: currentTime,
       });
     };
-
-    if (!providedToken) {
-      await markFailure({
-        reason: "missing_credentials",
-      });
-
-      return reply.code(400).send({
-        success: false,
-        error: "Token obligatorio",
-      });
-    }
 
     const tokenHash = deps.hashSessionToken(providedToken);
     const particularToken = await deps.getParticularTokenByTokenHash(tokenHash);

@@ -77,6 +77,11 @@ function assertContainsInOrder(
 }
 
 function assertRateLimitHeaders(source: string, context: string): void {
+  if (source.includes("buildLoginRateLimitHeaders(input)")) {
+    assertContains(source, "buildLoginRateLimitHeaders(input)", context);
+    return;
+  }
+
   for (const marker of [
     '"RateLimit-Policy"',
     '"RateLimit-Limit"',
@@ -220,8 +225,13 @@ test("auth login rate limits keep persistent stores with memory fallback per aut
     );
     assertContains(
       source,
-      "loginRateLimitStore: createPersistentRateLimitStore({",
+      "loginRateLimitStore: createPersistentRateLimitStore(",
       `${file} persistent login rate limit store`,
+    );
+    assertContains(
+      source,
+      "metadataForKey: getLoginRateLimitKeyMetadata",
+      `${file} persistent login metadata`,
     );
     for (const marker of [
       "get: db.getLoginRateLimitEntry,",
@@ -273,18 +283,21 @@ test("auth login rate limits keep persistent stores with memory fallback per aut
         'surface: isUnifiedPayload ? "unified" : "clinic",',
         "identifier: loginIdentifier,",
         "ipAddress: request.ip || null,",
+        "buildMissingCredentialsLoginRateLimitKey({",
       ],
       "server/routes/admin-auth.fastify.ts": [
         "buildLoginRateLimitKey({",
         'surface: "admin",',
-        'identifier: username || "unknown",',
+        "identifier: username,",
         "ipAddress: request.ip || null,",
+        "buildMissingCredentialsLoginRateLimitKey({",
       ],
       "server/routes/particular-auth.fastify.ts": [
         "buildLoginRateLimitKey({",
         'surface: "particular",',
-        'identifier: providedToken || "unknown",',
+        "identifier: providedToken,",
         "ipAddress: request.ip || null,",
+        "buildMissingCredentialsLoginRateLimitKey({",
       ],
     } satisfies Record<(typeof file), readonly string[]>;
 

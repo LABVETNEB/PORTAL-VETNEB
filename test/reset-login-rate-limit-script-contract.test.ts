@@ -1,8 +1,7 @@
 /**
- * Tests: contrato del script reset-login-rate-limit.ps1
+ * Tests: contrato operativo del reset de rate limit de login.
  *
- * Verifica que el script existe y cumple invariantes de seguridad operativa
- * sin ejecutarlo realmente (no requiere DB ni PowerShell en CI).
+ * Verifica invariantes de seguridad sin ejecutar DB ni PowerShell en CI.
  */
 
 import test from "node:test";
@@ -10,91 +9,108 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-const SCRIPT_PATH = join(
+const PS_SCRIPT_PATH = join(
   import.meta.dirname ?? "",
   "..",
   "scripts",
   "dev",
   "reset-login-rate-limit.ps1",
 );
+const TS_SCRIPT_PATH = join(
+  import.meta.dirname ?? "",
+  "..",
+  "scripts",
+  "dev",
+  "reset-login-rate-limit.ts",
+);
 
-test("reset-login-rate-limit.ps1 existe", () => {
-  assert.ok(existsSync(SCRIPT_PATH), `El script debe existir en ${SCRIPT_PATH}`);
+function read(path: string) {
+  return readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+}
+
+test("reset login rate limit scripts exist", () => {
+  assert.ok(existsSync(PS_SCRIPT_PATH), `El wrapper debe existir en ${PS_SCRIPT_PATH}`);
+  assert.ok(existsSync(TS_SCRIPT_PATH), `El script TS debe existir en ${TS_SCRIPT_PATH}`);
 });
 
-test("reset-login-rate-limit.ps1 tiene parámetro -Surface con ValidateSet", () => {
-  const content = readFileSync(SCRIPT_PATH, "utf8");
-  assert.ok(
-    content.includes("ValidateSet"),
-    "debe tener ValidateSet para restringir Surface",
-  );
-  assert.ok(content.includes('"unified"'), "debe incluir surface unified");
-  assert.ok(content.includes('"clinic"'), "debe incluir surface clinic");
-  assert.ok(content.includes('"admin"'), "debe incluir surface admin");
-  assert.ok(content.includes('"particular"'), "debe incluir surface particular");
+test("PowerShell wrapper validates surface and delegates to pnpm tsx", () => {
+  const content = read(PS_SCRIPT_PATH);
+
+  assert.ok(content.includes("ValidateSet"));
+  assert.ok(content.includes('"unified"'));
+  assert.ok(content.includes('"clinic"'));
+  assert.ok(content.includes('"admin"'));
+  assert.ok(content.includes('"particular"'));
+  assert.ok(content.includes("Get-Command pnpm"));
+  assert.ok(content.includes('"exec", "tsx", "scripts/dev/reset-login-rate-limit.ts"'));
+  assert.ok(content.includes("--surface"));
+  assert.ok(content.includes("--identifier"));
+  assert.ok(content.includes("--ip-address"));
+  assert.ok(content.includes("--force"));
 });
 
-test("reset-login-rate-limit.ps1 requiere -Force para ejecutar DELETE", () => {
-  const content = readFileSync(SCRIPT_PATH, "utf8");
-  assert.ok(
-    content.includes("-Force"),
-    "debe requerir -Force para ejecutar",
-  );
-  assert.ok(
-    content.includes("dry-run") || content.includes("DRY-RUN"),
-    "debe mencionar dry-run por defecto",
-  );
+test("reset scripts default to dry-run and require force for delete", () => {
+  const psContent = read(PS_SCRIPT_PATH);
+  const tsContent = read(TS_SCRIPT_PATH);
+
+  assert.ok(psContent.includes("-Force"));
+  assert.ok(psContent.includes("dry-run"));
+  assert.ok(tsContent.includes("Default mode is dry-run"));
+  assert.ok(tsContent.includes("--force"));
+  assert.ok(tsContent.includes("if (!options.force)"));
+  assert.ok(tsContent.includes("Dry-run only"));
 });
 
-test("reset-login-rate-limit.ps1 no imprime hashes completos", () => {
-  const content = readFileSync(SCRIPT_PATH, "utf8");
-  // El script debe usar solo primeros N chars del hash
-  assert.ok(
-    content.includes("Substring(0,") || content.includes(".Substring(0,"),
-    "debe truncar el hash antes de mostrarlo",
-  );
-  assert.ok(
-    !content.match(/Write-Host.*\$hash[^P]/),
-    "no debe imprimir el hash completo directamente",
-  );
+test("reset script uses project DB dependencies, not a local SQL client binary", () => {
+  const psContent = read(PS_SCRIPT_PATH).toLowerCase();
+  const tsContent = read(TS_SCRIPT_PATH).toLowerCase();
+
+  assert.equal(psContent.includes("psql"), false);
+  assert.equal(tsContent.includes("psql"), false);
+  assert.ok(tsContent.includes('from "postgres"'));
+  assert.ok(tsContent.includes('from "dotenv"'));
+  assert.ok(tsContent.includes("process.env.supabase_db_url"));
+  assert.ok(tsContent.includes("process.env.database_url"));
 });
 
-test("reset-login-rate-limit.ps1 no ejecuta reset global sin filtro", () => {
-  const content = readFileSync(SCRIPT_PATH, "utf8");
-  // No debe haber DELETE sin WHERE
-  const deleteStatements = content.match(/DELETE FROM login_rate_limits[^;]*/gi) ?? [];
-  for (const stmt of deleteStatements) {
+test("reset script deletes only by matched key hashes and never globally", () => {
+  const content = read(TS_SCRIPT_PATH);
+  const deleteStatements = content.match(/DELETE FROM login_rate_limits[\s\S]*?RETURNING key_hash/g) ?? [];
+
+  assert.ok(deleteStatements.length > 0, "debe contener DELETE operativo");
+
+  for (const statement of deleteStatements) {
     assert.ok(
-      stmt.toUpperCase().includes("WHERE"),
-      `Todo DELETE debe tener WHERE: ${stmt.trim().substring(0, 80)}`,
+      statement.toUpperCase().includes("WHERE"),
+      `Todo DELETE debe tener WHERE: ${statement.slice(0, 120)}`,
     );
+    assert.ok(statement.includes("key_hash IN"));
   }
 });
 
-test("reset-login-rate-limit.ps1 valida que Identifier no esté vacío", () => {
-  const content = readFileSync(SCRIPT_PATH, "utf8");
-  assert.ok(
-    content.includes("Length -eq 0") || content.includes("normalizedIdentifier") && content.includes("vacío"),
-    "debe validar que el identifier no sea vacío",
-  );
+test("reset script resets by metadata and supports exact-IP legacy fallback only", () => {
+  const content = read(TS_SCRIPT_PATH);
+
+  assert.ok(content.includes("hashLoginRateLimitIdentifier"));
+  assert.ok(content.includes("hashLoginRateLimitIpAddress"));
+  assert.ok(content.includes("WHERE surface = ${options.surface}"));
+  assert.ok(content.includes("AND identifier_hash = ${identifierHash}"));
+  assert.ok(content.includes("AND ip_hash = ${ipHash}"));
+  assert.ok(content.includes("Legacy fallback"));
+  assert.ok(content.includes("exact IP"));
+  assert.ok(content.includes("Legacy rows cannot be reset by identifier without an exact IP."));
 });
 
-test("reset-login-rate-limit.ps1 no expone DATABASE_URL en output", () => {
-  const content = readFileSync(SCRIPT_PATH, "utf8");
-  assert.ok(
-    !content.includes("Write-Host $databaseUrl"),
-    "no debe imprimir DATABASE_URL",
-  );
-  assert.ok(
-    !content.includes("Write-Output $databaseUrl"),
-    "no debe imprimir DATABASE_URL",
-  );
-});
+test("reset scripts validate identifier and avoid sensitive output", () => {
+  const psContent = read(PS_SCRIPT_PATH);
+  const tsContent = read(TS_SCRIPT_PATH);
 
-test("reset-login-rate-limit.ps1 usa SHA256 para reproducir el hash de la key", () => {
-  const content = readFileSync(SCRIPT_PATH, "utf8");
-  assert.ok(
-    content.includes("SHA256") || content.includes("sha256"),
-    "debe usar SHA256 para reproducir el keyHash",
-  );
+  assert.ok(psContent.includes("Identifier no puede estar vacío"));
+  assert.ok(tsContent.includes("--identifier no puede estar vacio"));
+  assert.ok(tsContent.includes("previewHash"));
+  assert.ok(tsContent.includes("Identifier hash"));
+  assert.equal(tsContent.includes("Identifier :"), false);
+  assert.equal(tsContent.includes("console.log(options.identifier"), false);
+  assert.equal(tsContent.includes("console.log(databaseUrl"), false);
+  assert.equal(psContent.includes("Write-Host $databaseUrl"), false);
 });

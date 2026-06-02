@@ -21,6 +21,13 @@ export type PersistentRateLimitRecord = {
   resetAt: Date;
 };
 
+export type PersistentRateLimitMetadata = {
+  surface: string;
+  identifierHash: string;
+  ipHash: string;
+  keyVersion: string;
+};
+
 export type PersistentRateLimitStoreAdapter = {
   get: (
     keyHash: string,
@@ -30,12 +37,14 @@ export type PersistentRateLimitStoreAdapter = {
     count: number;
     resetAt: Date;
     now: Date;
+    metadata?: PersistentRateLimitMetadata;
   }) => PersistentRateLimitRecord | undefined | Promise<PersistentRateLimitRecord | undefined>;
   increment: (input: {
     keyHash: string;
     count: number;
     resetAt: Date;
     now: Date;
+    metadata?: PersistentRateLimitMetadata;
   }) => PersistentRateLimitRecord | Promise<PersistentRateLimitRecord>;
   cleanupExpired?: (now: Date) => void | Promise<void>;
   delete?: (keyHash: string) => void | Promise<void>;
@@ -43,6 +52,9 @@ export type PersistentRateLimitStoreAdapter = {
 
 export type PersistentRateLimitStoreOptions = {
   now?: () => number;
+  metadataForKey?: (
+    key: string,
+  ) => PersistentRateLimitMetadata | undefined | null;
 };
 
 export function createMemoryRateLimitStore(): RateLimitStore {
@@ -94,6 +106,8 @@ export function createPersistentRateLimitStore(
   options: PersistentRateLimitStoreOptions = {},
 ): RateLimitStore {
   const getNow = options.now ?? (() => Date.now());
+  const getMetadata = (key: string) =>
+    options.metadataForKey?.(key) ?? undefined;
 
   return {
     get: async (key) => {
@@ -115,6 +129,7 @@ export function createPersistentRateLimitStore(
         count: entry.count,
         resetAt: toPersistentDate(entry.resetAt),
         now: toPersistentDate(now),
+        metadata: getMetadata(key),
       });
     },
     increment: async (key, entry, now = getNow()) => {
@@ -126,6 +141,7 @@ export function createPersistentRateLimitStore(
           count: entry.count + 1,
           resetAt: toPersistentDate(entry.resetAt),
           now: toPersistentDate(now),
+          metadata: getMetadata(key),
         }),
       );
     },
@@ -141,6 +157,7 @@ export function createPersistentRateLimitStore(
           count: 0,
           resetAt: toPersistentDate(now - 1),
           now: toPersistentDate(now),
+          metadata: getMetadata(key),
         });
       }
     },

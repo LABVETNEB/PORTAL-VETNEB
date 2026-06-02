@@ -7,6 +7,7 @@ import {
   getOrCreateRateLimitEntry,
   hashRateLimitKey,
   incrementRateLimitEntry,
+  type PersistentRateLimitMetadata,
   type PersistentRateLimitRecord,
   type RateLimitStore,
 } from "../server/lib/rate-limit-store.ts";
@@ -14,6 +15,7 @@ import {
 type PersistentHarnessRow = PersistentRateLimitRecord & {
   createdAt: Date;
   updatedAt: Date;
+  metadata?: PersistentRateLimitMetadata;
 };
 
 function createPersistentHarness(input?: {
@@ -27,20 +29,21 @@ function createPersistentHarness(input?: {
   const store = createPersistentRateLimitStore(
     {
       get: async (keyHash) => rows.get(keyHash),
-      set: async ({ keyHash, count, resetAt, now }) => {
+      set: async ({ keyHash, count, resetAt, now, metadata }) => {
         const existing = rows.get(keyHash);
         const row = {
           count,
           resetAt,
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
+          metadata,
         };
 
         rows.set(keyHash, row);
 
         return row;
       },
-      increment: async ({ keyHash, count, resetAt, now }) => {
+      increment: async ({ keyHash, count, resetAt, now, metadata }) => {
         const existing = rows.get(keyHash);
         const row =
           !existing || existing.resetAt.getTime() <= now.getTime()
@@ -49,9 +52,11 @@ function createPersistentHarness(input?: {
                 resetAt,
                 createdAt: existing?.createdAt ?? now,
                 updatedAt: now,
+                metadata,
               }
             : {
                 ...existing,
+                metadata,
                 count: existing.count + 1,
                 updatedAt: now,
               };
@@ -165,6 +170,71 @@ test("rate limit persistent store hashes keys and creates counters", async () =>
   });
   assert.equal(rows.has("ip:raw"), false);
   assert.equal(rows.has(keyHash), true);
+});
+
+test("rate limit persistent store forwards metadata for hashed keys", async () => {
+  const metadata: PersistentRateLimitMetadata = {
+    surface: "clinic",
+    identifierHash: "identifier-hash",
+    ipHash: "ip-hash",
+    keyVersion: "v2",
+  };
+  const { rows, store } = createPersistentHarness({
+    now: () => 10,
+  });
+
+  const entry = await getOrCreateRateLimitEntry(store, "login:key", 1000, 10);
+  await incrementRateLimitEntry(store, "login:key", entry, 10);
+
+  assert.equal(rows.get(hashRateLimitKey("login:key"))?.metadata, undefined);
+
+  const metadataHarness = createPersistentHarness({
+    now: () => 20,
+  });
+  const metadataStore = createPersistentRateLimitStore(
+    {
+      get: async (keyHash) => metadataHarness.rows.get(keyHash),
+      set: async ({ keyHash, count, resetAt, now, metadata }) => {
+        const row = {
+          count,
+          resetAt,
+          createdAt: now,
+          updatedAt: now,
+          metadata,
+        };
+        metadataHarness.rows.set(keyHash, row);
+        return row;
+      },
+      increment: async ({ keyHash, count, resetAt, now, metadata }) => {
+        const row = {
+          count,
+          resetAt,
+          createdAt: now,
+          updatedAt: now,
+          metadata,
+        };
+        metadataHarness.rows.set(keyHash, row);
+        return row;
+      },
+    },
+    {
+      metadataForKey: () => metadata,
+      now: () => 20,
+    },
+  );
+
+  const metadataEntry = await getOrCreateRateLimitEntry(
+    metadataStore,
+    "login:key",
+    1000,
+    20,
+  );
+  await incrementRateLimitEntry(metadataStore, "login:key", metadataEntry, 20);
+
+  assert.deepEqual(
+    metadataHarness.rows.get(hashRateLimitKey("login:key"))?.metadata,
+    metadata,
+  );
 });
 
 test("rate limit persistent store increments active counters", async () => {

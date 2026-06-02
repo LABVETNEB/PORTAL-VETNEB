@@ -172,7 +172,7 @@ test("migración 0026 existe y añade contact_email y contact_phone con ADD COLU
   );
 });
 
-test("journal de migraciones conserva 0026 y deja 0029 como última entrada", () => {
+test("journal de migraciones conserva 0026 y 0029 antes de metadata login", () => {
   const raw = read("drizzle/migrations/meta/_journal.json");
   const journal = JSON.parse(raw) as {
     entries: Array<{ idx: number; tag: string }>;
@@ -188,12 +188,20 @@ test("journal de migraciones conserva 0026 y deja 0029 como última entrada", ()
     ),
     "el journal debe conservar 0026_clinics_contact_columns_reconciliation",
   );
+  assert.ok(
+    journal.entries.some(
+      (entry) =>
+        entry.idx === 29 &&
+        entry.tag === "0029_admin_users_email_identifier",
+    ),
+    "el journal debe conservar 0029_admin_users_email_identifier",
+  );
   assert.equal(
     last?.tag,
-    "0029_admin_users_email_identifier",
-    "la última entrada del journal debe ser 0029_admin_users_email_identifier",
+    "0030_login_rate_limits_metadata",
+    "la última entrada del journal debe ser 0030_login_rate_limits_metadata",
   );
-  assert.equal(last?.idx, 29, "idx de la última migración debe ser 29");
+  assert.equal(last?.idx, 30, "idx de la última migración debe ser 30");
 });
 
 test("toIsoDate acepta Date o string devuelto por raw SQL postgres-js", () => {
