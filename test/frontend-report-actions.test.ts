@@ -152,52 +152,62 @@ test("upload report modal renders error success and submit states", () => {
   assert.ok(source.includes('{isSubmitting ? "Subiendo informe..." : "Subir informe"}'));
 });
 
-test("report download button is client-side and keeps typed props", () => {
+test("report file actions are client-side and keep typed props", () => {
   const source = read(REPORT_DOWNLOAD_BUTTON_PATH);
 
   assert.ok(source.includes('"use client";'));
   assert.ok(source.includes('import { useState } from "react";'));
-  assert.ok(source.includes('import { getReportDownloadUrl } from "@/lib/api";'));
-  assert.ok(source.includes("type ReportDownloadButtonProps = {"));
-  assert.ok(source.includes("reportId: number;"));
-  assert.ok(source.includes("hasStoragePath: boolean;"));
+  assert.ok(source.includes("getReportDownloadUrl, getReportPreviewUrl"));
+  assert.ok(source.includes('import { Download, Eye } from "lucide-react";'));
+  assert.ok(source.includes("type ReportFileActionsProps = {"));
+  assert.ok(source.includes("reportId: number | null;"));
+  assert.ok(source.includes("hasStoragePath?: boolean;"));
+  assert.ok(source.includes('scope?: "clinic" | "admin";'));
+  assert.ok(source.includes('align?: "start" | "end";'));
 });
 
-test("report download button blocks unavailable or duplicate download requests", () => {
+test("report file actions block unavailable or duplicate requests", () => {
   const source = read(REPORT_DOWNLOAD_BUTTON_PATH);
 
-  assert.ok(source.includes("const [isLoading, setIsLoading] = useState(false);"));
+  assert.ok(source.includes("const [loadingAction, setLoadingAction] = useState<ReportAction | null>(null);"));
   assert.ok(source.includes("const [errorMessage, setErrorMessage] = useState<string | null>(null);"));
-  assert.ok(source.includes("async function handleDownload()"));
-  assert.ok(source.includes("if (!hasStoragePath || isLoading) {"));
+  assert.ok(source.includes("async function openReport(action: ReportAction)"));
+  assert.ok(source.includes('if (!isAvailable || isLoading || typeof reportId !== "number") {'));
   assert.ok(source.includes("return;"));
   assert.ok(source.includes("setErrorMessage(null);"));
-  assert.ok(source.includes("setIsLoading(true);"));
+  assert.ok(source.includes("setLoadingAction(action);"));
 });
 
-test("report download button retrieves URL and opens it safely", () => {
+test("report file actions retrieve preview/download URLs and open them safely", () => {
   const source = read(REPORT_DOWNLOAD_BUTTON_PATH);
 
-  assert.ok(source.includes("const url = await getReportDownloadUrl(reportId);"));
+  assert.ok(source.includes('await getReportPreviewUrl(reportId, { scope })'));
+  assert.ok(source.includes('await getReportDownloadUrl(reportId, { scope })'));
+  assert.ok(source.includes("Informe no disponible para visualizar."));
   assert.ok(source.includes("Informe no disponible para descarga."));
   assert.ok(source.includes('window.open(url, "_blank", "noopener,noreferrer");'));
+  assert.ok(source.includes("No se pudo obtener el enlace de visualización."));
   assert.ok(source.includes("No se pudo obtener el enlace de descarga."));
-  assert.ok(source.includes("setIsLoading(false);"));
+  assert.ok(source.includes("setLoadingAction(null);"));
 });
 
-test("report download button renders labels titles disabled and alert state", () => {
+test("report file actions render labels titles disabled and alert state", () => {
   const source = read(REPORT_DOWNLOAD_BUTTON_PATH);
 
-  assert.ok(source.includes('disabled={!hasStoragePath || isLoading}'));
-  assert.ok(source.includes('title={hasStoragePath ? "Descargar informe" : "Informe no disponible aún"}'));
+  assert.ok(source.includes('disabled={!isAvailable || isLoading}'));
+  assert.ok(source.includes('title={isAvailable ? "Ver informe" : unavailableTitle}'));
+  assert.ok(source.includes('title={isAvailable ? "Descargar informe" : unavailableTitle}'));
   assert.ok(source.includes('isLoading'));
+  assert.ok(source.includes('"Abriendo..."'));
   assert.ok(source.includes('"Preparando..."'));
   assert.ok(source.includes('hasStoragePath'));
+  assert.ok(source.includes('"Ver informe"'));
   assert.ok(source.includes('"Descargar"'));
-  assert.ok(source.includes('"No disponible"'));
+  assert.ok(source.includes('"Archivo no disponible."'));
   assert.ok(source.includes("errorMessage ? ("));
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("{errorMessage}"));
+  assert.ok(source.includes("export function ReportDownloadButton("));
 });
 
 // --- fix(admin): load registered clinics in report upload modal ---

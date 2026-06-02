@@ -44,7 +44,9 @@ test("dashboard admin elimina seguimiento redundante y mueve carga de informes a
       'import { UploadReportModal } from "@/components/dashboard/UploadReportModal";',
     ),
   );
-  assert.ok(card.includes('triggerLabel="Subir informe para este token"'));
+  assert.ok(card.includes("triggerLabel={"));
+  assert.ok(card.includes('"Subir informe para este token"'));
+  assert.ok(card.includes('"Reemplazar informe"'));
   assert.ok(card.includes("presetParticularToken={token}"));
 });
 

@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
-import { ReportDownloadButton } from "@/components/dashboard/ReportDownloadButton";
+import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -210,7 +210,7 @@ export default async function InformesPage({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <ReportDownloadButton
+                        <ReportFileActions
                           reportId={report.id}
                           hasStoragePath={Boolean(report.storagePath)}
                         />

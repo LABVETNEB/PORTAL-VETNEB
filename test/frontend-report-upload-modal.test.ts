@@ -84,7 +84,9 @@ test("frontend admin dashboard routes upload report modal through token cards", 
   assert.ok(page.includes("Carga de informes"));
   assert.ok(page.includes("cada token administrado"));
   assert.ok(card.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'));
-  assert.ok(card.includes('triggerLabel="Subir informe para este token"'));
+  assert.ok(card.includes("triggerLabel={"));
+  assert.ok(card.includes('"Subir informe para este token"'));
+  assert.ok(card.includes('"Reemplazar informe"'));
   assert.ok(card.includes("presetParticularToken={token}"));
 });
 

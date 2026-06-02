@@ -69,10 +69,29 @@ test("frontend API client requests report download URLs by report id", () => {
 
   assert.ok(functionSource.includes("export async function getReportDownloadUrl("));
   assert.ok(functionSource.includes("reportId: number,"));
+  assert.ok(functionSource.includes('options: { scope?: "clinic" | "admin" } = {},'));
   assert.ok(functionSource.includes("): Promise<string | null>"));
-  assert.ok(functionSource.includes("`/api/reports/${reportId}/download-url`,"));
-  assert.ok(functionSource.includes("const res = await apiFetch<{ url: string | null }>("));
-  assert.ok(functionSource.includes("return res.url ?? null;"));
+  assert.ok(functionSource.includes('options.scope === "admin" ? "/api/admin/reports" : "/api/reports"'));
+  assert.ok(functionSource.includes("`${basePath}/${reportId}/download-url`,"));
+  assert.ok(functionSource.includes("downloadUrl?: string | null;"));
+  assert.ok(functionSource.includes("url?: string | null;"));
+  assert.ok(functionSource.includes("return res.downloadUrl ?? res.url ?? null;"));
+  assert.equal(functionSource.includes("} catch {"), false);
+});
+
+test("frontend API client requests report preview URLs by report id", () => {
+  const source = read(API_CLIENT_PATH);
+  const functionSource = getFunctionSource(source, "getReportPreviewUrl");
+
+  assert.ok(functionSource.includes("export async function getReportPreviewUrl("));
+  assert.ok(functionSource.includes("reportId: number,"));
+  assert.ok(functionSource.includes('options: { scope?: "clinic" | "admin" } = {},'));
+  assert.ok(functionSource.includes("): Promise<string | null>"));
+  assert.ok(functionSource.includes('options.scope === "admin" ? "/api/admin/reports" : "/api/reports"'));
+  assert.ok(functionSource.includes("`${basePath}/${reportId}/preview-url`,"));
+  assert.ok(functionSource.includes("previewUrl?: string | null;"));
+  assert.ok(functionSource.includes("url?: string | null;"));
+  assert.ok(functionSource.includes("return res.previewUrl ?? res.url ?? null;"));
   assert.equal(functionSource.includes("} catch {"), false);
 });
 

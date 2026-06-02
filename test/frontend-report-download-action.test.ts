@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 
-const DOWNLOAD_BUTTON_PATH =
+const REPORT_ACTIONS_PATH =
   "frontend/src/components/dashboard/ReportDownloadButton.tsx";
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
 
@@ -14,38 +14,43 @@ function read(relativePath: string): string {
   );
 }
 
-test("frontend report download button exists and uses download url api", () => {
-  assert.equal(existsSync(resolve(process.cwd(), DOWNLOAD_BUTTON_PATH)), true);
+test("frontend report actions component exists and uses preview/download APIs", () => {
+  assert.equal(existsSync(resolve(process.cwd(), REPORT_ACTIONS_PATH)), true);
 
-  const source = read(DOWNLOAD_BUTTON_PATH);
+  const source = read(REPORT_ACTIONS_PATH);
 
-  assert.ok(source.includes('"use client"'));
-  assert.ok(source.includes('import { getReportDownloadUrl } from "@/lib/api"'));
-  assert.ok(source.includes("async function handleDownload()"));
-  assert.ok(source.includes("await getReportDownloadUrl(reportId)"));
-  assert.ok(source.includes('window.open(url, "_blank", "noopener,noreferrer")'));
+  assert.ok(source.includes('"use client";'));
+  assert.ok(source.includes("getReportDownloadUrl, getReportPreviewUrl"));
+  assert.ok(source.includes('import { Download, Eye } from "lucide-react";'));
+  assert.ok(source.includes("export function ReportFileActions("));
+  assert.ok(source.includes('await getReportPreviewUrl(reportId, { scope })'));
+  assert.ok(source.includes('await getReportDownloadUrl(reportId, { scope })'));
+  assert.ok(source.includes('window.open(url, "_blank", "noopener,noreferrer");'));
 });
 
-test("frontend report download button handles loading unavailable and error states", () => {
-  const source = read(DOWNLOAD_BUTTON_PATH);
+test("frontend report actions handles unavailable loading and error states", () => {
+  const source = read(REPORT_ACTIONS_PATH);
 
-  assert.ok(source.includes("const [isLoading, setIsLoading]"));
+  assert.ok(source.includes("const [loadingAction, setLoadingAction]"));
   assert.ok(source.includes("const [errorMessage, setErrorMessage]"));
-  assert.ok(source.includes("disabled={!hasStoragePath || isLoading}"));
+  assert.ok(source.includes('reportId: number | null;'));
+  assert.ok(source.includes('hasStoragePath?: boolean;'));
+  assert.ok(source.includes('scope?: "clinic" | "admin";'));
+  assert.ok(source.includes("Informe no disponible para visualizar."));
   assert.ok(source.includes("Informe no disponible para descarga."));
-  assert.ok(source.includes("Preparando..."));
+  assert.ok(source.includes("Archivo no disponible."));
   assert.ok(source.includes('role="alert"'));
 });
 
-test("frontend informes page uses report download button", () => {
+test("frontend informes page uses report file actions", () => {
   const source = read(INFORMES_PAGE_PATH);
 
   assert.ok(
     source.includes(
-      'import { ReportDownloadButton } from "@/components/dashboard/ReportDownloadButton"',
+      'import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";',
     ),
   );
-  assert.ok(source.includes("<ReportDownloadButton"));
+  assert.ok(source.includes("<ReportFileActions"));
   assert.ok(source.includes("reportId={report.id}"));
   assert.ok(source.includes("hasStoragePath={Boolean(report.storagePath)}"));
   assert.equal(source.includes("<button"), false);

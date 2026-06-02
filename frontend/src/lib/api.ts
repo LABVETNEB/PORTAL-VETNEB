@@ -510,12 +510,36 @@ type AdminReportUploadResponse = {
 
 export async function getReportDownloadUrl(
   reportId: number,
+  options: { scope?: "clinic" | "admin" } = {},
 ): Promise<string | null> {
-  const res = await apiFetch<{ url: string | null }>(
-    `/api/reports/${reportId}/download-url`,
+  const basePath =
+    options.scope === "admin" ? "/api/admin/reports" : "/api/reports";
+  const res = await apiFetch<{
+    success?: true;
+    downloadUrl?: string | null;
+    url?: string | null;
+  }>(
+    `${basePath}/${reportId}/download-url`,
   );
 
-  return res.url ?? null;
+  return res.downloadUrl ?? res.url ?? null;
+}
+
+export async function getReportPreviewUrl(
+  reportId: number,
+  options: { scope?: "clinic" | "admin" } = {},
+): Promise<string | null> {
+  const basePath =
+    options.scope === "admin" ? "/api/admin/reports" : "/api/reports";
+  const res = await apiFetch<{
+    success?: true;
+    previewUrl?: string | null;
+    url?: string | null;
+  }>(
+    `${basePath}/${reportId}/preview-url`,
+  );
+
+  return res.previewUrl ?? res.url ?? null;
 }
 
 export async function uploadAdminReport(

@@ -1,35 +1,69 @@
 "use client";
 
 import { useState } from "react";
+import { Download, Eye } from "lucide-react";
 
-import { getReportDownloadUrl } from "@/lib/api";
+import { getReportDownloadUrl, getReportPreviewUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
-type ReportDownloadButtonProps = {
-  reportId: number;
-  hasStoragePath: boolean;
+type ReportAction = "preview" | "download";
+
+type ReportFileActionsProps = {
+  reportId: number | null;
+  hasStoragePath?: boolean;
+  scope?: "clinic" | "admin";
+  align?: "start" | "end";
 };
 
-export function ReportDownloadButton({
+function getUnavailableLabel(reportId: number | null, hasStoragePath: boolean) {
+  if (typeof reportId !== "number") {
+    return "Informe no disponible.";
+  }
+
+  if (!hasStoragePath) {
+    return "Archivo no disponible.";
+  }
+
+  return null;
+}
+
+export function ReportFileActions({
   reportId,
-  hasStoragePath,
-}: ReportDownloadButtonProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  hasStoragePath = true,
+  scope = "clinic",
+  align = "end",
+}: ReportFileActionsProps) {
+  const [loadingAction, setLoadingAction] = useState<ReportAction | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  async function handleDownload() {
-    if (!hasStoragePath || isLoading) {
+  const unavailableLabel = getUnavailableLabel(reportId, hasStoragePath);
+  const unavailableTitle = unavailableLabel ?? "Informe no disponible.";
+  const isAvailable = unavailableLabel === null;
+  const isLoading = loadingAction !== null;
+  const alignClass =
+    align === "start" ? "items-start text-left" : "items-end text-right";
+  const buttonsAlignClass = align === "start" ? "justify-start" : "justify-end";
+
+  async function openReport(action: ReportAction) {
+    if (!isAvailable || isLoading || typeof reportId !== "number") {
       return;
     }
 
     setErrorMessage(null);
-    setIsLoading(true);
+    setLoadingAction(action);
 
     try {
-      const url = await getReportDownloadUrl(reportId);
+      const url =
+        action === "preview"
+          ? await getReportPreviewUrl(reportId, { scope })
+          : await getReportDownloadUrl(reportId, { scope });
 
       if (!url) {
-        setErrorMessage("Informe no disponible para descarga.");
+        setErrorMessage(
+          action === "preview"
+            ? "Informe no disponible para visualizar."
+            : "Informe no disponible para descarga.",
+        );
         return;
       }
 
@@ -38,36 +72,64 @@ export function ReportDownloadButton({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "No se pudo obtener el enlace de descarga.",
+          : action === "preview"
+            ? "No se pudo obtener el enlace de visualización."
+            : "No se pudo obtener el enlace de descarga.",
       );
     } finally {
-      setIsLoading(false);
+      setLoadingAction(null);
     }
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-8 px-2 text-xs text-primary hover:text-primary"
-        disabled={!hasStoragePath || isLoading}
-        title={hasStoragePath ? "Descargar informe" : "Informe no disponible aún"}
-        onClick={handleDownload}
-      >
-        {isLoading
-          ? "Preparando..."
-          : hasStoragePath
-            ? "Descargar"
-            : "No disponible"}
-      </Button>
+    <div className={`flex flex-col gap-1 ${alignClass}`}>
+      <div className={`flex flex-wrap gap-2 ${buttonsAlignClass}`}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-xs text-primary hover:text-primary"
+          disabled={!isAvailable || isLoading}
+          title={isAvailable ? "Ver informe" : unavailableTitle}
+          aria-label={isAvailable ? "Ver informe" : unavailableTitle}
+          onClick={() => void openReport("preview")}
+        >
+          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+          {loadingAction === "preview" ? "Abriendo..." : "Ver informe"}
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-xs text-primary hover:text-primary"
+          disabled={!isAvailable || isLoading}
+          title={isAvailable ? "Descargar informe" : unavailableTitle}
+          aria-label={isAvailable ? "Descargar informe" : unavailableTitle}
+          onClick={() => void openReport("download")}
+        >
+          <Download className="h-3.5 w-3.5" aria-hidden="true" />
+          {loadingAction === "download" ? "Preparando..." : "Descargar"}
+        </Button>
+      </div>
+
+      {!isAvailable ? (
+        <span className="max-w-48 text-[11px] text-muted-foreground">
+          {unavailableLabel}
+        </span>
+      ) : null}
 
       {errorMessage ? (
-        <span className="max-w-40 text-right text-[11px] text-red-600" role="alert">
+        <span className="max-w-48 text-[11px] text-red-600" role="alert">
           {errorMessage}
         </span>
       ) : null}
     </div>
   );
+}
+
+export function ReportDownloadButton(
+  props: Omit<ReportFileActionsProps, "align">,
+) {
+  return <ReportFileActions {...props} align="end" />;
 }
