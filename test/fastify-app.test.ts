@@ -206,6 +206,7 @@ function buildAdminReportsRouteStubs() {
     updateAdminSessionLastAccess: async () => {},
     hashSessionToken: (token: string) => `hash:${token}`,
     getClinicById: async () => null,
+    getReportById: async () => null,
     uploadReport: async () => "reports/admin-test.pdf",
     upsertReport: async () => ({
       id: 88,

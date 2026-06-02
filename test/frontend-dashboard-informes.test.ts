@@ -22,7 +22,7 @@ test("dashboard informes defines non-indexable metadata and clinic read dependen
   assert.ok(source.includes('title: "Informes — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
-  assert.ok(source.includes('import { ReportDownloadButton } from "@/components/dashboard/ReportDownloadButton";'));
+  assert.ok(source.includes('import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";'));
   assert.equal(source.includes("UploadReportModal"), false);
 });
 
@@ -104,7 +104,7 @@ test("dashboard informes renders filters and reports table columns", () => {
   assert.ok(source.includes('<TableHead className="text-right">Acciones</TableHead>'));
 });
 
-test("dashboard informes keeps row rendering badges dates and download action", () => {
+test("dashboard informes keeps row rendering badges dates and report actions", () => {
   const source = read(INFORMES_PAGE_PATH);
 
   assert.ok(source.includes("reports.map((report) =>"));
@@ -114,6 +114,7 @@ test("dashboard informes keeps row rendering badges dates and download action", 
   assert.ok(source.includes("formatDate(report.uploadDate)"));
   assert.ok(source.includes("getReportStatusVariant(report.status)"));
   assert.ok(source.includes("getReportStatusLabel(report.status)"));
+  assert.ok(source.includes("<ReportFileActions"));
   assert.ok(source.includes("reportId={report.id}"));
   assert.ok(source.includes("hasStoragePath={Boolean(report.storagePath)}"));
 });

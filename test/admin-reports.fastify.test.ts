@@ -130,6 +130,7 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     prefix: "/api/admin/reports",
     ...createAuthStubs(),
     getClinicById: async () => ({ id: 3 }),
+    getReportById: async () => createReportFixture(),
     uploadReport: async () => "reports/3/luna-report.pdf",
     upsertReport: async () => createReportFixture(),
     getParticularTokenById: async () => null,
@@ -187,6 +188,151 @@ function buildMultipartReportPayload(
     payload: Buffer.from(chunks.join(""), "utf8"),
   };
 }
+
+test("adminReportsNativeRoutes genera signed preview URL para informe con sesion admin", async () => {
+  const reportCalls: number[] = [];
+  const signedCalls: string[] = [];
+
+  const app = await createTestApp({
+    getReportById: async (reportId: number) => {
+      reportCalls.push(reportId);
+      return createReportFixture({ id: reportId });
+    },
+    createSignedReportUrl: async (storagePath: string) => {
+      signedCalls.push(storagePath);
+      return `signed-preview:${storagePath}`;
+    },
+    createSignedReportDownloadUrl: async () => {
+      throw new Error("preview no debe generar downloadUrl");
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/reports/88/preview-url",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(reportCalls, [88]);
+    assert.deepEqual(signedCalls, ["reports/3/luna-report.pdf"]);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: true,
+      previewUrl: "signed-preview:reports/3/luna-report.pdf",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminReportsNativeRoutes genera signed download URL para informe con sesion admin", async () => {
+  const reportCalls: number[] = [];
+  const signedCalls: Array<{ storagePath: string; fileName?: string }> = [];
+
+  const app = await createTestApp({
+    getReportById: async (reportId: number) => {
+      reportCalls.push(reportId);
+      return createReportFixture({ id: reportId });
+    },
+    createSignedReportUrl: async () => {
+      throw new Error("download no debe generar previewUrl");
+    },
+    createSignedReportDownloadUrl: async (
+      storagePath: string,
+      fileName?: string,
+    ) => {
+      signedCalls.push({ storagePath, fileName });
+      return `signed-download:${storagePath}:${fileName ?? ""}`;
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/reports/88/download-url",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(reportCalls, [88]);
+    assert.deepEqual(signedCalls, [
+      {
+        storagePath: "reports/3/luna-report.pdf",
+        fileName: "luna-report.pdf",
+      },
+    ]);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: true,
+      downloadUrl: "signed-download:reports/3/luna-report.pdf:luna-report.pdf",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminReportsNativeRoutes bloquea signed URLs sin sesion admin antes de leer informe", async () => {
+  let reportCalls = 0;
+
+  const app = await createTestApp({
+    getAdminSessionByToken: async () => null,
+    getReportById: async () => {
+      reportCalls += 1;
+      return createReportFixture();
+    },
+    createSignedReportUrl: async () => {
+      throw new Error("sin sesion admin no debe firmar previewUrl");
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/reports/88/preview-url",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.equal(reportCalls, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminReportsNativeRoutes devuelve 404 generico para signed URL de informe inexistente", async () => {
+  const app = await createTestApp({
+    getReportById: async () => null,
+    createSignedReportUrl: async () => {
+      throw new Error("informe inexistente no debe generar signed URL");
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/reports/999/preview-url",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Informe no encontrado",
+    });
+    assert.equal(response.body.includes("storagePath"), false);
+    assert.equal(response.body.includes("reports/"), false);
+  } finally {
+    await app.close();
+  }
+});
 
 test("adminReportsNativeRoutes crea POST /upload con clinicId explicito y metadata", async () => {
   const multipart = buildMultipartReportPayload();

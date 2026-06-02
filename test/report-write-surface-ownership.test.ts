@@ -131,6 +131,7 @@ async function createAdminReportUploadApp(overrides: Record<string, unknown> = {
     prefix: "/api/admin/reports",
     ...createAuthStubs(),
     getClinicById: async () => ({ id: 3 }),
+    getReportById: async () => createReportFixture(),
     uploadReport: async () => "reports/3/luna-report.pdf",
     upsertReport: async () => createReportFixture(),
     getParticularTokenById: async () => null,

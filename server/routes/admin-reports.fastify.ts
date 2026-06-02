@@ -101,6 +101,7 @@ export type AdminReportsNativeRoutesOptions = {
   updateAdminSessionLastAccess?: (tokenHash: string) => Promise<void>;
   hashSessionToken?: (token: string) => string;
   getClinicById?: (clinicId: number) => Promise<ClinicRecord | null>;
+  getReportById?: (reportId: number) => Promise<Report | null>;
   uploadReport?: (input: ReportUploadInput) => Promise<string>;
   upsertReport?: (input: UpsertReportInput) => Promise<Report>;
   getParticularTokenById?: (
@@ -180,6 +181,7 @@ type NativeAdminReportsDeps = Required<
     | "updateAdminSessionLastAccess"
     | "hashSessionToken"
     | "getClinicById"
+    | "getReportById"
     | "uploadReport"
     | "upsertReport"
     | "getParticularTokenById"
@@ -214,6 +216,7 @@ async function loadDefaultDeps(): Promise<NativeAdminReportsDeps> {
         updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
         getClinicById: db.getClinicById,
+        getReportById: db.getReportById,
         uploadReport: storage.uploadReport,
         upsertReport: db.upsertReport,
         getParticularTokenById: dbParticular.getParticularTokenById,
@@ -247,6 +250,7 @@ function hasAllInjectedDeps(options: AdminReportsNativeRoutesOptions) {
     !!options.updateAdminSessionLastAccess &&
     !!options.hashSessionToken &&
     !!options.getClinicById &&
+    !!options.getReportById &&
     !!options.uploadReport &&
     !!options.upsertReport &&
     !!options.getParticularTokenById &&
@@ -280,6 +284,7 @@ async function resolveDeps(
     hashSessionToken:
       options.hashSessionToken ?? defaultDeps!.hashSessionToken,
     getClinicById: options.getClinicById ?? defaultDeps!.getClinicById,
+    getReportById: options.getReportById ?? defaultDeps!.getReportById,
     uploadReport: options.uploadReport ?? defaultDeps!.uploadReport,
     upsertReport: options.upsertReport ?? defaultDeps!.upsertReport,
     getParticularTokenById:
@@ -803,6 +808,85 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
   };
 
   app.options("/upload", optionsHandler);
+
+  app.get<{
+    Params: {
+      reportId?: unknown;
+    };
+  }>("/:reportId/preview-url", async (request, reply) => {
+    const deps = await resolveDeps(options);
+    const admin = await authenticateAdminUser(request, reply, deps, now);
+
+    if (!admin) {
+      return reply;
+    }
+
+    const reportId = parseReportId(request.params.reportId);
+
+    if (typeof reportId !== "number") {
+      return reply.code(400).send({
+        success: false,
+        error: "ID de informe invalido",
+      });
+    }
+
+    const report = await deps.getReportById(reportId);
+
+    if (!report) {
+      return reply.code(404).send({
+        success: false,
+        error: "Informe no encontrado",
+      });
+    }
+
+    const previewUrl = await deps.createSignedReportUrl(report.storagePath);
+
+    return reply.code(200).send({
+      success: true,
+      previewUrl,
+    });
+  });
+
+  app.get<{
+    Params: {
+      reportId?: unknown;
+    };
+  }>("/:reportId/download-url", async (request, reply) => {
+    const deps = await resolveDeps(options);
+    const admin = await authenticateAdminUser(request, reply, deps, now);
+
+    if (!admin) {
+      return reply;
+    }
+
+    const reportId = parseReportId(request.params.reportId);
+
+    if (typeof reportId !== "number") {
+      return reply.code(400).send({
+        success: false,
+        error: "ID de informe invalido",
+      });
+    }
+
+    const report = await deps.getReportById(reportId);
+
+    if (!report) {
+      return reply.code(404).send({
+        success: false,
+        error: "Informe no encontrado",
+      });
+    }
+
+    const downloadUrl = await deps.createSignedReportDownloadUrl(
+      report.storagePath,
+      report.fileName ?? undefined,
+    );
+
+    return reply.code(200).send({
+      success: true,
+      downloadUrl,
+    });
+  });
 
   app.post("/upload", async (request, reply) => {
     if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {

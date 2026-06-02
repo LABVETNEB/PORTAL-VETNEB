@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { UploadReportModal } from "@/components/dashboard/UploadReportModal";
 import {
   Card,
@@ -1325,6 +1326,18 @@ export function AdminParticularTokensCard() {
                       <p className="mt-1 text-xs text-muted-foreground">
                         Informe: {token.reportId ? `#${token.reportId}` : "—"}
                       </p>
+                      {token.hasLinkedReport && token.reportId ? (
+                        <div className="mt-2">
+                          <p className="mb-1 text-xs font-semibold text-vetneb-navy">
+                            Acciones
+                          </p>
+                          <ReportFileActions
+                            reportId={token.reportId}
+                            scope="admin"
+                            align="start"
+                          />
+                        </div>
+                      ) : null}
                       <p className="mt-1 text-xs text-muted-foreground">
                         Último acceso: {token.lastLoginAt ? formatDate(token.lastLoginAt) : "—"}
                       </p>
@@ -1421,7 +1434,11 @@ export function AdminParticularTokensCard() {
 
                   <div className="mt-3 flex flex-wrap justify-end gap-2">
                     <UploadReportModal
-                      triggerLabel="Subir informe para este token"
+                      triggerLabel={
+                        token.hasLinkedReport && token.reportId
+                          ? "Reemplazar informe"
+                          : "Subir informe para este token"
+                      }
                       presetClinic={buildTokenPresetClinic(clinicOptions, token)}
                       presetParticularToken={token}
                       onUploaded={loadTokens}

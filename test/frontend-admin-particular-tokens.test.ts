@@ -449,7 +449,9 @@ test("admin token card exposes report upload action scoped to each token", () =>
   const uploadModal = read("frontend/src/components/dashboard/UploadReportModal.tsx");
 
   assert.ok(card.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'));
-  assert.ok(card.includes('triggerLabel="Subir informe para este token"'));
+  assert.ok(card.includes("triggerLabel={"));
+  assert.ok(card.includes('"Subir informe para este token"'));
+  assert.ok(card.includes('"Reemplazar informe"'));
   assert.ok(card.includes("presetClinic={buildTokenPresetClinic(clinicOptions, token)}"));
   assert.ok(card.includes("presetParticularToken={token}"));
   assert.ok(card.includes("onUploaded={loadTokens}"));
@@ -458,6 +460,22 @@ test("admin token card exposes report upload action scoped to each token", () =>
   assert.ok(uploadModal.includes('formData.append("particularTokenId", String(presetParticularToken.id));'));
   assert.equal(card.includes("tokenHash"), false);
   assert.ok(card.includes("Token ****{token.tokenLast4}"));
+});
+
+test("admin token card shows linked report preview and download actions without exposing token", () => {
+  const card = read(ADMIN_CARD_PATH);
+
+  assert.ok(card.includes('import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";'));
+  assert.ok(card.includes("token.hasLinkedReport && token.reportId ? ("));
+  assert.ok(card.includes("Informe: {token.reportId ? `#${token.reportId}` : \"—\"}"));
+  assert.ok(card.includes("<ReportFileActions"));
+  assert.ok(card.includes("reportId={token.reportId}"));
+  assert.ok(card.includes('scope="admin"'));
+  assert.ok(card.includes('align="start"'));
+  assert.ok(card.includes("Acciones"));
+  assert.ok(card.includes('"Reemplazar informe"'));
+  assert.equal(card.includes("tokenHash"), false);
+  assert.equal(card.includes("storagePath"), false);
 });
 
 test("admin token card renders clinic name in title and vínculo with fallback", () => {
