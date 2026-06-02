@@ -10,17 +10,17 @@ type ReportAction = "preview" | "download";
 
 type ReportFileActionsProps = {
   reportId: number | null;
-  hasStoragePath?: boolean;
+  hasFile?: boolean;
   scope?: "clinic" | "admin";
   align?: "start" | "end";
 };
 
-function getUnavailableLabel(reportId: number | null, hasStoragePath: boolean) {
+function getUnavailableLabel(reportId: number | null, hasFile: boolean) {
   if (typeof reportId !== "number") {
     return "Informe no disponible.";
   }
 
-  if (!hasStoragePath) {
+  if (!hasFile) {
     return "Archivo no disponible.";
   }
 
@@ -29,14 +29,14 @@ function getUnavailableLabel(reportId: number | null, hasStoragePath: boolean) {
 
 export function ReportFileActions({
   reportId,
-  hasStoragePath = true,
+  hasFile = true,
   scope = "clinic",
   align = "end",
 }: ReportFileActionsProps) {
   const [loadingAction, setLoadingAction] = useState<ReportAction | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const unavailableLabel = getUnavailableLabel(reportId, hasStoragePath);
+  const unavailableLabel = getUnavailableLabel(reportId, hasFile);
   const unavailableTitle = unavailableLabel ?? "Informe no disponible.";
   const isAvailable = unavailableLabel === null;
   const isLoading = loadingAction !== null;

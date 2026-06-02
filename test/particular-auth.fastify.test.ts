@@ -212,9 +212,11 @@ test(
             fileName: report.fileName,
             createdAt: report.createdAt.toISOString(),
             updatedAt: report.updatedAt.toISOString(),
+            hasFile: true,
           },
         },
       });
+      assert.equal(response.body.includes("storagePath"), false);
     } finally {
       await app.close();
     }
@@ -302,6 +304,9 @@ test(
       assert.equal(body.success, true);
       assert.equal(body.particular.id, particularToken.id);
       assert.equal(body.particular.report.id, report.id);
+      assert.equal(body.particular.report.hasFile, true);
+      assert.equal(body.particular.report.storagePath, undefined);
+      assert.equal(response.body.includes("storagePath"), false);
       assert.equal(body.particular.hasLinkedReport, true);
     } finally {
       await app.close();

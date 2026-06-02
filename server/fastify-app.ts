@@ -140,6 +140,7 @@ import {
   logisticsSlaNativeRoutes,
   type LogisticsSlaNativeRoutesOptions,
 } from "./routes/logistics-sla.fastify.ts";
+import { requireTrustedOriginForFastify } from "./middlewares/trusted-origin.ts";
 
 type HealthCheckResponse = {
   statusCode: number;
@@ -250,6 +251,8 @@ export async function createFastifyApp(
     logger: false,
     trustProxy: ENV.trustProxy,
   });
+
+  app.addHook("onRequest", requireTrustedOriginForFastify);
 
   // Garantiza que rutas API autenticadas no sean cacheadas por proxies ni
   // navegador. Las rutas públicas con caché propia (ej. /api/public/pricing)

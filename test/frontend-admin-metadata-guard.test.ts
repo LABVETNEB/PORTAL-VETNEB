@@ -40,6 +40,7 @@ test("frontend admin metadata keeps sensitive key guard centralized", () => {
     "cookie",
     "auth",
     "hash",
+    "storage",
   ]) {
     assertIncludes(source, `"${sensitiveKeyPart}"`, adminPage);
   }

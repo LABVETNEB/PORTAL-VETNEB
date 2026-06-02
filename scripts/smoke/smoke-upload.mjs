@@ -97,22 +97,6 @@ function hasCookieFlag(setCookieHeader, flag) {
   return new RegExp(`(?:^|;)\\s*${flag}(?:;|$)`, "i").test(setCookieHeader);
 }
 
-function summarizeStoragePath(storagePath) {
-  if (typeof storagePath !== "string" || storagePath.trim() === "") {
-    return "missing";
-  }
-
-  if (/^https?:\/\//i.test(storagePath)) {
-    return "url-redacted";
-  }
-
-  if (/[?&](?:token|sig|signature|x-amz-signature|x-amz-security-token)=/i.test(storagePath)) {
-    return "sanitized";
-  }
-
-  return storagePath;
-}
-
 function resolveSignedUrl(payload) {
   if (!payload || typeof payload !== "object") {
     return "";
@@ -124,20 +108,6 @@ function resolveSignedUrl(payload) {
     payload.url ??
     payload.previewUrl ??
     payload.data?.signedUrl ??
-    ""
-  );
-}
-
-function resolveStoragePath(payload) {
-  if (!payload || typeof payload !== "object") {
-    return "";
-  }
-
-  return (
-    payload?.report?.storagePath ??
-    payload?.report?.storage_path ??
-    payload?.storagePath ??
-    payload?.storage_path ??
     ""
   );
 }
@@ -306,8 +276,8 @@ async function run() {
     assert(uploadJson?.success === true, "UPLOAD NO DEVOLVIO success=true");
     assert(uploadJson?.report?.id, "UPLOAD NO DEVOLVIO report.id");
     assert(
-      uploadJson?.report?.storagePath || uploadJson?.report?.storage_path,
-      "UPLOAD NO DEVOLVIO report.storagePath"
+      uploadJson?.report?.hasFile === true,
+      "UPLOAD NO DEVOLVIO report.hasFile=true"
     );
     assert(
       uploadJson?.report?.previewUrl || uploadJson?.previewUrl,
@@ -319,14 +289,11 @@ async function run() {
     );
 
     const reportId = resolveReportId(uploadJson);
-    const storagePath = resolveStoragePath(uploadJson);
 
     assert(reportId, "UPLOAD NO DEVOLVIO reportId equivalente");
-    assert(storagePath, "UPLOAD NO DEVOLVIO storagePath/storage_path equivalente");
 
     console.log("OK /api/admin/reports/upload");
     console.log(`reportId=${reportId}`);
-    console.log(`storagePath=${summarizeStoragePath(storagePath)}`);
 
     const reportDownloadUrlRes = await fetchOrExplain(
       `${BASE_URL}/api/reports/${reportId}/download-url`,

@@ -466,7 +466,6 @@ test("adminReportsNativeRoutes crea POST /upload con clinicId explicito y metada
             metadata: {
               fileName: "luna-report.pdf",
               mimeType: "application/pdf",
-              storagePath: "reports/3/luna-report.pdf",
               patientName: "Luna",
               studyType: "histopatologia",
               uploadDate: "2026-04-22T09:00:00.000Z",
@@ -487,6 +486,11 @@ test("adminReportsNativeRoutes crea POST /upload con clinicId explicito y metada
     assert.equal(body.report.clinicId, 3);
     assert.equal(body.report.patientName, "Luna");
     assert.equal(body.report.studyType, "histopatologia");
+    assert.equal(body.report.status, "uploaded");
+    assert.equal(body.report.currentStatus, "uploaded");
+    assert.equal(body.report.hasFile, true);
+    assert.equal(body.report.storagePath, undefined);
+    assert.equal(response.body.includes("storagePath"), false);
     assert.equal(body.report.previewUrl, "signed-preview:reports/3/luna-report.pdf");
     assert.equal(
       body.report.downloadUrl,

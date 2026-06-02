@@ -60,7 +60,7 @@ test("requireTrustedOrigin deja pasar métodos seguros aunque el origin sea exte
   assert.equal(res.jsonPayload, undefined);
 });
 
-test("requireTrustedOrigin deja pasar métodos inseguros sin origin ni referer", () => {
+test("requireTrustedOrigin deja pasar métodos inseguros sin origin ni referer cuando no hay cookie de sesion", () => {
   const req = createRequest("POST");
 
   const res = createMockResponse();
@@ -74,6 +74,67 @@ test("requireTrustedOrigin deja pasar métodos inseguros sin origin ni referer",
   assert.equal(nextCalls[0], undefined);
   assert.equal(res.statusCode, 200);
   assert.equal(res.jsonPayload, undefined);
+});
+
+test("requireTrustedOrigin bloquea métodos inseguros con cookie de sesión y sin origin ni referer", () => {
+  const req = createRequest("POST", {
+    cookie: `${ENV.cookieName}=clinic-session-token`,
+  });
+
+  const res = createMockResponse();
+  const nextCalls: unknown[] = [];
+
+  requireTrustedOrigin(req as any, res as any, ((error?: unknown) => {
+    nextCalls.push(error);
+  }) as any);
+
+  assert.equal(nextCalls.length, 0);
+  assert.equal(res.statusCode, 403);
+  assert.deepEqual(res.jsonPayload, {
+    success: false,
+    error: "Origen no permitido",
+  });
+});
+
+test("requireTrustedOrigin no loguea cookies ni tokens al bloquear origin", () => {
+  const secretCookieValue = "clinic-session-secret-token";
+  const req = createRequest("POST", {
+    cookie: `${ENV.cookieName}=${secretCookieValue}`,
+    origin: "https://blocked.invalid",
+  });
+
+  const res = createMockResponse();
+  const nextCalls: unknown[] = [];
+  const consoleCalls: string[] = [];
+  const originalLog = console.log;
+  const originalWarn = console.warn;
+  const originalError = console.error;
+  const capture = (...args: unknown[]) => {
+    consoleCalls.push(args.map(String).join(" "));
+  };
+
+  console.log = capture;
+  console.warn = capture;
+  console.error = capture;
+
+  try {
+    requireTrustedOrigin(req as any, res as any, ((error?: unknown) => {
+      nextCalls.push(error);
+    }) as any);
+  } finally {
+    console.log = originalLog;
+    console.warn = originalWarn;
+    console.error = originalError;
+  }
+
+  const serializedConsoleCalls = consoleCalls.join("\n");
+
+  assert.equal(nextCalls.length, 0);
+  assert.equal(res.statusCode, 403);
+  assert.equal(serializedConsoleCalls.includes(secretCookieValue), false);
+  assert.equal(serializedConsoleCalls.includes(ENV.cookieName), false);
+  assert.equal(serializedConsoleCalls.toLowerCase().includes("cookie"), false);
+  assert.equal(serializedConsoleCalls.toLowerCase().includes("token"), false);
 });
 
 test("requireTrustedOrigin deja pasar referer permitido cuando existe allowlist", (t) => {
@@ -123,7 +184,7 @@ test("requireTrustedOrigin bloquea origin no permitido en métodos inseguros", (
   });
 });
 
-test("requireTrustedOrigin ignora referer inválido y deja pasar", () => {
+test("requireTrustedOrigin bloquea referer inválido en métodos inseguros", () => {
   const req = createRequest("PATCH", {
     referer: "::::referer-invalido::::",
   });
@@ -135,8 +196,10 @@ test("requireTrustedOrigin ignora referer inválido y deja pasar", () => {
     nextCalls.push(error);
   }) as any);
 
-  assert.equal(nextCalls.length, 1);
-  assert.equal(nextCalls[0], undefined);
-  assert.equal(res.statusCode, 200);
-  assert.equal(res.jsonPayload, undefined);
+  assert.equal(nextCalls.length, 0);
+  assert.equal(res.statusCode, 403);
+  assert.deepEqual(res.jsonPayload, {
+    success: false,
+    error: "Origen no permitido",
+  });
 });

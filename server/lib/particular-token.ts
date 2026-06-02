@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ParticularToken, Report } from "../../drizzle/schema.ts";
+import { serializeSafeReport } from "./reports.ts";
 
 const requiredText = (max: number, label: string) =>
   z.string().trim().min(1, `${label} es obligatorio`).max(max);
@@ -127,17 +128,6 @@ export function serializeParticularTokenDetail(
 ) {
   return {
     ...serializeParticularToken(token),
-    report: report
-      ? {
-          id: report.id,
-          clinicId: report.clinicId,
-          uploadDate: report.uploadDate,
-          studyType: report.studyType,
-          patientName: report.patientName,
-          fileName: report.fileName,
-          createdAt: report.createdAt,
-          updatedAt: report.updatedAt,
-        }
-      : null,
+    report: report ? serializeSafeReport(report) : null,
   };
 }

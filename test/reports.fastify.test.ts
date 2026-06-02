@@ -153,6 +153,11 @@ test("reportsNativeRoutes expone GET / con lista clinic-scoped", async () => {
     assert.equal(body.success, true);
     assert.equal(body.count, 1);
     assert.equal(body.reports[0].id, 55);
+    assert.equal(body.reports[0].status, "ready");
+    assert.equal(body.reports[0].currentStatus, "ready");
+    assert.equal(body.reports[0].hasFile, true);
+    assert.equal(body.reports[0].storagePath, undefined);
+    assert.equal(response.body.includes("storagePath"), false);
     assert.equal(body.reports[0].previewUrl, "preview:reports/3/luna.pdf");
     assert.equal(
       body.reports[0].downloadUrl,
@@ -206,6 +211,10 @@ test("reportsNativeRoutes expone GET /search con filtros normalizados", async ()
     const body = JSON.parse(response.body);
     assert.equal(body.success, true);
     assert.equal(body.reports[0].id, 56);
+    assert.equal(body.reports[0].status, "ready");
+    assert.equal(body.reports[0].hasFile, true);
+    assert.equal(body.reports[0].storagePath, undefined);
+    assert.equal(response.body.includes("storagePath"), false);
     assert.equal(body.filters.query, "Luna");
     assert.equal(body.filters.studyType, "histopatologia");
     assert.equal(body.filters.status, "ready");

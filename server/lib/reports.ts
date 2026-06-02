@@ -1,5 +1,9 @@
-import type { ReportStatus } from "../../drizzle/schema.ts";
+import type { Report, ReportStatus } from "../../drizzle/schema.ts";
 import { normalizeReportStatus } from "./report-status.ts";
+
+type ReportWithDisplayFields = Report & {
+  clinicName?: string | null;
+};
 
 export function parsePositiveInt(value: unknown, fallback: number, max?: number) {
   const parsed = Number(value);
@@ -80,4 +84,22 @@ export function getReadClinicScope(reqClinicId: unknown, authClinicId: number) {
 export function parseReportId(value: unknown): number | undefined {
   const reportId = Number(value);
   return Number.isInteger(reportId) && reportId > 0 ? reportId : undefined;
+}
+
+export function serializeSafeReport(report: ReportWithDisplayFields) {
+  return {
+    id: report.id,
+    clinicId: report.clinicId,
+    clinicName: report.clinicName,
+    patientName: report.patientName,
+    studyType: report.studyType,
+    status: report.currentStatus,
+    currentStatus: report.currentStatus,
+    uploadDate: report.uploadDate,
+    fileName: report.fileName,
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+    statusChangedAt: report.statusChangedAt,
+    hasFile: Boolean(report.storagePath),
+  };
 }

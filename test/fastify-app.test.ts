@@ -765,6 +765,110 @@ function buildFastifyDispatchRouteStubs() {
     logisticsSlaRoutes: buildLogisticsSlaRouteStubs(),
   };
 }
+
+test(
+  "createFastifyApp aplica trusted origin global antes de rutas mutables",
+  async () => {
+    const app = await createFastifyApp(buildFastifyDispatchRouteStubs());
+    const allowedOrigin = ENV.corsOrigins[0] ?? "http://localhost:3000";
+    const secretSessionToken = "secret-session-token";
+    const consoleCalls: string[] = [];
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+    const capture = (...args: unknown[]) => {
+      consoleCalls.push(args.map(String).join(" "));
+    };
+
+    console.log = capture;
+    console.warn = capture;
+    console.error = capture;
+
+    try {
+      const blockedPostWithoutOrigin = await app.inject({
+        method: "POST",
+        url: "/api/admin/auth/logout",
+        headers: {
+          cookie: `${ENV.adminCookieName}=${secretSessionToken}`,
+        },
+      });
+
+      const blockedPatchWithoutOrigin = await app.inject({
+        method: "PATCH",
+        url: "/api/reports/55/status",
+        headers: {
+          cookie: `${ENV.cookieName}=clinic-session-token`,
+        },
+        payload: {
+          status: "ready",
+        },
+      });
+
+      const blockedDeleteWithoutOrigin = await app.inject({
+        method: "DELETE",
+        url: "/api/admin/particular-tokens/7",
+        headers: {
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      const blockedPostWithBadOrigin = await app.inject({
+        method: "POST",
+        url: "/api/admin/auth/logout",
+        headers: {
+          origin: "https://blocked.invalid",
+        },
+      });
+
+      const allowedPostWithOrigin = await app.inject({
+        method: "POST",
+        url: "/api/admin/auth/logout",
+        headers: {
+          origin: allowedOrigin,
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      const getWithoutOrigin = await app.inject({
+        method: "GET",
+        url: "/api/reports",
+      });
+
+      const optionsWithoutOrigin = await app.inject({
+        method: "OPTIONS",
+        url: "/api/admin/auth/logout",
+      });
+
+      for (const response of [
+        blockedPostWithoutOrigin,
+        blockedPatchWithoutOrigin,
+        blockedDeleteWithoutOrigin,
+        blockedPostWithBadOrigin,
+      ]) {
+        assert.equal(response.statusCode, 403);
+        assert.deepEqual(JSON.parse(response.body), {
+          success: false,
+          error: "Origen no permitido",
+        });
+      }
+
+      assert.notEqual(allowedPostWithOrigin.statusCode, 403);
+      assert.equal(getWithoutOrigin.statusCode, 401);
+      assert.equal(optionsWithoutOrigin.statusCode, 204);
+
+      const serializedConsoleCalls = consoleCalls.join("\n");
+      assert.equal(serializedConsoleCalls.includes(secretSessionToken), false);
+      assert.equal(serializedConsoleCalls.includes(ENV.adminCookieName), false);
+      assert.equal(serializedConsoleCalls.toLowerCase().includes("cookie"), false);
+    } finally {
+      console.log = originalLog;
+      console.warn = originalWarn;
+      console.error = originalError;
+      await app.close();
+    }
+  },
+);
+
 test(
   "createFastifyApp expone root y health nativos",
   async () => {

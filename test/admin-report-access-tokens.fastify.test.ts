@@ -357,13 +357,16 @@ test(
             studyType: "Histopatología",
             patientName: "Luna",
             fileName: "luna-report.pdf",
+            status: "ready",
             currentStatus: "ready",
             statusChangedAt: "2026-04-22T09:30:00.000Z",
             createdAt: "2026-04-22T09:00:00.000Z",
             updatedAt: "2026-04-22T09:30:00.000Z",
+            hasFile: true,
           },
         },
       });
+      assert.equal(response.body.includes("storagePath"), false);
     } finally {
       await app.close();
     }
@@ -435,13 +438,16 @@ test(
             studyType: "Histopatología",
             patientName: "Luna",
             fileName: "luna-report.pdf",
+            status: "ready",
             currentStatus: "ready",
             statusChangedAt: "2026-04-22T09:30:00.000Z",
             createdAt: "2026-04-22T09:00:00.000Z",
             updatedAt: "2026-04-22T09:30:00.000Z",
+            hasFile: true,
           },
         },
       });
+      assert.equal(response.body.includes("storagePath"), false);
 
       assert.equal(auditCalls.length, 1);
       assert.equal(auditCalls[0].event, AUDIT_EVENTS.REPORT_ACCESS_TOKEN_REVOKED);

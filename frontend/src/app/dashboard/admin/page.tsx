@@ -202,6 +202,7 @@ const SENSITIVE_AUDIT_METADATA_KEY_PARTS = [
   "cookie",
   "auth",
   "hash",
+  "storage",
 ] as const;
 
 function isSensitiveAuditMetadataKey(key: string) {

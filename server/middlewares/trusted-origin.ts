@@ -1,7 +1,19 @@
-﻿import type { NextFunction, Request, Response } from "../lib/http-types.ts";
+import type { FastifyReply, FastifyRequest } from "fastify";
+import type { NextFunction, Request, Response } from "../lib/http-types.ts";
 import { ENV } from "../lib/env.ts";
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const SESSION_COOKIE_NAMES = [
+  ENV.cookieName,
+  ENV.adminCookieName,
+  ENV.particularCookieName,
+];
+
+type HeaderGetterRequest = {
+  method: string;
+  headers?: Record<string, string | string[] | undefined>;
+  get?: (name: string) => string | undefined;
+};
 
 function getAllowedOrigins(): string[] {
   const configuredOrigins = ENV.corsOrigins.map((origin) =>
@@ -36,20 +48,106 @@ function normalizeOrigin(value: string): string | null {
   }
 }
 
-function getRequestOrigin(req: Request): string | null {
-  const originHeader = req.get("origin");
+function getHeader(req: HeaderGetterRequest, name: string): string | undefined {
+  const directValue = req.get?.(name);
+
+  if (typeof directValue === "string") {
+    return directValue;
+  }
+
+  const headerValue = req.headers?.[name.toLowerCase()];
+
+  if (typeof headerValue === "string") {
+    return headerValue;
+  }
+
+  if (Array.isArray(headerValue)) {
+    return headerValue[0];
+  }
+
+  return undefined;
+}
+
+function getRequestOrigin(req: HeaderGetterRequest): {
+  present: boolean;
+  origin: string | null;
+} {
+  const originHeader = getHeader(req, "origin");
 
   if (typeof originHeader === "string" && originHeader.trim()) {
-    return normalizeOrigin(originHeader);
+    return {
+      present: true,
+      origin: normalizeOrigin(originHeader),
+    };
   }
 
-  const refererHeader = req.get("referer");
+  const refererHeader = getHeader(req, "referer");
 
   if (typeof refererHeader === "string" && refererHeader.trim()) {
-    return normalizeOrigin(refererHeader);
+    return {
+      present: true,
+      origin: normalizeOrigin(refererHeader),
+    };
   }
 
-  return null;
+  return {
+    present: false,
+    origin: null,
+  };
+}
+
+function safeDecodeCookiePart(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function parseCookies(cookieHeader: string | undefined): Record<string, string> {
+  if (!cookieHeader) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    cookieHeader
+      .split(";")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const separatorIndex = part.indexOf("=");
+
+        if (separatorIndex === -1) {
+          return [safeDecodeCookiePart(part), ""];
+        }
+
+        return [
+          safeDecodeCookiePart(part.slice(0, separatorIndex).trim()),
+          safeDecodeCookiePart(part.slice(separatorIndex + 1).trim()),
+        ];
+      }),
+  );
+}
+
+function hasSessionCookie(req: HeaderGetterRequest) {
+  const cookies = parseCookies(getHeader(req, "cookie"));
+  return SESSION_COOKIE_NAMES.some((name) => Boolean(cookies[name]));
+}
+
+function isTrustedOriginRequest(req: HeaderGetterRequest) {
+  if (!UNSAFE_METHODS.has(req.method.toUpperCase())) {
+    return true;
+  }
+
+  const requestOrigin = getRequestOrigin(req);
+
+  if (requestOrigin.present) {
+    return Boolean(
+      requestOrigin.origin && allowedOrigins.has(requestOrigin.origin),
+    );
+  }
+
+  return !hasSessionCookie(req);
 }
 
 export function requireTrustedOrigin(
@@ -57,19 +155,7 @@ export function requireTrustedOrigin(
   res: Response,
   next: NextFunction,
 ) {
-  if (!UNSAFE_METHODS.has(req.method.toUpperCase())) {
-    next();
-    return;
-  }
-
-  const requestOrigin = getRequestOrigin(req);
-
-  if (!requestOrigin) {
-    next();
-    return;
-  }
-
-  if (allowedOrigins.has(requestOrigin)) {
+  if (isTrustedOriginRequest(req)) {
     next();
     return;
   }
@@ -80,3 +166,16 @@ export function requireTrustedOrigin(
   });
 }
 
+export async function requireTrustedOriginForFastify(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  if (isTrustedOriginRequest(request)) {
+    return undefined;
+  }
+
+  return reply.code(403).send({
+    success: false,
+    error: "Origen no permitido",
+  });
+}

@@ -226,6 +226,19 @@ test("origin/CORS bloquea métodos inseguros con Origin no permitido y no usa wi
     middlewareFile,
   );
   assertContains(middlewareSource, 'error: "Origen no permitido"', middlewareFile);
+
+  const fastifyAppFile = "server/fastify-app.ts";
+  const fastifyAppSource = read(fastifyAppFile);
+  assertContains(
+    fastifyAppSource,
+    'import { requireTrustedOriginForFastify } from "./middlewares/trusted-origin.ts";',
+    fastifyAppFile,
+  );
+  assertContains(
+    fastifyAppSource,
+    'app.addHook("onRequest", requireTrustedOriginForFastify);',
+    fastifyAppFile,
+  );
 });
 
 test("Fastify usa trust proxy configurado por ENV y no hardcodea proxies productivos", () => {

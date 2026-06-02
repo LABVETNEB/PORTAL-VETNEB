@@ -14,6 +14,7 @@ import {
   parsePositiveInt,
   parseReportId,
   parseReportStatus,
+  serializeSafeReport,
 } from "../lib/reports.ts";
 import { REPORT_STATUSES } from "../lib/report-status.ts";
 import { normalizeClinicUserRole } from "../lib/permissions.ts";
@@ -440,7 +441,7 @@ async function serializeReport(report: Report, deps: NativeReportsDeps) {
   ]);
 
   return {
-    ...report,
+    ...serializeSafeReport(report),
     previewUrl,
     downloadUrl,
   };
