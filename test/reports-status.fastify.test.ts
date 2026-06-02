@@ -129,7 +129,11 @@ test("reportsStatusNativeRoutes actualiza PATCH /:reportId/status y escribe audi
     const body = JSON.parse(response.body);
     assert.equal(body.success, true);
     assert.equal(body.message, "Estado de informe actualizado correctamente");
+    assert.equal(body.report.status, "ready");
     assert.equal(body.report.currentStatus, "ready");
+    assert.equal(body.report.hasFile, true);
+    assert.equal(body.report.storagePath, undefined);
+    assert.equal(response.body.includes("storagePath"), false);
     assert.equal(body.report.previewUrl, "preview:reports/3/luna.pdf");
     assert.equal(
       body.report.downloadUrl,

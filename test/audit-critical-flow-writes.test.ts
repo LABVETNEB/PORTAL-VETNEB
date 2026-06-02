@@ -282,10 +282,14 @@ test("admin report upload audita creación exitosa de informe por admin", () => 
       "reportId: report.id",
       "fileName: file.originalname",
       "mimeType: file.mimetype",
-      "storagePath,",
       "uploadedVia: \"admin\"",
     ],
     "admin report upload audit payload",
+  );
+  assert.equal(
+    source.includes("storagePath,\n        patientName"),
+    false,
+    "admin report upload audit payload no debe exponer storagePath",
   );
 
   assertContainsInOrder(

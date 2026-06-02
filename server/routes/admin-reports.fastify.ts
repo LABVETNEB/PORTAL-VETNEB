@@ -20,6 +20,7 @@ import {
   normalizeSearchText,
   parseOptionalDate,
   parseReportId,
+  serializeSafeReport,
 } from "../lib/reports.ts";
 import {
   buildRequestLogLine,
@@ -736,7 +737,7 @@ async function serializeReport(report: Report, deps: NativeAdminReportsDeps) {
   ]);
 
   return {
-    ...report,
+    ...serializeSafeReport(report),
     previewUrl,
     downloadUrl,
   };
@@ -1051,7 +1052,6 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       metadata: {
         fileName: file.originalname,
         mimeType: file.mimetype,
-        storagePath,
         patientName: patientName ?? null,
         studyType: studyType ?? null,
         uploadDate: uploadDate ?? null,

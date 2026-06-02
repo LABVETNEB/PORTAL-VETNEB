@@ -4,6 +4,7 @@ import type {
   ReportAccessToken,
   ReportStatus,
 } from "../../drizzle/schema.ts";
+import { serializeSafeReport } from "./reports.ts";
 
 const rawTokenPattern = /^[a-f0-9]{64}$/i;
 
@@ -153,20 +154,7 @@ export function serializeReportAccessTokenDetail(
 ) {
   return {
     ...serializeReportAccessToken(token),
-    report: report
-      ? {
-          id: report.id,
-          clinicId: report.clinicId,
-          uploadDate: report.uploadDate,
-          studyType: report.studyType,
-          patientName: report.patientName,
-          fileName: report.fileName,
-          currentStatus: report.currentStatus,
-          statusChangedAt: report.statusChangedAt,
-          createdAt: report.createdAt,
-          updatedAt: report.updatedAt,
-        }
-      : null,
+    report: report ? serializeSafeReport(report) : null,
   };
 }
 
@@ -176,16 +164,7 @@ export function serializePublicReportAccess(input: {
   downloadUrl: string;
 }) {
   return {
-    id: input.report.id,
-    clinicId: input.report.clinicId,
-    uploadDate: input.report.uploadDate,
-    studyType: input.report.studyType,
-    patientName: input.report.patientName,
-    fileName: input.report.fileName,
-    currentStatus: input.report.currentStatus,
-    statusChangedAt: input.report.statusChangedAt,
-    createdAt: input.report.createdAt,
-    updatedAt: input.report.updatedAt,
+    ...serializeSafeReport(input.report),
     previewUrl: input.previewUrl,
     downloadUrl: input.downloadUrl,
   };

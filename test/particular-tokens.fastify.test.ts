@@ -477,6 +477,11 @@ test(
       assert.equal(body.particularToken.clinicId, 3);
       assert.equal(body.particularToken.reportId, 55);
       assert.equal(body.particularToken.report.id, 55);
+      assert.equal(body.particularToken.report.status, "ready");
+      assert.equal(body.particularToken.report.currentStatus, "ready");
+      assert.equal(body.particularToken.report.hasFile, true);
+      assert.equal(body.particularToken.report.storagePath, undefined);
+      assert.equal(response.body.includes("storagePath"), false);
     } finally {
       await app.close();
     }

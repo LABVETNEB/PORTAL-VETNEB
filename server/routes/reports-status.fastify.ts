@@ -11,6 +11,7 @@ import {
   normalizeOptionalNote,
   parseReportId,
   parseReportStatus,
+  serializeSafeReport,
 } from "../lib/reports.ts";
 import {
   REPORT_STATUSES,
@@ -540,7 +541,7 @@ async function serializeReport(report: Report, deps: NativeReportsStatusDeps) {
   ]);
 
   return {
-    ...report,
+    ...serializeSafeReport(report),
     previewUrl,
     downloadUrl,
   };

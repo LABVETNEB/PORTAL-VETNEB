@@ -140,10 +140,12 @@ test(
           studyType: report.studyType,
           patientName: report.patientName,
           fileName: report.fileName,
+          status: report.currentStatus,
           currentStatus: report.currentStatus,
           statusChangedAt: report.statusChangedAt.toISOString(),
           createdAt: report.createdAt.toISOString(),
           updatedAt: report.updatedAt.toISOString(),
+          hasFile: true,
           previewUrl: "https://signed.example/preview",
           downloadUrl: "https://signed.example/download",
         },
@@ -153,6 +155,7 @@ test(
           expiresAt: token.expiresAt.toISOString(),
         },
       });
+      assert.equal(response.body.includes("storagePath"), false);
 
       assert.equal(auditCalls.length, 1);
       assert.equal(auditCalls[0].event, AUDIT_EVENTS.REPORT_PUBLIC_ACCESSED);

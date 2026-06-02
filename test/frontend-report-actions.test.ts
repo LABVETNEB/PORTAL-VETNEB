@@ -161,7 +161,7 @@ test("report file actions are client-side and keep typed props", () => {
   assert.ok(source.includes('import { Download, Eye } from "lucide-react";'));
   assert.ok(source.includes("type ReportFileActionsProps = {"));
   assert.ok(source.includes("reportId: number | null;"));
-  assert.ok(source.includes("hasStoragePath?: boolean;"));
+  assert.ok(source.includes("hasFile?: boolean;"));
   assert.ok(source.includes('scope?: "clinic" | "admin";'));
   assert.ok(source.includes('align?: "start" | "end";'));
 });
@@ -200,7 +200,7 @@ test("report file actions render labels titles disabled and alert state", () => 
   assert.ok(source.includes('isLoading'));
   assert.ok(source.includes('"Abriendo..."'));
   assert.ok(source.includes('"Preparando..."'));
-  assert.ok(source.includes('hasStoragePath'));
+  assert.ok(source.includes('hasFile'));
   assert.ok(source.includes('"Ver informe"'));
   assert.ok(source.includes('"Descargar"'));
   assert.ok(source.includes('"Archivo no disponible."'));

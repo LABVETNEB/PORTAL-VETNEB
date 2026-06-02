@@ -212,7 +212,7 @@ export default async function InformesPage({
                       <TableCell className="text-right">
                         <ReportFileActions
                           reportId={report.id}
-                          hasStoragePath={Boolean(report.storagePath)}
+                          hasFile={report.hasFile}
                         />
                       </TableCell>
                     </TableRow>

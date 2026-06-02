@@ -160,7 +160,7 @@ test("upload local smoke keeps temp artifacts outside the repo and covers admin 
     "uploadRes.status === 201",
     "uploadJson?.success === true",
     "uploadJson?.report?.id",
-    "uploadJson?.report?.storagePath",
+    "uploadJson?.report?.hasFile === true",
     "uploadJson?.report?.previewUrl",
     "uploadJson?.report?.downloadUrl",
   ]) {

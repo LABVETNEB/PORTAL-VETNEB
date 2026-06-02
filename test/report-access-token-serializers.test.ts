@@ -123,7 +123,10 @@ test("serializeReportAccessTokenDetail incluye reporte cuando existe", () => {
   assert.equal(detailed.state, "active");
   assert.equal(detailed.report?.id, 22);
   assert.equal(detailed.report?.studyType, "Histopatología");
+  assert.equal(detailed.report?.status, "ready");
   assert.equal(detailed.report?.currentStatus, "ready");
+  assert.equal(detailed.report?.hasFile, false);
+  assert.equal((detailed.report as any)?.storagePath, undefined);
 });
 
 test("serializeReportAccessTokenDetail devuelve report null cuando no existe", () => {
@@ -174,7 +177,10 @@ test("serializePublicReportAccess expone urls y datos públicos del reporte", ()
   assert.equal(serialized.id, 22);
   assert.equal(serialized.clinicId, 3);
   assert.equal(serialized.patientName, "Luna");
+  assert.equal(serialized.status, "ready");
   assert.equal(serialized.currentStatus, "ready");
+  assert.equal(serialized.hasFile, false);
+  assert.equal((serialized as any).storagePath, undefined);
   assert.equal(serialized.previewUrl, "https://example.com/preview");
   assert.equal(serialized.downloadUrl, "https://example.com/download");
 });

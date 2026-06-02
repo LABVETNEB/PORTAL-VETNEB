@@ -89,8 +89,10 @@ export type Report = {
   patientName: string | null;
   studyType: string | null;
   status: ReportStatus;
+  currentStatus?: ReportStatus;
   uploadDate: string | null;
-  storagePath: string | null;
+  fileName?: string | null;
+  hasFile: boolean;
   createdAt: string;
   updatedAt: string;
 };

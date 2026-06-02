@@ -116,7 +116,8 @@ test("dashboard informes keeps row rendering badges dates and report actions", (
   assert.ok(source.includes("getReportStatusLabel(report.status)"));
   assert.ok(source.includes("<ReportFileActions"));
   assert.ok(source.includes("reportId={report.id}"));
-  assert.ok(source.includes("hasStoragePath={Boolean(report.storagePath)}"));
+  assert.ok(source.includes("hasFile={report.hasFile}"));
+  assert.equal(source.includes("storagePath"), false);
 });
 
 test("dashboard informes keeps empty state and avoids client-side fetch literals", () => {

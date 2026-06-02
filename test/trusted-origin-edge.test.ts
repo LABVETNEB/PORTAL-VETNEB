@@ -140,7 +140,7 @@ test("requireTrustedOrigin prioriza origin sobre referer cuando origin está blo
   });
 });
 
-test("requireTrustedOrigin ignora origin inválido y deja pasar aunque exista referer", () => {
+test("requireTrustedOrigin bloquea origin inválido aunque exista referer", () => {
   const req = createRequest("POST", {
     origin: "::::origin-invalido::::",
     referer: "https://blocked.invalid/panel",
@@ -153,8 +153,10 @@ test("requireTrustedOrigin ignora origin inválido y deja pasar aunque exista re
     nextCalls.push(error);
   }) as any);
 
-  assert.equal(nextCalls.length, 1);
-  assert.equal(nextCalls[0], undefined);
-  assert.equal(res.statusCode, 200);
-  assert.equal(res.jsonPayload, undefined);
+  assert.equal(nextCalls.length, 0);
+  assert.equal(res.statusCode, 403);
+  assert.deepEqual(res.jsonPayload, {
+    success: false,
+    error: "Origen no permitido",
+  });
 });

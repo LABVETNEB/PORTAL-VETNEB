@@ -34,7 +34,7 @@ test("frontend report actions handles unavailable loading and error states", () 
   assert.ok(source.includes("const [loadingAction, setLoadingAction]"));
   assert.ok(source.includes("const [errorMessage, setErrorMessage]"));
   assert.ok(source.includes('reportId: number | null;'));
-  assert.ok(source.includes('hasStoragePath?: boolean;'));
+  assert.ok(source.includes('hasFile?: boolean;'));
   assert.ok(source.includes('scope?: "clinic" | "admin";'));
   assert.ok(source.includes("Informe no disponible para visualizar."));
   assert.ok(source.includes("Informe no disponible para descarga."));
@@ -52,6 +52,7 @@ test("frontend informes page uses report file actions", () => {
   );
   assert.ok(source.includes("<ReportFileActions"));
   assert.ok(source.includes("reportId={report.id}"));
-  assert.ok(source.includes("hasStoragePath={Boolean(report.storagePath)}"));
+  assert.ok(source.includes("hasFile={report.hasFile}"));
+  assert.equal(source.includes("storagePath"), false);
   assert.equal(source.includes("<button"), false);
 });
