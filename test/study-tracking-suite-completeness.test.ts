@@ -137,7 +137,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
   {
     slug: "particular-study-tracking-read-surface",
     purpose:
-      "Particular study tracking remains a read-only token-scoped surface for tracking detail and notifications using the particular session cookie.",
+      "Particular study tracking keeps token-scoped reads and notification read acknowledgements using the particular session cookie without exposing write operations outside its own scope.",
     testFiles: [
       {
         path: "test/particular-study-tracking.fastify.test.ts",
@@ -145,6 +145,8 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
           "particularStudyTrackingNativeRoutes",
           "getParticularStudyTrackingCase",
           "listStudyTrackingNotifications",
+          "markStudyTrackingNotificationReadScoped",
+          "markAllStudyTrackingNotificationsReadScoped",
           "ENV.particularCookieName",
           "particularTokenId: 7",
         ],
@@ -160,8 +162,12 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
           "app.get(\"/me\"",
           "app.get<{",
           "\"/notifications\"",
+          "\"/notifications/:notificationId/read\"",
+          "\"/notifications/read-all\"",
           "getParticularStudyTrackingCase",
           "listStudyTrackingNotifications",
+          "markStudyTrackingNotificationReadScoped",
+          "markAllStudyTrackingNotificationsReadScoped",
           "particularTokenId: particular.tokenId",
           "serializeStudyTrackingCase",
           "serializeStudyTrackingNotification",
@@ -406,18 +412,21 @@ test("study tracking suite remains connected to runtime anchors", () => {
   }
 });
 
-test("study tracking suite keeps particular surface read-only", () => {
+test("study tracking suite keeps particular surface token-scoped sin create/delete", () => {
   const source = readSource("server/routes/particular-study-tracking.fastify.ts");
 
   assert.equal(source.includes("app.post("), false);
-  assert.equal(source.includes("app.patch("), false);
   assert.equal(source.includes("app.delete("), false);
 
   for (const requiredMarker of [
     "app.get(\"/me\"",
     "\"/notifications\"",
+    "\"/notifications/:notificationId/read\"",
+    "\"/notifications/read-all\"",
     "getParticularStudyTrackingCase",
     "listStudyTrackingNotifications",
+    "markStudyTrackingNotificationReadScoped",
+    "markAllStudyTrackingNotificationsReadScoped",
   ]) {
     assertContains(source, requiredMarker, "particular study tracking read surface");
   }

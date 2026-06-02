@@ -88,6 +88,23 @@ function createTrackingCaseFixture(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function createNotificationFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 41,
+    studyTrackingCaseId: 11,
+    clinicId: 3,
+    reportId: 88,
+    particularTokenId: 7,
+    type: "report_delivered",
+    title: "Informe disponible",
+    message: "El informe del estudio ya está disponible.",
+    isRead: false,
+    readAt: null,
+    createdAt: new Date("2026-04-22T12:01:00.000Z"),
+    ...overrides,
+  };
+}
+
 function createAuthStubs(overrides: Record<string, unknown> = {}) {
   return {
     deleteAdminSession: async () => {},
@@ -125,6 +142,7 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
       );
     },
     updateStudyTrackingCase: async () => null,
+    createStudyTrackingNotification: async () => createNotificationFixture(),
     createSignedReportUrl: async (storagePath: string) =>
       `signed-preview:${storagePath}`,
     createSignedReportDownloadUrl: async (
@@ -623,6 +641,7 @@ test("adminReportsNativeRoutes vincula token y cierra tracking en delivered al s
   const updateTokenCalls: Array<Record<string, unknown>> = [];
   const createTrackingCalls: Array<Record<string, unknown>> = [];
   const updateTrackingCalls: Array<Record<string, unknown>> = [];
+  const notificationCalls: Array<Record<string, unknown>> = [];
   const auditCalls: Array<Record<string, unknown>> = [];
 
   const app = await createTestApp({
@@ -653,6 +672,10 @@ test("adminReportsNativeRoutes vincula token y cierra tracking en delivered al s
         ...input,
       });
     },
+    createStudyTrackingNotification: async (input: Record<string, unknown>) => {
+      notificationCalls.push(input);
+      return createNotificationFixture(input);
+    },
     writeAuditLog: async (_req: unknown, input: Record<string, unknown>) => {
       auditCalls.push(input);
     },
@@ -678,6 +701,19 @@ test("adminReportsNativeRoutes vincula token y cierra tracking en delivered al s
     assert.equal(createTrackingCalls[0].currentStage, "delivered");
     assert.equal(createTrackingCalls[0].specialStainRequired, false);
     assert.equal(updateTrackingCalls.length, 0);
+    assert.equal(notificationCalls.length, 1);
+    assert.equal(notificationCalls[0].type, "report_delivered");
+    assert.equal(notificationCalls[0].title, "Informe disponible");
+    assert.equal(
+      notificationCalls[0].message,
+      "El informe del estudio ya está disponible.",
+    );
+    assert.equal(notificationCalls[0].clinicId, 3);
+    assert.equal(notificationCalls[0].reportId, 88);
+    assert.equal(notificationCalls[0].particularTokenId, 7);
+    assert.equal(notificationCalls[0].studyTrackingCaseId, 11);
+    assert.equal(notificationCalls[0].isRead, false);
+    assert.equal(notificationCalls[0].readAt, null);
     assert.equal(auditCalls.length, 1);
     assert.equal(
       (auditCalls[0].metadata as Record<string, unknown>).particularTokenId,
@@ -714,6 +750,7 @@ test("adminReportsNativeRoutes cierra tracking por reportId en delivered cuando 
     deliveredAt: null,
   });
   const updateTrackingCalls: Array<Record<string, unknown>> = [];
+  const notificationCalls: Array<Record<string, unknown>> = [];
   const auditCalls: Array<Record<string, unknown>> = [];
 
   const app = await createTestApp({
@@ -726,6 +763,10 @@ test("adminReportsNativeRoutes cierra tracking por reportId en delivered cuando 
         id,
         ...input,
       });
+    },
+    createStudyTrackingNotification: async (input: Record<string, unknown>) => {
+      notificationCalls.push(input);
+      return createNotificationFixture(input);
     },
     writeAuditLog: async (_req: unknown, input: Record<string, unknown>) => {
       auditCalls.push(input);
@@ -755,6 +796,12 @@ test("adminReportsNativeRoutes cierra tracking por reportId en delivered cuando 
         },
       },
     ]);
+    assert.equal(notificationCalls.length, 1);
+    assert.equal(notificationCalls[0].type, "report_delivered");
+    assert.equal(notificationCalls[0].clinicId, 3);
+    assert.equal(notificationCalls[0].reportId, 88);
+    assert.equal(notificationCalls[0].particularTokenId, null);
+    assert.equal(notificationCalls[0].studyTrackingCaseId, 22);
     assert.equal(auditCalls.length, 1);
     assert.equal(
       (auditCalls[0].metadata as Record<string, unknown>).trackingCaseId,
@@ -764,6 +811,107 @@ test("adminReportsNativeRoutes cierra tracking por reportId en delivered cuando 
       (auditCalls[0].metadata as Record<string, unknown>).trackingStage,
       "delivered",
     );
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminReportsNativeRoutes no duplica report_delivered cuando el tracking ya estaba delivered", async () => {
+  const multipart = buildMultipartReportPayload({
+    clinicId: "3",
+    patientName: "Luna",
+  });
+  const trackingCase = createTrackingCaseFixture({
+    id: 22,
+    reportId: 88,
+    particularTokenId: null,
+    currentStage: "delivered",
+    deliveredAt: new Date("2026-04-22T12:00:00.000Z"),
+  });
+  const updateTrackingCalls: Array<Record<string, unknown>> = [];
+  const notificationCalls: Array<Record<string, unknown>> = [];
+
+  const app = await createTestApp({
+    getStudyTrackingCaseByReportId: async () => trackingCase,
+    updateStudyTrackingCase: async (id: number, input: Record<string, unknown>) => {
+      updateTrackingCalls.push({ id, input });
+      return createTrackingCaseFixture({ id, ...input });
+    },
+    createStudyTrackingNotification: async (input: Record<string, unknown>) => {
+      notificationCalls.push(input);
+      return createNotificationFixture(input);
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/admin/reports/upload",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+      },
+      payload: multipart.payload,
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(updateTrackingCalls.length, 0);
+    assert.equal(notificationCalls.length, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminReportsNativeRoutes no aborta upload si falla report_delivered notification", async () => {
+  const multipart = buildMultipartReportPayload({
+    clinicId: "3",
+    patientName: "Luna",
+  });
+  const nowDate = new Date("2026-04-22T12:00:00.000Z");
+  const trackingCase = createTrackingCaseFixture({
+    id: 22,
+    reportId: 88,
+    particularTokenId: null,
+    currentStage: "evaluation",
+    deliveredAt: null,
+  });
+  const auditCalls: Array<Record<string, unknown>> = [];
+
+  const app = await createTestApp({
+    now: () => nowDate.getTime(),
+    getStudyTrackingCaseByReportId: async () => trackingCase,
+    updateStudyTrackingCase: async (id: number, input: Record<string, unknown>) =>
+      createTrackingCaseFixture({
+        ...trackingCase,
+        id,
+        ...input,
+      }),
+    createStudyTrackingNotification: async () => {
+      throw new Error("notification_failure");
+    },
+    writeAuditLog: async (_req: unknown, input: Record<string, unknown>) => {
+      auditCalls.push(input);
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/admin/reports/upload",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+      },
+      payload: multipart.payload,
+    });
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(auditCalls.length, 1);
+    const body = JSON.parse(response.body);
+    assert.equal(body.success, true);
+    assert.equal(body.report.id, 88);
   } finally {
     await app.close();
   }

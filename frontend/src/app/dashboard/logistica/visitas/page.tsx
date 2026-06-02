@@ -50,6 +50,7 @@ export default async function VisitasPage() {
       <DashboardTopbar
         title="Visitas de campo"
         subtitle="Seguimiento de visitas programadas y en curso"
+        notifications="clinic"
       />
       <main className="dashboard-main">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

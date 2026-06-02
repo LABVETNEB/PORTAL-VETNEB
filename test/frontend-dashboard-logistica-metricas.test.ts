@@ -67,6 +67,7 @@ test("dashboard logistica metricas renders summary cards without technical sourc
 
   assert.ok(source.includes('title="Métricas de logística"'));
   assert.ok(source.includes('subtitle="Cumplimiento, SLA y reportes operativos"'));
+  assert.ok(source.includes('notifications="clinic"'));
   assert.ok(source.includes("Cumplimiento promedio"));
   assert.ok(source.includes("Paradas completadas"));
   assert.ok(source.includes("Duración promedio"));

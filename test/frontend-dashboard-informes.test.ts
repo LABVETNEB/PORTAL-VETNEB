@@ -73,6 +73,7 @@ test("dashboard informes renders clinic reports surface without technical source
 
   assert.ok(source.includes('title="Informes"'));
   assert.ok(source.includes('subtitle="Consulta de informes médicos veterinarios"'));
+  assert.ok(source.includes('notifications="clinic"'));
   assert.equal(source.includes("<UploadReportModal />"), false);
   assert.equal(source.includes("/api/admin"), false);
   assert.equal(source.includes(removedSourceCopy), false);

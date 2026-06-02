@@ -139,6 +139,7 @@ async function createAdminReportUploadApp(overrides: Record<string, unknown> = {
     getStudyTrackingCaseByReportId: async () => null,
     createStudyTrackingCase: async () => ({} as any),
     updateStudyTrackingCase: async () => null,
+    createStudyTrackingNotification: async () => ({} as any),
     createSignedReportUrl: async (storagePath: string) =>
       `signed-preview:${storagePath}`,
     createSignedReportDownloadUrl: async (

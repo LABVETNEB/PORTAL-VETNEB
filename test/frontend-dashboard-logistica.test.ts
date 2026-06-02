@@ -51,6 +51,7 @@ test("dashboard logistica reads field visits and route plans through API helpers
 test("dashboard logistica computes active visits and active route plans explicitly", () => {
   const source = read(LOGISTICA_PAGE_PATH);
 
+  assert.ok(source.includes('notifications="clinic"'));
   assert.ok(source.includes("const activeVisits = fieldVisits.filter("));
   assert.ok(source.includes('v.status === "in_progress" || v.status === "scheduled"'));
   assert.ok(source.includes("const activePlans = routePlans.filter("));

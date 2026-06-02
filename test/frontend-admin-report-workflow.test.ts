@@ -71,11 +71,13 @@ test("dashboard topbar soporta notifications='admin' y monta la campana", () => 
       'import { DashboardNotificationsBell } from "./DashboardNotificationsBell";',
     ),
   );
-  assert.ok(topbar.includes('notifications?: "admin" | false;'));
+  assert.ok(
+    topbar.includes('notifications?: "admin" | "clinic" | "particular" | false;'),
+  );
   assert.ok(topbar.includes("notifications = false,"));
   assert.ok(
     topbar.includes(
-      '{notifications === "admin" ? <DashboardNotificationsBell /> : null}',
+      "{notifications ? <DashboardNotificationsBell surface={notifications} /> : null}",
     ),
   );
   assert.ok(page.includes('notifications="admin"'));
@@ -97,24 +99,36 @@ test("campana de notificaciones admin existe con UX in-app y polling", () => {
   assert.ok(bell.includes("window.clearInterval(intervalId);"));
 });
 
-test("campana usa API de notificaciones admin para listar y marcar leídas", () => {
+test("campana usa API de notificaciones por surface para listar y marcar leídas", () => {
   const bell = read(BELL_PATH);
 
-  assert.ok(bell.includes("getAdminStudyTrackingNotifications("));
-  assert.ok(bell.includes("markAdminStudyTrackingNotificationRead("));
+  assert.ok(bell.includes("surface: DashboardNotificationSurface;"));
+  assert.ok(bell.includes("getDashboardNotifications(surface, {"));
+  assert.ok(bell.includes("markDashboardNotificationRead("));
+  assert.ok(bell.includes("markAllDashboardNotificationsRead(surface)"));
   assert.ok(bell.includes("setNotifications(response.notifications);"));
   assert.ok(bell.includes("response.notification"));
+  assert.ok(bell.includes("Marcar todas como leídas"));
 });
 
-test("api frontend expone funciones de notificaciones admin", () => {
+test("api frontend expone funciones de notificaciones por surface y compat admin", () => {
   const api = read(API_PATH);
 
   assert.ok(api.includes("export type AdminStudyTrackingNotificationSummary = {"));
+  assert.ok(api.includes("export type DashboardNotificationSurface ="));
+  assert.ok(api.includes('case "admin":'));
+  assert.ok(api.includes('case "clinic":'));
+  assert.ok(api.includes('case "particular":'));
+  assert.ok(api.includes("export async function getDashboardNotifications("));
+  assert.ok(api.includes("export async function markDashboardNotificationRead("));
+  assert.ok(api.includes("export async function markAllDashboardNotificationsRead("));
   assert.ok(api.includes("export async function getAdminStudyTrackingNotifications("));
-  assert.ok(api.includes("unreadOnly?: boolean;"));
-  assert.ok(api.includes("`/api/admin/study-tracking/notifications${qs ? `?${qs}` : \"\"}`"));
+  assert.ok(api.includes("export async function getClinicStudyTrackingNotifications("));
+  assert.ok(api.includes("export async function getParticularStudyTrackingNotifications("));
   assert.ok(api.includes("export async function markAdminStudyTrackingNotificationRead("));
-  assert.ok(api.includes("`/api/admin/study-tracking/notifications/${notificationId}/read`"));
+  assert.ok(api.includes("export async function markClinicStudyTrackingNotificationRead("));
+  assert.ok(api.includes("export async function markParticularStudyTrackingNotificationRead("));
   assert.ok(api.includes("export async function markAllAdminStudyTrackingNotificationsRead("));
-  assert.ok(api.includes('"/api/admin/study-tracking/notifications/read-all"'));
+  assert.ok(api.includes("export async function markAllClinicStudyTrackingNotificationsRead("));
+  assert.ok(api.includes("export async function markAllParticularStudyTrackingNotificationsRead("));
 });

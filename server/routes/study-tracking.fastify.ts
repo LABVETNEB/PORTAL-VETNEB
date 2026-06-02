@@ -157,6 +157,15 @@ export type StudyTrackingNativeRoutesOptions = {
     limit: number;
     offset: number;
   }) => Promise<StudyTrackingNotification[]>;
+  markStudyTrackingNotificationReadScoped?: (params: {
+    id: number;
+    clinicId?: number;
+    particularTokenId?: number;
+  }) => Promise<StudyTrackingNotification | null | undefined>;
+  markAllStudyTrackingNotificationsReadScoped?: (params: {
+    clinicId?: number;
+    particularTokenId?: number;
+  }) => Promise<{ updatedCount: number }>;
   sendSpecialStainRequiredEmail?: (input: {
     to: Array<string | null | undefined>;
     clinicName: string;
@@ -199,6 +208,8 @@ type NativeStudyTrackingDeps = Required<
     | "listStudyTrackingCases"
     | "createStudyTrackingNotification"
     | "listStudyTrackingNotifications"
+    | "markStudyTrackingNotificationReadScoped"
+    | "markAllStudyTrackingNotificationsReadScoped"
     | "sendSpecialStainRequiredEmail"
     | "writeAuditLog"
   >
@@ -235,6 +246,10 @@ async function loadDefaultDeps(): Promise<NativeStudyTrackingDeps> {
           dbStudyTracking.createStudyTrackingNotification,
         listStudyTrackingNotifications:
           dbStudyTracking.listStudyTrackingNotifications,
+        markStudyTrackingNotificationReadScoped:
+          dbStudyTracking.markStudyTrackingNotificationReadScoped,
+        markAllStudyTrackingNotificationsReadScoped:
+          dbStudyTracking.markAllStudyTrackingNotificationsReadScoped,
         sendSpecialStainRequiredEmail: email.sendSpecialStainRequiredEmail,
         writeAuditLog: audit.writeAuditLog as (
           req: unknown,
@@ -355,11 +370,7 @@ function enforceTrustedOrigin(
 
   const requestOrigin = getRequestOrigin(request);
 
-  if (!requestOrigin) {
-    return true;
-  }
-
-  if (allowedOrigins.has(requestOrigin)) {
+  if (requestOrigin && allowedOrigins.has(requestOrigin)) {
     return true;
   }
 
@@ -619,6 +630,8 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
     !!options.listStudyTrackingCases &&
     !!options.createStudyTrackingNotification &&
     !!options.listStudyTrackingNotifications &&
+    !!options.markStudyTrackingNotificationReadScoped &&
+    !!options.markAllStudyTrackingNotificationsReadScoped &&
     !!options.sendSpecialStainRequiredEmail &&
     !!options.writeAuditLog;
 
@@ -657,6 +670,12 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
     listStudyTrackingNotifications:
       options.listStudyTrackingNotifications ??
       defaultDeps!.listStudyTrackingNotifications,
+    markStudyTrackingNotificationReadScoped:
+      options.markStudyTrackingNotificationReadScoped ??
+      defaultDeps!.markStudyTrackingNotificationReadScoped,
+    markAllStudyTrackingNotificationsReadScoped:
+      options.markAllStudyTrackingNotificationsReadScoped ??
+      defaultDeps!.markAllStudyTrackingNotificationsReadScoped,
     sendSpecialStainRequiredEmail:
       options.sendSpecialStainRequiredEmail ??
       defaultDeps!.sendSpecialStainRequiredEmail,
@@ -709,7 +728,7 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
     }
 
     applyCorsHeaders(request, reply, allowedOrigins);
-    reply.header("access-control-allow-methods", "GET,POST,OPTIONS");
+    reply.header("access-control-allow-methods", "GET,POST,PATCH,OPTIONS");
 
     const requestedHeaders =
       typeof request.headers["access-control-request-headers"] === "string"
@@ -722,6 +741,8 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
 
   app.options("/", optionsHandler);
   app.options("/notifications", optionsHandler);
+  app.options("/notifications/:notificationId/read", optionsHandler);
+  app.options("/notifications/read-all", optionsHandler);
   app.options("/:trackingCaseId", optionsHandler);
 
   app.get<{
@@ -758,6 +779,69 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
         limit,
         offset,
       },
+    });
+  });
+
+  app.patch<{
+    Params: {
+      notificationId: string;
+    };
+  }>("/notifications/:notificationId/read", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const auth = await authenticateClinicUser(request, reply, deps, now);
+
+    if (!auth) {
+      return reply;
+    }
+
+    const notificationId = parseEntityId(request.params.notificationId);
+
+    if (typeof notificationId !== "number") {
+      return reply.code(400).send({
+        success: false,
+        error: "ID de notificación inválido",
+      });
+    }
+
+    const notification = await deps.markStudyTrackingNotificationReadScoped({
+      id: notificationId,
+      clinicId: auth.clinicId,
+    });
+
+    if (!notification) {
+      return reply.code(404).send({
+        success: false,
+        error: "Notificación no encontrada",
+      });
+    }
+
+    return reply.code(200).send({
+      success: true,
+      notification: serializeStudyTrackingNotification(notification),
+    });
+  });
+
+  app.patch("/notifications/read-all", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const auth = await authenticateClinicUser(request, reply, deps, now);
+
+    if (!auth) {
+      return reply;
+    }
+
+    const result = await deps.markAllStudyTrackingNotificationsReadScoped({
+      clinicId: auth.clinicId,
+    });
+
+    return reply.code(200).send({
+      success: true,
+      updatedCount: result.updatedCount,
     });
   });
 

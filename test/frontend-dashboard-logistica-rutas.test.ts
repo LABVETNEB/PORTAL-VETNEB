@@ -44,6 +44,7 @@ test("dashboard logistica rutas renders topbar without technical source copy", (
 
   assert.ok(source.includes('title="Planes de ruta"'));
   assert.ok(source.includes('subtitle="Planificación y gestión de rutas de entrega"'));
+  assert.ok(source.includes('notifications="clinic"'));
   assert.equal(source.includes(removedSourcePrefix), false);
   assert.equal(source.includes(removedRoutePlansEndpoint), false);
 });

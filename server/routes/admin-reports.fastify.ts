@@ -6,7 +6,12 @@ import type {
 } from "fastify";
 import multer from "multer";
 
-import type { ParticularToken, Report, StudyTrackingCase } from "../../drizzle/schema.ts";
+import type {
+  ParticularToken,
+  Report,
+  StudyTrackingCase,
+  StudyTrackingNotification,
+} from "../../drizzle/schema.ts";
 import type { Multer } from "multer";
 import { AUDIT_EVENTS } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
@@ -118,6 +123,17 @@ export type AdminReportsNativeRoutesOptions = {
     id: number,
     input: Partial<Omit<StudyTrackingCase, "id" | "createdAt" | "updatedAt">>,
   ) => Promise<StudyTrackingCase | null | undefined>;
+  createStudyTrackingNotification?: (input: {
+    studyTrackingCaseId: number;
+    clinicId: number;
+    reportId: number | null;
+    particularTokenId: number | null;
+    type: string;
+    title: string;
+    message: string;
+    isRead: boolean;
+    readAt: Date | null;
+  }) => Promise<StudyTrackingNotification>;
   createSignedReportUrl?: (storagePath: string) => Promise<string>;
   createSignedReportDownloadUrl?: (
     storagePath: string,
@@ -172,6 +188,7 @@ type NativeAdminReportsDeps = Required<
     | "getStudyTrackingCaseByReportId"
     | "createStudyTrackingCase"
     | "updateStudyTrackingCase"
+    | "createStudyTrackingNotification"
     | "createSignedReportUrl"
     | "createSignedReportDownloadUrl"
     | "writeAuditLog"
@@ -207,6 +224,8 @@ async function loadDefaultDeps(): Promise<NativeAdminReportsDeps> {
           dbStudyTracking.getStudyTrackingCaseByReportId,
         createStudyTrackingCase: dbStudyTracking.createStudyTrackingCase,
         updateStudyTrackingCase: dbStudyTracking.updateStudyTrackingCase,
+        createStudyTrackingNotification:
+          dbStudyTracking.createStudyTrackingNotification,
         createSignedReportUrl: storage.createSignedReportUrl,
         createSignedReportDownloadUrl: storage.createSignedReportDownloadUrl,
         writeAuditLog: audit.writeAuditLog as (
@@ -236,6 +255,7 @@ function hasAllInjectedDeps(options: AdminReportsNativeRoutesOptions) {
     !!options.getStudyTrackingCaseByReportId &&
     !!options.createStudyTrackingCase &&
     !!options.updateStudyTrackingCase &&
+    !!options.createStudyTrackingNotification &&
     !!options.createSignedReportUrl &&
     !!options.createSignedReportDownloadUrl &&
     !!options.writeAuditLog
@@ -277,6 +297,9 @@ async function resolveDeps(
       options.createStudyTrackingCase ?? defaultDeps!.createStudyTrackingCase,
     updateStudyTrackingCase:
       options.updateStudyTrackingCase ?? defaultDeps!.updateStudyTrackingCase,
+    createStudyTrackingNotification:
+      options.createStudyTrackingNotification ??
+      defaultDeps!.createStudyTrackingNotification,
     createSignedReportUrl:
       options.createSignedReportUrl ?? defaultDeps!.createSignedReportUrl,
     createSignedReportDownloadUrl:
@@ -640,6 +663,64 @@ async function ensureTrackingForLinkedToken(
   );
 }
 
+function shouldCreateReportDeliveredNotification(input: {
+  previousTrackingCase: StudyTrackingCase | null;
+  trackingCase: StudyTrackingCase | null;
+}) {
+  const { previousTrackingCase, trackingCase } = input;
+
+  if (!trackingCase || trackingCase.currentStage !== "delivered") {
+    return false;
+  }
+
+  if (!previousTrackingCase) {
+    return true;
+  }
+
+  return previousTrackingCase.currentStage !== "delivered";
+}
+
+async function createReportDeliveredNotificationSafely(
+  deps: NativeAdminReportsDeps,
+  input: {
+    previousTrackingCase: StudyTrackingCase | null;
+    trackingCase: StudyTrackingCase | null;
+    clinicId: number;
+    reportId: number;
+  },
+) {
+  if (!shouldCreateReportDeliveredNotification(input) || !input.trackingCase) {
+    return;
+  }
+
+  try {
+    await deps.createStudyTrackingNotification({
+      studyTrackingCaseId: input.trackingCase.id,
+      clinicId: input.clinicId,
+      reportId: input.reportId,
+      particularTokenId: input.trackingCase.particularTokenId,
+      type: "report_delivered",
+      title: "Informe disponible",
+      message: "El informe del estudio ya está disponible.",
+      isRead: false,
+      readAt: null,
+    });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "unknown_error";
+
+    console.warn(
+      "[admin-reports] report_delivered notification failed",
+      JSON.stringify({
+        reportId: input.reportId,
+        clinicId: input.clinicId,
+        trackingCaseId: input.trackingCase.id,
+        error: errorMessage,
+      }),
+    );
+  }
+}
+
 async function serializeReport(report: Report, deps: NativeAdminReportsDeps) {
   const [previewUrl, downloadUrl] = await Promise.all([
     deps.createSignedReportUrl(report.storagePath),
@@ -835,9 +916,15 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
 
     const nowDate = new Date(now());
     let trackingCase: StudyTrackingCase | null = null;
+    let previousTrackingCase: StudyTrackingCase | null = null;
     let linkedTokenId: number | null = null;
 
     if (selectedParticularToken) {
+      previousTrackingCase =
+        (await deps.getParticularStudyTrackingCase(selectedParticularToken.id)) ??
+        (await deps.getStudyTrackingCaseByReportId(report.id)) ??
+        null;
+
       const updatedToken = await deps.updateParticularTokenReport(
         selectedParticularToken.id,
         report.id,
@@ -855,6 +942,9 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
         nowDate,
       });
     } else {
+      previousTrackingCase =
+        (await deps.getStudyTrackingCaseByReportId(report.id)) ?? null;
+
       trackingCase = await ensureDeliveredTrackingByReportId(
         deps,
         report.id,
@@ -862,6 +952,13 @@ export const adminReportsNativeRoutes: FastifyPluginAsync<
       );
       linkedTokenId = trackingCase?.particularTokenId ?? null;
     }
+
+    await createReportDeliveredNotificationSafely(deps, {
+      previousTrackingCase,
+      trackingCase,
+      clinicId: report.clinicId,
+      reportId: report.id,
+    });
 
     await deps.writeAuditLog(createAuditRequestLike(request, admin), {
       event: AUDIT_EVENTS.REPORT_UPLOADED,

@@ -142,6 +142,14 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     listStudyTrackingCases: async () => [createTrackingCaseFixture()],
     createStudyTrackingNotification: async () => createNotificationFixture(),
     listStudyTrackingNotifications: async () => [createNotificationFixture()],
+    markStudyTrackingNotificationReadScoped: async () =>
+      createNotificationFixture({
+        isRead: true,
+        readAt: new Date("2026-04-21T12:00:00.000Z"),
+      }),
+    markAllStudyTrackingNotificationsReadScoped: async () => ({
+      updatedCount: 1,
+    }),
     sendSpecialStainRequiredEmail: async () => ({ sent: true }),
     writeAuditLog: async () => {},
     now: () => new Date("2026-04-24T00:00:00.000Z").getTime(),
@@ -221,6 +229,153 @@ test("studyTrackingNativeRoutes expone GET /notifications clinic-scoped", async 
     assert.equal(body.notifications[0].type, "stage_changed");
     assert.equal(body.pagination.limit, 5);
     assert.equal(body.pagination.offset, 2);
+  } finally {
+    await app.close();
+  }
+});
+
+test("studyTrackingNativeRoutes expone PATCH /notifications/:notificationId/read clinic-scoped", async () => {
+  const markCalls: Array<Record<string, unknown>> = [];
+  const readAt = new Date("2026-04-21T12:00:00.000Z");
+  const app = await createTestApp({
+    markStudyTrackingNotificationReadScoped: async (
+      params: Record<string, unknown>,
+    ) => {
+      markCalls.push(params);
+      return createNotificationFixture({
+        id: params.id,
+        isRead: true,
+        readAt,
+      });
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/study-tracking/notifications/21/read",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.cookieName}=session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(markCalls, [{ id: 21, clinicId: 3 }]);
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.success, true);
+    assert.equal(body.notification.id, 21);
+    assert.equal(body.notification.isRead, true);
+    assert.equal(body.notification.readAt, readAt.toISOString());
+  } finally {
+    await app.close();
+  }
+});
+
+test("studyTrackingNativeRoutes responde 404 genérico en PATCH /notifications/:notificationId/read cross-clinic", async () => {
+  const markCalls: Array<Record<string, unknown>> = [];
+  const app = await createTestApp({
+    markStudyTrackingNotificationReadScoped: async (
+      params: Record<string, unknown>,
+    ) => {
+      markCalls.push(params);
+      return null;
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/study-tracking/notifications/999/read",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.cookieName}=session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 404);
+    assert.deepEqual(markCalls, [{ id: 999, clinicId: 3 }]);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Notificación no encontrada",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("studyTrackingNativeRoutes expone PATCH /notifications/read-all clinic-scoped", async () => {
+  const markAllCalls: Array<Record<string, unknown>> = [];
+  const app = await createTestApp({
+    markAllStudyTrackingNotificationsReadScoped: async (
+      params: Record<string, unknown>,
+    ) => {
+      markAllCalls.push(params);
+      return { updatedCount: 4 };
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/study-tracking/notifications/read-all",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.cookieName}=session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(markAllCalls, [{ clinicId: 3 }]);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: true,
+      updatedCount: 4,
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("studyTrackingNativeRoutes bloquea PATCH /notifications/read-all sin origin confiable", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/study-tracking/notifications/read-all",
+      headers: {
+        cookie: `${ENV.cookieName}=session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Origen no permitido",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("studyTrackingNativeRoutes bloquea PATCH /notifications/read-all sin sesión", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/study-tracking/notifications/read-all",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "No autenticado",
+    });
   } finally {
     await app.close();
   }
