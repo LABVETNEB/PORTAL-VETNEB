@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { UploadReportModal } from "@/components/dashboard/UploadReportModal";
 import {
   Card,
   CardContent,
@@ -45,6 +46,7 @@ type AdminParticularTokenFormState = {
 type ClinicOption = {
   id: number;
   name: string;
+  hasResolvedName: boolean;
   usernames: string[];
   locality: string | null;
 };
@@ -162,7 +164,8 @@ function dedupeClinicOptions(options: ClinicOption[]): ClinicOption[] {
 
     byId.set(option.id, {
       ...current,
-      name: current.name || option.name,
+      name: current.hasResolvedName ? current.name : option.name,
+      hasResolvedName: current.hasResolvedName || option.hasResolvedName,
       locality: current.locality ?? option.locality,
       usernames: Array.from(
         new Set([...current.usernames, ...option.usernames]),
@@ -280,6 +283,47 @@ function getTrackingStageLabel(
   return TRACKING_STAGE_LABELS[stage] ?? stage;
 }
 
+function resolveClinicName(
+  clinicOptions: ClinicOption[],
+  clinicId: number,
+): string | null {
+  const clinic = clinicOptions.find((option) => option.id === clinicId);
+
+  return clinic?.hasResolvedName ? clinic.name : null;
+}
+
+function formatTokenTitle(
+  clinicOptions: ClinicOption[],
+  token: AdminParticularTokenSummary,
+): string {
+  const clinicName = resolveClinicName(clinicOptions, token.clinicId);
+
+  return `${clinicName ?? `Clínica #${token.clinicId}`} · ${token.petName}`;
+}
+
+function formatTokenClinicLink(
+  clinicOptions: ClinicOption[],
+  clinicId: number,
+): string {
+  const clinicName = resolveClinicName(clinicOptions, clinicId);
+
+  return clinicName
+    ? `Clínica: ${clinicName} (#${clinicId})`
+    : `Clínica #${clinicId}`;
+}
+
+function buildTokenPresetClinic(
+  clinicOptions: ClinicOption[],
+  token: AdminParticularTokenSummary,
+) {
+  const clinicName = resolveClinicName(clinicOptions, token.clinicId);
+
+  return {
+    id: token.clinicId,
+    name: clinicName ?? `Clínica #${token.clinicId}`,
+  };
+}
+
 export function AdminParticularTokensCard() {
   const [formState, setFormState] =
     useState<AdminParticularTokenFormState>(INITIAL_FORM_STATE);
@@ -308,6 +352,8 @@ export function AdminParticularTokensCard() {
   const [updatingTrackingCaseIds, setUpdatingTrackingCaseIds] = useState<
     Record<number, boolean>
   >({});
+  const [trackingStageDraftsByCaseId, setTrackingStageDraftsByCaseId] =
+    useState<Record<number, AdminStudyTrackingStage>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -334,6 +380,7 @@ export function AdminParticularTokensCard() {
 
       if (snapshot.particularTokens.length === 0) {
         setTrackingCasesByTokenId({});
+        setTrackingStageDraftsByCaseId({});
         return;
       }
 
@@ -351,16 +398,24 @@ export function AdminParticularTokensCard() {
         );
 
         const nextTrackingByTokenId: Record<number, AdminStudyTrackingCaseSummary> = {};
+        const nextTrackingStageDraftsByCaseId: Record<
+          number,
+          AdminStudyTrackingStage
+        > = {};
 
         for (const [tokenId, trackingCase] of trackingEntries) {
           if (trackingCase) {
             nextTrackingByTokenId[tokenId] = trackingCase;
+            nextTrackingStageDraftsByCaseId[trackingCase.id] =
+              trackingCase.currentStage;
           }
         }
 
         setTrackingCasesByTokenId(nextTrackingByTokenId);
+        setTrackingStageDraftsByCaseId(nextTrackingStageDraftsByCaseId);
       } catch (error) {
         setTrackingCasesByTokenId({});
+        setTrackingStageDraftsByCaseId({});
         setTrackingLoadError(
           error instanceof Error
             ? error.message
@@ -374,6 +429,7 @@ export function AdminParticularTokensCard() {
           : "No se pudieron cargar los tokens particulares.",
       );
       setTrackingCasesByTokenId({});
+      setTrackingStageDraftsByCaseId({});
     } finally {
       setIsLoadingTokens(false);
     }
@@ -412,7 +468,8 @@ export function AdminParticularTokensCard() {
 
             options.push({
               id: user.clinicId,
-              name: user.clinicName ?? `Clínica #${user.clinicId}`,
+              name: user.clinicName?.trim() || `Clínica #${user.clinicId}`,
+              hasResolvedName: Boolean(user.clinicName?.trim()),
               usernames: [user.username],
               locality: user.clinicLocality ?? null,
             });
@@ -610,6 +667,16 @@ export function AdminParticularTokensCard() {
         delete next[token.id];
         return next;
       });
+      setTrackingStageDraftsByCaseId((current) => {
+        const next = { ...current };
+        const trackingCase = trackingCasesByTokenId[token.id];
+
+        if (trackingCase) {
+          delete next[trackingCase.id];
+        }
+
+        return next;
+      });
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -621,11 +688,24 @@ export function AdminParticularTokensCard() {
     }
   }
 
-  async function handleTrackingStageChange(
-    tokenId: number,
+  function handleTrackingStageDraftChange(
     trackingCase: AdminStudyTrackingCaseSummary,
     nextStage: AdminStudyTrackingStage,
   ) {
+    setTrackingStageDraftsByCaseId((current) => ({
+      ...current,
+      [trackingCase.id]: nextStage,
+    }));
+    setErrorMessage(null);
+  }
+
+  async function handleTrackingStageUpdate(
+    tokenId: number,
+    trackingCase: AdminStudyTrackingCaseSummary,
+  ) {
+    const nextStage =
+      trackingStageDraftsByCaseId[trackingCase.id] ?? trackingCase.currentStage;
+
     if (trackingCase.currentStage === nextStage) {
       return;
     }
@@ -644,6 +724,10 @@ export function AdminParticularTokensCard() {
       setTrackingCasesByTokenId((current) => ({
         ...current,
         [tokenId]: response.trackingCase,
+      }));
+      setTrackingStageDraftsByCaseId((current) => ({
+        ...current,
+        [response.trackingCase.id]: response.trackingCase.currentStage,
       }));
     } catch {
       setErrorMessage("No se pudo cambiar la etapa del seguimiento.");
@@ -1163,6 +1247,13 @@ export function AdminParticularTokensCard() {
                 const isUpdatingTrackingCase = trackingCase
                   ? Boolean(updatingTrackingCaseIds[trackingCase.id])
                   : false;
+                const trackingStageDraft = trackingCase
+                  ? trackingStageDraftsByCaseId[trackingCase.id] ??
+                    trackingCase.currentStage
+                  : null;
+                const hasTrackingStageChange = trackingCase
+                  ? trackingStageDraft !== trackingCase.currentStage
+                  : false;
 
                 return (
                   <div
@@ -1172,7 +1263,7 @@ export function AdminParticularTokensCard() {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="space-y-1">
                       <p className="text-sm font-semibold text-vetneb-ink">
-                        Clínica #{token.clinicId} · {token.petName}
+                        {formatTokenTitle(clinicOptions, token)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Tutor: {token.tutorLastName} · Token ****{token.tokenLast4}
@@ -1243,7 +1334,9 @@ export function AdminParticularTokensCard() {
                       <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
                         Vínculo
                       </p>
-                      <p className="mt-1 text-xs text-muted-foreground">Clínica #{token.clinicId}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {formatTokenClinicLink(clinicOptions, token.clinicId)}
+                      </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         Origen: {formatTokenSource(token)}
                       </p>
@@ -1267,10 +1360,9 @@ export function AdminParticularTokensCard() {
                           <select
                             id={`admin-tracking-stage-${trackingCase.id}`}
                             className="field-select mt-1 text-xs"
-                            value={trackingCase.currentStage}
+                            value={trackingStageDraft ?? trackingCase.currentStage}
                             onChange={(event) =>
-                              void handleTrackingStageChange(
-                                token.id,
+                              handleTrackingStageDraftChange(
                                 trackingCase,
                                 event.target.value as AdminStudyTrackingStage,
                               )
@@ -1283,6 +1375,22 @@ export function AdminParticularTokensCard() {
                               </option>
                             ))}
                           </select>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 w-full"
+                            onClick={() =>
+                              void handleTrackingStageUpdate(token.id, trackingCase)
+                            }
+                            disabled={
+                              !hasTrackingStageChange || isUpdatingTrackingCase
+                            }
+                          >
+                            {isUpdatingTrackingCase
+                              ? "Actualizando..."
+                              : "Actualizar estado"}
+                          </Button>
                           <p className="mt-1 text-xs text-muted-foreground">
                             {trackingCase.specialStainRequired
                               ? "Alerta: Solicitud de tinción especial"
@@ -1311,7 +1419,13 @@ export function AdminParticularTokensCard() {
                     </div>
                   </div>
 
-                  <div className="mt-3 flex justify-end">
+                  <div className="mt-3 flex flex-wrap justify-end gap-2">
+                    <UploadReportModal
+                      triggerLabel="Subir informe para este token"
+                      presetClinic={buildTokenPresetClinic(clinicOptions, token)}
+                      presetParticularToken={token}
+                      onUploaded={loadTokens}
+                    />
                     <Button
                       type="button"
                       variant="destructive"

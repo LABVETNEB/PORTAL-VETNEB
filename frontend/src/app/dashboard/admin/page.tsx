@@ -26,7 +26,6 @@ import { AdminPricingEditorCard } from "./AdminPricingEditorCard";
 import { AdminSchemaHealthStatusCard } from "./AdminSchemaHealthStatusCard";
 import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";
 import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
-import { UploadReportModal } from "@/components/dashboard/UploadReportModal";
 import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 
@@ -406,12 +405,10 @@ export default async function AdminPage({
                 Carga de informes
               </h2>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Suba PDFs, asócielos a una clínica y vincule tokens particulares
-                desde una única superficie administrativa.
+                La carga de informes se realiza desde cada token administrado
+                en "Últimos tokens administrados", para vincular clínica y token
+                sin búsqueda manual.
               </p>
-            </div>
-            <div className="shrink-0">
-              <UploadReportModal />
             </div>
           </div>
         </section>
