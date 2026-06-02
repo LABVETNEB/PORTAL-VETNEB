@@ -34,6 +34,11 @@ type SessionAdminUserRecord = {
   username: string;
 };
 
+type AdminSessionWithUserRecord = {
+  session: AdminSessionRecord;
+  adminUser: SessionAdminUserRecord | null;
+};
+
 type AdminClinicsQuery = {
   limit?: string;
   offset?: string;
@@ -68,12 +73,9 @@ function getAllowedOrigins() {
 
 export type AdminClinicsNativeRoutesOptions = {
   deleteAdminSession?: (tokenHash: string) => Promise<void>;
-  getAdminSessionByToken?: (
+  getAdminSessionWithUser?: (
     tokenHash: string,
-  ) => Promise<AdminSessionRecord | null>;
-  getAdminUserById?: (
-    adminUserId: number,
-  ) => Promise<SessionAdminUserRecord | null>;
+  ) => Promise<AdminSessionWithUserRecord | null>;
   updateAdminSessionLastAccess?: (tokenHash: string) => Promise<void>;
   hashSessionToken?: (token: string) => string;
   hashPassword?: (password: string) => Promise<string>;
@@ -99,8 +101,7 @@ type NativeAdminClinicsDeps = Required<
   Pick<
     AdminClinicsNativeRoutesOptions,
     | "deleteAdminSession"
-    | "getAdminSessionByToken"
-    | "getAdminUserById"
+    | "getAdminSessionWithUser"
     | "updateAdminSessionLastAccess"
     | "hashSessionToken"
     | "hashPassword"
@@ -141,8 +142,7 @@ async function loadDefaultDeps(): Promise<NativeAdminClinicsDeps> {
 
       return {
         deleteAdminSession: db.deleteAdminSession,
-        getAdminSessionByToken: db.getAdminSessionByToken,
-        getAdminUserById: db.getAdminUserById,
+        getAdminSessionWithUser: db.getAdminSessionWithUser,
         updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
         hashPassword: authSecurity.hashPassword,
@@ -663,8 +663,7 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
   async function resolveDeps(): Promise<NativeAdminClinicsDeps> {
     const hasAllInjectedDeps =
       !!options.deleteAdminSession &&
-      !!options.getAdminSessionByToken &&
-      !!options.getAdminUserById &&
+      !!options.getAdminSessionWithUser &&
       !!options.updateAdminSessionLastAccess &&
       !!options.hashSessionToken &&
       !!options.hashPassword &&
@@ -679,10 +678,9 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
     return {
       deleteAdminSession:
         options.deleteAdminSession ?? defaultDeps!.deleteAdminSession,
-      getAdminSessionByToken:
-        options.getAdminSessionByToken ?? defaultDeps!.getAdminSessionByToken,
-      getAdminUserById:
-        options.getAdminUserById ?? defaultDeps!.getAdminUserById,
+      getAdminSessionWithUser:
+        options.getAdminSessionWithUser ??
+        defaultDeps!.getAdminSessionWithUser,
       updateAdminSessionLastAccess:
         options.updateAdminSessionLastAccess ??
         defaultDeps!.updateAdminSessionLastAccess,

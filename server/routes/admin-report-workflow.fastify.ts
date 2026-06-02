@@ -28,6 +28,11 @@ type AuthenticatedAdminUser = {
   username: string;
 };
 
+type AdminSessionWithUserRecord = {
+  session: AdminSessionRecord;
+  adminUser: AuthenticatedAdminUser | null;
+};
+
 type WorkflowQuery = {
   limit?: unknown;
   offset?: unknown;
@@ -39,12 +44,9 @@ type WorkflowParams = {
 
 export type AdminReportWorkflowNativeRoutesOptions = {
   deleteAdminSession?: (tokenHash: string) => Promise<void>;
-  getAdminSessionByToken?: (
+  getAdminSessionWithUser?: (
     tokenHash: string,
-  ) => Promise<AdminSessionRecord | null>;
-  getAdminUserById?: (
-    adminUserId: number,
-  ) => Promise<AuthenticatedAdminUser | null>;
+  ) => Promise<AdminSessionWithUserRecord | null>;
   updateAdminSessionLastAccess?: (tokenHash: string) => Promise<void>;
   hashSessionToken?: (token: string) => string;
   listAdminReportWorkflowItems?: (input: {
@@ -72,8 +74,7 @@ type NativeAdminReportWorkflowDeps = Required<
   Pick<
     AdminReportWorkflowNativeRoutesOptions,
     | "deleteAdminSession"
-    | "getAdminSessionByToken"
-    | "getAdminUserById"
+    | "getAdminSessionWithUser"
     | "updateAdminSessionLastAccess"
     | "hashSessionToken"
     | "listAdminReportWorkflowItems"
@@ -96,8 +97,7 @@ async function loadDefaultDeps(): Promise<NativeAdminReportWorkflowDeps> {
 
       return {
         deleteAdminSession: db.deleteAdminSession,
-        getAdminSessionByToken: db.getAdminSessionByToken,
-        getAdminUserById: db.getAdminUserById,
+        getAdminSessionWithUser: db.getAdminSessionWithUser,
         updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
         listAdminReportWorkflowItems: workflow.listAdminReportWorkflowItems,
@@ -279,8 +279,7 @@ export const adminReportWorkflowNativeRoutes: FastifyPluginAsync<
   async function resolveDeps(): Promise<NativeAdminReportWorkflowDeps> {
     const hasAllInjectedDeps =
       !!options.deleteAdminSession &&
-      !!options.getAdminSessionByToken &&
-      !!options.getAdminUserById &&
+      !!options.getAdminSessionWithUser &&
       !!options.updateAdminSessionLastAccess &&
       !!options.hashSessionToken &&
       !!options.listAdminReportWorkflowItems &&
@@ -293,10 +292,9 @@ export const adminReportWorkflowNativeRoutes: FastifyPluginAsync<
     return {
       deleteAdminSession:
         options.deleteAdminSession ?? defaultDeps!.deleteAdminSession,
-      getAdminSessionByToken:
-        options.getAdminSessionByToken ?? defaultDeps!.getAdminSessionByToken,
-      getAdminUserById:
-        options.getAdminUserById ?? defaultDeps!.getAdminUserById,
+      getAdminSessionWithUser:
+        options.getAdminSessionWithUser ??
+        defaultDeps!.getAdminSessionWithUser,
       updateAdminSessionLastAccess:
         options.updateAdminSessionLastAccess ??
         defaultDeps!.updateAdminSessionLastAccess,
@@ -325,8 +323,7 @@ export const adminReportWorkflowNativeRoutes: FastifyPluginAsync<
   ) {
     return authenticateFastifyAdmin(request, reply, {
       deleteAdminSession: deps.deleteAdminSession,
-      getAdminSessionByToken: deps.getAdminSessionByToken,
-      getAdminUserById: deps.getAdminUserById,
+      getAdminSessionWithUser: deps.getAdminSessionWithUser,
       updateAdminSessionLastAccess: deps.updateAdminSessionLastAccess,
       hashSessionToken: deps.hashSessionToken,
       now,

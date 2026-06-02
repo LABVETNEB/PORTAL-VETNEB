@@ -20,10 +20,16 @@ type AdminUserRecord = {
   username: string;
 };
 
+type AdminSessionWithUserRecord = {
+  session: AdminSessionRecord;
+  adminUser: AdminUserRecord | null;
+};
+
 type AdminAuthDeps = {
   deleteAdminSession: (tokenHash: string) => Promise<void>;
-  getAdminSessionByToken: (tokenHash: string) => Promise<AdminSessionRecord | null>;
-  getAdminUserById: (id: number) => Promise<AdminUserRecord | null>;
+  getAdminSessionWithUser: (
+    tokenHash: string,
+  ) => Promise<AdminSessionWithUserRecord | null>;
   updateAdminSessionLastAccess: (tokenHash: string) => Promise<void>;
   hashSessionToken: (token: string) => string;
   cookieName: string;
@@ -57,8 +63,7 @@ async function loadDefaultDeps(): Promise<AdminAuthDeps> {
 
       return {
         deleteAdminSession: db.deleteAdminSession,
-        getAdminSessionByToken: db.getAdminSessionByToken,
-        getAdminUserById: db.getAdminUserById,
+        getAdminSessionWithUser: db.getAdminSessionWithUser,
         updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
         cookieName: envModule.ENV.adminCookieName,
@@ -92,14 +97,16 @@ export function createRequireAdminAuth(
       }
 
       const tokenHash = deps.hashSessionToken(token);
-      const session = await deps.getAdminSessionByToken(tokenHash);
+      const sessionWithUser = await deps.getAdminSessionWithUser(tokenHash);
 
-      if (!session) {
+      if (!sessionWithUser) {
         return res.status(401).json({
           success: false,
           error: "Sesión admin inválida",
         });
       }
+
+      const { session, adminUser } = sessionWithUser;
 
       if (session.expiresAt && session.expiresAt.getTime() <= deps.now()) {
         await deps.deleteAdminSession(tokenHash);
@@ -116,8 +123,6 @@ export function createRequireAdminAuth(
           error: "Sesión admin expirada",
         });
       }
-
-      const adminUser = await deps.getAdminUserById(session.adminUserId);
 
       if (!adminUser) {
         await deps.deleteAdminSession(tokenHash);

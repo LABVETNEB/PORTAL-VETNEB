@@ -47,12 +47,14 @@ function buildDeps(
 ): AdminReportWorkflowNativeRoutesOptions {
   return {
     deleteAdminSession: async () => {},
-    getAdminSessionByToken: async () => ({
-      adminUserId: 1,
-      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-      lastAccess: new Date("2026-05-20T09:00:00.000Z"),
+    getAdminSessionWithUser: async () => ({
+      session: {
+        adminUserId: 1,
+        expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+        lastAccess: new Date("2026-05-20T09:00:00.000Z"),
+      },
+      adminUser: { id: 1, username: "ADMIN" },
     }),
-    getAdminUserById: async () => ({ id: 1, username: "ADMIN" }),
     updateAdminSessionLastAccess: async () => {},
     hashSessionToken: (token: string) => `hash:${token}`,
     listAdminReportWorkflowItems: async () => [createWorkflowItem()],
@@ -93,7 +95,7 @@ const adminHeaders = {
 
 test("admin report workflow requiere autenticación admin para lectura y mutación", async () => {
   const app = await createApp({
-    getAdminSessionByToken: async () => null,
+    getAdminSessionWithUser: async () => null,
   });
 
   try {

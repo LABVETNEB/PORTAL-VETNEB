@@ -427,6 +427,47 @@ export async function createAdminSession(session: {
   return result[0];
 }
 
+export type AdminSessionWithUserRecord = {
+  session: {
+    id: number;
+    adminUserId: number;
+    tokenHash: string;
+    lastAccess: Date | null;
+    expiresAt: Date | null;
+    createdAt: Date;
+  };
+  adminUser: {
+    id: number;
+    username: string;
+  } | null;
+};
+
+export async function getAdminSessionWithUser(
+  tokenHash: string,
+): Promise<AdminSessionWithUserRecord | null> {
+  const result = await db
+    .select({
+      session: {
+        id: adminSessions.id,
+        adminUserId: adminSessions.adminUserId,
+        tokenHash: adminSessions.tokenHash,
+        lastAccess: adminSessions.lastAccess,
+        expiresAt: adminSessions.expiresAt,
+        createdAt: adminSessions.createdAt,
+      },
+      adminUser: {
+        id: adminUsers.id,
+        username: adminUsers.username,
+      },
+    })
+    .from(adminSessions)
+    .leftJoin(adminUsers, eq(adminSessions.adminUserId, adminUsers.id))
+    .where(eq(adminSessions.tokenHash, tokenHash))
+    .limit(1);
+
+  return result[0] ?? null;
+}
+
 export async function getAdminSessionByToken(tokenHash: string) {
   const result = await db
     .select()
