@@ -13,13 +13,20 @@ function read(relativePath: string): string {
   );
 }
 
+function assertLoginUnifiedRateLimitImport(source: string): void {
+  assert.match(
+    source,
+    /import\s*\{[\s\S]*\bloginUnified\b[\s\S]*\bRateLimitError\b[\s\S]*\}\s*from\s+"@\/lib\/api";?/,
+  );
+}
+
 test("login public page submits clinic credentials through the API client", () => {
   const source = read(LOGIN_CONTENT_PATH);
 
   assert.ok(source.includes('"use client";'));
   assert.ok(source.includes('import { FormEvent, useEffect, useState } from "react";'));
   assert.ok(source.includes('import { useRouter, useSearchParams } from "next/navigation";'));
-  assert.ok(source.includes('import { loginUnified } from "@/lib/api";'));
+  assertLoginUnifiedRateLimitImport(source);
   assert.ok(source.includes("async function handleSubmit"));
   assert.ok(source.includes("event.preventDefault();"));
   assert.ok(source.includes("const response = await loginUnified({"));
@@ -58,15 +65,21 @@ test("login public page handles loading and error states", () => {
   assert.ok(source.includes("const [password, setPassword]"));
   assert.ok(source.includes("const [errorMessage, setErrorMessage]"));
   assert.ok(source.includes("const [isSubmitting, setIsSubmitting]"));
-  assert.ok(source.includes("if (isSubmitting)"));
+  assert.ok(source.includes("const [rateLimitCooldown, setRateLimitCooldown] = useState(0)"));
+  assert.ok(source.includes("if (isSubmitting || rateLimitCooldown > 0)"));
   assert.ok(source.includes("setErrorMessage(null);"));
   assert.ok(source.includes("setIsSubmitting(true);"));
   assert.ok(source.includes("setIsSubmitting(false);"));
+  assert.ok(source.includes("setRateLimitCooldown(0);"));
+  assert.ok(source.includes("error instanceof RateLimitError"));
+  assert.ok(source.includes("setRateLimitCooldown(error.retryAfterSeconds)"));
+  assert.ok(source.includes("const isBlocked = isSubmitting || rateLimitCooldown > 0"));
   assert.ok(source.includes("error instanceof Error"));
   assert.ok(source.includes("? error.message"));
   assert.ok(source.includes('role="alert"'));
-  assert.ok(source.includes("disabled={isSubmitting}"));
-  assert.ok(source.includes('isSubmitting ? "Iniciando sesión..." : "Iniciar sesión"'));
+  assert.ok(source.includes("disabled={isBlocked}"));
+  assert.ok(source.includes("const clinicSubmitLabel = isSubmitting"));
+  assert.ok(source.includes("rateLimitCooldown > 0"));
   assert.ok(source.includes("Usuario o email"));
   assert.ok(source.includes('data-auth-credential-input="true"'));
   assert.ok(source.includes('data-auth-credential-visibility-toggle="true"'));
@@ -82,9 +95,10 @@ test("login public page handles loading and error states", () => {
 test("login public page prevents mobile double submit while request is pending", () => {
   const source = read(LOGIN_CONTENT_PATH);
 
-  assert.ok(source.includes("if (isSubmitting)"));
+  assert.ok(source.includes("if (isSubmitting || rateLimitCooldown > 0)"));
   assert.ok(source.includes("return;"));
-  assert.ok(source.includes("disabled={isSubmitting}"));
+  assert.ok(source.includes("const isBlocked = isSubmitting || rateLimitCooldown > 0"));
+  assert.ok(source.includes("disabled={isBlocked}"));
   assert.ok(source.includes("aria-busy={isSubmitting}"));
 });
 

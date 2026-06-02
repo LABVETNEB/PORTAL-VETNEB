@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
-import { loginUnified } from "@/lib/api";
+import { loginUnified, RateLimitError } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
 
 const SAFE_LOGIN_REDIRECT_ORIGIN = "https://portal.vetneb.local";
@@ -70,6 +70,7 @@ export function LoginContent() {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
 
   useEffect(() => {
     if (requestedSurface === "particular") {
@@ -77,10 +78,27 @@ export function LoginContent() {
     }
   }, [requestedSurface, router]);
 
+  useEffect(() => {
+    if (rateLimitCooldown <= 0) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setRateLimitCooldown((prev) => {
+        const next = prev - 1;
+        return next <= 0 ? 0 : next;
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, [rateLimitCooldown]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (isSubmitting) {
+    if (isSubmitting || rateLimitCooldown > 0) {
       return;
     }
 
@@ -93,6 +111,8 @@ export function LoginContent() {
         password,
       });
 
+      setRateLimitCooldown(0);
+
       const safeNextPath = getSafeNextPath(searchParams.get("next"));
       const destination =
         response.role === "clinic" && response.redirectTo === ROUTES.dashboard
@@ -102,6 +122,10 @@ export function LoginContent() {
       router.replace(destination);
       router.refresh();
     } catch (error) {
+      if (error instanceof RateLimitError && error.retryAfterSeconds) {
+        setRateLimitCooldown(error.retryAfterSeconds);
+      }
+
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -112,7 +136,12 @@ export function LoginContent() {
     }
   }
 
-  const clinicSubmitLabel = isSubmitting ? "Iniciando sesión..." : "Iniciar sesión";
+  const isBlocked = isSubmitting || rateLimitCooldown > 0;
+  const clinicSubmitLabel = isSubmitting
+    ? "Iniciando sesión..."
+    : rateLimitCooldown > 0
+      ? `Espere ${rateLimitCooldown}s`
+      : "Iniciar sesión";
 
   return (
     <div
@@ -165,11 +194,14 @@ export function LoginContent() {
                   type="text"
                   placeholder="nombre_usuario o email@dominio.com"
                   autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   autoFocus
                   required
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
-                  disabled={isSubmitting}
+                  disabled={isBlocked}
                   className="h-12 rounded-lg"
                 />
               </div>
@@ -188,14 +220,14 @@ export function LoginContent() {
                     required
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    disabled={isSubmitting}
+                    disabled={isBlocked}
                     className="h-12 rounded-lg pr-12"
                   />
                   <button
                     type="button"
                     className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55"
                     onClick={() => setIsPasswordVisible((current) => !current)}
-                    disabled={isSubmitting}
+                    disabled={isBlocked}
                     aria-label={isPasswordVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
                     aria-pressed={isPasswordVisible}
                     aria-controls="password"
@@ -222,7 +254,7 @@ export function LoginContent() {
               <Button
                 type="submit"
                 className="public-cta-primary w-full"
-                disabled={isSubmitting}
+                disabled={isBlocked}
                 aria-busy={isSubmitting}
               >
                 {clinicSubmitLabel}

@@ -21,6 +21,7 @@ import {
   getParticularSession,
   loginParticular,
   logoutParticular,
+  RateLimitError,
   type AdminStudyTrackingCaseSummary,
 } from "@/lib/api";
 import { ROUTES } from "@/lib/routes";
@@ -99,6 +100,7 @@ export function ParticularesContent() {
   const [session, setSession] = useState<ParticularSession | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
   const [isOpeningReport, setIsOpeningReport] = useState(false);
   const [trackingCase, setTrackingCase] = useState<AdminStudyTrackingCaseSummary | null>(null);
   const [trackingLoadError, setTrackingLoadError] = useState<string | null>(null);
@@ -157,10 +159,29 @@ export function ParticularesContent() {
     );
   }, []);
 
+  useEffect(() => {
+    if (rateLimitCooldown <= 0) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setRateLimitCooldown((prev) => {
+        const next = prev - 1;
+        return next <= 0 ? 0 : next;
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, [rateLimitCooldown]);
+
+  const isBlocked = isSubmitting || rateLimitCooldown > 0;
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (isSubmitting) {
+    if (isBlocked) {
       return;
     }
 
@@ -170,6 +191,7 @@ export function ParticularesContent() {
 
     try {
       const response = await loginParticular({ token });
+      setRateLimitCooldown(0);
       setSession(response.particular);
       setTrackingLoadError(null);
       try {
@@ -186,6 +208,11 @@ export function ParticularesContent() {
       setToken("");
     } catch (error) {
       setTrackingCase(null);
+
+      if (error instanceof RateLimitError && error.retryAfterSeconds) {
+        setRateLimitCooldown(error.retryAfterSeconds);
+      }
+
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -521,7 +548,7 @@ export function ParticularesContent() {
                         required
                         value={token}
                         onChange={(event) => setToken(event.target.value)}
-                        disabled={isSubmitting}
+                        disabled={isBlocked}
                         className="pl-10"
                       />
                     </div>
@@ -530,7 +557,7 @@ export function ParticularesContent() {
                         type="button"
                         variant="outline"
                         onClick={handlePasteToken}
-                        disabled={isSubmitting || isPasting}
+                        disabled={isBlocked || isPasting}
                         className="mt-2 w-full public-cta-outline text-sm"
                         aria-label="Pegar token"
                       >
@@ -564,10 +591,14 @@ export function ParticularesContent() {
                   <Button
                     type="submit"
                     className="public-cta-primary w-full"
-                    disabled={isSubmitting}
+                    disabled={isBlocked}
                     aria-busy={isSubmitting}
                   >
-                    {isSubmitting ? "Validando token..." : "Ingresar"}
+                    {isSubmitting
+                      ? "Validando token..."
+                      : rateLimitCooldown > 0
+                        ? `Espere ${rateLimitCooldown}s`
+                        : "Ingresar"}
                   </Button>
 
                   <p className="text-center text-xs text-muted-foreground">

@@ -470,6 +470,8 @@ test(
     });
 
     try {
+      const failedToken = "bad-particular-token";
+
       const first = await app.inject({
         method: "POST",
         url: "/api/particular/auth/login",
@@ -478,7 +480,7 @@ test(
         },
         remoteAddress: "203.0.113.30",
         payload: {
-          token: "bad-1",
+          token: failedToken,
         },
       });
 
@@ -490,7 +492,7 @@ test(
         },
         remoteAddress: "203.0.113.30",
         payload: {
-          token: "bad-2",
+          token: failedToken,
         },
       });
 
@@ -502,7 +504,7 @@ test(
         },
         remoteAddress: "203.0.113.30",
         payload: {
-          token: "bad-3",
+          token: failedToken,
         },
       });
 

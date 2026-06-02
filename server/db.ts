@@ -319,6 +319,12 @@ export async function deleteExpiredLoginRateLimitEntries(now: Date) {
     .where(lt(loginRateLimits.resetAt, now));
 }
 
+export async function deleteLoginRateLimitEntry(keyHash: string): Promise<void> {
+  await db
+    .delete(loginRateLimits)
+    .where(eq(loginRateLimits.keyHash, keyHash));
+}
+
 /* ========================= CLINIC SESSIONS ========================= */
 
 export async function createActiveSession(session: {

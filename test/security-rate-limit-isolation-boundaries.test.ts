@@ -200,7 +200,7 @@ test("rate limit constants remain split by auth public read and token mutation d
   );
 });
 
-test("auth login rate limits keep separate in-memory stores per auth domain", () => {
+test("auth login rate limits keep persistent stores with memory fallback per auth domain", () => {
   for (const file of [
     "server/routes/auth.fastify.ts",
     "server/routes/admin-auth.fastify.ts",
@@ -213,38 +213,50 @@ test("auth login rate limits keep separate in-memory stores per auth domain", ()
       'from "../lib/login-rate-limit.ts"',
       `${file} login rate limit import`,
     );
-    if (
-      file === "server/routes/auth.fastify.ts" ||
-      file === "server/routes/admin-auth.fastify.ts" ||
-      file === "server/routes/particular-auth.fastify.ts"
-    ) {
-      assertContains(
-        source,
-        "loginRateLimitStore?: RateLimitStore;",
-        `${file} injectable login rate limit store option`,
-      );
-      assertContains(
-        source,
-        "options.loginRateLimitStore ?? createMemoryRateLimitStore();",
-        `${file} memory fallback login rate limit store`,
-      );
-      assertContains(
-        source,
-        "await getOrCreateRateLimitEntry(",
-        `${file} login rate limit store read`,
-      );
-      assertContains(
-        source,
-        "await incrementRateLimitEntry(",
-        `${file} login rate limit store increment`,
-      );
-    } else {
-      assertContains(
-        source,
-        "const loginFailures = new Map<string, { count: number; resetAt: number }>();",
-        `${file} login store`,
-      );
+    assertContains(
+      source,
+      "loginRateLimitStore?: RateLimitStore;",
+      `${file} injectable login rate limit store option`,
+    );
+    assertContains(
+      source,
+      "loginRateLimitStore: createPersistentRateLimitStore({",
+      `${file} persistent login rate limit store`,
+    );
+    for (const marker of [
+      "get: db.getLoginRateLimitEntry,",
+      "set: db.setLoginRateLimitEntry,",
+      "increment: db.incrementLoginRateLimitEntry,",
+      "cleanupExpired: db.deleteExpiredLoginRateLimitEntries,",
+      "delete: db.deleteLoginRateLimitEntry,",
+    ]) {
+      assertContains(source, marker, `${file} persistent login store adapter`);
     }
+    assertContains(
+      source,
+      "options.loginRateLimitStore ??",
+      `${file} injectable login rate limit store precedence`,
+    );
+    assertContains(
+      source,
+      "defaultDeps?.loginRateLimitStore ??",
+      `${file} persistent login rate limit store precedence`,
+    );
+    assertContains(
+      source,
+      "createMemoryRateLimitStore();",
+      `${file} memory fallback login rate limit store`,
+    );
+    assertContains(
+      source,
+      "await getOrCreateRateLimitEntry(",
+      `${file} login rate limit store read`,
+    );
+    assertContains(
+      source,
+      "await incrementRateLimitEntry(",
+      `${file} login rate limit store increment`,
+    );
     assertContains(
       source,
       "options.loginRateLimitWindowMs ?? LOGIN_RATE_LIMIT_WINDOW_MS",
@@ -263,16 +275,32 @@ test("auth login rate limits keep separate in-memory stores per auth domain", ()
         "ipAddress: request.ip || null,",
       ],
       "server/routes/admin-auth.fastify.ts": [
-        'const rateLimitKey = `admin:${request.ip || "unknown"}`;',
+        "buildLoginRateLimitKey({",
+        'surface: "admin",',
+        'identifier: username || "unknown",',
+        "ipAddress: request.ip || null,",
       ],
       "server/routes/particular-auth.fastify.ts": [
-        'const rateLimitKey = `particular:${request.ip || "unknown"}`;',
+        "buildLoginRateLimitKey({",
+        'surface: "particular",',
+        'identifier: providedToken || "unknown",',
+        "ipAddress: request.ip || null,",
       ],
     } satisfies Record<(typeof file), readonly string[]>;
 
     for (const marker of realmKeyByFile[file]) {
       assertContains(source, marker, `${file} login key`);
     }
+    assertNotContains(
+      source,
+      'const rateLimitKey = `admin:${request.ip || "unknown"}`;',
+      `${file} must not use admin IP-only login key`,
+    );
+    assertNotContains(
+      source,
+      'const rateLimitKey = `particular:${request.ip || "unknown"}`;',
+      `${file} must not use particular IP-only login key`,
+    );
     assertContains(
       source,
       "error: LOGIN_RATE_LIMIT_ERROR_MESSAGE",

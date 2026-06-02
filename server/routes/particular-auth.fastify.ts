@@ -7,12 +7,14 @@ import type { ParticularToken, Report } from "../../drizzle/schema.ts";
 
 import { ENV } from "../lib/env.ts";
 import {
+  buildLoginRateLimitKey,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
 } from "../lib/login-rate-limit.ts";
 import {
   createMemoryRateLimitStore,
+  createPersistentRateLimitStore,
   getOrCreateRateLimitEntry,
   incrementRateLimitEntry,
   type RateLimitStore,
@@ -124,9 +126,13 @@ type NativeParticularAuthDeps = Required<
   >
 >;
 
-let defaultDepsPromise: Promise<NativeParticularAuthDeps> | undefined;
+type NativeParticularAuthDefaultDeps = NativeParticularAuthDeps & {
+  loginRateLimitStore: RateLimitStore;
+};
 
-async function loadDefaultDeps(): Promise<NativeParticularAuthDeps> {
+let defaultDepsPromise: Promise<NativeParticularAuthDefaultDeps> | undefined;
+
+async function loadDefaultDeps(): Promise<NativeParticularAuthDefaultDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
@@ -152,6 +158,13 @@ async function loadDefaultDeps(): Promise<NativeParticularAuthDeps> {
         generateSessionToken: authSecurity.generateSessionToken,
         hashSessionToken: authSecurity.hashSessionToken,
         recordLoginFailedAttempt: db.recordLoginFailedAttempt,
+        loginRateLimitStore: createPersistentRateLimitStore({
+          get: db.getLoginRateLimitEntry,
+          set: db.setLoginRateLimitEntry,
+          increment: db.incrementLoginRateLimitEntry,
+          cleanupExpired: db.deleteExpiredLoginRateLimitEntries,
+          delete: db.deleteLoginRateLimitEntry,
+        }),
       };
     })();
   }
@@ -250,7 +263,7 @@ function applyCorsHeaders(
   reply.header("access-control-allow-credentials", "true");
   reply.header(
     "access-control-expose-headers",
-    "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset",
+    "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After",
   );
 }
 
@@ -553,7 +566,9 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     options.loginRateLimitMaxAttempts ?? LOGIN_RATE_LIMIT_MAX_ATTEMPTS;
   const allowedOrigins = new Set(getAllowedOrigins());
   const loginRateLimitStore =
-    options.loginRateLimitStore ?? createMemoryRateLimitStore();
+    options.loginRateLimitStore ??
+    defaultDeps?.loginRateLimitStore ??
+    createMemoryRateLimitStore();
 
   app.addHook("onRequest", async (request, reply) => {
     (request as ParticularAuthFastifyRequest)[REQUEST_TIMER_KEY] =
@@ -623,8 +638,18 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const rateLimitKey = `particular:${request.ip || "unknown"}`;
     const currentTime = now();
+
+    // Leer token antes de la clave para poder aislar por identifier
+    const providedToken =
+      typeof request.body?.token === "string" ? request.body.token.trim() : "";
+
+    const rateLimitKey = buildLoginRateLimitKey({
+      surface: "particular",
+      identifier: providedToken || "unknown",
+      ipAddress: request.ip || null,
+    });
+
     const failureEntry = await getOrCreateRateLimitEntry(
       loginRateLimitStore,
       rateLimitKey,
@@ -654,6 +679,11 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     };
 
     if (failureEntry.count >= loginRateLimitMaxAttempts) {
+      const resetSeconds = Math.max(
+        Math.ceil((failureEntry.resetAt - currentTime) / 1000),
+        0,
+      );
+
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
@@ -661,6 +691,7 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
         resetAt: failureEntry.resetAt,
         now: currentTime,
       });
+      reply.header("Retry-After", String(resetSeconds));
 
       await recordFailedLoginAttempt({
         reason: "rate_limited",
@@ -695,18 +726,26 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
       await recordFailedLoginAttempt(input);
     };
 
-    const markSuccess = () => {
+    const markSuccess = async () => {
+      if (loginRateLimitStore.delete) {
+        try {
+          await loginRateLimitStore.delete(rateLimitKey);
+        } catch (error) {
+          console.warn("[WARN] PARTICULAR_LOGIN_RATE_LIMIT_RESET_FAILED", {
+            code: "PARTICULAR_LOGIN_RATE_LIMIT_RESET_FAILED",
+            message: error instanceof Error ? error.message : "unknown error",
+          });
+        }
+      }
+
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
-        failedCount: failureEntry.count,
-        resetAt: failureEntry.resetAt,
+        failedCount: 0,
+        resetAt: currentTime + loginRateLimitWindowMs,
         now: currentTime,
       });
     };
-
-    const providedToken =
-      typeof request.body?.token === "string" ? request.body.token.trim() : "";
 
     if (!providedToken) {
       await markFailure({
@@ -749,7 +788,7 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     await deps.updateParticularTokenLastLogin(particularToken.id);
 
     reply.header("set-cookie", buildParticularSessionCookie(sessionToken));
-    markSuccess();
+    await markSuccess();
 
     return reply.code(200).send({
       success: true,
