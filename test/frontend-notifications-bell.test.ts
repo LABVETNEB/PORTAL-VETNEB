@@ -17,6 +17,16 @@ function read(relativePath: string): string {
   );
 }
 
+function sectionBetween(source: string, start: string, end: string): string {
+  const startIndex = source.indexOf(start);
+  assert.notEqual(startIndex, -1, `Missing start marker: ${start}`);
+
+  const endIndex = source.indexOf(end, startIndex + start.length);
+  assert.notEqual(endIndex, -1, `Missing end marker: ${end}`);
+
+  return source.slice(startIndex, endIndex);
+}
+
 // ── 1. Auto-show panel when unread notifications exist on load ───────────────
 
 test("notifications bell auto-opens desktop panel on mount when unread count > 0", () => {
@@ -211,7 +221,98 @@ test("notifications bell auto-show does not call mark-as-read APIs", () => {
   );
 });
 
-// ── 8. All three roles wire the bell component ───────────────────────────────
+// ── 8. Click-through navigation behavior ────────────────────────────────────
+
+test("notifications bell keeps read desktop notifications clickable for navigation", () => {
+  const source = read(BELL_PATH);
+  const desktopButtonOpening = sectionBetween(
+    source,
+    'aria-label={`Abrir notificación: ${notification.title}`}',
+    '<div className="flex items-start justify-between gap-2">',
+  );
+
+  assert.ok(
+    desktopButtonOpening.includes("cursor-pointer"),
+    "notification button must communicate click affordance",
+  );
+  assert.ok(
+    desktopButtonOpening.includes(
+      "disabled={updatingNotificationId === notification.id}",
+    ),
+    "notification button may only disable while its own update is pending",
+  );
+  assert.equal(
+    desktopButtonOpening.includes("notification.isRead"),
+    false,
+    "read notifications must not be disabled by isRead",
+  );
+});
+
+test("notifications bell routes desktop clicks through contextual destinations", () => {
+  const source = read(BELL_PATH);
+  const handler = sectionBetween(
+    source,
+    "async function handleNotificationClick(",
+    "async function handleMarkAllAsRead()",
+  );
+
+  assert.ok(source.includes('import { useRouter } from "next/navigation";'));
+  assert.ok(
+    source.includes(
+      'import { buildNotificationDestination } from "@/lib/notification-destinations";',
+    ),
+  );
+  assert.ok(source.includes("const router = useRouter();"));
+  assert.ok(
+    handler.includes(
+      "const destination = buildNotificationDestination(surface, notification);",
+    ),
+    "click handler must resolve a contextual destination",
+  );
+  assert.ok(
+    handler.includes("markDashboardNotificationRead("),
+    "unread clicks must still attempt mark-as-read",
+  );
+  assert.ok(
+    handler.includes("setIsOpen(false);"),
+    "desktop dropdown must close on notification click",
+  );
+  assert.ok(
+    handler.includes("navigateToNotificationDestination(destination);"),
+    "click handler must navigate after the mark-as-read attempt",
+  );
+  assert.ok(source.includes("router.push(destination);"));
+  assert.ok(source.includes("scrollToHashDestination(destination);"));
+  assert.equal(
+    handler.includes("notification.isRead ||"),
+    false,
+    "already-read notifications must not return before navigation",
+  );
+  assert.ok(
+    handler.includes('setErrorMessage("No se pudo marcar la notificación como leída.");'),
+    "mark-as-read failures must be surfaced without blocking navigation",
+  );
+});
+
+test("notifications bell uses the same contextual click handler on mobile and desktop", () => {
+  const source = read(BELL_PATH);
+  const clickHandlers =
+    source.match(
+      /onClick=\{\(\) => void handleNotificationClick\(notification\)\}/g,
+    ) ?? [];
+
+  assert.equal(
+    clickHandlers.length,
+    2,
+    "desktop dropdown and mobile banner must use the same click handler",
+  );
+  assert.ok(
+    source.includes("setMobileBannerVisible(false);"),
+    "mobile banner must close on notification navigation",
+  );
+});
+
+// ── 9. All three roles wire the bell component ───────────────────────────────
 
 test("admin role wires notifications bell via DashboardTopbar", () => {
   const source = read(TOPBAR_PATH);

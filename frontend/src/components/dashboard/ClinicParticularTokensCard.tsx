@@ -756,6 +756,7 @@ export function ClinicParticularTokensCard() {
                 return (
                   <div
                     key={token.id}
+                    id={`clinic-particular-token-${token.id}`}
                     className="rounded-lg border border-vetneb-line/75 bg-vetneb-surface-raised/74 px-4 py-3 shadow-[0_8px_20px_rgba(15,45,62,0.06)]"
                   >
                   <div className="flex flex-wrap items-start justify-between gap-2">

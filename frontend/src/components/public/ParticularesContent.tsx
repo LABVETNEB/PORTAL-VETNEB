@@ -429,7 +429,10 @@ export function ParticularesContent() {
                     </dl>
                   </div>
 
-                  <div className="clinical-muted-band rounded-lg p-4 shadow-sm">
+                  <div
+                    id="particular-study-tracking"
+                    className="clinical-muted-band rounded-lg p-4 shadow-sm"
+                  >
                     <h3 className="font-semibold text-vetneb-navy">
                       Seguimiento del estudio
                     </h3>
@@ -480,7 +483,10 @@ export function ParticularesContent() {
                   </div>
 
                   {session.report ? (
-                    <div className="clinical-muted-band rounded-lg p-4 shadow-sm">
+                    <div
+                      id="particular-report"
+                      className="clinical-muted-band rounded-lg p-4 shadow-sm"
+                    >
                       <div className="flex items-start gap-3">
                         <VisualIcon
                           icon={FileText}
