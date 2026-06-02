@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode, SVGProps } from "react";
+import type { ComponentType, HTMLAttributes, ReactNode, SVGProps } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -76,18 +76,22 @@ export function AmbientOrbs({ variant = "light", className }: AmbientOrbsProps) 
   );
 }
 
-type PremiumPanelProps = {
+type PremiumPanelProps = HTMLAttributes<HTMLDivElement> & {
   children: ReactNode;
-  className?: string;
 };
 
-export function PremiumPanel({ children, className }: PremiumPanelProps) {
+export function PremiumPanel({
+  children,
+  className,
+  ...props
+}: PremiumPanelProps) {
   return (
     <div
       className={cn(
         "render-gpu-soft rounded-lg border border-vetneb-line bg-card/92 shadow-[0_18px_54px_rgba(15,45,62,0.10)]",
         className,
       )}
+      {...props}
     >
       {children}
     </div>

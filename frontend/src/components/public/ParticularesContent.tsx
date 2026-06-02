@@ -344,7 +344,10 @@ export function ParticularesContent() {
           </div>
         </div>
 
-        <PremiumPanel className="overflow-hidden">
+        <PremiumPanel
+          className="overflow-hidden"
+          data-particular-session-panel={session ? "true" : undefined}
+        >
           <Card className="border-0 bg-transparent shadow-none">
             <CardHeader className="clinical-muted-band border-b">
               <div className="flex items-start justify-between gap-3">
@@ -376,9 +379,15 @@ export function ParticularesContent() {
                 </div>
               ) : session ? (
                 <div className="space-y-5">
-                  <div className="clinical-muted-band rounded-lg p-4">
+                  <div
+                    className="clinical-muted-band rounded-lg p-4"
+                    data-particular-session-summary="true"
+                  >
                     <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                      <div className="surface-soft px-3 py-2.5">
+                      <div
+                        className="surface-soft px-3 py-2.5"
+                        data-particular-session-field="true"
+                      >
                         <dt className="flex items-center gap-1.5 font-medium text-muted-foreground">
                           <UserRound className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                           Tutor
@@ -387,7 +396,10 @@ export function ParticularesContent() {
                           {session.tutorLastName}
                         </dd>
                       </div>
-                      <div className="surface-soft px-3 py-2.5">
+                      <div
+                        className="surface-soft px-3 py-2.5"
+                        data-particular-session-field="true"
+                      >
                         <dt className="flex items-center gap-1.5 font-medium text-muted-foreground">
                           <PawPrint className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                           Mascota
@@ -396,19 +408,28 @@ export function ParticularesContent() {
                           {session.petName}
                         </dd>
                       </div>
-                      <div className="surface-soft px-3 py-2.5">
+                      <div
+                        className="surface-soft px-3 py-2.5"
+                        data-particular-session-field="true"
+                      >
                         <dt className="font-medium text-muted-foreground">Especie</dt>
                         <dd className="mt-1 text-vetneb-ink">
                           {session.petSpecies}
                         </dd>
                       </div>
-                      <div className="surface-soft px-3 py-2.5">
+                      <div
+                        className="surface-soft px-3 py-2.5"
+                        data-particular-session-field="true"
+                      >
                         <dt className="font-medium text-muted-foreground">Raza</dt>
                         <dd className="mt-1 text-vetneb-ink">
                           {session.petBreed}
                         </dd>
                       </div>
-                      <div className="surface-soft px-3 py-2.5">
+                      <div
+                        className="surface-soft px-3 py-2.5"
+                        data-particular-session-field="true"
+                      >
                         <dt className="flex items-center gap-1.5 font-medium text-muted-foreground">
                           <CalendarDays className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                           Extracción
@@ -417,7 +438,10 @@ export function ParticularesContent() {
                           {formatDate(session.extractionDate)}
                         </dd>
                       </div>
-                      <div className="surface-soft px-3 py-2.5">
+                      <div
+                        className="surface-soft px-3 py-2.5"
+                        data-particular-session-field="true"
+                      >
                         <dt className="flex items-center gap-1.5 font-medium text-muted-foreground">
                           <CalendarDays className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                           Envío

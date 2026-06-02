@@ -127,6 +127,11 @@ const SENSITIVE_API_RESPONSE_REGEX =
   /JSON\.stringify\s*\([^)]*(response|payload|result|data|body|json)/i;
 const SENSITIVE_DATA_ATTRIBUTE_NAME_REGEX =
   /(token|secret|password|session|cookie|api[-_]?key|private|refresh|access[_-]?token|jwt|email|mail|phone|telefono|cel|dni|document|ssn)/i;
+const PUBLIC_PRESENTATION_DATA_ATTRIBUTES = new Set([
+  "particular-session-panel",
+  "particular-session-summary",
+  "particular-session-field",
+]);
 const SENSITIVE_ATTRIBUTE_VALUE_REGEX =
   /(bearer\s+[a-z0-9._-]{10,}|token\s*[=:]|secret\s*[=:]|password\s*[=:]|api[_-]?key\s*[=:]|jwt\s*[=:]|cookie\s*[=:]|access[_-]?token|refresh[_-]?token|session[_-]?id)/i;
 const SENSITIVE_ATTRIBUTE_REF_NAME_REGEX =
@@ -390,7 +395,10 @@ function auditDataAttributes() {
 
     for (const match of matchAll(DATA_ATTR_REGEX, content)) {
       const attributeName = match.groups[1];
-      if (SENSITIVE_DATA_ATTRIBUTE_NAME_REGEX.test(attributeName)) {
+      if (
+        SENSITIVE_DATA_ATTRIBUTE_NAME_REGEX.test(attributeName) &&
+        !PUBLIC_PRESENTATION_DATA_ATTRIBUTES.has(attributeName)
+      ) {
         addFinding({
           rule: "sensitive-data-attribute-name",
           file,
