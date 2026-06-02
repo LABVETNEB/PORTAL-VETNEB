@@ -361,6 +361,164 @@ test(
     }
   },
 );
+
+test(
+  "adminAuthNativeRoutes conserva 401 si falla auditoría de credenciales inválidas",
+  async () => {
+    const app = await createTestApp({
+      getAdminUserByUsername: async () => null,
+      recordLoginFailedAttempt: async () => {
+        throw new Error("simulated failed-login persistence error");
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/admin/auth/login",
+        headers: {
+          origin: "http://localhost:3000",
+          "user-agent": "vetneb-test-agent",
+        },
+        remoteAddress: "203.0.113.44",
+        payload: {
+          username: "VETNEB",
+          password: "SUPER-SECRET-PASSWORD",
+        },
+      });
+
+      assert.equal(response.statusCode, 401);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: "Credenciales inválidas",
+      });
+      assert.equal(response.headers["set-cookie"], undefined);
+      assert.equal(
+        response.body.includes("simulated failed-login persistence error"),
+        false,
+      );
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "adminAuthNativeRoutes conserva 429 si falla auditoría de rate limit",
+  async () => {
+    const app = await createTestApp({
+      now: () => 0,
+      loginRateLimitWindowMs: 60_000,
+      loginRateLimitMaxAttempts: 1,
+      loginRateLimitStore: {
+        get: async () => ({
+          count: 1,
+          resetAt: 60_000,
+        }),
+        set: async () => {},
+      },
+      getAdminUserByUsername: async () => {
+        throw new Error("rate limited request must not query admin user");
+      },
+      recordLoginFailedAttempt: async () => {
+        throw new Error("simulated failed-login persistence error");
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/admin/auth/login",
+        headers: {
+          origin: "http://localhost:3000",
+        },
+        remoteAddress: "203.0.113.44",
+        payload: {
+          username: "VETNEB",
+          password: "SUPER-SECRET-PASSWORD",
+        },
+      });
+
+      assert.equal(response.statusCode, 429);
+      assert.equal(response.headers["retry-after"], "60");
+      assert.equal(response.headers["ratelimit-limit"], "1");
+      assert.equal(response.headers["ratelimit-remaining"], "0");
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "adminAuthNativeRoutes conserva 200 si falla reset de rate limit tras login válido",
+  async () => {
+    const sessionCalls: Array<Record<string, unknown>> = [];
+    const resetKeys: string[] = [];
+
+    const app = await createTestApp({
+      now: () => 0,
+      loginRateLimitWindowMs: 60_000,
+      loginRateLimitMaxAttempts: 2,
+      loginRateLimitStore: {
+        get: async () => ({
+          count: 1,
+          resetAt: 60_000,
+        }),
+        set: async () => {},
+        delete: async (key: string) => {
+          resetKeys.push(key);
+          throw new Error("simulated rate-limit reset failure");
+        },
+      },
+      getAdminUserByUsername: async () => ({
+        id: 1,
+        username: "VETNEB",
+        passwordHash: "stored-hash",
+      }),
+      verifyPassword: async () => ({
+        valid: true,
+        needsRehash: false,
+      }),
+      createAdminSession: async (input: Record<string, unknown>) => {
+        sessionCalls.push(input);
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/admin/auth/login",
+        headers: {
+          origin: "http://localhost:3000",
+        },
+        remoteAddress: "203.0.113.44",
+        payload: {
+          username: "VETNEB",
+          password: "31731490Neb",
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(sessionCalls.length, 1);
+      assert.equal(resetKeys.length, 1);
+      assert.equal(response.headers["ratelimit-limit"], "2");
+      assert.equal(response.headers["ratelimit-remaining"], "2");
+      assert.deepEqual(JSON.parse(response.body), {
+        success: true,
+        admin: {
+          id: 1,
+          username: "VETNEB",
+        },
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
 test("adminAuthNativeRoutes responde preflight OPTIONS permitido sin autenticar", async () => {
   const app = await createTestApp({
     getAdminSessionByToken: async () => {
