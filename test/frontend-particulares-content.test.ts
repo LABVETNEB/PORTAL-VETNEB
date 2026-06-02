@@ -48,7 +48,7 @@ test("particulares content keeps neutral logout control and removes resumen labe
   assert.equal(source.includes("Resumen de caso"), false);
 });
 
-test("particulares content muestra estado y alerta desde study-tracking en sesión activa", () => {
+test("particulares content muestra estado y alerta desde study-tracking en sesion activa", () => {
   const source = read(PARTICULARES_CONTENT_PATH);
 
   assert.ok(source.includes("getParticularStudyTrackingCase"));
@@ -58,7 +58,7 @@ test("particulares content muestra estado y alerta desde study-tracking en sesi�
   assert.ok(source.includes("trackingCase"));
 });
 
-test("particulares content integra campana token-scoped en sesión activa", () => {
+test("particulares content integra campana token-scoped en sesion activa", () => {
   const source = read(PARTICULARES_CONTENT_PATH);
 
   assert.ok(
@@ -67,4 +67,43 @@ test("particulares content integra campana token-scoped en sesión activa", () =
     ),
   );
   assert.ok(source.includes('<DashboardNotificationsBell surface="particular" />'));
+});
+
+test("particulares content muestra enlace WhatsApp y email solo bajo alerta de tincion especial", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(source.includes("Alerta: Solicitud de tinción especial."));
+  assert.ok(source.includes("https://wa.me/5493534138946"));
+  assert.ok(source.includes("mailto:lab.vetneb@gmail.com"));
+  assert.ok(source.includes("Consultar por WhatsApp"));
+  assert.ok(source.includes("Enviar email"));
+  assert.ok(source.includes("trackingCase.specialStainRequired"));
+  assert.ok(source.includes("SPECIAL_STAIN_WHATSAPP_HREF"));
+  assert.ok(source.includes("SPECIAL_STAIN_EMAIL_HREF"));
+  assert.ok(source.includes("PublicExternalControl"));
+  assert.ok(source.includes('target="_blank"'));
+  assert.ok(source.includes('target="_self"'));
+  assert.equal(source.includes("/dashboard/admin"), false);
+});
+
+test("particulares content no expone PII en los hrefs de tincion especial", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  const waHrefMatch = source.match(/SPECIAL_STAIN_WHATSAPP_HREF\s*=\s*"([^"\n]+)"/);
+  const emailHrefMatch = source.match(/SPECIAL_STAIN_EMAIL_HREF\s*=\s*"([^"\n]+)"/);
+
+  assert.ok(waHrefMatch !== null, "SPECIAL_STAIN_WHATSAPP_HREF debe estar definida");
+  assert.ok(emailHrefMatch !== null, "SPECIAL_STAIN_EMAIL_HREF debe estar definida");
+
+  const waHref = waHrefMatch[1];
+  const emailHref = emailHrefMatch[1];
+
+  const piiKeywords = ["tutorLastName", "petName", "petSpecies", "petBreed", "extractionDate", "shippingDate"];
+  for (const kw of piiKeywords) {
+    assert.equal(waHref.toLowerCase().includes(kw.toLowerCase()), false, `WHATSAPP_HREF no debe contener "${kw}"`);
+    assert.equal(emailHref.toLowerCase().includes(kw.toLowerCase()), false, `EMAIL_HREF no debe contener "${kw}"`);
+  }
+
+  assert.ok(waHref.startsWith("https://wa.me/5493534138946"), "WhatsApp href debe apuntar al numero oficial");
+  assert.ok(emailHref.startsWith("mailto:lab.vetneb@gmail.com"), "Email href debe apuntar al correo oficial");
 });

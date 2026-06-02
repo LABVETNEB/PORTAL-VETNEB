@@ -9,6 +9,8 @@ import {
   FileText,
   KeyRound,
   LogOut,
+  Mail,
+  MessageCircle,
   PawPrint,
   ShieldCheck,
   UserRound,
@@ -39,7 +41,10 @@ import {
   PremiumPanel,
   VisualIcon,
 } from "@/components/public/VisualAccents";
-import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import {
+  PublicExternalControl,
+  PublicRouteControl,
+} from "@/components/public/PublicRouteControl";
 import { DashboardNotificationsBell } from "@/components/dashboard/DashboardNotificationsBell";
 
 function formatDate(value: string | null | undefined) {
@@ -73,6 +78,11 @@ function getTrackingStageLabel(
 ) {
   return TRACKING_STAGE_LABELS[stage] ?? stage;
 }
+
+const SPECIAL_STAIN_WHATSAPP_HREF =
+  "https://wa.me/5493534138946?text=Hola%20VETNEB%2C%20consulto%20por%20una%20solicitud%20de%20tinción%20especial%20de%20mi%20caso.";
+const SPECIAL_STAIN_EMAIL_HREF =
+  "mailto:lab.vetneb@gmail.com?subject=Consulta%20tinción%20especial&body=Hola%20VETNEB%2C%20consulto%20por%20una%20solicitud%20de%20tinción%20especial%20de%20mi%20caso.";
 
 const accessHighlights = [
   {
@@ -435,8 +445,30 @@ export function ParticularesContent() {
                           Actualizado: {formatDate(trackingCase.updatedAt)}
                         </p>
                         {trackingCase.specialStainRequired ? (
-                          <div className="clinical-alert-warning p-3 text-sm">
-                            Alerta: Solicitud de tinción especial.
+                          <div className="space-y-3">
+                            <div className="clinical-alert-warning p-3 text-sm">
+                              Alerta: Solicitud de tinción especial.
+                            </div>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                              <PublicExternalControl
+                                href={SPECIAL_STAIN_WHATSAPP_HREF}
+                                target="_blank"
+                                className="inline-flex items-center justify-center gap-2 rounded-md border border-vetneb-line/90 bg-card/95 px-4 py-2 text-sm font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised"
+                                aria-label="Consultar por WhatsApp sobre tinción especial"
+                              >
+                                <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                Consultar por WhatsApp
+                              </PublicExternalControl>
+                              <PublicExternalControl
+                                href={SPECIAL_STAIN_EMAIL_HREF}
+                                target="_self"
+                                className="inline-flex items-center justify-center gap-2 rounded-md border border-vetneb-line/90 bg-card/95 px-4 py-2 text-sm font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised"
+                                aria-label="Enviar email a VETNEB sobre tinción especial"
+                              >
+                                <Mail className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                Enviar email
+                              </PublicExternalControl>
+                            </div>
                           </div>
                         ) : null}
                       </div>
