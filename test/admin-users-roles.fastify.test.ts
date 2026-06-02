@@ -52,15 +52,17 @@ function buildDeps(
 ): AdminUsersRolesNativeRoutesOptions {
   return {
     deleteAdminSession: async () => {},
-    getAdminSessionByToken: async () => ({
-      id: 1,
-      adminUserId: 1,
-      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
-      lastAccess: new Date("2026-05-07T00:00:00.000Z"),
-    }),
-    getAdminUserById: async () => ({
-      id: 1,
-      username: "VETNEB",
+    getAdminSessionWithUser: async () => ({
+      session: {
+        id: 1,
+        adminUserId: 1,
+        expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+        lastAccess: new Date("2026-05-07T00:00:00.000Z"),
+      },
+      adminUser: {
+        id: 1,
+        username: "VETNEB",
+      },
     }),
     updateAdminSessionLastAccess: async () => {},
     hashSessionToken: (token: string) => `hash:${token}`,
@@ -103,7 +105,7 @@ test("admin users roles requiere sesión admin", async () => {
   await app.register(
     adminUsersRolesNativeRoutes,
     buildDeps({
-      getAdminSessionByToken: async () => null,
+      getAdminSessionWithUser: async () => null,
     }),
   );
 

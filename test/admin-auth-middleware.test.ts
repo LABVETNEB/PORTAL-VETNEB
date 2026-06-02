@@ -1,5 +1,7 @@
 ﻿import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -10,6 +12,13 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 const { createRequireAdminAuth } = await import(
   "../server/middlewares/admin-auth.ts"
 );
+
+function readSource(relativePath: string): string {
+  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
+    /\r\n/g,
+    "\n",
+  );
+}
 
 function createMockResponse() {
   return {
@@ -34,8 +43,7 @@ function createMockResponse() {
 function createDeps(
   overrides?: Partial<{
     deleteAdminSession: (tokenHash: string) => Promise<void>;
-    getAdminSessionByToken: (tokenHash: string) => Promise<any>;
-    getAdminUserById: (id: number) => Promise<any>;
+    getAdminSessionWithUser: (tokenHash: string) => Promise<any>;
     updateAdminSessionLastAccess: (tokenHash: string) => Promise<void>;
     hashSessionToken: (token: string) => string;
     cookieName: string;
@@ -46,8 +54,7 @@ function createDeps(
 ) {
   const calls = {
     deleteAdminSession: [] as string[],
-    getAdminSessionByToken: [] as string[],
-    getAdminUserById: [] as number[],
+    getAdminSessionWithUser: [] as string[],
     updateAdminSessionLastAccess: [] as string[],
     hashSessionToken: [] as string[],
   };
@@ -56,12 +63,8 @@ function createDeps(
     deleteAdminSession: async (tokenHash: string) => {
       calls.deleteAdminSession.push(tokenHash);
     },
-    getAdminSessionByToken: async (tokenHash: string) => {
-      calls.getAdminSessionByToken.push(tokenHash);
-      return null;
-    },
-    getAdminUserById: async (id: number) => {
-      calls.getAdminUserById.push(id);
+    getAdminSessionWithUser: async (tokenHash: string) => {
+      calls.getAdminSessionWithUser.push(tokenHash);
       return null;
     },
     updateAdminSessionLastAccess: async (tokenHash: string) => {
@@ -107,7 +110,7 @@ test("requireAdminAuth responde 401 cuando no hay cookie", async () => {
   assert.deepEqual(calls.hashSessionToken, []);
 });
 
-test("requireAdminAuth responde 401 cuando la sesión no existe", async () => {
+test("requireAdminAuth responde 401 cuando la cookie es inválida", async () => {
   const { deps, calls } = createDeps();
   const middleware = createRequireAdminAuth(deps as any);
 
@@ -127,7 +130,7 @@ test("requireAdminAuth responde 401 cuando la sesión no existe", async () => {
   );
 
   assert.deepEqual(calls.hashSessionToken, ["raw-admin-token"]);
-  assert.deepEqual(calls.getAdminSessionByToken, ["hashed:raw-admin-token"]);
+  assert.deepEqual(calls.getAdminSessionWithUser, ["hashed:raw-admin-token"]);
   assert.equal(res.statusCode, 401);
   assert.deepEqual(res.jsonPayload, {
     success: false,
@@ -138,12 +141,18 @@ test("requireAdminAuth responde 401 cuando la sesión no existe", async () => {
 
 test("requireAdminAuth elimina y limpia cookie cuando la sesión expiró", async () => {
   const { deps, calls } = createDeps({
-    getAdminSessionByToken: async (tokenHash: string) => {
-      calls.getAdminSessionByToken.push(tokenHash);
+    getAdminSessionWithUser: async (tokenHash: string) => {
+      calls.getAdminSessionWithUser.push(tokenHash);
       return {
-        adminUserId: 77,
-        expiresAt: new Date("2026-04-21T11:59:59.000Z"),
-        lastAccess: null,
+        session: {
+          adminUserId: 77,
+          expiresAt: new Date("2026-04-21T11:59:59.000Z"),
+          lastAccess: null,
+        },
+        adminUser: {
+          id: 77,
+          username: "ADMIN",
+        },
       };
     },
   });
@@ -186,17 +195,16 @@ test("requireAdminAuth elimina y limpia cookie cuando la sesión expiró", async
 
 test("requireAdminAuth elimina sesión cuando el usuario admin no existe", async () => {
   const { deps, calls } = createDeps({
-    getAdminSessionByToken: async (tokenHash: string) => {
-      calls.getAdminSessionByToken.push(tokenHash);
+    getAdminSessionWithUser: async (tokenHash: string) => {
+      calls.getAdminSessionWithUser.push(tokenHash);
       return {
-        adminUserId: 88,
-        expiresAt: new Date("2026-04-21T13:00:00.000Z"),
-        lastAccess: null,
+        session: {
+          adminUserId: 88,
+          expiresAt: new Date("2026-04-21T13:00:00.000Z"),
+          lastAccess: null,
+        },
+        adminUser: null,
       };
-    },
-    getAdminUserById: async (id: number) => {
-      calls.getAdminUserById.push(id);
-      return null;
     },
   });
 
@@ -217,7 +225,7 @@ test("requireAdminAuth elimina sesión cuando el usuario admin no existe", async
     ((error?: unknown) => nextCalls.push(error)) as any,
   );
 
-  assert.deepEqual(calls.getAdminUserById, [88]);
+  assert.deepEqual(calls.getAdminSessionWithUser, ["hashed:token-sin-usuario"]);
   assert.deepEqual(calls.deleteAdminSession, ["hashed:token-sin-usuario"]);
   assert.equal(res.clearedCookies.length, 1);
   assert.equal(res.statusCode, 401);
@@ -230,19 +238,18 @@ test("requireAdminAuth elimina sesión cuando el usuario admin no existe", async
 
 test("requireAdminAuth autentica y refresca lastAccess cuando corresponde", async () => {
   const { deps, calls } = createDeps({
-    getAdminSessionByToken: async (tokenHash: string) => {
-      calls.getAdminSessionByToken.push(tokenHash);
+    getAdminSessionWithUser: async (tokenHash: string) => {
+      calls.getAdminSessionWithUser.push(tokenHash);
       return {
-        adminUserId: 99,
-        expiresAt: new Date("2026-04-21T13:00:00.000Z"),
-        lastAccess: new Date("2026-04-21T11:00:00.000Z"),
-      };
-    },
-    getAdminUserById: async (id: number) => {
-      calls.getAdminUserById.push(id);
-      return {
-        id,
-        username: "VETNEB",
+        session: {
+          adminUserId: 99,
+          expiresAt: new Date("2026-04-21T13:00:00.000Z"),
+          lastAccess: new Date("2026-04-21T11:00:00.000Z"),
+        },
+        adminUser: {
+          id: 99,
+          username: "VETNEB",
+        },
       };
     },
   });
@@ -277,19 +284,18 @@ test("requireAdminAuth autentica y refresca lastAccess cuando corresponde", asyn
 
 test("requireAdminAuth autentica sin refrescar lastAccess si aún no corresponde", async () => {
   const { deps, calls } = createDeps({
-    getAdminSessionByToken: async (tokenHash: string) => {
-      calls.getAdminSessionByToken.push(tokenHash);
+    getAdminSessionWithUser: async (tokenHash: string) => {
+      calls.getAdminSessionWithUser.push(tokenHash);
       return {
-        adminUserId: 44,
-        expiresAt: new Date("2026-04-21T13:00:00.000Z"),
-        lastAccess: new Date("2026-04-21T11:55:00.000Z"),
-      };
-    },
-    getAdminUserById: async (id: number) => {
-      calls.getAdminUserById.push(id);
-      return {
-        id,
-        username: "ADMIN",
+        session: {
+          adminUserId: 44,
+          expiresAt: new Date("2026-04-21T13:00:00.000Z"),
+          lastAccess: new Date("2026-04-21T11:55:00.000Z"),
+        },
+        adminUser: {
+          id: 44,
+          username: "ADMIN",
+        },
       };
     },
   });
@@ -324,7 +330,7 @@ test("requireAdminAuth propaga errores inesperados a next", async () => {
   const expectedError = new Error("fallo db");
 
   const { deps } = createDeps({
-    getAdminSessionByToken: async () => {
+    getAdminSessionWithUser: async () => {
       throw expectedError;
     },
   });
@@ -349,4 +355,20 @@ test("requireAdminAuth propaga errores inesperados a next", async () => {
   assert.equal(res.statusCode, 200);
   assert.equal(res.jsonPayload, undefined);
   assert.deepEqual(nextCalls, [expectedError]);
+});
+
+test("requireAdminAuth usa getAdminSessionWithUser y no combina helpers separados", () => {
+  const source = readSource("server/middlewares/admin-auth.ts");
+  const fnStart = source.indexOf("return async function requireAdminAuth");
+  const fnEnd = source.indexOf("} catch", fnStart);
+  const fnBody = source.slice(fnStart, fnEnd);
+
+  assert.ok(
+    source.includes("getAdminSessionWithUser: db.getAdminSessionWithUser"),
+  );
+  assert.ok(fnBody.includes("deps.getAdminSessionWithUser(tokenHash)"));
+  assert.equal(fnBody.includes("deps.getAdminSessionByToken"), false);
+  assert.equal(fnBody.includes("deps.getAdminUserById"), false);
+  assert.equal(fnBody.includes("getAdminSessionByToken"), false);
+  assert.equal(fnBody.includes("getAdminUserById"), false);
 });

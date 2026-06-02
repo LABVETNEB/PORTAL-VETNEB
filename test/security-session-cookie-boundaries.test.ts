@@ -216,7 +216,7 @@ test("session lookup hash delete and clear-cookie flows stay domain specific", (
         `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} admin clear cookie header`,
       );
       assertContains(middlewareSource, "hashSessionToken(token)", `${ADMIN_AUTH_MIDDLEWARE_FILE} hashes admin session token`);
-      assertContains(middlewareSource, "getAdminSessionByToken", `${ADMIN_AUTH_MIDDLEWARE_FILE} admin session lookup`);
+      assertContains(middlewareSource, "getAdminSessionWithUser", `${ADMIN_AUTH_MIDDLEWARE_FILE} admin session lookup`);
       assertContains(middlewareSource, "deleteAdminSession", `${ADMIN_AUTH_MIDDLEWARE_FILE} admin session delete`);
       assertContains(middlewareSource, "session.expiresAt", `${ADMIN_AUTH_MIDDLEWARE_FILE} admin expiration check`);
       continue;

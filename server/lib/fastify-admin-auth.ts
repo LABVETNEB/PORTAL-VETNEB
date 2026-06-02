@@ -6,16 +6,16 @@ import { ENV } from "./env.ts";
 
 export type FastifyAdminAuthDeps = {
   deleteAdminSession: (tokenHash: string) => Promise<void>;
-  getAdminSessionByToken: (
+  getAdminSessionWithUser: (
     tokenHash: string,
   ) => Promise<{
-    adminUserId: number;
-    expiresAt: Date | null;
-    lastAccess?: Date | null;
+    session: {
+      adminUserId: number;
+      expiresAt: Date | null;
+      lastAccess?: Date | null;
+    };
+    adminUser: { id: number; username: string } | null;
   } | null>;
-  getAdminUserById: (
-    adminUserId: number,
-  ) => Promise<{ id: number; username: string } | null>;
   updateAdminSessionLastAccess: (tokenHash: string) => Promise<void>;
   hashSessionToken: (token: string) => string;
   now: () => number;

@@ -24,7 +24,7 @@ test("admin clinics route authenticates through requireAdminAuth adapter", () =>
   assert.ok(routeSource.includes("authenticateFastifyAdmin(request, reply"));
   assert.ok(adapterSource.includes("createRequireAdminAuth"));
   assert.ok(adapterSource.includes("ENV.adminCookieName"));
-  assert.ok(adapterSource.includes("getAdminSessionByToken"));
+  assert.ok(adapterSource.includes("getAdminSessionWithUser"));
 });
 
 test("admin users credentials route keeps admin auth before mutation", () => {

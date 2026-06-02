@@ -36,6 +36,11 @@ type SessionAdminUserRecord = {
   username: string;
 };
 
+type AdminSessionWithUserRecord = {
+  session: AdminSessionRecord;
+  adminUser: SessionAdminUserRecord | null;
+};
+
 type AuthenticatedAdminUser = {
   id: number;
   username: string;
@@ -67,12 +72,9 @@ type AdminUsersRolesCredentialsChangeBody = {
 
 export type AdminUsersRolesNativeRoutesOptions = {
   deleteAdminSession?: (tokenHash: string) => Promise<void>;
-  getAdminSessionByToken?: (
+  getAdminSessionWithUser?: (
     tokenHash: string,
-  ) => Promise<AdminSessionRecord | null>;
-  getAdminUserById?: (
-    adminUserId: number,
-  ) => Promise<SessionAdminUserRecord | null>;
+  ) => Promise<AdminSessionWithUserRecord | null>;
   updateAdminSessionLastAccess?: (tokenHash: string) => Promise<void>;
   hashSessionToken?: (token: string) => string;
   getAdminUsersRolesSnapshot?: (
@@ -93,8 +95,7 @@ type NativeAdminUsersRolesDeps = Required<
   Pick<
     AdminUsersRolesNativeRoutesOptions,
     | "deleteAdminSession"
-    | "getAdminSessionByToken"
-    | "getAdminUserById"
+    | "getAdminSessionWithUser"
     | "updateAdminSessionLastAccess"
     | "hashSessionToken"
     | "getAdminUsersRolesSnapshot"
@@ -118,8 +119,7 @@ async function loadDefaultDeps(): Promise<NativeAdminUsersRolesDeps> {
 
       return {
         deleteAdminSession: db.deleteAdminSession,
-        getAdminSessionByToken: db.getAdminSessionByToken,
-        getAdminUserById: db.getAdminUserById,
+        getAdminSessionWithUser: db.getAdminSessionWithUser,
         updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
         getAdminUsersRolesSnapshot: usersRoles.getAdminUsersRolesSnapshot,
@@ -232,8 +232,7 @@ async function authenticateAdminUser(
 ): Promise<AuthenticatedAdminUser | null> {
   return authenticateFastifyAdmin(request, reply, {
     deleteAdminSession: deps.deleteAdminSession,
-    getAdminSessionByToken: deps.getAdminSessionByToken,
-    getAdminUserById: deps.getAdminUserById,
+    getAdminSessionWithUser: deps.getAdminSessionWithUser,
     updateAdminSessionLastAccess: deps.updateAdminSessionLastAccess,
     hashSessionToken: deps.hashSessionToken,
     now,
@@ -543,8 +542,7 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
   async function resolveDeps(): Promise<NativeAdminUsersRolesDeps> {
     const hasAllInjectedDeps =
       !!options.deleteAdminSession &&
-      !!options.getAdminSessionByToken &&
-      !!options.getAdminUserById &&
+      !!options.getAdminSessionWithUser &&
       !!options.updateAdminSessionLastAccess &&
       !!options.hashSessionToken &&
       !!options.getAdminUsersRolesSnapshot &&
@@ -558,10 +556,9 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
     return {
       deleteAdminSession:
         options.deleteAdminSession ?? defaultDeps!.deleteAdminSession,
-      getAdminSessionByToken:
-        options.getAdminSessionByToken ?? defaultDeps!.getAdminSessionByToken,
-      getAdminUserById:
-        options.getAdminUserById ?? defaultDeps!.getAdminUserById,
+      getAdminSessionWithUser:
+        options.getAdminSessionWithUser ??
+        defaultDeps!.getAdminSessionWithUser,
       updateAdminSessionLastAccess:
         options.updateAdminSessionLastAccess ??
         defaultDeps!.updateAdminSessionLastAccess,
