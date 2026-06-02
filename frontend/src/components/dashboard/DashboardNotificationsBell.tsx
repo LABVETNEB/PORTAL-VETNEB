@@ -1,6 +1,8 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { Bell } from "lucide-react";
+import { X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,10 +35,35 @@ export function DashboardNotificationsBell({
   const [updatingNotificationId, setUpdatingNotificationId] = useState<
     number | null
   >(null);
-  const isFetchingRef = useRef(false);
+  const [mobileBannerVisible, setMobileBannerVisible] = useState(false);
+  const [portalContainer, setPortalContainer] = useState<Element | null>(null);
 
-  const unreadCount = notifications.filter((notification) => !notification.isRead)
-    .length;
+  const isFetchingRef = useRef(false);
+  // Tracks the unread count that was last auto-shown.
+  // Re-opens only when new unread notifications arrive beyond this threshold.
+  // Resets to 0 when inbox reaches zero so the next notification triggers
+  // auto-show again.
+  const autoShownUnreadCountRef = useRef(0);
+  const isMobileRef = useRef(false);
+
+  const unreadCount = notifications.filter(
+    (notification) => !notification.isRead,
+  ).length;
+  const unreadNotifications = notifications.filter((n) => !n.isRead);
+
+  // Initialise portal target (SSR-safe) and mobile breakpoint tracking.
+  useEffect(() => {
+    setPortalContainer(document.body);
+
+    const mq = window.matchMedia("(max-width: 639px)");
+    isMobileRef.current = mq.matches;
+
+    const handler = (e: MediaQueryListEvent) => {
+      isMobileRef.current = e.matches;
+    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   const loadNotifications = useCallback(async () => {
     if (isFetchingRef.current) {
@@ -53,6 +80,24 @@ export function DashboardNotificationsBell({
         offset: 0,
       });
       setNotifications(response.notifications);
+
+      // Auto-show logic: open automatically when the unread count exceeds
+      // what was already shown. Notifications are NOT marked as read by
+      // this action -- only the display surface is opened.
+      const newUnreadCount = response.notifications.filter(
+        (n) => !n.isRead,
+      ).length;
+
+      if (newUnreadCount === 0) {
+        autoShownUnreadCountRef.current = 0;
+      } else if (newUnreadCount > autoShownUnreadCountRef.current) {
+        autoShownUnreadCountRef.current = newUnreadCount;
+        if (isMobileRef.current) {
+          setMobileBannerVisible(true);
+        } else {
+          setIsOpen(true);
+        }
+      }
     } catch {
       setErrorMessage("No se pudieron cargar las notificaciones.");
     } finally {
@@ -60,6 +105,12 @@ export function DashboardNotificationsBell({
       setIsLoading(false);
     }
   }, [surface]);
+
+  // Initial silent load on mount to detect unread notifications and
+  // auto-show the appropriate surface without any manual interaction.
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
 
   useEffect(() => {
     if (!isPollingEnabled) {
@@ -92,6 +143,10 @@ export function DashboardNotificationsBell({
   function handleEnableNotifications() {
     setIsPollingEnabled(true);
     void loadNotifications();
+  }
+
+  function handleCloseMobileBanner() {
+    setMobileBannerVisible(false);
   }
 
   async function handleMarkAsRead(
@@ -166,8 +221,8 @@ export function DashboardNotificationsBell({
       >
         <Bell className="h-4 w-4" aria-hidden="true" />
         {unreadCount > 0 ? (
-          <span className="absolute -right-1 -top-1 inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-vetneb-teal px-1 text-[0.62rem] font-semibold leading-none text-vetneb-navy">
-            {unreadCount}
+          <span className="absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full bg-vetneb-teal px-1 text-[0.62rem] font-semibold leading-none text-vetneb-navy">
+            {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         ) : null}
       </button>
@@ -212,9 +267,7 @@ export function DashboardNotificationsBell({
                   unreadCount === 0
                 }
               >
-                {isMarkingAllAsRead
-                  ? "Marcando..."
-                  : "Marcar todo como leído"}
+                {isMarkingAllAsRead ? "Marcando..." : "Marcar todo como leído"}
               </Button>
             </div>
           </div>
@@ -261,6 +314,79 @@ export function DashboardNotificationsBell({
           </ul>
         </div>
       ) : null}
+
+      {/* Mobile auto-show banner: visible only on narrow viewports (< 640 px).
+          Portaled to document.body to avoid stacking-context clipping from the
+          sticky topbar. Notifications are NOT marked as read by appearing here. */}
+      {portalContainer && mobileBannerVisible && unreadCount > 0
+        ? createPortal(
+            <div
+              className="sm:hidden fixed inset-x-0 top-0 z-[60] border-b border-vetneb-teal/30 bg-card shadow-xl"
+              role="region"
+              aria-label="Notificaciones no leidas"
+            >
+              <div className="flex items-center justify-between border-b border-vetneb-line/60 px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-vetneb-teal" aria-hidden="true" />
+                  <p className="text-sm font-semibold text-vetneb-ink">
+                    Notificaciones no leidas{" "}
+                    <span className="ml-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full bg-vetneb-teal px-1 text-[0.62rem] font-semibold leading-none text-vetneb-navy">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Cerrar notificaciones"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground"
+                  onClick={handleCloseMobileBanner}
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+              <ul
+                className="max-h-52 divide-y divide-vetneb-line/50 overflow-y-auto"
+                aria-label="Lista de notificaciones no leidas"
+              >
+                {unreadNotifications.slice(0, 5).map((notification) => (
+                  <li key={notification.id}>
+                    <button
+                      type="button"
+                      className="w-full px-4 py-3 text-left transition-colors hover:bg-accent/50 disabled:opacity-50"
+                      onClick={() => void handleMarkAsRead(notification)}
+                      disabled={updatingNotificationId === notification.id}
+                    >
+                      <p className="text-xs font-semibold text-vetneb-ink">
+                        {notification.title}
+                      </p>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                        {notification.message}
+                      </p>
+                      <p className="mt-0.5 text-[0.66rem] text-muted-foreground">
+                        {formatDateTime(notification.createdAt)}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {unreadNotifications.length > 5 ? (
+                <div className="border-t border-vetneb-line/50 px-4 py-2.5">
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-vetneb-teal hover:underline"
+                    onClick={() => {
+                      setMobileBannerVisible(false);
+                      setIsOpen(true);
+                    }}
+                  >
+                    Ver mas en el panel
+                  </button>
+                </div>
+              ) : null}
+            </div>,
+            portalContainer,
+          )
+        : null}
     </div>
   );
 }
