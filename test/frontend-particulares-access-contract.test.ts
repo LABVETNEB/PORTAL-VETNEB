@@ -42,6 +42,7 @@ test("particulares content keeps token-only auth dependencies", () => {
   assert.ok(source.includes("getParticularSession,"));
   assert.ok(source.includes("loginParticular,"));
   assert.ok(source.includes("logoutParticular,"));
+  assert.ok(source.includes("RateLimitError,"));
   assert.equal(source.includes("loginClinic"), false);
 });
 
@@ -49,9 +50,14 @@ test("particulares content keeps token login form contract", () => {
   const source = read(PARTICULARES_CONTENT_PATH);
 
   assert.ok(source.includes('const [token, setToken] = useState("")'));
+  assert.ok(source.includes("const [rateLimitCooldown, setRateLimitCooldown] = useState(0)"));
+  assert.ok(source.includes("const isBlocked = isSubmitting || rateLimitCooldown > 0"));
   assert.ok(source.includes("const response = await loginParticular({ token });"));
+  assert.ok(source.includes("setRateLimitCooldown(0);"));
   assert.ok(source.includes("setSession(response.particular);"));
   assert.ok(source.includes('setToken("");'));
+  assert.ok(source.includes("error instanceof RateLimitError"));
+  assert.ok(source.includes("setRateLimitCooldown(error.retryAfterSeconds)"));
   assert.ok(source.includes('id="particular-token"'));
   assert.ok(source.includes('name="token"'));
   assert.ok(source.includes('type="password"'));
@@ -59,7 +65,12 @@ test("particulares content keeps token login form contract", () => {
   assert.ok(
     source.includes('aria-label="Formulario de acceso particular por token"'),
   );
-  assert.ok(source.includes('{isSubmitting ? "Validando token..." : "Ingresar"}'));
+  assert.ok(source.includes("disabled={isBlocked}"));
+  assert.ok(source.includes("aria-busy={isSubmitting}"));
+  assert.ok(source.includes('? "Validando token..."'));
+  assert.ok(source.includes("rateLimitCooldown > 0"));
+  assert.ok(source.includes("? `Espere ${rateLimitCooldown}s`"));
+  assert.ok(source.includes(': "Ingresar"'));
 });
 
 test("particulares content keeps isolated particular session and report actions", () => {

@@ -309,6 +309,7 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
           set: db.setLoginRateLimitEntry,
           increment: db.incrementLoginRateLimitEntry,
           cleanupExpired: db.deleteExpiredLoginRateLimitEntries,
+          delete: db.deleteLoginRateLimitEntry,
         }),
       };
     })();
@@ -1186,16 +1187,31 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
       await recordFailedLoginAttempt(input);
     };
 
-    const markSuccess = () => {
+    const markSuccess = async () => {
       if (!canUseRateLimitStore) {
         return;
+      }
+
+      if (loginRateLimitStore.delete) {
+        try {
+          await loginRateLimitStore.delete(rateLimitKey);
+        } catch (error) {
+          request.log.warn(
+            {
+              err: error,
+              code: "AUTH_LOGIN_RATE_LIMIT_RESET_FAILED",
+              route: "/api/auth/login",
+            },
+            "No se pudo limpiar el rate limit de login tras login exitoso",
+          );
+        }
       }
 
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
-        failedCount: failureEntry.count,
-        resetAt: failureEntry.resetAt,
+        failedCount: 0,
+        resetAt: currentTime + loginRateLimitWindowMs,
         now: currentTime,
       });
     };
@@ -1232,7 +1248,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         }
 
         reply.header("set-cookie", candidate.setCookie);
-        markSuccess();
+        await markSuccess();
 
         return reply.code(200).send({
           success: true,
@@ -1271,7 +1287,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
     }
 
     reply.header("set-cookie", clinicCandidate.setCookie);
-    markSuccess();
+    await markSuccess();
 
     return reply.code(200).send({
       success: true,

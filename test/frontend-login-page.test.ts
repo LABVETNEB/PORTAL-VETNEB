@@ -13,6 +13,13 @@ function read(relativePath: string): string {
   );
 }
 
+function assertLoginUnifiedRateLimitImport(source: string): void {
+  assert.match(
+    source,
+    /import\s*\{[\s\S]*\bloginUnified\b[\s\S]*\bRateLimitError\b[\s\S]*\}\s*from\s+"@\/lib\/api";?/,
+  );
+}
+
 test("login page defines non-indexable metadata through SEO helper", () => {
   const source = read(LOGIN_PAGE_PATH);
 
@@ -40,7 +47,7 @@ test("login content keeps standalone login shell and form landmarks", () => {
 
   assert.ok(source.includes('"use client";'));
   assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
-  assert.ok(source.includes('import { loginUnified } from "@/lib/api";'));
+  assertLoginUnifiedRateLimitImport(source);
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
   assert.ok(source.includes("min-h-screen public-page-canvas flex items-center justify-center p-4"));
   assert.equal(source.includes("bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800"), false);

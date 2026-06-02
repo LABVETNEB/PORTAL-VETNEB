@@ -13,6 +13,7 @@ export type RateLimitStore = {
     entry: RateLimitEntry,
     now?: number,
   ) => RateLimitEntry | Promise<RateLimitEntry>;
+  delete?: (key: string) => void | Promise<void>;
 };
 
 export type PersistentRateLimitRecord = {
@@ -37,6 +38,7 @@ export type PersistentRateLimitStoreAdapter = {
     now: Date;
   }) => PersistentRateLimitRecord | Promise<PersistentRateLimitRecord>;
   cleanupExpired?: (now: Date) => void | Promise<void>;
+  delete?: (keyHash: string) => void | Promise<void>;
 };
 
 export type PersistentRateLimitStoreOptions = {
@@ -50,6 +52,9 @@ export function createMemoryRateLimitStore(): RateLimitStore {
     get: (key) => entries.get(key),
     set: (key, entry) => {
       entries.set(key, entry);
+    },
+    delete: (key) => {
+      entries.delete(key);
     },
   };
 }
@@ -123,6 +128,21 @@ export function createPersistentRateLimitStore(
           now: toPersistentDate(now),
         }),
       );
+    },
+    delete: async (key) => {
+      const now = getNow();
+
+      if (adapter.delete) {
+        await adapter.delete(hashRateLimitKey(key));
+      } else {
+        // Fallback: sobreescribir con entrada expirada para que el próximo get cree fresh
+        await adapter.set({
+          keyHash: hashRateLimitKey(key),
+          count: 0,
+          resetAt: toPersistentDate(now - 1),
+          now: toPersistentDate(now),
+        });
+      }
     },
   };
 }

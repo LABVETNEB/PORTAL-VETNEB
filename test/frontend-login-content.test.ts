@@ -13,11 +13,18 @@ function read(relativePath: string): string {
   );
 }
 
+function assertLoginUnifiedRateLimitImport(source: string): void {
+  assert.match(
+    source,
+    /import\s*\{[\s\S]*\bloginUnified\b[\s\S]*\bRateLimitError\b[\s\S]*\}\s*from\s+"@\/lib\/api";?/,
+  );
+}
+
 test("frontend login content calls clinic login and redirects to dashboard", () => {
   const source = read(LOGIN_CONTENT_PATH);
 
   assert.ok(source.includes('"use client"'));
-  assert.ok(source.includes('import { loginUnified } from "@/lib/api"'));
+  assertLoginUnifiedRateLimitImport(source);
   assert.ok(source.includes('import { useRouter, useSearchParams } from "next/navigation"'));
   assert.ok(source.includes("const response = await loginUnified({"));
   assert.ok(source.includes("identifier: username,"));
@@ -60,10 +67,17 @@ test("frontend login content handles controlled credentials loading and errors",
   assert.ok(source.includes('const [password, setPassword] = useState("")'));
   assert.ok(source.includes("const [errorMessage, setErrorMessage]"));
   assert.ok(source.includes("const [isSubmitting, setIsSubmitting]"));
+  assert.ok(source.includes("const [rateLimitCooldown, setRateLimitCooldown] = useState(0)"));
+  assert.ok(source.includes("const isBlocked = isSubmitting || rateLimitCooldown > 0"));
+  assert.ok(source.includes("setRateLimitCooldown(0);"));
+  assert.ok(source.includes("error instanceof RateLimitError"));
+  assert.ok(source.includes("setRateLimitCooldown(error.retryAfterSeconds)"));
   assert.ok(source.includes("error instanceof Error"));
   assert.ok(source.includes("? error.message"));
   assert.ok(source.includes('role="alert"'));
-  assert.ok(source.includes("disabled={isSubmitting}"));
+  assert.ok(source.includes("disabled={isBlocked}"));
+  assert.ok(source.includes("const clinicSubmitLabel = isSubmitting"));
+  assert.ok(source.includes("rateLimitCooldown > 0"));
 });
 
 test("frontend login page wraps client search params usage in suspense", () => {

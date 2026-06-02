@@ -156,6 +156,16 @@ function warnApiFallback(functionName: string, error: unknown): void {
   }
 }
 
+export class RateLimitError extends Error {
+  readonly retryAfterSeconds: number | null;
+
+  constructor(message: string, retryAfterSeconds: number | null) {
+    super(message);
+    this.name = "RateLimitError";
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
 function readRetryAfterSeconds(headers: Headers): number | null {
   const retryAfterValue =
     headers.get("Retry-After") ?? headers.get("RateLimit-Reset");
@@ -249,7 +259,10 @@ async function apiFetch<T>(
           : null;
 
     if (res.status === 429) {
-      throw new Error(buildRateLimitErrorMessage(backendMessage, res.headers));
+      throw new RateLimitError(
+        buildRateLimitErrorMessage(backendMessage, res.headers),
+        readRetryAfterSeconds(res.headers),
+      );
     }
 
     if (backendMessage) {

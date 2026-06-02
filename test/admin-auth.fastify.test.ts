@@ -403,7 +403,7 @@ test("adminAuthNativeRoutes responde preflight OPTIONS permitido sin autenticar"
       );
       assert.equal(
         response.headers["access-control-expose-headers"],
-        "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset",
+        "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After",
       );
       assert.equal(response.headers["set-cookie"], undefined);
     }

@@ -7,12 +7,14 @@ import type {
 import { AUDIT_EVENTS } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
+  buildLoginRateLimitKey,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
 } from "../lib/login-rate-limit.ts";
 import {
   createMemoryRateLimitStore,
+  createPersistentRateLimitStore,
   getOrCreateRateLimitEntry,
   incrementRateLimitEntry,
   type RateLimitStore,
@@ -136,9 +138,13 @@ type NativeAdminAuthDeps = Required<
   >
 >;
 
-let defaultDepsPromise: Promise<NativeAdminAuthDeps> | undefined;
+type NativeAdminAuthDefaultDeps = NativeAdminAuthDeps & {
+  loginRateLimitStore: RateLimitStore;
+};
 
-async function loadDefaultDeps(): Promise<NativeAdminAuthDeps> {
+let defaultDepsPromise: Promise<NativeAdminAuthDefaultDeps> | undefined;
+
+async function loadDefaultDeps(): Promise<NativeAdminAuthDefaultDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
@@ -160,6 +166,13 @@ async function loadDefaultDeps(): Promise<NativeAdminAuthDeps> {
           input: AuditWriteInput,
         ) => Promise<void>,
         recordLoginFailedAttempt: db.recordLoginFailedAttempt,
+        loginRateLimitStore: createPersistentRateLimitStore({
+          get: db.getLoginRateLimitEntry,
+          set: db.setLoginRateLimitEntry,
+          increment: db.incrementLoginRateLimitEntry,
+          cleanupExpired: db.deleteExpiredLoginRateLimitEntries,
+          delete: db.deleteLoginRateLimitEntry,
+        }),
       };
     })();
   }
@@ -258,7 +271,7 @@ function applyCorsHeaders(
   reply.header("access-control-allow-credentials", "true");
   reply.header(
     "access-control-expose-headers",
-    "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset",
+    "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After",
   );
 }
 
@@ -546,7 +559,9 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
     options.loginRateLimitMaxAttempts ?? LOGIN_RATE_LIMIT_MAX_ATTEMPTS;
   const allowedOrigins = new Set(getAllowedOrigins());
   const loginRateLimitStore =
-    options.loginRateLimitStore ?? createMemoryRateLimitStore();
+    options.loginRateLimitStore ??
+    defaultDeps?.loginRateLimitStore ??
+    createMemoryRateLimitStore();
 
   app.addHook("onRequest", async (request, reply) => {
     (request as AdminAuthFastifyRequest)[REQUEST_TIMER_KEY] =
@@ -615,8 +630,21 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const rateLimitKey = `admin:${request.ip || "unknown"}`;
     const currentTime = now();
+
+    const username =
+      typeof request.body?.username === "string"
+        ? request.body.username.trim()
+        : "";
+    const password =
+      typeof request.body?.password === "string" ? request.body.password : "";
+
+    const rateLimitKey = buildLoginRateLimitKey({
+      surface: "admin",
+      identifier: username || "unknown",
+      ipAddress: request.ip || null,
+    });
+
     const failureEntry = await getOrCreateRateLimitEntry(
       loginRateLimitStore,
       rateLimitKey,
@@ -639,6 +667,11 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
     };
 
     if (failureEntry.count >= loginRateLimitMaxAttempts) {
+      const resetSeconds = Math.max(
+        Math.ceil((failureEntry.resetAt - currentTime) / 1000),
+        0,
+      );
+
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
@@ -646,14 +679,10 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
         resetAt: failureEntry.resetAt,
         now: currentTime,
       });
-
-      const attemptedUsername =
-        typeof request.body?.username === "string"
-          ? request.body.username.trim()
-          : "";
+      reply.header("Retry-After", String(resetSeconds));
 
       await recordFailedLoginAttempt({
-        username: attemptedUsername,
+        username,
         reason: "rate_limited",
       });
 
@@ -687,22 +716,26 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       await recordFailedLoginAttempt(input);
     };
 
-    const markSuccess = () => {
+    const markSuccess = async () => {
+      if (loginRateLimitStore.delete) {
+        try {
+          await loginRateLimitStore.delete(rateLimitKey);
+        } catch (error) {
+          console.warn("[WARN] ADMIN_LOGIN_RATE_LIMIT_RESET_FAILED", {
+            code: "ADMIN_LOGIN_RATE_LIMIT_RESET_FAILED",
+            message: error instanceof Error ? error.message : "unknown error",
+          });
+        }
+      }
+
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
-        failedCount: failureEntry.count,
-        resetAt: failureEntry.resetAt,
+        failedCount: 0,
+        resetAt: currentTime + loginRateLimitWindowMs,
         now: currentTime,
       });
     };
-
-    const username =
-      typeof request.body?.username === "string"
-        ? request.body.username.trim()
-        : "";
-    const password =
-      typeof request.body?.password === "string" ? request.body.password : "";
 
     if (!username || !password) {
       await markFailure({
@@ -770,7 +803,7 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
     });
 
     reply.header("set-cookie", buildAdminSessionCookie(token));
-    markSuccess();
+    await markSuccess();
 
     return reply.code(200).send({
       success: true,

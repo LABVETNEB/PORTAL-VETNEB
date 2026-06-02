@@ -400,7 +400,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         path: "test/security-rate-limit-isolation-boundaries.test.ts",
         markers: [
           "rate limit isolation matrix documents the protected contract",
-          "auth login rate limits keep separate in-memory stores per auth domain",
+          "auth login rate limits keep persistent stores with memory fallback per auth domain",
           "rate limit isolation guardrail source stays ascii only",
         ],
       },
