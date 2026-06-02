@@ -92,6 +92,7 @@ test("campana de notificaciones admin existe con UX in-app y polling", () => {
   assert.ok(bell.includes("Notificaciones"));
   assert.ok(bell.includes("Activar notificaciones"));
   assert.ok(bell.includes("Actualizar"));
+  assert.ok(bell.includes("Marcar todo como leído"));
   assert.ok(bell.includes("No hay notificaciones."));
   assert.ok(bell.includes("No se pudieron cargar las notificaciones."));
   assert.ok(bell.includes("POLLING_INTERVAL_MS = 30_000"));
@@ -108,7 +109,30 @@ test("campana usa API de notificaciones por surface para listar y marcar leídas
   assert.ok(bell.includes("markAllDashboardNotificationsRead(surface)"));
   assert.ok(bell.includes("setNotifications(response.notifications);"));
   assert.ok(bell.includes("response.notification"));
-  assert.ok(bell.includes("Marcar todas como leídas"));
+  assert.ok(bell.includes("Marcar todo como leído"));
+});
+
+test("campana mantiene dropdown responsive y acciones sin overflow", () => {
+  const bell = read(BELL_PATH);
+
+  assert.ok(
+    bell.includes(
+      "w-[min(28rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-hidden",
+    ),
+  );
+  assert.ok(bell.includes("absolute right-0 z-50"));
+  assert.ok(bell.includes('className="mb-2 flex flex-col gap-2"'));
+  assert.ok(
+    bell.includes(
+      'className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"',
+    ),
+  );
+  assert.ok(
+    bell.includes(
+      'className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap"',
+    ),
+  );
+  assert.ok(bell.includes('className="max-h-72 space-y-2 overflow-y-auto pr-1"'));
 });
 
 test("api frontend expone funciones de notificaciones por surface y compat admin", () => {

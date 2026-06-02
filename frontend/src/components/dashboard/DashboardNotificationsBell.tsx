@@ -173,14 +173,15 @@ export function DashboardNotificationsBell({
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-1rem))] rounded-lg border border-vetneb-line/80 bg-card p-3 shadow-xl">
-          <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="absolute right-0 z-50 mt-2 w-[min(28rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-vetneb-line/80 bg-card p-3 shadow-xl">
+          <div className="mb-2 flex flex-col gap-2">
             <p className="text-sm font-semibold text-vetneb-ink">Notificaciones</p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap"
                 onClick={handleEnableNotifications}
                 disabled={isPollingEnabled}
               >
@@ -192,6 +193,7 @@ export function DashboardNotificationsBell({
                 type="button"
                 variant="outline"
                 size="sm"
+                className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap"
                 onClick={() => void loadNotifications()}
                 disabled={isLoading}
               >
@@ -201,6 +203,7 @@ export function DashboardNotificationsBell({
                 type="button"
                 variant="outline"
                 size="sm"
+                className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap"
                 onClick={() => void handleMarkAllAsRead()}
                 disabled={
                   isLoading ||
@@ -211,7 +214,7 @@ export function DashboardNotificationsBell({
               >
                 {isMarkingAllAsRead
                   ? "Marcando..."
-                  : "Marcar todas como leídas"}
+                  : "Marcar todo como leído"}
               </Button>
             </div>
           </div>
