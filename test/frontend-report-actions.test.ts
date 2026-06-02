@@ -255,11 +255,11 @@ test("upload modal clinic loader: guard prevents duplicate load while in flight"
   const source = read(UPLOAD_REPORT_MODAL_PATH);
 
   // The guard inside the effect (not in deps) short-circuits concurrent re-entry
-  // using isLoadingClinics. clinicOptions.length > 0 has been removed to allow
-  // refreshing the catalog on every open.
+  // using isLoadingClinics. Preset token uploads skip the catalog load entirely.
+  // clinicOptions.length > 0 has been removed to allow refreshing on every open.
   assert.ok(
-    source.includes("if (!isOpen || isLoadingClinics) {"),
-    "guard must check isLoadingClinics to block duplicate concurrent loads — clinicOptions.length > 0 must be absent",
+    source.includes("if (!isOpen || isLoadingClinics || hasPresetClinic) {"),
+    "guard must check isLoadingClinics and skip preset clinic uploads — clinicOptions.length > 0 must be absent",
   );
   assert.equal(
     source.includes("clinicOptions.length > 0"),
@@ -329,12 +329,14 @@ test("upload modal submit: no validation error when clinicId and selectedClinic 
   assert.ok(source.includes('if (!clinicId || !selectedClinic) {'));
   assert.ok(source.includes('"Seleccione una clínica registrada del listado."'));
 
-  // selectedClinic is derived — not a separate state — to stay consistent.
+  // selectedClinic is derived from either preset props or the option list — not
+  // a separate state — to stay consistent.
   assert.ok(
-    source.includes('const selectedClinic = clinicOptions.find('),
-    "selectedClinic must be derived from clinicOptions so it resolves once clinicId is set",
+    source.includes('const selectedClinicOption = clinicOptions.find('),
+    "selectedClinicOption must be derived from clinicOptions so it resolves once clinicId is set",
   );
   assert.ok(source.includes('(option) => String(option.id) === clinicId,'));
+  assert.ok(source.includes("const selectedClinic = presetClinic ?? selectedClinicOption;"));
 });
 
 test("upload modal clinic loader: deduplicates and sorts options by clinic id", () => {
@@ -481,8 +483,8 @@ test("upload modal catalog refresh: no clinicOptions.length guard that blocks re
     "clinicOptions.length > 0 guard must be removed — new clinics must appear on next modal open",
   );
   assert.ok(
-    source.includes("if (!isOpen || isLoadingClinics) {"),
-    "only isOpen and isLoadingClinics should guard the load",
+    source.includes("if (!isOpen || isLoadingClinics || hasPresetClinic) {"),
+    "isOpen, isLoadingClinics and preset clinic mode should guard the load",
   );
 });
 
@@ -556,12 +558,12 @@ test("upload modal: no-match message shown when search has text and no matches",
 test("upload modal: selected clinic remains visible when search is cleared", () => {
   const source = read(UPLOAD_REPORT_MODAL_PATH);
   assert.ok(
-    source.includes(": selectedClinic"),
-    "when query is empty and a clinic is selected, filteredClinicOptions must return [selectedClinic]",
+    source.includes(": selectedClinicOption"),
+    "when query is empty and a clinic is selected, filteredClinicOptions must return [selectedClinicOption]",
   );
   assert.ok(
-    source.includes("? [selectedClinic]"),
-    "selectedClinic entry must be wrapped in an array",
+    source.includes("? [selectedClinicOption]"),
+    "selectedClinicOption entry must be wrapped in an array",
   );
 });
 
@@ -683,12 +685,14 @@ test("upload modal: valid token ID is appended to upload payload when selected",
     "when a token is selected, its ID must be sent in multipart upload",
   );
   assert.equal(source.includes("createAdminStudyTrackingCase"), false);
+  assert.ok(source.includes("const selectedParticularToken ="));
+  assert.ok(source.includes("presetParticularToken ??"));
   assert.ok(
-    source.includes("const selectedParticularToken = particularTokens.find("),
-    "selectedParticularToken must be derived from particularTokenId state",
+    source.includes("particularTokens.find((token) => String(token.id) === particularTokenId);"),
+    "selectedParticularToken must fall back to particularTokenId state when no preset token is supplied",
   );
   assert.ok(
-    source.includes("(token) => String(token.id) === particularTokenId,"),
+    source.includes("(token) => String(token.id) === particularTokenId"),
     "lookup must compare by string-coerced ID",
   );
 });

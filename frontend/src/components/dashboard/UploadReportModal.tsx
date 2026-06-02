@@ -20,6 +20,18 @@ type ClinicOption = {
   usernames: string[];
 };
 
+type PresetClinic = {
+  id: number;
+  name: string;
+};
+
+type UploadReportModalProps = {
+  triggerLabel?: string;
+  presetClinic?: PresetClinic;
+  presetParticularToken?: AdminParticularTokenSummary;
+  onUploaded?: () => void | Promise<void>;
+};
+
 const STUDY_TYPE_OPTIONS = [
   { value: "histopatologia", label: "Histopatología" },
   { value: "citologia", label: "Citología" },
@@ -89,7 +101,16 @@ function buildParticularTokenLabel(token: AdminParticularTokenSummary) {
   return `Token ****${token.tokenLast4} · ${token.petName} · ${token.tutorLastName} · ${linkedLabel}`;
 }
 
-export function UploadReportModal() {
+function buildPresetPatientName(token: AdminParticularTokenSummary) {
+  return `${token.petName} / ${token.tutorLastName}`;
+}
+
+export function UploadReportModal({
+  triggerLabel = "Subir informe",
+  presetClinic,
+  presetParticularToken,
+  onUploaded,
+}: UploadReportModalProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -116,15 +137,21 @@ export function UploadReportModal() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedClinic = clinicOptions.find(
+  const hasPresetClinic = typeof presetClinic?.id === "number";
+  const hasPresetParticularToken =
+    typeof presetParticularToken?.id === "number";
+  const isPresetMode = hasPresetClinic && hasPresetParticularToken;
+
+  const selectedClinicOption = clinicOptions.find(
     (option) => String(option.id) === clinicId,
   );
+  const selectedClinic = presetClinic ?? selectedClinicOption;
 
   const selectedClinicId = selectedClinic?.id;
 
-  const selectedParticularToken = particularTokens.find(
-    (token) => String(token.id) === particularTokenId,
-  );
+  const selectedParticularToken =
+    presetParticularToken ??
+    particularTokens.find((token) => String(token.id) === particularTokenId);
 
   const hasClinicQuery = normalizeSearchText(clinicSearch).length > 0;
 
@@ -136,8 +163,8 @@ export function UploadReportModal() {
     ? clinicOptions
         .filter((option) => matchClinicOption(option, clinicSearch))
         .slice(0, 20)
-    : selectedClinic
-      ? [selectedClinic]
+    : selectedClinicOption
+      ? [selectedClinicOption]
       : [];
 
   useEffect(() => {
@@ -145,7 +172,7 @@ export function UploadReportModal() {
   }, []);
 
   useEffect(() => {
-    if (!isOpen || isLoadingClinics) {
+    if (!isOpen || isLoadingClinics || hasPresetClinic) {
       return;
     }
 
@@ -225,10 +252,16 @@ export function UploadReportModal() {
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen || typeof selectedClinicId !== "number") {
-      setParticularTokens([]);
-      setParticularTokenId("");
-      setParticularTokenLoadError(null);
+    if (
+      !isOpen ||
+      hasPresetParticularToken ||
+      typeof selectedClinicId !== "number"
+    ) {
+      if (!hasPresetParticularToken) {
+        setParticularTokens([]);
+        setParticularTokenId("");
+        setParticularTokenLoadError(null);
+      }
       return;
     }
 
@@ -283,16 +316,22 @@ export function UploadReportModal() {
     return () => {
       cancelled = true;
     };
-  }, [isOpen, selectedClinicId]);
+  }, [isOpen, selectedClinicId, hasPresetParticularToken]);
 
   function resetForm() {
-    setClinicId("");
-    setClinicSearch("");
-    setParticularTokenId("");
+    setClinicId(presetClinic ? String(presetClinic.id) : "");
+    setClinicSearch(presetClinic?.name ?? "");
+    setParticularTokenId(
+      presetParticularToken ? String(presetParticularToken.id) : "",
+    );
     setParticularTokens([]);
     setParticularTokenLoadError(null);
     setSelectedFileName("");
-    setPatientName("");
+    setPatientName(
+      presetParticularToken
+        ? buildPresetPatientName(presetParticularToken)
+        : "",
+    );
     setStudyType(STUDY_TYPE_OPTIONS[0].value);
     setUploadDate("");
 
@@ -309,6 +348,20 @@ export function UploadReportModal() {
     setIsOpen(false);
     setErrorMessage(null);
     setSuccessMessage(null);
+  }
+
+  function openModal() {
+    if (presetClinic) {
+      setClinicId(String(presetClinic.id));
+      setClinicSearch(presetClinic.name);
+    }
+
+    if (presetParticularToken) {
+      setParticularTokenId(String(presetParticularToken.id));
+      setPatientName(buildPresetPatientName(presetParticularToken));
+    }
+
+    setIsOpen(true);
   }
 
   function selectClinic(option: ClinicOption) {
@@ -354,8 +407,19 @@ export function UploadReportModal() {
       return;
     }
 
-    if (!clinicId || !selectedClinic) {
-      setErrorMessage("Seleccione una clínica registrada del listado.");
+    if (!presetClinic) {
+      if (!clinicId || !selectedClinic) {
+        setErrorMessage("Seleccione una clínica registrada del listado.");
+        return;
+      }
+    }
+
+    if (
+      presetClinic &&
+      presetParticularToken &&
+      presetParticularToken.clinicId !== presetClinic.id
+    ) {
+      setErrorMessage("El token preseleccionado no pertenece a la clínica indicada.");
       return;
     }
 
@@ -371,7 +435,13 @@ export function UploadReportModal() {
     setIsSubmitting(true);
 
     const formData = new FormData();
-    formData.append("clinicId", clinicId);
+
+    if (presetClinic) {
+      formData.append("clinicId", String(presetClinic.id));
+    } else {
+      formData.append("clinicId", clinicId);
+    }
+
     formData.append("file", file);
 
     if (patientName.trim()) {
@@ -386,7 +456,9 @@ export function UploadReportModal() {
       formData.append("uploadDate", uploadDate);
     }
 
-    if (selectedParticularToken) {
+    if (presetParticularToken) {
+      formData.append("particularTokenId", String(presetParticularToken.id));
+    } else if (selectedParticularToken) {
       formData.append("particularTokenId", String(selectedParticularToken.id));
     }
 
@@ -394,6 +466,7 @@ export function UploadReportModal() {
       const response = await uploadAdminReport(formData);
       setSuccessMessage(response.message);
 
+      await onUploaded?.();
       resetForm();
       router.refresh();
     } catch (error) {
@@ -427,7 +500,9 @@ export function UploadReportModal() {
               Subir informe
             </h2>
             <p className="text-sm text-muted-foreground">
-              Cargue un PDF y asócielo a una clínica.
+              {isPresetMode
+                ? "Cargue un PDF para vincularlo al token seleccionado."
+                : "Cargue un PDF y asócielo a una clínica."}
             </p>
           </div>
           <Button
@@ -442,147 +517,165 @@ export function UploadReportModal() {
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="upload-clinic-search" className="field-label">
-              Clínica
-            </label>
-            <Input
-              id="upload-clinic-search"
-              name="clinicSearch"
-              type="text"
-              placeholder="Buscar clínica registrada por nombre, usuario o ID..."
-              autoComplete="off"
-              required
-              value={clinicSearch}
-              onChange={(event) => handleClinicSearchChange(event.target.value)}
-              disabled={isSubmitting}
-              aria-describedby="upload-clinic-help"
-            />
-            <input
-              id="upload-clinic-id"
-              name="clinicId"
-              type="hidden"
-              value={clinicId}
-              readOnly
-            />
-            <p id="upload-clinic-help" className="mt-1 text-xs text-muted-foreground">
-              Seleccione una clínica del listado desplegado. La búsqueda admite
-              texto parcial, acentos, ID y usuarios asociados.
-            </p>
-
-            {clinicLoadError ? (
-              <p
-                className="mt-2 clinical-alert-error px-3 py-2"
-                role="alert"
-              >
-                {clinicLoadError}
+          {presetClinic && presetParticularToken ? (
+            <div className="clinical-muted-band space-y-2 rounded-lg px-3 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                Carga preconfigurada
               </p>
-            ) : null}
-
-            <div
-              className="mt-2 max-h-44 overflow-y-auto rounded-lg border border-vetneb-line/80 bg-card/92"
-              role="listbox"
-              aria-label="Clínicas registradas"
-            >
-              {isLoadingClinics ? (
-                <p className="surface-empty m-2 py-3">
-                  Cargando clínicas registradas...
-                </p>
-              ) : null}
-
-              {!isLoadingClinics && hasClinicQuery && filteredClinicOptions.length === 0 ? (
-                <p className="surface-empty m-2 py-3">
-                  No hay clínicas registradas que coincidan con la búsqueda.
-                </p>
-              ) : null}
-
-              {!isLoadingClinics
-                ? filteredClinicOptions.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className={`clinical-hover-row flex w-full items-center justify-between gap-2 border-b border-vetneb-line/35 px-3 py-2 text-left text-sm last:border-b-0 ${
-                        String(option.id) === clinicId
-                          ? "bg-vetneb-teal/12 text-vetneb-navy shadow-[inset_0_0_0_1px_rgba(16,60,96,0.28)]"
-                          : "text-vetneb-ink/88"
-                      }`}
-                      onClick={() => selectClinic(option)}
-                      disabled={isSubmitting}
-                      role="option"
-                      aria-selected={String(option.id) === clinicId}
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">
-                          {option.name}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          ID #{option.id}
-                          {option.usernames.length
-                            ? ` · ${option.usernames.join(", ")}`
-                            : ""}
-                        </span>
-                      </span>
-                      {String(option.id) === clinicId ? (
-                        <span className="clinical-pill shrink-0 px-2 py-0.5 text-xs tracking-normal">
-                          Seleccionada
-                        </span>
-                      ) : null}
-                    </button>
-                  ))
-                : null}
+              <p className="text-sm text-vetneb-ink">
+                Clínica: {presetClinic.name} (#{presetClinic.id})
+              </p>
+              <p className="text-sm text-vetneb-ink">
+                Token: ****{presetParticularToken.tokenLast4} ·{" "}
+                {presetParticularToken.petName} ·{" "}
+                {presetParticularToken.tutorLastName}
+              </p>
             </div>
-          </div>
+          ) : (
+            <>
+              <div>
+                <label htmlFor="upload-clinic-search" className="field-label">
+                  Clínica
+                </label>
+                <Input
+                  id="upload-clinic-search"
+                  name="clinicSearch"
+                  type="text"
+                  placeholder="Buscar clínica registrada por nombre, usuario o ID..."
+                  autoComplete="off"
+                  required
+                  value={clinicSearch}
+                  onChange={(event) => handleClinicSearchChange(event.target.value)}
+                  disabled={isSubmitting}
+                  aria-describedby="upload-clinic-help"
+                />
+                <input
+                  id="upload-clinic-id"
+                  name="clinicId"
+                  type="hidden"
+                  value={clinicId}
+                  readOnly
+                />
+                <p id="upload-clinic-help" className="mt-1 text-xs text-muted-foreground">
+                  Seleccione una clínica del listado desplegado. La búsqueda admite
+                  texto parcial, acentos, ID y usuarios asociados.
+                </p>
 
-          <div>
-            <label htmlFor="upload-particular-token-id" className="field-label">
-              Token particular
-            </label>
-            <select
-              id="upload-particular-token-id"
-              name="particularTokenId"
-              className="field-select"
-              value={particularTokenId}
-              onChange={(event) => handleParticularTokenChange(event.target.value)}
-              disabled={!selectedClinic || isLoadingParticularTokens || isSubmitting}
-            >
-              <option value="">
-                Sin token particular vinculado
-              </option>
-              {particularTokens.map((token) => (
-                <option key={token.id} value={token.id}>
-                  {buildParticularTokenLabel(token)}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Seleccione un token existente para que el informe quede disponible
-              en Particulares. Puede cambiar el token antes de subir el informe.
-            </p>
+                {clinicLoadError ? (
+                  <p
+                    className="mt-2 clinical-alert-error px-3 py-2"
+                    role="alert"
+                  >
+                    {clinicLoadError}
+                  </p>
+                ) : null}
 
-            {isLoadingParticularTokens ? (
-              <p className="mt-2 surface-empty py-3">
-                Cargando tokens particulares...
-              </p>
-            ) : null}
+                <div
+                  className="mt-2 max-h-44 overflow-y-auto rounded-lg border border-vetneb-line/80 bg-card/92"
+                  role="listbox"
+                  aria-label="Clínicas registradas"
+                >
+                  {isLoadingClinics ? (
+                    <p className="surface-empty m-2 py-3">
+                      Cargando clínicas registradas...
+                    </p>
+                  ) : null}
 
-            {particularTokenLoadError ? (
-              <p
-                className="mt-2 clinical-alert-error px-3 py-2"
-                role="alert"
-              >
-                {particularTokenLoadError}
-              </p>
-            ) : null}
+                  {!isLoadingClinics && hasClinicQuery && filteredClinicOptions.length === 0 ? (
+                    <p className="surface-empty m-2 py-3">
+                      No hay clínicas registradas que coincidan con la búsqueda.
+                    </p>
+                  ) : null}
 
-            {selectedClinic &&
-            !isLoadingParticularTokens &&
-            !particularTokenLoadError &&
-            particularTokens.length === 0 ? (
-              <p className="mt-2 clinical-alert-warning px-3 py-2">
-                Esta clínica no tiene tokens particulares disponibles.
-              </p>
-            ) : null}
-          </div>
+                  {!isLoadingClinics
+                    ? filteredClinicOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          className={`clinical-hover-row flex w-full items-center justify-between gap-2 border-b border-vetneb-line/35 px-3 py-2 text-left text-sm last:border-b-0 ${
+                            String(option.id) === clinicId
+                              ? "bg-vetneb-teal/12 text-vetneb-navy shadow-[inset_0_0_0_1px_rgba(16,60,96,0.28)]"
+                              : "text-vetneb-ink/88"
+                          }`}
+                          onClick={() => selectClinic(option)}
+                          disabled={isSubmitting}
+                          role="option"
+                          aria-selected={String(option.id) === clinicId}
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium">
+                              {option.name}
+                            </span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              ID #{option.id}
+                              {option.usernames.length
+                                ? ` · ${option.usernames.join(", ")}`
+                                : ""}
+                            </span>
+                          </span>
+                          {String(option.id) === clinicId ? (
+                            <span className="clinical-pill shrink-0 px-2 py-0.5 text-xs tracking-normal">
+                              Seleccionada
+                            </span>
+                          ) : null}
+                        </button>
+                      ))
+                    : null}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="upload-particular-token-id" className="field-label">
+                  Token particular
+                </label>
+                <select
+                  id="upload-particular-token-id"
+                  name="particularTokenId"
+                  className="field-select"
+                  value={particularTokenId}
+                  onChange={(event) => handleParticularTokenChange(event.target.value)}
+                  disabled={!selectedClinic || isLoadingParticularTokens || isSubmitting}
+                >
+                  <option value="">
+                    Sin token particular vinculado
+                  </option>
+                  {particularTokens.map((token) => (
+                    <option key={token.id} value={token.id}>
+                      {buildParticularTokenLabel(token)}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Seleccione un token existente para que el informe quede disponible
+                  en Particulares. Puede cambiar el token antes de subir el informe.
+                </p>
+
+                {isLoadingParticularTokens ? (
+                  <p className="mt-2 surface-empty py-3">
+                    Cargando tokens particulares...
+                  </p>
+                ) : null}
+
+                {particularTokenLoadError ? (
+                  <p
+                    className="mt-2 clinical-alert-error px-3 py-2"
+                    role="alert"
+                  >
+                    {particularTokenLoadError}
+                  </p>
+                ) : null}
+
+                {selectedClinic &&
+                !isLoadingParticularTokens &&
+                !particularTokenLoadError &&
+                particularTokens.length === 0 ? (
+                  <p className="mt-2 clinical-alert-warning px-3 py-2">
+                    Esta clínica no tiene tokens particulares disponibles.
+                  </p>
+                ) : null}
+              </div>
+            </>
+          )}
 
           <div>
             <label htmlFor="upload-file" className="field-label">
@@ -682,7 +775,7 @@ export function UploadReportModal() {
             </p>
           ) : null}
 
-                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Subiendo informe..." : "Subir informe"}
           </Button>
         </form>
@@ -692,8 +785,8 @@ export function UploadReportModal() {
 
   return (
     <div>
-      <Button type="button" onClick={() => setIsOpen(true)}>
-        Subir informe
+      <Button type="button" onClick={openModal}>
+        {triggerLabel}
       </Button>
 
       {isMounted && modal ? createPortal(modal, document.body) : null}

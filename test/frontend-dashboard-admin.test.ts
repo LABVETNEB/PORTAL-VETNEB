@@ -34,7 +34,7 @@ test("dashboard admin includes read-only admin cards", () => {
   assert.ok(source.includes('import { AdminParticularTokensCard } from "./AdminParticularTokensCard";'));
   assert.ok(source.includes('import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";'));
   assert.ok(source.includes('import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";'));
-  assert.ok(source.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'));
+  assert.equal(source.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'), false);
   assert.ok(source.includes("<AdminMaintenanceDryRunCard />"));
   assert.ok(source.includes("<AdminClinicsManagementCard />"));
   assert.ok(source.includes("<AdminParticularTokensCard />"));
@@ -142,8 +142,9 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes("Estado del sistema"));
   assert.ok(source.includes('id="admin-report-upload"'));
   assert.ok(source.includes("Panel administrador"));
-  assert.ok(source.includes("única superficie administrativa"));
-  assert.ok(source.includes("<UploadReportModal />"));
+  assert.ok(source.includes("cada token administrado"));
+  assert.ok(source.includes("sin búsqueda manual"));
+  assert.equal(source.includes("<UploadReportModal />"), false);
   assert.ok(source.includes('id="admin-health"'));
   assert.ok(source.includes("<AdminClinicsManagementCard />"));
   assert.ok(source.includes('id="admin-maintenance"'));
@@ -206,6 +207,7 @@ test("dashboard admin removes horizontal quick actions and preserves admin secti
 
   assert.ok(source.includes('id="admin-report-upload"'));
   assert.ok(source.includes("Carga de informes"));
+  assert.ok(source.includes("cada token administrado"));
   assert.ok(source.includes("Eventos de auditoría"));
   assert.ok(source.includes("Tipos de evento"));
   assert.ok(source.includes("Estado del sistema"));

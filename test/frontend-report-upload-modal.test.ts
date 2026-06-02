@@ -6,6 +6,8 @@ import test from "node:test";
 const UPLOAD_MODAL_PATH = "frontend/src/components/dashboard/UploadReportModal.tsx";
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
+const ADMIN_CARD_PATH =
+  "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -72,11 +74,34 @@ test("frontend informes page does not expose admin upload modal in clinic dashbo
   assert.equal(source.includes("dashboard administrador"), false);
 });
 
-test("frontend admin dashboard exposes upload report modal only in admin surface", () => {
-  const source = read(ADMIN_PAGE_PATH);
+test("frontend admin dashboard routes upload report modal through token cards", () => {
+  const page = read(ADMIN_PAGE_PATH);
+  const card = read(ADMIN_CARD_PATH);
 
-  assert.ok(source.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'));
-  assert.ok(source.includes('id="admin-report-upload"'));
-  assert.ok(source.includes("<UploadReportModal />"));
-  assert.ok(source.includes("Carga de informes"));
+  assert.equal(page.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'), false);
+  assert.ok(page.includes('id="admin-report-upload"'));
+  assert.equal(page.includes("<UploadReportModal />"), false);
+  assert.ok(page.includes("Carga de informes"));
+  assert.ok(page.includes("cada token administrado"));
+  assert.ok(card.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'));
+  assert.ok(card.includes('triggerLabel="Subir informe para este token"'));
+  assert.ok(card.includes("presetParticularToken={token}"));
+});
+
+test("frontend upload report modal supports preset particular token uploads", () => {
+  const source = read(UPLOAD_MODAL_PATH);
+
+  assert.ok(source.includes("type UploadReportModalProps = {"));
+  assert.ok(source.includes("triggerLabel?: string;"));
+  assert.ok(source.includes("presetClinic?: PresetClinic;"));
+  assert.ok(source.includes("presetParticularToken?: AdminParticularTokenSummary;"));
+  assert.ok(source.includes("onUploaded?: () => void | Promise<void>;"));
+  assert.ok(source.includes("const isPresetMode = hasPresetClinic && hasPresetParticularToken;"));
+  assert.ok(source.includes("Carga preconfigurada"));
+  assert.ok(source.includes("Clínica: {presetClinic.name} (#{presetClinic.id})"));
+  assert.ok(source.includes("Token: ****{presetParticularToken.tokenLast4}"));
+  assert.ok(source.includes("buildPresetPatientName(presetParticularToken)"));
+  assert.ok(source.includes('formData.append("clinicId", String(presetClinic.id));'));
+  assert.ok(source.includes('formData.append("particularTokenId", String(presetParticularToken.id));'));
+  assert.ok(source.includes("await onUploaded?.();"));
 });
