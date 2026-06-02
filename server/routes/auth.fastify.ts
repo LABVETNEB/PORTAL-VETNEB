@@ -7,7 +7,11 @@ import type {
 import { AUDIT_EVENTS } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
+  buildLoginRateLimitHeaders,
   buildLoginRateLimitKey,
+  buildMissingCredentialsLoginRateLimitKey,
+  getLoginRateLimitKeyMetadata,
+  getLoginRateLimitResetSeconds,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
@@ -304,13 +308,18 @@ async function loadDefaultDeps(): Promise<NativeAuthDefaultDeps> {
           input: AuditWriteInput,
         ) => Promise<void>,
         recordLoginFailedAttempt: db.recordLoginFailedAttempt,
-        loginRateLimitStore: createPersistentRateLimitStore({
-          get: db.getLoginRateLimitEntry,
-          set: db.setLoginRateLimitEntry,
-          increment: db.incrementLoginRateLimitEntry,
-          cleanupExpired: db.deleteExpiredLoginRateLimitEntries,
-          delete: db.deleteLoginRateLimitEntry,
-        }),
+        loginRateLimitStore: createPersistentRateLimitStore(
+          {
+            get: db.getLoginRateLimitEntry,
+            set: db.setLoginRateLimitEntry,
+            increment: db.incrementLoginRateLimitEntry,
+            cleanupExpired: db.deleteExpiredLoginRateLimitEntries,
+            delete: db.deleteLoginRateLimitEntry,
+          },
+          {
+            metadataForKey: getLoginRateLimitKeyMetadata,
+          },
+        ),
       };
     })();
   }
@@ -563,26 +572,11 @@ function setLoginRateLimitHeaders(
     now: number;
   },
 ) {
-  reply.header(
-    "RateLimit-Policy",
-    `${input.max};w=${Math.ceil(input.windowMs / 1000)}`,
-  );
-  reply.header("RateLimit-Limit", String(input.max));
-  reply.header(
-    "RateLimit-Remaining",
-    String(Math.max(input.max - input.failedCount, 0)),
-  );
-  reply.header(
-    "RateLimit-Reset",
-    String(getLoginRateLimitResetSeconds(input)),
-  );
-}
-
-function getLoginRateLimitResetSeconds(input: {
-  resetAt: number;
-  now: number;
-}) {
-  return Math.max(Math.ceil((input.resetAt - input.now) / 1000), 0);
+  for (const [headerName, headerValue] of Object.entries(
+    buildLoginRateLimitHeaders(input),
+  )) {
+    reply.header(headerName, headerValue);
+  }
 }
 
 function getUserAgent(request: FastifyRequest) {
@@ -1050,7 +1044,79 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
     const password =
       typeof request.body?.password === "string" ? request.body.password : "";
 
+    const recordFailedLoginAttempt = async (input: {
+      username?: string | null;
+      reason: LoginFailedAttemptReason;
+    }) => {
+      try {
+        await deps.recordLoginFailedAttempt({
+          surface: "clinic",
+          username: input.username?.trim() || null,
+          reason: input.reason,
+          ipAddress: request.ip || null,
+          userAgent: getUserAgent(request),
+          createdAt: new Date(currentTime),
+        });
+      } catch (error) {
+        request.log.warn(
+          {
+            err: error,
+            code: "AUTH_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
+            surface: "clinic",
+            reason: input.reason,
+          },
+          "No se pudo persistir intento fallido de login clinic",
+        );
+      }
+    };
+
+    const markMissingCredentials = async () => {
+      const missingRateLimitKey = buildMissingCredentialsLoginRateLimitKey({
+        surface: isUnifiedPayload ? "unified" : "clinic",
+        ipAddress: request.ip || null,
+      });
+
+      try {
+        const missingEntry = await getOrCreateRateLimitEntry(
+          loginRateLimitStore,
+          missingRateLimitKey,
+          loginRateLimitWindowMs,
+          currentTime,
+        );
+        const updatedMissingEntry = await incrementRateLimitEntry(
+          loginRateLimitStore,
+          missingRateLimitKey,
+          missingEntry,
+          currentTime,
+        );
+
+        setLoginRateLimitHeaders(reply, {
+          max: loginRateLimitMaxAttempts,
+          windowMs: loginRateLimitWindowMs,
+          failedCount: updatedMissingEntry.count,
+          resetAt: updatedMissingEntry.resetAt,
+          now: currentTime,
+        });
+      } catch (error) {
+        request.log.error(
+          {
+            err: error,
+            code: "AUTH_LOGIN_MISSING_CREDENTIALS_RATE_LIMIT_FAILED",
+            route: "/api/auth/login",
+          },
+          "No se pudo actualizar el rate limit de credenciales faltantes",
+        );
+      }
+
+      await recordFailedLoginAttempt({
+        username: null,
+        reason: "missing_credentials",
+      });
+    };
+
     if (!loginIdentifier || !password) {
+      await markMissingCredentials();
+
       return reply.code(400).send({
         success: false,
         error: isUnifiedPayload
@@ -1092,32 +1158,6 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         "No se pudo leer el rate limit de login unificado",
       );
     }
-
-    const recordFailedLoginAttempt = async (input: {
-      username?: string | null;
-      reason: LoginFailedAttemptReason;
-    }) => {
-      try {
-        await deps.recordLoginFailedAttempt({
-          surface: "clinic",
-          username: input.username?.trim() || null,
-          reason: input.reason,
-          ipAddress: request.ip || null,
-          userAgent: getUserAgent(request),
-          createdAt: new Date(currentTime),
-        });
-      } catch (error) {
-        request.log.warn(
-          {
-            err: error,
-            code: "AUTH_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
-            surface: "clinic",
-            reason: input.reason,
-          },
-          "No se pudo persistir intento fallido de login clinic",
-        );
-      }
-    };
 
     if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
       setLoginRateLimitHeaders(reply, {

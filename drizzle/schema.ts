@@ -471,6 +471,10 @@ export const loginRateLimits = pgTable(
   "login_rate_limits",
   {
     keyHash: text("key_hash").primaryKey(),
+    surface: varchar("surface", { length: 32 }),
+    identifierHash: text("identifier_hash"),
+    ipHash: text("ip_hash"),
+    keyVersion: varchar("key_version", { length: 16 }),
     count: integer("count").notNull(),
     resetAt: timestamp("reset_at", { mode: "date" }).notNull(),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
@@ -478,6 +482,12 @@ export const loginRateLimits = pgTable(
   },
   (table) => ({
     resetAtIdx: index("login_rate_limits_reset_at_idx").on(table.resetAt),
+    surfaceIdentifierIdx: index(
+      "login_rate_limits_surface_identifier_idx",
+    ).on(table.surface, table.identifierHash),
+    surfaceIdentifierIpIdx: index(
+      "login_rate_limits_surface_identifier_ip_idx",
+    ).on(table.surface, table.identifierHash, table.ipHash),
   }),
 );
 

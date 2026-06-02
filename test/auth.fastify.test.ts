@@ -785,7 +785,7 @@ test("clinicAuthNativeRoutes login unificado valida payload inválido sin stackt
   }
 });
 
-test("clinicAuthNativeRoutes login unificado valida payload inválido antes de rate-limit y auditoría", async () => {
+test("clinicAuthNativeRoutes login unificado registra payload inválido como missing_credentials aislado", async () => {
   const rateLimitCalls = {
     get: 0,
     set: 0,
@@ -832,11 +832,13 @@ test("clinicAuthNativeRoutes login unificado valida payload inválido antes de r
       error: "Identificador y contraseña requeridos",
     });
     assert.deepEqual(rateLimitCalls, {
-      get: 0,
+      get: 1,
       set: 0,
       increment: 0,
     });
-    assert.equal(failedAttempts.length, 0);
+    assert.equal(failedAttempts.length, 1);
+    assert.equal(failedAttempts[0].reason, "missing_credentials");
+    assert.equal(failedAttempts[0].username, null);
   } finally {
     await app.close();
   }

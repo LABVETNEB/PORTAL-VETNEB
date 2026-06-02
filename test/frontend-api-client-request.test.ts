@@ -85,7 +85,21 @@ test("frontend API client formats 429 login rate-limit guidance from headers", (
   const source = read(API_CLIENT_PATH);
 
   assert.ok(source.includes("export const LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE ="));
+  assert.ok(source.includes("export const LOGIN_RATE_LIMIT_HEADERS_MISSING_MESSAGE ="));
+  assert.ok(source.includes("const LOGIN_RATE_LIMIT_REQUIRED_HEADERS ="));
+  for (const headerName of [
+    "Retry-After",
+    "RateLimit-Policy",
+    "RateLimit-Limit",
+    "RateLimit-Remaining",
+    "RateLimit-Reset",
+  ]) {
+    assert.ok(source.includes(`"${headerName}"`), `missing ${headerName}`);
+  }
   assert.ok(source.includes('headers.get("Retry-After") ?? headers.get("RateLimit-Reset")'));
+  assert.ok(source.includes("function isLoginRateLimitPath("));
+  assert.ok(source.includes("function hasRequiredLoginRateLimitHeaders("));
+  assert.ok(source.includes("LOGIN_RATE_LIMIT_HEADERS_MISSING_MESSAGE"));
   assert.ok(source.includes("function buildRateLimitErrorMessage("));
   assert.ok(source.includes("Reintente en"));
 });
@@ -158,4 +172,25 @@ test("next.config.ts declara rewrites que proxyan /api/** al backend cuando NEXT
     source.includes('destination: `${apiUrl}/api/:path*`'),
     "destination debe proxiar al backend",
   );
+});
+
+test("next API rewrite contract does not shadow login rate-limit headers", () => {
+  const source = read(NEXT_CONFIG_PATH);
+
+  assert.ok(source.includes('source: "/api/:path*"'));
+  assert.ok(source.includes('destination: `${apiUrl}/api/:path*`'));
+
+  for (const headerName of [
+    "Retry-After",
+    "RateLimit-Policy",
+    "RateLimit-Limit",
+    "RateLimit-Remaining",
+    "RateLimit-Reset",
+  ]) {
+    assert.equal(
+      source.includes(`key: "${headerName}"`),
+      false,
+      `next config must not override ${headerName}`,
+    );
+  }
 });

@@ -18,6 +18,7 @@
   "include": [
     "server/**/*.ts",
     "drizzle/**/*.ts",
+    "scripts/**/*.ts",
     "*.ts"
   ],
   "exclude": [
@@ -27,4 +28,3 @@
     "legacy"
   ]
 }
-

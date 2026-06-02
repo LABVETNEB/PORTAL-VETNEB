@@ -205,6 +205,24 @@ function Invoke-SmokeRequest {
         }
       }
 
+      if ($statusCode -eq 429) {
+        $retryAfter = Get-HeaderValue -Headers $responseHeaders -Name "Retry-After"
+        $lastError = "HTTP 429 rate limited; no se reintenta"
+        if (-not [string]::IsNullOrWhiteSpace($retryAfter)) {
+          $lastError = $lastError + " retryAfterSec=$retryAfter"
+        }
+
+        return [pscustomobject]@{
+          Success = $false
+          StatusCode = $statusCode
+          Headers = $responseHeaders
+          Body = $body
+          Json = (Try-ParseJson -Text $body)
+          Attempts = $attempt
+          Error = $lastError
+        }
+      }
+
       $lastError = "HTTP $statusCode fuera de codigos esperados ($($ExpectedStatusCodes -join ','))"
     } catch {
       $statusFromException = Get-StatusCodeFromException -ErrorRecord $_
@@ -225,6 +243,24 @@ function Invoke-SmokeRequest {
           Json = (Try-ParseJson -Text $body)
           Attempts = $attempt
           Error = ""
+        }
+      }
+
+      if ($null -ne $statusFromException -and $statusFromException -eq 429) {
+        $retryAfter = Get-HeaderValue -Headers $responseHeaders -Name "Retry-After"
+        $lastError = "HTTP 429 rate limited; no se reintenta"
+        if (-not [string]::IsNullOrWhiteSpace($retryAfter)) {
+          $lastError = $lastError + " retryAfterSec=$retryAfter"
+        }
+
+        return [pscustomobject]@{
+          Success = $false
+          StatusCode = $statusFromException
+          Headers = $responseHeaders
+          Body = $body
+          Json = (Try-ParseJson -Text $body)
+          Attempts = $attempt
+          Error = $lastError
         }
       }
 
@@ -281,6 +317,17 @@ function Mark-CredentialCheckSkipSet {
   }
 }
 
+function Get-SmokeEnvValue {
+  param([string]$Name)
+
+  $value = [Environment]::GetEnvironmentVariable($Name)
+  if ([string]::IsNullOrWhiteSpace($value)) {
+    return ""
+  }
+
+  return $value.Trim()
+}
+
 $BackendUrl = Normalize-Url -Url $BackendUrl
 $FrontendUrl = Normalize-Url -Url $FrontendUrl
 $ExpectedSecureCookieFlags = $BackendUrl.StartsWith("https://")
@@ -307,6 +354,16 @@ if ($Retries -lt 1) {
 
 $startedAt = Get-Date
 $results = [System.Collections.Generic.List[object]]::new()
+
+$adminUser = Get-SmokeEnvValue -Name "SMOKE_ADMIN_USERNAME"
+$adminPassword = Get-SmokeEnvValue -Name "SMOKE_ADMIN_PASSWORD"
+$clinicUser = Get-SmokeEnvValue -Name "SMOKE_CLINIC_USERNAME"
+$clinicPassword = Get-SmokeEnvValue -Name "SMOKE_CLINIC_PASSWORD"
+$particularToken = Get-SmokeEnvValue -Name "SMOKE_PARTICULAR_TOKEN"
+
+$hasAdminCreds = -not [string]::IsNullOrWhiteSpace($adminUser) -and -not [string]::IsNullOrWhiteSpace($adminPassword)
+$hasClinicCreds = -not [string]::IsNullOrWhiteSpace($clinicUser) -and -not [string]::IsNullOrWhiteSpace($clinicPassword)
+$hasParticularToken = -not [string]::IsNullOrWhiteSpace($particularToken)
 
 Write-Host ""
 Write-Host "=== STAGING SMOKE CHECK ===" -ForegroundColor Cyan
@@ -470,10 +527,6 @@ if ($badOriginCheck.Success) {
     -Detail ("Esperado HTTP 403. " + $badOriginCheck.Error)
 }
 
-$adminUser = [Environment]::GetEnvironmentVariable("SMOKE_ADMIN_USERNAME")
-$adminPassword = [Environment]::GetEnvironmentVariable("SMOKE_ADMIN_PASSWORD")
-$hasAdminCreds = -not [string]::IsNullOrWhiteSpace($adminUser) -and -not [string]::IsNullOrWhiteSpace($adminPassword)
-
 if ($hasAdminCreds) {
   $adminSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
   $adminLogin = Invoke-SmokeRequest `
@@ -572,10 +625,6 @@ if ($hasAdminCreds) {
   ) -MissingReason "faltan env vars SMOKE_ADMIN_USERNAME/SMOKE_ADMIN_PASSWORD"
 }
 
-$clinicUser = [Environment]::GetEnvironmentVariable("SMOKE_CLINIC_USERNAME")
-$clinicPassword = [Environment]::GetEnvironmentVariable("SMOKE_CLINIC_PASSWORD")
-$hasClinicCreds = -not [string]::IsNullOrWhiteSpace($clinicUser) -and -not [string]::IsNullOrWhiteSpace($clinicPassword)
-
 if ($hasClinicCreds) {
   $clinicSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
   $clinicLogin = Invoke-SmokeRequest `
@@ -629,9 +678,6 @@ if ($hasClinicCreds) {
     "Clinic logout (/api/auth/logout)"
   ) -MissingReason "faltan env vars SMOKE_CLINIC_USERNAME/SMOKE_CLINIC_PASSWORD"
 }
-
-$particularToken = [Environment]::GetEnvironmentVariable("SMOKE_PARTICULAR_TOKEN")
-$hasParticularToken = -not [string]::IsNullOrWhiteSpace($particularToken)
 
 if ($hasParticularToken) {
   $particularSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession

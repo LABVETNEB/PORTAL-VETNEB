@@ -114,6 +114,7 @@ test("staging smoke script uses SKIP checks when optional credentials are missin
   const source = readSource(SCRIPT_PATH);
 
   assertContains(source, 'Status "SKIP"', "smoke staging script skip status");
+  assertContains(source, "Get-SmokeEnvValue", "smoke staging script env helper");
   assertContains(source, "Mark-CredentialCheckSkipSet", "smoke staging script skip helper");
   assertContains(
     source,
@@ -130,6 +131,58 @@ test("staging smoke script uses SKIP checks when optional credentials are missin
     "falta env var SMOKE_PARTICULAR_TOKEN",
     "smoke staging script particular skip reason",
   );
+});
+
+test("staging smoke script validates credential env vars before any POST", () => {
+  const source = readSource(SCRIPT_PATH);
+  const firstCredentialRead = source.indexOf('$adminUser = Get-SmokeEnvValue -Name "SMOKE_ADMIN_USERNAME"');
+  const firstPost = source.indexOf('-Method "POST"');
+
+  assert.notEqual(firstCredentialRead, -1, "debe leer env vars con helper");
+  assert.notEqual(firstPost, -1, "debe contener POST checks");
+  assert.ok(
+    firstCredentialRead < firstPost,
+    "debe validar env vars antes de cualquier POST real",
+  );
+
+  for (const marker of [
+    '[Environment]::GetEnvironmentVariable("SMOKE_ADMIN_USERNAME")',
+    '[Environment]::GetEnvironmentVariable("SMOKE_ADMIN_PASSWORD")',
+    '[Environment]::GetEnvironmentVariable("SMOKE_CLINIC_USERNAME")',
+    '[Environment]::GetEnvironmentVariable("SMOKE_CLINIC_PASSWORD")',
+    '[Environment]::GetEnvironmentVariable("SMOKE_PARTICULAR_TOKEN")',
+  ]) {
+    assertNotContains(source, marker, "smoke staging script late direct env read");
+  }
+});
+
+test("staging smoke script never builds login payloads unless credential flags are true", () => {
+  const source = readSource(SCRIPT_PATH);
+
+  assert.match(
+    source,
+    /if \(\$hasAdminCreds\) \{[\s\S]*?username = \$adminUser[\s\S]*?password = \$adminPassword/,
+    "admin login payload must be inside hasAdminCreds block",
+  );
+  assert.match(
+    source,
+    /if \(\$hasClinicCreds\) \{[\s\S]*?username = \$clinicUser[\s\S]*?password = \$clinicPassword/,
+    "clinic login payload must be inside hasClinicCreds block",
+  );
+  assert.match(
+    source,
+    /if \(\$hasParticularToken\) \{[\s\S]*?token = \$particularToken/,
+    "particular login payload must be inside hasParticularToken block",
+  );
+});
+
+test("staging smoke script stops retrying immediately on unexpected 429", () => {
+  const source = readSource(SCRIPT_PATH);
+
+  assertContains(source, "$statusCode -eq 429", "smoke staging 429 retry stop");
+  assertContains(source, "$statusFromException -eq 429", "smoke staging 429 exception retry stop");
+  assertContains(source, "HTTP 429 rate limited; no se reintenta", "smoke staging 429 detail");
+  assertContains(source, "Attempts = $attempt", "smoke staging 429 returns current attempt");
 });
 
 test("staging smoke script does not contain real secrets or unsafe placeholders", () => {

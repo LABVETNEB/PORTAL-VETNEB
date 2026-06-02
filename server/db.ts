@@ -246,11 +246,21 @@ export async function setLoginRateLimitEntry(input: {
   count: number;
   resetAt: Date;
   now: Date;
+  metadata?: {
+    surface: string;
+    identifierHash: string;
+    ipHash: string;
+    keyVersion: string;
+  };
 }) {
   const result = await db
     .insert(loginRateLimits)
     .values({
       keyHash: input.keyHash,
+      surface: input.metadata?.surface ?? null,
+      identifierHash: input.metadata?.identifierHash ?? null,
+      ipHash: input.metadata?.ipHash ?? null,
+      keyVersion: input.metadata?.keyVersion ?? null,
       count: input.count,
       resetAt: input.resetAt,
       createdAt: input.now,
@@ -259,6 +269,10 @@ export async function setLoginRateLimitEntry(input: {
     .onConflictDoUpdate({
       target: loginRateLimits.keyHash,
       set: {
+        surface: input.metadata?.surface ?? null,
+        identifierHash: input.metadata?.identifierHash ?? null,
+        ipHash: input.metadata?.ipHash ?? null,
+        keyVersion: input.metadata?.keyVersion ?? null,
         count: input.count,
         resetAt: input.resetAt,
         updatedAt: input.now,
@@ -277,11 +291,21 @@ export async function incrementLoginRateLimitEntry(input: {
   count: number;
   resetAt: Date;
   now: Date;
+  metadata?: {
+    surface: string;
+    identifierHash: string;
+    ipHash: string;
+    keyVersion: string;
+  };
 }) {
   const result = await db
     .insert(loginRateLimits)
     .values({
       keyHash: input.keyHash,
+      surface: input.metadata?.surface ?? null,
+      identifierHash: input.metadata?.identifierHash ?? null,
+      ipHash: input.metadata?.ipHash ?? null,
+      keyVersion: input.metadata?.keyVersion ?? null,
       count: input.count,
       resetAt: input.resetAt,
       createdAt: input.now,
@@ -290,6 +314,10 @@ export async function incrementLoginRateLimitEntry(input: {
     .onConflictDoUpdate({
       target: loginRateLimits.keyHash,
       set: {
+        surface: input.metadata?.surface ?? null,
+        identifierHash: input.metadata?.identifierHash ?? null,
+        ipHash: input.metadata?.ipHash ?? null,
+        keyVersion: input.metadata?.keyVersion ?? null,
         count: sql<number>`
           CASE
             WHEN ${loginRateLimits.resetAt} <= ${input.now} THEN ${input.count}
