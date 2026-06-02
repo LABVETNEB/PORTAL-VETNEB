@@ -406,7 +406,7 @@ export default async function AdminPage({
               </h2>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
                 La carga de informes se realiza desde cada token administrado
-                en "Últimos tokens administrados", para vincular clínica y token
+                en &quot;Últimos tokens administrados&quot;, para vincular clínica y token
                 sin búsqueda manual.
               </p>
             </div>
