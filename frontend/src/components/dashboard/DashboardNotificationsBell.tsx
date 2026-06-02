@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { Bell } from "lucide-react";
 import { X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +13,7 @@ import {
   type AdminStudyTrackingNotificationSummary,
   type DashboardNotificationSurface,
 } from "@/lib/api";
+import { buildNotificationDestination } from "@/lib/notification-destinations";
 import { formatDateTime } from "@/lib/utils";
 
 const NOTIFICATIONS_LIMIT = 20;
@@ -24,6 +26,7 @@ type DashboardNotificationsBellProps = {
 export function DashboardNotificationsBell({
   surface,
 }: DashboardNotificationsBellProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isPollingEnabled, setIsPollingEnabled] = useState(false);
@@ -149,37 +152,74 @@ export function DashboardNotificationsBell({
     setMobileBannerVisible(false);
   }
 
-  async function handleMarkAsRead(
-    notification: AdminStudyTrackingNotificationSummary,
-  ) {
+  function scrollToHashDestination(destination: string) {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const targetUrl = new URL(destination, window.location.origin);
+
     if (
-      notification.isRead ||
-      updatingNotificationId !== null ||
-      isMarkingAllAsRead
+      targetUrl.pathname !== window.location.pathname ||
+      targetUrl.hash.length === 0
     ) {
       return;
     }
 
-    setUpdatingNotificationId(notification.id);
-    setErrorMessage(null);
+    window.setTimeout(() => {
+      if (window.location.hash !== targetUrl.hash) {
+        window.location.hash = targetUrl.hash;
+      }
 
-    try {
-      const response = await markDashboardNotificationRead(
-        surface,
-        notification.id,
-      );
-      setNotifications((current) =>
-        current.map((currentNotification) =>
-          currentNotification.id === notification.id
-            ? response.notification
-            : currentNotification,
-        ),
-      );
-    } catch {
-      setErrorMessage("No se pudieron cargar las notificaciones.");
-    } finally {
-      setUpdatingNotificationId(null);
+      const targetId = decodeURIComponent(targetUrl.hash.slice(1));
+      document.getElementById(targetId)?.scrollIntoView({ block: "start" });
+    }, 0);
+  }
+
+  function navigateToNotificationDestination(destination: string) {
+    router.push(destination);
+    scrollToHashDestination(destination);
+  }
+
+  async function handleNotificationClick(
+    notification: AdminStudyTrackingNotificationSummary,
+  ) {
+    if (updatingNotificationId === notification.id) {
+      return;
     }
+
+    const destination = buildNotificationDestination(surface, notification);
+    const shouldMarkAsRead =
+      !notification.isRead &&
+      updatingNotificationId === null &&
+      !isMarkingAllAsRead;
+
+    if (shouldMarkAsRead) {
+      setUpdatingNotificationId(notification.id);
+      setErrorMessage(null);
+
+      try {
+        const response = await markDashboardNotificationRead(
+          surface,
+          notification.id,
+        );
+        setNotifications((current) =>
+          current.map((currentNotification) =>
+            currentNotification.id === notification.id
+              ? response.notification
+              : currentNotification,
+          ),
+        );
+      } catch {
+        setErrorMessage("No se pudo marcar la notificación como leída.");
+      } finally {
+        setUpdatingNotificationId(null);
+      }
+    }
+
+    setIsOpen(false);
+    setMobileBannerVisible(false);
+    navigateToNotificationDestination(destination);
   }
 
   async function handleMarkAllAsRead() {
@@ -287,12 +327,10 @@ export function DashboardNotificationsBell({
               <li key={notification.id}>
                 <button
                   type="button"
-                  className="w-full rounded-md border border-vetneb-line/70 bg-vetneb-surface-raised/78 px-3 py-2 text-left transition-colors hover:border-vetneb-teal/45"
-                  onClick={() => void handleMarkAsRead(notification)}
-                  disabled={
-                    notification.isRead ||
-                    updatingNotificationId === notification.id
-                  }
+                  aria-label={`Abrir notificación: ${notification.title}`}
+                  className="w-full cursor-pointer rounded-md border border-vetneb-line/70 bg-vetneb-surface-raised/78 px-3 py-2 text-left transition-colors hover:border-vetneb-teal/45 disabled:cursor-wait disabled:opacity-60"
+                  onClick={() => void handleNotificationClick(notification)}
+                  disabled={updatingNotificationId === notification.id}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-xs font-semibold text-vetneb-ink">
@@ -352,8 +390,9 @@ export function DashboardNotificationsBell({
                   <li key={notification.id}>
                     <button
                       type="button"
-                      className="w-full px-4 py-3 text-left transition-colors hover:bg-accent/50 disabled:opacity-50"
-                      onClick={() => void handleMarkAsRead(notification)}
+                      aria-label={`Abrir notificación: ${notification.title}`}
+                      className="w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-accent/50 disabled:cursor-wait disabled:opacity-60"
+                      onClick={() => void handleNotificationClick(notification)}
                       disabled={updatingNotificationId === notification.id}
                     >
                       <p className="text-xs font-semibold text-vetneb-ink">

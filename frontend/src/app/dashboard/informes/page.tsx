@@ -188,7 +188,7 @@ export default async function InformesPage({
                   </TableRow>
                 ) : reports.length ? (
                   reports.map((report) => (
-                    <TableRow key={report.id}>
+                    <TableRow key={report.id} id={`report-${report.id}`}>
                       <TableCell className="font-mono text-xs text-muted-foreground">
                         #{report.id}
                       </TableCell>
