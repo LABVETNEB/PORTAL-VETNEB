@@ -524,6 +524,55 @@ test(
 );
 
 test(
+  "particularAuthNativeRoutes conserva 429 si falla auditoría de rate limit",
+  async () => {
+    const app = await createTestApp({
+      now: () => 0,
+      loginRateLimitWindowMs: 60_000,
+      loginRateLimitMaxAttempts: 1,
+      loginRateLimitStore: {
+        get: async () => ({
+          count: 1,
+          resetAt: 60_000,
+        }),
+        set: async () => {},
+      },
+      getParticularTokenByTokenHash: async () => {
+        throw new Error("rate limited request must not query particular token");
+      },
+      recordLoginFailedAttempt: async () => {
+        throw new Error("simulated failed-login persistence error");
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/particular/auth/login",
+        headers: {
+          origin: "http://localhost:3000",
+        },
+        remoteAddress: "203.0.113.77",
+        payload: {
+          token: "INVALID-PARTICULAR-TOKEN",
+        },
+      });
+
+      assert.equal(response.statusCode, 429);
+      assert.equal(response.headers["retry-after"], "60");
+      assert.equal(response.headers["ratelimit-limit"], "1");
+      assert.equal(response.headers["ratelimit-remaining"], "0");
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
   "particularAuthNativeRoutes conserva 401 si falla auditoría de token inválido",
   async () => {
     const app = await createTestApp({
@@ -554,6 +603,67 @@ test(
         error: "Token inválido",
       });
       assert.equal(response.headers["set-cookie"], undefined);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "particularAuthNativeRoutes conserva 200 si falla reset de rate limit tras token válido",
+  async () => {
+    const sessionCalls: Array<Record<string, unknown>> = [];
+    const resetKeys: string[] = [];
+    const particularToken = createParticularTokenFixture({
+      reportId: null,
+    });
+
+    const app = await createTestApp({
+      now: () => 0,
+      loginRateLimitWindowMs: 60_000,
+      loginRateLimitMaxAttempts: 2,
+      loginRateLimitStore: {
+        get: async () => ({
+          count: 1,
+          resetAt: 60_000,
+        }),
+        set: async () => {},
+        delete: async (key: string) => {
+          resetKeys.push(key);
+          throw new Error("simulated rate-limit reset failure");
+        },
+      },
+      getParticularTokenByTokenHash: async () => particularToken,
+      getParticularTokenById: async () => particularToken,
+      createParticularSession: async (input: Record<string, unknown>) => {
+        sessionCalls.push(input);
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/particular/auth/login",
+        headers: {
+          origin: "http://localhost:3000",
+        },
+        remoteAddress: "203.0.113.77",
+        payload: {
+          token: "PARTICULAR-RAW-TOKEN",
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(sessionCalls.length, 1);
+      assert.equal(resetKeys.length, 1);
+      assert.equal(response.headers["ratelimit-limit"], "2");
+      assert.equal(response.headers["ratelimit-remaining"], "2");
+
+      const body = JSON.parse(response.body);
+      assert.equal(body.success, true);
+      assert.equal(body.particular.id, particularToken.id);
+      assert.equal(body.particular.reportId, null);
+      assert.equal(body.particular.hasLinkedReport, false);
     } finally {
       await app.close();
     }

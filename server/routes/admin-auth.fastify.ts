@@ -17,6 +17,7 @@ import {
   createPersistentRateLimitStore,
   getOrCreateRateLimitEntry,
   incrementRateLimitEntry,
+  type RateLimitEntry,
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
 import {
@@ -645,28 +646,61 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       ipAddress: request.ip || null,
     });
 
-    const failureEntry = await getOrCreateRateLimitEntry(
-      loginRateLimitStore,
-      rateLimitKey,
-      loginRateLimitWindowMs,
-      currentTime,
-    );
+    const failureEntry: RateLimitEntry = {
+      count: 0,
+      resetAt: currentTime + loginRateLimitWindowMs,
+    };
+    let canUseRateLimitStore = true;
+
+    try {
+      const existingEntry = await getOrCreateRateLimitEntry(
+        loginRateLimitStore,
+        rateLimitKey,
+        loginRateLimitWindowMs,
+        currentTime,
+      );
+
+      failureEntry.count = existingEntry.count;
+      failureEntry.resetAt = existingEntry.resetAt;
+    } catch (error) {
+      canUseRateLimitStore = false;
+      request.log.error(
+        {
+          err: error,
+          code: "ADMIN_LOGIN_RATE_LIMIT_GET_FAILED",
+          route: "/api/admin/auth/login",
+        },
+        "No se pudo leer el rate limit de login admin",
+      );
+    }
 
     const recordFailedLoginAttempt = async (input: {
       username?: string | null;
       reason: LoginFailedAttemptReason;
     }) => {
-      await deps.recordLoginFailedAttempt({
-        surface: "admin",
-        username: input.username?.trim() || null,
-        reason: input.reason,
-        ipAddress: request.ip || null,
-        userAgent: getUserAgent(request),
-        createdAt: new Date(currentTime),
-      });
+      try {
+        await deps.recordLoginFailedAttempt({
+          surface: "admin",
+          username: input.username?.trim() || null,
+          reason: input.reason,
+          ipAddress: request.ip || null,
+          userAgent: getUserAgent(request),
+          createdAt: new Date(currentTime),
+        });
+      } catch (error) {
+        request.log.warn(
+          {
+            err: error,
+            code: "ADMIN_LOGIN_FAILED_ATTEMPT_RECORD_FAILED",
+            surface: "admin",
+            reason: input.reason,
+          },
+          "No se pudo persistir intento fallido de login admin",
+        );
+      }
     };
 
-    if (failureEntry.count >= loginRateLimitMaxAttempts) {
+    if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
       const resetSeconds = Math.max(
         Math.ceil((failureEntry.resetAt - currentTime) / 1000),
         0,
@@ -696,35 +730,58 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       username?: string | null;
       reason: LoginFailedAttemptReason;
     }) => {
-      const updatedEntry = await incrementRateLimitEntry(
-        loginRateLimitStore,
-        rateLimitKey,
-        failureEntry,
-      );
+      if (canUseRateLimitStore) {
+        try {
+          const updatedEntry = await incrementRateLimitEntry(
+            loginRateLimitStore,
+            rateLimitKey,
+            failureEntry,
+            currentTime,
+          );
 
-      failureEntry.count = updatedEntry.count;
-      failureEntry.resetAt = updatedEntry.resetAt;
+          failureEntry.count = updatedEntry.count;
+          failureEntry.resetAt = updatedEntry.resetAt;
 
-      setLoginRateLimitHeaders(reply, {
-        max: loginRateLimitMaxAttempts,
-        windowMs: loginRateLimitWindowMs,
-        failedCount: failureEntry.count,
-        resetAt: failureEntry.resetAt,
-        now: currentTime,
-      });
+          setLoginRateLimitHeaders(reply, {
+            max: loginRateLimitMaxAttempts,
+            windowMs: loginRateLimitWindowMs,
+            failedCount: failureEntry.count,
+            resetAt: failureEntry.resetAt,
+            now: currentTime,
+          });
+        } catch (error) {
+          canUseRateLimitStore = false;
+          request.log.error(
+            {
+              err: error,
+              code: "ADMIN_LOGIN_RATE_LIMIT_INCREMENT_FAILED",
+              route: "/api/admin/auth/login",
+            },
+            "No se pudo actualizar el rate limit de login admin",
+          );
+        }
+      }
 
       await recordFailedLoginAttempt(input);
     };
 
     const markSuccess = async () => {
+      if (!canUseRateLimitStore) {
+        return;
+      }
+
       if (loginRateLimitStore.delete) {
         try {
           await loginRateLimitStore.delete(rateLimitKey);
         } catch (error) {
-          console.warn("[WARN] ADMIN_LOGIN_RATE_LIMIT_RESET_FAILED", {
-            code: "ADMIN_LOGIN_RATE_LIMIT_RESET_FAILED",
-            message: error instanceof Error ? error.message : "unknown error",
-          });
+          request.log.warn(
+            {
+              err: error,
+              code: "ADMIN_LOGIN_RATE_LIMIT_RESET_FAILED",
+              route: "/api/admin/auth/login",
+            },
+            "No se pudo limpiar el rate limit de login admin tras login exitoso",
+          );
         }
       }
 
