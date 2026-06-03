@@ -760,6 +760,53 @@ function assertRequestIdHeader(
 
   return requestId;
 }
+
+function parseJsonObject(response: { body: string }, label: string) {
+  const body = JSON.parse(response.body) as unknown;
+
+  assert.equal(
+    body !== null && typeof body === "object" && !Array.isArray(body),
+    true,
+    `${label} debe devolver JSON object`,
+  );
+
+  return body as Record<string, unknown>;
+}
+
+function assertBodyRequestIdMatchesHeader(
+  response: {
+    body: string;
+    headers: Record<string, string | string[] | number | undefined>;
+  },
+  label: string,
+) {
+  const requestId = assertRequestIdHeader(response, label);
+  const body = parseJsonObject(response, label);
+
+  assert.equal(
+    body.requestId,
+    requestId,
+    `${label} debe incluir requestId igual a X-Request-ID`,
+  );
+
+  return { body, requestId };
+}
+
+function assertBodyDoesNotIncludeRequestId(
+  response: { body: string },
+  label: string,
+) {
+  const body = parseJsonObject(response, label);
+
+  assert.equal(
+    "requestId" in body,
+    false,
+    `${label} no debe incluir requestId en body`,
+  );
+
+  return body;
+}
+
 function buildFastifyDispatchRouteStubs() {
   return {
     adminAuditRoutes: buildAdminAuditRouteStubs(),
@@ -866,16 +913,22 @@ test(
         url: "/api/admin/auth/logout",
       });
 
-      for (const response of [
+      for (const [index, response] of [
         blockedPostWithoutOrigin,
         blockedPatchWithoutOrigin,
         blockedDeleteWithoutOrigin,
         blockedPostWithBadOrigin,
-      ]) {
+      ].entries()) {
         assert.equal(response.statusCode, 403);
-        assert.deepEqual(JSON.parse(response.body), {
+        const { body, requestId } = assertBodyRequestIdMatchesHeader(
+          response,
+          `trustedOriginBlocked:${index}`,
+        );
+
+        assert.deepEqual(body, {
           success: false,
           error: "Origen no permitido",
+          requestId,
         });
       }
 
@@ -2309,10 +2362,13 @@ test(
       });
 
       assert.equal(notFoundResponse.statusCode, 404);
-      assert.deepEqual(JSON.parse(notFoundResponse.body), {
+      const { body: notFoundBody, requestId: notFoundRequestId } =
+        assertBodyRequestIdMatchesHeader(notFoundResponse, "apiNotFound");
+      assert.deepEqual(notFoundBody, {
         success: false,
         error: "Ruta no encontrada",
         path: "/api/no-existe",
+        requestId: notFoundRequestId,
       });
 
       const internalResponse = await app.inject({
@@ -2345,6 +2401,108 @@ test(
     }
   },
 );
+
+test(
+  "createFastifyApp incluye requestId en cuerpos JSON de errores API",
+  async () => {
+    const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
+      getNativeHealthCheckResponse: async () => ({
+        statusCode: 200,
+        payload: {
+          success: true,
+          status: "ok",
+        },
+      }),
+    });
+
+    try {
+      app.get("/api/__test/internal-error", async () => {
+        throw new Error("detalle interno sensible");
+      });
+
+      const genericError = await app.inject({
+        method: "GET",
+        url: "/api/__test/internal-error",
+      });
+
+      assert.equal(genericError.statusCode, 500);
+      const { body: genericBody, requestId: genericRequestId } =
+        assertBodyRequestIdMatchesHeader(genericError, "genericError");
+      assert.deepEqual(genericBody, {
+        success: false,
+        error: "Error interno del servidor",
+        path: "/api/__test/internal-error",
+        requestId: genericRequestId,
+      });
+      assert.doesNotMatch(genericError.body, /detalle interno sensible/);
+
+      const validIncomingRequestId = "client-req_123.abc:456";
+      const validIncomingError = await app.inject({
+        method: "GET",
+        url: "/api/__test/internal-error",
+        headers: {
+          "x-request-id": validIncomingRequestId,
+        },
+      });
+      const { body: validIncomingBody, requestId: validRequestId } =
+        assertBodyRequestIdMatchesHeader(
+          validIncomingError,
+          "validIncomingError",
+        );
+
+      assert.equal(validRequestId, validIncomingRequestId);
+      assert.equal(validIncomingBody.requestId, validIncomingRequestId);
+
+      const invalidIncomingRequestId = "client request id";
+      const invalidIncomingError = await app.inject({
+        method: "GET",
+        url: "/api/__test/internal-error",
+        headers: {
+          "x-request-id": invalidIncomingRequestId,
+        },
+      });
+      const { body: invalidIncomingBody, requestId: invalidRequestId } =
+        assertBodyRequestIdMatchesHeader(
+          invalidIncomingError,
+          "invalidIncomingError",
+        );
+
+      assert.notEqual(invalidRequestId, invalidIncomingRequestId);
+      assert.equal(invalidIncomingBody.requestId, invalidRequestId);
+
+      const publicApiNotFound = await app.inject({
+        method: "GET",
+        url: "/api/public/no-existe",
+      });
+
+      assert.equal(publicApiNotFound.statusCode, 404);
+      const { body: publicApiNotFoundBody, requestId: publicApiNotFoundId } =
+        assertBodyRequestIdMatchesHeader(
+          publicApiNotFound,
+          "publicApiNotFound",
+        );
+      assert.deepEqual(publicApiNotFoundBody, {
+        success: false,
+        error: "Ruta no encontrada",
+        path: "/api/public/no-existe",
+        requestId: publicApiNotFoundId,
+      });
+
+      const apiHealth = await app.inject({
+        method: "GET",
+        url: "/api/health",
+      });
+
+      assert.equal(apiHealth.statusCode, 200);
+      assertRequestIdHeader(apiHealth, "apiHealth");
+      assertBodyDoesNotIncludeRequestId(apiHealth, "apiHealth");
+    } finally {
+      await app.close();
+    }
+  },
+);
+
 test(
   "createFastifyApp mantiene search de profesionales pÃºblicos montado en el router nativo",
   async () => {

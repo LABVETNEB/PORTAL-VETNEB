@@ -146,6 +146,7 @@ import { applyApiSecurityHeaders } from "./lib/api-response-security.ts";
 import {
   applyApiRequestIdHeader,
   generateFastifyRequestId,
+  getSafeApiResponseRequestId,
 } from "./lib/api-request-id.ts";
 
 type HealthCheckResponse = {
@@ -211,6 +212,78 @@ function normalizeFastifyErrorStatus(status: number) {
     : 500;
 }
 
+function getHeaderValue(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    const stringValue = value.find((item) => typeof item === "string");
+
+    return stringValue ?? null;
+  }
+
+  return null;
+}
+
+function isJsonResponse(reply: FastifyReply) {
+  const contentType =
+    getHeaderValue(reply.getHeader("content-type")) ??
+    getHeaderValue(reply.raw.getHeader("content-type"));
+
+  return contentType?.toLowerCase().includes("application/json") ?? false;
+}
+
+function getPayloadText(payload: unknown): string | null {
+  if (typeof payload === "string") {
+    return payload;
+  }
+
+  if (Buffer.isBuffer(payload)) {
+    return payload.toString("utf8");
+  }
+
+  return null;
+}
+
+function addApiErrorRequestIdToJsonPayload(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  payload: unknown,
+) {
+  if (reply.statusCode < 400 || !isJsonResponse(reply)) {
+    return payload;
+  }
+
+  const requestId = getSafeApiResponseRequestId(request, reply);
+  const payloadText = getPayloadText(payload);
+
+  if (!requestId || !payloadText) {
+    return payload;
+  }
+
+  let body: unknown;
+
+  try {
+    body = JSON.parse(payloadText);
+  } catch {
+    return payload;
+  }
+
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    return payload;
+  }
+
+  return JSON.stringify({
+    ...body,
+    requestId,
+  });
+}
+
 export type CreateFastifyAppOptions = {
   getNativeHealthCheckResponse?: HealthCheckFactory;
   getServiceInfoPayload?: ServiceInfoFactory;
@@ -268,8 +341,10 @@ export async function createFastifyApp(
 
   app.addHook(
     "onSend",
-    async (request: FastifyRequest, reply: FastifyReply, _payload) => {
+    async (request: FastifyRequest, reply: FastifyReply, payload) => {
       applySensitiveApiNoStoreHeaders(request, reply);
+
+      return addApiErrorRequestIdToJsonPayload(request, reply, payload);
     },
   );
 

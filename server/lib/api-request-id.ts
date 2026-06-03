@@ -47,6 +47,23 @@ function setReplyHeaderIfUnset(
   }
 }
 
+function setReplyHeader(reply: FastifyReply, name: string, value: string) {
+  reply.header(name, value);
+  reply.raw.setHeader(name, value);
+}
+
+function getSafeReplyRequestId(reply: FastifyReply): string | null {
+  const fastifyHeader = reply.getHeader(API_REQUEST_ID_HEADER_NAME);
+
+  if (isSafeRequestId(fastifyHeader)) {
+    return fastifyHeader;
+  }
+
+  const rawHeader = reply.raw.getHeader(API_REQUEST_ID_HEADER_NAME);
+
+  return isSafeRequestId(rawHeader) ? rawHeader : null;
+}
+
 export function applyApiRequestIdHeader(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -60,4 +77,28 @@ export function applyApiRequestIdHeader(
     : generateSafeRequestId();
 
   setReplyHeaderIfUnset(reply, API_REQUEST_ID_HEADER_NAME, requestId);
+}
+
+export function getSafeApiResponseRequestId(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): string | null {
+  if (!shouldApplyApiSecurityHeaders(request.url ?? "")) {
+    return null;
+  }
+
+  const replyRequestId = getSafeReplyRequestId(reply);
+
+  if (replyRequestId) {
+    setReplyHeader(reply, API_REQUEST_ID_HEADER_NAME, replyRequestId);
+    return replyRequestId;
+  }
+
+  const requestId = isSafeRequestId(request.id)
+    ? request.id
+    : generateSafeRequestId();
+
+  setReplyHeader(reply, API_REQUEST_ID_HEADER_NAME, requestId);
+
+  return requestId;
 }
