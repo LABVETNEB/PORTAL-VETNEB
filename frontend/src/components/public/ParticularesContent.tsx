@@ -397,7 +397,7 @@ export function ParticularesContent() {
                   Verificando sesión...
                 </div>
               ) : session ? (
-                <div className="space-y-5">
+                <div className="space-y-5" data-particular-mobile-flat-stack="true">
                   <div
                     className="rounded-lg border border-vetneb-line bg-card p-3 sm:hidden"
                     data-particular-mobile-safe-summary="true"
@@ -542,9 +542,64 @@ export function ParticularesContent() {
                     </dl>
                   </div>
 
+                  {/* Mobile flat tracking — sin clinical-muted-band ni capas compuestas */}
+                  <div
+                    data-particular-mobile-flat-card="tracking"
+                    className="rounded-lg border border-vetneb-line bg-card p-4 sm:hidden"
+                  >
+                    <h3 className="font-semibold text-vetneb-navy">
+                      Seguimiento del estudio
+                    </h3>
+                    {trackingCase ? (
+                      <div className="mt-2 space-y-2">
+                        <p className="text-sm text-vetneb-ink">
+                          Estado del estudio:{" "}
+                          <span className="font-semibold">
+                            {getTrackingStageLabel(trackingCase.currentStage)}
+                          </span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Actualizado: {formatDate(trackingCase.updatedAt)}
+                        </p>
+                        {trackingCase.specialStainRequired ? (
+                          <div className="space-y-3">
+                            <div className="clinical-alert-warning p-3 text-sm">
+                              Alerta: Solicitud de tinción especial.
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <PublicExternalControl
+                                href={SPECIAL_STAIN_WHATSAPP_HREF}
+                                target="_blank"
+                                className="inline-flex items-center justify-center gap-2 rounded-md border border-vetneb-line/90 bg-card px-4 py-2 text-sm font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised"
+                                aria-label="Consultar por WhatsApp sobre tinción especial"
+                              >
+                                <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                Consultar por WhatsApp
+                              </PublicExternalControl>
+                              <PublicExternalControl
+                                href={SPECIAL_STAIN_EMAIL_HREF}
+                                target="_self"
+                                className="inline-flex items-center justify-center gap-2 rounded-md border border-vetneb-line/90 bg-card px-4 py-2 text-sm font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised"
+                                aria-label="Enviar email a VETNEB sobre tinción especial"
+                              >
+                                <Mail className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                Enviar email
+                              </PublicExternalControl>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        No hay seguimiento operativo vinculado para esta sesión.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Desktop tracking — oculto en mobile, visible desde sm */}
                   <div
                     id="particular-study-tracking"
-                    className="clinical-muted-band rounded-lg p-4 shadow-sm"
+                    className="hidden rounded-lg p-4 shadow-sm clinical-muted-band sm:block"
                   >
                     <h3 className="font-semibold text-vetneb-navy">
                       Seguimiento del estudio
@@ -596,49 +651,100 @@ export function ParticularesContent() {
                   </div>
 
                   {session.report ? (
-                    <div
-                      id="particular-report"
-                      className="clinical-muted-band rounded-lg p-4 shadow-sm"
-                    >
-                      <div className="flex items-start gap-3">
-                        <VisualIcon
-                          icon={FileText}
-                          tone="blue"
-                          className="h-10 w-10 shrink-0 rounded-xl"
-                        />
-                        <div>
-                          <h3 className="font-semibold text-vetneb-navy">
-                            Informe vinculado
-                          </h3>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {session.report.studyType ?? "Estudio"} ·{" "}
-                            {session.report.fileName ?? "Archivo disponible"}
-                          </p>
+                    <>
+                      {/* Mobile flat report — sin VisualIcon ni clinical-muted-band */}
+                      <div
+                        data-particular-mobile-flat-card="report"
+                        className="rounded-lg border border-vetneb-line bg-card p-4 sm:hidden"
+                      >
+                        <div className="flex items-start gap-3">
+                          <FileText
+                            className="mt-0.5 h-5 w-5 shrink-0 text-vetneb-navy"
+                            aria-hidden="true"
+                            strokeWidth={1.8}
+                          />
+                          <div>
+                            <h3 className="font-semibold text-vetneb-navy">
+                              Informe vinculado
+                            </h3>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {session.report.studyType ?? "Estudio"} ·{" "}
+                              {session.report.fileName ?? "Archivo disponible"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div
+                          data-particular-mobile-flat-actions="true"
+                          className="mt-4 flex flex-col gap-3"
+                        >
+                          <Button
+                            type="button"
+                            onClick={() => openReport("preview")}
+                            disabled={isOpeningReport}
+                            className="public-cta-primary"
+                          >
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                            Ver informe
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => openReport("download")}
+                            disabled={isOpeningReport}
+                            className="public-cta-outline"
+                          >
+                            <Download className="h-4 w-4" aria-hidden="true" />
+                            Descargar
+                          </Button>
                         </div>
                       </div>
 
-                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                        <Button
-                          type="button"
-                          onClick={() => openReport("preview")}
-                          disabled={isOpeningReport}
-                          className="public-cta-primary"
-                        >
-                          <Eye className="h-4 w-4" aria-hidden="true" />
-                          Ver informe
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => openReport("download")}
-                          disabled={isOpeningReport}
-                          className="public-cta-outline"
-                        >
-                          <Download className="h-4 w-4" aria-hidden="true" />
-                          Descargar
-                        </Button>
+                      {/* Desktop report — oculto en mobile, visible desde sm */}
+                      <div
+                        id="particular-report"
+                        className="hidden rounded-lg p-4 shadow-sm clinical-muted-band sm:block"
+                      >
+                        <div className="flex items-start gap-3">
+                          <VisualIcon
+                            icon={FileText}
+                            tone="blue"
+                            className="h-10 w-10 shrink-0 rounded-xl"
+                          />
+                          <div>
+                            <h3 className="font-semibold text-vetneb-navy">
+                              Informe vinculado
+                            </h3>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {session.report.studyType ?? "Estudio"} ·{" "}
+                              {session.report.fileName ?? "Archivo disponible"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                          <Button
+                            type="button"
+                            onClick={() => openReport("preview")}
+                            disabled={isOpeningReport}
+                            className="public-cta-primary"
+                          >
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                            Ver informe
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => openReport("download")}
+                            disabled={isOpeningReport}
+                            className="public-cta-outline"
+                          >
+                            <Download className="h-4 w-4" aria-hidden="true" />
+                            Descargar
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                    </>
                   ) : (
                     <div className="clinical-alert-warning p-4">
                       {trackingCase
