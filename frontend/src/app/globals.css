@@ -605,28 +605,89 @@
       position: relative;
       z-index: 1;
       isolation: isolate;
+      contain: layout;
       overflow: visible !important;
+      border-color: hsl(var(--vetneb-line) / 0.9) !important;
+      background: hsl(var(--card)) !important;
+      background-image: none !important;
+      box-shadow: 0 1px 2px rgba(15, 45, 62, 0.06) !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      filter: none !important;
       transform: none !important;
       will-change: auto !important;
       backface-visibility: visible;
-      background: hsl(var(--card)) !important;
-      box-shadow: 0 10px 28px rgba(15, 45, 62, 0.08) !important;
+      -webkit-backface-visibility: visible;
+      perspective: none;
+      mix-blend-mode: normal;
+      text-shadow: none;
     }
 
+    [data-particular-session-panel="true"] > *,
+    [data-particular-session-panel="true"] .clinical-muted-band,
     [data-particular-session-panel="true"] .render-gpu-soft,
+    [data-particular-session-panel="true"] .surface-soft,
+    [data-particular-session-panel="true"] .particular-notifications-bell-layer,
+    [data-particular-session-panel="true"] .particular-notifications-bell-placeholder,
     [data-particular-session-panel="true"] [data-particular-session-summary="true"],
     [data-particular-session-panel="true"] [data-particular-session-field="true"] {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      filter: none !important;
       transform: none !important;
       will-change: auto !important;
       backface-visibility: visible;
+      -webkit-backface-visibility: visible;
+      perspective: none;
+      mix-blend-mode: normal;
+      text-shadow: none;
+    }
+
+    [data-particular-session-panel="true"] .clinical-muted-band {
+      position: relative;
+      z-index: 1;
+      border-color: hsl(var(--vetneb-line) / 0.88);
+      background: hsl(var(--card)) !important;
+      background-image: none !important;
+      box-shadow: 0 1px 2px rgba(15, 45, 62, 0.055) !important;
+    }
+
+    [data-particular-session-panel="true"] .render-gpu-soft {
+      border-color: hsl(var(--vetneb-line) / 0.88);
+      background: hsl(var(--vetneb-surface-raised)) !important;
+      background-image: none !important;
+      box-shadow: none !important;
+    }
+
+    [data-particular-session-panel="true"] .particular-notifications-bell-layer {
+      position: relative;
+      z-index: 2;
+      isolation: isolate;
+      overflow: visible;
+    }
+
+    [data-particular-session-panel="true"] .particular-notifications-bell-layer > div {
+      position: relative;
+      z-index: 1;
+      overflow: visible;
+    }
+
+    [data-particular-session-panel="true"] .particular-notifications-bell-layer > div > button,
+    [data-particular-session-panel="true"] .particular-notifications-bell-placeholder {
+      background: hsl(var(--card)) !important;
+      background-image: none !important;
+      box-shadow: 0 1px 2px rgba(15, 45, 62, 0.05) !important;
     }
 
     [data-particular-session-summary="true"] {
       position: relative;
       z-index: 1;
-      overflow: visible;
+      isolation: isolate;
+      contain: layout paint;
+      overflow: hidden;
       border-color: hsl(var(--vetneb-line) / 0.84);
       background: hsl(var(--card)) !important;
+      background-image: none !important;
       box-shadow: 0 1px 2px rgba(15, 45, 62, 0.06) !important;
     }
 
@@ -640,11 +701,18 @@
       position: relative;
       z-index: 1;
       min-width: 0;
-      overflow: visible;
+      contain: layout paint;
+      overflow: hidden;
       isolation: isolate;
       border-color: hsl(var(--vetneb-line) / 0.88);
       background: hsl(var(--vetneb-surface-raised)) !important;
+      background-image: none !important;
       box-shadow: 0 1px 2px rgba(15, 45, 62, 0.055) !important;
+    }
+
+    [data-particular-session-field="true"] > * {
+      position: relative;
+      z-index: 1;
     }
   }
   /* particular-session-mobile-render-fix:end */

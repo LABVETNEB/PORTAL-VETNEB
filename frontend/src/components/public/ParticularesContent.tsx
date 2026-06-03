@@ -55,7 +55,7 @@ const ParticularNotificationsBell = dynamic(
   {
     loading: () => (
       <span
-        className="inline-flex h-9 w-9 rounded-md border border-input bg-card/95 shadow-[0_1px_2px_rgba(15,45,62,0.05)]"
+        className="particular-notifications-bell-placeholder inline-flex h-9 w-9 rounded-md border border-input bg-card shadow-[0_1px_2px_rgba(15,45,62,0.05)]"
         aria-hidden="true"
       />
     ),
@@ -383,7 +383,11 @@ export function ParticularesContent() {
                     </CardDescription>
                   </div>
                 </div>
-                {session ? <ParticularNotificationsBell surface="particular" /> : null}
+                {session ? (
+                  <div className="particular-notifications-bell-layer shrink-0">
+                    <ParticularNotificationsBell surface="particular" />
+                  </div>
+                ) : null}
               </div>
             </CardHeader>
 
