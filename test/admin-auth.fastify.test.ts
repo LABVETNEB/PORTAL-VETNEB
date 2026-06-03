@@ -350,8 +350,18 @@ test(
       assert.equal(first.statusCode, 401);
       assert.equal(second.statusCode, 401);
       assert.equal(third.statusCode, 429);
+      assert.equal(third.headers["retry-after"], "60");
+      assert.equal(third.headers["ratelimit-policy"], "2;w=60");
       assert.equal(third.headers["ratelimit-limit"], "2");
       assert.equal(third.headers["ratelimit-remaining"], "0");
+      assert.equal(third.headers["ratelimit-reset"], "60");
+      assert.equal(
+        third.headers["access-control-expose-headers"],
+        "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After",
+      );
+      const retryAfter = Number(third.headers["retry-after"]);
+      assert.ok(Number.isInteger(retryAfter));
+      assert.ok(retryAfter >= 0);
       assert.deepEqual(JSON.parse(third.body), {
         success: false,
         error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
@@ -441,8 +451,10 @@ test(
 
       assert.equal(response.statusCode, 429);
       assert.equal(response.headers["retry-after"], "60");
+      assert.equal(response.headers["ratelimit-policy"], "1;w=60");
       assert.equal(response.headers["ratelimit-limit"], "1");
       assert.equal(response.headers["ratelimit-remaining"], "0");
+      assert.equal(response.headers["ratelimit-reset"], "60");
       assert.deepEqual(JSON.parse(response.body), {
         success: false,
         error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,

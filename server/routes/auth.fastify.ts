@@ -11,7 +11,6 @@ import {
   buildLoginRateLimitKey,
   buildMissingCredentialsLoginRateLimitKey,
   getLoginRateLimitKeyMetadata,
-  getLoginRateLimitResetSeconds,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
@@ -570,6 +569,7 @@ function setLoginRateLimitHeaders(
     failedCount: number;
     resetAt: number;
     now: number;
+    includeRetryAfter?: boolean;
   },
 ) {
   for (const [headerName, headerValue] of Object.entries(
@@ -1166,16 +1166,8 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         failedCount: failureEntry.count,
         resetAt: failureEntry.resetAt,
         now: currentTime,
+        includeRetryAfter: true,
       });
-      reply.header(
-        "Retry-After",
-        String(
-          getLoginRateLimitResetSeconds({
-            resetAt: failureEntry.resetAt,
-            now: currentTime,
-          }),
-        ),
-      );
 
       await recordFailedLoginAttempt({
         username: loginIdentifier,

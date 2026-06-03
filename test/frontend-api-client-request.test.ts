@@ -97,10 +97,19 @@ test("frontend API client formats 429 login rate-limit guidance from headers", (
     assert.ok(source.includes(`"${headerName}"`), `missing ${headerName}`);
   }
   assert.ok(source.includes('headers.get("Retry-After") ?? headers.get("RateLimit-Reset")'));
+  assert.ok(source.includes("retryAfterSeconds < 0"));
+  assert.equal(source.includes("retryAfterSeconds <= 0"), false);
   assert.ok(source.includes("function isLoginRateLimitPath("));
   assert.ok(source.includes("function hasRequiredLoginRateLimitHeaders("));
   assert.ok(source.includes("LOGIN_RATE_LIMIT_HEADERS_MISSING_MESSAGE"));
+  assert.ok(source.includes("retryAfterSeconds === null ||"));
+  assert.ok(source.includes("!hasRequiredLoginRateLimitHeaders(res.headers)"));
+  assert.equal(
+    source.includes("!retryAfterSeconds || !hasRequiredLoginRateLimitHeaders"),
+    false,
+  );
   assert.ok(source.includes("function buildRateLimitErrorMessage("));
+  assert.ok(source.includes("retryAfterSeconds === null || retryAfterSeconds === 0"));
   assert.ok(source.includes("Reintente en"));
 });
 

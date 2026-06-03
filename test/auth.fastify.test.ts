@@ -1481,9 +1481,18 @@ test("clinicAuthNativeRoutes bloquea login al superar límite persistente", asyn
       success: false,
       error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
     });
+    assert.equal(third.headers["retry-after"], "60");
+    assert.equal(third.headers["ratelimit-policy"], "2;w=60");
     assert.equal(third.headers["ratelimit-limit"], "2");
     assert.equal(third.headers["ratelimit-remaining"], "0");
-    assert.equal(third.headers["retry-after"], "60");
+    assert.equal(third.headers["ratelimit-reset"], "60");
+    assert.equal(
+      third.headers["access-control-expose-headers"],
+      "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After",
+    );
+    const retryAfter = Number(third.headers["retry-after"]);
+    assert.ok(Number.isInteger(retryAfter));
+    assert.ok(retryAfter >= 0);
   } finally {
     await app.close();
   }
