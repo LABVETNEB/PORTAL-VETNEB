@@ -140,10 +140,12 @@ test("particular surfaces keep unauthenticated inactive missing and unlinked sta
 
 test("audit export surfaces force auth scope rather than leaking cross-scope filters", () => {
   const adminAudit = readSource("server/routes/admin-audit.fastify.ts");
+  const adminFastifyAuth = readSource("server/lib/fastify-admin-auth.ts");
   const clinicAudit = readSource("server/routes/clinic-audit.fastify.ts");
   const particularAudit = readSource("server/routes/particular-audit.fastify.ts");
 
-  assertContains(adminAudit, "reply.code(401).send", "admin audit unauthenticated response");
+  assertContains(adminAudit, "authenticateAdminUser", "admin audit auth gate");
+  assertContains(adminFastifyAuth, "reply.code(401).send", "admin shared unauthenticated response");
   assertContains(adminAudit, "ADMIN_AUDIT_CSV_EXPORT_MAX_ROWS", "admin audit export bounded response");
 
   assertContains(clinicAudit, "reply.code(401).send", "clinic audit unauthenticated response");

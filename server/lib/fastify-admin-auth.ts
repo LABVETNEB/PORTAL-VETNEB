@@ -1,29 +1,89 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 
-import { createRequireAdminAuth } from "../middlewares/admin-auth.ts";
-import type { Request, Response } from "./http-types.ts";
 import { ENV } from "./env.ts";
+import { shouldRefreshSessionLastAccess } from "./session-last-access.ts";
+
+type FastifyAdminSessionRecord = {
+  id?: number;
+  adminUserId: number;
+  expiresAt: Date | null;
+  lastAccess?: Date | null;
+};
+
+type FastifyAdminUserRecord = {
+  id: number;
+  username: string;
+};
+
+type FastifyAdminSessionWithUserRecord = {
+  session: FastifyAdminSessionRecord;
+  adminUser: FastifyAdminUserRecord | null;
+};
+
+export type FastifyAdminAuthFailureReason =
+  | "missing_token"
+  | "invalid_session"
+  | "expired_session"
+  | "missing_user";
 
 export type FastifyAdminAuthDeps = {
   deleteAdminSession: (tokenHash: string) => Promise<void>;
-  getAdminSessionWithUser: (
+  getAdminSessionWithUser?: (
     tokenHash: string,
-  ) => Promise<{
-    session: {
-      adminUserId: number;
-      expiresAt: Date | null;
-      lastAccess?: Date | null;
-    };
-    adminUser: { id: number; username: string } | null;
-  } | null>;
+  ) => Promise<FastifyAdminSessionWithUserRecord | null>;
+  getAdminSessionByToken?: (
+    tokenHash: string,
+  ) => Promise<FastifyAdminSessionRecord | null>;
+  getAdminUserById?: (
+    adminUserId: number,
+  ) => Promise<FastifyAdminUserRecord | null>;
   updateAdminSessionLastAccess: (tokenHash: string) => Promise<void>;
   hashSessionToken: (token: string) => string;
   now: () => number;
+  messages?: Partial<Record<FastifyAdminAuthFailureReason, string>>;
 };
 
 export type FastifyAuthenticatedAdmin = {
   id: number;
   username: string;
+  sessionId?: number;
+  sessionToken: string;
+};
+
+export type RequestAdminAuthContext =
+  | {
+      ok: true;
+      admin: FastifyAuthenticatedAdmin;
+      tokenHash: string;
+      session: FastifyAdminSessionRecord;
+      adminUser: FastifyAdminUserRecord;
+    }
+  | {
+      ok: false;
+      reason: FastifyAdminAuthFailureReason;
+      tokenHash?: string;
+      shouldClearSessionCookie?: boolean;
+    };
+
+const DEFAULT_AUTH_MESSAGES: Record<FastifyAdminAuthFailureReason, string> = {
+  missing_token: "Admin no autenticado",
+  invalid_session: "Sesión admin inválida",
+  expired_session: "Sesión admin expirada",
+  missing_user: "Usuario admin de sesión no encontrado",
+};
+
+const REQUEST_ADMIN_AUTH_CONTEXT_KEY: unique symbol = Symbol(
+  "requestAdminAuthContext",
+);
+
+type RequestAdminAuthContextCache = {
+  sessionToken: string | undefined;
+  promise: Promise<RequestAdminAuthContext>;
+};
+
+type RequestWithAdminAuthContext = FastifyRequest & {
+  [REQUEST_ADMIN_AUTH_CONTEXT_KEY]?: RequestAdminAuthContextCache;
+  adminAuth?: FastifyAuthenticatedAdmin;
 };
 
 function parseCookies(cookieHeader: string | undefined) {
@@ -95,55 +155,180 @@ function buildClearAdminSessionCookie() {
   });
 }
 
-function createFastifyResponseAdapter(reply: FastifyReply) {
-  let sent = false;
-  let statusCode = 200;
+function getAdminSessionToken(request: FastifyRequest) {
+  const cookieHeader =
+    typeof request.headers.cookie === "string"
+      ? request.headers.cookie
+      : undefined;
+  const cookies = parseCookies(cookieHeader);
+  const raw = cookies[ENV.adminCookieName];
 
-  const response = {
-    statusCode,
-    status(code: number) {
-      statusCode = code;
-      this.statusCode = code;
-      reply.code(code);
-      return this;
-    },
-    json(body: unknown) {
-      sent = true;
-      reply.code(statusCode).send(body);
-      return this;
-    },
-    cookie(name: string, value: string) {
-      reply.header(
-        "set-cookie",
-        serializeCookie({
-          name,
-          value,
-        }),
-      );
-      return this;
-    },
-    clearCookie() {
-      reply.header("set-cookie", buildClearAdminSessionCookie());
-      return this;
-    },
-    setHeader(name: string, value: string | number | readonly string[]) {
-      reply.header(name, value);
-      return this;
-    },
-    on() {
-      return this;
-    },
-    end() {
-      sent = true;
-      reply.raw.end();
-      return this;
-    },
-  } satisfies Response;
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+
+  const trimmed = raw.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+async function getSessionWithUser(
+  deps: FastifyAdminAuthDeps,
+  tokenHash: string,
+) {
+  if (deps.getAdminSessionWithUser) {
+    const sessionWithUser = await deps.getAdminSessionWithUser(tokenHash);
+
+    return sessionWithUser
+      ? {
+          ...sessionWithUser,
+          adminUserLoaded: true,
+        }
+      : null;
+  }
+
+  if (!deps.getAdminSessionByToken || !deps.getAdminUserById) {
+    throw new Error(
+      "Fastify admin auth requires getAdminSessionWithUser or session+user deps",
+    );
+  }
+
+  const session = await deps.getAdminSessionByToken(tokenHash);
+
+  return session
+    ? {
+        session,
+        adminUser: null,
+        adminUserLoaded: false,
+      }
+    : null;
+}
+
+async function resolveAdminUser(
+  deps: FastifyAdminAuthDeps,
+  sessionWithUser: {
+    session: FastifyAdminSessionRecord;
+    adminUser: FastifyAdminUserRecord | null;
+    adminUserLoaded: boolean;
+  },
+) {
+  if (sessionWithUser.adminUserLoaded) {
+    return sessionWithUser.adminUser;
+  }
+
+  if (!deps.getAdminUserById) {
+    throw new Error(
+      "Fastify admin auth requires getAdminUserById when using split session deps",
+    );
+  }
+
+  return deps.getAdminUserById(sessionWithUser.session.adminUserId);
+}
+
+async function loadRequestAdminAuthContext(
+  request: FastifyRequest,
+  deps: FastifyAdminAuthDeps,
+): Promise<RequestAdminAuthContext> {
+  const token = getAdminSessionToken(request);
+
+  if (!token) {
+    return {
+      ok: false,
+      reason: "missing_token",
+    };
+  }
+
+  const tokenHash = deps.hashSessionToken(token);
+  const sessionWithUser = await getSessionWithUser(deps, tokenHash);
+
+  if (!sessionWithUser) {
+    return {
+      ok: false,
+      reason: "invalid_session",
+      tokenHash,
+    };
+  }
+
+  const { session } = sessionWithUser;
+
+  if (session.expiresAt && session.expiresAt.getTime() <= deps.now()) {
+    await deps.deleteAdminSession(tokenHash);
+
+    return {
+      ok: false,
+      reason: "expired_session",
+      tokenHash,
+      shouldClearSessionCookie: true,
+    };
+  }
+
+  const adminUser = await resolveAdminUser(deps, sessionWithUser);
+
+  if (!adminUser) {
+    await deps.deleteAdminSession(tokenHash);
+
+    return {
+      ok: false,
+      reason: "missing_user",
+      tokenHash,
+      shouldClearSessionCookie: true,
+    };
+  }
+
+  if (shouldRefreshSessionLastAccess(session.lastAccess ?? null, deps.now())) {
+    await deps.updateAdminSessionLastAccess(tokenHash);
+  }
+
+  const admin = {
+    id: adminUser.id,
+    username: adminUser.username,
+    sessionId: session.id,
+    sessionToken: token,
+  };
+
+  (request as RequestWithAdminAuthContext).adminAuth = admin;
 
   return {
-    response,
-    wasSent: () => sent,
+    ok: true,
+    tokenHash,
+    session,
+    adminUser,
+    admin,
   };
+}
+
+export function clearRequestAdminAuthContext(request: FastifyRequest) {
+  const requestWithContext = request as RequestWithAdminAuthContext;
+
+  delete requestWithContext[REQUEST_ADMIN_AUTH_CONTEXT_KEY];
+  delete requestWithContext.adminAuth;
+}
+
+export function getRequestAdminAuthContext(
+  request: FastifyRequest,
+  deps: FastifyAdminAuthDeps,
+): Promise<RequestAdminAuthContext> {
+  const token = getAdminSessionToken(request);
+  const requestWithCache = request as RequestWithAdminAuthContext;
+  const cached = requestWithCache[REQUEST_ADMIN_AUTH_CONTEXT_KEY];
+
+  if (cached && cached.sessionToken === token) {
+    return cached.promise;
+  }
+
+  const promise = loadRequestAdminAuthContext(request, deps);
+  requestWithCache[REQUEST_ADMIN_AUTH_CONTEXT_KEY] = {
+    sessionToken: token,
+    promise,
+  };
+
+  return promise;
+}
+
+function getAuthErrorMessage(
+  deps: FastifyAdminAuthDeps,
+  reason: FastifyAdminAuthFailureReason,
+) {
+  return deps.messages?.[reason] ?? DEFAULT_AUTH_MESSAGES[reason];
 }
 
 export async function authenticateFastifyAdmin(
@@ -151,51 +336,19 @@ export async function authenticateFastifyAdmin(
   reply: FastifyReply,
   deps: FastifyAdminAuthDeps,
 ): Promise<FastifyAuthenticatedAdmin | null> {
-  const cookieHeader =
-    typeof request.headers.cookie === "string"
-      ? request.headers.cookie
-      : undefined;
-  const reqLike: Request = {
-    method: request.method,
-    originalUrl: request.url,
-    url: request.url,
-    ip: request.ip,
-    headers: request.headers,
-    cookies: parseCookies(cookieHeader),
-    requestId: request.id,
-  };
-  const { response, wasSent } = createFastifyResponseAdapter(reply);
-  let nextError: unknown;
+  const context = await getRequestAdminAuthContext(request, deps);
 
-  await createRequireAdminAuth({
-    ...deps,
-    cookieName: ENV.adminCookieName,
-    cookieSameSite: ENV.cookieSameSite,
-    cookieSecure: ENV.cookieSecure,
-  })(reqLike, response, (error?: unknown) => {
-    nextError = error;
-  });
+  if (!context.ok) {
+    if (context.shouldClearSessionCookie) {
+      reply.header("set-cookie", buildClearAdminSessionCookie());
+    }
 
-  if (nextError) {
-    throw nextError;
-  }
-
-  if (wasSent()) {
+    reply.code(401).send({
+      success: false,
+      error: getAuthErrorMessage(deps, context.reason),
+    });
     return null;
   }
 
-  const adminAuth = reqLike.adminAuth;
-
-  if (
-    !adminAuth ||
-    typeof adminAuth.id !== "number" ||
-    typeof adminAuth.username !== "string"
-  ) {
-    return null;
-  }
-
-  return {
-    id: adminAuth.id,
-    username: adminAuth.username,
-  };
+  return context.admin;
 }

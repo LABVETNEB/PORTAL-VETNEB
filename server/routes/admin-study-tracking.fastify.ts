@@ -12,6 +12,7 @@ import type {
 } from "../../drizzle/schema.ts";
 import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
+import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
 import {
   adminCreateStudyTrackingSchema,
   applyEstimatedDeliveryRules,
@@ -34,7 +35,6 @@ import {
   createRuntimeTimer,
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
-import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 
 type AdminUserRecord = {
   id: number;
@@ -387,92 +387,6 @@ function enforceTrustedOrigin(
   return false;
 }
 
-function parseCookies(cookieHeader: string | undefined) {
-  const result: Record<string, string> = {};
-
-  if (!cookieHeader) {
-    return result;
-  }
-
-  for (const part of cookieHeader.split(";")) {
-    const [rawName, ...rawValueParts] = part.split("=");
-
-    if (!rawName) {
-      continue;
-    }
-
-    const name = rawName.trim();
-
-    if (!name) {
-      continue;
-    }
-
-    const rawValue = rawValueParts.join("=").trim();
-
-    try {
-      result[name] = decodeURIComponent(rawValue);
-    } catch {
-      result[name] = rawValue;
-    }
-  }
-
-  return result;
-}
-
-function getAdminSessionToken(request: FastifyRequest) {
-  const cookieHeader =
-    typeof request.headers.cookie === "string"
-      ? request.headers.cookie
-      : undefined;
-
-  const cookies = parseCookies(cookieHeader);
-  const raw = cookies[ENV.adminCookieName];
-
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-
-  const trimmed = raw.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function serializeCookie(input: {
-  name: string;
-  value: string;
-  maxAgeSeconds?: number;
-  expires?: string;
-}) {
-  const parts = [
-    `${input.name}=${encodeURIComponent(input.value)}`,
-    "Path=/",
-    "HttpOnly",
-    `SameSite=${ENV.cookieSameSite}`,
-  ];
-
-  if (ENV.cookieSecure) {
-    parts.push("Secure");
-  }
-
-  if (typeof input.maxAgeSeconds === "number") {
-    parts.push(`Max-Age=${input.maxAgeSeconds}`);
-  }
-
-  if (input.expires) {
-    parts.push(`Expires=${input.expires}`);
-  }
-
-  return parts.join("; ");
-}
-
-function buildClearAdminSessionCookie() {
-  return serializeCookie({
-    name: ENV.adminCookieName,
-    value: "",
-    maxAgeSeconds: 0,
-    expires: "Thu, 01 Jan 1970 00:00:00 GMT",
-  });
-}
-
 
 async function authenticateAdminUser(
   request: FastifyRequest,
@@ -480,60 +394,14 @@ async function authenticateAdminUser(
   deps: NativeAdminStudyTrackingDeps,
   now: () => number,
 ): Promise<AuthenticatedAdminUser | null> {
-  const token = getAdminSessionToken(request);
-
-  if (!token) {
-    reply.code(401).send({
-      success: false,
-      error: "Admin no autenticado",
-    });
-    return null;
-  }
-
-  const tokenHash = deps.hashSessionToken(token);
-  const session = await deps.getAdminSessionByToken(tokenHash);
-
-  if (!session) {
-    reply.code(401).send({
-      success: false,
-      error: "Sesión admin inválida",
-    });
-    return null;
-  }
-
-  if (session.expiresAt && session.expiresAt.getTime() <= now()) {
-    await deps.deleteAdminSession(tokenHash);
-
-    reply.header("set-cookie", buildClearAdminSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Sesión admin expirada",
-    });
-    return null;
-  }
-
-  const adminUser = await deps.getAdminUserById(session.adminUserId);
-
-  if (!adminUser) {
-    await deps.deleteAdminSession(tokenHash);
-
-    reply.header("set-cookie", buildClearAdminSessionCookie());
-    reply.code(401).send({
-      success: false,
-      error: "Usuario admin de sesión no encontrado",
-    });
-    return null;
-  }
-
-  if (shouldRefreshSessionLastAccess(session.lastAccess ?? null, now())) {
-    await deps.updateAdminSessionLastAccess(tokenHash);
-  }
-
-  return {
-    id: adminUser.id,
-    username: adminUser.username,
-    sessionToken: token,
-  };
+  return authenticateFastifyAdmin(request, reply, {
+    deleteAdminSession: deps.deleteAdminSession,
+    getAdminSessionByToken: deps.getAdminSessionByToken,
+    getAdminUserById: deps.getAdminUserById,
+    updateAdminSessionLastAccess: deps.updateAdminSessionLastAccess,
+    hashSessionToken: deps.hashSessionToken,
+    now,
+  });
 }
 
 function createAuditRequestLike(

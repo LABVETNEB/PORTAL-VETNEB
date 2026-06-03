@@ -136,7 +136,8 @@ test("env keeps session cookie names separated and production policy secure", ()
 test("session cookie serializers keep security attributes stable", () => {
   assertCookieSerializationContract([
     ...CLINIC_SESSION_FILES,
-    ...ADMIN_SESSION_FILES,
+    ADMIN_FASTIFY_AUTH_ADAPTER_FILE,
+    "server/routes/admin-auth.fastify.ts",
     ...PARTICULAR_SESSION_FILES,
   ]);
 });
@@ -172,12 +173,48 @@ test("clinic admin and particular route surfaces read only their own cookie", ()
     }
   }
 
-  assertCookieBoundary(
-    ADMIN_SESSION_FILES,
+  const adminAdapterSource = readSource(ADMIN_FASTIFY_AUTH_ADAPTER_FILE);
+
+  assertContains(
+    adminAdapterSource,
     "cookies[ENV.adminCookieName]",
-    "name: ENV.adminCookieName",
-    ["cookies[ENV.cookieName]", "cookies[ENV.particularCookieName]", "name: ENV.cookieName", "name: ENV.particularCookieName"],
+    `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} admin cookie read`,
   );
+  assertContains(
+    adminAdapterSource,
+    "name: ENV.adminCookieName",
+    `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} admin cookie write or clear`,
+  );
+  assertNotContains(
+    adminAdapterSource,
+    "cookies[ENV.cookieName]",
+    `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} cross-cookie boundary`,
+  );
+  assertNotContains(
+    adminAdapterSource,
+    "cookies[ENV.particularCookieName]",
+    `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} cross-cookie boundary`,
+  );
+  assertNotContains(
+    adminAdapterSource,
+    "name: ENV.cookieName",
+    `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} cross-cookie boundary`,
+  );
+  assertNotContains(
+    adminAdapterSource,
+    "name: ENV.particularCookieName",
+    `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} cross-cookie boundary`,
+  );
+
+  for (const file of ADMIN_SESSION_FILES) {
+    const source = readSource(file);
+
+    assertContains(source, "authenticateFastifyAdmin", `${file} shared admin auth helper`);
+    assertNotContains(source, "cookies[ENV.cookieName]", `${file} cross-cookie read boundary`);
+    assertNotContains(source, "cookies[ENV.particularCookieName]", `${file} cross-cookie read boundary`);
+    assertNotContains(source, "name: ENV.cookieName", `${file} cross-cookie write boundary`);
+    assertNotContains(source, "name: ENV.particularCookieName", `${file} cross-cookie write boundary`);
+  }
 
   assertCookieBoundary(
     PARTICULAR_SESSION_FILES,
@@ -207,8 +244,12 @@ test("session lookup hash delete and clear-cookie flows stay domain specific", (
       const middlewareSource = readSource(ADMIN_AUTH_MIDDLEWARE_FILE);
 
       assertContains(source, "authenticateFastifyAdmin", `${file} admin fastify auth adapter`);
-      assertContains(adapterSource, "createRequireAdminAuth", `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} shared admin auth middleware`);
-      assertContains(adapterSource, "cookieName: ENV.adminCookieName", `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} admin cookie env`);
+      assertContains(adapterSource, "getRequestAdminAuthContext", `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} request-scoped admin auth context`);
+      assertContains(adapterSource, "REQUEST_ADMIN_AUTH_CONTEXT_KEY", `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} request-scoped admin auth cache key`);
+      assertContains(adapterSource, "ENV.adminCookieName", `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} admin cookie env`);
+      assertContains(adapterSource, "hashSessionToken(token)", `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} hashes admin session token`);
+      assertContains(adapterSource, "deleteAdminSession", `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} admin session delete`);
+      assertContains(adapterSource, "session.expiresAt", `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} admin expiration check`);
       assertContains(adapterSource, "buildClearAdminSessionCookie", `${ADMIN_FASTIFY_AUTH_ADAPTER_FILE} admin clear cookie builder`);
       assertContains(
         adapterSource,

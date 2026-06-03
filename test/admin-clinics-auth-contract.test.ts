@@ -17,12 +17,13 @@ test("admin clinics route is registered below admin namespace", () => {
   assert.ok(source.includes('prefix: "/api/admin/clinics"'));
 });
 
-test("admin clinics route authenticates through requireAdminAuth adapter", () => {
+test("admin clinics route authenticates through request-scoped admin auth helper", () => {
   const routeSource = read("server/routes/admin-clinics.fastify.ts");
   const adapterSource = read("server/lib/fastify-admin-auth.ts");
 
   assert.ok(routeSource.includes("authenticateFastifyAdmin(request, reply"));
-  assert.ok(adapterSource.includes("createRequireAdminAuth"));
+  assert.ok(adapterSource.includes("getRequestAdminAuthContext"));
+  assert.ok(adapterSource.includes("REQUEST_ADMIN_AUTH_CONTEXT_KEY"));
   assert.ok(adapterSource.includes("ENV.adminCookieName"));
   assert.ok(adapterSource.includes("getAdminSessionWithUser"));
 });
