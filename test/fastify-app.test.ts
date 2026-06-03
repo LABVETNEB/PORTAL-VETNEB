@@ -10,9 +10,8 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const { ENV } = await import("../server/lib/env.ts");
 const { createFastifyApp } = await import("../server/fastify-app.ts");
-const { API_NOSNIFF_HEADER_VALUE } = await import(
-  "../server/lib/api-response-security.ts"
-);
+const { API_NOSNIFF_HEADER_VALUE, API_REFERRER_POLICY_HEADER_VALUE } =
+  await import("../server/lib/api-response-security.ts");
 
 function buildExpectedContactServiceSnapshot() {
   const explicitRecipients = Array.from(
@@ -2465,7 +2464,7 @@ test(
 );
 
 test(
-  "createFastifyApp aplica nosniff a respuestas API publicas autenticadas y de error",
+  "createFastifyApp aplica security headers a respuestas API publicas autenticadas y de error",
   async () => {
     const app = await createFastifyApp({
       ...buildFastifyDispatchRouteStubs(),
@@ -2549,9 +2548,15 @@ test(
           API_NOSNIFF_HEADER_VALUE,
           `${label} debe incluir X-Content-Type-Options`,
         );
+        assert.equal(
+          response.headers["referrer-policy"],
+          API_REFERRER_POLICY_HEADER_VALUE,
+          `${label} debe incluir Referrer-Policy`,
+        );
       }
 
       assert.equal(publicRoot.headers["x-content-type-options"], undefined);
+      assert.equal(publicRoot.headers["referrer-policy"], undefined);
     } finally {
       await app.close();
     }

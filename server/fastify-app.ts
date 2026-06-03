@@ -142,7 +142,7 @@ import {
 } from "./routes/logistics-sla.fastify.ts";
 import { requireTrustedOriginForFastify } from "./middlewares/trusted-origin.ts";
 import { applySensitiveApiNoStoreHeaders } from "./lib/sensitive-response-cache.ts";
-import { applyApiNosniffHeader } from "./lib/api-response-security.ts";
+import { applyApiSecurityHeaders } from "./lib/api-response-security.ts";
 
 type HealthCheckResponse = {
   statusCode: number;
@@ -255,7 +255,7 @@ export async function createFastifyApp(
   });
 
   app.addHook("onRequest", async (request, reply) => {
-    applyApiNosniffHeader(request, reply);
+    applyApiSecurityHeaders(request, reply);
   });
 
   app.addHook("onRequest", requireTrustedOriginForFastify);
