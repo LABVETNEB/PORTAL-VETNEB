@@ -399,7 +399,77 @@ export function ParticularesContent() {
               ) : session ? (
                 <div className="space-y-5">
                   <div
-                    className="clinical-muted-band rounded-lg p-4"
+                    className="rounded-lg border border-vetneb-line bg-card p-3 sm:hidden"
+                    data-particular-mobile-safe-summary="true"
+                  >
+                    <dl className="grid grid-cols-1 gap-2 text-sm">
+                      <div
+                        className="rounded-md border border-vetneb-line bg-card px-3 py-2.5"
+                        data-particular-mobile-safe-field="true"
+                      >
+                        <dt className="font-medium text-muted-foreground">
+                          Tutor
+                        </dt>
+                        <dd className="mt-1 font-semibold text-vetneb-ink">
+                          {session.tutorLastName}
+                        </dd>
+                      </div>
+                      <div
+                        className="rounded-md border border-vetneb-line bg-card px-3 py-2.5"
+                        data-particular-mobile-safe-field="true"
+                      >
+                        <dt className="font-medium text-muted-foreground">
+                          Mascota
+                        </dt>
+                        <dd className="mt-1 font-semibold text-vetneb-ink">
+                          {session.petName}
+                        </dd>
+                      </div>
+                      <div
+                        className="rounded-md border border-vetneb-line bg-card px-3 py-2.5"
+                        data-particular-mobile-safe-field="true"
+                      >
+                        <dt className="font-medium text-muted-foreground">Especie</dt>
+                        <dd className="mt-1 text-vetneb-ink">
+                          {session.petSpecies}
+                        </dd>
+                      </div>
+                      <div
+                        className="rounded-md border border-vetneb-line bg-card px-3 py-2.5"
+                        data-particular-mobile-safe-field="true"
+                      >
+                        <dt className="font-medium text-muted-foreground">Raza</dt>
+                        <dd className="mt-1 text-vetneb-ink">
+                          {session.petBreed}
+                        </dd>
+                      </div>
+                      <div
+                        className="rounded-md border border-vetneb-line bg-card px-3 py-2.5"
+                        data-particular-mobile-safe-field="true"
+                      >
+                        <dt className="font-medium text-muted-foreground">
+                          Extracción
+                        </dt>
+                        <dd className="mt-1 text-vetneb-ink">
+                          {formatDate(session.extractionDate)}
+                        </dd>
+                      </div>
+                      <div
+                        className="rounded-md border border-vetneb-line bg-card px-3 py-2.5"
+                        data-particular-mobile-safe-field="true"
+                      >
+                        <dt className="font-medium text-muted-foreground">
+                          Envío
+                        </dt>
+                        <dd className="mt-1 text-vetneb-ink">
+                          {formatDate(session.shippingDate)}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+
+                  <div
+                    className="hidden clinical-muted-band rounded-lg p-4 sm:block"
                     data-particular-session-summary="true"
                   >
                     <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
