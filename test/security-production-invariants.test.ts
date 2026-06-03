@@ -269,7 +269,8 @@ test("errores internos se loguean, pero la respuesta 500 no expone detalles", ()
     "details: status >= 500 ? undefined : message",
     file,
   );
-  assertContains(source, "path: request.url", file);
+  assertContains(source, "function getFastifyErrorResponsePath", file);
+  assertContains(source, "path: getFastifyErrorResponsePath(request)", file);
 });
 
 test("logs de request sanitizan tokens y accesos públicos antes de escribir consola", () => {

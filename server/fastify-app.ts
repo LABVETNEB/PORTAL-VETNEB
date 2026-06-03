@@ -250,6 +250,16 @@ function getPayloadText(payload: unknown): string | null {
   return null;
 }
 
+function getFastifyErrorResponsePath(request: FastifyRequest) {
+  const url = request.url ?? "";
+
+  try {
+    return new URL(url, "http://portal-vetneb.local").pathname;
+  } catch {
+    return url.split("?")[0] ?? "";
+  }
+}
+
 function addApiErrorRequestIdToJsonPayload(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -352,7 +362,7 @@ export async function createFastifyApp(
     return reply.code(404).send({
       success: false,
       error: "Ruta no encontrada",
-      path: request.url,
+      path: getFastifyErrorResponsePath(request),
     });
   });
 
@@ -374,7 +384,7 @@ export async function createFastifyApp(
       success: false,
       error: status >= 500 ? "Error interno del servidor" : message,
       details: status >= 500 ? undefined : message,
-      path: request.url,
+      path: getFastifyErrorResponsePath(request),
     });
   });
 
