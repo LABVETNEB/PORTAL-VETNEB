@@ -174,7 +174,6 @@ export async function POST(req: Request): Promise<Response> {
     const sanitized = sanitizeBody(body);
     if (process.env.NODE_ENV !== "production") {
       // Sanitized form only. Never log the raw payload.
-      // eslint-disable-next-line no-console
       console.warn("[csp-report]", sanitized);
     }
   }
