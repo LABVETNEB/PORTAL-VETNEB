@@ -17,6 +17,15 @@ function readJson(relativePath: string) {
   return JSON.parse(readText(relativePath).replace(/^\uFEFF/, ""));
 }
 
+function listImportSpecifiers(source: string) {
+  return Array.from(
+    source.matchAll(
+      /\bfrom\s+["']([^"']+)["']|\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
+    ),
+    (match) => match[1] ?? match[2] ?? "",
+  );
+}
+
 function walkFiles(relativeDir: string): string[] {
   const absoluteDir = join(repoRoot, relativeDir);
   const files: string[] = [];
@@ -84,6 +93,26 @@ test("backend Fastify-only no reintroduce runtime Express directo", () => {
   }
 
   assert.deepEqual(violations, []);
+});
+
+test("Fastify API error logging no introduce dependencias frontend o UI", () => {
+  const forbiddenImports = listImportSpecifiers(
+    readText("server/fastify-app.ts"),
+  ).filter((specifier) =>
+    specifier === "next" ||
+    specifier.startsWith("next/") ||
+    specifier === "react" ||
+    specifier.startsWith("react/") ||
+    specifier.startsWith("@/") ||
+    specifier.startsWith("../frontend") ||
+    specifier.startsWith("./frontend") ||
+    specifier.startsWith("../client") ||
+    specifier.startsWith("./client") ||
+    specifier.startsWith("../src/") ||
+    specifier.startsWith("./src/")
+  );
+
+  assert.deepEqual(forbiddenImports, []);
 });
 
 test("configuracion y documentacion declaran Fastify sin Express directo", () => {

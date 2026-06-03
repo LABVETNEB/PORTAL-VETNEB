@@ -359,12 +359,14 @@ export async function createFastifyApp(
   app.setErrorHandler((error, request, reply) => {
     const status = getFastifyErrorStatus(error);
     const message = getFastifyErrorMessage(error);
+    const requestId = getSafeApiResponseRequestId(request, reply);
 
     console.error("[API ERROR]", {
       method: request.method,
       path: request.url,
       status,
       message,
+      ...(requestId ? { requestId } : {}),
       error,
     });
 

@@ -807,6 +807,71 @@ function assertBodyDoesNotIncludeRequestId(
   return body;
 }
 
+function serializeConsoleCalls(calls: unknown[][]) {
+  return calls
+    .map((args) =>
+      args
+        .map((arg) => {
+          if (arg instanceof Error) {
+            return arg.stack ?? arg.message;
+          }
+
+          try {
+            return JSON.stringify(arg, (_key, value) => {
+              if (value instanceof Error) {
+                return {
+                  name: value.name,
+                  message: value.message,
+                  stack: value.stack,
+                };
+              }
+
+              return value;
+            });
+          } catch {
+            return String(arg);
+          }
+        })
+        .join(" "),
+    )
+    .join("\n");
+}
+
+function assertApiErrorLogRequestId(
+  consoleCalls: unknown[][],
+  index: number,
+  expectedRequestId: string,
+  label: string,
+) {
+  const call = consoleCalls[index];
+
+  assert.ok(call, `${label} debe registrar log de error API`);
+  assert.equal(call[0], "[API ERROR]");
+
+  const payload = call[1];
+
+  assert.equal(
+    payload !== null && typeof payload === "object" && !Array.isArray(payload),
+    true,
+    `${label} debe registrar payload de log estructurado`,
+  );
+
+  const loggedPayload = payload as Record<string, unknown>;
+
+  assert.equal(
+    loggedPayload.requestId,
+    expectedRequestId,
+    `${label} debe registrar el mismo requestId del header/body`,
+  );
+  assert.equal(
+    isSafeRequestId(loggedPayload.requestId),
+    true,
+    `${label} debe registrar requestId seguro`,
+  );
+
+  return loggedPayload;
+}
+
 function buildFastifyDispatchRouteStubs() {
   return {
     adminAuditRoutes: buildAdminAuditRouteStubs(),
@@ -2415,15 +2480,34 @@ test(
         },
       }),
     });
+    const originalConsoleError = console.error;
+    const consoleErrorCalls: unknown[][] = [];
+
+    console.error = (...args: unknown[]) => {
+      consoleErrorCalls.push(args);
+    };
 
     try {
-      app.get("/api/__test/internal-error", async () => {
+      const throwInternalError = async () => {
         throw new Error("detalle interno sensible");
-      });
+      };
+      const allowedOrigin = ENV.corsOrigins[0] ?? "http://localhost:3000";
+
+      app.get("/api/__test/internal-error", throwInternalError);
+      app.post("/api/__test/internal-error", throwInternalError);
 
       const genericError = await app.inject({
-        method: "GET",
+        method: "POST",
         url: "/api/__test/internal-error",
+        headers: {
+          authorization: "Bearer secret-authorization-token",
+          cookie: `${ENV.cookieName}=secret-cookie-token`,
+          origin: allowedOrigin,
+        },
+        payload: {
+          password: "secret-request-password",
+          token: "secret-request-token",
+        },
       });
 
       assert.equal(genericError.statusCode, 500);
@@ -2436,6 +2520,15 @@ test(
         requestId: genericRequestId,
       });
       assert.doesNotMatch(genericError.body, /detalle interno sensible/);
+      const genericLogPayload = assertApiErrorLogRequestId(
+        consoleErrorCalls,
+        0,
+        genericRequestId,
+        "genericError",
+      );
+      assert.equal(genericLogPayload.method, "POST");
+      assert.equal(genericLogPayload.path, "/api/__test/internal-error");
+      assert.equal(genericLogPayload.status, 500);
 
       const validIncomingRequestId = "client-req_123.abc:456";
       const validIncomingError = await app.inject({
@@ -2453,6 +2546,12 @@ test(
 
       assert.equal(validRequestId, validIncomingRequestId);
       assert.equal(validIncomingBody.requestId, validIncomingRequestId);
+      assertApiErrorLogRequestId(
+        consoleErrorCalls,
+        1,
+        validIncomingRequestId,
+        "validIncomingError",
+      );
 
       const invalidIncomingRequestId = "client request id";
       const invalidIncomingError = await app.inject({
@@ -2470,6 +2569,12 @@ test(
 
       assert.notEqual(invalidRequestId, invalidIncomingRequestId);
       assert.equal(invalidIncomingBody.requestId, invalidRequestId);
+      assertApiErrorLogRequestId(
+        consoleErrorCalls,
+        2,
+        invalidRequestId,
+        "invalidIncomingError",
+      );
 
       const publicApiNotFound = await app.inject({
         method: "GET",
@@ -2497,7 +2602,31 @@ test(
       assert.equal(apiHealth.statusCode, 200);
       assertRequestIdHeader(apiHealth, "apiHealth");
       assertBodyDoesNotIncludeRequestId(apiHealth, "apiHealth");
+      assert.equal(
+        consoleErrorCalls.length,
+        3,
+        "respuesta API exitosa no debe registrar log de error nuevo",
+      );
+
+      const serializedConsoleCalls = serializeConsoleCalls(consoleErrorCalls);
+
+      assert.equal(
+        serializedConsoleCalls.includes("secret-authorization-token"),
+        false,
+      );
+      assert.equal(serializedConsoleCalls.includes("secret-cookie-token"), false);
+      assert.equal(serializedConsoleCalls.includes("secret-request-token"), false);
+      assert.equal(
+        serializedConsoleCalls.includes("secret-request-password"),
+        false,
+      );
+      assert.equal(
+        serializedConsoleCalls.toLowerCase().includes("authorization"),
+        false,
+      );
+      assert.equal(serializedConsoleCalls.toLowerCase().includes("cookie"), false);
     } finally {
+      console.error = originalConsoleError;
       await app.close();
     }
   },
