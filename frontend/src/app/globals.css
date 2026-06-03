@@ -629,6 +629,8 @@
     [data-particular-session-panel="true"] .surface-soft,
     [data-particular-session-panel="true"] .particular-notifications-bell-layer,
     [data-particular-session-panel="true"] .particular-notifications-bell-placeholder,
+    [data-particular-session-panel="true"] [data-particular-mobile-safe-summary="true"],
+    [data-particular-session-panel="true"] [data-particular-mobile-safe-field="true"],
     [data-particular-session-panel="true"] [data-particular-session-summary="true"],
     [data-particular-session-panel="true"] [data-particular-session-field="true"] {
       backdrop-filter: none !important;
@@ -677,6 +679,64 @@
       background: hsl(var(--card)) !important;
       background-image: none !important;
       box-shadow: 0 1px 2px rgba(15, 45, 62, 0.05) !important;
+    }
+
+    [data-particular-mobile-safe-summary="true"] {
+      display: block !important;
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      contain: layout paint style;
+      isolation: isolate;
+      overflow: hidden;
+      border: 1px solid hsl(var(--vetneb-line) / 0.92) !important;
+      background: hsl(var(--card)) !important;
+      background-image: none !important;
+      opacity: 1 !important;
+      filter: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      transform: none !important;
+      will-change: auto !important;
+      mix-blend-mode: normal;
+      text-shadow: none;
+      box-shadow: 0 1px 2px rgba(15, 45, 62, 0.05) !important;
+    }
+
+    [data-particular-mobile-safe-summary="true"] > dl {
+      display: grid;
+      position: relative;
+      z-index: 1;
+      gap: 0.5rem;
+      min-width: 0;
+    }
+
+    [data-particular-mobile-safe-field="true"] {
+      display: block !important;
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      contain: layout paint style;
+      isolation: isolate;
+      overflow: hidden;
+      border: 1px solid hsl(var(--vetneb-line) / 0.9) !important;
+      background: hsl(var(--card)) !important;
+      background-image: none !important;
+      opacity: 1 !important;
+      filter: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      transform: none !important;
+      will-change: auto !important;
+      mix-blend-mode: normal;
+      text-shadow: none;
+      box-shadow: none !important;
+    }
+
+    [data-particular-mobile-safe-field="true"] > * {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
     }
 
     [data-particular-session-summary="true"] {
