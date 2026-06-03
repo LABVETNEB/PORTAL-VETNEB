@@ -1,9 +1,11 @@
 ﻿import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildLoginRateLimitHeaders,
   buildLoginRateLimitKeyMetadata,
   buildLoginRateLimitKey,
   buildMissingCredentialsLoginRateLimitKey,
+  getLoginRateLimitResetSeconds,
   getLoginRateLimitKeyMetadata,
   hashLoginRateLimitIdentifier,
   hashLoginRateLimitIpAddress,
@@ -21,6 +23,47 @@ test("constantes de login rate limit son estables", () => {
     LOGIN_RATE_LIMIT_ERROR_MESSAGE,
     "Demasiados intentos de inicio de sesión. Intente más tarde.",
   );
+});
+
+test("buildLoginRateLimitHeaders incluye Retry-After para respuestas 429 de login", () => {
+  const headers = buildLoginRateLimitHeaders({
+    max: 2,
+    windowMs: 60_000,
+    failedCount: 2,
+    resetAt: 60_000,
+    now: 0,
+    includeRetryAfter: true,
+  });
+
+  assert.deepEqual(headers, {
+    "RateLimit-Policy": "2;w=60",
+    "RateLimit-Limit": "2",
+    "RateLimit-Remaining": "0",
+    "RateLimit-Reset": "60",
+    "Retry-After": "60",
+  });
+});
+
+test("login rate limit reset y Retry-After permiten cero segundos coherentes", () => {
+  assert.equal(
+    getLoginRateLimitResetSeconds({
+      resetAt: 1_000,
+      now: 1_000,
+    }),
+    0,
+  );
+
+  const headers = buildLoginRateLimitHeaders({
+    max: 1,
+    windowMs: 60_000,
+    failedCount: 1,
+    resetAt: 1_000,
+    now: 1_000,
+    includeRetryAfter: true,
+  });
+
+  assert.equal(headers["RateLimit-Reset"], "0");
+  assert.equal(headers["Retry-After"], "0");
 });
 
 test("login rate limit key incluye version, superficie, identificador normalizado e IP", () => {

@@ -186,7 +186,7 @@ function readRetryAfterSeconds(headers: Headers): number | null {
 
   const retryAfterSeconds = Number.parseInt(retryAfterValue, 10);
 
-  if (!Number.isFinite(retryAfterSeconds) || retryAfterSeconds <= 0) {
+  if (!Number.isFinite(retryAfterSeconds) || retryAfterSeconds < 0) {
     return null;
   }
 
@@ -215,7 +215,7 @@ function buildRateLimitErrorMessage(
   const baseMessage = backendMessage ?? LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE;
   const retryAfterSeconds = readRetryAfterSeconds(headers);
 
-  if (!retryAfterSeconds) {
+  if (retryAfterSeconds === null || retryAfterSeconds === 0) {
     return baseMessage;
   }
 
@@ -288,7 +288,8 @@ async function apiFetch<T>(
 
       if (
         isLoginRateLimitPath(path) &&
-        (!retryAfterSeconds || !hasRequiredLoginRateLimitHeaders(res.headers))
+        (retryAfterSeconds === null ||
+          !hasRequiredLoginRateLimitHeaders(res.headers))
       ) {
         throw new RateLimitError(
           LOGIN_RATE_LIMIT_HEADERS_MISSING_MESSAGE,

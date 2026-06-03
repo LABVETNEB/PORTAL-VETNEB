@@ -11,7 +11,6 @@ import {
   buildLoginRateLimitKey,
   buildMissingCredentialsLoginRateLimitKey,
   getLoginRateLimitKeyMetadata,
-  getLoginRateLimitResetSeconds,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
@@ -406,6 +405,7 @@ function setLoginRateLimitHeaders(
     failedCount: number;
     resetAt: number;
     now: number;
+    includeRetryAfter?: boolean;
   },
 ) {
   for (const [headerName, headerValue] of Object.entries(
@@ -758,19 +758,14 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     }
 
     if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
-      const resetSeconds = getLoginRateLimitResetSeconds({
-        resetAt: failureEntry.resetAt,
-        now: currentTime,
-      });
-
       setLoginRateLimitHeaders(reply, {
         max: loginRateLimitMaxAttempts,
         windowMs: loginRateLimitWindowMs,
         failedCount: failureEntry.count,
         resetAt: failureEntry.resetAt,
         now: currentTime,
+        includeRetryAfter: true,
       });
-      reply.header("Retry-After", String(resetSeconds));
 
       await recordFailedLoginAttempt({
         reason: "rate_limited",

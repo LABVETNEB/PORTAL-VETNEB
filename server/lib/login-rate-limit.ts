@@ -152,19 +152,29 @@ export function getLoginRateLimitResetSeconds(input: {
   return Math.max(Math.ceil((input.resetAt - input.now) / 1000), 0);
 }
 
-export function buildLoginRateLimitHeaders(input: {
+export type LoginRateLimitHeaderInput = {
   max: number;
   windowMs: number;
   failedCount: number;
   resetAt: number;
   now: number;
-}) {
-  return {
+  includeRetryAfter?: boolean;
+};
+
+export function buildLoginRateLimitHeaders(input: LoginRateLimitHeaderInput) {
+  const resetSeconds = getLoginRateLimitResetSeconds(input);
+  const headers: Record<string, string> = {
     "RateLimit-Policy": `${input.max};w=${Math.ceil(input.windowMs / 1000)}`,
     "RateLimit-Limit": String(input.max),
     "RateLimit-Remaining": String(
       Math.max(input.max - input.failedCount, 0),
     ),
-    "RateLimit-Reset": String(getLoginRateLimitResetSeconds(input)),
+    "RateLimit-Reset": String(resetSeconds),
   };
+
+  if (input.includeRetryAfter) {
+    headers["Retry-After"] = String(resetSeconds);
+  }
+
+  return headers;
 }
