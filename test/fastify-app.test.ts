@@ -754,6 +754,9 @@ function buildFastifyDispatchRouteStubs() {
     particularStudyTrackingRoutes: buildParticularStudyTrackingRouteStubs(),
     particularTokensRoutes: buildParticularTokensRouteStubs(),
     publicProfessionalsRoutes: buildPublicProfessionalsRouteStubs(),
+    publicPricingRoutes: {
+      listPublicPricingItems: async () => [],
+    },
     publicReportAccessRoutes: buildPublicReportAccessRouteStubs(),
     reportAccessTokensRoutes: buildReportAccessTokensRouteStubs(),
     reportsRoutes: buildReportsRouteStubs(),
@@ -1114,6 +1117,7 @@ test(
 
       assert.equal(response.headers["x-legacy-bridge"], undefined);
       assert.notEqual(response.statusCode, 418);
+      assert.equal(response.headers["cache-control"], "no-store");
       assert.ok([200, 401].includes(response.statusCode));
 
       if (response.statusCode === 200) {
@@ -2385,6 +2389,7 @@ test(
       });
 
       assert.equal(response.headers["x-legacy-bridge"], undefined);
+      assert.equal(response.headers["cache-control"], undefined);
       assert.equal(response.statusCode, 200);
       assert.equal(detailHelperWasCalled, false);
       assert.deepEqual(receivedSearchInput, {
@@ -2428,6 +2433,28 @@ test(
         },
         profileQualityScore: 0.97,
       });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "createFastifyApp preserva Cache-Control publico de pricing",
+  async () => {
+    const app = await createFastifyApp(buildFastifyDispatchRouteStubs());
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/public/pricing",
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(
+        response.headers["cache-control"],
+        "public, max-age=60, stale-while-revalidate=300",
+      );
     } finally {
       await app.close();
     }
@@ -2549,6 +2576,7 @@ test(
       });
 
       assert.equal(response.statusCode, 200);
+      assert.equal(response.headers["cache-control"], "no-store");
 
       const body = JSON.parse(response.body);
       assert.equal(body.success, true);
@@ -2625,6 +2653,7 @@ test(
 
       assert.equal(response.headers["x-legacy-bridge"], undefined);
       assert.equal(response.statusCode, 200);
+      assert.equal(response.headers["cache-control"], "no-store");
 
       const body = JSON.parse(response.body);
 
