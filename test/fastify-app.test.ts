@@ -10,6 +10,9 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const { ENV } = await import("../server/lib/env.ts");
 const { createFastifyApp } = await import("../server/fastify-app.ts");
+const { API_NOSNIFF_HEADER_VALUE } = await import(
+  "../server/lib/api-response-security.ts"
+);
 
 function buildExpectedContactServiceSnapshot() {
   const explicitRecipients = Array.from(
@@ -2455,6 +2458,100 @@ test(
         response.headers["cache-control"],
         "public, max-age=60, stale-while-revalidate=300",
       );
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "createFastifyApp aplica nosniff a respuestas API publicas autenticadas y de error",
+  async () => {
+    const app = await createFastifyApp({
+      ...buildFastifyDispatchRouteStubs(),
+      getNativeHealthCheckResponse: async () => ({
+        statusCode: 200,
+        payload: {
+          success: true,
+          status: "ok",
+        },
+      }),
+      adminSystemHealthRoutes: {
+        ...buildAdminSystemHealthRouteStubs(),
+        getAdminSessionByToken: async () => ({
+          adminUserId: 1,
+          expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+          lastAccess: new Date("2026-04-23T00:00:00.000Z"),
+        }),
+        getAdminUserById: async () => ({
+          id: 1,
+          username: "VETNEB",
+        }),
+        getSystemHealthSnapshot: async () => ({
+          statusCode: 200,
+          payload: {
+            success: true,
+            status: "ok",
+            checks: {
+              database: "up",
+              storage: "up",
+            },
+          },
+        }),
+        getBackendVersion: () => "2.1.0-test",
+      },
+    });
+
+    try {
+      const adminAuthenticated = await app.inject({
+        method: "GET",
+        url: "/api/admin/system/health",
+        headers: {
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+        },
+      });
+
+      const publicApi = await app.inject({
+        method: "GET",
+        url: "/api/public/pricing",
+      });
+
+      const apiError = await app.inject({
+        method: "GET",
+        url: "/api/no-existe",
+      });
+
+      const apiHealth = await app.inject({
+        method: "GET",
+        url: "/api/health",
+      });
+
+      const publicRoot = await app.inject({
+        method: "GET",
+        url: "/",
+      });
+
+      assert.equal(adminAuthenticated.statusCode, 200);
+      assert.equal(publicApi.statusCode, 200);
+      assert.equal(apiError.statusCode, 404);
+      assert.equal(apiHealth.statusCode, 200);
+
+      const apiResponses = [
+        { label: "adminAuthenticated", response: adminAuthenticated },
+        { label: "publicApi", response: publicApi },
+        { label: "apiError", response: apiError },
+        { label: "apiHealth", response: apiHealth },
+      ];
+
+      for (const { label, response } of apiResponses) {
+        assert.equal(
+          response.headers["x-content-type-options"],
+          API_NOSNIFF_HEADER_VALUE,
+          `${label} debe incluir X-Content-Type-Options`,
+        );
+      }
+
+      assert.equal(publicRoot.headers["x-content-type-options"], undefined);
     } finally {
       await app.close();
     }
