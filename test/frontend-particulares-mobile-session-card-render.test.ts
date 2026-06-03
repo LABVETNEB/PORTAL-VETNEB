@@ -31,6 +31,21 @@ function extractMarkedBlock(
   return source.slice(start, end + endMarker.length);
 }
 
+function extractCssRule(source: string, selector: string): string {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = new RegExp(`(?:^|\\n)\\s*${escapedSelector}\\s*\\{`).exec(
+    source,
+  );
+  const start = match?.index ?? -1;
+
+  assert.notEqual(start, -1, `missing CSS rule: ${selector}`);
+
+  const end = source.indexOf("}", start);
+  assert.notEqual(end, -1, `missing CSS rule close: ${selector}`);
+
+  return source.slice(start, end + 1);
+}
+
 test("particulares active session exposes stable mobile render selectors", () => {
   const source = read(PARTICULARES_CONTENT_PATH);
 
@@ -51,6 +66,15 @@ test("particulares active session exposes stable mobile render selectors", () =>
     fieldSelectorCount,
     6,
     "case summary must expose one stable data selector per visible field card",
+  );
+
+  assert.ok(
+    source.includes('className="particular-notifications-bell-layer shrink-0"'),
+    "particular notifications bell must sit in a stable mobile layer",
+  );
+  assert.ok(
+    source.includes("particular-notifications-bell-placeholder"),
+    "particular notifications bell placeholder must be targetable by the mobile render fix",
   );
 });
 
@@ -93,14 +117,49 @@ test("globals css contains mobile-only render fix for particular session selecto
   assert.ok(block.includes('[data-particular-session-panel="true"]'));
   assert.ok(block.includes('[data-particular-session-summary="true"]'));
   assert.ok(block.includes('[data-particular-session-field="true"]'));
-  assert.ok(block.includes("transform: none !important;"));
-  assert.ok(block.includes("will-change: auto !important;"));
-  assert.ok(block.includes("backface-visibility: visible;"));
-  assert.ok(block.includes("background: hsl(var(--card)) !important;"));
+
+  for (const declaration of [
+    "backdrop-filter: none !important;",
+    "-webkit-backdrop-filter: none !important;",
+    "filter: none !important;",
+    "transform: none !important;",
+    "will-change: auto !important;",
+    "backface-visibility: visible;",
+    "perspective: none;",
+    "mix-blend-mode: normal;",
+    "text-shadow: none;",
+  ]) {
+    assert.ok(
+      block.includes(declaration),
+      `mobile particular render fix must include: ${declaration}`,
+    );
+  }
+
+  const panelRule = extractCssRule(
+    block,
+    '[data-particular-session-panel="true"]',
+  );
+  const summaryRule = extractCssRule(
+    block,
+    '[data-particular-session-summary="true"]',
+  );
+  const fieldRule = extractCssRule(
+    block,
+    '[data-particular-session-field="true"]',
+  );
+
+  assert.ok(panelRule.includes("contain: layout;"));
+  assert.ok(panelRule.includes("background: hsl(var(--card)) !important;"));
+  assert.ok(panelRule.includes("background-image: none !important;"));
+  assert.ok(summaryRule.includes("contain: layout paint;"));
+  assert.ok(summaryRule.includes("background: hsl(var(--card)) !important;"));
+  assert.ok(summaryRule.includes("background-image: none !important;"));
+  assert.ok(fieldRule.includes("contain: layout paint;"));
   assert.ok(
-    block.includes("background: hsl(var(--vetneb-surface-raised)) !important;"),
+    fieldRule.includes("background: hsl(var(--vetneb-surface-raised)) !important;"),
     "field cards should use an opaque raised surface on mobile",
   );
+  assert.ok(fieldRule.includes("background-image: none !important;"));
 });
 
 test("globals css keeps particular session fix scoped and avoids global surface-soft override", () => {
