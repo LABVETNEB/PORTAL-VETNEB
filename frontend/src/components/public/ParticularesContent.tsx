@@ -94,10 +94,142 @@ function getTrackingStageLabel(
   return TRACKING_STAGE_LABELS[stage] ?? stage;
 }
 
-const SPECIAL_STAIN_WHATSAPP_HREF =
-  "https://wa.me/5493534138946?text=Hola%20VETNEB%2C%20consulto%20por%20una%20solicitud%20de%20tinción%20especial%20de%20mi%20caso.";
-const SPECIAL_STAIN_EMAIL_HREF =
-  "mailto:lab.vetneb@gmail.com?subject=Consulta%20tinción%20especial&body=Hola%20VETNEB%2C%20consulto%20por%20una%20solicitud%20de%20tinción%20especial%20de%20mi%20caso.";
+const SPECIAL_STAIN_WHATSAPP_PHONE = "5493534138946";
+const SPECIAL_STAIN_EMAIL_ADDRESS = "lab.vetneb@gmail.com";
+const SPECIAL_STAIN_EMAIL_SUBJECT = "Consulta tinción especial";
+
+type SpecialStainContactValue = string | number | null | undefined;
+
+function formatSpecialStainContactValue(value: SpecialStainContactValue) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const text = String(value).trim();
+  return text.length > 0 ? text : null;
+}
+
+function formatSpecialStainContactDate(value: string | null | undefined) {
+  return value ? formatDate(value) : null;
+}
+
+function formatSpecialStainContactId(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? `#${value}`
+    : null;
+}
+
+function appendSpecialStainContactLine(
+  lines: string[],
+  label: string,
+  value: SpecialStainContactValue,
+) {
+  const formattedValue = formatSpecialStainContactValue(value);
+
+  if (!formattedValue) {
+    return;
+  }
+
+  lines.push(`${label}: ${formattedValue}`);
+}
+
+function buildSpecialStainReportSummary(session: ParticularSession) {
+  if (!session.report) {
+    return null;
+  }
+
+  return [
+    formatSpecialStainContactId(session.report.id),
+    formatSpecialStainContactValue(session.report.studyType),
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(" - ");
+}
+
+function buildSpecialStainContactMessage(
+  trackingCase: AdminStudyTrackingCaseSummary,
+  session: ParticularSession,
+) {
+  const lines = [
+    "Hola VETNEB, consulto por una solicitud de tinción especial.",
+    "",
+    "Datos del caso:",
+  ];
+  const reportId =
+    trackingCase.reportId ?? session.reportId ?? session.report?.id ?? null;
+  const clinicId = trackingCase.clinicId ?? session.clinicId;
+
+  appendSpecialStainContactLine(
+    lines,
+    "Token",
+    session.tokenLast4 ? `terminación ${session.tokenLast4}` : null,
+  );
+  appendSpecialStainContactLine(
+    lines,
+    "Caso",
+    formatSpecialStainContactId(trackingCase.id),
+  );
+  appendSpecialStainContactLine(
+    lines,
+    "ReportId",
+    formatSpecialStainContactId(reportId),
+  );
+  appendSpecialStainContactLine(
+    lines,
+    "Clínica",
+    formatSpecialStainContactId(clinicId),
+  );
+  appendSpecialStainContactLine(lines, "Tutor", session.tutorLastName);
+  appendSpecialStainContactLine(lines, "Paciente", session.petName);
+  appendSpecialStainContactLine(lines, "Especie", session.petSpecies);
+  appendSpecialStainContactLine(lines, "Raza", session.petBreed);
+  appendSpecialStainContactLine(
+    lines,
+    "Extracción",
+    formatSpecialStainContactDate(session.extractionDate),
+  );
+  appendSpecialStainContactLine(
+    lines,
+    "Envío",
+    formatSpecialStainContactDate(session.shippingDate),
+  );
+  appendSpecialStainContactLine(
+    lines,
+    "Estado",
+    getTrackingStageLabel(trackingCase.currentStage),
+  );
+  appendSpecialStainContactLine(
+    lines,
+    "Actualizado",
+    formatSpecialStainContactDate(trackingCase.updatedAt),
+  );
+  appendSpecialStainContactLine(
+    lines,
+    "Informe vinculado",
+    buildSpecialStainReportSummary(session),
+  );
+
+  lines.push("", "Por favor, indíquenme cómo continuar.");
+  return lines.join("\n");
+}
+
+function buildSpecialStainWhatsAppHref(
+  trackingCase: AdminStudyTrackingCaseSummary,
+  session: ParticularSession,
+) {
+  const message = buildSpecialStainContactMessage(trackingCase, session);
+  return `https://wa.me/${SPECIAL_STAIN_WHATSAPP_PHONE}?text=${encodeURIComponent(message)}`;
+}
+
+function buildSpecialStainEmailHref(
+  trackingCase: AdminStudyTrackingCaseSummary,
+  session: ParticularSession,
+) {
+  const message = buildSpecialStainContactMessage(trackingCase, session);
+  return `mailto:${SPECIAL_STAIN_EMAIL_ADDRESS}?subject=${encodeURIComponent(
+    SPECIAL_STAIN_EMAIL_SUBJECT,
+  )}&body=${encodeURIComponent(message)}`;
+}
 
 const accessHighlights = [
   {
@@ -568,7 +700,7 @@ export function ParticularesContent() {
                             </div>
                             <div className="flex flex-col gap-2">
                               <PublicExternalControl
-                                href={SPECIAL_STAIN_WHATSAPP_HREF}
+                                href={buildSpecialStainWhatsAppHref(trackingCase, session)}
                                 target="_blank"
                                 className="inline-flex items-center justify-center gap-2 rounded-md border border-vetneb-line/90 bg-card px-4 py-2 text-sm font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised"
                                 aria-label="Consultar por WhatsApp sobre tinción especial"
@@ -577,7 +709,7 @@ export function ParticularesContent() {
                                 Consultar por WhatsApp
                               </PublicExternalControl>
                               <PublicExternalControl
-                                href={SPECIAL_STAIN_EMAIL_HREF}
+                                href={buildSpecialStainEmailHref(trackingCase, session)}
                                 target="_self"
                                 className="inline-flex items-center justify-center gap-2 rounded-md border border-vetneb-line/90 bg-card px-4 py-2 text-sm font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised"
                                 aria-label="Enviar email a VETNEB sobre tinción especial"
@@ -622,7 +754,7 @@ export function ParticularesContent() {
                             </div>
                             <div className="flex flex-col gap-2 sm:flex-row">
                               <PublicExternalControl
-                                href={SPECIAL_STAIN_WHATSAPP_HREF}
+                                href={buildSpecialStainWhatsAppHref(trackingCase, session)}
                                 target="_blank"
                                 className="inline-flex items-center justify-center gap-2 rounded-md border border-vetneb-line/90 bg-card/95 px-4 py-2 text-sm font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised"
                                 aria-label="Consultar por WhatsApp sobre tinción especial"
@@ -631,7 +763,7 @@ export function ParticularesContent() {
                                 Consultar por WhatsApp
                               </PublicExternalControl>
                               <PublicExternalControl
-                                href={SPECIAL_STAIN_EMAIL_HREF}
+                                href={buildSpecialStainEmailHref(trackingCase, session)}
                                 target="_self"
                                 className="inline-flex items-center justify-center gap-2 rounded-md border border-vetneb-line/90 bg-card/95 px-4 py-2 text-sm font-semibold text-vetneb-navy shadow-sm hover:border-vetneb-teal/45 hover:bg-vetneb-surface-raised"
                                 aria-label="Enviar email a VETNEB sobre tinción especial"
