@@ -6,6 +6,7 @@ import {
   type NewStudyTrackingCase,
   type NewStudyTrackingNotification,
 } from "../drizzle/schema.ts";
+import { normalizeListPagination } from "./lib/list-pagination.ts";
 
 type NotificationScope = {
   clinicId?: number;
@@ -106,8 +107,7 @@ export async function listStudyTrackingCases(params?: {
   limit?: number;
   offset?: number;
 }) {
-  const limit = params?.limit ?? 50;
-  const offset = params?.offset ?? 0;
+  const { limit, offset } = normalizeListPagination(params);
   const filters = [];
 
   if (typeof params?.clinicId === "number") {
@@ -178,8 +178,7 @@ export async function listStudyTrackingNotifications(params?: {
   limit?: number;
   offset?: number;
 }) {
-  const limit = params?.limit ?? 50;
-  const offset = params?.offset ?? 0;
+  const { limit, offset } = normalizeListPagination(params);
   const filters = [];
 
   if (typeof params?.clinicId === "number") {

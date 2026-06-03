@@ -6,6 +6,7 @@ import {
   type NewParticularSession,
   type NewParticularToken,
 } from "../drizzle/schema.ts";
+import { normalizeListPagination } from "./lib/list-pagination.ts";
 
 export async function createParticularToken(
   input: Omit<NewParticularToken, "id" | "createdAt" | "updatedAt">,
@@ -49,8 +50,7 @@ export async function listParticularTokens(params?: {
   limit?: number;
   offset?: number;
 }) {
-  const limit = params?.limit ?? 50;
-  const offset = params?.offset ?? 0;
+  const { limit, offset } = normalizeListPagination(params);
 
   if (typeof params?.clinicId === "number") {
     return db
