@@ -141,6 +141,7 @@ import {
   type LogisticsSlaNativeRoutesOptions,
 } from "./routes/logistics-sla.fastify.ts";
 import { requireTrustedOriginForFastify } from "./middlewares/trusted-origin.ts";
+import { applySensitiveApiNoStoreHeaders } from "./lib/sensitive-response-cache.ts";
 
 type HealthCheckResponse = {
   statusCode: number;
@@ -254,25 +255,10 @@ export async function createFastifyApp(
 
   app.addHook("onRequest", requireTrustedOriginForFastify);
 
-  // Garantiza que rutas API autenticadas no sean cacheadas por proxies ni
-  // navegador. Las rutas públicas con caché propia (ej. /api/public/pricing)
-  // ya setean su propio Cache-Control y no son sobreescritas.
   app.addHook(
     "onSend",
     async (request: FastifyRequest, reply: FastifyReply, _payload) => {
-      const url = request.url ?? "";
-
-      if (!url.startsWith("/api/")) {
-        return;
-      }
-
-      if (url.startsWith("/api/public/")) {
-        return;
-      }
-
-      if (!reply.hasHeader("cache-control")) {
-        reply.header("cache-control", "no-store");
-      }
+      applySensitiveApiNoStoreHeaders(request, reply);
     },
   );
 

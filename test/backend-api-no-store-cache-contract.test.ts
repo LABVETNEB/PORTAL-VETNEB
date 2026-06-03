@@ -1,14 +1,3 @@
-/**
- * backend-api-no-store-cache-contract.test.ts
- *
- * Garantiza que las rutas API autenticadas del backend responden con
- * Cache-Control: no-store para evitar que proxies o el navegador cacheen
- * respuestas sensibles (sesiones, informes, tokens, admin, particular).
- *
- * Las rutas públicas con caché propia (/api/public/*) quedan excluidas
- * intencionalmente — cada una gestiona su propio Cache-Control.
- */
-
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -17,49 +6,37 @@ import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
 
+const {
+  SENSITIVE_API_CACHE_CONTROL,
+  shouldApplySensitiveApiNoStore,
+} = await import("../server/lib/sensitive-response-cache.ts");
+
 function readSource(relativePath: string): string {
   return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");
 }
 
-// ---------------------------------------------------------------------------
-// 1. El hook onSend está declarado en fastify-app.ts
-// ---------------------------------------------------------------------------
-
-test("fastify-app declara hook onSend que inyecta Cache-Control: no-store en /api/ no-públicas", () => {
-  const source = readSource("server/fastify-app.ts");
-
-  assert.ok(
-    source.includes('app.addHook(\n    "onSend"') ||
-      source.includes("app.addHook('onSend'") ||
-      source.includes('app.addHook("onSend"'),
-    "createFastifyApp debe registrar un hook onSend",
+test("sensitive response cache helper clasifica API no publica para no-store", () => {
+  assert.equal(SENSITIVE_API_CACHE_CONTROL, "no-store");
+  assert.equal(shouldApplySensitiveApiNoStore("/api/admin/auth/me"), true);
+  assert.equal(
+    shouldApplySensitiveApiNoStore("/api/admin/failed-login-alerts?limit=5"),
+    true,
   );
-
-  assert.ok(
-    source.includes('url.startsWith("/api/")'),
-    "el hook debe filtrar rutas /api/",
+  assert.equal(shouldApplySensitiveApiNoStore("/api/reports"), true);
+  assert.equal(shouldApplySensitiveApiNoStore("/api/public/pricing"), false);
+  assert.equal(
+    shouldApplySensitiveApiNoStore("/api/public/professionals/search"),
+    false,
   );
-
-  assert.ok(
-    source.includes('url.startsWith("/api/public/")'),
-    "el hook debe excluir rutas /api/public/ con caché propia",
-  );
-
-  assert.ok(
-    source.includes('"cache-control"') && source.includes('"no-store"'),
-    "el hook debe emitir Cache-Control: no-store",
-  );
-
-  assert.ok(
-    source.includes("reply.hasHeader"),
-    "el hook no debe sobreescribir headers ya seteados",
-  );
+  assert.equal(shouldApplySensitiveApiNoStore("/dashboard/admin"), false);
 });
 
-// ---------------------------------------------------------------------------
-// 2. Rutas autenticadas críticas no setean su propio Cache-Control
-//    (por lo tanto dependen del hook global)
-// ---------------------------------------------------------------------------
+test("fastify-app registra onSend y delega no-store sensible al helper backend", () => {
+  const source = readSource("server/fastify-app.ts");
+
+  assert.ok(source.includes('app.addHook(\n    "onSend"'));
+  assert.ok(source.includes("applySensitiveApiNoStoreHeaders(request, reply)"));
+});
 
 const AUTHENTICATED_ROUTES_WITHOUT_OWN_CACHE_HEADER: readonly {
   file: string;
@@ -72,6 +49,18 @@ const AUTHENTICATED_ROUTES_WITHOUT_OWN_CACHE_HEADER: readonly {
   {
     file: "server/routes/admin-particular-tokens.fastify.ts",
     label: "admin particular tokens",
+  },
+  {
+    file: "server/routes/admin-report-access-tokens.fastify.ts",
+    label: "admin report access tokens",
+  },
+  {
+    file: "server/routes/admin-failed-login-alerts.fastify.ts",
+    label: "admin failed login alerts",
+  },
+  {
+    file: "server/routes/admin-study-tracking.fastify.ts",
+    label: "admin study tracking",
   },
   {
     file: "server/routes/particular-auth.fastify.ts",
@@ -90,25 +79,24 @@ for (const { file, label } of AUTHENTICATED_ROUTES_WITHOUT_OWN_CACHE_HEADER) {
     assert.equal(
       hasOwnCacheControl,
       false,
-      `${file} no debe setear Cache-Control propio — el hook global de fastify-app.ts lo cubre`,
+      `${file} no debe setear Cache-Control propio; el hook global de fastify-app.ts lo cubre`,
     );
   });
 }
 
-// ---------------------------------------------------------------------------
-// 3. La ruta pública de precios SÍ setea su propio Cache-Control (excluida)
-// ---------------------------------------------------------------------------
-
-test("public-pricing setea su propio Cache-Control y no depende del hook global", () => {
+test("public-pricing mantiene Cache-Control publico propio", () => {
   const source = readSource("server/routes/public-pricing.fastify.ts");
 
-  assert.ok(
-    /reply\s*\.\s*header\s*\(\s*["']Cache-Control["']/i.test(source),
-    "public-pricing debe declarar su propio Cache-Control",
-  );
+  assert.ok(/reply\s*\.\s*header\s*\(\s*["']Cache-Control["']/i.test(source));
+  assert.ok(source.includes("public, max-age="));
+});
 
-  assert.ok(
-    source.includes("public, max-age="),
-    "public-pricing debe usar directiva public con max-age",
-  );
+test("no-store sensible no introduce dependencia de frontend o UI", () => {
+  const helperSource = readSource("server/lib/sensitive-response-cache.ts");
+  const fastifyAppSource = readSource("server/fastify-app.ts");
+  const combined = `${helperSource}\n${fastifyAppSource}`;
+
+  assert.equal(combined.includes("frontend"), false);
+  assert.equal(combined.includes(".tsx"), false);
+  assert.equal(combined.includes("components"), false);
 });
