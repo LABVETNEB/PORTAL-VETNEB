@@ -326,6 +326,293 @@ test("mobile-safe feature markers stay out of Navbar, Footer and backend surface
   }
 });
 
+// ─── PR #812: mobile flat-stack — data-particular-mobile-flat-* contracts ────
+
+function extractFlatCard(
+  source: string,
+  cardType: "tracking" | "report",
+): string {
+  const startAttr = `data-particular-mobile-flat-card="${cardType}"`;
+  const attributeIndex = source.indexOf(startAttr);
+  assert.notEqual(
+    attributeIndex,
+    -1,
+    `missing flat-card="${cardType}" attribute`,
+  );
+
+  const blockStart = source.lastIndexOf("<div", attributeIndex);
+  const endMarker =
+    cardType === "tracking"
+      ? "{/* Desktop tracking"
+      : "{/* Desktop report";
+  const blockEnd = source.indexOf(endMarker, attributeIndex);
+  assert.notEqual(
+    blockEnd,
+    -1,
+    `missing desktop ${cardType} separator comment`,
+  );
+
+  return source.slice(blockStart, blockEnd);
+}
+
+function extractFlatStackCssBlock(source: string): string {
+  return extractMarkedBlock(
+    source,
+    "/* particular-mobile-flat-stack:start */",
+    "/* particular-mobile-flat-stack:end */",
+  );
+}
+
+test("authenticated container has data-particular-mobile-flat-stack", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+  assert.ok(
+    source.includes('data-particular-mobile-flat-stack="true"'),
+    "authenticated session container must expose data-particular-mobile-flat-stack",
+  );
+});
+
+test("both flat-card tracking and flat-card report data attributes exist", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+  assert.ok(
+    source.includes('data-particular-mobile-flat-card="tracking"'),
+    "tracking flat-card must be present",
+  );
+  assert.ok(
+    source.includes('data-particular-mobile-flat-card="report"'),
+    "report flat-card must be present",
+  );
+});
+
+test("data-particular-mobile-flat-actions exists inside flat report block", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+  const reportBlock = extractFlatCard(source, "report");
+  assert.ok(
+    reportBlock.includes('data-particular-mobile-flat-actions="true"'),
+    "flat report block must contain data-particular-mobile-flat-actions",
+  );
+});
+
+test("flat tracking card is sm:hidden and conserves tracking content", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+  const block = extractFlatCard(source, "tracking");
+
+  assert.match(
+    block,
+    /className="[^"]*\bsm:hidden\b[^"]*"/,
+    "flat tracking card must be hidden from sm upwards",
+  );
+  assert.ok(
+    block.includes("Seguimiento del estudio"),
+    "flat tracking must show 'Seguimiento del estudio'",
+  );
+  assert.ok(
+    block.includes("Estado del estudio:"),
+    "flat tracking must show 'Estado del estudio:'",
+  );
+});
+
+test("flat report card is sm:hidden and conserves report content and actions", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+  const block = extractFlatCard(source, "report");
+
+  assert.match(
+    block,
+    /className="[^"]*\bsm:hidden\b[^"]*"/,
+    "flat report card must be hidden from sm upwards",
+  );
+  assert.ok(
+    block.includes("Informe vinculado"),
+    "flat report must show 'Informe vinculado'",
+  );
+  assert.ok(block.includes("Ver informe"), "flat report must show 'Ver informe'");
+  assert.ok(block.includes("Descargar"), "flat report must show 'Descargar'");
+});
+
+test("flat report block does not use GPU-heavy presentation primitives", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+  const block = extractFlatCard(source, "report");
+
+  for (const forbidden of [
+    "PremiumPanel",
+    "VisualIcon",
+    "render-gpu-soft",
+    "surface-soft",
+    "clinical-muted-band",
+    "bg-card/",
+    "backdrop-blur",
+    "transform-gpu",
+  ]) {
+    assert.equal(
+      block.includes(forbidden),
+      false,
+      `flat report block must not contain ${forbidden}`,
+    );
+  }
+});
+
+test("globals css contains mobile-only block for flat-stack selectors", () => {
+  const source = read(GLOBALS_CSS_PATH);
+  const block = extractFlatStackCssBlock(source);
+
+  assert.ok(
+    block.includes("@media (max-width: 639px)"),
+    "flat-stack CSS must be mobile-only",
+  );
+
+  for (const selector of [
+    '[data-particular-mobile-flat-stack="true"]',
+    '[data-particular-mobile-flat-card="tracking"]',
+    '[data-particular-mobile-flat-card="report"]',
+    '[data-particular-mobile-flat-actions="true"]',
+  ]) {
+    assert.ok(
+      block.includes(selector),
+      `flat-stack CSS block must contain rule for: ${selector}`,
+    );
+  }
+});
+
+test("flat-stack CSS rules neutralize compositing triggers", () => {
+  const source = read(GLOBALS_CSS_PATH);
+  const block = extractFlatStackCssBlock(source);
+
+  for (const declaration of [
+    "filter: none !important;",
+    "backdrop-filter: none !important;",
+    "-webkit-backdrop-filter: none !important;",
+    "transform: none !important;",
+    "will-change: auto !important;",
+    "mix-blend-mode: normal;",
+    "text-shadow: none;",
+    "opacity: 1 !important;",
+    "background-image: none !important;",
+  ]) {
+    assert.ok(
+      block.includes(declaration),
+      `flat-stack CSS must declare: ${declaration}`,
+    );
+  }
+});
+
+test("flat-stack CSS uses opaque card backgrounds", () => {
+  const source = read(GLOBALS_CSS_PATH);
+  const block = extractFlatStackCssBlock(source);
+
+  assert.ok(
+    block.includes("background: hsl(var(--card)) !important;"),
+    "flat-stack CSS must use opaque card background",
+  );
+  assert.doesNotMatch(
+    block,
+    /background:\s*hsl\(var\(--card\)\s*\/\s*[^)]/,
+    "flat-stack backgrounds must not use alpha channel — must stay opaque",
+  );
+});
+
+test("flat-stack tracking and report cards use low z-index, not high stacking", () => {
+  const source = read(GLOBALS_CSS_PATH);
+  const block = extractFlatStackCssBlock(source);
+
+  const trackingRule = extractCssRule(
+    block,
+    '[data-particular-mobile-flat-card="tracking"]',
+  );
+  const reportRule = extractCssRule(
+    block,
+    '[data-particular-mobile-flat-card="report"]',
+  );
+
+  for (const rule of [trackingRule, reportRule]) {
+    assert.doesNotMatch(
+      rule,
+      /z-index:\s*(?:[1-9][0-9]|[5-9])\b/,
+      "flat-stack card z-index must be 0 or auto, not high",
+    );
+  }
+});
+
+test("notifications bell layer retains high z-index above flat-stack in mobile CSS", () => {
+  const source = read(GLOBALS_CSS_PATH);
+  const sessionFixBlock = extractMarkedBlock(
+    source,
+    "/* particular-session-mobile-render-fix:start */",
+    "/* particular-session-mobile-render-fix:end */",
+  );
+
+  assert.ok(
+    sessionFixBlock.includes("particular-notifications-bell-layer"),
+    "bell layer rule must remain in session fix block",
+  );
+  assert.match(
+    sessionFixBlock,
+    /particular-notifications-bell-layer[\s\S]{0,200}z-index:\s*[2-9]/,
+    "bell layer must have z-index >= 2 (above flat-stack z-index: 0)",
+  );
+});
+
+test("flat-stack markers stay out of Navbar, Footer and backend surfaces", () => {
+  const forbiddenMarkers = [
+    "data-particular-mobile-flat-stack",
+    "data-particular-mobile-flat-card",
+    "data-particular-mobile-flat-actions",
+    "particular-mobile-flat-stack",
+    "particular-mobile-flat-card",
+    "particular-mobile-flat-actions",
+  ];
+
+  for (const filePath of [NAVBAR_PATH, FOOTER_PATH]) {
+    const source = read(filePath);
+    for (const marker of forbiddenMarkers) {
+      assert.equal(
+        source.includes(marker),
+        false,
+        `${filePath} must not include ${marker}`,
+      );
+    }
+  }
+
+  for (const directory of ["server", "drizzle", "shared"]) {
+    for (const absolutePath of listFiles(directory)) {
+      const source = readFileSync(absolutePath, "utf8");
+      for (const marker of forbiddenMarkers) {
+        assert.equal(
+          source.includes(marker),
+          false,
+          `${directory} surface must not include ${marker}`,
+        );
+      }
+    }
+  }
+});
+
+test("desktop tracking and report cards remain available from sm via hidden sm:block", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  const trackingDesktopStart = source.indexOf('{/* Desktop tracking');
+  assert.notEqual(trackingDesktopStart, -1, "desktop tracking separator must exist");
+  const trackingDesktopSection = source.slice(
+    trackingDesktopStart,
+    source.indexOf('id="particular-study-tracking"') + 200,
+  );
+  assert.match(
+    trackingDesktopSection,
+    /className="[^"]*\bhidden\b[^"]*\bsm:block\b[^"]*"/,
+    "desktop tracking card must use hidden sm:block",
+  );
+
+  const reportDesktopStart = source.indexOf('{/* Desktop report');
+  assert.notEqual(reportDesktopStart, -1, "desktop report separator must exist");
+  const reportDesktopSection = source.slice(
+    reportDesktopStart,
+    source.indexOf('id="particular-report"') + 200,
+  );
+  assert.match(
+    reportDesktopSection,
+    /className="[^"]*\bhidden\b[^"]*\bsm:block\b[^"]*"/,
+    "desktop report card must use hidden sm:block",
+  );
+});
+
 test("public surface auditor keeps exact allowlist for legacy session selectors", () => {
   const source = read(PUBLIC_SURFACE_AUDIT_SCRIPT_PATH);
 
