@@ -61,12 +61,14 @@ test("particulares content muestra estado y alerta desde study-tracking en sesio
 test("particulares content integra campana token-scoped en sesion activa", () => {
   const source = read(PARTICULARES_CONTENT_PATH);
 
+  assert.ok(source.includes('import dynamic from "next/dynamic";'));
   assert.ok(
     source.includes(
-      'import { DashboardNotificationsBell } from "@/components/dashboard/DashboardNotificationsBell";',
+      'import("@/components/dashboard/DashboardNotificationsBell").then(',
     ),
   );
-  assert.ok(source.includes('<DashboardNotificationsBell surface="particular" />'));
+  assert.ok(source.includes("mod.DashboardNotificationsBell"));
+  assert.ok(source.includes('<ParticularNotificationsBell surface="particular" />'));
 });
 
 test("particulares content muestra enlace WhatsApp y email solo bajo alerta de tincion especial", () => {

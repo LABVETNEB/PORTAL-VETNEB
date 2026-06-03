@@ -1,6 +1,3 @@
-"use client";
-
-import { useRouter } from "next/navigation";
 import {
   ChevronDown,
   Mail,
@@ -10,7 +7,10 @@ import {
   Phone,
 } from "lucide-react";
 
-import { PublicExternalControl } from "@/components/public/PublicRouteControl";
+import {
+  PublicExternalControl,
+  PublicRouteControl,
+} from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
 
 const faqItems = [
@@ -88,7 +88,6 @@ export function FooterFaq() {
 }
 
 export function Footer() {
-  const router = useRouter();
   const year = new Date().getFullYear();
 
   return (
@@ -153,13 +152,13 @@ export function Footer() {
             <ul className="space-y-3">
               {footerLinks.map((link) => (
                 <li key={link.href}>
-                  <button
-                    type="button"
-                    onClick={() => router.push(link.href)}
+                  <PublicRouteControl
+                    href={link.href}
+                    variant="bare"
                     className="text-sm text-sidebar-foreground/74 transition-colors hover:text-vetneb-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
                   >
                     {link.label}
-                  </button>
+                  </PublicRouteControl>
                 </li>
               ))}
             </ul>
@@ -171,32 +170,32 @@ export function Footer() {
             </h3>
             <ul className="space-y-3">
               <li>
-                <button
-                  type="button"
-                  onClick={() => router.push(ROUTES.login)}
+                <PublicRouteControl
+                  href={ROUTES.login}
+                  variant="bare"
                   className="text-sm text-sidebar-foreground/74 transition-colors hover:text-vetneb-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
                 >
                   Iniciar sesión
-                </button>
+                </PublicRouteControl>
               </li>
               <li>
-                <button
-                  type="button"
-                  onClick={() => router.push(ROUTES.particulares)}
+                <PublicRouteControl
+                  href={ROUTES.particulares}
+                  variant="bare"
                   className="text-sm text-sidebar-foreground/74 transition-colors hover:text-vetneb-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
                 >
                   Acceso particulares
-                </button>
+                </PublicRouteControl>
               </li>
               <li>
-                <button
-                  type="button"
-                  onClick={() => router.push(ROUTES.contacto)}
+                <PublicRouteControl
+                  href={ROUTES.contacto}
+                  variant="bare"
                   className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/8 px-3 py-1.5 text-sm text-white shadow-sm transition-colors hover:bg-white/14 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
                 >
                   <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
                   Solicitar acceso
-                </button>
+                </PublicRouteControl>
               </li>
             </ul>
           </div>

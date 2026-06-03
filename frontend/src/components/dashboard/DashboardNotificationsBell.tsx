@@ -1,8 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { Bell } from "lucide-react";
-import { X } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
