@@ -8,32 +8,40 @@ import {
   type Clinic,
   type ClinicPublicProfile,
 } from "../drizzle/schema.ts";
+import {
+  HISTOPATHOLOGY_REPORT_STUDY_TYPE,
+  PROFESSIONAL_BANK_ELIGIBILITY_MONTHS,
+} from "./lib/professional-bank-eligibility.ts";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 export const MIN_PUBLIC_PROFILE_QUALITY_SCORE = 75;
 
-const RECENT_HISTOPATHOLOGY_REPORTS_SQL = `EXISTS (
-  SELECT 1
-  FROM reports recent_histopathology_reports
-  WHERE recent_histopathology_reports.clinic_id = clinic_public_search.clinic_id
-    AND immutable_unaccent(COALESCE(recent_histopathology_reports.study_type, '')) ILIKE '%histopat%'
-    AND COALESCE(
-      recent_histopathology_reports.upload_date,
-      recent_histopathology_reports.created_at
-    ) >= NOW() - INTERVAL '3 months'
+const LAST_HISTOPATHOLOGY_REPORT_DELIVERED_AT_SQL = `(
+  SELECT MAX(professional_bank_delivery_events.delivered_at)
+  FROM (
+    SELECT report_delivery_history.created_at AS delivered_at
+    FROM report_status_history report_delivery_history
+    INNER JOIN reports professional_bank_reports
+      ON professional_bank_reports.id = report_delivery_history.report_id
+    WHERE professional_bank_reports.clinic_id = clinic_public_search.clinic_id
+      AND professional_bank_reports.study_type = '${HISTOPATHOLOGY_REPORT_STUDY_TYPE}'
+      AND report_delivery_history.changed_by_admin_user_id IS NOT NULL
+      AND report_delivery_history.to_status IN ('uploaded', 'delivered')
+    UNION ALL
+    SELECT professional_bank_reports.status_changed_at AS delivered_at
+    FROM reports professional_bank_reports
+    WHERE professional_bank_reports.clinic_id = clinic_public_search.clinic_id
+      AND professional_bank_reports.study_type = '${HISTOPATHOLOGY_REPORT_STUDY_TYPE}'
+      AND professional_bank_reports.status_changed_by_admin_user_id IS NOT NULL
+      AND professional_bank_reports.current_status IN ('uploaded', 'delivered')
+  ) professional_bank_delivery_events
 )`;
 
-const RECENT_HISTOPATHOLOGY_REPORT_DRIZZLE_SQL = sql`EXISTS (
-  SELECT 1
-  FROM reports recent_histopathology_reports
-  WHERE recent_histopathology_reports.clinic_id = clinic_public_search.clinic_id
-    AND immutable_unaccent(COALESCE(recent_histopathology_reports.study_type, '')) ILIKE '%histopat%'
-    AND COALESCE(
-      recent_histopathology_reports.upload_date,
-      recent_histopathology_reports.created_at
-    ) >= NOW() - INTERVAL '3 months'
-)`;
+const PROFESSIONAL_BANK_ELIGIBILITY_SQL = `${LAST_HISTOPATHOLOGY_REPORT_DELIVERED_AT_SQL} >= NOW() - INTERVAL '${PROFESSIONAL_BANK_ELIGIBILITY_MONTHS} months'`;
+const PROFESSIONAL_BANK_ELIGIBILITY_DRIZZLE_SQL = sql.raw(
+  PROFESSIONAL_BANK_ELIGIBILITY_SQL,
+);
 export type UpsertClinicPublicProfileInput = {
   displayName?: string | null;
   avatarStoragePath?: string | null;
@@ -509,7 +517,7 @@ export async function getPublicProfessionalByClinicId(clinicId: number) {
         eq(clinicPublicSearch.clinicId, clinicId),
         eq(clinicPublicSearch.isPublic, true),
         eq(clinicPublicSearch.isSearchEligible, true),
-        RECENT_HISTOPATHOLOGY_REPORT_DRIZZLE_SQL,
+        PROFESSIONAL_BANK_ELIGIBILITY_DRIZZLE_SQL,
       ),
     )
     .limit(1);
@@ -557,7 +565,7 @@ export async function searchPublicProfessionals(
   const conditions = [
     "is_public = true",
     "is_search_eligible = true",
-    RECENT_HISTOPATHOLOGY_REPORTS_SQL,
+    PROFESSIONAL_BANK_ELIGIBILITY_SQL,
   ];
 
   let queryIndex: number | null = null;

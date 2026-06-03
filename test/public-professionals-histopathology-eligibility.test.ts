@@ -18,36 +18,87 @@ function countOccurrences(source: string, needle: string): number {
   return source.split(needle).length - 1;
 }
 
-test("histopathology public-search gate is based on reports activity only", () => {
-  const source = readSource();
+function extractTemplateConstant(source: string, constantName: string): string {
+  const assignmentStart = source.indexOf(`const ${constantName} =`);
 
-  assertContains(source, "FROM reports recent_histopathology_reports");
-  assertContains(
-    source,
-    "recent_histopathology_reports.clinic_id = clinic_public_search.clinic_id",
+  assert.notEqual(
+    assignmentStart,
+    -1,
+    `${constantName}: falta la constante esperada`,
   );
-  assertContains(source, "recent_histopathology_reports.study_type");
-  assertContains(source, "ILIKE '%histopat%'");
+
+  const templateStart = source.indexOf("`", assignmentStart);
+
+  assert.notEqual(
+    templateStart,
+    -1,
+    `${constantName}: falta el inicio del template literal`,
+  );
+
+  const templateEnd = source.indexOf("`;", templateStart + 1);
+
+  assert.notEqual(
+    templateEnd,
+    -1,
+    `${constantName}: falta el cierre del template literal`,
+  );
+
+  return source.slice(templateStart + 1, templateEnd).trim();
+}
+
+test("histopathology public-search gate is based on admin report delivery", () => {
+  const source = readSource();
+  const deliverySql = extractTemplateConstant(
+    source,
+    "LAST_HISTOPATHOLOGY_REPORT_DELIVERED_AT_SQL",
+  );
+
+  assertContains(deliverySql, "FROM report_status_history report_delivery_history");
+  assertContains(deliverySql, "INNER JOIN reports professional_bank_reports");
+  assertContains(
+    deliverySql,
+    "professional_bank_reports.clinic_id = clinic_public_search.clinic_id",
+  );
+  assertContains(
+    deliverySql,
+    "professional_bank_reports.study_type = '${HISTOPATHOLOGY_REPORT_STUDY_TYPE}'",
+  );
+  assertContains(
+    deliverySql,
+    "report_delivery_history.changed_by_admin_user_id IS NOT NULL",
+  );
+  assertContains(
+    deliverySql,
+    "professional_bank_reports.status_changed_by_admin_user_id IS NOT NULL",
+  );
 
   assert.equal(
-    countOccurrences(source, "recent_histopathology_reports.study_type"),
+    countOccurrences(deliverySql, "professional_bank_reports.study_type"),
     2,
-    "search and detail gates must both depend on report study_type",
+    "history and compatibility fallback must both depend on report study_type",
   );
 });
 
-test("histopathology public-search gate uses the required 3 month activity window", () => {
+test("histopathology public-search gate uses the required 3 month delivery window", () => {
   const source = readSource();
+  const eligibilitySql = extractTemplateConstant(
+    source,
+    "PROFESSIONAL_BANK_ELIGIBILITY_SQL",
+  );
 
-  assertContains(source, "COALESCE(");
-  assertContains(source, "recent_histopathology_reports.upload_date");
-  assertContains(source, "recent_histopathology_reports.created_at");
-  assertContains(source, "NOW() - INTERVAL '3 months'");
+  assertContains(
+    eligibilitySql,
+    "LAST_HISTOPATHOLOGY_REPORT_DELIVERED_AT_SQL",
+  );
+  assertContains(
+    eligibilitySql,
+    "NOW() - INTERVAL '${PROFESSIONAL_BANK_ELIGIBILITY_MONTHS} months'",
+  );
 
   assert.equal(
-    countOccurrences(source, "NOW() - INTERVAL '3 months'"),
-    2,
-    "search and detail gates must both use the same 3 month window",
+    countOccurrences(source, "NOW() - INTERVAL"),
+    1,
+    "search and detail gates must share the same derived 3 month expression",
   );
 });
 
@@ -58,7 +109,7 @@ test("search result query and count query share the histopathology eligibility W
     source,
     'const whereSql = `WHERE ${conditions.join(" AND ")}`;',
   );
-  assertContains(source, "RECENT_HISTOPATHOLOGY_REPORTS_SQL,");
+  assertContains(source, "PROFESSIONAL_BANK_ELIGIBILITY_SQL,");
   assertContains(source, "FROM clinic_public_search\n      ${whereSql}");
   assertContains(
     source,
@@ -69,9 +120,10 @@ test("search result query and count query share the histopathology eligibility W
 test("public detail lookup uses the Drizzle histopathology gate", () => {
   const source = readSource();
 
-  assertContains(source, "RECENT_HISTOPATHOLOGY_REPORT_DRIZZLE_SQL");
+  assertContains(source, "PROFESSIONAL_BANK_ELIGIBILITY_DRIZZLE_SQL");
+  assertContains(source, "sql.raw(\n  PROFESSIONAL_BANK_ELIGIBILITY_SQL,");
   assertContains(
     source,
-    "eq(clinicPublicSearch.isSearchEligible, true),\n        RECENT_HISTOPATHOLOGY_REPORT_DRIZZLE_SQL,",
+    "eq(clinicPublicSearch.isSearchEligible, true),\n        PROFESSIONAL_BANK_ELIGIBILITY_DRIZZLE_SQL,",
   );
 });
