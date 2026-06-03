@@ -119,6 +119,116 @@ test("notifications bell shows visible mobile banner as auto-show surface", () =
     source.includes("fixed inset-x-0"),
     "mobile banner must use fixed full-width positioning",
   );
+  assert.ok(
+    source.includes("z-[80]"),
+    "mobile banner must use a high z-index above dashboard content",
+  );
+});
+
+test("notifications bell opens manual mobile panel as fixed body portal", () => {
+  const source = read(BELL_PATH);
+  const mobilePanelPortal = sectionBetween(
+    source,
+    "portalContainer && isOpen",
+    "{/* Mobile auto-show banner",
+  );
+
+  assert.ok(
+    mobilePanelPortal.includes("createPortal("),
+    "manual mobile panel must be portaled out of parent stacking contexts",
+  );
+  assert.ok(
+    mobilePanelPortal.includes(
+      'data-dashboard-notifications-mobile-overlay="true"',
+    ),
+    "manual mobile panel must expose a stable overlay selector",
+  );
+  assert.ok(
+    mobilePanelPortal.includes(
+      'data-dashboard-notifications-mobile-panel="true"',
+    ),
+    "manual mobile panel must expose a stable panel selector",
+  );
+  assert.ok(
+    mobilePanelPortal.includes("fixed inset-0 z-[90]"),
+    "manual mobile overlay must be fixed with a z-index above dashboard chrome",
+  );
+  assert.ok(
+    mobilePanelPortal.includes("fixed inset-x-3 top-3"),
+    "manual mobile sheet must be fixed to the viewport, not the bell wrapper",
+  );
+  assert.ok(
+    mobilePanelPortal.includes("bg-card"),
+    "manual mobile sheet must use an opaque background",
+  );
+  assert.ok(
+    mobilePanelPortal.includes("sm:hidden"),
+    "manual mobile overlay must stay mobile-only",
+  );
+  assert.ok(
+    mobilePanelPortal.includes('role="dialog"'),
+    "manual mobile panel must be exposed as a dialog",
+  );
+  assert.ok(
+    mobilePanelPortal.includes('aria-modal="true"'),
+    "manual mobile panel must mark modal semantics",
+  );
+});
+
+test("notifications bell closes manual mobile panel cleanly", () => {
+  const source = read(BELL_PATH);
+  const closeFn = sectionBetween(
+    source,
+    "function handleClosePanel()",
+    "function handleEnableNotifications()",
+  );
+
+  assert.ok(
+    closeFn.includes("setIsOpen(false);"),
+    "close handler must hide the manual panel",
+  );
+  assert.ok(
+    source.includes("portalContainer && isOpen"),
+    "manual mobile portal must be conditionally mounted only while open",
+  );
+  assert.ok(
+    source.includes('aria-label="Cerrar panel de notificaciones"'),
+    "manual mobile panel must include an accessible close button",
+  );
+  assert.ok(
+    source.includes("onClick={handleClosePanel}"),
+    "manual mobile overlay and close button must use the close handler",
+  );
+  assert.ok(
+    source.includes("event.stopPropagation()"),
+    "manual mobile panel clicks must not close via backdrop bubbling",
+  );
+  assert.ok(
+    source.includes('event.key === "Escape"'),
+    "manual panel must close on Escape",
+  );
+  assert.ok(
+    source.includes('window.addEventListener("keydown", handleKeyDown)'),
+    "Escape listener must be registered while the panel is open",
+  );
+  assert.ok(
+    source.includes('window.removeEventListener("keydown", handleKeyDown)'),
+    "Escape listener must be removed when the panel closes",
+  );
+});
+
+test("notifications bell keeps desktop dropdown desktop-only", () => {
+  const source = read(BELL_PATH);
+
+  assert.ok(
+    source.includes('data-dashboard-notifications-desktop-panel="true"'),
+    "desktop dropdown must expose a stable selector",
+  );
+  assert.match(
+    source,
+    /className="[^"]*\babsolute\b[^"]*\bright-0\b[^"]*\bz-50\b[^"]*\bhidden\b[^"]*\bsm:block\b[^"]*"/,
+    "desktop dropdown must remain absolute on desktop and hidden below sm",
+  );
 });
 
 // ── 4. Badge renders unread count correctly ──────────────────────────────────
@@ -309,6 +419,35 @@ test("notifications bell uses the same contextual click handler on mobile and de
   assert.ok(
     source.includes("setMobileBannerVisible(false);"),
     "mobile banner must close on notification navigation",
+  );
+});
+
+test("notifications mobile panel does not depend on Particulares layout wrapper", () => {
+  const bellSource = read(BELL_PATH);
+  const particularesSource = read(PARTICULARES_PATH);
+
+  assert.ok(
+    particularesSource.includes(
+      'className="particular-notifications-bell-layer shrink-0"',
+    ),
+    "ParticularesContent must keep the session bell wrapper",
+  );
+  assert.ok(
+    bellSource.includes("setPortalContainer(document.body);"),
+    "DashboardNotificationsBell must target document.body for overlays",
+  );
+  assert.ok(
+    bellSource.includes(
+      'data-dashboard-notifications-mobile-overlay="true"',
+    ),
+    "manual mobile overlay must be owned by the bell component",
+  );
+  assert.equal(
+    particularesSource.includes(
+      "data-dashboard-notifications-mobile-overlay",
+    ),
+    false,
+    "ParticularesContent must not own the notification overlay layer",
   );
 });
 
