@@ -12,6 +12,7 @@ const { ENV } = await import("../server/lib/env.ts");
 const { createFastifyApp } = await import("../server/fastify-app.ts");
 const { API_NOSNIFF_HEADER_VALUE, API_REFERRER_POLICY_HEADER_VALUE } =
   await import("../server/lib/api-response-security.ts");
+const { isSafeRequestId } = await import("../server/lib/api-request-id.ts");
 
 function buildExpectedContactServiceSnapshot() {
   const explicitRecipients = Array.from(
@@ -737,6 +738,27 @@ function buildAdminSystemHealthRouteStubs() {
     }),
     getBackendVersion: () => "test-version",
   };
+}
+
+function assertRequestIdHeader(
+  response: { headers: Record<string, string | string[] | number | undefined> },
+  label: string,
+) {
+  const requestId = response.headers["x-request-id"];
+
+  assert.equal(typeof requestId, "string", `${label} debe incluir X-Request-ID`);
+  if (typeof requestId !== "string") {
+    throw new Error(`${label} debe incluir X-Request-ID`);
+  }
+
+  assert.ok(requestId.length > 0, `${label} debe incluir X-Request-ID no vacio`);
+  assert.equal(
+    isSafeRequestId(requestId),
+    true,
+    `${label} debe incluir X-Request-ID seguro`,
+  );
+
+  return requestId;
 }
 function buildFastifyDispatchRouteStubs() {
   return {
@@ -2525,6 +2547,22 @@ test(
         url: "/api/health",
       });
 
+      const apiHealthWithValidRequestId = await app.inject({
+        method: "GET",
+        url: "/api/health",
+        headers: {
+          "x-request-id": "client-req_123.abc:456",
+        },
+      });
+
+      const apiHealthWithInvalidRequestId = await app.inject({
+        method: "GET",
+        url: "/api/health",
+        headers: {
+          "x-request-id": "client request id",
+        },
+      });
+
       const publicRoot = await app.inject({
         method: "GET",
         url: "/",
@@ -2553,10 +2591,22 @@ test(
           API_REFERRER_POLICY_HEADER_VALUE,
           `${label} debe incluir Referrer-Policy`,
         );
+        assertRequestIdHeader(response, label);
       }
+
+      assert.equal(
+        apiHealthWithValidRequestId.headers["x-request-id"],
+        "client-req_123.abc:456",
+      );
+      const replacementRequestId = assertRequestIdHeader(
+        apiHealthWithInvalidRequestId,
+        "apiHealthWithInvalidRequestId",
+      );
+      assert.notEqual(replacementRequestId, "client request id");
 
       assert.equal(publicRoot.headers["x-content-type-options"], undefined);
       assert.equal(publicRoot.headers["referrer-policy"], undefined);
+      assert.equal(publicRoot.headers["x-request-id"], undefined);
     } finally {
       await app.close();
     }

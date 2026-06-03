@@ -143,6 +143,10 @@ import {
 import { requireTrustedOriginForFastify } from "./middlewares/trusted-origin.ts";
 import { applySensitiveApiNoStoreHeaders } from "./lib/sensitive-response-cache.ts";
 import { applyApiSecurityHeaders } from "./lib/api-response-security.ts";
+import {
+  applyApiRequestIdHeader,
+  generateFastifyRequestId,
+} from "./lib/api-request-id.ts";
 
 type HealthCheckResponse = {
   statusCode: number;
@@ -250,11 +254,13 @@ export async function createFastifyApp(
   options: CreateFastifyAppOptions = {},
 ): Promise<FastifyInstance> {
   const app = Fastify({
+    genReqId: generateFastifyRequestId,
     logger: false,
     trustProxy: ENV.trustProxy,
   });
 
   app.addHook("onRequest", async (request, reply) => {
+    applyApiRequestIdHeader(request, reply);
     applyApiSecurityHeaders(request, reply);
   });
 
