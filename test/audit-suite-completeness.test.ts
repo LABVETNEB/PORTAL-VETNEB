@@ -134,7 +134,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
       },
       {
         path: "server/routes/admin-audit.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]", "buildAdminAuditListFilters"],
+        markers: ["authenticateFastifyAdmin", "buildAdminAuditListFilters"],
       },
       {
         path: "server/routes/clinic-audit.fastify.ts",
@@ -615,4 +615,3 @@ test("audit suite completeness guardrail source stays ascii only", () => {
     );
   }
 });
-

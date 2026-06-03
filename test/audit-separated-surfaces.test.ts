@@ -98,10 +98,12 @@ test("audit surfaces quedan montadas por dominio sin aliases cruzados", () => {
 
 test("admin audit mantiene superficie global y cookie admin exclusiva", () => {
   const source = readSource("server/routes/admin-audit.fastify.ts");
+  const adapterSource = readSource("server/lib/fastify-admin-auth.ts");
 
   assert.match(source, /export type AdminAuditNativeRoutesOptions/);
-  assert.match(source, /getAdminSessionToken\(request: FastifyRequest\)/);
-  assert.match(source, /cookies\[ENV\.adminCookieName\]/);
+  assert.match(source, /authenticateFastifyAdmin\(request, reply/);
+  assert.match(adapterSource, /getAdminSessionToken\(request: FastifyRequest\)/);
+  assert.match(adapterSource, /cookies\[ENV\.adminCookieName\]/);
   assert.match(source, /authenticateAdminUser\(request, reply, deps, now\)/);
   assert.match(source, /app\.get<[\s\S]*?>\("\/export\.csv"/);
   assert.match(source, /app\.get<[\s\S]*?>\("\/"/);

@@ -175,52 +175,56 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
         markers: ["COOKIE_NAME", "ADMIN_COOKIE_NAME", "PARTICULAR_COOKIE_NAME"],
       },
       {
+        path: "server/lib/fastify-admin-auth.ts",
+        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+      },
+      {
         path: "server/routes/auth.fastify.ts",
         markers: ["cookies[ENV.cookieName]", "name: ENV.cookieName"],
       },
       {
         path: "server/routes/admin-audit.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-auth.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-failed-login-alerts.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-particular-tokens.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-report-access-tokens.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-reports.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-sessions.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-study-tracking.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-system-health.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-system-maintenance.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-users-roles.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]", "name: ENV.adminCookieName"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/particular-auth.fastify.ts",
@@ -250,48 +254,52 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
         markers: ["cookies[ENV.cookieName]"],
       },
       {
-        path: "server/routes/admin-audit.fastify.ts",
+        path: "server/lib/fastify-admin-auth.ts",
         markers: ["cookies[ENV.adminCookieName]"],
+      },
+      {
+        path: "server/routes/admin-audit.fastify.ts",
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-auth.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-failed-login-alerts.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-particular-tokens.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-report-access-tokens.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-reports.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-sessions.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-study-tracking.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-system-health.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-system-maintenance.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/admin-users-roles.fastify.ts",
-        markers: ["cookies[ENV.adminCookieName]"],
+        markers: ["authenticateFastifyAdmin"],
       },
       {
         path: "server/routes/particular-auth.fastify.ts",

@@ -8,15 +8,21 @@ const routeSource = readFileSync(
   "utf8",
 );
 
+const adapterSource = readFileSync(
+  resolve(process.cwd(), "server", "lib", "fastify-admin-auth.ts"),
+  "utf8",
+);
+
 test("admin particular tokens route uses shared session last access helper", () => {
+  assert.match(routeSource, /authenticateFastifyAdmin/);
   assert.match(
-    routeSource,
-    /import \{ shouldRefreshSessionLastAccess \} from "\.\.\/lib\/session-last-access\.ts";/,
+    adapterSource,
+    /import \{ shouldRefreshSessionLastAccess \} from "\.\/session-last-access\.ts";/,
   );
   assert.match(
-    routeSource,
-    /shouldRefreshSessionLastAccess\(session\.lastAccess \?\? null, now\(\)\)/,
+    adapterSource,
+    /shouldRefreshSessionLastAccess\(session\.lastAccess \?\? null, deps\.now\(\)\)/,
   );
-  assert.doesNotMatch(routeSource, /SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS/);
-  assert.doesNotMatch(routeSource, /function shouldRefreshSessionLastAccess/);
+  assert.doesNotMatch(adapterSource, /SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS/);
+  assert.doesNotMatch(adapterSource, /function shouldRefreshSessionLastAccess/);
 });

@@ -146,25 +146,28 @@ test("cada dominio de sesión lee y escribe únicamente su cookie correspondient
   );
 
   const adminAuth = read("server/routes/admin-auth.fastify.ts");
+  const adminFastifyAuth = read("server/lib/fastify-admin-auth.ts");
   assertContains(
-    adminAuth,
+    adminFastifyAuth,
     "cookies[ENV.adminCookieName]",
-    "admin-auth.fastify.ts",
+    "fastify-admin-auth.ts",
   );
   assertContains(
-    adminAuth,
+    adminFastifyAuth,
     "name: ENV.adminCookieName",
-    "admin-auth.fastify.ts",
+    "fastify-admin-auth.ts",
   );
+  assertContains(adminAuth, "authenticateFastifyAdmin", "admin-auth.fastify.ts");
+  assertContains(adminAuth, "name: ENV.adminCookieName", "admin-auth.fastify.ts");
   assertNotContains(
-    adminAuth,
+    adminFastifyAuth,
     "cookies[ENV.cookieName]",
-    "admin-auth.fastify.ts",
+    "fastify-admin-auth.ts",
   );
   assertNotContains(
-    adminAuth,
+    adminFastifyAuth,
     "cookies[ENV.particularCookieName]",
-    "admin-auth.fastify.ts",
+    "fastify-admin-auth.ts",
   );
 
   const particularAuth = read("server/routes/particular-auth.fastify.ts");

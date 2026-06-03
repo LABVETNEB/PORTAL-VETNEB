@@ -79,10 +79,18 @@ test("clinic route surfaces accept only clinic session cookies", () => {
 });
 
 test("admin route surfaces accept only admin session cookies", () => {
-  assertCookieBoundary(adminFiles, ADMIN_COOKIE, [
+  assertCookieBoundary(["server/lib/fastify-admin-auth.ts"], ADMIN_COOKIE, [
     CLINIC_COOKIE,
     PARTICULAR_COOKIE,
   ]);
+
+  for (const file of adminFiles) {
+    const source = read(file);
+
+    assertContains(source, "authenticateFastifyAdmin", file);
+    assertNotContains(source, CLINIC_COOKIE, file);
+    assertNotContains(source, PARTICULAR_COOKIE, file);
+  }
 });
 
 test("particular route surfaces accept only particular session cookies", () => {
@@ -146,4 +154,3 @@ test("cross auth surface registry keeps every protected route family explicit", 
     ],
   );
 });
-
