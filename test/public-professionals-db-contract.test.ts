@@ -17,17 +17,18 @@ function assertContains(source: string, expected: string): void {
 test("public professionals search requires recent histopathology activity", () => {
   const source = readDbPublicProfessionalsSource();
 
-  assertContains(source, "RECENT_HISTOPATHOLOGY_REPORTS_SQL");
-  assertContains(source, "FROM reports recent_histopathology_reports");
+  assertContains(source, "PROFESSIONAL_BANK_ELIGIBILITY_SQL");
+  assertContains(source, "LAST_HISTOPATHOLOGY_REPORT_DELIVERED_AT_SQL");
+  assertContains(source, "FROM report_status_history report_delivery_history");
+  assertContains(source, "INNER JOIN reports professional_bank_reports");
   assertContains(
     source,
-    "recent_histopathology_reports.clinic_id = clinic_public_search.clinic_id",
+    "professional_bank_reports.clinic_id = clinic_public_search.clinic_id",
   );
-  assertContains(source, "recent_histopathology_reports.study_type");
-  assertContains(source, "ILIKE '%histopat%'");
-  assertContains(source, "recent_histopathology_reports.upload_date");
-  assertContains(source, "recent_histopathology_reports.created_at");
-  assertContains(source, "NOW() - INTERVAL '3 months'");
+  assertContains(source, "HISTOPATHOLOGY_REPORT_STUDY_TYPE");
+  assertContains(source, "changed_by_admin_user_id IS NOT NULL");
+  assertContains(source, "status_changed_at AS delivered_at");
+  assertContains(source, "PROFESSIONAL_BANK_ELIGIBILITY_MONTHS");
 });
 
 test("public professionals search keeps public profile eligibility filters", () => {
@@ -35,15 +36,15 @@ test("public professionals search keeps public profile eligibility filters", () 
 
   assertContains(source, '"is_public = true"');
   assertContains(source, '"is_search_eligible = true"');
-  assertContains(source, "RECENT_HISTOPATHOLOGY_REPORTS_SQL,");
+  assertContains(source, "PROFESSIONAL_BANK_ELIGIBILITY_SQL,");
 });
 
 test("public professional detail lookup shares the recent histopathology gate", () => {
   const source = readDbPublicProfessionalsSource();
 
-  assertContains(source, "RECENT_HISTOPATHOLOGY_REPORT_DRIZZLE_SQL");
+  assertContains(source, "PROFESSIONAL_BANK_ELIGIBILITY_DRIZZLE_SQL");
   assertContains(
     source,
-    "RECENT_HISTOPATHOLOGY_REPORT_DRIZZLE_SQL,\n      ),",
+    "PROFESSIONAL_BANK_ELIGIBILITY_DRIZZLE_SQL,\n      ),",
   );
 });

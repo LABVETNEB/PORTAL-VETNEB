@@ -47,54 +47,67 @@ function countOccurrences(source: string, needle: string): number {
 }
 
 function getRawGate(source: string): string {
-  return extractTemplateConstant(source, "RECENT_HISTOPATHOLOGY_REPORTS_SQL");
-}
-
-function getDrizzleGate(source: string): string {
   return extractTemplateConstant(
     source,
-    "RECENT_HISTOPATHOLOGY_REPORT_DRIZZLE_SQL",
+    "LAST_HISTOPATHOLOGY_REPORT_DELIVERED_AT_SQL",
+  );
+}
+
+function getEligibilityGate(source: string): string {
+  return extractTemplateConstant(
+    source,
+    "PROFESSIONAL_BANK_ELIGIBILITY_SQL",
   );
 }
 
 test("raw SQL and Drizzle histopathology gates stay equivalent", () => {
   const source = readSource();
-  const rawGate = normalizeSql(getRawGate(source));
-  const drizzleGate = normalizeSql(getDrizzleGate(source));
 
-  assert.equal(
-    rawGate,
-    drizzleGate,
-    "el gate SQL raw y el gate Drizzle no deben divergir",
+  assert.ok(
+    source.includes(
+      "const PROFESSIONAL_BANK_ELIGIBILITY_DRIZZLE_SQL = sql.raw(\n  PROFESSIONAL_BANK_ELIGIBILITY_SQL,",
+    ),
+    "el gate Drizzle debe reutilizar exactamente el SQL raw",
   );
 });
 
-test("histopathology eligibility gate depends only on reports activity", () => {
+test("histopathology eligibility gate depends on admin delivery events", () => {
   const source = readSource();
   const rawGate = getRawGate(source);
 
   assert.equal(
-    countOccurrences(rawGate, "FROM reports recent_histopathology_reports"),
+    countOccurrences(rawGate, "FROM report_status_history report_delivery_history"),
     1,
-    "el gate debe consultar exclusivamente reports como fuente de actividad",
+    "el gate debe consultar historial de estados como fuente primaria",
+  );
+
+  assert.equal(
+    countOccurrences(rawGate, "INNER JOIN reports professional_bank_reports"),
+    1,
+    "el historial debe unirse a reports para clinic_id y study_type",
+  );
+
+  assert.equal(
+    countOccurrences(rawGate, "FROM reports professional_bank_reports"),
+    1,
+    "el gate debe mantener fallback de compatibilidad en reports",
   );
 
   assert.equal(
     countOccurrences(rawGate, "clinic_public_search."),
-    1,
+    2,
     "el gate solo debe referenciar clinic_public_search para correlacionar clinic_id",
   );
 
   assert.ok(
     rawGate.includes(
-      "recent_histopathology_reports.clinic_id = clinic_public_search.clinic_id",
+      "professional_bank_reports.clinic_id = clinic_public_search.clinic_id",
     ),
-    "el gate debe correlacionar reports con clinic_public_search por clinic_id",
+    "el gate debe correlacionar reportes con clinic_public_search por clinic_id",
   );
 
   for (const forbiddenToken of [
     "clinic_public_profiles",
-    "report_status_history",
     "study_tracking",
     "clinic_public_search.specialty_text",
     "clinic_public_search.services_text",
@@ -115,40 +128,66 @@ test("histopathology eligibility gate uses report study_type only", () => {
   const normalizedGate = normalizeSql(rawGate);
 
   assert.equal(
-    countOccurrences(rawGate, "recent_histopathology_reports.study_type"),
-    1,
-    "el gate debe evaluar study_type una sola vez",
+    countOccurrences(rawGate, "professional_bank_reports.study_type"),
+    2,
+    "el gate debe evaluar study_type en historial y fallback",
   );
 
   assert.ok(
     normalizedGate.includes(
-      "immutable_unaccent(COALESCE(recent_histopathology_reports.study_type, '')) ILIKE '%histopat%'",
+      "professional_bank_reports.study_type = '${HISTOPATHOLOGY_REPORT_STUDY_TYPE}'",
     ),
-    "el gate debe usar study_type normalizado para detectar histopatología",
+    "el gate debe usar el tipo de estudio histopatologico del catalogo",
   );
 
   assert.ok(
-    !rawGate.includes("specialty_text"),
-    "el texto de especialidad pública no debe habilitar aparición",
+    !rawGate.includes("ILIKE '%histopat%'"),
+    "el gate no debe inferir histopatologia con busquedas de texto libre",
   );
 });
 
-test("histopathology eligibility gate uses only upload/create report timestamps", () => {
+test("histopathology eligibility gate uses only admin delivery timestamps", () => {
   const source = readSource();
   const rawGate = getRawGate(source);
+  const eligibilityGate = getEligibilityGate(source);
   const normalizedGate = normalizeSql(rawGate);
 
   assert.ok(
+    normalizedGate.includes("report_delivery_history.created_at AS delivered_at"),
+    "el historial de estados debe aportar la fecha de entrega admin",
+  );
+
+  assert.ok(
+    normalizedGate.includes("professional_bank_reports.status_changed_at AS delivered_at"),
+    "reports.status_changed_at queda como fallback de compatibilidad",
+  );
+
+  assert.ok(
     normalizedGate.includes(
-      "COALESCE( recent_histopathology_reports.upload_date, recent_histopathology_reports.created_at ) >= NOW() - INTERVAL '3 months'",
+      "report_delivery_history.changed_by_admin_user_id IS NOT NULL",
     ),
-    "el gate debe usar upload_date/created_at con ventana inclusiva de 3 meses",
+    "el historial debe exigir autor admin",
+  );
+
+  assert.ok(
+    normalizedGate.includes(
+      "professional_bank_reports.status_changed_by_admin_user_id IS NOT NULL",
+    ),
+    "el fallback debe exigir autor admin",
+  );
+
+  assert.ok(
+    normalizeSql(eligibilityGate).includes(
+      "NOW() - INTERVAL '${PROFESSIONAL_BANK_ELIGIBILITY_MONTHS} months'",
+    ),
+    "la ventana debe derivarse del contrato de 3 meses",
   );
 
   for (const forbiddenDateColumn of [
-    "recent_histopathology_reports.updated_at",
-    "recent_histopathology_reports.completed_at",
-    "recent_histopathology_reports.status_changed_at",
+    "professional_bank_reports.upload_date",
+    "professional_bank_reports.created_at",
+    "professional_bank_reports.updated_at",
+    "professional_bank_reports.completed_at",
   ]) {
     assert.ok(
       !rawGate.includes(forbiddenDateColumn),
