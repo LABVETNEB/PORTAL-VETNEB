@@ -1,4 +1,4 @@
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 
 import { db } from "./db.ts";
 import {
@@ -8,6 +8,7 @@ import {
   clinics,
   type ClinicUserRole,
 } from "../drizzle/schema.ts";
+import { normalizeListPagination } from "./lib/list-pagination.ts";
 
 export type AdminRoleUserType = "admin" | "clinic";
 export type AdminRoleUserRole = "admin" | ClinicUserRole;
@@ -83,22 +84,6 @@ type ClinicUserRoleRow = {
   updatedAt: Date;
 };
 
-function normalizeLimit(value: number | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 50;
-  }
-
-  return Math.min(Math.max(Math.trunc(value), 1), 100);
-}
-
-function normalizeOffset(value: number | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.max(Math.trunc(value), 0);
-}
-
 function toIsoDate(value: Date) {
   return value.toISOString();
 }
@@ -156,16 +141,51 @@ async function getClinicUserRoleRow(
 export async function getAdminUsersRolesSnapshot(
   params: AdminUsersRolesQuery = {},
 ): Promise<AdminUsersRolesSnapshot> {
-  const limit = normalizeLimit(params.limit);
-  const offset = normalizeOffset(params.offset);
+  const { limit, offset } = normalizeListPagination(params);
 
   const includeAdmins =
     params.userType === undefined || params.userType === "admin";
   const includeClinicUsers =
     params.userType === undefined || params.userType === "clinic";
+  const shouldListAdmins =
+    includeAdmins && (params.role === undefined || params.role === "admin");
+  const shouldListClinicUsers = includeClinicUsers && params.role !== "admin";
+  const clinicWhere =
+    params.role && params.role !== "admin"
+      ? eq(clinicUsers.role, params.role)
+      : undefined;
+
+  const [adminCountRows, clinicCountRows] = await Promise.all([
+    shouldListAdmins
+      ? db
+          .select({
+            total: sql<number>`count(*)::int`,
+          })
+          .from(adminUsers)
+      : Promise.resolve([{ total: 0 }]),
+    shouldListClinicUsers
+      ? db
+          .select({
+            total: sql<number>`count(*)::int`,
+          })
+          .from(clinicUsers)
+          .where(clinicWhere)
+      : Promise.resolve([{ total: 0 }]),
+  ]);
+
+  const adminTotal = Number(adminCountRows[0]?.total ?? 0);
+  const clinicTotal = Number(clinicCountRows[0]?.total ?? 0);
+  const adminOffset = shouldListAdmins ? Math.min(offset, adminTotal) : 0;
+  const adminLimit = shouldListAdmins
+    ? Math.min(limit, Math.max(adminTotal - offset, 0))
+    : 0;
+  const clinicOffset = shouldListAdmins
+    ? Math.max(offset - adminTotal, 0)
+    : offset;
+  const clinicLimit = shouldListClinicUsers ? limit - adminLimit : 0;
 
   const [adminRows, clinicRows] = await Promise.all([
-    includeAdmins
+    adminLimit > 0
       ? db
           .select({
             userId: adminUsers.id,
@@ -175,8 +195,10 @@ export async function getAdminUsersRolesSnapshot(
           })
           .from(adminUsers)
           .orderBy(asc(adminUsers.username))
+          .limit(adminLimit)
+          .offset(adminOffset)
       : Promise.resolve([]),
-    includeClinicUsers
+    clinicLimit > 0
       ? db
           .select({
             userId: clinicUsers.id,
@@ -194,7 +216,10 @@ export async function getAdminUsersRolesSnapshot(
             clinicPublicProfiles,
             eq(clinicPublicProfiles.clinicId, clinicUsers.clinicId),
           )
+          .where(clinicWhere)
           .orderBy(asc(clinicUsers.username))
+          .limit(clinicLimit)
+          .offset(clinicOffset)
       : Promise.resolve([]),
   ]);
 
@@ -221,19 +246,17 @@ export async function getAdminUsersRolesSnapshot(
         updatedAt: row.updatedAt,
       }),
     ),
-  ]
-    .filter((user) => (params.role ? user.role === params.role : true))
-    .sort(sortUsers);
+  ].sort(sortUsers);
 
   return {
     success: true,
-    users: users.slice(offset, offset + limit),
-    total: users.length,
+    users,
+    total: adminTotal + clinicTotal,
     limit,
     offset,
     totals: {
-      adminUsers: users.filter((user) => user.userType === "admin").length,
-      clinicUsers: users.filter((user) => user.userType === "clinic").length,
+      adminUsers: adminTotal,
+      clinicUsers: clinicTotal,
     },
   };
 }

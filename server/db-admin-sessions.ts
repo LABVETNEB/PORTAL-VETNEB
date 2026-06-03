@@ -6,6 +6,7 @@ import {
   adminSessions,
   particularSessions,
 } from "../drizzle/schema.ts";
+import { normalizeListPagination } from "./lib/list-pagination.ts";
 
 export type AdminSessionType = "admin" | "clinic" | "particular";
 export type AdminSessionStatus = "active" | "expired";
@@ -36,22 +37,6 @@ export type AdminSessionsSnapshot = {
   offset: number;
 };
 
-function normalizeLimit(value: number | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 50;
-  }
-
-  return Math.min(Math.max(Math.trunc(value), 1), 100);
-}
-
-function normalizeOffset(value: number | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.max(Math.trunc(value), 0);
-}
-
 function toIsoDate(value: Date | null | undefined) {
   return value ? value.toISOString() : null;
 }
@@ -76,8 +61,7 @@ export async function getAdminSessionsSnapshot(
   params: AdminSessionsQuery = {},
   now = new Date(),
 ): Promise<AdminSessionsSnapshot> {
-  const limit = normalizeLimit(params.limit);
-  const offset = normalizeOffset(params.offset);
+  const { limit, offset } = normalizeListPagination(params);
   const fetchLimit = limit + offset;
 
   const includeAdmin =

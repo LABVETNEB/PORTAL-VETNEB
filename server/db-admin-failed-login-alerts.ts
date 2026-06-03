@@ -6,6 +6,7 @@ import {
   type LoginFailedAttemptReason,
   type LoginFailedAttemptSurface,
 } from "../drizzle/schema.ts";
+import { normalizeListPagination } from "./lib/list-pagination.ts";
 
 export type AdminFailedLoginAlertSurface = LoginFailedAttemptSurface;
 export type AdminFailedLoginAlertReason = LoginFailedAttemptReason;
@@ -40,27 +41,10 @@ export type AdminFailedLoginAlertsSnapshot = {
   };
 };
 
-function normalizeLimit(value: number | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 50;
-  }
-
-  return Math.min(Math.max(Math.trunc(value), 1), 100);
-}
-
-function normalizeOffset(value: number | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.max(Math.trunc(value), 0);
-}
-
 export async function listAdminFailedLoginAlerts(
   params: AdminFailedLoginAlertsQuery = {},
 ): Promise<AdminFailedLoginAlertsSnapshot> {
-  const limit = normalizeLimit(params.limit);
-  const offset = normalizeOffset(params.offset);
+  const { limit, offset } = normalizeListPagination(params);
   const filters = [];
 
   if (params.surface) {

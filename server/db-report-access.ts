@@ -5,6 +5,7 @@ import {
   reports,
   type NewReportAccessToken,
 } from "../drizzle/schema.ts";
+import { normalizeListPagination } from "./lib/list-pagination.ts";
 
 export async function createReportAccessToken(
   input: Omit<
@@ -68,8 +69,7 @@ export async function listReportAccessTokens(params?: {
   limit?: number;
   offset?: number;
 }) {
-  const limit = params?.limit ?? 50;
-  const offset = params?.offset ?? 0;
+  const { limit, offset } = normalizeListPagination(params);
   const filters = [] as Array<ReturnType<typeof eq>>;
 
   if (typeof params?.clinicId === "number") {

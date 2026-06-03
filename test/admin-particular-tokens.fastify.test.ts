@@ -601,6 +601,66 @@ test(
 );
 
 test(
+  "adminParticularTokensNativeRoutes normaliza paginación default, max e inválida",
+  async () => {
+    const listCalls: Array<Record<string, unknown>> = [];
+    const app = await createTestApp({
+      listParticularTokens: async (params: Record<string, unknown>) => {
+        listCalls.push(params);
+        return [];
+      },
+    });
+
+    try {
+      const baseHeaders = {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      };
+      const defaultResponse = await app.inject({
+        method: "GET",
+        url: "/api/admin/particular-tokens",
+        headers: baseHeaders,
+      });
+      const maxResponse = await app.inject({
+        method: "GET",
+        url: "/api/admin/particular-tokens?limit=999&offset=2",
+        headers: baseHeaders,
+      });
+      const invalidResponse = await app.inject({
+        method: "GET",
+        url: "/api/admin/particular-tokens?limit=abc&offset=-2",
+        headers: baseHeaders,
+      });
+
+      assert.equal(defaultResponse.statusCode, 200);
+      assert.equal(maxResponse.statusCode, 200);
+      assert.equal(invalidResponse.statusCode, 200);
+      assert.equal(listCalls.length, 3);
+      assert.equal(listCalls[0].limit, 50);
+      assert.equal(listCalls[0].offset, 0);
+      assert.equal(listCalls[1].limit, 100);
+      assert.equal(listCalls[1].offset, 2);
+      assert.equal(listCalls[2].limit, 50);
+      assert.equal(listCalls[2].offset, 0);
+
+      assert.deepEqual(JSON.parse(defaultResponse.body).pagination, {
+        limit: 50,
+        offset: 0,
+      });
+      assert.deepEqual(JSON.parse(maxResponse.body).pagination, {
+        limit: 100,
+        offset: 2,
+      });
+      assert.deepEqual(JSON.parse(invalidResponse.body).pagination, {
+        limit: 50,
+        offset: 0,
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
   "adminParticularTokensNativeRoutes expone GET /:tokenId con detalle y reporte vinculado",
   async () => {
     const token = createParticularTokenFixture();

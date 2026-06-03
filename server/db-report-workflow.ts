@@ -6,6 +6,7 @@ import {
   reports,
   type ReportWorkflowStage,
 } from "../drizzle/schema.ts";
+import { normalizeListPagination } from "./lib/list-pagination.ts";
 
 export type AdminReportWorkflowItem = {
   id: number;
@@ -72,16 +73,20 @@ function serializeAdminReportWorkflowItem(
 }
 
 export async function listAdminReportWorkflowItems(input: {
-  limit: number;
-  offset: number;
-}): Promise<AdminReportWorkflowItem[]> {
+  limit?: number;
+  offset?: number;
+} = {}): Promise<AdminReportWorkflowItem[]> {
+  const { limit, offset } = normalizeListPagination(input, {
+    defaultLimit: 20,
+    maxLimit: 21,
+  });
   const rows = await db
     .select(workflowSelection)
     .from(reports)
     .leftJoin(clinics, eq(reports.clinicId, clinics.id))
     .orderBy(desc(reports.uploadDate), desc(reports.createdAt), desc(reports.id))
-    .limit(input.limit)
-    .offset(input.offset);
+    .limit(limit)
+    .offset(offset);
 
   return rows.map((row) =>
     serializeAdminReportWorkflowItem(row as AdminReportWorkflowRow),

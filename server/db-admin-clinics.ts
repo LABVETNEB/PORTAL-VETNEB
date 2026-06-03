@@ -24,6 +24,7 @@ import {
   type ClinicUserRole,
   visitLocations,
 } from "../drizzle/schema.ts";
+import { normalizeListPagination } from "./lib/list-pagination.ts";
 
 export type AdminClinicUserSummary = {
   userType: "clinic";
@@ -236,28 +237,11 @@ async function getClinicUserRow(
   return rows[0] ?? null;
 }
 
-function normalizeLimit(value: number | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 50;
-  }
-
-  return Math.min(Math.max(Math.trunc(value), 1), 100);
-}
-
-function normalizeOffset(value: number | undefined) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.max(Math.trunc(value), 0);
-}
-
 export async function listAdminClinics(params: {
   limit?: number;
   offset?: number;
 } = {}): Promise<AdminClinicsSnapshot> {
-  const limit = normalizeLimit(params.limit);
-  const offset = normalizeOffset(params.offset);
+  const { limit, offset } = normalizeListPagination(params);
   const [clinicRows, totalRows] = await Promise.all([
     db
       .select({
