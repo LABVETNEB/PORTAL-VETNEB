@@ -52,6 +52,8 @@ export function DashboardNotificationsBell({
     (notification) => !notification.isRead,
   ).length;
   const unreadNotifications = notifications.filter((n) => !n.isRead);
+  const desktopPanelTitleId = `dashboard-notifications-${surface}-title`;
+  const mobilePanelTitleId = `dashboard-notifications-${surface}-mobile-title`;
 
   // Initialise portal target (SSR-safe) and mobile breakpoint tracking.
   useEffect(() => {
@@ -135,11 +137,16 @@ export function DashboardNotificationsBell({
       const next = !current;
 
       if (next) {
+        setMobileBannerVisible(false);
         void loadNotifications();
       }
 
       return next;
     });
+  }
+
+  function handleClosePanel() {
+    setIsOpen(false);
   }
 
   function handleEnableNotifications() {
@@ -150,6 +157,24 @@ export function DashboardNotificationsBell({
   function handleCloseMobileBanner() {
     setMobileBannerVisible(false);
   }
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
 
   function scrollToHashDestination(destination: string) {
     if (typeof window === "undefined") {
@@ -250,6 +275,116 @@ export function DashboardNotificationsBell({
     }
   }
 
+  function renderPanelContent({
+    titleId,
+    listClassName,
+    showCloseButton = false,
+  }: {
+    titleId: string;
+    listClassName: string;
+    showCloseButton?: boolean;
+  }) {
+    return (
+      <>
+        <div className="mb-2 flex flex-col gap-2">
+          <div className="flex items-start justify-between gap-2">
+            <p id={titleId} className="text-sm font-semibold text-vetneb-ink">
+              Notificaciones
+            </p>
+            {showCloseButton ? (
+              <button
+                type="button"
+                aria-label="Cerrar panel de notificaciones"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground"
+                onClick={handleClosePanel}
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap"
+              onClick={handleEnableNotifications}
+              disabled={isPollingEnabled}
+            >
+              {isPollingEnabled
+                ? "Notificaciones activadas"
+                : "Activar notificaciones"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap"
+              onClick={() => void loadNotifications()}
+              disabled={isLoading}
+            >
+              {isLoading ? "Actualizando..." : "Actualizar"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap"
+              onClick={() => void handleMarkAllAsRead()}
+              disabled={
+                isLoading ||
+                isMarkingAllAsRead ||
+                updatingNotificationId !== null ||
+                unreadCount === 0
+              }
+            >
+              {isMarkingAllAsRead ? "Marcando..." : "Marcar todo como leído"}
+            </Button>
+          </div>
+        </div>
+
+        {errorMessage ? (
+          <p className="clinical-alert-warning px-3 py-2 text-xs" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        {!errorMessage && !isLoading && notifications.length === 0 ? (
+          <p className="surface-empty py-3 text-sm">No hay notificaciones.</p>
+        ) : null}
+
+        <ul className={listClassName}>
+          {notifications.map((notification) => (
+            <li key={notification.id}>
+              <button
+                type="button"
+                aria-label={`Abrir notificación: ${notification.title}`}
+                className="w-full cursor-pointer rounded-md border border-vetneb-line/70 bg-vetneb-surface-raised/78 px-3 py-2 text-left transition-colors hover:border-vetneb-teal/45 disabled:cursor-wait disabled:opacity-60"
+                onClick={() => void handleNotificationClick(notification)}
+                disabled={updatingNotificationId === notification.id}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-semibold text-vetneb-ink">
+                    {notification.title}
+                  </p>
+                  <span className="text-[0.66rem] text-muted-foreground">
+                    {notification.isRead ? "Leída" : "No leída"}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {notification.message}
+                </p>
+                <p className="mt-1 text-[0.66rem] text-muted-foreground">
+                  {formatDateTime(notification.createdAt)}
+                </p>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </>
+    );
+  }
+
   return (
     <div className="relative">
       <button
@@ -267,90 +402,42 @@ export function DashboardNotificationsBell({
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 z-50 mt-2 w-[min(28rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-vetneb-line/80 bg-card p-3 shadow-xl">
-          <div className="mb-2 flex flex-col gap-2">
-            <p className="text-sm font-semibold text-vetneb-ink">Notificaciones</p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap"
-                onClick={handleEnableNotifications}
-                disabled={isPollingEnabled}
-              >
-                {isPollingEnabled
-                  ? "Notificaciones activadas"
-                  : "Activar notificaciones"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap"
-                onClick={() => void loadNotifications()}
-                disabled={isLoading}
-              >
-                {isLoading ? "Actualizando..." : "Actualizar"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap"
-                onClick={() => void handleMarkAllAsRead()}
-                disabled={
-                  isLoading ||
-                  isMarkingAllAsRead ||
-                  updatingNotificationId !== null ||
-                  unreadCount === 0
-                }
-              >
-                {isMarkingAllAsRead ? "Marcando..." : "Marcar todo como leído"}
-              </Button>
-            </div>
-          </div>
-
-          {errorMessage ? (
-            <p className="clinical-alert-warning px-3 py-2 text-xs" role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
-
-          {!errorMessage && !isLoading && notifications.length === 0 ? (
-            <p className="surface-empty py-3 text-sm">No hay notificaciones.</p>
-          ) : null}
-
-          <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
-            {notifications.map((notification) => (
-              <li key={notification.id}>
-                <button
-                  type="button"
-                  aria-label={`Abrir notificación: ${notification.title}`}
-                  className="w-full cursor-pointer rounded-md border border-vetneb-line/70 bg-vetneb-surface-raised/78 px-3 py-2 text-left transition-colors hover:border-vetneb-teal/45 disabled:cursor-wait disabled:opacity-60"
-                  onClick={() => void handleNotificationClick(notification)}
-                  disabled={updatingNotificationId === notification.id}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs font-semibold text-vetneb-ink">
-                      {notification.title}
-                    </p>
-                    <span className="text-[0.66rem] text-muted-foreground">
-                      {notification.isRead ? "Leída" : "No leída"}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {notification.message}
-                  </p>
-                  <p className="mt-1 text-[0.66rem] text-muted-foreground">
-                    {formatDateTime(notification.createdAt)}
-                  </p>
-                </button>
-              </li>
-            ))}
-          </ul>
+        <div
+          className="absolute right-0 z-50 mt-2 hidden w-[min(28rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-vetneb-line/80 bg-card p-3 shadow-xl sm:block"
+          data-dashboard-notifications-desktop-panel="true"
+        >
+          {renderPanelContent({
+            titleId: desktopPanelTitleId,
+            listClassName: "max-h-72 space-y-2 overflow-y-auto pr-1",
+          })}
         </div>
       ) : null}
+
+      {portalContainer && isOpen
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[90] bg-vetneb-navy/30 sm:hidden"
+              data-dashboard-notifications-mobile-overlay="true"
+              onClick={handleClosePanel}
+            >
+              <div
+                className="fixed inset-x-3 top-3 flex max-h-[calc(100vh-1.5rem)] flex-col overflow-hidden rounded-lg border border-vetneb-line/85 bg-card p-3 shadow-2xl"
+                data-dashboard-notifications-mobile-panel="true"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={mobilePanelTitleId}
+                onClick={(event) => event.stopPropagation()}
+              >
+                {renderPanelContent({
+                  titleId: mobilePanelTitleId,
+                  listClassName: "min-h-0 flex-1 space-y-2 overflow-y-auto pr-1",
+                  showCloseButton: true,
+                })}
+              </div>
+            </div>,
+            portalContainer,
+          )
+        : null}
 
       {/* Mobile auto-show banner: visible only on narrow viewports (< 640 px).
           Portaled to document.body to avoid stacking-context clipping from the
@@ -358,7 +445,7 @@ export function DashboardNotificationsBell({
       {portalContainer && mobileBannerVisible && unreadCount > 0
         ? createPortal(
             <div
-              className="sm:hidden fixed inset-x-0 top-0 z-[60] border-b border-vetneb-teal/30 bg-card shadow-xl"
+              className="fixed inset-x-0 top-0 z-[80] border-b border-vetneb-teal/30 bg-card shadow-xl sm:hidden"
               role="region"
               aria-label="Notificaciones no leidas"
             >

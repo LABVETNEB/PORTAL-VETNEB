@@ -143,7 +143,14 @@ test("campana mantiene dropdown responsive y acciones sin overflow", () => {
       'className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap"',
     ),
   );
-  assert.ok(bell.includes('className="max-h-72 space-y-2 overflow-y-auto pr-1"'));
+  assert.ok(
+    bell.includes('listClassName: "max-h-72 space-y-2 overflow-y-auto pr-1"'),
+  );
+  assert.ok(
+    bell.includes("hidden w-[min(28rem,calc(100vw-2rem))]"),
+    "desktop dropdown must be hidden on mobile",
+  );
+  assert.ok(bell.includes("sm:block"));
 });
 
 test("api frontend expone funciones de notificaciones por surface y compat admin", () => {
