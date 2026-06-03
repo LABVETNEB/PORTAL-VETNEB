@@ -1,9 +1,6 @@
-"use client";
-
-import { useRouter } from "next/navigation";
 import { ArrowRight, ChevronDown, Microscope } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
 
 const navLinks = [
@@ -18,8 +15,6 @@ const navLinks = [
 const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];
 
 export function Navbar() {
-  const router = useRouter();
-
   return (
     <header className="sticky top-0 z-50 w-full border-b border-vetneb-line/80 bg-card/96 shadow-[0_10px_28px_rgba(15,45,62,0.08)]">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -40,13 +35,13 @@ export function Navbar() {
               <ul className="flex flex-col gap-1">
                 {mobileNavLinks.map((link) => (
                   <li key={link.href}>
-                    <button
-                      type="button"
-                      onClick={() => router.push(link.href)}
+                    <PublicRouteControl
+                      href={link.href}
+                      variant="bare"
                       className="block w-full rounded-md px-3 py-2.5 text-left text-sm font-medium text-vetneb-ink/85 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
                     >
                       {link.label}
-                    </button>
+                    </PublicRouteControl>
                   </li>
                 ))}
               </ul>
@@ -54,9 +49,9 @@ export function Navbar() {
           </details>
         </div>
 
-        <button
-          type="button"
-          onClick={() => router.push(ROUTES.home)}
+        <PublicRouteControl
+          href={ROUTES.home}
+          variant="bare"
           aria-label="VETNEB — Inicio"
           className="group hidden cursor-pointer items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 lg:flex"
         >
@@ -67,43 +62,40 @@ export function Navbar() {
           <span className="hidden text-xs font-semibold text-muted-foreground lg:inline">
             Patología veterinaria
           </span>
-        </button>
+        </PublicRouteControl>
 
         <nav
           className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 lg:flex"
           aria-label="Navegación principal"
         >
           {navLinks.map((link) => (
-            <button
+            <PublicRouteControl
               key={link.href}
-              type="button"
-              onClick={() => router.push(link.href)}
+              href={link.href}
+              variant="bare"
               className="rounded-md px-3.5 py-2 text-sm font-medium text-vetneb-ink/80 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
             >
               {link.label}
-            </button>
+            </PublicRouteControl>
           ))}
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="public-cta-outline"
-            onClick={() => router.push(ROUTES.login)}
+          <PublicRouteControl
+            href={ROUTES.login}
+            variant="bare"
+            className="public-cta-outline inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-semibold ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
           >
             Iniciar sesión
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            className="public-cta-primary hidden sm:flex"
-            onClick={() => router.push(ROUTES.contacto)}
+          </PublicRouteControl>
+          <PublicRouteControl
+            href={ROUTES.contacto}
+            variant="bare"
+            className="public-cta-primary hidden h-9 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-semibold ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 sm:flex"
           >
             Solicitar acceso
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Button>
+          </PublicRouteControl>
         </div>
       </div>
     </header>

@@ -98,7 +98,7 @@ test("campana de notificaciones admin existe con UX in-app y polling", () => {
   const bell = read(BELL_PATH);
 
   assert.ok(bell.includes('"use client";'));
-  assert.ok(bell.includes('import { Bell } from "lucide-react";'));
+  assert.ok(bell.includes('import { Bell, X } from "lucide-react";'));
   assert.ok(bell.includes("aria-label=\"Notificaciones\""));
   assert.ok(bell.includes("Notificaciones"));
   assert.ok(bell.includes("Activar notificaciones"));

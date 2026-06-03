@@ -355,13 +355,18 @@ test("particular role wires notifications bell when session is active", () => {
   const source = read(PARTICULARES_PATH);
 
   assert.ok(
-    source.includes(
-      'import { DashboardNotificationsBell } from "@/components/dashboard/DashboardNotificationsBell";',
-    ),
-    "ParticularesContent must import DashboardNotificationsBell",
+    source.includes('import dynamic from "next/dynamic";'),
+    "ParticularesContent must use next/dynamic for the session-only bell",
   );
   assert.ok(
-    source.includes('<DashboardNotificationsBell surface="particular" />'),
+    source.includes(
+      'import("@/components/dashboard/DashboardNotificationsBell").then(',
+    ),
+    "ParticularesContent must dynamically import DashboardNotificationsBell",
+  );
+  assert.ok(source.includes("mod.DashboardNotificationsBell"));
+  assert.ok(
+    source.includes('<ParticularNotificationsBell surface="particular" />'),
     "ParticularesContent must render bell with particular surface",
   );
 });
