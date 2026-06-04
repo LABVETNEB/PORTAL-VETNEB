@@ -98,6 +98,90 @@ test("home page exposes mobile professionals block before services", () => {
   assert.equal(source.includes("<Link"), false);
 });
 
+test("home page exposes clinical trust institutional data before services", () => {
+  const source = read(HOME_PAGE_PATH);
+  const clinicalTrustIndex = source.indexOf('aria-labelledby="clinical-trust-heading"');
+  const professionalsIndex = source.indexOf("Red de profesionales veterinarios");
+  const servicesIndex = source.indexOf(
+    "Servicios del laboratorio patológico veterinario",
+  );
+  const clinicalTrustData = extractBetween(
+    source,
+    "const clinicalTrustItems = [",
+    "const howItWorksSteps = [",
+  );
+  const forbiddenWords = [
+    "marketplace",
+    "ranking",
+    "reviews",
+    "estrellas",
+    "telemedicina",
+  ];
+  const unverifiedNumericClaims = [
+    /\+\s*\d+/,
+    /\d+\s*años?\s+de\s+experiencia/i,
+    /\d+\s+cl[ií]nicas/i,
+    /\d+\s+profesionales/i,
+    /\d+\s+casos/i,
+    /\d+\s+informes/i,
+  ];
+
+  assert.ok(clinicalTrustIndex !== -1);
+  assert.ok(professionalsIndex !== -1);
+  assert.ok(servicesIndex !== -1);
+  assert.ok(clinicalTrustIndex < professionalsIndex);
+  assert.ok(clinicalTrustIndex < servicesIndex);
+  assert.ok(source.includes('id="clinical-trust-heading"'));
+  assert.ok(source.includes("Laboratorio primero"));
+  assert.ok(source.includes("Confianza clínica"));
+  assert.ok(
+    source.includes(
+      "Diagnóstico microscópico riguroso para la medicina veterinaria,",
+    ),
+  );
+  assert.ok(source.includes("portal operativo e información pública"));
+  assert.ok(source.includes("grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4"));
+
+  assert.equal(count(clinicalTrustData, "title:"), 4);
+  assert.equal(count(clinicalTrustData, "description:"), 4);
+  assert.equal(
+    count(clinicalTrustData, 'title: "Diagnóstico histopatológico y citológico"'),
+    1,
+  );
+  assert.equal(
+    count(clinicalTrustData, 'title: "Informes digitales con acceso seguro"'),
+    1,
+  );
+  assert.equal(
+    count(
+      clinicalTrustData,
+      'title: "Red de clínicas y profesionales vinculados"',
+    ),
+    1,
+  );
+  assert.equal(
+    count(clinicalTrustData, 'title: "Precios públicos y comunicación directa"'),
+    1,
+  );
+
+  const clinicalTrustSurface = clinicalTrustData.toLowerCase();
+  for (const forbiddenWord of forbiddenWords) {
+    assert.equal(
+      clinicalTrustSurface.includes(forbiddenWord),
+      false,
+      `clinical trust section must not contain ${forbiddenWord}`,
+    );
+  }
+
+  for (const unverifiedNumericClaim of unverifiedNumericClaims) {
+    assert.equal(
+      unverifiedNumericClaim.test(clinicalTrustData),
+      false,
+      `clinical trust section must not contain unverified numeric claim ${unverifiedNumericClaim}`,
+    );
+  }
+});
+
 test("home page lists core laboratory services and services route CTA", () => {
   const source = read(HOME_PAGE_PATH);
 

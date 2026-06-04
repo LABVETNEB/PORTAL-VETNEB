@@ -57,6 +57,37 @@ const services = [
   },
 ];
 
+const clinicalTrustItems = [
+  {
+    icon: Microscope,
+    tone: "blue" as const,
+    title: "Diagnóstico histopatológico y citológico",
+    description:
+      "Evaluación microscópica de tejidos y muestras celulares con criterio anatomopatológico veterinario.",
+  },
+  {
+    icon: FileText,
+    tone: "slate" as const,
+    title: "Informes digitales con acceso seguro",
+    description:
+      "Entrega institucional de informes para clínicas y acceso privado por caso cuando corresponde.",
+  },
+  {
+    icon: Network,
+    tone: "blue" as const,
+    title: "Red de clínicas y profesionales vinculados",
+    description:
+      "Relación operativa con equipos veterinarios que trabajan con VETNEB para sus diagnósticos.",
+  },
+  {
+    icon: ClipboardCheck,
+    tone: "slate" as const,
+    title: "Precios públicos y comunicación directa",
+    description:
+      "Información clara para coordinar muestras, consultas y estudios sin ambigüedad operativa.",
+  },
+];
+
 const howItWorksSteps = [
   {
     icon: PackageCheck,
@@ -184,6 +215,60 @@ export default function HomePage() {
       </section>
 
       <div className="public-soft-canvas">
+        <section
+          className="border-b border-vetneb-line/80 bg-white py-12 md:py-16"
+          aria-labelledby="clinical-trust-heading"
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <PublicScrollReveal>
+              <div className="mx-auto mb-8 max-w-3xl text-center md:mb-10">
+                <p className="text-sm font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
+                  Laboratorio primero
+                </p>
+                <h2
+                  id="clinical-trust-heading"
+                  className="mt-3 text-3xl font-bold text-vetneb-ink md:text-4xl"
+                >
+                  Confianza clínica
+                </h2>
+                <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">
+                  Diagnóstico microscópico riguroso para la medicina veterinaria,
+                  con portal operativo e información pública como soporte del
+                  trabajo clínico.
+                </p>
+              </div>
+            </PublicScrollReveal>
+
+            <PublicScrollReveal staggerChildren>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {clinicalTrustItems.map((item) => {
+                  const itemHeadingId = `home-clinical-trust-${item.title.toLowerCase().replace(/\s+/g, "-")}`;
+
+                  return (
+                    <article
+                      key={item.title}
+                      data-scroll-reveal-item
+                      aria-labelledby={itemHeadingId}
+                      className="h-full rounded-lg border border-vetneb-line/80 bg-card p-5 shadow-sm"
+                    >
+                      <VisualIcon icon={item.icon} tone={item.tone} className="mb-4" />
+                      <h3
+                        id={itemHeadingId}
+                        className="text-lg font-semibold leading-snug text-vetneb-ink"
+                      >
+                        {item.title}
+                      </h3>
+                      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                        {item.description}
+                      </p>
+                    </article>
+                  );
+                })}
+              </div>
+            </PublicScrollReveal>
+          </div>
+        </section>
+
         <section
           className="border-b border-vetneb-line/80 bg-card/72 py-8 md:py-10 lg:hidden"
           aria-labelledby="mobile-professionals-heading"
