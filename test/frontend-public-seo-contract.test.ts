@@ -120,6 +120,12 @@ test("professionals public page exposes verifiable structured data", () => {
   assert.ok(seoSource.includes('name: "Profesionales"'));
   assert.ok(seoSource.includes("item: SITE_URL"));
   assert.ok(seoSource.includes("item: pageUrl"));
+  assert.ok(seoSource.includes('name: "Clínicas y Profesionales Verificados VETNEB"'));
+  assert.ok(
+    seoSource.includes(
+      '"Clínicas y profesionales verificados que trabajan con VETNEB dentro de una red vinculada al laboratorio."',
+    ),
+  );
   assert.ok(seoSource.includes('"@id": websiteId'));
   assert.ok(seoSource.includes('"@id": organizationId'));
   assert.ok(seoSource.includes('"@id": breadcrumbId'));

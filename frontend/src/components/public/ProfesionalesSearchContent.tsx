@@ -119,12 +119,12 @@ export function ProfesionalesSearchContent() {
             id="professionals-page-title"
             className="mb-4 max-w-4xl text-4xl font-bold md:text-5xl"
           >
-            Red de profesionales veterinarios
+            Clínicas y profesionales verificados que trabajan con VETNEB.
           </h1>
           <p className="max-w-2xl public-copy text-xl text-primary-foreground/92">
-            Banco público de profesionales vinculados a VETNEB, con búsqueda
-            directa, clara y optimizada para coordinar derivaciones e
-            interconsultas con datos verificables.
+            Cada ficha forma parte de una red vinculada al laboratorio y se
+            muestra bajo criterios operativos verificables, no por ranking
+            comercial.
           </p>
         </div>
       </section>
@@ -147,13 +147,13 @@ export function ProfesionalesSearchContent() {
                     id="professionals-search-heading"
                     className="mb-3 text-2xl font-bold text-vetneb-ink"
                   >
-                    Buscar profesionales
+                    Consultar la red verificada
                   </h2>
                   <p className="public-copy-tight text-sm text-muted-foreground">
-                    Ingrese texto libre, incluso una sola letra. La búsqueda
+                    Ingrese texto libre, incluso una sola letra. La consulta
                     admite coincidencias por nombre, especialidad, servicios,
-                    localidad, país, email, teléfono o descripción, y facilita la
-                    coordinación profesional con trazabilidad de contacto.
+                    localidad, país o descripción para ubicar perfiles
+                    institucionales dentro de la red VETNEB.
                   </p>
                 </div>
               </div>
@@ -161,11 +161,11 @@ export function ProfesionalesSearchContent() {
 
             <form
               className="premium-card flex flex-col gap-3 p-4 sm:flex-row"
-              aria-label="Buscador de profesionales"
+              aria-label="Consulta de la red profesional"
               onSubmit={handleSubmit}
             >
               <label htmlFor="professional-search" className="sr-only">
-                Buscar profesional
+                Consultar profesional
               </label>
               <div className="relative flex-1">
                 <Search
@@ -178,12 +178,12 @@ export function ProfesionalesSearchContent() {
                   type="search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Buscar desde una letra: nombre, especialidad, localidad o dato asociado"
+                  placeholder="Nombre, especialidad, localidad o dato operativo de la red"
                   className="h-11 w-full rounded-xl border border-input bg-white/90 pl-10 pr-3 text-sm shadow-inner ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               </div>
               <Button type="submit" className="public-cta-primary h-11">
-                Buscar
+                Consultar
               </Button>
             </form>
 
@@ -197,14 +197,14 @@ export function ProfesionalesSearchContent() {
               </h2>
               {!currentQuery ? (
                 <div className="surface-empty p-6">
-                  Realice una búsqueda para consultar el banco público y
-                  coordinar contacto profesional.
+                  Realice una consulta para revisar clínicas y profesionales
+                  verificados de la red VETNEB.
                 </div>
               ) : null}
 
               {state.status === "loading" ? (
                 <div className="clinical-alert-info p-6">
-                  Buscando profesionales vinculados a VETNEB...
+                  Consultando la red de profesionales vinculados a VETNEB...
                 </div>
               ) : null}
 
@@ -225,7 +225,7 @@ export function ProfesionalesSearchContent() {
                 <div>
                   <p className="mb-4 text-sm text-muted-foreground">
                     {state.total} resultado(s) para “{currentQuery}”. Seleccione
-                    un perfil para ver sus datos completos de contacto y
+                    un perfil para ver la ficha institucional y sus datos de
                     coordinación clínica.
                   </p>
                   <div className="space-y-3">

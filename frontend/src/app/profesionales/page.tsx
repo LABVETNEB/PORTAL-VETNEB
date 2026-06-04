@@ -5,8 +5,8 @@ import { ProfesionalesSearchContent } from "@/components/public/ProfesionalesSea
 import { createPageMetadata, getProfessionalsPageJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata(
-  "Red de Profesionales Veterinarios",
-  "Banco público de profesionales vinculados a VETNEB. Búsqueda por texto libre con coincidencias aproximadas.",
+  "Clínicas y Profesionales Verificados VETNEB",
+  "Clínicas y profesionales verificados que trabajan con VETNEB dentro de una red vinculada al laboratorio.",
   "/profesionales",
 );
 

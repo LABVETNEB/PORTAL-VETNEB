@@ -368,9 +368,9 @@ export function getProfessionalsPageJsonLd() {
         "@type": ["WebPage", "SearchResultsPage"],
         "@id": searchPageId,
         url: pageUrl,
-        name: "Red de Profesionales Veterinarios",
+        name: "Clínicas y Profesionales Verificados VETNEB",
         description:
-          "Banco público de profesionales vinculados a VETNEB con búsqueda por texto libre y coincidencias aproximadas.",
+          "Clínicas y profesionales verificados que trabajan con VETNEB dentro de una red vinculada al laboratorio.",
         inLanguage: "es-AR",
         isPartOf: {
           "@id": websiteId,
@@ -399,4 +399,3 @@ export function getProfessionalsPageJsonLd() {
     ],
   };
 }
-

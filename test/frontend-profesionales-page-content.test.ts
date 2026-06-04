@@ -26,34 +26,64 @@ test("profesionales page defines metadata and delegates to search content", () =
   assert.ok(source.includes('import { ProfesionalesSearchContent } from "@/components/public/ProfesionalesSearchContent";'));
   assert.ok(source.includes('import { createPageMetadata, getProfessionalsPageJsonLd } from "@/lib/seo";'));
   assert.ok(source.includes("export const metadata: Metadata = createPageMetadata("));
-  assert.ok(source.includes('"Red de Profesionales Veterinarios"'));
-  assert.ok(source.includes('"Banco público de profesionales vinculados a VETNEB'));
+  assert.ok(source.includes('"Clínicas y Profesionales Verificados VETNEB"'));
+  assert.ok(source.includes('"Clínicas y profesionales verificados que trabajan con VETNEB'));
   assert.ok(source.includes('"/profesionales"'));
   assert.ok(source.includes("<Suspense fallback={null}>"));
   assert.ok(source.includes("<ProfesionalesSearchContent />"));
 });
 
-test("profesionales search content renders only the professional bank search surface", () => {
+test("profesionales search content renders verified network framing", () => {
   const source = read(PROFESIONALES_SEARCH_CONTENT_PATH);
 
   assert.ok(source.includes('"use client";'));
   assert.ok(source.includes('import { PublicLayout } from "@/components/layout/PublicLayout";'));
   assert.ok(source.includes("<PublicLayout>"));
-  assert.ok(source.includes("Red de profesionales veterinarios"));
-  assert.ok(source.includes("Banco público de profesionales"));
-  assert.ok(source.includes("Buscar profesionales"));
+  assert.ok(source.includes("Clínicas y profesionales verificados que trabajan con VETNEB."));
+  assert.ok(source.includes("Cada ficha forma parte de una red vinculada al laboratorio"));
+  assert.ok(source.includes("criterios operativos verificables"));
+  assert.ok(source.includes("no por ranking"));
+  assert.ok(source.includes("Consultar la red verificada"));
   assert.ok(source.includes("Ingrese texto libre, incluso una sola letra"));
-  assert.ok(source.includes("Buscar desde una letra: nombre, especialidad, localidad o dato asociado"));
-  assert.ok(source.includes('aria-label="Buscador de profesionales"'));
+  assert.ok(source.includes("para ubicar perfiles"));
+  assert.ok(source.includes("institucionales dentro de la red VETNEB"));
+  assert.ok(source.includes("Nombre, especialidad, localidad o dato operativo de la red"));
+  assert.ok(source.includes('aria-label="Consulta de la red profesional"'));
   assert.ok(source.includes('type="search"'));
   assert.equal(source.includes("minLength"), false);
   assert.equal(source.includes("minlength"), false);
   assert.ok(source.includes('name="q"'));
-  assert.ok(source.includes("Buscar desde una letra: nombre, especialidad, localidad o dato asociado"));
   assert.equal(source.includes("Herramientas para el profesional"), false);
   assert.equal(source.includes("Especialidades atendidas"), false);
   assert.equal(source.includes("const benefits = ["), false);
   assert.equal(source.includes("const specialties = ["), false);
+});
+
+test("profesionales public copy avoids marketplace and commercial directory language", () => {
+  const source = read(PROFESIONALES_SEARCH_CONTENT_PATH);
+  const forbiddenVisibleCopy = [
+    "marketplace",
+    "directorio",
+    "reviews",
+    "reseñas",
+    "estrellas",
+    "telemedicina",
+    "reservas online",
+    "mejores veterinarios",
+    "buscá veterinario",
+    "busca veterinario",
+    "anuncios",
+    "publicidad paga",
+    "destacados",
+  ];
+
+  for (const forbidden of forbiddenVisibleCopy) {
+    assert.equal(
+      source.toLowerCase().includes(forbidden),
+      false,
+      `copy visible de /profesionales no debe incluir ${forbidden}`,
+    );
+  }
 });
 
 test("profesionales search content uses free text query and approximate backend search helper", () => {
@@ -67,6 +97,7 @@ test("profesionales search content uses free text query and approximate backend 
   assert.ok(source.includes("limit: PUBLIC_PROFESSIONALS_PAGE_SIZE"));
   assert.ok(source.includes('{ cache: "no-store" }'));
   assert.ok(source.includes("coincidencias por nombre"));
+  assert.ok(source.includes("router.push(`${ROUTES.profesionales}${params.size ? `?${params}` : \"\"}`)"));
   assert.ok(apiSource.includes("export async function searchPublicProfessionals("));
   assert.ok(apiSource.includes("export async function getPublicProfessional("));
   assert.ok(apiSource.includes("q"));
@@ -93,6 +124,9 @@ test("profesionales search content renders compact professional result cards", (
   assert.equal(source.includes("professional.phone"), false);
   assert.equal(source.includes("professional.publicAddress"), false);
   assert.equal(source.includes("professional.mapLink"), false);
+  assert.equal(source.includes("email"), false);
+  assert.equal(source.includes("teléfono"), false);
+  assert.equal(source.includes("Dirección"), false);
   assert.equal(source.includes("<PublicExternalControl"), false);
   assert.equal(source.includes("mailto:${professional.email}"), false);
   assert.equal(source.includes("https://wa.me/549"), false);
@@ -124,7 +158,23 @@ test("profesionales page remains public and avoids private route literals", () =
   const contentSource = read(PROFESIONALES_SEARCH_CONTENT_PATH);
   const detailSource = read(PROFESIONAL_DETAIL_CONTENT_PATH);
   const combined = [pageSource, contentSource, detailSource].join("\n");
+  const forbiddenPublicUiMarkers = [
+    "storagePath",
+    "signedUrl",
+    "token",
+    "cookie",
+    "session",
+    "service_role",
+  ];
 
   assert.equal(combined.includes('"/dashboard"'), false);
   assert.equal(combined.includes("admin_session_id"), false);
+
+  for (const marker of forbiddenPublicUiMarkers) {
+    assert.equal(
+      combined.includes(marker),
+      false,
+      `UI pública de profesionales no debe exponer ${marker}`,
+    );
+  }
 });

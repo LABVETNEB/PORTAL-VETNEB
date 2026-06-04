@@ -40,6 +40,7 @@ function extractSerializeProfessional(source: string) {
 test("public professionals listing renders compact cards without contact detail payload", () => {
   const source = read(PROFESIONALES_SEARCH_CONTENT_PATH);
 
+  assert.ok(source.includes("Clínicas y profesionales verificados que trabajan con VETNEB."));
   assert.ok(source.includes("state.professionals.map((professional) =>"));
   assert.ok(source.includes("key={professional.clinicId}"));
   assert.ok(source.includes("professional.displayName"));
@@ -53,6 +54,9 @@ test("public professionals listing renders compact cards without contact detail 
   assert.equal(source.includes("professional.phone"), false);
   assert.equal(source.includes("professional.publicAddress"), false);
   assert.equal(source.includes("professional.mapLink"), false);
+  assert.equal(source.includes("email"), false);
+  assert.equal(source.includes("teléfono"), false);
+  assert.equal(source.includes("Dirección"), false);
 });
 
 test("public professionals listing has stable local avatar fallback", () => {
