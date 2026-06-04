@@ -122,9 +122,7 @@ export function ProfesionalesSearchContent() {
             Clínicas y profesionales verificados que trabajan con VETNEB.
           </h1>
           <p className="max-w-2xl public-copy text-xl text-primary-foreground/92">
-            Cada ficha forma parte de una red vinculada al laboratorio y se
-            muestra bajo criterios operativos verificables, no por ranking
-            comercial.
+            Cada ficha fue revisada y confirmada por el laboratorio.
           </p>
         </div>
       </section>
