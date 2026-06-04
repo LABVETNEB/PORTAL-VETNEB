@@ -169,6 +169,16 @@ test("PublicExternalControl covers WhatsApp, mailto and external map surfaces", 
   assert.equal(/<a\b/.test(profesionalDetail), false);
 });
 
+test("PublicExternalControl keeps safe external navigation contract", () => {
+  const source = read(PUBLIC_ROUTE_CONTROL_PATH);
+
+  assert.ok(source.includes('target = "_blank"'));
+  assert.ok(source.includes("if (event.defaultPrevented || disabled)"));
+  assert.ok(source.includes('if (target === "_self")'));
+  assert.ok(source.includes("window.location.assign(href);"));
+  assert.ok(source.includes('window.open(href, target, "noopener,noreferrer");'));
+});
+
 test("footer map surface uses a single non-interactive iframe and keeps external map control", () => {
   const footer = read(FOOTER_PATH);
 
