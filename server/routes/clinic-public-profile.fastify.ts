@@ -162,6 +162,7 @@ const MIN_AVATAR_DIMENSION = 160;
 const MAX_AVATAR_DIMENSION = 1024;
 const MIN_AVATAR_ASPECT_RATIO = 0.85;
 const MAX_AVATAR_ASPECT_RATIO = 1.15;
+const AVATAR_UNSUPPORTED_MIME_ERROR = "La imagen debe ser JPG, PNG o WebP.";
 const AVATAR_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const AVATAR_FILE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 const MAP_LINK_ALLOWED_HOSTS = new Set([
@@ -872,7 +873,7 @@ const upload = multer({
   },
   fileFilter: (_req, file, cb) => {
     if (!AVATAR_MIME_TYPES.has(file.mimetype)) {
-      cb(new Error("La imagen debe ser JPG, PNG o WebP."));
+      cb(new Error(AVATAR_UNSUPPORTED_MIME_ERROR));
       return;
     }
 
@@ -1241,8 +1242,11 @@ export const clinicPublicProfileNativeRoutes: FastifyPluginAsync<
 
       if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
         message = "La imagen no debe superar 512 KB.";
-      } else if (error instanceof Error) {
-        message = error.message;
+      } else if (
+        error instanceof Error &&
+        error.message === AVATAR_UNSUPPORTED_MIME_ERROR
+      ) {
+        message = AVATAR_UNSUPPORTED_MIME_ERROR;
       }
 
       return reply.code(400).send({
