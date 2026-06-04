@@ -507,38 +507,38 @@ export default function HomePage() {
 
         {/* CTA final */}
         <section
-          className="py-16 md:py-20"
+          className="bg-vetneb-navy py-16 text-primary-foreground md:py-20"
           aria-labelledby="cta-heading"
         >
           <PublicScrollReveal>
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div className="container mx-auto px-4 text-center sm:px-6 lg:px-8">
               <h2
                 id="cta-heading"
-                className="text-3xl md:text-4xl font-bold mb-4 text-vetneb-ink"
+                className="mx-auto max-w-3xl text-3xl font-bold leading-tight md:text-4xl"
               >
-                Seguimos trabajando en mejorar
+                Empezá a trabajar con VETNEB
               </h2>
-              <p className="mx-auto mb-8 max-w-xl text-lg text-muted-foreground">
-                Agilizamos la recepción y entrega de informes, mantenemos
-                trazabilidad durante todo el proceso y coordinamos con clínicas y
-                profesionales para sostener decisiones terapéuticas con mayor
-                claridad.
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-primary-foreground/78 md:text-lg">
+                Conocé los servicios diagnósticos o contactanos para coordinar el
+                envío de muestras.
               </p>
-              <div className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
-                <PublicRouteControl
-                  href={ROUTES.login}
-                  variant="primaryDark"
-                  className="public-cta-primary w-full sm:w-auto"
-                >
-                  Ingresar al portal de informes
-                </PublicRouteControl>
-                <PublicRouteControl
-                  href={ROUTES.contacto}
-                  variant="primaryLight"
-                  className="public-cta-outline w-full sm:w-auto"
-                >
-                  Coordinar muestras y consultas
-                </PublicRouteControl>
+              <div className="mt-8">
+                <div className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
+                  <PublicRouteControl
+                    href={ROUTES.contacto}
+                    variant="primaryLight"
+                    className="public-cta-outline w-full sm:w-auto"
+                  >
+                    Contactanos
+                  </PublicRouteControl>
+                  <PublicRouteControl
+                    href={ROUTES.servicios}
+                    variant="secondaryOutline"
+                    className="w-full border-white/55 bg-white/10 text-primary-foreground shadow-none hover:border-white/75 hover:bg-white/16 hover:text-primary-foreground active:text-primary-foreground focus-visible:text-primary-foreground sm:w-auto"
+                  >
+                    Ver servicios
+                  </PublicRouteControl>
+                </div>
               </div>
             </div>
           </PublicScrollReveal>

@@ -284,17 +284,49 @@ test("home page lists benefits for clinics and professionals", () => {
 
 test("home page exposes final conversion CTA without private route metadata", () => {
   const source = read(HOME_PAGE_PATH);
+  const routesSource = read("frontend/src/lib/routes.ts");
+  const finalCtaSection = extractBetween(
+    source,
+    'className="bg-vetneb-navy py-16 text-primary-foreground md:py-20"',
+    "</section>",
+  );
+  const forbiddenWords = [
+    "marketplace",
+    "ranking",
+    "reviews",
+    "estrellas",
+    "telemedicina",
+    "reservas online",
+  ];
 
   assert.ok(source.includes('aria-labelledby="cta-heading"'));
   assert.ok(source.includes('id="cta-heading"'));
-  assert.ok(source.includes("Seguimos trabajando en mejorar"));
-  assert.ok(source.includes("Ingresar al portal de informes"));
-  assert.ok(source.includes("Coordinar muestras y consultas"));
-  assert.ok(source.includes("public-cta-primary"));
-  assert.ok(source.includes("public-cta-on-hero"));
+  assert.ok(source.includes("Empezá a trabajar con VETNEB"));
+  assert.ok(source.includes("Conocé los servicios diagnósticos o contactanos para coordinar el"));
+  assert.ok(source.includes("envío de muestras."));
+  assert.ok(finalCtaSection.includes("Contactanos"));
+  assert.ok(finalCtaSection.includes("Ver servicios"));
+  assert.ok(finalCtaSection.includes("href={ROUTES.contacto}"));
+  assert.ok(finalCtaSection.includes("href={ROUTES.servicios}"));
+  assert.ok(routesSource.includes('contacto: "/contacto"'));
+  assert.ok(routesSource.includes('servicios: "/servicios"'));
   assert.ok(source.includes("public-cta-outline"));
-  assert.ok(source.includes('variant="primaryLight"'));
+  assert.ok(finalCtaSection.includes('variant="primaryLight"'));
+  assert.ok(finalCtaSection.includes('variant="secondaryOutline"'));
+  assert.ok(finalCtaSection.includes("bg-vetneb-navy"));
+  assert.equal(count(finalCtaSection, "<PublicRouteControl"), 2);
+  assert.equal(/<form\b/i.test(finalCtaSection), false);
+  assert.equal(/<input\b|<textarea\b|react-hook-form/i.test(finalCtaSection), false);
   assert.equal(source.includes("bg-primary py-16 text-white md:py-20"), false);
   assert.equal(source.includes('"/dashboard"'), false);
   assert.equal(source.includes('"/api"'), false);
+
+  const finalCtaSurface = finalCtaSection.toLowerCase();
+  for (const forbiddenWord of forbiddenWords) {
+    assert.equal(
+      finalCtaSurface.includes(forbiddenWord),
+      false,
+      `final CTA section must not contain ${forbiddenWord}`,
+    );
+  }
 });
