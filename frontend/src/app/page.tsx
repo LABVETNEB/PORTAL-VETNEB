@@ -371,16 +371,18 @@ export default function HomePage() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal>
               <div className="mx-auto mb-10 max-w-2xl text-center">
+                <p className="text-sm font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
+                  Cómo funciona
+                </p>
                 <h2
                   id="how-it-works-heading"
-                  className="text-3xl font-bold text-vetneb-ink md:text-4xl"
+                  className="mt-3 text-3xl font-bold text-vetneb-ink md:text-4xl"
                 >
-                  Cómo funciona
+                  Trabajar con VETNEB es simple
                 </h2>
                 <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">
-                  Trabajar con VETNEB es simple: la muestra llega al laboratorio,
-                  se analiza con criterio anatomopatológico y el informe queda
-                  disponible en el portal.
+                  Desde el envío de la muestra hasta la entrega del informe, el
+                  flujo está pensado para clínicas y profesionales veterinarios.
                 </p>
               </div>
             </PublicScrollReveal>
