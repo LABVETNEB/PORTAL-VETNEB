@@ -316,7 +316,7 @@ test("auth login rate limits keep persistent stores with memory fallback per aut
     );
     assertContains(
       source,
-      "error: LOGIN_RATE_LIMIT_ERROR_MESSAGE",
+      "buildLoginRateLimitResponse({",
       `${file} login error`,
     );
     assertRateLimitHeaders(source, `${file} login headers`);

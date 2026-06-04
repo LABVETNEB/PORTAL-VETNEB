@@ -215,6 +215,7 @@ test("router prioriza helpers inyectados antes de cargar defaults", () => {
 
 test("serialización pública no consulta storage salvo por createSignedStorageUrl", () => {
   const source = readSource("server/routes/public-professionals.fastify.ts");
+  const avatarUrlHelper = extractFunction(source, "resolvePublicAvatarUrl");
   const serializer = extractFunction(source, "serializeProfessional");
 
   assert.ok(
@@ -223,13 +224,18 @@ test("serialización pública no consulta storage salvo por createSignedStorageU
   );
 
   assert.ok(
-    serializer.includes("? await createSignedStorageUrl(row.avatarStoragePath)"),
+    avatarUrlHelper.includes("return await createSignedStorageUrl(row.avatarStoragePath);"),
     "serializeProfessional debe firmar solo cuando existe avatarStoragePath",
   );
 
   assert.ok(
-    serializer.includes(": null;"),
+    avatarUrlHelper.includes("return null;"),
     "serializeProfessional debe devolver avatarUrl null cuando no hay avatar",
+  );
+
+  assert.ok(
+    serializer.includes("const avatarUrl = await resolvePublicAvatarUrl(row, createSignedStorageUrl);"),
+    "serializeProfessional debe delegar solo en el helper de avatar público",
   );
 
   assert.ok(
@@ -292,4 +298,3 @@ test("tests del router público usan harness inyectado sin DB ni storage reales"
     "createTestApp debe permitir overrides por test",
   );
 });
-

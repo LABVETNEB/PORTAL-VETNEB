@@ -12,6 +12,7 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 const { ENV } = await import("../server/lib/env.ts");
 const { AUDIT_EVENTS } = await import("../server/lib/audit.ts");
 const {
+  LOGIN_RATE_LIMIT_CODE,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
 } = await import("../server/lib/login-rate-limit.ts");
 const {
@@ -365,6 +366,8 @@ test(
       assert.deepEqual(JSON.parse(third.body), {
         success: false,
         error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
+        code: LOGIN_RATE_LIMIT_CODE,
+        retryAfterSeconds: 60,
       });
     } finally {
       await app.close();
@@ -458,6 +461,8 @@ test(
       assert.deepEqual(JSON.parse(response.body), {
         success: false,
         error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
+        code: LOGIN_RATE_LIMIT_CODE,
+        retryAfterSeconds: 60,
       });
     } finally {
       await app.close();

@@ -59,17 +59,7 @@ export const BACKEND_OPERATION_ERROR_MESSAGE =
 export const ADMIN_SCHEMA_HEALTH_UNAUTHORIZED_MESSAGE =
   "Sesión admin no autenticada o inválida. Iniciá sesión nuevamente.";
 export const LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE =
-  "Demasiados intentos de inicio de sesión. Intente más tarde.";
-export const LOGIN_RATE_LIMIT_HEADERS_MISSING_MESSAGE =
-  "El backend no informó cuándo reintentar el inicio de sesión. Reintentá más tarde o contactá a VETNEB.";
-
-const LOGIN_RATE_LIMIT_REQUIRED_HEADERS = [
-  "Retry-After",
-  "RateLimit-Policy",
-  "RateLimit-Limit",
-  "RateLimit-Remaining",
-  "RateLimit-Reset",
-];
+  "Demasiados intentos de inicio de sesión. Intentá nuevamente más tarde.";
 
 function isLocalOrLanHostname(hostname: string): boolean {
   const normalizedHost = hostname.trim().toLowerCase();
@@ -102,6 +92,12 @@ export function resolveApiBaseUrlForRuntime(input: {
   const isBrowserRuntime =
     input.isBrowserRuntime ?? typeof window !== "undefined";
 
+  // Browser calls stay same-origin so `/api/*` can be served by the deployed
+  // host or proxied by Next rewrites without exposing cross-origin cookies.
+  if (isBrowserRuntime) {
+    return SAME_ORIGIN_API_BASE_URL;
+  }
+
   if (!nextPublicApiUrl) {
     if (isDevelopment) {
       return LOCAL_DEVELOPMENT_API_BASE_URL;
@@ -120,12 +116,6 @@ export function resolveApiBaseUrlForRuntime(input: {
 
   if (!isDevelopment && isLocalOrLanHostname(parsedUrl.hostname)) {
     throw new Error(PUBLIC_API_CONFIGURATION_ERROR_MESSAGE);
-  }
-
-  // In browser runtime we intentionally keep API calls same-origin so Next rewrites
-  // can proxy `/api/*` and session cookies stay bound to the frontend host.
-  if (isBrowserRuntime) {
-    return SAME_ORIGIN_API_BASE_URL;
   }
 
   return normalizeApiBaseUrl(nextPublicApiUrl);
@@ -176,15 +166,13 @@ export class RateLimitError extends Error {
   }
 }
 
-function readRetryAfterSeconds(headers: Headers): number | null {
-  const retryAfterValue =
-    headers.get("Retry-After") ?? headers.get("RateLimit-Reset");
-
-  if (!retryAfterValue) {
+function parseRetryAfterSeconds(value: unknown): number | null {
+  if (typeof value !== "string" && typeof value !== "number") {
     return null;
   }
 
-  const retryAfterSeconds = Number.parseInt(retryAfterValue, 10);
+  const retryAfterSeconds =
+    typeof value === "number" ? value : Number.parseInt(value, 10);
 
   if (!Number.isFinite(retryAfterSeconds) || retryAfterSeconds < 0) {
     return null;
@@ -193,27 +181,23 @@ function readRetryAfterSeconds(headers: Headers): number | null {
   return retryAfterSeconds;
 }
 
-function isLoginRateLimitPath(path: string): boolean {
+function readRetryAfterSeconds(
+  headers: Headers,
+  body?: { retryAfterSeconds?: unknown; retryAfter?: unknown },
+): number | null {
   return (
-    path === "/api/auth/login" ||
-    path === "/api/admin/auth/login" ||
-    path === "/api/particular/auth/login"
+    parseRetryAfterSeconds(headers.get("Retry-After")) ??
+    parseRetryAfterSeconds(headers.get("RateLimit-Reset")) ??
+    parseRetryAfterSeconds(body?.retryAfterSeconds) ??
+    parseRetryAfterSeconds(body?.retryAfter)
   );
-}
-
-function hasRequiredLoginRateLimitHeaders(headers: Headers): boolean {
-  return LOGIN_RATE_LIMIT_REQUIRED_HEADERS.every((headerName) => {
-    const value = headers.get(headerName);
-    return typeof value === "string" && value.trim().length > 0;
-  });
 }
 
 function buildRateLimitErrorMessage(
   backendMessage: string | null,
-  headers: Headers,
+  retryAfterSeconds: number | null,
 ): string {
   const baseMessage = backendMessage ?? LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE;
-  const retryAfterSeconds = readRetryAfterSeconds(headers);
 
   if (retryAfterSeconds === null || retryAfterSeconds === 0) {
     return baseMessage;
@@ -275,6 +259,8 @@ async function apiFetch<T>(
     const body = (await res.json().catch(() => ({}))) as {
       error?: unknown;
       message?: unknown;
+      retryAfterSeconds?: unknown;
+      retryAfter?: unknown;
     };
     const backendMessage =
       typeof body.error === "string" && body.error.trim()
@@ -284,21 +270,10 @@ async function apiFetch<T>(
           : null;
 
     if (res.status === 429) {
-      const retryAfterSeconds = readRetryAfterSeconds(res.headers);
-
-      if (
-        isLoginRateLimitPath(path) &&
-        (retryAfterSeconds === null ||
-          !hasRequiredLoginRateLimitHeaders(res.headers))
-      ) {
-        throw new RateLimitError(
-          LOGIN_RATE_LIMIT_HEADERS_MISSING_MESSAGE,
-          null,
-        );
-      }
+      const retryAfterSeconds = readRetryAfterSeconds(res.headers, body);
 
       throw new RateLimitError(
-        buildRateLimitErrorMessage(backendMessage, res.headers),
+        buildRateLimitErrorMessage(backendMessage, retryAfterSeconds),
         retryAfterSeconds,
       );
     }

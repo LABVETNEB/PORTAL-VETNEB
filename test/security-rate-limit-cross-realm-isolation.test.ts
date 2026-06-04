@@ -10,6 +10,7 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const {
+  LOGIN_RATE_LIMIT_CODE,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
 } = await import("../server/lib/login-rate-limit.ts");
 const {
@@ -212,6 +213,8 @@ test("rate limit clinica sigue funcionando dentro del mismo flujo", async () => 
     assert.deepEqual(JSON.parse(r.body), {
       success: false,
       error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
+      code: LOGIN_RATE_LIMIT_CODE,
+      retryAfterSeconds: 60,
     });
   } finally {
     await app.close();
@@ -244,6 +247,8 @@ test("rate limit particular sigue funcionando dentro del mismo flujo", async () 
     assert.deepEqual(JSON.parse(r.body), {
       success: false,
       error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
+      code: LOGIN_RATE_LIMIT_CODE,
+      retryAfterSeconds: 60,
     });
   } finally {
     await app.close();

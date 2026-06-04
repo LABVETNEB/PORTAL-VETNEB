@@ -11,7 +11,7 @@ const SECONDARY_HERO_FILES = [
   "frontend/src/app/clinicas/page.tsx",
   "frontend/src/components/public/ContactoContent.tsx",
   "frontend/src/components/public/ParticularesContent.tsx",
-  "frontend/src/app/precios/page.tsx",
+  "frontend/src/components/public/PreciosContent.tsx",
 ];
 
 function read(relativePath: string): string {

@@ -11,11 +11,11 @@ import {
   clearRequestAdminAuthContext,
 } from "../lib/fastify-admin-auth.ts";
 import {
+  buildLoginRateLimitResponse,
   buildLoginRateLimitHeaders,
   buildLoginRateLimitKey,
   buildMissingCredentialsLoginRateLimitKey,
   getLoginRateLimitKeyMetadata,
-  LOGIN_RATE_LIMIT_ERROR_MESSAGE,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
 } from "../lib/login-rate-limit.ts";
@@ -677,10 +677,12 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
         reason: "rate_limited",
       });
 
-      return reply.code(429).send({
-        success: false,
-        error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
-      });
+      return reply.code(429).send(
+        buildLoginRateLimitResponse({
+          resetAt: failureEntry.resetAt,
+          now: currentTime,
+        }),
+      );
     }
 
     const markFailure = async (input: {

@@ -150,13 +150,30 @@ function parseClinicId(value: unknown) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
+async function resolvePublicAvatarUrl(
+  row: PublicProfessionalRow,
+  createSignedStorageUrl: CreateSignedStorageUrlFn,
+) {
+  if (!row.avatarStoragePath) {
+    return null;
+  }
+
+  try {
+    return await createSignedStorageUrl(row.avatarStoragePath);
+  } catch {
+    console.warn("[PUBLIC_PROFESSIONAL_AVATAR_URL_ERROR]", {
+      clinicId: row.clinicId,
+      hasAvatar: true,
+    });
+    return null;
+  }
+}
+
 async function serializeProfessional(
   row: PublicProfessionalRow,
   createSignedStorageUrl: CreateSignedStorageUrlFn,
 ) {
-  const avatarUrl = row.avatarStoragePath
-    ? await createSignedStorageUrl(row.avatarStoragePath)
-    : null;
+  const avatarUrl = await resolvePublicAvatarUrl(row, createSignedStorageUrl);
   const publicAddress = normalizeText(row.publicAddress) ?? null;
   const mapLink = normalizeText(row.mapLink) ?? null;
 

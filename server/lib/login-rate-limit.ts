@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 
 export const LOGIN_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 export const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = 10;
+export const LOGIN_RATE_LIMIT_CODE = "LOGIN_RATE_LIMITED";
 export const LOGIN_RATE_LIMIT_ERROR_MESSAGE =
-  "Demasiados intentos de inicio de sesión. Intente más tarde.";
+  "Demasiados intentos de inicio de sesión. Intentá nuevamente más tarde.";
 
 export const LOGIN_RATE_LIMIT_KEY_VERSION = "v2";
 
@@ -177,4 +178,16 @@ export function buildLoginRateLimitHeaders(input: LoginRateLimitHeaderInput) {
   }
 
   return headers;
+}
+
+export function buildLoginRateLimitResponse(input: {
+  resetAt: number;
+  now: number;
+}) {
+  return {
+    success: false,
+    error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
+    code: LOGIN_RATE_LIMIT_CODE,
+    retryAfterSeconds: getLoginRateLimitResetSeconds(input),
+  };
 }

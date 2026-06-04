@@ -199,6 +199,68 @@ test(
 );
 
 test(
+  "publicProfessionalsNativeRoutes mantiene resultado válido de MI BABAU si falla avatar opcional",
+  async () => {
+    const app = await createTestApp({
+      searchPublicProfessionals: async ({ query }: { query?: string }) => {
+        assert.equal(query, "MI BABAU");
+
+        return {
+          rows: [
+            {
+              clinicId: 81,
+              displayName: "MI BABAU",
+              avatarStoragePath: "avatars/mi-babau.webp",
+              aboutText: "Perfil público de derivación veterinaria",
+              specialtyText: "Histopatología veterinaria",
+              servicesText: "Biopsias y citologías",
+              email: "mi-babau@example.com",
+              phone: "3410000000",
+              locality: "Rosario",
+              country: "Argentina",
+              updatedAt: new Date("2026-06-01T12:00:00.000Z"),
+              profileQualityScore: 88,
+              rank: 0.8,
+              similarity: 0.7,
+              score: 91,
+            },
+          ],
+          total: 1,
+          limit: 20,
+          offset: 0,
+        };
+      },
+      createSignedStorageUrl: async () => {
+        throw new Error("avatar signing unavailable");
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/public/professionals/search?q=MI%20BABAU",
+      });
+
+      assert.equal(response.statusCode, 200);
+
+      const body = JSON.parse(response.body);
+
+      assert.equal(body.success, true);
+      assert.equal(body.count, 1);
+      assert.equal(body.total, 1);
+      assert.equal(body.professionals[0].clinicId, 81);
+      assert.equal(body.professionals[0].displayName, "MI BABAU");
+      assert.equal(body.professionals[0].avatarUrl, null);
+      assert.equal(response.body.includes("avatars/mi-babau.webp"), false);
+      assert.equal(response.body.includes("avatarStoragePath"), false);
+      assert.equal(response.body.includes("storagePath"), false);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
   "publicProfessionalsNativeRoutes devuelve 400 cuando clinicId es invalido",
   async () => {
     const app = await createTestApp();
