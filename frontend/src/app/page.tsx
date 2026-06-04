@@ -520,8 +520,8 @@ export default function HomePage() {
                 Empezá a trabajar con VETNEB
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-primary-foreground/78 md:text-lg">
-                Conocé los servicios diagnósticos o contactanos para coordinar el
-                envío de muestras.
+                Sumá a tu clínica a un flujo de diagnóstico anatomopatológico
+                claro, seguro y pensado para la operación veterinaria.
               </p>
               <div className="mt-8">
                 <div className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
