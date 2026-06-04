@@ -930,6 +930,7 @@ export function ParticularesContent() {
                       />
                       <Input
                         id="particular-token"
+                        suppressHydrationWarning
                         name="token"
                         type="password"
                         placeholder="Ingrese el token recibido"
