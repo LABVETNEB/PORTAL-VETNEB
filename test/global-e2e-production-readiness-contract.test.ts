@@ -188,7 +188,7 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
       "Public, dashboard and particular UX surfaces keep route guards, mobile parity and semantic frontend checks.",
     runtimeFiles: [
       {
-        path: "frontend/src/middleware.ts",
+        path: "frontend/src/proxy.ts",
         markers: ["ADMIN_DASHBOARD_PATH_PREFIX", "NextResponse.redirect"],
       },
       {

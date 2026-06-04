@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 
-const MIDDLEWARE_PATH = "frontend/src/middleware.ts";
+const MIDDLEWARE_PATH = "frontend/src/proxy.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -12,11 +12,11 @@ function read(relativePath: string): string {
   );
 }
 
-test("frontend dashboard middleware exists and protects dashboard routes", () => {
+test("frontend dashboard proxy exists and protects dashboard routes", () => {
   assert.equal(
     existsSync(resolve(process.cwd(), MIDDLEWARE_PATH)),
     true,
-    "frontend dashboard middleware must exist",
+    "frontend dashboard proxy must exist",
   );
 
   const source = read(MIDDLEWARE_PATH);
@@ -32,7 +32,7 @@ test("frontend dashboard middleware exists and protects dashboard routes", () =>
   assert.ok(source.includes('matcher: ["/dashboard/:path*"]'));
 });
 
-test("frontend dashboard middleware separates clinic and admin sessions", () => {
+test("frontend dashboard proxy separates clinic and admin sessions", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes("function isAdminDashboardPath(pathname: string): boolean"));
@@ -49,7 +49,7 @@ test("frontend dashboard middleware separates clinic and admin sessions", () => 
   assert.equal(source.includes("hasClinicSession || hasAdminSession"), false);
 });
 
-test("frontend dashboard middleware blocks unauthenticated admin dashboard from public login", () => {
+test("frontend dashboard proxy blocks unauthenticated admin dashboard from public login", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes("const pathname = request.nextUrl.pathname;"));
@@ -58,7 +58,7 @@ test("frontend dashboard middleware blocks unauthenticated admin dashboard from 
   assert.equal(source.includes("loginUrl.pathname = LOGIN_PATH;\\n  loginUrl.searchParams.set"), false);
 });
 
-test("frontend dashboard middleware preserves requested clinic dashboard path on login redirect", () => {
+test("frontend dashboard proxy preserves requested clinic dashboard path on login redirect", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes("request.nextUrl.clone()"));
@@ -70,7 +70,7 @@ test("frontend dashboard middleware preserves requested clinic dashboard path on
   assert.ok(source.includes('loginUrl.searchParams.set("next", nextPath)'));
 });
 
-test("frontend dashboard middleware stays scoped to frontend route protection", () => {
+test("frontend dashboard proxy stays scoped to frontend route protection", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.equal(source.includes("fetch("), false);

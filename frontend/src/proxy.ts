@@ -18,7 +18,7 @@ function getRequiredSessionCookieName(pathname: string): string {
     : CLINIC_SESSION_COOKIE_NAME;
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const requiredCookieName = getRequiredSessionCookieName(pathname);
   const hasRequiredSession = Boolean(
