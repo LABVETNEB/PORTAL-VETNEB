@@ -55,6 +55,54 @@ test("public professionals api client keeps search and detail endpoint boundary"
   assert.ok(source.includes("`/api/public/professionals/${clinicId}`"));
 });
 
+test("public professionals UI keeps generic copy for rate-limited fetch failures", () => {
+  const searchSource = read(PROFESIONALES_SEARCH_CONTENT_PATH);
+  const detailSource = read(PROFESIONAL_DETAIL_CONTENT_PATH);
+
+  assert.ok(searchSource.includes(".catch(() => {"));
+  assert.ok(
+    searchSource.includes(
+      'setState({ status: "error", professionals: [], total: 0 });',
+    ),
+  );
+  assert.ok(
+    searchSource.includes(
+      "No se pudo realizar la búsqueda. Intente nuevamente.",
+    ),
+  );
+  assert.equal(
+    searchSource.includes(
+      "Demasiadas consultas al directorio público. Intente más tarde.",
+    ),
+    false,
+  );
+
+  assert.ok(detailSource.includes(".catch(() => {"));
+  assert.ok(
+    detailSource.includes('setState({ status: "error", professional: null });'),
+  );
+  assert.ok(
+    detailSource.includes("No se pudo cargar el perfil profesional solicitado."),
+  );
+  assert.equal(
+    detailSource.includes(
+      "Demasiadas consultas al perfil público. Intente más tarde.",
+    ),
+    false,
+  );
+
+  for (const rawErrorMarker of [
+    "body.message",
+    "data.message",
+    "json.message",
+    "error.message",
+    "stack",
+    "RateLimit",
+  ]) {
+    assert.equal(searchSource.includes(rawErrorMarker), false);
+    assert.equal(detailSource.includes(rawErrorMarker), false);
+  }
+});
 test("public professionals listing renders compact cards without contact detail payload", () => {
   const source = read(PROFESIONALES_SEARCH_CONTENT_PATH);
 
