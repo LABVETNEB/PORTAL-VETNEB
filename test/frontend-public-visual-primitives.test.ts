@@ -5,6 +5,8 @@ import test from "node:test";
 
 const PUBLIC_ACTION_PATH = "frontend/src/components/public/PublicAction.tsx";
 const PUBLIC_HERO_PATH = "frontend/src/components/public/PublicHero.tsx";
+const RENDER_PRIMITIVES_PATH =
+  "frontend/src/components/public/RenderPrimitives.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -69,4 +71,30 @@ test("public action contactCard variant renders non-interactive div container no
   assert.equal(source.includes("absolute inset-0"), false);
   // Explicit constrained CTA control inside the contactCard branch
   assert.ok(source.includes("inline-flex shrink-0"));
+});
+
+test("public action contactCard keeps accessible icon control contract", () => {
+  const source = read(PUBLIC_ACTION_PATH);
+
+  assert.ok(source.includes("<PublicExternalControl"));
+  assert.ok(source.includes("<PublicRouteControl"));
+  assert.ok(source.includes('className="inline-flex shrink-0 text-vetneb-teal transition group-hover:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"'));
+  assert.ok(source.includes('<span className="sr-only">'));
+  assert.ok(source.includes('typeof children === "string" ? children : "Ver"'));
+  assert.ok(source.includes('{icon ? <span aria-hidden="true">{icon}</span> : null}'));
+});
+
+test("public gradient button keeps disabled focus and decorative icon contract", () => {
+  const source = read(RENDER_PRIMITIVES_PATH);
+
+  assert.ok(source.includes("export function PublicGradientButton"));
+  assert.ok(source.includes('showArrow ? <ArrowRight className="h-4 w-4" aria-hidden="true" /> : null'));
+  assert.ok(source.includes("disabled:pointer-events-none disabled:opacity-60"));
+  assert.ok(source.includes("focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"));
+  assert.ok(source.includes("<PublicExternalControl"));
+  assert.ok(source.includes("<PublicRouteControl"));
+  assert.ok(source.includes("disabled={disabled}"));
+  assert.ok(source.includes("onClick={onClick}"));
+  assert.ok(source.includes("<button"));
+  assert.ok(source.includes("type={type}"));
 });
