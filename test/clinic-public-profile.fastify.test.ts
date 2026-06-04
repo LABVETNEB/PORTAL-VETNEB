@@ -542,6 +542,43 @@ test(
 );
 
 test(
+  "clinicPublicProfileNativeRoutes no expone errores tecnicos de multipart en avatar",
+  async () => {
+    const app = await createTestApp();
+    const boundary = "----vetneb-boundary";
+    const payload = Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="avatar"; filename="avatar.png"\r\nContent-Type: image/png\r\n\r\narchivo-incompleto`,
+      "utf8",
+    );
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/clinic/profile/avatar",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": `multipart/form-data; boundary=${boundary}`,
+        },
+        payload,
+      });
+
+      assert.equal(response.statusCode, 400);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: "Error al procesar avatar",
+      });
+      assert.equal(response.body.includes("Unexpected end of form"), false);
+      assert.equal(response.body.includes("stack"), false);
+      assert.equal(response.body.includes("cause"), false);
+      assert.equal(response.body.includes("details"), false);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
   "clinicPublicProfileNativeRoutes actualiza POST /avatar con upload y reemplazo de avatar previo",
   async () => {
     const uploadCalls: Array<Record<string, unknown>> = [];
