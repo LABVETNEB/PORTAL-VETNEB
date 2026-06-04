@@ -13,6 +13,7 @@ const { ENV } = await import("../server/lib/env.ts");
 const { AUDIT_EVENTS } = await import("../server/lib/audit.ts");
 const {
   LOGIN_RATE_LIMIT_CODE,
+  LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
 } = await import("../server/lib/login-rate-limit.ts");
 const {
@@ -358,7 +359,7 @@ test(
       assert.equal(third.headers["ratelimit-reset"], "60");
       assert.equal(
         third.headers["access-control-expose-headers"],
-        "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After",
+        LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
       );
       const retryAfter = Number(third.headers["retry-after"]);
       assert.ok(Number.isInteger(retryAfter));
@@ -578,7 +579,7 @@ test("adminAuthNativeRoutes responde preflight OPTIONS permitido sin autenticar"
       );
       assert.equal(
         response.headers["access-control-expose-headers"],
-        "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After",
+        LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
       );
       assert.equal(response.headers["set-cookie"], undefined);
     }

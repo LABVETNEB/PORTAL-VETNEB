@@ -5,6 +5,8 @@ export const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = 10;
 export const LOGIN_RATE_LIMIT_CODE = "LOGIN_RATE_LIMITED";
 export const LOGIN_RATE_LIMIT_ERROR_MESSAGE =
   "Demasiados intentos de inicio de sesión. Intentá nuevamente más tarde.";
+export const LOGIN_RATE_LIMIT_EXPOSED_HEADERS =
+  "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After";
 
 export const LOGIN_RATE_LIMIT_KEY_VERSION = "v2";
 

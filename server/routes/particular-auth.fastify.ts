@@ -12,6 +12,7 @@ import {
   buildLoginRateLimitKey,
   buildMissingCredentialsLoginRateLimitKey,
   getLoginRateLimitKeyMetadata,
+  LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
 } from "../lib/login-rate-limit.ts";
@@ -272,7 +273,7 @@ function applyCorsHeaders(
   reply.header("access-control-allow-credentials", "true");
   reply.header(
     "access-control-expose-headers",
-    "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After",
+    LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
   );
 }
 
