@@ -199,6 +199,24 @@ export function ProfesionalDetailContent({
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6 pt-6">
+                    <section aria-labelledby="professional-vetneb-relationship-heading">
+                      <h2
+                        id="professional-vetneb-relationship-heading"
+                        className="mb-3 flex items-center gap-2 text-lg font-semibold text-vetneb-ink"
+                      >
+                        <ShieldCheck
+                          className="h-5 w-5 text-primary"
+                          aria-hidden="true"
+                        />
+                        Relación con VETNEB
+                      </h2>
+                      <div className="surface-soft px-4 py-3">
+                        <p className="text-sm leading-relaxed text-vetneb-ink">
+                          Esta clínica trabaja con VETNEB para estudios de anatomía patológica veterinaria.
+                        </p>
+                      </div>
+                    </section>
+
                     <section aria-labelledby="professional-care-heading">
                       <h2
                         id="professional-care-heading"

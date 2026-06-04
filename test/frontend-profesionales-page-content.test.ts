@@ -148,6 +148,8 @@ test("profesionales detail route renders selected professional data", () => {
   assert.ok(detailSource.includes("professional.aboutText"));
   assert.ok(detailSource.includes("professional.specialtyText"));
   assert.ok(detailSource.includes("professional.servicesText"));
+  assert.ok(detailSource.includes("Relación con VETNEB"));
+  assert.ok(detailSource.includes("Esta clínica trabaja con VETNEB para estudios de anatomía patológica veterinaria."));
   assert.ok(detailSource.includes("professional.publicAddress"));
   assert.ok(detailSource.includes("professional.mapLink"));
   assert.ok(detailSource.includes("mailto:${professional.email}"));
