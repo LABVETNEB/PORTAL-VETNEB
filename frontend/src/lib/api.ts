@@ -2075,6 +2075,11 @@ export type PublicProfessionalsSearchSnapshot = {
   };
 };
 
+export type PublicProfessionalDetailSnapshot = {
+  success: true;
+  professional: PublicProfessional;
+};
+
 export async function searchPublicProfessionals(
   params: {
     query?: string;
@@ -2101,6 +2106,16 @@ export async function searchPublicProfessionals(
 
   return apiFetch<PublicProfessionalsSearchSnapshot>(
     `/api/public/professionals/search${qs ? `?${qs}` : ""}`,
+    options,
+  );
+}
+
+export async function getPublicProfessional(
+  clinicId: number,
+  options?: RequestInit,
+): Promise<PublicProfessionalDetailSnapshot> {
+  return apiFetch<PublicProfessionalDetailSnapshot>(
+    `/api/public/professionals/${clinicId}`,
     options,
   );
 }

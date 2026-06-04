@@ -9,6 +9,8 @@ const CLINICAS_PATH = "frontend/src/app/clinicas/page.tsx";
 const PROFESIONALES_PAGE_PATH = "frontend/src/app/profesionales/page.tsx";
 const PROFESIONALES_CONTENT_PATH =
   "frontend/src/components/public/ProfesionalesSearchContent.tsx";
+const PROFESIONAL_DETAIL_CONTENT_PATH =
+  "frontend/src/components/public/ProfesionalDetailContent.tsx";
 const CONTACTO_PAGE_PATH = "frontend/src/app/contacto/page.tsx";
 const CONTACTO_CONTENT_PATH = "frontend/src/components/public/ContactoContent.tsx";
 const PRECIOS_PATH = "frontend/src/app/precios/page.tsx";
@@ -89,6 +91,7 @@ test("clinicas page keeps semantic headings, sections and reveal policy", () => 
 
 test("profesionales content keeps semantic search/result structure and map safety", () => {
   const source = read(PROFESIONALES_CONTENT_PATH);
+  const detailSource = read(PROFESIONAL_DETAIL_CONTENT_PATH);
 
   assert.ok(source.includes("<h1"));
   assert.ok(source.includes("<h2"));
@@ -97,11 +100,15 @@ test("profesionales content keeps semantic search/result structure and map safet
   assert.ok(source.includes("<article"));
   assert.ok(source.includes("searchPublicProfessionals("));
   assert.ok(source.includes("router.push(`${ROUTES.profesionales}${params.size ? `?${params}` : \"\"}`)"));
-  assert.ok(source.includes("Ver ubicación en mapa"));
-  assert.ok(source.includes("<PublicExternalControl"));
-  assert.ok(source.includes('target="_blank"'));
+  assert.ok(source.includes("buildProfessionalDetailHref("));
+  assert.equal(source.includes("<PublicExternalControl"), false);
+  assert.ok(detailSource.includes("Ver ubicación en mapa"));
+  assert.ok(detailSource.includes("<PublicExternalControl"));
+  assert.ok(detailSource.includes('target="_blank"'));
   assert.equal(/<a\b/.test(source), false);
+  assert.equal(/<a\b/.test(detailSource), false);
   assert.equal(source.includes('from "gsap"'), false);
+  assert.equal(detailSource.includes('from "gsap"'), false);
 });
 
 test("contacto content keeps semantic headings and unchanged contact flow", () => {

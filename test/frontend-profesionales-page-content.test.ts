@@ -7,6 +7,10 @@ import test from "node:test";
 const PROFESIONALES_PAGE_PATH = "frontend/src/app/profesionales/page.tsx";
 const PROFESIONALES_SEARCH_CONTENT_PATH =
   "frontend/src/components/public/ProfesionalesSearchContent.tsx";
+const PROFESIONAL_DETAIL_CONTENT_PATH =
+  "frontend/src/components/public/ProfesionalDetailContent.tsx";
+const PROFESIONALES_DETAIL_PAGE_PATH =
+  "frontend/src/app/profesionales/[clinicId]/page.tsx";
 const API_PATH = "frontend/src/lib/api.ts";
 
 function read(relativePath: string): string {
@@ -61,38 +65,66 @@ test("profesionales search content uses free text query and approximate backend 
   assert.ok(source.includes("router.push(`${ROUTES.profesionales}${params.size ? `?${params}` : \"\"}`)"));
   assert.ok(source.includes("searchPublicProfessionals("));
   assert.ok(source.includes("query: currentQuery"));
-  assert.ok(source.includes("limit: 20"));
+  assert.ok(source.includes("limit: PUBLIC_PROFESSIONALS_PAGE_SIZE"));
   assert.ok(source.includes('{ cache: "no-store" }'));
   assert.ok(source.includes("coincidencias por nombre"));
   assert.ok(apiSource.includes("export async function searchPublicProfessionals("));
+  assert.ok(apiSource.includes("export async function getPublicProfessional("));
   assert.ok(apiSource.includes("q"));
   assert.ok(apiSource.includes("/api/public/professionals/search"));
+  assert.ok(apiSource.includes("/api/public/professionals/${clinicId}"));
 });
 
-test("profesionales search content renders professional result cards", () => {
+test("profesionales search content renders compact professional result cards", () => {
   const source = read(PROFESIONALES_SEARCH_CONTENT_PATH);
 
   assert.ok(source.includes("state.professionals.map((professional) =>"));
   assert.ok(source.includes("professional.displayName"));
-  assert.ok(source.includes("professional.specialtyText"));
-  assert.ok(source.includes("professional.servicesText"));
-  assert.ok(source.includes("professional.aboutText"));
-  assert.ok(source.includes("professional.locality"));
-  assert.ok(source.includes("professional.country"));
-  assert.ok(source.includes("professional.publicAddress"));
-  assert.ok(source.includes("professional.mapLink"));
-  assert.ok(source.includes("Ver ubicación en mapa"));
-  assert.ok(source.includes("<PublicExternalControl"));
-  assert.ok(source.includes('target="_blank"'));
+  assert.ok(source.includes("professional.avatarUrl"));
+  assert.ok(source.includes("professional-avatar-fallback"));
+  assert.ok(source.includes("getPublicProfessionalLocation(professional)"));
+  assert.ok(source.includes("summarizePublicProfessional(professional)"));
+  assert.ok(source.includes("isVerifiedPublicProfessional(professional)"));
+  assert.ok(source.includes("buildProfessionalDetailHref("));
+  assert.ok(source.includes("professional.clinicId"));
+  assert.ok(source.includes("Abrir detalle del perfil"));
   assert.equal(/<a\b/.test(source), false);
-  assert.ok(source.includes("mailto:${professional.email}"));
-  assert.ok(source.includes("https://wa.me/549"));
+  assert.equal(source.includes("professional.aboutText"), false);
+  assert.equal(source.includes("professional.email"), false);
+  assert.equal(source.includes("professional.phone"), false);
+  assert.equal(source.includes("professional.publicAddress"), false);
+  assert.equal(source.includes("professional.mapLink"), false);
+  assert.equal(source.includes("<PublicExternalControl"), false);
+  assert.equal(source.includes("mailto:${professional.email}"), false);
+  assert.equal(source.includes("https://wa.me/549"), false);
+});
+
+test("profesionales detail route renders selected professional data", () => {
+  const pageSource = read(PROFESIONALES_DETAIL_PAGE_PATH);
+  const detailSource = read(PROFESIONAL_DETAIL_CONTENT_PATH);
+
+  assert.ok(pageSource.includes("ProfesionalDetailContent"));
+  assert.ok(pageSource.includes("<ProfesionalDetailContent clinicId={clinicId} />"));
+  assert.ok(pageSource.includes("/profesionales/${encodeURIComponent(clinicId)}"));
+  assert.ok(detailSource.includes("parsePublicProfessionalClinicId(clinicId)"));
+  assert.ok(detailSource.includes("getPublicProfessional(parsedClinicId"));
+  assert.ok(detailSource.includes("professional.displayName"));
+  assert.ok(detailSource.includes("professional.aboutText"));
+  assert.ok(detailSource.includes("professional.specialtyText"));
+  assert.ok(detailSource.includes("professional.servicesText"));
+  assert.ok(detailSource.includes("professional.publicAddress"));
+  assert.ok(detailSource.includes("professional.mapLink"));
+  assert.ok(detailSource.includes("mailto:${professional.email}"));
+  assert.ok(detailSource.includes("buildWhatsAppHref(professional.phone)"));
+  assert.ok(detailSource.includes("Ver ubicación en mapa"));
+  assert.equal(/<a\b/.test(detailSource), false);
 });
 
 test("profesionales page remains public and avoids private route literals", () => {
   const pageSource = read(PROFESIONALES_PAGE_PATH);
   const contentSource = read(PROFESIONALES_SEARCH_CONTENT_PATH);
-  const combined = [pageSource, contentSource].join("\n");
+  const detailSource = read(PROFESIONAL_DETAIL_CONTENT_PATH);
+  const combined = [pageSource, contentSource, detailSource].join("\n");
 
   assert.equal(combined.includes('"/dashboard"'), false);
   assert.equal(combined.includes("admin_session_id"), false);
