@@ -17,6 +17,7 @@ const PROFESIONAL_DETAIL_CONTENT_PATH =
   "frontend/src/components/public/ProfesionalDetailContent.tsx";
 const PUBLIC_PROFESSIONALS_HELPER_PATH =
   "frontend/src/lib/public-professionals.ts";
+const PUBLIC_PROFESSIONALS_API_CLIENT_PATH = "frontend/src/lib/api.ts";
 const PUBLIC_PROFESSIONALS_API_ROUTE_PATH =
   "server/routes/public-professionals.fastify.ts";
 
@@ -36,6 +37,23 @@ function extractSerializeProfessional(source: string) {
 
   return source.slice(start, end);
 }
+
+test("public professionals api client keeps search and detail endpoint boundary", () => {
+  const source = read(PUBLIC_PROFESSIONALS_API_CLIENT_PATH);
+
+  assert.ok(source.includes("export async function searchPublicProfessionals("));
+  assert.ok(source.includes("const query = new URLSearchParams();"));
+  assert.ok(source.includes('query.set("q", params.query.trim());'));
+  assert.ok(source.includes('query.set("limit", String(params.limit));'));
+  assert.ok(source.includes('query.set("offset", String(params.offset));'));
+  assert.ok(source.includes("const qs = query.toString();"));
+  assert.ok(
+    source.includes('`/api/public/professionals/search${qs ? `?${qs}` : ""}`'),
+  );
+  assert.ok(source.includes("export async function getPublicProfessional("));
+  assert.ok(source.includes("clinicId: number,"));
+  assert.ok(source.includes("`/api/public/professionals/${clinicId}`"));
+});
 
 test("public professionals listing renders compact cards without contact detail payload", () => {
   const source = read(PROFESIONALES_SEARCH_CONTENT_PATH);
