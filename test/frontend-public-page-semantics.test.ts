@@ -14,6 +14,7 @@ const PROFESIONAL_DETAIL_CONTENT_PATH =
 const CONTACTO_PAGE_PATH = "frontend/src/app/contacto/page.tsx";
 const CONTACTO_CONTENT_PATH = "frontend/src/components/public/ContactoContent.tsx";
 const PRECIOS_PATH = "frontend/src/app/precios/page.tsx";
+const PRECIOS_CONTENT_PATH = "frontend/src/components/public/PreciosContent.tsx";
 const LOGIN_PATH = "frontend/src/app/login/page.tsx";
 const PARTICULARES_PATH = "frontend/src/app/particulares/page.tsx";
 const SITEMAP_PATH = "frontend/src/app/sitemap.ts";
@@ -125,7 +126,7 @@ test("contacto content keeps semantic headings and unchanged contact flow", () =
 });
 
 test("precios page keeps functional surface without reveal animation additions", () => {
-  const source = read(PRECIOS_PATH);
+  const source = read(PRECIOS_CONTENT_PATH);
 
   assert.ok(source.includes("<h1"));
   assert.ok(source.includes("<h2"));
@@ -140,7 +141,7 @@ test("precios page keeps functional surface without reveal animation additions",
 });
 
 test("precios page sanitizes semantic ids for category headings", () => {
-  const source = read(PRECIOS_PATH);
+  const source = read(PRECIOS_CONTENT_PATH);
 
   assert.ok(source.includes("function toSemanticId(value: string): string {"));
   assert.ok(source.includes(".normalize(\"NFD\")"));

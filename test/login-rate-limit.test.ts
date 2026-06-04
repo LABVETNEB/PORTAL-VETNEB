@@ -4,11 +4,13 @@ import {
   buildLoginRateLimitHeaders,
   buildLoginRateLimitKeyMetadata,
   buildLoginRateLimitKey,
+  buildLoginRateLimitResponse,
   buildMissingCredentialsLoginRateLimitKey,
   getLoginRateLimitResetSeconds,
   getLoginRateLimitKeyMetadata,
   hashLoginRateLimitIdentifier,
   hashLoginRateLimitIpAddress,
+  LOGIN_RATE_LIMIT_CODE,
   LOGIN_RATE_LIMIT_KEY_VERSION,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
@@ -21,7 +23,7 @@ test("constantes de login rate limit son estables", () => {
   assert.equal(LOGIN_RATE_LIMIT_MAX_ATTEMPTS, 10);
   assert.equal(
     LOGIN_RATE_LIMIT_ERROR_MESSAGE,
-    "Demasiados intentos de inicio de sesión. Intente más tarde.",
+    "Demasiados intentos de inicio de sesión. Intentá nuevamente más tarde.",
   );
 });
 
@@ -64,6 +66,21 @@ test("login rate limit reset y Retry-After permiten cero segundos coherentes", (
 
   assert.equal(headers["RateLimit-Reset"], "0");
   assert.equal(headers["Retry-After"], "0");
+});
+
+test("buildLoginRateLimitResponse expone contrato recuperable sin secretos", () => {
+  assert.deepEqual(
+    buildLoginRateLimitResponse({
+      resetAt: 60_000,
+      now: 0,
+    }),
+    {
+      success: false,
+      error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
+      code: LOGIN_RATE_LIMIT_CODE,
+      retryAfterSeconds: 60,
+    },
+  );
 });
 
 test("login rate limit key incluye version, superficie, identificador normalizado e IP", () => {

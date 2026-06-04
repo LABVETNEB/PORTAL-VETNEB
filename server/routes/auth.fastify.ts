@@ -7,11 +7,11 @@ import type {
 import { AUDIT_EVENTS } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
+  buildLoginRateLimitResponse,
   buildLoginRateLimitHeaders,
   buildLoginRateLimitKey,
   buildMissingCredentialsLoginRateLimitKey,
   getLoginRateLimitKeyMetadata,
-  LOGIN_RATE_LIMIT_ERROR_MESSAGE,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
 } from "../lib/login-rate-limit.ts";
@@ -1174,10 +1174,12 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         reason: "rate_limited",
       });
 
-      return reply.code(429).send({
-        success: false,
-        error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
-      });
+      return reply.code(429).send(
+        buildLoginRateLimitResponse({
+          resetAt: failureEntry.resetAt,
+          now: currentTime,
+        }),
+      );
     }
 
     const markFailure = async (input: {

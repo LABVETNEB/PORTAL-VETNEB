@@ -5,6 +5,8 @@ import test from "node:test";
 
 const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
 const PRECIOS_PAGE_PATH = "frontend/src/app/precios/page.tsx";
+const PRECIOS_CONTENT_PATH =
+  "frontend/src/components/public/PreciosContent.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -27,9 +29,11 @@ test("home page no longer renders public pricing section", () => {
 });
 
 test("precios page uses runtime pricing cache and backend API on cache miss", () => {
-  const source = read(PRECIOS_PAGE_PATH);
+  const pageSource = read(PRECIOS_PAGE_PATH);
+  const source = read(PRECIOS_CONTENT_PATH);
 
-  assert.ok(source.includes("export default async function PreciosPage()"));
+  assert.ok(pageSource.includes("export default function PreciosPage()"));
+  assert.ok(pageSource.includes("<PreciosContent />"));
   assert.ok(source.includes("getCachedPublicPricingSnapshot"));
   assert.ok(source.includes("setCachedPublicPricingSnapshot"));
   assert.ok(source.includes("const cachedSnapshot = getCachedPublicPricingSnapshot();"));
@@ -41,7 +45,7 @@ test("precios page uses runtime pricing cache and backend API on cache miss", ()
 });
 
 test("precios page keeps public pricing states and fallback label", () => {
-  const source = read(PRECIOS_PAGE_PATH);
+  const source = read(PRECIOS_CONTENT_PATH);
 
   assert.ok(source.includes("function normalizePriceLabel(priceLabel: string | null | undefined): string"));
   assert.ok(source.includes('return normalizedPriceLabel ? normalizedPriceLabel : "Consultar";'));

@@ -21,6 +21,9 @@ test("frontend API client resolves backend base URL with explicit public safegua
   assert.ok(source.includes("El servicio público no está configurado para recibir solicitudes."));
   assert.ok(source.includes("export function resolveApiBaseUrlForRuntime("));
   assert.ok(source.includes("const nodeEnv = input.nodeEnv ?? process.env.NODE_ENV ?? \"development\";"));
+  assert.ok(source.includes("const isBrowserRuntime ="));
+  assert.ok(source.includes("if (isBrowserRuntime) {"));
+  assert.ok(source.includes("return SAME_ORIGIN_API_BASE_URL;"));
   assert.ok(source.includes("if (!nextPublicApiUrl) {"));
   assert.ok(source.includes("if (isDevelopment) {"));
   assert.ok(source.includes("return LOCAL_DEVELOPMENT_API_BASE_URL;"));
@@ -30,6 +33,13 @@ test("frontend API client resolves backend base URL with explicit public safegua
   assert.ok(source.includes("path: string,"));
   assert.ok(source.includes("options: RequestInit = {},"));
   assert.ok(source.includes("export const BACKEND_CONNECTION_ERROR_MESSAGE ="));
+
+  const browserBranchIndex = source.indexOf("if (isBrowserRuntime) {");
+  const missingConfigIndex = source.indexOf("if (!nextPublicApiUrl) {");
+  assert.ok(
+    browserBranchIndex < missingConfigIndex,
+    "browser same-origin branch must run before server API URL validation",
+  );
 });
 
 test("frontend API client sends cookies by default", () => {
@@ -71,9 +81,10 @@ test("frontend API client surfaces backend errors safely", () => {
   assert.ok(source.includes("const body = (await res.json().catch(() => ({}))) as {"));
   assert.ok(source.includes("error?: unknown;"));
   assert.ok(source.includes("message?: unknown;"));
+  assert.ok(source.includes("retryAfterSeconds?: unknown;"));
   assert.ok(source.includes("const backendMessage ="));
   assert.ok(source.includes("if (res.status === 429) {"));
-  assert.ok(source.includes("buildRateLimitErrorMessage(backendMessage, res.headers)"));
+  assert.ok(source.includes("buildRateLimitErrorMessage(backendMessage, retryAfterSeconds)"));
   assert.ok(source.includes("if (backendMessage) {"));
   assert.ok(source.includes("throw new Error(backendMessage);"));
   assert.ok(source.includes("if (res.status >= 500) {"));
@@ -81,29 +92,23 @@ test("frontend API client surfaces backend errors safely", () => {
   assert.ok(source.includes("throw new Error(`HTTP ${res.status}`);"));
 });
 
-test("frontend API client formats 429 login rate-limit guidance from headers", () => {
+test("frontend API client formats 429 rate-limit guidance from headers or JSON metadata", () => {
   const source = read(API_CLIENT_PATH);
 
   assert.ok(source.includes("export const LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE ="));
-  assert.ok(source.includes("export const LOGIN_RATE_LIMIT_HEADERS_MISSING_MESSAGE ="));
-  assert.ok(source.includes("const LOGIN_RATE_LIMIT_REQUIRED_HEADERS ="));
-  for (const headerName of [
-    "Retry-After",
-    "RateLimit-Policy",
-    "RateLimit-Limit",
-    "RateLimit-Remaining",
-    "RateLimit-Reset",
-  ]) {
-    assert.ok(source.includes(`"${headerName}"`), `missing ${headerName}`);
-  }
-  assert.ok(source.includes('headers.get("Retry-After") ?? headers.get("RateLimit-Reset")'));
+  assert.ok(source.includes("Demasiados intentos de inicio de sesión. Intentá nuevamente más tarde."));
+  assert.equal(source.includes("LOGIN_RATE_LIMIT_HEADERS_MISSING_MESSAGE"), false);
+  assert.equal(source.includes("El backend no informó cuándo reintentar"), false);
+  assert.equal(source.includes("const LOGIN_RATE_LIMIT_REQUIRED_HEADERS ="), false);
+  assert.ok(source.includes("function parseRetryAfterSeconds("));
+  assert.ok(source.includes('parseRetryAfterSeconds(headers.get("Retry-After")) ??'));
+  assert.ok(source.includes('parseRetryAfterSeconds(headers.get("RateLimit-Reset")) ??'));
+  assert.ok(source.includes("parseRetryAfterSeconds(body?.retryAfterSeconds) ??"));
+  assert.ok(source.includes("parseRetryAfterSeconds(body?.retryAfter)"));
   assert.ok(source.includes("retryAfterSeconds < 0"));
   assert.equal(source.includes("retryAfterSeconds <= 0"), false);
-  assert.ok(source.includes("function isLoginRateLimitPath("));
-  assert.ok(source.includes("function hasRequiredLoginRateLimitHeaders("));
-  assert.ok(source.includes("LOGIN_RATE_LIMIT_HEADERS_MISSING_MESSAGE"));
-  assert.ok(source.includes("retryAfterSeconds === null ||"));
-  assert.ok(source.includes("!hasRequiredLoginRateLimitHeaders(res.headers)"));
+  assert.equal(source.includes("function isLoginRateLimitPath("), false);
+  assert.equal(source.includes("function hasRequiredLoginRateLimitHeaders("), false);
   assert.equal(
     source.includes("!retryAfterSeconds || !hasRequiredLoginRateLimitHeaders"),
     false,

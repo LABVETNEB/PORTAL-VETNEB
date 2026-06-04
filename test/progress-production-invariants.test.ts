@@ -67,40 +67,44 @@ test("public pricing invariants: runtime base URL and /precios success rendering
     "return normalizeApiBaseUrl(nextPublicApiUrl);",
     apiFile,
   );
-  assertNotIncludes(apiSource, 'return "";', apiFile);
+  assertIncludes(apiSource, "return SAME_ORIGIN_API_BASE_URL;", apiFile);
 
   const preciosPageFile = "frontend/src/app/precios/page.tsx";
   const preciosPageSource = read(preciosPageFile);
+  const preciosContentFile = "frontend/src/components/public/PreciosContent.tsx";
+  const preciosContentSource = read(preciosContentFile);
+
+  assertIncludes(preciosPageSource, "<PreciosContent />", preciosPageFile);
 
   assert.match(
-    preciosPageSource,
-    /getPublicPricing\(\{ cache: "no-store" \}, \{ throwOnError: true \}\)/,
-    `${preciosPageFile}: must fetch public pricing with throwOnError`,
+    preciosContentSource,
+    /getPublicPricing\(\s*\{ cache: "no-store" \},\s*\{ throwOnError: true \},\s*\)/,
+    `${preciosContentFile}: must fetch public pricing with throwOnError`,
   );
   assertIncludes(
-    preciosPageSource,
+    preciosContentSource,
     "if (!cachedSnapshot && pricingSnapshot.success)",
-    preciosPageFile,
+    preciosContentFile,
   );
   assertIncludes(
-    preciosPageSource,
-    "pricingCategories = sortPricingCategories(pricingSnapshot.categories);",
-    preciosPageFile,
+    preciosContentSource,
+    "categories: sortPricingCategories(pricingSnapshot.categories),",
+    preciosContentFile,
   );
   assertIncludes(
-    preciosPageSource,
+    preciosContentSource,
     ": hasPricingItems(pricingCategories) ? (",
-    preciosPageFile,
+    preciosContentFile,
   );
   assertIncludes(
-    preciosPageSource,
+    preciosContentSource,
     "{pricingCategories.map((category) => {",
-    preciosPageFile,
+    preciosContentFile,
   );
   assertIncludes(
-    preciosPageSource,
+    preciosContentSource,
     "{category.items.map((item, index) => (",
-    preciosPageFile,
+    preciosContentFile,
   );
 
   const publicPricingRouteFile = "server/routes/public-pricing.fastify.ts";

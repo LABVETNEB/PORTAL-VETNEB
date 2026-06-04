@@ -102,13 +102,24 @@ test("serializeProfessional expone solamente campos públicos esperados", () => 
 
 test("serializeProfessional firma avatarStoragePath sin exponer el path crudo", () => {
   const source = readSource("server/routes/public-professionals.fastify.ts");
+  const avatarUrlHelper = extractFunction(source, "resolvePublicAvatarUrl");
   const serializeProfessional = extractFunction(source, "serializeProfessional");
 
   assert.ok(
-    serializeProfessional.includes(
-      "const avatarUrl = row.avatarStoragePath\n    ? await createSignedStorageUrl(row.avatarStoragePath)\n    : null;",
-    ),
+    avatarUrlHelper.includes("if (!row.avatarStoragePath)"),
+    "avatarStoragePath ausente debe devolver null",
+  );
+  assert.ok(
+    avatarUrlHelper.includes("return await createSignedStorageUrl(row.avatarStoragePath);"),
     "avatarStoragePath debe convertirse a avatarUrl firmado o null",
+  );
+  assert.ok(avatarUrlHelper.includes("catch {"));
+  assert.ok(avatarUrlHelper.includes("return null;"));
+  assert.ok(
+    serializeProfessional.includes(
+      "const avatarUrl = await resolvePublicAvatarUrl(row, createSignedStorageUrl);",
+    ),
+    "serializeProfessional debe delegar la firma segura de avatar",
   );
 
   assert.ok(
@@ -186,4 +197,3 @@ test("search y detail usan la misma serialización pública", () => {
     "detail debe serializar con serializeProfessional",
   );
 });
-

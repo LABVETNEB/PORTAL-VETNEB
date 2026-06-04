@@ -16,6 +16,7 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 const {
   buildLoginRateLimitKey,
   buildMissingCredentialsLoginRateLimitKey,
+  LOGIN_RATE_LIMIT_CODE,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
 } = await import("../server/lib/login-rate-limit.ts");
 const {
@@ -226,6 +227,8 @@ test("login 429 includes recoverable headers on clinic unified admin and particu
       assert.deepEqual(JSON.parse(blocked.body), {
         success: false,
         error: LOGIN_RATE_LIMIT_ERROR_MESSAGE,
+        code: LOGIN_RATE_LIMIT_CODE,
+        retryAfterSeconds: 60,
       });
     } finally {
       await app.close();
