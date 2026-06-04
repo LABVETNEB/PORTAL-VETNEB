@@ -12,6 +12,8 @@ const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
 const CONTACTO_PATH = "frontend/src/components/public/ContactoContent.tsx";
 const PROFESIONALES_PATH =
   "frontend/src/components/public/ProfesionalesSearchContent.tsx";
+const PROFESIONAL_DETAIL_PATH =
+  "frontend/src/components/public/ProfesionalDetailContent.tsx";
 const PUBLIC_ACTION_PATH = "frontend/src/components/public/PublicAction.tsx";
 const PUBLIC_ROUTE_CONTROL_PATH =
   "frontend/src/components/public/PublicRouteControl.tsx";
@@ -137,6 +139,7 @@ test("PublicExternalControl covers WhatsApp, mailto and external map surfaces", 
   const footer = read(FOOTER_PATH);
   const contacto = read(CONTACTO_PATH);
   const profesionales = read(PROFESIONALES_PATH);
+  const profesionalDetail = read(PROFESIONAL_DETAIL_PATH);
 
   assert.ok(home.includes("<PublicExternalControl"));
   assert.ok(home.includes('href="https://wa.me/5493534138946"'));
@@ -154,15 +157,16 @@ test("PublicExternalControl covers WhatsApp, mailto and external map surfaces", 
     contacto.includes('target={info.href.startsWith("http") ? "_blank" : "_self"}'),
   );
 
-  assert.ok(profesionales.includes("<PublicExternalControl"));
-  assert.ok(profesionales.includes("href={`mailto:${professional.email}`}"));
+  assert.equal(profesionales.includes("<PublicExternalControl"), false);
+
+  assert.ok(profesionalDetail.includes("<PublicExternalControl"));
+  assert.ok(profesionalDetail.includes("href={`mailto:${professional.email}`}"));
   assert.ok(
-    profesionales.includes(
-      "href={`https://wa.me/549${professional.phone.replace(/\\D/g, \"\")}`}",
-    ),
+    profesionalDetail.includes("href={buildWhatsAppHref(professional.phone)}"),
   );
-  assert.ok(profesionales.includes("href={professional.mapLink}"));
-  assert.ok(profesionales.includes('target="_blank"'));
+  assert.ok(profesionalDetail.includes("href={professional.mapLink}"));
+  assert.ok(profesionalDetail.includes('target="_blank"'));
+  assert.equal(/<a\b/.test(profesionalDetail), false);
 });
 
 test("footer map surface uses a single non-interactive iframe and keeps external map control", () => {

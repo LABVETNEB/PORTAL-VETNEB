@@ -163,19 +163,24 @@ test("professionals structured data avoids unverifiable result entities", () => 
   assert.equal(combined.includes("priceRange"), false);
 });
 
-test("professionals structured data stays page-level without public profile route", () => {
+test("professionals structured data stays page-level while detail route is client resolved", () => {
   const seoSource = read(SEO_PATH);
   const profesionalesSource = read(PROFESIONALES_PATH);
+  const profileRouteSource = read(PROFESIONALES_DYNAMIC_PROFILE_PATH);
   const combined = `${seoSource}\n${profesionalesSource}`;
 
   assert.equal(
     existsSync(resolve(process.cwd(), PROFESIONALES_DYNAMIC_PROFILE_PATH)),
-    false,
+    true,
   );
   assert.equal(combined.includes("getPublicProfessional"), false);
   assert.equal(combined.includes("/api/public/professionals/"), false);
   assert.ok(combined.includes('"@type": ["WebPage", "SearchResultsPage"]'));
   assert.ok(combined.includes('"@type": "SearchAction"'));
+  assert.ok(profileRouteSource.includes("ProfesionalDetailContent"));
+  assert.equal(profileRouteSource.includes("fetch("), false);
+  assert.equal(profileRouteSource.includes('type="application/ld+json"'), false);
+  assert.equal(profileRouteSource.includes("dangerouslySetInnerHTML"), false);
 });
 
 test("professionals SEO remains static at page-level without server fetch wiring", () => {

@@ -5,24 +5,29 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   BriefcaseMedical,
-  ExternalLink,
-  Mail,
+  ChevronRight,
   MapPin,
-  Phone,
   Search,
+  ShieldCheck,
   UserRoundSearch,
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
-import { PublicExternalControl } from "@/components/public/PublicRouteControl";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   searchPublicProfessionals,
   type PublicProfessional,
 } from "@/lib/api";
+import {
+  buildProfessionalDetailHref,
+  getPublicProfessionalLocation,
+  isVerifiedPublicProfessional,
+  PUBLIC_PROFESSIONALS_PAGE_SIZE,
+  summarizePublicProfessional,
+} from "@/lib/public-professionals";
 import { ROUTES } from "@/lib/routes";
 
 type SearchState =
@@ -61,7 +66,7 @@ export function ProfesionalesSearchContent() {
     searchPublicProfessionals(
       {
         query: currentQuery,
-        limit: 20,
+        limit: PUBLIC_PROFESSIONALS_PAGE_SIZE,
         offset: 0,
       },
       { cache: "no-store" },
@@ -177,10 +182,7 @@ export function ProfesionalesSearchContent() {
                   className="h-11 w-full rounded-xl border border-input bg-white/90 pl-10 pr-3 text-sm shadow-inner ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               </div>
-              <Button
-                type="submit"
-                className="public-cta-primary h-11"
-              >
+              <Button type="submit" className="public-cta-primary h-11">
                 Buscar
               </Button>
             </form>
@@ -223,152 +225,86 @@ export function ProfesionalesSearchContent() {
                 <div>
                   <p className="mb-4 text-sm text-muted-foreground">
                     {state.total} resultado(s) para “{currentQuery}”. Seleccione
-                    el perfil con los datos de contacto más adecuados para su
+                    un perfil para ver sus datos completos de contacto y
                     coordinación clínica.
                   </p>
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {state.professionals.map((professional) => {
-                      const resultHeadingId = `professional-result-${professional.clinicId}`;
+                      const location = getPublicProfessionalLocation(professional);
+                      const summary = summarizePublicProfessional(professional);
+                      const isVerified =
+                        isVerifiedPublicProfessional(professional);
 
                       return (
-                        <article
-                          key={professional.clinicId}
-                          aria-labelledby={resultHeadingId}
-                        >
-                          <Card className="premium-card overflow-hidden">
-                            <CardHeader className="clinical-muted-band border-b">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-3">
-                                  {professional.avatarUrl ? (
-                                    <Image
-                                      src={professional.avatarUrl}
-                                      alt={`Avatar de ${professional.displayName}`}
-                                      width={44}
-                                      height={44}
-                                      className="h-11 w-11 rounded-xl border border-vetneb-line/70 object-cover"
-                                      loading="lazy"
-                                      unoptimized
-                                    />
-                                  ) : (
-                                    <VisualIcon icon={BriefcaseMedical} tone="emerald" className="h-11 w-11 rounded-xl" />
-                                  )}
-                                  <div>
-                                    <CardTitle id={resultHeadingId} className="text-lg text-vetneb-ink">
-                                      {professional.displayName}
-                                    </CardTitle>
-                                    {(professional.locality || professional.country) ? (
-                                      <p className="mt-1 text-xs text-muted-foreground">
-                                        {[professional.locality, professional.country]
-                                          .filter(Boolean)
-                                          .join(", ")}
-                                      </p>
-                                    ) : null}
-                                  </div>
-                                </div>
-                                <span className="clinical-pill px-2 py-0.5 text-[0.65rem] tracking-[0.08em]">
-                                  Perfil verificado
+                        <article key={professional.clinicId}>
+                          <PublicRouteControl
+                            href={buildProfessionalDetailHref(
+                              professional.clinicId,
+                            )}
+                            variant="bare"
+                            aria-label={`Abrir detalle del perfil ${professional.displayName}`}
+                            className="premium-card group flex w-full items-start gap-4 p-4 text-left transition hover:-translate-y-0.5 hover:border-vetneb-teal/45 hover:shadow-lg"
+                          >
+                            <span className="shrink-0">
+                              {professional.avatarUrl ? (
+                                <Image
+                                  src={professional.avatarUrl}
+                                  alt={`Logo o avatar de ${professional.displayName}`}
+                                  width={56}
+                                  height={56}
+                                  className="h-14 w-14 rounded-xl border border-vetneb-line/70 object-cover"
+                                  loading="lazy"
+                                  unoptimized
+                                />
+                              ) : (
+                                <span
+                                  className="professional-avatar-fallback flex h-14 w-14 items-center justify-center rounded-xl border border-vetneb-line/70 bg-vetneb-cyan/12 text-vetneb-navy"
+                                  aria-hidden="true"
+                                >
+                                  <BriefcaseMedical
+                                    className="h-6 w-6"
+                                    aria-hidden="true"
+                                  />
                                 </span>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="space-y-3 pt-5 text-sm text-muted-foreground">
-                              {professional.specialtyText ? (
-                                <div className="clinical-muted-band rounded-lg px-3 py-2">
-                                  <p className="clinical-pill px-2 py-0.5 text-[0.62rem] tracking-[0.08em]">
-                                    Especialidad
-                                  </p>
-                                  <p className="mt-2">{professional.specialtyText}</p>
-                                </div>
+                              )}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <span className="min-w-0">
+                                  <span className="block text-base font-semibold text-vetneb-ink">
+                                    {professional.displayName}
+                                  </span>
+                                  {location ? (
+                                    <span className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                      <MapPin
+                                        className="h-3.5 w-3.5 text-primary"
+                                        aria-hidden="true"
+                                      />
+                                      {location}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                {isVerified ? (
+                                  <span className="clinical-pill inline-flex items-center gap-1 px-2 py-0.5 text-[0.65rem] tracking-[0.08em]">
+                                    <ShieldCheck
+                                      className="h-3 w-3"
+                                      aria-hidden="true"
+                                    />
+                                    Perfil verificado
+                                  </span>
+                                ) : null}
+                              </span>
+                              {summary ? (
+                                <span className="mt-3 block text-sm leading-relaxed text-muted-foreground">
+                                  {summary}
+                                </span>
                               ) : null}
-                              {professional.servicesText ? (
-                                <div className="clinical-muted-band rounded-lg px-3 py-2">
-                                  <p className="clinical-pill px-2 py-0.5 text-[0.62rem] tracking-[0.08em]">
-                                    Servicios
-                                  </p>
-                                  <p className="mt-2">{professional.servicesText}</p>
-                                </div>
-                              ) : null}
-                              {professional.aboutText ? (
-                                <p className="leading-relaxed">
-                                  {professional.aboutText}
-                                </p>
-                              ) : null}
-                              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                                {professional.locality || professional.country ? (
-                                  <div className="surface-soft px-3 py-2.5">
-                                    <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
-                                      <MapPin className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                                      Ubicación
-                                    </dt>
-                                    <dd className="mt-1 text-muted-foreground">
-                                      {[professional.locality, professional.country]
-                                        .filter(Boolean)
-                                        .join(", ")}
-                                    </dd>
-                                  </div>
-                                ) : null}
-                                {professional.publicAddress ? (
-                                  <div className="surface-soft px-3 py-2.5">
-                                    <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
-                                      <MapPin className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                                      Dirección
-                                    </dt>
-                                    <dd className="mt-1">{professional.publicAddress}</dd>
-                                  </div>
-                                ) : null}
-                                {professional.email ? (
-                                  <div className="surface-soft px-3 py-2.5">
-                                    <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
-                                      <Mail className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                                      Email
-                                    </dt>
-                                    <dd className="mt-1">
-                                      <PublicExternalControl
-                                        href={`mailto:${professional.email}`}
-                                        target="_self"
-                                        className="underline underline-offset-2 hover:text-primary"
-                                      >
-                                        {professional.email}
-                                      </PublicExternalControl>
-                                    </dd>
-                                  </div>
-                                ) : null}
-                                {professional.phone ? (
-                                  <div className="surface-soft px-3 py-2.5">
-                                    <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
-                                      <Phone className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                                      Teléfono
-                                    </dt>
-                                    <dd className="mt-1">
-                                      <PublicExternalControl
-                                        href={`https://wa.me/549${professional.phone.replace(/\D/g, "")}`}
-                                        target="_blank"
-                                        className="underline underline-offset-2 hover:text-primary"
-                                      >
-                                        {professional.phone}
-                                      </PublicExternalControl>
-                                    </dd>
-                                  </div>
-                                ) : null}
-                                {professional.mapLink ? (
-                                  <div className="surface-soft px-3 py-2.5">
-                                    <dt className="flex items-center gap-1.5 font-medium text-vetneb-ink">
-                                      <ExternalLink className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                                      Mapa
-                                    </dt>
-                                    <dd className="mt-1">
-                                      <PublicExternalControl
-                                        href={professional.mapLink}
-                                        target="_blank"
-                                        className="underline underline-offset-2 hover:text-primary"
-                                      >
-                                        Ver ubicación en mapa
-                                      </PublicExternalControl>
-                                    </dd>
-                                  </div>
-                                ) : null}
-                              </dl>
-                            </CardContent>
-                          </Card>
+                            </span>
+                            <ChevronRight
+                              className="mt-4 h-5 w-5 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary"
+                              aria-hidden="true"
+                            />
+                          </PublicRouteControl>
                         </article>
                       );
                     })}
