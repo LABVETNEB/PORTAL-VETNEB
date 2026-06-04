@@ -169,6 +169,32 @@ test("PublicExternalControl covers WhatsApp, mailto and external map surfaces", 
   assert.equal(/<a\b/.test(profesionalDetail), false);
 });
 
+test("Public contact surfaces keep explicit safe navigation targets", () => {
+  const profesionalDetail = read(PROFESIONAL_DETAIL_PATH);
+  const particulares = read("frontend/src/components/public/ParticularesContent.tsx");
+
+  assert.ok(profesionalDetail.includes("<PublicExternalControl"));
+  assert.ok(profesionalDetail.includes("href={`mailto:${professional.email}`}"));
+  assert.ok(profesionalDetail.includes('target="_self"'));
+  assert.ok(
+    profesionalDetail.includes("href={buildWhatsAppHref(professional.phone)}"),
+  );
+  assert.ok(profesionalDetail.includes('target="_blank"'));
+  assert.ok(profesionalDetail.includes("href={professional.mapLink}"));
+  assert.ok(
+    profesionalDetail.includes(
+      'aria-label={`Abrir mapa de ${professional.displayName}`}',
+    ),
+  );
+
+  assert.ok(particulares.includes("href={buildSpecialStainWhatsAppHref(trackingCase, session)}"));
+  assert.ok(particulares.includes('aria-label="Consultar por WhatsApp sobre tinción especial"'));
+  assert.ok(particulares.includes('<MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />'));
+  assert.ok(particulares.includes("href={buildSpecialStainEmailHref(trackingCase, session)}"));
+  assert.ok(particulares.includes('aria-label="Enviar email a VETNEB sobre tinción especial"'));
+  assert.ok(particulares.includes('<Mail className="h-4 w-4 shrink-0" aria-hidden="true" />'));
+});
+
 test("PublicExternalControl keeps safe external navigation contract", () => {
   const source = read(PUBLIC_ROUTE_CONTROL_PATH);
 
