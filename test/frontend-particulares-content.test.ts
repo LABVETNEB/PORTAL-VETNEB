@@ -48,7 +48,8 @@ test("particulares content keeps refreshSession wired to particular auth me help
   assert.ok(source.includes("async function refreshSession()"));
   assert.ok(source.includes("setIsCheckingSession(true);"));
   assert.ok(source.includes("const response = await getParticularSession();"));
-  assert.ok(source.includes("setSession(response?.particular ?? null);"));
+  assert.ok(source.includes("const nextSession = response?.particular ?? null;"));
+  assert.ok(source.includes("setSession(nextSession);"));
 });
 
 test("particulares content surfaces refreshSession fetch failures instead of silent logout state", () => {
@@ -57,11 +58,68 @@ test("particulares content surfaces refreshSession fetch failures instead of sil
   assert.ok(source.includes("setErrorMessage(null);"));
   assert.ok(source.includes("} catch (error) {"));
   assert.ok(source.includes("setSession(null);"));
-  assert.ok(source.includes("error instanceof Error"));
-  assert.ok(source.includes("? error.message"));
-  assert.ok(source.includes(': "No se pudo verificar la sesión particular. Intente nuevamente.",'));
+  assert.ok(source.includes("setSessionCheckError(true);"));
+  assert.ok(
+    source.includes(
+      "getParticularAccessErrorMessage(error, PARTICULAR_ACCESS_ERROR_MESSAGE)",
+    ),
+  );
   assert.ok(source.includes("setIsCheckingSession(false);"));
   assert.ok(source.includes('role="alert"'));
+});
+
+test("particulares content maps technical access errors to particular-safe copy", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(
+    source.includes(
+      '"No pudimos verificar el acceso. Reintente en unos minutos o contacte a VETNEB."',
+    ),
+  );
+  assert.ok(source.includes("function getParticularAccessErrorMessage"));
+  assert.ok(source.includes("isTechnicalParticularAccessMessage(message)"));
+  assert.equal(source.includes("No se pudo conectar con el backend"), false);
+  assert.equal(source.includes("CORS y despliegue"), false);
+  assert.equal(source.includes("logs de backend"), false);
+});
+
+test("particulares content muestra aviso neutro cuando vence la sesion particular", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(
+    source.includes(
+      '"La sesión venció. Ingresá nuevamente el token para consultar el informe."',
+    ),
+  );
+  assert.ok(source.includes("const hasActiveSessionRef = useRef(false);"));
+  assert.ok(source.includes("const hadActiveSession = hasActiveSessionRef.current;"));
+  assert.ok(source.includes("const closeExpiredParticularSession = useCallback"));
+  assert.ok(source.includes("if (hadActiveSession)"));
+  assert.ok(source.includes("setErrorMessage(PARTICULAR_SESSION_EXPIRED_MESSAGE);"));
+  assert.equal(source.includes("token expirado"), false);
+});
+
+test("particulares content exposes accessible loading states", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(source.includes("Verificando sesión..."));
+  assert.ok(source.includes('role="status"'));
+  assert.ok(source.includes('aria-live="polite"'));
+  assert.ok(source.includes('<span role="status" aria-live="polite">'));
+  assert.ok(source.includes("Validando token..."));
+});
+
+test("particulares content muestra ayuda manual si clipboard no esta disponible", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(
+    source.includes(
+      '"Si no podés pegar el código automáticamente, escribilo manualmente tal como lo recibiste."',
+    ),
+  );
+  assert.ok(source.includes("{clipboardSupported ? ("));
+  assert.ok(source.includes("Pegar token"));
+  assert.ok(source.includes("text-xs text-muted-foreground"));
 });
 
 test("particulares content keeps neutral logout control and removes resumen label", () => {

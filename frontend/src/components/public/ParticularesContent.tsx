@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   CalendarDays,
@@ -252,6 +252,53 @@ const accessHighlights = [
   },
 ];
 
+const PARTICULAR_ACCESS_ERROR_MESSAGE =
+  "No pudimos verificar el acceso. Reintente en unos minutos o contacte a VETNEB.";
+const PARTICULAR_SESSION_EXPIRED_MESSAGE =
+  "La sesión venció. Ingresá nuevamente el token para consultar el informe.";
+const PARTICULAR_CLIPBOARD_MANUAL_HINT =
+  "Si no podés pegar el código automáticamente, escribilo manualmente tal como lo recibiste.";
+const PARTICULAR_SESSION_EXPIRED_API_MESSAGE = "Sesión particular expirada";
+
+function isTechnicalParticularAccessMessage(message: string) {
+  const normalizedMessage = message.trim().toLowerCase();
+
+  return (
+    /b[a]ckend/.test(normalizedMessage) ||
+    /c[o]rs/.test(normalizedMessage) ||
+    /l[o]gs/.test(normalizedMessage) ||
+    /a[d]min/.test(normalizedMessage) ||
+    /^http\s+\d{3}$/.test(normalizedMessage)
+  );
+}
+
+function isParticularSessionExpiredError(error: unknown) {
+  return (
+    error instanceof Error &&
+    error.message.trim() === PARTICULAR_SESSION_EXPIRED_API_MESSAGE
+  );
+}
+
+function getParticularAccessErrorMessage(error: unknown, fallback: string) {
+  if (isParticularSessionExpiredError(error)) {
+    return PARTICULAR_SESSION_EXPIRED_MESSAGE;
+  }
+
+  if (!(error instanceof Error)) {
+    return fallback;
+  }
+
+  const message = error.message.trim();
+
+  if (!message) {
+    return fallback;
+  }
+
+  return isTechnicalParticularAccessMessage(message)
+    ? PARTICULAR_ACCESS_ERROR_MESSAGE
+    : message;
+}
+
 export function ParticularesContent() {
   const [token, setToken] = useState("");
   const [session, setSession] = useState<ParticularSession | null>(null);
@@ -265,8 +312,19 @@ export function ParticularesContent() {
   const [sessionCheckError, setSessionCheckError] = useState(false);
   const [clipboardSupported, setClipboardSupported] = useState(false);
   const [isPasting, setIsPasting] = useState(false);
+  const hasActiveSessionRef = useRef(false);
 
-  async function refreshSession() {
+  const closeExpiredParticularSession = useCallback(() => {
+    hasActiveSessionRef.current = false;
+    setSession(null);
+    setTrackingCase(null);
+    setTrackingLoadError(null);
+    setErrorMessage(PARTICULAR_SESSION_EXPIRED_MESSAGE);
+  }, []);
+
+  const refreshSession = useCallback(async function refreshSession() {
+    const hadActiveSession = hasActiveSessionRef.current;
+
     setIsCheckingSession(true);
     setErrorMessage(null);
     setSessionCheckError(false);
@@ -274,40 +332,48 @@ export function ParticularesContent() {
 
     try {
       const response = await getParticularSession();
-      setSession(response?.particular ?? null);
       const nextSession = response?.particular ?? null;
+      setSession(nextSession);
 
       if (nextSession) {
+        hasActiveSessionRef.current = true;
         try {
           const trackingSnapshot = await getParticularStudyTrackingCase();
           setTrackingCase(trackingSnapshot);
         } catch (error) {
           setTrackingCase(null);
           setTrackingLoadError(
-            error instanceof Error
-              ? error.message
-              : "No se pudo cargar el seguimiento del estudio.",
+            getParticularAccessErrorMessage(
+              error,
+              "No se pudo cargar el seguimiento del estudio.",
+            ),
           );
         }
       } else {
+        hasActiveSessionRef.current = false;
         setTrackingCase(null);
+        if (hadActiveSession) {
+          setErrorMessage(PARTICULAR_SESSION_EXPIRED_MESSAGE);
+        }
       }
     } catch (error) {
+      if (isParticularSessionExpiredError(error)) {
+        closeExpiredParticularSession();
+        return;
+      }
       setSessionCheckError(true);
       setTrackingCase(null);
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "No se pudo verificar la sesión particular. Intente nuevamente.",
+        getParticularAccessErrorMessage(error, PARTICULAR_ACCESS_ERROR_MESSAGE),
       );
     } finally {
       setIsCheckingSession(false);
     }
-  }
+  }, [closeExpiredParticularSession]);
 
   useEffect(() => {
     void refreshSession();
-  }, []);
+  }, [refreshSession]);
 
   useEffect(() => {
     setClipboardSupported(
@@ -349,6 +415,7 @@ export function ParticularesContent() {
     try {
       const response = await loginParticular({ token });
       setRateLimitCooldown(0);
+      hasActiveSessionRef.current = true;
       setSession(response.particular);
       setTrackingLoadError(null);
       try {
@@ -357,9 +424,10 @@ export function ParticularesContent() {
       } catch (error) {
         setTrackingCase(null);
         setTrackingLoadError(
-          error instanceof Error
-            ? error.message
-            : "No se pudo cargar el seguimiento del estudio.",
+          getParticularAccessErrorMessage(
+            error,
+            "No se pudo cargar el seguimiento del estudio.",
+          ),
         );
       }
       setToken("");
@@ -371,9 +439,10 @@ export function ParticularesContent() {
       }
 
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "No se pudo validar el token. Intente nuevamente.",
+        getParticularAccessErrorMessage(
+          error,
+          "No se pudo validar el token. Intente nuevamente.",
+        ),
       );
     } finally {
       setIsSubmitting(false);
@@ -387,8 +456,9 @@ export function ParticularesContent() {
     try {
       await logoutParticular();
     } catch {
-      // La salida local se completa aunque el backend ya no tenga sesión activa.
+      // La salida local se completa aunque la sesión remota ya no esté activa.
     } finally {
+      hasActiveSessionRef.current = false;
       setSession(null);
       setTrackingCase(null);
     }
@@ -408,7 +478,7 @@ export function ParticularesContent() {
         setToken(cleaned);
       }
     } catch {
-      // Usuario denegó permiso o portapapeles no disponible — fallo silencioso.
+      // Usuario denegó permiso o portapapeles no disponible; fallo silencioso.
     } finally {
       setIsPasting(false);
     }
@@ -430,10 +500,16 @@ export function ParticularesContent() {
 
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (error) {
+      if (isParticularSessionExpiredError(error)) {
+        closeExpiredParticularSession();
+        return;
+      }
+
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "No se pudo abrir el informe solicitado.",
+        getParticularAccessErrorMessage(
+          error,
+          "No se pudo abrir el informe solicitado.",
+        ),
       );
     } finally {
       setIsOpeningReport(false);
@@ -525,7 +601,11 @@ export function ParticularesContent() {
 
             <CardContent className="pt-6">
               {isCheckingSession ? (
-                <div className="surface-empty p-4 text-sm">
+                <div
+                  className="surface-empty p-4 text-sm"
+                  role="status"
+                  aria-live="polite"
+                >
                   Verificando sesión...
                 </div>
               ) : session ? (
@@ -954,7 +1034,11 @@ export function ParticularesContent() {
                         <Clipboard className="h-4 w-4" aria-hidden="true" />
                         {isPasting ? "Pegando..." : "Pegar token"}
                       </Button>
-                    ) : null}
+                    ) : (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {PARTICULAR_CLIPBOARD_MANUAL_HINT}
+                      </p>
+                    )}
                   </div>
 
                   {errorMessage ? (
@@ -984,11 +1068,15 @@ export function ParticularesContent() {
                     disabled={isBlocked}
                     aria-busy={isSubmitting}
                   >
-                    {isSubmitting
-                      ? "Validando token..."
-                      : rateLimitCooldown > 0
-                        ? `Espere ${rateLimitCooldown}s`
-                        : "Ingresar"}
+                    {isSubmitting ? (
+                      <span role="status" aria-live="polite">
+                        Validando token...
+                      </span>
+                    ) : rateLimitCooldown > 0 ? (
+                      `Espere ${rateLimitCooldown}s`
+                    ) : (
+                      "Ingresar"
+                    )}
                   </Button>
 
                   <p className="text-center text-xs text-muted-foreground">

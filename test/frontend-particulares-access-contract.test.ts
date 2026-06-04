@@ -61,16 +61,18 @@ test("particulares content keeps token login form contract", () => {
   assert.ok(source.includes('id="particular-token"'));
   assert.ok(source.includes('name="token"'));
   assert.ok(source.includes('type="password"'));
+  assert.ok(source.includes("suppressHydrationWarning"));
   assert.ok(source.includes('autoComplete="one-time-code"'));
   assert.ok(
     source.includes('aria-label="Formulario de acceso particular por token"'),
   );
   assert.ok(source.includes("disabled={isBlocked}"));
   assert.ok(source.includes("aria-busy={isSubmitting}"));
-  assert.ok(source.includes('? "Validando token..."'));
+  assert.ok(source.includes('<span role="status" aria-live="polite">'));
+  assert.ok(source.includes("Validando token..."));
   assert.ok(source.includes("rateLimitCooldown > 0"));
-  assert.ok(source.includes("? `Espere ${rateLimitCooldown}s`"));
-  assert.ok(source.includes(': "Ingresar"'));
+  assert.ok(source.includes("`Espere ${rateLimitCooldown}s`"));
+  assert.ok(source.includes('"Ingresar"'));
 });
 
 test("particulares content keeps isolated particular session and report actions", () => {
