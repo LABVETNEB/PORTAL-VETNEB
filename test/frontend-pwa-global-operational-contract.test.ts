@@ -235,7 +235,7 @@ test("service worker no contiene el patrón inseguro de clone después de await"
 test("superficies clínica, admin, particular, logística y backend siguen declaradas para operación online", () => {
   const fastifySource = read("server/fastify-app.ts");
   const apiSource = read("frontend/src/lib/api.ts");
-  const middlewareSource = read("frontend/src/middleware.ts");
+  const middlewareSource = read("frontend/src/proxy.ts");
 
   assert.equal(existsSync(resolve(process.cwd(), "frontend/src/app/dashboard/admin/page.tsx")), true);
 

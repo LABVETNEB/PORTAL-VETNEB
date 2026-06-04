@@ -257,11 +257,11 @@ test("cookie persistence contract: ParticularesContent calls backend on mount to
 });
 
 // ---------------------------------------------------------------------------
-// 7. Middleware protects /dashboard/* using cookies (not memory state)
+// 7. proxy protects /dashboard/* using cookies (not memory state)
 // ---------------------------------------------------------------------------
 
-test("cookie persistence contract: Next.js middleware guards dashboard using cookie presence", () => {
-  const source = readSource("frontend/src/middleware.ts");
+test("cookie persistence contract: Next.js proxy guards dashboard using cookie presence", () => {
+  const source = readSource("frontend/src/proxy.ts");
 
   assert.ok(
     source.includes("request.cookies.get"),

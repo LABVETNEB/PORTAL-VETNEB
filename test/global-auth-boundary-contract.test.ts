@@ -124,9 +124,9 @@ test("public route families do not accept browser session authenticators", () =>
   );
 });
 
-test("session cookie names remain separated across backend and dashboard middleware", () => {
+test("session cookie names remain separated across backend and dashboard proxy", () => {
   const envSource = read("server/lib/env.ts");
-  const middlewareSource = read("frontend/src/middleware.ts");
+  const middlewareSource = read("frontend/src/proxy.ts");
 
   assertContains(envSource, 'cookieName: rawEnv.COOKIE_NAME ?? "app_session_id"', "env clinic cookie");
   assertContains(

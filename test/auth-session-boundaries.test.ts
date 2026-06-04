@@ -435,9 +435,9 @@ test("endpoints /me respetan límites de sesión por superficie sin fallback cru
   }
 });
 
-test("frontend middleware mantiene separación dashboard/admin y deja particulares fuera", () => {
+test("frontend proxy mantiene separación dashboard/admin y deja particulares fuera", () => {
   const source = readFileSync(
-    resolve(process.cwd(), "frontend/src/middleware.ts"),
+    resolve(process.cwd(), "frontend/src/proxy.ts"),
     "utf8",
   ).replace(/\r\n/g, "\n");
 

@@ -319,8 +319,8 @@ test("next.config applies security headers to all routes", () => {
 // 7. Middleware — separación de sesiones
 // ---------------------------------------------------------------------------
 
-test("middleware protects /dashboard and /dashboard/admin with correct cookies", () => {
-  const source = read("frontend/src/middleware.ts");
+test("proxy protects /dashboard and /dashboard/admin with correct cookies", () => {
+  const source = read("frontend/src/proxy.ts");
 
   assert.ok(
     source.includes('app_session_id'),

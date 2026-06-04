@@ -8,7 +8,7 @@ const ROOT = process.cwd();
 const JSON_OUTPUT = process.argv.includes("--json");
 
 const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
-const KNOWN_SERVER_ONLY_FRONTEND_FILES = new Set(["frontend/src/middleware.ts"]);
+const KNOWN_SERVER_ONLY_FRONTEND_FILES = new Set(["frontend/src/middleware.ts", "frontend/src/proxy.ts"]);
 
 const SURFACE_TARGETS = [
   { path: "frontend/src", label: "frontend/src", public: true, type: "dir" },

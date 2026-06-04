@@ -5,7 +5,7 @@ import test from "node:test";
 
 const CONFIG_PATH = "frontend/next.config.ts";
 const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
-const MIDDLEWARE_PATH = "frontend/src/middleware.ts";
+const MIDDLEWARE_PATH = "frontend/src/proxy.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(

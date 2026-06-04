@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 
-const MIDDLEWARE_PATH = "frontend/src/middleware.ts";
+const MIDDLEWARE_PATH = "frontend/src/proxy.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -12,14 +12,14 @@ function read(relativePath: string): string {
   );
 }
 
-test("frontend middleware imports Next response and request types", () => {
+test("frontend proxy imports Next response and request types", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes('import { NextResponse, type NextRequest } from "next/server";'));
-  assert.ok(source.includes("export function middleware(request: NextRequest)"));
+  assert.ok(source.includes("export function proxy(request: NextRequest)"));
 });
 
-test("frontend middleware separates clinic and admin dashboard session cookies", () => {
+test("frontend proxy separates clinic and admin dashboard session cookies", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes('const CLINIC_SESSION_COOKIE_NAME = "app_session_id";'));
@@ -37,7 +37,7 @@ test("frontend middleware separates clinic and admin dashboard session cookies",
   assert.equal(source.includes("hasClinicSession || hasAdminSession"), false);
 });
 
-test("frontend middleware blocks unauthenticated admin dashboard without public login redirect", () => {
+test("frontend proxy blocks unauthenticated admin dashboard without public login redirect", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes("if (isAdminDashboardPath(pathname)) {"));
@@ -47,7 +47,7 @@ test("frontend middleware blocks unauthenticated admin dashboard without public 
   assert.equal(source.includes('loginUrl.searchParams.set("next", nextPath);\\n\\n  return NextResponse.redirect(loginUrl);\\n}'), false);
 });
 
-test("frontend middleware redirects unauthenticated clinic dashboard requests to login with next path", () => {
+test("frontend proxy redirects unauthenticated clinic dashboard requests to login with next path", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes('const LOGIN_PATH = "/login";'));
@@ -58,7 +58,7 @@ test("frontend middleware redirects unauthenticated clinic dashboard requests to
   assert.ok(source.includes("return NextResponse.redirect(loginUrl);"));
 });
 
-test("frontend middleware remains scoped to dashboard routes only", () => {
+test("frontend proxy remains scoped to dashboard routes only", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes("export const config = {"));
