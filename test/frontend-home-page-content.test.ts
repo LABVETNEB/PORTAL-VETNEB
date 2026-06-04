@@ -328,8 +328,16 @@ test("home page exposes final conversion CTA without private route metadata", ()
   assert.ok(source.includes('aria-labelledby="cta-heading"'));
   assert.ok(source.includes('id="cta-heading"'));
   assert.ok(source.includes("Empezá a trabajar con VETNEB"));
-  assert.ok(source.includes("Conocé los servicios diagnósticos o contactanos para coordinar el"));
-  assert.ok(source.includes("envío de muestras."));
+  assert.ok(
+    source.includes(
+      "Sumá a tu clínica a un flujo de diagnóstico anatomopatológico",
+    ),
+  );
+  assert.ok(
+    source.includes(
+      "claro, seguro y pensado para la operación veterinaria.",
+    ),
+  );
   assert.ok(finalCtaSection.includes("Contactanos"));
   assert.ok(finalCtaSection.includes("Ver servicios"));
   assert.ok(finalCtaSection.includes("href={ROUTES.contacto}"));
