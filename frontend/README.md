@@ -6,7 +6,7 @@ Frontend Next.js App Router para Portal VETNEB. Sitio público con SEO fuerte y 
 
 | Tecnologia | Version | Proposito |
 |---|---|---|
-| Next.js | 15.x (App Router) | Framework principal |
+| Next.js | 16.2.7 (App Router) | Framework principal |
 | React | 19.x | UI |
 | TypeScript | 5.x | Tipado estatico |
 | Tailwind CSS | 4.x | Estilos |
@@ -118,7 +118,7 @@ Todas las llamadas HTTP usan `credentials: 'include'` para enviar cookies de ses
 
 | Superficie | Estado |
 |---|---|
-| Dashboard `/dashboard/*` | Protegido por middleware (`src/middleware.ts`) |
+| Dashboard `/dashboard/*` | Protegido por Proxy (`src/proxy.ts`) |
 | Login clínica | Conectado a `POST /api/auth/login` y sesión vía cookies |
 | Sesión clínica | Validación con `GET /api/auth/me` |
 | Informes listados | Lectura real con `GET /api/reports` |
@@ -137,7 +137,7 @@ No es fallback principal para reportes ni logística en el estado actual.
 
 **Componentes UI propios (shadcn/ui):** componentes en `src/components/ui/` para control total del frontend.
 
-**Middleware de acceso:** `/dashboard/*` exige cookie de sesión; rutas admin requieren cookie admin y se ocultan con `404` si no existe.
+**Proxy de acceso:** `/dashboard/*` exige cookie de sesión; rutas admin requieren cookie admin y se ocultan con `404` si no existe.
 
 **Lectura live con fallback seguro:** wrappers de API devuelven estados vacíos seguros ante errores de backend para no romper render de dashboard.
 
