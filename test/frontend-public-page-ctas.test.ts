@@ -21,8 +21,8 @@ test("profesionales public page exposes search instead of conversion CTAs", () =
   const combined = [pageSource, contentSource].join("\n");
 
   assert.ok(combined.includes("ProfesionalesSearchContent"));
-  assert.ok(combined.includes("Buscar profesionales"));
-  assert.ok(combined.includes('aria-label="Buscador de profesionales"'));
+  assert.ok(combined.includes("Consultar la red verificada"));
+  assert.ok(combined.includes('aria-label="Consulta de la red profesional"'));
   assert.ok(combined.includes('name="q"'));
   assert.equal(combined.includes("¿Querés integrar tu práctica a Portal VETNEB?"), false);
   assert.equal(combined.includes("Contactar a VETNEB"), false);
