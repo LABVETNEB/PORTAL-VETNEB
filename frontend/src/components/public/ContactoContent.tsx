@@ -198,6 +198,7 @@ export function ContactoContent() {
                         }}
                         disabled={isSubmitting}
                         className="pl-10"
+                        suppressHydrationWarning
                       />
                     </div>
                   </div>
@@ -219,6 +220,7 @@ export function ContactoContent() {
                         setApellido(event.target.value);
                       }}
                       disabled={isSubmitting}
+                      suppressHydrationWarning
                     />
                   </div>
                 </div>
@@ -244,6 +246,7 @@ export function ContactoContent() {
                       }}
                       disabled={isSubmitting}
                       className="pl-10"
+                      suppressHydrationWarning
                     />
                   </div>
                 </div>
@@ -268,6 +271,7 @@ export function ContactoContent() {
                       }}
                       disabled={isSubmitting}
                       className="pl-10"
+                      suppressHydrationWarning
                     />
                   </div>
                 </div>
@@ -291,6 +295,7 @@ export function ContactoContent() {
                       setMensaje(event.target.value);
                     }}
                     disabled={isSubmitting}
+                    suppressHydrationWarning
                   />
                 </div>
 
