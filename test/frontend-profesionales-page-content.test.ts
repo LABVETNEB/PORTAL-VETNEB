@@ -40,9 +40,7 @@ test("profesionales search content renders verified network framing", () => {
   assert.ok(source.includes('import { PublicLayout } from "@/components/layout/PublicLayout";'));
   assert.ok(source.includes("<PublicLayout>"));
   assert.ok(source.includes("Clínicas y profesionales verificados que trabajan con VETNEB."));
-  assert.ok(source.includes("Cada ficha forma parte de una red vinculada al laboratorio"));
-  assert.ok(source.includes("criterios operativos verificables"));
-  assert.ok(source.includes("no por ranking"));
+  assert.ok(source.includes("Cada ficha fue revisada y confirmada por el laboratorio."));
   assert.ok(source.includes("Consultar la red verificada"));
   assert.ok(source.includes("Ingrese texto libre, incluso una sola letra"));
   assert.ok(source.includes("para ubicar perfiles"));
@@ -66,9 +64,14 @@ test("profesionales public copy avoids marketplace and commercial directory lang
     "directorio",
     "reviews",
     "reseñas",
+    "opiniones",
+    "ranking",
+    "calificaciones",
     "estrellas",
     "telemedicina",
     "reservas online",
+    "directorio de veterinarios",
+    "encontrá al mejor veterinario",
     "mejores veterinarios",
     "buscá veterinario",
     "busca veterinario",

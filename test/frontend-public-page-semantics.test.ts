@@ -97,7 +97,7 @@ test("profesionales content keeps semantic search/result structure and map safet
   assert.ok(source.includes("<h1"));
   assert.ok(source.includes("<h2"));
   assert.ok(source.includes("Clínicas y profesionales verificados que trabajan con VETNEB."));
-  assert.ok(source.includes("Cada ficha forma parte de una red vinculada al laboratorio"));
+  assert.ok(source.includes("Cada ficha fue revisada y confirmada por el laboratorio."));
   assert.ok(source.includes("<section"));
   assert.ok(source.includes("state.professionals.map((professional) =>"));
   assert.ok(source.includes("<article"));
