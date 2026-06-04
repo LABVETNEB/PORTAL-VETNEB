@@ -7,6 +7,7 @@ import {
   Microscope,
   Network,
   PackageCheck,
+  ShieldCheck,
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
@@ -61,30 +62,28 @@ const clinicalTrustItems = [
   {
     icon: Microscope,
     tone: "blue" as const,
-    title: "Diagnóstico histopatológico y citológico",
-    description:
-      "Evaluación microscópica de tejidos y muestras celulares con criterio anatomopatológico veterinario.",
+    title: "Anatomía patológica veterinaria",
+    description: "Diagnóstico histopatológico y citológico como servicio central.",
   },
   {
-    icon: FileText,
+    icon: ShieldCheck,
     tone: "slate" as const,
-    title: "Informes digitales con acceso seguro",
+    title: "Informes con acceso seguro",
     description:
-      "Entrega institucional de informes para clínicas y acceso privado por caso cuando corresponde.",
+      "Entrega directa a clínicas y acceso privado por token para tutores.",
   },
   {
     icon: Network,
     tone: "blue" as const,
-    title: "Red de clínicas y profesionales vinculados",
-    description:
-      "Relación operativa con equipos veterinarios que trabajan con VETNEB para sus diagnósticos.",
+    title: "Red profesional verificada",
+    description: "Clínicas y profesionales confirmados por el laboratorio.",
   },
   {
-    icon: ClipboardCheck,
+    icon: PackageCheck,
     tone: "slate" as const,
-    title: "Precios públicos y comunicación directa",
+    title: "Flujo operativo claro",
     description:
-      "Información clara para coordinar muestras, consultas y estudios sin ambigüedad operativa.",
+      "Envío de muestra, análisis anatomopatológico e informe descargable.",
   },
 ];
 
@@ -223,18 +222,18 @@ export default function HomePage() {
             <PublicScrollReveal>
               <div className="mx-auto mb-8 max-w-3xl text-center md:mb-10">
                 <p className="text-sm font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
-                  Laboratorio primero
+                  Confianza clínica
                 </p>
                 <h2
                   id="clinical-trust-heading"
                   className="mt-3 text-3xl font-bold text-vetneb-ink md:text-4xl"
                 >
-                  Confianza clínica
+                  Diagnóstico microscópico riguroso para la medicina veterinaria
                 </h2>
                 <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">
-                  Diagnóstico microscópico riguroso para la medicina veterinaria,
-                  con portal operativo e información pública como soporte del
-                  trabajo clínico.
+                  Una plataforma operativa al servicio del laboratorio: estudios
+                  histopatológicos y citológicos, informes seguros y una red de
+                  clínicas verificadas.
                 </p>
               </div>
             </PublicScrollReveal>

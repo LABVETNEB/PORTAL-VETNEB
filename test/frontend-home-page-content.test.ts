@@ -132,36 +132,62 @@ test("home page exposes clinical trust institutional data before services", () =
   assert.ok(clinicalTrustIndex < professionalsIndex);
   assert.ok(clinicalTrustIndex < servicesIndex);
   assert.ok(source.includes('id="clinical-trust-heading"'));
-  assert.ok(source.includes("Laboratorio primero"));
   assert.ok(source.includes("Confianza clínica"));
   assert.ok(
     source.includes(
-      "Diagnóstico microscópico riguroso para la medicina veterinaria,",
+      "Diagnóstico microscópico riguroso para la medicina veterinaria",
     ),
   );
-  assert.ok(source.includes("portal operativo e información pública"));
+  assert.ok(
+    source.includes(
+      "Una plataforma operativa al servicio del laboratorio: estudios",
+    ),
+  );
+  assert.ok(
+    source.includes(
+      "histopatológicos y citológicos, informes seguros y una red de",
+    ),
+  );
+  assert.ok(source.includes("clínicas verificadas."));
   assert.ok(source.includes("grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4"));
 
   assert.equal(count(clinicalTrustData, "title:"), 4);
   assert.equal(count(clinicalTrustData, "description:"), 4);
   assert.equal(
-    count(clinicalTrustData, 'title: "Diagnóstico histopatológico y citológico"'),
+    count(clinicalTrustData, 'title: "Anatomía patológica veterinaria"'),
     1,
   );
   assert.equal(
-    count(clinicalTrustData, 'title: "Informes digitales con acceso seguro"'),
+    count(clinicalTrustData, 'title: "Informes con acceso seguro"'),
     1,
   );
   assert.equal(
-    count(
-      clinicalTrustData,
-      'title: "Red de clínicas y profesionales vinculados"',
+    count(clinicalTrustData, 'title: "Red profesional verificada"'),
+    1,
+  );
+  assert.equal(
+    count(clinicalTrustData, 'title: "Flujo operativo claro"'),
+    1,
+  );
+  assert.ok(
+    clinicalTrustData.includes(
+      "Diagnóstico histopatológico y citológico como servicio central.",
     ),
-    1,
   );
-  assert.equal(
-    count(clinicalTrustData, 'title: "Precios públicos y comunicación directa"'),
-    1,
+  assert.ok(
+    clinicalTrustData.includes(
+      "Entrega directa a clínicas y acceso privado por token para tutores.",
+    ),
+  );
+  assert.ok(
+    clinicalTrustData.includes(
+      "Clínicas y profesionales confirmados por el laboratorio.",
+    ),
+  );
+  assert.ok(
+    clinicalTrustData.includes(
+      "Envío de muestra, análisis anatomopatológico e informe descargable.",
+    ),
   );
 
   const clinicalTrustSurface = clinicalTrustData.toLowerCase();
