@@ -12,6 +12,20 @@ function read(relativePath: string): string {
   );
 }
 
+function count(source: string, pattern: string): number {
+  return source.split(pattern).length - 1;
+}
+
+function extractBetween(source: string, start: string, end: string): string {
+  const startIndex = source.indexOf(start);
+  assert.notEqual(startIndex, -1, `missing start marker: ${start}`);
+
+  const endIndex = source.indexOf(end, startIndex + start.length);
+  assert.notEqual(endIndex, -1, `missing end marker: ${end}`);
+
+  return source.slice(startIndex, endIndex);
+}
+
 test("home page defines public metadata — organization JSON-LD is emitted by root layout", () => {
   const source = read(HOME_PAGE_PATH);
 
@@ -98,6 +112,78 @@ test("home page lists core laboratory services and services route CTA", () => {
   assert.ok(source.includes("Diagnóstico Integral"));
   assert.ok(source.includes('href={ROUTES.servicios}'));
   assert.ok(source.includes("Ver todos los servicios"));
+});
+
+test("home page renders how it works section with exactly three operational steps", () => {
+  const source = read(HOME_PAGE_PATH);
+  const servicesIndex = source.indexOf('aria-labelledby="services-heading"');
+  const howItWorksIndex = source.indexOf('aria-labelledby="how-it-works-heading"');
+  const benefitsIndex = source.indexOf('aria-labelledby="benefits-heading"');
+  const stepData = extractBetween(
+    source,
+    "const howItWorksSteps = [",
+    "const benefits = [",
+  );
+  const sectionSource = extractBetween(
+    source,
+    'aria-labelledby="how-it-works-heading"',
+    "{/* Beneficios */}",
+  );
+  const forbiddenWords = [
+    "marketplace",
+    "ranking",
+    "reviews",
+    "estrellas",
+    "telemedicina",
+  ];
+
+  assert.ok(servicesIndex !== -1);
+  assert.ok(howItWorksIndex !== -1);
+  assert.ok(benefitsIndex !== -1);
+  assert.ok(servicesIndex < howItWorksIndex);
+  assert.ok(howItWorksIndex < benefitsIndex);
+  assert.ok(source.includes("Cómo funciona"));
+  assert.ok(source.includes("Trabajar con VETNEB es simple"));
+  assert.ok(source.includes('id="how-it-works-heading"'));
+  assert.ok(source.includes("grid grid-cols-1 gap-5 md:grid-cols-3"));
+  assert.ok(source.includes("Contactanos para empezar"));
+  assert.ok(source.includes("href={ROUTES.contacto}"));
+
+  assert.equal(count(stepData, "title:"), 3);
+  assert.equal(count(stepData, "description:"), 3);
+  assert.equal(count(stepData, 'title: "Enviás la muestra"'), 1);
+  assert.equal(count(stepData, 'title: "VETNEB analiza"'), 1);
+  assert.equal(count(stepData, 'title: "Recibís el informe"'), 1);
+  assert.equal(
+    count(
+      stepData,
+      "Preparás la muestra según el protocolo de VETNEB y la enviás con los datos del caso y de la clínica.",
+    ),
+    1,
+  );
+  assert.equal(
+    count(
+      stepData,
+      "El anatomopatólogo examina el tejido o la muestra citológica y elabora el informe diagnóstico.",
+    ),
+    1,
+  );
+  assert.equal(
+    count(
+      stepData,
+      "La clínica lo descarga directamente desde el portal. Si corresponde, el tutor del animal recibe acceso con un código privado.",
+    ),
+    1,
+  );
+
+  const howItWorksSurface = `${stepData}\n${sectionSource}`.toLowerCase();
+  for (const forbiddenWord of forbiddenWords) {
+    assert.equal(
+      howItWorksSurface.includes(forbiddenWord),
+      false,
+      `how it works section must not contain ${forbiddenWord}`,
+    );
+  }
 });
 
 test("home page lists benefits for clinics and professionals", () => {
