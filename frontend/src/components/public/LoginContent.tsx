@@ -190,6 +190,7 @@ export function LoginContent() {
                 </label>
                 <Input
                   id="username"
+                  suppressHydrationWarning
                   name="username"
                   type="text"
                   placeholder="nombre_usuario o email@dominio.com"
@@ -212,6 +213,7 @@ export function LoginContent() {
                 <div className="relative">
                   <Input
                     id="password"
+                    suppressHydrationWarning
                     name="password"
                     type={isPasswordVisible ? "text" : "password"}
                     data-auth-credential-input="true"
