@@ -48,6 +48,11 @@ test("particulares content keeps token-only auth dependencies", () => {
 
 test("particulares content keeps token login form contract", () => {
   const source = read(PARTICULARES_CONTENT_PATH);
+  const tokenInputStart = source.indexOf('id="particular-token"');
+  assert.notEqual(tokenInputStart, -1);
+  const tokenInputEnd = source.indexOf("/>", tokenInputStart);
+  assert.notEqual(tokenInputEnd, -1);
+  const tokenInputBlock = source.slice(tokenInputStart, tokenInputEnd);
 
   assert.ok(source.includes('const [token, setToken] = useState("")'));
   assert.ok(source.includes("const [rateLimitCooldown, setRateLimitCooldown] = useState(0)"));
@@ -58,11 +63,16 @@ test("particulares content keeps token login form contract", () => {
   assert.ok(source.includes('setToken("");'));
   assert.ok(source.includes("error instanceof RateLimitError"));
   assert.ok(source.includes("setRateLimitCooldown(error.retryAfterSeconds)"));
+  assert.ok(
+    source.includes('<label htmlFor="particular-token" className="field-label">'),
+  );
+  assert.ok(source.includes("Token de acceso"));
   assert.ok(source.includes('id="particular-token"'));
   assert.ok(source.includes('name="token"'));
   assert.ok(source.includes('type="password"'));
   assert.ok(source.includes("suppressHydrationWarning"));
   assert.ok(source.includes('autoComplete="one-time-code"'));
+  assert.ok(tokenInputBlock.includes("required"));
   assert.ok(
     source.includes('aria-label="Formulario de acceso particular por token"'),
   );
