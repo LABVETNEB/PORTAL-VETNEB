@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { ClipboardCheck, FlaskConical, Microscope, Network } from "lucide-react";
+import {
+  ClipboardCheck,
+  FileText,
+  FlaskConical,
+  Microscope,
+  Network,
+  PackageCheck,
+} from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
@@ -47,6 +54,27 @@ const services = [
     title: "Diagnóstico Integral",
     description:
       "Integración de datos clínicos con evaluación histológica y citológica para orientar decisiones diagnósticas y terapéuticas.",
+  },
+];
+
+const howItWorksSteps = [
+  {
+    icon: PackageCheck,
+    title: "Enviás la muestra",
+    description:
+      "Preparás la muestra según el protocolo de VETNEB y la enviás con los datos del caso y de la clínica.",
+  },
+  {
+    icon: Microscope,
+    title: "VETNEB analiza",
+    description:
+      "El anatomopatólogo examina el tejido o la muestra citológica y elabora el informe diagnóstico.",
+  },
+  {
+    icon: FileText,
+    title: "Recibís el informe",
+    description:
+      "La clínica lo descarga directamente desde el portal. Si corresponde, el tutor del animal recibe acceso con un código privado.",
   },
 ];
 
@@ -245,6 +273,84 @@ export default function HomePage() {
                   className="border-vetneb-line/80 bg-transparent text-vetneb-ink hover:bg-accent/60 hover:border-vetneb-teal/45"
                 >
                   Ver todos los servicios
+                </PublicRouteControl>
+              </div>
+            </PublicScrollReveal>
+          </div>
+        </section>
+
+        <section
+          className="border-y border-vetneb-line/70 bg-card/72 py-14 md:py-20"
+          aria-labelledby="how-it-works-heading"
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <PublicScrollReveal>
+              <div className="mx-auto mb-10 max-w-2xl text-center">
+                <h2
+                  id="how-it-works-heading"
+                  className="text-3xl font-bold text-vetneb-ink md:text-4xl"
+                >
+                  Cómo funciona
+                </h2>
+                <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">
+                  Trabajar con VETNEB es simple: la muestra llega al laboratorio,
+                  se analiza con criterio anatomopatológico y el informe queda
+                  disponible en el portal.
+                </p>
+              </div>
+            </PublicScrollReveal>
+
+            <PublicScrollReveal staggerChildren>
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-6">
+                {howItWorksSteps.map((step, index) => {
+                  const StepIcon = step.icon;
+                  const stepHeadingId = `home-how-it-works-step-${index + 1}`;
+
+                  return (
+                    <article
+                      key={step.title}
+                      data-scroll-reveal-item
+                      data-home-how-it-works-step
+                      aria-labelledby={stepHeadingId}
+                      className="h-full rounded-lg border border-vetneb-line/80 bg-card p-5 shadow-sm"
+                    >
+                      <div className="flex items-center gap-4">
+                        <span
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-vetneb-navy text-sm font-bold text-primary-foreground"
+                          aria-hidden="true"
+                        >
+                          {index + 1}
+                        </span>
+                        <span
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-vetneb-line/80 bg-secondary/60 text-vetneb-teal"
+                          aria-hidden="true"
+                        >
+                          <StepIcon className="h-5 w-5" />
+                        </span>
+                      </div>
+                      <h3
+                        id={stepHeadingId}
+                        className="mt-5 text-xl font-semibold text-vetneb-ink"
+                      >
+                        {step.title}
+                      </h3>
+                      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                        {step.description}
+                      </p>
+                    </article>
+                  );
+                })}
+              </div>
+            </PublicScrollReveal>
+
+            <PublicScrollReveal>
+              <div className="mt-8 text-center">
+                <PublicRouteControl
+                  href={ROUTES.contacto}
+                  variant="primaryDark"
+                  className="public-cta-primary w-full sm:w-auto"
+                >
+                  Contactanos para empezar
                 </PublicRouteControl>
               </div>
             </PublicScrollReveal>
