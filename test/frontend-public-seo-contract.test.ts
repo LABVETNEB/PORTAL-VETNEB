@@ -130,7 +130,7 @@ test("professionals public page exposes verifiable structured data", () => {
 
   assert.ok(
     profesionalesSource.includes(
-      'import { getProfessionalsPageJsonLd } from "@/lib/seo";',
+      'import { createPageMetadata, getProfessionalsPageJsonLd } from "@/lib/seo";',
     ),
   );
   assert.ok(

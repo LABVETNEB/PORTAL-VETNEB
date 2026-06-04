@@ -11,6 +11,7 @@ import {
   hashLoginRateLimitIdentifier,
   hashLoginRateLimitIpAddress,
   LOGIN_RATE_LIMIT_CODE,
+  LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
   LOGIN_RATE_LIMIT_KEY_VERSION,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
@@ -24,6 +25,10 @@ test("constantes de login rate limit son estables", () => {
   assert.equal(
     LOGIN_RATE_LIMIT_ERROR_MESSAGE,
     "Demasiados intentos de inicio de sesión. Intentá nuevamente más tarde.",
+  );
+  assert.equal(
+    LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
+    "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After",
   );
 });
 

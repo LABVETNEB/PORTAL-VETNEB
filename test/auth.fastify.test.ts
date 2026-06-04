@@ -14,6 +14,7 @@ const { AUDIT_EVENTS } = await import("../server/lib/audit.ts");
 const {
   buildLoginRateLimitKey,
   LOGIN_RATE_LIMIT_CODE,
+  LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
 } = await import("../server/lib/login-rate-limit.ts");
 const {
@@ -1491,7 +1492,7 @@ test("clinicAuthNativeRoutes bloquea login al superar límite persistente", asyn
     assert.equal(third.headers["ratelimit-reset"], "60");
     assert.equal(
       third.headers["access-control-expose-headers"],
-      "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After",
+      LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
     );
     const retryAfter = Number(third.headers["retry-after"]);
     assert.ok(Number.isInteger(retryAfter));

@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { Suspense } from "react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
@@ -25,7 +24,7 @@ test("profesionales page defines metadata and delegates to search content", () =
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
   assert.ok(source.includes('import { ProfesionalesSearchContent } from "@/components/public/ProfesionalesSearchContent";'));
-  assert.ok(source.includes('import { createPageMetadata } from "@/lib/seo";'));
+  assert.ok(source.includes('import { createPageMetadata, getProfessionalsPageJsonLd } from "@/lib/seo";'));
   assert.ok(source.includes("export const metadata: Metadata = createPageMetadata("));
   assert.ok(source.includes('"Red de Profesionales Veterinarios"'));
   assert.ok(source.includes('"Banco público de profesionales vinculados a VETNEB'));

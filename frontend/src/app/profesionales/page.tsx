@@ -2,8 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 
 import { ProfesionalesSearchContent } from "@/components/public/ProfesionalesSearchContent";
-import { createPageMetadata } from "@/lib/seo";
-import { getProfessionalsPageJsonLd } from "@/lib/seo";
+import { createPageMetadata, getProfessionalsPageJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata(
   "Red de Profesionales Veterinarios",
