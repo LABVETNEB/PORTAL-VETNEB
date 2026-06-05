@@ -18,7 +18,7 @@ test("clinicas page defines metadata and public layout wiring", () => {
   assert.ok(source.includes('import type { Metadata } from "next";'));
   assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('import { PublicLayout } from "@/components/layout/PublicLayout";'));
-  assert.ok(source.includes('import { createPageMetadata } from "@/lib/seo";'));
+  assert.ok(source.includes('import { createPageMetadata, getClinicasPageJsonLd } from "@/lib/seo";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
   assert.ok(source.includes("export const metadata: Metadata = createPageMetadata("));
   assert.ok(source.includes('"Portal para Clínicas Veterinarias"'));

@@ -22,7 +22,7 @@ import { createPageMetadata } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
 
 export const metadata: Metadata = createPageMetadata(
-  "Portal VETNEB — Laboratorio Patológico Veterinario",
+  "Laboratorio Patológico Veterinario — Histopatología, Citología y Hematología",
   "La anatomía patológica veterinaria estudia los motivos, el desarrollo y las consecuencias de distintas enfermedades mediante el análisis de tejidos, órganos y muestras celulares. VETNEB integra histopatología, citología, citopatología, hematología, diagnóstico hematológico y hemoparásitos.",
   "/",
 );

@@ -42,7 +42,7 @@ test("clinicas public page defines SEO metadata", () => {
   const source = read(CLINICAS_PAGE_PATH);
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
-  assert.ok(source.includes('import { createPageMetadata } from "@/lib/seo";'));
+  assert.ok(source.includes('import { createPageMetadata, getClinicasPageJsonLd } from "@/lib/seo";'));
   assert.ok(source.includes("export const metadata: Metadata = createPageMetadata("));
   assert.ok(source.includes('"Portal para Clínicas Veterinarias"'));
   assert.ok(source.includes('"Acceso al portal de gestión para clínicas veterinarias.'));

@@ -333,6 +333,162 @@ export function getDiagnosticServiceJsonLd({
   };
 }
 
+// ─── JSON-LD para página de contacto ────────────────────────────────────────
+
+export function getContactPageJsonLd() {
+  const pageUrl = buildCanonicalUrl("/contacto");
+  const organizationId = `${SITE_URL}/#organization`;
+  const websiteId = `${SITE_URL}/#website`;
+  const breadcrumbId = `${pageUrl}#breadcrumb`;
+  const webpageId = `${pageUrl}#webpage`;
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "@id": breadcrumbId,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Inicio",
+            item: SITE_URL,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Contacto",
+            item: pageUrl,
+          },
+        ],
+      },
+      {
+        "@type": "ContactPage",
+        "@id": webpageId,
+        url: pageUrl,
+        name: "Contacto — Portal VETNEB",
+        description:
+          "Contacte con el equipo de Portal VETNEB para registrar su clínica, coordinar envío de muestras o consultar sobre los servicios del laboratorio patológico veterinario.",
+        inLanguage: "es-AR",
+        isPartOf: {
+          "@id": websiteId,
+        },
+        publisher: {
+          "@id": organizationId,
+        },
+        breadcrumb: {
+          "@id": breadcrumbId,
+        },
+      },
+    ],
+  };
+}
+
+// ─── JSON-LD para página de clínicas ─────────────────────────────────────────
+
+export function getClinicasPageJsonLd() {
+  const pageUrl = buildCanonicalUrl("/clinicas");
+  const organizationId = `${SITE_URL}/#organization`;
+  const websiteId = `${SITE_URL}/#website`;
+  const breadcrumbId = `${pageUrl}#breadcrumb`;
+  const webpageId = `${pageUrl}#webpage`;
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "@id": breadcrumbId,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Inicio",
+            item: SITE_URL,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Clínicas",
+            item: pageUrl,
+          },
+        ],
+      },
+      {
+        "@type": "WebPage",
+        "@id": webpageId,
+        url: pageUrl,
+        name: "Portal para Clínicas Veterinarias — VETNEB",
+        description:
+          "Portal de gestión para clínicas veterinarias. Acceso a informes, seguimiento de estudios, logística y auditoría desde un único lugar.",
+        inLanguage: "es-AR",
+        isPartOf: {
+          "@id": websiteId,
+        },
+        publisher: {
+          "@id": organizationId,
+        },
+        breadcrumb: {
+          "@id": breadcrumbId,
+        },
+      },
+    ],
+  };
+}
+
+// ─── JSON-LD para página de precios ──────────────────────────────────────────
+
+export function getPreciosPageJsonLd() {
+  const pageUrl = buildCanonicalUrl("/precios");
+  const organizationId = `${SITE_URL}/#organization`;
+  const websiteId = `${SITE_URL}/#website`;
+  const breadcrumbId = `${pageUrl}#breadcrumb`;
+  const webpageId = `${pageUrl}#webpage`;
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "@id": breadcrumbId,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Inicio",
+            item: SITE_URL,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Precios",
+            item: pageUrl,
+          },
+        ],
+      },
+      {
+        "@type": "WebPage",
+        "@id": webpageId,
+        url: pageUrl,
+        name: "Precios de Estudios Patológicos Veterinarios — VETNEB",
+        description:
+          "Listado público de estudios de citologías e histopatologías con sus valores de referencia y estado vigente.",
+        inLanguage: "es-AR",
+        isPartOf: {
+          "@id": websiteId,
+        },
+        publisher: {
+          "@id": organizationId,
+        },
+        breadcrumb: {
+          "@id": breadcrumbId,
+        },
+      },
+    ],
+  };
+}
+
 // ─── JSON-LD para página pública de profesionales ────────────────────────────
 
 export function getProfessionalsPageJsonLd() {

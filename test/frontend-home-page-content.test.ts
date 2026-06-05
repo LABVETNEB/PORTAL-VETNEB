@@ -33,7 +33,7 @@ test("home page defines public metadata — organization JSON-LD is emitted by r
   assert.ok(source.includes('import type { Metadata } from "next";'));
   assert.ok(source.includes('import { createPageMetadata } from "@/lib/seo";'));
   assert.ok(source.includes("export const metadata: Metadata = createPageMetadata("));
-  assert.ok(source.includes('"Portal VETNEB — Laboratorio Patológico Veterinario"'));
+  assert.ok(source.includes('"Laboratorio Patológico Veterinario — Histopatología, Citología y Hematología"'));
   assert.ok(source.includes('"/"'));
   // Organization JSON-LD is injected by layout.tsx to avoid duplication on the home page
   assert.equal(source.includes("getOrganizationJsonLd"), false);

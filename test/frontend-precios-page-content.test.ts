@@ -20,9 +20,9 @@ test("precios page defines public metadata and layout", () => {
 
   assert.ok(pageSource.includes('import type { Metadata } from "next";'));
   assert.ok(pageSource.includes('import { PreciosContent } from "@/components/public/PreciosContent";'));
-  assert.ok(pageSource.includes('import { createPageMetadata } from "@/lib/seo";'));
+  assert.ok(pageSource.includes('import { createPageMetadata, getPreciosPageJsonLd } from "@/lib/seo";'));
   assert.ok(pageSource.includes("export const metadata: Metadata = createPageMetadata("));
-  assert.ok(pageSource.includes('"Lista de precios"'));
+  assert.ok(pageSource.includes('"Precios de Estudios Patológicos Veterinarios"'));
   assert.ok(pageSource.includes('"/precios"'));
   assert.ok(pageSource.includes("<PreciosContent />"));
   assert.ok(contentSource.includes('"use client";'));

@@ -17,9 +17,9 @@ test("contacto public page defines metadata through SEO helper", () => {
   const source = read(CONTACTO_PAGE_PATH);
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
-  assert.ok(source.includes('import { createPageMetadata } from "@/lib/seo";'));
+  assert.ok(source.includes('import { createPageMetadata, getContactPageJsonLd } from "@/lib/seo";'));
   assert.ok(source.includes("export const metadata: Metadata = createPageMetadata("));
-  assert.ok(source.includes('"Contacto — Portal VETNEB"'));
+  assert.ok(source.includes('"Contacto — Laboratorio Patológico Veterinario"'));
   assert.ok(source.includes('"Contacte con el equipo de Portal VETNEB.'));
   assert.ok(source.includes('"/contacto"'));
 });
@@ -29,7 +29,7 @@ test("contacto public page delegates rendering to ContactoContent", () => {
 
   assert.ok(source.includes('import { ContactoContent } from "@/components/public/ContactoContent";'));
   assert.ok(source.includes("export default function ContactoPage()"));
-  assert.ok(source.includes("return <ContactoContent />;"));
+  assert.ok(source.includes("<ContactoContent />"));
 });
 
 test("contacto content keeps public layout and contact form landmarks", () => {
