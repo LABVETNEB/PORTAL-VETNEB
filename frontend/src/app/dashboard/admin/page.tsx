@@ -37,6 +37,7 @@ import { AdminMaintenanceDryRunCard } from "./AdminMaintenanceDryRunCard";
 import { AdminParticularTokensCard } from "./AdminParticularTokensCard";
 import { AdminPricingEditorCard } from "./AdminPricingEditorCard";
 import { AdminSchemaHealthStatusCard } from "./AdminSchemaHealthStatusCard";
+import { AdminSectionTabs } from "./AdminSectionTabs";
 import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";
 import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
 import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
@@ -491,7 +492,17 @@ export default async function AdminPage({
           <AdminFailedLoginAlertsReadOnlyCard />
         </section>
 
-        <section className="space-y-4" aria-labelledby="admin-sistema-heading">
+        <AdminSectionTabs
+          defaultTabId="sistema"
+          className="pt-1"
+          tabs={[
+            {
+              id: "sistema",
+              label: "Sistema",
+              description: "Salud, esquema y mantenimiento.",
+              anchorIds: ["admin-health", "admin-maintenance"],
+              content: (
+                <section className="space-y-4" aria-labelledby="admin-sistema-heading">
           <div>
             <h2 id="admin-sistema-heading" className="dashboard-section-heading">
               Sistema
@@ -640,9 +651,21 @@ export default async function AdminPage({
           <section id="admin-maintenance">
             <AdminMaintenanceDryRunCard />
           </section>
-        </section>
+                </section>
+              ),
+            },
+            {
+              id: "gestion",
+              label: "Gestión",
+              description: "Informes, clínicas y tokens.",
+              anchorIds: [
+                "admin-report-upload",
+                "admin-clinics",
+                "admin-particular-tokens",
+              ],
+              content: (
+                <section className="space-y-4" aria-labelledby="admin-gestion-heading">
 
-        <section className="space-y-4" aria-labelledby="admin-gestion-heading">
           <div>
             <h2 id="admin-gestion-heading" className="dashboard-section-heading">
               Gestión
@@ -678,6 +701,24 @@ export default async function AdminPage({
           <section id="admin-particular-tokens">
             <AdminParticularTokensCard />
           </section>
+                </section>
+              ),
+            },
+            {
+              id: "seguridad",
+              label: "Seguridad",
+              description: "Sesiones activas y roles clínica.",
+              anchorIds: ["admin-sessions", "admin-users-roles"],
+              content: (
+                <section className="space-y-4" aria-labelledby="admin-seguridad-heading">
+                  <div>
+                    <h2 id="admin-seguridad-heading" className="dashboard-section-heading">
+                      Seguridad
+                    </h2>
+                    <p className="dashboard-section-description">
+                      Sesiones y permisos quedan agrupados sin ocultar las alertas críticas superiores.
+                    </p>
+                  </div>
 
           <section id="admin-sessions">
             <AdminSessionsReadOnlyCard />
@@ -686,7 +727,22 @@ export default async function AdminPage({
           <section id="admin-users-roles">
             <AdminUsersRolesReadOnlyCard />
           </section>
-        </section>
+                </section>
+              ),
+            },
+            {
+              id: "configuracion-auditoria",
+              label: "Configuración/Auditoría",
+              description: "Precios, notificaciones, cambios y log.",
+              anchorIds: [
+                "admin-pricing",
+                "admin-notifications",
+                "audit-role-changes",
+                "admin-event-summary",
+                "audit-log",
+              ],
+              content: (
+                <>
 
         <section className="space-y-4" aria-labelledby="admin-configuracion-heading">
           <div>
@@ -921,6 +977,11 @@ export default async function AdminPage({
             </CardContent>
           </Card>
         </section>
+                </>
+              ),
+            },
+          ]}
+        />
 
         <div className="h-24 md:hidden" aria-hidden="true" />
       </main>
