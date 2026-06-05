@@ -41,12 +41,12 @@ export function StickyActionBar({
     <section
       aria-label={context ? `${context} del dashboard` : "Acciones del dashboard"}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 border-t border-vetneb-line/80 bg-card/95 px-3 py-3 shadow-md backdrop-blur md:sticky md:top-[4.75rem] md:bottom-auto md:rounded-lg md:border md:px-4 md:shadow-sm",
+        "pointer-events-none fixed inset-x-0 bottom-0 z-50 border-t border-vetneb-line/80 bg-card/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-md backdrop-blur md:pointer-events-auto md:sticky md:top-[4.75rem] md:bottom-auto md:rounded-lg md:border md:px-4 md:py-3 md:shadow-sm",
         className,
       )}
       data-sticky-action-bar="true"
     >
-      <div className="mx-auto flex max-w-6xl flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div className="pointer-events-auto mx-auto flex max-w-6xl min-w-0 flex-col gap-2 md:flex-row md:items-center md:justify-between">
         {context ? (
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             {context}
@@ -55,13 +55,13 @@ export function StickyActionBar({
         <div
           role="group"
           aria-label={context ? `Acciones: ${context}` : "Acciones rápidas"}
-          className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end"
+          className="grid min-w-0 grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end"
         >
           {children ? (
             <div
               role="group"
               aria-label="Acciones contextuales"
-              className="col-span-2 flex justify-start sm:justify-end"
+              className="col-span-full flex min-w-0 justify-start sm:justify-end"
             >
               {children}
             </div>
@@ -94,7 +94,7 @@ export function StickyActionBar({
                   }
                 }}
                 aria-label={ariaLabel}
-                className="w-full focus-visible:ring-2 focus-visible:ring-ring/85 sm:w-auto"
+                className="min-h-10 w-full whitespace-normal focus-visible:ring-2 focus-visible:ring-ring/85 sm:w-auto sm:whitespace-nowrap"
               >
                 {content}
               </Button>
