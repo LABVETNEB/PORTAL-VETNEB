@@ -1,14 +1,24 @@
 import type { Metadata } from "next";
 
 import { PreciosContent } from "@/components/public/PreciosContent";
-import { createPageMetadata } from "@/lib/seo";
+import { createPageMetadata, getPreciosPageJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata(
-  "Lista de precios",
+  "Precios de Estudios Patológicos Veterinarios",
   "Listado público de estudios de citologías e histopatologías con sus valores de referencia y estado vigente.",
   "/precios",
 );
 
 export default function PreciosPage() {
-  return <PreciosContent />;
+  const jsonLd = getPreciosPageJsonLd();
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <PreciosContent />
+    </>
+  );
 }

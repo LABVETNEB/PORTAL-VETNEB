@@ -98,7 +98,10 @@ test("frontend robots allows public institutional pages and blocks private/API s
   assert.ok(source.includes('"/profesionales"'));
   assert.ok(source.includes('"/contacto"'));
   assert.ok(source.includes('"/precios"'));
-  assert.ok(source.includes('disallow: ["/dashboard", "/api"]'));
+  assert.ok(source.includes('"/dashboard"'));
+  assert.ok(source.includes('"/api"'));
+  assert.ok(source.includes('"/offline"'));
+  assert.ok(source.includes('"/particulares"'));
   assert.ok(source.includes("sitemap: `${SITE_URL}/sitemap.xml`,"));
 });
 

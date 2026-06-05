@@ -56,7 +56,8 @@ test("root layout embeds institutional JSON-LD script", () => {
 test("robots policy blocks dashboard and api while exposing sitemap", () => {
   const source = read(ROBOTS_PATH);
 
-  assert.ok(source.includes('disallow: ["/dashboard", "/api"]'));
+  assert.ok(source.includes('"/dashboard"'));
+  assert.ok(source.includes('"/api"'));
   assert.ok(source.includes("sitemap: `${SITE_URL}/sitemap.xml`,"));
 });
 

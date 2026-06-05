@@ -6,11 +6,14 @@ import { OfflineActions } from "@/components/pwa/OfflineActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = createPageMetadata(
-  "Sin conexión — Portal VETNEB",
-  "Página offline de Portal VETNEB. Permite mantener una experiencia segura cuando la conexión de red no está disponible.",
-  "/offline",
-);
+export const metadata: Metadata = {
+  ...createPageMetadata(
+    "Sin conexión — Portal VETNEB",
+    "Página offline de Portal VETNEB. Permite mantener una experiencia segura cuando la conexión de red no está disponible.",
+    "/offline",
+  ),
+  robots: { index: false, follow: false },
+};
 
 const offlineGuidance = [
   {

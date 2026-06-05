@@ -21,7 +21,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { VisualIcon } from "@/components/public/VisualAccents";
-import { createPageMetadata } from "@/lib/seo";
+import { createPageMetadata, getClinicasPageJsonLd } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
 
 export const metadata: Metadata = createPageMetadata(
@@ -103,8 +103,14 @@ const steps = [
 ];
 
 export default function ClinicasPage() {
+  const jsonLd = getClinicasPageJsonLd();
+
   return (
     <PublicLayout>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <section
         className="public-secondary-hero-surface py-16 text-white md:py-20"
         aria-labelledby="clinicas-page-title"

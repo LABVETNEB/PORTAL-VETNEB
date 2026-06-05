@@ -14,7 +14,12 @@ export default function robots(): MetadataRoute.Robots {
           "/contacto",
           "/precios",
         ],
-        disallow: ["/dashboard", "/api"],
+        disallow: [
+          "/dashboard",
+          "/api",
+          "/offline",
+          "/particulares",
+        ],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,
