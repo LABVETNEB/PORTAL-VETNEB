@@ -103,6 +103,7 @@ test("dashboard admin composes command center, sticky actions, and existing card
   assert.ok(source.includes("<DashboardPageHeader"));
   assert.ok(source.includes("<StickyActionBar"));
   assert.ok(source.includes("<AdminCommandCenter"));
+  assert.ok(source.includes("<AdminSectionTabs"));
   assert.ok(source.includes("const adminQuickActions = ["));
   assert.ok(source.includes('label: "Subir informe"'));
   assert.ok(source.includes('href: "#admin-report-upload"'));
@@ -128,10 +129,12 @@ test("dashboard admin composes command center, sticky actions, and existing card
     "<AdminCommandCenter",
     "Alertas críticas",
     "<AdminFailedLoginAlertsReadOnlyCard />",
+    "<AdminSectionTabs",
     "Sistema",
     "Gestión",
+    "Seguridad",
     "Configuración secundaria",
-    "Auditoría",
+    'id="audit-log"',
   ].map((marker) => mainSource.indexOf(marker));
 
   for (const index of order) {

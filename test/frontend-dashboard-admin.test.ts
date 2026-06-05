@@ -26,6 +26,7 @@ test("dashboard admin defines non-indexable metadata and admin dependencies", ()
   assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
   assert.ok(source.includes('} from "@/components/dashboard/StickyActionBar";'));
   assert.ok(source.includes('import { AdminCommandCenter } from "./AdminCommandCenter";'));
+  assert.ok(source.includes('import { AdminSectionTabs } from "./AdminSectionTabs";'));
   assert.ok(source.includes('import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";'));
   assert.ok(source.includes('import { formatDateTime } from "@/lib/utils";'));
 });
@@ -147,6 +148,7 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes("<DashboardPageHeader"));
   assert.ok(source.includes("<StickyActionBar"));
   assert.ok(source.includes("<AdminCommandCenter"));
+  assert.ok(source.includes("<AdminSectionTabs"));
   assert.ok(combinedSource.includes("Eventos de auditoría"));
   assert.ok(combinedSource.includes("Tipos de evento"));
   assert.ok(combinedSource.includes("Estado del sistema"));
@@ -201,8 +203,13 @@ test("dashboard admin keeps sticky quick actions and preserves admin sections", 
   assert.ok(source.includes("Alertas críticas"));
   assert.ok(source.includes("Sistema"));
   assert.ok(source.includes("Gestión"));
+  assert.ok(source.includes("Seguridad"));
   assert.ok(source.includes("Configuración secundaria"));
   assert.ok(source.includes("Auditoría"));
+  assert.ok(source.includes('label: "Sistema"'));
+  assert.ok(source.includes('label: "Gestión"'));
+  assert.ok(source.includes('label: "Seguridad"'));
+  assert.ok(source.includes('label: "Configuración/Auditoría"'));
   assert.ok(source.includes('id="admin-health"'));
   assert.ok(source.includes("<AdminClinicsManagementCard />"));
   assert.ok(source.includes('id="admin-maintenance"'));
@@ -216,20 +223,28 @@ test("dashboard admin keeps sticky quick actions and preserves admin sections", 
   const stickyActionBarIndex = source.indexOf("<StickyActionBar", mainIndex);
   const commandCenterIndex = source.indexOf("<AdminCommandCenter", mainIndex);
   const alertsCardIndex = source.indexOf("<AdminFailedLoginAlertsReadOnlyCard />", mainIndex);
+  const tabsIndex = source.indexOf("<AdminSectionTabs", mainIndex);
   const systemSectionIndex = source.indexOf("admin-sistema-heading", mainIndex);
+  const managementSectionIndex = source.indexOf("admin-gestion-heading", mainIndex);
+  const securitySectionIndex = source.indexOf("admin-seguridad-heading", mainIndex);
   const reportUploadTitleIndex = source.indexOf("Carga de informes");
 
   assert.ok(mainIndex >= 0);
   assert.ok(stickyActionBarIndex >= 0);
   assert.ok(commandCenterIndex >= 0);
   assert.ok(alertsCardIndex >= 0);
+  assert.ok(tabsIndex >= 0);
   assert.ok(systemSectionIndex >= 0);
+  assert.ok(managementSectionIndex >= 0);
+  assert.ok(securitySectionIndex >= 0);
   assert.ok(reportUploadTitleIndex >= 0);
   assert.ok(mainIndex < stickyActionBarIndex);
   assert.ok(stickyActionBarIndex < commandCenterIndex);
   assert.ok(commandCenterIndex < alertsCardIndex);
-  assert.ok(alertsCardIndex < systemSectionIndex);
+  assert.ok(alertsCardIndex < tabsIndex);
+  assert.ok(tabsIndex < systemSectionIndex);
   assert.ok(systemSectionIndex < reportUploadTitleIndex);
+  assert.ok(reportUploadTitleIndex < securitySectionIndex);
   assert.equal(source.includes(`xl:grid-cols-${7}`), false);
 });
 
