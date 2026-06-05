@@ -113,6 +113,7 @@ export default async function DashboardPage() {
         />
         <ClinicPublicProfileCard />
         <ClinicParticularTokensCard />
+        <div className="h-24 md:hidden" aria-hidden="true" />
       </main>
     </>
   );

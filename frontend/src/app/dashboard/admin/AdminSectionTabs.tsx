@@ -117,14 +117,16 @@ export function AdminSectionTabs({
 
   return (
     <section
-      className={["space-y-4", className].filter(Boolean).join(" ")}
+      className={["max-w-full min-w-0 space-y-4 overflow-x-hidden", className]
+        .filter(Boolean)
+        .join(" ")}
       aria-label="Secciones administrativas"
     >
       <div
         role="tablist"
         aria-label="Secciones de administración"
         aria-orientation="horizontal"
-        className="flex max-w-full gap-1 overflow-x-auto rounded-md border border-vetneb-line/80 bg-card/80 p-1"
+        className="flex max-w-full gap-1 overflow-x-auto overscroll-x-contain rounded-md border border-vetneb-line/80 bg-card/80 p-1"
       >
         {availableTabs.map((tab, index) => {
           const isActive = tab.id === activeTabId;
@@ -141,7 +143,7 @@ export function AdminSectionTabs({
               onClick={() => setActiveTabId(tab.id)}
               onKeyDown={(event) => handleTabKeyDown(event, index)}
               className={[
-                "inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2",
+                "inline-flex min-h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2",
                 isActive
                   ? "bg-vetneb-navy text-primary-foreground"
                   : "text-foreground/78 hover:bg-accent/70 hover:text-accent-foreground",
