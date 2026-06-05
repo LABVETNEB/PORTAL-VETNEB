@@ -315,7 +315,7 @@ test("adminStudyTrackingNativeRoutes crea POST / con admin, vínculos y notifica
         clinicId: 3,
         reportId: 55,
         particularTokenId: 7,
-        receptionAt: "2026-04-20T00:00:00.000Z",
+        labReceivedAt: "2026-04-22T00:00:00.000Z",
         currentStage: "evaluation",
         specialStainRequired: true,
         paymentUrl: "https://pay.example/study-11",
@@ -336,6 +336,18 @@ test("adminStudyTrackingNativeRoutes crea POST / con admin, vínculos y notifica
     assert.equal(createCalls[0].particularTokenId, 7);
     assert.equal(createCalls[0].createdByAdminId, 1);
     assert.equal(createCalls[0].createdByClinicUserId, null);
+    assert.equal(
+      (createCalls[0].receptionAt as Date).toISOString(),
+      "2026-04-22T00:00:00.000Z",
+    );
+    assert.notEqual(
+      (createCalls[0].receptionAt as Date).toISOString(),
+      "2026-04-19T00:00:00.000Z",
+    );
+    assert.equal(
+      (createCalls[0].estimatedDeliveryAt as Date).toISOString(),
+      "2026-05-13T00:00:00.000Z",
+    );
     assert.equal(createCalls[0].specialStainRequired, true);
     assert.ok(createCalls[0].estimatedDeliveryAt instanceof Date);
     assert.deepEqual(updateTokenCalls, [{ particularTokenId: 7, reportId: 55 }]);
@@ -454,6 +466,70 @@ test("adminStudyTrackingNativeRoutes expone GET /:trackingCaseId con detalle glo
     assert.equal(body.success, true);
     assert.equal(body.trackingCase.id, 11);
     assert.equal(body.trackingCase.clinicId, 3);
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminStudyTrackingNativeRoutes recalcula estimación al modificar labReceivedAt", async () => {
+  const updateCalls: Array<Record<string, unknown>> = [];
+  const current = createTrackingCaseFixture({
+    receptionAt: new Date("2026-04-20T00:00:00.000Z"),
+    estimatedDeliveryAt: new Date("2026-05-11T00:00:00.000Z"),
+    estimatedDeliveryAutoCalculatedAt: new Date("2026-05-11T00:00:00.000Z"),
+  });
+  const updated = createTrackingCaseFixture({
+    receptionAt: new Date("2026-04-22T00:00:00.000Z"),
+    estimatedDeliveryAt: new Date("2026-05-13T00:00:00.000Z"),
+    estimatedDeliveryAutoCalculatedAt: new Date("2026-05-13T00:00:00.000Z"),
+  });
+
+  const app = await createTestApp({
+    getClinicScopedStudyTrackingCase: async () => current,
+    updateStudyTrackingCase: async (
+      trackingCaseId: number,
+      input: Record<string, unknown>,
+    ) => {
+      assert.equal(trackingCaseId, 11);
+      updateCalls.push(input);
+      return updated;
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/admin/study-tracking/11",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        clinicId: 3,
+        labReceivedAt: "2026-04-22T00:00:00.000Z",
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(updateCalls.length, 1);
+    assert.equal(
+      (updateCalls[0].receptionAt as Date).toISOString(),
+      "2026-04-22T00:00:00.000Z",
+    );
+    assert.equal(
+      (updateCalls[0].estimatedDeliveryAt as Date).toISOString(),
+      "2026-05-13T00:00:00.000Z",
+    );
+    assert.equal(
+      (updateCalls[0].estimatedDeliveryAutoCalculatedAt as Date).toISOString(),
+      "2026-05-13T00:00:00.000Z",
+    );
+    assert.equal(updateCalls[0].estimatedDeliveryWasManuallyAdjusted, false);
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.trackingCase.labReceivedAt, "2026-04-22T00:00:00.000Z");
+    assert.equal(body.trackingCase.estimatedDeliveryAt, "2026-05-13T00:00:00.000Z");
   } finally {
     await app.close();
   }

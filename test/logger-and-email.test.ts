@@ -318,7 +318,7 @@ test("templates de email no tienen mojibake visible", () => {
   for (const expected of [
     "clínica",
     "tinción",
-    "Recepción",
+    "Entrega en laboratorio",
     "Teléfono",
     "Ingresá",
     "gestión",

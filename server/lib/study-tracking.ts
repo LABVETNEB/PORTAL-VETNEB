@@ -42,6 +42,20 @@ const optionalDateSchema = z
     return value;
   });
 
+const nullablePatchDateSchema = z
+  .union([z.null(), z.undefined(), z.coerce.date()])
+  .transform((value) => {
+    if (value === null) {
+      return null;
+    }
+
+    if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+      return undefined;
+    }
+
+    return value;
+  });
+
 const booleanishSchema = z
   .union([z.boolean(), z.string(), z.number(), z.undefined()])
   .transform((value) => {
@@ -80,13 +94,12 @@ const optionalPositiveEntitySchema = z
     return value;
   });
 
-export const adminCreateStudyTrackingSchema = z.object({
+const createStudyTrackingSchemaBase = z.object({
   clinicId: z.coerce.number().int().positive("clinicId es obligatorio"),
   reportId: optionalPositiveEntitySchema,
   particularTokenId: optionalPositiveEntitySchema,
-  receptionAt: z.coerce.date({
-    invalid_type_error: "receptionAt es obligatorio",
-  }),
+  labReceivedAt: optionalDateSchema,
+  receptionAt: optionalDateSchema,
   estimatedDeliveryAt: optionalDateSchema,
   currentStage: stageSchema.optional().default("reception"),
   processingAt: optionalDateSchema,
@@ -103,10 +116,55 @@ export const adminCreateStudyTrackingSchema = z.object({
   notes: optionalTrimmedText(10000, "notes"),
 });
 
-export const clinicCreateStudyTrackingSchema = adminCreateStudyTrackingSchema.omit({
+function requireLabReceivedAt(
+  value: { labReceivedAt?: Date; receptionAt?: Date },
+  ctx: z.RefinementCtx,
+) {
+  if (value.labReceivedAt instanceof Date || value.receptionAt instanceof Date) {
+    return;
+  }
+
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ["labReceivedAt"],
+    message: "labReceivedAt es obligatorio",
+  });
+}
+
+function normalizeLabReceivedAt<T extends { labReceivedAt?: Date; receptionAt?: Date }>(
+  value: T,
+): T & { labReceivedAt: Date; receptionAt: Date } {
+  const labReceivedAt = (value.labReceivedAt ?? value.receptionAt) as Date;
+
+  return {
+    ...value,
+    labReceivedAt,
+    receptionAt: labReceivedAt,
+  };
+}
+
+export const adminCreateStudyTrackingSchema = createStudyTrackingSchemaBase
+  .superRefine(requireLabReceivedAt)
+  .transform(normalizeLabReceivedAt);
+
+export const clinicCreateStudyTrackingSchema = createStudyTrackingSchemaBase.omit({
   clinicId: true,
+  labReceivedAt: true,
   estimatedDeliveryAt: true,
-});
+}).superRefine((value, ctx) => {
+  if (value.receptionAt instanceof Date) {
+    return;
+  }
+
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ["receptionAt"],
+    message: "receptionAt es obligatorio",
+  });
+}).transform((value) => ({
+  ...value,
+  receptionAt: value.receptionAt as Date,
+}));
 
 export const updateStudyTrackingSchema = z.object({
   reportId: z.union([z.coerce.number().int().positive(), z.null(), z.undefined()]),
@@ -115,63 +173,14 @@ export const updateStudyTrackingSchema = z.object({
     z.null(),
     z.undefined(),
   ]),
+  labReceivedAt: optionalDateSchema,
   receptionAt: optionalDateSchema,
-  estimatedDeliveryAt: z.union([z.null(), z.undefined(), z.coerce.date()]).transform((value) => {
-    if (value === null) {
-      return null;
-    }
-
-    if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
-      return undefined;
-    }
-
-    return value;
-  }),
+  estimatedDeliveryAt: nullablePatchDateSchema,
   currentStage: stageSchema.optional(),
-  processingAt: z.union([z.null(), z.undefined(), z.coerce.date()]).transform((value) => {
-    if (value === null) {
-      return null;
-    }
-
-    if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
-      return undefined;
-    }
-
-    return value;
-  }),
-  evaluationAt: z.union([z.null(), z.undefined(), z.coerce.date()]).transform((value) => {
-    if (value === null) {
-      return null;
-    }
-
-    if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
-      return undefined;
-    }
-
-    return value;
-  }),
-  reportDevelopmentAt: z.union([z.null(), z.undefined(), z.coerce.date()]).transform((value) => {
-    if (value === null) {
-      return null;
-    }
-
-    if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
-      return undefined;
-    }
-
-    return value;
-  }),
-  deliveredAt: z.union([z.null(), z.undefined(), z.coerce.date()]).transform((value) => {
-    if (value === null) {
-      return null;
-    }
-
-    if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
-      return undefined;
-    }
-
-    return value;
-  }),
+  processingAt: nullablePatchDateSchema,
+  evaluationAt: nullablePatchDateSchema,
+  reportDevelopmentAt: nullablePatchDateSchema,
+  deliveredAt: nullablePatchDateSchema,
   specialStainRequired: booleanishSchema.optional(),
   paymentUrl: z.union([z.string(), z.null(), z.undefined()]).transform((value) => {
     if (value === null) {
@@ -236,6 +245,14 @@ export const updateStudyTrackingSchema = z.object({
     (value) => value === null || typeof value === "undefined" || value.length <= 10000,
     "notes no puede superar 10000 caracteres",
   ),
+}).transform((value) => {
+  const labReceivedAt = value.labReceivedAt ?? value.receptionAt;
+
+  return {
+    ...value,
+    labReceivedAt,
+    receptionAt: labReceivedAt,
+  };
 });
 
 export function parsePositiveInt(
@@ -297,30 +314,17 @@ export function buildValidationError(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Datos inválidos";
 }
 
-function getEasterSunday(year: number): Date {
-  const a = year % 19;
-  const b = Math.floor(year / 100);
-  const c = year % 100;
-  const d = Math.floor(b / 4);
-  const e = b % 4;
-  const f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3);
-  const h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4);
-  const k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const month = Math.floor((h + l - 7 * m + 114) / 31);
-  const day = ((h + l - 7 * m + 114) % 31) + 1;
-
-  return new Date(Date.UTC(year, month - 1, day));
-}
+const ISO_DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function formatHolidayKey(year: number, month: number, day: number): string {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function dateToHolidayKey(date: Date): string {
+function dateToISODateKey(date: Date): string {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    throw new Error("labReceivedAt inválido");
+  }
+
   return formatHolidayKey(
     date.getUTCFullYear(),
     date.getUTCMonth() + 1,
@@ -328,111 +332,131 @@ function dateToHolidayKey(date: Date): string {
   );
 }
 
-function addUtcDays(date: Date, days: number): Date {
-  const next = new Date(date.getTime());
-  next.setUTCDate(next.getUTCDate() + days);
-  return next;
+function assertISODateKey(value: string): string {
+  if (!ISO_DATE_KEY_PATTERN.test(value)) {
+    throw new Error("dateISO inválido");
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+
+  if (Number.isNaN(parsed.getTime()) || dateToISODateKey(parsed) !== value) {
+    throw new Error("dateISO inválido");
+  }
+
+  return value;
 }
 
-function getTransferredHoliday(date: Date): Date {
-  const day = date.getUTCDay();
+function normalizeDateKey(value: Date | string): string {
+  if (typeof value === "string") {
+    if (ISO_DATE_KEY_PATTERN.test(value)) {
+      return assertISODateKey(value);
+    }
 
-  if (day === 2) {
-    return addUtcDays(date, -1);
+    const parsed = new Date(value);
+    return dateToISODateKey(parsed);
   }
 
-  if (day === 3) {
-    return addUtcDays(date, -2);
-  }
+  return dateToISODateKey(value);
+}
 
-  if (day === 4) {
-    return addUtcDays(date, 4);
-  }
+function dateKeyToUtcDate(value: string): Date {
+  const key = assertISODateKey(value);
+  const [year, month, day] = key.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
 
-  if (day === 5) {
-    return addUtcDays(date, 3);
-  }
+function addDaysToDateKey(value: string, days: number): string {
+  const next = dateKeyToUtcDate(value);
+  next.setUTCDate(next.getUTCDate() + days);
+  return dateToISODateKey(next);
+}
 
-  return date;
+function getYearFromDateKey(value: string): number {
+  return Number(assertISODateKey(value).slice(0, 4));
+}
+
+export const argentinaHolidaysByYear: Record<number, readonly string[]> = {
+  2026: [
+    "2026-01-01",
+    "2026-02-16",
+    "2026-02-17",
+    "2026-03-23",
+    "2026-03-24",
+    "2026-04-02",
+    "2026-04-03",
+    "2026-05-01",
+    "2026-05-25",
+    "2026-06-15",
+    "2026-06-20",
+    "2026-07-09",
+    "2026-07-10",
+    "2026-08-17",
+    "2026-10-12",
+    "2026-11-23",
+    "2026-12-07",
+    "2026-12-08",
+    "2026-12-25",
+  ],
+};
+
+export function getArgentinaNonWorkingDates(year: number): Set<string> {
+  return new Set(argentinaHolidaysByYear[year] ?? []);
 }
 
 export function getArgentinaNationalHolidayKeys(year: number): Set<string> {
-  const keys = new Set<string>();
-
-  const addFixed = (month: number, day: number) => {
-    keys.add(formatHolidayKey(year, month, day));
-  };
-
-  addFixed(1, 1);
-  addFixed(3, 24);
-  addFixed(4, 2);
-  addFixed(5, 1);
-  addFixed(5, 25);
-  addFixed(6, 20);
-  addFixed(7, 9);
-  addFixed(12, 8);
-  addFixed(12, 25);
-
-  const easterSunday = getEasterSunday(year);
-  const carnivalMonday = addUtcDays(easterSunday, -48);
-  const carnivalTuesday = addUtcDays(easterSunday, -47);
-  const goodFriday = addUtcDays(easterSunday, -2);
-
-  keys.add(dateToHolidayKey(carnivalMonday));
-  keys.add(dateToHolidayKey(carnivalTuesday));
-  keys.add(dateToHolidayKey(goodFriday));
-
-  const transferredHolidays = [
-    new Date(Date.UTC(year, 5, 17)),
-    new Date(Date.UTC(year, 7, 17)),
-    new Date(Date.UTC(year, 9, 12)),
-    new Date(Date.UTC(year, 10, 20)),
-  ];
-
-  for (const holiday of transferredHolidays) {
-    keys.add(dateToHolidayKey(getTransferredHoliday(holiday)));
-  }
-
-  return keys;
+  return getArgentinaNonWorkingDates(year);
 }
 
-export function isArgentinaNationalHoliday(date: Date): boolean {
-  const year = date.getUTCFullYear();
-  const keys = getArgentinaNationalHolidayKeys(year);
-  return keys.has(dateToHolidayKey(date));
+export function isSunday(value: Date | string): boolean {
+  return dateKeyToUtcDate(normalizeDateKey(value)).getUTCDay() === 0;
 }
 
-export function getBusinessDayWeight(date: Date): number {
-  if (isArgentinaNationalHoliday(date)) {
+export function isSaturday(value: Date | string): boolean {
+  return dateKeyToUtcDate(normalizeDateKey(value)).getUTCDay() === 6;
+}
+
+export function isArgentinaNationalHoliday(value: Date | string): boolean {
+  const dateKey = normalizeDateKey(value);
+  const keys = getArgentinaNonWorkingDates(getYearFromDateKey(dateKey));
+  return keys.has(dateKey);
+}
+
+export function getWorkingDayWeight(value: Date | string): 1 | 0.5 | 0 {
+  if (isArgentinaNationalHoliday(value) || isSunday(value)) {
     return 0;
   }
 
-  const day = date.getUTCDay();
-
-  if (day === 0) {
-    return 0;
-  }
-
-  if (day === 6) {
+  if (isSaturday(value)) {
     return 0.5;
   }
 
   return 1;
 }
 
-export function calculateEstimatedDeliveryAt(
-  receptionAt: Date,
-  requiredBusinessDays = 15,
-): Date {
-  if (!(receptionAt instanceof Date) || Number.isNaN(receptionAt.getTime())) {
-    throw new Error("receptionAt inválido");
+export function getBusinessDayWeight(value: Date | string): 1 | 0.5 | 0 {
+  return getWorkingDayWeight(value);
+}
+
+export function addBusinessDaysFromLabReceivedDate(
+  startDateISO: string,
+  amount = 15,
+): string {
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error("amount inválido");
   }
 
-  let remaining = requiredBusinessDays;
-  let cursor = new Date(receptionAt.getTime());
+  const startDateKey = assertISODateKey(startDateISO);
+
+  if (amount === 0) {
+    return startDateKey;
+  }
+
+  let remaining = amount;
+  let cursor = addDaysToDateKey(startDateKey, 1);
 
   while (remaining > 0) {
-    const weight = getBusinessDayWeight(cursor);
+    const weight = getWorkingDayWeight(cursor);
 
     if (weight > 0) {
       remaining = Number((remaining - weight).toFixed(2));
@@ -442,18 +466,41 @@ export function calculateEstimatedDeliveryAt(
       }
     }
 
-    cursor = addUtcDays(cursor, 1);
+    cursor = addDaysToDateKey(cursor, 1);
   }
 
   return cursor;
 }
 
+export function calculateEstimatedDeliveryAt(
+  labReceivedAt: Date,
+  requiredBusinessDays = 15,
+): Date {
+  if (!(labReceivedAt instanceof Date) || Number.isNaN(labReceivedAt.getTime())) {
+    throw new Error("labReceivedAt inválido");
+  }
+
+  return dateKeyToUtcDate(
+    addBusinessDaysFromLabReceivedDate(
+      dateToISODateKey(labReceivedAt),
+      requiredBusinessDays,
+    ),
+  );
+}
+
 export function applyEstimatedDeliveryRules(input: {
-  receptionAt: Date;
+  labReceivedAt?: Date;
+  receptionAt?: Date;
   manualEstimatedDeliveryAt?: Date | null;
 }) {
+  const labReceivedAt = input.labReceivedAt ?? input.receptionAt;
+
+  if (!(labReceivedAt instanceof Date) || Number.isNaN(labReceivedAt.getTime())) {
+    throw new Error("labReceivedAt inválido");
+  }
+
   const estimatedDeliveryAutoCalculatedAt = calculateEstimatedDeliveryAt(
-    input.receptionAt,
+    labReceivedAt,
   );
 
   if (input.manualEstimatedDeliveryAt instanceof Date) {
@@ -559,6 +606,7 @@ export function serializeStudyTrackingCase(trackingCase: StudyTrackingCase) {
     particularTokenId: trackingCase.particularTokenId,
     createdByAdminId: trackingCase.createdByAdminId,
     createdByClinicUserId: trackingCase.createdByClinicUserId,
+    labReceivedAt: trackingCase.receptionAt,
     receptionAt: trackingCase.receptionAt,
     estimatedDeliveryAt: trackingCase.estimatedDeliveryAt,
     estimatedDeliveryAutoCalculatedAt:

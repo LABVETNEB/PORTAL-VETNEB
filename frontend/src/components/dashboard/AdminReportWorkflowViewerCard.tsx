@@ -237,7 +237,12 @@ export function AdminReportWorkflowViewerCard() {
                       </p>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      <p>Recepción: {formatReportDate(trackingCase.receptionAt)}</p>
+                      <p>
+                        Entrega en laboratorio:{" "}
+                        {formatReportDate(
+                          trackingCase.labReceivedAt ?? trackingCase.receptionAt,
+                        )}
+                      </p>
                       <p>Actualizado: {formatReportDate(trackingCase.updatedAt)}</p>
                     </TableCell>
                     <TableCell>

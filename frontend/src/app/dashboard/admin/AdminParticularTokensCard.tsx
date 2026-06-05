@@ -181,6 +181,24 @@ function toIsoDate(value: string): string {
   return `${value}T00:00:00.000Z`;
 }
 
+function toDateInputValue(value: string | null | undefined): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function toIsoDateFromInput(value: string): string {
+  return `${value}T00:00:00.000Z`;
+}
+
 function normalizeText(value: string): string {
   return value.trim();
 }
@@ -257,6 +275,12 @@ function formatTokenSource(token: AdminParticularTokenSummary): string {
   }
 
   return "Sistema";
+}
+
+function getTrackingLabReceivedAt(
+  trackingCase: AdminStudyTrackingCaseSummary,
+): string {
+  return trackingCase.labReceivedAt ?? trackingCase.receptionAt;
 }
 
 const TRACKING_STAGE_LABELS: Record<AdminStudyTrackingCaseSummary["currentStage"], string> = {
@@ -355,6 +379,9 @@ export function AdminParticularTokensCard() {
   >({});
   const [trackingStageDraftsByCaseId, setTrackingStageDraftsByCaseId] =
     useState<Record<number, AdminStudyTrackingStage>>({});
+  const [labReceivedDraftsByCaseId, setLabReceivedDraftsByCaseId] = useState<
+    Record<number, string>
+  >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -382,6 +409,7 @@ export function AdminParticularTokensCard() {
       if (snapshot.particularTokens.length === 0) {
         setTrackingCasesByTokenId({});
         setTrackingStageDraftsByCaseId({});
+        setLabReceivedDraftsByCaseId({});
         return;
       }
 
@@ -403,20 +431,26 @@ export function AdminParticularTokensCard() {
           number,
           AdminStudyTrackingStage
         > = {};
+        const nextLabReceivedDraftsByCaseId: Record<number, string> = {};
 
         for (const [tokenId, trackingCase] of trackingEntries) {
           if (trackingCase) {
             nextTrackingByTokenId[tokenId] = trackingCase;
             nextTrackingStageDraftsByCaseId[trackingCase.id] =
               trackingCase.currentStage;
+            nextLabReceivedDraftsByCaseId[trackingCase.id] = toDateInputValue(
+              getTrackingLabReceivedAt(trackingCase),
+            );
           }
         }
 
         setTrackingCasesByTokenId(nextTrackingByTokenId);
         setTrackingStageDraftsByCaseId(nextTrackingStageDraftsByCaseId);
+        setLabReceivedDraftsByCaseId(nextLabReceivedDraftsByCaseId);
       } catch (error) {
         setTrackingCasesByTokenId({});
         setTrackingStageDraftsByCaseId({});
+        setLabReceivedDraftsByCaseId({});
         setTrackingLoadError(
           error instanceof Error
             ? error.message
@@ -678,6 +712,16 @@ export function AdminParticularTokensCard() {
 
         return next;
       });
+      setLabReceivedDraftsByCaseId((current) => {
+        const next = { ...current };
+        const trackingCase = trackingCasesByTokenId[token.id];
+
+        if (trackingCase) {
+          delete next[trackingCase.id];
+        }
+
+        return next;
+      });
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -698,6 +742,67 @@ export function AdminParticularTokensCard() {
       [trackingCase.id]: nextStage,
     }));
     setErrorMessage(null);
+  }
+
+  function handleLabReceivedDraftChange(
+    trackingCase: AdminStudyTrackingCaseSummary,
+    nextLabReceivedAt: string,
+  ) {
+    setLabReceivedDraftsByCaseId((current) => ({
+      ...current,
+      [trackingCase.id]: nextLabReceivedAt,
+    }));
+    setErrorMessage(null);
+  }
+
+  async function handleLabReceivedAtUpdate(
+    tokenId: number,
+    trackingCase: AdminStudyTrackingCaseSummary,
+  ) {
+    const currentLabReceivedAt = toDateInputValue(
+      getTrackingLabReceivedAt(trackingCase),
+    );
+    const nextLabReceivedAt =
+      labReceivedDraftsByCaseId[trackingCase.id] ?? currentLabReceivedAt;
+
+    if (!nextLabReceivedAt || nextLabReceivedAt === currentLabReceivedAt) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setUpdatingTrackingCaseIds((current) => ({
+      ...current,
+      [trackingCase.id]: true,
+    }));
+
+    try {
+      const response = await updateAdminStudyTrackingCase(trackingCase.id, {
+        labReceivedAt: toIsoDateFromInput(nextLabReceivedAt),
+      });
+
+      setTrackingCasesByTokenId((current) => ({
+        ...current,
+        [tokenId]: response.trackingCase,
+      }));
+      setTrackingStageDraftsByCaseId((current) => ({
+        ...current,
+        [response.trackingCase.id]: response.trackingCase.currentStage,
+      }));
+      setLabReceivedDraftsByCaseId((current) => ({
+        ...current,
+        [response.trackingCase.id]: toDateInputValue(
+          getTrackingLabReceivedAt(response.trackingCase),
+        ),
+      }));
+    } catch {
+      setErrorMessage("No se pudo actualizar la entrega en laboratorio.");
+    } finally {
+      setUpdatingTrackingCaseIds((current) => {
+        const next = { ...current };
+        delete next[trackingCase.id];
+        return next;
+      });
+    }
   }
 
   async function handleTrackingStageUpdate(
@@ -1255,6 +1360,14 @@ export function AdminParticularTokensCard() {
                 const hasTrackingStageChange = trackingCase
                   ? trackingStageDraft !== trackingCase.currentStage
                   : false;
+                const labReceivedDraft = trackingCase
+                  ? labReceivedDraftsByCaseId[trackingCase.id] ??
+                    toDateInputValue(getTrackingLabReceivedAt(trackingCase))
+                  : "";
+                const hasLabReceivedChange = trackingCase
+                  ? labReceivedDraft !==
+                    toDateInputValue(getTrackingLabReceivedAt(trackingCase))
+                  : false;
 
                 return (
                   <div
@@ -1364,6 +1477,50 @@ export function AdminParticularTokensCard() {
                           <p className="mt-1 text-xs text-vetneb-ink">
                             Etapa: {getTrackingStageLabel(trackingCase.currentStage)}
                           </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Entrega en laboratorio:{" "}
+                            {formatDate(getTrackingLabReceivedAt(trackingCase))}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Estimación informe:{" "}
+                            {formatDate(trackingCase.estimatedDeliveryAt)}
+                          </p>
+                          <label
+                            htmlFor={`admin-tracking-lab-received-${trackingCase.id}`}
+                            className="mt-2 block text-xs font-semibold text-vetneb-navy"
+                          >
+                            Entrega en laboratorio
+                          </label>
+                          <Input
+                            id={`admin-tracking-lab-received-${trackingCase.id}`}
+                            type="date"
+                            className="mt-1 text-xs"
+                            value={labReceivedDraft}
+                            onChange={(event) =>
+                              handleLabReceivedDraftChange(
+                                trackingCase,
+                                event.target.value,
+                              )
+                            }
+                            disabled={isUpdatingTrackingCase}
+                          />
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Impacta la estimación del informe.
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 w-full"
+                            onClick={() =>
+                              void handleLabReceivedAtUpdate(token.id, trackingCase)
+                            }
+                            disabled={
+                              !hasLabReceivedChange || isUpdatingTrackingCase
+                            }
+                          >
+                            Actualizar entrega
+                          </Button>
                           <label
                             htmlFor={`admin-tracking-stage-${trackingCase.id}`}
                             className="mt-2 block text-xs font-semibold text-vetneb-navy"
