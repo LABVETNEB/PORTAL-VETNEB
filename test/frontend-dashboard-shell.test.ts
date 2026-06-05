@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const DASHBOARD_LAYOUT_PATH = "frontend/src/app/dashboard/layout.tsx";
+const PRIVATE_DASHBOARD_SHELL_PATH =
+  "frontend/src/components/dashboard/PrivateDashboardShell.tsx";
 const DASHBOARD_SHELL_ROUTER_PATH =
   "frontend/src/components/dashboard/DashboardShellRouter.tsx";
 const DASHBOARD_SIDEBAR_FRAME_PATH =
@@ -20,12 +22,23 @@ function read(relativePath: string): string {
   );
 }
 
-test("dashboard layout delegates shell selection to dashboard shell router", () => {
+test("dashboard layout delegates private shell composition to private dashboard shell", () => {
   const source = read(DASHBOARD_LAYOUT_PATH);
 
-  assert.ok(source.includes('import { DashboardShellRouter } from "@/components/dashboard/DashboardShellRouter";'));
+  assert.ok(source.includes('import { PrivateDashboardShell } from "@/components/dashboard/PrivateDashboardShell";'));
   assert.ok(source.includes("export default function DashboardLayout"));
   assert.ok(source.includes("children: React.ReactNode;"));
+  assert.ok(source.includes("<PrivateDashboardShell>{children}</PrivateDashboardShell>"));
+});
+
+test("private dashboard shell keeps children and delegates role routing to dashboard shell router", () => {
+  const source = read(PRIVATE_DASHBOARD_SHELL_PATH);
+
+  assert.ok(source.includes('import type { ReactNode } from "react";'));
+  assert.ok(source.includes('import { DashboardShellRouter } from "./DashboardShellRouter";'));
+  assert.ok(source.includes("export type PrivateDashboardShellProps"));
+  assert.ok(source.includes("children: ReactNode;"));
+  assert.ok(source.includes("export function PrivateDashboardShell({"));
   assert.ok(source.includes("<DashboardShellRouter>{children}</DashboardShellRouter>"));
 });
 
@@ -52,10 +65,12 @@ test("dashboard sidebar frame is the shared visual shell for both roles", () => 
   assert.ok(source.includes("export type DashboardNavItem = {"));
   assert.ok(source.includes("dashboardLabel: string;"));
   assert.ok(source.includes("navItems: DashboardNavItem[];"));
-  assert.ok(source.includes('aria-label="Navegación del dashboard"'));
+  assert.ok(source.includes('role="navigation"'));
+  assert.ok(source.includes('aria-label="Navegación principal"'));
   assert.ok(source.includes("sticky top-0 flex h-dvh"));
   assert.ok(source.includes("overflow-y-auto"));
   assert.ok(source.includes('aria-label="Menú principal"'));
+  assert.ok(source.includes("focus-visible:ring-2 focus-visible:ring-ring/85"));
   assert.ok(source.includes("function isActive(href: string, exact = false)"));
   assert.ok(source.includes("if (exact) return pathname === hrefPath;"));
   assert.ok(source.includes("item.children && isActive(item.href)"));

@@ -17,6 +17,7 @@ export function DashboardTopbar({
     <header
       className="sticky top-0 z-40 flex min-h-[4.5rem] items-center justify-between border-b border-vetneb-line/80 bg-card/90 px-4 py-2.5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/78 sm:px-6"
       data-dashboard-topbar-polish="true"
+      aria-label="Barra superior del dashboard"
     >
       <div className="min-w-0">
         <div className="mb-1 hidden items-center gap-2 sm:flex">
@@ -46,7 +47,7 @@ export function DashboardTopbar({
         <PublicRouteControl
           href={ROUTES.login}
           variant="bare"
-          className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-sm font-semibold text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground"
+          className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-sm font-semibold text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
         >
           Cerrar sesión
         </PublicRouteControl>
