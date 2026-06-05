@@ -786,7 +786,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     }
 
     const delivery = applyEstimatedDeliveryRules({
-      receptionAt: parsed.data.receptionAt,
+      labReceivedAt: parsed.data.labReceivedAt,
       manualEstimatedDeliveryAt: parsed.data.estimatedDeliveryAt,
     });
 
@@ -796,7 +796,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       particularTokenId: parsed.data.particularTokenId ?? null,
       createdByAdminId: admin.id,
       createdByClinicUserId: null,
-      receptionAt: parsed.data.receptionAt,
+      receptionAt: parsed.data.labReceivedAt,
       estimatedDeliveryAt: delivery.estimatedDeliveryAt,
       estimatedDeliveryAutoCalculatedAt:
         delivery.estimatedDeliveryAutoCalculatedAt,
@@ -864,6 +864,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
         specialStainRequired: finalCase.specialStainRequired,
         specialStainNotifiedAt: finalCase.specialStainNotifiedAt ?? null,
         estimatedDeliveryAt: finalCase.estimatedDeliveryAt,
+        labReceivedAt: finalCase.receptionAt,
         estimatedDeliveryWasManuallyAdjusted:
           finalCase.estimatedDeliveryWasManuallyAdjusted,
         createdVia: "admin",
@@ -1068,14 +1069,14 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       }
     }
 
-    const nextReceptionAt = parsed.data.receptionAt ?? current.receptionAt;
+    const nextLabReceivedAt = parsed.data.labReceivedAt ?? current.receptionAt;
     const deliveryRecalculationNeeded =
-      parsed.data.receptionAt instanceof Date ||
+      parsed.data.labReceivedAt instanceof Date ||
       parsed.data.estimatedDeliveryAt instanceof Date;
 
     const delivery = deliveryRecalculationNeeded
       ? applyEstimatedDeliveryRules({
-          receptionAt: nextReceptionAt,
+          labReceivedAt: nextLabReceivedAt,
           manualEstimatedDeliveryAt:
             parsed.data.estimatedDeliveryAt instanceof Date
               ? parsed.data.estimatedDeliveryAt
@@ -1118,7 +1119,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
         typeof parsed.data.particularTokenId === "undefined"
           ? undefined
           : parsed.data.particularTokenId,
-      receptionAt: parsed.data.receptionAt,
+      receptionAt: parsed.data.labReceivedAt,
       estimatedDeliveryAt: delivery?.estimatedDeliveryAt,
       estimatedDeliveryAutoCalculatedAt:
         delivery?.estimatedDeliveryAutoCalculatedAt,
@@ -1237,6 +1238,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
         toStage: finalCase.currentStage,
         specialStainRequired: finalCase.specialStainRequired,
         specialStainNotifiedAt: finalCase.specialStainNotifiedAt ?? null,
+        labReceivedAt: finalCase.receptionAt,
         updatedVia: "admin",
       },
     });

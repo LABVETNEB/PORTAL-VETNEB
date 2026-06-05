@@ -434,6 +434,11 @@ test("admin token card consume seguimiento por token desde study-tracking", () =
   assert.ok(card.includes("getAdminStudyTrackingCases"));
   assert.ok(card.includes("trackingCasesByTokenId"));
   assert.ok(card.includes("Seguimiento"));
+  assert.ok(card.includes("labReceivedAt"));
+  assert.ok(card.includes("Entrega en laboratorio"));
+  assert.ok(card.includes("Impacta la estimación del informe."));
+  assert.ok(card.includes("handleLabReceivedAtUpdate("));
+  assert.ok(card.includes("Actualizar entrega"));
   assert.ok(card.includes("getTrackingStageLabel("));
   assert.ok(card.includes("Alerta: Solicitud de tinción especial"));
   assert.ok(card.includes("Solicitar tinción especial"));

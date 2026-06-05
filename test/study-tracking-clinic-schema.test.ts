@@ -33,6 +33,7 @@ test("clinicCreateStudyTrackingSchema omite clinicId y estimatedDeliveryAt del p
     clinicId: 999,
     reportId: "12",
     particularTokenId: "34",
+    labReceivedAt: "2026-04-30T10:00:00.000Z",
     receptionAt: "2026-04-21T10:00:00.000Z",
     estimatedDeliveryAt: "2026-04-25T10:00:00.000Z",
     currentStage: "processing",
@@ -50,6 +51,7 @@ test("clinicCreateStudyTrackingSchema omite clinicId y estimatedDeliveryAt del p
   }
 
   assert.equal("clinicId" in parsed.data, false);
+  assert.equal("labReceivedAt" in parsed.data, false);
   assert.equal("estimatedDeliveryAt" in parsed.data, false);
 
   assert.equal(parsed.data.reportId, 12);

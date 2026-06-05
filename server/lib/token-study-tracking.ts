@@ -9,8 +9,6 @@ type TokenTrackingRecord = Pick<
   | "id"
   | "clinicId"
   | "reportId"
-  | "shippingDate"
-  | "extractionDate"
   | "detailsLesion"
   | "createdByAdminId"
   | "createdByClinicUserId"
@@ -38,22 +36,6 @@ type EnsureTokenTrackingDeps = {
     input: Partial<Omit<StudyTrackingCase, "id" | "createdAt" | "updatedAt">>,
   ) => Promise<StudyTrackingCase | null | undefined>;
 };
-
-function toSafeDate(value: Date | null | undefined): Date | null {
-  if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
-    return null;
-  }
-
-  return value;
-}
-
-function getTokenReceptionAt(token: TokenTrackingRecord, now: Date): Date {
-  return (
-    toSafeDate(token.shippingDate) ??
-    toSafeDate(token.extractionDate) ??
-    now
-  );
-}
 
 function hasAnyPatchValue(
   patch: Partial<Omit<StudyTrackingCase, "id" | "createdAt" | "updatedAt">>,
@@ -139,8 +121,8 @@ export async function ensureStudyTrackingCaseForToken(
     return (await deps.updateStudyTrackingCase(caseByReport.id, patch)) ?? caseByReport;
   }
 
-  const receptionAt = getTokenReceptionAt(token, now);
-  const delivery = applyEstimatedDeliveryRules({ receptionAt });
+  const labReceivedAt = now;
+  const delivery = applyEstimatedDeliveryRules({ labReceivedAt });
   const createdByAdminId =
     input.createdByAdminId ?? token.createdByAdminId ?? null;
   const createdByClinicUserId =
@@ -153,7 +135,7 @@ export async function ensureStudyTrackingCaseForToken(
     particularTokenId: token.id,
     createdByAdminId,
     createdByClinicUserId,
-    receptionAt,
+    receptionAt: labReceivedAt,
     estimatedDeliveryAt: delivery.estimatedDeliveryAt,
     estimatedDeliveryAutoCalculatedAt: delivery.estimatedDeliveryAutoCalculatedAt,
     estimatedDeliveryWasManuallyAdjusted:
@@ -171,4 +153,3 @@ export async function ensureStudyTrackingCaseForToken(
     notes: token.detailsLesion ?? null,
   });
 }
-

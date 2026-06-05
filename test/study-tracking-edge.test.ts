@@ -8,28 +8,28 @@ import {
   updateStudyTrackingSchema,
 } from "../server/lib/study-tracking.ts";
 
-test("calculateEstimatedDeliveryAt rechaza receptionAt invalido", () => {
+test("calculateEstimatedDeliveryAt rechaza labReceivedAt invalido", () => {
   assert.throws(
     () => calculateEstimatedDeliveryAt(new Date("invalido"), 15),
-    /receptionAt inválido|receptionAt invÃ¡lido/,
+    /labReceivedAt inválido|labReceivedAt invÃ¡lido/,
   );
 });
 
-test("calculateEstimatedDeliveryAt devuelve el mismo dia cuando requiredBusinessDays ya se consume en receptionAt", () => {
+test("calculateEstimatedDeliveryAt empieza a contar desde el día siguiente", () => {
   const result = calculateEstimatedDeliveryAt(
     new Date("2026-01-05T00:00:00.000Z"),
     1,
   );
 
-  assert.equal(result.toISOString(), "2026-01-05T00:00:00.000Z");
+  assert.equal(result.toISOString(), "2026-01-06T00:00:00.000Z");
 });
 
 test("applyEstimatedDeliveryRules no marca ajuste manual cuando la fecha manual coincide con la automatica", () => {
-  const receptionAt = new Date("2026-01-02T00:00:00.000Z");
-  const autoCalculated = calculateEstimatedDeliveryAt(receptionAt, 15);
+  const labReceivedAt = new Date("2026-01-02T00:00:00.000Z");
+  const autoCalculated = calculateEstimatedDeliveryAt(labReceivedAt, 15);
 
   const result = applyEstimatedDeliveryRules({
-    receptionAt,
+    labReceivedAt,
     manualEstimatedDeliveryAt: autoCalculated,
   });
 

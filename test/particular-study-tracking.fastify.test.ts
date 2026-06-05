@@ -135,6 +135,29 @@ test("particularStudyTrackingNativeRoutes expone GET /me con seguimiento del tok
   }
 });
 
+test("particularStudyTrackingNativeRoutes no permite modificar labReceivedAt", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/particular/study-tracking/me",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.particularCookieName}=particular-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        labReceivedAt: "2026-04-25T00:00:00.000Z",
+      },
+    });
+
+    assert.equal(response.statusCode, 404);
+  } finally {
+    await app.close();
+  }
+});
+
 test("particularStudyTrackingNativeRoutes devuelve 404 cuando no existe seguimiento para el token", async () => {
   const app = await createTestApp({
     getParticularStudyTrackingCase: async () => null,

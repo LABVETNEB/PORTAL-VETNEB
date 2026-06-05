@@ -28,8 +28,8 @@ function createTrackingCaseFixture(overrides: Record<string, unknown> = {}) {
     createdByAdminId: null,
     createdByClinicUserId: 9,
     receptionAt: new Date("2026-04-20T00:00:00.000Z"),
-    estimatedDeliveryAt: new Date("2026-05-08T00:00:00.000Z"),
-    estimatedDeliveryAutoCalculatedAt: new Date("2026-05-08T00:00:00.000Z"),
+    estimatedDeliveryAt: new Date("2026-05-11T00:00:00.000Z"),
+    estimatedDeliveryAutoCalculatedAt: new Date("2026-05-11T00:00:00.000Z"),
     estimatedDeliveryWasManuallyAdjusted: false,
     currentStage: "reception",
     processingAt: null,
@@ -160,30 +160,32 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
   return app;
 }
 
-test("study tracking calcula entrega con feriados nacionales argentinos perpetuos", () => {
+test("study tracking calcula entrega con feriados argentinos configurados", () => {
+  const independenceDay2026 = new Date("2026-07-09T00:00:00.000Z");
+  const bridgeHoliday2026 = new Date("2026-07-10T00:00:00.000Z");
   const futureIndependenceDay = new Date("2040-07-09T00:00:00.000Z");
-  const futureChristmas = new Date("2099-12-25T00:00:00.000Z");
 
-  assert.equal(isArgentinaNationalHoliday(futureIndependenceDay), true);
-  assert.equal(getBusinessDayWeight(futureIndependenceDay), 0);
-  assert.equal(isArgentinaNationalHoliday(futureChristmas), true);
-  assert.equal(getBusinessDayWeight(futureChristmas), 0);
+  assert.equal(isArgentinaNationalHoliday(independenceDay2026), true);
+  assert.equal(getBusinessDayWeight(independenceDay2026), 0);
+  assert.equal(isArgentinaNationalHoliday(bridgeHoliday2026), true);
+  assert.equal(getBusinessDayWeight(bridgeHoliday2026), 0);
+  assert.equal(isArgentinaNationalHoliday(futureIndependenceDay), false);
 
   const oneBusinessDayAcrossHoliday = calculateEstimatedDeliveryAt(
-    new Date("2040-07-08T00:00:00.000Z"),
+    new Date("2026-07-08T00:00:00.000Z"),
     1,
   );
 
   assert.equal(
     oneBusinessDayAcrossHoliday.toISOString(),
-    "2040-07-10T00:00:00.000Z",
+    "2026-07-13T00:00:00.000Z",
   );
 
   const fifteenBusinessDays = calculateEstimatedDeliveryAt(
     new Date("2026-04-20T00:00:00.000Z"),
   );
 
-  assert.equal(fifteenBusinessDays.toISOString(), "2026-05-08T00:00:00.000Z");
+  assert.equal(fifteenBusinessDays.toISOString(), "2026-05-11T00:00:00.000Z");
 });
 
 test("studyTrackingNativeRoutes expone GET /notifications clinic-scoped", async () => {
@@ -421,6 +423,7 @@ test("studyTrackingNativeRoutes bloquea POST / porque el workflow es admin-only"
       payload: {
         reportId: 55,
         particularTokenId: 7,
+        labReceivedAt: "2026-04-25T00:00:00.000Z",
         receptionAt: "2026-04-20T00:00:00.000Z",
         currentStage: "reception",
         specialStainRequired: true,

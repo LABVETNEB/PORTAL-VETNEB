@@ -2,13 +2,18 @@
 import assert from "node:assert/strict";
 import {
   adminCreateStudyTrackingSchema,
+  addBusinessDaysFromLabReceivedDate,
   applyEstimatedDeliveryRules,
   applyStageTimestampDefaults,
   buildValidationError,
   calculateEstimatedDeliveryAt,
+  getArgentinaNonWorkingDates,
   getArgentinaNationalHolidayKeys,
   getBusinessDayWeight,
+  getWorkingDayWeight,
   isArgentinaNationalHoliday,
+  isSaturday,
+  isSunday,
   parseBooleanQuery,
   parseEntityId,
   parseOffset,
@@ -24,7 +29,7 @@ test("adminCreateStudyTrackingSchema normaliza booleanos, textos y fechas", () =
     clinicId: "4",
     reportId: "12",
     particularTokenId: null,
-    receptionAt: "2026-04-20T10:00:00.000Z",
+    labReceivedAt: "2026-04-20T10:00:00.000Z",
     estimatedDeliveryAt: "2026-05-12T10:00:00.000Z",
     currentStage: "processing",
     specialStainRequired: "si",
@@ -48,13 +53,16 @@ test("adminCreateStudyTrackingSchema normaliza booleanos, textos y fechas", () =
   assert.equal(parsed.data.adminContactEmail, "lab@example.com");
   assert.equal(parsed.data.adminContactPhone, "3511234567");
   assert.equal(parsed.data.notes, "Caso prioritario");
+  assert.ok(parsed.data.labReceivedAt instanceof Date);
   assert.ok(parsed.data.receptionAt instanceof Date);
+  assert.equal(parsed.data.labReceivedAt.toISOString(), parsed.data.receptionAt.toISOString());
 });
 
 test("updateStudyTrackingSchema permite limpiar campos opcionales con null", () => {
   const parsed = updateStudyTrackingSchema.safeParse({
     reportId: null,
     particularTokenId: "18",
+    labReceivedAt: "2026-05-04T00:00:00.000Z",
     estimatedDeliveryAt: null,
     processingAt: null,
     evaluationAt: undefined,
@@ -76,6 +84,8 @@ test("updateStudyTrackingSchema permite limpiar campos opcionales con null", () 
   assert.equal(parsed.data.reportId, null);
   assert.equal(parsed.data.particularTokenId, 18);
   assert.equal(parsed.data.estimatedDeliveryAt, null);
+  assert.equal(parsed.data.labReceivedAt?.toISOString(), "2026-05-04T00:00:00.000Z");
+  assert.equal(parsed.data.receptionAt?.toISOString(), "2026-05-04T00:00:00.000Z");
   assert.equal(parsed.data.processingAt, null);
   assert.equal(parsed.data.reportDevelopmentAt, null);
   assert.equal(parsed.data.deliveredAt, null);
@@ -117,17 +127,25 @@ test("buildValidationError devuelve el primer error de study-tracking", () => {
   assert.equal(buildValidationError(parsed.error), "clinicId es obligatorio");
 });
 
-test("feriados nacionales y pesos de días hábiles se calculan correctamente", () => {
+test("feriados configurados 2026 y pesos de días hábiles se calculan correctamente", () => {
   const holidays2026 = getArgentinaNationalHolidayKeys(2026);
+  const nonWorking2026 = getArgentinaNonWorkingDates(2026);
 
   assert.equal(holidays2026.has("2026-01-01"), true);
   assert.equal(holidays2026.has("2026-02-16"), true);
   assert.equal(holidays2026.has("2026-02-17"), true);
+  assert.equal(holidays2026.has("2026-03-23"), true);
   assert.equal(holidays2026.has("2026-04-03"), true);
+  assert.equal(holidays2026.has("2026-07-10"), true);
+  assert.equal(nonWorking2026.has("2026-12-25"), true);
 
+  assert.equal(isSunday("2026-05-24"), true);
+  assert.equal(isSaturday("2026-05-23"), true);
   assert.equal(isArgentinaNationalHoliday(new Date("2026-05-25T00:00:00.000Z")), true);
   assert.equal(getBusinessDayWeight(new Date("2026-05-25T00:00:00.000Z")), 0);
-  assert.equal(getBusinessDayWeight(new Date("2026-05-23T00:00:00.000Z")), 0.5);
+  assert.equal(getWorkingDayWeight("2026-05-23"), 0.5);
+  assert.equal(getWorkingDayWeight("2026-05-24"), 0);
+  assert.equal(getWorkingDayWeight("2026-07-10"), 0);
   assert.equal(getBusinessDayWeight(new Date("2026-05-26T00:00:00.000Z")), 1);
 });
 
@@ -137,23 +155,30 @@ test("calculateEstimatedDeliveryAt contempla sábado como medio día hábil", ()
     2,
   );
 
-  assert.equal(deliveryAt.toISOString(), "2026-01-05T00:00:00.000Z");
+  assert.equal(deliveryAt.toISOString(), "2026-01-06T00:00:00.000Z");
+});
+
+test("addBusinessDaysFromLabReceivedDate atraviesa sábado, domingo y feriado", () => {
+  assert.equal(addBusinessDaysFromLabReceivedDate("2026-01-02", 0.5), "2026-01-03");
+  assert.equal(addBusinessDaysFromLabReceivedDate("2026-01-02", 1), "2026-01-05");
+  assert.equal(addBusinessDaysFromLabReceivedDate("2026-07-08", 0.5), "2026-07-11");
+  assert.equal(addBusinessDaysFromLabReceivedDate("2026-07-08", 1), "2026-07-13");
 });
 
 test("applyEstimatedDeliveryRules diferencia ajuste manual y cálculo automático", () => {
-  const receptionAt = new Date("2026-01-02T00:00:00.000Z");
+  const labReceivedAt = new Date("2026-01-02T00:00:00.000Z");
   const manualEstimatedDeliveryAt = new Date("2026-01-06T00:00:00.000Z");
 
-  const automatic = applyEstimatedDeliveryRules({ receptionAt });
+  const automatic = applyEstimatedDeliveryRules({ labReceivedAt });
   const manual = applyEstimatedDeliveryRules({
-    receptionAt,
+    labReceivedAt,
     manualEstimatedDeliveryAt,
   });
 
-  assert.equal(automatic.estimatedDeliveryAt.toISOString(), "2026-01-21T00:00:00.000Z");
+  assert.equal(automatic.estimatedDeliveryAt.toISOString(), "2026-01-22T00:00:00.000Z");
   assert.equal(automatic.estimatedDeliveryWasManuallyAdjusted, false);
   assert.equal(manual.estimatedDeliveryAt.toISOString(), "2026-01-06T00:00:00.000Z");
-  assert.equal(manual.estimatedDeliveryAutoCalculatedAt.toISOString(), "2026-01-21T00:00:00.000Z");
+  assert.equal(manual.estimatedDeliveryAutoCalculatedAt.toISOString(), "2026-01-22T00:00:00.000Z");
   assert.equal(manual.estimatedDeliveryWasManuallyAdjusted, true);
 });
 
@@ -270,9 +295,27 @@ test("serializers de study-tracking mantienen la forma pública esperada", () =>
   const serializedCase = serializeStudyTrackingCase(trackingCase as any);
   const serializedNotification = serializeStudyTrackingNotification(notification as any);
 
+  assert.equal(serializedCase.labReceivedAt.toISOString(), "2026-04-20T00:00:00.000Z");
+  assert.equal(serializedCase.receptionAt.toISOString(), "2026-04-20T00:00:00.000Z");
   assert.equal(serializedCase.estimatedDeliveryWasManuallyAdjusted, true);
   assert.equal(serializedCase.currentStage, "processing");
   assert.equal(serializedCase.paymentUrl, "https://example.com/pay/123");
   assert.equal(serializedNotification.type, "special_stain_required");
   assert.equal(serializedNotification.isRead, false);
+
+  const serializedText = JSON.stringify(serializedCase);
+  for (const forbiddenKey of [
+    "storagePath",
+    "signedUrl",
+    "rawToken",
+    "cookie",
+    "session",
+    "secret",
+    "service_role",
+    "stack",
+    "cause",
+    "details",
+  ]) {
+    assert.equal(serializedText.includes(forbiddenKey), false, forbiddenKey);
+  }
 });

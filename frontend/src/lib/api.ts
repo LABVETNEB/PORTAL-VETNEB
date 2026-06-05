@@ -809,6 +809,7 @@ export type AdminStudyTrackingCaseSummary = {
   particularTokenId: number | null;
   createdByAdminId: number | null;
   createdByClinicUserId: number | null;
+  labReceivedAt: string;
   receptionAt: string;
   estimatedDeliveryAt: string;
   estimatedDeliveryAutoCalculatedAt: string;
@@ -832,7 +833,8 @@ export type AdminStudyTrackingCreatePayload = {
   clinicId: number;
   reportId?: number | null;
   particularTokenId?: number | null;
-  receptionAt: string;
+  labReceivedAt: string;
+  receptionAt?: string;
   estimatedDeliveryAt?: string | null;
   currentStage?: AdminStudyTrackingStage;
   specialStainRequired?: boolean;
@@ -875,6 +877,9 @@ export type AdminStudyTrackingSnapshot = {
 export type AdminStudyTrackingUpdatePayload = {
   reportId?: number | null;
   particularTokenId?: number | null;
+  labReceivedAt?: string;
+  receptionAt?: string;
+  estimatedDeliveryAt?: string | null;
   currentStage?: AdminStudyTrackingStage;
   specialStainRequired?: boolean;
   paymentUrl?: string | null;

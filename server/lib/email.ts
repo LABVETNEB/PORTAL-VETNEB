@@ -497,7 +497,7 @@ function buildSpecialStainRequiredText(input: {
     `Te informamos que el estudio #${input.trackingCaseId} de la clínica ${input.clinicName} requiere tinción especial.`,
     ``,
     `Estado actual: ${input.currentStage}`,
-    `Recepción de muestra: ${formatDateTime(input.receptionAt)}`,
+    `Entrega en laboratorio: ${formatDateTime(input.receptionAt)}`,
     `Fecha estimada de entrega: ${formatDateTime(input.estimatedDeliveryAt)}`,
   ];
 
