@@ -17,6 +17,8 @@ const ADMIN_DASHBOARD_SIDEBAR_PATH =
   "frontend/src/components/dashboard/AdminDashboardSidebar.tsx";
 const DASHBOARD_TOPBAR_PATH = "frontend/src/components/dashboard/DashboardTopbar.tsx";
 const DASHBOARD_HOME_PATH = "frontend/src/app/dashboard/page.tsx";
+const DASHBOARD_CLINIC_COMMAND_CENTER_PATH =
+  "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
 const DASHBOARD_ADMIN_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const DASHBOARD_ADMIN_COMMAND_CENTER_PATH =
   "frontend/src/app/dashboard/admin/AdminCommandCenter.tsx";
@@ -391,6 +393,8 @@ test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () 
 
 test("dashboard home keeps visual dashboard states and card spacing conventions", () => {
   const source = read(DASHBOARD_HOME_PATH);
+  const commandCenterSource = read(DASHBOARD_CLINIC_COMMAND_CENTER_PATH);
+  const combinedSource = `${source}\n${commandCenterSource}`;
   const removedQuickActionsTitle = "Accesos " + "rápidos";
   const removedQuickActionsGrid = "xl:grid-cols-" + "5";
   const removedQuickActionsButton = "h-16 flex-col gap-1 rounded-" + "lg";
@@ -399,17 +403,28 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
     source,
     [
       '<main className="dashboard-main">',
-      '<section className="surface-note-info" aria-labelledby="dashboard-operational-priority">',
-      "<StatsCards stats={stats} />",
-      'className="surface-empty"',
-      "recentReports.map((report) =>",
-      "recentVisits.map((visit) =>",
+      "<DashboardPageHeader",
+      "<StickyActionBar",
+      "<ClinicCommandCenter",
+      "<ClinicPublicProfileCard />",
+      "<ClinicParticularTokensCard />",
     ],
     "dashboard home shell",
   );
 
+  assertContainsAll(
+    commandCenterSource,
+    [
+      '<section className="surface-note-info" aria-labelledby="dashboard-operational-priority">',
+      "<StatsCards stats={stats} />",
+      "recentReports.map((report) =>",
+      "recentVisits.map((visit) =>",
+    ],
+    "clinic command center shell",
+  );
+
   assertMatchesAll(
-    source,
+    combinedSource,
     [
       /className="grid grid-cols-1 gap-6 lg:grid-cols-2"/,
       /className="dashboard-list-row"/,

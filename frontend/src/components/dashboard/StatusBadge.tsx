@@ -32,6 +32,22 @@ export type StatusBadgeProps = {
 };
 
 const statusBadgeConfig = {
+  scheduled: {
+    label: "Programada",
+    icon: Clock3,
+    variant: "outline",
+    semanticClass: "status-badge-scheduled",
+    toneClassName:
+      "border-vetneb-cyan/35 bg-vetneb-cyan/12 text-vetneb-navy",
+  },
+  no_show: {
+    label: "No presentado",
+    icon: AlertCircle,
+    variant: "outline",
+    semanticClass: "status-badge-no-show",
+    toneClassName:
+      "border-vetneb-line bg-vetneb-surface-muted/80 text-vetneb-ink/64",
+  },
   uploaded: {
     label: "Subido",
     icon: CloudUpload,

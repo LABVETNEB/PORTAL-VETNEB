@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
+const CLINIC_COMMAND_CENTER_PATH = "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
 const LOGISTICA_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
 
@@ -14,8 +15,22 @@ function read(relativePath: string): string {
   );
 }
 
-test("dashboard overview distinguishes recent list load failures from empty states", () => {
+test("dashboard overview page retains load-error variables and propagates them to command center", () => {
   const source = read(DASHBOARD_PAGE_PATH);
+
+  assert.ok(source.includes("let statsLoadError = false;"));
+  assert.ok(source.includes("let reportsLoadError = false;"));
+  assert.ok(source.includes("let visitsLoadError = false;"));
+  assert.ok(source.includes("statsLoadError = true;"));
+  assert.ok(source.includes("reportsLoadError = true;"));
+  assert.ok(source.includes("visitsLoadError = true;"));
+  assert.ok(source.includes("statsLoadError={statsLoadError}"));
+  assert.ok(source.includes("reportsLoadError={reportsLoadError}"));
+  assert.ok(source.includes("visitsLoadError={visitsLoadError}"));
+});
+
+test("dashboard overview clinic command center distinguishes recent list load failures from empty states", () => {
+  const source = read(CLINIC_COMMAND_CENTER_PATH);
 
   assert.ok(source.includes("statsLoadError ?"));
   assert.ok(source.includes("reportsLoadError ?"));
