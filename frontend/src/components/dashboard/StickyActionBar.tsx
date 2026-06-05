@@ -17,6 +17,7 @@ export type StickyActionBarAction = {
 export type StickyActionBarProps = {
   context?: string;
   actions: StickyActionBarAction[];
+  children?: ReactNode;
   visible?: boolean;
   className?: string;
 };
@@ -24,6 +25,7 @@ export type StickyActionBarProps = {
 export function StickyActionBar({
   context,
   actions,
+  children,
   visible = true,
   className,
 }: StickyActionBarProps) {
@@ -50,6 +52,11 @@ export function StickyActionBar({
           </p>
         ) : null}
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
+          {children ? (
+            <div className="col-span-2 flex justify-start sm:justify-end">
+              {children}
+            </div>
+          ) : null}
           {actions.map((action, index) => {
             const ariaLabel = action["aria-label"] ?? action.label;
             const content = (

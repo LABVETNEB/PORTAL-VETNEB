@@ -22,6 +22,11 @@ test("dashboard informes defines non-indexable metadata and clinic read dependen
   assert.ok(source.includes('title: "Informes — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
+  assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
+  assert.ok(source.includes('import { MasterDetailWorkspace } from "@/components/dashboard/MasterDetailWorkspace";'));
+  assert.ok(source.includes('import { StatusBadge } from "@/components/dashboard/StatusBadge";'));
+  assert.ok(source.includes('} from "@/components/dashboard/StickyActionBar";'));
+  assert.ok(source.includes('} from "@/components/dashboard/StudyTimeline";'));
   assert.ok(source.includes('import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";'));
   assert.equal(source.includes("UploadReportModal"), false);
 });
@@ -32,10 +37,12 @@ test("dashboard informes reads filters from searchParams and uses live search en
   assert.ok(source.includes("type InformesPageSearchParams = {"));
   assert.ok(source.includes("query?: string | string[];"));
   assert.ok(source.includes("status?: string | string[];"));
+  assert.ok(source.includes("reportId?: string | string[];"));
   assert.ok(source.includes("searchParams?: Promise<InformesPageSearchParams>;"));
   assert.ok(source.includes("const resolvedSearchParams = (await searchParams) ?? {};"));
   assert.ok(source.includes("const query = normalizeSearchParamValue(resolvedSearchParams.query).trim();"));
   assert.ok(source.includes("const status = normalizeStatusFilter("));
+  assert.ok(source.includes("const selectedReportId = normalizeReportIdFilter("));
   assert.ok(source.includes("reports = query"));
   assert.ok(source.includes("? await searchReports("));
   assert.ok(source.includes("query,"));
@@ -74,6 +81,10 @@ test("dashboard informes renders clinic reports surface without technical source
   assert.ok(source.includes('title="Informes"'));
   assert.ok(source.includes('subtitle="Consulta de informes médicos veterinarios"'));
   assert.ok(source.includes('notifications="clinic"'));
+  assert.ok(source.includes("<DashboardPageHeader"));
+  assert.ok(source.includes("<StickyActionBar"));
+  assert.ok(source.includes("<MasterDetailWorkspace"));
+  assert.ok(source.includes("<StudyTimeline"));
   assert.equal(source.includes("<UploadReportModal />"), false);
   assert.equal(source.includes("/api/admin"), false);
   assert.equal(source.includes(removedSourceCopy), false);
@@ -95,6 +106,8 @@ test("dashboard informes renders filters and reports table columns", () => {
   assert.ok(source.includes("Filtrar"));
   assert.ok(source.includes('href="/dashboard/informes"'));
   assert.ok(source.includes("Limpiar"));
+  assert.ok(source.includes('id="reports-master-list"'));
+  assert.ok(source.includes('id="report-detail"'));
   assert.ok(source.includes("<TableHead>ID</TableHead>"));
   assert.ok(source.includes("<TableHead>Paciente</TableHead>"));
   assert.ok(source.includes("<TableHead>Tipo de estudio</TableHead>"));
@@ -108,6 +121,7 @@ test("dashboard informes keeps row rendering badges dates and report actions", (
   const source = read(INFORMES_PAGE_PATH);
 
   assert.ok(source.includes("reports.map((report) =>"));
+  assert.ok(source.includes("const isSelected = selectedReport?.id === report.id;"));
   assert.ok(source.includes('report.patientName ?? "—"'));
   assert.ok(source.includes('report.studyType ?? "—"'));
   assert.ok(source.includes("report.clinicName ?? `Clínica #${report.clinicId}`"));
@@ -117,6 +131,8 @@ test("dashboard informes keeps row rendering badges dates and report actions", (
   assert.ok(source.includes("<ReportFileActions"));
   assert.ok(source.includes("reportId={report.id}"));
   assert.ok(source.includes("hasFile={report.hasFile}"));
+  assert.ok(source.includes("reportId={selectedReport.id}"));
+  assert.ok(source.includes("hasFile={selectedReport.hasFile}"));
   assert.equal(source.includes("storagePath"), false);
 });
 
@@ -124,6 +140,7 @@ test("dashboard informes keeps empty state and avoids client-side fetch literals
   const source = read(INFORMES_PAGE_PATH);
 
   assert.ok(source.includes("No hay informes disponibles."));
+  assert.ok(source.includes("<EmptyState"));
   assert.ok(source.includes("colSpan={7}"));
   assert.equal(source.includes("fetch("), false);
   assert.equal(source.includes("mock"), false);
