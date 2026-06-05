@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
+const ADMIN_COMMAND_CENTER_PATH =
+  "frontend/src/app/dashboard/admin/AdminCommandCenter.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -21,6 +23,9 @@ test("dashboard admin defines non-indexable metadata and admin dependencies", ()
   assert.ok(source.includes('title: "Administración — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
+  assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
+  assert.ok(source.includes('} from "@/components/dashboard/StickyActionBar";'));
+  assert.ok(source.includes('import { AdminCommandCenter } from "./AdminCommandCenter";'));
   assert.ok(source.includes('import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";'));
   assert.ok(source.includes('import { formatDateTime } from "@/lib/utils";'));
 });
@@ -134,12 +139,17 @@ test("dashboard admin keeps audit filters and filter href builder", () => {
 
 test("dashboard admin renders topbar, health, and summary cards", () => {
   const source = read(ADMIN_PAGE_PATH);
+  const commandCenterSource = read(ADMIN_COMMAND_CENTER_PATH);
+  const combinedSource = `${source}\n${commandCenterSource}`;
 
   assert.ok(source.includes('title="Administración"'));
   assert.ok(source.includes('subtitle="Auditoría, reportes y estado operacional"'));
-  assert.ok(source.includes("Eventos de auditoría"));
-  assert.ok(source.includes("Tipos de evento"));
-  assert.ok(source.includes("Estado del sistema"));
+  assert.ok(source.includes("<DashboardPageHeader"));
+  assert.ok(source.includes("<StickyActionBar"));
+  assert.ok(source.includes("<AdminCommandCenter"));
+  assert.ok(combinedSource.includes("Eventos de auditoría"));
+  assert.ok(combinedSource.includes("Tipos de evento"));
+  assert.ok(combinedSource.includes("Estado del sistema"));
   assert.ok(source.includes('id="admin-report-upload"'));
   assert.ok(source.includes("Panel administrador"));
   assert.ok(source.includes("cada token administrado"));
@@ -172,45 +182,27 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.equal(source.includes("ADMIN_READ_CONTRACT_MARKERS"), false);
 });
 
-test("dashboard admin removes horizontal quick actions and preserves admin sections", () => {
+test("dashboard admin keeps sticky quick actions and preserves admin sections", () => {
   const source = read(ADMIN_PAGE_PATH);
-  const quickActionsTitle = ["Accesos", "rápidos"].join(" ");
-  const quickActionsDescription = [
-    "Atajos operativos",
-    "para navegar las superficies administrativas clave.",
-  ].join(" ");
-  const removedSnippets = [
-    quickActionsTitle,
-    quickActionsDescription,
-    'label: "Subir informe"',
-    'label: "Estado"',
-    'label: "Clínicas"',
-    'label: "Tokens particulares"',
-    'label: "Sesiones"',
-    'label: "Roles clínica"',
-    'label: "Auditoría"',
-    'label: "Mantenimiento"',
-    'href: "#admin-report-upload"',
-    'href: "#admin-health"',
-    'href: "#admin-clinics"',
-    'href: "#admin-particular-tokens"',
-    'href: "#admin-sessions"',
-    'href: "#admin-users-roles"',
-    'href: "#audit-log"',
-    'href: "#admin-maintenance"',
-    `xl:grid-cols-${7}`,
-  ];
 
-  for (const snippet of removedSnippets) {
-    assert.equal(source.includes(snippet), false);
-  }
-
+  assert.ok(source.includes("const adminQuickActions = ["));
+  assert.ok(source.includes('label: "Subir informe"'));
+  assert.ok(source.includes('href: "#admin-report-upload"'));
+  assert.ok(source.includes('label: "Gestionar clínicas"'));
+  assert.ok(source.includes('href: "#admin-clinics"'));
+  assert.ok(source.includes('label: "Revisar tokens"'));
+  assert.ok(source.includes('href: "#admin-particular-tokens"'));
+  assert.ok(source.includes('label: "Ver sistema"'));
+  assert.ok(source.includes('href: "#admin-health"'));
+  assert.ok(source.includes('context="Acciones rápidas"'));
   assert.ok(source.includes('id="admin-report-upload"'));
   assert.ok(source.includes("Carga de informes"));
   assert.ok(source.includes("cada token administrado"));
-  assert.ok(source.includes("Eventos de auditoría"));
-  assert.ok(source.includes("Tipos de evento"));
-  assert.ok(source.includes("Estado del sistema"));
+  assert.ok(source.includes("Alertas críticas"));
+  assert.ok(source.includes("Sistema"));
+  assert.ok(source.includes("Gestión"));
+  assert.ok(source.includes("Configuración secundaria"));
+  assert.ok(source.includes("Auditoría"));
   assert.ok(source.includes('id="admin-health"'));
   assert.ok(source.includes("<AdminClinicsManagementCard />"));
   assert.ok(source.includes('id="admin-maintenance"'));
@@ -221,19 +213,24 @@ test("dashboard admin removes horizontal quick actions and preserves admin secti
   assert.ok(source.includes('id="audit-log"'));
 
   const mainIndex = source.indexOf('<main className="dashboard-main">');
+  const stickyActionBarIndex = source.indexOf("<StickyActionBar", mainIndex);
+  const commandCenterIndex = source.indexOf("<AdminCommandCenter", mainIndex);
+  const alertsCardIndex = source.indexOf("<AdminFailedLoginAlertsReadOnlyCard />", mainIndex);
+  const systemSectionIndex = source.indexOf("admin-sistema-heading", mainIndex);
   const reportUploadTitleIndex = source.indexOf("Carga de informes");
 
   assert.ok(mainIndex >= 0);
+  assert.ok(stickyActionBarIndex >= 0);
+  assert.ok(commandCenterIndex >= 0);
+  assert.ok(alertsCardIndex >= 0);
+  assert.ok(systemSectionIndex >= 0);
   assert.ok(reportUploadTitleIndex >= 0);
-  assert.ok(mainIndex < reportUploadTitleIndex);
-  assert.equal(
-    source.slice(mainIndex, reportUploadTitleIndex).includes(quickActionsTitle),
-    false,
-  );
-  assert.equal(
-    source.slice(mainIndex, reportUploadTitleIndex).includes("dashboard-surface"),
-    true,
-  );
+  assert.ok(mainIndex < stickyActionBarIndex);
+  assert.ok(stickyActionBarIndex < commandCenterIndex);
+  assert.ok(commandCenterIndex < alertsCardIndex);
+  assert.ok(alertsCardIndex < systemSectionIndex);
+  assert.ok(systemSectionIndex < reportUploadTitleIndex);
+  assert.equal(source.includes(`xl:grid-cols-${7}`), false);
 });
 
 test("dashboard admin surfaces system health fetch failures", () => {
