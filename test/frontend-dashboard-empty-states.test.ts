@@ -7,6 +7,8 @@ const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
 const CLINIC_COMMAND_CENTER_PATH = "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
 const LOGISTICA_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
+const LOGISTICS_COMMAND_CENTER_PATH =
+  "frontend/src/app/dashboard/logistica/LogisticsCommandCenter.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -58,17 +60,25 @@ test("dashboard informes page shows empty state when reports are unavailable", (
 });
 
 test("dashboard logistics page distinguishes overview load failures from empty states", () => {
-  const source = read(LOGISTICA_PAGE_PATH);
+  const pageSource = read(LOGISTICA_PAGE_PATH);
+  const commandCenterSource = read(LOGISTICS_COMMAND_CENTER_PATH);
 
-  assert.ok(source.includes("fieldVisitsLoadError ?"));
-  assert.ok(source.includes("routePlansLoadError ?"));
-  assert.ok(source.includes("fieldVisits.length ?"));
-  assert.ok(source.includes("routePlans.length ?"));
-  assert.ok(source.includes("No se pudieron cargar las visitas recientes. Intente nuevamente."));
-  assert.ok(source.includes("No se pudieron cargar los planes de ruta recientes. Intente nuevamente."));
-  assert.ok(source.includes('role="alert"'));
-  assert.ok(source.includes("No hay visitas recientes disponibles."));
-  assert.ok(source.includes("No hay planes de ruta disponibles."));
-  assert.ok(source.includes("fieldVisits.slice(0, 4).map((visit)"));
-  assert.ok(source.includes("routePlans.map((plan)"));
+  // Page tracks load errors and passes them to LogisticsCommandCenter
+  assert.ok(pageSource.includes("let fieldVisitsLoadError = false;"));
+  assert.ok(pageSource.includes("let routePlansLoadError = false;"));
+  assert.ok(pageSource.includes("fieldVisitsLoadError={fieldVisitsLoadError}"));
+  assert.ok(pageSource.includes("routePlansLoadError={routePlansLoadError}"));
+
+  // LogisticsCommandCenter handles rendering with error and empty states
+  assert.ok(commandCenterSource.includes("fieldVisitsLoadError ?"));
+  assert.ok(commandCenterSource.includes("routePlansLoadError ?"));
+  assert.ok(commandCenterSource.includes("recentVisits.length ?"));
+  assert.ok(commandCenterSource.includes("recentPlans.length ?"));
+  assert.ok(commandCenterSource.includes("No se pudieron cargar las visitas de campo. Intente nuevamente."));
+  assert.ok(commandCenterSource.includes("No se pudieron cargar los planes de ruta. Intente nuevamente."));
+  assert.ok(commandCenterSource.includes('role="alert"'));
+  assert.ok(commandCenterSource.includes("No hay visitas de campo disponibles."));
+  assert.ok(commandCenterSource.includes("No hay planes de ruta disponibles."));
+  assert.ok(commandCenterSource.includes("recentVisits.map((visit)"));
+  assert.ok(commandCenterSource.includes("recentPlans.map((plan)"));
 });
