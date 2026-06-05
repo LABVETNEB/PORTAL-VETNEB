@@ -487,7 +487,7 @@ export function AdminClinicsManagementCard() {
                     <TableRow
                       key={`${clinic.clinicId}-${user?.userId ?? "empty"}`}
                     >
-                      <TableCell className="min-w-[220px] align-top">
+                      <TableCell className="min-w-55 align-top">
                         <div className="space-y-2">
                           <Input
                             value={clinicDraft.clinicName}
@@ -509,7 +509,7 @@ export function AdminClinicsManagementCard() {
                         </div>
                       </TableCell>
 
-                      <TableCell className="min-w-[220px] align-top">
+                      <TableCell className="min-w-55 align-top">
                         <div className="space-y-2">
                           <Input
                             type="email"
@@ -544,7 +544,7 @@ export function AdminClinicsManagementCard() {
                         </div>
                       </TableCell>
 
-                      <TableCell className="min-w-[220px] align-top">
+                      <TableCell className="min-w-55 align-top">
                         {user && userDraft ? (
                           <div className="space-y-2">
                             <Input
