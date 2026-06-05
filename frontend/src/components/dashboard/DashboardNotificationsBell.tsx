@@ -52,6 +52,8 @@ export function DashboardNotificationsBell({
     (notification) => !notification.isRead,
   ).length;
   const unreadNotifications = notifications.filter((n) => !n.isRead);
+  const desktopPanelId = `dashboard-notifications-${surface}-panel`;
+  const mobilePanelId = `dashboard-notifications-${surface}-mobile-panel`;
   const desktopPanelTitleId = `dashboard-notifications-${surface}-title`;
   const mobilePanelTitleId = `dashboard-notifications-${surface}-mobile-title`;
 
@@ -295,7 +297,7 @@ export function DashboardNotificationsBell({
               <button
                 type="button"
                 aria-label="Cerrar panel de notificaciones"
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
                 onClick={handleClosePanel}
               >
                 <X className="h-4 w-4" aria-hidden="true" />
@@ -359,7 +361,7 @@ export function DashboardNotificationsBell({
               <button
                 type="button"
                 aria-label={`Abrir notificación: ${notification.title}`}
-                className="w-full cursor-pointer rounded-md border border-vetneb-line/70 bg-vetneb-surface-raised/78 px-3 py-2 text-left transition-colors hover:border-vetneb-teal/45 disabled:cursor-wait disabled:opacity-60"
+                className="w-full cursor-pointer rounded-md border border-vetneb-line/70 bg-vetneb-surface-raised/78 px-3 py-2 text-left transition-colors hover:border-vetneb-teal/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
                 onClick={() => void handleNotificationClick(notification)}
                 disabled={updatingNotificationId === notification.id}
               >
@@ -390,7 +392,10 @@ export function DashboardNotificationsBell({
       <button
         type="button"
         aria-label="Notificaciones"
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-card/95 text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground"
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? `${desktopPanelId} ${mobilePanelId}` : undefined}
+        className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-card/95 text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
         onClick={handleToggleOpen}
       >
         <Bell className="h-4 w-4" aria-hidden="true" />
@@ -403,6 +408,9 @@ export function DashboardNotificationsBell({
 
       {isOpen ? (
         <div
+          id={desktopPanelId}
+          role="dialog"
+          aria-labelledby={desktopPanelTitleId}
           className="absolute right-0 z-50 mt-2 hidden w-[min(28rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-vetneb-line/80 bg-card p-3 shadow-xl sm:block"
           data-dashboard-notifications-desktop-panel="true"
         >
@@ -421,6 +429,7 @@ export function DashboardNotificationsBell({
               onClick={handleClosePanel}
             >
               <div
+                id={mobilePanelId}
                 className="fixed inset-x-3 top-3 flex max-h-[calc(100vh-1.5rem)] flex-col overflow-hidden rounded-lg border border-vetneb-line/85 bg-card p-3 shadow-2xl"
                 data-dashboard-notifications-mobile-panel="true"
                 role="dialog"
@@ -477,7 +486,7 @@ export function DashboardNotificationsBell({
                     <button
                       type="button"
                       aria-label={`Abrir notificación: ${notification.title}`}
-                      className="w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-accent/50 disabled:cursor-wait disabled:opacity-60"
+                      className="w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
                       onClick={() => void handleNotificationClick(notification)}
                       disabled={updatingNotificationId === notification.id}
                     >
@@ -498,7 +507,7 @@ export function DashboardNotificationsBell({
                 <div className="border-t border-vetneb-line/50 px-4 py-2.5">
                   <button
                     type="button"
-                    className="text-xs font-semibold text-vetneb-teal hover:underline"
+                    className="text-xs font-semibold text-vetneb-teal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
                     onClick={() => {
                       setMobileBannerVisible(false);
                       setIsOpen(true);

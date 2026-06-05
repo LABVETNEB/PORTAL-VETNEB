@@ -52,9 +52,19 @@ test("MasterDetailWorkspace keeps reusable two-panel layout contract", () => {
   assert.ok(source.includes("detail: ReactNode;"));
   assert.ok(source.includes("emptyDetail?: ReactNode;"));
   assert.ok(source.includes("selectedId?: string | null;"));
+  assert.ok(source.includes("workspaceLabel?: string;"));
+  assert.ok(source.includes("masterLabel?: string;"));
+  assert.ok(source.includes("detailLabel?: string;"));
   assert.ok(source.includes("className?: string;"));
-  assert.ok(source.includes('aria-label="Panel maestro"'));
-  assert.ok(source.includes('aria-label="Panel de detalle"'));
+  assert.ok(source.includes('workspaceLabel = "Workspace maestro detalle"'));
+  assert.ok(source.includes('masterLabel = "Panel maestro"'));
+  assert.ok(source.includes('detailLabel = "Panel de detalle"'));
+  assert.ok(source.includes("aria-label={workspaceLabel}"));
+  assert.ok(source.includes("aria-label={masterLabel}"));
+  assert.ok(source.includes("aria-label={detailLabel}"));
+  assert.ok(source.includes('data-detail-state={hasSelection ? "selected" : "empty"}'));
+  assert.ok(source.includes('aria-live="polite"'));
+  assert.ok(source.includes("Sin detalle seleccionado"));
   assert.ok(source.includes("xl:grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)]"));
   assert.ok(source.includes("overflow-x-hidden"));
   assert.ok(source.includes("xl:max-h-[calc(100vh-13rem)]"));
@@ -68,6 +78,8 @@ test("StudyTimeline supports ordered visual states without business calculations
 
   assert.ok(source.includes("export type StudyTimelineStep = {"));
   assert.ok(source.includes("steps: StudyTimelineStep[];"));
+  assert.ok(source.includes("ariaLabel?: string;"));
+  assert.ok(source.includes('ariaLabel = "Línea de tiempo del estudio"'));
   assert.ok(source.includes('"completed"'));
   assert.ok(source.includes('"current"'));
   assert.ok(source.includes('"pending"'));
@@ -85,6 +97,9 @@ test("StudyTimeline supports ordered visual states without business calculations
   assert.ok(source.includes("icon: AlertTriangle"));
   assert.ok(source.includes("icon: XCircle"));
   assert.ok(source.includes("{config.label}"));
+  assert.ok(source.includes('<span className="sr-only">Estado: </span>'));
+  assert.ok(source.includes('aria-current={step.status === "current" ? "step" : undefined}'));
+  assert.ok(source.includes("aria-label={`${step.label}. Estado: ${config.label}. Fecha: ${"));
   assert.ok(source.includes('{step.date ?? "Pendiente"}'));
   assert.ok(source.includes("steps.map((step, index) =>"));
   assert.ok(source.includes("data-timeline-status={step.status}"));

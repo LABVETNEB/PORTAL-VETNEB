@@ -6,6 +6,9 @@ export type MasterDetailWorkspaceProps = {
   detail: ReactNode;
   emptyDetail?: ReactNode;
   selectedId?: string | null;
+  workspaceLabel?: string;
+  masterLabel?: string;
+  detailLabel?: string;
   className?: string;
 };
 
@@ -14,6 +17,9 @@ export function MasterDetailWorkspace({
   detail,
   emptyDetail,
   selectedId,
+  workspaceLabel = "Workspace maestro detalle",
+  masterLabel = "Panel maestro",
+  detailLabel = "Panel de detalle",
   className,
 }: MasterDetailWorkspaceProps) {
   const hasSelection = Boolean(selectedId);
@@ -25,9 +31,10 @@ export function MasterDetailWorkspace({
         className,
       )}
       data-selected-id={selectedId ?? undefined}
+      aria-label={workspaceLabel}
     >
       <div
-        aria-label="Panel maestro"
+        aria-label={masterLabel}
         className="min-w-0 overflow-hidden rounded-lg border border-vetneb-line/80 bg-card/95 shadow-sm"
       >
         <div className="max-h-none min-w-0 overflow-x-hidden overflow-y-visible xl:max-h-[calc(100vh-13rem)] xl:overflow-y-auto">
@@ -36,9 +43,15 @@ export function MasterDetailWorkspace({
       </div>
 
       <div
-        aria-label="Panel de detalle"
+        aria-label={detailLabel}
+        data-detail-state={hasSelection ? "selected" : "empty"}
         className="min-w-0 overflow-hidden rounded-lg border border-vetneb-line/80 bg-card/95 shadow-sm"
       >
+        <p className="sr-only" aria-live="polite">
+          {hasSelection
+            ? `Detalle seleccionado: ${selectedId}`
+            : "Sin detalle seleccionado"}
+        </p>
         {hasSelection ? detail : emptyDetail ?? detail}
       </div>
     </section>

@@ -75,6 +75,7 @@ export function DashboardSidebarFrame({
                   ? "bg-sidebar-accent/90 text-sidebar-accent-foreground shadow-[0_10px_28px_rgba(8,35,50,0.24)] ring-1 ring-white/15"
                   : "text-sidebar-foreground/72 hover:bg-sidebar-accent/45 hover:text-sidebar-foreground",
               )}
+              aria-label={item.label}
               aria-current={isActive(item.href, item.exact) ? "page" : undefined}
             >
               <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -94,6 +95,7 @@ export function DashboardSidebarFrame({
                         ? "bg-sidebar-accent/80 text-sidebar-accent-foreground ring-1 ring-white/10"
                         : "text-sidebar-foreground/62 hover:bg-sidebar-accent/38 hover:text-sidebar-foreground",
                     )}
+                    aria-label={child.label}
                     aria-current={pathname === child.href ? "page" : undefined}
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
@@ -110,6 +112,7 @@ export function DashboardSidebarFrame({
         <PublicRouteControl
           href={ROUTES.home}
           variant="bare"
+          aria-label="Volver al sitio público"
           className="flex items-center justify-center gap-2 rounded-md px-2 py-2 text-xs text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar sm:justify-start sm:px-3"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />

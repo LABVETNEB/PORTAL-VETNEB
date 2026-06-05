@@ -1,7 +1,7 @@
 "use client";
 
 import { SlidersHorizontal, X } from "lucide-react";
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,33 @@ export function FilterDrawer({
   const titleId = useId();
   const descriptionId = useId();
   const panelId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const activeCountLabel =
+    activeCount === 0
+      ? "Sin filtros activos"
+      : activeCount === 1
+        ? "1 filtro activo"
+        : `${activeCount} filtros activos`;
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    panelRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
 
   return (
     <div className={cn("min-w-0", className)}>
@@ -39,6 +66,7 @@ export function FilterDrawer({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={panelId}
+        aria-label={`${triggerLabel}. ${activeCountLabel}`}
         onClick={() => setOpen(true)}
         className="w-full focus-visible:ring-2 focus-visible:ring-ring/85 sm:w-auto"
       >
@@ -49,6 +77,7 @@ export function FilterDrawer({
             {activeCount}
           </span>
         ) : null}
+        <span className="sr-only">{activeCountLabel}</span>
       </Button>
 
       {open ? (
@@ -59,10 +88,12 @@ export function FilterDrawer({
           />
           <div
             id={panelId}
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
+            tabIndex={-1}
             className="absolute right-0 top-0 flex h-dvh w-full max-w-md flex-col overflow-hidden border-l border-vetneb-line/80 bg-card shadow-lg"
           >
             <div className="flex items-start justify-between gap-4 border-b border-vetneb-line/80 px-4 py-4">
@@ -80,6 +111,7 @@ export function FilterDrawer({
                 type="button"
                 variant="ghost"
                 size="sm"
+                aria-label="Cerrar panel de filtros"
                 onClick={() => setOpen(false)}
                 className="shrink-0 focus-visible:ring-2 focus-visible:ring-ring/85"
               >

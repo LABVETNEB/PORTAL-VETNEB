@@ -26,6 +26,7 @@ export type StudyTimelineStep = {
 export type StudyTimelineProps = {
   steps: StudyTimelineStep[];
   compact?: boolean;
+  ariaLabel?: string;
   className?: string;
 };
 
@@ -72,6 +73,7 @@ const TIMELINE_STATUS_CONFIG = {
 export function StudyTimeline({
   steps,
   compact = false,
+  ariaLabel = "Línea de tiempo del estudio",
   className,
 }: StudyTimelineProps) {
   return (
@@ -81,7 +83,7 @@ export function StudyTimeline({
         compact ? "text-sm" : "text-base",
         className,
       )}
-      aria-label="Línea de tiempo del estudio"
+      aria-label={ariaLabel}
     >
       {steps.map((step, index) => {
         const config = TIMELINE_STATUS_CONFIG[step.status];
@@ -91,6 +93,10 @@ export function StudyTimeline({
         return (
           <li
             key={step.id}
+            aria-current={step.status === "current" ? "step" : undefined}
+            aria-label={`${step.label}. Estado: ${config.label}. Fecha: ${
+              step.date ?? "Pendiente"
+            }`}
             className="grid grid-cols-[auto_minmax(0,1fr)] gap-3"
             data-timeline-status={step.status}
           >
@@ -120,6 +126,7 @@ export function StudyTimeline({
                     config.markerClassName,
                   )}
                 >
+                  <span className="sr-only">Estado: </span>
                   {config.label}
                 </span>
               </div>
