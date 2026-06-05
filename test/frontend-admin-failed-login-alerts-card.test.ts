@@ -45,7 +45,7 @@ test("admin failed login alerts card keeps surface reason and nullable formatter
   assert.ok(source.includes("function formatReason(value: AdminFailedLoginAlertReason)"));
   assert.ok(source.includes('if (value === "missing_credentials") return "Credenciales faltantes";'));
   assert.ok(source.includes('if (value === "invalid_credentials") return "Credenciales inválidas";'));
-  assert.ok(source.includes('return "Rate limit";'));
+  assert.ok(source.includes('return "Bloqueo temporal";'));
   assert.ok(source.includes("function formatNullable(value: string | null)"));
   assert.ok(source.includes('return value && value.trim() ? value : "—";'));
 });

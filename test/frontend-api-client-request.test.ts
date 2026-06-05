@@ -84,7 +84,8 @@ test("frontend API client surfaces backend errors safely", () => {
   assert.ok(source.includes("retryAfterSeconds?: unknown;"));
   assert.ok(source.includes("const backendMessage ="));
   assert.ok(source.includes("if (res.status === 429) {"));
-  assert.ok(source.includes("buildRateLimitErrorMessage(backendMessage, retryAfterSeconds)"));
+  assert.ok(source.includes("buildRateLimitErrorMessage(retryAfterSeconds)"));
+  assert.equal(source.includes("buildRateLimitErrorMessage(backendMessage,"), false);
   assert.ok(source.includes("if (backendMessage) {"));
   assert.ok(source.includes("throw new Error(backendMessage);"));
   assert.ok(source.includes("if (res.status >= 500) {"));
@@ -96,7 +97,8 @@ test("frontend API client formats 429 rate-limit guidance from headers or JSON m
   const source = read(API_CLIENT_PATH);
 
   assert.ok(source.includes("export const LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE ="));
-  assert.ok(source.includes("Demasiados intentos de inicio de sesión. Intentá nuevamente más tarde."));
+  assert.ok(source.includes("Acceso temporalmente restringido. Intent"));
+  assert.equal(source.includes("Demasiados intentos"), false);
   assert.equal(source.includes("LOGIN_RATE_LIMIT_HEADERS_MISSING_MESSAGE"), false);
   assert.equal(source.includes("El backend no informó cuándo reintentar"), false);
   assert.equal(source.includes("const LOGIN_RATE_LIMIT_REQUIRED_HEADERS ="), false);

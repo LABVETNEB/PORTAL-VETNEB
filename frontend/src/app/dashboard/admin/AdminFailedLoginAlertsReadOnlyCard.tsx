@@ -40,7 +40,7 @@ function formatSurface(value: AdminFailedLoginAlertSurface) {
 function formatReason(value: AdminFailedLoginAlertReason) {
   if (value === "missing_credentials") return "Credenciales faltantes";
   if (value === "invalid_credentials") return "Credenciales inválidas";
-  return "Rate limit";
+  return "Bloqueo temporal";
 }
 
 function getSurfaceVariant(
@@ -208,7 +208,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
               <option value="all">Todos</option>
               <option value="missing_credentials">Credenciales faltantes</option>
               <option value="invalid_credentials">Credenciales inválidas</option>
-              <option value="rate_limited">Rate limit</option>
+              <option value="rate_limited">Bloqueo temporal</option>
             </select>
           </label>
 

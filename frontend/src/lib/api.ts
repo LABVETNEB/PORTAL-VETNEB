@@ -59,7 +59,7 @@ export const BACKEND_OPERATION_ERROR_MESSAGE =
 export const ADMIN_SCHEMA_HEALTH_UNAUTHORIZED_MESSAGE =
   "Sesión admin no autenticada o inválida. Iniciá sesión nuevamente.";
 export const LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE =
-  "Demasiados intentos de inicio de sesión. Intentá nuevamente más tarde.";
+  "Acceso temporalmente restringido. Intentá nuevamente más tarde.";
 
 function isLocalOrLanHostname(hostname: string): boolean {
   const normalizedHost = hostname.trim().toLowerCase();
@@ -194,10 +194,9 @@ function readRetryAfterSeconds(
 }
 
 function buildRateLimitErrorMessage(
-  backendMessage: string | null,
   retryAfterSeconds: number | null,
 ): string {
-  const baseMessage = backendMessage ?? LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE;
+  const baseMessage = LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE;
 
   if (retryAfterSeconds === null || retryAfterSeconds === 0) {
     return baseMessage;
@@ -273,7 +272,7 @@ async function apiFetch<T>(
       const retryAfterSeconds = readRetryAfterSeconds(res.headers, body);
 
       throw new RateLimitError(
-        buildRateLimitErrorMessage(backendMessage, retryAfterSeconds),
+        buildRateLimitErrorMessage(retryAfterSeconds),
         retryAfterSeconds,
       );
     }
