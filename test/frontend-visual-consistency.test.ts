@@ -18,6 +18,8 @@ const ADMIN_DASHBOARD_SIDEBAR_PATH =
 const DASHBOARD_TOPBAR_PATH = "frontend/src/components/dashboard/DashboardTopbar.tsx";
 const DASHBOARD_HOME_PATH = "frontend/src/app/dashboard/page.tsx";
 const DASHBOARD_ADMIN_PATH = "frontend/src/app/dashboard/admin/page.tsx";
+const DASHBOARD_ADMIN_COMMAND_CENTER_PATH =
+  "frontend/src/app/dashboard/admin/AdminCommandCenter.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -426,15 +428,24 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
 
 test("dashboard admin keeps dense professional layout and visual state surfaces", () => {
   const source = read(DASHBOARD_ADMIN_PATH);
+  const commandCenterSource = read(DASHBOARD_ADMIN_COMMAND_CENTER_PATH);
+  const combinedSource = `${source}\n${commandCenterSource}`;
 
   assertContainsAll(
     source,
     [
       '<main className="dashboard-main">',
+      "<DashboardPageHeader",
+      "<StickyActionBar",
+      "<AdminCommandCenter",
       "<AdminMaintenanceDryRunCard />",
       "<AdminSessionsReadOnlyCard />",
       "<AdminFailedLoginAlertsReadOnlyCard />",
       "<AdminUsersRolesReadOnlyCard />",
+      "Alertas críticas",
+      "Gestión",
+      "Sistema",
+      "Configuración secundaria",
       'id="audit-log"',
       'id="audit-role-changes"',
       "getSystemStatusIndicatorClass(",
@@ -443,7 +454,7 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
   );
 
   assertMatchesAll(
-    source,
+    combinedSource,
     [
       /className="grid grid-cols-1 gap-4 md:grid-cols-3"/,
       /className="dashboard-surface h-full"/,
