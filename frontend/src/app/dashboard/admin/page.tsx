@@ -658,7 +658,7 @@ export default async function AdminPage({
           >
             <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-vetneb-navy">
+                <p className="text-xs font-semibold uppercase tracking-widest text-vetneb-navy">
                   Panel administrador
                 </p>
                 <h2 className="mt-2 text-xl font-semibold text-vetneb-ink">
@@ -884,7 +884,7 @@ export default async function AdminPage({
                             ? `${entry.targetType} #${entry.targetId}`
                             : "—"}
                         </TableCell>
-                        <TableCell className="max-w-md whitespace-normal break-words text-xs text-muted-foreground">
+                        <TableCell className="max-w-md whitespace-normal wrap-break-word text-xs text-muted-foreground">
                           {getAuditMetadataSummary(entry)}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
