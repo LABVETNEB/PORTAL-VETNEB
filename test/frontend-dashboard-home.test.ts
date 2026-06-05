@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
+const CLINIC_COMMAND_CENTER_PATH = "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -17,11 +18,12 @@ test("dashboard home defines non-indexable clinic metadata and imports live depe
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
   assert.ok(source.includes('import { cookies } from "next/headers";'));
-  assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('title: "Dashboard Clínica — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
-  assert.ok(source.includes('import { StatsCards } from "@/components/dashboard/StatsCards";'));
+  assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
+  assert.ok(source.includes('StickyActionBar') && source.includes('@/components/dashboard/StickyActionBar'));
+  assert.ok(source.includes('import { ClinicCommandCenter } from "./ClinicCommandCenter";'));
   assert.ok(source.includes('import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";'));
 });
 
@@ -55,16 +57,71 @@ test("dashboard home reads stats reports and field visits through API helpers", 
   assert.ok(source.includes("const recentVisits = visits.slice(0, 3);"));
 });
 
-test("dashboard home renders clinic operational summary, stats, reports, and field visits", () => {
+test("dashboard home renders command center structure with header, sticky actions, and clinic sections", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
   assert.ok(source.includes('title="Dashboard Clínica"'));
   assert.ok(source.includes('subtitle="Resumen operativo clínica"'));
   assert.ok(source.includes('notifications="clinic"'));
+  assert.ok(source.includes('title="Centro de operaciones"'));
+  assert.ok(source.includes('<DashboardPageHeader'));
+  assert.ok(source.includes('<StickyActionBar'));
+  assert.ok(source.includes('context="Acciones rápidas"'));
+  assert.ok(source.includes('href: ROUTES.dashboardInformes'));
+  assert.ok(source.includes('href: ROUTES.dashboardLogisticaVisitas'));
+  assert.ok(source.includes('<ClinicCommandCenter'));
+  assert.ok(source.includes('stats={stats}'));
+  assert.ok(source.includes('statsLoadError={statsLoadError}'));
+  assert.ok(source.includes('recentReports={recentReports}'));
+  assert.ok(source.includes('recentVisits={recentVisits}'));
+  assert.ok(source.includes('reportsLoadError={reportsLoadError}'));
+  assert.ok(source.includes('visitsLoadError={visitsLoadError}'));
+  assert.ok(source.includes('<ClinicPublicProfileCard />'));
+  assert.ok(source.includes('<ClinicParticularTokensCard />'));
+  assert.equal(
+    source.includes("Lectura conectada a datos operativos clinic-" + "scoped"),
+    false,
+  );
+});
+
+test("dashboard home page layout order: header before sticky actions before command center", () => {
+  const source = read(DASHBOARD_PAGE_PATH);
+
+  const mainIndex = source.indexOf('<main className="dashboard-main">');
+  const pageHeaderIndex = source.indexOf('<DashboardPageHeader');
+  const stickyBarIndex = source.indexOf('<StickyActionBar');
+  const commandCenterIndex = source.indexOf('<ClinicCommandCenter');
+  const clinicPublicIndex = source.indexOf('<ClinicPublicProfileCard />');
+
+  assert.ok(mainIndex >= 0);
+  assert.ok(pageHeaderIndex >= 0);
+  assert.ok(stickyBarIndex >= 0);
+  assert.ok(commandCenterIndex >= 0);
+  assert.ok(clinicPublicIndex >= 0);
+  assert.ok(mainIndex < pageHeaderIndex);
+  assert.ok(pageHeaderIndex < stickyBarIndex);
+  assert.ok(stickyBarIndex < commandCenterIndex);
+  assert.ok(commandCenterIndex < clinicPublicIndex);
+});
+
+test("dashboard home clinic command center receives all required data props", () => {
+  const source = read(DASHBOARD_PAGE_PATH);
+
+  assert.ok(source.includes('import { ClinicCommandCenter } from "./ClinicCommandCenter";'));
+  assert.ok(source.includes('<ClinicCommandCenter'));
+  assert.ok(source.includes('stats={stats}'));
+  assert.ok(source.includes('statsLoadError={statsLoadError}'));
+  assert.ok(source.includes('recentReports={recentReports}'));
+  assert.ok(source.includes('recentVisits={recentVisits}'));
+  assert.ok(source.includes('reportsLoadError={reportsLoadError}'));
+  assert.ok(source.includes('visitsLoadError={visitsLoadError}'));
+});
+
+test("dashboard home clinic command center presentational props contain operational section strings", () => {
+  const source = read(CLINIC_COMMAND_CENTER_PATH);
+
   assert.ok(source.includes("Estado operativo clínica"));
   assert.ok(source.includes("Priorice informes pendientes y visitas activas"));
-  assert.ok(source.includes("statsLoadError ?"));
-  assert.ok(source.includes("No se pudieron cargar las métricas operativas. Intente nuevamente."));
   assert.ok(source.includes("<StatsCards stats={stats} />"));
   assert.ok(source.includes("Informes recientes"));
   assert.ok(source.includes("Visitas de campo"));
@@ -75,65 +132,29 @@ test("dashboard home renders clinic operational summary, stats, reports, and fie
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("No hay informes recientes disponibles."));
   assert.ok(source.includes("No hay visitas de campo recientes disponibles."));
-  assert.equal(
-    source.includes("Lectura conectada a datos operativos clinic-" + "scoped"),
-    false,
-  );
 });
 
-test("dashboard home keeps status badges and date formatting wired", () => {
-  const source = read(DASHBOARD_PAGE_PATH);
+test("dashboard home keeps status badge and date formatting in clinic command center", () => {
+  const source = read(CLINIC_COMMAND_CENTER_PATH);
 
-  assert.ok(source.includes("getReportStatusVariant(report.status)"));
-  assert.ok(source.includes("getReportStatusLabel(report.status)"));
-  assert.ok(source.includes("getFieldVisitStatusVariant(visit.status)"));
-  assert.ok(source.includes("getFieldVisitStatusLabel(visit.status)"));
+  assert.ok(source.includes('import { StatusBadge } from "@/components/dashboard/StatusBadge";'));
+  assert.ok(source.includes("status={report.status}"));
+  assert.ok(source.includes("status={visit.status}"));
+  assert.ok(source.includes('import { formatDate } from "@/lib/utils";'));
   assert.ok(source.includes("formatDate(report.uploadDate)"));
   assert.ok(source.includes("formatDate(visit.scheduledAt)"));
 });
 
-test("dashboard home removes horizontal quick actions and preserves clinic sections", () => {
+test("dashboard home no longer contains quick action tiles or horizontal nav removed in prior PR", () => {
   const source = read(DASHBOARD_PAGE_PATH);
   const quickActionsTitle = ["Accesos", "rápidos"].join(" ");
-  const quickActionsDescription = [
-    "Acciones frecuentes",
-    "para operación clínica diaria.",
-  ].join(" ");
   const removedSnippets = [
     quickActionsTitle,
-    quickActionsDescription,
     'label: "Informes", href: ROUTES.dashboardInformes',
-    'label: "Visitas"',
-    'label: "Rutas"',
-    'label: "Tokens"',
-    'label: "Perfil"',
     `xl:grid-cols-${5}`,
   ];
 
   for (const snippet of removedSnippets) {
     assert.equal(source.includes(snippet), false);
   }
-
-  assert.ok(source.includes("Estado operativo clínica"));
-  assert.ok(source.includes("Métricas operativas"));
-  assert.ok(source.includes("Informes recientes"));
-  assert.ok(source.includes("Visitas de campo"));
-
-  const mainIndex = source.indexOf('<main className="dashboard-main">');
-  const operationalStatusIndex = source.indexOf("Estado operativo clínica");
-  const metricsIndex = source.indexOf("Métricas operativas");
-
-  assert.ok(mainIndex >= 0);
-  assert.ok(operationalStatusIndex >= 0);
-  assert.ok(metricsIndex >= 0);
-  assert.ok(mainIndex < operationalStatusIndex);
-  assert.ok(operationalStatusIndex < metricsIndex);
-  assert.equal(
-    source.slice(mainIndex, operationalStatusIndex).includes(quickActionsTitle),
-    false,
-  );
-  assert.equal(
-    source.slice(mainIndex, operationalStatusIndex).includes("dashboard-surface"),
-    false,
-  );
 });

@@ -48,7 +48,6 @@ test("frontend dashboard page uses API client wrappers", () => {
   assertIncludes(source, "let statsLoadError = false;", dashboardPage);
   assertIncludes(source, "stats = await getDashboardStats(requestOptions);", dashboardPage);
   assertIncludes(source, "statsLoadError = true;", dashboardPage);
-  assertIncludes(source, "No se pudieron cargar las métricas operativas. Intente nuevamente.", dashboardPage);
   assertIncludes(source, "let reports: Awaited<ReturnType<typeof getReports>> = [];", dashboardPage);
   assertIncludes(source, "let reportsLoadError = false;", dashboardPage);
   assertIncludes(source, "let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];", dashboardPage);
@@ -56,6 +55,16 @@ test("frontend dashboard page uses API client wrappers", () => {
   assertIncludes(source, "getReports(requestOptions, undefined, {", dashboardPage);
   assertIncludes(source, "getLogisticsFieldVisits(requestOptions, {", dashboardPage);
   assertIncludes(source, "throwOnError: true,", dashboardPage);
+});
+
+test("frontend dashboard clinic command center exposes load error messages", () => {
+  const clinicCommandCenterPath = "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
+  const source = read(clinicCommandCenterPath);
+
+  assertIncludes(source, "No se pudieron cargar las métricas operativas. Intente nuevamente.", clinicCommandCenterPath);
+  assertIncludes(source, "statsLoadError ?", clinicCommandCenterPath);
+  assertIncludes(source, "reportsLoadError ?", clinicCommandCenterPath);
+  assertIncludes(source, "visitsLoadError ?", clinicCommandCenterPath);
 });
 
 test("frontend dashboard page forces dynamic server reads with forwarded cookies", () => {
