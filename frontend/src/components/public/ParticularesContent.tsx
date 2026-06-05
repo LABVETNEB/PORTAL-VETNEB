@@ -773,6 +773,12 @@ export function ParticularesContent() {
                         <p className="text-xs text-muted-foreground">
                           Actualizado: {formatDate(trackingCase.updatedAt)}
                         </p>
+                        <p className="text-xs text-muted-foreground">
+                          Entrega en laboratorio: {formatDate(trackingCase.receptionAt)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Estimación informe: {formatDate(trackingCase.estimatedDeliveryAt)}
+                        </p>
                         {trackingCase.specialStainRequired ? (
                           <div className="space-y-3">
                             <div className="clinical-alert-warning p-3 text-sm">
@@ -826,6 +832,12 @@ export function ParticularesContent() {
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Actualizado: {formatDate(trackingCase.updatedAt)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Entrega en laboratorio: {formatDate(trackingCase.receptionAt)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Estimación informe: {formatDate(trackingCase.estimatedDeliveryAt)}
                         </p>
                         {trackingCase.specialStainRequired ? (
                           <div className="space-y-3">

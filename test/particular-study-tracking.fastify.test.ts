@@ -130,6 +130,16 @@ test("particularStudyTrackingNativeRoutes expone GET /me con seguimiento del tok
     assert.equal(body.trackingCase.id, 11);
     assert.equal(body.trackingCase.particularTokenId, 7);
     assert.equal(body.trackingCase.specialStainRequired, true);
+    assert.equal(
+      body.trackingCase.receptionAt,
+      "2026-04-20T00:00:00.000Z",
+      "receptionAt debe exponerse al particular autenticado",
+    );
+    assert.equal(
+      body.trackingCase.estimatedDeliveryAt,
+      "2026-05-11T00:00:00.000Z",
+      "estimatedDeliveryAt debe exponerse al particular autenticado",
+    );
   } finally {
     await app.close();
   }

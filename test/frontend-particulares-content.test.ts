@@ -252,6 +252,27 @@ test("particulares content arma mensajes de tincion especial con contexto dinami
   assert.ok(emailBlock.includes("encodeURIComponent(message)"));
 });
 
+test("particulares content muestra receptionAt y estimatedDeliveryAt en seguimiento", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(
+    source.includes("Entrega en laboratorio:"),
+    "tracking section must show 'Entrega en laboratorio:'",
+  );
+  assert.ok(
+    source.includes("trackingCase.receptionAt"),
+    "tracking section must use trackingCase.receptionAt",
+  );
+  assert.ok(
+    source.includes("Estimación informe:"),
+    "tracking section must show 'Estimación informe:'",
+  );
+  assert.ok(
+    source.includes("trackingCase.estimatedDeliveryAt"),
+    "tracking section must use trackingCase.estimatedDeliveryAt",
+  );
+});
+
 test("particulares content omite datos ausentes y sensibles en mensaje de tincion especial", () => {
   const source = read(PARTICULARES_CONTENT_PATH);
   const valueBlock = extractFunctionBlock(
