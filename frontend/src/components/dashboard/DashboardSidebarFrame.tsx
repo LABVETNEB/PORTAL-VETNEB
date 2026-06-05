@@ -44,9 +44,10 @@ export function DashboardSidebarFrame({
 
   return (
     <aside
+      role="navigation"
       className="sticky top-0 flex h-dvh w-[4.5rem] shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground sm:w-64"
       data-dashboard-sidebar-polish="true"
-      aria-label="Navegación del dashboard"
+      aria-label="Navegación principal"
     >
       <div className="flex items-center justify-center gap-3 border-b border-sidebar-border px-2 py-5 sm:justify-start sm:px-6">
         <div className="flex h-9 w-9 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_14px_34px_hsl(var(--sidebar-primary)/0.22)] ring-1 ring-white/20">
@@ -69,7 +70,7 @@ export function DashboardSidebarFrame({
               href={item.href}
               variant="bare"
               className={cn(
-                "flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-semibold transition-colors sm:justify-start sm:px-3",
+                "flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar sm:justify-start sm:px-3",
                 isActive(item.href, item.exact)
                   ? "bg-sidebar-accent/90 text-sidebar-accent-foreground shadow-[0_10px_28px_rgba(8,35,50,0.24)] ring-1 ring-white/15"
                   : "text-sidebar-foreground/72 hover:bg-sidebar-accent/45 hover:text-sidebar-foreground",
@@ -88,7 +89,7 @@ export function DashboardSidebarFrame({
                     href={child.href}
                     variant="bare"
                     className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                      "flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar",
                       pathname === child.href
                         ? "bg-sidebar-accent/80 text-sidebar-accent-foreground ring-1 ring-white/10"
                         : "text-sidebar-foreground/62 hover:bg-sidebar-accent/38 hover:text-sidebar-foreground",
@@ -109,7 +110,7 @@ export function DashboardSidebarFrame({
         <PublicRouteControl
           href={ROUTES.home}
           variant="bare"
-          className="flex items-center justify-center gap-2 rounded-md px-2 py-2 text-xs text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground sm:justify-start sm:px-3"
+          className="flex items-center justify-center gap-2 rounded-md px-2 py-2 text-xs text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar sm:justify-start sm:px-3"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="hidden sm:inline">Volver al sitio público</span>

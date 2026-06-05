@@ -1,9 +1,9 @@
-import { DashboardShellRouter } from "@/components/dashboard/DashboardShellRouter";
+import { PrivateDashboardShell } from "@/components/dashboard/PrivateDashboardShell";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <DashboardShellRouter>{children}</DashboardShellRouter>;
+  return <PrivateDashboardShell>{children}</PrivateDashboardShell>;
 }
