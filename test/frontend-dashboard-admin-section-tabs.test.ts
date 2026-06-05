@@ -70,9 +70,12 @@ test("AdminSectionTabs uses buttons and accessible tab semantics without links",
   assert.ok(source.includes('type="button"'));
   assert.ok(source.includes("aria-selected"));
   assert.ok(source.includes("aria-controls"));
+  assert.ok(source.includes('aria-orientation="horizontal"'));
   assert.ok(source.includes("focus-visible"));
   assert.ok(source.includes("overflow-x-auto"));
   assert.ok(source.includes("onKeyDown"));
+  assert.ok(source.includes('event.key === "Home"'));
+  assert.ok(source.includes('event.key === "End"'));
   assert.equal(source.includes('from "next/link"'), false);
   assert.equal(source.includes("<Link"), false);
   assert.equal(source.includes("<a"), false);

@@ -18,6 +18,7 @@ export function DashboardTopbar({
       className="sticky top-0 z-40 flex min-h-[4.5rem] items-center justify-between border-b border-vetneb-line/80 bg-card/90 px-4 py-2.5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/78 sm:px-6"
       data-dashboard-topbar-polish="true"
       aria-label="Barra superior del dashboard"
+      aria-labelledby="dashboard-topbar-title"
     >
       <div className="min-w-0">
         <div className="mb-1 hidden items-center gap-2 sm:flex">
@@ -32,7 +33,10 @@ export function DashboardTopbar({
             Sesión clínica segura
           </span>
         </div>
-        <h1 className="truncate text-xl font-semibold leading-tight text-vetneb-ink sm:text-2xl">
+        <h1
+          id="dashboard-topbar-title"
+          className="truncate text-xl font-semibold leading-tight text-vetneb-ink sm:text-2xl"
+        >
           {title}
         </h1>
         {subtitle && (

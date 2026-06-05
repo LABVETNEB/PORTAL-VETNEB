@@ -93,15 +93,20 @@ export function AdminSectionTabs({
   ) => {
     const isForwardKey = event.key === "ArrowRight" || event.key === "ArrowDown";
     const isBackwardKey = event.key === "ArrowLeft" || event.key === "ArrowUp";
+    const isHomeKey = event.key === "Home";
+    const isEndKey = event.key === "End";
 
-    if (!isForwardKey && !isBackwardKey) {
+    if (!isForwardKey && !isBackwardKey && !isHomeKey && !isEndKey) {
       return;
     }
 
     event.preventDefault();
     const direction = isForwardKey ? 1 : -1;
-    const nextTabIndex =
-      (tabIndex + direction + availableTabs.length) % availableTabs.length;
+    const nextTabIndex = isHomeKey
+      ? 0
+      : isEndKey
+        ? availableTabs.length - 1
+        : (tabIndex + direction + availableTabs.length) % availableTabs.length;
     const nextTab = availableTabs[nextTabIndex];
 
     setActiveTabId(nextTab.id);
@@ -118,6 +123,7 @@ export function AdminSectionTabs({
       <div
         role="tablist"
         aria-label="Secciones de administración"
+        aria-orientation="horizontal"
         className="flex max-w-full gap-1 overflow-x-auto rounded-md border border-vetneb-line/80 bg-card/80 p-1"
       >
         {availableTabs.map((tab, index) => {

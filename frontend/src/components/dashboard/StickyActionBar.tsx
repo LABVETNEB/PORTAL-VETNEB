@@ -38,7 +38,8 @@ export function StickyActionBar({
   };
 
   return (
-    <div
+    <section
+      aria-label={context ? `${context} del dashboard` : "Acciones del dashboard"}
       className={cn(
         "fixed inset-x-0 bottom-0 z-50 border-t border-vetneb-line/80 bg-card/95 px-3 py-3 shadow-md backdrop-blur md:sticky md:top-[4.75rem] md:bottom-auto md:rounded-lg md:border md:px-4 md:shadow-sm",
         className,
@@ -51,9 +52,17 @@ export function StickyActionBar({
             {context}
           </p>
         ) : null}
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
+        <div
+          role="group"
+          aria-label={context ? `Acciones: ${context}` : "Acciones rápidas"}
+          className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end"
+        >
           {children ? (
-            <div className="col-span-2 flex justify-start sm:justify-end">
+            <div
+              role="group"
+              aria-label="Acciones contextuales"
+              className="col-span-2 flex justify-start sm:justify-end"
+            >
               {children}
             </div>
           ) : null}
@@ -93,6 +102,6 @@ export function StickyActionBar({
           })}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
