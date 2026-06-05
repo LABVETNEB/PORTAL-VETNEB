@@ -5,11 +5,16 @@ import { FileText, ListChecks } from "lucide-react";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorState } from "@/components/dashboard/ErrorState";
+import { FilterDrawer } from "@/components/dashboard/FilterDrawer";
 import { MasterDetailWorkspace } from "@/components/dashboard/MasterDetailWorkspace";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import {
+  StickyFilterBar,
+  type ActiveFilter,
+} from "@/components/dashboard/StickyFilterBar";
 import {
   StickyActionBar,
   type StickyActionBarAction,
@@ -77,6 +82,35 @@ function normalizeReportIdFilter(value: string) {
   const reportId = Number(value);
 
   return Number.isInteger(reportId) && reportId > 0 ? reportId : null;
+}
+
+function getStatusFilterLabel(value: string) {
+  return statusOptions.find((option) => option.value === value)?.label ?? value;
+}
+
+function buildActiveFilters(input: {
+  query: string;
+  status: string;
+  studyType: string;
+}): ActiveFilter[] {
+  const activeFilters: ActiveFilter[] = [];
+
+  if (input.query) {
+    activeFilters.push({ label: "Búsqueda", value: input.query });
+  }
+
+  if (input.status) {
+    activeFilters.push({
+      label: "Estado",
+      value: getStatusFilterLabel(input.status),
+    });
+  }
+
+  if (input.studyType) {
+    activeFilters.push({ label: "Tipo de estudio", value: input.studyType });
+  }
+
+  return activeFilters;
 }
 
 function buildInformesHref(input: {
@@ -229,6 +263,7 @@ export default async function InformesPage({
   const selectedReportTimelineSteps = selectedReport
     ? buildStudyTimelineSteps(selectedReport)
     : [];
+  const activeFilters = buildActiveFilters({ query, status, studyType });
   const stickyActions = [
     {
       label: "Lista",
@@ -284,6 +319,66 @@ export default async function InformesPage({
           ) : null}
         </StickyActionBar>
 
+        <StickyFilterBar
+          title="Filtros"
+          activeFilters={activeFilters}
+          drawer={
+            <FilterDrawer
+              title="Filtros de informes"
+              description="Búsqueda por paciente o tipo de estudio, y estado operativo."
+              triggerLabel="Filtrar informes"
+              activeCount={activeFilters.length}
+            >
+              <form method="get" className="space-y-4">
+                <label className="block">
+                  <span className="text-sm font-semibold text-vetneb-ink">
+                    Buscar
+                  </span>
+                  <Input
+                    name="query"
+                    defaultValue={query}
+                    placeholder="Buscar por paciente o tipo de estudio..."
+                    className="mt-1 min-w-0"
+                    aria-label="Buscar informes"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-semibold text-vetneb-ink">
+                    Estado
+                  </span>
+                  <select
+                    name="status"
+                    defaultValue={status}
+                    className="field-select mt-1"
+                    aria-label="Filtrar por estado"
+                  >
+                    {statusOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                  <PublicRouteControl
+                    href="/dashboard/informes"
+                    replace
+                    variant="bare"
+                    className="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-semibold text-foreground/80 transition-[background-color,color] duration-150 hover:bg-accent/70 hover:text-accent-foreground"
+                  >
+                    Limpiar
+                  </PublicRouteControl>
+                  <Button type="submit" size="sm">
+                    Filtrar
+                  </Button>
+                </div>
+              </form>
+            </FilterDrawer>
+          }
+        />
+
         <MasterDetailWorkspace
           selectedId={selectedReportIdValue}
           master={
@@ -293,46 +388,9 @@ export default async function InformesPage({
                   Informes ({reports.length})
                 </h2>
                 <p className="dashboard-section-description">
-                  Lista clinic-scoped con filtros existentes y selección de detalle.
+                  Lista clinic-scoped con selección de detalle.
                 </p>
               </div>
-
-              <form method="get" className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_14rem] lg:grid-cols-1">
-                  <Input
-                    name="query"
-                    defaultValue={query}
-                    placeholder="Buscar por paciente o tipo de estudio..."
-                    className="min-w-0"
-                    aria-label="Buscar informes"
-                  />
-                  <select
-                    name="status"
-                    defaultValue={status}
-                    className="field-select"
-                    aria-label="Filtrar por estado"
-                  >
-                    {statusOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button type="submit" size="sm">
-                    Filtrar
-                  </Button>
-                  <PublicRouteControl
-                    href="/dashboard/informes"
-                    replace
-                    variant="bare"
-                    className="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-semibold text-foreground/80 transition-[background-color,color] duration-150 hover:bg-accent/70 hover:text-accent-foreground"
-                  >
-                    Limpiar
-                  </PublicRouteControl>
-                </div>
-              </form>
 
               <div className="min-w-0 overflow-x-auto rounded-lg border border-vetneb-line/70">
                 <Table>
