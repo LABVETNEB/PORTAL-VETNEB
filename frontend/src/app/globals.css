@@ -1268,7 +1268,10 @@
     isolation: isolate;
     overflow: hidden;
     color: hsl(var(--primary-foreground));
-    background: linear-gradient(90deg, #103C60 0%, #2B5B88 52%, #BFD6E0 100%);
+    background:
+      radial-gradient(circle at 88% 14%, rgba(44, 172, 171, 0.16), transparent 32%),
+      radial-gradient(circle at 8% 80%, rgba(20, 90, 130, 0.18), transparent 28%),
+      linear-gradient(90deg, #103C60 0%, #2B5B88 52%, #BFD6E0 100%);
   }
 }
 /* public-secondary-hero-surface:end */
@@ -1276,11 +1279,12 @@
 /* public-home-superpremium:start */
 @layer components {
   .public-navbar {
-    border-bottom: 1px solid hsl(var(--vetneb-line) / 0.66);
-    background: hsl(var(--card) / 0.88);
-    box-shadow: 0 10px 36px rgba(9, 39, 58, 0.08);
-    backdrop-filter: blur(18px) saturate(135%);
-    -webkit-backdrop-filter: blur(18px) saturate(135%);
+    position: relative;
+    border-bottom: 1px solid hsl(var(--vetneb-line) / 0.62);
+    background: hsl(var(--card) / 0.92);
+    box-shadow: 0 12px 40px rgba(9, 39, 58, 0.09);
+    backdrop-filter: blur(20px) saturate(145%);
+    -webkit-backdrop-filter: blur(20px) saturate(145%);
   }
 
   .public-navbar::after {
@@ -1291,7 +1295,9 @@
     background: linear-gradient(
       90deg,
       transparent,
-      hsl(var(--vetneb-teal) / 0.35),
+      hsl(var(--vetneb-navy) / 0.3),
+      hsl(var(--vetneb-teal) / 0.52),
+      hsl(var(--vetneb-navy) / 0.3),
       transparent
     );
     pointer-events: none;
@@ -1322,8 +1328,47 @@
   .public-navbar-links {
     border: 1px solid hsl(var(--vetneb-line) / 0.62);
     border-radius: 0.875rem;
-    background: hsl(var(--card) / 0.66);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    background: hsl(var(--card) / 0.72);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      0 4px 14px rgba(9, 39, 58, 0.055);
+  }
+
+  .public-navbar-link {
+    transition:
+      background-color 160ms ease,
+      color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .public-navbar-link:hover {
+    background: hsl(var(--vetneb-teal) / 0.13) !important;
+    color: hsl(var(--vetneb-navy)) !important;
+    box-shadow: inset 0 0 0 1px hsl(var(--vetneb-teal) / 0.24);
+  }
+
+  .public-navbar-link[aria-current="page"] {
+    background: hsl(var(--vetneb-teal) / 0.15) !important;
+    color: hsl(var(--vetneb-navy)) !important;
+    box-shadow: inset 0 0 0 1px hsl(var(--vetneb-teal) / 0.34);
+    font-weight: 600;
+  }
+
+  .public-navbar-mobile-link {
+    transition:
+      background-color 160ms ease,
+      color 160ms ease;
+  }
+
+  .public-navbar-mobile-link:hover {
+    background: hsl(var(--vetneb-teal) / 0.10) !important;
+    color: hsl(var(--vetneb-navy)) !important;
+  }
+
+  .public-navbar-mobile-link[aria-current="page"] {
+    background: hsl(var(--vetneb-teal) / 0.12) !important;
+    color: hsl(var(--vetneb-navy)) !important;
+    font-weight: 600;
   }
 
   .public-navbar-mobile-menu {
@@ -1534,14 +1579,15 @@
     aspect-ratio: 0.96;
     max-height: 610px;
     overflow: hidden;
-    border: 1px solid rgba(201, 236, 238, 0.2);
+    border: 1px solid rgba(201, 236, 238, 0.22);
     border-radius: 1.8rem;
     background: #0a2b42;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.16),
-      0 40px 100px rgba(0, 11, 20, 0.42),
-      0 0 0 10px rgba(255, 255, 255, 0.025);
-    transform: perspective(1200px) rotateY(-2deg) rotateX(1deg);
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 44px 110px rgba(0, 11, 20, 0.46),
+      0 0 0 10px rgba(255, 255, 255, 0.028),
+      0 0 0 20px rgba(255, 255, 255, 0.012);
+    transform: perspective(1200px) rotateY(-2.5deg) rotateX(1.2deg);
   }
 
   .home-hero-image-shell::after {
@@ -1657,12 +1703,15 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     overflow: hidden;
-    border: 1px solid rgba(209, 237, 239, 0.68);
+    border: 1px solid rgba(209, 237, 239, 0.72);
     border-radius: 1.2rem;
-    background: rgba(248, 253, 253, 0.94);
-    box-shadow: 0 28px 70px rgba(0, 15, 25, 0.35);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    background: rgba(250, 254, 254, 0.96);
+    box-shadow:
+      inset 0 1px 0 white,
+      0 32px 80px rgba(0, 15, 25, 0.38),
+      0 4px 14px rgba(0, 15, 25, 0.12);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
 
   .home-diagnostic-dock-step {
@@ -1798,14 +1847,15 @@
     grid-template-columns: 1.15fr 1fr 1fr auto;
     align-items: stretch;
     overflow: hidden;
-    border: 1px solid rgba(131, 171, 185, 0.28);
+    border: 1px solid rgba(131, 171, 185, 0.32);
     border-radius: 1.2rem;
-    background: rgba(252, 254, 254, 0.94);
+    background: rgba(253, 255, 255, 0.96);
     box-shadow:
       inset 0 1px 0 white,
-      0 28px 70px rgba(11, 48, 65, 0.14);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+      0 32px 80px rgba(11, 48, 65, 0.17),
+      0 4px 12px rgba(11, 48, 65, 0.06);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
   }
 
   .home-trust-rail-inner > div {
@@ -1988,10 +2038,11 @@
   }
 
   .home-value-card:hover {
-    border-color: rgba(45, 143, 151, 0.42);
+    border-color: rgba(45, 143, 151, 0.5);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.95),
-      0 28px 72px rgba(15, 57, 72, 0.14);
+      0 32px 82px rgba(15, 57, 72, 0.17),
+      0 0 0 1px rgba(45, 143, 151, 0.07);
     transform: translateY(-3px);
   }
 
@@ -2125,14 +2176,15 @@
     z-index: 1;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    border: 1px solid rgba(183, 224, 227, 0.16);
+    border: 1px solid rgba(183, 224, 227, 0.18);
     border-radius: 1.5rem;
-    background: rgba(255, 255, 255, 0.035);
+    background: rgba(255, 255, 255, 0.042);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      0 28px 80px rgba(0, 12, 22, 0.22);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.08),
+      0 32px 90px rgba(0, 12, 22, 0.24);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
   }
 
   .home-service-card {
@@ -2196,7 +2248,9 @@
   }
 
   .home-workflow-section {
-    background: rgba(252, 254, 254, 0.72);
+    background:
+      linear-gradient(180deg, rgba(248, 252, 252, 0.88), rgba(241, 249, 250, 0.72));
+    border-top: 1px solid hsl(var(--vetneb-line) / 0.48);
   }
 
   .home-workflow-grid {
@@ -2302,7 +2356,23 @@
   }
 
   .home-criteria-section {
-    border-top: 1px solid hsl(var(--vetneb-line) / 0.5);
+    border-top: none;
+  }
+
+  .home-criteria-section::before {
+    content: "";
+    position: absolute;
+    inset: 0 8% auto;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--vetneb-navy) / 0.26),
+      hsl(var(--vetneb-teal) / 0.34),
+      hsl(var(--vetneb-navy) / 0.26),
+      transparent
+    );
+    pointer-events: none;
   }
 
   .home-criteria-grid {
@@ -2403,7 +2473,24 @@
   }
 
   .home-audiences-section {
+    position: relative;
     padding-top: clamp(4rem, 6vw, 6rem);
+  }
+
+  .home-audiences-section::before {
+    content: "";
+    position: absolute;
+    inset: 0 10% auto;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--vetneb-navy) / 0.22),
+      hsl(var(--vetneb-teal) / 0.28),
+      hsl(var(--vetneb-navy) / 0.22),
+      transparent
+    );
+    pointer-events: none;
   }
 
   .home-audiences-grid {
@@ -2442,10 +2529,11 @@
   }
 
   .home-audience-card:hover {
-    border-color: hsl(var(--vetneb-teal) / 0.42);
+    border-color: hsl(var(--vetneb-teal) / 0.48);
     box-shadow:
       inset 0 1px 0 white,
-      0 26px 64px rgba(15, 57, 72, 0.13);
+      0 30px 76px rgba(15, 57, 72, 0.16),
+      0 0 0 1px hsl(var(--vetneb-teal) / 0.06);
     transform: translateY(-3px);
   }
 
@@ -3032,6 +3120,8 @@
 
   @media (prefers-reduced-motion: reduce) {
     .public-navbar-brand,
+    .public-navbar-link,
+    .public-navbar-mobile-link,
     .home-value-card,
     .home-audience-card,
     .home-trust-rail-action,

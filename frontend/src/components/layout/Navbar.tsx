@@ -1,18 +1,8 @@
 import { ArrowRight, ChevronDown, Microscope } from "lucide-react";
 
+import { NavLinks, MobileNavLinks } from "./NavLinks";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
-
-const navLinks = [
-  { label: "Servicios", href: ROUTES.servicios },
-  { label: "Profesionales", href: ROUTES.profesionales },
-  { label: "Clínicas", href: ROUTES.clinicas },
-  { label: "Particulares", href: ROUTES.particulares },
-  { label: "Contacto", href: ROUTES.contacto },
-  { label: "Precios", href: ROUTES.precios },
-];
-
-const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];
 
 export function Navbar() {
   // Source compatibility: className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 lg:flex"
@@ -34,19 +24,7 @@ export function Navbar() {
               className="public-navbar-mobile-menu absolute left-0 top-full z-50 mt-3 w-72 max-w-[calc(100vw-2rem)] overflow-hidden p-2"
               aria-label="Navegación mobile"
             >
-              <ul className="flex flex-col gap-1">
-                {mobileNavLinks.map((link) => (
-                  <li key={link.href}>
-                    <PublicRouteControl
-                      href={link.href}
-                      variant="bare"
-                      className="block w-full rounded-md px-3 py-2.5 text-left text-sm font-medium text-vetneb-ink/85 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
-                    >
-                      {link.label}
-                    </PublicRouteControl>
-                  </li>
-                ))}
-              </ul>
+              <MobileNavLinks />
             </nav>
           </details>
         </div>
@@ -70,16 +48,7 @@ export function Navbar() {
           className="public-navbar-links hidden items-center gap-0.5 p-1 lg:flex"
           aria-label="Navegación principal"
         >
-          {navLinks.map((link) => (
-            <PublicRouteControl
-              key={link.href}
-              href={link.href}
-              variant="bare"
-              className="rounded-md px-3.5 py-2 text-sm font-medium text-vetneb-ink/80 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
-            >
-              {link.label}
-            </PublicRouteControl>
-          ))}
+          <NavLinks />
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
