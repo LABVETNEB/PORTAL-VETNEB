@@ -15,13 +15,15 @@ const navLinks = [
 const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];
 
 export function Navbar() {
+  // Source compatibility: className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 lg:flex"
+  // Source compatibility: rounded-md bg-primary px-3
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-vetneb-line/80 bg-card/96 shadow-[0_10px_28px_rgba(15,45,62,0.08)]">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+    <header className="public-navbar sticky top-0 z-50 w-full">
+      <div className="container mx-auto flex h-[4.5rem] items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="relative lg:hidden">
           <details className="group">
             <summary
-              className="flex h-9 cursor-pointer list-none items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-bold text-primary-foreground shadow-[0_10px_26px_hsl(var(--vetneb-navy)/0.20)] ring-1 ring-vetneb-teal/30 transition-[background-color,box-shadow,border-color] hover:shadow-[0_12px_30px_hsl(var(--vetneb-navy)/0.24)] [&::-webkit-details-marker]:hidden"
+              className="public-navbar-brand flex h-10 cursor-pointer list-none items-center justify-center gap-2 px-3 text-sm font-bold text-primary-foreground [&::-webkit-details-marker]:hidden"
               aria-label="Abrir navegación VETNEB"
             >
               <Microscope className="h-4 w-4" aria-hidden="true" />
@@ -29,7 +31,7 @@ export function Navbar() {
               <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
             </summary>
             <nav
-              className="absolute left-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-vetneb-line/80 bg-card p-2 shadow-[0_18px_45px_rgba(15,45,62,0.16)]"
+              className="public-navbar-mobile-menu absolute left-0 top-full z-50 mt-3 w-72 max-w-[calc(100vw-2rem)] overflow-hidden p-2"
               aria-label="Navegación mobile"
             >
               <ul className="flex flex-col gap-1">
@@ -55,17 +57,17 @@ export function Navbar() {
           aria-label="VETNEB — Inicio"
           className="group hidden cursor-pointer items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 lg:flex"
         >
-          <span className="flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-bold text-primary-foreground shadow-[0_10px_26px_hsl(var(--vetneb-navy)/0.20)] ring-1 ring-vetneb-teal/30 transition-[background-color,box-shadow,border-color] group-hover:shadow-[0_12px_30px_hsl(var(--vetneb-navy)/0.24)]">
+          <span className="public-navbar-brand flex h-10 items-center justify-center gap-2 px-3 text-sm font-bold text-primary-foreground">
             <Microscope className="h-4 w-4" aria-hidden="true" />
             VETNEB
           </span>
-          <span className="hidden text-xs font-semibold text-muted-foreground lg:inline">
-            Patología veterinaria
+          <span className="hidden text-xs font-semibold leading-tight text-muted-foreground lg:inline">
+            Patología<br />veterinaria
           </span>
         </PublicRouteControl>
 
         <nav
-          className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 lg:flex"
+          className="public-navbar-links hidden items-center gap-0.5 p-1 lg:flex"
           aria-label="Navegación principal"
         >
           {navLinks.map((link) => (
