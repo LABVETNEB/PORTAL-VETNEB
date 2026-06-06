@@ -1,7 +1,10 @@
 ﻿import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   AXIOS_TIMEOUT_MS,
+  FETCH_TIMEOUT_MS,
   COOKIE_NAME,
   NOT_ADMIN_ERR_MSG,
   ONE_YEAR_MS,
@@ -18,9 +21,27 @@ import {
 test("shared const mantiene valores públicos esperados", () => {
   assert.equal(COOKIE_NAME, "app_session_id");
   assert.equal(ONE_YEAR_MS, 1000 * 60 * 60 * 24 * 365);
-  assert.equal(AXIOS_TIMEOUT_MS, 30_000);
+  assert.equal(FETCH_TIMEOUT_MS, 30_000);
+  assert.equal(AXIOS_TIMEOUT_MS, FETCH_TIMEOUT_MS);
   assert.equal(UNAUTHED_ERR_MSG, "Inicia sesion (10001)");
   assert.equal(NOT_ADMIN_ERR_MSG, "No tienes el permiso requerido (10002)");
+});
+
+test("AXIOS_TIMEOUT_MS es alias backward-compat de FETCH_TIMEOUT_MS", () => {
+  assert.equal(AXIOS_TIMEOUT_MS, FETCH_TIMEOUT_MS);
+  assert.equal(FETCH_TIMEOUT_MS, 30_000);
+});
+
+test("cookie parity: COOKIE_NAME coincide con el literal de sesión en frontend/src/proxy.ts", () => {
+  const source = readFileSync(
+    resolve(process.cwd(), "frontend/src/proxy.ts"),
+    "utf8",
+  );
+
+  assert.ok(
+    source.includes(`"${COOKIE_NAME}"`),
+    `proxy.ts debe contener "${COOKIE_NAME}" (valor de COOKIE_NAME en shared/const)`,
+  );
 });
 
 test("HttpError conserva statusCode, message y name", () => {
