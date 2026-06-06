@@ -52,7 +52,7 @@ test("globals css defines public CTA contract classes", () => {
   );
   assert.ok(source.includes("transition-duration: 300ms"));
   assert.ok(source.includes("cubic-bezier(0.2, 0.8, 0.2, 1)"));
-  assert.ok(ctaContract.includes("transform: translateY(-0.5px)"));
+  assert.ok(ctaContract.includes("transform: translateY(-1px)"));
   assert.ok(ctaContract.includes("transform: translateY(0)"));
   assert.ok(ctaContract.includes(":focus-visible"));
   assert.ok(source.includes("background-image: linear-gradient(135deg, #071F35 0%, #123E63 52%, #185A7C 100%)"));
@@ -66,7 +66,6 @@ test("globals css defines public CTA contract classes", () => {
     "text-shadow",
     "@keyframes",
     "animation:",
-    "translateY(-1px)",
     "Lenis",
     "gsap",
     "ScrollTrigger",

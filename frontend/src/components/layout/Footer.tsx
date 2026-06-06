@@ -72,7 +72,7 @@ export function FooterFaq() {
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-vetneb-ink">
                 <span>{item.question}</span>
                 <ChevronDown
-                  className="h-4 w-4 shrink-0 text-primary transition-colors group-open:text-vetneb-teal"
+                  className="h-4 w-4 shrink-0 text-primary transition duration-200 group-open:rotate-180 group-open:text-vetneb-teal"
                   aria-hidden="true"
                 />
               </summary>
@@ -191,7 +191,7 @@ export function Footer() {
                 <PublicRouteControl
                   href={ROUTES.contacto}
                   variant="bare"
-                  className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/8 px-3 py-1.5 text-sm text-white shadow-sm transition-colors hover:bg-white/14 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+                  className="inline-flex items-center gap-2 rounded-md border border-white/25 bg-white/14 px-3 py-1.5 text-sm text-white shadow-sm transition-colors hover:bg-white/14 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
                 >
                   <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
                   Solicitar acceso

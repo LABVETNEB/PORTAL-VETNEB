@@ -1133,7 +1133,7 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.30),
       inset 0 -1px 0 rgba(4, 16, 28, 0.42),
       0 18px 40px rgba(7, 31, 53, 0.28);
-    transform: translateY(-0.5px);
+    transform: translateY(-1px);
   }
 
   .public-cta-primary:active {
@@ -1161,7 +1161,7 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.62),
       inset 0 -1px 0 rgba(61, 94, 117, 0.28),
       0 13px 28px rgba(12, 40, 64, 0.16);
-    transform: translateY(-0.5px);
+    transform: translateY(-1px);
   }
 
   .public-cta-outline {
@@ -1181,7 +1181,7 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.66),
       inset 0 -1px 0 rgba(64, 98, 122, 0.26),
       0 13px 28px rgba(12, 40, 64, 0.14);
-    transform: translateY(-0.5px);
+    transform: translateY(-1px);
   }
 
   .public-cta-on-hero {
@@ -1201,7 +1201,7 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.66),
       inset 0 -1px 0 rgba(58, 92, 116, 0.26),
       0 18px 36px rgba(5, 28, 42, 0.27);
-    transform: translateY(-0.5px);
+    transform: translateY(-1px);
   }
 
   .public-cta-primary:focus-visible,
