@@ -65,6 +65,7 @@ test("servicios page keeps semantic headings, sections and reveal policy", () =>
 
   assert.ok(source.includes("<h1"));
   assert.ok(source.includes("<h2"));
+  assert.ok(source.includes("CardTitle"));
   assert.ok(source.includes("<section"));
   assert.ok(source.includes("<article"));
   assert.ok(source.includes("PublicScrollReveal"));

@@ -34,8 +34,9 @@ test("servicios public page exposes conversion CTAs", () => {
 
   assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes"'));
-  assert.ok(source.includes("Coordinar con el laboratorio"));
-  assert.ok(source.includes("Acceso para clínicas"));
+  assert.ok(source.includes("Coordinación diagnóstica para clínicas y profesionales"));
+  assert.ok(source.includes("Solicitar coordinación diagnóstica"));
+  assert.ok(source.includes("Conocer solución para clínicas"));
   assert.ok(source.includes("href={ROUTES.contacto}"));
   assert.ok(source.includes("href={ROUTES.clinicas}"));
 });

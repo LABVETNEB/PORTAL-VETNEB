@@ -60,15 +60,13 @@ const mapsEmbedUrl =
 
 export function FooterFaq() {
   return (
-    <section className="public-faq-section relative overflow-hidden py-16 md:py-20" aria-labelledby="footer-faq-heading">
+    <section className="relative overflow-hidden py-12" aria-labelledby="footer-faq-heading">
       <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-        <p className="home-kicker">Información útil</p>
-        <span className="sr-only">Preguntas frecuentes:</span>
-        <h2 id="footer-faq-heading" className="mb-8 mt-3 max-w-2xl text-3xl font-bold leading-tight text-foreground md:text-4xl">
-          Preguntas frecuentes sobre muestras y estudios.
+        <h2 id="footer-faq-heading" className="mb-8 text-lg font-bold text-foreground">
+          Preguntas frecuentes:
         </h2>
 
-        <div className="public-faq-list divide-y divide-vetneb-line/70 px-5 md:px-7">
+        <div className="divide-y divide-vetneb-line/70 rounded-lg border border-vetneb-line/80 bg-card/95 px-5 shadow-[0_18px_52px_rgba(15,45,62,0.10)] ring-1 ring-white/55">
           {faqItems.map((item) => (
             <details key={item.question} className="group py-4">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-vetneb-ink">
@@ -93,7 +91,7 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="public-footer bg-transparent text-sidebar-foreground" role="contentinfo">
+    <footer className="bg-transparent text-sidebar-foreground" role="contentinfo">
       <section
         className="border-t border-white/10 bg-sidebar py-8"
         aria-labelledby="footer-lab-info-heading"
