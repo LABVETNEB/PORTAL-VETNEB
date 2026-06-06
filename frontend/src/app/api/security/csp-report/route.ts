@@ -156,7 +156,7 @@ export async function POST(req: Request): Promise<Response> {
     return new Response(null, { status: 204 });
   }
 
-  if (raw.length > MAX_BODY_BYTES) {
+  if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) {
     return new Response(null, { status: 413 });
   }
 
