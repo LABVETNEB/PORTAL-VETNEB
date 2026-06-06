@@ -60,7 +60,7 @@ const mapsEmbedUrl =
 
 export function FooterFaq() {
   return (
-    <section className="relative overflow-hidden py-12" aria-labelledby="footer-faq-heading">
+    <section className="relative overflow-hidden bg-vetneb-surface-muted/40 py-12" aria-labelledby="footer-faq-heading">
       <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
         <h2 id="footer-faq-heading" className="mb-8 text-lg font-bold text-foreground">
           Preguntas frecuentes:
