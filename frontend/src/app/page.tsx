@@ -215,7 +215,7 @@ export default function HomePage() {
 
       <div className="public-soft-canvas">
         <section
-          className="border-b border-vetneb-line/80 bg-white py-12 md:py-16"
+          className="border-b border-vetneb-line/80 bg-gradient-to-b from-white via-white to-vetneb-surface/40 py-12 md:py-16"
           aria-labelledby="clinical-trust-heading"
         >
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -508,11 +508,12 @@ export default function HomePage() {
 
         {/* CTA final */}
         <section
-          className="bg-vetneb-navy py-16 text-primary-foreground md:py-20"
+          className="relative isolate overflow-hidden bg-vetneb-navy py-16 text-primary-foreground md:py-20"
           aria-labelledby="cta-heading"
         >
+          <div className="diagnostic-field" data-tone="dark" aria-hidden="true" />
           <PublicScrollReveal>
-            <div className="container mx-auto px-4 text-center sm:px-6 lg:px-8">
+            <div className="container relative z-10 mx-auto px-4 text-center sm:px-6 lg:px-8">
               <h2
                 id="cta-heading"
                 className="mx-auto max-w-3xl text-3xl font-bold leading-tight md:text-4xl"

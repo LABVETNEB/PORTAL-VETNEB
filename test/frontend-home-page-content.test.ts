@@ -313,7 +313,7 @@ test("home page exposes final conversion CTA without private route metadata", ()
   const routesSource = read("frontend/src/lib/routes.ts");
   const finalCtaSection = extractBetween(
     source,
-    'className="bg-vetneb-navy py-16 text-primary-foreground md:py-20"',
+    'className="relative isolate overflow-hidden bg-vetneb-navy py-16 text-primary-foreground md:py-20"',
     "</section>",
   );
   const forbiddenWords = [
