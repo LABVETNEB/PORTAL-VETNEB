@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type {
   ComponentPropsWithoutRef,
   FocusEvent,
@@ -23,6 +23,7 @@ type PublicRouteControlProps = {
   children: ReactNode;
   variant?: PublicRouteControlVariant;
   className?: string;
+  activeClassName?: string;
   icon?: ReactNode;
   replace?: boolean;
   prefetch?: boolean;
@@ -45,6 +46,7 @@ export function PublicRouteControl({
   children,
   variant = "primaryLight",
   className,
+  activeClassName,
   icon,
   replace = false,
   prefetch = true,
@@ -55,6 +57,10 @@ export function PublicRouteControl({
   ...props
 }: PublicRouteControlProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isRouteActive =
+    activeClassName != null &&
+    (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/"));
 
   const navigate = () => {
     if (replace) {
@@ -131,9 +137,11 @@ export function PublicRouteControl({
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onFocus={handleFocus}
+        aria-current={isRouteActive ? "page" : undefined}
         className={cn(
           "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2",
           className,
+          isRouteActive && activeClassName,
         )}
         {...props}
       >
