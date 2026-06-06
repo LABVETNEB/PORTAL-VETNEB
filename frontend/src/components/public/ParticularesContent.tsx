@@ -521,8 +521,12 @@ export function ParticularesContent() {
       <div className="container relative z-10 mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_0.95fr] lg:px-8">
         {/* Columna info: oculta en móvil cuando la sesión está activa para evitar duplicación visual */}
         <div className={session !== null ? "hidden lg:block" : ""}>
-<h1 className="max-w-3xl text-4xl font-bold text-primary-foreground md:text-5xl">
-            Acceda al seguimiento y al informe de su caso con token seguro
+          <div className="sec-hero-eyebrow mb-5">
+            <span className="sec-hero-eyebrow-dot" aria-hidden="true" />
+            Acceso para tutores
+          </div>
+          <h1 className="sec-hero-title text-primary-foreground">
+            Seguimiento e informe de su caso
           </h1>
           <p className="mt-5 max-w-2xl public-copy text-lg text-primary-foreground/88">
             El acceso particular está limitado al caso vinculado al token.
