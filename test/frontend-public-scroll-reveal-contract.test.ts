@@ -92,8 +92,8 @@ test("public scroll reveal infrastructure is client-only and uses safe gsap prim
   assert.ok(source.includes("section: {"));
   assert.ok(source.includes("cards: {"));
   assert.ok(source.includes("minimal: {"));
-  assert.ok(source.includes("fromOpacity: 0.98"));
-  assert.ok(source.includes("fromOpacity: 0.96"));
+  assert.ok(source.includes("fromOpacity: 0.92"));
+  assert.ok(source.includes("fromOpacity: 0.88"));
   assert.ok(source.includes("fromY: 14"));
   assert.ok(source.includes("fromY: 16"));
   assert.ok(source.includes("fromY: 8"));
