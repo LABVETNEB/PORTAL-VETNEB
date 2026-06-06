@@ -5,7 +5,7 @@ const routes = [
   { path: "/servicios", text: /servicios/i },
   { path: "/profesionales", text: /profesionales/i },
   { path: "/clinicas", text: /Portal para cl.nicas veterinarias/i },
-  { path: "/particulares", text: /Acceda al seguimiento y al informe de su caso con token seguro/i },
+  { path: "/particulares", text: /Seguimiento e informe de su caso/i },
   { path: "/contacto", text: /contacto/i },
   { path: "/login", text: /VETNEB|login|acceso/i },
 ];
