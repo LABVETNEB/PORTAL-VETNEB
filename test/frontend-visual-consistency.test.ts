@@ -235,7 +235,7 @@ test("servicios page keeps professional section/card structure and responsive la
       "const serviceCategories = [",
       "serviceCategories.map((service) =>",
       "service.features.map((feature) =>",
-      'data-services-polished="true"',
+      "data-services-polished=\"true\"",
     ],
     "servicios visual structure",
   );
@@ -243,12 +243,12 @@ test("servicios page keeps professional section/card structure and responsive la
   assertMatchesAll(
     source,
     [
-      /className="public-secondary-hero-surface text-white"/,
-      /className="sec-catalogue-section"/,
-      /className="sec-bento-grid"/,
-      /className="sec-bento-card"/,
-      /className="sec-page-canvas"/,
-      /className="sec-page-cta"/,
+      /className="public-secondary-hero-surface py-16 text-white md:py-20"/,
+      /className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8"/,
+      /className="premium-card h-full"/,
+      /className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center"/,
+      /className="flex flex-col justify-center gap-3 sm:flex-row"/,
+      /className="py-16"/,
     ],
     "servicios class contracts",
   );

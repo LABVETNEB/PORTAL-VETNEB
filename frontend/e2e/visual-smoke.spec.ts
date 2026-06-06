@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const routes = [
   { path: "/", text: /VETNEB/i },
   { path: "/contacto", text: /contacto/i },
-  { path: "/particulares", text: /Seguimiento e informe de su caso/i },
+  { path: "/particulares", text: /Acceda al seguimiento y al informe de su caso con token seguro/i },
   { path: "/login", text: /VETNEB|login|acceso/i },
   { path: "/dashboard", text: /dashboard|informes|VETNEB/i },
 ];

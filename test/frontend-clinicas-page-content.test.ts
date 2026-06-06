@@ -40,6 +40,7 @@ test("clinicas page exposes hero content and primary CTAs", () => {
 test("clinicas page keeps hero CTAs visible on blue hero background", () => {
   const source = read(CLINICAS_PAGE_PATH);
 
+  assert.ok(source.includes("public-cta-primary"));
   assert.ok(source.includes("public-cta-on-hero"));
   assert.ok(source.includes("w-full sm:w-auto"));
   assert.ok(source.includes('variant="secondaryOutline"'));
@@ -80,8 +81,8 @@ test("clinicas page remains public and avoids direct backend/API calls", () => {
 test("clinicas page keeps one continuous soft canvas below hero", () => {
   const source = read(CLINICAS_PAGE_PATH);
 
-  assert.ok(source.includes('className="sec-page-canvas"'));
-  assert.ok(source.includes('className="sec-page-section'));
+  assert.ok(source.includes('className="public-soft-canvas"'));
+  assert.ok(source.includes('className="py-16 md:py-20"'));
   assert.equal(source.includes('className="bg-white py-16 md:py-20"'), false);
   assert.equal(source.includes('className="public-soft-canvas py-16 md:py-20"'), false);
 });

@@ -31,9 +31,9 @@ test("servicios page defines metadata JSON-LD and public layout wiring", () => {
 test("servicios page exposes hero content", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
-  assert.ok(source.includes("Servicio diagnóstico patológico"));
-  assert.ok(source.includes("Histopatología, citología, tinciones especiales"));
-  assert.ok(source.includes("Anatomía patológica veterinaria"));
+  assert.ok(source.includes("Servicio patológico veterinario"));
+  assert.ok(source.includes("La anatomía patológica veterinaria integra evaluación microscópica"));
+  assert.ok(source.includes("trazabilidad de muestras e informes clínicos"));
 });
 
 test("servicios page lists laboratory service categories", () => {
@@ -52,20 +52,23 @@ test("servicios page keeps detailed service feature bullets", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
   assert.ok(source.includes("Recepción y procesamiento de muestras de tejidos"));
-  assert.ok(source.includes("Estudio de líquidos y punciones"));
-  assert.ok(source.includes("Caracterización adicional de lesiones"));
-  assert.ok(source.includes("Informe citológico con conclusión profesional"));
-  assert.ok(source.includes("Consulta de resultados las 24 hs"));
-  assert.ok(source.includes("Definición diagnóstica específica por paciente"));
+  assert.ok(source.includes("Estudio citológico de líquidos y punciones"));
+  assert.ok(source.includes("Complemento de histopatología y citopatología"));
+  assert.ok(source.includes("Interconsulta profesional cuando el caso lo requiere"));
+  assert.ok(source.includes("Consulta de resultados de informes las 24 hs"));
+  assert.ok(source.includes("Priorización según complejidad diagnóstica"));
 });
 
 test("servicios page exposes conversion CTAs and SEO copy", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
+  assert.ok(source.includes("Coordinación diagnóstica para clínicas y profesionales"));
   assert.ok(source.includes('href={ROUTES.contacto}'));
-  assert.ok(source.includes("Coordinar con el laboratorio"));
+  assert.ok(source.includes("Solicitar coordinación diagnóstica"));
   assert.ok(source.includes('href={ROUTES.clinicas}'));
-  assert.ok(source.includes("Acceso para clínicas"));
+  assert.ok(source.includes("Conocer solución para clínicas"));
+  assert.ok(source.includes("Diagnóstico integral para medicina veterinaria"));
+  assert.ok(source.includes("Para tener en cuenta"));
   assert.ok(source.includes("Valores que guían el servicio"));
   assert.ok(source.includes("veterinaria confiable"));
 });
@@ -78,12 +81,12 @@ test("servicios page remains public and avoids direct backend/API calls", () => 
   assert.equal(source.includes("fetch("), false);
 });
 
-test("servicios page keeps superpremium canvas structure", () => {
+test("servicios page keeps one continuous soft canvas through middle sections", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
-  assert.ok(source.includes('className="sec-page-canvas"'));
-  assert.ok(source.includes('className="sec-catalogue-section"'));
-  assert.ok(source.includes('data-services-polished="true"'));
+  assert.ok(source.includes('className="public-soft-canvas"'));
+  assert.ok(source.includes('className="py-16 md:py-20"'));
+  assert.ok(source.includes('className="py-16"'));
   assert.equal(source.includes('className="bg-white py-16"'), false);
   assert.equal(source.includes('className="bg-blue-50 py-16"'), false);
   assert.equal(source.includes('className="bg-gray-50 py-16"'), false);
@@ -100,7 +103,9 @@ test("servicios page hides service link typography while keeping link semantics"
   assert.ok(source.includes('className="sr-only"'));
   assert.ok(source.includes("<span"));
   assert.ok(source.includes("{service.linkLabel}"));
-  assert.ok(source.includes("sec-bento-link"));
+  assert.ok(source.includes("hover:[&_.premium-card]:bg-sky-50"));
+  assert.ok(source.includes("hover:[&_.premium-card]:border-sky-300"));
+  assert.ok(source.includes("hover:[&_.premium-card]:shadow-xl"));
   assert.equal(source.includes("group-hover:text-vetneb-teal"), false);
 });
 
@@ -110,7 +115,9 @@ test("servicios page shows unified card CTA while preserving hidden SEO labels",
   assert.ok(source.includes("<span aria-hidden=\"true\">Ver más</span>"));
   assert.ok(source.includes("{service.linkLabel}"));
   assert.ok(source.includes('className="sr-only"'));
-  assert.ok(source.includes("sec-bento-link"));
+  assert.ok(source.includes("hover:[&_.premium-card]:bg-sky-50"));
+  assert.ok(source.includes("hover:[&_.premium-card]:border-sky-300"));
+  assert.ok(source.includes("hover:[&_.premium-card]:shadow-xl"));
   assert.equal(source.includes("Ver laboratorio patológico veterinario</div>"), false);
   assert.equal(source.includes("Ver histopatología veterinaria</div>"), false);
   assert.equal(source.includes("Ver citología veterinaria</div>"), false);
@@ -126,6 +133,6 @@ test("servicios page card links are constrained to explicit CTAs not full card w
   // No absolute overlay link trick
   assert.equal(source.includes("absolute inset-0"), false);
   // Explicit constrained CTA exists inside card
-  assert.ok(source.includes("sec-bento-link"));
+  assert.ok(source.includes("inline-flex w-fit"));
   assert.ok(source.includes("href={service.href}"));
 });
