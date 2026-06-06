@@ -5,6 +5,7 @@ import test from "node:test";
 
 const PUBLIC_LAYOUT_PATH = "frontend/src/components/layout/PublicLayout.tsx";
 const NAVBAR_PATH = "frontend/src/components/layout/Navbar.tsx";
+const NAV_LINKS_PATH = "frontend/src/components/layout/NavLinks.tsx";
 const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
 
 function read(relativePath: string): string {
@@ -28,61 +29,68 @@ test("public layout wraps pages with navbar main landmark and footer", () => {
 });
 
 test("navbar uses centralized public routes for primary navigation", () => {
-  const source = read(NAVBAR_PATH);
+  const navbarSource = read(NAVBAR_PATH);
+  const navLinksSource = read(NAV_LINKS_PATH);
 
-  assert.equal(source.includes('"use client";'), false);
-  assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
-  assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
-  assert.ok(source.includes('const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];'));
-  assert.ok(source.includes('{ label: "Servicios", href: ROUTES.servicios }'));
-  assert.ok(source.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
-  assert.ok(source.includes('{ label: "Clínicas", href: ROUTES.clinicas }'));
-  assert.ok(source.includes('{ label: "Particulares", href: ROUTES.particulares }'));
-  assert.ok(source.includes('{ label: "Contacto", href: ROUTES.contacto }'));
-  assert.ok(source.includes('{ label: "Precios", href: ROUTES.precios }'));
-  assert.ok(source.includes('aria-label="Navegación principal"'));
+  // Navbar.tsx must stay server component — link data lives in NavLinks.tsx (client)
+  assert.equal(navbarSource.includes('"use client";'), false);
+  assert.ok(navbarSource.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
+  assert.ok(navbarSource.includes('import { ROUTES } from "@/lib/routes";'));
+  assert.ok(navbarSource.includes('aria-label="Navegación principal"'));
+
+  // Link data and ROUTES usage live in NavLinks.tsx
+  assert.ok(navLinksSource.includes('import { ROUTES } from "@/lib/routes";'));
+  assert.ok(navLinksSource.includes('const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];'));
+  assert.ok(navLinksSource.includes('{ label: "Servicios", href: ROUTES.servicios }'));
+  assert.ok(navLinksSource.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
+  assert.ok(navLinksSource.includes('{ label: "Clínicas", href: ROUTES.clinicas }'));
+  assert.ok(navLinksSource.includes('{ label: "Particulares", href: ROUTES.particulares }'));
+  assert.ok(navLinksSource.includes('{ label: "Contacto", href: ROUTES.contacto }'));
+  assert.ok(navLinksSource.includes('{ label: "Precios", href: ROUTES.precios }'));
 });
 
 test("navbar keeps full navigation desktop-only and exposes mobile dropdown", () => {
-  const source = read(NAVBAR_PATH);
+  const navbarSource = read(NAVBAR_PATH);
+  const navLinksSource = read(NAV_LINKS_PATH);
 
   assert.ok(
-    source.includes(
+    navbarSource.includes(
       'className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 lg:flex"',
     ),
   );
-  assert.equal(source.includes("p-1 md:flex"), false);
-  assert.ok(source.includes('className="relative lg:hidden"'));
-  assert.ok(source.includes("<details"));
-  assert.ok(source.includes("<summary"));
-  assert.ok(source.includes('aria-label="Navegación mobile"'));
-  assert.ok(source.includes("{mobileNavLinks.map((link) => ("));
-  assert.equal(source.includes('className="public-cta-outline lg:hidden"'), false);
-  assert.equal(source.includes("<Link href={ROUTES.profesionales}>Profesionales</Link>"), false);
-  assert.ok(source.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
+  assert.equal(navbarSource.includes("p-1 md:flex"), false);
+  assert.ok(navbarSource.includes('className="relative lg:hidden"'));
+  assert.ok(navbarSource.includes("<details"));
+  assert.ok(navbarSource.includes("<summary"));
+  assert.ok(navbarSource.includes('aria-label="Navegación mobile"'));
+  // Mobile links iteration is in NavLinks.tsx (MobileNavLinks component)
+  assert.ok(navLinksSource.includes("{mobileNavLinks.map((link) => ("));
+  assert.equal(navbarSource.includes('className="public-cta-outline lg:hidden"'), false);
+  assert.equal(navbarSource.includes("<Link href={ROUTES.profesionales}>Profesionales</Link>"), false);
+  assert.ok(navLinksSource.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
 });
 
 test("navbar mobile dropdown includes expected public links", () => {
-  const source = read(NAVBAR_PATH);
+  const navLinksSource = read(NAV_LINKS_PATH);
 
-  assert.ok(source.includes('const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];'));
-  assert.ok(source.includes('{ label: "Servicios", href: ROUTES.servicios }'));
-  assert.ok(source.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
-  assert.ok(source.includes('{ label: "Clínicas", href: ROUTES.clinicas }'));
-  assert.ok(source.includes('{ label: "Particulares", href: ROUTES.particulares }'));
-  assert.ok(source.includes('{ label: "Contacto", href: ROUTES.contacto }'));
-  assert.ok(source.includes('{ label: "Precios", href: ROUTES.precios }'));
+  assert.ok(navLinksSource.includes('const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];'));
+  assert.ok(navLinksSource.includes('{ label: "Servicios", href: ROUTES.servicios }'));
+  assert.ok(navLinksSource.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
+  assert.ok(navLinksSource.includes('{ label: "Clínicas", href: ROUTES.clinicas }'));
+  assert.ok(navLinksSource.includes('{ label: "Particulares", href: ROUTES.particulares }'));
+  assert.ok(navLinksSource.includes('{ label: "Contacto", href: ROUTES.contacto }'));
+  assert.ok(navLinksSource.includes('{ label: "Precios", href: ROUTES.precios }'));
 });
 
 test("navbar keeps expected public link order including precios", () => {
-  const source = read(NAVBAR_PATH);
+  const navLinksSource = read(NAV_LINKS_PATH);
 
-  const serviciosIndex = source.indexOf('{ label: "Servicios", href: ROUTES.servicios }');
-  const profesionalesIndex = source.indexOf('{ label: "Profesionales", href: ROUTES.profesionales }');
-  const clinicasIndex = source.indexOf('{ label: "Clínicas", href: ROUTES.clinicas }');
-  const particularesIndex = source.indexOf('{ label: "Particulares", href: ROUTES.particulares }');
-  const contactoIndex = source.indexOf('{ label: "Contacto", href: ROUTES.contacto }');
-  const preciosIndex = source.indexOf('{ label: "Precios", href: ROUTES.precios }');
+  const serviciosIndex = navLinksSource.indexOf('{ label: "Servicios", href: ROUTES.servicios }');
+  const profesionalesIndex = navLinksSource.indexOf('{ label: "Profesionales", href: ROUTES.profesionales }');
+  const clinicasIndex = navLinksSource.indexOf('{ label: "Clínicas", href: ROUTES.clinicas }');
+  const particularesIndex = navLinksSource.indexOf('{ label: "Particulares", href: ROUTES.particulares }');
+  const contactoIndex = navLinksSource.indexOf('{ label: "Contacto", href: ROUTES.contacto }');
+  const preciosIndex = navLinksSource.indexOf('{ label: "Precios", href: ROUTES.precios }');
 
   assert.ok(serviciosIndex < profesionalesIndex);
   assert.ok(profesionalesIndex < clinicasIndex);
