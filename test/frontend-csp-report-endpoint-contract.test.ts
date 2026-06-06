@@ -185,6 +185,15 @@ test("POST returns 413 when actual body length > 16 KB", async () => {
   assert.equal(res.status, 413);
 });
 
+test("POST measures the actual body limit in UTF-8 bytes", async () => {
+  const big = JSON.stringify({ "csp-report": { x: "á".repeat(9 * 1024) } });
+  assert.ok(big.length < 16 * 1024);
+  assert.ok(Buffer.byteLength(big, "utf8") > 16 * 1024);
+
+  const res = await POST(makeRequest(big));
+  assert.equal(res.status, 413);
+});
+
 test("POST returns 204 silently on invalid JSON", async () => {
   const res = await POST(makeRequest("not json at all"));
   assert.equal(res.status, 204);
