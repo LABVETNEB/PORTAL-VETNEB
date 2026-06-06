@@ -1268,7 +1268,7 @@
     isolation: isolate;
     overflow: hidden;
     color: hsl(var(--primary-foreground));
-    background: linear-gradient(90deg, #103C60 0%, #2B5B88 52%, #BFD6E0 100%);
+    background: linear-gradient(90deg, #103C60 0%, #2B5B88 52%, #2C5278 100%);
   }
 }
 /* public-secondary-hero-surface:end */

@@ -189,7 +189,7 @@ export default function ServiciosPage() {
                       data-scroll-reveal-item
                       aria-labelledby={serviceHeadingId}
                       className={cn(
-                        "[&_.premium-card]:transition-colors [&_.premium-card]:duration-200 hover:[&_.premium-card]:bg-sky-50 hover:[&_.premium-card]:border-sky-300 hover:[&_.premium-card]:shadow-xl",
+                        "[&_.premium-card]:transition-colors [&_.premium-card]:duration-200 hover:[&_.premium-card]:bg-vetneb-surface-muted/40 hover:[&_.premium-card]:border-vetneb-teal/48 hover:[&_.premium-card]:shadow-[0_22px_66px_rgba(15,45,62,0.145)]",
                         serviceCategories.length % 2 === 1 &&
                         service.id === serviceCategories[serviceCategories.length - 1]?.id
                           ? "lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-[calc((100%-2rem)/2)]"
