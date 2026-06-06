@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 
@@ -119,28 +119,43 @@ export function PreciosContent() {
 
   return (
     <PublicLayout>
+      {/* Hero: eyebrow + título + descripción únicamente */}
       <section
-        className="public-secondary-hero-surface py-16 text-white md:py-20"
+        className="public-secondary-hero-surface text-white"
         aria-labelledby="pricing-page-title"
       >
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto mb-12 max-w-3xl text-center">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-primary-foreground/90">
+        <div className="container mx-auto px-4 py-14 sm:px-6 md:py-20 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <div
+              className="sec-hero-eyebrow"
+              style={{ justifyContent: "center" }}
+            >
+              <span className="sec-hero-eyebrow-dot" aria-hidden="true" />
               Valores de referencia
-            </p>
+            </div>
+
             <h1
               id="pricing-page-title"
-              className="text-3xl font-bold text-primary-foreground md:text-4xl"
+              className="sec-hero-title mt-5"
             >
               Lista de precios
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-primary-foreground/88 md:text-base">
+
+            <p className="sec-hero-lead mx-auto mt-5 max-w-2xl">
               Referencia orientativa para la coordinación administrativa. Los
-              valores sin definición vigente se muestran como “Consultar”.
+              valores sin definición vigente se muestran como &quot;Consultar&quot;.
             </p>
           </div>
+        </div>
+      </section>
 
-          <section aria-labelledby="pricing-catalog-heading">
+      {/* Catálogo de precios en canvas claro */}
+      <div className="sec-page-canvas">
+        <section
+          className="sec-page-section"
+          aria-labelledby="pricing-catalog-heading"
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <h2 id="pricing-catalog-heading" className="sr-only">
               Catálogo público de precios por categoría
             </h2>
@@ -207,9 +222,9 @@ export function PreciosContent() {
                 No hay precios disponibles.
               </p>
             )}
-          </section>
-        </div>
-      </section>
+          </div>
+        </section>
+      </div>
     </PublicLayout>
   );
 }

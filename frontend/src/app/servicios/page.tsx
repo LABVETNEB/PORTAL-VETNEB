@@ -1,26 +1,20 @@
 import type { Metadata } from "next";
 import {
   ArrowRight,
+  Check,
   ClipboardCheck,
+  FileText,
   FlaskConical,
   Microscope,
   MonitorCheck,
   Network,
+  PackageCheck,
   Sparkles,
 } from "lucide-react";
-
-import { cn } from "@/lib/utils";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { createPageMetadata, getServicesJsonLd } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
@@ -36,7 +30,6 @@ const serviceCategories = [
     id: "anatomopatologia",
     title: "Estudio anatomopatológico de tejidos",
     icon: Microscope,
-    tone: "blue" as const,
     href: "/histopatologia-veterinaria",
     linkLabel: "Ver histopatología veterinaria",
     description:
@@ -46,81 +39,101 @@ const serviceCategories = [
       "Evaluación microscópica de lesiones histológicas",
       "Correlación anatomopatológica del caso clínico",
       "Informe diagnóstico con hallazgos relevantes",
-      "Apoyo para decisiones terapéuticas",
-      "Seguimiento del caso con el equipo tratante",
     ],
+    size: "wide" as const,
+    number: "01",
   },
   {
     id: "citologia",
     title: "Estudio citológico de muestras",
     icon: FlaskConical,
-    tone: "emerald" as const,
     href: "/citologia-veterinaria",
     linkLabel: "Ver citología veterinaria",
     description:
       "Análisis citológico de líquidos y punciones para valorar alteraciones celulares con un enfoque clínico-patológico.",
     features: [
-      "Estudio citológico de líquidos y punciones",
+      "Estudio de líquidos y punciones",
       "Valoración celular orientada a diagnóstico",
-      "Identificación de patrones inflamatorios y proliferativos",
-      "Apoyo diagnóstico en lesiones de tejidos blandos",
-      "Integración con antecedentes clínicos del paciente",
+      "Identificación de patrones inflamatorios",
       "Informe citológico con conclusión profesional",
     ],
+    size: "narrow" as const,
+    number: "02",
   },
   {
     id: "tinciones",
     title: "Tinciones especiales aplicadas",
     icon: Sparkles,
-    tone: "amber" as const,
     href: "/laboratorio-patologico-veterinario",
     linkLabel: "Ver laboratorio patológico veterinario",
     description:
       "Aplicación de tinciones especiales para ampliar hallazgos histológicos y reforzar diagnósticos diferenciales.",
     features: [
-      "Selección de técnicas según complejidad del caso",
-      "Caracterización adicional de lesiones tisulares",
+      "Selección de técnicas según complejidad",
+      "Caracterización adicional de lesiones",
       "Soporte para diagnósticos diferenciales",
-      "Complemento de histopatología y citopatología",
-      "Mayor precisión frente a hallazgos complejos",
       "Registro diagnóstico trazable",
     ],
+    size: "narrow" as const,
+    number: "03",
   },
   {
     id: "integral",
     title: "Diagnóstico integral interdisciplinario",
     icon: Network,
-    tone: "slate" as const,
     href: "/laboratorio-patologico-veterinario",
     linkLabel: "Ver laboratorio patológico veterinario",
     description:
       "Integración del análisis histológico y citológico con información clínica para construir un diagnóstico específico por paciente.",
     features: [
-      "Integración de análisis histológico y citológico",
+      "Integración histológica y citológica",
       "Trabajo conjunto con diagnóstico por imágenes",
       "Articulación con cirugía y clínica veterinaria",
-      "Interconsulta profesional cuando el caso lo requiere",
       "Definición diagnóstica específica por paciente",
-      "Orientación para tratamiento personalizado",
     ],
+    size: "wide" as const,
+    number: "04",
   },
   {
     id: "informes",
     title: "Informes y seguimiento",
     icon: MonitorCheck,
-    tone: "blue" as const,
     href: "/informes-veterinarios",
     linkLabel: "Ver informes veterinarios",
     description:
       "Entrega y seguimiento de informes con comunicación continua para clínicas y profesionales durante todo el proceso diagnóstico.",
     features: [
-      "Consulta de resultados de informes las 24 hs",
-      "Seguimiento del estado del estudio en portal",
-      "Comunicación directa para coordinación de muestras",
-      "Priorización según complejidad diagnóstica",
-      "Tiempos variables según necesidad del caso",
-      "Entrega final con criterio profesional y responsable",
+      "Consulta de resultados las 24 hs",
+      "Seguimiento del estado del estudio",
+      "Comunicación directa para coordinación",
+      "Entrega con criterio profesional",
     ],
+    size: "full" as const,
+    number: "05",
+  },
+];
+
+const workflowSteps = [
+  {
+    icon: PackageCheck,
+    label: "Recepción",
+    title: "Envío de la muestra",
+    description:
+      "La clínica prepara la muestra según el protocolo de VETNEB y la envía con los datos del caso.",
+  },
+  {
+    icon: Microscope,
+    label: "Diagnóstico",
+    title: "Análisis anatomopatológico",
+    description:
+      "El anatomopatólogo examina el tejido o la muestra citológica y elabora el informe diagnóstico con criterio clínico.",
+  },
+  {
+    icon: FileText,
+    label: "Resultado",
+    title: "Informe disponible",
+    description:
+      "La clínica descarga el informe desde el portal. El tutor puede acceder con código privado cuando corresponda.",
   },
 ];
 
@@ -134,236 +147,367 @@ export default function ServiciosPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
+      {/* Hero superpremium dos columnas */}
       <section
-        className="public-secondary-hero-surface py-16 text-white md:py-20"
+        className="public-secondary-hero-surface text-white"
         aria-labelledby="services-page-title"
       >
         <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <h1
-            id="services-page-title"
-            className="mb-4 max-w-4xl text-4xl font-bold leading-tight md:text-5xl"
-          >
-            Servicio patológico veterinario
-          </h1>
-          <p className="max-w-2xl public-copy text-lg text-primary-foreground/92 md:text-xl">
-            La anatomía patológica veterinaria integra evaluación microscópica,
-            trazabilidad de muestras e informes clínicos para orientar
-            decisiones diagnósticas con respaldo profesional.
-          </p>
+          <div className="sec-hero-layout">
+            <div className="sec-hero-copy">
+              <div className="sec-hero-eyebrow">
+                <span className="sec-hero-eyebrow-dot" aria-hidden="true" />
+                Anatomía patológica veterinaria
+              </div>
+
+              <h1 id="services-page-title" className="sec-hero-title">
+                Servicio diagnóstico patológico
+              </h1>
+
+              <p className="sec-hero-lead">
+                Histopatología, citología, tinciones especiales y diagnóstico
+                integral para orientar decisiones clínicas con respaldo
+                profesional en medicina veterinaria.
+              </p>
+
+              <div className="sec-hero-scope">
+                <span>
+                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                  Histopatología
+                </span>
+                <span>
+                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                  Citología
+                </span>
+                <span>
+                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                  Tinciones especiales
+                </span>
+                <span>
+                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                  Diagnóstico integral
+                </span>
+              </div>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <PublicRouteControl
+                  href={ROUTES.contacto}
+                  variant="primaryLight"
+                  className="public-cta-primary home-hero-primary-action"
+                >
+                  Coordinar con el laboratorio
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </PublicRouteControl>
+                <PublicRouteControl
+                  href={ROUTES.clinicas}
+                  variant="secondaryOutline"
+                  className="home-hero-secondary-action"
+                >
+                  Acceso para clínicas
+                </PublicRouteControl>
+              </div>
+            </div>
+
+            {/* Panel flotante derecha: catálogo */}
+            <div className="sec-hero-panel" aria-label="Catálogo diagnóstico VETNEB">
+              <div className="sec-hero-panel-header">
+                <span>Catálogo diagnóstico</span>
+                <span className="sec-hero-panel-badge">VETNEB</span>
+              </div>
+              <div>
+                <div className="sec-hero-panel-row">
+                  <span className="sec-hero-panel-icon">
+                    <Microscope className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <span>
+                    <p className="sec-hero-panel-label">Histopatología</p>
+                    <p className="sec-hero-panel-value">Estudio anatomopatológico de tejidos</p>
+                  </span>
+                </div>
+                <div className="sec-hero-panel-row">
+                  <span className="sec-hero-panel-icon">
+                    <FlaskConical className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <span>
+                    <p className="sec-hero-panel-label">Citología</p>
+                    <p className="sec-hero-panel-value">Análisis de líquidos y punciones</p>
+                  </span>
+                </div>
+                <div className="sec-hero-panel-row">
+                  <span className="sec-hero-panel-icon">
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <span>
+                    <p className="sec-hero-panel-label">Tinciones especiales</p>
+                    <p className="sec-hero-panel-value">Técnicas complementarias aplicadas</p>
+                  </span>
+                </div>
+                <div className="sec-hero-panel-row">
+                  <span className="sec-hero-panel-icon">
+                    <Network className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <span>
+                    <p className="sec-hero-panel-label">Diagnóstico integral</p>
+                    <p className="sec-hero-panel-value">Integración clínica y anatomopatológica</p>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <div className="public-soft-canvas">
+      {/* Catálogo en grilla bento oscura */}
+      <section
+        data-services-polished="true"
+        className="sec-catalogue-section"
+        aria-labelledby="services-categories-heading"
+      >
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <PublicScrollReveal variant="section">
+            <div className="sec-section-heading mb-10">
+              <p className="home-kicker home-kicker-light">Catálogo diagnóstico</p>
+              <h2
+                id="services-categories-heading"
+                className="mt-3 text-white"
+              >
+                Distintas técnicas. Un mismo criterio.
+              </h2>
+            </div>
+          </PublicScrollReveal>
+
+          <PublicScrollReveal variant="cards" staggerChildren>
+            <div className="sec-bento-grid">
+              {serviceCategories.map((service) => {
+                const ServiceIcon = service.icon;
+
+                return (
+                  <article
+                    key={service.id}
+                    data-scroll-reveal-item
+                    data-size={service.size}
+                    className="sec-bento-card"
+                    aria-labelledby={`service-bento-${service.id}`}
+                  >
+                    <div
+                      className={
+                        service.size === "full"
+                          ? "flex items-start gap-5"
+                          : undefined
+                      }
+                    >
+                      <div
+                        className={
+                          service.size === "full" ? "shrink-0" : undefined
+                        }
+                      >
+                        {service.size !== "full" && (
+                          <div className="sec-bento-card-number">{service.number}</div>
+                        )}
+                        <div className="sec-bento-card-icon">
+                          <ServiceIcon className="h-5 w-5" aria-hidden="true" />
+                        </div>
+                        <p className="sec-bento-eyebrow">{service.number}</p>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3
+                          id={`service-bento-${service.id}`}
+                          className="sec-bento-title"
+                        >
+                          {service.title}
+                        </h3>
+                        <span className="sec-bento-desc">{service.description}</span>
+                        <ul
+                          className="sec-bento-list"
+                          aria-label={`Aspectos de ${service.title}`}
+                        >
+                          {service.features.map((feature) => (
+                            <li key={feature}>{feature}</li>
+                          ))}
+                        </ul>
+                        <PublicRouteControl
+                          href={service.href}
+                          variant="bare"
+                          className="sec-bento-link"
+                        >
+                          <span className="sr-only">{service.linkLabel}</span>
+                          <span aria-hidden="true">Ver más</span>
+                          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        </PublicRouteControl>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </PublicScrollReveal>
+        </div>
+      </section>
+
+      {/* Canvas secciones editoriales */}
+      <div className="sec-page-canvas">
+        {/* Flujo de trabajo */}
         <section
-          className="py-16 md:py-20"
-          aria-labelledby="services-categories-heading"
+          className="sec-page-section border-b border-vetneb-line/40"
+          aria-labelledby="services-workflow-heading"
         >
-          <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-            <PublicScrollReveal variant="section">
-              <div className="mx-auto mb-10 max-w-4xl">
-                <h2
-                  id="services-categories-heading"
-                  className="text-2xl font-bold text-vetneb-ink md:text-3xl"
-                >
-                  Estudios diagnósticos con criterio clínico-patológico
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <PublicScrollReveal>
+              <div className="home-section-heading home-section-heading-centered">
+                <p className="home-kicker">Cómo funciona</p>
+                <h2 id="services-workflow-heading">
+                  De la muestra al informe.
                 </h2>
-                <p className="mt-3 public-copy-tight text-sm text-muted-foreground">
-                  Unificamos histopatología, citología, técnicas complementarias e
-                  informes trazables para acompañar decisiones clínicas en cada
-                  etapa del caso.
+                <p>
+                  Un recorrido entendible desde la recepción hasta el resultado
+                  diagnóstico.
                 </p>
               </div>
             </PublicScrollReveal>
 
-            <PublicScrollReveal variant="cards" staggerChildren>
-              <div
-                className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8"
-                data-services-polished="true"
+            <PublicScrollReveal staggerChildren>
+              <ol
+                className="home-workflow-grid mx-auto max-w-5xl"
               >
-                {serviceCategories.map((service) => {
-                  const serviceHeadingId = `service-card-${service.id}-title`;
+                {workflowSteps.map((step, index) => {
+                  const StepIcon = step.icon;
 
                   return (
-                    <article
-                      key={service.id}
-                      data-scroll-reveal-item
-                      aria-labelledby={serviceHeadingId}
-                      className={cn(
-                        "[&_.premium-card]:transition-colors [&_.premium-card]:duration-200 hover:[&_.premium-card]:bg-sky-50 hover:[&_.premium-card]:border-sky-300 hover:[&_.premium-card]:shadow-xl",
-                        serviceCategories.length % 2 === 1 &&
-                        service.id === serviceCategories[serviceCategories.length - 1]?.id
-                          ? "lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-[calc((100%-2rem)/2)]"
-                          : "",
-                      )}
-                    >
-                      <Card
-                        id={service.id}
-                        className="premium-card h-full"
-                      >
-                        <CardHeader>
-                          <VisualIcon
-                            icon={service.icon}
-                            tone={service.tone}
-                            className="mb-2"
-                          />
-                          <CardTitle id={serviceHeadingId} className="text-xl text-vetneb-ink">
-                            {service.title}
-                          </CardTitle>
-                          <CardDescription className="public-copy-tight text-sm text-muted-foreground">
-                            {service.description}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <ul className="space-y-2.5">
-                            {service.features.map((feature) => (
-                              <li key={feature} className="flex items-start gap-2">
-                                <span
-                                  className="mt-0.5 text-primary font-bold text-xs"
-                                  aria-hidden="true"
-                                >
-                                  →
-                                </span>
-                                <span className="text-sm text-muted-foreground">
-                                  {feature}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                          <PublicRouteControl
-                            href={service.href}
-                            variant="bare"
-                            className="mt-5 inline-flex w-fit items-center gap-2 rounded-md text-sm font-semibold text-primary underline underline-offset-4 transition hover:text-vetneb-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                          >
-                            <span className="sr-only">{service.linkLabel}</span>
-                            <span aria-hidden="true">Ver más</span>
-                            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                          </PublicRouteControl>
-                        </CardContent>
-                      </Card>
-                    </article>
+                    <li key={step.title} data-scroll-reveal-item>
+                      <div className="home-workflow-marker">
+                        <span>0{index + 1}</span>
+                        <StepIcon className="h-5 w-5" aria-hidden="true" />
+                      </div>
+                      <p>{step.label}</p>
+                      <h3>{step.title}</h3>
+                      <span>{step.description}</span>
+                    </li>
                   );
                 })}
-              </div>
+              </ol>
             </PublicScrollReveal>
           </div>
         </section>
 
-        <section className="py-16" aria-labelledby="services-coordination-heading">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center">
-            <PublicScrollReveal variant="minimal">
-              <div className="premium-card p-8">
-                <h2
-                  id="services-coordination-heading"
-                  className="text-2xl font-bold text-vetneb-ink mb-4"
-                >
-                  Coordinación diagnóstica para clínicas y profesionales
-                </h2>
-                <p className="public-copy text-muted-foreground mb-8">
-                  Coordinamos recepción de muestras, priorización por complejidad y
-                  entrega de informes trazables. Los tiempos se ajustan al criterio
-                  diagnóstico y a las necesidades clínicas de cada caso.
-                </p>
-                <div className="flex flex-col justify-center gap-3 sm:flex-row">
-                  <PublicRouteControl
-                    href={ROUTES.contacto}
-                    variant="primaryDark"
-                    className="public-cta-primary w-full sm:w-auto"
-                  >
-                    Solicitar coordinación diagnóstica
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </PublicRouteControl>
-                  <PublicRouteControl
-                    href={ROUTES.clinicas}
-                    variant="primaryLight"
-                    className="public-cta-outline w-full sm:w-auto"
-                  >
-                    Conocer solución para clínicas
-                  </PublicRouteControl>
+        {/* Paneles editoriales: criterio + transparencia */}
+        <section
+          className="sec-page-section"
+          aria-labelledby="services-criteria-heading"
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <PublicScrollReveal>
+              <div className="home-section-heading home-section-heading-split">
+                <div>
+                  <p className="home-kicker">Cómo trabajamos</p>
+                  <h2 id="services-criteria-heading">
+                    Rigor microscópico y contexto clínico.
+                  </h2>
                 </div>
+                <p>
+                  La calidad del diagnóstico también depende de explicar el
+                  proceso con honestidad: cada muestra es distinta y puede
+                  requerir instancias adicionales.
+                </p>
               </div>
             </PublicScrollReveal>
-          </div>
-        </section>
 
-        <section className="py-16" aria-labelledby="services-integral-heading">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
-            <PublicScrollReveal variant="section">
-              <div className="premium-card-muted p-6">
-                <h2
-                  id="services-integral-heading"
-                  className="text-2xl font-bold text-vetneb-ink mb-4"
+            <PublicScrollReveal staggerChildren>
+              <div className="home-criteria-grid">
+                <article
+                  data-scroll-reveal-item
+                  className="home-criteria-card"
+                  data-tone="primary"
+                  aria-labelledby="services-integral-h"
                 >
-                  Diagnóstico integral para medicina veterinaria
-                </h2>
-                <p className="public-copy text-muted-foreground mb-4">
-                  El diagnóstico anatomopatológico veterinario requiere integrar no
-                  sólo el análisis de tejido y citología, sino también el
-                  conocimiento clínico global de cada paciente. Esta articulación
-                  permite enriquecer la lectura diagnóstica junto con otras áreas
-                  de práctica veterinaria.
-                </p>
-                <p className="public-copy text-muted-foreground">
-                  Nuestro objetivo es colaborar de forma permanente con equipos
-                  quirúrgicos y clínicos, estudiando tejidos extirpados y muestras
-                  de punción para construir diagnósticos específicos y apoyar
-                  planes de tratamiento personalizados.
-                </p>
-              </div>
-            </PublicScrollReveal>
-          </div>
-        </section>
+                  <p className="home-card-eyebrow">Criterio diagnóstico</p>
+                  <h3 id="services-integral-h">
+                    Una lectura integral de cada caso
+                  </h3>
+                  <p className="home-criteria-description">
+                    El análisis microscópico se interpreta junto con el contexto
+                    clínico para construir una respuesta útil para el equipo
+                    veterinario.
+                  </p>
+                  <ul>
+                    {[
+                      "Hallazgos de tejidos y células integrados con la información clínica",
+                      "Articulamos el análisis con diagnóstico por imágenes y cirugía",
+                      "Evaluación específica para cada paciente veterinario",
+                      "Criterios anatomopatológicos para acompañar decisiones terapéuticas",
+                    ].map((item) => (
+                      <li key={item}>
+                        <span aria-hidden="true">
+                          <Check className="h-3.5 w-3.5" />
+                        </span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
 
-        <section className="py-16" aria-labelledby="services-considerations-heading">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
-            <PublicScrollReveal variant="section">
-              <div className="premium-card-muted p-6">
-                <h2
-                  id="services-considerations-heading"
-                  className="text-2xl font-bold text-vetneb-ink mb-4"
+                <article
+                  data-scroll-reveal-item
+                  className="home-criteria-card"
+                  data-tone="muted"
+                  aria-labelledby="services-transparency-h"
                 >
-                  Para tener en cuenta
-                </h2>
-                <p className="public-copy text-muted-foreground mb-4">
-                  El estudio anatomopatológico requiere integrar datos clínicos con
-                  la evaluación histológica y citológica realizada por el médico
-                  veterinario patólogo en microscopía.
-                </p>
-                <p className="public-copy text-muted-foreground">
-                  No se trata de un diagnóstico automatizado, por lo que los
-                  tiempos son variables según complejidad y técnicas
-                  complementarias requeridas. En ciertos casos se requiere
-                  interconsulta profesional para alcanzar mayor precisión
-                  diagnóstica.
-                </p>
+                  <p className="home-card-eyebrow">Transparencia operativa</p>
+                  <h3 id="services-transparency-h">
+                    Cada muestra requiere su propio tiempo
+                  </h3>
+                  <p className="home-criteria-description">
+                    El diagnóstico no es automatizado. La complejidad del caso
+                    define el trabajo necesario antes de emitir un informe.
+                  </p>
+                  <ul>
+                    {[
+                      "Los tiempos varían según la complejidad diagnóstica",
+                      "El análisis requiere evaluación microscópica especializada",
+                      "Algunos casos necesitan tinciones especiales o interconsultas",
+                      "El flujo busca mejorar recepción, diagnóstico y entrega",
+                    ].map((item) => (
+                      <li key={item}>
+                        <span aria-hidden="true">
+                          <Check className="h-3.5 w-3.5" />
+                        </span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
               </div>
             </PublicScrollReveal>
           </div>
         </section>
 
-        <section className="py-16" aria-labelledby="services-values-heading">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
+        {/* Valores del servicio */}
+        <section
+          className="sec-page-section pt-0"
+          aria-labelledby="services-values-heading"
+        >
+          <div className="container mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal variant="minimal">
-              <div className="clinical-muted-band rounded-lg p-6 clinical-surface-shadow">
-                <div className="flex items-start gap-3">
+              <div className="clinical-muted-band rounded-2xl p-7 clinical-surface-shadow">
+                <div className="flex items-start gap-4">
                   <VisualIcon
                     icon={ClipboardCheck}
                     tone="emerald"
-                    className="h-11 w-11 shrink-0 rounded-xl"
+                    className="h-12 w-12 shrink-0 rounded-xl"
                   />
                   <div>
                     <h2
                       id="services-values-heading"
-                      className="text-2xl font-bold text-vetneb-ink mb-4"
+                      className="text-2xl font-bold text-vetneb-ink"
                     >
                       Valores que guían el servicio
                     </h2>
-                    <p className="public-copy text-muted-foreground">
+                    <p className="mt-3 public-copy text-muted-foreground">
                       Basamos nuestro trabajo en compromiso, seriedad, respeto,
-                      responsabilidad, confianza, diálogo, criterio clínico y ética
-                      profesional. Queremos ser un laboratorio de anatomía
-                      patológica veterinaria confiable, comprometido con la calidad
-                      diagnóstica y con el bienestar animal en cada caso que
-                      recibimos.
+                      responsabilidad, confianza, diálogo, criterio clínico y
+                      ética profesional. Queremos ser un laboratorio de anatomía
+                      patológica veterinaria confiable, comprometido con la
+                      calidad diagnóstica y con el bienestar animal en cada caso
+                      que recibimos.
                     </p>
                   </div>
                 </div>
@@ -372,6 +516,51 @@ export default function ServiciosPage() {
           </div>
         </section>
       </div>
+
+      {/* CTA final */}
+      <section
+        className="sec-page-cta"
+        aria-labelledby="services-cta-heading"
+      >
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <PublicScrollReveal>
+            <div className="sec-page-cta-inner">
+              <div>
+                <p className="home-kicker home-kicker-light">
+                  Servicio Patológico VETNEB
+                </p>
+                <h2 id="services-cta-heading">
+                  Coordiná una derivación hoy.
+                </h2>
+              </div>
+              <div>
+                <p>
+                  Coordiná el envío de muestras y accedé a informes
+                  diagnósticos desde el portal. Sin intermediarios, con
+                  trazabilidad completa.
+                </p>
+                <div className="sec-page-cta-actions">
+                  <PublicRouteControl
+                    href={ROUTES.contacto}
+                    variant="primaryLight"
+                    className="home-final-primary"
+                  >
+                    Contactanos
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </PublicRouteControl>
+                  <PublicRouteControl
+                    href={ROUTES.clinicas}
+                    variant="secondaryOutline"
+                    className="home-final-secondary"
+                  >
+                    Acceso para clínicas
+                  </PublicRouteControl>
+                </div>
+              </div>
+            </div>
+          </PublicScrollReveal>
+        </div>
+      </section>
     </PublicLayout>
   );
 }

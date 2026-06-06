@@ -134,21 +134,63 @@ export function ContactoContent() {
 
   return (
     <PublicLayout>
+      {/* Hero superpremium con método de contacto integrado */}
       <section
-        className="public-secondary-hero-surface py-16 text-white md:py-20"
+        className="public-secondary-hero-surface text-white"
         aria-labelledby="contact-page-title"
       >
-        <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 id="contact-page-title" className="mb-4 text-4xl font-bold md:text-5xl">
-            Contacto
-          </h1>
-          <p className="max-w-2xl public-copy text-xl text-primary-foreground/92">
-            ¿Desea registrar su clínica, coordinar envío de muestras o resolver
-            consultas sobre informes? Comuníquese con nuestro equipo.
-          </p>
+        <div className="container relative z-10 mx-auto px-4 py-14 sm:px-6 md:py-20 lg:px-8">
+          <div className="max-w-3xl">
+            <div className="sec-hero-eyebrow">
+              <span className="sec-hero-eyebrow-dot" aria-hidden="true" />
+              Laboratorio VETNEB
+            </div>
+
+            <h1
+              id="contact-page-title"
+              className="sec-hero-title mt-5"
+            >
+              Contacto
+            </h1>
+
+            <p className="sec-hero-lead mt-5">
+              ¿Desea registrar su clínica, coordinar envío de muestras o
+              resolver consultas sobre informes? Comuníquese con nuestro equipo
+              por el canal que prefiera.
+            </p>
+
+            {/* Pills de canales de contacto */}
+            <div className="mt-7 flex flex-wrap gap-3" aria-label="Canales de contacto disponibles">
+              <PublicExternalControl
+                href="mailto:lab.vetneb@gmail.com"
+                target="_self"
+                className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20"
+                aria-label="Escribirnos por email"
+              >
+                <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+                lab.vetneb@gmail.com
+              </PublicExternalControl>
+
+              <PublicExternalControl
+                href="https://wa.me/5493534138946"
+                target="_blank"
+                className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20"
+                aria-label="Contactar por WhatsApp"
+              >
+                <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                WhatsApp
+              </PublicExternalControl>
+
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/8 px-4 py-2 text-sm font-medium text-white/80">
+                <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                Villa María, Córdoba
+              </span>
+            </div>
+          </div>
         </div>
       </section>
 
+      {/* Formulario + info de contacto */}
       <section className="public-soft-canvas py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid max-w-5xl grid-cols-1 gap-12 mx-auto lg:grid-cols-2">
@@ -386,7 +428,7 @@ export function ContactoContent() {
                 })}
               </div>
 
-              <div className="clinical-muted-band rounded-lg p-6 clinical-surface-shadow">
+              <div className="clinical-muted-band rounded-2xl p-6 clinical-surface-shadow">
                 <h3 className="mb-2 font-semibold text-vetneb-navy">
                   ¿Es una clínica veterinaria?
                 </h3>
