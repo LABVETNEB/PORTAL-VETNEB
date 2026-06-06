@@ -402,7 +402,7 @@ export default function HomePage() {
                     >
                       <div className="flex items-center gap-4">
                         <span
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-vetneb-navy text-sm font-bold text-primary-foreground"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-vetneb-navy text-sm font-bold text-primary-foreground shadow-[0_6px_16px_hsl(var(--vetneb-navy)/0.22)] ring-2 ring-primary/20"
                           aria-hidden="true"
                         >
                           {index + 1}

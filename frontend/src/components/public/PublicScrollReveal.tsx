@@ -29,14 +29,14 @@ const PUBLIC_MOTION_POLICY_PRESETS: Record<
   PublicScrollRevealPreset
 > = {
   section: {
-    fromOpacity: 0.96,
+    fromOpacity: 0.88,
     fromY: 14,
     duration: 0.75,
     ease: "power2.out",
     start: "top 86%",
   },
   cards: {
-    fromOpacity: 0.96,
+    fromOpacity: 0.88,
     fromY: 16,
     duration: 0.72,
     ease: "power2.out",
@@ -44,7 +44,7 @@ const PUBLIC_MOTION_POLICY_PRESETS: Record<
     stagger: 0.07,
   },
   minimal: {
-    fromOpacity: 0.98,
+    fromOpacity: 0.92,
     fromY: 8,
     duration: 0.55,
     ease: "power2.out",
