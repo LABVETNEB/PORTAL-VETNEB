@@ -16,7 +16,7 @@ const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];
 
 export function Navbar() {
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-vetneb-line/80 bg-card/96 shadow-[0_10px_28px_rgba(15,45,62,0.08)]">
+    <header className="sticky top-0 z-50 w-full border-b border-vetneb-line/80 bg-card/92 backdrop-blur-sm shadow-[0_10px_28px_rgba(15,45,62,0.08)]">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="relative lg:hidden">
           <details className="group">
@@ -39,6 +39,7 @@ export function Navbar() {
                       href={link.href}
                       variant="bare"
                       className="block w-full rounded-md px-3 py-2.5 text-left text-sm font-medium text-vetneb-ink/85 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+                      activeClassName="bg-accent/80 text-vetneb-ink shadow-sm"
                     >
                       {link.label}
                     </PublicRouteControl>
@@ -74,6 +75,7 @@ export function Navbar() {
               href={link.href}
               variant="bare"
               className="rounded-md px-3.5 py-2 text-sm font-medium text-vetneb-ink/80 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+              activeClassName="bg-accent/80 text-vetneb-ink shadow-sm"
             >
               {link.label}
             </PublicRouteControl>
