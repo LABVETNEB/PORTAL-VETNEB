@@ -12,6 +12,19 @@ configuracion.
 - Si restore o rollback no fueron probados, la decision operativa debe ser
   **NO-GO**.
 
+### Estado actual
+
+| Componente | Estado formal |
+|---|---|
+| Backup DB Supabase | **PENDIENTE DE VERIFICACION FORMAL** |
+| Backup Supabase Storage | **PENDIENTE DE VERIFICACION FORMAL** |
+| Restore drill (entorno no productivo) | **PENDIENTE DE EJECUCION** |
+
+No existe evidencia verificada en repo ni en logs de que backup o restore
+hayan sido ejecutados y documentados con el entorno de produccion actual.
+Estado correcto: PENDIENTE. Bloquea GO produccion para releases con cambios
+de DB/storage hasta que se registre evidencia sanitizada formal.
+
 ## 2. Alcance
 
 Este runbook cubre:
@@ -82,6 +95,16 @@ Pasos operativos:
 Nota: si no hay CLI oficial configurada en este repo para backup, ejecutar el
 procedimiento desde panel Supabase o herramienta autorizada por la organizacion.
 
+### Evidencia requerida para cerrar backup DB (P0-016)
+
+- [ ] Acceso confirmado al panel Supabase con proyecto productivo correcto.
+- [ ] Backup/snapshot iniciado y completado (estado `success`).
+- [ ] Registrado: fecha UTC de inicio, estado final, tamano aproximado.
+- [ ] Verificado: no se pego dump completo, connection string ni credenciales en ningun canal.
+- [ ] Evidencia sanitizada registrada en la tabla de registro operativo (seccion 15 de este doc).
+- [ ] Responsable tecnico que ejecuto el backup identificado y registrado.
+- [ ] P0-016 cerrado en `docs/production-readiness-evidence.md` con referencia a esta evidencia.
+
 ## 7. Backup Supabase Storage
 
 Pasos operativos:
@@ -94,6 +117,15 @@ Pasos operativos:
 4. No descargar ni adjuntar archivos sensibles en PRs/issues/chats.
 5. Adjuntar solo evidencia permitida: nombre de bucket, conteo aproximado,
    estado privado y fecha.
+
+### Evidencia requerida para cerrar backup Storage (P0-016 componente storage)
+
+- [ ] Buckets productivos activos identificados.
+- [ ] Verificado que los buckets relevantes son privados (sin lectura publica).
+- [ ] Registrado: nombre de bucket, conteo aproximado de objetos, fecha UTC, tamano aproximado.
+- [ ] No se adjuntaron signed URLs ni archivos sensibles en ningun canal.
+- [ ] Evidencia sanitizada registrada en la tabla de registro operativo (seccion 15 de este doc).
+- [ ] Responsable tecnico identificado y registrado.
 
 ## 8. Restore test en staging/no productivo
 
@@ -110,6 +142,18 @@ Pasos minimos:
 4. Ejecutar `pnpm smoke:staging`.
 5. Ejecutar `pnpm smoke:upload` si hay credenciales de smoke.
 6. Registrar resultado final (pass/fail), hora UTC y responsables.
+
+### Checklist restore drill (P0-017)
+
+- [ ] Confirmar que el entorno de restore NO es produccion.
+- [ ] Registrar nombre del entorno no productivo utilizado.
+- [ ] Restore de DB ejecutado desde backup reciente.
+- [ ] Esquema y conectividad validados post-restore.
+- [ ] `pnpm validate:local:schema` u equivalente: verde.
+- [ ] `pnpm smoke:staging` ejecutado sobre entorno restaurado: resultado registrado.
+- [ ] Resultado final registrado: pass/fail, hora UTC, responsable tecnico.
+- [ ] No se pegaron dumps ni datos sensibles en evidencia.
+- [ ] P0-017 cerrado en `docs/production-readiness-evidence.md` con referencia a esta evidencia.
 
 ## 9. Rollback app Render
 
