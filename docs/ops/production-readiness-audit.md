@@ -42,7 +42,8 @@ Runbook operativo: `docs/ops/BACKUP_RESTORE_ROLLBACK.md`.
 | CI formal no verificado sobre `bda510b` | Confirmar runs de backend-ci y frontend-ci en GitHub Actions |
 | Staging smoke autenticado pendiente | Ejecutar `pnpm smoke:staging` con credenciales admin/clinic/particular |
 | Schema health (`/api/admin/system/schema-health`) no verificado | Smoke admin con credenciales reales |
-| Backup/restore no ejecutados | Seguir `docs/ops/BACKUP_RESTORE_ROLLBACK.md` |
+| Backup Supabase (DB y Storage): **PENDIENTE DE VERIFICACION FORMAL** — no existe evidencia en repo ni logs | Ejecutar desde panel Supabase. Seguir checklists en `docs/ops/BACKUP_RESTORE_ROLLBACK.md` secciones 6, 7 y 8. No declarar cerrado sin evidencia sanitizada registrada. |
+| Restore drill: **PENDIENTE DE EJECUCION EN ENTORNO NO PRODUCTIVO** — no existe acta verificada | Ejecutar restore drill fuera de produccion. Seguir checklist en `docs/ops/BACKUP_RESTORE_ROLLBACK.md` seccion 8. |
 | Smoke producción post-deploy no documentado | Ejecutar runbook y firmar evidencia sanitizada |
 | CORS/cookies en producción no verificados con login real | Smoke login con sesión real en HTTPS producción |
 | Aprobación legal/comercial pendiente | Completar `docs/legal-commercial-readiness.md` LC-001 a LC-015 |
