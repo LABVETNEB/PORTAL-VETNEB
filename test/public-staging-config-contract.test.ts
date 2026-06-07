@@ -10,13 +10,14 @@ function read(relativePath: string): string {
   );
 }
 
-test("root env example prioritizes public staging/production communication config", () => {
+test("root env example prioritizes public production communication config", () => {
   const source = read(".env.example");
 
   for (const marker of [
     "NODE_ENV=production",
     "PORT=10000",
-    "CORS_ORIGIN=https://portal-vetneb-frontend-staging.onrender.com",
+    "CORS_ORIGIN=https://vetneb.com.ar",
+    "TRUST_PROXY=1",
     "GMAIL_API_CLIENT_ID=<google-oauth-client-id>",
     "GMAIL_API_CLIENT_SECRET=<google-oauth-client-secret>",
     "GMAIL_API_REFRESH_TOKEN=<google-oauth-refresh-token>",
@@ -28,21 +29,27 @@ test("root env example prioritizes public staging/production communication confi
     "SMTP_PASS=<GMAIL_APP_PASSWORD_WITHOUT_SPACES>",
     "SMTP_FROM=lab.vetneb@gmail.com",
     "CONTACT_TO=lab.vetneb@gmail.com",
-    "NEXT_PUBLIC_API_URL=https://portal-vetneb-backend-staging.onrender.com",
-    "NEXT_PUBLIC_SITE_URL=https://portal-vetneb-frontend-staging.onrender.com",
     "Solo desarrollo local (auxiliar)",
   ]) {
     assert.ok(source.includes(marker), `.env.example missing ${marker}`);
   }
+
+  // TRUST_PROXY=true rompe startup; ninguna línea activa debe usar ese valor.
+  const activeTrustProxyTrue = source
+    .split("\n")
+    .some((line) => !line.trimStart().startsWith("#") && line.includes("TRUST_PROXY=true"));
+  assert.ok(
+    !activeTrustProxyTrue,
+    ".env.example must not set TRUST_PROXY=true as an active (uncommented) line",
+  );
 });
 
 test("frontend env example requires explicit public API URL", () => {
   const source = read("frontend/.env.example");
 
   for (const marker of [
-    "Prioridad: staging/production público.",
-    "NEXT_PUBLIC_API_URL=https://portal-vetneb-backend-staging.onrender.com",
-    "NEXT_PUBLIC_SITE_URL=https://portal-vetneb-frontend-staging.onrender.com",
+    "NEXT_PUBLIC_API_URL=https://api.vetneb.com.ar",
+    "NEXT_PUBLIC_SITE_URL=https://vetneb.com.ar",
     "Solo desarrollo local (auxiliar)",
   ]) {
     assert.ok(source.includes(marker), `frontend/.env.example missing ${marker}`);
