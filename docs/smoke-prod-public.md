@@ -9,6 +9,7 @@ No reemplaza el smoke autenticado (`pnpm smoke:staging`) ni el smoke local (`pnp
 - `GET https://vetneb.com.ar/` — HTTP 200
 - `GET https://vetneb.com.ar/robots.txt` — HTTP 200
 - `GET https://vetneb.com.ar/sitemap.xml` — HTTP 200, contiene `https://vetneb.com.ar`
+- `GET https://vetneb.com.ar/favicon.ico` — HTTP 200, body no vacío, magic bytes ICO `00 00 01 00`
 
 ## Ejecucion
 

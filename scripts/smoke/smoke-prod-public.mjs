@@ -78,6 +78,22 @@ async function run() {
   assert(sitemapText.includes(FRONTEND_URL), `SITEMAP no contiene ${FRONTEND_URL}`);
   console.log("OK /sitemap.xml");
 
+  // GET /favicon.ico
+  const faviconRes = await fetchWithTimeout(`${FRONTEND_URL}/favicon.ico`);
+  assert(faviconRes.ok, `FAVICON.ICO HTTP ${faviconRes.status}`);
+  const faviconBytes = new Uint8Array(await faviconRes.arrayBuffer());
+  assert(faviconBytes.byteLength > 0, "FAVICON.ICO body vacío");
+  assert(
+    faviconBytes[0] === 0x00 &&
+      faviconBytes[1] === 0x00 &&
+      faviconBytes[2] === 0x01 &&
+      faviconBytes[3] === 0x00,
+    `FAVICON.ICO magic bytes inválidos: ${Array.from(faviconBytes.slice(0, 4))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join(" ")}`
+  );
+  console.log("OK /favicon.ico");
+
   console.log("");
   console.log("SMOKE PROD PUBLIC COMPLETO OK");
 }
