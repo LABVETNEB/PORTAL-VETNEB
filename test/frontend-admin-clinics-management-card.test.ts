@@ -90,14 +90,16 @@ test("admin clinics management card maps fetch failures to an operational backen
   assert.ok(source.includes('includes("failed to fetch")'));
 });
 
-test("admin clinics management card renders a search input for filtering the loaded page", () => {
+test("admin clinics management card renders a search input and forwards query to server API", () => {
   const source = read(ADMIN_CLINICS_CARD_PATH);
 
   assert.ok(source.includes('placeholder="Buscar clínica por nombre, email o usuario..."'));
   assert.ok(source.includes('aria-label="Buscar clínicas"'));
   assert.ok(source.includes("searchQuery"));
   assert.ok(source.includes("setSearchQuery"));
-  assert.ok(source.includes("filteredRows"));
+  // search is forwarded to getAdminClinics — no client-side double filtering
+  assert.ok(source.includes("search:") || source.includes("search,"));
+  assert.equal(source.includes("filteredRows"), false);
 });
 
 test("admin clinics management card renders server-side pagination controls using snapshot total", () => {
@@ -121,33 +123,19 @@ test("admin clinics management card shows no-results state when search finds no 
   assert.ok(source.includes("searchQuery.trim()"));
 });
 
-test("admin clinics management card renders a search input for filtering the loaded page", () => {
+test("admin clinics management card resets to page 0 when search changes", () => {
   const source = read(ADMIN_CLINICS_CARD_PATH);
 
-  assert.ok(source.includes('placeholder="Buscar clínica por nombre, email o usuario..."'));
-  assert.ok(source.includes('aria-label="Buscar clínicas"'));
-  assert.ok(source.includes("searchQuery"));
-  assert.ok(source.includes("setSearchQuery"));
-  assert.ok(source.includes("filteredRows"));
+  // useEffect depends on searchQuery and calls loadClinics with offset 0
+  assert.ok(source.includes("searchQuery]"));
+  assert.ok(source.includes("loadClinics(0"));
 });
 
-test("admin clinics management card renders server-side pagination controls using snapshot total", () => {
+test("admin clinics management card does not double-filter rows client-side", () => {
   const source = read(ADMIN_CLINICS_CARD_PATH);
 
-  assert.ok(source.includes('aria-label="Página anterior"'));
-  assert.ok(source.includes('aria-label="Página siguiente"'));
-  assert.ok(source.includes("currentOffset"));
-  assert.ok(source.includes("setCurrentOffset"));
-  assert.ok(source.includes("totalClinics"));
-  assert.ok(source.includes("hasPrev"));
-  assert.ok(source.includes("hasNext"));
-  assert.ok(source.includes("snapshot?.total"));
-  assert.ok(source.includes("PAGE_SIZE"));
-});
-
-test("admin clinics management card shows no-results state when search finds no matches", () => {
-  const source = read(ADMIN_CLINICS_CARD_PATH);
-
-  assert.ok(source.includes("No hay clínicas que coincidan"));
-  assert.ok(source.includes("searchQuery.trim()"));
+  assert.equal(source.includes("filteredRows"), false);
+  // rows (unfiltered by client) drive the table
+  assert.ok(source.includes("rows.map("));
+  assert.ok(source.includes("rows.length"));
 });

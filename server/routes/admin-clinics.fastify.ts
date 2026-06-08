@@ -42,6 +42,7 @@ type AdminSessionWithUserRecord = {
 type AdminClinicsQuery = {
   limit?: string;
   offset?: string;
+  search?: string;
 };
 
 type AdminClinicCreateBody = {
@@ -82,6 +83,7 @@ export type AdminClinicsNativeRoutesOptions = {
   listAdminClinics?: (params: {
     limit?: number;
     offset?: number;
+    search?: string;
   }) => Promise<AdminClinicsSnapshot>;
   createAdminClinicWithUser?: (
     input: AdminClinicCreateInput,
@@ -760,7 +762,13 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
         });
       }
 
-      return reply.code(200).send(await deps.listAdminClinics({ limit, offset }));
+      const rawSearch = request.query.search;
+      const search =
+        typeof rawSearch === "string" ? rawSearch.trim().slice(0, 100) : undefined;
+
+      return reply
+        .code(200)
+        .send(await deps.listAdminClinics({ limit, offset, ...(search ? { search } : {}) }));
     },
   );
 

@@ -605,6 +605,122 @@ test("admin clinics delete mapea 23503 a 409 operativo y evita 500 genérico", a
   }
 });
 
+test("admin clinics GET reenvía parámetro search al listado", async () => {
+  const app = Fastify();
+  let receivedParams: { limit?: number; offset?: number; search?: string } = {};
+
+  await app.register(
+    adminClinicsNativeRoutes,
+    buildDeps({
+      listAdminClinics: async (params) => {
+        receivedParams = params;
+        return { success: true, clinics: [], total: 0, limit: params.limit ?? 50, offset: params.offset ?? 0 };
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?limit=50&offset=0&search=demo",
+      headers: { cookie: `${ENV.adminCookieName}=admin-session-token` },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(receivedParams.search, "demo");
+    assert.equal(receivedParams.limit, 50);
+    assert.equal(receivedParams.offset, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin clinics GET sin search no envía el campo al listado", async () => {
+  const app = Fastify();
+  let receivedParams: { limit?: number; offset?: number; search?: string } = {};
+
+  await app.register(
+    adminClinicsNativeRoutes,
+    buildDeps({
+      listAdminClinics: async (params) => {
+        receivedParams = params;
+        return { success: true, clinics: [], total: 0, limit: params.limit ?? 50, offset: params.offset ?? 0 };
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?limit=50&offset=0",
+      headers: { cookie: `${ENV.adminCookieName}=admin-session-token` },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(receivedParams.search, undefined);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin clinics GET search vacío no envía el campo al listado", async () => {
+  const app = Fastify();
+  let receivedParams: { limit?: number; offset?: number; search?: string } = {};
+
+  await app.register(
+    adminClinicsNativeRoutes,
+    buildDeps({
+      listAdminClinics: async (params) => {
+        receivedParams = params;
+        return { success: true, clinics: [], total: 0, limit: params.limit ?? 50, offset: params.offset ?? 0 };
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?search=   ",
+      headers: { cookie: `${ENV.adminCookieName}=admin-session-token` },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(receivedParams.search, undefined);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin clinics GET trunca search a 100 caracteres", async () => {
+  const app = Fastify();
+  let receivedSearch: string | undefined;
+
+  await app.register(
+    adminClinicsNativeRoutes,
+    buildDeps({
+      listAdminClinics: async (params) => {
+        receivedSearch = params.search;
+        return { success: true, clinics: [], total: 0, limit: params.limit ?? 50, offset: params.offset ?? 0 };
+      },
+    }),
+  );
+
+  try {
+    const longSearch = "a".repeat(200);
+    const response = await app.inject({
+      method: "GET",
+      url: `/?search=${longSearch}`,
+      headers: { cookie: `${ENV.adminCookieName}=admin-session-token` },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.ok(receivedSearch !== undefined);
+    assert.equal((receivedSearch as string).length, 100);
+  } finally {
+    await app.close();
+  }
+});
+
 test("admin clinics no falla si la auditoría de delete falla después de persistir", async () => {
   const app = Fastify();
   let deleteCalled = false;
