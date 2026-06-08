@@ -31,7 +31,7 @@ export function AdminCommandCenter({
 }: AdminCommandCenterProps) {
   return (
     <section
-      className="space-y-5"
+      className="space-y-4"
       aria-labelledby="admin-command-center-heading"
     >
       <div>
@@ -46,47 +46,37 @@ export function AdminCommandCenter({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card className="dashboard-surface h-full">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+      <div
+        className="overflow-hidden rounded-lg border border-vetneb-line/80 bg-card/95 shadow-[0_12px_34px_rgba(15,45,62,0.08)] ring-1 ring-white/55 transition-[border-color,box-shadow,background-color] duration-200 hover:border-vetneb-teal/35"
+        role="region"
+        aria-label="Métricas de auditoría"
+      >
+        <div className="grid grid-cols-1 divide-y divide-vetneb-line/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div className="px-5 py-3.5">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Eventos de auditoría
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-vetneb-ink">
+            </p>
+            <p className="mt-1.5 text-2xl font-bold tracking-tight text-vetneb-ink">
               {auditEntriesCount}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Registros totales
-            </p>
-          </CardContent>
-        </Card>
+            <p className="mt-0.5 text-xs text-muted-foreground">Registros totales</p>
+          </div>
 
-        <Card className="dashboard-surface h-full">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <div className="px-5 py-3.5">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Tipos de evento
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-vetneb-ink">
+            </p>
+            <p className="mt-1.5 text-2xl font-bold tracking-tight text-vetneb-ink">
               {eventTypesCount}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Categorías distintas
-            </p>
-          </CardContent>
-        </Card>
+            <p className="mt-0.5 text-xs text-muted-foreground">Categorías distintas</p>
+          </div>
 
-        <Card className="dashboard-surface h-full">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <div className="px-5 py-3.5">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Estado del sistema
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
+            </p>
+            <div className="mt-1.5 flex items-center gap-2">
               <span
                 className={cn("h-2.5 w-2.5 rounded-full", systemStatusIndicatorClass)}
                 aria-hidden="true"
@@ -95,23 +85,23 @@ export function AdminCommandCenter({
                 {systemStatusLabel}
               </Badge>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {hasSystemHealthFetchError
                 ? "No se pudo consultar el estado del sistema."
                 : systemStatusDetail}
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       <Card className="dashboard-surface">
-        <CardHeader>
+        <CardHeader className="pb-2 pt-4">
           <CardTitle className="text-base">Alertas</CardTitle>
           <CardDescription>
             Seguridad y salud operativa quedan priorizadas antes de las secciones secundarias.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <CardContent className="grid grid-cols-1 gap-2 pb-4 md:grid-cols-2">
           <div className="surface-soft">
             <p className="text-sm font-semibold text-vetneb-ink">
               Intentos fallidos de login

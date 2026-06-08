@@ -83,16 +83,16 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {statConfig.map((config) => (
         <Card
           key={config.key}
           className={cn("dashboard-metric-card overflow-hidden p-0", config.cardClassName)}
         >
-          <CardHeader className="pb-2">
+          <CardHeader className="px-4 pb-1.5 pt-3">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold text-vetneb-ink">
               <span
-                className={`inline-flex h-8 w-8 items-center justify-center rounded-md border ${config.tone}`}
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-md border ${config.tone}`}
                 aria-hidden="true"
               >
                 <config.icon className="h-4 w-4" />
@@ -105,11 +105,11 @@ export function StatsCards({ stats, loading }: StatsCardsProps) {
               ) : null}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold tracking-tight text-vetneb-ink">
+          <CardContent className="px-4 pb-3">
+            <p className="text-xl font-bold tracking-tight text-vetneb-ink">
               {stats ? stats[config.key] : "—"}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">{config.description}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{config.description}</p>
           </CardContent>
         </Card>
       ))}
