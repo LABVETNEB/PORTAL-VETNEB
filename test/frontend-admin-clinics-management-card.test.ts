@@ -89,3 +89,65 @@ test("admin clinics management card maps fetch failures to an operational backen
   assert.ok(source.includes("BACKEND_CONNECTION_ERROR_MESSAGE"));
   assert.ok(source.includes('includes("failed to fetch")'));
 });
+
+test("admin clinics management card renders a search input for filtering the loaded page", () => {
+  const source = read(ADMIN_CLINICS_CARD_PATH);
+
+  assert.ok(source.includes('placeholder="Buscar clínica por nombre, email o usuario..."'));
+  assert.ok(source.includes('aria-label="Buscar clínicas"'));
+  assert.ok(source.includes("searchQuery"));
+  assert.ok(source.includes("setSearchQuery"));
+  assert.ok(source.includes("filteredRows"));
+});
+
+test("admin clinics management card renders server-side pagination controls using snapshot total", () => {
+  const source = read(ADMIN_CLINICS_CARD_PATH);
+
+  assert.ok(source.includes('aria-label="Página anterior"'));
+  assert.ok(source.includes('aria-label="Página siguiente"'));
+  assert.ok(source.includes("currentOffset"));
+  assert.ok(source.includes("setCurrentOffset"));
+  assert.ok(source.includes("totalClinics"));
+  assert.ok(source.includes("hasPrev"));
+  assert.ok(source.includes("hasNext"));
+  assert.ok(source.includes("snapshot?.total"));
+  assert.ok(source.includes("PAGE_SIZE"));
+});
+
+test("admin clinics management card shows no-results state when search finds no matches", () => {
+  const source = read(ADMIN_CLINICS_CARD_PATH);
+
+  assert.ok(source.includes("No hay clínicas que coincidan"));
+  assert.ok(source.includes("searchQuery.trim()"));
+});
+
+test("admin clinics management card renders a search input for filtering the loaded page", () => {
+  const source = read(ADMIN_CLINICS_CARD_PATH);
+
+  assert.ok(source.includes('placeholder="Buscar clínica por nombre, email o usuario..."'));
+  assert.ok(source.includes('aria-label="Buscar clínicas"'));
+  assert.ok(source.includes("searchQuery"));
+  assert.ok(source.includes("setSearchQuery"));
+  assert.ok(source.includes("filteredRows"));
+});
+
+test("admin clinics management card renders server-side pagination controls using snapshot total", () => {
+  const source = read(ADMIN_CLINICS_CARD_PATH);
+
+  assert.ok(source.includes('aria-label="Página anterior"'));
+  assert.ok(source.includes('aria-label="Página siguiente"'));
+  assert.ok(source.includes("currentOffset"));
+  assert.ok(source.includes("setCurrentOffset"));
+  assert.ok(source.includes("totalClinics"));
+  assert.ok(source.includes("hasPrev"));
+  assert.ok(source.includes("hasNext"));
+  assert.ok(source.includes("snapshot?.total"));
+  assert.ok(source.includes("PAGE_SIZE"));
+});
+
+test("admin clinics management card shows no-results state when search finds no matches", () => {
+  const source = read(ADMIN_CLINICS_CARD_PATH);
+
+  assert.ok(source.includes("No hay clínicas que coincidan"));
+  assert.ok(source.includes("searchQuery.trim()"));
+});
