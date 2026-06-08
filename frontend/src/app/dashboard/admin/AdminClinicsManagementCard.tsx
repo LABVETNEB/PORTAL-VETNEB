@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
-import { KeyRound, Plus, RefreshCw, Save } from "lucide-react";
+import { ChevronLeft, ChevronRight, KeyRound, Plus, RefreshCw, Save, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -113,6 +113,8 @@ function formatAdminClinicsError(error: unknown, fallback: string) {
 
 export function AdminClinicsManagementCard() {
   const [snapshot, setSnapshot] = useState<AdminClinicsSnapshot | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentOffset, setCurrentOffset] = useState(0);
   const [createForm, setCreateForm] = useState<CreateClinicForm>(
     getInitialCreateForm,
   );
@@ -126,6 +128,23 @@ export function AdminClinicsManagementCard() {
   const [isPending, startTransition] = useTransition();
 
   const rows = useMemo(() => getClinicUserRows(snapshot), [snapshot]);
+
+  const filteredRows = useMemo(() => {
+    if (!searchQuery.trim()) return rows;
+    const q = searchQuery.toLowerCase();
+    return rows.filter(({ clinic, user }) =>
+      clinic.clinicName.toLowerCase().includes(q) ||
+      (clinic.contactEmail ?? "").toLowerCase().includes(q) ||
+      (user?.username ?? "").toLowerCase().includes(q) ||
+      String(clinic.clinicId) === q.trim()
+    );
+  }, [rows, searchQuery]);
+
+  const totalClinics = snapshot?.total ?? 0;
+  const pageStart = totalClinics > 0 ? currentOffset + 1 : 0;
+  const pageEnd = Math.min(currentOffset + PAGE_SIZE, totalClinics);
+  const hasPrev = currentOffset > 0;
+  const hasNext = currentOffset + PAGE_SIZE < totalClinics;
   const isBusy = isPending || activeActionKey !== null;
 
   function applySnapshot(nextSnapshot: AdminClinicsSnapshot) {
@@ -148,13 +167,14 @@ export function AdminClinicsManagementCard() {
     setUserDrafts(nextUserDrafts);
   }
 
-  function loadClinics() {
+  function loadClinics(offset = currentOffset) {
     setError(null);
 
     startTransition(() => {
       void (async () => {
         try {
-          applySnapshot(await getAdminClinics({ limit: PAGE_SIZE, offset: 0 }));
+          applySnapshot(await getAdminClinics({ limit: PAGE_SIZE, offset }));
+          setCurrentOffset(offset);
         } catch (err) {
           setError(formatAdminClinicsError(
             err,
@@ -199,7 +219,7 @@ export function AdminClinicsManagementCard() {
       setSuccessMessage(
         `Clínica creada: ${result.clinic.clinicName} con usuario ${result.user.username}.`,
       );
-      loadClinics();
+      loadClinics(0);
     } catch (err) {
       setError(formatAdminClinicsError(err, "No se pudo crear la clínica."));
     } finally {
@@ -342,7 +362,7 @@ export function AdminClinicsManagementCard() {
   }
 
   useEffect(() => {
-    loadClinics();
+    loadClinics(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -350,13 +370,13 @@ export function AdminClinicsManagementCard() {
     <Card id="admin-clinics" className="dashboard-surface">
       <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-center lg:justify-between">
         <CardTitle className="text-base">Clínicas</CardTitle>
-        <Button type="button" onClick={loadClinics} disabled={isBusy}>
+        <Button type="button" onClick={() => loadClinics()} disabled={isBusy}>
           <RefreshCw aria-hidden="true" />
           {isPending ? "Actualizando..." : "Actualizar"}
         </Button>
       </CardHeader>
 
-      <CardContent className="space-y-5 pt-6">
+      <CardContent className="space-y-4 pt-5">
         <form
           className="surface-soft grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6"
           onSubmit={(event) => void handleCreateClinic(event)}
@@ -460,6 +480,52 @@ export function AdminClinicsManagementCard() {
           </div>
         ) : null}
 
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative max-w-xs flex-1">
+            <Search
+              className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              className="h-8 pl-8 text-sm"
+              placeholder="Buscar clínica por nombre, email o usuario..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={isBusy}
+              aria-label="Buscar clínicas"
+            />
+          </div>
+          {totalClinics > 0 ? (
+            <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+              <span>
+                {pageStart}–{pageEnd} de {totalClinics}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0"
+                onClick={() => loadClinics(currentOffset - PAGE_SIZE)}
+                disabled={isBusy || !hasPrev}
+                aria-label="Página anterior"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0"
+                onClick={() => loadClinics(currentOffset + PAGE_SIZE)}
+                disabled={isBusy || !hasNext}
+                aria-label="Página siguiente"
+              >
+                <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
         <div className="overflow-hidden">
           <Table>
             <TableHeader>
@@ -472,8 +538,8 @@ export function AdminClinicsManagementCard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.length ? (
-                rows.map(({ clinic, user }) => {
+              {filteredRows.length ? (
+                filteredRows.map(({ clinic, user }) => {
                   const clinicDraft =
                     clinicDrafts[clinic.clinicId] ?? getClinicDraft(clinic);
                   const userDraft = user
@@ -647,7 +713,9 @@ export function AdminClinicsManagementCard() {
                   <TableCell colSpan={5} className="clinical-table-state">
                     {isPending
                       ? "Cargando clínicas..."
-                      : "No hay clínicas para mostrar."}
+                      : searchQuery.trim()
+                        ? `No hay clínicas que coincidan con "${searchQuery}".`
+                        : "No hay clínicas para mostrar."}
                   </TableCell>
                 </TableRow>
               )}
