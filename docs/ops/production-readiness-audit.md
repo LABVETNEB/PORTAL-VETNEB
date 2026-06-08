@@ -8,11 +8,12 @@ Runbook operativo: `docs/ops/BACKUP_RESTORE_ROLLBACK.md`.
 
 | Campo | Valor |
 |---|---|
-| Fecha | 2026-06-07 |
-| Commit evaluado | `bda510b` |
-| Decisión | **NO-GO parcial** |
+| Fecha | 2026-06-08 |
+| Commit evaluado | `1bbac76` |
+| Decisión | **NO-GO parcial (riesgo reducido)** |
 | PRs abiertos | 0 |
 | Infraestructura productiva | Operativa |
+| Dump externo DB | Ejecutado 2026-06-08 — evidencia sanitizada en runbook sec. 18 |
 | Pendientes bloqueantes | Documentados abajo |
 
 ## Infraestructura productiva confirmada
@@ -42,7 +43,7 @@ Runbook operativo: `docs/ops/BACKUP_RESTORE_ROLLBACK.md`.
 | CI formal no verificado sobre `bda510b` | Confirmar runs de backend-ci y frontend-ci en GitHub Actions |
 | Staging smoke autenticado pendiente | Ejecutar `pnpm smoke:staging` con credenciales admin/clinic/particular |
 | Schema health (`/api/admin/system/schema-health`) no verificado | Smoke admin con credenciales reales |
-| **Supabase Free plan — backups automaticos NO disponibles.** Dashboard confirma: "Free Plan does not include project backups." Produccion funcional pero sin respaldo automatico activo. Riesgo operativo critico: perdida de datos no recuperable sin dump externo. Mitigacion temporal requerida: dump externo inmediato desde entorno local seguro. Alternativa: upgrade a Supabase Pro para habilitar backups automaticos. Ver checklists en `docs/ops/BACKUP_RESTORE_ROLLBACK.md` seccion 17. | Ejecutar dump externo desde entorno local seguro + almacenar cifrado fuera del repo + registrar evidencia sanitizada. O hacer upgrade a plan de pago. |
+| **Supabase Free plan — backups automaticos NO disponibles. Dump externo DB ejecutado 2026-06-08 como mitigacion temporal (P0-016 parcialmente mitigado).** Dashboard confirma: "Free Plan does not include project backups." Dump externo con pg_dump/pg_dumpall v17.10 ejecutado el 2026-06-08T07:45:48Z fuera del repo (`C:\VETNEB-BACKUPS`). Evidencia sanitizada registrada en `docs/ops/BACKUP_RESTORE_ROLLBACK.md` seccion 18. Riesgo remanente: cifrado/vault del dump pendiente; restore drill y Storage export pendientes; backups automaticos no activos. | Cifrar/vault dump en `C:\VETNEB-BACKUPS` + ejecutar restore drill (P0-017) + ejecutar Storage export + considerar upgrade a Supabase Pro. |
 | Storage backup/export: **PENDIENTE** — dump DB no cubre objetos de Storage. Bucket `reports` detectado con `Policies = 0`. | Definir y ejecutar proceso de export de objetos. Verificar acceso anonimo desactivado. Ver checklist en `docs/ops/BACKUP_RESTORE_ROLLBACK.md` seccion 17. |
 | Restore drill: **PENDIENTE DE EJECUCION EN ENTORNO NO PRODUCTIVO** — no existe acta verificada | Ejecutar restore drill fuera de produccion. Seguir checklist en `docs/ops/BACKUP_RESTORE_ROLLBACK.md` seccion 17. |
 | Smoke producción post-deploy no documentado | Ejecutar runbook y firmar evidencia sanitizada |

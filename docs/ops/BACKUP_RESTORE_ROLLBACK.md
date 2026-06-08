@@ -16,14 +16,16 @@ configuracion.
 
 | Componente | Estado formal |
 |---|---|
-| Backup DB Supabase | **PENDIENTE DE VERIFICACION FORMAL** |
-| Backup Supabase Storage | **PENDIENTE DE VERIFICACION FORMAL** |
+| Backup automatico Supabase | **NO DISPONIBLE — Free plan** |
+| Dump externo DB (mitigacion temporal) | **EJECUTADO Y VERIFICADO — 2026-06-08** |
+| Backup Supabase Storage | **PENDIENTE — requiere accion separada** |
 | Restore drill (entorno no productivo) | **PENDIENTE DE EJECUCION** |
 
-No existe evidencia verificada en repo ni en logs de que backup o restore
-hayan sido ejecutados y documentados con el entorno de produccion actual.
-Estado correcto: PENDIENTE. Bloquea GO produccion para releases con cambios
-de DB/storage hasta que se registre evidencia sanitizada formal.
+Dump externo de la DB de produccion ejecutado el 2026-06-08 fuera del repo
+con pg_dump/pg_dumpall v17.10 desde Windows PowerShell. Archivos almacenados
+en `C:\VETNEB-BACKUPS` (fuera del repositorio, no versionados).
+Evidencia sanitizada registrada en seccion 17 y 18 de este documento.
+Storage export y restore drill siguen pendientes.
 
 ## 2. Alcance
 
@@ -253,7 +255,7 @@ Checks manuales complementarios (si aplica): admin, clinic, particular.
 
 | Fecha UTC | Entorno | Accion | Commit/deploy | Responsable tecnico | Responsable negocio | Evidencia sanitizada | Resultado |
 |---|---|---|---|---|---|---|---|
-|  |  |  |  |  |  |  |  |
+| 2026-06-08T07:45:48Z | Produccion (DB externa) | Dump externo DB — pg_dump/pg_dumpall v17.10, Windows PowerShell | 1bbac76 | VETNEB | — | Ver seccion 18 — sha256 de archivos registrado, sin secretos | COMPLETADO |
 |  |  |  |  |  |  |  |  |
 |  |  |  |  |  |  |  |  |
 
@@ -277,27 +279,31 @@ Estado formal:
 | Componente | Estado |
 |---|---|
 | Backup automatico Supabase | **NO DISPONIBLE — Free plan** |
-| Dump externo (mitigacion temporal) | **PENDIENTE DE EJECUCION** |
+| Dump externo DB (mitigacion temporal) | **EJECUTADO Y VERIFICADO — 2026-06-08** |
 | Restore drill en entorno no productivo | **PENDIENTE DE EJECUCION** |
 | Storage backup/export | **PENDIENTE — requiere accion separada** |
 
-Produccion es funcional, pero sin backups automaticos activos. Cualquier
-perdida de datos de DB no es recuperable hasta que se ejecute dump externo
-o se haga upgrade al plan de pago.
+Dump externo ejecutado el 2026-06-08. Archivos fuera del repo en
+`C:\VETNEB-BACKUPS`. Evidencia sanitizada en seccion 18.
+Storage export y restore drill siguen pendientes.
+Produccion funcional. Sin backups automaticos activos — riesgo operativo
+remanente hasta completar restore drill y Storage export.
 
 ### Checklist — dump externo seguro (mitigacion temporal)
 
 Ejecutar desde entorno local seguro con acceso a la DB de produccion:
 
-- [ ] Confirmar que el entorno local tiene acceso autorizado a la DB de produccion.
-- [ ] Generar dump completo de la DB desde entorno local seguro (no desde este repo).
-- [ ] Guardar el dump **fuera del repo** — no versionar en git.
+- [x] Confirmar que el entorno local tiene acceso autorizado a la DB de produccion.
+- [x] Generar dump completo de la DB desde entorno local seguro (no desde este repo).
+- [x] Guardar el dump **fuera del repo** — no versionar en git.
 - [ ] Cifrar el archivo dump o almacenarlo en vault/drive seguro con acceso restringido.
-- [ ] Registrar fecha y hora UTC del dump.
-- [ ] Registrar responsable real cuando exista (no inventar).
-- [ ] Registrar tamano aproximado y hash del archivo si se calcula (opcional pero recomendado).
-- [ ] Confirmar que el archivo dump no contiene secretos expuestos en texto plano en este doc.
-- [ ] Registrar evidencia sanitizada en la tabla de registro operativo (seccion 15 de este doc).
+- [x] Registrar fecha y hora UTC del dump.
+- [x] Registrar responsable real cuando exista (no inventar).
+- [x] Registrar tamano aproximado y hash del archivo si se calcula (opcional pero recomendado).
+- [x] Confirmar que el archivo dump no contiene secretos expuestos en texto plano en este doc.
+- [x] Registrar evidencia sanitizada en la tabla de registro operativo (seccion 15 de este doc).
+
+> Pendiente: cifrado/vault del archivo dump en `C:\VETNEB-BACKUPS`.
 
 ### Checklist — restore drill en entorno no productivo
 
@@ -328,3 +334,46 @@ proceso de export/backup separado.
 - [ ] No descargar ni versionar archivos sensibles del bucket en este repo.
 - [ ] Registrar evidencia sanitizada (nombre de bucket, conteo aproximado, fecha UTC)
   en la tabla de registro operativo cuando se ejecute el export.
+
+---
+
+## 18. Evidencia sanitizada — dump externo DB 2026-06-08
+
+Dump ejecutado fuera del repo el 2026-06-08. Archivos almacenados en
+`C:\VETNEB-BACKUPS` (nunca versionados en git).
+
+| Campo | Valor |
+|---|---|
+| Timestamp dump | 2026-06-08T07:45:48Z |
+| Plan Supabase | Free |
+| Herramienta | pg_dump / pg_dumpall v17.10 |
+| Entorno ejecucion | Windows PowerShell — entorno local seguro |
+| Ubicacion archivos | Fuera del repo — `C:\VETNEB-BACKUPS` |
+| Repo verificado limpio | Si — `git ls-files backups/` sin salida |
+| Cifrado/vault | Pendiente |
+
+### Archivos del dump (evidencia de integridad — sin secretos)
+
+| Archivo | Tamano (bytes) | SHA-256 |
+|---|---|---|
+| `roles_20260608-074548.sql` | 6749 | `9B45D04077DB38249D18374E30459DB96911550849EBB45D2EE7315617909456` |
+| `schema_20260608-074548.sql` | 256633 | `E3316F2E5218FD21A7FBF7224484483339CFC71DCB0456A5144A893D0E3C4AA3` |
+| `data_20260608-074548.dump` | 63214 | `7ED8F31371168879CCECB5D68148AE7CFF7858FEDB21AD26F6FED97D44DE83C8` |
+| `vetneb-supabase-db-20260608-074548.zip` | 74260 | `B35559EF0C5E0A1E3479B63850CD9B028660B31B9F60EA3F98952EE63195E70B` |
+
+> Nota: los hashes SHA-256 permiten verificar integridad futura del dump.
+> No se incluye contenido SQL, connection strings, passwords ni secretos en este doc.
+
+### Archivo local previo movido fuera del repo
+
+El archivo `backups/production/portal-vetneb-prod-20260520-134052.dump` que
+existia localmente **no estaba versionado** (`git ls-files` sin salida).
+Fue movido a `C:\VETNEB-BACKUPS\legacy-local\` antes de este PR.
+El repo queda sin dumps internos.
+
+### Pendientes post-dump
+
+- [ ] Cifrar o mover a vault seguro los archivos en `C:\VETNEB-BACKUPS`.
+- [ ] Ejecutar restore drill en entorno no productivo (P0-017).
+- [ ] Ejecutar Storage export (bucket `reports` y otros).
+- [ ] Hacer upgrade a Supabase Pro para habilitar backups automaticos (alternativa permanente).
