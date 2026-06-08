@@ -94,13 +94,22 @@ async function mockAdminClinicsUpdate(page: Page) {
   );
 }
 
-// Click the "Gestión" tab and retry until the admin-clinics card becomes visible.
-// In CI cold-starts, React may not have hydrated when Playwright fires the first
-// click, so the onClick handler is not yet attached. toPass retries the whole
-// click+check sequence until the panel actually opens (or the timeout expires).
+// Navigate to the Gestión tab using its stable aria-controls attribute.
+// Tab and panel ids are derived from the tab.id ("gestion"), not from useId(),
+// so selectors are deterministic across SSR and client hydration.
+// toPass retries the click+verify sequence in case the first click fires before
+// React has attached its onClick handler (CI cold-start hydration race).
 async function navigateToGestionTab(page: Page) {
+  const tab = page.locator('[role="tab"][aria-controls="admin-section-panel-gestion"]');
+  const panel = page.locator("#admin-section-panel-gestion");
+
+  await expect(tab).toBeVisible({ timeout: 5_000 });
+  await expect(tab).toBeEnabled();
+
   await expect(async () => {
-    await page.getByRole("tab", { name: /gestión/i }).click();
+    await tab.click();
+    await expect(tab).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+    await expect(panel).not.toHaveAttribute("hidden", { timeout: 1_000 });
     await expect(page.locator("#admin-clinics")).toBeVisible({ timeout: 1_000 });
   }).toPass({ intervals: [300, 600, 1_000, 1_500], timeout: 8_000 });
 }

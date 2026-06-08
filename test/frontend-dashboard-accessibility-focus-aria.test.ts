@@ -60,8 +60,8 @@ test("PR-8 AdminSectionTabs keeps full tab ARIA and keyboard focus contract", ()
   assert.ok(source.includes('role="tab"'));
   assert.ok(source.includes('role="tabpanel"'));
   assert.ok(source.includes("aria-selected={isActive}"));
-  assert.ok(source.includes("aria-controls={`${baseId}-panel-${tab.id}`}"));
-  assert.ok(source.includes("aria-labelledby={`${baseId}-tab-${tab.id}`}"));
+  assert.ok(source.includes("aria-controls={`admin-section-panel-${tab.id}`}"));
+  assert.ok(source.includes("aria-labelledby={`admin-section-tab-${tab.id}`}"));
   assert.ok(source.includes('aria-orientation="horizontal"'));
   assert.ok(source.includes('event.key === "ArrowRight"'));
   assert.ok(source.includes('event.key === "ArrowLeft"'));

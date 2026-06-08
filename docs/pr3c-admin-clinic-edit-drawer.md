@@ -95,6 +95,46 @@ git diff --stat       # resumen de cambios
 
 ---
 
+## CI navigation fix — stable tab IDs (commit fix over 46cbd22)
+
+### Problema
+
+`navigateToGestionTab` usaba `page.getByRole("tab", { name: /gestión/i })` y luego esperaba `#admin-clinics` (Card interna). Pero `AdminSectionTabs` generaba los IDs de tab/panel con `useId()` de React, produciendo valores como `:r0:-tab-gestion` — no predecibles, distintos en cada render SSR vs cliente, imposibles de usar como anclas estables.
+
+### Causa raíz
+
+`useId()` genera un ID único por instancia de componente, diseñado para evitar colisiones cuando hay múltiples instancias. `AdminSectionTabs` solo tiene una instancia global en el admin page, y `tab.id` ya es estable y único por diseño (`"sistema"`, `"gestion"`, etc.). El prefijo `useId()` no aportaba nada y hacía los IDs opacos.
+
+### Cambios
+
+**`frontend/src/app/dashboard/admin/AdminSectionTabs.tsx`**
+- Eliminado `useId` del import y `const baseId = useId()`
+- IDs de tab: `` `admin-section-tab-${tab.id}` `` (ej: `admin-section-tab-gestion`)
+- IDs de panel: `` `admin-section-panel-${tab.id}` `` (ej: `admin-section-panel-gestion`)
+- ARIA contracts intactos: `role="tab"`, `role="tabpanel"`, `aria-selected`, `aria-controls`, `aria-labelledby`, `hidden`, navegación por teclado
+
+**`frontend/e2e/admin-clinic-edit-drawer.spec.ts`** — `navigateToGestionTab`:
+```typescript
+const tab = page.locator('[role="tab"][aria-controls="admin-section-panel-gestion"]');
+const panel = page.locator("#admin-section-panel-gestion");
+await expect(tab).toBeVisible({ timeout: 5_000 });
+await expect(tab).toBeEnabled();
+await expect(async () => {
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+  await expect(panel).not.toHaveAttribute("hidden", { timeout: 1_000 });
+  await expect(page.locator("#admin-clinics")).toBeVisible({ timeout: 1_000 });
+}).toPass({ intervals: [300, 600, 1_000, 1_500], timeout: 8_000 });
+```
+- Selector estable por `aria-controls` (no regex de texto con tilde)
+- Verifica `aria-selected="true"` — confirma que React procesó el click
+- Verifica panel sin `hidden` — confirma que el tabpanel está activo
+- Verifica `#admin-clinics` — confirma que el contenido es visible
+
+**`test/frontend-dashboard-accessibility-focus-aria.test.ts`** — 2 líneas actualizadas para reflejar los nuevos strings en el fuente del componente.
+
+---
+
 ## CI fix — E2E determinism (commit fix over 346aa95)
 
 ### Root cause

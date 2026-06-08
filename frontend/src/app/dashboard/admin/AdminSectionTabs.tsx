@@ -2,7 +2,6 @@
 
 import {
   useEffect,
-  useId,
   useMemo,
   useState,
   type KeyboardEvent,
@@ -33,7 +32,6 @@ export function AdminSectionTabs({
   defaultTabId,
   className,
 }: AdminSectionTabsProps) {
-  const baseId = useId();
   const availableTabs = useMemo(
     () => tabs.filter((tab) => isRenderableContent(tab.content)),
     [tabs],
@@ -111,7 +109,7 @@ export function AdminSectionTabs({
 
     setActiveTabId(nextTab.id);
     window.requestAnimationFrame(() => {
-      document.getElementById(`${baseId}-tab-${nextTab.id}`)?.focus();
+      document.getElementById(`admin-section-tab-${nextTab.id}`)?.focus();
     });
   };
 
@@ -134,11 +132,11 @@ export function AdminSectionTabs({
           return (
             <button
               key={tab.id}
-              id={`${baseId}-tab-${tab.id}`}
+              id={`admin-section-tab-${tab.id}`}
               type="button"
               role="tab"
               aria-selected={isActive}
-              aria-controls={`${baseId}-panel-${tab.id}`}
+              aria-controls={`admin-section-panel-${tab.id}`}
               tabIndex={isActive ? 0 : -1}
               onClick={() => setActiveTabId(tab.id)}
               onKeyDown={(event) => handleTabKeyDown(event, index)}
@@ -163,9 +161,9 @@ export function AdminSectionTabs({
       {availableTabs.map((tab) => (
         <div
           key={tab.id}
-          id={`${baseId}-panel-${tab.id}`}
+          id={`admin-section-panel-${tab.id}`}
           role="tabpanel"
-          aria-labelledby={`${baseId}-tab-${tab.id}`}
+          aria-labelledby={`admin-section-tab-${tab.id}`}
           tabIndex={0}
           hidden={tab.id !== activeTabId}
           className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
