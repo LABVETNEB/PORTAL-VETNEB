@@ -262,3 +262,69 @@ Checks manuales complementarios (si aplica): admin, clinic, particular.
 - GO solo si hay backup vigente + restore probado + rollback app/DB documentado.
 - NO-GO si falta backup, restore o rollback.
 - GO condicionado solo si no quedan P0 abiertos.
+
+---
+
+## 17. Mitigacion temporal — Supabase Free plan sin backups automaticos
+
+### Estado observado
+
+Produccion funciona sobre **Supabase Free plan**. El dashboard de Supabase
+confirma: _"Free Plan does not include project backups."_
+
+Estado formal:
+
+| Componente | Estado |
+|---|---|
+| Backup automatico Supabase | **NO DISPONIBLE — Free plan** |
+| Dump externo (mitigacion temporal) | **PENDIENTE DE EJECUCION** |
+| Restore drill en entorno no productivo | **PENDIENTE DE EJECUCION** |
+| Storage backup/export | **PENDIENTE — requiere accion separada** |
+
+Produccion es funcional, pero sin backups automaticos activos. Cualquier
+perdida de datos de DB no es recuperable hasta que se ejecute dump externo
+o se haga upgrade al plan de pago.
+
+### Checklist — dump externo seguro (mitigacion temporal)
+
+Ejecutar desde entorno local seguro con acceso a la DB de produccion:
+
+- [ ] Confirmar que el entorno local tiene acceso autorizado a la DB de produccion.
+- [ ] Generar dump completo de la DB desde entorno local seguro (no desde este repo).
+- [ ] Guardar el dump **fuera del repo** — no versionar en git.
+- [ ] Cifrar el archivo dump o almacenarlo en vault/drive seguro con acceso restringido.
+- [ ] Registrar fecha y hora UTC del dump.
+- [ ] Registrar responsable real cuando exista (no inventar).
+- [ ] Registrar tamano aproximado y hash del archivo si se calcula (opcional pero recomendado).
+- [ ] Confirmar que el archivo dump no contiene secretos expuestos en texto plano en este doc.
+- [ ] Registrar evidencia sanitizada en la tabla de registro operativo (seccion 15 de este doc).
+
+### Checklist — restore drill en entorno no productivo
+
+- [ ] Confirmar que el entorno de restore **NO es produccion**.
+- [ ] Crear entorno/proyecto Supabase no productivo dedicado para el drill.
+- [ ] Restaurar el dump en el entorno no productivo.
+- [ ] Validar conectividad y tablas criticas post-restore.
+- [ ] Validar migraciones Drizzle si aplica (`pnpm schema:verify` apuntando al entorno no productivo).
+- [ ] Registrar resultado final: pass/fail, hora UTC y responsable tecnico real.
+- [ ] Registrar evidencia sanitizada (sin datos sensibles) en la tabla de registro operativo.
+- [ ] No ejecutar restore sobre produccion sin autorizacion explicita.
+
+### Nota — Storage no queda cubierto por dump DB
+
+El dump de la base de datos Postgres **no incluye objetos de Supabase Storage**.
+Los archivos almacenados en buckets (ej: reportes PDF, avatares) requieren un
+proceso de export/backup separado.
+
+### Checklist — Storage (bucket `reports` y otros)
+
+- [ ] Confirmar que el bucket `reports` (y cualquier otro bucket productivo) es privado.
+- [ ] Revisar que `Policies = 0` esta documentado con su significado real: sin
+  politicas RLS definidas en el bucket — implica que el acceso depende
+  exclusivamente del service role key; confirmar que ningun acceso anonimo o
+  publico esta activo.
+- [ ] Definir procedimiento de export/backup de objetos del bucket (herramienta,
+  frecuencia, destino seguro).
+- [ ] No descargar ni versionar archivos sensibles del bucket en este repo.
+- [ ] Registrar evidencia sanitizada (nombre de bucket, conteo aproximado, fecha UTC)
+  en la tabla de registro operativo cuando se ejecute el export.
