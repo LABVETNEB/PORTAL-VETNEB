@@ -1632,6 +1632,7 @@ export async function getAdminClinics(
   params: {
     limit?: number;
     offset?: number;
+    search?: string;
   } = {},
   options?: RequestInit,
 ): Promise<AdminClinicsSnapshot> {
@@ -1643,6 +1644,10 @@ export async function getAdminClinics(
 
   if (typeof params.offset === "number") {
     query.set("offset", String(params.offset));
+  }
+
+  if (params.search && params.search.trim()) {
+    query.set("search", params.search.trim());
   }
 
   const qs = query.toString();

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ChevronLeft, ChevronRight, KeyRound, Plus, RefreshCw, Save, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,17 +129,6 @@ export function AdminClinicsManagementCard() {
 
   const rows = useMemo(() => getClinicUserRows(snapshot), [snapshot]);
 
-  const filteredRows = useMemo(() => {
-    if (!searchQuery.trim()) return rows;
-    const q = searchQuery.toLowerCase();
-    return rows.filter(({ clinic, user }) =>
-      clinic.clinicName.toLowerCase().includes(q) ||
-      (clinic.contactEmail ?? "").toLowerCase().includes(q) ||
-      (user?.username ?? "").toLowerCase().includes(q) ||
-      String(clinic.clinicId) === q.trim()
-    );
-  }, [rows, searchQuery]);
-
   const totalClinics = snapshot?.total ?? 0;
   const pageStart = totalClinics > 0 ? currentOffset + 1 : 0;
   const pageEnd = Math.min(currentOffset + PAGE_SIZE, totalClinics);
@@ -167,13 +156,20 @@ export function AdminClinicsManagementCard() {
     setUserDrafts(nextUserDrafts);
   }
 
-  function loadClinics(offset = currentOffset) {
+  function loadClinics(offset = currentOffset, search = searchQuery) {
     setError(null);
 
     startTransition(() => {
       void (async () => {
         try {
-          applySnapshot(await getAdminClinics({ limit: PAGE_SIZE, offset }));
+          const trimmedSearch = search.trim();
+          applySnapshot(
+            await getAdminClinics({
+              limit: PAGE_SIZE,
+              offset,
+              ...(trimmedSearch ? { search: trimmedSearch } : {}),
+            }),
+          );
           setCurrentOffset(offset);
         } catch (err) {
           setError(formatAdminClinicsError(
@@ -361,10 +357,22 @@ export function AdminClinicsManagementCard() {
     }
   }
 
+  const isFirstRender = useRef(true);
+
   useEffect(() => {
-    loadClinics(0);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      loadClinics(0, searchQuery);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      loadClinics(0, searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchQuery]);
 
   return (
     <Card id="admin-clinics" className="dashboard-surface">
@@ -538,8 +546,8 @@ export function AdminClinicsManagementCard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRows.length ? (
-                filteredRows.map(({ clinic, user }) => {
+              {rows.length ? (
+                rows.map(({ clinic, user }) => {
                   const clinicDraft =
                     clinicDrafts[clinic.clinicId] ?? getClinicDraft(clinic);
                   const userDraft = user

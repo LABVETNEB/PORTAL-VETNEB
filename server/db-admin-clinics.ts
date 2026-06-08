@@ -1,4 +1,4 @@
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 
 import { db } from "./db.ts";
 import {
@@ -237,11 +237,24 @@ async function getClinicUserRow(
   return rows[0] ?? null;
 }
 
+function normalizeSearch(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim().slice(0, 100);
+  return trimmed || undefined;
+}
+
 export async function listAdminClinics(params: {
   limit?: number;
   offset?: number;
+  search?: string;
 } = {}): Promise<AdminClinicsSnapshot> {
   const { limit, offset } = normalizeListPagination(params);
+  const search = normalizeSearch(params.search);
+
+  const whereClause = search
+    ? or(ilike(clinics.name, `%${search}%`), ilike(clinics.contactEmail, `%${search}%`))
+    : undefined;
+
   const [clinicRows, totalRows] = await Promise.all([
     db
       .select({
@@ -253,10 +266,11 @@ export async function listAdminClinics(params: {
         updatedAt: clinics.updatedAt,
       })
       .from(clinics)
+      .where(whereClause)
       .orderBy(asc(clinics.name), asc(clinics.id))
       .limit(limit)
       .offset(offset),
-    db.select({ total: sql<number>`count(*)` }).from(clinics),
+    db.select({ total: sql<number>`count(*)` }).from(clinics).where(whereClause),
   ]);
 
   const clinicIds = clinicRows.map((clinic) => clinic.clinicId);
