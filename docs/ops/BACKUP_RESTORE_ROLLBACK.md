@@ -18,14 +18,15 @@ configuracion.
 |---|---|
 | Backup automatico Supabase | **NO DISPONIBLE — Free plan** |
 | Dump externo DB (mitigacion temporal) | **EJECUTADO Y VERIFICADO — 2026-06-08** |
-| Backup Supabase Storage | **PENDIENTE — requiere accion separada** |
+| Export Supabase Storage (bucket `reports`) | **EJECUTADO Y VERIFICADO — 2026-06-08** |
 | Restore drill (entorno no productivo) | **PENDIENTE DE EJECUCION** |
 
 Dump externo de la DB de produccion ejecutado el 2026-06-08 fuera del repo
 con pg_dump/pg_dumpall v17.10 desde Windows PowerShell. Archivos almacenados
 en `C:\VETNEB-BACKUPS` (fuera del repositorio, no versionados).
-Evidencia sanitizada registrada en seccion 17 y 18 de este documento.
-Storage export y restore drill siguen pendientes.
+Evidencia sanitizada registrada en secciones 17, 18 y 19 de este documento.
+Storage export del bucket `reports` ejecutado el 2026-06-08 fuera del repo.
+Restore drill sigue pendiente.
 
 ## 2. Alcance
 
@@ -256,7 +257,7 @@ Checks manuales complementarios (si aplica): admin, clinic, particular.
 | Fecha UTC | Entorno | Accion | Commit/deploy | Responsable tecnico | Responsable negocio | Evidencia sanitizada | Resultado |
 |---|---|---|---|---|---|---|---|
 | 2026-06-08T07:45:48Z | Produccion (DB externa) | Dump externo DB — pg_dump/pg_dumpall v17.10, Windows PowerShell | 1bbac76 | VETNEB | — | Ver seccion 18 — sha256 de archivos registrado, sin secretos | COMPLETADO |
-|  |  |  |  |  |  |  |  |
+| 2026-06-08T13:13:55Z | Produccion (Storage externo) | Export Storage bucket `reports` — PowerShell + Supabase Storage REST API | 33966ee | VETNEB | — | Ver seccion 19 — ZIP SHA-256 registrado, 17 objetos, sin secretos ni paths privados | COMPLETADO |
 |  |  |  |  |  |  |  |  |
 
 ## 16. Decision go/no-go
@@ -281,13 +282,14 @@ Estado formal:
 | Backup automatico Supabase | **NO DISPONIBLE — Free plan** |
 | Dump externo DB (mitigacion temporal) | **EJECUTADO Y VERIFICADO — 2026-06-08** |
 | Restore drill en entorno no productivo | **PENDIENTE DE EJECUCION** |
-| Storage backup/export | **PENDIENTE — requiere accion separada** |
+| Export Storage bucket `reports` (mitigacion temporal) | **EJECUTADO Y VERIFICADO — 2026-06-08** |
 
 Dump externo ejecutado el 2026-06-08. Archivos fuera del repo en
 `C:\VETNEB-BACKUPS`. Evidencia sanitizada en seccion 18.
-Storage export y restore drill siguen pendientes.
+Storage export del bucket `reports` ejecutado el 2026-06-08. Evidencia
+sanitizada en seccion 19. Restore drill sigue pendiente.
 Produccion funcional. Sin backups automaticos activos — riesgo operativo
-remanente hasta completar restore drill y Storage export.
+remanente hasta completar restore drill y cifrado/vault del ZIP de Storage.
 
 ### Checklist — dump externo seguro (mitigacion temporal)
 
@@ -329,11 +331,11 @@ proceso de export/backup separado.
   politicas RLS definidas en el bucket — implica que el acceso depende
   exclusivamente del service role key; confirmar que ningun acceso anonimo o
   publico esta activo.
-- [ ] Definir procedimiento de export/backup de objetos del bucket (herramienta,
-  frecuencia, destino seguro).
-- [ ] No descargar ni versionar archivos sensibles del bucket en este repo.
-- [ ] Registrar evidencia sanitizada (nombre de bucket, conteo aproximado, fecha UTC)
-  en la tabla de registro operativo cuando se ejecute el export.
+- [x] Definir y ejecutar procedimiento de export/backup de objetos del bucket —
+  PowerShell + Supabase Storage REST API, archivos en `C:\VETNEB-BACKUPS\supabase-storage\`.
+- [x] No versionar archivos sensibles del bucket en este repo — ZIP almacenado fuera del repo.
+- [x] Registrar evidencia sanitizada (nombre de bucket, conteo, fecha UTC) en
+  tabla de registro operativo (seccion 15) y evidencia detallada en seccion 19.
 
 ---
 
@@ -375,5 +377,45 @@ El repo queda sin dumps internos.
 
 - [ ] Cifrar o mover a vault seguro los archivos en `C:\VETNEB-BACKUPS`.
 - [ ] Ejecutar restore drill en entorno no productivo (P0-017).
-- [ ] Ejecutar Storage export (bucket `reports` y otros).
+- [x] Storage export ejecutado 2026-06-08 — bucket `reports`, 17 objetos, evidencia sanitizada en seccion 19.
+- [ ] Hacer upgrade a Supabase Pro para habilitar backups automaticos (alternativa permanente).
+
+---
+
+## 19. Evidencia sanitizada — Storage export bucket `reports` 2026-06-08
+
+Export ejecutado fuera del repo el 2026-06-08 mediante PowerShell nativo y
+Supabase Storage REST API con service role key. Archivos almacenados en
+`C:\VETNEB-BACKUPS\supabase-storage\` (nunca versionados en git).
+Manifest privado local generado (manifest-private-local.json) — no versionado,
+no compartido; puede contener paths internos de objetos del bucket.
+
+| Campo | Valor |
+|---|---|
+| Timestamp export | 20260608-131355 (local) |
+| Bucket | `reports` |
+| Total objetos exportados | 17 |
+| Tamano total objetos | 3,261,845 bytes (~3.11 MB) |
+| Metodo | PowerShell nativo + Supabase Storage REST API |
+| Entorno ejecucion | Windows PowerShell — entorno local seguro |
+| Ubicacion archivos | Fuera del repo — `C:\VETNEB-BACKUPS\supabase-storage\` |
+| Manifest privado local | Existe — no versionado, no compartido |
+| Repo verificado limpio | Si — sin archivos de export en git |
+| Cifrado/vault ZIP | Pendiente |
+
+### Archivo ZIP del export (evidencia de integridad — sin secretos)
+
+| Archivo | Tamano (bytes) | SHA-256 |
+|---|---|---|
+| `vetneb-storage-reports-20260608-131355.zip` | 2,951,341 | `0BDFCC1B93BFC559634816D2B77E8CEA701E9E3BB509905309806581A03BEC22` |
+
+> Nota: el hash SHA-256 permite verificar integridad futura del export.
+> No se incluyen nombres de archivos internos del bucket, paths privados de
+> objetos, signed URLs ni secretos en este documento.
+
+### Pendientes post-export Storage
+
+- [ ] Cifrar o mover a vault seguro el ZIP en `C:\VETNEB-BACKUPS\supabase-storage\`.
+- [ ] Confirmar privacidad del bucket `reports` y revisar significado de `Policies = 0`.
+- [ ] Ejecutar restore drill en entorno no productivo (P0-017).
 - [ ] Hacer upgrade a Supabase Pro para habilitar backups automaticos (alternativa permanente).
