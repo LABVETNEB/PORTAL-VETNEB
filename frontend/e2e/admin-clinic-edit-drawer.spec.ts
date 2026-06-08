@@ -55,52 +55,61 @@ const MOCK_UPDATE_CREDENTIALS_RESPONSE = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function mockAdminClinicsGet(page: import("@playwright/test").Page) {
-  await page.route("**/api/admin/clinics**", async (route) => {
-    if (route.request().method() === "GET") {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(MOCK_CLINICS_RESPONSE),
-      });
-    } else {
-      await route.continue();
-    }
-  });
+type Page = import("@playwright/test").Page;
+
+// Intercept GET /api/admin/clinics (with any query params) and return fixture.
+// Using a URL predicate avoids glob ambiguity with query strings.
+async function mockAdminClinicsGet(page: Page) {
+  await page.route(
+    (url) => url.pathname === "/api/admin/clinics",
+    async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(MOCK_CLINICS_RESPONSE),
+        });
+      } else {
+        await route.continue();
+      }
+    },
+  );
 }
 
-async function mockAdminClinicsUpdate(page: import("@playwright/test").Page) {
-  await page.route("**/api/admin/clinics/**", async (route) => {
-    const method = route.request().method();
-    const url = route.request().url();
-
-    if (method === "PATCH" && !url.includes("/users/")) {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(MOCK_UPDATE_CLINIC_RESPONSE),
-      });
-    } else if (method === "PATCH" && url.includes("/users/")) {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(MOCK_UPDATE_CREDENTIALS_RESPONSE),
-      });
-    } else {
-      await route.continue();
-    }
-  });
+// Intercept PATCH /api/admin/clinics/:id and return a success fixture.
+async function mockAdminClinicsUpdate(page: Page) {
+  await page.route(
+    (url) => /^\/api\/admin\/clinics\/\d+$/.test(url.pathname),
+    async (route) => {
+      if (route.request().method() === "PATCH") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(MOCK_UPDATE_CLINIC_RESPONSE),
+        });
+      } else {
+        await route.continue();
+      }
+    },
+  );
 }
 
-async function navigateToGestionTab(page: import("@playwright/test").Page) {
-  const gestionTab = page.getByRole("tab", { name: /gestión/i });
-  if (await gestionTab.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    await gestionTab.click();
-  }
+// Click the "Gestión" tab and retry until the admin-clinics card becomes visible.
+// In CI cold-starts, React may not have hydrated when Playwright fires the first
+// click, so the onClick handler is not yet attached. toPass retries the whole
+// click+check sequence until the panel actually opens (or the timeout expires).
+async function navigateToGestionTab(page: Page) {
+  await expect(async () => {
+    await page.getByRole("tab", { name: /gestión/i }).click();
+    await expect(page.locator("#admin-clinics")).toBeVisible({ timeout: 1_000 });
+  }).toPass({ intervals: [300, 600, 1_000, 1_500], timeout: 8_000 });
 }
 
-async function waitForClinicList(page: import("@playwright/test").Page) {
-  // Wait for the table to appear with clinic data
+// Wait for the fixture clinic row to be visible in the table.
+// The AdminClinicsManagementCard mounts in a hidden panel even before the
+// tab is clicked, so the GET fires and the rows are already in the DOM by the
+// time the panel is revealed. This check confirms both tab activation and data.
+async function waitForClinicList(page: Page) {
   await expect(
     page.getByRole("cell", { name: /Clínica Test/i }).first(),
   ).toBeVisible({ timeout: 8_000 });
@@ -127,14 +136,6 @@ test.describe("admin clinic edit drawer — component behavior", () => {
 
   test("clinic list shows compact read-only rows with Edit button", async ({ page }) => {
     await page.goto("/dashboard/admin");
-
-    // If the page redirects to login, the component can't be tested without auth
-    const currentUrl = page.url();
-    if (currentUrl.includes("/login")) {
-      test.skip();
-      return;
-    }
-
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -150,13 +151,6 @@ test.describe("admin clinic edit drawer — component behavior", () => {
 
   test("clicking Edit opens the drawer with clinic data", async ({ page }) => {
     await page.goto("/dashboard/admin");
-
-    const currentUrl = page.url();
-    if (currentUrl.includes("/login")) {
-      test.skip();
-      return;
-    }
-
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -180,13 +174,6 @@ test.describe("admin clinic edit drawer — component behavior", () => {
 
   test("drawer has accessible close button and title", async ({ page }) => {
     await page.goto("/dashboard/admin");
-
-    const currentUrl = page.url();
-    if (currentUrl.includes("/login")) {
-      test.skip();
-      return;
-    }
-
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -212,21 +199,17 @@ test.describe("admin clinic edit drawer — component behavior", () => {
   test("cancel button closes drawer without saving", async ({ page }) => {
     let updateCalled = false;
 
-    await page.route("**/api/admin/clinics/1", async (route) => {
-      if (route.request().method() === "PATCH") {
-        updateCalled = true;
-      }
-      await route.continue();
-    });
+    await page.route(
+      (url) => url.pathname === "/api/admin/clinics/1",
+      async (route) => {
+        if (route.request().method() === "PATCH") {
+          updateCalled = true;
+        }
+        await route.continue();
+      },
+    );
 
     await page.goto("/dashboard/admin");
-
-    const currentUrl = page.url();
-    if (currentUrl.includes("/login")) {
-      test.skip();
-      return;
-    }
-
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -251,13 +234,6 @@ test.describe("admin clinic edit drawer — component behavior", () => {
 
   test("Escape key closes the drawer when not saving", async ({ page }) => {
     await page.goto("/dashboard/admin");
-
-    const currentUrl = page.url();
-    if (currentUrl.includes("/login")) {
-      test.skip();
-      return;
-    }
-
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -274,27 +250,23 @@ test.describe("admin clinic edit drawer — component behavior", () => {
   test("saving clinic data calls update API and closes drawer", async ({ page }) => {
     let updatePayload: unknown = null;
 
-    await page.route("**/api/admin/clinics/1", async (route) => {
-      if (route.request().method() === "PATCH") {
-        updatePayload = JSON.parse(route.request().postData() ?? "{}");
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify(MOCK_UPDATE_CLINIC_RESPONSE),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+    await page.route(
+      (url) => url.pathname === "/api/admin/clinics/1",
+      async (route) => {
+        if (route.request().method() === "PATCH") {
+          updatePayload = JSON.parse(route.request().postData() ?? "{}");
+          await route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify(MOCK_UPDATE_CLINIC_RESPONSE),
+          });
+        } else {
+          await route.continue();
+        }
+      },
+    );
 
     await page.goto("/dashboard/admin");
-
-    const currentUrl = page.url();
-    if (currentUrl.includes("/login")) {
-      test.skip();
-      return;
-    }
-
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -318,26 +290,22 @@ test.describe("admin clinic edit drawer — component behavior", () => {
   });
 
   test("save error is displayed inside the drawer", async ({ page }) => {
-    await page.route("**/api/admin/clinics/1", async (route) => {
-      if (route.request().method() === "PATCH") {
-        await route.fulfill({
-          status: 400,
-          contentType: "application/json",
-          body: JSON.stringify({ error: "Nombre de clínica ya existe." }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+    await page.route(
+      (url) => url.pathname === "/api/admin/clinics/1",
+      async (route) => {
+        if (route.request().method() === "PATCH") {
+          await route.fulfill({
+            status: 400,
+            contentType: "application/json",
+            body: JSON.stringify({ error: "Nombre de clínica ya existe." }),
+          });
+        } else {
+          await route.continue();
+        }
+      },
+    );
 
     await page.goto("/dashboard/admin");
-
-    const currentUrl = page.url();
-    if (currentUrl.includes("/login")) {
-      test.skip();
-      return;
-    }
-
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -360,13 +328,6 @@ test.describe("admin clinic edit drawer — component behavior", () => {
     page,
   }) => {
     await page.goto("/dashboard/admin");
-
-    const currentUrl = page.url();
-    if (currentUrl.includes("/login")) {
-      test.skip();
-      return;
-    }
-
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 
@@ -391,13 +352,6 @@ test.describe("admin clinic edit drawer — component behavior", () => {
     page,
   }) => {
     await page.goto("/dashboard/admin");
-
-    const currentUrl = page.url();
-    if (currentUrl.includes("/login")) {
-      test.skip();
-      return;
-    }
-
     await navigateToGestionTab(page);
     await waitForClinicList(page);
 

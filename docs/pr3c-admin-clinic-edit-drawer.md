@@ -95,6 +95,52 @@ git diff --stat       # resumen de cambios
 
 ---
 
+## CI fix — E2E determinism (commit fix over 346aa95)
+
+### Root cause
+
+Los 9 tests de component behavior fallaban en CI con el error:
+
+```
+expect(page.getByRole("cell", { name: /Clínica Test/i }).first()).toBeVisible({ timeout: 8000 })
+element(s) not found
+```
+
+**Causa principal**: `navigateToGestionTab` hacía click en el tab "Gestión" antes de que React hidratara la página. En CI con servidor Next.js arrancando en frío, el botón `<button role="tab">` existe en el HTML (SSR), pero el handler `onClick` de `AdminSectionTabs` aún no estaba conectado cuando Playwright disparaba el primer click. El click era un no-op, el panel permanecía con el atributo `hidden`, y `getByRole("cell")` nunca encontraba las celdas.
+
+**Causa secundaria**: `test.skip()` enmascaraba fallos de setup en lugar de fallar explícitamente.
+
+**No afectado**: el mock de GET `/api/admin/clinics` sí interceptaba correctamente (Playwright intercepta antes de llegar al servidor; sin proxy porque `NEXT_PUBLIC_API_URL=""` → `rewrites()` retorna `[]`). El componente sí montaba (todos los panels se renderizan en el DOM con `hidden`, no condicionales), y la respuesta del mock sí llegaba.
+
+### Cambios en `frontend/e2e/admin-clinic-edit-drawer.spec.ts`
+
+| Elemento | Antes | Después |
+|----------|-------|---------|
+| `navigateToGestionTab` | Click único, sin verificar que el panel se abrió | `expect(async()=>{click;check}).toPass({intervals:[300,600,1000,1500],timeout:8000})` — reintenta hasta que `#admin-clinics` sea visible |
+| `mockAdminClinicsGet` | Patrón glob `**/api/admin/clinics**` | Predicate de URL: `url.pathname === "/api/admin/clinics"` — más preciso, no depende de glob |
+| `mockAdminClinicsUpdate` | Patrón glob `**/api/admin/clinics/**` + check `.includes("/users/")` | Predicate de URL: `/^\/api\/admin\/clinics\/\d+$/.test(url.pathname)` — solo PATCH a IDs numéricos |
+| `test.skip()` guards | Presentes en todos los tests de behavior | Eliminados — el admin page renderiza sin auth (no hay middleware de redirect) |
+| Per-test routes (`/api/admin/clinics/1`) | Patrón glob | Predicate de URL `url.pathname === "/api/admin/clinics/1"` |
+
+### Por qué el retry funciona
+
+`expect(async () => { await click(); await expect(locator).toBeVisible({timeout:1000}); }).toPass(...)` reintenta la función entera si cualquier `expect` interno lanza. Primera iteración: click se dispara antes de hydration → handler no está conectado → panel no cambia → `#admin-clinics` sigue hidden → `toBeVisible` lanza → retry. Segunda iteración (300ms después): React ya hidró → `onClick` está conectado → panel abre → `#admin-clinics` visible → ✓.
+
+### Validación post-fix (mismos resultados que antes)
+
+| Comando | Resultado |
+|---------|-----------|
+| `pnpm test` | 2455 pass, 0 fail |
+| `pnpm build` | dist/index.js 858.1 kb |
+| `pnpm security:public-surface` | PASS |
+| `pnpm --dir frontend lint` | 0 errores |
+| `pnpm --dir frontend typecheck` | 0 errores |
+| `pnpm --dir frontend build` | ok |
+| `git diff --check` | CLEAN |
+| `git status --short` | 1 archivo en scope (`e2e/admin-clinic-edit-drawer.spec.ts`) |
+
+---
+
 ## Risks / rollback notes
 
 ### Riesgos
