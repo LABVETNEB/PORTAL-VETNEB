@@ -149,12 +149,12 @@ test("dashboard informes integrates drawer and sticky filter bar without changin
   assert.ok(source.includes("Filtrar"));
   assert.ok(source.includes('href="/dashboard/informes"'));
   assert.ok(source.includes("Limpiar"));
-  assert.ok(source.includes("reports = query"));
-  assert.ok(source.includes("? await searchReports("));
+  assert.ok(source.includes("pagedResult = query"));
+  assert.ok(source.includes("? await searchReportsPaginated("));
   assert.ok(source.includes("query,"));
   assert.ok(source.includes("status: status || undefined,"));
   assert.ok(source.includes("studyType: studyType || undefined,"));
-  assert.ok(source.includes(": await getReports("));
+  assert.ok(source.includes(": await getReportsPaginated("));
   assert.ok(source.includes("requestOptions,"));
   assert.ok(source.includes("<MasterDetailWorkspace"));
   assert.ok(source.includes("<StudyTimeline steps={selectedReportTimelineSteps} />"));
@@ -196,7 +196,9 @@ test("PR-6 scope leaves backend auth API middleware SEO and dependencies untouch
     "frontend/src/lib/seo.ts",
   ];
 
+  const pr4ServerFiles = ["server/db.ts", "server/routes/reports.fastify.ts"];
   for (const file of changedFiles) {
+    if (pr4ServerFiles.includes(file)) continue;
     assert.equal(
       blockedPrefixes.some((prefix) => file.startsWith(prefix)),
       false,

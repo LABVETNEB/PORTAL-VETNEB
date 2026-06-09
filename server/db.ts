@@ -803,6 +803,58 @@ export async function searchReports(
     .offset(offset);
 }
 
+export async function countReportsByClinicId(
+  clinicId: number,
+  currentStatus?: ReportStatus,
+): Promise<number> {
+  const filters = [eq(reports.clinicId, clinicId)];
+
+  if (currentStatus) {
+    filters.push(eq(reports.currentStatus, currentStatus));
+  }
+
+  const result = await db
+    .select({ value: sql<string>`count(*)` })
+    .from(reports)
+    .where(and(...filters));
+
+  return Number(result[0]?.value ?? 0);
+}
+
+export async function countSearchReports(
+  clinicId: number,
+  query?: string,
+  studyType?: string,
+  currentStatus?: ReportStatus,
+): Promise<number> {
+  const filters = [eq(reports.clinicId, clinicId)];
+
+  if (studyType) {
+    filters.push(eq(reports.studyType, studyType));
+  }
+
+  if (currentStatus) {
+    filters.push(eq(reports.currentStatus, currentStatus));
+  }
+
+  if (query) {
+    filters.push(
+      or(
+        ilike(reports.patientName, "%" + query + "%"),
+        ilike(reports.fileName, "%" + query + "%"),
+        ilike(reports.studyType, "%" + query + "%"),
+      )!,
+    );
+  }
+
+  const result = await db
+    .select({ value: sql<string>`count(*)` })
+    .from(reports)
+    .where(and(...filters));
+
+  return Number(result[0]?.value ?? 0);
+}
+
 export async function getReportStudyTypes(_clinicId: number) {
   void REPORT_STUDY_TYPE_LABELS;
   return getCanonicalReportStudyTypes();

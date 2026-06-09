@@ -18,7 +18,9 @@ test("dashboard informes defines non-indexable metadata and clinic read dependen
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
   assert.ok(source.includes('import { cookies } from "next/headers";'));
-  assert.ok(source.includes('import { getReports, searchReports } from "@/lib/api";'));
+  assert.ok(source.includes('getReportsPaginated,'));
+  assert.ok(source.includes('searchReportsPaginated,'));
+  assert.ok(source.includes('"@/lib/api"'));
   assert.ok(source.includes('title: "Informes — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
@@ -43,11 +45,11 @@ test("dashboard informes reads filters from searchParams and uses live search en
   assert.ok(source.includes("const query = normalizeSearchParamValue(resolvedSearchParams.query).trim();"));
   assert.ok(source.includes("const status = normalizeStatusFilter("));
   assert.ok(source.includes("const selectedReportId = normalizeReportIdFilter("));
-  assert.ok(source.includes("reports = query"));
-  assert.ok(source.includes("? await searchReports("));
+  assert.ok(source.includes("pagedResult = query"));
+  assert.ok(source.includes("? await searchReportsPaginated("));
   assert.ok(source.includes("query,"));
   assert.ok(source.includes("status: status || undefined,"));
-  assert.ok(source.includes(": await getReports("));
+  assert.ok(source.includes(": await getReportsPaginated("));
   assert.ok(source.includes("{ throwOnError: true }"));
 });
 
@@ -149,7 +151,7 @@ test("dashboard informes keeps empty state and avoids client-side fetch literals
 test("dashboard informes separates fetch failures from real empty report lists", () => {
   const source = read(INFORMES_PAGE_PATH);
 
-  assert.ok(source.includes("let reports: Awaited<ReturnType<typeof getReports>> = [];"));
+  assert.ok(source.includes("let pagedResult: PaginatedReports = {"));
   assert.ok(source.includes("let reportsLoadError = false;"));
   assert.ok(source.includes("try {"));
   assert.ok(source.includes("reportsLoadError = true;"));

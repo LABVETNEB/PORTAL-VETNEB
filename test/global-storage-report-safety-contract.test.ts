@@ -102,6 +102,8 @@ async function createReportsApp(overrides: Record<string, unknown> = {}) {
       return [createReportFixture()];
     },
     searchReports: async () => [createReportFixture()],
+    countReportsByClinicId: async () => 1,
+    countSearchReports: async () => 0,
     getStudyTypes: async () => ["Histopathology"],
     getReportById: async () => createReportFixture(),
     getReportStatusHistory: async () => [],

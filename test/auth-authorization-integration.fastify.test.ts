@@ -160,6 +160,8 @@ async function createIntegrationApp() {
       return [createReportFixture()];
     },
     searchReports: async () => [],
+    countReportsByClinicId: async () => 1,
+    countSearchReports: async () => 0,
     getStudyTypes: async () => [],
     getReportById: async () => null,
     getReportStatusHistory: async () => [],
