@@ -22,7 +22,10 @@ test("dashboard home defines non-indexable clinic metadata and imports live depe
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
   assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
-  assert.ok(source.includes('DashboardModuleHub') && source.includes('@/components/dashboard/DashboardModuleHub'));
+  assert.ok(
+    source.includes('ClinicDashboardWorkspaceController') &&
+      source.includes('@/components/dashboard/ClinicDashboardWorkspaceController'),
+  );
   assert.ok(source.includes('import { ClinicCommandCenter } from "./ClinicCommandCenter";'));
   assert.ok(source.includes('import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";'));
 });
@@ -39,7 +42,7 @@ test("dashboard home forwards cookies and disables cache for backend reads", () 
 test("dashboard home reads stats reports and field visits through API helpers", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
-  assert.ok(source.includes("export default async function DashboardPage()"));
+  assert.ok(source.includes("export default async function DashboardPage("));
   assert.ok(source.includes("const requestOptions = await getDashboardRequestOptions();"));
   assert.ok(source.includes("let stats: Awaited<ReturnType<typeof getDashboardStats>> | null = null;"));
   assert.ok(source.includes("let statsLoadError = false;"));
@@ -63,12 +66,9 @@ test("dashboard home renders module hub structure with header, cards, and clinic
   assert.ok(source.includes('title="Dashboard Clínica"'));
   assert.ok(source.includes('subtitle="Portal operativo clínica"'));
   assert.ok(source.includes('notifications="clinic"'));
-  assert.ok(source.includes('title: "Centro de operaciones"'));
   assert.ok(source.includes('<DashboardPageHeader'));
-  assert.ok(source.includes('<DashboardModuleHub'));
-  assert.ok(source.includes('heading="Módulos operativos"'));
-  assert.ok(source.includes('href: ROUTES.dashboardInformes'));
-  assert.ok(source.includes('href: ROUTES.dashboardLogistica'));
+  // PR5B: hub cards and DashboardModuleHub are inside ClinicDashboardWorkspaceController.
+  assert.ok(source.includes('<ClinicDashboardWorkspaceController'));
   assert.ok(source.includes('<ClinicCommandCenter'));
   assert.ok(source.includes('stats={stats}'));
   assert.ok(source.includes('statsLoadError={statsLoadError}'));
@@ -84,23 +84,24 @@ test("dashboard home renders module hub structure with header, cards, and clinic
   );
 });
 
-test("dashboard home page layout order: header before module hub before command center", () => {
+test("dashboard home page layout order: header before workspace controller before command center", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
   const mainIndex = source.indexOf('<main className="dashboard-main">');
   const pageHeaderIndex = source.indexOf('<DashboardPageHeader');
-  const moduleHubIndex = source.indexOf('<DashboardModuleHub');
+  // PR5B: DashboardModuleHub is managed by ClinicDashboardWorkspaceController.
+  const workspaceControllerIndex = source.indexOf('<ClinicDashboardWorkspaceController');
   const commandCenterIndex = source.indexOf('<ClinicCommandCenter');
   const clinicPublicIndex = source.indexOf('<ClinicPublicProfileCard />');
 
   assert.ok(mainIndex >= 0);
   assert.ok(pageHeaderIndex >= 0);
-  assert.ok(moduleHubIndex >= 0);
+  assert.ok(workspaceControllerIndex >= 0);
   assert.ok(commandCenterIndex >= 0);
   assert.ok(clinicPublicIndex >= 0);
   assert.ok(mainIndex < pageHeaderIndex);
-  assert.ok(pageHeaderIndex < moduleHubIndex);
-  assert.ok(moduleHubIndex < commandCenterIndex);
+  assert.ok(pageHeaderIndex < workspaceControllerIndex);
+  assert.ok(workspaceControllerIndex < commandCenterIndex);
   assert.ok(commandCenterIndex < clinicPublicIndex);
 });
 

@@ -98,21 +98,22 @@ test("AdminCommandCenter keeps real KPI summary and alert shortcuts", () => {
 
 test("dashboard admin composes module hub, command center, and existing cards", () => {
   const source = read(ADMIN_PAGE_PATH);
-  const mainSource = source.slice(source.indexOf('<main className="dashboard-main">'));
+  const controllerSource = read("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx");
 
   assert.ok(source.includes("<DashboardPageHeader"));
-  assert.ok(source.includes("<DashboardModuleHub"));
+  // PR5B: DashboardModuleHub and adminCards are inside AdminDashboardWorkspaceController.
+  assert.ok(source.includes("<AdminDashboardWorkspaceController"));
   assert.ok(source.includes("<AdminCommandCenter"));
   assert.ok(source.includes("<AdminSectionTabs"));
-  assert.ok(source.includes("const adminCards = ["));
-  assert.ok(source.includes('title: "Subir informe"'));
-  assert.ok(source.includes('"/dashboard/admin#admin-report-upload"'));
-  assert.ok(source.includes('title: "Clínicas"'));
-  assert.ok(source.includes('"/dashboard/admin#admin-clinics"'));
-  assert.ok(source.includes('title: "Tokens particulares"'));
-  assert.ok(source.includes('"/dashboard/admin#admin-particular-tokens"'));
-  assert.ok(source.includes('title: "Estado del sistema"'));
-  assert.ok(source.includes('"/dashboard/admin#admin-health"'));
+  assert.ok(controllerSource.includes("const adminCards = ["));
+  assert.ok(controllerSource.includes('title: "Subir informe"'));
+  assert.ok(controllerSource.includes('"admin-report-upload"'));
+  assert.ok(controllerSource.includes('title: "Clínicas"'));
+  assert.ok(controllerSource.includes('"admin-clinics"'));
+  assert.ok(controllerSource.includes('title: "Tokens particulares"'));
+  assert.ok(controllerSource.includes('"admin-particular-tokens"'));
+  assert.ok(controllerSource.includes('title: "Estado del sistema"'));
+  assert.ok(controllerSource.includes('"admin-health"'));
   assert.ok(source.includes("<AdminFailedLoginAlertsReadOnlyCard />"));
   assert.ok(source.includes("<AdminSchemaHealthStatusCard />"));
   assert.ok(source.includes("<AdminMaintenanceDryRunCard />"));
@@ -123,22 +124,36 @@ test("dashboard admin composes module hub, command center, and existing cards", 
   assert.ok(source.includes("<AdminUsersRolesReadOnlyCard />"));
   assert.ok(source.includes('className="h-24 md:hidden" aria-hidden="true"'));
 
+  const mainIndex = source.indexOf('<main className="dashboard-main">');
+  const pageHeaderIndex = source.indexOf("<DashboardPageHeader", mainIndex);
+  const workspaceControllerIndex = source.indexOf("<AdminDashboardWorkspaceController", mainIndex);
+  // PR5B: slot vars defined before <main> in render order (commandCenter → alerts → tabs).
+  const commandCenterIndex = source.indexOf("<AdminCommandCenter");
+  const alertsIndex = source.indexOf("Alertas críticas");
+  const alertsCardIndex = source.indexOf("<AdminFailedLoginAlertsReadOnlyCard />");
+  const tabsIndex = source.indexOf("<AdminSectionTabs");
+  const sistemaIndex = source.indexOf("admin-sistema-heading");
+  const gestionIndex = source.indexOf("admin-gestion-heading");
+  const seguridadIndex = source.indexOf("admin-seguridad-heading");
+  const configuracionIndex = source.indexOf("admin-configuracion-heading");
+  const auditLogIndex = source.indexOf('id="audit-log"');
+
   const order = [
-    "<DashboardPageHeader",
-    "<DashboardModuleHub",
-    "<AdminCommandCenter",
-    "Alertas críticas",
-    "<AdminFailedLoginAlertsReadOnlyCard />",
-    "<AdminSectionTabs",
-    "Sistema",
-    "Gestión",
-    "Seguridad",
-    "Configuración secundaria",
-    'id="audit-log"',
-  ].map((marker) => mainSource.indexOf(marker));
+    commandCenterIndex,
+    alertsIndex,
+    alertsCardIndex,
+    tabsIndex,
+    sistemaIndex,
+    gestionIndex,
+    seguridadIndex,
+    configuracionIndex,
+    auditLogIndex,
+    pageHeaderIndex,
+    workspaceControllerIndex,
+  ];
 
   for (const index of order) {
-    assert.ok(index >= 0, `admin main source must contain ordered marker ${index}`);
+    assert.ok(index >= 0, `admin main source must contain ordered marker at index ${index}`);
   }
 
   assert.deepEqual(

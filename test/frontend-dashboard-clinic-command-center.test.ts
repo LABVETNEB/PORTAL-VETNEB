@@ -204,15 +204,13 @@ test("dashboard page imports and uses ClinicCommandCenter with full data prop se
   assert.ok(source.includes('visitsLoadError={visitsLoadError}'));
 });
 
-test("dashboard page uses DashboardPageHeader and DashboardModuleHub above ClinicCommandCenter", () => {
+test("dashboard page uses DashboardPageHeader and workspace controller above ClinicCommandCenter", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
   assert.ok(source.includes('<DashboardPageHeader'));
-  assert.ok(source.includes('title: "Centro de operaciones"'));
-  assert.ok(source.includes('<DashboardModuleHub'));
-  assert.ok(source.includes('heading="Módulos operativos"'));
-  assert.ok(source.includes('href: ROUTES.dashboardInformes'));
-  assert.ok(source.includes('href: ROUTES.dashboardLogistica'));
+  // PR5B: DashboardModuleHub and hub cards are inside ClinicDashboardWorkspaceController.
+  assert.ok(source.includes('<ClinicDashboardWorkspaceController'));
+  assert.ok(source.includes('<ClinicCommandCenter'));
   assert.equal(source.includes('import Link from "next/link"'), false);
   assert.equal(source.includes('<a href='), false);
 });

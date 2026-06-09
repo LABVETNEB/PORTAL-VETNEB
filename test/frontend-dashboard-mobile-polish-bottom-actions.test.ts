@@ -137,7 +137,12 @@ test("PR-9 private dashboard pages leave bottom space for mobile fixed actions",
     ["dashboard", dashboardSource],
     ["admin", adminSource],
   ] as const) {
-    assert.ok(source.includes("<DashboardModuleHub"), `${context} uses DashboardModuleHub card hub`);
+    // PR5B: hub is now managed by workspace controllers that internally use DashboardModuleHub.
+    const usesHubPattern =
+      source.includes("<ClinicDashboardWorkspaceController") ||
+      source.includes("<AdminDashboardWorkspaceController") ||
+      source.includes("<DashboardModuleHub");
+    assert.ok(usesHubPattern, `${context} uses DashboardModuleHub card hub`);
     assert.ok(
       source.includes('className="h-24 md:hidden" aria-hidden="true"'),
       `${context} keeps mobile bottom spacer`,
