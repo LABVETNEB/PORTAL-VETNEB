@@ -13,13 +13,13 @@ export function DashboardShellRouter({
   const isAdminDashboard = selectedSegment === "admin";
 
   return (
-    <div className="flex min-h-screen bg-vetneb-surface">
+    <div className="flex h-dvh overflow-hidden bg-vetneb-surface">
       {isAdminDashboard ? (
         <AdminDashboardSidebar />
       ) : (
         <ClinicDashboardSidebar />
       )}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex flex-1 flex-col min-w-0">
         {children}
       </div>
     </div>

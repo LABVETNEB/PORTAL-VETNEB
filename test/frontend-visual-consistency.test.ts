@@ -310,12 +310,11 @@ test("dashboard sidebar keeps shell consistency and responsive navigation classe
   assertMatchesAll(
     source,
     [
-      /className="sticky top-0 flex h-dvh w-\[4\.5rem\] shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground sm:w-64"/,
-      /className="flex items-center justify-center gap-3 border-b border-sidebar-border px-2 py-5 sm:justify-start sm:px-6"/,
-      /className="flex-1 space-y-1 px-2 py-4 sm:px-3"/,
-      /"flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring\/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar sm:justify-start sm:px-3"/,
-      /className="ml-6 mt-1 hidden space-y-1 sm:block"/,
-      /"flex items-center gap-2 rounded-md px-3 py-1\.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring\/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"/,
+      /className="sticky top-0 flex h-dvh w-\[4\.5rem\] shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground"/,
+      /className="flex items-center justify-center border-b border-sidebar-border px-2 py-5"/,
+      /className="flex-1 space-y-1 px-2 py-4"/,
+      /"flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring\/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"/,
+      /className="sr-only" aria-hidden="true"/,
       /className="border-t border-sidebar-border px-2 py-4 sm:px-3"/,
     ],
     "dashboard sidebar classes",
@@ -404,7 +403,7 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
     [
       '<main className="dashboard-main">',
       "<DashboardPageHeader",
-      "<StickyActionBar",
+      "<DashboardModuleHub",
       "<ClinicCommandCenter",
       "<ClinicPublicProfileCard />",
       "<ClinicParticularTokensCard />",
@@ -451,7 +450,7 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
     [
       '<main className="dashboard-main">',
       "<DashboardPageHeader",
-      "<StickyActionBar",
+      "<DashboardModuleHub",
       "<AdminCommandCenter",
       "<AdminSectionTabs",
       "<AdminMaintenanceDryRunCard />",

@@ -22,7 +22,7 @@ test("dashboard home defines non-indexable clinic metadata and imports live depe
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
   assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
-  assert.ok(source.includes('StickyActionBar') && source.includes('@/components/dashboard/StickyActionBar'));
+  assert.ok(source.includes('DashboardModuleHub') && source.includes('@/components/dashboard/DashboardModuleHub'));
   assert.ok(source.includes('import { ClinicCommandCenter } from "./ClinicCommandCenter";'));
   assert.ok(source.includes('import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";'));
 });
@@ -57,18 +57,18 @@ test("dashboard home reads stats reports and field visits through API helpers", 
   assert.ok(source.includes("const recentVisits = visits.slice(0, 3);"));
 });
 
-test("dashboard home renders command center structure with header, sticky actions, and clinic sections", () => {
+test("dashboard home renders module hub structure with header, cards, and clinic sections", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
   assert.ok(source.includes('title="Dashboard Clínica"'));
-  assert.ok(source.includes('subtitle="Resumen operativo clínica"'));
+  assert.ok(source.includes('subtitle="Portal operativo clínica"'));
   assert.ok(source.includes('notifications="clinic"'));
-  assert.ok(source.includes('title="Centro de operaciones"'));
+  assert.ok(source.includes('title: "Centro de operaciones"'));
   assert.ok(source.includes('<DashboardPageHeader'));
-  assert.ok(source.includes('<StickyActionBar'));
-  assert.ok(source.includes('context="Acciones rápidas"'));
+  assert.ok(source.includes('<DashboardModuleHub'));
+  assert.ok(source.includes('heading="Módulos operativos"'));
   assert.ok(source.includes('href: ROUTES.dashboardInformes'));
-  assert.ok(source.includes('href: ROUTES.dashboardLogisticaVisitas'));
+  assert.ok(source.includes('href: ROUTES.dashboardLogistica'));
   assert.ok(source.includes('<ClinicCommandCenter'));
   assert.ok(source.includes('stats={stats}'));
   assert.ok(source.includes('statsLoadError={statsLoadError}'));
@@ -84,23 +84,23 @@ test("dashboard home renders command center structure with header, sticky action
   );
 });
 
-test("dashboard home page layout order: header before sticky actions before command center", () => {
+test("dashboard home page layout order: header before module hub before command center", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
   const mainIndex = source.indexOf('<main className="dashboard-main">');
   const pageHeaderIndex = source.indexOf('<DashboardPageHeader');
-  const stickyBarIndex = source.indexOf('<StickyActionBar');
+  const moduleHubIndex = source.indexOf('<DashboardModuleHub');
   const commandCenterIndex = source.indexOf('<ClinicCommandCenter');
   const clinicPublicIndex = source.indexOf('<ClinicPublicProfileCard />');
 
   assert.ok(mainIndex >= 0);
   assert.ok(pageHeaderIndex >= 0);
-  assert.ok(stickyBarIndex >= 0);
+  assert.ok(moduleHubIndex >= 0);
   assert.ok(commandCenterIndex >= 0);
   assert.ok(clinicPublicIndex >= 0);
   assert.ok(mainIndex < pageHeaderIndex);
-  assert.ok(pageHeaderIndex < stickyBarIndex);
-  assert.ok(stickyBarIndex < commandCenterIndex);
+  assert.ok(pageHeaderIndex < moduleHubIndex);
+  assert.ok(moduleHubIndex < commandCenterIndex);
   assert.ok(commandCenterIndex < clinicPublicIndex);
 });
 

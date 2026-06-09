@@ -24,7 +24,7 @@ test("dashboard admin defines non-indexable metadata and admin dependencies", ()
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
   assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
-  assert.ok(source.includes('} from "@/components/dashboard/StickyActionBar";'));
+  assert.ok(source.includes('import { DashboardModuleHub } from "@/components/dashboard/DashboardModuleHub";'));
   assert.ok(source.includes('import { AdminCommandCenter } from "./AdminCommandCenter";'));
   assert.ok(source.includes('import { AdminSectionTabs } from "./AdminSectionTabs";'));
   assert.ok(source.includes('import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";'));
@@ -146,7 +146,7 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes('title="Administración"'));
   assert.ok(source.includes('subtitle="Auditoría, reportes y estado operacional"'));
   assert.ok(source.includes("<DashboardPageHeader"));
-  assert.ok(source.includes("<StickyActionBar"));
+  assert.ok(source.includes("<DashboardModuleHub"));
   assert.ok(source.includes("<AdminCommandCenter"));
   assert.ok(source.includes("<AdminSectionTabs"));
   assert.ok(combinedSource.includes("Eventos de auditoría"));
@@ -184,19 +184,19 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.equal(source.includes("ADMIN_READ_CONTRACT_MARKERS"), false);
 });
 
-test("dashboard admin keeps sticky quick actions and preserves admin sections", () => {
+test("dashboard admin keeps module hub cards and preserves admin sections", () => {
   const source = read(ADMIN_PAGE_PATH);
 
-  assert.ok(source.includes("const adminQuickActions = ["));
-  assert.ok(source.includes('label: "Subir informe"'));
-  assert.ok(source.includes('href: "#admin-report-upload"'));
-  assert.ok(source.includes('label: "Gestionar clínicas"'));
-  assert.ok(source.includes('href: "#admin-clinics"'));
-  assert.ok(source.includes('label: "Revisar tokens"'));
-  assert.ok(source.includes('href: "#admin-particular-tokens"'));
-  assert.ok(source.includes('label: "Ver sistema"'));
-  assert.ok(source.includes('href: "#admin-health"'));
-  assert.ok(source.includes('context="Acciones rápidas"'));
+  assert.ok(source.includes("const adminCards = ["));
+  assert.ok(source.includes('title: "Subir informe"'));
+  assert.ok(source.includes('"/dashboard/admin#admin-report-upload"'));
+  assert.ok(source.includes('title: "Clínicas"'));
+  assert.ok(source.includes('"/dashboard/admin#admin-clinics"'));
+  assert.ok(source.includes('title: "Tokens particulares"'));
+  assert.ok(source.includes('"/dashboard/admin#admin-particular-tokens"'));
+  assert.ok(source.includes('title: "Estado del sistema"'));
+  assert.ok(source.includes('"/dashboard/admin#admin-health"'));
+  assert.ok(source.includes('<DashboardModuleHub'));
   assert.ok(source.includes('id="admin-report-upload"'));
   assert.ok(source.includes("Carga de informes"));
   assert.ok(source.includes("cada token administrado"));
@@ -220,7 +220,7 @@ test("dashboard admin keeps sticky quick actions and preserves admin sections", 
   assert.ok(source.includes('id="audit-log"'));
 
   const mainIndex = source.indexOf('<main className="dashboard-main">');
-  const stickyActionBarIndex = source.indexOf("<StickyActionBar", mainIndex);
+  const moduleHubIndex = source.indexOf("<DashboardModuleHub", mainIndex);
   const commandCenterIndex = source.indexOf("<AdminCommandCenter", mainIndex);
   const alertsCardIndex = source.indexOf("<AdminFailedLoginAlertsReadOnlyCard />", mainIndex);
   const tabsIndex = source.indexOf("<AdminSectionTabs", mainIndex);
@@ -230,7 +230,7 @@ test("dashboard admin keeps sticky quick actions and preserves admin sections", 
   const reportUploadTitleIndex = source.indexOf("Carga de informes");
 
   assert.ok(mainIndex >= 0);
-  assert.ok(stickyActionBarIndex >= 0);
+  assert.ok(moduleHubIndex >= 0);
   assert.ok(commandCenterIndex >= 0);
   assert.ok(alertsCardIndex >= 0);
   assert.ok(tabsIndex >= 0);
@@ -238,8 +238,8 @@ test("dashboard admin keeps sticky quick actions and preserves admin sections", 
   assert.ok(managementSectionIndex >= 0);
   assert.ok(securitySectionIndex >= 0);
   assert.ok(reportUploadTitleIndex >= 0);
-  assert.ok(mainIndex < stickyActionBarIndex);
-  assert.ok(stickyActionBarIndex < commandCenterIndex);
+  assert.ok(mainIndex < moduleHubIndex);
+  assert.ok(moduleHubIndex < commandCenterIndex);
   assert.ok(commandCenterIndex < alertsCardIndex);
   assert.ok(alertsCardIndex < tabsIndex);
   assert.ok(tabsIndex < systemSectionIndex);

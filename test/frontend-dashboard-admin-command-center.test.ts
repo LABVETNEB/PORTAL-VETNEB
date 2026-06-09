@@ -96,23 +96,23 @@ test("AdminCommandCenter keeps real KPI summary and alert shortcuts", () => {
   assert.equal(source.includes("fetch("), false);
 });
 
-test("dashboard admin composes command center, sticky actions, and existing cards", () => {
+test("dashboard admin composes module hub, command center, and existing cards", () => {
   const source = read(ADMIN_PAGE_PATH);
   const mainSource = source.slice(source.indexOf('<main className="dashboard-main">'));
 
   assert.ok(source.includes("<DashboardPageHeader"));
-  assert.ok(source.includes("<StickyActionBar"));
+  assert.ok(source.includes("<DashboardModuleHub"));
   assert.ok(source.includes("<AdminCommandCenter"));
   assert.ok(source.includes("<AdminSectionTabs"));
-  assert.ok(source.includes("const adminQuickActions = ["));
-  assert.ok(source.includes('label: "Subir informe"'));
-  assert.ok(source.includes('href: "#admin-report-upload"'));
-  assert.ok(source.includes('label: "Gestionar clínicas"'));
-  assert.ok(source.includes('href: "#admin-clinics"'));
-  assert.ok(source.includes('label: "Revisar tokens"'));
-  assert.ok(source.includes('href: "#admin-particular-tokens"'));
-  assert.ok(source.includes('label: "Ver sistema"'));
-  assert.ok(source.includes('href: "#admin-health"'));
+  assert.ok(source.includes("const adminCards = ["));
+  assert.ok(source.includes('title: "Subir informe"'));
+  assert.ok(source.includes('"/dashboard/admin#admin-report-upload"'));
+  assert.ok(source.includes('title: "Clínicas"'));
+  assert.ok(source.includes('"/dashboard/admin#admin-clinics"'));
+  assert.ok(source.includes('title: "Tokens particulares"'));
+  assert.ok(source.includes('"/dashboard/admin#admin-particular-tokens"'));
+  assert.ok(source.includes('title: "Estado del sistema"'));
+  assert.ok(source.includes('"/dashboard/admin#admin-health"'));
   assert.ok(source.includes("<AdminFailedLoginAlertsReadOnlyCard />"));
   assert.ok(source.includes("<AdminSchemaHealthStatusCard />"));
   assert.ok(source.includes("<AdminMaintenanceDryRunCard />"));
@@ -125,7 +125,7 @@ test("dashboard admin composes command center, sticky actions, and existing card
 
   const order = [
     "<DashboardPageHeader",
-    "<StickyActionBar",
+    "<DashboardModuleHub",
     "<AdminCommandCenter",
     "Alertas críticas",
     "<AdminFailedLoginAlertsReadOnlyCard />",
