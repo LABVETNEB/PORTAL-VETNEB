@@ -94,36 +94,30 @@ async function mockAdminClinicsUpdate(page: Page) {
   );
 }
 
-// Navigate to the Gestión tab using its stable aria-controls attribute.
-// Tab and panel ids are derived from the tab.id ("gestion"), not from useId(),
-// so selectors are deterministic across SSR and client hydration.
-// PR5B: the admin hub is shown by default; must click the Clínicas card to enter
-// the workspace before the section tabs become visible.
+// Navigate to the admin-clinics workspace.
+// PR5C: the admin hub is shown by default; clicking the Clínicas card opens the
+// workspace and renders AdminClinicsManagementCard directly — no tabs exist in
+// the workspace model.
 // toPass retries the click+verify sequence in case the first click fires before
 // React has attached its onClick handler (CI cold-start hydration race).
 async function navigateToGestionTab(page: Page) {
   const clinicasCard = page.locator('[data-dashboard-module-card="admin-clinics"]');
   await expect(clinicasCard).toBeVisible({ timeout: 5_000 });
-  await clinicasCard.click();
-
-  const tab = page.locator('[role="tab"][aria-controls="admin-section-panel-gestion"]');
-  const panel = page.locator("#admin-section-panel-gestion");
-
-  await expect(tab).toBeVisible({ timeout: 5_000 });
-  await expect(tab).toBeEnabled();
 
   await expect(async () => {
-    await tab.click();
-    await expect(tab).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
-    await expect(panel).not.toHaveAttribute("hidden", { timeout: 1_000 });
+    if (await clinicasCard.isVisible()) {
+      await clinicasCard.click();
+    }
+    await expect(
+      page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
+    ).toBeVisible({ timeout: 1_000 });
     await expect(page.locator("#admin-clinics")).toBeVisible({ timeout: 1_000 });
   }).toPass({ intervals: [300, 600, 1_000, 1_500], timeout: 8_000 });
 }
 
 // Wait for the fixture clinic row to be visible in the table.
-// The AdminClinicsManagementCard mounts in a hidden panel even before the
-// tab is clicked, so the GET fires and the rows are already in the DOM by the
-// time the panel is revealed. This check confirms both tab activation and data.
+// AdminClinicsManagementCard fetches data on mount; the mock intercepts
+// GET /api/admin/clinics so the rows are available once the workspace opens.
 async function waitForClinicList(page: Page) {
   await expect(
     page.getByRole("cell", { name: /Clínica Test/i }).first(),
