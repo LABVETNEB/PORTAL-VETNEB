@@ -6,6 +6,9 @@ import test from "node:test";
 const ADMIN_CLINICS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx";
 
+const ADMIN_CLINICS_DRAWER_PATH =
+  "frontend/src/app/dashboard/admin/ClinicEditDrawer.tsx";
+
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
     /\r\n/g,
@@ -46,19 +49,18 @@ test("admin clinics management card contains alta clínica form fields without r
 
 test("admin clinics management card lists clinics users and editable actions without role actions", () => {
   const source = read(ADMIN_CLINICS_CARD_PATH);
+  // Edit actions are delegated to the drawer component
+  const drawerSource = read(ADMIN_CLINICS_DRAWER_PATH);
 
   assert.ok(source.includes('<Card id="admin-clinics"'));
   assert.ok(source.includes("<TableHead>Clínica</TableHead>"));
   assert.ok(source.includes("<TableHead>Contacto</TableHead>"));
   assert.ok(source.includes("<TableHead>Usuario</TableHead>"));
-  assert.ok(source.includes("Guardar clínica"));
-  assert.ok(source.includes("Guardar acceso"));
-  assert.ok(source.includes("Eliminar clínica"));
-  assert.ok(
-    source.includes(
-      "Vas a eliminar definitivamente la clínica",
-    ),
-  );
+  // Edit actions live in the drawer (split from inline table editing in PR3C)
+  assert.ok(drawerSource.includes("Guardar clínica"));
+  assert.ok(drawerSource.includes("Guardar acceso"));
+  assert.ok(drawerSource.includes("Eliminar clínica"));
+  assert.ok(drawerSource.includes("Vas a eliminar definitivamente la clínica"));
   assert.ok(source.includes("confirmClinicName"));
   assert.ok(source.includes("formatDateTime(clinic.createdAt)"));
   assert.ok(source.includes("formatDateTime(clinic.updatedAt)"));
@@ -69,17 +71,24 @@ test("admin clinics management card lists clinics users and editable actions wit
 
 test("admin clinics management card keeps admin-entered passwords visible and avoids hashes", () => {
   const source = read(ADMIN_CLINICS_CARD_PATH);
+  // Password confirmation and new-password fields live in the drawer (PR3C)
+  const drawerSource = read(ADMIN_CLINICS_DRAWER_PATH);
 
-  assert.ok(source.includes("window.confirm("));
-  assert.ok(source.includes("Se reemplazará la contraseña de acceso de esta clínica. ¿Confirmás el cambio?"));
+  assert.ok(drawerSource.includes("window.confirm("));
+  assert.ok(drawerSource.includes("Se reemplazará la contraseña de acceso de esta clínica. ¿Confirmás el cambio?"));
   assert.ok(source.includes("La contraseña anterior no se puede consultar. Para recuperación,"));
-  assert.ok(source.includes("Nueva contraseña"));
+  assert.ok(drawerSource.includes("Nueva contraseña"));
   assert.equal(source.includes('type="password"'), false);
+  assert.equal(drawerSource.includes('type="password"'), false);
   assert.ok(source.includes('type="text"'));
   assert.equal(source.includes("passwordHash"), false);
+  assert.equal(drawerSource.includes("passwordHash"), false);
   assert.equal(source.includes("password_hash"), false);
+  assert.equal(drawerSource.includes("password_hash"), false);
   assert.equal(source.includes("hash"), false);
+  assert.equal(drawerSource.includes("hash"), false);
   assert.equal(source.includes("contraseña actual"), false);
+  assert.equal(drawerSource.includes("contraseña actual"), false);
 });
 
 test("admin clinics management card maps fetch failures to an operational backend message", () => {
@@ -138,4 +147,27 @@ test("admin clinics management card does not double-filter rows client-side", ()
   // rows (unfiltered by client) drive the table
   assert.ok(source.includes("rows.map("));
   assert.ok(source.includes("rows.length"));
+});
+
+test("clinic edit drawer is client-side and uses accessible dialog pattern", () => {
+  const drawerSource = read(ADMIN_CLINICS_DRAWER_PATH);
+
+  assert.ok(drawerSource.includes('"use client";'));
+  // Uses Radix Dialog for focus-trap, escape-key, and ARIA
+  assert.ok(drawerSource.includes("@radix-ui/react-dialog"));
+  assert.ok(drawerSource.includes("Dialog.Root"));
+  assert.ok(drawerSource.includes("Dialog.Content"));
+  assert.ok(drawerSource.includes("Dialog.Title"));
+  assert.ok(drawerSource.includes("Dialog.Close"));
+  assert.ok(drawerSource.includes("aria-labelledby"));
+  assert.ok(drawerSource.includes('aria-label="Cerrar panel de edición"'));
+  assert.ok(drawerSource.includes("role=\"alert\""));
+});
+
+test("clinic edit drawer exports ClinicDraft and CredentialsPayload types for contract stability", () => {
+  const drawerSource = read(ADMIN_CLINICS_DRAWER_PATH);
+
+  assert.ok(drawerSource.includes("export type ClinicDraft"));
+  assert.ok(drawerSource.includes("export type CredentialsPayload"));
+  assert.ok(drawerSource.includes("export function ClinicEditDrawer"));
 });
