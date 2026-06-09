@@ -181,6 +181,72 @@ element(s) not found
 
 ---
 
+## CI fix — SSR webpack crash (commit fix over 544a06a)
+
+### Problema
+
+Los 9 tests de component behavior seguían fallando. El error del tab locator cambió su diagnóstico: Playwright mostraba `- text: Not Found` en el snapshot YAML — es decir, la página entera era la página 404 de Next.js, no el admin dashboard.
+
+### Causa raíz
+
+`ClinicEditDrawer.tsx` importa `@radix-ui/react-dialog`. El paquete `@radix-ui/react-dialog ^1.1.2` declara `"use client"` al inicio de su bundle ESM (`dist/index.mjs`). Esta directiva es válida para el runtime de React, pero provoca que webpack (Next.js 15) no pueda inicializar el módulo correctamente durante el server-side rendering (SSR):
+
+```
+⨯ [TypeError: __webpack_modules__[moduleId] is not a function] { digest: '4089801993' }
+GET /dashboard/admin 500 in 15006ms
+```
+
+Aunque `AdminClinicsManagementCard` y `ClinicEditDrawer` son componentes `"use client"`, Next.js los incluye en el bundle SSR para generar el HTML inicial. Al importar `@radix-ui/react-dialog` de forma estática, el factory del módulo no es una función válida en ese contexto → 500. Next.js renderiza `/_not-found` como fallback → Playwright ve `- text: Not Found`.
+
+El paquete estaba declarado en `package.json` pero nunca se había usado en el proyecto antes de PR3C, por lo que el error era silencioso hasta que nuestro spec intentó navegar a `/dashboard/admin`.
+
+### Diagnóstico
+
+```
+# Reproducible localmente:
+NEXT_PUBLIC_API_URL="" pnpm --dir frontend exec next dev --hostname 127.0.0.1
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/dashboard/admin
+# → 500
+```
+
+### Cambio
+
+**`frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx`**
+
+Reemplaza el import estático de `ClinicEditDrawer` por un `next/dynamic` con `ssr: false`. Los imports de tipos (`ClinicDraft`, `CredentialsPayload`) se mantienen como type-only.
+
+```typescript
+// Antes:
+import { ClinicEditDrawer, type ClinicDraft, type CredentialsPayload } from "./ClinicEditDrawer";
+
+// Después:
+import dynamic from "next/dynamic";
+import type { ClinicDraft, CredentialsPayload } from "./ClinicEditDrawer";
+
+const ClinicEditDrawer = dynamic(
+  () => import("./ClinicEditDrawer").then((m) => m.ClinicEditDrawer),
+  { ssr: false },
+);
+```
+
+`ssr: false` excluye el módulo del bundle servidor → el factory de `@radix-ui/react-dialog` no se invoca durante SSR → sin 500 → la página renderiza correctamente (200).
+
+El drawer sigue funcionando igual en el browser. La carga diferida no impacta la UX: el componente se monta en el cliente durante la hidratación y el drawer solo se abre después de interacción del usuario (`editingClinic !== null`).
+
+### Validación post-fix
+
+| Comando | Resultado |
+|---------|-----------|
+| `curl http://127.0.0.1:3000/dashboard/admin` | **200** (antes: 500) |
+| `pnpm --dir frontend lint` | 0 errores |
+| `pnpm --dir frontend typecheck` | 0 errores |
+| `pnpm --dir frontend build` | ok |
+| `pnpm test` | 2455 pass, 0 fail |
+| `git diff --check` | CLEAN |
+| `git status --short` | 1 archivo en scope (`AdminClinicsManagementCard.tsx`) |
+
+---
+
 ## Risks / rollback notes
 
 ### Riesgos

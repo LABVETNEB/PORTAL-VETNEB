@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { ChevronLeft, ChevronRight, Pencil, Plus, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,11 +32,17 @@ import type {
   AdminClinicManagementSummary,
   AdminClinicsSnapshot,
 } from "@/types";
-import {
-  ClinicEditDrawer,
-  type ClinicDraft,
-  type CredentialsPayload,
-} from "./ClinicEditDrawer";
+import type { ClinicDraft, CredentialsPayload } from "./ClinicEditDrawer";
+
+// ClinicEditDrawer uses @radix-ui/react-dialog which declares "use client" in
+// its package source. Importing it statically causes a webpack SSR crash
+// (__webpack_modules__[moduleId] is not a function) because Next.js includes
+// the module in the server bundle where its initializer is not a valid factory.
+// Loading it dynamically with ssr:false keeps it out of the server bundle.
+const ClinicEditDrawer = dynamic(
+  () => import("./ClinicEditDrawer").then((m) => m.ClinicEditDrawer),
+  { ssr: false },
+);
 
 const PAGE_SIZE = 50;
 
