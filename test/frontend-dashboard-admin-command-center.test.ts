@@ -104,7 +104,6 @@ test("dashboard admin composes module hub, command center, and existing cards", 
   // PR5B: DashboardModuleHub and adminCards are inside AdminDashboardWorkspaceController.
   assert.ok(source.includes("<AdminDashboardWorkspaceController"));
   assert.ok(source.includes("<AdminCommandCenter"));
-  assert.ok(source.includes("<AdminSectionTabs"));
   assert.ok(controllerSource.includes("const adminCards = ["));
   assert.ok(controllerSource.includes('title: "Subir informe"'));
   assert.ok(controllerSource.includes('"admin-report-upload"'));
@@ -131,22 +130,13 @@ test("dashboard admin composes module hub, command center, and existing cards", 
   const commandCenterIndex = source.indexOf("<AdminCommandCenter");
   const alertsIndex = source.indexOf("Alertas críticas");
   const alertsCardIndex = source.indexOf("<AdminFailedLoginAlertsReadOnlyCard />");
-  const tabsIndex = source.indexOf("<AdminSectionTabs");
-  const sistemaIndex = source.indexOf("admin-sistema-heading");
-  const gestionIndex = source.indexOf("admin-gestion-heading");
-  const seguridadIndex = source.indexOf("admin-seguridad-heading");
-  const configuracionIndex = source.indexOf("admin-configuracion-heading");
   const auditLogIndex = source.indexOf('id="audit-log"');
 
+  // PR5C: slot vars defined before <main>; each workspace is isolated per module.
   const order = [
     commandCenterIndex,
     alertsIndex,
     alertsCardIndex,
-    tabsIndex,
-    sistemaIndex,
-    gestionIndex,
-    seguridadIndex,
-    configuracionIndex,
     auditLogIndex,
     pageHeaderIndex,
     workspaceControllerIndex,

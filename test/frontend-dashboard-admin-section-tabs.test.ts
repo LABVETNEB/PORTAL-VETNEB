@@ -87,13 +87,8 @@ test("AdminSectionTabs uses buttons and accessible tab semantics without links",
 test("dashboard admin integrates tabs below module hub, command center and critical alerts", () => {
   const source = read(ADMIN_PAGE_PATH);
 
-  assert.ok(source.includes('import { AdminSectionTabs } from "./AdminSectionTabs";'));
-  assert.ok(source.includes("<AdminSectionTabs"));
-  assert.ok(source.includes('defaultTabId="sistema"'));
-  assert.ok(source.includes('label: "Sistema"'));
-  assert.ok(source.includes('label: "Gestión"'));
-  assert.ok(source.includes('label: "Seguridad"'));
-  assert.ok(source.includes('label: "Configuración/Auditoría"'));
+  // PR5C: AdminSectionTabs replaced by per-module workspace isolation.
+  assert.ok(source.includes("<AdminDashboardWorkspaceController"));
   assert.ok(source.includes('"admin-health"'));
   assert.ok(source.includes('"admin-report-upload"'));
   assert.ok(source.includes('"admin-particular-tokens"'));
@@ -102,24 +97,23 @@ test("dashboard admin integrates tabs below module hub, command center and criti
   assert.ok(source.includes('"admin-pricing"'));
   assert.ok(source.includes('"audit-log"'));
 
-  // PR5B: slot vars defined before <main> in render order; section tabs come last in slots.
+  // PR5C: slot vars defined before <main>; workspace slots appear before <DashboardPageHeader>.
   const order = [
     "<AdminCommandCenter",
     "Alertas críticas",
     "<AdminFailedLoginAlertsReadOnlyCard />",
-    "<AdminSectionTabs",
     "<DashboardPageHeader",
     "<AdminDashboardWorkspaceController",
   ].map((marker) => source.indexOf(marker));
 
   for (const index of order) {
-    assert.ok(index >= 0, `admin tabs source must contain ordered marker ${index}`);
+    assert.ok(index >= 0, `admin workspaces source must contain ordered marker ${index}`);
   }
 
   assert.deepEqual(
     order,
     [...order].sort((a, b) => a - b),
-    "admin tabs must stay below command center and critical alerts",
+    "admin workspaces must stay below command center and critical alerts",
   );
 });
 
@@ -139,7 +133,7 @@ test("dashboard admin tabs preserve existing admin cards and audit filter contra
     "<AdminUsersRolesReadOnlyCard />",
     'id="audit-log"',
     "buildAdminAuditFilterHref",
-    'return qs ? `/dashboard/admin?${qs}#audit-log` : "/dashboard/admin#audit-log";',
+    'return `/dashboard/admin?${query.toString()}`;',
   ]) {
     assert.ok(source.includes(marker), `admin page must keep ${marker}`);
   }
