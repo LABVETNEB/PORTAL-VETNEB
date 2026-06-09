@@ -50,7 +50,7 @@ test("clinic dashboard exists as a clinic-only dashboard and keeps admin out", (
   assert.ok(source.includes('import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";'));
   assert.ok(source.includes("<ClinicParticularTokensCard />"));
   assert.ok(sidebarSource.includes('label: "Tokens particulares"'));
-  assert.ok(sidebarSource.includes('`${ROUTES.dashboard}#clinic-particular-tokens`'));
+  assert.ok(sidebarSource.includes('`${ROUTES.dashboard}?module=tokens`'));
   assert.equal(source.includes(removedSessionScopeCopy), false);
   assert.equal(source.includes('label: "Admin"'), false);
   assert.equal(source.includes("ROUTES.dashboardAdmin"), false);

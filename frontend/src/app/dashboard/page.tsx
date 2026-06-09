@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
@@ -109,37 +110,39 @@ export default async function DashboardPage({
           title="Dashboard Clínica"
           description="Seleccione un módulo para acceder a sus funciones."
         />
-        <ClinicDashboardWorkspaceController
-          initialModule={initialModule}
-          pendingReports={pendingReports}
-          activeVisits={activeVisits}
-          workspaces={{
-            operaciones: (
-              <ClinicCommandCenter
-                stats={stats}
-                statsLoadError={statsLoadError}
-                recentReports={recentReports}
-                recentVisits={recentVisits}
-                reportsLoadError={reportsLoadError}
-                visitsLoadError={visitsLoadError}
-              />
-            ),
-            informes: (
-              <ClinicInformesWorkspaceSummary
-                recentReports={recentReports}
-                reportsLoadError={reportsLoadError}
-              />
-            ),
-            logistica: (
-              <ClinicLogisticaWorkspaceSummary
-                recentVisits={recentVisits}
-                visitsLoadError={visitsLoadError}
-              />
-            ),
-            perfil: <ClinicPublicProfileCard />,
-            tokens: <ClinicParticularTokensCard />,
-          }}
-        />
+        <Suspense>
+          <ClinicDashboardWorkspaceController
+            initialModule={initialModule}
+            pendingReports={pendingReports}
+            activeVisits={activeVisits}
+            workspaces={{
+              operaciones: (
+                <ClinicCommandCenter
+                  stats={stats}
+                  statsLoadError={statsLoadError}
+                  recentReports={recentReports}
+                  recentVisits={recentVisits}
+                  reportsLoadError={reportsLoadError}
+                  visitsLoadError={visitsLoadError}
+                />
+              ),
+              informes: (
+                <ClinicInformesWorkspaceSummary
+                  recentReports={recentReports}
+                  reportsLoadError={reportsLoadError}
+                />
+              ),
+              logistica: (
+                <ClinicLogisticaWorkspaceSummary
+                  recentVisits={recentVisits}
+                  visitsLoadError={visitsLoadError}
+                />
+              ),
+              perfil: <ClinicPublicProfileCard />,
+              tokens: <ClinicParticularTokensCard />,
+            }}
+          />
+        </Suspense>
         <div className="h-24 md:hidden" aria-hidden="true" />
       </main>
     </>

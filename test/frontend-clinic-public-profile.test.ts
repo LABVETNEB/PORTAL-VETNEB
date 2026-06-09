@@ -94,5 +94,5 @@ test("clinic dashboard renders public profile before token generation and keeps 
       source.indexOf("<ClinicParticularTokensCard />"),
   );
   assert.ok(sidebarSource.includes('label: "Perfil público"'));
-  assert.ok(sidebarSource.includes('`${ROUTES.dashboard}#clinic-public-profile`'));
+  assert.ok(sidebarSource.includes('`${ROUTES.dashboard}?module=perfil`'));
 });

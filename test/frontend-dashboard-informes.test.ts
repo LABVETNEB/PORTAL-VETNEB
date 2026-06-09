@@ -162,6 +162,17 @@ test("dashboard informes separates fetch failures from real empty report lists",
   assert.ok(source.includes("No hay informes disponibles."));
 });
 
+test("dashboard informes page includes back navigation to modules hub", () => {
+  const source = read(INFORMES_PAGE_PATH);
+
+  assert.ok(source.includes("href={ROUTES.dashboard}"));
+  assert.ok(source.includes("Volver a m&oacute;dulos"));
+  assert.ok(!source.includes("module=informes"));
+  assert.ok(source.includes("Volver"));
+  assert.ok(source.includes('aria-label="Volver al dashboard"'));
+  assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
+});
+
 test("api client supports reports status filter without bypassing wrappers", () => {
   const source = read(API_CLIENT_PATH);
 
