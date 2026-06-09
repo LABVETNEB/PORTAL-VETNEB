@@ -68,6 +68,17 @@ export function PublicRouteControl({
       return;
     }
 
+    // For same-page hash navigation, use window.location.hash so the browser
+    // fires a native hashchange event. router.push uses history.pushState which
+    // does not fire hashchange, breaking hash-listening components (AdminSectionTabs).
+    if (typeof window !== "undefined" && href.includes("#")) {
+      const target = new URL(href, window.location.origin);
+      if (target.pathname === window.location.pathname) {
+        window.location.hash = target.hash;
+        return;
+      }
+    }
+
     router.push(href);
   };
 

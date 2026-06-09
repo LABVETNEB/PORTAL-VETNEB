@@ -120,13 +120,24 @@ test("PR-9 private dashboard pages leave bottom space for mobile fixed actions",
   const informesSource = read(INFORMES_PAGE_PATH);
   const logisticaSource = read(LOGISTICA_PAGE_PATH);
 
+  // PR5: dashboard and admin use DashboardModuleHub (card hub) instead of StickyActionBar.
+  // Informes and logistica retain StickyActionBar for their page-level quick actions.
   for (const [context, source] of [
-    ["dashboard", dashboardSource],
-    ["admin", adminSource],
     ["informes", informesSource],
     ["logistica", logisticaSource],
   ] as const) {
     assert.ok(source.includes("<StickyActionBar"), `${context} uses StickyActionBar`);
+    assert.ok(
+      source.includes('className="h-24 md:hidden" aria-hidden="true"'),
+      `${context} keeps mobile bottom spacer`,
+    );
+  }
+
+  for (const [context, source] of [
+    ["dashboard", dashboardSource],
+    ["admin", adminSource],
+  ] as const) {
+    assert.ok(source.includes("<DashboardModuleHub"), `${context} uses DashboardModuleHub card hub`);
     assert.ok(
       source.includes('className="h-24 md:hidden" aria-hidden="true"'),
       `${context} keeps mobile bottom spacer`,

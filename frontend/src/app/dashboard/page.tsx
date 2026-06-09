@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { ClipboardList, Route } from "lucide-react";
+import {
+  Building2,
+  FileText,
+  KeyRound,
+  LayoutDashboard,
+  Route,
+} from "lucide-react";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
-import {
-  StickyActionBar,
-  type StickyActionBarAction,
-} from "@/components/dashboard/StickyActionBar";
+import { DashboardModuleHub } from "@/components/dashboard/DashboardModuleHub";
 import { ClinicCommandCenter } from "./ClinicCommandCenter";
 import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";
 import { ClinicPublicProfileCard } from "@/components/dashboard/ClinicPublicProfileCard";
+import { Badge } from "@/components/ui/badge";
 import { ROUTES } from "@/lib/routes";
 import {
   getDashboardStats,
@@ -70,47 +74,86 @@ export default async function DashboardPage() {
   const recentReports = reports.slice(0, 3);
   const recentVisits = visits.slice(0, 3);
 
-  const clinicQuickActions = [
+  const pendingReports = stats?.pendingReports ?? 0;
+  const activeVisits = stats?.activeVisits ?? 0;
+
+  const clinicCards = [
     {
-      label: "Ver informes",
+      icon: LayoutDashboard,
+      title: "Centro de operaciones",
+      description: "Métricas operativas, informes recientes y visitas activas.",
+      href: `${ROUTES.dashboard}#clinic-command-center`,
+      badge:
+        pendingReports > 0 ? (
+          <Badge variant="destructive" aria-label={`${pendingReports} informes pendientes`}>
+            {pendingReports}
+          </Badge>
+        ) : null,
+      actionLabel: "Ver resumen",
+    },
+    {
+      icon: FileText,
+      title: "Informes",
+      description: "Consultar, filtrar y descargar informes veterinarios.",
       href: ROUTES.dashboardInformes,
-      variant: "default",
-      icon: <ClipboardList className="h-4 w-4" aria-hidden="true" />,
-      "aria-label": "Ir a informes",
+      actionLabel: "Abrir informes",
     },
     {
-      label: "Ver logística",
-      href: ROUTES.dashboardLogisticaVisitas,
-      variant: "outline",
-      icon: <Route className="h-4 w-4" aria-hidden="true" />,
-      "aria-label": "Ir a visitas de campo",
+      icon: Route,
+      title: "Logística",
+      description: "Visitas de campo, planes de ruta y métricas de cumplimiento.",
+      href: ROUTES.dashboardLogistica,
+      badge:
+        activeVisits > 0 ? (
+          <Badge variant="default" aria-label={`${activeVisits} visitas activas`}>
+            {activeVisits}
+          </Badge>
+        ) : null,
+      actionLabel: "Ver logística",
     },
-  ] satisfies StickyActionBarAction[];
+    {
+      icon: Building2,
+      title: "Perfil público",
+      description: "Publicar y actualizar el perfil en el banco de especialidades.",
+      href: `${ROUTES.dashboard}#clinic-public-profile`,
+      actionLabel: "Editar perfil",
+    },
+    {
+      icon: KeyRound,
+      title: "Tokens particulares",
+      description: "Generar y gestionar tokens de acceso para pacientes.",
+      href: `${ROUTES.dashboard}#clinic-particular-tokens`,
+      actionLabel: "Gestionar tokens",
+    },
+  ];
 
   return (
     <>
       <DashboardTopbar
         title="Dashboard Clínica"
-        subtitle="Resumen operativo clínica"
+        subtitle="Portal operativo clínica"
         notifications="clinic"
       />
       <main className="dashboard-main">
         <DashboardPageHeader
-          title="Centro de operaciones"
-          description="Resumen operativo, métricas e informes recientes de la clínica."
+          title="Dashboard Clínica"
+          description="Seleccione un módulo para acceder a sus funciones o desplácese para el resumen operativo."
         />
-        <StickyActionBar
-          context="Acciones rápidas"
-          actions={clinicQuickActions}
+        <DashboardModuleHub
+          heading="Módulos operativos"
+          description="Acceso rápido a informes, logística, perfil público y tokens de la clínica."
+          cards={clinicCards}
         />
-        <ClinicCommandCenter
-          stats={stats}
-          statsLoadError={statsLoadError}
-          recentReports={recentReports}
-          recentVisits={recentVisits}
-          reportsLoadError={reportsLoadError}
-          visitsLoadError={visitsLoadError}
-        />
+        <div id="clinic-command-center" className="scroll-mt-20">
+          <ClinicCommandCenter
+            stats={stats}
+            statsLoadError={statsLoadError}
+            recentReports={recentReports}
+            recentVisits={recentVisits}
+            reportsLoadError={reportsLoadError}
+            visitsLoadError={visitsLoadError}
+          />
+        </div>
         <ClinicPublicProfileCard />
         <ClinicParticularTokensCard />
         <div className="h-24 md:hidden" aria-hidden="true" />

@@ -45,60 +45,50 @@ export function DashboardSidebarFrame({
   return (
     <aside
       role="navigation"
-      className="sticky top-0 flex h-dvh w-[4.5rem] shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground sm:w-64"
+      className="sticky top-0 flex h-dvh w-[4.5rem] shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground"
       data-dashboard-sidebar-polish="true"
       aria-label="Navegación principal"
     >
-      <div className="flex items-center justify-center gap-3 border-b border-sidebar-border px-2 py-5 sm:justify-start sm:px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_14px_34px_hsl(var(--sidebar-primary)/0.22)] ring-1 ring-white/20">
+      <div className="flex items-center justify-center border-b border-sidebar-border px-2 py-5">
+        <div
+          className="flex h-9 w-9 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_14px_34px_hsl(var(--sidebar-primary)/0.22)] ring-1 ring-white/20"
+          title="Portal VETNEB"
+        >
           <Microscope className="h-4 w-4" aria-hidden="true" />
         </div>
-        <div className="hidden sm:block">
-          <p className="font-semibold text-sm text-sidebar-foreground">
-            Portal VETNEB
-          </p>
-          <p className="text-xs text-sidebar-foreground/60">
-            {dashboardLabel}
-          </p>
-        </div>
+        <span className="sr-only">Portal VETNEB — {dashboardLabel}</span>
       </div>
 
-      <nav className="flex-1 space-y-1 px-2 py-4 sm:px-3" aria-label="Menú principal">
+      <nav className="flex-1 space-y-1 px-2 py-4" aria-label="Menú principal">
         {navItems.map((item) => (
           <div key={item.href}>
             <PublicRouteControl
               href={item.href}
               variant="bare"
               className={cn(
-                "flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar sm:justify-start sm:px-3",
+                "flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar",
                 isActive(item.href, item.exact)
                   ? "bg-sidebar-accent/90 text-sidebar-accent-foreground shadow-[0_10px_28px_rgba(8,35,50,0.24)] ring-1 ring-white/15"
                   : "text-sidebar-foreground/72 hover:bg-sidebar-accent/45 hover:text-sidebar-foreground",
               )}
               aria-label={item.label}
               aria-current={isActive(item.href, item.exact) ? "page" : undefined}
+              title={item.label}
             >
               <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="hidden sm:inline">{item.label}</span>
+              <span className="sr-only">{item.label}</span>
             </PublicRouteControl>
 
             {item.children && isActive(item.href) && (
-              <div className="ml-6 mt-1 hidden space-y-1 sm:block">
+              <div className="sr-only" aria-hidden="true">
                 {item.children.map((child) => (
                   <PublicRouteControl
                     key={child.href}
                     href={child.href}
                     variant="bare"
-                    className={cn(
-                      "flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar",
-                      pathname === child.href
-                        ? "bg-sidebar-accent/80 text-sidebar-accent-foreground ring-1 ring-white/10"
-                        : "text-sidebar-foreground/62 hover:bg-sidebar-accent/38 hover:text-sidebar-foreground",
-                    )}
                     aria-label={child.label}
                     aria-current={pathname === child.href ? "page" : undefined}
                   >
-                    <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
                     {child.label}
                   </PublicRouteControl>
                 ))}
@@ -113,10 +103,11 @@ export function DashboardSidebarFrame({
           href={ROUTES.home}
           variant="bare"
           aria-label="Volver al sitio público"
-          className="flex items-center justify-center gap-2 rounded-md px-2 py-2 text-xs text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar sm:justify-start sm:px-3"
+          title="Volver al sitio público"
+          className="flex items-center justify-center gap-2 rounded-md px-2 py-2 text-xs text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="hidden sm:inline">Volver al sitio público</span>
+          <span className="sr-only">Volver al sitio público</span>
         </PublicRouteControl>
       </div>
     </aside>

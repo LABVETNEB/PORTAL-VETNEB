@@ -84,7 +84,7 @@ test("AdminSectionTabs uses buttons and accessible tab semantics without links",
   assertNoForbiddenSurfaceImports(source, "AdminSectionTabs");
 });
 
-test("dashboard admin integrates tabs below command center and critical alerts", () => {
+test("dashboard admin integrates tabs below module hub, command center and critical alerts", () => {
   const source = read(ADMIN_PAGE_PATH);
   const mainSource = source.slice(source.indexOf('<main className="dashboard-main">'));
 
@@ -105,7 +105,7 @@ test("dashboard admin integrates tabs below command center and critical alerts",
 
   const order = [
     "<DashboardPageHeader",
-    "<StickyActionBar",
+    "<DashboardModuleHub",
     "<AdminCommandCenter",
     "Alertas críticas",
     "<AdminFailedLoginAlertsReadOnlyCard />",
@@ -128,7 +128,7 @@ test("dashboard admin tabs preserve existing admin cards and audit filter contra
 
   for (const marker of [
     "<AdminCommandCenter",
-    "<StickyActionBar",
+    "<DashboardModuleHub",
     "<AdminFailedLoginAlertsReadOnlyCard />",
     "<AdminClinicsManagementCard />",
     "<AdminSchemaHealthStatusCard />",

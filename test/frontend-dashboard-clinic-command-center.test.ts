@@ -204,15 +204,15 @@ test("dashboard page imports and uses ClinicCommandCenter with full data prop se
   assert.ok(source.includes('visitsLoadError={visitsLoadError}'));
 });
 
-test("dashboard page uses DashboardPageHeader and StickyActionBar above ClinicCommandCenter", () => {
+test("dashboard page uses DashboardPageHeader and DashboardModuleHub above ClinicCommandCenter", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
   assert.ok(source.includes('<DashboardPageHeader'));
-  assert.ok(source.includes('title="Centro de operaciones"'));
-  assert.ok(source.includes('<StickyActionBar'));
-  assert.ok(source.includes('context="Acciones rápidas"'));
+  assert.ok(source.includes('title: "Centro de operaciones"'));
+  assert.ok(source.includes('<DashboardModuleHub'));
+  assert.ok(source.includes('heading="Módulos operativos"'));
   assert.ok(source.includes('href: ROUTES.dashboardInformes'));
-  assert.ok(source.includes('href: ROUTES.dashboardLogisticaVisitas'));
+  assert.ok(source.includes('href: ROUTES.dashboardLogistica'));
   assert.equal(source.includes('import Link from "next/link"'), false);
   assert.equal(source.includes('<a href='), false);
 });

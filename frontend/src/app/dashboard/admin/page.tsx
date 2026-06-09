@@ -3,16 +3,19 @@ import { cookies } from "next/headers";
 import {
   Activity,
   Building2,
-  FileUp,
+  ClipboardPlus,
+  KeyRound,
+  ReceiptText,
+  ScrollText,
+  Settings2,
   ShieldAlert,
+  ShieldCheck,
   TicketCheck,
+  UsersRound,
 } from "lucide-react";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
-import {
-  StickyActionBar,
-  type StickyActionBarAction,
-} from "@/components/dashboard/StickyActionBar";
+import { DashboardModuleHub } from "@/components/dashboard/DashboardModuleHub";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -398,33 +401,84 @@ export default async function AdminPage({
   const selectedActorTypeLabel = selectedActorType
     ? ACTOR_LABELS[selectedActorType] ?? selectedActorType
     : "Todos";
-  const adminQuickActions = [
+  const adminCards = [
     {
-      label: "Subir informe",
-      href: "#admin-report-upload",
-      variant: "default",
-      icon: <FileUp className="h-4 w-4" aria-hidden="true" />,
-      "aria-label": "Ir a carga de informes",
+      icon: Settings2,
+      title: "Administración",
+      description: "Resumen operativo, auditoría y salud del sistema.",
+      href: "/dashboard/admin#admin-command-center",
+      actionLabel: "Ver resumen",
     },
     {
-      label: "Gestionar clínicas",
-      href: "#admin-clinics",
-      variant: "outline",
-      icon: <Building2 className="h-4 w-4" aria-hidden="true" />,
+      icon: ClipboardPlus,
+      title: "Subir informe",
+      description: "Cargar nuevos informes vinculados a tokens de clínica.",
+      href: "/dashboard/admin#admin-report-upload",
+      actionLabel: "Ir a carga",
     },
     {
-      label: "Revisar tokens",
-      href: "#admin-particular-tokens",
-      variant: "outline",
-      icon: <TicketCheck className="h-4 w-4" aria-hidden="true" />,
+      icon: Activity,
+      title: "Estado del sistema",
+      description: "Salud de servicios, esquema y mantenimiento backend.",
+      href: "/dashboard/admin#admin-health",
+      badge:
+        systemStatus !== "ok" ? (
+          <Badge variant={getSystemStatusVariant(systemStatus)}>
+            {formatSystemStatus(systemStatus)}
+          </Badge>
+        ) : null,
+      actionLabel: "Ver estado",
     },
     {
-      label: "Ver sistema",
-      href: "#admin-health",
-      variant: "outline",
-      icon: <Activity className="h-4 w-4" aria-hidden="true" />,
+      icon: Building2,
+      title: "Clínicas",
+      description: "Crear, buscar y editar clínicas registradas en el portal.",
+      href: "/dashboard/admin#admin-clinics",
+      actionLabel: "Gestionar",
     },
-  ] satisfies StickyActionBarAction[];
+    {
+      icon: TicketCheck,
+      title: "Tokens particulares",
+      description: "Revisar y gestionar tokens de acceso para particulares.",
+      href: "/dashboard/admin#admin-particular-tokens",
+      actionLabel: "Ver tokens",
+    },
+    {
+      icon: ReceiptText,
+      title: "Precios",
+      description: "Actualizar precios del portal visibles en /precios.",
+      href: "/dashboard/admin#admin-pricing",
+      actionLabel: "Editar precios",
+    },
+    {
+      icon: KeyRound,
+      title: "Sesiones",
+      description: "Consultar y revocar sesiones activas de clínicas.",
+      href: "/dashboard/admin#admin-sessions",
+      actionLabel: "Ver sesiones",
+    },
+    {
+      icon: UsersRound,
+      title: "Roles clínica",
+      description: "Auditoría de cambios de rol en usuarios de clínicas.",
+      href: "/dashboard/admin#admin-users-roles",
+      actionLabel: "Ver roles",
+    },
+    {
+      icon: ScrollText,
+      title: "Auditoría",
+      description: "Log de eventos con filtros por tipo de evento y actor.",
+      href: "/dashboard/admin#audit-log",
+      actionLabel: "Ver log",
+    },
+    {
+      icon: ShieldCheck,
+      title: "Mantenimiento",
+      description: "Dry-run de mantenimiento y verificación de esquema.",
+      href: "/dashboard/admin#admin-maintenance",
+      actionLabel: "Ver mantenimiento",
+    },
+  ];
 
   return (
     <>
@@ -436,7 +490,7 @@ export default async function AdminPage({
       <main className="dashboard-main">
         <DashboardPageHeader
           title="Administración"
-          description="Command center privado para priorizar acciones, auditoría y salud operativa sin cambiar la lógica existente."
+          description="Seleccione un módulo o desplácese para el resumen operativo."
           badge={
             <Badge variant={getSystemStatusVariant(systemStatus)}>
               {formatSystemStatus(systemStatus)}
@@ -465,12 +519,14 @@ export default async function AdminPage({
           }
         />
 
-        <StickyActionBar
-          context="Acciones rápidas"
-          actions={adminQuickActions}
+        <DashboardModuleHub
+          heading="Módulos de administración"
+          description="Acceso a clínicas, precios, sesiones, auditoría y estado del sistema."
+          cards={adminCards}
         />
 
-        <AdminCommandCenter
+        <div id="admin-command-center" className="scroll-mt-20">
+          <AdminCommandCenter
           auditEntriesCount={auditEntries.length}
           eventTypesCount={Object.keys(eventCounts).length}
           systemStatusLabel={formatSystemStatus(systemStatus)}
@@ -479,6 +535,7 @@ export default async function AdminPage({
           systemStatusDetail={formatSystemStatusDetail(serviceChecks)}
           hasSystemHealthFetchError={hasSystemHealthFetchError}
         />
+        </div>
 
         <section className="space-y-4" aria-labelledby="admin-alertas-heading">
           <div>
