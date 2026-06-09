@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useCallback, useEffect, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Building2,
   FileText,
@@ -12,6 +12,21 @@ import {
 import { DashboardModuleHub } from "./DashboardModuleHub";
 import { DashboardModuleWorkspace } from "./DashboardModuleWorkspace";
 import { ROUTES } from "@/lib/routes";
+
+const CLINIC_MODULE_VALUES = [
+  "operaciones",
+  "informes",
+  "logistica",
+  "perfil",
+  "tokens",
+] as const;
+
+function parseModuleFromUrl(value: string | null): ClinicModule | null {
+  if (!value) return null;
+  return (CLINIC_MODULE_VALUES as readonly string[]).includes(value)
+    ? (value as ClinicModule)
+    : null;
+}
 
 export type ClinicModule =
   | "operaciones"
@@ -68,9 +83,14 @@ export function ClinicDashboardWorkspaceController({
   workspaces,
 }: ClinicDashboardWorkspaceControllerProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeModule, setActiveModule] = useState<ClinicModule | null>(
     initialModule ?? null,
   );
+
+  useEffect(() => {
+    setActiveModule(parseModuleFromUrl(searchParams.get("module")));
+  }, [searchParams]);
 
   const activateModule = useCallback(
     (moduleId: ClinicModule) => {

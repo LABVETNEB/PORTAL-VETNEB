@@ -44,6 +44,7 @@ import {
   getReportStatusVariant,
   formatDate,
 } from "@/lib/utils";
+import { ROUTES } from "@/lib/routes";
 import type { Report, ReportStatus } from "@/types";
 
 export const metadata: Metadata = {
@@ -339,6 +340,16 @@ export default async function InformesPage({
                 size="sm"
               />
             ) : null
+          }
+          actions={
+            <PublicRouteControl
+              href={ROUTES.dashboard}
+              variant="bare"
+              aria-label="Volver al dashboard"
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-input bg-card/95 px-3 text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+            >
+              <span>Volver a m&oacute;dulos</span>
+            </PublicRouteControl>
           }
         />
 

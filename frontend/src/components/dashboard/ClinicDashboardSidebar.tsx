@@ -35,12 +35,12 @@ const clinicNavItems: DashboardNavItem[] = [
   },
   {
     label: "Perfil público",
-    href: `${ROUTES.dashboard}#clinic-public-profile`,
+    href: `${ROUTES.dashboard}?module=perfil`,
     icon: Building2,
   },
   {
     label: "Tokens particulares",
-    href: `${ROUTES.dashboard}#clinic-particular-tokens`,
+    href: `${ROUTES.dashboard}?module=tokens`,
     icon: KeyRound,
   },
 ];

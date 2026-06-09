@@ -90,8 +90,8 @@ test("clinic dashboard sidebar keeps clinic operations and excludes admin naviga
   assert.ok(source.includes('label: "Tokens particulares"'));
   assert.ok(source.includes("ROUTES.dashboardInformes"));
   assert.ok(source.includes("ROUTES.dashboardLogistica"));
-  assert.ok(source.includes('`${ROUTES.dashboard}#clinic-public-profile`'));
-  assert.ok(source.includes('`${ROUTES.dashboard}#clinic-particular-tokens`'));
+  assert.ok(source.includes('`${ROUTES.dashboard}?module=perfil`'));
+  assert.ok(source.includes('`${ROUTES.dashboard}?module=tokens`'));
   assert.equal(source.includes("ROUTES.dashboardAdmin"), false);
 });
 
