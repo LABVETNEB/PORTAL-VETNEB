@@ -86,7 +86,6 @@ test("AdminSectionTabs uses buttons and accessible tab semantics without links",
 
 test("dashboard admin integrates tabs below module hub, command center and critical alerts", () => {
   const source = read(ADMIN_PAGE_PATH);
-  const mainSource = source.slice(source.indexOf('<main className="dashboard-main">'));
 
   assert.ok(source.includes('import { AdminSectionTabs } from "./AdminSectionTabs";'));
   assert.ok(source.includes("<AdminSectionTabs"));
@@ -103,14 +102,15 @@ test("dashboard admin integrates tabs below module hub, command center and criti
   assert.ok(source.includes('"admin-pricing"'));
   assert.ok(source.includes('"audit-log"'));
 
+  // PR5B: slot vars defined before <main> in render order; section tabs come last in slots.
   const order = [
-    "<DashboardPageHeader",
-    "<DashboardModuleHub",
     "<AdminCommandCenter",
     "Alertas críticas",
     "<AdminFailedLoginAlertsReadOnlyCard />",
     "<AdminSectionTabs",
-  ].map((marker) => mainSource.indexOf(marker));
+    "<DashboardPageHeader",
+    "<AdminDashboardWorkspaceController",
+  ].map((marker) => source.indexOf(marker));
 
   for (const index of order) {
     assert.ok(index >= 0, `admin tabs source must contain ordered marker ${index}`);
@@ -128,7 +128,7 @@ test("dashboard admin tabs preserve existing admin cards and audit filter contra
 
   for (const marker of [
     "<AdminCommandCenter",
-    "<DashboardModuleHub",
+    "<AdminDashboardWorkspaceController",
     "<AdminFailedLoginAlertsReadOnlyCard />",
     "<AdminClinicsManagementCard />",
     "<AdminSchemaHealthStatusCard />",

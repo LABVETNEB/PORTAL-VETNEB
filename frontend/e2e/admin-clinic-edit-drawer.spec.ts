@@ -97,9 +97,15 @@ async function mockAdminClinicsUpdate(page: Page) {
 // Navigate to the Gestión tab using its stable aria-controls attribute.
 // Tab and panel ids are derived from the tab.id ("gestion"), not from useId(),
 // so selectors are deterministic across SSR and client hydration.
+// PR5B: the admin hub is shown by default; must click the Clínicas card to enter
+// the workspace before the section tabs become visible.
 // toPass retries the click+verify sequence in case the first click fires before
 // React has attached its onClick handler (CI cold-start hydration race).
 async function navigateToGestionTab(page: Page) {
+  const clinicasCard = page.locator('[data-dashboard-module-card="admin-clinics"]');
+  await expect(clinicasCard).toBeVisible({ timeout: 5_000 });
+  await clinicasCard.click();
+
   const tab = page.locator('[role="tab"][aria-controls="admin-section-panel-gestion"]');
   const panel = page.locator("#admin-section-panel-gestion");
 

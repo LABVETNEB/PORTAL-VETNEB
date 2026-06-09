@@ -19,7 +19,7 @@ export function DashboardShellRouter({
       ) : (
         <ClinicDashboardSidebar />
       )}
-      <div className="flex flex-1 flex-col min-w-0">
+      <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         {children}
       </div>
     </div>

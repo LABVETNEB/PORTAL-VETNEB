@@ -24,7 +24,7 @@ test("dashboard admin defines non-indexable metadata and admin dependencies", ()
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
   assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
-  assert.ok(source.includes('import { DashboardModuleHub } from "@/components/dashboard/DashboardModuleHub";'));
+  assert.ok(source.includes('import { AdminDashboardWorkspaceController } from "./AdminDashboardWorkspaceController";'));
   assert.ok(source.includes('import { AdminCommandCenter } from "./AdminCommandCenter";'));
   assert.ok(source.includes('import { AdminSectionTabs } from "./AdminSectionTabs";'));
   assert.ok(source.includes('import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";'));
@@ -146,7 +146,7 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes('title="Administración"'));
   assert.ok(source.includes('subtitle="Auditoría, reportes y estado operacional"'));
   assert.ok(source.includes("<DashboardPageHeader"));
-  assert.ok(source.includes("<DashboardModuleHub"));
+  assert.ok(source.includes("<AdminDashboardWorkspaceController"));
   assert.ok(source.includes("<AdminCommandCenter"));
   assert.ok(source.includes("<AdminSectionTabs"));
   assert.ok(combinedSource.includes("Eventos de auditoría"));
@@ -186,17 +186,19 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
 
 test("dashboard admin keeps module hub cards and preserves admin sections", () => {
   const source = read(ADMIN_PAGE_PATH);
+  const controllerSource = read("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx");
 
-  assert.ok(source.includes("const adminCards = ["));
-  assert.ok(source.includes('title: "Subir informe"'));
-  assert.ok(source.includes('"/dashboard/admin#admin-report-upload"'));
-  assert.ok(source.includes('title: "Clínicas"'));
-  assert.ok(source.includes('"/dashboard/admin#admin-clinics"'));
-  assert.ok(source.includes('title: "Tokens particulares"'));
-  assert.ok(source.includes('"/dashboard/admin#admin-particular-tokens"'));
-  assert.ok(source.includes('title: "Estado del sistema"'));
-  assert.ok(source.includes('"/dashboard/admin#admin-health"'));
-  assert.ok(source.includes('<DashboardModuleHub'));
+  // PR5B: admin cards and DashboardModuleHub are inside AdminDashboardWorkspaceController.
+  assert.ok(controllerSource.includes("const adminCards = ["));
+  assert.ok(controllerSource.includes('title: "Subir informe"'));
+  assert.ok(controllerSource.includes('"admin-report-upload"'));
+  assert.ok(controllerSource.includes('title: "Clínicas"'));
+  assert.ok(controllerSource.includes('"admin-clinics"'));
+  assert.ok(controllerSource.includes('title: "Tokens particulares"'));
+  assert.ok(controllerSource.includes('"admin-particular-tokens"'));
+  assert.ok(controllerSource.includes('title: "Estado del sistema"'));
+  assert.ok(controllerSource.includes('"admin-health"'));
+  assert.ok(source.includes('<AdminDashboardWorkspaceController'));
   assert.ok(source.includes('id="admin-report-upload"'));
   assert.ok(source.includes("Carga de informes"));
   assert.ok(source.includes("cada token administrado"));
@@ -220,17 +222,20 @@ test("dashboard admin keeps module hub cards and preserves admin sections", () =
   assert.ok(source.includes('id="audit-log"'));
 
   const mainIndex = source.indexOf('<main className="dashboard-main">');
-  const moduleHubIndex = source.indexOf("<DashboardModuleHub", mainIndex);
-  const commandCenterIndex = source.indexOf("<AdminCommandCenter", mainIndex);
-  const alertsCardIndex = source.indexOf("<AdminFailedLoginAlertsReadOnlyCard />", mainIndex);
-  const tabsIndex = source.indexOf("<AdminSectionTabs", mainIndex);
-  const systemSectionIndex = source.indexOf("admin-sistema-heading", mainIndex);
-  const managementSectionIndex = source.indexOf("admin-gestion-heading", mainIndex);
-  const securitySectionIndex = source.indexOf("admin-seguridad-heading", mainIndex);
+  const pageHeaderIndex = source.indexOf("<DashboardPageHeader", mainIndex);
+  const workspaceControllerIndex = source.indexOf("<AdminDashboardWorkspaceController", mainIndex);
+  // PR5B: slot vars defined before <main> in render order (commandCenter → alerts → tabs).
+  const commandCenterIndex = source.indexOf("<AdminCommandCenter");
+  const alertsCardIndex = source.indexOf("<AdminFailedLoginAlertsReadOnlyCard />");
+  const tabsIndex = source.indexOf("<AdminSectionTabs");
+  const systemSectionIndex = source.indexOf("admin-sistema-heading");
+  const managementSectionIndex = source.indexOf("admin-gestion-heading");
+  const securitySectionIndex = source.indexOf("admin-seguridad-heading");
   const reportUploadTitleIndex = source.indexOf("Carga de informes");
 
   assert.ok(mainIndex >= 0);
-  assert.ok(moduleHubIndex >= 0);
+  assert.ok(pageHeaderIndex >= 0);
+  assert.ok(workspaceControllerIndex >= 0);
   assert.ok(commandCenterIndex >= 0);
   assert.ok(alertsCardIndex >= 0);
   assert.ok(tabsIndex >= 0);
@@ -238,8 +243,8 @@ test("dashboard admin keeps module hub cards and preserves admin sections", () =
   assert.ok(managementSectionIndex >= 0);
   assert.ok(securitySectionIndex >= 0);
   assert.ok(reportUploadTitleIndex >= 0);
-  assert.ok(mainIndex < moduleHubIndex);
-  assert.ok(moduleHubIndex < commandCenterIndex);
+  assert.ok(mainIndex < pageHeaderIndex);
+  assert.ok(pageHeaderIndex < workspaceControllerIndex);
   assert.ok(commandCenterIndex < alertsCardIndex);
   assert.ok(alertsCardIndex < tabsIndex);
   assert.ok(tabsIndex < systemSectionIndex);

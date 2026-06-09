@@ -403,7 +403,7 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
     [
       '<main className="dashboard-main">',
       "<DashboardPageHeader",
-      "<DashboardModuleHub",
+      "<ClinicDashboardWorkspaceController",
       "<ClinicCommandCenter",
       "<ClinicPublicProfileCard />",
       "<ClinicParticularTokensCard />",
@@ -450,7 +450,7 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
     [
       '<main className="dashboard-main">',
       "<DashboardPageHeader",
-      "<DashboardModuleHub",
+      "<AdminDashboardWorkspaceController",
       "<AdminCommandCenter",
       "<AdminSectionTabs",
       "<AdminMaintenanceDryRunCard />",

@@ -1,24 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import {
-  Activity,
-  Building2,
-  ClipboardPlus,
-  KeyRound,
-  ReceiptText,
-  ScrollText,
-  Settings2,
-  ShieldAlert,
-  ShieldCheck,
-  TicketCheck,
-  UsersRound,
-} from "lucide-react";
-import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
-import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
-import { DashboardModuleHub } from "@/components/dashboard/DashboardModuleHub";
-import { PublicRouteControl } from "@/components/public/PublicRouteControl";
-import { Badge } from "@/components/ui/badge";
-import {
   Table,
   TableBody,
   TableCell,
@@ -33,6 +15,10 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
+import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { AdminCommandCenter } from "./AdminCommandCenter";
 import { AdminClinicsManagementCard } from "./AdminClinicsManagementCard";
 import { AdminFailedLoginAlertsReadOnlyCard } from "./AdminFailedLoginAlertsReadOnlyCard";
@@ -43,6 +29,7 @@ import { AdminSchemaHealthStatusCard } from "./AdminSchemaHealthStatusCard";
 import { AdminSectionTabs } from "./AdminSectionTabs";
 import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";
 import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
+import { AdminDashboardWorkspaceController } from "./AdminDashboardWorkspaceController";
 import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 
@@ -90,7 +77,6 @@ function getEventVariant(
   return "outline";
 }
 
-
 function getServiceVariant(
   value: unknown,
 ): "default" | "secondary" | "destructive" | "outline" {
@@ -123,11 +109,9 @@ function getEmailTransportBadgeVariant(
   if (value === "gmail_api" || value === "smtp") {
     return "default";
   }
-
   if (value === "not_configured") {
     return "outline";
   }
-
   return "secondary";
 }
 
@@ -135,7 +119,6 @@ function formatEmailTransport(value: unknown) {
   if (value === "gmail_api") return "Gmail API HTTPS";
   if (value === "smtp") return "SMTP";
   if (value === "not_configured") return "No configurado";
-
   return "Desconocido";
 }
 
@@ -170,11 +153,7 @@ function formatSystemStatusDetail(services: Record<string, unknown>) {
 
 function getConfiguredContactRecipients(services: Record<string, unknown>): string[] {
   const recipients = services.contact_email_recipients;
-
-  if (!Array.isArray(recipients)) {
-    return [];
-  }
-
+  if (!Array.isArray(recipients)) return [];
   return recipients.filter(
     (recipient): recipient is string =>
       typeof recipient === "string" && recipient.trim().length > 0,
@@ -183,11 +162,7 @@ function getConfiguredContactRecipients(services: Record<string, unknown>): stri
 
 function getConfiguredCorsOrigins(services: Record<string, unknown>): string[] {
   const origins = services.cors_origins;
-
-  if (!Array.isArray(origins)) {
-    return [];
-  }
-
+  if (!Array.isArray(origins)) return [];
   return origins.filter(
     (origin): origin is string =>
       typeof origin === "string" && origin.trim().length > 0,
@@ -202,11 +177,9 @@ function formatUptime(totalSeconds: number | undefined) {
   if (typeof totalSeconds !== "number" || !Number.isFinite(totalSeconds)) {
     return "—";
   }
-
   const days = Math.floor(totalSeconds / 86_400);
   const hours = Math.floor((totalSeconds % 86_400) / 3_600);
   const minutes = Math.floor((totalSeconds % 3_600) / 60);
-
   if (days > 0) return `${days}d ${hours}h`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
@@ -224,44 +197,38 @@ const SENSITIVE_AUDIT_METADATA_KEY_PARTS = [
 
 function isSensitiveAuditMetadataKey(key: string) {
   const normalizedKey = key.toLowerCase();
-
   return SENSITIVE_AUDIT_METADATA_KEY_PARTS.some((part) =>
     normalizedKey.includes(part),
   );
 }
 
 function formatAuditMetadataValue(value: unknown) {
-  if (value === null || value === undefined || value === "") {
-    return "—";
-  }
-
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+  if (value === null || value === undefined || value === "") return "—";
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
     return String(value);
   }
-
   return JSON.stringify(value);
 }
 
 function formatAuditClinicRole(value: unknown) {
   if (value === "clinic_owner") return "Owner clínica";
   if (value === "clinic_staff") return "Staff clínica";
-
   return formatAuditMetadataValue(value);
 }
 
 function getAuditMetadataSummary(entry: { event: string; metadata: Record<string, unknown> | null }) {
   const metadata = entry.metadata;
-
-  if (!metadata) {
-    return "—";
-  }
+  if (!metadata) return "—";
 
   if (entry.event === "clinic_user.role.changed") {
     const username = formatAuditMetadataValue(metadata.username);
     const clinicName = formatAuditMetadataValue(metadata.clinicName);
-    const previousRole = formatAuditMetadataValue(metadata.previousRole);
-    const newRole = formatAuditMetadataValue(metadata.newRole);
-
+    const previousRole = formatAuditClinicRole(metadata.previousRole);
+    const newRole = formatAuditClinicRole(metadata.newRole);
     return `${username} · ${clinicName} · ${previousRole} → ${newRole}`;
   }
 
@@ -275,23 +242,17 @@ function getAuditMetadataSummary(entry: { event: string; metadata: Record<string
     )
     .slice(0, 3);
 
-  if (!visibleEntries.length) {
-    return "—";
-  }
+  if (!visibleEntries.length) return "—";
 
   return visibleEntries
     .map(([key, value]) => `${key}: ${formatAuditMetadataValue(value)}`)
     .join(" · ");
 }
+
 function formatHealthTimestamp(value: unknown) {
   if (typeof value !== "string") return "—";
-
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
+  if (Number.isNaN(date.getTime())) return value;
   return formatDateTime(date.toISOString());
 }
 
@@ -301,35 +262,20 @@ type AdminPageSearchParams = {
 };
 
 function normalizeAuditFilter(value: string | string[] | undefined) {
-  if (Array.isArray(value)) {
-    return value[0] ?? "";
-  }
-
+  if (Array.isArray(value)) return value[0] ?? "";
   return value ?? "";
 }
 
-function buildAdminAuditFilterHref(input: {
-  event?: string;
-  actorType?: string;
-}) {
+function buildAdminAuditFilterHref(input: { event?: string; actorType?: string }) {
   const query = new URLSearchParams();
-
-  if (input.event) {
-    query.set("event", input.event);
-  }
-
-  if (input.actorType) {
-    query.set("actorType", input.actorType);
-  }
-
+  if (input.event) query.set("event", input.event);
+  if (input.actorType) query.set("actorType", input.actorType);
   const qs = query.toString();
-
   return qs ? `/dashboard/admin?${qs}#audit-log` : "/dashboard/admin#audit-log";
 }
 
 async function getAdminRequestOptions(): Promise<RequestInit> {
   const cookieHeader = (await cookies()).toString();
-
   return {
     cache: "no-store",
     headers: cookieHeader ? { Cookie: cookieHeader } : {},
@@ -360,9 +306,10 @@ export default async function AdminPage({
   const serviceChecks = systemHealth?.services ?? {};
   const contactRecipients = getConfiguredContactRecipients(serviceChecks);
   const corsOrigins = getConfiguredCorsOrigins(serviceChecks);
-  const nodeEnv = typeof serviceChecks.node_env === "string"
-    ? serviceChecks.node_env
-    : "unknown";
+  const nodeEnv =
+    typeof serviceChecks.node_env === "string"
+      ? serviceChecks.node_env
+      : "unknown";
   const systemStatus = systemHealth?.status ?? "unknown";
   const eventCounts = auditEntries.reduce(
     (acc, entry) => {
@@ -390,7 +337,6 @@ export default async function AdminPage({
     const matchesActorType = selectedActorType
       ? entry.actorType === selectedActorType
       : true;
-
     return matchesEvent && matchesActorType;
   });
   const hasActiveAuditFilters =
@@ -401,84 +347,549 @@ export default async function AdminPage({
   const selectedActorTypeLabel = selectedActorType
     ? ACTOR_LABELS[selectedActorType] ?? selectedActorType
     : "Todos";
-  const adminCards = [
-    {
-      icon: Settings2,
-      title: "Administración",
-      description: "Resumen operativo, auditoría y salud del sistema.",
-      href: "/dashboard/admin#admin-command-center",
-      actionLabel: "Ver resumen",
-    },
-    {
-      icon: ClipboardPlus,
-      title: "Subir informe",
-      description: "Cargar nuevos informes vinculados a tokens de clínica.",
-      href: "/dashboard/admin#admin-report-upload",
-      actionLabel: "Ir a carga",
-    },
-    {
-      icon: Activity,
-      title: "Estado del sistema",
-      description: "Salud de servicios, esquema y mantenimiento backend.",
-      href: "/dashboard/admin#admin-health",
-      badge:
-        systemStatus !== "ok" ? (
-          <Badge variant={getSystemStatusVariant(systemStatus)}>
-            {formatSystemStatus(systemStatus)}
-          </Badge>
-        ) : null,
-      actionLabel: "Ver estado",
-    },
-    {
-      icon: Building2,
-      title: "Clínicas",
-      description: "Crear, buscar y editar clínicas registradas en el portal.",
-      href: "/dashboard/admin#admin-clinics",
-      actionLabel: "Gestionar",
-    },
-    {
-      icon: TicketCheck,
-      title: "Tokens particulares",
-      description: "Revisar y gestionar tokens de acceso para particulares.",
-      href: "/dashboard/admin#admin-particular-tokens",
-      actionLabel: "Ver tokens",
-    },
-    {
-      icon: ReceiptText,
-      title: "Precios",
-      description: "Actualizar precios del portal visibles en /precios.",
-      href: "/dashboard/admin#admin-pricing",
-      actionLabel: "Editar precios",
-    },
-    {
-      icon: KeyRound,
-      title: "Sesiones",
-      description: "Consultar y revocar sesiones activas de clínicas.",
-      href: "/dashboard/admin#admin-sessions",
-      actionLabel: "Ver sesiones",
-    },
-    {
-      icon: UsersRound,
-      title: "Roles clínica",
-      description: "Auditoría de cambios de rol en usuarios de clínicas.",
-      href: "/dashboard/admin#admin-users-roles",
-      actionLabel: "Ver roles",
-    },
-    {
-      icon: ScrollText,
-      title: "Auditoría",
-      description: "Log de eventos con filtros por tipo de evento y actor.",
-      href: "/dashboard/admin#audit-log",
-      actionLabel: "Ver log",
-    },
-    {
-      icon: ShieldCheck,
-      title: "Mantenimiento",
-      description: "Dry-run de mantenimiento y verificación de esquema.",
-      href: "/dashboard/admin#admin-maintenance",
-      actionLabel: "Ver mantenimiento",
-    },
-  ];
+
+  void auditEventOptions;
+  void actorTypeOptions;
+
+  const commandCenterSlot = (
+    <div id="admin-command-center">
+      <AdminCommandCenter
+        auditEntriesCount={auditEntries.length}
+        eventTypesCount={Object.keys(eventCounts).length}
+        systemStatusLabel={formatSystemStatus(systemStatus)}
+        systemStatusVariant={getSystemStatusVariant(systemStatus)}
+        systemStatusIndicatorClass={getSystemStatusIndicatorClass(systemStatus)}
+        systemStatusDetail={formatSystemStatusDetail(serviceChecks)}
+        hasSystemHealthFetchError={hasSystemHealthFetchError}
+      />
+    </div>
+  );
+
+  const alertsSectionSlot = (
+    <section className="space-y-4" aria-labelledby="admin-alertas-heading">
+      <div>
+        <h2 id="admin-alertas-heading" className="dashboard-section-heading">
+          Alertas críticas
+        </h2>
+        <p className="dashboard-section-description">
+          Intentos fallidos y señales de acceso se revisan antes de las tareas secundarias.
+        </p>
+      </div>
+      <AdminFailedLoginAlertsReadOnlyCard />
+    </section>
+  );
+
+  const sectionTabsSlot = (
+    <AdminSectionTabs
+      defaultTabId="sistema"
+      className="pt-1"
+      tabs={[
+        {
+          id: "sistema",
+          label: "Sistema",
+          description: "Salud, esquema y mantenimiento.",
+          anchorIds: ["admin-health", "admin-maintenance"],
+          content: (
+            <section className="space-y-4" aria-labelledby="admin-sistema-heading">
+              <div>
+                <h2 id="admin-sistema-heading" className="dashboard-section-heading">
+                  Sistema
+                </h2>
+                <p className="dashboard-section-description">
+                  Salud, esquema y mantenimiento quedan agrupados para lectura operativa.
+                </p>
+              </div>
+
+              <Card id="admin-health" className="dashboard-surface">
+                <CardHeader>
+                  <CardTitle className="text-base">Estado y mantenimiento</CardTitle>
+                  <CardDescription>
+                    Estado de servicios, versión y consumo runtime del backend en producción
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {hasSystemHealthFetchError ? (
+                    <div role="alert" className="mb-4 clinical-alert-warning">
+                      No se pudo consultar el estado del sistema. Los valores de salud
+                      operacional se muestran como desconocidos hasta recuperar la lectura.
+                    </div>
+                  ) : null}
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                    <div className="surface-soft">
+                      <p className="mb-2 text-xs text-muted-foreground">Base de datos</p>
+                      <Badge variant={getServiceVariant(serviceChecks.database)}>
+                        {formatServiceStatus(serviceChecks.database)}
+                      </Badge>
+                    </div>
+                    <div className="surface-soft">
+                      <p className="mb-2 text-xs text-muted-foreground">Almacenamiento</p>
+                      <Badge variant={getServiceVariant(serviceChecks.storage)}>
+                        {formatServiceStatus(serviceChecks.storage)}
+                      </Badge>
+                    </div>
+                    <div className="surface-soft">
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Transporte de correo
+                      </p>
+                      <Badge
+                        variant={getEmailTransportBadgeVariant(
+                          serviceChecks.email_transport,
+                        )}
+                      >
+                        {formatEmailTransport(serviceChecks.email_transport)}
+                      </Badge>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Gmail API: {formatServiceStatus(serviceChecks.gmail_api)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        SMTP: {formatServiceStatus(serviceChecks.smtp)}
+                      </p>
+                    </div>
+                    <div className="surface-soft">
+                      <p className="mb-2 text-xs text-muted-foreground">Contacto email</p>
+                      <Badge variant={getServiceVariant(serviceChecks.contact_email)}>
+                        {formatServiceStatus(serviceChecks.contact_email)}
+                      </Badge>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {contactRecipients.length > 0
+                          ? `Destino: ${contactRecipients.join(", ")}`
+                          : "Sin destinatarios configurados"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        CONTACT_TO: {formatConfigurationFlag(serviceChecks.contact_to_configured)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        SMTP_FROM: {formatConfigurationFlag(serviceChecks.smtp_from_configured)}
+                      </p>
+                    </div>
+                    <div className="surface-soft">
+                      <p className="mb-2 text-xs text-muted-foreground">CORS público</p>
+                      <Badge variant={getServiceVariant(serviceChecks.cors)}>
+                        {formatServiceStatus(serviceChecks.cors)}
+                      </Badge>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {corsOrigins.length > 0
+                          ? `${corsOrigins.length} origen(es) activo(s)`
+                          : "Sin orígenes configurados"}
+                      </p>
+                      {corsOrigins.length > 0 ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {corsOrigins.join(", ")}
+                        </p>
+                      ) : null}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Orígenes locales/LAN:{" "}
+                        {serviceChecks.cors_has_local_or_lan_origins === true
+                          ? "Presentes"
+                          : "No"}
+                      </p>
+                    </div>
+                    <div className="surface-soft">
+                      <p className="text-xs text-muted-foreground">Entorno</p>
+                      <p className="mt-1 text-lg font-semibold text-vetneb-ink">
+                        {nodeEnv}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">nodeEnv activo</p>
+                    </div>
+                    <div className="surface-soft">
+                      <p className="text-xs text-muted-foreground">Backend</p>
+                      <p className="mt-1 text-lg font-semibold text-vetneb-ink">
+                        {systemHealth?.version ?? "—"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">Versión activa</p>
+                    </div>
+                    <div className="surface-soft">
+                      <p className="text-xs text-muted-foreground">Tiempo activo</p>
+                      <p className="mt-1 text-lg font-semibold text-vetneb-ink">
+                        {formatUptime(systemHealth?.runtime.uptimeSeconds)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Control: {formatHealthTimestamp(systemHealth?.health?.timestamp)}
+                      </p>
+                    </div>
+                    <div className="surface-soft">
+                      <p className="text-xs text-muted-foreground">Memoria runtime</p>
+                      <p className="mt-1 text-lg font-semibold text-vetneb-ink">
+                        {systemHealth?.runtime.memory.rssMb ?? "—"} MB
+                      </p>
+                      <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        <p>RSS: {systemHealth?.runtime.memory.rssMb ?? "—"} MB</p>
+                        <p>
+                          Heap usado: {systemHealth?.runtime.memory.heapUsedMb ?? "—"} MB
+                        </p>
+                        <p>
+                          Heap total: {systemHealth?.runtime.memory.heapTotalMb ?? "—"} MB
+                        </p>
+                        <p>
+                          Memoria externa:{" "}
+                          {systemHealth?.runtime.memory.externalMb ?? "—"} MB
+                        </p>
+                        <p>
+                          Buffers:{" "}
+                          {systemHealth?.runtime.memory.arrayBuffersMb ?? "—"} MB
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <AdminSchemaHealthStatusCard />
+
+              <section id="admin-maintenance">
+                <AdminMaintenanceDryRunCard />
+              </section>
+            </section>
+          ),
+        },
+        {
+          id: "gestion",
+          label: "Gestión",
+          description: "Informes, clínicas y tokens.",
+          anchorIds: [
+            "admin-report-upload",
+            "admin-clinics",
+            "admin-particular-tokens",
+          ],
+          content: (
+            <section className="space-y-4" aria-labelledby="admin-gestion-heading">
+              <div>
+                <h2 id="admin-gestion-heading" className="dashboard-section-heading">
+                  Gestión
+                </h2>
+                <p className="dashboard-section-description">
+                  Operación administrativa sobre informes, clínicas, tokens y roles.
+                </p>
+              </div>
+
+              <section
+                id="admin-report-upload"
+                className="dashboard-surface overflow-hidden p-0"
+              >
+                <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-vetneb-navy">
+                      Panel administrador
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold text-vetneb-ink">
+                      Carga de informes
+                    </h2>
+                    <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                      La carga de informes se realiza desde cada token administrado
+                      en &quot;Últimos tokens administrados&quot;, para vincular clínica y token
+                      sin búsqueda manual.
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <AdminClinicsManagementCard />
+
+              <section id="admin-particular-tokens">
+                <AdminParticularTokensCard />
+              </section>
+            </section>
+          ),
+        },
+        {
+          id: "seguridad",
+          label: "Seguridad",
+          description: "Sesiones activas y roles clínica.",
+          anchorIds: ["admin-sessions", "admin-users-roles"],
+          content: (
+            <section className="space-y-4" aria-labelledby="admin-seguridad-heading">
+              <div>
+                <h2 id="admin-seguridad-heading" className="dashboard-section-heading">
+                  Seguridad
+                </h2>
+                <p className="dashboard-section-description">
+                  Sesiones y permisos quedan agrupados sin ocultar las alertas críticas superiores.
+                </p>
+              </div>
+              <section id="admin-sessions">
+                <AdminSessionsReadOnlyCard />
+              </section>
+              <section id="admin-users-roles">
+                <AdminUsersRolesReadOnlyCard />
+              </section>
+            </section>
+          ),
+        },
+        {
+          id: "configuracion-auditoria",
+          label: "Configuración/Auditoría",
+          description: "Precios, notificaciones, cambios y log.",
+          anchorIds: [
+            "admin-pricing",
+            "admin-notifications",
+            "audit-role-changes",
+            "admin-event-summary",
+            "audit-log",
+          ],
+          content: (
+            <>
+              <section
+                className="space-y-4"
+                aria-labelledby="admin-configuracion-heading"
+              >
+                <div>
+                  <h2
+                    id="admin-configuracion-heading"
+                    className="dashboard-section-heading"
+                  >
+                    Configuración secundaria
+                  </h2>
+                  <p className="dashboard-section-description">
+                    Ajustes y lecturas no urgentes quedan después de alertas, sistema y gestión.
+                  </p>
+                </div>
+
+                <section id="admin-pricing">
+                  <AdminPricingEditorCard />
+                </section>
+
+                <Card id="admin-notifications" className="dashboard-surface">
+                  <CardHeader>
+                    <CardTitle className="text-base">Notificaciones</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div className="surface-soft">
+                        <p className="text-xs text-muted-foreground">Registradas</p>
+                        <p className="mt-1 text-2xl font-bold text-vetneb-ink">
+                          {notificationAuditEntries.length}
+                        </p>
+                      </div>
+                      <div className="surface-soft">
+                        <p className="text-xs text-muted-foreground">
+                          Última notificación
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-vetneb-ink">
+                          {lastNotificationAuditEntry
+                            ? formatDateTime(lastNotificationAuditEntry.createdAt)
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="surface-soft">
+                        <p className="text-xs text-muted-foreground">Auditoría</p>
+                        <PublicRouteControl
+                          href={buildAdminAuditFilterHref({
+                            event: "study_tracking.notification.created",
+                          })}
+                          variant="textLink"
+                          className="mt-1 inline-flex text-sm font-semibold text-vetneb-navy hover:text-vetneb-teal"
+                        >
+                          Ver notificaciones
+                        </PublicRouteControl>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </section>
+
+              <section
+                className="space-y-4"
+                aria-labelledby="admin-auditoria-heading"
+              >
+                <div>
+                  <h2
+                    id="admin-auditoria-heading"
+                    className="dashboard-section-heading"
+                  >
+                    Auditoría
+                  </h2>
+                  <p className="dashboard-section-description">
+                    Eventos, cambios de rol y log operativo con filtros actuales.
+                  </p>
+                </div>
+
+                <Card id="audit-role-changes" className="dashboard-surface">
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      Auditoría de cambios de rol clínica
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div className="surface-soft">
+                        <p className="text-xs text-muted-foreground">
+                          Cambios registrados
+                        </p>
+                        <p className="mt-1 text-2xl font-bold text-vetneb-ink">
+                          {roleChangeAuditEntries.length}
+                        </p>
+                      </div>
+                      <div className="surface-soft">
+                        <p className="text-xs text-muted-foreground">Último cambio</p>
+                        <p className="mt-1 text-sm font-semibold text-vetneb-ink">
+                          {lastRoleChangeAuditEntry
+                            ? formatDateTime(lastRoleChangeAuditEntry.createdAt)
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="surface-soft">
+                        <p className="text-xs text-muted-foreground">Filtro audit</p>
+                        <PublicRouteControl
+                          href={buildAdminAuditFilterHref({
+                            event: "clinic_user.role.changed",
+                          })}
+                          variant="textLink"
+                          className="mt-1 inline-flex text-sm font-semibold text-vetneb-navy hover:text-vetneb-teal"
+                        >
+                          Ver cambios de rol
+                        </PublicRouteControl>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card id="admin-event-summary" className="dashboard-surface">
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      Resumen por tipo de evento
+                    </CardTitle>
+                    <CardDescription>
+                      Distribución de eventos registrados en el log de auditoría
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(eventCounts).map(([event, count]) => (
+                        <div
+                          key={event}
+                          className="clinical-muted-band flex items-center gap-2 rounded-lg px-3 py-2"
+                        >
+                          <Badge
+                            variant={getEventVariant(event)}
+                            className="text-xs"
+                          >
+                            {EVENT_LABELS[event] ?? event}
+                          </Badge>
+                          <span className="clinical-pill px-2.5 py-0.5 text-xs tracking-normal">
+                            {count}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card id="audit-log" className="dashboard-surface">
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      Log de auditoría ({filteredAuditEntries.length}/{auditEntries.length})
+                    </CardTitle>
+                    <CardDescription>
+                      Filtros activos: evento{" "}
+                      <strong>{selectedAuditEventLabel}</strong>
+                      {" · "}actor <strong>{selectedActorTypeLabel}</strong>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4 p-0">
+                    {hasActiveAuditFilters ? (
+                      <div className="clinical-muted-band mx-6 mt-4 flex flex-col gap-2 rounded-lg px-4 py-3 text-sm text-vetneb-navy md:flex-row md:items-center md:justify-between">
+                        <span>
+                          Mostrando {filteredAuditEntries.length} de{" "}
+                          {auditEntries.length} eventos.
+                        </span>
+                        <PublicRouteControl
+                          href="/dashboard/admin#audit-log"
+                          replace
+                          variant="textLink"
+                          className="font-semibold text-vetneb-navy hover:text-vetneb-teal"
+                        >
+                          Limpiar filtros
+                        </PublicRouteControl>
+                      </div>
+                    ) : null}
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Evento</TableHead>
+                          <TableHead>Actor</TableHead>
+                          <TableHead>Tipo actor</TableHead>
+                          <TableHead>Objetivo</TableHead>
+                          <TableHead>Detalle</TableHead>
+                          <TableHead>Fecha</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {auditEntriesLoadError ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={7}
+                              role="alert"
+                              className="clinical-table-state clinical-alert-warning"
+                            >
+                              No se pudieron cargar los eventos de auditoría. Intente nuevamente.
+                            </TableCell>
+                          </TableRow>
+                        ) : filteredAuditEntries.length ? (
+                          filteredAuditEntries.map((entry) => (
+                            <TableRow key={entry.id}>
+                              <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                                #{entry.id}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={getEventVariant(entry.event)}>
+                                  {EVENT_LABELS[entry.event] ?? entry.event}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-vetneb-ink/88">
+                                {entry.actorId ? `#${entry.actorId}` : "—"}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {ACTOR_LABELS[entry.actorType] ?? entry.actorType}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {entry.targetType && entry.targetId
+                                  ? `${entry.targetType} #${entry.targetId}`
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="max-w-md whitespace-normal wrap-break-word text-xs text-muted-foreground">
+                                {getAuditMetadataSummary(entry)}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">
+                                {formatDateTime(entry.createdAt)}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell
+                              colSpan={7}
+                              className="clinical-table-state"
+                            >
+                              {hasActiveAuditFilters
+                                ? "No hay eventos para los filtros seleccionados."
+                                : "No hay eventos de auditoría disponibles."}
+                              {hasActiveAuditFilters ? (
+                                <div className="mt-2">
+                                  <PublicRouteControl
+                                    href="/dashboard/admin#audit-log"
+                                    replace
+                                    variant="textLink"
+                                    className="font-semibold text-vetneb-navy hover:text-vetneb-teal"
+                                  >
+                                    Limpiar filtros
+                                  </PublicRouteControl>
+                                </div>
+                              ) : null}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </section>
+            </>
+          ),
+        },
+      ]}
+    />
+  );
 
   return (
     <>
@@ -490,565 +901,25 @@ export default async function AdminPage({
       <main className="dashboard-main">
         <DashboardPageHeader
           title="Administración"
-          description="Seleccione un módulo o desplácese para el resumen operativo."
+          description="Seleccione un módulo para acceder a sus funciones."
           badge={
             <Badge variant={getSystemStatusVariant(systemStatus)}>
               {formatSystemStatus(systemStatus)}
             </Badge>
           }
-          actions={
-            <div className="flex flex-wrap items-center gap-2">
-              <PublicRouteControl
-                href="/dashboard/admin#failed-login-alerts"
-                variant="bare"
-                prefetch={false}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-input bg-card/95 px-3 text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
-              >
-                <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-                Ver alertas
-              </PublicRouteControl>
-              <PublicRouteControl
-                href="/dashboard/admin#audit-log"
-                variant="bare"
-                prefetch={false}
-                className="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-semibold text-foreground/80 transition-colors hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
-              >
-                Ver auditoría
-              </PublicRouteControl>
-            </div>
-          }
         />
-
-        <DashboardModuleHub
-          heading="Módulos de administración"
-          description="Acceso a clínicas, precios, sesiones, auditoría y estado del sistema."
-          cards={adminCards}
-        />
-
-        <div id="admin-command-center" className="scroll-mt-20">
-          <AdminCommandCenter
-          auditEntriesCount={auditEntries.length}
-          eventTypesCount={Object.keys(eventCounts).length}
+        <AdminDashboardWorkspaceController
+          workspaces={{
+            commandCenter: commandCenterSlot,
+            alertsSection: alertsSectionSlot,
+            sectionTabs: sectionTabsSlot,
+          }}
+          systemStatus={systemStatus}
           systemStatusLabel={formatSystemStatus(systemStatus)}
           systemStatusVariant={getSystemStatusVariant(systemStatus)}
-          systemStatusIndicatorClass={getSystemStatusIndicatorClass(systemStatus)}
-          systemStatusDetail={formatSystemStatusDetail(serviceChecks)}
-          hasSystemHealthFetchError={hasSystemHealthFetchError}
         />
-        </div>
-
-        <section className="space-y-4" aria-labelledby="admin-alertas-heading">
-          <div>
-            <h2 id="admin-alertas-heading" className="dashboard-section-heading">
-              Alertas críticas
-            </h2>
-            <p className="dashboard-section-description">
-              Intentos fallidos y señales de acceso se revisan antes de las tareas secundarias.
-            </p>
-          </div>
-          <AdminFailedLoginAlertsReadOnlyCard />
-        </section>
-
-        <AdminSectionTabs
-          defaultTabId="sistema"
-          className="pt-1"
-          tabs={[
-            {
-              id: "sistema",
-              label: "Sistema",
-              description: "Salud, esquema y mantenimiento.",
-              anchorIds: ["admin-health", "admin-maintenance"],
-              content: (
-                <section className="space-y-4" aria-labelledby="admin-sistema-heading">
-          <div>
-            <h2 id="admin-sistema-heading" className="dashboard-section-heading">
-              Sistema
-            </h2>
-            <p className="dashboard-section-description">
-              Salud, esquema y mantenimiento quedan agrupados para lectura operativa.
-            </p>
-          </div>
-
-          <Card id="admin-health" className="dashboard-surface">
-            <CardHeader>
-              <CardTitle className="text-base">Estado y mantenimiento</CardTitle>
-              <CardDescription>
-                Estado de servicios, versión y consumo runtime del backend en producción
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {hasSystemHealthFetchError ? (
-                <div
-                  role="alert"
-                  className="mb-4 clinical-alert-warning"
-                >
-                  No se pudo consultar el estado del sistema. Los valores de salud
-                  operacional se muestran como desconocidos hasta recuperar la lectura.
-                </div>
-              ) : null}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                <div className="surface-soft">
-                  <p className="mb-2 text-xs text-muted-foreground">Base de datos</p>
-                  <Badge variant={getServiceVariant(serviceChecks.database)}>
-                    {formatServiceStatus(serviceChecks.database)}
-                  </Badge>
-                </div>
-                <div className="surface-soft">
-                  <p className="mb-2 text-xs text-muted-foreground">Almacenamiento</p>
-                  <Badge variant={getServiceVariant(serviceChecks.storage)}>
-                    {formatServiceStatus(serviceChecks.storage)}
-                  </Badge>
-                </div>
-                <div className="surface-soft">
-                  <p className="mb-2 text-xs text-muted-foreground">
-                    Transporte de correo
-                  </p>
-                  <Badge
-                    variant={getEmailTransportBadgeVariant(
-                      serviceChecks.email_transport,
-                    )}
-                  >
-                    {formatEmailTransport(serviceChecks.email_transport)}
-                  </Badge>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Gmail API: {formatServiceStatus(serviceChecks.gmail_api)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    SMTP: {formatServiceStatus(serviceChecks.smtp)}
-                  </p>
-                </div>
-                <div className="surface-soft">
-                  <p className="mb-2 text-xs text-muted-foreground">Contacto email</p>
-                  <Badge variant={getServiceVariant(serviceChecks.contact_email)}>
-                    {formatServiceStatus(serviceChecks.contact_email)}
-                  </Badge>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {contactRecipients.length > 0
-                      ? `Destino: ${contactRecipients.join(", ")}`
-                      : "Sin destinatarios configurados"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    CONTACT_TO: {formatConfigurationFlag(serviceChecks.contact_to_configured)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    SMTP_FROM: {formatConfigurationFlag(serviceChecks.smtp_from_configured)}
-                  </p>
-                </div>
-                <div className="surface-soft">
-                  <p className="mb-2 text-xs text-muted-foreground">CORS público</p>
-                  <Badge variant={getServiceVariant(serviceChecks.cors)}>
-                    {formatServiceStatus(serviceChecks.cors)}
-                  </Badge>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {corsOrigins.length > 0
-                      ? `${corsOrigins.length} origen(es) activo(s)`
-                      : "Sin orígenes configurados"}
-                  </p>
-                  {corsOrigins.length > 0 ? (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {corsOrigins.join(", ")}
-                    </p>
-                  ) : null}
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Orígenes locales/LAN:{" "}
-                    {serviceChecks.cors_has_local_or_lan_origins === true ? "Presentes" : "No"}
-                  </p>
-                </div>
-                <div className="surface-soft">
-                  <p className="text-xs text-muted-foreground">Entorno</p>
-                  <p className="mt-1 text-lg font-semibold text-vetneb-ink">
-                    {nodeEnv}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">nodeEnv activo</p>
-                </div>
-                <div className="surface-soft">
-                  <p className="text-xs text-muted-foreground">Backend</p>
-                  <p className="mt-1 text-lg font-semibold text-vetneb-ink">
-                    {systemHealth?.version ?? "—"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">Versión activa</p>
-                </div>
-                <div className="surface-soft">
-                  <p className="text-xs text-muted-foreground">Tiempo activo</p>
-                  <p className="mt-1 text-lg font-semibold text-vetneb-ink">
-                    {formatUptime(systemHealth?.runtime.uptimeSeconds)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Control: {formatHealthTimestamp(systemHealth?.health?.timestamp)}
-                  </p>
-                </div>
-                <div className="surface-soft">
-                  <p className="text-xs text-muted-foreground">Memoria runtime</p>
-                  <p className="mt-1 text-lg font-semibold text-vetneb-ink">
-                    {systemHealth?.runtime.memory.rssMb ?? "—"} MB
-                  </p>
-                  <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                    <p>RSS: {systemHealth?.runtime.memory.rssMb ?? "—"} MB</p>
-                    <p>
-                      Heap usado: {systemHealth?.runtime.memory.heapUsedMb ?? "—"} MB
-                    </p>
-                    <p>
-                      Heap total: {systemHealth?.runtime.memory.heapTotalMb ?? "—"} MB
-                    </p>
-                    <p>
-                      Memoria externa: {systemHealth?.runtime.memory.externalMb ?? "—"} MB
-                    </p>
-                    <p>
-                      Buffers:{" "}
-                      {systemHealth?.runtime.memory.arrayBuffersMb ?? "—"} MB
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <AdminSchemaHealthStatusCard />
-
-          <section id="admin-maintenance">
-            <AdminMaintenanceDryRunCard />
-          </section>
-                </section>
-              ),
-            },
-            {
-              id: "gestion",
-              label: "Gestión",
-              description: "Informes, clínicas y tokens.",
-              anchorIds: [
-                "admin-report-upload",
-                "admin-clinics",
-                "admin-particular-tokens",
-              ],
-              content: (
-                <section className="space-y-4" aria-labelledby="admin-gestion-heading">
-
-          <div>
-            <h2 id="admin-gestion-heading" className="dashboard-section-heading">
-              Gestión
-            </h2>
-            <p className="dashboard-section-description">
-              Operación administrativa sobre informes, clínicas, tokens y roles.
-            </p>
-          </div>
-
-          <section
-            id="admin-report-upload"
-            className="dashboard-surface overflow-hidden p-0"
-          >
-            <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-widest text-vetneb-navy">
-                  Panel administrador
-                </p>
-                <h2 className="mt-2 text-xl font-semibold text-vetneb-ink">
-                  Carga de informes
-                </h2>
-                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                  La carga de informes se realiza desde cada token administrado
-                  en &quot;Últimos tokens administrados&quot;, para vincular clínica y token
-                  sin búsqueda manual.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <AdminClinicsManagementCard />
-
-          <section id="admin-particular-tokens">
-            <AdminParticularTokensCard />
-          </section>
-                </section>
-              ),
-            },
-            {
-              id: "seguridad",
-              label: "Seguridad",
-              description: "Sesiones activas y roles clínica.",
-              anchorIds: ["admin-sessions", "admin-users-roles"],
-              content: (
-                <section className="space-y-4" aria-labelledby="admin-seguridad-heading">
-                  <div>
-                    <h2 id="admin-seguridad-heading" className="dashboard-section-heading">
-                      Seguridad
-                    </h2>
-                    <p className="dashboard-section-description">
-                      Sesiones y permisos quedan agrupados sin ocultar las alertas críticas superiores.
-                    </p>
-                  </div>
-
-          <section id="admin-sessions">
-            <AdminSessionsReadOnlyCard />
-          </section>
-
-          <section id="admin-users-roles">
-            <AdminUsersRolesReadOnlyCard />
-          </section>
-                </section>
-              ),
-            },
-            {
-              id: "configuracion-auditoria",
-              label: "Configuración/Auditoría",
-              description: "Precios, notificaciones, cambios y log.",
-              anchorIds: [
-                "admin-pricing",
-                "admin-notifications",
-                "audit-role-changes",
-                "admin-event-summary",
-                "audit-log",
-              ],
-              content: (
-                <>
-
-        <section className="space-y-4" aria-labelledby="admin-configuracion-heading">
-          <div>
-            <h2 id="admin-configuracion-heading" className="dashboard-section-heading">
-              Configuración secundaria
-            </h2>
-            <p className="dashboard-section-description">
-              Ajustes y lecturas no urgentes quedan después de alertas, sistema y gestión.
-            </p>
-          </div>
-
-          <section id="admin-pricing">
-            <AdminPricingEditorCard />
-          </section>
-
-          <Card id="admin-notifications" className="dashboard-surface">
-            <CardHeader>
-              <CardTitle className="text-base">Notificaciones</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div className="surface-soft">
-                  <p className="text-xs text-muted-foreground">Registradas</p>
-                  <p className="mt-1 text-2xl font-bold text-vetneb-ink">
-                    {notificationAuditEntries.length}
-                  </p>
-                </div>
-                <div className="surface-soft">
-                  <p className="text-xs text-muted-foreground">Última notificación</p>
-                  <p className="mt-1 text-sm font-semibold text-vetneb-ink">
-                    {lastNotificationAuditEntry
-                      ? formatDateTime(lastNotificationAuditEntry.createdAt)
-                      : "—"}
-                  </p>
-                </div>
-                <div className="surface-soft">
-                  <p className="text-xs text-muted-foreground">Auditoría</p>
-                  <PublicRouteControl
-                    href={buildAdminAuditFilterHref({
-                      event: "study_tracking.notification.created",
-                    })}
-                    variant="textLink"
-                    className="mt-1 inline-flex text-sm font-semibold text-vetneb-navy hover:text-vetneb-teal"
-                  >
-                    Ver notificaciones
-                  </PublicRouteControl>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section className="space-y-4" aria-labelledby="admin-auditoria-heading">
-          <div>
-            <h2 id="admin-auditoria-heading" className="dashboard-section-heading">
-              Auditoría
-            </h2>
-            <p className="dashboard-section-description">
-              Eventos, cambios de rol y log operativo con filtros actuales.
-            </p>
-          </div>
-
-          <Card id="audit-role-changes" className="dashboard-surface">
-            <CardHeader>
-              <CardTitle className="text-base">
-                Auditoría de cambios de rol clínica
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div className="surface-soft">
-                  <p className="text-xs text-muted-foreground">Cambios registrados</p>
-                  <p className="mt-1 text-2xl font-bold text-vetneb-ink">
-                    {roleChangeAuditEntries.length}
-                  </p>
-                </div>
-                <div className="surface-soft">
-                  <p className="text-xs text-muted-foreground">Último cambio</p>
-                  <p className="mt-1 text-sm font-semibold text-vetneb-ink">
-                    {lastRoleChangeAuditEntry
-                      ? formatDateTime(lastRoleChangeAuditEntry.createdAt)
-                      : "—"}
-                  </p>
-                </div>
-                <div className="surface-soft">
-                  <p className="text-xs text-muted-foreground">Filtro audit</p>
-                  <PublicRouteControl
-                    href={buildAdminAuditFilterHref({
-                      event: "clinic_user.role.changed",
-                    })}
-                    variant="textLink"
-                    className="mt-1 inline-flex text-sm font-semibold text-vetneb-navy hover:text-vetneb-teal"
-                  >
-                    Ver cambios de rol
-                  </PublicRouteControl>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card id="admin-event-summary" className="dashboard-surface">
-            <CardHeader>
-              <CardTitle className="text-base">Resumen por tipo de evento</CardTitle>
-              <CardDescription>
-                Distribución de eventos registrados en el log de auditoría
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(eventCounts).map(([event, count]) => (
-                  <div
-                    key={event}
-                    className="clinical-muted-band flex items-center gap-2 rounded-lg px-3 py-2"
-                  >
-                    <Badge variant={getEventVariant(event)} className="text-xs">
-                      {EVENT_LABELS[event] ?? event}
-                    </Badge>
-                    <span className="clinical-pill px-2.5 py-0.5 text-xs tracking-normal">
-                      {count}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card id="audit-log" className="dashboard-surface">
-            <CardHeader>
-              <CardTitle className="text-base">
-                Log de auditoría ({filteredAuditEntries.length}/{auditEntries.length})
-              </CardTitle>
-              <CardDescription>
-                Filtros activos: evento <strong>{selectedAuditEventLabel}</strong>
-                {" · "}actor <strong>{selectedActorTypeLabel}</strong>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 p-0">
-              {hasActiveAuditFilters ? (
-                <div className="clinical-muted-band mx-6 mt-4 flex flex-col gap-2 rounded-lg px-4 py-3 text-sm text-vetneb-navy md:flex-row md:items-center md:justify-between">
-                  <span>
-                    Mostrando {filteredAuditEntries.length} de {auditEntries.length} eventos.
-                  </span>
-                  <PublicRouteControl
-                    href="/dashboard/admin#audit-log"
-                    replace
-                    variant="textLink"
-                    className="font-semibold text-vetneb-navy hover:text-vetneb-teal"
-                  >
-                    Limpiar filtros
-                  </PublicRouteControl>
-                </div>
-              ) : null}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Evento</TableHead>
-                    <TableHead>Actor</TableHead>
-                    <TableHead>Tipo actor</TableHead>
-                    <TableHead>Objetivo</TableHead>
-                    <TableHead>Detalle</TableHead>
-                    <TableHead>Fecha</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {auditEntriesLoadError ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        role="alert"
-                        className="clinical-table-state clinical-alert-warning"
-                      >
-                        No se pudieron cargar los eventos de auditoría. Intente nuevamente.
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredAuditEntries.length ? (
-                    filteredAuditEntries.map((entry) => (
-                      <TableRow key={entry.id}>
-                        <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
-                          #{entry.id}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getEventVariant(entry.event)}>
-                            {EVENT_LABELS[entry.event] ?? entry.event}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-vetneb-ink/88">
-                          {entry.actorId ? `#${entry.actorId}` : "—"}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {ACTOR_LABELS[entry.actorType] ?? entry.actorType}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {entry.targetType && entry.targetId
-                            ? `${entry.targetType} #${entry.targetId}`
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="max-w-md whitespace-normal wrap-break-word text-xs text-muted-foreground">
-                          {getAuditMetadataSummary(entry)}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {formatDateTime(entry.createdAt)}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="clinical-table-state"
-                      >
-                        {hasActiveAuditFilters
-                          ? "No hay eventos para los filtros seleccionados."
-                          : "No hay eventos de auditoría disponibles."}
-                        {hasActiveAuditFilters ? (
-                          <div className="mt-2">
-                            <PublicRouteControl
-                              href="/dashboard/admin#audit-log"
-                              replace
-                              variant="textLink"
-                              className="font-semibold text-vetneb-navy hover:text-vetneb-teal"
-                            >
-                              Limpiar filtros
-                            </PublicRouteControl>
-                          </div>
-                        ) : null}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </section>
-                </>
-              ),
-            },
-          ]}
-        />
-
         <div className="h-24 md:hidden" aria-hidden="true" />
       </main>
     </>
   );
 }
-
-
-
-
-
-
-
