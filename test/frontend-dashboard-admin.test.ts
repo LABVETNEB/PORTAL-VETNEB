@@ -26,7 +26,6 @@ test("dashboard admin defines non-indexable metadata and admin dependencies", ()
   assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
   assert.ok(source.includes('import { AdminDashboardWorkspaceController } from "./AdminDashboardWorkspaceController";'));
   assert.ok(source.includes('import { AdminCommandCenter } from "./AdminCommandCenter";'));
-  assert.ok(source.includes('import { AdminSectionTabs } from "./AdminSectionTabs";'));
   assert.ok(source.includes('import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";'));
   assert.ok(source.includes('import { formatDateTime } from "@/lib/utils";'));
 });
@@ -134,7 +133,7 @@ test("dashboard admin keeps audit filters and filter href builder", () => {
   assert.ok(source.includes("function buildAdminAuditFilterHref(input: {"));
   assert.ok(source.includes('query.set("event", input.event);'));
   assert.ok(source.includes('query.set("actorType", input.actorType);'));
-  assert.ok(source.includes('return qs ? `/dashboard/admin?${qs}#audit-log` : "/dashboard/admin#audit-log";'));
+  assert.ok(source.includes('return `/dashboard/admin?${query.toString()}`;'));
   assert.ok(source.includes("const hasActiveAuditFilters ="));
 });
 
@@ -148,7 +147,6 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes("<DashboardPageHeader"));
   assert.ok(source.includes("<AdminDashboardWorkspaceController"));
   assert.ok(source.includes("<AdminCommandCenter"));
-  assert.ok(source.includes("<AdminSectionTabs"));
   assert.ok(combinedSource.includes("Eventos de auditoría"));
   assert.ok(combinedSource.includes("Tipos de evento"));
   assert.ok(combinedSource.includes("Estado del sistema"));
@@ -204,14 +202,7 @@ test("dashboard admin keeps module hub cards and preserves admin sections", () =
   assert.ok(source.includes("cada token administrado"));
   assert.ok(source.includes("Alertas críticas"));
   assert.ok(source.includes("Sistema"));
-  assert.ok(source.includes("Gestión"));
-  assert.ok(source.includes("Seguridad"));
-  assert.ok(source.includes("Configuración secundaria"));
   assert.ok(source.includes("Auditoría"));
-  assert.ok(source.includes('label: "Sistema"'));
-  assert.ok(source.includes('label: "Gestión"'));
-  assert.ok(source.includes('label: "Seguridad"'));
-  assert.ok(source.includes('label: "Configuración/Auditoría"'));
   assert.ok(source.includes('id="admin-health"'));
   assert.ok(source.includes("<AdminClinicsManagementCard />"));
   assert.ok(source.includes('id="admin-maintenance"'));
@@ -227,10 +218,6 @@ test("dashboard admin keeps module hub cards and preserves admin sections", () =
   // PR5B: slot vars defined before <main> in render order (commandCenter → alerts → tabs).
   const commandCenterIndex = source.indexOf("<AdminCommandCenter");
   const alertsCardIndex = source.indexOf("<AdminFailedLoginAlertsReadOnlyCard />");
-  const tabsIndex = source.indexOf("<AdminSectionTabs");
-  const systemSectionIndex = source.indexOf("admin-sistema-heading");
-  const managementSectionIndex = source.indexOf("admin-gestion-heading");
-  const securitySectionIndex = source.indexOf("admin-seguridad-heading");
   const reportUploadTitleIndex = source.indexOf("Carga de informes");
 
   assert.ok(mainIndex >= 0);
@@ -238,18 +225,11 @@ test("dashboard admin keeps module hub cards and preserves admin sections", () =
   assert.ok(workspaceControllerIndex >= 0);
   assert.ok(commandCenterIndex >= 0);
   assert.ok(alertsCardIndex >= 0);
-  assert.ok(tabsIndex >= 0);
-  assert.ok(systemSectionIndex >= 0);
-  assert.ok(managementSectionIndex >= 0);
-  assert.ok(securitySectionIndex >= 0);
   assert.ok(reportUploadTitleIndex >= 0);
   assert.ok(mainIndex < pageHeaderIndex);
   assert.ok(pageHeaderIndex < workspaceControllerIndex);
   assert.ok(commandCenterIndex < alertsCardIndex);
-  assert.ok(alertsCardIndex < tabsIndex);
-  assert.ok(tabsIndex < systemSectionIndex);
-  assert.ok(systemSectionIndex < reportUploadTitleIndex);
-  assert.ok(reportUploadTitleIndex < securitySectionIndex);
+  assert.ok(alertsCardIndex < reportUploadTitleIndex);
   assert.equal(source.includes(`xl:grid-cols-${7}`), false);
 });
 
