@@ -41,12 +41,15 @@ test("frontend reports page uses reports API client wrapper", () => {
   assertIncludes(source, "getReports", reportsPage);
   assertIncludes(source, "searchReports", reportsPage);
   assertIncludes(source, "const requestOptions = await getReportsRequestOptions();", reportsPage);
-  assertIncludes(source, "reports = query", reportsPage);
-  assertIncludes(source, "? await searchReports(", reportsPage);
-  assertIncludes(source, ": await getReports(", reportsPage);
+  assertIncludes(source, "pagedResult = query", reportsPage);
+  assertIncludes(source, "? await searchReportsPaginated(", reportsPage);
+  assertIncludes(source, ": await getReportsPaginated(", reportsPage);
   assertIncludes(source, "{ throwOnError: true }", reportsPage);
   assertIncludes(source, "reports.map", reportsPage);
   assertIncludes(source, "reports.length", reportsPage);
+  assertIncludes(source, "const reports = pagedResult.reports", reportsPage);
+  assertIncludes(source, "reportsTotal", reportsPage);
+  assertIncludes(source, "reportsTotalPages", reportsPage);
 });
 
 test("frontend reports page surfaces fetch failures separately from empty data", () => {

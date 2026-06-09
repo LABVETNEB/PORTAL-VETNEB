@@ -151,6 +151,33 @@ test("dashboard informes derives timeline steps from existing report fields only
   assert.equal(source.includes("new Date("), false);
 });
 
+test("dashboard informes server-side pagination controls and summary", () => {
+  const source = read(INFORMES_PAGE_PATH);
+
+  assert.ok(source.includes("reportsTotalPages > 1"));
+  assert.ok(source.includes('aria-label="Paginación de informes"'));
+  assert.ok(source.includes('aria-label="Página anterior"'));
+  assert.ok(source.includes('aria-label="Página siguiente"'));
+  assert.ok(source.includes("Página {page} de {reportsTotalPages}"));
+  assert.ok(source.includes("Mostrando ${pageStart}"));
+  assert.ok(source.includes("de ${reportsTotal}"));
+  assert.ok(source.includes("const REPORTS_PAGE_SIZE = 20"));
+  assert.ok(source.includes("page: page - 1"));
+  assert.ok(source.includes("page: page + 1"));
+  assert.ok(source.includes("disabled={page <= 1}"));
+  assert.ok(source.includes("disabled={page >= reportsTotalPages}"));
+});
+
+test("dashboard informes pagination does not use client-side filter", () => {
+  const source = read(INFORMES_PAGE_PATH);
+
+  assert.ok(source.includes("page,"));
+  assert.ok(source.includes("pageSize: REPORTS_PAGE_SIZE,"));
+  assert.ok(source.includes("const offset = (page - 1) * REPORTS_PAGE_SIZE"));
+  assert.equal(source.includes("reports.slice("), false);
+  assert.equal(source.includes("reports.filter("), false);
+});
+
 test("dashboard informes master-detail scope avoids forbidden navigation and dependency changes", () => {
   const informesSource = read(INFORMES_PAGE_PATH);
   const masterDetailSource = read(MASTER_DETAIL_WORKSPACE_PATH);

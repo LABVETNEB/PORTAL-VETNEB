@@ -75,7 +75,9 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
     prefix: "/api/reports",
     ...createAuthStubs(),
     getReportsByClinicId: async () => [createReportFixture()],
+    countReportsByClinicId: async () => 1,
     searchReports: async () => [createReportFixture({ id: 56 })],
+    countSearchReports: async () => 1,
     getStudyTypes: async () => ["HistopatologÃ­a", "CitologÃ­a"],
     getReportById: async () => createReportFixture(),
     getReportStatusHistory: async () => [createStatusHistoryFixture()],
@@ -556,6 +558,179 @@ test("reportsNativeRoutes bloquea preflight OPTIONS con origin no permitido", as
       success: false,
       error: "Origen no permitido",
     });
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes GET / devuelve total y totalPages en respuesta", async () => {
+  const calls: number[] = [];
+  const app = await createTestApp({
+    getReportsByClinicId: async () => [createReportFixture(), createReportFixture({ id: 56 })],
+    countReportsByClinicId: async (clinicId: number) => {
+      calls.push(clinicId);
+      return 25;
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/reports?limit=10&offset=0",
+      headers: { cookie: `${ENV.cookieName}=session-token` },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(calls, [3]);
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.success, true);
+    assert.equal(body.total, 25);
+    assert.equal(body.totalPages, 3);
+    assert.equal(body.count, 2);
+    assert.equal(body.pagination.limit, 10);
+    assert.equal(body.pagination.offset, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes GET /search devuelve total y totalPages en respuesta", async () => {
+  const countCalls: Array<Record<string, unknown>> = [];
+  const app = await createTestApp({
+    searchReports: async () => [createReportFixture({ id: 56 })],
+    countSearchReports: async (
+      clinicId: number,
+      query: string | undefined,
+      studyType: string | undefined,
+    ) => {
+      countCalls.push({ clinicId, query, studyType });
+      return 8;
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/reports/search?query=Luna&limit=5&offset=0",
+      headers: { cookie: `${ENV.cookieName}=session-token` },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(countCalls, [{ clinicId: 3, query: "Luna", studyType: undefined }]);
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.total, 8);
+    assert.equal(body.totalPages, 2);
+    assert.equal(body.count, 1);
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes GET / totalPages se calcula sobre total no sobre count de pagina", async () => {
+  const app = await createTestApp({
+    getReportsByClinicId: async () => [createReportFixture()],
+    countReportsByClinicId: async () => 105,
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/reports?limit=10",
+      headers: { cookie: `${ENV.cookieName}=session-token` },
+    });
+
+    const body = JSON.parse(response.body);
+    assert.equal(body.total, 105);
+    assert.equal(body.totalPages, 11);
+    assert.equal(body.count, 1);
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes GET / respuesta vacia devuelve total 0 y totalPages 0", async () => {
+  const app = await createTestApp({
+    getReportsByClinicId: async () => [],
+    countReportsByClinicId: async () => 0,
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/reports",
+      headers: { cookie: `${ENV.cookieName}=session-token` },
+    });
+
+    assert.equal(response.statusCode, 200);
+    const body = JSON.parse(response.body);
+    assert.equal(body.total, 0);
+    assert.equal(body.totalPages, 0);
+    assert.equal(body.count, 0);
+    assert.deepEqual(body.reports, []);
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes GET / countReportsByClinicId recibe clinicId de la sesion autenticada", async () => {
+  const countCalls: number[] = [];
+  const app = await createTestApp({
+    countReportsByClinicId: async (clinicId: number) => {
+      countCalls.push(clinicId);
+      return 3;
+    },
+  });
+
+  try {
+    await app.inject({
+      method: "GET",
+      url: "/api/reports",
+      headers: { cookie: `${ENV.cookieName}=session-token` },
+    });
+
+    assert.deepEqual(countCalls, [3]);
+  } finally {
+    await app.close();
+  }
+});
+
+test("reportsNativeRoutes GET /search countSearchReports recibe los mismos filtros que searchReports", async () => {
+  const dataCalls: Array<Record<string, unknown>> = [];
+  const countCalls: Array<Record<string, unknown>> = [];
+  const app = await createTestApp({
+    searchReports: async (
+      clinicId: number,
+      query: string | undefined,
+      studyType: string | undefined,
+      limit: number,
+      offset: number,
+      currentStatus?: string,
+    ) => {
+      dataCalls.push({ clinicId, query, studyType, currentStatus });
+      return [];
+    },
+    countSearchReports: async (
+      clinicId: number,
+      query: string | undefined,
+      studyType: string | undefined,
+      currentStatus?: string,
+    ) => {
+      countCalls.push({ clinicId, query, studyType, currentStatus });
+      return 0;
+    },
+  });
+
+  try {
+    await app.inject({
+      method: "GET",
+      url: "/api/reports/search?query=Felix&status=ready",
+      headers: { cookie: `${ENV.cookieName}=session-token` },
+    });
+
+    assert.deepEqual(dataCalls, [{ clinicId: 3, query: "Felix", studyType: undefined, currentStatus: "ready" }]);
+    assert.deepEqual(countCalls, [{ clinicId: 3, query: "Felix", studyType: undefined, currentStatus: "ready" }]);
   } finally {
     await app.close();
   }

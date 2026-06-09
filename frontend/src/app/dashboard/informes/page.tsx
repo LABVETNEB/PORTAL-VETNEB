@@ -34,7 +34,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getReports, searchReports } from "@/lib/api";
+import {
+  getReportsPaginated,
+  searchReportsPaginated,
+  type PaginatedReports,
+} from "@/lib/api";
 import {
   getReportStatusLabel,
   getReportStatusVariant,
@@ -46,6 +50,8 @@ export const metadata: Metadata = {
   title: "Informes — Portal VETNEB",
   robots: { index: false, follow: false },
 };
+
+const REPORTS_PAGE_SIZE = 20;
 
 const statusOptions = [
   { value: "", label: "Todos los estados" },
@@ -60,6 +66,7 @@ type InformesPageSearchParams = {
   status?: string | string[];
   studyType?: string | string[];
   reportId?: string | string[];
+  page?: string | string[];
 };
 
 function normalizeSearchParamValue(value: string | string[] | undefined) {
@@ -82,6 +89,11 @@ function normalizeReportIdFilter(value: string) {
   const reportId = Number(value);
 
   return Number.isInteger(reportId) && reportId > 0 ? reportId : null;
+}
+
+function normalizePageParam(value: string): number {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : 1;
 }
 
 function getStatusFilterLabel(value: string) {
@@ -118,6 +130,7 @@ function buildInformesHref(input: {
   status?: string;
   studyType?: string;
   reportId?: number | null;
+  page?: number;
   hash?: string;
 }) {
   const params = new URLSearchParams();
@@ -136,6 +149,10 @@ function buildInformesHref(input: {
 
   if (input.reportId) {
     params.set("reportId", String(input.reportId));
+  }
+
+  if (input.page && input.page > 1) {
+    params.set("page", String(input.page));
   }
 
   const qs = params.toString();
@@ -231,31 +248,50 @@ export default async function InformesPage({
   const selectedReportId = normalizeReportIdFilter(
     normalizeSearchParamValue(resolvedSearchParams.reportId),
   );
+  const page = normalizePageParam(normalizeSearchParamValue(resolvedSearchParams.page));
   const requestOptions = await getReportsRequestOptions();
-  let reports: Awaited<ReturnType<typeof getReports>> = [];
+
+  let pagedResult: PaginatedReports = {
+    reports: [],
+    total: 0,
+    page,
+    pageSize: REPORTS_PAGE_SIZE,
+    totalPages: 0,
+  };
   let reportsLoadError = false;
 
   try {
-    reports = query
-      ? await searchReports(
+    pagedResult = query
+      ? await searchReportsPaginated(
           {
             query,
             status: status || undefined,
             studyType: studyType || undefined,
+            page,
+            pageSize: REPORTS_PAGE_SIZE,
           },
           requestOptions,
           { throwOnError: true },
         )
-      : await getReports(
+      : await getReportsPaginated(
           requestOptions,
           {
             status: status || undefined,
+            page,
+            pageSize: REPORTS_PAGE_SIZE,
           },
           { throwOnError: true },
         );
   } catch {
     reportsLoadError = true;
   }
+
+  const reports = pagedResult.reports;
+  const reportsTotal = pagedResult.total;
+  const reportsTotalPages = pagedResult.totalPages;
+  const offset = (page - 1) * REPORTS_PAGE_SIZE;
+  const pageStart = reportsTotal > 0 ? offset + 1 : 0;
+  const pageEnd = Math.min(offset + reports.length, reportsTotal);
 
   const selectedReport =
     reports.find((report) => report.id === selectedReportId) ?? reports[0] ?? null;
@@ -384,11 +420,11 @@ export default async function InformesPage({
           master={
             <div id="reports-master-list" className="space-y-4 p-4">
               <div>
-                <h2 className="dashboard-section-heading">
-                  Informes ({reports.length})
-                </h2>
+                <h2 className="dashboard-section-heading">Informes</h2>
                 <p className="dashboard-section-description">
-                  Lista clinic-scoped con selección de detalle.
+                  {reportsTotal > 0
+                    ? `Mostrando ${pageStart}–${pageEnd} de ${reportsTotal}`
+                    : "Lista clinic-scoped con selección de detalle."}
                 </p>
               </div>
 
@@ -458,6 +494,7 @@ export default async function InformesPage({
                                     status,
                                     studyType,
                                     reportId: report.id,
+                                    page,
                                     hash: "report-detail",
                                   })}
                                   replace
@@ -494,6 +531,41 @@ export default async function InformesPage({
                   </TableBody>
                 </Table>
               </div>
+
+              {reportsTotalPages > 1 && (
+                <nav
+                  aria-label="Paginación de informes"
+                  className="flex items-center justify-between gap-2 pt-1"
+                >
+                  <PublicRouteControl
+                    href={buildInformesHref({ query, status, studyType, page: page - 1 })}
+                    replace
+                    prefetch={false}
+                    variant="bare"
+                    disabled={page <= 1}
+                    aria-label="Página anterior"
+                    aria-disabled={page <= 1 ? "true" : undefined}
+                    className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Anterior
+                  </PublicRouteControl>
+                  <span className="text-sm text-muted-foreground">
+                    Página {page} de {reportsTotalPages}
+                  </span>
+                  <PublicRouteControl
+                    href={buildInformesHref({ query, status, studyType, page: page + 1 })}
+                    replace
+                    prefetch={false}
+                    variant="bare"
+                    disabled={page >= reportsTotalPages}
+                    aria-label="Página siguiente"
+                    aria-disabled={page >= reportsTotalPages ? "true" : undefined}
+                    className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Siguiente
+                  </PublicRouteControl>
+                </nav>
+              )}
             </div>
           }
           detail={

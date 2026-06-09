@@ -67,6 +67,10 @@ export type ReportsNativeRoutesOptions = {
     offset: number,
     currentStatus?: ReportStatus,
   ) => Promise<Report[]>;
+  countReportsByClinicId?: (
+    clinicId: number,
+    currentStatus?: ReportStatus,
+  ) => Promise<number>;
   searchReports?: (
     clinicId: number,
     query: string | undefined,
@@ -75,6 +79,12 @@ export type ReportsNativeRoutesOptions = {
     offset: number,
     currentStatus?: ReportStatus,
   ) => Promise<Report[]>;
+  countSearchReports?: (
+    clinicId: number,
+    query: string | undefined,
+    studyType: string | undefined,
+    currentStatus?: ReportStatus,
+  ) => Promise<number>;
   getStudyTypes?: (clinicId: number) => Promise<string[]>;
   getReportById?: (reportId: number) => Promise<Report | null>;
   getReportStatusHistory?: (reportId: number) => Promise<unknown[]>;
@@ -101,7 +111,9 @@ type NativeReportsDeps = Required<
     | "updateSessionLastAccess"
     | "hashSessionToken"
     | "getReportsByClinicId"
+    | "countReportsByClinicId"
     | "searchReports"
+    | "countSearchReports"
     | "getStudyTypes"
     | "getReportById"
     | "getReportStatusHistory"
@@ -126,7 +138,9 @@ async function loadDefaultDeps(): Promise<NativeReportsDeps> {
         updateSessionLastAccess: db.updateSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
         getReportsByClinicId: db.getReportsByClinicId,
+        countReportsByClinicId: db.countReportsByClinicId,
         searchReports: db.searchReports,
+        countSearchReports: db.countSearchReports,
         getStudyTypes: db.getStudyTypes,
         getReportById: db.getReportById,
         getReportStatusHistory: db.getReportStatusHistory,
@@ -147,7 +161,9 @@ function hasAllInjectedDeps(options: ReportsNativeRoutesOptions) {
     !!options.updateSessionLastAccess &&
     !!options.hashSessionToken &&
     !!options.getReportsByClinicId &&
+    !!options.countReportsByClinicId &&
     !!options.searchReports &&
+    !!options.countSearchReports &&
     !!options.getStudyTypes &&
     !!options.getReportById &&
     !!options.getReportStatusHistory &&
@@ -174,7 +190,11 @@ async function resolveDeps(
       options.hashSessionToken ?? defaultDeps!.hashSessionToken,
     getReportsByClinicId:
       options.getReportsByClinicId ?? defaultDeps!.getReportsByClinicId,
+    countReportsByClinicId:
+      options.countReportsByClinicId ?? defaultDeps!.countReportsByClinicId,
     searchReports: options.searchReports ?? defaultDeps!.searchReports,
+    countSearchReports:
+      options.countSearchReports ?? defaultDeps!.countSearchReports,
     getStudyTypes: options.getStudyTypes ?? defaultDeps!.getStudyTypes,
     getReportById: options.getReportById ?? defaultDeps!.getReportById,
     getReportStatusHistory:
@@ -566,16 +586,17 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
         });
       }
 
-      const reports = await deps.getReportsByClinicId(
-        scope.clinicId,
-        limit,
-        offset,
-        currentStatus,
-      );
+      const [reports, total] = await Promise.all([
+        deps.getReportsByClinicId(scope.clinicId, limit, offset, currentStatus),
+        deps.countReportsByClinicId(scope.clinicId, currentStatus),
+      ]);
+      const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
 
       return reply.code(200).send({
         success: true,
         count: reports.length,
+        total,
+        totalPages,
         reports: await serializeReports(reports, deps),
         filters: {
           status: currentStatus ?? null,
@@ -626,18 +647,17 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
         });
       }
 
-      const reports = await deps.searchReports(
-        scope.clinicId,
-        query,
-        studyType ?? undefined,
-        limit,
-        offset,
-        currentStatus,
-      );
+      const [reports, total] = await Promise.all([
+        deps.searchReports(scope.clinicId, query, studyType ?? undefined, limit, offset, currentStatus),
+        deps.countSearchReports(scope.clinicId, query, studyType ?? undefined, currentStatus),
+      ]);
+      const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
 
       return reply.code(200).send({
         success: true,
         count: reports.length,
+        total,
+        totalPages,
         reports: await serializeReports(reports, deps),
         filters: {
           query: query ?? null,

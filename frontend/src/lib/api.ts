@@ -407,6 +407,14 @@ type ReportReadOptions = {
   throwOnError?: boolean;
 };
 
+export type PaginatedReports = {
+  reports: Report[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 export async function getReports(
   options?: RequestInit,
   params?: {
@@ -474,6 +482,98 @@ export async function searchReports(
     }
 
     return [];
+  }
+}
+
+export async function getReportsPaginated(
+  options?: RequestInit,
+  params?: {
+    status?: string;
+    page?: number;
+    pageSize?: number;
+  },
+  readOptions: ReportReadOptions = {},
+): Promise<PaginatedReports> {
+  const page = Math.max(1, params?.page ?? 1);
+  const pageSize = Math.min(Math.max(1, params?.pageSize ?? 20), 100);
+  const offset = (page - 1) * pageSize;
+
+  try {
+    const query = new URLSearchParams();
+
+    if (params?.status?.trim()) {
+      query.set("status", params.status.trim());
+    }
+
+    query.set("limit", String(pageSize));
+    query.set("offset", String(offset));
+
+    const qs = query.toString();
+    const res = await apiFetch<{
+      reports: Report[];
+      total?: number;
+      totalPages?: number;
+    }>(`/api/reports${qs ? `?${qs}` : ""}`, options);
+
+    const reports = res.reports ?? [];
+    const total = res.total ?? reports.length;
+    const totalPages = res.totalPages ?? (total > 0 ? Math.ceil(total / pageSize) : 0);
+
+    return { reports, total, page, pageSize, totalPages };
+  } catch (error) {
+    if (readOptions.throwOnError) {
+      throw error;
+    }
+
+    return { reports: [], total: 0, page, pageSize, totalPages: 0 };
+  }
+}
+
+export async function searchReportsPaginated(
+  params: {
+    query?: string;
+    status?: string;
+    studyType?: string;
+    page?: number;
+    pageSize?: number;
+  },
+  options?: RequestInit,
+  readOptions: ReportReadOptions = {},
+): Promise<PaginatedReports> {
+  const page = Math.max(1, params?.page ?? 1);
+  const pageSize = Math.min(Math.max(1, params?.pageSize ?? 20), 100);
+  const offset = (page - 1) * pageSize;
+
+  try {
+    const searchParams = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries({
+          query: params.query,
+          status: params.status,
+          studyType: params.studyType,
+          limit: String(pageSize),
+          offset: String(offset),
+        }).filter(([, v]) => v !== undefined),
+      ) as Record<string, string>,
+    );
+    const qs = searchParams.toString();
+    const res = await apiFetch<{
+      reports: Report[];
+      total?: number;
+      totalPages?: number;
+    }>(`/api/reports/search${qs ? `?${qs}` : ""}`, options);
+
+    const reports = res.reports ?? [];
+    const total = res.total ?? reports.length;
+    const totalPages = res.totalPages ?? (total > 0 ? Math.ceil(total / pageSize) : 0);
+
+    return { reports, total, page, pageSize, totalPages };
+  } catch (error) {
+    if (readOptions.throwOnError) {
+      throw error;
+    }
+
+    return { reports: [], total: 0, page, pageSize, totalPages: 0 };
   }
 }
 

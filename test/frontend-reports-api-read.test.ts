@@ -104,3 +104,42 @@ test("frontend reports API helpers remain typed around Report", () => {
   assert.ok(source.includes("type AdminReportUploadResponse = {"));
   assert.ok(source.includes("report: Report;"));
 });
+
+test("frontend API client exposes getReportsPaginated for server-side pagination", () => {
+  const source = read(API_CLIENT_PATH);
+
+  assert.ok(source.includes("export type PaginatedReports = {"));
+  assert.ok(source.includes("export async function getReportsPaginated("));
+  assert.ok(source.includes("export async function searchReportsPaginated("));
+  assert.ok(source.includes("Promise<PaginatedReports>"));
+  assert.ok(source.includes("total: number;"));
+  assert.ok(source.includes("totalPages: number;"));
+  assert.ok(source.includes("pageSize: number;"));
+});
+
+test("frontend getReportsPaginated computes offset from page and pageSize", () => {
+  const source = read(API_CLIENT_PATH);
+  const start = source.indexOf("export async function getReportsPaginated(");
+  const end = source.indexOf("\nexport async function ", start + 10);
+  const fn = end === -1 ? source.slice(start) : source.slice(start, end);
+
+  assert.ok(fn.includes("const page = Math.max(1,"));
+  assert.ok(fn.includes("const pageSize = Math.min("));
+  assert.ok(fn.includes("const offset = (page - 1) * pageSize;"));
+  assert.ok(fn.includes("query.set(\"limit\","));
+  assert.ok(fn.includes("query.set(\"offset\","));
+  assert.ok(fn.includes("return { reports, total, page, pageSize, totalPages };"));
+});
+
+test("frontend searchReportsPaginated computes offset and passes all search params", () => {
+  const source = read(API_CLIENT_PATH);
+  const start = source.indexOf("export async function searchReportsPaginated(");
+  const end = source.indexOf("\nexport async function ", start + 10);
+  const fn = end === -1 ? source.slice(start) : source.slice(start, end);
+
+  assert.ok(fn.includes("const offset = (page - 1) * pageSize;"));
+  assert.ok(fn.includes("limit: String(pageSize),"));
+  assert.ok(fn.includes("offset: String(offset),"));
+  assert.ok(fn.includes("`/api/reports/search${qs ? `?${qs}` : \"\"}`"));
+  assert.ok(fn.includes("return { reports, total, page, pageSize, totalPages };"));
+});
