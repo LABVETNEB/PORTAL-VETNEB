@@ -139,6 +139,13 @@ test.describe("admin clinic edit drawer — scope guard", () => {
 
 test.describe("admin clinic edit drawer — component behavior", () => {
   test.beforeEach(async ({ page }) => {
+    await page.context().addCookies([
+      {
+        name: "admin_session_id",
+        value: "e2e_test_session",
+        url: "http://127.0.0.1:3000",
+      },
+    ]);
     await mockAdminClinicsGet(page);
     await mockAdminClinicsUpdate(page);
   });
