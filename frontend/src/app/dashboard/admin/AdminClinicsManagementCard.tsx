@@ -243,10 +243,10 @@ export function AdminClinicsManagementCard() {
 
       <CardContent className="space-y-4 pt-5">
         <form
-          className="surface-soft grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6"
+          className="surface-soft p-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6"
           onSubmit={(event) => void handleCreateClinic(event)}
         >
-          <label className="space-y-1 xl:col-span-2">
+          <label className="space-y-1.5 xl:col-span-2">
             <span className="text-xs text-muted-foreground">Nombre clínica</span>
             <Input
               value={createForm.clinicName}
@@ -259,7 +259,7 @@ export function AdminClinicsManagementCard() {
             />
           </label>
 
-          <label className="space-y-1">
+          <label className="space-y-1.5">
             <span className="text-xs text-muted-foreground">Email contacto</span>
             <Input
               type="email"
@@ -273,7 +273,7 @@ export function AdminClinicsManagementCard() {
             />
           </label>
 
-          <label className="space-y-1">
+          <label className="space-y-1.5">
             <span className="text-xs text-muted-foreground">Teléfono</span>
             <Input
               value={createForm.contactPhone}
@@ -285,7 +285,7 @@ export function AdminClinicsManagementCard() {
             />
           </label>
 
-          <label className="space-y-1">
+          <label className="space-y-1.5">
             <span className="text-xs text-muted-foreground">Usuario de acceso</span>
             <Input
               value={createForm.username}
@@ -299,7 +299,7 @@ export function AdminClinicsManagementCard() {
             />
           </label>
 
-          <label className="space-y-1">
+          <label className="space-y-1.5">
             <span className="text-xs text-muted-foreground">Contraseña inicial</span>
             <Input
               type="text"
@@ -308,6 +308,7 @@ export function AdminClinicsManagementCard() {
               minLength={8}
               required
               autoComplete="new-password"
+              aria-describedby="create-clinic-password-hint"
               onChange={(event) =>
                 updateCreateField("password", event.target.value)
               }
@@ -315,7 +316,7 @@ export function AdminClinicsManagementCard() {
           </label>
 
           <div className="flex items-end xl:col-span-5">
-            <p className="text-xs text-muted-foreground">
+            <p id="create-clinic-password-hint" className="text-xs text-muted-foreground">
               La contraseña anterior no se puede consultar. Para recuperación,
               cargue una nueva contraseña visible y guárdela.
             </p>
@@ -342,7 +343,7 @@ export function AdminClinicsManagementCard() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative max-w-xs flex-1">
             <Search
-              className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground"
+              className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
               aria-hidden="true"
             />
             <Input

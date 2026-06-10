@@ -118,7 +118,7 @@ test("globals css keeps visual tokens and shared frontend surface utilities", ()
       /\.dashboard-main\s*\{[\s\S]*@apply[\s\S]*space-y-6[\s\S]*sm:px-6[\s\S]*lg:px-8[\s\S]*\}/,
       /\.surface-note-info\s*\{[\s\S]*@apply[\s\S]*rounded-lg[\s\S]*border-vetneb-cyan\/30[\s\S]*bg-vetneb-cyan\/10[\s\S]*\}/,
       /\.surface-empty\s*\{[\s\S]*@apply[\s\S]*border-dashed[\s\S]*bg-vetneb-surface-muted\/70[\s\S]*\}/,
-      /\.field-select\s*\{[\s\S]*@apply[\s\S]*h-11[\s\S]*rounded-lg[\s\S]*focus-visible:ring-2[\s\S]*\}/,
+      /\.field-select\s*\{[\s\S]*@apply[\s\S]*h-10[\s\S]*rounded-lg[\s\S]*focus-visible:ring-2[\s\S]*\}/,
     ],
     "globals.css utility contracts",
   );

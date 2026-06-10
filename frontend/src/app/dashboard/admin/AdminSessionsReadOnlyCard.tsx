@@ -177,7 +177,7 @@ export function AdminSessionsReadOnlyCard() {
           <label className="surface-soft">
             <span className="text-xs text-muted-foreground">Tipo de sesión</span>
             <select
-              className="field-select mt-2"
+              className="field-select mt-1"
               value={sessionType}
               onChange={(event) => {
                 setOffset(0);
@@ -194,7 +194,7 @@ export function AdminSessionsReadOnlyCard() {
           <label className="surface-soft">
             <span className="text-xs text-muted-foreground">Estado</span>
             <select
-              className="field-select mt-2"
+              className="field-select mt-1"
               value={status}
               onChange={(event) => {
                 setOffset(0);
@@ -339,6 +339,14 @@ export function AdminSessionsReadOnlyCard() {
             >
               Anterior
             </Button>
+            <span
+              className="dashboard-pagination-context"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              Pág.&nbsp;{Math.floor(offset / PAGE_SIZE) + 1}
+              {snapshot ? ` / ${Math.max(1, Math.ceil(snapshot.total / PAGE_SIZE))}` : null}
+            </span>
             <Button
               type="button"
               variant="outline"

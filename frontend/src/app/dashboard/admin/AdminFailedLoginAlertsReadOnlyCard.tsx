@@ -182,7 +182,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           <label className="surface-soft">
             <span className="text-xs text-muted-foreground">Superficie</span>
             <select
-              className="field-select mt-2"
+              className="field-select mt-1"
               value={surface}
               onChange={(event) => {
                 setOffset(0);
@@ -201,7 +201,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           <label className="surface-soft">
             <span className="text-xs text-muted-foreground">Motivo</span>
             <select
-              className="field-select mt-2"
+              className="field-select mt-1"
               value={reason}
               onChange={(event) => {
                 setOffset(0);
@@ -322,6 +322,14 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
             >
               Anterior
             </Button>
+            <span
+              className="dashboard-pagination-context"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              Pág.&nbsp;{Math.floor(offset / PAGE_SIZE) + 1}
+              {snapshot ? ` / ${Math.max(1, Math.ceil(snapshot.total / PAGE_SIZE))}` : null}
+            </span>
             <Button
               type="button"
               variant="outline"

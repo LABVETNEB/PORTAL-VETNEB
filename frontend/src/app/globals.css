@@ -328,7 +328,7 @@
   }
 
   .field-select {
-    @apply flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground shadow-sm ring-offset-background transition-[border-color,box-shadow,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-55;
+    @apply flex h-10 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground shadow-sm ring-offset-background transition-[border-color,box-shadow,background-color] hover:border-vetneb-teal/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-55;
   }
 
   .field-textarea {
@@ -1196,6 +1196,17 @@
   }
 }
 /* dashboard-responsive-touch-ergonomics:end */
+/* dashboard-filters-forms-density-polish:start */
+@layer components {
+  .dashboard-filter-stats-grid {
+    @apply grid grid-cols-1 gap-3 md:grid-cols-4;
+  }
+
+  .dashboard-pagination-context {
+    @apply min-w-[4.5rem] text-center text-xs tabular-nums text-muted-foreground;
+  }
+}
+/* dashboard-filters-forms-density-polish:end */
 
 
 
