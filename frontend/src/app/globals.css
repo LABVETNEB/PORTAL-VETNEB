@@ -1187,6 +1187,15 @@
   }
 }
 /* dashboard-action-feedback-focus-polish:end */
+/* dashboard-responsive-touch-ergonomics:start */
+@layer components {
+  .dashboard-table-responsive {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+/* dashboard-responsive-touch-ergonomics:end */
 
 
 

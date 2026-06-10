@@ -30,7 +30,7 @@ export function DashboardModuleWorkspace({
             type="button"
             onClick={onBack}
             aria-label="Volver a módulos"
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-input bg-card/95 px-3 text-sm font-semibold text-foreground shadow-sm dashboard-btn-interactive hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 shrink-0"
+            className="inline-flex min-h-[2.75rem] items-center gap-2 rounded-md border border-input bg-card/95 px-3 text-sm font-semibold text-foreground shadow-sm dashboard-btn-interactive hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 shrink-0"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             <span>Volver a módulos</span>

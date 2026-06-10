@@ -363,7 +363,7 @@ export function AdminClinicsManagementCard() {
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-7 w-7 p-0"
+                className="h-9 w-9 p-0 sm:h-7 sm:w-7"
                 onClick={() => loadClinics(currentOffset - PAGE_SIZE)}
                 disabled={isBusy || !hasPrev}
                 aria-label="Página anterior"
@@ -374,7 +374,7 @@ export function AdminClinicsManagementCard() {
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-7 w-7 p-0"
+                className="h-9 w-9 p-0 sm:h-7 sm:w-7"
                 onClick={() => loadClinics(currentOffset + PAGE_SIZE)}
                 disabled={isBusy || !hasNext}
                 aria-label="Página siguiente"
@@ -385,7 +385,7 @@ export function AdminClinicsManagementCard() {
           ) : null}
         </div>
 
-        <div className="overflow-hidden">
+        <div className="dashboard-table-responsive">
           <Table>
             <TableHeader>
               <TableRow>
@@ -454,6 +454,7 @@ export function AdminClinicsManagementCard() {
                         disabled={isBusy || editingClinic !== null}
                         onClick={() => setEditingClinic(clinic)}
                         aria-label={`Editar clínica ${clinic.clinicName}`}
+                        className="min-h-[2.75rem]"
                       >
                         <Pencil aria-hidden="true" />
                         Editar

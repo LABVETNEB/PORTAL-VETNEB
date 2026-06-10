@@ -298,7 +298,7 @@ export function AdminUsersRolesReadOnlyCard() {
           </div>
         ) : null}
 
-        <div className="overflow-hidden">
+        <div className="dashboard-table-responsive">
           <Table>
             <TableHeader>
               <TableRow>
@@ -404,6 +404,7 @@ export function AdminUsersRolesReadOnlyCard() {
                 resetFiltersFeedback();
                 setOffset(Math.max(offset - PAGE_SIZE, 0));
               }}
+              className="flex-1 sm:flex-none"
             >
               Anterior
             </Button>
@@ -415,6 +416,7 @@ export function AdminUsersRolesReadOnlyCard() {
                 resetFiltersFeedback();
                 setOffset(offset + PAGE_SIZE);
               }}
+              className="flex-1 sm:flex-none"
             >
               Siguiente
             </Button>
