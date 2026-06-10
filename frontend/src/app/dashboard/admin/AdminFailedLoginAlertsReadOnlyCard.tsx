@@ -171,7 +171,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
       </CardHeader>
 
       <CardContent className="space-y-4 pt-6">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+        <div className="dashboard-filter-stats-grid">
           <div className="surface-soft">
             <p className="text-xs text-muted-foreground">Total filtrado</p>
             <p className="mt-1 text-2xl font-bold text-vetneb-ink">
@@ -311,8 +311,8 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           </Table>
         </div>
 
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-2">
+        <div className="dashboard-table-pagination">
+          <div className="dashboard-table-pagination-controls">
             <Button
               type="button"
               variant="outline"

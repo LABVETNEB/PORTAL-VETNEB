@@ -166,7 +166,7 @@ export function AdminReportWorkflowViewerCard() {
 
   return (
     <Card className="dashboard-surface">
-      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <CardTitle className="text-base">Seguimiento de informes</CardTitle>
           <CardDescription>
@@ -185,10 +185,11 @@ export function AdminReportWorkflowViewerCard() {
       </CardHeader>
       <CardContent className="space-y-4 p-0">
         {errorMessage ? (
-          <div role="alert" className="clinical-alert-warning mx-6 px-4 py-3 text-sm">
+          <div role="alert" className="clinical-alert-warning mx-6 mt-4 px-4 py-3 text-sm">
             {errorMessage}
           </div>
         ) : null}
+        <div className="dashboard-table-responsive">
         <Table>
           <TableHeader>
             <TableRow>
@@ -275,7 +276,7 @@ export function AdminReportWorkflowViewerCard() {
                             )
                           }
                           disabled={busy}
-                          className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                          className="field-select h-9 text-xs"
                         >
                           {WORKFLOW_STAGES.map((stage) => (
                             <option key={stage.value} value={stage.value}>
@@ -300,12 +301,13 @@ export function AdminReportWorkflowViewerCard() {
             )}
           </TableBody>
         </Table>
-        <div className="flex items-center justify-between px-6 pb-5 text-sm text-muted-foreground">
+        </div>
+        <div className="dashboard-table-pagination px-6 pb-5 text-sm text-muted-foreground">
           <span>
             Mostrando hasta {PAGE_LIMIT} seguimientos
             {offset > 0 ? ` desde el registro ${offset + 1}` : ""}
           </span>
-          <div className="flex gap-2">
+          <div className="dashboard-table-pagination-controls">
             <Button
               type="button"
               variant="outline"
@@ -315,6 +317,13 @@ export function AdminReportWorkflowViewerCard() {
             >
               Anterior
             </Button>
+            <span
+              className="dashboard-pagination-context"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {offset > 0 ? `Desde ${offset + 1}` : "Pág. 1"}
+            </span>
             <Button
               type="button"
               variant="outline"

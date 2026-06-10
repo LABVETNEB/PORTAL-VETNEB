@@ -226,7 +226,7 @@ export function AdminUsersRolesReadOnlyCard() {
       </CardHeader>
 
       <CardContent className="space-y-4 pt-6">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+        <div className="dashboard-filter-stats-grid-5">
           <div className="surface-soft">
             <p className="text-xs text-muted-foreground">Total filtrado</p>
             <p className="mt-1 text-2xl font-bold text-vetneb-ink">
@@ -394,8 +394,8 @@ export function AdminUsersRolesReadOnlyCard() {
           </Table>
         </div>
 
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-2">
+        <div className="dashboard-table-pagination">
+          <div className="dashboard-table-pagination-controls">
             <Button
               type="button"
               variant="outline"
@@ -408,6 +408,14 @@ export function AdminUsersRolesReadOnlyCard() {
             >
               Anterior
             </Button>
+            <span
+              className="dashboard-pagination-context"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              Pág.&nbsp;{Math.floor(offset / PAGE_SIZE) + 1}
+              {snapshot ? ` / ${Math.max(1, Math.ceil(snapshot.total / PAGE_SIZE))}` : null}
+            </span>
             <Button
               type="button"
               variant="outline"
