@@ -560,7 +560,7 @@ export function AdminPricingEditorCard() {
                                   errorMessage: null,
                                 }))
                               }
-                              className="field-select h-10"
+                              className="field-select"
                             >
                               <option value="active">Activo</option>
                               <option value="inactive">Inactivo</option>

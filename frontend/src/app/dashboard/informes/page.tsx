@@ -388,7 +388,7 @@ export default async function InformesPage({
                     name="query"
                     defaultValue={query}
                     placeholder="Buscar por paciente o tipo de estudio..."
-                    className="mt-1 min-w-0"
+                    className="mt-1.5 min-w-0"
                     aria-label="Buscar informes"
                   />
                 </label>
@@ -400,7 +400,7 @@ export default async function InformesPage({
                   <select
                     name="status"
                     defaultValue={status}
-                    className="field-select mt-1"
+                    className="field-select mt-1.5"
                     aria-label="Filtrar por estado"
                   >
                     {statusOptions.map((opt) => (
@@ -419,7 +419,7 @@ export default async function InformesPage({
                     name="studyType"
                     defaultValue={studyType}
                     placeholder="Filtrar por tipo de estudio..."
-                    className="mt-1 min-w-0"
+                    className="mt-1.5 min-w-0"
                     aria-label="Filtrar por tipo de estudio"
                   />
                 </label>
