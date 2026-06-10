@@ -73,7 +73,7 @@ export function DashboardModuleHub({
           const sharedClassName = cn(
             "group flex w-full flex-col rounded-xl border border-vetneb-line/80 bg-card/95",
             "shadow-[0_12px_34px_rgba(15,45,62,0.08)] ring-1 ring-white/55",
-            "transition-[border-color,box-shadow] duration-200",
+            "dashboard-card-interactive",
             "hover:border-vetneb-teal/42 hover:shadow-[0_20px_50px_rgba(15,45,62,0.13)] hover:ring-vetneb-teal/10",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2",
           );

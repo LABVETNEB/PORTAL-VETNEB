@@ -48,6 +48,11 @@
     --font-heading: var(--font-inter);
     --font-body: var(--font-source-sans-3);
     --font-ui: var(--font-inter);
+    --motion-fast: 120ms;
+    --motion-base: 180ms;
+    --motion-slow: 280ms;
+    --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark {
@@ -1036,6 +1041,54 @@
 
 }
 /* dashboard-auth-visual-system:end */
+/* dashboard-interaction-foundation:start */
+@layer components {
+  .dashboard-card-interactive {
+    transition-property: border-color, box-shadow, transform;
+    transition-duration: var(--motion-base);
+    transition-timing-function: var(--ease-out-soft);
+  }
+
+  .dashboard-card-interactive:active {
+    transform: scale(0.99);
+  }
+
+  .dashboard-btn-interactive {
+    transition-property: background-color, border-color, box-shadow, color, transform;
+    transition-duration: var(--motion-fast);
+    transition-timing-function: var(--ease-out-soft);
+  }
+
+  .dashboard-btn-interactive:active {
+    transform: scale(0.98);
+  }
+
+  .dashboard-row-interactive {
+    transition-property: background-color, border-color;
+    transition-duration: var(--motion-fast);
+    transition-timing-function: var(--ease-out-soft);
+  }
+
+  .dashboard-disabled-state {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dashboard-card-interactive,
+    .dashboard-btn-interactive,
+    .dashboard-row-interactive {
+      transition: none;
+    }
+
+    .dashboard-card-interactive:active,
+    .dashboard-btn-interactive:active {
+      transform: none;
+    }
+  }
+}
+/* dashboard-interaction-foundation:end */
 
 
 
