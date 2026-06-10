@@ -35,7 +35,7 @@ export function MasterDetailWorkspace({
     >
       <div
         aria-label={masterLabel}
-        className="max-w-full min-w-0 overflow-hidden rounded-lg border border-vetneb-line/80 bg-card/95 shadow-sm"
+        className="max-w-full min-w-0 overflow-hidden rounded-lg border dashboard-master-panel"
       >
         <div className="max-h-none max-w-full min-w-0 overflow-x-hidden overflow-y-visible xl:max-h-[calc(100vh-13rem)] xl:overflow-y-auto">
           {master}
@@ -45,7 +45,7 @@ export function MasterDetailWorkspace({
       <div
         aria-label={detailLabel}
         data-detail-state={hasSelection ? "selected" : "empty"}
-        className="max-w-full min-w-0 scroll-mt-28 overflow-hidden rounded-lg border border-vetneb-line/80 bg-card/95 shadow-sm md:scroll-mt-24"
+        className="max-w-full min-w-0 scroll-mt-28 overflow-hidden rounded-lg border dashboard-detail-panel md:scroll-mt-24"
       >
         <p className="sr-only" aria-live="polite">
           {hasSelection
