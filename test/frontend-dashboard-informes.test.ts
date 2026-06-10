@@ -113,7 +113,7 @@ test("dashboard informes renders filters and reports table columns", () => {
   assert.ok(source.includes("<TableHead>ID</TableHead>"));
   assert.ok(source.includes("<TableHead>Paciente</TableHead>"));
   assert.ok(source.includes("<TableHead>Tipo de estudio</TableHead>"));
-  assert.ok(source.includes("<TableHead>Clínica</TableHead>"));
+  assert.ok(source.includes(">Clínica</TableHead>"));
   assert.ok(source.includes("<TableHead>Fecha</TableHead>"));
   assert.ok(source.includes("<TableHead>Estado</TableHead>"));
   assert.ok(source.includes('<TableHead className="text-right">Acciones</TableHead>'));

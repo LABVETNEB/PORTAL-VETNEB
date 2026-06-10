@@ -149,12 +149,9 @@ test("admin failed login alerts card keeps empty state and pagination without en
   const removedAlertsCsvEndpoint = "GET " + "/api/admin/failed-login-alerts/export.csv";
   const removedReadOnlyFilters = "read-" + "only con filtros reversibles";
 
-  assert.ok(
-    source.includes(
-      'isPending\n                      ? "Cargando intentos fallidos..."\n                      : error',
-    ),
-  );
-  assert.ok(source.includes('                        ? "No se pudieron cargar los intentos fallidos."'));
+  assert.ok(source.includes("isPending ?"));
+  assert.ok(source.includes("LoadingState"));
+  assert.ok(source.includes('"No se pudieron cargar los intentos fallidos."'));
   assert.ok(source.includes("No hay intentos fallidos para los filtros seleccionados."));
   assert.ok(source.includes("const hasPreviousPage = offset > 0;"));
   assert.ok(source.includes("const hasNextPage = snapshot"));

@@ -30,13 +30,14 @@ test("loading state has sr-only accessible loading text", () => {
   assert.ok(source.includes("Cargando..."));
 });
 
-test("loading state maintains all four variants and skeleton usage", () => {
+test("loading state maintains all five variants and skeleton usage", () => {
   const source = read(LOADING_STATE_PATH);
 
-  assert.ok(source.includes('variant?: "table" | "cards" | "detail" | "timeline";'));
+  assert.ok(source.includes('variant?: "table" | "cards" | "detail" | "timeline" | "list";'));
   assert.ok(source.includes('if (variant === "table")'));
   assert.ok(source.includes('if (variant === "detail")'));
   assert.ok(source.includes('if (variant === "timeline")'));
+  assert.ok(source.includes('if (variant === "list")'));
   assert.ok(source.includes('import { Skeleton } from "@/components/ui/skeleton";'));
   assert.ok(source.includes('aria-busy="true"'));
   assert.ok(source.includes("getRows(rows)"));
@@ -96,6 +97,14 @@ test("empty state supports optional secondaryAction prop for dual call-to-action
 
   assert.ok(source.includes("secondaryAction?: ReactNode;"));
   assert.ok(source.includes("{secondaryAction}"));
+});
+
+test("empty state supports size prop for compact usage inside tables (PR-3)", () => {
+  const source = read(EMPTY_STATE_PATH);
+
+  assert.ok(source.includes('size?: "sm" | "md";'));
+  assert.ok(source.includes('size = "md"'));
+  assert.ok(source.includes("isSm"));
 });
 
 test("empty state icon wrapper and icon element are both aria-hidden", () => {

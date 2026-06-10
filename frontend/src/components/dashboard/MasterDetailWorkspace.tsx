@@ -27,10 +27,11 @@ export function MasterDetailWorkspace({
   return (
     <section
       className={cn(
-        "grid min-w-0 grid-cols-1 gap-4 overflow-x-hidden xl:grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)]",
+        "grid min-w-0 grid-cols-1 gap-3 overflow-x-hidden xl:grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)] xl:gap-5",
         className,
       )}
       data-selected-id={selectedId ?? undefined}
+      data-master-detail-workspace="true"
       aria-label={workspaceLabel}
     >
       <div

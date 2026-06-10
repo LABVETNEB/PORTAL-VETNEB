@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/table";
 import { getAdminSessions, revokeAdminSession } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
+import { EmptyState } from "@/components/dashboard/EmptyState";
+import { LoadingState } from "@/components/dashboard/LoadingState";
 import type {
   AdminSessionStatus,
   AdminSessionSummary,
@@ -291,17 +293,30 @@ export function AdminSessionsReadOnlyCard() {
                     </TableRow>
                   );
                 })
+              ) : isPending ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="p-3">
+                    <LoadingState
+                      variant="table"
+                      compact
+                      rows={3}
+                      className="border-0 bg-transparent shadow-none rounded-none"
+                    />
+                  </TableCell>
+                </TableRow>
               ) : (
                 <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="clinical-table-state"
-                  >
-                    {isPending
-                      ? "Cargando sesiones..."
-                      : error
-                        ? "No se pudieron cargar las sesiones."
-                        : "No hay sesiones para los filtros seleccionados."}
+                  <TableCell colSpan={7} className="clinical-table-state">
+                    {error ? (
+                      "No se pudieron cargar las sesiones."
+                    ) : (
+                      <EmptyState
+                        title="Sin sesiones"
+                        description="No hay sesiones para los filtros seleccionados."
+                        size="sm"
+                        className="border-0 bg-transparent"
+                      />
+                    )}
                   </TableCell>
                 </TableRow>
               )}
