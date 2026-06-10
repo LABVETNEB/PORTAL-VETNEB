@@ -1606,6 +1606,7 @@ export function AdminParticularTokensCard() {
                       size="sm"
                       disabled={revokingTokenId === token.id}
                       onClick={() => void handleDeleteToken(token)}
+                      className="min-h-[2.75rem]"
                     >
                       {revokingTokenId === token.id ? "Eliminando..." : "Eliminar token"}
                     </Button>

@@ -142,7 +142,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           </CardTitle>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <Button
             type="button"
             variant="outline"
@@ -154,7 +154,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           <PublicExternalControl
             href={csvUrl}
             target="_self"
-            className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-card/95 px-4 text-sm font-semibold text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-55"
+            className="inline-flex h-10 w-full items-center justify-center rounded-md border border-input bg-card/95 px-4 text-sm font-semibold text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-55 sm:w-auto"
           >
             Exportar CSV
           </PublicExternalControl>
@@ -236,7 +236,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           </div>
         ) : null}
 
-        <div className="overflow-hidden">
+        <div className="dashboard-table-responsive">
           <Table>
             <TableHeader>
               <TableRow>
@@ -318,6 +318,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
               variant="outline"
               disabled={!hasPreviousPage || isPending}
               onClick={() => setOffset(Math.max(offset - PAGE_SIZE, 0))}
+              className="flex-1 sm:flex-none"
             >
               Anterior
             </Button>
@@ -326,6 +327,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
               variant="outline"
               disabled={!hasNextPage || isPending}
               onClick={() => setOffset(offset + PAGE_SIZE)}
+              className="flex-1 sm:flex-none"
             >
               Siguiente
             </Button>

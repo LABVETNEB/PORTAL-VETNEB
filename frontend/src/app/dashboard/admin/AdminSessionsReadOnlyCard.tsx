@@ -224,7 +224,7 @@ export function AdminSessionsReadOnlyCard() {
           </div>
         ) : null}
 
-        <div className="overflow-hidden">
+        <div className="dashboard-table-responsive">
           <Table>
             <TableHeader>
               <TableRow>
@@ -335,6 +335,7 @@ export function AdminSessionsReadOnlyCard() {
               variant="outline"
               disabled={!hasPreviousPage || isPending}
               onClick={() => setOffset(Math.max(offset - PAGE_SIZE, 0))}
+              className="flex-1 sm:flex-none"
             >
               Anterior
             </Button>
@@ -343,6 +344,7 @@ export function AdminSessionsReadOnlyCard() {
               variant="outline"
               disabled={!hasNextPage || isPending}
               onClick={() => setOffset(offset + PAGE_SIZE)}
+              className="flex-1 sm:flex-none"
             >
               Siguiente
             </Button>

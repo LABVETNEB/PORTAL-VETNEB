@@ -410,7 +410,7 @@ export function AdminPricingEditorCard() {
             Gestión manual de etiquetas de precio por estudio.
           </CardDescription>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button
             type="button"
             variant="outline"
@@ -605,7 +605,7 @@ export function AdminPricingEditorCard() {
                             ) : null}
                           </div>
 
-                          <Button type="submit" disabled={isSaving || isSavingAll}>
+                          <Button type="submit" className="w-full sm:w-auto" disabled={isSaving || isSavingAll}>
                             {isSaving ? "Guardando..." : "Guardar precio"}
                           </Button>
                         </div>
