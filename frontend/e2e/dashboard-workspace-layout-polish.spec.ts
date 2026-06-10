@@ -63,14 +63,15 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
     await expect(workspace).toHaveClass(/dashboard-workspace-enter/);
   });
 
-  test("/dashboard/informes master-detail loads", async ({ page }) => {
+  test("/dashboard/informes layout loads", async ({ page }) => {
     await setClinicSession(page);
     await page.goto("/dashboard/informes");
-    await expect(page.locator('[aria-label="Workspace maestro detalle"]').or(
-      page.locator('section[aria-label*="nformes"]').or(
-        page.locator("main"),
-      ),
-    )).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator("main.dashboard-main")).toBeVisible({
+      timeout: 8_000,
+    });
+    await expect(
+      page.getByRole("region", { name: "Informes del dashboard" }),
+    ).toBeVisible({ timeout: 8_000 });
   });
 
   test("workspace Volver button keeps dashboard-btn-interactive (PR-1 contract preserved)", async ({
@@ -93,20 +94,21 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await setClinicSession(page);
     await page.goto("/dashboard?module=operaciones");
-    await expect(
-      page.locator('[data-dashboard-module-workspace="operaciones"]'),
-    ).toBeVisible({ timeout: 8_000 });
+    const workspace = page.locator(
+      '[data-dashboard-module-workspace="operaciones"]',
+    );
+    await expect(workspace).toBeVisible({ timeout: 8_000 });
+    await expect(workspace).toHaveClass(/dashboard-workspace-enter/);
   });
 
   test("no global scroll: shell keeps h-dvh overflow-hidden layout", async ({
     page,
   }) => {
     await setClinicSession(page);
-    await page.goto("/dashboard?module=operaciones");
+    await page.goto("/dashboard");
     await expect(
-      page.locator('[data-dashboard-module-workspace="operaciones"]'),
+      page.locator('[data-dashboard-module-hub="true"]'),
     ).toBeVisible({ timeout: 8_000 });
-
     const overflow = await page.evaluate(
       () =>
         document.documentElement.scrollHeight -
