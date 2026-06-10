@@ -66,7 +66,7 @@ export function DashboardSidebarFrame({
               href={item.href}
               variant="bare"
               className={cn(
-                "flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar",
+                "flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-semibold dashboard-nav-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar",
                 isActive(item.href, item.exact)
                   ? "bg-sidebar-accent/90 text-sidebar-accent-foreground shadow-[0_10px_28px_rgba(8,35,50,0.24)] ring-1 ring-white/15"
                   : "text-sidebar-foreground/72 hover:bg-sidebar-accent/45 hover:text-sidebar-foreground",
@@ -104,7 +104,7 @@ export function DashboardSidebarFrame({
           variant="bare"
           aria-label="Volver al sitio público"
           title="Volver al sitio público"
-          className="flex items-center justify-center gap-2 rounded-md px-2 py-2 text-xs text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent/40 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+          className="flex items-center justify-center gap-2 rounded-md px-2 py-2 text-xs text-sidebar-foreground/60 dashboard-nav-interactive hover:bg-sidebar-accent/40 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="sr-only">Volver al sitio público</span>

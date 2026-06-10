@@ -97,7 +97,7 @@ export function FilterDrawer({
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
             tabIndex={-1}
-            className="absolute inset-y-0 right-0 flex h-dvh w-full max-w-md max-h-dvh flex-col overflow-hidden border-l border-vetneb-line/80 bg-card pb-[env(safe-area-inset-bottom)] shadow-lg"
+            className="absolute inset-y-0 right-0 flex h-dvh w-full max-w-md max-h-dvh flex-col overflow-hidden border-l border-vetneb-line/80 bg-card pb-[env(safe-area-inset-bottom)] dashboard-filter-panel"
           >
             <div className="shrink-0 flex items-start justify-between gap-4 border-b border-vetneb-line/80 px-4 py-4">
               <div className="min-w-0">

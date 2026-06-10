@@ -20,11 +20,11 @@ export function DashboardModuleWorkspace({
 }: DashboardModuleWorkspaceProps) {
   return (
     <section
-      className="flex h-full min-h-0 flex-col"
+      className="flex h-full min-h-0 flex-col dashboard-workspace-enter"
       data-dashboard-module-workspace={moduleId}
       aria-label={title}
     >
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="dashboard-workspace-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <button
             type="button"

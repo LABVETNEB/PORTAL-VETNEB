@@ -94,7 +94,7 @@ export function StickyActionBar({
                   }
                 }}
                 aria-label={ariaLabel}
-                className="min-h-10 w-full whitespace-normal focus-visible:ring-2 focus-visible:ring-ring/85 sm:w-auto sm:whitespace-nowrap"
+                className="min-h-10 w-full whitespace-normal dashboard-btn-interactive focus-visible:ring-2 focus-visible:ring-ring/85 sm:w-auto sm:whitespace-nowrap"
               >
                 {content}
               </Button>
