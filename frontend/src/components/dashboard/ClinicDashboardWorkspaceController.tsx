@@ -95,7 +95,7 @@ export function ClinicDashboardWorkspaceController({
   const activateModule = useCallback(
     (moduleId: ClinicModule) => {
       setActiveModule(moduleId);
-      router.replace(`${ROUTES.dashboard}?module=${moduleId}`, { scroll: false });
+      router.push(`${ROUTES.dashboard}?module=${moduleId}`, { scroll: false });
     },
     [router],
   );

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useCallback, useEffect, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
   Building2,
@@ -29,6 +29,26 @@ export type AdminModule =
   | "admin-users-roles"
   | "audit-log"
   | "admin-maintenance";
+
+const ADMIN_MODULE_VALUES = [
+  "admin",
+  "admin-report-upload",
+  "admin-health",
+  "admin-clinics",
+  "admin-particular-tokens",
+  "admin-pricing",
+  "admin-sessions",
+  "admin-users-roles",
+  "audit-log",
+  "admin-maintenance",
+] as const;
+
+function parseModuleFromUrl(value: string | null): AdminModule | null {
+  if (!value) return null;
+  return (ADMIN_MODULE_VALUES as readonly string[]).includes(value)
+    ? (value as AdminModule)
+    : null;
+}
 
 type AdminWorkspaceSlots = {
   admin: ReactNode;
@@ -102,14 +122,19 @@ export function AdminDashboardWorkspaceController({
   systemStatusVariant,
 }: AdminDashboardWorkspaceControllerProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeModule, setActiveModule] = useState<AdminModule | null>(
     initialModule ?? null,
   );
 
+  useEffect(() => {
+    setActiveModule(parseModuleFromUrl(searchParams.get("module")));
+  }, [searchParams]);
+
   const activateModule = useCallback(
     (moduleId: AdminModule) => {
       setActiveModule(moduleId);
-      router.replace(`/dashboard/admin?module=${moduleId}`, { scroll: false });
+      router.push(`/dashboard/admin?module=${moduleId}`, { scroll: false });
     },
     [router],
   );

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { cookies } from "next/headers";
 import {
   Table,
@@ -847,24 +848,26 @@ export default async function AdminPage({
             </Badge>
           }
         />
-        <AdminDashboardWorkspaceController
-          initialModule={initialModule}
-          workspaces={{
-            admin: adminWorkspaceSlot,
-            "admin-report-upload": reportUploadWorkspaceSlot,
-            "admin-health": healthWorkspaceSlot,
-            "admin-clinics": clinicsWorkspaceSlot,
-            "admin-particular-tokens": tokensWorkspaceSlot,
-            "admin-pricing": pricingWorkspaceSlot,
-            "admin-sessions": sessionsWorkspaceSlot,
-            "admin-users-roles": usersRolesWorkspaceSlot,
-            "audit-log": auditLogWorkspaceSlot,
-            "admin-maintenance": maintenanceWorkspaceSlot,
-          }}
-          systemStatus={systemStatus}
-          systemStatusLabel={formatSystemStatus(systemStatus)}
-          systemStatusVariant={getSystemStatusVariant(systemStatus)}
-        />
+        <Suspense>
+          <AdminDashboardWorkspaceController
+            initialModule={initialModule}
+            workspaces={{
+              admin: adminWorkspaceSlot,
+              "admin-report-upload": reportUploadWorkspaceSlot,
+              "admin-health": healthWorkspaceSlot,
+              "admin-clinics": clinicsWorkspaceSlot,
+              "admin-particular-tokens": tokensWorkspaceSlot,
+              "admin-pricing": pricingWorkspaceSlot,
+              "admin-sessions": sessionsWorkspaceSlot,
+              "admin-users-roles": usersRolesWorkspaceSlot,
+              "audit-log": auditLogWorkspaceSlot,
+              "admin-maintenance": maintenanceWorkspaceSlot,
+            }}
+            systemStatus={systemStatus}
+            systemStatusLabel={formatSystemStatus(systemStatus)}
+            systemStatusVariant={getSystemStatusVariant(systemStatus)}
+          />
+        </Suspense>
         <div className="h-24 md:hidden" aria-hidden="true" />
       </main>
     </>
