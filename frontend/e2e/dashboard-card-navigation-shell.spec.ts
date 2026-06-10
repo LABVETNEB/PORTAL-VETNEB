@@ -526,7 +526,7 @@ test.describe("clinic dashboard — deep link direct navigation", () => {
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
     ).toBeVisible({ timeout: 5_000 });
-    await expect(page.url()).not.toContain("module=");
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: 5_000 });
   });
 
   test("invalid module query param falls back to clinic hub", async ({ page }) => {
@@ -582,7 +582,7 @@ test.describe("admin dashboard — deep link direct navigation", () => {
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
     ).toBeVisible({ timeout: 5_000 });
-    await expect(page.url()).not.toContain("module=");
+    await expect(page).toHaveURL(/\/dashboard\/admin$/, { timeout: 5_000 });
   });
 
   test("invalid admin module query param falls back to admin hub", async ({ page }) => {
@@ -614,9 +614,11 @@ test.describe("admin dashboard — browser back/forward sync", () => {
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
     ).toBeVisible({ timeout: 5_000 });
+    await expect(page).toHaveURL(/module=admin-clinics/, { timeout: 5_000 });
 
     await page.goBack();
 
+    await expect(page).toHaveURL(/\/dashboard\/admin$/, { timeout: 5_000 });
     await expect(hub).toBeVisible({ timeout: 5_000 });
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
@@ -633,11 +635,14 @@ test.describe("admin dashboard — browser back/forward sync", () => {
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
     ).toBeVisible({ timeout: 5_000 });
+    await expect(page).toHaveURL(/module=admin-clinics/, { timeout: 5_000 });
 
     await page.goBack();
+    await expect(page).toHaveURL(/\/dashboard\/admin$/, { timeout: 5_000 });
     await expect(hub).toBeVisible({ timeout: 5_000 });
 
     await page.goForward();
+    await expect(page).toHaveURL(/module=admin-clinics/, { timeout: 5_000 });
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
     ).toBeVisible({ timeout: 5_000 });

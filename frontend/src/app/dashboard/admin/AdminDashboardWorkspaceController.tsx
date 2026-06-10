@@ -134,7 +134,7 @@ export function AdminDashboardWorkspaceController({
   const activateModule = useCallback(
     (moduleId: AdminModule) => {
       setActiveModule(moduleId);
-      router.replace(`/dashboard/admin?module=${moduleId}`, { scroll: false });
+      router.push(`/dashboard/admin?module=${moduleId}`, { scroll: false });
     },
     [router],
   );
