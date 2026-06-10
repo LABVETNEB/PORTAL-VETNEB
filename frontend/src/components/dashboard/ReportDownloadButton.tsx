@@ -90,6 +90,7 @@ export function ReportFileActions({
           size="sm"
           className="h-8 px-2 text-xs text-primary hover:text-primary"
           disabled={!isAvailable || isLoading}
+          aria-busy={loadingAction === "preview"}
           title={isAvailable ? "Ver informe" : unavailableTitle}
           aria-label={isAvailable ? "Ver informe" : unavailableTitle}
           onClick={() => void openReport("preview")}
@@ -104,6 +105,7 @@ export function ReportFileActions({
           size="sm"
           className="h-8 px-2 text-xs text-primary hover:text-primary"
           disabled={!isAvailable || isLoading}
+          aria-busy={loadingAction === "download"}
           title={isAvailable ? "Descargar informe" : unavailableTitle}
           aria-label={isAvailable ? "Descargar informe" : unavailableTitle}
           onClick={() => void openReport("download")}

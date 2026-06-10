@@ -17,7 +17,7 @@ test("upload report modal is client-side and imports upload dependencies", () =>
   const source = read(UPLOAD_REPORT_MODAL_PATH);
 
   assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes('import { FormEvent, useRef, useState } from "react";'));
+  assert.ok(source.includes('import { FormEvent, useEffect, useId, useRef, useState } from "react";'));
   assert.ok(source.includes('import { useRouter } from "next/navigation";'));
   assert.ok(source.includes('import { Button } from "@/components/ui/button";'));
   assert.ok(source.includes('import { Input } from "@/components/ui/input";'));
