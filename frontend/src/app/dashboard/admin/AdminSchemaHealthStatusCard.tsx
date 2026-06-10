@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -96,7 +97,8 @@ export function AdminSchemaHealthStatusCard() {
             Validación de columnas críticas requeridas por el backend.
           </CardDescription>
         </div>
-        <Button type="button" variant="outline" onClick={loadSchemaHealth} disabled={isPending}>
+        <Button type="button" variant="outline" onClick={loadSchemaHealth} disabled={isPending} aria-busy={isPending ? true : undefined}>
+          {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
           {isPending ? "Consultando..." : "Reintentar"}
         </Button>
       </CardHeader>

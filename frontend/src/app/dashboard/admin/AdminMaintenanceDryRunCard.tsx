@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -115,7 +116,8 @@ export function AdminMaintenanceDryRunCard() {
             Analiza candidatos de limpieza sin borrar registros ni archivos.
           </CardDescription>
         </div>
-        <Button type="button" onClick={handleAnalyze} disabled={isPending}>
+        <Button type="button" onClick={handleAnalyze} disabled={isPending} aria-busy={isPending ? true : undefined}>
+          {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
           {isPending ? "Analizando..." : "Analizar limpieza"}
         </Button>
       </CardHeader>

@@ -948,7 +948,7 @@ export function AdminParticularTokensCard() {
                       <button
                         key={option.id}
                         type="button"
-                        className={`clinical-hover-row flex w-full items-center justify-between gap-2 border-b border-vetneb-line/35 px-3 py-2 text-left text-sm last:border-b-0 ${
+                        className={`dashboard-option-row clinical-hover-row flex w-full items-center justify-between gap-2 border-b border-vetneb-line/35 px-3 py-2 text-left text-sm last:border-b-0 ${
                           String(option.id) === formState.clinicId
                             ? "bg-vetneb-teal/12 text-vetneb-navy shadow-[inset_0_0_0_1px_rgba(16,60,96,0.28)]"
                             : "text-vetneb-ink/88"

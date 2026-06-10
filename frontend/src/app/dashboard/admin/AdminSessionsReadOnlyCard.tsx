@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -158,7 +159,8 @@ export function AdminSessionsReadOnlyCard() {
           </CardDescription>
         </div>
 
-        <Button type="button" onClick={loadSessions} disabled={isPending}>
+        <Button type="button" onClick={loadSessions} disabled={isPending} aria-busy={isPending ? true : undefined}>
+          {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
           {isPending ? "Actualizando..." : "Actualizar"}
         </Button>
       </CardHeader>
@@ -281,8 +283,10 @@ export function AdminSessionsReadOnlyCard() {
                           type="button"
                           variant="outline"
                           disabled={isRevoking || isCurrentAdminSession}
+                          aria-busy={isRevoking ? true : undefined}
                           onClick={() => void handleRevokeSession(session)}
                         >
+                          {isRevoking ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
                           {isCurrentAdminSession
                             ? "Sesión actual"
                             : isRevoking

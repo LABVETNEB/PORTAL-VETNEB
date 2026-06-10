@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -217,7 +218,9 @@ export function AdminUsersRolesReadOnlyCard() {
           type="button"
           onClick={loadUsersRoles}
           disabled={isPending || isMutatingRole}
+          aria-busy={isPending ? true : undefined}
         >
+          {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
           {isPending ? "Actualizando..." : "Actualizar"}
         </Button>
       </CardHeader>

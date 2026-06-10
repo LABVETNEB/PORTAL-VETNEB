@@ -1170,6 +1170,23 @@
   }
 }
 /* dashboard-workspace-layout-polish:end */
+/* dashboard-action-feedback-focus-polish:start */
+@layer components {
+  button[aria-busy="true"],
+  [role="button"][aria-busy="true"] {
+    cursor: wait;
+  }
+
+  button[aria-busy="true"]:disabled,
+  [role="button"][aria-busy="true"]:disabled {
+    opacity: 0.72;
+  }
+
+  .dashboard-option-row {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-55;
+  }
+}
+/* dashboard-action-feedback-focus-polish:end */
 
 
 

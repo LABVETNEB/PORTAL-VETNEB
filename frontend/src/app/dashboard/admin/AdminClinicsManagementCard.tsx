@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
-import { ChevronLeft, ChevronRight, Pencil, Plus, RefreshCw, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Pencil, Plus, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -235,8 +235,8 @@ export function AdminClinicsManagementCard() {
     <Card id="admin-clinics" className="dashboard-surface">
       <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-center lg:justify-between">
         <CardTitle className="text-base">Clínicas</CardTitle>
-        <Button type="button" onClick={() => loadClinics()} disabled={isBusy}>
-          <RefreshCw aria-hidden="true" />
+        <Button type="button" onClick={() => loadClinics()} disabled={isBusy} aria-busy={isPending ? true : undefined}>
+          {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
           {isPending ? "Actualizando..." : "Actualizar"}
         </Button>
       </CardHeader>
@@ -322,8 +322,8 @@ export function AdminClinicsManagementCard() {
           </div>
 
           <div className="flex items-end">
-            <Button type="submit" className="w-full" disabled={isBusy}>
-              <Plus aria-hidden="true" />
+            <Button type="submit" className="w-full" disabled={isBusy} aria-busy={activeActionKey === "create-clinic" ? true : undefined}>
+              {activeActionKey === "create-clinic" ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
               {activeActionKey === "create-clinic" ? "Creando..." : "Crear clínica"}
             </Button>
           </div>
