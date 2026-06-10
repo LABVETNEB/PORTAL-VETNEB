@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -433,7 +434,9 @@ export function AdminPricingEditorCard() {
             type="button"
             onClick={() => void loadPricing()}
             disabled={isLoading || savingItemId !== null || isSavingAll}
+            aria-busy={isLoading ? true : undefined}
           >
+            {isLoading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
             {isLoading ? "Actualizando..." : "Actualizar"}
           </Button>
         </div>

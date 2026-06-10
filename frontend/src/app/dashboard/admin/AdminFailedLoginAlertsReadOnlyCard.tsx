@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { Loader2 } from "lucide-react";
 import { PublicExternalControl } from "@/components/public/PublicRouteControl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -161,7 +162,9 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
             type="button"
             onClick={loadFailedLoginAlerts}
             disabled={isPending}
+            aria-busy={isPending ? true : undefined}
           >
+            {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
             {isPending ? "Actualizando..." : "Actualizar"}
           </Button>
         </div>

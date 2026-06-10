@@ -90,7 +90,7 @@ test("admin maintenance dry-run card renders safe title description and trigger"
 
   assert.ok(source.includes("Mantenimiento seguro dry-run"));
   assert.ok(source.includes("Analiza candidatos de limpieza sin borrar registros ni archivos."));
-  assert.ok(source.includes('<Button type="button" onClick={handleAnalyze} disabled={isPending}>'));
+  assert.ok(source.includes('<Button type="button" onClick={handleAnalyze} disabled={isPending} aria-busy={isPending ? true : undefined}>'));
   assert.ok(source.includes('isPending ? "Analizando..." : "Analizar limpieza"'));
 });
 
