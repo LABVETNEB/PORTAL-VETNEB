@@ -1207,6 +1207,28 @@
   }
 }
 /* dashboard-filters-forms-density-polish:end */
+/* dashboard-tables-cards-consistency-polish:start */
+@layer components {
+  /* Unified pagination footer row — used by all dashboard table cards */
+  .dashboard-table-pagination {
+    @apply flex flex-col gap-2 md:flex-row md:items-center md:justify-between;
+  }
+
+  .dashboard-table-pagination-controls {
+    @apply flex items-center gap-2;
+  }
+
+  /* Consistent card header border divider — all admin/clinic/report dashboard cards */
+  .dashboard-card-header-border {
+    @apply border-b border-vetneb-line/70;
+  }
+
+  /* Stats grid 5-col variant for user/roles panel */
+  .dashboard-filter-stats-grid-5 {
+    @apply grid grid-cols-1 gap-3 md:grid-cols-5;
+  }
+}
+/* dashboard-tables-cards-consistency-polish:end */
 
 
 
