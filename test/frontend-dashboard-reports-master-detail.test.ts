@@ -117,7 +117,9 @@ test("dashboard informes composes master-detail, selected report detail, timelin
   assert.ok(source.includes("<StudyTimeline steps={selectedReportTimelineSteps} />"));
   assert.ok(source.includes("buildStudyTimelineSteps(selectedReport)"));
   assert.ok(source.includes("const selectedReport ="));
-  assert.ok(source.includes("reports.find((report) => report.id === selectedReportId) ?? reports[0] ?? null"));
+  assert.ok(source.includes("selectedReportId === null"));
+  assert.ok(source.includes("? (reports[0] ?? null)"));
+  assert.ok(source.includes(": (reports.find((report) => report.id === selectedReportId) ?? null)"));
   assert.ok(source.includes("const stickyActions = ["));
   assert.ok(source.includes('label: "Lista"'));
   assert.ok(source.includes('href: "#reports-master-list"'));
@@ -176,6 +178,15 @@ test("dashboard informes pagination does not use client-side filter", () => {
   assert.ok(source.includes("const offset = (page - 1) * REPORTS_PAGE_SIZE"));
   assert.equal(source.includes("reports.slice("), false);
   assert.equal(source.includes("reports.filter("), false);
+});
+
+test("dashboard informes reportId null selects first report by default without silent fallback", () => {
+  const source = read(INFORMES_PAGE_PATH);
+
+  assert.ok(source.includes("selectedReportId === null"));
+  assert.ok(source.includes("? (reports[0] ?? null)"));
+  assert.ok(source.includes(": (reports.find((report) => report.id === selectedReportId) ?? null)"));
+  assert.equal(source.includes("?? reports[0] ?? null"), false);
 });
 
 test("dashboard informes master-detail scope avoids forbidden navigation and dependency changes", () => {

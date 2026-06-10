@@ -173,6 +173,15 @@ test("dashboard informes page includes back navigation to modules hub", () => {
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
 });
 
+test("dashboard informes filter form includes studyType input to preserve it on submit", () => {
+  const source = read(INFORMES_PAGE_PATH);
+
+  assert.ok(source.includes('name="studyType"'));
+  assert.ok(source.includes("defaultValue={studyType}"));
+  assert.ok(source.includes('aria-label="Filtrar por tipo de estudio"'));
+  assert.ok(source.includes('placeholder="Filtrar por tipo de estudio..."'));
+});
+
 test("api client supports reports status filter without bypassing wrappers", () => {
   const source = read(API_CLIENT_PATH);
 

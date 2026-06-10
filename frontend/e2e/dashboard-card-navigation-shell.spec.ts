@@ -496,6 +496,154 @@ test.describe("admin shell — no global scroll", () => {
   });
 });
 
+// ─── Clinic dashboard — deep link direct navigation ──────────────────────────
+
+test.describe("clinic dashboard — deep link direct navigation", () => {
+  test.beforeEach(async ({ page }) => {
+    await setClinicSession(page);
+  });
+
+  test("/dashboard?module=operaciones opens Centro de operaciones workspace directly", async ({ page }) => {
+    await page.goto("/dashboard?module=operaciones");
+
+    await expect(
+      page.locator('[data-dashboard-module-workspace="operaciones"]'),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(
+      page.locator('[data-dashboard-module-hub="true"]'),
+    ).not.toBeVisible();
+  });
+
+  test("Volver a módulos from clinic deep link clears query and returns to hub", async ({ page }) => {
+    await page.goto("/dashboard?module=operaciones");
+
+    await expect(
+      page.locator('[data-dashboard-module-workspace="operaciones"]'),
+    ).toBeVisible({ timeout: 8_000 });
+
+    await page.getByRole("button", { name: "Volver a módulos" }).click();
+
+    await expect(
+      page.locator('[data-dashboard-module-hub="true"]'),
+    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.url()).not.toContain("module=");
+  });
+
+  test("invalid module query param falls back to clinic hub", async ({ page }) => {
+    await page.goto("/dashboard?module=modulo-invalido-xyz");
+
+    await expect(
+      page.locator('[data-dashboard-module-hub="true"]'),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(
+      page.locator('[data-dashboard-module-workspace]'),
+    ).not.toBeVisible();
+  });
+});
+
+// ─── Admin dashboard — deep link direct navigation ────────────────────────────
+
+test.describe("admin dashboard — deep link direct navigation", () => {
+  test.beforeEach(async ({ page }) => {
+    await setAdminSession(page);
+  });
+
+  test("/dashboard/admin?module=admin-clinics opens Clínicas workspace directly", async ({ page }) => {
+    await page.goto("/dashboard/admin?module=admin-clinics");
+
+    await expect(
+      page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(
+      page.locator('[data-dashboard-module-hub="true"]'),
+    ).not.toBeVisible();
+  });
+
+  test("/dashboard/admin?module=audit-log opens Auditoría workspace directly", async ({ page }) => {
+    await page.goto("/dashboard/admin?module=audit-log");
+
+    await expect(
+      page.locator('[data-dashboard-module-workspace="audit-log"]'),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(
+      page.locator('[data-dashboard-module-hub="true"]'),
+    ).not.toBeVisible();
+  });
+
+  test("Volver a módulos from admin deep link clears query and returns to admin hub", async ({ page }) => {
+    await page.goto("/dashboard/admin?module=admin-clinics");
+
+    await expect(
+      page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
+    ).toBeVisible({ timeout: 8_000 });
+
+    await page.getByRole("button", { name: "Volver a módulos" }).click();
+
+    await expect(
+      page.locator('[data-dashboard-module-hub="true"]'),
+    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.url()).not.toContain("module=");
+  });
+
+  test("invalid admin module query param falls back to admin hub", async ({ page }) => {
+    await page.goto("/dashboard/admin?module=modulo-invalido-xyz");
+
+    await expect(
+      page.locator('[data-dashboard-module-hub="true"]'),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(
+      page.locator('[data-dashboard-module-workspace]'),
+    ).not.toBeVisible();
+  });
+});
+
+// ─── Admin dashboard — browser back/forward sync ─────────────────────────────
+
+test.describe("admin dashboard — browser back/forward sync", () => {
+  test.beforeEach(async ({ page }) => {
+    await setAdminSession(page);
+  });
+
+  test("browser back from admin workspace returns to admin hub", async ({ page }) => {
+    await page.goto("/dashboard/admin");
+
+    const hub = page.locator('[data-dashboard-module-hub="true"]');
+    await expect(hub).toBeVisible({ timeout: 8_000 });
+    await hubCard(hub, "Clínicas").click();
+
+    await expect(
+      page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
+    ).toBeVisible({ timeout: 5_000 });
+
+    await page.goBack();
+
+    await expect(hub).toBeVisible({ timeout: 5_000 });
+    await expect(
+      page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
+    ).not.toBeVisible();
+  });
+
+  test("browser forward after back restores admin workspace", async ({ page }) => {
+    await page.goto("/dashboard/admin");
+
+    const hub = page.locator('[data-dashboard-module-hub="true"]');
+    await expect(hub).toBeVisible({ timeout: 8_000 });
+    await hubCard(hub, "Clínicas").click();
+
+    await expect(
+      page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
+    ).toBeVisible({ timeout: 5_000 });
+
+    await page.goBack();
+    await expect(hub).toBeVisible({ timeout: 5_000 });
+
+    await page.goForward();
+    await expect(
+      page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
+    ).toBeVisible({ timeout: 5_000 });
+  });
+});
+
 // ─── Sidebar rail compacto ────────────────────────────────────────────────────
 
 test.describe("dashboard sidebar — compact rail", () => {

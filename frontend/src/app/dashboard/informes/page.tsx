@@ -295,7 +295,9 @@ export default async function InformesPage({
   const pageEnd = Math.min(offset + reports.length, reportsTotal);
 
   const selectedReport =
-    reports.find((report) => report.id === selectedReportId) ?? reports[0] ?? null;
+    selectedReportId === null
+      ? (reports[0] ?? null)
+      : (reports.find((report) => report.id === selectedReportId) ?? null);
   const selectedReportIdValue = selectedReport ? String(selectedReport.id) : null;
   const selectedReportTimelineSteps = selectedReport
     ? buildStudyTimelineSteps(selectedReport)
@@ -406,6 +408,19 @@ export default async function InformesPage({
                       </option>
                     ))}
                   </select>
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-semibold text-vetneb-ink">
+                    Tipo de estudio
+                  </span>
+                  <Input
+                    name="studyType"
+                    defaultValue={studyType}
+                    placeholder="Filtrar por tipo de estudio..."
+                    className="mt-1 min-w-0"
+                    aria-label="Filtrar por tipo de estudio"
+                  />
                 </label>
 
                 <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">

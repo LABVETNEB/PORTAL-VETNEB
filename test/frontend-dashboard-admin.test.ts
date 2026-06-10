@@ -292,6 +292,31 @@ test("dashboard admin distinguishes audit log load failures from empty states", 
   assert.equal(source.includes("fetch("), false);
 });
 
+test("AdminDashboardWorkspaceController syncs module from URL with useSearchParams and useEffect", () => {
+  const source = readFileSync(
+    resolve(process.cwd(), "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx"),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+
+  assert.ok(source.includes('useSearchParams'));
+  assert.ok(source.includes('useEffect'));
+  assert.ok(source.includes('const ADMIN_MODULE_VALUES = ['));
+  assert.ok(source.includes('function parseModuleFromUrl(value: string | null): AdminModule | null'));
+  assert.ok(source.includes('searchParams.get("module")'));
+  assert.ok(source.includes('setActiveModule(parseModuleFromUrl(searchParams.get("module")));'));
+  assert.ok(source.includes('[searchParams]'));
+  assert.ok(source.includes('from "next/navigation"'));
+  assert.ok(source.includes('useRouter, useSearchParams'));
+});
+
+test("admin page wraps AdminDashboardWorkspaceController in Suspense for useSearchParams", () => {
+  const source = read(ADMIN_PAGE_PATH);
+
+  assert.ok(source.includes('<Suspense>'));
+  assert.ok(source.includes('</Suspense>'));
+  assert.ok(source.includes('import { Suspense } from "react";'));
+});
+
 test("dashboard admin avoids duplicate section ids in navigation anchors", () => {
   const source = read(ADMIN_PAGE_PATH);
   const adminHealthIdMatches = source.match(/id="admin-health"/g) ?? [];
