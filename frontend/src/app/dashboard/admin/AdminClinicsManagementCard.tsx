@@ -28,6 +28,8 @@ import {
   updateAdminClinicUserCredentials,
 } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
+import { EmptyState } from "@/components/dashboard/EmptyState";
+import { LoadingState } from "@/components/dashboard/LoadingState";
 import type {
   AdminClinicManagementSummary,
   AdminClinicsSnapshot,
@@ -459,14 +461,35 @@ export function AdminClinicsManagementCard() {
                     </TableCell>
                   </TableRow>
                 ))
+              ) : isPending ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="p-3">
+                    <LoadingState
+                      variant="table"
+                      compact
+                      rows={3}
+                      className="border-0 bg-transparent shadow-none rounded-none"
+                    />
+                  </TableCell>
+                </TableRow>
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="clinical-table-state">
-                    {isPending
-                      ? "Cargando clínicas..."
-                      : searchQuery.trim()
-                        ? `No hay clínicas que coincidan con "${searchQuery}".`
-                        : "No hay clínicas para mostrar."}
+                    {searchQuery.trim() ? (
+                      <EmptyState
+                        title={`Sin resultados para "${searchQuery}"`}
+                        description="No hay clínicas que coincidan con la búsqueda."
+                        size="sm"
+                        className="border-0 bg-transparent"
+                      />
+                    ) : (
+                      <EmptyState
+                        title="Sin clínicas"
+                        description="No hay clínicas para mostrar."
+                        size="sm"
+                        className="border-0 bg-transparent"
+                      />
+                    )}
                   </TableCell>
                 </TableRow>
               )}

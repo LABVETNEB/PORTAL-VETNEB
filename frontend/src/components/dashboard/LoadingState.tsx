@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export type LoadingStateProps = {
-  variant?: "table" | "cards" | "detail" | "timeline";
+  variant?: "table" | "cards" | "detail" | "timeline" | "list";
   rows?: number;
   label?: string;
   compact?: boolean;
@@ -101,6 +101,35 @@ export function LoadingState({
               <Skeleton className="h-4 w-40" />
               <Skeleton className="h-3 w-full max-w-md" />
             </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (variant === "list") {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        className={cn(compact ? "space-y-2" : "space-y-3", className)}
+      >
+        <span className="sr-only">{loadingLabel}</span>
+        {items.map((_, index) => (
+          <div
+            key={index}
+            className={cn(
+              "flex items-center gap-3 rounded-md border border-vetneb-line/75 bg-card/92",
+              compact ? "p-2.5" : "p-3",
+            )}
+          >
+            <Skeleton className="h-8 w-8 shrink-0 rounded-md" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-3.5 w-2/3" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+            <Skeleton className="h-5 w-14 shrink-0 rounded-full" />
           </div>
         ))}
       </div>

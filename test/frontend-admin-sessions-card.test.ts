@@ -133,12 +133,9 @@ test("admin sessions card renders rows actions empty state and pagination", () =
   assert.ok(source.includes("onClick={() => void handleRevokeSession(session)}"));
   assert.ok(source.includes('"Revocando..."'));
   assert.ok(source.includes('"Revocar"'));
-  assert.ok(
-    source.includes(
-      'isPending\n                      ? "Cargando sesiones..."\n                      : error',
-    ),
-  );
-  assert.ok(source.includes('                        ? "No se pudieron cargar las sesiones."'));
+  assert.ok(source.includes("isPending ?"));
+  assert.ok(source.includes("LoadingState"));
+  assert.ok(source.includes('"No se pudieron cargar las sesiones."'));
   assert.ok(source.includes("No hay sesiones para los filtros seleccionados."));
   assert.ok(source.includes("const hasPreviousPage = offset > 0;"));
   assert.ok(source.includes("const hasNextPage = snapshot"));

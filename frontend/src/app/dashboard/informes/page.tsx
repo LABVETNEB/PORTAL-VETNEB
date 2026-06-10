@@ -40,6 +40,7 @@ import {
   type PaginatedReports,
 } from "@/lib/api";
 import {
+  cn,
   getReportStatusLabel,
   getReportStatusVariant,
   formatDate,
@@ -461,7 +462,7 @@ export default async function InformesPage({
                       <TableHead>ID</TableHead>
                       <TableHead>Paciente</TableHead>
                       <TableHead>Tipo de estudio</TableHead>
-                      <TableHead>Clínica</TableHead>
+                      <TableHead className="hidden lg:table-cell">Clínica</TableHead>
                       <TableHead>Fecha</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
@@ -490,7 +491,7 @@ export default async function InformesPage({
                           <TableRow
                             key={report.id}
                             id={`report-${report.id}`}
-                            className={isSelected ? "bg-vetneb-cyan/10" : undefined}
+                            className={cn("dashboard-row-interactive", isSelected && "bg-vetneb-cyan/10 dashboard-table-row-selected")}
                           >
                             <TableCell className="font-mono text-xs text-muted-foreground">
                               #{report.id}
@@ -501,7 +502,7 @@ export default async function InformesPage({
                             <TableCell className="text-vetneb-ink/75">
                               {report.studyType ?? "—"}
                             </TableCell>
-                            <TableCell className="text-sm text-vetneb-ink/75">
+                            <TableCell className="hidden text-sm text-vetneb-ink/75 lg:table-cell">
                               {report.clinicName ?? `Clínica #${report.clinicId}`}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">

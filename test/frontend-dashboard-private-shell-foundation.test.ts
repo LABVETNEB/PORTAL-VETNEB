@@ -91,16 +91,17 @@ test("empty state renders title description action and optional lucide icon", ()
   assert.ok(source.includes('aria-hidden="true"'));
 });
 
-test("loading state renders table cards detail and timeline variants with skeletons", () => {
+test("loading state renders table cards detail timeline and list variants with skeletons", () => {
   const source = read(LOADING_STATE_PATH);
 
   assert.ok(source.includes('import { Skeleton } from "@/components/ui/skeleton";'));
-  assert.ok(source.includes('variant?: "table" | "cards" | "detail" | "timeline";'));
+  assert.ok(source.includes('variant?: "table" | "cards" | "detail" | "timeline" | "list";'));
   assert.ok(source.includes("rows?: number;"));
   assert.ok(source.includes('variant = "cards"'));
   assert.ok(source.includes('if (variant === "table")'));
   assert.ok(source.includes('if (variant === "detail")'));
   assert.ok(source.includes('if (variant === "timeline")'));
+  assert.ok(source.includes('if (variant === "list")'));
   assert.ok(source.includes('aria-busy="true"'));
   assert.ok(source.includes("getRows(rows)"));
 });
