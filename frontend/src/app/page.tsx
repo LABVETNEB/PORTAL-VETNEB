@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import {
+  ArrowRight,
   ClipboardCheck,
   FileText,
   FlaskConical,
@@ -132,7 +133,7 @@ const benefits = [
 export default function HomePage() {
   return (
     <PublicLayout>
-      {/* Hero */}
+      {/* Hero — evidence-first */}
       <section
         className="relative isolate overflow-hidden text-white"
         aria-labelledby="hero-heading"
@@ -148,70 +149,173 @@ export default function HomePage() {
           />
         </div>
         <div
-          className="absolute inset-0 bg-[linear-gradient(110deg,hsl(var(--vetneb-navy)/0.84),hsl(var(--vetneb-navy)/0.66)_45%,hsl(var(--vetneb-teal)/0.42)_100%)]"
+          className="absolute inset-0 bg-[linear-gradient(110deg,hsl(var(--vetneb-navy)/0.90),hsl(var(--vetneb-navy)/0.74)_45%,hsl(var(--vetneb-teal)/0.50)_100%)]"
           aria-hidden="true"
         />
-        <div className="relative container mx-auto flex min-h-[calc(100vh-4.5rem)] items-center px-4 py-16 sm:px-6 lg:px-8">
-          <div className="grid w-full items-center gap-10">
-            <div className="max-w-5xl">
+        <div className="relative container mx-auto px-4 py-12 sm:py-14 sm:px-6 md:py-16 lg:py-20 lg:px-8">
+          <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
+
+            {/* Columna izquierda — copy, firma y CTAs */}
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground/72">
+                Anatomía Patológica Veterinaria
+              </p>
+
               <h1
                 id="hero-heading"
-                className="mt-2 max-w-none text-[clamp(1.85rem,4.6vw,3.75rem)] font-bold uppercase leading-[0.94] tracking-[0.045em] text-primary-foreground"
+                className="max-w-2xl text-[clamp(1.75rem,4vw,3rem)] font-bold leading-[1.06] tracking-[-0.01em] text-primary-foreground"
               >
-                SERVICIO PATOLÓGICO VETNEB
+                Diagnóstico anatomopatológico veterinario con trazabilidad de muestra a informe
               </h1>
-              <p className="mt-6 max-w-2xl text-xl font-medium leading-tight text-primary-foreground/94 md:text-2xl lg:text-3xl">
-                Diagnóstico patológico veterinario con criterio clínico y
-                trazabilidad integral
-              </p>
-              <p className="mt-5 max-w-2xl text-sm leading-relaxed text-primary-foreground/92 md:text-base">
-                Anatomía patológica, citología y tinciones especiales con
-                seguimiento continuo para clínicas y profesionales en una
-                superficie institucional y confiable.
-              </p>
-              <p className="mt-4 text-sm font-medium text-primary-foreground/86 md:text-base">
-                Dr. BARBÉ, NICOLÁS E.
+
+              <p className="mt-5 max-w-xl text-base leading-relaxed text-primary-foreground/88 sm:text-lg">
+                Histopatología, citología y tinciones especiales con criterio clínico-patológico
+                y seguimiento completo para clínicas y profesionales.
               </p>
 
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <PublicRouteControl
-                  href={ROUTES.login}
-                  variant="primaryDark"
-                  className="public-cta-primary w-full sm:w-auto"
-                >
-                  Acceder a informes y trazabilidad
-                </PublicRouteControl>
-                <PublicRouteControl
-                  href={ROUTES.particulares}
-                  variant="secondaryOutline"
-                  className="public-cta-on-hero w-full text-vetneb-navy hover:text-vetneb-navy active:text-vetneb-navy focus-visible:text-vetneb-navy sm:w-auto"
-                >
-                  Consultar informes 24 hs
-                </PublicRouteControl>
+              {/* Firma profesional */}
+              <div className="mt-5 flex w-fit items-center gap-3 rounded-lg border border-white/22 bg-white/[0.08] px-4 py-2.5">
+                <Microscope className="h-5 w-5 shrink-0 text-primary-foreground/72" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-bold leading-tight text-primary-foreground">
+                    Dr. Nicolás E. Barbé
+                  </p>
+                  <p className="text-xs text-primary-foreground/72">
+                    Médico veterinario patólogo · Responsable de diagnóstico
+                  </p>
+                </div>
               </div>
 
-              <div className="clinical-muted-band mt-7 w-fit max-w-full rounded-lg px-4 py-3 text-vetneb-navy">
-                <p className="text-sm font-semibold">
-                  Consultá los resultados de sus informes las 24 hs.
-                </p>
-                <p className="mt-1 text-xs text-vetneb-navy/90">
-                  Horario de atención Lunes a viernes de 8 a 17hs
-                </p>
-                <p className="mt-1 text-xs">
-                  <PublicExternalControl
-                    href="https://wa.me/5493534138946"
-                    target="_blank"
-                    className="font-semibold underline decoration-vetneb-navy/55 underline-offset-4 transition hover:text-vetneb-teal"
-                  >
-                    Whatsapp: 3534138946
-                  </PublicExternalControl>
-                </p>
+              {/* CTAs — action tiles */}
+              <div className="public-hero-action-grid">
+                <PublicRouteControl
+                  href={ROUTES.login}
+                  variant="bare"
+                  className="public-hero-action-tile"
+                >
+                  <p className="public-hero-action-tile-label">Portal de informes</p>
+                  <div className="public-hero-action-tile-title">
+                    Acceder al portal
+                    <ArrowRight className="public-hero-action-tile-arrow h-4 w-4" aria-hidden="true" />
+                  </div>
+                  <p className="public-hero-action-tile-copy">
+                    Para clínicas y profesionales con acceso a VETNEB.
+                  </p>
+                </PublicRouteControl>
+
+                <PublicRouteControl
+                  href={ROUTES.particulares}
+                  variant="bare"
+                  className="public-hero-action-tile"
+                >
+                  <p className="public-hero-action-tile-label">Particulares</p>
+                  <div className="public-hero-action-tile-title">
+                    Seguir con código
+                    <ArrowRight className="public-hero-action-tile-arrow h-4 w-4" aria-hidden="true" />
+                  </div>
+                  <p className="public-hero-action-tile-copy">
+                    Consultá el estado de tu muestra las 24 h con tu código privado.
+                  </p>
+                </PublicRouteControl>
               </div>
             </div>
 
+            {/* Columna derecha — mock de informe + mini timeline (solo lg+) */}
+            <div className="hidden lg:flex lg:flex-col lg:gap-4" aria-hidden="true">
+
+              {/* Mock de informe — 100% ficticio, rotulado MUESTRA / DEMOSTRATIVO */}
+              <div className="overflow-hidden rounded-xl border border-white/18 bg-white/[0.07] backdrop-blur-sm">
+                <div className="flex items-center gap-2 border-b border-white/14 bg-amber-400/20 px-4 py-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-200">⚠</span>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-100/90">
+                    Muestra · Demostrativo — No es un informe real
+                  </span>
+                </div>
+                <div className="space-y-3 px-4 py-3">
+                  <div className="border-b border-white/12 pb-2">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-primary-foreground/90">
+                      Informe Anatomopatológico
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-primary-foreground/56">
+                      N° VT-0000-000 · Canino · Biopsia incisional
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.10em] text-primary-foreground/50">
+                      Diagnóstico
+                    </p>
+                    <p className="mt-0.5 text-xs font-semibold leading-snug text-primary-foreground/90">
+                      Mastocitoma de grado II (Patnaik)
+                    </p>
+                    <p className="text-[10px] text-primary-foreground/60">
+                      Margen libre — ≥ 3 mm
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.10em] text-primary-foreground/50">
+                      Hallazgos microscópicos
+                    </p>
+                    <p className="mt-0.5 text-[10px] leading-relaxed text-primary-foreground/66">
+                      Proliferación de mastocitos con granulación moderada. Sin figuras mitóticas.
+                      Estroma fibrovascular leve.
+                    </p>
+                  </div>
+                  <div className="border-t border-white/12 pt-2">
+                    <p className="text-[10px] font-semibold text-primary-foreground/80">
+                      Dr. N. E. Barbé · MV Patólogo
+                    </p>
+                    <p className="text-[9px] text-primary-foreground/44">
+                      VETNEB Laboratorio Patológico Veterinario
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mini timeline de etapas */}
+              <div className="rounded-xl border border-white/14 bg-white/[0.05] px-4 py-3">
+                <p className="mb-2.5 text-[9px] font-semibold uppercase tracking-[0.20em] text-primary-foreground/50">
+                  Flujo de diagnóstico
+                </p>
+                <ol className="space-y-2.5">
+                  {([
+                    { step: "Recepción", desc: "Muestra recibida e identificada" },
+                    { step: "Procesamiento", desc: "Fijación, inclusión y corte histológico" },
+                    { step: "Evaluación", desc: "Microscopía e interpretación patológica" },
+                    { step: "Informe emitido", desc: "Diagnóstico disponible en el portal" },
+                  ] as const).map((item, i) => (
+                    <li key={item.step} className="flex items-start gap-2.5">
+                      <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/18 text-[9px] font-bold text-primary-foreground">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-primary-foreground/88">{item.step}</p>
+                        <p className="text-[10px] leading-tight text-primary-foreground/58">{item.desc}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+            </div>
           </div>
         </div>
       </section>
+
+      {/* Banda utilitaria compacta — fuera del hero */}
+      <div className="border-b border-vetneb-line/70 bg-vetneb-surface-muted/60 py-2.5 sm:py-3">
+        <div className="container mx-auto flex flex-col gap-1.5 px-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 lg:px-8">
+          <p className="text-sm font-semibold text-vetneb-navy">
+            Resultados disponibles las 24 hs · Atención de lunes a viernes de 8 a 17 h
+          </p>
+          <PublicExternalControl
+            href="https://wa.me/5493534138946"
+            target="_blank"
+            className="text-sm font-semibold text-vetneb-navy underline decoration-vetneb-navy/55 underline-offset-4 transition hover:text-vetneb-teal"
+          >
+            WhatsApp: 3534138946
+          </PublicExternalControl>
+        </div>
+      </div>
 
       <div className="public-soft-canvas">
         <section

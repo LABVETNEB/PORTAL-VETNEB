@@ -121,17 +121,14 @@ test("no internal visual navigation uses Button asChild + Link", () => {
 test("home hero CTAs use PublicRouteControl with explicit visible text class", () => {
   const source = read(HOME_PATH);
 
+  // PR-10 — action tiles reemplazan los CTAs button-style del hero
   assert.equal(source.includes("<Link"), false);
   assert.ok(source.includes("<PublicRouteControl"));
-  assert.ok(source.includes("Acceder a informes y trazabilidad"));
-  assert.ok(source.includes("Consultar informes 24 hs"));
+  assert.ok(source.includes("Acceder al portal"));
+  assert.ok(source.includes("Seguir con código"));
   assert.ok(source.includes("href={ROUTES.login}"));
   assert.ok(source.includes("href={ROUTES.particulares}"));
-  assert.ok(
-    source.includes(
-      'className="public-cta-on-hero w-full text-vetneb-navy hover:text-vetneb-navy active:text-vetneb-navy focus-visible:text-vetneb-navy sm:w-auto"',
-    ),
-  );
+  assert.ok(source.includes("public-hero-action-tile"));
 });
 
 test("PublicExternalControl covers WhatsApp, mailto and external map surfaces", () => {

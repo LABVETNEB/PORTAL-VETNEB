@@ -185,6 +185,7 @@ test("public diagnostic service cards avoid native title tooltips", () => {
 test("public home page keeps polished visual hierarchy and responsive sections", () => {
   const source = read(HOME_PAGE_PATH);
 
+  // PR-10 — evidence-first hero: contratos actualizados
   assertContainsAll(
     source,
     [
@@ -195,8 +196,8 @@ test("public home page keeps polished visual hierarchy and responsive sections",
       'aria-labelledby="cta-heading"',
       'src="/images/hero-microscope-vetneb.webp"',
       'sizes="100vw"',
-      "bg-[linear-gradient(110deg,hsl(var(--vetneb-navy)/0.84),hsl(var(--vetneb-navy)/0.66)_45%,hsl(var(--vetneb-teal)/0.42)_100%)]",
-      "Consultá los resultados de sus informes las 24 hs.",
+      "bg-[linear-gradient(110deg,hsl(var(--vetneb-navy)/0.90),hsl(var(--vetneb-navy)/0.74)_45%,hsl(var(--vetneb-teal)/0.50)_100%)]",
+      "Resultados disponibles las 24 hs",
       'href="https://wa.me/5493534138946"',
       "services.map((service) =>",
       "benefits.map((benefit) =>",
@@ -209,10 +210,9 @@ test("public home page keeps polished visual hierarchy and responsive sections",
     source,
     [
       /className="relative isolate overflow-hidden text-white"/,
-      /className="relative container mx-auto flex min-h-\[calc\(100vh-4\.5rem\)\] items-center px-4 py-16 sm:px-6 lg:px-8"/,
-      /className=\"mt-2 max-w-none text-\[clamp\(1\.85rem,4\.6vw,3\.75rem\)\] font-bold uppercase leading-\[0\.94\] tracking-\[0\.045em\] text-primary-foreground\"/,
-      /className="mt-6 max-w-2xl text-xl font-medium leading-tight text-primary-foreground\/94 md:text-2xl lg:text-3xl"/,
-      /className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center"/,
+      /className="relative container mx-auto px-4 py-12/,
+      /className="grid grid-cols-1 items-start gap-10 lg:grid-cols-\[/,
+      /className="public-hero-action-grid"/,
       /className="public-soft-canvas"/,
       /className="py-16 md:py-20"/,
       /className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4"/,
