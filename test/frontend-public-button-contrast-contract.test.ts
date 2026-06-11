@@ -113,12 +113,8 @@ test("public pages use CTA contract classes and avoid low-contrast transparent h
     assert.ok(source.includes("public-cta-"));
   }
 
-  assert.ok(home.includes("public-cta-on-hero"));
-  assert.ok(
-    home.includes(
-      'className="public-cta-on-hero w-full text-vetneb-navy hover:text-vetneb-navy active:text-vetneb-navy focus-visible:text-vetneb-navy sm:w-auto"',
-    ),
-  );
+  // PR-10 — home hero usa action tiles; public-cta-on-hero se mantiene en clínicas
+  assert.ok(home.includes("public-hero-action-tile") || home.includes("public-cta-on-hero"));
   assert.ok(clinicas.includes("public-cta-on-hero"));
   assert.equal(home.includes("bg-white/10 text-white"), false);
   assert.equal(clinicas.includes("bg-white/10 font-semibold text-white"), false);

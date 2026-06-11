@@ -43,34 +43,36 @@ test("home page defines public metadata — organization JSON-LD is emitted by r
 test("home page exposes accessible hero and primary CTAs", () => {
   const source = read(HOME_PAGE_PATH);
 
+  // Estructura base del hero
   assert.ok(source.includes('aria-labelledby="hero-heading"'));
   assert.ok(source.includes('id="hero-heading"'));
   assert.ok(source.includes('src="/images/hero-microscope-vetneb.webp"'));
   assert.ok(source.includes('import Image from "next/image";'));
-  assert.ok(source.includes("SERVICIO PATOLÓGICO VETNEB"));
   assert.ok(source.includes("VETNEB"));
-  assert.ok(source.includes("Diagnóstico patológico veterinario con criterio clínico y"));
-  assert.ok(source.includes("trazabilidad integral"));
-  assert.ok(source.includes("Dr. BARBÉ, NICOLÁS E."));
-  assert.ok(source.includes("Acceder a informes y trazabilidad"));
-  assert.ok(source.includes("Consultá los resultados de sus informes las 24 hs."));
-  assert.ok(source.includes("clinical-muted-band mt-7 w-fit max-w-full"));
+
+  // PR-10 — evidence-first hero
+  assert.ok(source.includes("anatomopatológico"));
+  assert.ok(source.includes("Dr. Nicolás E. Barbé"));
+  assert.ok(source.includes("Médico veterinario patólogo"));
+  assert.ok(source.includes("Responsable de diagnóstico"));
+  assert.ok(source.includes("Acceder al portal"));
+  assert.ok(source.includes("Seguir con código"));
+  assert.ok(source.includes("public-hero-action-grid"));
+  assert.ok(source.includes("public-hero-action-tile"));
+  assert.ok(source.includes("Resultados disponibles las 24 hs"));
+  assert.ok(source.includes("WhatsApp: 3534138946"));
+  assert.ok(source.includes("<PublicExternalControl"));
+  assert.ok(source.includes('href="https://wa.me/5493534138946"'));
+  assert.ok(source.includes('target="_blank"'));
+  assert.ok(source.includes('href={ROUTES.login}'));
+  assert.ok(source.includes('href={ROUTES.particulares}'));
+
+  // Contratos de accesibilidad y no-regresión
+  assert.equal(/<a\b/.test(source), false);
   assert.equal(source.includes("inline-flex w-fit flex-col rounded-md border border-white/30"), false);
   assert.equal(source.includes("text-[0.62rem]"), false);
   assert.equal(source.includes("border-t border-white/35"), false);
   assert.equal(source.includes("premium-card p-6"), false);
-  assert.ok(source.includes("Horario de atención Lunes a viernes de 8 a 17hs"));
-  assert.ok(source.includes("Whatsapp: 3534138946"));
-  assert.ok(source.includes("<PublicExternalControl"));
-  assert.ok(source.includes('href="https://wa.me/5493534138946"'));
-  assert.ok(source.includes('target="_blank"'));
-  assert.equal(/<a\b/.test(source), false);
-  assert.ok(source.includes('href={ROUTES.login}'));
-  assert.ok(
-    source.includes(
-      'className="public-cta-on-hero w-full text-vetneb-navy hover:text-vetneb-navy active:text-vetneb-navy focus-visible:text-vetneb-navy sm:w-auto"',
-    ),
-  );
 });
 
 test("home page exposes mobile professionals block before services", () => {
