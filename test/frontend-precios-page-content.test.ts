@@ -107,6 +107,27 @@ test("precios page only shows load error when client getPublicPricing fails", ()
   assert.ok(source.includes(": hasPricingItems(pricingCategories) ? ("));
 });
 
+test("precios page and content do not contain demo or simulated content (PR-15 guard)", () => {
+  const pageSource = read(PRECIOS_PAGE_PATH);
+  const contentSource = read(PRECIOS_CONTENT_PATH);
+  const combined = `${pageSource}\n${contentSource}`;
+  const demoTerms = [
+    "DEMOSTRATIVO",
+    "DEMO-000",
+    "Paciente demostrativo",
+    "Ejemplo visual sin datos reales",
+    "ReportPreviewCard",
+  ];
+
+  for (const term of demoTerms) {
+    assert.equal(
+      combined.includes(term),
+      false,
+      `precios must not contain "${term}"`,
+    );
+  }
+});
+
 test("precios page renders grouped categories and study items when categories exist", () => {
   const source = read(PRECIOS_CONTENT_PATH);
 

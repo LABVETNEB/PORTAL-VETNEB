@@ -310,6 +310,29 @@ test("home page lists benefits for clinics and professionals", () => {
   assert.ok(source.includes("El análisis no es automatizado: requiere evaluación microscópica especializada"));
 });
 
+test("home page does not contain demo or simulated content (PR-15 guard)", () => {
+  const source = read(HOME_PAGE_PATH);
+  const demoTerms = [
+    "DEMOSTRATIVO",
+    "DEMO-000",
+    "DEMO-CLINICA",
+    "Paciente demostrativo",
+    "Canino demostrativo",
+    "Ejemplo visual sin datos reales",
+    "panel operativo simulado",
+    "report-preview-card-title",
+    "ReportPreviewCard",
+  ];
+
+  for (const term of demoTerms) {
+    assert.equal(
+      source.includes(term),
+      false,
+      `home page must not contain "${term}"`,
+    );
+  }
+});
+
 test("home page exposes final conversion CTA without private route metadata", () => {
   const source = read(HOME_PAGE_PATH);
   const routesSource = read("frontend/src/lib/routes.ts");

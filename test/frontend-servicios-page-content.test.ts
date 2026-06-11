@@ -124,6 +124,27 @@ test("servicios page shows unified card CTA while preserving hidden SEO labels",
   assert.equal(source.includes("Ver informes veterinarios</div>"), false);
 });
 
+test("servicios page does not contain demo or simulated content (PR-15 guard)", () => {
+  const source = read(SERVICIOS_PAGE_PATH);
+  const demoTerms = [
+    "DEMOSTRATIVO",
+    "DEMO-000",
+    "Paciente demostrativo",
+    "Ejemplo visual sin datos reales",
+    "panel operativo simulado",
+    "report-preview-card-title",
+    "ReportPreviewCard",
+  ];
+
+  for (const term of demoTerms) {
+    assert.equal(
+      source.includes(term),
+      false,
+      `servicios page must not contain "${term}"`,
+    );
+  }
+});
+
 test("servicios page card links are constrained to explicit CTAs not full card wrappers", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
