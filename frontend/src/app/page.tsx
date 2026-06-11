@@ -18,9 +18,11 @@ import {
   PublicRouteControl,
 } from "@/components/public/PublicRouteControl";
 import { VisualIcon } from "@/components/public/VisualAccents";
+import { SpecimenJourneySection } from "@/components/public/SpecimenJourneySection";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { createPageMetadata } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = createPageMetadata(
   "Laboratorio Patológico Veterinario — Histopatología, Citología y Hematología",
@@ -127,6 +129,42 @@ const benefits = [
       "En algunos casos se requieren tinciones especiales o interconsultas profesionales",
       "Seguimos trabajando en mejorar los tiempos de recepción, diagnóstico y entrega",
     ],
+  },
+];
+
+const specimenJourneyStages = [
+  {
+    step: 1,
+    icon: FlaskConical,
+    title: "Toma y fijación",
+    detail: "La muestra se incorpora inmediatamente en formol al 10%. Especímenes grandes requieren cortes para mejor permeabilidad.",
+    protocol: "Fijación 48–72 h recomendada",
+  },
+  {
+    step: 2,
+    icon: PackageCheck,
+    title: "Envío coordinado",
+    detail: "La muestra fijada se envía en bolsa tipo ziploc. El envío debe coordinarse previamente vía Web o WhatsApp.",
+    protocol: "Coordinar antes del despacho",
+  },
+  {
+    step: 3,
+    icon: ClipboardCheck,
+    title: "Recepción y procesamiento",
+    detail: "Identificación de la muestra, inclusión histológica y preparación de cortes para evaluación microscópica.",
+  },
+  {
+    step: 4,
+    icon: Microscope,
+    title: "Evaluación diagnóstica",
+    detail: "El médico veterinario patólogo examina el tejido o la muestra citológica e integra los datos clínicos del caso.",
+  },
+  {
+    step: 5,
+    icon: FileText,
+    title: "Informe digital y acceso",
+    detail: "El informe diagnóstico queda disponible en el portal para la clínica. El tutor del animal puede acceder con código privado.",
+    protocol: "Hasta 15 días hábiles desde recepción",
   },
 ];
 
@@ -424,20 +462,31 @@ export default function HomePage() {
             </PublicScrollReveal>
 
             <PublicScrollReveal staggerChildren>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
                 {services.map((service) => {
                   const serviceHeadingId = `home-service-${service.title.toLowerCase().replace(/\s+/g, "-")}`;
+                  const isFeatured = service.title === "Estudio Anatomopatológico";
+                  const isWide = service.title === "Diagnóstico Integral";
 
                   return (
                     <article
                       key={service.title}
                       data-scroll-reveal-item
                       aria-labelledby={serviceHeadingId}
+                      className={cn(
+                        isFeatured && "lg:col-span-2",
+                        isWide && "lg:col-span-2",
+                      )}
                     >
                       <Card className="premium-card h-full">
                         <CardHeader>
                           <VisualIcon icon={service.icon} tone={service.tone} className="mb-2" />
-                          <CardTitle id={serviceHeadingId} className="text-lg">
+                          {isFeatured && (
+                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
+                              Servicio principal
+                            </p>
+                          )}
+                          <CardTitle id={serviceHeadingId} className={cn("text-lg", isFeatured && "lg:text-xl")}>
                             {service.title}
                           </CardTitle>
                         </CardHeader>
@@ -542,6 +591,41 @@ export default function HomePage() {
                 >
                   Contactanos para empezar
                 </PublicRouteControl>
+              </div>
+            </PublicScrollReveal>
+          </div>
+        </section>
+
+        {/* Specimen Journey */}
+        <section
+          className="py-14 md:py-20"
+          aria-labelledby="specimen-journey-heading"
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <PublicScrollReveal>
+              <div className="mx-auto mb-10 max-w-3xl text-center">
+                <p className="text-sm font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
+                  Trazabilidad
+                </p>
+                <h2
+                  id="specimen-journey-heading"
+                  className="mt-3 text-3xl font-bold text-vetneb-ink md:text-4xl"
+                >
+                  Recorrido de la muestra
+                </h2>
+                <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">
+                  Desde la toma hasta el informe digital, cada etapa del proceso
+                  sigue el protocolo del laboratorio para asegurar la trazabilidad
+                  del diagnóstico.
+                </p>
+              </div>
+            </PublicScrollReveal>
+
+            <PublicScrollReveal>
+              <div className="rounded-xl border border-vetneb-line/70 bg-card/72 p-6 shadow-sm md:p-8">
+                <SpecimenJourneySection
+                  stages={specimenJourneyStages}
+                />
               </div>
             </PublicScrollReveal>
           </div>
