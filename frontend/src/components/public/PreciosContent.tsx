@@ -1,8 +1,10 @@
 "use client";
 
+import { ArrowRight, CheckCircle2, HelpCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPublicPricing, type PublicPricingCategory } from "@/lib/api";
 import {
@@ -22,12 +24,17 @@ type PricingState =
 
 function normalizePriceLabel(priceLabel: string | null | undefined): string {
   const normalizedPriceLabel = priceLabel?.trim();
-
   return normalizedPriceLabel ? normalizedPriceLabel : "Consultar";
 }
 
 function hasPricingItems(categories: PublicPricingCategory[]): boolean {
   return categories.some((category) => category.items.length > 0);
+}
+
+function hasConsultarItems(categories: PublicPricingCategory[]): boolean {
+  return categories.some((cat) =>
+    cat.items.some((item) => normalizePriceLabel(item.priceLabel) === "Consultar"),
+  );
 }
 
 function toSemanticId(value: string): string {
@@ -65,6 +72,32 @@ function sortPricingCategories(
       return a.index - b.index;
     })
     .map((entry) => entry.category);
+}
+
+function PricingSkeletonGrid() {
+  return (
+    <div data-pricing-skeleton="true">
+      <p className="sr-only">Cargando precios disponibles...</p>
+      <div
+        className="mx-auto grid max-w-7xl grid-cols-1 gap-7 lg:grid-cols-2"
+        aria-hidden="true"
+      >
+        {[0, 1].map((i) => (
+          <div
+            key={i}
+            className="overflow-hidden rounded-lg border border-vetneb-line/60"
+          >
+            <div className="clinical-skeleton h-14 w-full" />
+            <div className="space-y-3 bg-vetneb-surface-raised/60 p-4">
+              {[0, 1, 2, 3].map((j) => (
+                <div key={j} className="clinical-skeleton h-11 w-full rounded-md" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function PreciosContent() {
@@ -124,9 +157,9 @@ export function PreciosContent() {
         aria-labelledby="pricing-page-title"
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto mb-12 max-w-3xl text-center">
+          <div className="mx-auto mb-10 max-w-2xl text-center">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-primary-foreground/90">
-              Valores de referencia
+              Histopatología · Citología
             </p>
             <h1
               id="pricing-page-title"
@@ -134,10 +167,21 @@ export function PreciosContent() {
             >
               Lista de precios
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-primary-foreground/88 md:text-base">
-              Referencia orientativa para la coordinación administrativa. Los
-              valores sin definición vigente se muestran como “Consultar”.
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-primary-foreground/88 md:text-base">
+              Valores de referencia para la coordinación de estudios
+              anatomopatológicos. Los estudios sin valor definido se coordinan
+              por contacto.
             </p>
+            <div className="mt-6 flex justify-center">
+              <PublicRouteControl
+                href="/contacto"
+                variant="secondaryOutline"
+                className="public-cta-on-hero w-full sm:w-auto"
+              >
+                Consultar por un estudio
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </PublicRouteControl>
+            </div>
           </div>
 
           <section aria-labelledby="pricing-catalog-heading">
@@ -146,9 +190,7 @@ export function PreciosContent() {
             </h2>
 
             {state.status === "loading" ? (
-              <p className="surface-empty mx-auto max-w-4xl">
-                Cargando precios disponibles...
-              </p>
+              <PricingSkeletonGrid />
             ) : pricingLoadError ? (
               <p
                 role="alert"
@@ -157,51 +199,123 @@ export function PreciosContent() {
                 No se pudieron cargar los precios. Intente nuevamente.
               </p>
             ) : hasPricingItems(pricingCategories) ? (
-              <div className="mx-auto grid max-w-7xl grid-cols-1 gap-7 lg:grid-cols-2">
-                {pricingCategories.map((category) => {
-                  const categoryHeadingId = `pricing-category-${toSemanticId(category.category)}`;
+              <>
+                <div className="mx-auto grid max-w-7xl grid-cols-1 gap-7 lg:grid-cols-2">
+                  {pricingCategories.map((category) => {
+                    const categoryHeadingId = `pricing-category-${toSemanticId(category.category)}`;
 
-                  return (
-                    <article
-                      key={category.category}
-                      aria-labelledby={categoryHeadingId}
-                    >
-                      <Card className="clinical-card overflow-hidden">
-                        <CardHeader className="clinical-card-header border-b border-vetneb-line px-6 py-5 text-center">
-                          <CardTitle
-                            id={categoryHeadingId}
-                            className="text-center text-base font-semibold uppercase tracking-[0.22em] text-white"
-                          >
-                            {category.category}
-                          </CardTitle>
-                        </CardHeader>
+                    return (
+                      <article
+                        key={category.category}
+                        aria-labelledby={categoryHeadingId}
+                      >
+                        <Card className="clinical-card overflow-hidden">
+                          <CardHeader className="clinical-card-header border-b border-vetneb-line px-6 py-5 text-center">
+                            <CardTitle
+                              id={categoryHeadingId}
+                              className="text-center text-base font-semibold uppercase tracking-[0.22em] text-white"
+                            >
+                              {category.category}
+                            </CardTitle>
+                          </CardHeader>
 
-                        <CardContent className="bg-vetneb-surface-raised/60 p-4">
-                          <div className="overflow-hidden rounded-lg border border-vetneb-line bg-card shadow-sm">
-                            {category.items.map((item, index) => (
-                              <div
-                                key={item.id}
-                                className={`clinical-hover-row flex flex-col items-start gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-5 ${
-                                  index < category.items.length - 1
-                                    ? "border-b border-vetneb-line/80"
-                                    : ""
-                                }`}
+                          <CardContent className="bg-vetneb-surface-raised/60 p-4">
+                            <div className="overflow-hidden rounded-lg border border-vetneb-line bg-card shadow-sm">
+                              {category.items.map((item, index) => (
+                                <div
+                                  key={item.id}
+                                  className={`clinical-hover-row flex flex-col items-start gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-5 ${
+                                    index < category.items.length - 1
+                                      ? "border-b border-vetneb-line/80"
+                                      : ""
+                                  }`}
+                                >
+                                  <p className="w-full min-w-0 break-words text-sm font-semibold uppercase tracking-[0.04em] text-vetneb-ink sm:flex-1">
+                                    {item.studyName}
+                                  </p>
+                                  <p className="clinical-pill max-w-full self-start break-words px-3 py-1 text-sm font-bold tracking-normal shadow-sm sm:ml-auto sm:shrink-0">
+                                    {normalizePriceLabel(item.priceLabel)}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="mt-4 flex justify-end border-t border-vetneb-line/50 pt-4">
+                              <PublicRouteControl
+                                href="/contacto"
+                                variant="primaryDark"
+                                className="public-cta-primary w-full text-sm sm:w-auto"
                               >
-                                <p className="w-full min-w-0 break-words text-sm font-semibold uppercase tracking-[0.04em] text-vetneb-ink sm:flex-1">
-                                  {item.studyName}
-                                </p>
-                                <p className="clinical-pill max-w-full self-start break-words px-3 py-1 text-sm font-bold tracking-normal shadow-sm sm:ml-auto sm:shrink-0">
-                                  {normalizePriceLabel(item.priceLabel)}
-                                </p>
-                              </div>
-                            ))}
+                                Consultar este estudio
+                                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                              </PublicRouteControl>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </article>
+                    );
+                  })}
+                </div>
+
+                <div className="mx-auto mt-8 max-w-7xl">
+                  <div className="clinical-card px-6 py-5">
+                    <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-vetneb-ink/70">
+                      Incluido en cada estudio
+                    </p>
+                    <ul className="grid gap-3 sm:grid-cols-3">
+                      {[
+                        "Informe diagnóstico digital",
+                        "Acceso al portal para consulta del caso",
+                        "Seguimiento disponible según complejidad del caso",
+                      ].map((value) => (
+                        <li
+                          key={value}
+                          className="flex items-center gap-2 text-sm text-vetneb-ink"
+                        >
+                          <CheckCircle2
+                            className="h-4 w-4 shrink-0 text-vetneb-teal"
+                            aria-hidden="true"
+                          />
+                          {value}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {hasConsultarItems(pricingCategories) && (
+                  <div className="mx-auto mt-5 max-w-7xl">
+                    <div className="clinical-card px-6 py-5">
+                      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-start gap-3">
+                          <HelpCircle
+                            className="mt-0.5 h-5 w-5 shrink-0 text-vetneb-teal"
+                            aria-hidden="true"
+                          />
+                          <div>
+                            <p className="text-sm font-semibold text-vetneb-ink">
+                              Estudios con valor a Consultar
+                            </p>
+                            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+                              El precio depende de la complejidad, las tinciones
+                              especiales requeridas o la coordinación previa con
+                              el laboratorio.
+                            </p>
                           </div>
-                        </CardContent>
-                      </Card>
-                    </article>
-                  );
-                })}
-              </div>
+                        </div>
+                        <PublicRouteControl
+                          href="/contacto"
+                          variant="primaryDark"
+                          className="public-cta-primary w-full shrink-0 text-sm sm:w-auto"
+                        >
+                          Coordinar por contacto
+                          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                        </PublicRouteControl>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <p className="surface-empty mx-auto max-w-4xl">
                 No hay precios disponibles.
