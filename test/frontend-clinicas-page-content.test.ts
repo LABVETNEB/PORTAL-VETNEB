@@ -78,6 +78,29 @@ test("clinicas page remains public and avoids direct backend/API calls", () => {
   assert.equal(source.includes('"/api"'), false);
   assert.equal(source.includes("fetch("), false);
 });
+test("clinicas page does not contain demo or simulated content (PR-15 guard)", () => {
+  const source = read(CLINICAS_PAGE_PATH);
+  const demoTerms = [
+    "DEMOSTRATIVO",
+    "DEMO-000",
+    "DEMO-CLINICA",
+    "Paciente demostrativo",
+    "Clínica demostrativa",
+    "Ejemplo visual sin datos reales",
+    "panel operativo simulado",
+    "report-preview-card-title",
+    "ReportPreviewCard",
+  ];
+
+  for (const term of demoTerms) {
+    assert.equal(
+      source.includes(term),
+      false,
+      `clinicas page must not contain "${term}"`,
+    );
+  }
+});
+
 test("clinicas page keeps one continuous soft canvas below hero", () => {
   const source = read(CLINICAS_PAGE_PATH);
 
