@@ -1,60 +1,25 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("report preview system (PR-13)", () => {
+test.describe("public pages — no demo/preview content (PR-14 correction)", () => {
   test.describe("home page", () => {
     test.beforeEach(async ({ page }) => {
       await page.goto("/");
       await page.waitForLoadState("domcontentloaded");
     });
 
-    test("renders report preview section heading", async ({ page }) => {
-      await expect(page.locator("h2#report-preview-heading")).toBeVisible();
-      await expect(page.locator("h2#report-preview-heading")).toContainText(
-        "Así se entrega la evidencia diagnóstica",
-      );
+    test("no demo badge visible on home page", async ({ page }) => {
+      await expect(page.locator("body")).not.toContainText(/DEMOSTRATIVO/i);
+      await expect(page.locator("body")).not.toContainText(/No es un informe real/i);
     });
 
-    test("renders MUESTRA · DEMOSTRATIVO badge", async ({ page }) => {
-      await expect(page.locator("body")).toContainText(/DEMOSTRATIVO/i);
-      await expect(page.locator("body")).toContainText(/Muestra/i);
+    test("no fictitious patient or case data on home page", async ({ page }) => {
+      await expect(page.locator("body")).not.toContainText(/Paciente demostrativo/i);
+      await expect(page.locator("body")).not.toContainText(/DEMO-000/i);
+      await expect(page.locator("body")).not.toContainText(/Mastocitoma/i);
     });
 
-    test("renders disclaimer — ejemplo visual sin datos reales", async ({ page }) => {
-      await expect(page.locator("body")).toContainText(/Ejemplo visual sin datos reales/i);
-    });
-
-    test("renders diagnóstico section content", async ({ page }) => {
-      await expect(page.locator("body")).toContainText("Diagnóstico");
-      await expect(page.locator("body")).toContainText("Mastocitoma");
-    });
-
-    test("renders microscopía section", async ({ page }) => {
-      await expect(page.locator("body")).toContainText("Microscopía");
-      await expect(page.locator("body")).toContainText(/mastocitos/i);
-    });
-
-    test("renders comentario section", async ({ page }) => {
-      await expect(page.locator("body")).toContainText("Comentario");
-      await expect(page.locator("body")).toContainText(/correlación clínico-patológica/i);
-    });
-
-    test("renders acceso digital / trazabilidad", async ({ page }) => {
-      await expect(page.locator("body")).toContainText("Trazabilidad");
-      await expect(page.locator("body")).toContainText("Disponible en portal clínica");
-    });
-
-    test("report card uses fictitious data DEMO-000", async ({ page }) => {
-      await expect(page.locator("body")).toContainText("DEMO-000");
-      await expect(page.locator("body")).toContainText(/Paciente demostrativo/i);
-    });
-
-    test("report card does not contain real personal data within the preview article", async ({ page }) => {
-      const cardText = await page
-        .locator('article[aria-labelledby="report-preview-card-title"]')
-        .innerText();
-      expect(cardText).not.toMatch(/@[\w.-]+\.[a-z]{2,}/i);
-      expect(cardText).not.toMatch(/\+54\s?\d{10}/);
-      expect(cardText).not.toMatch(/dni\s*:?\s*\d{7,8}/i);
+    test("no report preview section on home page", async ({ page }) => {
+      await expect(page.locator("h2#report-preview-heading")).not.toBeVisible();
     });
 
     test("preserves hero CTAs from PR-10", async ({ page }) => {
@@ -105,20 +70,21 @@ test.describe("report preview system (PR-13)", () => {
       await page.waitForLoadState("domcontentloaded");
     });
 
-    test("renders clinicas report preview section heading", async ({ page }) => {
-      await expect(page.locator("h2#clinicas-report-preview-heading")).toBeVisible();
-      await expect(page.locator("h2#clinicas-report-preview-heading")).toContainText(
-        "El informe diagnóstico que recibe tu clínica",
-      );
+    test("no demo badge visible on clinicas page", async ({ page }) => {
+      await expect(page.locator("body")).not.toContainText(/DEMOSTRATIVO/i);
+      await expect(page.locator("body")).not.toContainText(/Muestra · Demostrativo/i);
     });
 
-    test("renders MUESTRA · DEMOSTRATIVO badge on clinicas", async ({ page }) => {
-      await expect(page.locator("body")).toContainText(/DEMOSTRATIVO/i);
+    test("no fictitious patient or clinic data on clinicas page", async ({ page }) => {
+      await expect(page.locator("body")).not.toContainText(/Paciente demostrativo/i);
+      await expect(page.locator("body")).not.toContainText(/Clínica demostrativa/i);
+      await expect(page.locator("body")).not.toContainText(/DEMO-000/i);
     });
 
-    test("renders diagnóstico and microscopía sections on clinicas", async ({ page }) => {
-      await expect(page.locator("body")).toContainText("Diagnóstico");
-      await expect(page.locator("body")).toContainText("Microscopía");
+    test("no report preview section on clinicas page", async ({ page }) => {
+      await expect(
+        page.locator("h2#clinicas-report-preview-heading"),
+      ).not.toBeVisible();
     });
 
     test("preserves clinicas hero CTAs", async ({ page }) => {
