@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import {
   ArrowRight,
   ClipboardCheck,
+  FileText,
   FlaskConical,
   Microscope,
   MonitorCheck,
   Network,
+  PackageCheck,
   Sparkles,
 } from "lucide-react";
 
@@ -14,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { SpecimenJourneySection } from "@/components/public/SpecimenJourneySection";
 import {
   Card,
   CardContent,
@@ -124,6 +127,42 @@ const serviceCategories = [
   },
 ];
 
+const specimenJourneyStages = [
+  {
+    step: 1,
+    icon: FlaskConical,
+    title: "Toma y fijación",
+    detail: "La muestra se incorpora inmediatamente en formol al 10%. Especímenes grandes requieren cortes para mejor permeabilidad.",
+    protocol: "Fijación 48–72 h recomendada",
+  },
+  {
+    step: 2,
+    icon: PackageCheck,
+    title: "Envío coordinado",
+    detail: "La muestra fijada se envía en bolsa tipo ziploc. El envío debe coordinarse previamente vía Web o WhatsApp.",
+    protocol: "Coordinar antes del despacho",
+  },
+  {
+    step: 3,
+    icon: ClipboardCheck,
+    title: "Recepción y procesamiento",
+    detail: "Identificación de la muestra, inclusión histológica y preparación de cortes para evaluación microscópica.",
+  },
+  {
+    step: 4,
+    icon: Microscope,
+    title: "Evaluación diagnóstica",
+    detail: "El médico veterinario patólogo examina el tejido o la muestra citológica e integra los datos clínicos del caso.",
+  },
+  {
+    step: 5,
+    icon: FileText,
+    title: "Informe digital y acceso",
+    detail: "El informe diagnóstico queda disponible en el portal para la clínica. El tutor del animal puede acceder con código privado.",
+    protocol: "Hasta 15 días hábiles desde recepción",
+  },
+];
+
 export default function ServiciosPage() {
   const jsonLd = getServicesJsonLd();
 
@@ -182,6 +221,7 @@ export default function ServiciosPage() {
               >
                 {serviceCategories.map((service) => {
                   const serviceHeadingId = `service-card-${service.id}-title`;
+                  const isFeatured = service.id === "anatomopatologia";
 
                   return (
                     <article
@@ -190,10 +230,7 @@ export default function ServiciosPage() {
                       aria-labelledby={serviceHeadingId}
                       className={cn(
                         "[&_.premium-card]:transition-colors [&_.premium-card]:duration-200 hover:[&_.premium-card]:bg-vetneb-surface-muted/40 hover:[&_.premium-card]:border-vetneb-teal/48 hover:[&_.premium-card]:shadow-[0_22px_66px_rgba(15,45,62,0.145)]",
-                        serviceCategories.length % 2 === 1 &&
-                        service.id === serviceCategories[serviceCategories.length - 1]?.id
-                          ? "lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-[calc((100%-2rem)/2)]"
-                          : "",
+                        isFeatured && "lg:col-span-2",
                       )}
                     >
                       <Card
@@ -206,7 +243,12 @@ export default function ServiciosPage() {
                             tone={service.tone}
                             className="mb-2"
                           />
-                          <CardTitle id={serviceHeadingId} className="text-xl text-vetneb-ink">
+                          {isFeatured && (
+                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
+                              Servicio principal
+                            </p>
+                          )}
+                          <CardTitle id={serviceHeadingId} className={cn("text-xl text-vetneb-ink", isFeatured && "lg:text-2xl")}>
                             {service.title}
                           </CardTitle>
                           <CardDescription className="public-copy-tight text-sm text-muted-foreground">
@@ -214,9 +256,9 @@ export default function ServiciosPage() {
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <ul className="space-y-2.5">
+                          <ul className={cn("space-y-2.5", isFeatured && "lg:grid lg:grid-cols-2 lg:gap-x-6 lg:space-y-0")}>
                             {service.features.map((feature) => (
-                              <li key={feature} className="flex items-start gap-2">
+                              <li key={feature} className={cn("flex items-start gap-2", isFeatured && "lg:space-y-0")}>
                                 <span
                                   className="mt-0.5 text-primary font-bold text-xs"
                                   aria-hidden="true"
@@ -335,6 +377,36 @@ export default function ServiciosPage() {
                   interconsulta profesional para alcanzar mayor precisión
                   diagnóstica.
                 </p>
+              </div>
+            </PublicScrollReveal>
+          </div>
+        </section>
+
+        <section className="py-16" aria-labelledby="services-specimen-journey-heading">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
+            <PublicScrollReveal variant="section">
+              <div className="mb-8">
+                <p className="text-sm font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
+                  Trazabilidad
+                </p>
+                <h2
+                  id="services-specimen-journey-heading"
+                  className="mt-2 text-2xl font-bold text-vetneb-ink md:text-3xl"
+                >
+                  Recorrido de la muestra
+                </h2>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                  Cada muestra sigue un protocolo definido desde la toma hasta
+                  la entrega del informe. El proceso incluye coordinación previa,
+                  fijación en formol al 10%, procesamiento histológico y evaluación
+                  microscópica especializada.
+                </p>
+              </div>
+            </PublicScrollReveal>
+
+            <PublicScrollReveal variant="minimal">
+              <div className="rounded-xl border border-vetneb-line/70 bg-card/72 p-6 shadow-sm">
+                <SpecimenJourneySection stages={specimenJourneyStages} />
               </div>
             </PublicScrollReveal>
           </div>
