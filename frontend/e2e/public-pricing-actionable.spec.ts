@@ -109,7 +109,7 @@ test.describe("precios — actionable pricing conversion layer (PR-11)", () => {
     await page.goto("/precios");
     await page.waitForLoadState("networkidle");
 
-    const errorAlert = page.getByRole("alert");
+    const errorAlert = page.locator('[role="alert"]').filter({ hasText: /no se pudieron cargar los precios/i });
     await expect(errorAlert).toBeVisible();
     await expect(errorAlert).toContainText(/no se pudieron cargar los precios/i);
   });
