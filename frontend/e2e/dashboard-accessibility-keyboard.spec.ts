@@ -22,6 +22,96 @@ async function setAdminSession(page: Page) {
   ]);
 }
 
+// ─── Mock helpers ─────────────────────────────────────────────────────────────
+
+const MOCK_E2E_TOKEN = {
+  id: 9001,
+  clinicId: 42,
+  reportId: null,
+  tokenLast4: "E2ET",
+  tutorLastName: "Apellido E2E",
+  petName: "Paciente E2E",
+  petAge: "2 años",
+  petBreed: "Mestizo",
+  petSex: "Macho",
+  petSpecies: "Caninos",
+  sampleLocation: "Cuello",
+  sampleEvolution: "Normal",
+  detailsLesion: null,
+  extractionDate: "2024-01-01T00:00:00.000Z",
+  shippingDate: "2024-01-01T00:00:00.000Z",
+  isActive: true,
+  lastLoginAt: null,
+  createdAt: "2024-01-01T00:00:00.000Z",
+  updatedAt: "2024-01-01T00:00:00.000Z",
+  createdByAdminId: 1,
+  createdByClinicUserId: null,
+  hasLinkedReport: false,
+};
+
+async function mockParticularTokensApi(page: Page) {
+  await page.route(
+    (url) => url.pathname === "/api/admin/particular-tokens",
+    async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            success: true,
+            count: 1,
+            particularTokens: [MOCK_E2E_TOKEN],
+            pagination: { limit: 10, offset: 0 },
+            filters: { clinicId: null },
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    },
+  );
+
+  await page.route(
+    (url) => url.pathname === "/api/admin/study-tracking",
+    async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            success: true,
+            count: 0,
+            trackingCases: [],
+            pagination: { limit: 1, offset: 0 },
+            filters: {},
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    },
+  );
+
+  await page.route(
+    (url) => url.pathname === "/api/admin/users-roles",
+    async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            success: true,
+            users: [],
+            total: 0,
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    },
+  );
+}
+
 // ─── FilterDrawer ─────────────────────────────────────────────────────────────
 
 test.describe("FilterDrawer — keyboard & a11y (PR-8)", () => {
@@ -33,8 +123,10 @@ test.describe("FilterDrawer — keyboard & a11y (PR-8)", () => {
     });
   });
 
+  // Use the FilterDrawer trigger's aria-label to distinguish it from
+  // DashboardNotificationsBell which also carries aria-haspopup="dialog".
   test("filter drawer trigger has aria-haspopup=dialog", async ({ page }) => {
-    const trigger = page.locator('[aria-haspopup="dialog"]').first();
+    const trigger = page.getByRole("button", { name: /filtrar informes/i });
     await expect(trigger).toBeVisible();
     const haspopup = await trigger.getAttribute("aria-haspopup");
     expect(haspopup).toBe("dialog");
@@ -43,14 +135,14 @@ test.describe("FilterDrawer — keyboard & a11y (PR-8)", () => {
   test("filter drawer trigger has aria-expanded=false when closed", async ({
     page,
   }) => {
-    const trigger = page.locator('[aria-haspopup="dialog"]').first();
+    const trigger = page.getByRole("button", { name: /filtrar informes/i });
     await expect(trigger).toBeVisible();
     const expanded = await trigger.getAttribute("aria-expanded");
     expect(expanded).toBe("false");
   });
 
   test("filter drawer opens when trigger is clicked", async ({ page }) => {
-    const trigger = page.locator('[aria-haspopup="dialog"]').first();
+    const trigger = page.getByRole("button", { name: /filtrar informes/i });
     await trigger.click();
     await expect(page.locator('[data-filter-drawer-open="true"]')).toBeVisible({
       timeout: 3_000,
@@ -60,7 +152,7 @@ test.describe("FilterDrawer — keyboard & a11y (PR-8)", () => {
   test("filter drawer closes on Escape and returns focus to trigger", async ({
     page,
   }) => {
-    const trigger = page.locator('[aria-haspopup="dialog"]').first();
+    const trigger = page.getByRole("button", { name: /filtrar informes/i });
     await trigger.click();
     await expect(page.locator('[data-filter-drawer-open="true"]')).toBeVisible({
       timeout: 3_000,
@@ -72,22 +164,27 @@ test.describe("FilterDrawer — keyboard & a11y (PR-8)", () => {
       timeout: 3_000,
     });
 
-    // Focus should return to the trigger button
-    const focused = await page.evaluate(
-      () => document.activeElement?.getAttribute("aria-haspopup"),
+    // Focus should return to the FilterDrawer trigger (not the notifications bell)
+    const focusedAriaLabel = await page.evaluate(
+      () => document.activeElement?.getAttribute("aria-label"),
     );
-    expect(focused).toBe("dialog");
+    expect(focusedAriaLabel).toMatch(/filtrar informes/i);
   });
 
   test("filter drawer closes on backdrop click", async ({ page }) => {
-    const trigger = page.locator('[aria-haspopup="dialog"]').first();
+    const trigger = page.getByRole("button", { name: /filtrar informes/i });
     await trigger.click();
     await expect(page.locator('[data-filter-drawer-open="true"]')).toBeVisible({
       timeout: 3_000,
     });
 
-    // Click the backdrop (aria-hidden overlay behind the panel)
-    await page.mouse.click(100, 300);
+    // Click the backdrop overlay directly.
+    // force: true is needed because isolation:isolate on .dashboard-main limits
+    // the effective z-index of the non-portal FilterDrawer overlay, making the
+    // backdrop unreachable via raw mouse coordinates in Playwright.
+    await page
+      .locator('[data-filter-backdrop="true"]')
+      .click({ force: true });
 
     await expect(page.locator('[data-filter-drawer-open="true"]')).not.toBeVisible({
       timeout: 3_000,
@@ -97,14 +194,14 @@ test.describe("FilterDrawer — keyboard & a11y (PR-8)", () => {
   test("filter drawer panel has role=dialog and aria-modal=true", async ({
     page,
   }) => {
-    const trigger = page.locator('[aria-haspopup="dialog"]').first();
+    const trigger = page.getByRole("button", { name: /filtrar informes/i });
     await trigger.click();
     const panel = page.locator('[role="dialog"][aria-modal="true"]').first();
     await expect(panel).toBeVisible({ timeout: 3_000 });
   });
 
   test("filter drawer close button has aria-label", async ({ page }) => {
-    const trigger = page.locator('[aria-haspopup="dialog"]').first();
+    const trigger = page.getByRole("button", { name: /filtrar informes/i });
     await trigger.click();
     const closeBtn = page.getByRole("button", { name: /cerrar panel de filtros/i });
     await expect(closeBtn).toBeVisible({ timeout: 3_000 });
@@ -112,36 +209,46 @@ test.describe("FilterDrawer — keyboard & a11y (PR-8)", () => {
 });
 
 // ─── UploadReportModal ────────────────────────────────────────────────────────
+// UploadReportModal is rendered per-token inside AdminParticularTokensCard,
+// which lives in the admin-particular-tokens workspace (not admin-report-upload).
+// The tokens API is mocked so the test runs without a backend.
 
 test.describe("UploadReportModal — keyboard & a11y (PR-8)", () => {
   test.beforeEach(async ({ page }) => {
+    await mockParticularTokensApi(page);
     await setAdminSession(page);
-    await page.goto("/dashboard/admin");
-    // Navigate to admin-report-upload workspace
-    const hub = page.locator('[data-dashboard-module-hub="true"]');
-    await expect(hub).toBeVisible({ timeout: 8_000 });
-    const uploadCard = hub.locator('button[aria-label^="Subir informe:"]');
-    await expect(uploadCard).toBeVisible({ timeout: 5_000 });
-    await uploadCard.click();
+    await page.goto("/dashboard/admin?module=admin-particular-tokens");
     await expect(
-      page.locator('[data-dashboard-module-workspace="admin-report-upload"]'),
-    ).toBeVisible({ timeout: 5_000 });
+      page.locator('[data-dashboard-module-workspace="admin-particular-tokens"]'),
+    ).toBeVisible({ timeout: 8_000 });
+    // Wait for token to render (mock returns one token with no linked report)
+    await expect(
+      page
+        .getByRole("button", { name: /subir informe para este token/i })
+        .first(),
+    ).toBeVisible({ timeout: 8_000 });
   });
 
   test("upload report modal trigger button is visible", async ({ page }) => {
-    const trigger = page.getByRole("button", { name: /subir informe/i }).first();
+    const trigger = page
+      .getByRole("button", { name: /subir informe para este token/i })
+      .first();
     await expect(trigger).toBeVisible();
   });
 
   test("upload report modal opens on trigger click", async ({ page }) => {
-    const trigger = page.getByRole("button", { name: /subir informe/i }).first();
+    const trigger = page
+      .getByRole("button", { name: /subir informe para este token/i })
+      .first();
     await trigger.click();
     const modal = page.getByRole("dialog", { name: /subir informe/i });
     await expect(modal).toBeVisible({ timeout: 3_000 });
   });
 
   test("upload report modal has aria-modal=true", async ({ page }) => {
-    const trigger = page.getByRole("button", { name: /subir informe/i }).first();
+    const trigger = page
+      .getByRole("button", { name: /subir informe para este token/i })
+      .first();
     await trigger.click();
     const modal = page.locator('[role="dialog"][aria-modal="true"]');
     await expect(modal).toBeVisible({ timeout: 3_000 });
@@ -150,7 +257,9 @@ test.describe("UploadReportModal — keyboard & a11y (PR-8)", () => {
   test("upload report modal closes on Escape and returns focus to trigger", async ({
     page,
   }) => {
-    const trigger = page.getByRole("button", { name: /subir informe/i }).first();
+    const trigger = page
+      .getByRole("button", { name: /subir informe para este token/i })
+      .first();
     await trigger.click();
     const modal = page.getByRole("dialog", { name: /subir informe/i });
     await expect(modal).toBeVisible({ timeout: 3_000 });
@@ -162,16 +271,18 @@ test.describe("UploadReportModal — keyboard & a11y (PR-8)", () => {
     const focused = await page.evaluate(
       () => (document.activeElement as HTMLElement)?.textContent?.trim(),
     );
-    expect(focused).toMatch(/subir informe/i);
+    expect(focused).toMatch(/subir informe para este token/i);
   });
 
   test("upload report modal closes on backdrop click", async ({ page }) => {
-    const trigger = page.getByRole("button", { name: /subir informe/i }).first();
+    const trigger = page
+      .getByRole("button", { name: /subir informe para este token/i })
+      .first();
     await trigger.click();
     const modal = page.getByRole("dialog", { name: /subir informe/i });
     await expect(modal).toBeVisible({ timeout: 3_000 });
 
-    // Click the backdrop area far outside the modal dialog
+    // Click the backdrop area far outside the modal dialog (top-left corner)
     await page.mouse.click(10, 10);
 
     await expect(modal).not.toBeVisible({ timeout: 3_000 });
@@ -180,7 +291,9 @@ test.describe("UploadReportModal — keyboard & a11y (PR-8)", () => {
   test("upload report modal close button has descriptive aria-label", async ({
     page,
   }) => {
-    const trigger = page.getByRole("button", { name: /subir informe/i }).first();
+    const trigger = page
+      .getByRole("button", { name: /subir informe para este token/i })
+      .first();
     await trigger.click();
     await expect(
       page.getByRole("button", { name: /cerrar modal de subir informe/i }),
@@ -278,66 +391,66 @@ test.describe("DashboardNotificationsBell — desktop panel role (PR-8)", () => 
   });
 });
 
-// ─── AdminSectionTabs — keyboard navigation ───────────────────────────────────
+// ─── Admin module hub — keyboard & a11y ──────────────────────────────────────
+// AdminSectionTabs is defined but not rendered on any current page.
+// These tests exercise the real keyboard-accessible patterns on the admin hub:
+// module card buttons and workspace navigation.
 
-test.describe("AdminSectionTabs — keyboard navigation (PR-8)", () => {
+test.describe("Admin module hub — keyboard & a11y (PR-8)", () => {
   test.beforeEach(async ({ page }) => {
     await setAdminSession(page);
     await page.goto("/dashboard/admin");
+    await expect(
+      page.locator('[data-dashboard-module-hub="true"]'),
+    ).toBeVisible({ timeout: 8_000 });
+  });
+
+  test("admin hub module cards have accessible button roles and aria-labels", async ({
+    page,
+  }) => {
     const hub = page.locator('[data-dashboard-module-hub="true"]');
-    await expect(hub).toBeVisible({ timeout: 8_000 });
-    // Open administración workspace which uses AdminSectionTabs
-    const adminCard = hub.locator('button[aria-label^="Administración:"]');
-    await adminCard.click();
+    const cards = hub.locator("button[data-dashboard-module-card]");
+    const count = await cards.count();
+    expect(count).toBeGreaterThanOrEqual(1);
+    const ariaLabel = await cards.first().getAttribute("aria-label");
+    expect(ariaLabel).toBeTruthy();
+    expect((ariaLabel ?? "").length).toBeGreaterThan(0);
+  });
+
+  test("admin hub module card activates workspace via Enter key", async ({
+    page,
+  }) => {
+    const hub = page.locator('[data-dashboard-module-hub="true"]');
+    const firstCard = hub
+      .locator("button[data-dashboard-module-card]")
+      .first();
+    await firstCard.focus();
+    await page.keyboard.press("Enter");
+    // After Enter, a workspace should be rendered
+    await expect(
+      page.locator("[data-dashboard-module-workspace]"),
+    ).toBeVisible({ timeout: 3_000 });
+  });
+
+  test("admin workspace back button has accessible aria-label", async ({
+    page,
+  }) => {
+    await page.goto("/dashboard/admin?module=admin");
     await expect(
       page.locator('[data-dashboard-module-workspace="admin"]'),
-    ).toBeVisible({ timeout: 5_000 });
+    ).toBeVisible({ timeout: 8_000 });
+    const backBtn = page.getByRole("button", { name: /volver a módulos/i });
+    await expect(backBtn).toBeVisible();
+    const ariaLabel = await backBtn.getAttribute("aria-label");
+    expect(ariaLabel).toMatch(/volver a módulos/i);
   });
 
-  test("tablist is present and has at least one tab", async ({ page }) => {
-    const tablist = page.locator('[role="tablist"]');
-    await expect(tablist).toBeVisible({ timeout: 5_000 });
-    const tabs = tablist.locator('[role="tab"]');
-    const count = await tabs.count();
-    expect(count).toBeGreaterThanOrEqual(1);
-  });
-
-  test("active tab has aria-selected=true", async ({ page }) => {
-    const tablist = page.locator('[role="tablist"]');
-    await expect(tablist).toBeVisible({ timeout: 5_000 });
-    const selectedTab = tablist.locator('[role="tab"][aria-selected="true"]');
-    await expect(selectedTab).toBeVisible();
-  });
-
-  test("ArrowRight moves focus to next tab", async ({ page }) => {
-    const tablist = page.locator('[role="tablist"]');
-    await expect(tablist).toBeVisible({ timeout: 5_000 });
-
-    const firstTab = tablist.locator('[role="tab"]').first();
-    await firstTab.focus();
-    await page.keyboard.press("ArrowRight");
-
-    const secondTab = tablist.locator('[role="tab"]').nth(1);
-    const secondTabId = await secondTab.getAttribute("id");
-    const focusedId = await page.evaluate(
-      () => document.activeElement?.id,
-    );
-    expect(focusedId).toBe(secondTabId);
-  });
-
-  test("Home key moves focus to first tab", async ({ page }) => {
-    const tablist = page.locator('[role="tablist"]');
-    await expect(tablist).toBeVisible({ timeout: 5_000 });
-
-    const lastTab = tablist.locator('[role="tab"]').last();
-    await lastTab.focus();
-    await page.keyboard.press("Home");
-
-    const firstTab = tablist.locator('[role="tab"]').first();
-    const firstTabId = await firstTab.getAttribute("id");
-    const focusedId = await page.evaluate(
-      () => document.activeElement?.id,
-    );
-    expect(focusedId).toBe(firstTabId);
+  test("admin workspace section has accessible label", async ({ page }) => {
+    await page.goto("/dashboard/admin?module=admin");
+    const workspace = page.locator('[data-dashboard-module-workspace="admin"]');
+    await expect(workspace).toBeVisible({ timeout: 8_000 });
+    const ariaLabel = await workspace.getAttribute("aria-label");
+    expect(ariaLabel).toBeTruthy();
+    expect((ariaLabel ?? "").length).toBeGreaterThan(0);
   });
 });

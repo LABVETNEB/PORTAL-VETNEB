@@ -124,6 +124,7 @@ export function FilterDrawer({
           <div
             className="absolute inset-0 bg-vetneb-ink/30 backdrop-blur-[2px]"
             aria-hidden="true"
+            data-filter-backdrop="true"
             onClick={closePanel}
           />
           <div
