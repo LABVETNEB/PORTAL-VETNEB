@@ -21,6 +21,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { VisualIcon } from "@/components/public/VisualAccents";
+import { ReportPreviewCard } from "@/components/public/ReportPreviewCard";
 import { createPageMetadata, getClinicasPageJsonLd } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
 
@@ -198,6 +199,38 @@ export default function ClinicasPage() {
                     </article>
                   );
                 })}
+              </div>
+            </PublicScrollReveal>
+          </div>
+        </section>
+
+        {/* Informe digital — preview B2B demostrativo */}
+        <section
+          className="border-t border-vetneb-line/70 bg-gradient-to-b from-vetneb-surface-muted/30 to-white py-14 md:py-20"
+          aria-labelledby="clinicas-report-preview-heading"
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <PublicScrollReveal variant="section">
+              <div className="mx-auto mb-10 max-w-3xl text-center">
+                <p className="text-sm font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
+                  Informe digital
+                </p>
+                <h2
+                  id="clinicas-report-preview-heading"
+                  className="mt-3 text-2xl font-bold text-vetneb-ink md:text-3xl"
+                >
+                  El informe diagnóstico que recibe tu clínica
+                </h2>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                  Acceso directo al portal, trazabilidad del caso y posibilidad de
+                  derivar el informe al tutor del paciente. Ejemplo visual sin datos reales.
+                </p>
+              </div>
+            </PublicScrollReveal>
+
+            <PublicScrollReveal variant="minimal">
+              <div className="mx-auto max-w-2xl">
+                <ReportPreviewCard />
               </div>
             </PublicScrollReveal>
           </div>

@@ -19,6 +19,7 @@ import {
 } from "@/components/public/PublicRouteControl";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { SpecimenJourneySection } from "@/components/public/SpecimenJourneySection";
+import { ReportPreviewCard } from "@/components/public/ReportPreviewCard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { createPageMetadata } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
@@ -626,6 +627,42 @@ export default function HomePage() {
                 <SpecimenJourneySection
                   stages={specimenJourneyStages}
                 />
+              </div>
+            </PublicScrollReveal>
+          </div>
+        </section>
+
+        {/* Informe diagnóstico — preview demostrativo */}
+        <section
+          className="border-y border-vetneb-line/70 bg-gradient-to-b from-vetneb-surface-muted/30 to-white py-14 md:py-20"
+          aria-labelledby="report-preview-heading"
+        >
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <PublicScrollReveal>
+              <div className="mx-auto mb-10 max-w-3xl text-center">
+                <p className="text-sm font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
+                  El entregable
+                </p>
+                <h2
+                  id="report-preview-heading"
+                  className="mt-3 text-3xl font-bold text-vetneb-ink md:text-4xl"
+                >
+                  Así se entrega la evidencia diagnóstica
+                </h2>
+                <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">
+                  Del material recibido al diagnóstico, con trazabilidad y acceso digital.
+                  Conocé cómo se estructura un informe demostrativo.
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground/70">
+                  Ejemplo visual sin datos reales — los datos del paciente, clínica y tutor
+                  son ficticios.
+                </p>
+              </div>
+            </PublicScrollReveal>
+
+            <PublicScrollReveal>
+              <div className="mx-auto max-w-2xl">
+                <ReportPreviewCard />
               </div>
             </PublicScrollReveal>
           </div>
