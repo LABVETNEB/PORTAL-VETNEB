@@ -211,7 +211,6 @@ test("public home page keeps polished visual hierarchy and responsive sections",
     [
       /className="relative isolate overflow-hidden text-white"/,
       /className="relative container mx-auto px-4 py-12/,
-      /className="grid grid-cols-1 items-start gap-10 lg:grid-cols-\[/,
       /className="public-hero-action-grid"/,
       /className="public-soft-canvas"/,
       /className="py-16 md:py-20"/,

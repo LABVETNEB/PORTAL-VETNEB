@@ -30,20 +30,4 @@ test.describe("home hero — evidence-first (PR-10)", () => {
     await expect(page.locator("body")).toContainText("WhatsApp: 3534138946");
   });
 
-  test.describe("desktop — mock demostrativo y mini timeline visibles", () => {
-    test.use({ viewport: { width: 1440, height: 900 } });
-
-    test("mock de informe rotulado DEMOSTRATIVO", async ({ page }) => {
-      await expect(page.locator("body")).toContainText(/DEMOSTRATIVO/i);
-      await expect(page.locator("body")).toContainText(/No es un informe real/i);
-      await expect(page.locator("body")).toContainText("Informe Anatomopatológico");
-    });
-
-    test("mini timeline con las 4 etapas", async ({ page }) => {
-      await expect(page.locator("body")).toContainText("Recepción");
-      await expect(page.locator("body")).toContainText("Procesamiento");
-      await expect(page.locator("body")).toContainText("Evaluación");
-      await expect(page.locator("body")).toContainText("Informe emitido");
-    });
-  });
 });

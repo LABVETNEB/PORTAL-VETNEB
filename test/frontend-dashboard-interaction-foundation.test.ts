@@ -316,7 +316,6 @@ test("PR-1 interaction foundation stays within allowed file scope", () => {
     "frontend/next-env.d.ts",
     "frontend/tsconfig.json",
     "frontend/src/app/layout.tsx",
-    "frontend/src/app/page.tsx",
     "frontend/src/lib/auth.ts",
     "frontend/src/lib/seo.ts",
     "frontend/src/middleware.ts",
