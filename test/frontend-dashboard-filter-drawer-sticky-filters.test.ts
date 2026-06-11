@@ -68,6 +68,7 @@ test("FilterDrawer exposes reusable client drawer contract without forbidden sur
   assert.ok(source.includes("ref={panelRef}"));
   assert.ok(source.includes("tabIndex={-1}"));
   assert.ok(source.includes('aria-label="Cerrar panel de filtros"'));
+  assert.ok(source.includes("dashboard-focus-trap-container"));
   assert.ok(source.includes("activeCount > 0"));
   assert.ok(source.includes("<span>{triggerLabel}</span>"));
   assert.ok(source.includes('<span className="sr-only">{activeCountLabel}</span>'));
