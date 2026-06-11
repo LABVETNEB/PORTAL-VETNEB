@@ -182,6 +182,18 @@ test("dashboard informes filter form includes studyType input to preserve it on 
   assert.ok(source.includes('placeholder="Filtrar por tipo de estudio..."'));
 });
 
+test("dashboard informes pagination buttons carry dashboard-pagination-btn accessibility class", () => {
+  const source = read(INFORMES_PAGE_PATH);
+
+  // dashboard-pagination-btn is the PR-8 a11y marker: disabled state gets
+  // pointer-events:none + opacity:0.45 + cursor:not-allowed via globals.css
+  const occurrences = (source.match(/dashboard-pagination-btn/g) ?? []).length;
+  assert.ok(
+    occurrences >= 2,
+    `dashboard-pagination-btn must appear on both Anterior and Siguiente buttons (found ${occurrences})`,
+  );
+});
+
 test("api client supports reports status filter without bypassing wrappers", () => {
   const source = read(API_CLIENT_PATH);
 

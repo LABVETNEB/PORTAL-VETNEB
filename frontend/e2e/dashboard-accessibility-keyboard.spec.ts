@@ -196,7 +196,8 @@ test.describe("FilterDrawer — keyboard & a11y (PR-8)", () => {
   }) => {
     const trigger = page.getByRole("button", { name: /filtrar informes/i });
     await trigger.click();
-    const panel = page.locator('[role="dialog"][aria-modal="true"]').first();
+    const panel = page.getByRole("dialog", { name: /filtros de informes/i });
+    await expect(panel).toHaveAttribute("aria-modal", "true");
     await expect(panel).toBeVisible({ timeout: 3_000 });
   });
 
