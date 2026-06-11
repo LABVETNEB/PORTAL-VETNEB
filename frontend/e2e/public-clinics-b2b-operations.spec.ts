@@ -69,19 +69,23 @@ test.describe("clinicas B2B operations landing (PR-14)", () => {
     test("renders 'Coordiná una derivación' CTA toward contacto", async ({
       page,
     }) => {
-      const cta = page.locator("a[href='/contacto']", {
-        hasText: /Coordiná una derivación/i,
+      const cta = page.getByRole("button", {
+        name: /Coordiná una derivación/i,
       });
       await expect(cta).toBeVisible();
+      await cta.click();
+      await expect(page).toHaveURL("/contacto");
     });
 
     test("renders 'Consultar alta de clínica' CTA toward contacto", async ({
       page,
     }) => {
-      const cta = page.locator("a[href='/contacto']", {
-        hasText: /Consultar alta de clínica/i,
+      const cta = page.getByRole("button", {
+        name: /Consultar alta de clínica/i,
       });
       await expect(cta).toBeVisible();
+      await cta.click();
+      await expect(page).toHaveURL("/contacto");
     });
   });
 
