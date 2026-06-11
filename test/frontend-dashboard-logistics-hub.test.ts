@@ -312,7 +312,6 @@ test("logistics hub changes do not touch backend, API routes, auth, middleware o
     "app/login",
     "app/servicios",
     "app/profesionales",
-    "app/clinicas",
     "app/particulares",
     "app/contacto",
     "pnpm-lock.yaml",

@@ -30,7 +30,7 @@ test("clinicas page exposes hero content and primary CTAs", () => {
   const source = read(CLINICAS_PAGE_PATH);
 
   assert.ok(source.includes("Portal para clínicas veterinarias"));
-  assert.ok(source.includes("Gestión centralizada de informes, estudios y logística"));
+  assert.ok(source.includes("trazabilidad de muestras"));
   assert.ok(source.includes("href={ROUTES.login}"));
   assert.ok(source.includes("Acceder al portal"));
   assert.ok(source.includes("href={ROUTES.contacto}"));
@@ -62,13 +62,13 @@ test("clinicas page lists operational feature cards", () => {
 test("clinicas page explains onboarding steps", () => {
   const source = read(CLINICAS_PAGE_PATH);
 
-  assert.ok(source.includes("const steps = ["));
-  assert.ok(source.includes("Solicite acceso"));
-  assert.ok(source.includes("Configure su cuenta"));
-  assert.ok(source.includes("Acceda a sus informes"));
-  assert.ok(source.includes("Gestione su operación"));
+  assert.ok(source.includes("const onboardingSteps = ["));
+  assert.ok(source.includes("Solicitar acceso"));
+  assert.ok(source.includes("Configurar la cuenta"));
+  assert.ok(source.includes("Acceder a los informes"));
+  assert.ok(source.includes("Gestionar la operación"));
   assert.ok(source.includes("Cómo comenzar"));
-  assert.ok(source.includes("steps.map((step) =>"));
+  assert.ok(source.includes("onboardingSteps.map((step) =>"));
 });
 
 test("clinicas page remains public and avoids direct backend/API calls", () => {

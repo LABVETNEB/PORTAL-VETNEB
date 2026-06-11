@@ -19,7 +19,6 @@ import {
 } from "@/components/public/PublicRouteControl";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { SpecimenJourneySection } from "@/components/public/SpecimenJourneySection";
-import { ReportPreviewCard } from "@/components/public/ReportPreviewCard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { createPageMetadata } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
@@ -192,149 +191,67 @@ export default function HomePage() {
           aria-hidden="true"
         />
         <div className="relative container mx-auto px-4 py-12 sm:py-14 sm:px-6 md:py-16 lg:py-20 lg:px-8">
-          <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground/72">
+              Anatomía Patológica Veterinaria
+            </p>
 
-            {/* Columna izquierda — copy, firma y CTAs */}
-            <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground/72">
-                Anatomía Patológica Veterinaria
-              </p>
+            <h1
+              id="hero-heading"
+              className="max-w-2xl text-[clamp(1.75rem,4vw,3rem)] font-bold leading-[1.06] tracking-[-0.01em] text-primary-foreground"
+            >
+              Diagnóstico anatomopatológico veterinario con trazabilidad de muestra a informe
+            </h1>
 
-              <h1
-                id="hero-heading"
-                className="max-w-2xl text-[clamp(1.75rem,4vw,3rem)] font-bold leading-[1.06] tracking-[-0.01em] text-primary-foreground"
-              >
-                Diagnóstico anatomopatológico veterinario con trazabilidad de muestra a informe
-              </h1>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-primary-foreground/88 sm:text-lg">
+              Histopatología, citología y tinciones especiales con criterio clínico-patológico
+              y seguimiento completo para clínicas y profesionales.
+            </p>
 
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-primary-foreground/88 sm:text-lg">
-                Histopatología, citología y tinciones especiales con criterio clínico-patológico
-                y seguimiento completo para clínicas y profesionales.
-              </p>
-
-              {/* Firma profesional */}
-              <div className="mt-5 flex w-fit items-center gap-3 rounded-lg border border-white/22 bg-white/[0.08] px-4 py-2.5">
-                <Microscope className="h-5 w-5 shrink-0 text-primary-foreground/72" aria-hidden="true" />
-                <div>
-                  <p className="text-sm font-bold leading-tight text-primary-foreground">
-                    Dr. Nicolás E. Barbé
-                  </p>
-                  <p className="text-xs text-primary-foreground/72">
-                    Médico veterinario patólogo · Responsable de diagnóstico
-                  </p>
-                </div>
-              </div>
-
-              {/* CTAs — action tiles */}
-              <div className="public-hero-action-grid">
-                <PublicRouteControl
-                  href={ROUTES.login}
-                  variant="bare"
-                  className="public-hero-action-tile"
-                >
-                  <p className="public-hero-action-tile-label">Portal de informes</p>
-                  <div className="public-hero-action-tile-title">
-                    Acceder al portal
-                    <ArrowRight className="public-hero-action-tile-arrow h-4 w-4" aria-hidden="true" />
-                  </div>
-                  <p className="public-hero-action-tile-copy">
-                    Para clínicas y profesionales con acceso a VETNEB.
-                  </p>
-                </PublicRouteControl>
-
-                <PublicRouteControl
-                  href={ROUTES.particulares}
-                  variant="bare"
-                  className="public-hero-action-tile"
-                >
-                  <p className="public-hero-action-tile-label">Particulares</p>
-                  <div className="public-hero-action-tile-title">
-                    Seguir con código
-                    <ArrowRight className="public-hero-action-tile-arrow h-4 w-4" aria-hidden="true" />
-                  </div>
-                  <p className="public-hero-action-tile-copy">
-                    Consultá el estado de tu muestra las 24 h con tu código privado.
-                  </p>
-                </PublicRouteControl>
+            {/* Firma profesional */}
+            <div className="mt-5 flex w-fit items-center gap-3 rounded-lg border border-white/22 bg-white/[0.08] px-4 py-2.5">
+              <Microscope className="h-5 w-5 shrink-0 text-primary-foreground/72" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-bold leading-tight text-primary-foreground">
+                  Dr. Nicolás E. Barbé
+                </p>
+                <p className="text-xs text-primary-foreground/72">
+                  Médico veterinario patólogo · Responsable de diagnóstico
+                </p>
               </div>
             </div>
 
-            {/* Columna derecha — mock de informe + mini timeline (solo lg+) */}
-            <div className="hidden lg:flex lg:flex-col lg:gap-4" aria-hidden="true">
-
-              {/* Mock de informe — 100% ficticio, rotulado MUESTRA / DEMOSTRATIVO */}
-              <div className="overflow-hidden rounded-xl border border-white/18 bg-white/[0.07] backdrop-blur-sm">
-                <div className="flex items-center gap-2 border-b border-white/14 bg-amber-400/20 px-4 py-2">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-200">⚠</span>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-100/90">
-                    Muestra · Demostrativo — No es un informe real
-                  </span>
+            {/* CTAs — action tiles */}
+            <div className="public-hero-action-grid">
+              <PublicRouteControl
+                href={ROUTES.login}
+                variant="bare"
+                className="public-hero-action-tile"
+              >
+                <p className="public-hero-action-tile-label">Portal de informes</p>
+                <div className="public-hero-action-tile-title">
+                  Acceder al portal
+                  <ArrowRight className="public-hero-action-tile-arrow h-4 w-4" aria-hidden="true" />
                 </div>
-                <div className="space-y-3 px-4 py-3">
-                  <div className="border-b border-white/12 pb-2">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-primary-foreground/90">
-                      Informe Anatomopatológico
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-primary-foreground/56">
-                      N° VT-0000-000 · Canino · Biopsia incisional
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.10em] text-primary-foreground/50">
-                      Diagnóstico
-                    </p>
-                    <p className="mt-0.5 text-xs font-semibold leading-snug text-primary-foreground/90">
-                      Mastocitoma de grado II (Patnaik)
-                    </p>
-                    <p className="text-[10px] text-primary-foreground/60">
-                      Margen libre — ≥ 3 mm
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.10em] text-primary-foreground/50">
-                      Hallazgos microscópicos
-                    </p>
-                    <p className="mt-0.5 text-[10px] leading-relaxed text-primary-foreground/66">
-                      Proliferación de mastocitos con granulación moderada. Sin figuras mitóticas.
-                      Estroma fibrovascular leve.
-                    </p>
-                  </div>
-                  <div className="border-t border-white/12 pt-2">
-                    <p className="text-[10px] font-semibold text-primary-foreground/80">
-                      Dr. N. E. Barbé · MV Patólogo
-                    </p>
-                    <p className="text-[9px] text-primary-foreground/44">
-                      VETNEB Laboratorio Patológico Veterinario
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Mini timeline de etapas */}
-              <div className="rounded-xl border border-white/14 bg-white/[0.05] px-4 py-3">
-                <p className="mb-2.5 text-[9px] font-semibold uppercase tracking-[0.20em] text-primary-foreground/50">
-                  Flujo de diagnóstico
+                <p className="public-hero-action-tile-copy">
+                  Para clínicas y profesionales con acceso a VETNEB.
                 </p>
-                <ol className="space-y-2.5">
-                  {([
-                    { step: "Recepción", desc: "Muestra recibida e identificada" },
-                    { step: "Procesamiento", desc: "Fijación, inclusión y corte histológico" },
-                    { step: "Evaluación", desc: "Microscopía e interpretación patológica" },
-                    { step: "Informe emitido", desc: "Diagnóstico disponible en el portal" },
-                  ] as const).map((item, i) => (
-                    <li key={item.step} className="flex items-start gap-2.5">
-                      <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/18 text-[9px] font-bold text-primary-foreground">
-                        {i + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-primary-foreground/88">{item.step}</p>
-                        <p className="text-[10px] leading-tight text-primary-foreground/58">{item.desc}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </div>
+              </PublicRouteControl>
 
+              <PublicRouteControl
+                href={ROUTES.particulares}
+                variant="bare"
+                className="public-hero-action-tile"
+              >
+                <p className="public-hero-action-tile-label">Particulares</p>
+                <div className="public-hero-action-tile-title">
+                  Seguir con código
+                  <ArrowRight className="public-hero-action-tile-arrow h-4 w-4" aria-hidden="true" />
+                </div>
+                <p className="public-hero-action-tile-copy">
+                  Consultá el estado de tu muestra las 24 h con tu código privado.
+                </p>
+              </PublicRouteControl>
             </div>
           </div>
         </div>
@@ -627,42 +544,6 @@ export default function HomePage() {
                 <SpecimenJourneySection
                   stages={specimenJourneyStages}
                 />
-              </div>
-            </PublicScrollReveal>
-          </div>
-        </section>
-
-        {/* Informe diagnóstico — preview demostrativo */}
-        <section
-          className="border-y border-vetneb-line/70 bg-gradient-to-b from-vetneb-surface-muted/30 to-white py-14 md:py-20"
-          aria-labelledby="report-preview-heading"
-        >
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <PublicScrollReveal>
-              <div className="mx-auto mb-10 max-w-3xl text-center">
-                <p className="text-sm font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
-                  El entregable
-                </p>
-                <h2
-                  id="report-preview-heading"
-                  className="mt-3 text-3xl font-bold text-vetneb-ink md:text-4xl"
-                >
-                  Así se entrega la evidencia diagnóstica
-                </h2>
-                <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">
-                  Del material recibido al diagnóstico, con trazabilidad y acceso digital.
-                  Conocé cómo se estructura un informe demostrativo.
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground/70">
-                  Ejemplo visual sin datos reales — los datos del paciente, clínica y tutor
-                  son ficticios.
-                </p>
-              </div>
-            </PublicScrollReveal>
-
-            <PublicScrollReveal>
-              <div className="mx-auto max-w-2xl">
-                <ReportPreviewCard />
               </div>
             </PublicScrollReveal>
           </div>

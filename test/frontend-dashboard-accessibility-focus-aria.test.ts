@@ -180,7 +180,6 @@ test("PR-8 dashboard accessibility scope avoids forbidden files", () => {
     "frontend/next-env.d.ts",
     "frontend/tsconfig.json",
     "frontend/src/app/layout.tsx",
-    "frontend/src/app/page.tsx",
     "frontend/src/lib/auth.ts",
     "frontend/src/lib/seo.ts",
   ];

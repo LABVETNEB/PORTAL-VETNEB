@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   FileText,
   Globe2,
+  Microscope,
   Search,
   ShieldCheck,
   Truck,
@@ -21,7 +22,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { VisualIcon } from "@/components/public/VisualAccents";
-import { ReportPreviewCard } from "@/components/public/ReportPreviewCard";
+import { ClinicOperationsSection } from "@/components/public/ClinicOperationsSection";
 import { createPageMetadata, getClinicasPageJsonLd } from "@/lib/seo";
 import { ROUTES } from "@/lib/routes";
 
@@ -37,69 +38,112 @@ const features = [
     tone: "blue" as const,
     title: "Recepción de informes",
     description:
-      "Reciba los resultados de estudios directamente en su portal. Notificaciones automáticas cuando un informe esté listo.",
+      "Los informes diagnósticos de cada estudio están disponibles en el portal de la clínica, con notificación cuando están listos.",
   },
   {
     icon: Search,
     tone: "emerald" as const,
     title: "Búsqueda avanzada",
     description:
-      "Encuentre informes por paciente, tipo de estudio, fecha o estado. Filtros potentes para gestionar grandes volúmenes.",
+      "Encontrá informes por paciente, tipo de estudio, fecha o estado. Filtros orientados a la operación diaria de alto volumen.",
   },
   {
     icon: Truck,
     tone: "amber" as const,
     title: "Seguimiento de logística",
     description:
-      "Vea el estado de las visitas de campo y entregas programadas para su clínica. Transparencia total en el proceso.",
+      "Consultá el estado de las muestras derivadas y las visitas coordinadas con tu clínica. Trazabilidad en cada etapa.",
   },
   {
     icon: ShieldCheck,
     tone: "blue" as const,
     title: "Acceso seguro y auditado",
     description:
-      "Cada acceso a informes queda registrado. Control total sobre quién accede a qué información y cuándo.",
+      "Cada acceso a informes queda registrado. Control sobre quién accede a qué información y cuándo.",
   },
   {
     icon: UsersRound,
     tone: "slate" as const,
     title: "Gestión de usuarios",
     description:
-      "Administre los usuarios de su clínica con roles diferenciados: propietario y personal de clínica.",
+      "Administrá los usuarios de tu clínica con roles diferenciados: propietario y personal de clínica.",
   },
   {
     icon: Globe2,
     tone: "emerald" as const,
     title: "Perfil público",
     description:
-      "Mantenga actualizado el perfil público de su clínica en el directorio de Portal VETNEB.",
+      "Mantené actualizado el perfil público de tu clínica en el directorio de Portal VETNEB.",
   },
 ];
 
-const steps = [
+const operationSteps = [
+  {
+    step: 1,
+    icon: UsersRound,
+    title: "Coordinás la derivación",
+    detail:
+      "Acordás con el equipo VETNEB el tipo de estudio y los datos básicos del caso antes del envío.",
+    tag: "Coordinación previa",
+  },
+  {
+    step: 2,
+    icon: Truck,
+    title: "Enviás la muestra con los datos del caso",
+    detail:
+      "El material se remite fijado según el protocolo del laboratorio, con los datos identificatorios del caso.",
+    tag: "Envío coordinado",
+  },
+  {
+    step: 3,
+    icon: ClipboardCheck,
+    title: "VETNEB registra la recepción",
+    detail:
+      "Al ingresar al laboratorio, la muestra queda registrada y asignada bajo un código de caso. El estado puede consultarse desde el portal.",
+    tag: "Trazabilidad",
+  },
+  {
+    step: 4,
+    icon: Microscope,
+    title: "Procesamos y evaluamos el material",
+    detail:
+      "El médico veterinario patólogo examina el tejido o la muestra citológica e integra los datos clínicos para emitir el diagnóstico.",
+    tag: "Evaluación profesional",
+  },
+  {
+    step: 5,
+    icon: FileText,
+    title: "Tu clínica recibe el informe digital",
+    detail:
+      "El informe diagnóstico queda disponible en el portal de la clínica. Acceso directo, trazable y disponible las 24 hs.",
+    tag: "Informe en portal",
+  },
+];
+
+const onboardingSteps = [
   {
     number: "01",
-    title: "Solicite acceso",
+    title: "Solicitar acceso",
     description:
-      "Complete el formulario de contacto para registrar su clínica en Portal VETNEB.",
+      "Completá el formulario de contacto para registrar tu clínica en Portal VETNEB.",
   },
   {
     number: "02",
-    title: "Configure su cuenta",
+    title: "Configurar la cuenta",
     description:
-      "Reciba sus credenciales y configure los usuarios de su equipo con los roles apropiados.",
+      "Recibí tus credenciales y configurá los usuarios de tu equipo con los roles apropiados.",
   },
   {
     number: "03",
-    title: "Acceda a sus informes",
+    title: "Acceder a los informes",
     description:
-      "Desde el dashboard privado, acceda a todos los informes y estudios de su clínica.",
+      "Desde el dashboard privado, accedé a todos los informes y estudios de tu clínica.",
   },
   {
     number: "04",
-    title: "Gestione su operación",
+    title: "Gestionar la operación",
     description:
-      "Utilice las herramientas de seguimiento, logística y auditoría para optimizar su práctica.",
+      "Usá las herramientas de seguimiento, logística y auditoría para optimizar tu práctica.",
   },
 ];
 
@@ -124,8 +168,9 @@ export default function ClinicasPage() {
             Portal para clínicas veterinarias
           </h1>
           <p className="max-w-2xl text-xl leading-relaxed text-primary-foreground/92">
-            Gestión centralizada de informes, estudios y logística para su
-            clínica veterinaria. Acceso seguro, trazable y disponible las 24 hs.
+            Coordinación de derivaciones, trazabilidad de muestras e informes
+            diagnósticos digitales. Un portal operativo para clínicas veterinarias
+            que trabajan con VETNEB.
           </p>
           <div className="mt-8 flex flex-col gap-4 sm:flex-row">
             <PublicRouteControl
@@ -148,6 +193,7 @@ export default function ClinicasPage() {
       </section>
 
       <div className="public-soft-canvas">
+        {/* Capacidades del portal */}
         <section
           className="py-16 md:py-20"
           aria-labelledby="clinicas-features-heading"
@@ -186,7 +232,10 @@ export default function ClinicasPage() {
                             tone={feature.tone}
                             className="mb-2"
                           />
-                          <CardTitle id={featureHeadingId} className="text-lg text-vetneb-ink">
+                          <CardTitle
+                            id={featureHeadingId}
+                            className="text-lg text-vetneb-ink"
+                          >
                             {feature.title}
                           </CardTitle>
                         </CardHeader>
@@ -204,38 +253,40 @@ export default function ClinicasPage() {
           </div>
         </section>
 
-        {/* Informe digital — preview B2B demostrativo */}
+        {/* Cómo opera tu clínica con VETNEB */}
         <section
-          className="border-t border-vetneb-line/70 bg-gradient-to-b from-vetneb-surface-muted/30 to-white py-14 md:py-20"
-          aria-labelledby="clinicas-report-preview-heading"
+          className="border-t border-vetneb-line/70 py-16 md:py-20"
+          aria-labelledby="clinicas-operations-heading"
         >
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal variant="section">
               <div className="mx-auto mb-10 max-w-3xl text-center">
                 <p className="text-sm font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
-                  Informe digital
+                  Flujo operativo
                 </p>
                 <h2
-                  id="clinicas-report-preview-heading"
+                  id="clinicas-operations-heading"
                   className="mt-3 text-2xl font-bold text-vetneb-ink md:text-3xl"
                 >
-                  El informe diagnóstico que recibe tu clínica
+                  Cómo opera tu clínica con VETNEB
                 </h2>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                  Acceso directo al portal, trazabilidad del caso y posibilidad de
-                  derivar el informe al tutor del paciente. Ejemplo visual sin datos reales.
+                  Un proceso claro desde la coordinación de la derivación hasta la
+                  entrega del informe diagnóstico digital. Sin fricciones, con
+                  trazabilidad en cada etapa.
                 </p>
               </div>
             </PublicScrollReveal>
 
             <PublicScrollReveal variant="minimal">
-              <div className="mx-auto max-w-2xl">
-                <ReportPreviewCard />
+              <div className="mx-auto max-w-2xl rounded-xl border border-vetneb-line/70 bg-card/72 p-6 shadow-sm md:p-8">
+                <ClinicOperationsSection steps={operationSteps} />
               </div>
             </PublicScrollReveal>
           </div>
         </section>
 
+        {/* Cómo comenzar */}
         <section
           className="py-16 md:py-20"
           aria-labelledby="clinicas-onboarding-heading"
@@ -254,7 +305,7 @@ export default function ClinicasPage() {
 
             <PublicScrollReveal variant="cards" staggerChildren>
               <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                {steps.map((step) => (
+                {onboardingSteps.map((step) => (
                   <article
                     key={step.number}
                     data-scroll-reveal-item
@@ -315,7 +366,44 @@ export default function ClinicasPage() {
           </div>
         </section>
       </div>
+
+      {/* CTA de conversión B2B */}
+      <section
+        className="bg-vetneb-navy py-12 text-primary-foreground md:py-16"
+        aria-labelledby="clinicas-conversion-heading"
+      >
+        <div className="container mx-auto px-4 text-center sm:px-6 lg:px-8">
+          <PublicScrollReveal variant="section">
+            <h2
+              id="clinicas-conversion-heading"
+              className="text-2xl font-bold md:text-3xl"
+            >
+              Sumá tu clínica a VETNEB
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-primary-foreground/80">
+              Coordiná derivaciones, seguí el estado de los estudios y accedé a los
+              informes desde tu portal. Consultanos para gestionar el alta de tu
+              clínica.
+            </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <PublicRouteControl
+                href={ROUTES.contacto}
+                variant="primaryLight"
+                className="public-cta-outline w-full sm:w-auto"
+              >
+                Coordiná una derivación
+              </PublicRouteControl>
+              <PublicRouteControl
+                href={ROUTES.contacto}
+                variant="secondaryOutline"
+                className="w-full border-white/55 bg-white/10 text-primary-foreground shadow-none hover:border-white/75 hover:bg-white/16 hover:text-primary-foreground active:text-primary-foreground focus-visible:text-primary-foreground sm:w-auto"
+              >
+                Consultar alta de clínica
+              </PublicRouteControl>
+            </div>
+          </PublicScrollReveal>
+        </div>
+      </section>
     </PublicLayout>
   );
 }
-

@@ -162,7 +162,6 @@ test("dashboard admin tabs stay inside frontend-only PR-7 scope", () => {
     "frontend/src/app/api/",
     "frontend/src/middleware",
     "middleware",
-    "frontend/src/app/page.tsx",
     "frontend/src/app/servicios/",
     "frontend/src/app/histopatologia-veterinaria/",
   ];

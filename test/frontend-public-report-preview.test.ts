@@ -15,7 +15,7 @@ function read(relativePath: string): string {
   );
 }
 
-// ─── ReportPreviewCard component ─────────────────────────────────────────────
+// ─── ReportPreviewCard component (file kept, not rendered publicly) ───────────
 
 test("ReportPreviewCard component exports a named ReportPreviewCard function", () => {
   const source = read(REPORT_PREVIEW_COMPONENT_PATH);
@@ -104,49 +104,30 @@ test("ReportPreviewCard renders digital access chips — portal and tutor", () =
   assert.ok(source.includes("Acceso tutor por código privado"));
 });
 
-// ─── Home page — report preview integration ──────────────────────────────────
+// ─── Home page — no public demo content (PR-14 correction) ───────────────────
 
-test("home page imports ReportPreviewCard", () => {
+test("home page does not import ReportPreviewCard (PR-14 correction)", () => {
   const source = read(HOME_PATH);
 
-  assert.ok(
+  assert.equal(
     source.includes('from "@/components/public/ReportPreviewCard"'),
+    false,
+    "home page must not import ReportPreviewCard after PR-14",
   );
-  assert.ok(source.includes("ReportPreviewCard"));
 });
 
-test("home page has report-preview section with correct heading contract", () => {
+test("home page does not render report-preview-heading (PR-14 correction)", () => {
   const source = read(HOME_PATH);
 
-  assert.ok(source.includes('aria-labelledby="report-preview-heading"'));
-  assert.ok(source.includes('id="report-preview-heading"'));
-  assert.ok(source.includes("Así se entrega la evidencia diagnóstica"));
-});
-
-test("home page report preview section contains intro copy", () => {
-  const source = read(HOME_PATH);
-
-  assert.ok(source.includes("Del material recibido al diagnóstico"));
-  assert.ok(source.includes("Ejemplo visual sin datos reales"));
-});
-
-test("home page report preview section is placed after specimen journey", () => {
-  const source = read(HOME_PATH);
-
-  const journeyIndex = source.indexOf('aria-labelledby="specimen-journey-heading"');
-  const previewIndex = source.indexOf('aria-labelledby="report-preview-heading"');
-  const benefitsIndex = source.indexOf('aria-labelledby="benefits-heading"');
-
-  assert.ok(journeyIndex !== -1, "specimen-journey-heading must exist");
-  assert.ok(previewIndex !== -1, "report-preview-heading must exist");
-  assert.ok(benefitsIndex !== -1, "benefits-heading must exist");
-  assert.ok(
-    journeyIndex < previewIndex,
-    "report preview must come after specimen journey",
+  assert.equal(
+    source.includes('id="report-preview-heading"'),
+    false,
+    "home page must not have report-preview-heading after PR-14",
   );
-  assert.ok(
-    previewIndex < benefitsIndex,
-    "report preview must come before benefits",
+  assert.equal(
+    source.includes("Ejemplo visual sin datos reales"),
+    false,
+    "home page must not display fictitious data disclaimer after PR-14",
   );
 });
 
@@ -175,32 +156,58 @@ test("home page preserves specimen journey from PR-12", () => {
   assert.ok(source.includes("<SpecimenJourneySection"));
 });
 
-// ─── Clínicas page — report preview B2B integration ──────────────────────────
+// ─── Clínicas page — B2B operations landing (PR-14) ──────────────────────────
 
-test("clinicas page imports ReportPreviewCard", () => {
+test("clinicas page does not import ReportPreviewCard (PR-14 correction)", () => {
   const source = read(CLINICAS_PATH);
 
-  assert.ok(
+  assert.equal(
     source.includes('from "@/components/public/ReportPreviewCard"'),
-  );
-  assert.ok(source.includes("ReportPreviewCard"));
-});
-
-test("clinicas page has report preview section with correct heading contract", () => {
-  const source = read(CLINICAS_PATH);
-
-  assert.ok(source.includes('aria-labelledby="clinicas-report-preview-heading"'));
-  assert.ok(source.includes('id="clinicas-report-preview-heading"'));
-  assert.ok(
-    source.includes("El informe diagnóstico que recibe tu clínica"),
+    false,
+    "clinicas page must not import ReportPreviewCard after PR-14",
   );
 });
 
-test("clinicas page report preview intro copy mentions trazabilidad and acceso", () => {
+test("clinicas page does not render clinicas-report-preview-heading (PR-14 correction)", () => {
   const source = read(CLINICAS_PATH);
 
+  assert.equal(
+    source.includes('id="clinicas-report-preview-heading"'),
+    false,
+    "clinicas page must not have clinicas-report-preview-heading after PR-14",
+  );
+});
+
+test("clinicas page has B2B operations section heading", () => {
+  const source = read(CLINICAS_PATH);
+
+  assert.ok(source.includes('id="clinicas-operations-heading"'));
+  assert.ok(source.includes("Cómo opera tu clínica con VETNEB"));
+});
+
+test("clinicas page imports ClinicOperationsSection component", () => {
+  const source = read(CLINICAS_PATH);
+
+  assert.ok(source.includes('from "@/components/public/ClinicOperationsSection"'));
+  assert.ok(source.includes("ClinicOperationsSection"));
+});
+
+test("clinicas page operations steps cover derivación and trazabilidad", () => {
+  const source = read(CLINICAS_PATH);
+
+  assert.ok(source.includes("Coordinás la derivación"));
+  assert.ok(source.includes("VETNEB registra la recepción"));
+  assert.ok(source.includes("Tu clínica recibe el informe digital"));
   assert.ok(source.includes("trazabilidad"));
-  assert.ok(source.includes("Ejemplo visual sin datos reales"));
+});
+
+test("clinicas page has B2B conversion CTA band pointing to contacto", () => {
+  const source = read(CLINICAS_PATH);
+
+  assert.ok(source.includes('id="clinicas-conversion-heading"'));
+  assert.ok(source.includes("Coordiná una derivación"));
+  assert.ok(source.includes("Consultar alta de clínica"));
+  assert.ok(source.includes("href={ROUTES.contacto}"));
 });
 
 test("clinicas page preserves features heading and feature cards", () => {
@@ -218,22 +225,22 @@ test("clinicas page preserves onboarding section", () => {
   assert.ok(source.includes("Cómo comenzar"));
 });
 
-test("clinicas page report preview is placed after features and before onboarding", () => {
+test("clinicas page operations section is placed after features and before onboarding", () => {
   const source = read(CLINICAS_PATH);
 
   const featuresIndex = source.indexOf('aria-labelledby="clinicas-features-heading"');
-  const previewIndex = source.indexOf('aria-labelledby="clinicas-report-preview-heading"');
+  const opsIndex = source.indexOf('aria-labelledby="clinicas-operations-heading"');
   const onboardingIndex = source.indexOf('aria-labelledby="clinicas-onboarding-heading"');
 
   assert.ok(featuresIndex !== -1, "clinicas-features-heading must exist");
-  assert.ok(previewIndex !== -1, "clinicas-report-preview-heading must exist");
+  assert.ok(opsIndex !== -1, "clinicas-operations-heading must exist");
   assert.ok(onboardingIndex !== -1, "clinicas-onboarding-heading must exist");
   assert.ok(
-    featuresIndex < previewIndex,
-    "report preview must come after features",
+    featuresIndex < opsIndex,
+    "operations section must come after features",
   );
   assert.ok(
-    previewIndex < onboardingIndex,
-    "report preview must come before onboarding",
+    opsIndex < onboardingIndex,
+    "operations section must come before onboarding",
   );
 });

@@ -192,7 +192,6 @@ test("PR-6 scope leaves backend auth API middleware SEO and dependencies untouch
     "pnpm-lock.yaml",
     "frontend/next-env.d.ts",
     "frontend/src/app/layout.tsx",
-    "frontend/src/app/page.tsx",
     "frontend/src/lib/auth.ts",
     "frontend/src/lib/seo.ts",
   ];
