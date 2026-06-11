@@ -1229,6 +1229,23 @@
   }
 }
 /* dashboard-tables-cards-consistency-polish:end */
+/* dashboard-accessibility-keyboard-hardening:start */
+@layer components {
+  /* Programmatic-focus containers (tabIndex=-1 dialogs/panels) must not show
+     a browser-default outline — interactive children still get focus-visible rings. */
+  .dashboard-focus-trap-container:focus {
+    outline: none;
+  }
+
+  /* Pagination controls: clearly signal disabled state beyond opacity */
+  [aria-disabled="true"].dashboard-pagination-btn,
+  button:disabled.dashboard-pagination-btn {
+    pointer-events: none;
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+/* dashboard-accessibility-keyboard-hardening:end */
 
 
 

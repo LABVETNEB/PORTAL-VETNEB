@@ -6,6 +6,9 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
 export type FilterDrawerProps = {
   title: string;
   description?: string;
@@ -30,12 +33,20 @@ export function FilterDrawer({
   const descriptionId = useId();
   const panelId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const activeCountLabel =
     activeCount === 0
       ? "Sin filtros activos"
       : activeCount === 1
         ? "1 filtro activo"
         : `${activeCount} filtros activos`;
+
+  function closePanel() {
+    setOpen(false);
+    window.requestAnimationFrame(() => {
+      triggerRef.current?.focus();
+    });
+  }
 
   useEffect(() => {
     if (!open) {
@@ -46,7 +57,31 @@ export function FilterDrawer({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setOpen(false);
+        closePanel();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const panel = panelRef.current;
+      if (!panel) return;
+
+      const focusable = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
@@ -60,6 +95,7 @@ export function FilterDrawer({
   return (
     <div className={cn("min-w-0", className)}>
       <Button
+        ref={triggerRef}
         type="button"
         variant="outline"
         size="sm"
@@ -88,6 +124,8 @@ export function FilterDrawer({
           <div
             className="absolute inset-0 bg-vetneb-ink/30 backdrop-blur-[2px]"
             aria-hidden="true"
+            data-filter-backdrop="true"
+            onClick={closePanel}
           />
           <div
             id={panelId}
@@ -97,7 +135,7 @@ export function FilterDrawer({
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
             tabIndex={-1}
-            className="absolute inset-y-0 right-0 flex h-dvh w-full max-w-md max-h-dvh flex-col overflow-hidden border-l border-vetneb-line/80 bg-card pb-[env(safe-area-inset-bottom)] dashboard-filter-panel"
+            className="absolute inset-y-0 right-0 flex h-dvh w-full max-w-md max-h-dvh flex-col overflow-hidden border-l border-vetneb-line/80 bg-card pb-[env(safe-area-inset-bottom)] dashboard-filter-panel dashboard-focus-trap-container"
           >
             <div className="shrink-0 flex items-start justify-between gap-4 border-b border-vetneb-line/80 px-4 py-4">
               <div className="min-w-0">
@@ -115,7 +153,7 @@ export function FilterDrawer({
                 variant="ghost"
                 size="sm"
                 aria-label="Cerrar panel de filtros"
-                onClick={() => setOpen(false)}
+                onClick={closePanel}
                 className="shrink-0 focus-visible:ring-2 focus-visible:ring-ring/85"
               >
                 <X className="h-4 w-4" aria-hidden="true" />

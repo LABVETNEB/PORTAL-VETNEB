@@ -1,9 +1,11 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
-import { useEffect } from "react";
+import { FormEvent, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,6 +115,11 @@ export function UploadReportModal({
 }: UploadReportModalProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const triggerButtonRef = useRef<HTMLButtonElement>(null);
+  const isSubmittingRef = useRef(false);
+  const modalDescriptionId = useId();
+  const clinicListboxId = useId();
   const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [clinicId, setClinicId] = useState("");
@@ -170,6 +177,53 @@ export function UploadReportModal({
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    isSubmittingRef.current = isSubmitting;
+  }, [isSubmitting]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    modalRef.current?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (isSubmittingRef.current) return;
+        setIsOpen(false);
+        setErrorMessage(null);
+        setSuccessMessage(null);
+        window.requestAnimationFrame(() => {
+          triggerButtonRef.current?.focus();
+        });
+        return;
+      }
+
+      if (e.key !== "Tab") return;
+
+      const dialog = modalRef.current;
+      if (!dialog) return;
+
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || isLoadingClinics || hasPresetClinic) {
@@ -348,6 +402,9 @@ export function UploadReportModal({
     setIsOpen(false);
     setErrorMessage(null);
     setSuccessMessage(null);
+    window.requestAnimationFrame(() => {
+      triggerButtonRef.current?.focus();
+    });
   }
 
   function openModal() {
@@ -484,12 +541,17 @@ export function UploadReportModal({
     <div
       className="fixed inset-0 z-9999 flex items-start justify-center overflow-y-auto bg-vetneb-ink/45 p-4 sm:items-center"
       role="presentation"
+      onClick={closeModal}
     >
       <div
-        className="clinical-modal relative z-10000 my-auto w-full max-w-xl p-5 text-card-foreground sm:p-6"
+        ref={modalRef}
+        tabIndex={-1}
+        className="clinical-modal dashboard-focus-trap-container relative z-10000 my-auto w-full max-w-xl p-5 text-card-foreground sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="upload-report-title"
+        aria-describedby={modalDescriptionId}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
@@ -499,7 +561,7 @@ export function UploadReportModal({
             >
               Subir informe
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p id={modalDescriptionId} className="text-sm text-muted-foreground">
               {isPresetMode
                 ? "Cargue un PDF para vincularlo al token seleccionado."
                 : "Cargue un PDF y asócielo a una clínica."}
@@ -511,6 +573,7 @@ export function UploadReportModal({
             className="border-vetneb-line/90 bg-card/88"
             onClick={closeModal}
             disabled={isSubmitting}
+            aria-label="Cerrar modal de subir informe"
           >
             Cerrar
           </Button>
@@ -548,6 +611,7 @@ export function UploadReportModal({
                   onChange={(event) => handleClinicSearchChange(event.target.value)}
                   disabled={isSubmitting}
                   aria-describedby="upload-clinic-help"
+                  aria-controls={clinicListboxId}
                 />
                 <input
                   id="upload-clinic-id"
@@ -571,6 +635,7 @@ export function UploadReportModal({
                 ) : null}
 
                 <div
+                  id={clinicListboxId}
                   className="mt-2 max-h-44 overflow-y-auto rounded-lg border border-vetneb-line/80 bg-card/92"
                   role="listbox"
                   aria-label="Clínicas registradas"
@@ -770,12 +835,17 @@ export function UploadReportModal({
           ) : null}
 
           {successMessage ? (
-            <p className="clinical-alert-success px-3 py-2">
+            <p className="clinical-alert-success px-3 py-2" role="alert">
               {successMessage}
             </p>
           ) : null}
 
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isSubmitting}
+            aria-busy={isSubmitting}
+          >
             {isSubmitting ? "Subiendo informe..." : "Subir informe"}
           </Button>
         </form>
@@ -785,7 +855,7 @@ export function UploadReportModal({
 
   return (
     <div>
-      <Button type="button" onClick={openModal}>
+      <Button ref={triggerButtonRef} type="button" onClick={openModal}>
         {triggerLabel}
       </Button>
 

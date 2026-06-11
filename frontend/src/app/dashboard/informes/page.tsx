@@ -528,6 +528,11 @@ export default async function InformesPage({
                                   prefetch={false}
                                   variant="bare"
                                   aria-current={isSelected ? "true" : undefined}
+                                  aria-label={
+                                    isSelected
+                                      ? `Informe seleccionado: ${getReportTitle(report)}`
+                                      : `Seleccionar informe: ${getReportTitle(report)}`
+                                  }
                                   className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-2 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70"
                                 >
                                   {isSelected ? "Seleccionado" : "Seleccionar"}
@@ -572,11 +577,11 @@ export default async function InformesPage({
                     disabled={page <= 1}
                     aria-label="Página anterior"
                     aria-disabled={page <= 1 ? "true" : undefined}
-                    className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Anterior
                   </PublicRouteControl>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="dashboard-pagination-context">
                     Página {page} de {reportsTotalPages}
                   </span>
                   <PublicRouteControl
@@ -587,7 +592,7 @@ export default async function InformesPage({
                     disabled={page >= reportsTotalPages}
                     aria-label="Página siguiente"
                     aria-disabled={page >= reportsTotalPages ? "true" : undefined}
-                    className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Siguiente
                   </PublicRouteControl>

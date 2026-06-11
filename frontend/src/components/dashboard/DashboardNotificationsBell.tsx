@@ -409,7 +409,8 @@ export function DashboardNotificationsBell({
       {isOpen ? (
         <div
           id={desktopPanelId}
-          role="dialog"
+          role="region"
+          aria-label="Panel de notificaciones"
           aria-labelledby={desktopPanelTitleId}
           className="absolute right-0 z-50 mt-2 hidden w-[min(28rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-vetneb-line/80 bg-card p-3 shadow-xl sm:block"
           data-dashboard-notifications-desktop-panel="true"
