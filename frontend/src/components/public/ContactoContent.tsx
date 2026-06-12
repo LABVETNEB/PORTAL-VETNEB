@@ -2,17 +2,23 @@
 
 import { FormEvent, useState } from "react";
 import {
+  ArrowRight,
   Building2,
+  KeyRound,
   Mail,
   MapPin,
   MessageCircle,
+  PackageCheck,
   Phone,
   Send,
   UserRound,
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
-import { PublicExternalControl } from "@/components/public/PublicRouteControl";
+import {
+  PublicExternalControl,
+  PublicRouteControl,
+} from "@/components/public/PublicRouteControl";
 import { VisualIcon } from "@/components/public/VisualAccents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,21 +27,24 @@ import {
   PUBLIC_API_CONFIGURATION_ERROR_MESSAGE,
   submitContactMessage,
 } from "@/lib/api";
+import { ROUTES } from "@/lib/routes";
+
+const WHATSAPP_HREF = "https://wa.me/5493534138946";
 
 const contactInfo = [
+  {
+    icon: Phone,
+    label: "WhatsApp",
+    value: "3534138946",
+    href: WHATSAPP_HREF,
+    tone: "emerald" as const,
+  },
   {
     icon: Mail,
     label: "Email",
     value: "lab.vetneb@gmail.com",
     href: "mailto:lab.vetneb@gmail.com",
     tone: "blue" as const,
-  },
-  {
-    icon: Phone,
-    label: "Teléfono",
-    value: "3534138946",
-    href: "https://wa.me/5493534138946",
-    tone: "emerald" as const,
   },
   {
     icon: MapPin,
@@ -149,10 +158,154 @@ export function ContactoContent() {
         </div>
       </section>
 
+      <section
+        className="public-evidence-band-light public-band-compact"
+        aria-labelledby="contact-intent-heading"
+        data-contact-intent-router
+      >
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-7 max-w-2xl">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-vetneb-ink/65">
+                Contacto
+              </p>
+              <h2
+                id="contact-intent-heading"
+                className="text-2xl font-bold text-vetneb-ink md:text-3xl"
+              >
+                Comuníquese con nuestro equipo
+              </h2>
+            </div>
+
+            <nav
+              className="grid gap-4 md:grid-cols-12"
+              aria-label="Contacto según su consulta"
+            >
+              <PublicRouteControl
+                href="#contact-form"
+                variant="bare"
+                className="premium-card-muted group flex min-h-44 w-full items-start gap-4 border-l-4 border-l-vetneb-navy p-5 text-left md:col-span-7 md:p-6"
+                data-contact-intent="clinic-registration"
+                data-contact-target="#contact-form"
+              >
+                <VisualIcon
+                  icon={Building2}
+                  tone="blue"
+                  className="h-11 w-11 shrink-0 rounded-xl"
+                />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-vetneb-ink/60">
+                    Clínica veterinaria
+                  </span>
+                  <span className="mt-2 text-xl font-bold text-vetneb-ink">
+                    Registrar clínica / solicitar acceso
+                  </span>
+                  <span className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                    Indíquelo en su mensaje.
+                  </span>
+                </span>
+                <ArrowRight
+                  className="mt-1 h-5 w-5 shrink-0 text-vetneb-navy transition-transform group-hover:translate-x-1"
+                  aria-hidden="true"
+                />
+              </PublicRouteControl>
+
+              <PublicExternalControl
+                href={WHATSAPP_HREF}
+                className="group flex min-h-44 w-full items-start gap-4 rounded-lg border border-vetneb-navy/80 bg-vetneb-navy p-5 text-left shadow-[0_16px_42px_rgba(15,45,62,0.16)] md:col-span-5 md:p-6"
+                aria-label="Coordinar envío de muestras por WhatsApp"
+                data-contact-intent="sample-shipping"
+                data-contact-target={WHATSAPP_HREF}
+              >
+                <VisualIcon
+                  icon={PackageCheck}
+                  tone="emerald"
+                  className="h-11 w-11 shrink-0 rounded-xl"
+                />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-primary-foreground/65">
+                    Envío coordinado
+                  </span>
+                  <span className="mt-2 text-xl font-bold text-primary-foreground">
+                    Coordinar envío de muestras
+                  </span>
+                  <span className="mt-3 text-sm leading-relaxed text-primary-foreground/78">
+                    El envío debe coordinarse previamente vía Web o WhatsApp.
+                  </span>
+                </span>
+                <ArrowRight
+                  className="mt-1 h-5 w-5 shrink-0 text-primary-foreground transition-transform group-hover:translate-x-1"
+                  aria-hidden="true"
+                />
+              </PublicExternalControl>
+
+              <PublicRouteControl
+                href={ROUTES.particulares}
+                variant="bare"
+                className="group flex min-h-40 w-full items-start gap-4 rounded-lg border border-vetneb-line/80 bg-card/92 p-5 text-left shadow-[0_10px_30px_rgba(15,45,62,0.07)] md:col-span-5 md:p-6"
+                data-contact-intent="tutor-code"
+                data-contact-target={ROUTES.particulares}
+              >
+                <VisualIcon
+                  icon={KeyRound}
+                  tone="amber"
+                  className="h-10 w-10 shrink-0 rounded-xl"
+                />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-vetneb-ink/60">
+                    Particulares
+                  </span>
+                  <span className="mt-2 text-lg font-bold text-vetneb-ink">
+                    Tutor con código
+                  </span>
+                  <span className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                    El tutor del animal puede acceder con código privado.
+                  </span>
+                </span>
+                <ArrowRight
+                  className="mt-1 h-5 w-5 shrink-0 text-vetneb-navy transition-transform group-hover:translate-x-1"
+                  aria-hidden="true"
+                />
+              </PublicRouteControl>
+
+              <PublicRouteControl
+                href="#contact-form"
+                variant="bare"
+                className="clinical-muted-band group flex min-h-40 w-full items-start gap-4 rounded-lg border border-vetneb-line/70 p-5 text-left shadow-[0_10px_30px_rgba(15,45,62,0.06)] md:col-span-7 md:p-6"
+                data-contact-intent="general-inquiry"
+                data-contact-target="#contact-form"
+              >
+                <VisualIcon
+                  icon={MessageCircle}
+                  tone="blue"
+                  className="h-10 w-10 shrink-0 rounded-xl"
+                />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-vetneb-ink/60">
+                    Contacto
+                  </span>
+                  <span className="mt-2 text-lg font-bold text-vetneb-ink">
+                    Consulta general
+                  </span>
+                  <span className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                    Complete el formulario con su consulta clínica o institucional.
+                  </span>
+                </span>
+                <ArrowRight
+                  className="mt-1 h-5 w-5 shrink-0 text-vetneb-navy transition-transform group-hover:translate-x-1"
+                  aria-hidden="true"
+                />
+              </PublicRouteControl>
+            </nav>
+          </div>
+        </div>
+      </section>
+
       <section className="public-soft-canvas py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid max-w-5xl grid-cols-1 gap-12 mx-auto lg:grid-cols-2">
             <section
+              id="contact-form"
               className="premium-card p-6"
               aria-labelledby="contact-form-heading"
             >

@@ -67,7 +67,75 @@ test("contacto content keeps clinic onboarding guidance visible", () => {
   assert.ok(source.includes("Nombre de la clínica (opcional)"));
   assert.ok(source.includes("Describa su consulta o solicitud de acceso"));
   assert.equal(source.includes("Solicitar integración clínica"), false);
-  assert.equal(source.includes("ArrowRight"), false);
+});
+
+test("contacto content exposes the public intent router", () => {
+  const source = read(CONTACTO_CONTENT_PATH);
+
+  assert.ok(source.includes("data-contact-intent-router"));
+  assert.ok(source.includes('data-contact-intent="clinic-registration"'));
+  assert.ok(source.includes('data-contact-intent="sample-shipping"'));
+  assert.ok(source.includes('data-contact-intent="tutor-code"'));
+  assert.ok(source.includes('data-contact-intent="general-inquiry"'));
+  assert.ok(source.includes("Registrar clínica / solicitar acceso"));
+  assert.ok(source.includes("Coordinar envío de muestras"));
+  assert.ok(source.includes("Tutor con código"));
+  assert.ok(source.includes("Consulta general"));
+  assert.ok(source.includes('data-contact-target="#contact-form"'));
+  assert.ok(source.includes("data-contact-target={ROUTES.particulares}"));
+  assert.ok(source.includes("data-contact-target={WHATSAPP_HREF}"));
+});
+
+test("contacto content keeps operational channel order", () => {
+  const source = read(CONTACTO_CONTENT_PATH);
+  const whatsappIndex = source.indexOf('label: "WhatsApp"');
+  const emailIndex = source.indexOf('label: "Email"');
+  const locationIndex = source.indexOf('label: "Ubicación"');
+
+  assert.ok(whatsappIndex >= 0);
+  assert.ok(emailIndex > whatsappIndex);
+  assert.ok(locationIndex > emailIndex);
+});
+
+test("contacto content keeps form submission contract intact", () => {
+  const source = read(CONTACTO_CONTENT_PATH);
+
+  assert.ok(source.includes("submitContactMessage,"));
+  assert.ok(source.includes("async function handleSubmit"));
+  assert.ok(source.includes("event.preventDefault()"));
+  assert.ok(source.includes("name: fullName"));
+  assert.ok(source.includes("email: email.trim()"));
+  assert.ok(source.includes("clinicName: clinica.trim() || null"));
+  assert.ok(source.includes("message: mensaje.trim()"));
+  assert.ok(source.includes('id="nombre"'));
+  assert.ok(source.includes('id="apellido"'));
+  assert.ok(source.includes('id="email"'));
+  assert.ok(source.includes('id="clinica"'));
+  assert.ok(source.includes('id="mensaje"'));
+});
+
+test("contacto content avoids prohibited public demo copy", () => {
+  const source = read(CONTACTO_CONTENT_PATH);
+  const forbiddenPublicCopy = [
+    "MUESTRA",
+    "DEMOSTRATIVO",
+    "ejemplo visual",
+    "sin datos reales",
+    "caso demo",
+    "DEMO-000",
+    "DEMO-CLINICA-001",
+    "paciente demostrativo",
+    "clínica demostrativa",
+    "preview de informe simulado",
+    "panel operativo simulado",
+    "dashboard ficticio",
+    "informe inventado",
+    "datos ficticios visibles",
+  ];
+
+  for (const forbiddenCopy of forbiddenPublicCopy) {
+    assert.equal(source.includes(forbiddenCopy), false);
+  }
 });
 
 test("contacto page remains public and does not expose private route literals", () => {
