@@ -45,10 +45,14 @@ test("footer dark CTA uses border-white/25 and bg-white/14 not legacy /15 and /8
 
 // ─── PR #901: Subtle depth in flat public sections ────────────────────────────
 
-test("home trust section uses bg-gradient-to-b depth surface", () => {
+test("home trust section uses public-evidence-band-light surface (PR-18)", () => {
   const source = read(HOME_PAGE_PATH);
 
-  assert.ok(source.includes("bg-gradient-to-b from-white via-white to-vetneb-surface/40"));
+  assert.ok(source.includes('className="public-evidence-band-light py-12 md:py-16"'));
+  assert.equal(
+    source.includes("bg-gradient-to-b from-white via-white to-vetneb-surface/40"),
+    false,
+  );
 });
 
 test("home final CTA section has diagnostic-field depth layer and z-10 content wrapper", () => {

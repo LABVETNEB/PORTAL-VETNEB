@@ -151,7 +151,11 @@ test("home page exposes clinical trust institutional data before services", () =
     ),
   );
   assert.ok(source.includes("clínicas verificadas."));
-  assert.ok(source.includes("grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4"));
+  assert.ok(
+    source.includes(
+      "grid grid-cols-1 divide-y divide-vetneb-line/70 lg:grid-cols-4 lg:divide-x lg:divide-y-0",
+    ),
+  );
 
   assert.equal(count(clinicalTrustData, "title:"), 4);
   assert.equal(count(clinicalTrustData, "description:"), 4);
@@ -333,6 +337,50 @@ test("home page hero composes structural system diagram without fictional data (
 
   // El diagrama no contiene datos: ni códigos, ni fechas, ni cifras
   assert.equal(/\d/.test(nodesData), false);
+});
+
+test("home page refines section rhythm without homogeneous card grids (PR-18)", () => {
+  const source = read(HOME_PAGE_PATH);
+  const trustSection = extractBetween(
+    source,
+    'aria-labelledby="clinical-trust-heading"',
+    'aria-labelledby="mobile-professionals-heading"',
+  );
+  const servicesSection = extractBetween(
+    source,
+    'aria-labelledby="services-heading"',
+    'aria-labelledby="specimen-journey-heading"',
+  );
+  const benefitsSection = extractBetween(
+    source,
+    "{/* Beneficios */}",
+    "{/* CTA final */}",
+  );
+
+  // Confianza clínica — franja horizontal de evidencia, sin cards individuales
+  assert.ok(
+    source.includes('className="public-evidence-band-light py-12 md:py-16"'),
+  );
+  assert.equal(trustSection.includes("bg-card p-5 shadow-sm"), false);
+  assert.equal(trustSection.includes("premium-card"), false);
+
+  // Servicios — módulo dominante premium, módulos secundarios sobrios
+  assert.ok(servicesSection.includes("premium-card"));
+  assert.ok(
+    servicesSection.includes("border-vetneb-line/75 bg-card/85 shadow-none"),
+  );
+  assert.ok(servicesSection.includes("lg:p-8 lg:pb-4"));
+  assert.ok(servicesSection.includes('isFeatured && "lg:text-2xl"'));
+
+  // Beneficios — banda split de dos columnas, sin dos cards iguales
+  assert.ok(
+    source.includes('className="public-evidence-band-light py-16 md:py-20"'),
+  );
+  assert.ok(
+    benefitsSection.includes("lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0"),
+  );
+  assert.equal(benefitsSection.includes("premium-card"), false);
+  assert.equal(benefitsSection.includes("<Card"), false);
 });
 
 test("home page lists benefits for clinics and professionals", () => {
