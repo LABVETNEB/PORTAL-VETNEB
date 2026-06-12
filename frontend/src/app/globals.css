@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
 
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/InterVariable.woff2") format("woff2");
+}
+
 @layer base {
   :root {
     --background: 198 34% 96%;
@@ -45,9 +53,9 @@
     --sidebar-accent-foreground: 190 38% 96%;
     --sidebar-border: 202 41% 26%;
     --sidebar-ring: 181 65% 43%;
-    --font-heading: var(--font-inter);
-    --font-body: var(--font-source-sans-3);
-    --font-ui: var(--font-inter);
+    --font-heading: "Inter";
+    --font-body: "Inter";
+    --font-ui: "Inter";
     --motion-fast: 120ms;
     --motion-base: 180ms;
     --motion-slow: 280ms;
@@ -104,6 +112,10 @@
     -webkit-user-select: text;
     -ms-user-select: text;
     user-select: text;
+  }
+
+  html {
+    font-family: var(--font-body), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
   body {
