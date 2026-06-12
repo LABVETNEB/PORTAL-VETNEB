@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PerspectiveScrollSection } from "@/components/public/PerspectiveScrollSection";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import { VisualIcon } from "@/components/public/VisualAccents";
@@ -208,6 +209,7 @@ export default function ClinicasPage() {
           className="py-16 md:py-20"
           aria-labelledby="clinicas-features-heading"
         >
+          <PerspectiveScrollSection intensity="standard">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal variant="section">
               <div className="mx-auto mb-10 max-w-3xl text-center">
@@ -296,6 +298,7 @@ export default function ClinicasPage() {
               </div>
             </PublicScrollReveal>
           </div>
+          </PerspectiveScrollSection>
         </section>
 
         {/* Cómo opera tu clínica con VETNEB */}
@@ -303,6 +306,7 @@ export default function ClinicasPage() {
           className="public-evidence-band-muted public-band-feature"
           aria-labelledby="clinicas-operations-heading"
         >
+          <PerspectiveScrollSection intensity="featured">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal variant="section">
               <div className="mx-auto mb-10 max-w-3xl text-center md:mb-14">
@@ -391,6 +395,7 @@ export default function ClinicasPage() {
               </ol>
             </PublicScrollReveal>
           </div>
+          </PerspectiveScrollSection>
         </section>
 
         {/* Cómo comenzar */}
@@ -398,6 +403,7 @@ export default function ClinicasPage() {
           className="py-16 md:py-20"
           aria-labelledby="clinicas-onboarding-heading"
         >
+          <PerspectiveScrollSection intensity="subtle">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal variant="section">
               <div className="mx-auto mb-10 max-w-3xl text-center">
@@ -500,6 +506,7 @@ export default function ClinicasPage() {
               </section>
             </PublicScrollReveal>
           </div>
+          </PerspectiveScrollSection>
         </section>
       </div>
 
@@ -509,6 +516,7 @@ export default function ClinicasPage() {
         aria-labelledby="clinicas-conversion-heading"
       >
         <div className="container mx-auto px-4 text-center sm:px-6 lg:px-8">
+          <PerspectiveScrollSection intensity="subtle">
           <PublicScrollReveal variant="section">
             <h2
               id="clinicas-conversion-heading"
@@ -538,6 +546,7 @@ export default function ClinicasPage() {
               </PublicRouteControl>
             </div>
           </PublicScrollReveal>
+          </PerspectiveScrollSection>
         </div>
       </section>
     </PublicLayout>

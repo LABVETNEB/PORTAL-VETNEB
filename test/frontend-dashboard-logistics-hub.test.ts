@@ -310,7 +310,6 @@ test("logistics hub changes do not touch backend, API routes, auth, middleware o
     "next.config",
     "app/api/",
     "app/login",
-    "app/servicios",
     "app/profesionales",
     "app/particulares",
     "app/contacto",

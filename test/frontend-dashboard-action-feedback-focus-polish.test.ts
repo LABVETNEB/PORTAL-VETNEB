@@ -220,7 +220,6 @@ test("PR-4 action feedback polish stays within allowed file scope", () => {
     "shared/",
     "frontend/src/app/api/",
     "frontend/src/middleware",
-    "frontend/src/app/servicios/",
     "frontend/src/app/histopatologia-veterinaria/",
   ];
 

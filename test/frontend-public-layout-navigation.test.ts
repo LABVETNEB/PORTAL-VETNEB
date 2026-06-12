@@ -22,7 +22,12 @@ test("public layout wraps pages with navbar main landmark and footer", () => {
   assert.ok(source.includes("interface PublicLayoutProps"));
   assert.ok(source.includes("children: React.ReactNode;"));
   assert.ok(source.includes("<Navbar />"));
-  assert.ok(source.includes('<main className="public-page-canvas flex-1" id="main-content">'));
+  assert.ok(
+    source.includes(
+      'className="public-page-canvas public-perspective-stage flex-1"',
+    ),
+  );
+  assert.ok(source.includes('id="main-content"'));
   assert.ok(source.includes("{children}"));
   assert.ok(source.includes("<Footer />"));
 });

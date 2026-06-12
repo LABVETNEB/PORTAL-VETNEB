@@ -1018,6 +1018,52 @@
     opacity: 1;
   }
 }
+/* public-perspective-scroll:start */
+@layer components {
+  .public-perspective-stage {
+    --public-perspective-depth: 1100px;
+    /* The projected near edge of a rotated section can extend a few pixels
+       past the viewport while transitioning; clip keeps the document free of
+       horizontal scroll without creating a new scroll container. */
+    overflow-x: clip;
+  }
+
+  .public-perspective-section {
+    --scroll-depth-scale: 1;
+    --scroll-depth-rotate-x: 0deg;
+    --scroll-depth-y: 0px;
+    --scroll-depth-opacity: 1;
+    perspective: var(--public-perspective-depth, 1100px);
+    perspective-origin: 50% 50%;
+  }
+
+  .public-perspective-section-inner {
+    transform-origin: center center;
+    transform-style: preserve-3d;
+    transform: translate3d(0, var(--scroll-depth-y), 0)
+      rotateX(var(--scroll-depth-rotate-x))
+      scale(var(--scroll-depth-scale));
+    opacity: var(--scroll-depth-opacity);
+  }
+
+  .public-perspective-section[data-perspective-active="true"]
+    > .public-perspective-section-inner {
+    will-change: transform, opacity;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .public-perspective-section {
+      perspective: none;
+    }
+
+    .public-perspective-section-inner {
+      transform: none !important;
+      opacity: 1 !important;
+      will-change: auto !important;
+    }
+  }
+}
+/* public-perspective-scroll:end */
 /* dashboard-auth-visual-system:start */
 @layer components {
   .dashboard-main {

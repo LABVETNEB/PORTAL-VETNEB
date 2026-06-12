@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PerspectiveScrollSection } from "@/components/public/PerspectiveScrollSection";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { SpecimenJourneySection } from "@/components/public/SpecimenJourneySection";
@@ -202,6 +203,7 @@ export default function ServiciosPage() {
           className="py-16 md:py-20"
           aria-labelledby="services-categories-heading"
         >
+          <PerspectiveScrollSection intensity="featured">
           <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal variant="section">
               <div className="mx-auto mb-10 max-w-4xl">
@@ -334,6 +336,7 @@ export default function ServiciosPage() {
               </div>
             </PublicScrollReveal>
           </div>
+          </PerspectiveScrollSection>
         </section>
 
         <section
@@ -341,6 +344,7 @@ export default function ServiciosPage() {
           aria-labelledby="services-coordination-heading"
           data-services-composed-band="coordination-integral"
         >
+          <PerspectiveScrollSection intensity="standard">
           <div className="container mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <div className="grid items-stretch gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-12">
               <PublicScrollReveal variant="section">
@@ -401,12 +405,14 @@ export default function ServiciosPage() {
               </PublicScrollReveal>
             </div>
           </div>
+          </PerspectiveScrollSection>
         </section>
 
         <section
           className="public-band-feature"
           aria-labelledby="services-specimen-journey-heading"
         >
+          <PerspectiveScrollSection intensity="subtle">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
             <PublicScrollReveal variant="section">
               <div className="mb-8">
@@ -434,12 +440,14 @@ export default function ServiciosPage() {
               </div>
             </PublicScrollReveal>
           </div>
+          </PerspectiveScrollSection>
         </section>
 
         <section
           className="public-evidence-band-muted public-band"
           data-services-composed-band="considerations-values"
         >
+          <PerspectiveScrollSection intensity="subtle">
           <div className="container mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal variant="section">
               <div className="grid gap-8 lg:grid-cols-2 lg:gap-0">
@@ -498,6 +506,7 @@ export default function ServiciosPage() {
               </div>
             </PublicScrollReveal>
           </div>
+          </PerspectiveScrollSection>
         </section>
       </div>
     </PublicLayout>

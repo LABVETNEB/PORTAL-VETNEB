@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PerspectiveScrollSection } from "@/components/public/PerspectiveScrollSection";
 import {
   PublicExternalControl,
   PublicRouteControl,
@@ -164,6 +165,7 @@ export function ContactoContent() {
         data-contact-intent-router
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <PerspectiveScrollSection intensity="subtle">
           <div className="mx-auto max-w-6xl">
             <div className="mb-7 max-w-2xl">
               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-vetneb-ink/65">
@@ -298,6 +300,7 @@ export function ContactoContent() {
               </PublicRouteControl>
             </nav>
           </div>
+          </PerspectiveScrollSection>
         </div>
       </section>
 
@@ -494,6 +497,9 @@ export function ContactoContent() {
             </section>
 
             <section aria-labelledby="contact-info-heading">
+              {/* La perspectiva cubre solo la columna informativa; el
+                  formulario de contacto queda fuera del efecto. */}
+              <PerspectiveScrollSection intensity="subtle">
               <div className="mb-6 flex items-start gap-3">
                 <VisualIcon icon={Phone} tone="emerald" className="h-11 w-11 rounded-xl" />
                 <div>
@@ -550,6 +556,7 @@ export function ContactoContent() {
                   trazabilidad y seguimiento de informes.
                 </p>
               </div>
+              </PerspectiveScrollSection>
             </section>
           </div>
         </div>

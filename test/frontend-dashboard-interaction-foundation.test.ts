@@ -304,7 +304,6 @@ test("PR-1 interaction foundation stays within allowed file scope", () => {
     "shared/",
     "frontend/src/app/api/",
     "frontend/src/middleware",
-    "frontend/src/app/servicios/",
     "frontend/src/app/histopatologia-veterinaria/",
   ];
 

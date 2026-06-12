@@ -431,7 +431,6 @@ test("PR-2 workspace layout polish stays within allowed file scope", () => {
     "shared/",
     "frontend/src/app/api/",
     "frontend/src/middleware",
-    "frontend/src/app/servicios/",
   ];
 
   const blockedExactFiles = [

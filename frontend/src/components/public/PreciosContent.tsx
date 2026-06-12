@@ -4,6 +4,7 @@ import { ArrowRight, CheckCircle2, HelpCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PerspectiveScrollSection } from "@/components/public/PerspectiveScrollSection";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPublicPricing, type PublicPricingCategory } from "@/lib/api";
@@ -191,6 +192,9 @@ export function PreciosContent() {
         className="public-evidence-band-light public-band-compact"
         aria-labelledby="pricing-catalog-heading"
       >
+        {/* Contenedor general del catálogo: única superficie con perspectiva en
+            precios. Filas, valores y badges no llevan transform propio. */}
+        <PerspectiveScrollSection intensity="subtle">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <h2 id="pricing-catalog-heading" className="sr-only">
             Catálogo público de precios por categoría
@@ -329,6 +333,7 @@ export function PreciosContent() {
             </p>
           )}
         </div>
+        </PerspectiveScrollSection>
       </section>
     </PublicLayout>
   );

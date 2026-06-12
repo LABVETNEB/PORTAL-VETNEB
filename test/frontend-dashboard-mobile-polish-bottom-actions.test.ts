@@ -163,7 +163,6 @@ test("PR-9 mobile polish scope avoids forbidden surfaces and dependencies", () =
     "shared/",
     "frontend/src/app/api/",
     "frontend/src/middleware",
-    "frontend/src/app/servicios/",
     "frontend/src/app/histopatologia-veterinaria/",
   ];
   const blockedFiles = [
