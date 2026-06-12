@@ -129,10 +129,15 @@ test("home page preserves specimen journey from PR-12", () => {
   assert.ok(source.includes("<SpecimenJourneySection"));
 });
 
-test("clinicas page has B2B operations section heading", () => {
+test("clinicas page has clinic operations section heading", () => {
   const source = read(CLINICAS_PATH);
   assert.ok(source.includes('id="clinicas-operations-heading"'));
   assert.ok(source.includes("Cómo opera tu clínica con VETNEB"));
+});
+
+test("clinicas page does not include B2B wording", () => {
+  const source = read(CLINICAS_PATH);
+  assert.ok(!source.includes("B2B"));
 });
 
 test("clinicas page renders the operational flow as a five-column timeline", () => {
@@ -154,7 +159,7 @@ test("clinicas page operations steps cover derivación and trazabilidad", () => 
   assert.ok(source.includes("trazabilidad"));
 });
 
-test("clinicas page has B2B conversion CTA band pointing to contacto", () => {
+test("clinicas page has clinic conversion CTA band pointing to contacto", () => {
   const source = read(CLINICAS_PATH);
   assert.ok(source.includes('id="clinicas-conversion-heading"'));
   assert.ok(source.includes("Coordiná una derivación"));

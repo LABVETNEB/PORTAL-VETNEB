@@ -510,7 +510,7 @@ export default function ClinicasPage() {
         </section>
       </div>
 
-      {/* CTA de conversión B2B */}
+      {/* CTA para clínicas */}
       <section
         className="bg-vetneb-navy py-12 text-primary-foreground md:py-16"
         aria-labelledby="clinicas-conversion-heading"
