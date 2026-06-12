@@ -40,23 +40,60 @@ test("servicios page lists laboratory service categories", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
   assert.ok(source.includes("const serviceCategories = ["));
-  assert.ok(source.includes("Estudio anatomopatológico de tejidos"));
-  assert.ok(source.includes("Estudio citológico de muestras"));
-  assert.ok(source.includes("Tinciones especiales aplicadas"));
-  assert.ok(source.includes("Diagnóstico integral interdisciplinario"));
-  assert.ok(source.includes("Informes y seguimiento"));
+  const serviceTitles = [
+    "Estudio anatomopatológico de tejidos",
+    "Estudio citológico de muestras",
+    "Tinciones especiales aplicadas",
+    "Diagnóstico integral interdisciplinario",
+    "Informes y seguimiento",
+  ];
+
+  for (const title of serviceTitles) {
+    assert.ok(source.includes(title), `servicios page must keep "${title}"`);
+  }
+
   assert.ok(source.includes("serviceCategories.map((service) =>"));
 });
 
 test("servicios page keeps detailed service feature bullets", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
-  assert.ok(source.includes("Recepción y procesamiento de muestras de tejidos"));
-  assert.ok(source.includes("Estudio citológico de líquidos y punciones"));
-  assert.ok(source.includes("Complemento de histopatología y citopatología"));
-  assert.ok(source.includes("Interconsulta profesional cuando el caso lo requiere"));
-  assert.ok(source.includes("Consulta de resultados de informes las 24 hs"));
-  assert.ok(source.includes("Priorización según complejidad diagnóstica"));
+  const serviceFeatures = [
+    "Recepción y procesamiento de muestras de tejidos",
+    "Evaluación microscópica de lesiones histológicas",
+    "Correlación anatomopatológica del caso clínico",
+    "Informe diagnóstico con hallazgos relevantes",
+    "Apoyo para decisiones terapéuticas",
+    "Seguimiento del caso con el equipo tratante",
+    "Estudio citológico de líquidos y punciones",
+    "Valoración celular orientada a diagnóstico",
+    "Identificación de patrones inflamatorios y proliferativos",
+    "Apoyo diagnóstico en lesiones de tejidos blandos",
+    "Integración con antecedentes clínicos del paciente",
+    "Informe citológico con conclusión profesional",
+    "Selección de técnicas según complejidad del caso",
+    "Caracterización adicional de lesiones tisulares",
+    "Soporte para diagnósticos diferenciales",
+    "Complemento de histopatología y citopatología",
+    "Mayor precisión frente a hallazgos complejos",
+    "Registro diagnóstico trazable",
+    "Integración de análisis histológico y citológico",
+    "Trabajo conjunto con diagnóstico por imágenes",
+    "Articulación con cirugía y clínica veterinaria",
+    "Interconsulta profesional cuando el caso lo requiere",
+    "Definición diagnóstica específica por paciente",
+    "Orientación para tratamiento personalizado",
+    "Consulta de resultados de informes las 24 hs",
+    "Seguimiento del estado del estudio en portal",
+    "Comunicación directa para coordinación de muestras",
+    "Priorización según complejidad diagnóstica",
+    "Tiempos variables según necesidad del caso",
+    "Entrega final con criterio profesional y responsable",
+  ];
+
+  for (const feature of serviceFeatures) {
+    assert.ok(source.includes(feature), `servicios page must keep "${feature}"`);
+  }
 });
 
 test("servicios page exposes conversion CTAs and SEO copy", () => {
@@ -81,16 +118,62 @@ test("servicios page remains public and avoids direct backend/API calls", () => 
   assert.equal(source.includes("fetch("), false);
 });
 
-test("servicios page keeps one continuous soft canvas through middle sections", () => {
+test("servicios page composes its diagnostic sections on the public rhythm system", () => {
   const source = read(SERVICIOS_PAGE_PATH);
 
   assert.ok(source.includes('className="public-soft-canvas"'));
   assert.ok(source.includes('className="py-16 md:py-20"'));
-  assert.ok(source.includes('className="py-16"'));
+  assert.ok(source.includes('className="public-evidence-band-light public-band"'));
+  assert.ok(source.includes('className="public-band-feature"'));
+  assert.ok(source.includes('className="public-evidence-band-muted public-band"'));
   assert.equal(source.includes('className="bg-white py-16"'), false);
   assert.equal(source.includes('className="bg-blue-50 py-16"'), false);
   assert.equal(source.includes('className="bg-gray-50 py-16"'), false);
   assert.equal(source.includes('data-public-soft-canvas="true"'), false);
+});
+
+test("servicios page uses a hierarchical diagnostic bento", () => {
+  const source = read(SERVICIOS_PAGE_PATH);
+
+  assert.ok(source.includes('layout: "dominant" as const'));
+  assert.equal((source.match(/layout: "medium" as const/g) ?? []).length, 2);
+  assert.equal((source.match(/layout: "connector" as const/g) ?? []).length, 2);
+  assert.ok(source.includes('data-services-diagnostic-bento="true"'));
+  assert.ok(source.includes("grid grid-cols-1 gap-5 lg:grid-cols-12 lg:gap-6"));
+  assert.ok(source.includes('isDominant && "lg:col-span-12"'));
+  assert.ok(source.includes('isMedium && "lg:col-span-6"'));
+  assert.ok(source.includes('"lg:col-span-7"'));
+  assert.ok(source.includes('"lg:col-span-5"'));
+  assert.ok(source.includes('data-service-layout={service.layout}'));
+  assert.ok(source.includes("isConnector"));
+  assert.ok(source.includes('"premium-card-muted"'));
+});
+
+test("servicios page consolidates repeated bands into composed sections", () => {
+  const source = read(SERVICIOS_PAGE_PATH);
+
+  assert.ok(source.includes('data-services-composed-band="coordination-integral"'));
+  assert.ok(source.includes('data-services-composed-band="considerations-values"'));
+
+  const coordinationBandIndex = source.indexOf(
+    'data-services-composed-band="coordination-integral"',
+  );
+  const coordinationHeadingIndex = source.indexOf(
+    'id="services-coordination-heading"',
+  );
+  const integralHeadingIndex = source.indexOf('id="services-integral-heading"');
+  const closingBandIndex = source.indexOf(
+    'data-services-composed-band="considerations-values"',
+  );
+  const considerationsHeadingIndex = source.indexOf(
+    'id="services-considerations-heading"',
+  );
+  const valuesHeadingIndex = source.indexOf('id="services-values-heading"');
+
+  assert.ok(coordinationBandIndex < coordinationHeadingIndex);
+  assert.ok(coordinationHeadingIndex < integralHeadingIndex);
+  assert.ok(closingBandIndex < considerationsHeadingIndex);
+  assert.ok(considerationsHeadingIndex < valuesHeadingIndex);
 });
 
 test("servicios page hides service link typography while keeping link semantics", () => {
@@ -126,19 +209,30 @@ test("servicios page shows unified card CTA while preserving hidden SEO labels",
 
 test("servicios page does not contain demo or simulated content (PR-15 guard)", () => {
   const source = read(SERVICIOS_PAGE_PATH);
+  const normalizedSource = source.toLowerCase();
   const demoTerms = [
-    "DEMOSTRATIVO",
-    "DEMO-000",
-    "Paciente demostrativo",
-    "Ejemplo visual sin datos reales",
+    "demostrativo",
+    "ejemplo visual",
+    "sin datos reales",
+    "caso demo",
+    "demo-000",
+    "demo-clinica-001",
+    "paciente demostrativo",
+    "clínica demostrativa",
+    "preview de informe simulado",
     "panel operativo simulado",
+    "dashboard ficticio",
+    "informe inventado",
+    "datos ficticios visibles",
     "report-preview-card-title",
-    "ReportPreviewCard",
+    "reportpreviewcard",
   ];
+
+  assert.equal(source.includes("MUESTRA"), false);
 
   for (const term of demoTerms) {
     assert.equal(
-      source.includes(term),
+      normalizedSource.includes(term),
       false,
       `servicios page must not contain "${term}"`,
     );

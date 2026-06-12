@@ -188,12 +188,18 @@ test("servicios page specimen journey contains verified protocol data", () => {
   assert.ok(source.includes("15 días hábiles"));
 });
 
-test("servicios page bento makes anatomopatología featured with lg:col-span-2", () => {
+test("servicios page bento gives each diagnostic layer explicit hierarchy", () => {
   const source = read(SERVICIOS_PATH);
 
-  assert.ok(source.includes('isFeatured && "lg:col-span-2"'));
+  assert.ok(source.includes('data-services-diagnostic-bento="true"'));
+  assert.ok(source.includes('layout: "dominant" as const'));
+  assert.equal((source.match(/layout: "medium" as const/g) ?? []).length, 2);
+  assert.equal((source.match(/layout: "connector" as const/g) ?? []).length, 2);
+  assert.ok(source.includes('isDominant && "lg:col-span-12"'));
+  assert.ok(source.includes('isMedium && "lg:col-span-6"'));
+  assert.ok(source.includes('"lg:col-span-7"'));
+  assert.ok(source.includes('"lg:col-span-5"'));
   assert.ok(source.includes("Servicio principal"));
-  assert.ok(source.includes('service.id === "anatomopatologia"'));
 });
 
 test("servicios page preserves conversion CTAs and service content", () => {
