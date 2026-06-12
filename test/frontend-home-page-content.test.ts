@@ -291,52 +291,47 @@ test("home page renders one unified end-to-end journey section (PR-17)", () => {
   }
 });
 
-test("home page hero composes structural system diagram without fictional data (PR-17)", () => {
+test("home page hero is single-column with brand mark and integrated operational info (PR-17 refine)", () => {
   const source = read(HOME_PAGE_PATH);
-  const heroSection = extractBetween(
-    source,
-    'aria-labelledby="hero-heading"',
-    "Banda utilitaria",
-  );
-  const nodesData = extractBetween(
-    source,
-    "const heroSystemNodes = [",
-    "export default function HomePage()",
+  const heroSection = source.slice(
+    source.indexOf('aria-labelledby="hero-heading"'),
+    source.indexOf("public-soft-canvas"),
   );
 
-  // h1 usa la tipografía display de PR-16
+  // H1 es VETNEB — portada de marca, tipografía clamp dominante
   assert.ok(
     source.includes(
-      'className="public-display max-w-2xl break-words font-bold text-primary-foreground"',
+      'className="text-[clamp(4rem,10vw,8rem)] font-black uppercase tracking-[0.06em] leading-none text-primary-foreground"',
     ),
   );
+  assert.equal(
+    source.includes('className="public-display max-w-2xl break-words font-bold text-primary-foreground"'),
+    false,
+  );
 
-  // Composición en dos zonas en desktop, una columna en mobile
+  // Descriptor diagnóstico debajo del H1, como párrafo secundario
+  assert.ok(source.includes("trazabilidad de informes"));
+  assert.equal(source.includes("trazabilidad de muestra a informe"), false);
+
+  // Hero de una columna — sin grid de dos zonas
+  assert.equal(source.includes("lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]"), false);
+
+  // Descriptor diagnóstico en párrafo subordinado
   assert.ok(
-    heroSection.includes(
-      "grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]",
+    source.includes(
+      '"mt-4 max-w-2xl text-lg font-semibold leading-snug text-primary-foreground/85 sm:text-xl"',
     ),
   );
 
-  // Diagrama estructural del proceso — nodos conceptuales conectados
-  assert.ok(heroSection.includes("data-hero-system-diagram"));
-  assert.ok(
-    heroSection.includes(
-      'aria-label="Diagrama del proceso diagnóstico: de la muestra al acceso digital"',
-    ),
-  );
-  assert.ok(heroSection.includes("De la muestra al informe"));
-  assert.ok(heroSection.includes("heroSystemNodes.map((node, index)"));
+  // Diagrama eliminado — hero limpio sin panel secundario
+  assert.equal(source.includes("data-hero-system-diagram"), false);
+  assert.equal(source.includes("heroSystemNodes"), false);
+  assert.equal(heroSection.includes("De la muestra al informe"), false);
 
-  assert.equal(count(nodesData, "label:"), 5);
-  assert.ok(nodesData.includes('label: "Muestra"'));
-  assert.ok(nodesData.includes('label: "Laboratorio"'));
-  assert.ok(nodesData.includes('label: "Evaluación diagnóstica"'));
-  assert.ok(nodesData.includes('label: "Informe"'));
-  assert.ok(nodesData.includes('label: "Acceso digital"'));
-
-  // El diagrama no contiene datos: ni códigos, ni fechas, ni cifras
-  assert.equal(/\d/.test(nodesData), false);
+  // Información operativa integrada dentro del hero
+  assert.ok(heroSection.includes("Resultados disponibles las 24 hs"));
+  assert.ok(heroSection.includes("WhatsApp: 3534138946"));
+  assert.ok(heroSection.includes("wa.me/5493534138946"));
 });
 
 test("home page refines section rhythm without homogeneous card grids (PR-18)", () => {

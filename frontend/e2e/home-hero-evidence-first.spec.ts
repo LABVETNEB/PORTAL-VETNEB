@@ -6,10 +6,11 @@ test.describe("home hero — evidence-first (PR-10)", () => {
     await page.waitForLoadState("domcontentloaded");
   });
 
-  test("H1 contiene diagnóstico anatomopatológico", async ({ page }) => {
+  test("H1 es VETNEB como marca principal del hero", async ({ page }) => {
     const h1 = page.locator("h1#hero-heading");
     await expect(h1).toBeVisible();
-    await expect(h1).toContainText(/anatomopatológico/i);
+    await expect(h1).toContainText("VETNEB");
+    await expect(page.locator("body")).toContainText(/anatomopatológico/i);
   });
 
   test("firma profesional Dr. Nicolás E. Barbé visible", async ({ page }) => {
@@ -25,20 +26,16 @@ test.describe("home hero — evidence-first (PR-10)", () => {
     await expect(page.locator("body")).toContainText("Seguir con código");
   });
 
-  test("banda utilitaria fuera del hero contiene horario y WhatsApp", async ({ page }) => {
+  test("hero integra horario y WhatsApp como información operativa", async ({ page }) => {
     await expect(page.locator("body")).toContainText(/lunes a viernes/i);
     await expect(page.locator("body")).toContainText("WhatsApp: 3534138946");
   });
 
-  test("hero compone diagrama estructural del proceso (PR-17)", async ({ page }) => {
-    const diagram = page.locator("[data-hero-system-diagram]");
-    await expect(diagram).toBeVisible();
-    await expect(diagram).toContainText("De la muestra al informe");
-    await expect(diagram).toContainText("Muestra");
-    await expect(diagram).toContainText("Laboratorio");
-    await expect(diagram).toContainText("Evaluación diagnóstica");
-    await expect(diagram).toContainText("Informe");
-    await expect(diagram).toContainText("Acceso digital");
+  test("hero presenta marca VETNEB y no contiene diagrama de proceso", async ({ page }) => {
+    const hero = page.locator('section[aria-labelledby="hero-heading"]');
+    await expect(hero).toContainText("VETNEB");
+    await expect(page.locator("[data-hero-system-diagram]")).toHaveCount(0);
+    await expect(hero).not.toContainText("De la muestra al informe");
   });
 
   test("hero no renderiza términos demo ni datos ficticios (PR-17)", async ({ page }) => {
