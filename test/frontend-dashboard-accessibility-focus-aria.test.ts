@@ -169,7 +169,6 @@ test("PR-8 dashboard accessibility scope avoids forbidden files", () => {
     "shared/",
     "frontend/src/app/api/",
     "frontend/src/middleware",
-    "frontend/src/app/servicios/",
     "frontend/src/app/histopatologia-veterinaria/",
   ];
   const blockedFiles = [

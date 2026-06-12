@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { PerspectiveScrollSection } from "@/components/public/PerspectiveScrollSection";
 import { PublicScrollReveal } from "@/components/public/PublicScrollReveal";
 import {
   PublicExternalControl,
@@ -304,6 +305,7 @@ export default function HomePage() {
           className="public-evidence-band-light py-12 md:py-16"
           aria-labelledby="clinical-trust-heading"
         >
+          <PerspectiveScrollSection intensity="standard">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal>
               <div className="mx-auto mb-8 max-w-3xl text-center md:mb-10">
@@ -358,6 +360,7 @@ export default function HomePage() {
               </div>
             </PublicScrollReveal>
           </div>
+          </PerspectiveScrollSection>
         </section>
 
         <section
@@ -394,6 +397,7 @@ export default function HomePage() {
           className="py-16 md:py-20"
           aria-labelledby="services-heading"
         >
+          <PerspectiveScrollSection intensity="standard">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal>
               <div className="text-center mb-12">
@@ -480,6 +484,7 @@ export default function HomePage() {
               </div>
             </PublicScrollReveal>
           </div>
+          </PerspectiveScrollSection>
         </section>
 
         {/* Recorrido end-to-end — de la muestra al informe */}
@@ -487,6 +492,7 @@ export default function HomePage() {
           className="public-evidence-band-muted public-band-feature"
           aria-labelledby="specimen-journey-heading"
         >
+          <PerspectiveScrollSection intensity="standard">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal>
               <div className="mx-auto mb-10 max-w-3xl text-center md:mb-14">
@@ -530,6 +536,7 @@ export default function HomePage() {
               </div>
             </PublicScrollReveal>
           </div>
+          </PerspectiveScrollSection>
         </section>
 
         {/* Beneficios */}
@@ -537,6 +544,7 @@ export default function HomePage() {
           className="public-evidence-band-light py-16 md:py-20"
           aria-labelledby="benefits-heading"
         >
+          <PerspectiveScrollSection intensity="subtle">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal>
               <div className="text-center mb-12">
@@ -608,6 +616,7 @@ export default function HomePage() {
               </div>
             </PublicScrollReveal>
           </div>
+          </PerspectiveScrollSection>
         </section>
 
         {/* CTA final */}
@@ -616,6 +625,7 @@ export default function HomePage() {
           aria-labelledby="cta-heading"
         >
           <div className="diagnostic-field" data-tone="dark" aria-hidden="true" />
+          <PerspectiveScrollSection intensity="subtle">
           <PublicScrollReveal>
             <div className="container relative z-10 mx-auto px-4 text-center sm:px-6 lg:px-8">
               <h2
@@ -648,6 +658,7 @@ export default function HomePage() {
               </div>
             </div>
           </PublicScrollReveal>
+          </PerspectiveScrollSection>
         </section>
       </div>
     </PublicLayout>
