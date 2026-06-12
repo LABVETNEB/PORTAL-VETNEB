@@ -135,12 +135,15 @@ test("clinicas page has B2B operations section heading", () => {
   assert.ok(source.includes("Cómo opera tu clínica con VETNEB"));
 });
 
-test("clinicas page imports ClinicOperationsSection component", () => {
+test("clinicas page renders the operational flow as a five-column timeline", () => {
   const source = read(CLINICAS_PATH);
+
   assert.ok(
-    source.includes('from "@/components/public/ClinicOperationsSection"'),
+    source.includes('aria-label="Pasos operativos de derivación con VETNEB"'),
   );
-  assert.ok(source.includes("ClinicOperationsSection"));
+  assert.ok(source.includes("operationSteps.map((step, index) =>"));
+  assert.ok(source.includes("data-clinic-op-step={step.step}"));
+  assert.ok(source.includes("lg:grid-cols-5"));
 });
 
 test("clinicas page operations steps cover derivación and trazabilidad", () => {
