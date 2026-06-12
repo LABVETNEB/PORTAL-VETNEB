@@ -496,6 +496,65 @@
     border-color: hsl(var(--primary-foreground) / 0.58) !important;
   }
 
+  /* public-visual-rhythm-foundation:start */
+  .public-band-compact {
+    padding-block: clamp(2.5rem, 5vw, 4rem);
+  }
+
+  .public-band {
+    padding-block: clamp(4rem, 7vw, 6rem);
+  }
+
+  .public-band-feature {
+    padding-block: clamp(5.5rem, 9vw, 8rem);
+  }
+
+  .public-evidence-band,
+  .public-evidence-band-muted,
+  .public-evidence-band-light {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+  }
+
+  .public-evidence-band > *,
+  .public-evidence-band-muted > *,
+  .public-evidence-band-light > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .public-evidence-band {
+    border-block: 1px solid hsl(var(--vetneb-line) / 0.72);
+    background:
+      linear-gradient(115deg, hsl(var(--vetneb-navy) / 0.065), transparent 38%),
+      linear-gradient(302deg, hsl(var(--vetneb-teal) / 0.075), transparent 42%),
+      hsl(var(--vetneb-surface-raised));
+  }
+
+  .public-evidence-band-muted {
+    border-block: 1px solid hsl(var(--vetneb-line) / 0.68);
+    background:
+      linear-gradient(90deg, hsl(var(--vetneb-navy) / 0.045) 1px, transparent 1px),
+      linear-gradient(180deg, hsl(var(--vetneb-navy) / 0.035) 1px, transparent 1px),
+      linear-gradient(180deg, hsl(var(--vetneb-surface)) 0%, hsl(var(--vetneb-surface-muted)) 100%);
+    background-size: 84px 84px, 84px 84px, auto;
+  }
+
+  .public-evidence-band-light {
+    border-block: 1px solid hsl(var(--vetneb-line) / 0.56);
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--vetneb-surface-raised) / 0.9));
+  }
+
+  .public-display {
+    font-family: var(--font-heading), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: clamp(2.5rem, 5.4vw, 3.75rem);
+    line-height: 0.98;
+    letter-spacing: -0.045em;
+    text-wrap: balance;
+  }
+  /* public-visual-rhythm-foundation:end */
 
   .premium-card {
     @apply rounded-lg border border-vetneb-line/80 bg-card/90 shadow-[0_16px_46px_rgba(15,45,62,0.10)] transition-[box-shadow,border-color,background-color] duration-200 hover:border-vetneb-teal/40 hover:shadow-[0_22px_64px_rgba(15,45,62,0.14)];
