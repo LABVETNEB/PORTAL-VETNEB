@@ -51,6 +51,44 @@ test.describe("service bento + specimen journey (PR-12)", () => {
       await expect(ol).toBeVisible();
     });
 
+    test("centers each journey number over its content on desktop", async ({
+      page,
+    }) => {
+      const stages = page.locator("[data-specimen-stage]");
+
+      for (const stage of await stages.all()) {
+        const centerDelta = await stage.evaluate((element) => {
+          const number = element.querySelector<HTMLElement>(
+            "[data-specimen-stage-number]",
+          );
+          const content = element.querySelector<HTMLElement>(
+            "[data-specimen-stage-content]",
+          );
+
+          if (!number || !content) return null;
+
+          const centerWithinStage = (child: HTMLElement) => {
+            let left = 0;
+            let current: HTMLElement | null = child;
+
+            while (current && current !== element) {
+              left += current.offsetLeft;
+              current = current.offsetParent as HTMLElement | null;
+            }
+
+            return left + child.offsetWidth / 2;
+          };
+
+          return Math.abs(
+            centerWithinStage(number) - centerWithinStage(content),
+          );
+        });
+
+        expect(centerDelta).not.toBeNull();
+        expect(centerDelta ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(1);
+      }
+    });
+
     test("preserves hero CTAs from PR-10", async ({ page }) => {
       await expect(page.locator("body")).toContainText("Acceder al portal");
       await expect(page.locator("body")).toContainText("Seguir con código");
@@ -112,6 +150,44 @@ test.describe("service bento + specimen journey (PR-12)", () => {
 
     test("renders verified protocol data — 15 días hábiles visible", async ({ page }) => {
       await expect(page.locator("body")).toContainText("15 días hábiles");
+    });
+
+    test("centers each journey number over its content on desktop", async ({
+      page,
+    }) => {
+      const stages = page.locator("[data-specimen-stage]");
+
+      for (const stage of await stages.all()) {
+        const centerDelta = await stage.evaluate((element) => {
+          const number = element.querySelector<HTMLElement>(
+            "[data-specimen-stage-number]",
+          );
+          const content = element.querySelector<HTMLElement>(
+            "[data-specimen-stage-content]",
+          );
+
+          if (!number || !content) return null;
+
+          const centerWithinStage = (child: HTMLElement) => {
+            let left = 0;
+            let current: HTMLElement | null = child;
+
+            while (current && current !== element) {
+              left += current.offsetLeft;
+              current = current.offsetParent as HTMLElement | null;
+            }
+
+            return left + child.offsetWidth / 2;
+          };
+
+          return Math.abs(
+            centerWithinStage(number) - centerWithinStage(content),
+          );
+        });
+
+        expect(centerDelta).not.toBeNull();
+        expect(centerDelta ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(1);
+      }
     });
 
     test("featured anatomopatológico card visible with eyebrow label", async ({ page }) => {

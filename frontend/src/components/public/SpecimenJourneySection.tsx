@@ -47,22 +47,23 @@ export function SpecimenJourneySection({
                 />
               )}
 
-              <div className="flex shrink-0 items-center lg:mb-4 lg:w-full">
+              <div className="flex shrink-0 items-center lg:relative lg:mb-4 lg:w-full lg:justify-center">
                 <span
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-vetneb-navy text-sm font-bold text-primary-foreground shadow-[0_6px_16px_hsl(var(--vetneb-navy)/0.22)] ring-2 ring-primary/20"
+                  data-specimen-stage-number
+                  className="relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-vetneb-navy text-sm font-bold text-primary-foreground shadow-[0_6px_16px_hsl(var(--vetneb-navy)/0.22)] ring-2 ring-primary/20"
                   aria-hidden="true"
                 >
                   {stage.step}
                 </span>
                 {!isLastStage && (
                   <span
-                    className="ml-4 hidden h-px flex-1 bg-vetneb-navy/20 lg:-mr-6 lg:block"
+                    className="absolute left-1/2 top-1/2 hidden h-px w-[calc(100%+1.5rem)] bg-vetneb-navy/20 lg:block"
                     aria-hidden="true"
                   />
                 )}
               </div>
 
-              <div className="min-w-0">
+              <div data-specimen-stage-content className="min-w-0 lg:w-full">
                 <span
                   className="mb-2.5 hidden h-9 w-9 items-center justify-center rounded-lg border border-vetneb-line/80 bg-secondary/60 text-vetneb-teal lg:flex"
                   aria-hidden="true"
@@ -104,16 +105,17 @@ export function SpecimenJourneySection({
           <li
             key={stage.step}
             data-specimen-stage={stage.step}
-            className="flex gap-4 lg:flex-col lg:gap-3"
+            className="flex gap-4 lg:flex-col lg:items-center lg:gap-3"
           >
             <span
+              data-specimen-stage-number
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-vetneb-navy text-sm font-bold text-primary-foreground shadow-[0_6px_16px_hsl(var(--vetneb-navy)/0.22)] ring-2 ring-primary/20"
               aria-hidden="true"
             >
               {stage.step}
             </span>
 
-            <div className="min-w-0">
+            <div data-specimen-stage-content className="min-w-0 lg:w-full">
               <span
                 className="mb-2.5 hidden h-9 w-9 items-center justify-center rounded-lg border border-vetneb-line/80 bg-secondary/60 text-vetneb-teal lg:flex"
                 aria-hidden="true"
