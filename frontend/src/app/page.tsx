@@ -301,7 +301,7 @@ export default function HomePage() {
 
       <div className="public-soft-canvas">
         <section
-          className="border-b border-vetneb-line/80 bg-gradient-to-b from-white via-white to-vetneb-surface/40 py-12 md:py-16"
+          className="public-evidence-band-light py-12 md:py-16"
           aria-labelledby="clinical-trust-heading"
         >
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -325,7 +325,7 @@ export default function HomePage() {
             </PublicScrollReveal>
 
             <PublicScrollReveal staggerChildren>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 divide-y divide-vetneb-line/70 lg:grid-cols-4 lg:divide-x lg:divide-y-0">
                 {clinicalTrustItems.map((item) => {
                   const itemHeadingId = `home-clinical-trust-${item.title.toLowerCase().replace(/\s+/g, "-")}`;
 
@@ -334,18 +334,24 @@ export default function HomePage() {
                       key={item.title}
                       data-scroll-reveal-item
                       aria-labelledby={itemHeadingId}
-                      className="h-full rounded-lg border border-vetneb-line/80 bg-card p-5 shadow-sm"
+                      className="flex items-start gap-4 py-5 first:pt-0 last:pb-0 lg:px-6 lg:py-1.5 lg:first:pl-0 lg:last:pr-0"
                     >
-                      <VisualIcon icon={item.icon} tone={item.tone} className="mb-4" />
-                      <h3
-                        id={itemHeadingId}
-                        className="text-lg font-semibold leading-snug text-vetneb-ink"
-                      >
-                        {item.title}
-                      </h3>
-                      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                        {item.description}
-                      </p>
+                      <VisualIcon
+                        icon={item.icon}
+                        tone={item.tone}
+                        className="h-10 w-10 shrink-0"
+                      />
+                      <div>
+                        <h3
+                          id={itemHeadingId}
+                          className="text-base font-semibold leading-snug text-vetneb-ink"
+                        >
+                          {item.title}
+                        </h3>
+                        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                          {item.description}
+                        </p>
+                      </div>
                     </article>
                   );
                 })}
@@ -422,20 +428,36 @@ export default function HomePage() {
                         isWide && "lg:col-span-2",
                       )}
                     >
-                      <Card className="premium-card h-full">
-                        <CardHeader>
-                          <VisualIcon icon={service.icon} tone={service.tone} className="mb-2" />
+                      <Card
+                        className={cn(
+                          "h-full",
+                          isFeatured
+                            ? "premium-card"
+                            : "border-vetneb-line/75 bg-card/85 shadow-none",
+                        )}
+                      >
+                        <CardHeader className={cn(isFeatured && "lg:p-8 lg:pb-4")}>
+                          <VisualIcon
+                            icon={service.icon}
+                            tone={service.tone}
+                            className={cn("mb-2", !isFeatured && "h-10 w-10")}
+                          />
                           {isFeatured && (
                             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
                               Servicio principal
                             </p>
                           )}
-                          <CardTitle id={serviceHeadingId} className={cn("text-lg", isFeatured && "lg:text-xl")}>
+                          <CardTitle id={serviceHeadingId} className={cn("text-lg", isFeatured && "lg:text-2xl")}>
                             {service.title}
                           </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                          <CardDescription className="text-sm leading-relaxed">
+                        <CardContent className={cn(isFeatured && "lg:px-8 lg:pb-8")}>
+                          <CardDescription
+                            className={cn(
+                              "text-sm leading-relaxed",
+                              isFeatured && "lg:max-w-2xl lg:text-base",
+                            )}
+                          >
                             {service.description}
                           </CardDescription>
                         </CardContent>
@@ -512,7 +534,7 @@ export default function HomePage() {
 
         {/* Beneficios */}
         <section
-          className="py-16 md:py-20"
+          className="public-evidence-band-light py-16 md:py-20"
           aria-labelledby="benefits-heading"
         >
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -533,38 +555,53 @@ export default function HomePage() {
             </PublicScrollReveal>
 
             <PublicScrollReveal staggerChildren>
-              <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
-                {benefits.map((benefit) => {
+              <div className="mx-auto grid max-w-5xl grid-cols-1 lg:grid-cols-2">
+                {benefits.map((benefit, benefitIndex) => {
                   const benefitHeadingId = `home-benefit-${benefit.title.toLowerCase().replace(/\s+/g, "-")}`;
+                  const isPrimaryBenefit = benefitIndex === 0;
 
                   return (
                     <article
                       key={benefit.title}
                       data-scroll-reveal-item
                       aria-labelledby={benefitHeadingId}
+                      className={cn(
+                        isPrimaryBenefit
+                          ? "pb-10 lg:pb-0 lg:pr-12"
+                          : "border-t border-vetneb-line/70 pt-10 lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0",
+                      )}
                     >
-                      <Card className="premium-card h-full">
-                        <CardHeader>
-                          <CardTitle id={benefitHeadingId} className="text-xl">
-                            {benefit.title}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <ul className="space-y-3">
-                            {benefit.items.map((item) => (
-                              <li key={item} className="flex items-start gap-3">
-                                <span
-                                  className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold"
-                                  aria-hidden="true"
-                                >
-                                  ✓
-                                </span>
-                                <span className="text-sm text-muted-foreground">{item}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </CardContent>
-                      </Card>
+                      <h3
+                        id={benefitHeadingId}
+                        className={cn(
+                          "font-bold text-vetneb-ink",
+                          isPrimaryBenefit ? "text-2xl" : "text-xl",
+                        )}
+                      >
+                        {benefit.title}
+                      </h3>
+                      <ul className="mt-6 space-y-3.5">
+                        {benefit.items.map((item) => (
+                          <li key={item} className="flex items-start gap-3">
+                            {isPrimaryBenefit ? (
+                              <span
+                                className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold"
+                                aria-hidden="true"
+                              >
+                                ✓
+                              </span>
+                            ) : (
+                              <span
+                                className="mt-[0.65rem] h-px w-4 shrink-0 bg-vetneb-teal/70"
+                                aria-hidden="true"
+                              />
+                            )}
+                            <span className="text-sm leading-relaxed text-muted-foreground">
+                              {item}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     </article>
                   );
                 })}
