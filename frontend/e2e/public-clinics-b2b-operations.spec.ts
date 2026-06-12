@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("clinicas B2B product landing (PR-20)", () => {
+test.describe("clinicas product landing (PR-20)", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/clinicas");
     await page.waitForLoadState("domcontentloaded");
   });
 
-  test.describe("B2B operations section", () => {
+  test.describe("clinic operations section", () => {
     test("renders 'Cómo opera tu clínica con VETNEB' heading", async ({
       page,
     }) => {
@@ -60,7 +60,7 @@ test.describe("clinicas B2B product landing (PR-20)", () => {
     });
   });
 
-  test.describe("B2B product modules", () => {
+  test.describe("clinic product modules", () => {
     test("groups all six capabilities into three named modules", async ({
       page,
     }) => {
@@ -110,7 +110,7 @@ test.describe("clinicas B2B product landing (PR-20)", () => {
     ).toHaveCount(4);
   });
 
-  test.describe("B2B conversion CTAs", () => {
+  test.describe("clinic conversion CTAs", () => {
     test("renders conversion heading", async ({ page }) => {
       await expect(
         page.locator("h2#clinicas-conversion-heading"),
@@ -141,6 +141,10 @@ test.describe("clinicas B2B product landing (PR-20)", () => {
   });
 
   test.describe("no demo/fictitious content", () => {
+    test("does not render B2B wording", async ({ page }) => {
+      await expect(page.locator("body")).not.toContainText("B2B");
+    });
+
     test("does not render prohibited demo or fictitious content", async ({
       page,
     }) => {
