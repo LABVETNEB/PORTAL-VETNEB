@@ -9,6 +9,7 @@ type ScrollPerspectiveProfile = {
   maxRotateXDeg: number;
   minScale: number;
   maxTranslateYPx: number;
+  maxTranslateZPx: number;
   minOpacity: number;
 };
 
@@ -17,22 +18,25 @@ export const SCROLL_PERSPECTIVE_PROFILES: Record<
   ScrollPerspectiveProfile
 > = {
   subtle: {
-    maxRotateXDeg: 2,
-    minScale: 0.99,
-    maxTranslateYPx: 12,
+    maxRotateXDeg: 3,
+    minScale: 0.995,
+    maxTranslateYPx: 16,
+    maxTranslateZPx: -28,
     minOpacity: 0.94,
   },
   standard: {
-    maxRotateXDeg: 3,
-    minScale: 0.985,
-    maxTranslateYPx: 20,
-    minOpacity: 0.9,
+    maxRotateXDeg: 4.5,
+    minScale: 0.991,
+    maxTranslateYPx: 28,
+    maxTranslateZPx: -40,
+    minOpacity: 0.89,
   },
   featured: {
-    maxRotateXDeg: 4.5,
-    minScale: 0.975,
-    maxTranslateYPx: 28,
-    minOpacity: 0.86,
+    maxRotateXDeg: 6.5,
+    minScale: 0.988,
+    maxTranslateYPx: 40,
+    maxTranslateZPx: -60,
+    minOpacity: 0.84,
   },
 };
 
@@ -40,6 +44,7 @@ const SCROLL_PERSPECTIVE_MOBILE_MINIMAL_PROFILE: ScrollPerspectiveProfile = {
   maxRotateXDeg: 0,
   minScale: 0.992,
   maxTranslateYPx: 10,
+  maxTranslateZPx: 0,
   minOpacity: 0.95,
 };
 
@@ -63,11 +68,13 @@ function setSectionDepthVariables(
   scale: number,
   rotateXDeg: number,
   translateYPx: number,
+  translateZPx: number,
   opacity: number,
 ) {
   element.style.setProperty("--scroll-depth-scale", scale.toFixed(4));
   element.style.setProperty("--scroll-depth-rotate-x", `${rotateXDeg.toFixed(3)}deg`);
   element.style.setProperty("--scroll-depth-y", `${translateYPx.toFixed(2)}px`);
+  element.style.setProperty("--scroll-depth-z", `${translateZPx.toFixed(2)}px`);
   element.style.setProperty("--scroll-depth-opacity", opacity.toFixed(4));
 }
 
@@ -75,7 +82,17 @@ function clearSectionDepthVariables(element: HTMLElement) {
   element.style.removeProperty("--scroll-depth-scale");
   element.style.removeProperty("--scroll-depth-rotate-x");
   element.style.removeProperty("--scroll-depth-y");
+  element.style.removeProperty("--scroll-depth-z");
   element.style.removeProperty("--scroll-depth-opacity");
+}
+
+function smoothstep(edge0: number, edge1: number, value: number) {
+  const normalized = Math.max(
+    0,
+    Math.min(1, (value - edge0) / (edge1 - edge0)),
+  );
+
+  return normalized * normalized * (3 - 2 * normalized);
 }
 
 function updateRegisteredSections() {
@@ -97,7 +114,7 @@ function updateRegisteredSections() {
 
     if (!profile) {
       if (!section.isNeutralized) {
-        setSectionDepthVariables(section.element, 1, 0, 0, 1);
+        setSectionDepthVariables(section.element, 1, 0, 0, 0, 1);
         section.isNeutralized = true;
       }
       continue;
@@ -115,19 +132,22 @@ function updateRegisteredSections() {
     const normalizationRange = viewportCenter + rect.height / 2;
     const rawProgress = (sectionCenter - viewportCenter) / normalizationRange;
     const signedProgress = Math.max(-1, Math.min(1, rawProgress));
-    // Signed quadratic easing: near the viewport center the section stays
-    // visually neutral; depth ramps toward the viewport edges.
-    const easedDepth = signedProgress * Math.abs(signedProgress);
-    const depthMagnitude = Math.abs(easedDepth);
-    // Sections taller than the viewport rotate proportionally less so the
-    // projected near edge never widens past the layout gutters.
-    const rotationHeightCap = Math.min(1, viewportHeight / rect.height);
+    const depthMagnitude = smoothstep(0.1, 0.8, Math.abs(signedProgress));
+    const easedDepth = Math.sign(signedProgress) * depthMagnitude;
+    // Ease the height reduction toward a 0.5 floor so tall featured bands
+    // remain stronger than standard sections without widening past gutters.
+    const viewportHeightRatio = Math.min(1, viewportHeight / rect.height);
+    const rotationHeightCap = Math.max(
+      0.5,
+      0.5 + viewportHeightRatio / 2,
+    );
 
     setSectionDepthVariables(
       section.element,
       1 - (1 - profile.minScale) * depthMagnitude,
       profile.maxRotateXDeg * easedDepth * rotationHeightCap,
       profile.maxTranslateYPx * easedDepth,
+      profile.maxTranslateZPx * depthMagnitude,
       1 - (1 - profile.minOpacity) * depthMagnitude,
     );
   }
