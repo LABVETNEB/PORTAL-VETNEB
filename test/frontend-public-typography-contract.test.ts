@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 
 const LAYOUT_PATH = "frontend/src/app/layout.tsx";
 const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
+const FONT_ASSET_PATH = "frontend/public/fonts/InterVariable.woff2";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -13,28 +14,37 @@ function read(relativePath: string): string {
   );
 }
 
-test("root layout loads Inter and Source Sans 3 via next/font and exposes both css variables", () => {
-  const source = read(LAYOUT_PATH);
+test("global font is a local variable woff2 asset without remote font imports", () => {
+  const layout = read(LAYOUT_PATH);
+  const globals = read(GLOBALS_CSS_PATH);
 
+  assert.ok(existsSync(resolve(process.cwd(), FONT_ASSET_PATH)));
+  assert.equal(layout.includes("next/font/google"), false);
+  for (const remoteMarker of ["fonts.googleapis.com", "fonts.gstatic.com"]) {
+    assert.equal(`${layout}\n${globals}`.includes(remoteMarker), false);
+  }
   assert.match(
-    source,
-    /import\s+\{\s*Inter\s*,\s*Source_Sans_3\s*\}\s+from\s+"next\/font\/google";/,
-  );
-  assert.ok(source.includes('variable: "--font-inter"'));
-  assert.ok(source.includes('variable: "--font-source-sans-3"'));
-  assert.ok(source.includes('weight: ["400", "500", "600", "700"]'));
-  assert.match(
-    source,
-    /<html[^>]*className=\{`\$\{inter\.variable\}\s+\$\{sourceSans\.variable\}`\}/,
+    layout,
+    /<link\s+rel="preload"\s+href="\/fonts\/InterVariable\.woff2"\s+as="font"\s+type="font\/woff2"\s+crossOrigin="anonymous"\s*\/>/,
   );
 });
 
-test("globals css defines typography tokens and applies them to body headings and ui controls", () => {
+test("globals css defines the variable font-face and typography tokens applied to body headings and ui controls", () => {
   const source = read(GLOBALS_CSS_PATH);
 
-  assert.ok(source.includes("--font-heading: var(--font-inter);"));
-  assert.ok(source.includes("--font-body: var(--font-source-sans-3);"));
-  assert.ok(source.includes("--font-ui: var(--font-inter);"));
+  assert.match(
+    source,
+    /@font-face\s*\{[\s\S]*?font-family:\s*"Inter";[\s\S]*?font-style:\s*normal;[\s\S]*?font-weight:\s*100 900;[\s\S]*?font-display:\s*swap;[\s\S]*?src:\s*url\("\/fonts\/InterVariable\.woff2"\)\s*format\("woff2"\);[\s\S]*?\}/,
+  );
+
+  assert.ok(source.includes('--font-heading: "Inter";'));
+  assert.ok(source.includes('--font-body: "Inter";'));
+  assert.ok(source.includes('--font-ui: "Inter";'));
+
+  assert.match(
+    source,
+    /html\s*\{[\s\S]*?font-family:\s*var\(--font-body\),\s*system-ui,\s*-apple-system,\s*BlinkMacSystemFont,\s*"Segoe UI",\s*sans-serif;/,
+  );
 
   assert.match(
     source,
