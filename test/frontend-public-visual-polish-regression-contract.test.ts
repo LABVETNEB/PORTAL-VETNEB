@@ -8,6 +8,8 @@ const FOOTER_PATH = "frontend/src/components/layout/Footer.tsx";
 const HOME_PAGE_PATH = "frontend/src/app/page.tsx";
 const SERVICIOS_PAGE_PATH = "frontend/src/app/servicios/page.tsx";
 const PUBLIC_ROUTE_CONTROL_PATH = "frontend/src/components/public/PublicRouteControl.tsx";
+const SPECIMEN_JOURNEY_COMPONENT_PATH =
+  "frontend/src/components/public/SpecimenJourneySection.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(/\r\n/g, "\n");
@@ -64,8 +66,8 @@ test("footer FAQ section uses bg-vetneb-surface-muted/40 depth background", () =
 
 // ─── PR #902: Scroll reveal + process step depth ──────────────────────────────
 
-test("home how-it-works step circles have depth shadow and primary ring", () => {
-  const source = read(HOME_PAGE_PATH);
+test("home journey step circles have depth shadow and primary ring", () => {
+  const source = read(SPECIMEN_JOURNEY_COMPONENT_PATH);
 
   assert.ok(source.includes("shadow-[0_6px_16px_hsl(var(--vetneb-navy)/0.22)]"));
   assert.ok(source.includes("ring-2 ring-primary/20"));

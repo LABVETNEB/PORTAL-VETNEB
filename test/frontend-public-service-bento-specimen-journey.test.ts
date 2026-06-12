@@ -41,6 +41,14 @@ test("SpecimenJourneySection uses protocol-badge slot for optional protocol text
   assert.ok(source.includes("{stage.protocol}"));
 });
 
+test("SpecimenJourneySection supports timeline variant with grid default (PR-17)", () => {
+  const source = read(SPECIMEN_JOURNEY_COMPONENT_PATH);
+
+  assert.ok(source.includes('variant?: "grid" | "timeline"'));
+  assert.ok(source.includes('variant = "grid"'));
+  assert.ok(source.includes('if (variant === "timeline")'));
+});
+
 test("SpecimenJourneySection does not import gsap or add animations", () => {
   const source = read(SPECIMEN_JOURNEY_COMPONENT_PATH);
 
@@ -82,21 +90,23 @@ test("home page bento preserves services-heading contract", () => {
 
 // ─── Home page — specimen journey section ────────────────────────────────────
 
-test("home page has Specimen Journey section with correct heading contract", () => {
+test("home page has unified journey section with correct heading contract (PR-17)", () => {
   const source = read(HOME_PATH);
 
   assert.ok(source.includes('aria-labelledby="specimen-journey-heading"'));
   assert.ok(source.includes('id="specimen-journey-heading"'));
   assert.ok(source.includes("Recorrido de la muestra"));
-  assert.ok(source.includes("Trazabilidad"));
+  assert.ok(source.includes("Cómo funciona"));
+  assert.ok(source.includes("asegurar la trazabilidad del diagnóstico."));
 });
 
-test("home page Specimen Journey uses SpecimenJourneySection component", () => {
+test("home page Specimen Journey uses SpecimenJourneySection timeline variant", () => {
   const source = read(HOME_PATH);
 
   assert.ok(source.includes('from "@/components/public/SpecimenJourneySection"'));
   assert.ok(source.includes("<SpecimenJourneySection"));
   assert.ok(source.includes("stages={specimenJourneyStages}"));
+  assert.ok(source.includes('variant="timeline"'));
 });
 
 test("home page specimen journey stages contain all 5 required stages", () => {

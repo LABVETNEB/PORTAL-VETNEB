@@ -110,7 +110,7 @@ test("home page exposes clinical trust institutional data before services", () =
   const clinicalTrustData = extractBetween(
     source,
     "const clinicalTrustItems = [",
-    "const howItWorksSteps = [",
+    "const benefits = [",
   );
   const forbiddenWords = [
     "marketplace",
@@ -226,19 +226,16 @@ test("home page lists core laboratory services and services route CTA", () => {
   assert.ok(source.includes("Ver todos los servicios"));
 });
 
-test("home page renders how it works section with exactly three operational steps", () => {
+test("home page renders one unified end-to-end journey section (PR-17)", () => {
   const source = read(HOME_PAGE_PATH);
   const servicesIndex = source.indexOf('aria-labelledby="services-heading"');
-  const howItWorksIndex = source.indexOf('aria-labelledby="how-it-works-heading"');
-  const benefitsIndex = source.indexOf('aria-labelledby="benefits-heading"');
-  const stepData = extractBetween(
-    source,
-    "const howItWorksSteps = [",
-    "const benefits = [",
+  const journeyIndex = source.indexOf(
+    'aria-labelledby="specimen-journey-heading"',
   );
+  const benefitsIndex = source.indexOf('aria-labelledby="benefits-heading"');
   const sectionSource = extractBetween(
     source,
-    'aria-labelledby="how-it-works-heading"',
+    'aria-labelledby="specimen-journey-heading"',
     "{/* Beneficios */}",
   );
   const forbiddenWords = [
@@ -250,52 +247,92 @@ test("home page renders how it works section with exactly three operational step
   ];
 
   assert.ok(servicesIndex !== -1);
-  assert.ok(howItWorksIndex !== -1);
+  assert.ok(journeyIndex !== -1);
   assert.ok(benefitsIndex !== -1);
-  assert.ok(servicesIndex < howItWorksIndex);
-  assert.ok(howItWorksIndex < benefitsIndex);
-  assert.ok(source.includes("Cómo funciona"));
-  assert.ok(source.includes("Trabajar con VETNEB es simple"));
-  assert.ok(source.includes('id="how-it-works-heading"'));
-  assert.ok(source.includes("grid grid-cols-1 gap-5 md:grid-cols-3"));
-  assert.ok(source.includes("Contactanos para empezar"));
-  assert.ok(source.includes("href={ROUTES.contacto}"));
+  assert.ok(servicesIndex < journeyIndex);
+  assert.ok(journeyIndex < benefitsIndex);
 
-  assert.equal(count(stepData, "title:"), 3);
-  assert.equal(count(stepData, "description:"), 3);
-  assert.equal(count(stepData, 'title: "Enviás la muestra"'), 1);
-  assert.equal(count(stepData, 'title: "VETNEB analiza"'), 1);
-  assert.equal(count(stepData, 'title: "Recibís el informe"'), 1);
-  assert.equal(
-    count(
-      stepData,
-      "Preparás la muestra según el protocolo de VETNEB y la enviás con los datos del caso y de la clínica.",
+  // Narrativa end-to-end única — sin sección "Cómo funciona" separada
+  assert.equal(count(source, 'aria-labelledby="specimen-journey-heading"'), 1);
+  assert.equal(source.includes('aria-labelledby="how-it-works-heading"'), false);
+  assert.equal(source.includes("const howItWorksSteps"), false);
+  assert.equal(count(source, "Recorrido de la muestra"), 1);
+  assert.equal(count(source, "Cómo funciona"), 1);
+
+  // La fusión conserva contenido funcional, etapas y CTA existentes
+  assert.ok(source.includes('id="specimen-journey-heading"'));
+  assert.ok(
+    source.includes(
+      "Trabajar con VETNEB es simple: desde el envío de la muestra",
     ),
-    1,
   );
-  assert.equal(
-    count(
-      stepData,
-      "El anatomopatólogo examina el tejido o la muestra citológica y elabora el informe diagnóstico.",
+  assert.ok(sectionSource.includes("asegurar la trazabilidad del diagnóstico."));
+  assert.ok(sectionSource.includes("stages={specimenJourneyStages}"));
+  assert.ok(sectionSource.includes('variant="timeline"'));
+  assert.ok(sectionSource.includes("Contactanos para empezar"));
+  assert.ok(sectionSource.includes("href={ROUTES.contacto}"));
+  assert.ok(
+    source.includes(
+      'className="public-evidence-band-muted public-band-feature"\n          aria-labelledby="specimen-journey-heading"',
     ),
-    1,
-  );
-  assert.equal(
-    count(
-      stepData,
-      "La clínica lo descarga directamente desde el portal. Si corresponde, el tutor del animal recibe acceso con un código privado.",
-    ),
-    1,
   );
 
-  const howItWorksSurface = `${stepData}\n${sectionSource}`.toLowerCase();
+  const journeySurface = sectionSource.toLowerCase();
   for (const forbiddenWord of forbiddenWords) {
     assert.equal(
-      howItWorksSurface.includes(forbiddenWord),
+      journeySurface.includes(forbiddenWord),
       false,
-      `how it works section must not contain ${forbiddenWord}`,
+      `unified journey section must not contain ${forbiddenWord}`,
     );
   }
+});
+
+test("home page hero composes structural system diagram without fictional data (PR-17)", () => {
+  const source = read(HOME_PAGE_PATH);
+  const heroSection = extractBetween(
+    source,
+    'aria-labelledby="hero-heading"',
+    "Banda utilitaria",
+  );
+  const nodesData = extractBetween(
+    source,
+    "const heroSystemNodes = [",
+    "export default function HomePage()",
+  );
+
+  // h1 usa la tipografía display de PR-16
+  assert.ok(
+    source.includes(
+      'className="public-display max-w-2xl break-words font-bold text-primary-foreground"',
+    ),
+  );
+
+  // Composición en dos zonas en desktop, una columna en mobile
+  assert.ok(
+    heroSection.includes(
+      "grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]",
+    ),
+  );
+
+  // Diagrama estructural del proceso — nodos conceptuales conectados
+  assert.ok(heroSection.includes("data-hero-system-diagram"));
+  assert.ok(
+    heroSection.includes(
+      'aria-label="Diagrama del proceso diagnóstico: de la muestra al acceso digital"',
+    ),
+  );
+  assert.ok(heroSection.includes("De la muestra al informe"));
+  assert.ok(heroSection.includes("heroSystemNodes.map((node, index)"));
+
+  assert.equal(count(nodesData, "label:"), 5);
+  assert.ok(nodesData.includes('label: "Muestra"'));
+  assert.ok(nodesData.includes('label: "Laboratorio"'));
+  assert.ok(nodesData.includes('label: "Evaluación diagnóstica"'));
+  assert.ok(nodesData.includes('label: "Informe"'));
+  assert.ok(nodesData.includes('label: "Acceso digital"'));
+
+  // El diagrama no contiene datos: ni códigos, ni fechas, ni cifras
+  assert.equal(/\d/.test(nodesData), false);
 });
 
 test("home page lists benefits for clinics and professionals", () => {
@@ -310,16 +347,25 @@ test("home page lists benefits for clinics and professionals", () => {
   assert.ok(source.includes("El análisis no es automatizado: requiere evaluación microscópica especializada"));
 });
 
-test("home page does not contain demo or simulated content (PR-15 guard)", () => {
+test("home page does not contain demo or simulated content (PR-15/PR-17 guard)", () => {
   const source = read(HOME_PAGE_PATH);
   const demoTerms = [
+    "MUESTRA",
     "DEMOSTRATIVO",
     "DEMO-000",
     "DEMO-CLINICA",
     "Paciente demostrativo",
     "Canino demostrativo",
+    "paciente demostrativo",
+    "clínica demostrativa",
     "Ejemplo visual sin datos reales",
+    "sin datos reales",
+    "caso demo",
+    "datos ficticios",
+    "informe simulado",
+    "informe inventado",
     "panel operativo simulado",
+    "dashboard ficticio",
     "report-preview-card-title",
     "ReportPreviewCard",
   ];

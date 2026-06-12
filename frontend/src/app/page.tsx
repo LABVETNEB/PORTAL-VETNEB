@@ -90,27 +90,6 @@ const clinicalTrustItems = [
   },
 ];
 
-const howItWorksSteps = [
-  {
-    icon: PackageCheck,
-    title: "Enviás la muestra",
-    description:
-      "Preparás la muestra según el protocolo de VETNEB y la enviás con los datos del caso y de la clínica.",
-  },
-  {
-    icon: Microscope,
-    title: "VETNEB analiza",
-    description:
-      "El anatomopatólogo examina el tejido o la muestra citológica y elabora el informe diagnóstico.",
-  },
-  {
-    icon: FileText,
-    title: "Recibís el informe",
-    description:
-      "La clínica lo descarga directamente desde el portal. Si corresponde, el tutor del animal recibe acceso con un código privado.",
-  },
-];
-
 const benefits = [
   {
     title: "Diagnóstico integral",
@@ -144,7 +123,7 @@ const specimenJourneyStages = [
     step: 2,
     icon: PackageCheck,
     title: "Envío coordinado",
-    detail: "La muestra fijada se envía en bolsa tipo ziploc. El envío debe coordinarse previamente vía Web o WhatsApp.",
+    detail: "La muestra fijada se envía en bolsa tipo ziploc, con los datos del caso y de la clínica. El envío debe coordinarse previamente vía Web o WhatsApp.",
     protocol: "Coordinar antes del despacho",
   },
   {
@@ -166,6 +145,14 @@ const specimenJourneyStages = [
     detail: "El informe diagnóstico queda disponible en el portal para la clínica. El tutor del animal puede acceder con código privado.",
     protocol: "Hasta 15 días hábiles desde recepción",
   },
+];
+
+const heroSystemNodes = [
+  { icon: PackageCheck, label: "Muestra" },
+  { icon: Microscope, label: "Laboratorio" },
+  { icon: ClipboardCheck, label: "Evaluación diagnóstica" },
+  { icon: FileText, label: "Informe" },
+  { icon: ShieldCheck, label: "Acceso digital" },
 ];
 
 export default function HomePage() {
@@ -191,67 +178,106 @@ export default function HomePage() {
           aria-hidden="true"
         />
         <div className="relative container mx-auto px-4 py-12 sm:py-14 sm:px-6 md:py-16 lg:py-20 lg:px-8">
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground/72">
-              Anatomía Patológica Veterinaria
-            </p>
+          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-14">
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground/72">
+                Anatomía Patológica Veterinaria
+              </p>
 
-            <h1
-              id="hero-heading"
-              className="max-w-2xl text-[clamp(1.75rem,4vw,3rem)] font-bold leading-[1.06] tracking-[-0.01em] text-primary-foreground"
-            >
-              Diagnóstico anatomopatológico veterinario con trazabilidad de muestra a informe
-            </h1>
+              <h1
+                id="hero-heading"
+                className="public-display max-w-2xl break-words font-bold text-primary-foreground"
+              >
+                Diagnóstico anatomopatológico veterinario con trazabilidad de muestra a informe
+              </h1>
 
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-primary-foreground/88 sm:text-lg">
-              Histopatología, citología y tinciones especiales con criterio clínico-patológico
-              y seguimiento completo para clínicas y profesionales.
-            </p>
+              <p className="mt-5 max-w-xl text-base leading-relaxed text-primary-foreground/88 sm:text-lg">
+                Histopatología, citología y tinciones especiales con criterio clínico-patológico
+                y seguimiento completo para clínicas y profesionales.
+              </p>
 
-            {/* Firma profesional */}
-            <div className="mt-5 flex w-fit items-center gap-3 rounded-lg border border-white/22 bg-white/[0.08] px-4 py-2.5">
-              <Microscope className="h-5 w-5 shrink-0 text-primary-foreground/72" aria-hidden="true" />
-              <div>
-                <p className="text-sm font-bold leading-tight text-primary-foreground">
-                  Dr. Nicolás E. Barbé
-                </p>
-                <p className="text-xs text-primary-foreground/72">
-                  Médico veterinario patólogo · Responsable de diagnóstico
-                </p>
+              {/* Firma profesional */}
+              <div className="mt-5 flex w-fit items-center gap-3 rounded-lg border border-white/22 bg-white/[0.08] px-4 py-2.5">
+                <Microscope className="h-5 w-5 shrink-0 text-primary-foreground/72" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-bold leading-tight text-primary-foreground">
+                    Dr. Nicolás E. Barbé
+                  </p>
+                  <p className="text-xs text-primary-foreground/72">
+                    Médico veterinario patólogo · Responsable de diagnóstico
+                  </p>
+                </div>
+              </div>
+
+              {/* CTAs — action tiles */}
+              <div className="public-hero-action-grid">
+                <PublicRouteControl
+                  href={ROUTES.login}
+                  variant="bare"
+                  className="public-hero-action-tile"
+                >
+                  <p className="public-hero-action-tile-label">Portal de informes</p>
+                  <div className="public-hero-action-tile-title">
+                    Acceder al portal
+                    <ArrowRight className="public-hero-action-tile-arrow h-4 w-4" aria-hidden="true" />
+                  </div>
+                  <p className="public-hero-action-tile-copy">
+                    Para clínicas y profesionales con acceso a VETNEB.
+                  </p>
+                </PublicRouteControl>
+
+                <PublicRouteControl
+                  href={ROUTES.particulares}
+                  variant="bare"
+                  className="public-hero-action-tile"
+                >
+                  <p className="public-hero-action-tile-label">Particulares</p>
+                  <div className="public-hero-action-tile-title">
+                    Seguir con código
+                    <ArrowRight className="public-hero-action-tile-arrow h-4 w-4" aria-hidden="true" />
+                  </div>
+                  <p className="public-hero-action-tile-copy">
+                    Consultá el estado de tu muestra las 24 h con tu código privado.
+                  </p>
+                </PublicRouteControl>
               </div>
             </div>
 
-            {/* CTAs — action tiles */}
-            <div className="public-hero-action-grid">
-              <PublicRouteControl
-                href={ROUTES.login}
-                variant="bare"
-                className="public-hero-action-tile"
-              >
-                <p className="public-hero-action-tile-label">Portal de informes</p>
-                <div className="public-hero-action-tile-title">
-                  Acceder al portal
-                  <ArrowRight className="public-hero-action-tile-arrow h-4 w-4" aria-hidden="true" />
-                </div>
-                <p className="public-hero-action-tile-copy">
-                  Para clínicas y profesionales con acceso a VETNEB.
-                </p>
-              </PublicRouteControl>
+            {/* Diagrama estructural del proceso — etapas conceptuales del sistema */}
+            <div
+              role="group"
+              aria-label="Diagrama del proceso diagnóstico: de la muestra al acceso digital"
+              data-hero-system-diagram
+              className="w-full max-w-md rounded-xl border border-white/22 bg-white/[0.08] p-5 sm:p-6 lg:justify-self-end"
+            >
+              <p className="text-xs font-semibold tracking-[0.08em] text-primary-foreground/72">
+                De la muestra al informe
+              </p>
+              <ol className="mt-4">
+                {heroSystemNodes.map((node, index) => {
+                  const NodeIcon = node.icon;
+                  const isLastNode = index === heroSystemNodes.length - 1;
 
-              <PublicRouteControl
-                href={ROUTES.particulares}
-                variant="bare"
-                className="public-hero-action-tile"
-              >
-                <p className="public-hero-action-tile-label">Particulares</p>
-                <div className="public-hero-action-tile-title">
-                  Seguir con código
-                  <ArrowRight className="public-hero-action-tile-arrow h-4 w-4" aria-hidden="true" />
-                </div>
-                <p className="public-hero-action-tile-copy">
-                  Consultá el estado de tu muestra las 24 h con tu código privado.
-                </p>
-              </PublicRouteControl>
+                  return (
+                    <li key={node.label} className="flex gap-3.5">
+                      <div className="flex flex-col items-center">
+                        <span
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/26 bg-white/[0.10] text-primary-foreground"
+                          aria-hidden="true"
+                        >
+                          <NodeIcon className="h-4 w-4" />
+                        </span>
+                        {!isLastNode && (
+                          <span className="my-1 h-4 w-px bg-white/35" aria-hidden="true" />
+                        )}
+                      </div>
+                      <p className="pt-2 text-sm font-semibold leading-snug text-primary-foreground/92">
+                        {node.label}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ol>
             </div>
           </div>
         </div>
@@ -434,96 +460,16 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* Recorrido end-to-end — de la muestra al informe */}
         <section
-          className="border-y border-vetneb-line/70 bg-card/72 py-14 md:py-20"
-          aria-labelledby="how-it-works-heading"
-        >
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <PublicScrollReveal>
-              <div className="mx-auto mb-10 max-w-2xl text-center">
-                <p className="text-sm font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
-                  Cómo funciona
-                </p>
-                <h2
-                  id="how-it-works-heading"
-                  className="mt-3 text-3xl font-bold text-vetneb-ink md:text-4xl"
-                >
-                  Trabajar con VETNEB es simple
-                </h2>
-                <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">
-                  Desde el envío de la muestra hasta la entrega del informe, el
-                  flujo está pensado para clínicas y profesionales veterinarios.
-                </p>
-              </div>
-            </PublicScrollReveal>
-
-            <PublicScrollReveal staggerChildren>
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-6">
-                {howItWorksSteps.map((step, index) => {
-                  const StepIcon = step.icon;
-                  const stepHeadingId = `home-how-it-works-step-${index + 1}`;
-
-                  return (
-                    <article
-                      key={step.title}
-                      data-scroll-reveal-item
-                      data-home-how-it-works-step
-                      aria-labelledby={stepHeadingId}
-                      className="h-full rounded-lg border border-vetneb-line/80 bg-card p-5 shadow-sm"
-                    >
-                      <div className="flex items-center gap-4">
-                        <span
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-vetneb-navy text-sm font-bold text-primary-foreground shadow-[0_6px_16px_hsl(var(--vetneb-navy)/0.22)] ring-2 ring-primary/20"
-                          aria-hidden="true"
-                        >
-                          {index + 1}
-                        </span>
-                        <span
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-vetneb-line/80 bg-secondary/60 text-vetneb-teal"
-                          aria-hidden="true"
-                        >
-                          <StepIcon className="h-5 w-5" />
-                        </span>
-                      </div>
-                      <h3
-                        id={stepHeadingId}
-                        className="mt-5 text-xl font-semibold text-vetneb-ink"
-                      >
-                        {step.title}
-                      </h3>
-                      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                        {step.description}
-                      </p>
-                    </article>
-                  );
-                })}
-              </div>
-            </PublicScrollReveal>
-
-            <PublicScrollReveal>
-              <div className="mt-8 text-center">
-                <PublicRouteControl
-                  href={ROUTES.contacto}
-                  variant="primaryDark"
-                  className="public-cta-primary w-full sm:w-auto"
-                >
-                  Contactanos para empezar
-                </PublicRouteControl>
-              </div>
-            </PublicScrollReveal>
-          </div>
-        </section>
-
-        {/* Specimen Journey */}
-        <section
-          className="py-14 md:py-20"
+          className="public-evidence-band-muted public-band-feature"
           aria-labelledby="specimen-journey-heading"
         >
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <PublicScrollReveal>
-              <div className="mx-auto mb-10 max-w-3xl text-center">
+              <div className="mx-auto mb-10 max-w-3xl text-center md:mb-14">
                 <p className="text-sm font-semibold uppercase tracking-[0.08em] text-vetneb-teal">
-                  Trazabilidad
+                  Cómo funciona
                 </p>
                 <h2
                   id="specimen-journey-heading"
@@ -532,18 +478,33 @@ export default function HomePage() {
                   Recorrido de la muestra
                 </h2>
                 <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">
-                  Desde la toma hasta el informe digital, cada etapa del proceso
-                  sigue el protocolo del laboratorio para asegurar la trazabilidad
-                  del diagnóstico.
+                  Trabajar con VETNEB es simple: desde el envío de la muestra
+                  hasta la entrega del informe, el flujo está pensado para
+                  clínicas y profesionales veterinarios.
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground md:text-base">
+                  Cada etapa del proceso sigue el protocolo del laboratorio para
+                  asegurar la trazabilidad del diagnóstico.
                 </p>
               </div>
             </PublicScrollReveal>
 
             <PublicScrollReveal>
-              <div className="rounded-xl border border-vetneb-line/70 bg-card/72 p-6 shadow-sm md:p-8">
-                <SpecimenJourneySection
-                  stages={specimenJourneyStages}
-                />
+              <SpecimenJourneySection
+                stages={specimenJourneyStages}
+                variant="timeline"
+              />
+            </PublicScrollReveal>
+
+            <PublicScrollReveal>
+              <div className="mt-10 text-center md:mt-12">
+                <PublicRouteControl
+                  href={ROUTES.contacto}
+                  variant="primaryDark"
+                  className="public-cta-primary w-full sm:w-auto"
+                >
+                  Contactanos para empezar
+                </PublicRouteControl>
               </div>
             </PublicScrollReveal>
           </div>

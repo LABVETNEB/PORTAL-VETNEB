@@ -22,6 +22,14 @@ test.describe("service bento + specimen journey (PR-12)", () => {
       );
     });
 
+    test("narrativa end-to-end unificada — sin sección separada (PR-17)", async ({ page }) => {
+      await expect(page.locator("h2#specimen-journey-heading")).toHaveCount(1);
+      await expect(page.locator("#how-it-works-heading")).toHaveCount(0);
+      await expect(page.locator("body")).toContainText("Cómo funciona");
+      await expect(page.locator("body")).toContainText("Trabajar con VETNEB es simple");
+      await expect(page.locator("body")).toContainText("Contactanos para empezar");
+    });
+
     test("renders all 5 specimen journey stages", async ({ page }) => {
       await expect(page.locator("body")).toContainText("Toma y fijación");
       await expect(page.locator("body")).toContainText("Envío coordinado");
