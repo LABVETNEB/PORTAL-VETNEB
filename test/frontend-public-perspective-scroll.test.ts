@@ -85,12 +85,31 @@ test("hook animates only transform/opacity CSS variables", () => {
   assert.ok(source.includes("--scroll-depth-scale"));
   assert.ok(source.includes("--scroll-depth-rotate-x"));
   assert.ok(source.includes("--scroll-depth-y"));
+  assert.ok(source.includes("--scroll-depth-z"));
   assert.ok(source.includes("--scroll-depth-opacity"));
   assert.equal(source.includes("style.width"), false);
   assert.equal(source.includes("style.height"), false);
   assert.equal(source.includes("style.margin"), false);
   assert.equal(source.includes('setProperty("width"'), false);
   assert.equal(source.includes('setProperty("height"'), false);
+});
+
+test("hook uses a perceptible smoothstep curve with real desktop depth", () => {
+  const source = read(HOOK_PATH);
+
+  assert.ok(source.includes("function smoothstep("));
+  assert.ok(source.includes("smoothstep(0.1, 0.8, Math.abs(signedProgress))"));
+  assert.ok(source.includes("Math.sign(signedProgress) * depthMagnitude"));
+  assert.equal(source.includes("signedProgress * Math.abs(signedProgress)"), false);
+
+  assert.ok(source.includes("maxRotateXDeg: 3"));
+  assert.ok(source.includes("maxRotateXDeg: 4.5"));
+  assert.ok(source.includes("maxRotateXDeg: 6.5"));
+  assert.ok(source.includes("maxTranslateZPx: -28"));
+  assert.ok(source.includes("maxTranslateZPx: -40"));
+  assert.ok(source.includes("maxTranslateZPx: -60"));
+  assert.ok(source.includes("maxTranslateZPx: 0"));
+  assert.ok(source.includes("Math.max(\n      0.5,"));
 });
 
 // ─── PR-24: foundation — component ───────────────────────────────────────────
@@ -116,8 +135,11 @@ test("globals.css defines the public perspective foundation with neutral default
   assert.ok(source.includes("--scroll-depth-scale: 1;"));
   assert.ok(source.includes("--scroll-depth-rotate-x: 0deg;"));
   assert.ok(source.includes("--scroll-depth-y: 0px;"));
+  assert.ok(source.includes("--scroll-depth-z: 0px;"));
   assert.ok(source.includes("--scroll-depth-opacity: 1;"));
   assert.ok(source.includes("perspective: var(--public-perspective-depth, 1100px);"));
+  assert.ok(source.includes("var(--scroll-depth-z)"));
+  assert.ok(source.includes("translate3d("));
 });
 
 test("globals.css neutralizes perspective transforms under prefers-reduced-motion", () => {
