@@ -148,14 +148,6 @@ const specimenJourneyStages = [
   },
 ];
 
-const heroSystemNodes = [
-  { icon: PackageCheck, label: "Muestra" },
-  { icon: Microscope, label: "Laboratorio" },
-  { icon: ClipboardCheck, label: "Evaluación diagnóstica" },
-  { icon: FileText, label: "Informe" },
-  { icon: ShieldCheck, label: "Acceso digital" },
-];
-
 export default function HomePage() {
   return (
     <PublicLayout>
@@ -179,22 +171,17 @@ export default function HomePage() {
           aria-hidden="true"
         />
         <div className="relative container mx-auto px-4 py-12 sm:py-14 sm:px-6 md:py-16 lg:py-20 lg:px-8">
-          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-14">
+          <div>
             <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground/72">
-                Anatomía Patológica Veterinaria
-              </p>
-
               <h1
                 id="hero-heading"
-                className="public-display max-w-2xl break-words font-bold text-primary-foreground"
+                className="text-[clamp(4rem,10vw,8rem)] font-black uppercase tracking-[0.06em] leading-none text-primary-foreground"
               >
-                Diagnóstico anatomopatológico veterinario con trazabilidad de muestra a informe
+                VETNEB
               </h1>
 
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-primary-foreground/88 sm:text-lg">
-                Histopatología, citología y tinciones especiales con criterio clínico-patológico
-                y seguimiento completo para clínicas y profesionales.
+              <p className="mt-4 max-w-2xl text-lg font-semibold leading-snug text-primary-foreground/85 sm:text-xl">
+                Diagnóstico anatomopatológico veterinario con trazabilidad de informes
               </p>
 
               {/* Firma profesional */}
@@ -242,63 +229,24 @@ export default function HomePage() {
                   </p>
                 </PublicRouteControl>
               </div>
-            </div>
 
-            {/* Diagrama estructural del proceso — etapas conceptuales del sistema */}
-            <div
-              role="group"
-              aria-label="Diagrama del proceso diagnóstico: de la muestra al acceso digital"
-              data-hero-system-diagram
-              className="w-full max-w-md rounded-xl border border-white/22 bg-white/[0.08] p-5 sm:p-6 lg:justify-self-end"
-            >
-              <p className="text-xs font-semibold tracking-[0.08em] text-primary-foreground/72">
-                De la muestra al informe
-              </p>
-              <ol className="mt-4">
-                {heroSystemNodes.map((node, index) => {
-                  const NodeIcon = node.icon;
-                  const isLastNode = index === heroSystemNodes.length - 1;
-
-                  return (
-                    <li key={node.label} className="flex gap-3.5">
-                      <div className="flex flex-col items-center">
-                        <span
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/26 bg-white/[0.10] text-primary-foreground"
-                          aria-hidden="true"
-                        >
-                          <NodeIcon className="h-4 w-4" />
-                        </span>
-                        {!isLastNode && (
-                          <span className="my-1 h-4 w-px bg-white/35" aria-hidden="true" />
-                        )}
-                      </div>
-                      <p className="pt-2 text-sm font-semibold leading-snug text-primary-foreground/92">
-                        {node.label}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ol>
+              {/* Información operativa integrada al hero */}
+              <div className="mt-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-5">
+                <p className="text-sm text-primary-foreground/68">
+                  Resultados disponibles las 24 hs · Atención de lunes a viernes de 8 a 17 h
+                </p>
+                <PublicExternalControl
+                  href="https://wa.me/5493534138946"
+                  target="_blank"
+                  className="text-sm text-primary-foreground/68 underline underline-offset-4 transition hover:text-primary-foreground/90"
+                >
+                  WhatsApp: 3534138946
+                </PublicExternalControl>
+              </div>
             </div>
           </div>
         </div>
       </section>
-
-      {/* Banda utilitaria compacta — fuera del hero */}
-      <div className="border-b border-vetneb-line/70 bg-vetneb-surface-muted/60 py-2.5 sm:py-3">
-        <div className="container mx-auto flex flex-col gap-1.5 px-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 lg:px-8">
-          <p className="text-sm font-semibold text-vetneb-navy">
-            Resultados disponibles las 24 hs · Atención de lunes a viernes de 8 a 17 h
-          </p>
-          <PublicExternalControl
-            href="https://wa.me/5493534138946"
-            target="_blank"
-            className="text-sm font-semibold text-vetneb-navy underline decoration-vetneb-navy/55 underline-offset-4 transition hover:text-vetneb-teal"
-          >
-            WhatsApp: 3534138946
-          </PublicExternalControl>
-        </div>
-      </div>
 
       <div className="public-soft-canvas">
         <section

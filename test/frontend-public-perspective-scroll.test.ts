@@ -178,7 +178,7 @@ test("home applies perspective to several sections and excludes hero h1", () => 
     `home must animate several sections (expected >= 4, got ${wrapperCount})`,
   );
 
-  const heroBlock = source.slice(source.indexOf("hero-heading"), source.indexOf("Banda utilitaria"));
+  const heroBlock = source.slice(source.indexOf("hero-heading"), source.indexOf("public-soft-canvas"));
   assert.equal(heroBlock.includes("PerspectiveScrollSection"), false);
 });
 
