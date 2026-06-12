@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("clinicas B2B operations landing (PR-14)", () => {
+test.describe("clinicas B2B product landing (PR-20)", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/clinicas");
     await page.waitForLoadState("domcontentloaded");
@@ -25,6 +25,7 @@ test.describe("clinicas B2B operations landing (PR-14)", () => {
         'ol[aria-label="Pasos operativos de derivación con VETNEB"]',
       );
       await expect(ol).toBeVisible();
+      await expect(ol.locator("[data-clinic-op-step]")).toHaveCount(5);
     });
 
     test("renders derivación step", async ({ page }) => {
@@ -59,6 +60,56 @@ test.describe("clinicas B2B operations landing (PR-14)", () => {
     });
   });
 
+  test.describe("B2B product modules", () => {
+    test("groups all six capabilities into three named modules", async ({
+      page,
+    }) => {
+      const modules = page.locator("[data-clinic-module]");
+
+      await expect(modules).toHaveCount(3);
+      await expect(modules.nth(0)).toHaveAttribute(
+        "data-clinic-module",
+        "informes",
+      );
+      await expect(modules.nth(1)).toHaveAttribute(
+        "data-clinic-module",
+        "operacion",
+      );
+      await expect(modules.nth(2)).toHaveAttribute(
+        "data-clinic-module",
+        "gestion",
+      );
+
+      for (const productModule of await modules.all()) {
+        await expect(productModule.locator("article")).toHaveCount(2);
+      }
+    });
+
+    test("keeps the six existing feature titles visible", async ({ page }) => {
+      for (const title of [
+        "Recepción de informes",
+        "Búsqueda avanzada",
+        "Seguimiento de logística",
+        "Acceso seguro y auditado",
+        "Gestión de usuarios",
+        "Perfil público",
+      ]) {
+        await expect(page.getByRole("heading", { name: title })).toBeVisible();
+      }
+    });
+  });
+
+  test("renders onboarding as four connected steps", async ({ page }) => {
+    const onboarding = page.locator(
+      'ol[aria-label="Pasos para comenzar con Portal VETNEB"]',
+    );
+
+    await expect(onboarding).toBeVisible();
+    await expect(
+      onboarding.locator("[data-clinic-onboarding-step]"),
+    ).toHaveCount(4);
+  });
+
   test.describe("B2B conversion CTAs", () => {
     test("renders conversion heading", async ({ page }) => {
       await expect(
@@ -90,23 +141,30 @@ test.describe("clinicas B2B operations landing (PR-14)", () => {
   });
 
   test.describe("no demo/fictitious content", () => {
-    test("no demo badge present", async ({ page }) => {
-      await expect(page.locator("body")).not.toContainText(/DEMOSTRATIVO/i);
-      await expect(page.locator("body")).not.toContainText(/Muestra · Demostrativo/i);
-    });
+    test("does not render prohibited demo or fictitious content", async ({
+      page,
+    }) => {
+      const body = page.locator("body");
 
-    test("no fictitious patient data present", async ({ page }) => {
-      await expect(page.locator("body")).not.toContainText(
-        /Paciente demostrativo/i,
-      );
-      await expect(page.locator("body")).not.toContainText(
-        /Clínica demostrativa/i,
-      );
-    });
-
-    test("no DEMO-000 or DEMO-CLINICA case codes present", async ({ page }) => {
-      await expect(page.locator("body")).not.toContainText(/DEMO-000/i);
-      await expect(page.locator("body")).not.toContainText(/DEMO-CLINICA/i);
+      for (const prohibitedText of [
+        "MUESTRA",
+        "DEMOSTRATIVO",
+        "ejemplo visual",
+        "sin datos reales",
+        "caso demo",
+        "DEMO-000",
+        "DEMO-CLINICA-001",
+        "paciente demostrativo",
+        "clínica demostrativa",
+        "preview de informe simulado",
+        "panel operativo simulado",
+        "dashboard ficticio",
+        "informe inventado",
+        "datos ficticios visibles",
+        "mocks públicos falsos",
+      ]) {
+        await expect(body).not.toContainText(prohibitedText);
+      }
     });
 
     test("no simulated report preview", async ({ page }) => {
@@ -136,6 +194,23 @@ test.describe("clinicas B2B operations landing (PR-14)", () => {
 
     test("onboarding steps preserved", async ({ page }) => {
       await expect(page.locator("h2#clinicas-onboarding-heading")).toBeVisible();
+    });
+
+    test("clinicas JSON-LD remains present", async ({ page }) => {
+      const jsonLdScripts = await page
+        .locator('script[type="application/ld+json"]')
+        .allTextContents();
+
+      expect(jsonLdScripts.length).toBeGreaterThan(0);
+      expect(
+        jsonLdScripts.some((content) =>
+          content.includes("Portal para Clínicas Veterinarias"),
+        ),
+      ).toBe(true);
+
+      for (const content of jsonLdScripts) {
+        expect(() => JSON.parse(content)).not.toThrow();
+      }
     });
   });
 
