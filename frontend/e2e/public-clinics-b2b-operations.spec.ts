@@ -28,6 +28,42 @@ test.describe("clinicas product landing (PR-20)", () => {
       await expect(ol.locator("[data-clinic-op-step]")).toHaveCount(5);
     });
 
+    test("centers each operation number over its content on desktop", async ({
+      page,
+    }) => {
+      const steps = page.locator("[data-clinic-op-step]");
+
+      for (const step of await steps.all()) {
+        const centerDelta = await step.evaluate((element) => {
+          const number = element.querySelector<HTMLElement>(
+            "[data-clinic-op-step-number]",
+          );
+          const content = element.querySelector<HTMLElement>(
+            "[data-clinic-op-step-content]",
+          );
+
+          if (!number || !content) return null;
+
+          const centerWithinStep = (child: HTMLElement) => {
+            let left = 0;
+            let current: HTMLElement | null = child;
+
+            while (current && current !== element) {
+              left += current.offsetLeft;
+              current = current.offsetParent as HTMLElement | null;
+            }
+
+            return left + child.offsetWidth / 2;
+          };
+
+          return Math.abs(centerWithinStep(number) - centerWithinStep(content));
+        });
+
+        expect(centerDelta).not.toBeNull();
+        expect(centerDelta ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(1);
+      }
+    });
+
     test("renders derivación step", async ({ page }) => {
       await expect(page.locator("body")).toContainText(
         "Coordinás la derivación",

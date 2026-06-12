@@ -330,7 +330,7 @@ export default function ClinicasPage() {
             <PublicScrollReveal variant="cards" staggerChildren>
               <ol
                 aria-label="Pasos operativos de derivación con VETNEB"
-                className="mx-auto grid max-w-6xl grid-cols-1 lg:grid-cols-5"
+                className="mx-auto grid max-w-6xl grid-cols-1 lg:grid-cols-5 lg:gap-x-6"
               >
                 {operationSteps.map((step, index) => {
                   const StepIcon = step.icon;
@@ -341,7 +341,7 @@ export default function ClinicasPage() {
                       key={step.step}
                       data-scroll-reveal-item
                       data-clinic-op-step={step.step}
-                      className={`relative flex gap-4 lg:flex-col lg:gap-0 lg:pr-6 lg:last:pr-0 ${
+                      className={`relative flex gap-4 lg:flex-col lg:gap-0 ${
                         isLastStep ? "" : "pb-9 lg:pb-0"
                       }`}
                     >
@@ -351,8 +351,9 @@ export default function ClinicasPage() {
                           aria-hidden="true"
                         />
                       )}
-                      <div className="flex shrink-0 items-center lg:w-full">
+                      <div className="flex shrink-0 items-center lg:relative lg:w-full lg:justify-center">
                         <span
+                          data-clinic-op-step-number
                           className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-vetneb-navy text-xs font-bold text-primary-foreground shadow-[0_4px_10px_hsl(var(--vetneb-navy)/0.26)] ring-2 ring-vetneb-teal/18"
                           aria-hidden="true"
                         >
@@ -360,12 +361,15 @@ export default function ClinicasPage() {
                         </span>
                         {!isLastStep && (
                           <span
-                            className="ml-4 hidden h-px flex-1 bg-gradient-to-r from-vetneb-teal/45 to-vetneb-line/45 lg:-mr-6 lg:block"
+                            className="absolute left-1/2 top-1/2 hidden h-px w-[calc(100%+1.5rem)] bg-gradient-to-r from-vetneb-teal/45 to-vetneb-line/45 lg:block"
                             aria-hidden="true"
                           />
                         )}
                       </div>
-                      <div className="min-w-0 pt-0.5 lg:mt-6 lg:pt-0">
+                      <div
+                        data-clinic-op-step-content
+                        className="min-w-0 pt-0.5 lg:mt-6 lg:w-full lg:pt-0"
+                      >
                         <div className="flex items-start gap-2.5">
                           <span
                             className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded border border-vetneb-line/65 bg-card/85 text-vetneb-teal"
