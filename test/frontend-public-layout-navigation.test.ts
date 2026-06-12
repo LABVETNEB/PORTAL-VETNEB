@@ -33,7 +33,10 @@ test("navbar uses centralized public routes for primary navigation", () => {
   assert.equal(source.includes('"use client";'), false);
   assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
-  assert.ok(source.includes('const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];'));
+  assert.ok(source.includes("const navGroups = ["));
+  assert.ok(source.includes('label: "Diagnóstico"'));
+  assert.ok(source.includes('label: "Operación"'));
+  assert.ok(source.includes('label: "Acceso"'));
   assert.ok(source.includes('{ label: "Servicios", href: ROUTES.servicios }'));
   assert.ok(source.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
   assert.ok(source.includes('{ label: "Clínicas", href: ROUTES.clinicas }'));
@@ -48,7 +51,7 @@ test("navbar keeps full navigation desktop-only and exposes mobile dropdown", ()
 
   assert.ok(
     source.includes(
-      'className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 lg:flex"',
+      'className="hidden items-stretch rounded-lg border border-vetneb-line/80 bg-card/88 p-1 lg:flex"',
     ),
   );
   assert.equal(source.includes("p-1 md:flex"), false);
@@ -56,7 +59,9 @@ test("navbar keeps full navigation desktop-only and exposes mobile dropdown", ()
   assert.ok(source.includes("<details"));
   assert.ok(source.includes("<summary"));
   assert.ok(source.includes('aria-label="Navegación mobile"'));
-  assert.ok(source.includes("{mobileNavLinks.map((link) => ("));
+  assert.ok(source.includes("{navGroups.map((group) => ("));
+  assert.ok(source.includes("{group.links.map((link) => ("));
+  assert.ok(source.includes("max-w-[calc(100vw-2rem)]"));
   assert.equal(source.includes('className="public-cta-outline lg:hidden"'), false);
   assert.equal(source.includes("<Link href={ROUTES.profesionales}>Profesionales</Link>"), false);
   assert.ok(source.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
@@ -65,16 +70,21 @@ test("navbar keeps full navigation desktop-only and exposes mobile dropdown", ()
 test("navbar mobile dropdown includes expected public links", () => {
   const source = read(NAVBAR_PATH);
 
-  assert.ok(source.includes('const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];'));
+  assert.ok(source.includes("href={ROUTES.home}"));
+  assert.ok(source.includes("Inicio"));
   assert.ok(source.includes('{ label: "Servicios", href: ROUTES.servicios }'));
   assert.ok(source.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
   assert.ok(source.includes('{ label: "Clínicas", href: ROUTES.clinicas }'));
   assert.ok(source.includes('{ label: "Particulares", href: ROUTES.particulares }'));
   assert.ok(source.includes('{ label: "Contacto", href: ROUTES.contacto }'));
   assert.ok(source.includes('{ label: "Precios", href: ROUTES.precios }'));
+  assert.ok(source.includes("public-cta-outline inline-flex h-9 w-full"));
+  assert.ok(source.includes("public-cta-primary inline-flex h-9 w-full"));
+  assert.ok(source.includes("Iniciar sesión"));
+  assert.ok(source.includes("Solicitar acceso"));
 });
 
-test("navbar keeps expected public link order including precios", () => {
+test("navbar keeps expected public link order within its three intent groups", () => {
   const source = read(NAVBAR_PATH);
 
   const serviciosIndex = source.indexOf('{ label: "Servicios", href: ROUTES.servicios }');
@@ -86,9 +96,9 @@ test("navbar keeps expected public link order including precios", () => {
 
   assert.ok(serviciosIndex < profesionalesIndex);
   assert.ok(profesionalesIndex < clinicasIndex);
-  assert.ok(clinicasIndex < particularesIndex);
+  assert.ok(clinicasIndex < preciosIndex);
+  assert.ok(preciosIndex < particularesIndex);
   assert.ok(particularesIndex < contactoIndex);
-  assert.ok(contactoIndex < preciosIndex);
 });
 
 test("navbar exposes home login and access CTAs with VETNEB brand", () => {
@@ -114,12 +124,15 @@ test("footer uses centralized public routes and contentinfo landmark", () => {
   assert.ok(source.includes("PublicRouteControl"));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
   assert.ok(source.includes('role="contentinfo"'));
-  assert.ok(source.includes('const footerLinks = ['));
+  assert.ok(source.includes("const footerLinkGroups = ["));
+  assert.ok(source.includes('label: "Diagnóstico / Servicios"'));
+  assert.ok(source.includes('label: "Operación clínica"'));
   assert.ok(source.includes('{ label: "Servicios", href: ROUTES.servicios }'));
   assert.ok(source.includes('{ label: "Profesionales", href: ROUTES.profesionales }'));
   assert.ok(source.includes('{ label: "Clínicas", href: ROUTES.clinicas }'));
-  assert.ok(source.includes('{ label: "Contacto", href: ROUTES.contacto }'));
-  assert.ok(source.includes("footerLinks.map((link) =>"));
+  assert.ok(source.includes('{ label: "Precios", href: ROUTES.precios }'));
+  assert.ok(source.includes("footerLinkGroups.map((group) =>"));
+  assert.ok(source.includes('aria-label="Mapa institucional y operativo"'));
 });
 
 test("footer exposes access links and legal copy without redundant brand block", () => {
@@ -133,4 +146,32 @@ test("footer exposes access links and legal copy without redundant brand block",
   assert.equal(source.includes("Laboratorio veterinario digital — Argentina"), false);
   assert.equal(source.includes("Laboratorio veterinario digital. Informes, estudios y gestión"), false);
   assert.equal(source.includes("rounded-md bg-primary px-3"), false);
+});
+
+test("public navbar and footer stay free of private routes and prohibited demo copy", () => {
+  const source = `${read(NAVBAR_PATH)}\n${read(FOOTER_PATH)}`;
+  const prohibited = [
+    "MUESTRA",
+    "DEMOSTRATIVO",
+    "ejemplo visual",
+    "sin datos reales",
+    "caso demo",
+    "DEMO-000",
+    "DEMO-CLINICA-001",
+    "paciente demostrativo",
+    "clínica demostrativa",
+    "preview de informe simulado",
+    "panel operativo simulado",
+    "dashboard ficticio",
+    "informe inventado",
+    "datos ficticios visibles",
+  ];
+
+  for (const text of prohibited) {
+    assert.equal(source.includes(text), false, `public layout must not contain ${text}`);
+  }
+
+  assert.equal(source.includes("ROUTES.dashboard"), false);
+  assert.equal(source.includes('"/dashboard"'), false);
+  assert.equal(source.includes("admin_session_id"), false);
 });

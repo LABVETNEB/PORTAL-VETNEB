@@ -3,16 +3,29 @@ import { ArrowRight, ChevronDown, Microscope } from "lucide-react";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
 
-const navLinks = [
-  { label: "Servicios", href: ROUTES.servicios },
-  { label: "Profesionales", href: ROUTES.profesionales },
-  { label: "Clínicas", href: ROUTES.clinicas },
-  { label: "Particulares", href: ROUTES.particulares },
-  { label: "Contacto", href: ROUTES.contacto },
-  { label: "Precios", href: ROUTES.precios },
-];
-
-const mobileNavLinks = [{ label: "Inicio", href: ROUTES.home }, ...navLinks];
+const navGroups = [
+  {
+    label: "Diagnóstico",
+    links: [
+      { label: "Servicios", href: ROUTES.servicios },
+      { label: "Profesionales", href: ROUTES.profesionales },
+    ],
+  },
+  {
+    label: "Operación",
+    links: [
+      { label: "Clínicas", href: ROUTES.clinicas },
+      { label: "Precios", href: ROUTES.precios },
+    ],
+  },
+  {
+    label: "Acceso",
+    links: [
+      { label: "Particulares", href: ROUTES.particulares },
+      { label: "Contacto", href: ROUTES.contacto },
+    ],
+  },
+] as const;
 
 export function Navbar() {
   return (
@@ -32,20 +45,58 @@ export function Navbar() {
               className="absolute left-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-vetneb-line/80 bg-card p-2 shadow-[0_18px_45px_rgba(15,45,62,0.16)]"
               aria-label="Navegación mobile"
             >
-              <ul className="flex flex-col gap-1">
-                {mobileNavLinks.map((link) => (
-                  <li key={link.href}>
-                    <PublicRouteControl
-                      href={link.href}
-                      variant="bare"
-                      className="block w-full rounded-md px-3 py-2.5 text-left text-sm font-medium text-vetneb-ink/85 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
-                      activeClassName="bg-accent/80 text-vetneb-ink shadow-sm"
-                    >
-                      {link.label}
-                    </PublicRouteControl>
+              <div className="border-b border-vetneb-line/70 pb-2">
+                <PublicRouteControl
+                  href={ROUTES.home}
+                  variant="bare"
+                  className="block w-full rounded-md px-3 py-2.5 text-left text-sm font-semibold text-vetneb-ink transition-colors hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+                  activeClassName="bg-accent/80 text-vetneb-ink shadow-sm"
+                >
+                  Inicio
+                </PublicRouteControl>
+              </div>
+
+              <ul className="flex flex-col gap-3 py-3">
+                {navGroups.map((group) => (
+                  <li key={group.label}>
+                    <p className="px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                      {group.label}
+                    </p>
+                    <ul className="mt-1 space-y-1">
+                      {group.links.map((link) => (
+                        <li key={link.href}>
+                          <PublicRouteControl
+                            href={link.href}
+                            variant="bare"
+                            className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-vetneb-ink/85 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+                            activeClassName="bg-accent/80 text-vetneb-ink shadow-sm"
+                          >
+                            {link.label}
+                          </PublicRouteControl>
+                        </li>
+                      ))}
+                    </ul>
                   </li>
                 ))}
               </ul>
+
+              <div className="grid gap-2 border-t border-vetneb-line/70 pt-2">
+                <PublicRouteControl
+                  href={ROUTES.login}
+                  variant="bare"
+                  className="public-cta-outline inline-flex h-9 w-full items-center justify-center rounded-md px-3 text-sm font-semibold"
+                >
+                  Iniciar sesión
+                </PublicRouteControl>
+                <PublicRouteControl
+                  href={ROUTES.contacto}
+                  variant="bare"
+                  className="public-cta-primary inline-flex h-9 w-full items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold"
+                >
+                  Solicitar acceso
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </PublicRouteControl>
+              </div>
             </nav>
           </details>
         </div>
@@ -60,25 +111,37 @@ export function Navbar() {
             <Microscope className="h-4 w-4" aria-hidden="true" />
             VETNEB
           </span>
-          <span className="hidden text-xs font-semibold text-muted-foreground lg:inline">
+          <span className="hidden text-xs font-semibold text-muted-foreground xl:inline">
             Patología veterinaria
           </span>
         </PublicRouteControl>
 
         <nav
-          className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 lg:flex"
+          className="hidden items-stretch rounded-lg border border-vetneb-line/80 bg-card/88 p-1 lg:flex"
           aria-label="Navegación principal"
         >
-          {navLinks.map((link) => (
-            <PublicRouteControl
-              key={link.href}
-              href={link.href}
-              variant="bare"
-              className="rounded-md px-3.5 py-2 text-sm font-medium text-vetneb-ink/80 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
-              activeClassName="bg-accent/80 text-vetneb-ink shadow-sm"
+          {navGroups.map((group) => (
+            <div
+              key={group.label}
+              className="flex min-w-0 flex-col justify-center border-r border-vetneb-line/70 px-1.5 last:border-r-0"
             >
-              {link.label}
-            </PublicRouteControl>
+              <p className="px-2 pb-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                {group.label}
+              </p>
+              <div className="flex items-center">
+                {group.links.map((link) => (
+                  <PublicRouteControl
+                    key={link.href}
+                    href={link.href}
+                    variant="bare"
+                    className="rounded-md px-2 py-1.5 text-xs font-medium text-vetneb-ink/80 transition-colors hover:bg-accent/70 hover:text-vetneb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 xl:px-2.5 xl:text-sm"
+                    activeClassName="bg-accent/80 text-vetneb-ink shadow-sm"
+                  >
+                    {link.label}
+                  </PublicRouteControl>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 

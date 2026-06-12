@@ -45,11 +45,14 @@ test("footer unifies laboratory info navigation access and non-interactive real 
   assert.ok(source.includes("Lunes a viernes de 8 a 17hs"));
   assert.ok(source.includes("3534138946"));
   assert.ok(source.includes("lab.vetneb@gmail.com"));
-  assert.ok(source.includes('aria-label="Navegación secundaria"'));
-  assert.ok(source.includes("Navegación"));
+  assert.ok(source.includes('aria-label="Mapa institucional y operativo"'));
+  assert.ok(source.includes("Diagnóstico / Servicios"));
+  assert.ok(source.includes("Operación clínica"));
   assert.ok(source.includes("Acceso"));
-  assert.ok(source.includes("footerLinks.map((link) =>"));
-  assert.ok(source.includes("lg:grid-cols-[1.35fr_0.75fr_0.75fr_1.15fr]"));
+  assert.ok(source.includes("Contacto"));
+  assert.ok(source.includes("footerLinkGroups.map((group) =>"));
+  assert.ok(source.includes("lg:grid-cols-[0.85fr_1.15fr]"));
+  assert.ok(source.includes("lg:grid-cols-4"));
   assert.ok(source.includes("https://www.google.com/maps?q="));
   assert.ok(source.includes("https://www.google.com/maps?output=embed&q="));
   assert.ok(source.includes("mapsEmbedUrl"));
@@ -78,6 +81,8 @@ test("footer removes redundant brand block and keeps public routes safe", () => 
   assert.ok(source.includes("ROUTES.servicios"));
   assert.ok(source.includes("ROUTES.profesionales"));
   assert.ok(source.includes("ROUTES.clinicas"));
+  assert.ok(source.includes("ROUTES.precios"));
+  assert.ok(source.includes("ROUTES.particulares"));
   assert.ok(source.includes("ROUTES.contacto"));
   assert.ok(source.includes("ROUTES.login"));
   assert.equal(source.includes('"/dashboard"'), false);
