@@ -236,6 +236,9 @@ test("servicios page keeps professional section/card structure and responsive la
       "serviceCategories.map((service) =>",
       "service.features.map((feature) =>",
       "data-services-polished=\"true\"",
+      "data-services-diagnostic-bento=\"true\"",
+      "data-services-composed-band=\"coordination-integral\"",
+      "data-services-composed-band=\"considerations-values\"",
     ],
     "servicios visual structure",
   );
@@ -244,11 +247,11 @@ test("servicios page keeps professional section/card structure and responsive la
     source,
     [
       /className="public-secondary-hero-surface py-16 text-white md:py-20"/,
-      /className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8"/,
-      /className="premium-card h-full"/,
-      /className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl text-center"/,
-      /className="flex flex-col justify-center gap-3 sm:flex-row"/,
-      /className="py-16"/,
+      /className="grid grid-cols-1 gap-5 lg:grid-cols-12 lg:gap-6"/,
+      /className="public-evidence-band-light public-band"/,
+      /className="public-band-feature"/,
+      /className="public-evidence-band-muted public-band"/,
+      /className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap"/,
     ],
     "servicios class contracts",
   );
