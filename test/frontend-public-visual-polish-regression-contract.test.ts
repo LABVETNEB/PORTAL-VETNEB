@@ -87,7 +87,7 @@ test("navbar header uses bg-card/92 and backdrop-blur-sm not bg-card/96", () => 
   assert.equal(source.includes("bg-card/96"), false);
 });
 
-test("navbar desktop and mobile nav links pass activeClassName to PublicRouteControl", () => {
+test("navbar desktop mobile and mobile-home nav links pass activeClassName to PublicRouteControl", () => {
   const source = read(NAVBAR_PATH);
 
   assert.ok(source.includes('activeClassName="bg-accent/80 text-vetneb-ink shadow-sm"'));
@@ -100,8 +100,8 @@ test("navbar CTA controls carry no activeClassName — only nav link loops do", 
 
   assert.equal(
     occurrences,
-    2,
-    `activeClassName must appear exactly in desktop and mobile nav link loops (expected 2, got ${occurrences})`,
+    3,
+    `activeClassName must appear in desktop, mobile group and mobile home controls (expected 3, got ${occurrences})`,
   );
 });
 
