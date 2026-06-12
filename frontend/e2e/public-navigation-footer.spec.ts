@@ -35,9 +35,9 @@ test("desktop navbar and footer preserve the public information architecture", a
     name: "Navegación principal",
   });
   await expect(desktopNav).toBeVisible();
-  await expect(desktopNav).toContainText("Diagnóstico");
-  await expect(desktopNav).toContainText("Operación");
-  await expect(desktopNav).toContainText("Acceso");
+  await expect(desktopNav).not.toContainText("Diagnóstico");
+  await expect(desktopNav).not.toContainText("Operación");
+  await expect(desktopNav).not.toContainText("Acceso");
 
   for (const destination of primaryDestinations) {
     await expect(
@@ -54,10 +54,10 @@ test("desktop navbar and footer preserve the public information architecture", a
   ).toBeVisible();
 
   const footer = page.getByRole("contentinfo");
-  await expect(footer).toContainText("Diagnóstico / Servicios");
-  await expect(footer).toContainText("Operación clínica");
+  await expect(footer).toContainText("Navegación");
   await expect(footer).toContainText("Acceso");
-  await expect(footer).toContainText("Contacto");
+  await expect(footer).not.toContainText("Diagnóstico / Servicios");
+  await expect(footer).not.toContainText("Operación clínica");
   await expect(footer).toContainText("Blvd. Italia 274 - Villa María - Córdoba");
   await expect(footer).toContainText("Lunes a viernes de 8 a 17hs");
   await expect(footer).toContainText("WhatsApp");
@@ -71,7 +71,7 @@ test("desktop navbar and footer preserve the public information architecture", a
   }
 });
 
-test("mobile navigation opens closes and retains links and access actions", async ({
+test("mobile navigation opens closes and retains public links", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
@@ -93,10 +93,10 @@ test("mobile navigation opens closes and retains links and access actions", asyn
   }
 
   await expect(
-    mobileNav.getByRole("button", { name: "Iniciar sesión", exact: true }),
-  ).toBeVisible();
-  await expect(
-    mobileNav.getByRole("button", { name: "Solicitar acceso", exact: true }),
+    page.getByRole("banner").getByRole("button", {
+      name: "Iniciar sesión",
+      exact: true,
+    }),
   ).toBeVisible();
 
   await toggle.click();
