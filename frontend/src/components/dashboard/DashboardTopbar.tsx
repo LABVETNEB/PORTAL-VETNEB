@@ -1,4 +1,5 @@
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
 import { ROUTES } from "@/lib/routes";
 import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
 
@@ -47,6 +48,7 @@ export function DashboardTopbar({
       </div>
 
       <div className="ml-3 flex shrink-0 items-center gap-2 sm:gap-3">
+        <ThemeModeToggle />
         {notifications ? <DashboardNotificationsBell surface={notifications} /> : null}
         <PublicRouteControl
           href={ROUTES.login}

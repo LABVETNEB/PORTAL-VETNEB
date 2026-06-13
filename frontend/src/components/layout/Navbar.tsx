@@ -1,6 +1,7 @@
 import { ArrowRight, ChevronDown, Microscope } from "lucide-react";
 
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
 import { ROUTES } from "@/lib/routes";
 
 const navLinks = [
@@ -83,6 +84,7 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <ThemeModeToggle />
           <PublicRouteControl
             href={ROUTES.login}
             variant="bare"

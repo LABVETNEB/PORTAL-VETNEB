@@ -5,6 +5,7 @@ import "./globals.css";
 import { PwaServiceWorkerRegistrar } from "@/components/pwa/PwaServiceWorkerRegistrar";
 import { baseMetadata, getOrganizationJsonLd } from "@/lib/seo";
 import { SITE_THEME_COLOR } from "@/lib/seo";
+import { NORMAL_THEME_MODE } from "@/lib/theme";
 
 export const metadata: Metadata = baseMetadata;
 
@@ -20,8 +21,10 @@ export default function RootLayout({
   const orgJsonLd = getOrganizationJsonLd();
 
   return (
-    <html lang="es">
+    <html lang="es" data-theme={NORMAL_THEME_MODE} suppressHydrationWarning>
       <head>
+        {/* eslint-disable-next-line @next/next/no-sync-scripts -- sync by design: applies persisted theme before first paint */}
+        <script src="/theme-init.js" />
         <link
           rel="preload"
           href="/fonts/InterVariable.woff2"
