@@ -6,7 +6,19 @@ import type {
 } from "fastify";
 import { z } from "zod";
 
+import {
+  buildContactRateLimitKey,
+  CONTACT_RATE_LIMIT_ERROR_MESSAGE,
+  CONTACT_RATE_LIMIT_MAX_ATTEMPTS,
+  CONTACT_RATE_LIMIT_WINDOW_MS,
+} from "../lib/contact-rate-limit.ts";
 import { ENV } from "../lib/env.ts";
+import {
+  createMemoryRateLimitStore,
+  getOrCreateRateLimitEntry,
+  incrementRateLimitEntry,
+  type RateLimitStore,
+} from "../lib/rate-limit-store.ts";
 
 type ContactEmailResult =
   | { sent: true; messageId: string }
@@ -34,7 +46,15 @@ export type ContactNativeRoutesOptions = {
   sendContactMessageEmail?: (
     input: ContactMessageInput,
   ) => Promise<ContactEmailResult>;
+  contactRateLimitWindowMs?: number;
+  contactRateLimitMaxAttempts?: number;
+  contactRateLimitStore?: RateLimitStore;
+  now?: () => number;
 };
+
+type ContactNativeRouteDeps = Required<
+  Pick<ContactNativeRoutesOptions, "sendContactMessageEmail">
+>;
 
 const contactSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -46,10 +66,10 @@ const contactSchema = z.object({
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 let defaultDepsPromise:
-  | Promise<Required<ContactNativeRoutesOptions>>
+  | Promise<ContactNativeRouteDeps>
   | undefined;
 
-async function loadDefaultDeps(): Promise<Required<ContactNativeRoutesOptions>> {
+async function loadDefaultDeps(): Promise<ContactNativeRouteDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
       const email = await import("../lib/email.ts");
@@ -65,7 +85,7 @@ async function loadDefaultDeps(): Promise<Required<ContactNativeRoutesOptions>> 
 
 async function resolveDeps(
   options: ContactNativeRoutesOptions,
-): Promise<Required<ContactNativeRoutesOptions>> {
+): Promise<ContactNativeRouteDeps> {
   const defaultDeps = options.sendContactMessageEmail
     ? undefined
     : await loadDefaultDeps();
@@ -165,6 +185,10 @@ function applyCorsHeaders(
   reply.header("vary", "Origin");
   reply.header("access-control-allow-origin", allowedOrigin);
   reply.header("access-control-allow-credentials", "true");
+  reply.header(
+    "access-control-expose-headers",
+    "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After",
+  );
 }
 
 function enforceTrustedOrigin(
@@ -194,6 +218,35 @@ function normalizeOptionalText(value: string | null | undefined) {
   const trimmed = typeof value === "string" ? value.trim() : "";
 
   return trimmed ? trimmed : null;
+}
+
+function setRateLimitHeaders(
+  reply: FastifyReply,
+  input: {
+    max: number;
+    windowMs: number;
+    count: number;
+    resetAt: number;
+    now: number;
+  },
+) {
+  const retryAfterSeconds = Math.max(
+    Math.ceil((input.resetAt - input.now) / 1000),
+    0,
+  );
+
+  reply.header(
+    "RateLimit-Policy",
+    `${input.max};w=${Math.ceil(input.windowMs / 1000)}`,
+  );
+  reply.header("RateLimit-Limit", String(input.max));
+  reply.header(
+    "RateLimit-Remaining",
+    String(Math.max(input.max - input.count, 0)),
+  );
+  reply.header("RateLimit-Reset", String(retryAfterSeconds));
+
+  return retryAfterSeconds;
 }
 
 function getKnownErrorProperty(error: unknown, propertyName: string): unknown {
@@ -296,6 +349,13 @@ export const contactNativeRoutes: FastifyPluginAsync<
   ContactNativeRoutesOptions
 > = async (app, options) => {
   const allowedOrigins = new Set(getAllowedOrigins());
+  const now = options.now ?? (() => Date.now());
+  const contactRateLimitWindowMs =
+    options.contactRateLimitWindowMs ?? CONTACT_RATE_LIMIT_WINDOW_MS;
+  const contactRateLimitMaxAttempts =
+    options.contactRateLimitMaxAttempts ?? CONTACT_RATE_LIMIT_MAX_ATTEMPTS;
+  const contactRateLimitStore =
+    options.contactRateLimitStore ?? createMemoryRateLimitStore();
 
   app.addHook("onRequest", async (request, reply) => {
     applyCorsHeaders(request, reply, allowedOrigins);
@@ -334,6 +394,50 @@ export const contactNativeRoutes: FastifyPluginAsync<
     if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
       return reply;
     }
+
+    const currentTime = now();
+    const rateLimitKey = buildContactRateLimitKey(request.ip);
+    const rateLimitEntry = await getOrCreateRateLimitEntry(
+      contactRateLimitStore,
+      rateLimitKey,
+      contactRateLimitWindowMs,
+      currentTime,
+    );
+
+    if (rateLimitEntry.count >= contactRateLimitMaxAttempts) {
+      const retryAfterSeconds = setRateLimitHeaders(reply, {
+        max: contactRateLimitMaxAttempts,
+        windowMs: contactRateLimitWindowMs,
+        count: rateLimitEntry.count,
+        resetAt: rateLimitEntry.resetAt,
+        now: currentTime,
+      });
+
+      reply.header("Retry-After", String(Math.max(retryAfterSeconds, 1)));
+
+      return reply.code(429).send({
+        success: false,
+        error: CONTACT_RATE_LIMIT_ERROR_MESSAGE,
+      });
+    }
+
+    const updatedRateLimitEntry = await incrementRateLimitEntry(
+      contactRateLimitStore,
+      rateLimitKey,
+      rateLimitEntry,
+      currentTime,
+    );
+
+    rateLimitEntry.count = updatedRateLimitEntry.count;
+    rateLimitEntry.resetAt = updatedRateLimitEntry.resetAt;
+
+    setRateLimitHeaders(reply, {
+      max: contactRateLimitMaxAttempts,
+      windowMs: contactRateLimitWindowMs,
+      count: rateLimitEntry.count,
+      resetAt: rateLimitEntry.resetAt,
+      now: currentTime,
+    });
 
     const parsed = contactSchema.safeParse(request.body);
 

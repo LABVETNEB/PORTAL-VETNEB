@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import Fastify from "fastify";
+import Fastify, { type FastifyServerOptions } from "fastify";
+
+import type { RateLimitStore } from "../server/lib/rate-limit-store.ts";
 
 type ContactEmailResult =
   | { sent: true; messageId: string }
@@ -17,6 +19,10 @@ type ContactNativeRoutesOptions = {
   sendContactMessageEmail?: (
     input: ContactMessageInput,
   ) => Promise<ContactEmailResult>;
+  contactRateLimitWindowMs?: number;
+  contactRateLimitMaxAttempts?: number;
+  contactRateLimitStore?: RateLimitStore;
+  now?: () => number;
 };
 
 function ensureContactRouteTestEnv() {
@@ -28,18 +34,30 @@ function ensureContactRouteTestEnv() {
   process.env.CORS_ORIGIN ??= "https://portal-vetneb-frontend-staging.onrender.com";
 }
 
-async function createContactTestApp(options: ContactNativeRoutesOptions) {
+async function createContactTestApp(
+  options: ContactNativeRoutesOptions,
+  fastifyOptions: FastifyServerOptions = {},
+) {
   ensureContactRouteTestEnv();
 
   const { contactNativeRoutes } = await import(
     "../server/routes/contact.fastify.ts"
   );
 
-  const app = Fastify({ logger: false });
+  const app = Fastify({ logger: false, ...fastifyOptions });
 
   await app.register(contactNativeRoutes, options);
 
   return app;
+}
+
+function validContactPayload() {
+  return {
+    name: "Juan Perez",
+    email: "juan@example.com",
+    clinicName: "Clinica Norte",
+    message: "Necesito registrar mi clinica en el portal.",
+  };
 }
 
 test("contact endpoint validates required public contact payload", async () => {
@@ -93,12 +111,7 @@ test("contact endpoint sends valid public contact payload", async () => {
       headers: {
         origin: "https://portal-vetneb-frontend-staging.onrender.com",
       },
-      payload: {
-        name: "Juan Perez",
-        email: "juan@example.com",
-        clinicName: "Clinica Norte",
-        message: "Necesito registrar mi clinica en el portal.",
-      },
+      payload: validContactPayload(),
     });
 
     assert.equal(response.statusCode, 200);
@@ -343,6 +356,235 @@ test("contact endpoint rejects untrusted unsafe origins", async () => {
 
     assert.equal(body.success, false);
     assert.equal(body.error, "Origen no permitido");
+  } finally {
+    await app.close();
+  }
+});
+
+test("contact endpoint rate limit allows requests within the limit and blocks SMTP afterwards", async () => {
+  let sendCalls = 0;
+  const app = await createContactTestApp({
+    now: () => 1_000,
+    sendContactMessageEmail: async () => {
+      sendCalls += 1;
+      return { sent: true, messageId: `contact-${sendCalls}` };
+    },
+  });
+
+  try {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const allowed = await app.inject({
+        method: "POST",
+        url: "/",
+        remoteAddress: "198.51.100.10",
+        payload: validContactPayload(),
+      });
+
+      assert.equal(allowed.statusCode, 200);
+    }
+
+    const blocked = await app.inject({
+      method: "POST",
+      url: "/",
+      remoteAddress: "198.51.100.10",
+      payload: validContactPayload(),
+    });
+
+    assert.equal(blocked.statusCode, 429);
+    assert.equal(sendCalls, 5, "SMTP must not run for a rate-limited request");
+    assert.equal(blocked.headers["ratelimit-policy"], "5;w=600");
+    assert.equal(blocked.headers["ratelimit-limit"], "5");
+    assert.equal(blocked.headers["ratelimit-remaining"], "0");
+    assert.equal(blocked.headers["ratelimit-reset"], "600");
+    assert.equal(blocked.headers["retry-after"], "600");
+
+    const body = blocked.json() as {
+      success: boolean;
+      error: string;
+    };
+
+    assert.equal(body.success, false);
+    assert.equal(
+      body.error,
+      "Demasiadas solicitudes. Intentá nuevamente en unos minutos.",
+    );
+
+    const serialized = JSON.stringify(body);
+    for (const sensitiveValue of [
+      "198.51.100.10",
+      "juan@example.com",
+      "Clinica Norte",
+      "Necesito registrar mi clinica en el portal.",
+    ]) {
+      assert.equal(serialized.includes(sensitiveValue), false);
+    }
+  } finally {
+    await app.close();
+  }
+});
+
+test("contact endpoint rate limit keeps independent buckets per client", async () => {
+  let sendCalls = 0;
+  const app = await createContactTestApp({
+    contactRateLimitMaxAttempts: 1,
+    contactRateLimitWindowMs: 60_000,
+    sendContactMessageEmail: async () => {
+      sendCalls += 1;
+      return { sent: true, messageId: `contact-${sendCalls}` };
+    },
+  });
+
+  try {
+    const firstClient = await app.inject({
+      method: "POST",
+      url: "/",
+      remoteAddress: "198.51.100.20",
+      payload: validContactPayload(),
+    });
+    const secondClient = await app.inject({
+      method: "POST",
+      url: "/",
+      remoteAddress: "198.51.100.21",
+      payload: validContactPayload(),
+    });
+    const firstClientBlocked = await app.inject({
+      method: "POST",
+      url: "/",
+      remoteAddress: "198.51.100.20",
+      payload: validContactPayload(),
+    });
+
+    assert.equal(firstClient.statusCode, 200);
+    assert.equal(secondClient.statusCode, 200);
+    assert.equal(firstClientBlocked.statusCode, 429);
+    assert.equal(sendCalls, 2);
+  } finally {
+    await app.close();
+  }
+});
+
+test("contact endpoint rate limit window expires without waiting in real time", async () => {
+  let currentTime = 10_000;
+  let sendCalls = 0;
+  const app = await createContactTestApp({
+    contactRateLimitMaxAttempts: 1,
+    contactRateLimitWindowMs: 60_000,
+    now: () => currentTime,
+    sendContactMessageEmail: async () => {
+      sendCalls += 1;
+      return { sent: true, messageId: `contact-${sendCalls}` };
+    },
+  });
+
+  try {
+    const first = await app.inject({
+      method: "POST",
+      url: "/",
+      remoteAddress: "198.51.100.30",
+      payload: validContactPayload(),
+    });
+    const blocked = await app.inject({
+      method: "POST",
+      url: "/",
+      remoteAddress: "198.51.100.30",
+      payload: validContactPayload(),
+    });
+
+    currentTime += 60_001;
+
+    const afterReset = await app.inject({
+      method: "POST",
+      url: "/",
+      remoteAddress: "198.51.100.30",
+      payload: validContactPayload(),
+    });
+
+    assert.equal(first.statusCode, 200);
+    assert.equal(blocked.statusCode, 429);
+    assert.equal(afterReset.statusCode, 200);
+    assert.equal(sendCalls, 2);
+  } finally {
+    await app.close();
+  }
+});
+
+test("contact rate limit uses Fastify trusted proxy client resolution", async () => {
+  let sendCalls = 0;
+  const app = await createContactTestApp(
+    {
+      contactRateLimitMaxAttempts: 1,
+      contactRateLimitWindowMs: 60_000,
+      sendContactMessageEmail: async () => {
+        sendCalls += 1;
+        return { sent: true, messageId: `contact-${sendCalls}` };
+      },
+    },
+    { trustProxy: true },
+  );
+
+  try {
+    const first = await app.inject({
+      method: "POST",
+      url: "/",
+      remoteAddress: "10.0.0.5",
+      headers: {
+        "x-forwarded-for": "198.51.100.40, 203.0.113.40",
+      },
+      payload: validContactPayload(),
+    });
+    const blocked = await app.inject({
+      method: "POST",
+      url: "/",
+      remoteAddress: "10.0.0.6",
+      headers: {
+        "x-forwarded-for": "198.51.100.40, 203.0.113.41",
+      },
+      payload: validContactPayload(),
+    });
+
+    assert.equal(first.statusCode, 200);
+    assert.equal(blocked.statusCode, 429);
+    assert.equal(sendCalls, 1);
+  } finally {
+    await app.close();
+  }
+});
+
+test("contact rate limit remains scoped to the contact plugin", async () => {
+  const app = await createContactTestApp({
+    contactRateLimitMaxAttempts: 1,
+    contactRateLimitWindowMs: 60_000,
+    sendContactMessageEmail: async () => ({
+      sent: true,
+      messageId: "contact-message-id",
+    }),
+  });
+
+  app.get("/health", async () => ({ ok: true }));
+
+  try {
+    await app.inject({
+      method: "POST",
+      url: "/",
+      remoteAddress: "198.51.100.50",
+      payload: validContactPayload(),
+    });
+    const blocked = await app.inject({
+      method: "POST",
+      url: "/",
+      remoteAddress: "198.51.100.50",
+      payload: validContactPayload(),
+    });
+    const health = await app.inject({
+      method: "GET",
+      url: "/health",
+      remoteAddress: "198.51.100.50",
+    });
+
+    assert.equal(blocked.statusCode, 429);
+    assert.equal(health.statusCode, 200);
+    assert.deepEqual(health.json(), { ok: true });
+    assert.equal(health.headers["ratelimit-limit"], undefined);
   } finally {
     await app.close();
   }
