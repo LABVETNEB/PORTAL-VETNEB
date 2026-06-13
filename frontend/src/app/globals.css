@@ -1703,3 +1703,34 @@
   color: hsl(38 84% 64%);
 }
 /* theme-mode-dark-gray:end */
+/* skip-to-content:start */
+.skip-to-content-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 100;
+  max-width: calc(100vw - 1.5rem);
+  transform: translateY(calc(-100% - 1.5rem));
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius);
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  text-decoration: none;
+  box-shadow: 0 8px 24px hsl(var(--vetneb-navy) / 0.28);
+}
+
+.skip-to-content-link:focus,
+.skip-to-content-link:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+/* skip-to-content:end */
