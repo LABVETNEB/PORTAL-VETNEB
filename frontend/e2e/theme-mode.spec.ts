@@ -1,6 +1,8 @@
 import { type Page, expect, test } from "@playwright/test";
 
 const STORAGE_KEY = "vetneb-theme-mode";
+const NORMAL_THEME_COLOR = "#0c354e";
+const DARK_GRAY_THEME_COLOR = "#1c1f21";
 
 function collectHydrationFailures(page: Page) {
   const pageErrors: string[] = [];
@@ -39,9 +41,12 @@ test("theme toggle switches to dark gray, persists, and returns to normal", asyn
   expect(response?.ok(), "/ should render successfully").toBeTruthy();
 
   const html = page.locator("html");
+  const themeColor = page.locator('meta[name="theme-color"]');
   const toggle = page.locator('[data-theme-toggle="true"]').first();
 
   await expect(html).toHaveAttribute("data-theme", "normal");
+  await expect(themeColor).toHaveCount(1);
+  await expect(themeColor).toHaveAttribute("content", NORMAL_THEME_COLOR);
   await expect(toggle).toBeVisible();
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
   await expect(toggle).toHaveAccessibleName("Cambiar a modo oscuro");
@@ -49,6 +54,7 @@ test("theme toggle switches to dark gray, persists, and returns to normal", asyn
   await toggle.click();
 
   await expect(html).toHaveAttribute("data-theme", "dark-gray");
+  await expect(themeColor).toHaveAttribute("content", DARK_GRAY_THEME_COLOR);
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(toggle).toHaveAccessibleName("Cambiar a modo normal");
 
@@ -66,11 +72,15 @@ test("theme toggle switches to dark gray, persists, and returns to normal", asyn
   await page.reload({ waitUntil: "domcontentloaded" });
 
   await expect(html).toHaveAttribute("data-theme", "dark-gray");
+  await expect(themeColor).toHaveCount(1);
+  await expect(themeColor).toHaveAttribute("content", DARK_GRAY_THEME_COLOR);
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
 
   await toggle.click();
 
   await expect(html).toHaveAttribute("data-theme", "normal");
+  await expect(themeColor).toHaveCount(1);
+  await expect(themeColor).toHaveAttribute("content", NORMAL_THEME_COLOR);
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
 
   const storedAfterDisable = await page.evaluate(
@@ -105,8 +115,13 @@ test("persisted dark gray theme applies before hydration without mismatch", asyn
   const html = page.locator("html");
   await expect(html).toHaveAttribute("data-theme", "dark-gray");
 
+  const themeColor = page.locator('meta[name="theme-color"]');
+  await expect(themeColor).toHaveCount(1);
+  await expect(themeColor).toHaveAttribute("content", DARK_GRAY_THEME_COLOR);
+
   const toggle = page.locator('[data-theme-toggle="true"]').first();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(toggle).toHaveAccessibleName("Cambiar a modo normal");
 
   hydrationFailures.assertClean();
 });

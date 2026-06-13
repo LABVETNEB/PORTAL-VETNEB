@@ -4,6 +4,7 @@ import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
+  applyThemeMode,
   DARK_GRAY_THEME_MODE,
   NORMAL_THEME_MODE,
   THEME_STORAGE_KEY,
@@ -26,7 +27,7 @@ export function ThemeModeToggle({ className }: { className?: string }) {
     const next: ThemeMode = isDarkGray
       ? NORMAL_THEME_MODE
       : DARK_GRAY_THEME_MODE;
-    document.documentElement.dataset.theme = next;
+    applyThemeMode(next);
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, next);
     } catch {
