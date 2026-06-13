@@ -40,29 +40,60 @@ test("contacto form hydrates without mismatch on inputs and textarea", async ({
   expect(response?.ok(), "/contacto should render successfully").toBeTruthy();
 
   const form = page.getByRole("form", { name: "Formulario de contacto" });
-  const nombre = page.locator("#nombre");
-  const apellido = page.locator("#apellido");
-  const email = page.locator("#email");
-  const clinica = page.locator("#clinica");
-  const mensaje = page.locator("#mensaje");
+  const heading = page.getByRole("heading", { name: "Envíenos un mensaje" });
+  const hydrationProbe = page.locator(
+    '[data-contact-intent="general-inquiry"]',
+  );
+  const nombre = form.getByLabel("Nombre", { exact: true });
+  const apellido = form.getByLabel("Apellido", { exact: true });
+  const email = form.getByLabel("Email", { exact: true });
+  const clinica = form.getByLabel("Nombre de la clínica (opcional)", {
+    exact: true,
+  });
+  const mensaje = form.getByLabel("Mensaje", { exact: true });
   const submit = form.getByRole("button", { name: "Enviar mensaje" });
 
+  await expect(heading).toBeVisible();
   await expect(form).toBeVisible();
-  await expect(nombre).toBeEnabled();
-  await expect(apellido).toBeEnabled();
-  await expect(email).toBeEnabled();
-  await expect(clinica).toBeEnabled();
-  await expect(mensaje).toBeEnabled();
+  await expect(hydrationProbe).toBeVisible();
+  await expect(hydrationProbe).toBeEnabled();
+  await expect(async () => {
+    await hydrationProbe.click();
+    await expect(page).toHaveURL(/\/contacto#contact-form$/, {
+      timeout: 500,
+    });
+  }).toPass({
+    intervals: [50, 100, 250],
+    timeout: 5_000,
+  });
+
+  for (const field of [nombre, apellido, email, clinica, mensaje]) {
+    await expect(field).toBeVisible();
+    await expect(field).toBeEnabled();
+    await expect(field).toBeEditable();
+    await expect(field).toHaveValue("");
+  }
   await expect(submit).toBeEnabled();
 
   await nombre.fill("Ana");
+  await expect(nombre).toHaveValue("Ana");
   await apellido.fill("García");
+  await expect(apellido).toHaveValue("García");
   await email.fill("ana@clinica.vet");
+  await expect(email).toHaveValue("ana@clinica.vet");
+  await clinica.fill("Clínica Norte");
+  await expect(clinica).toHaveValue("Clínica Norte");
   await mensaje.fill("Consulta sobre acceso para clínica veterinaria.");
+  await expect(mensaje).toHaveValue(
+    "Consulta sobre acceso para clínica veterinaria.",
+  );
 
+  await submit.focus();
+  await expect(submit).toBeFocused();
   await expect(nombre).toHaveValue("Ana");
   await expect(apellido).toHaveValue("García");
   await expect(email).toHaveValue("ana@clinica.vet");
+  await expect(clinica).toHaveValue("Clínica Norte");
   await expect(mensaje).toHaveValue(
     "Consulta sobre acceso para clínica veterinaria.",
   );
