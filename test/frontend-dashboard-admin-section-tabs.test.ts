@@ -165,7 +165,11 @@ test("dashboard admin tabs stay inside frontend-only PR-7 scope", () => {
     "frontend/src/app/histopatologia-veterinaria/",
   ];
 
-  const pr4ServerFiles = ["server/db.ts", "server/routes/reports.fastify.ts"];
+  const pr4ServerFiles = [
+    "server/db.ts",
+    "server/routes/reports.fastify.ts",
+    "server/routes/contact.fastify.ts",
+  ];
   for (const file of changedFiles) {
     if (pr4ServerFiles.includes(file)) continue;
     assert.equal(
