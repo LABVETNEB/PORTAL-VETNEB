@@ -284,6 +284,11 @@ export function AdminSessionsReadOnlyCard() {
                           variant="outline"
                           disabled={isRevoking || isCurrentAdminSession}
                           aria-busy={isRevoking ? true : undefined}
+                          aria-label={
+                            isCurrentAdminSession
+                              ? `Sesión ${formatSessionType(session.sessionType)} #${session.sessionId} actual, no se puede revocar`
+                              : `Revocar sesión ${formatSessionType(session.sessionType)} #${session.sessionId}`
+                          }
                           onClick={() => void handleRevokeSession(session)}
                         >
                           {isRevoking ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}

@@ -174,6 +174,23 @@ test("admin sessions card muestra texto Sesión actual para sesión admin propia
   assert.ok(source.includes('"Sesión actual"'));
 });
 
+test("admin sessions card da nombre accesible explícito al botón Revocar por sesión", () => {
+  const source = read(ADMIN_SESSIONS_CARD_PATH);
+
+  assert.ok(
+    source.includes(
+      "`Revocar sesión ${formatSessionType(session.sessionType)} #${session.sessionId}`",
+    ),
+    "el botón Revocar debe exponer un aria-label por sesión",
+  );
+  assert.ok(
+    source.includes(
+      "`Sesión ${formatSessionType(session.sessionType)} #${session.sessionId} actual, no se puede revocar`",
+    ),
+    "la sesión admin actual debe explicar por qué no se puede revocar",
+  );
+});
+
 test("admin sessions card no expone token, cookie ni hash en UI", () => {
   const source = read(ADMIN_SESSIONS_CARD_PATH);
 
