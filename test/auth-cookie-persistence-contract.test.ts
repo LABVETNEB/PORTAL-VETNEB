@@ -5,6 +5,7 @@
  *  1. Login cookies for all three roles carry a positive Max-Age (persistent cookies).
  *  2. Logout builders clear with Max-Age=0 only.
  *  3. No frontend code uses sessionStorage/localStorage as auth source of truth.
+ *     (UI theme preference files are allowlisted: vetneb-theme-mode only.)
  *  4. No frontend code triggers logout on beforeunload / unload / visibilitychange.
  *
  * These are source-level contract tests — they fail fast if the invariant is broken
@@ -146,6 +147,18 @@ test("cookie persistence contract: serializeCookie emits Max-Age directive", () 
 // 4. No frontend code uses sessionStorage / localStorage as auth source
 // ---------------------------------------------------------------------------
 
+// Non-auth UI preference files allowed to persist the visual theme choice.
+// They must only touch the vetneb-theme-mode key and never session/auth state.
+const THEME_PREFERENCE_FILES = [
+  "frontend/src/lib/theme.ts",
+  "frontend/src/components/theme/ThemeModeToggle.tsx",
+];
+
+function isThemePreferenceFile(file: string): boolean {
+  const normalized = file.split("\\").join("/");
+  return THEME_PREFERENCE_FILES.some((allowed) => normalized.endsWith(allowed));
+}
+
 test("cookie persistence contract: frontend has no sessionStorage or localStorage auth source", () => {
   const frontendSrcDir = resolve(REPO_ROOT, "frontend/src");
   const files = collectTsFiles(frontendSrcDir);
@@ -159,6 +172,23 @@ test("cookie persistence contract: frontend has no sessionStorage or localStorag
       false,
       `${relPath} must not use sessionStorage`,
     );
+
+    if (isThemePreferenceFile(file)) {
+      assert.ok(
+        source.includes('"vetneb-theme-mode"') ||
+          source.includes("THEME_STORAGE_KEY"),
+        `${relPath} may only use localStorage for the vetneb-theme-mode key`,
+      );
+      for (const forbidden of ["session", "auth", "cookie", "token"]) {
+        assert.equal(
+          source.toLowerCase().includes(forbidden),
+          false,
+          `${relPath} must not reference ${forbidden} state`,
+        );
+      }
+      continue;
+    }
+
     assert.equal(
       source.includes("localStorage"),
       false,

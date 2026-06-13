@@ -113,6 +113,9 @@ test("all <script> JSX elements in frontend/src declare type=\"application/ld+js
   // Under CSP enforcement it requires 'unsafe-inline' or a per-request nonce.
   // All current <script> tags are JSON-LD structured data (safe, serialized via
   // JSON.stringify). This test guards that no bare executable script is introduced.
+  // Exception: same-origin external src scripts are covered by script-src 'self'
+  // and are NOT enforcement blockers. Allowlisted exact srcs only.
+  const ALLOWED_EXTERNAL_SCRIPT_SRCS = [/src\s*=\s*["']\/theme-init\.js["']/];
   const violations: Violation[] = [];
   for (const file of runtimeFiles) {
     if (!file.endsWith(".tsx")) continue;
@@ -122,6 +125,9 @@ test("all <script> JSX elements in frontend/src declare type=\"application/ld+js
       if (/<script\b/.test(line)) {
         // Inspect up to 4 lines starting at the <script tag for the type attribute.
         const window = lines.slice(idx, idx + 4).join(" ");
+        if (ALLOWED_EXTERNAL_SCRIPT_SRCS.some((src) => src.test(window))) {
+          return;
+        }
         if (!/type\s*=\s*["']application\/ld\+json["']/.test(window)) {
           violations.push({
             file: relative(process.cwd(), file),

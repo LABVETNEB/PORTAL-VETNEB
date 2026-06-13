@@ -1604,3 +1604,102 @@
   }
 }
 /* public-secondary-hero-surface:end */
+/* theme-mode-dark-gray:start */
+/* Unlayered on purpose: must win over @layer components/utilities tokens. */
+:root {
+  color-scheme: light;
+}
+
+:root[data-theme="dark-gray"] {
+  color-scheme: dark;
+  --background: 210 8% 12%;
+  --foreground: 210 16% 90%;
+  --card: 210 9% 16%;
+  --card-foreground: 210 16% 90%;
+  --popover: 210 9% 15%;
+  --popover-foreground: 210 16% 90%;
+  --primary: 205 62% 44%;
+  --primary-foreground: 190 36% 97%;
+  --secondary: 210 8% 22%;
+  --secondary-foreground: 210 14% 88%;
+  --muted: 210 8% 20%;
+  --muted-foreground: 210 10% 68%;
+  --accent: 195 14% 24%;
+  --accent-foreground: 190 30% 90%;
+  --destructive: 355 62% 52%;
+  --destructive-foreground: 18 40% 97%;
+  --border: 210 8% 28%;
+  --input: 210 8% 32%;
+  --ring: 181 60% 50%;
+  --chart-1: 207 62% 56%;
+  --chart-2: 177 52% 50%;
+  --chart-3: 196 70% 56%;
+  --chart-4: 38 82% 58%;
+  --chart-5: 347 60% 60%;
+  --vetneb-ink: 210 16% 90%;
+  --vetneb-navy: 205 58% 68%;
+  --vetneb-teal: 177 50% 48%;
+  --vetneb-cyan: 196 72% 56%;
+  --vetneb-amber: 38 84% 58%;
+  --vetneb-surface: 210 8% 12%;
+  --vetneb-surface-raised: 210 9% 15%;
+  --vetneb-surface-muted: 210 8% 18%;
+  --vetneb-line: 210 8% 30%;
+  --sidebar-background: 210 10% 10%;
+  --sidebar-foreground: 210 16% 92%;
+  --sidebar-primary: 181 60% 48%;
+  --sidebar-primary-foreground: 210 15% 8%;
+  --sidebar-accent: 210 9% 17%;
+  --sidebar-accent-foreground: 210 16% 92%;
+  --sidebar-border: 210 9% 20%;
+  --sidebar-ring: 181 60% 50%;
+}
+
+:root[data-theme="dark-gray"] .public-cta-secondary,
+:root[data-theme="dark-gray"] .public-cta-outline {
+  color: hsl(var(--foreground));
+  border-color: hsl(210 10% 38%);
+  background-image: linear-gradient(135deg, hsl(210 9% 23%) 0%, hsl(210 9% 20%) 52%, hsl(210 9% 18%) 100%);
+  box-shadow:
+    inset 0 1px 0 hsl(210 12% 32% / 0.6),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 10px 24px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark-gray"] .public-cta-secondary:hover,
+:root[data-theme="dark-gray"] .public-cta-outline:hover {
+  border-color: hsl(181 40% 44% / 0.65);
+  background-image: linear-gradient(135deg, hsl(210 9% 26%) 0%, hsl(210 9% 23%) 52%, hsl(210 9% 21%) 100%);
+  box-shadow:
+    inset 0 1px 0 hsl(210 12% 36% / 0.6),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.42),
+    0 13px 28px rgba(0, 0, 0, 0.34);
+}
+
+:root[data-theme="dark-gray"] .public-cta-secondary:active,
+:root[data-theme="dark-gray"] .public-cta-outline:active {
+  border-color: hsl(181 40% 44% / 0.55);
+  background-image: linear-gradient(135deg, hsl(210 9% 21%) 0%, hsl(210 9% 19%) 52%, hsl(210 9% 17%) 100%);
+  box-shadow:
+    inset 0 1px 0 hsl(210 12% 30% / 0.55),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 7px 18px rgba(0, 0, 0, 0.28);
+}
+
+/* On-hero CTA keeps its light surface over the fixed navy hero gradient. */
+:root[data-theme="dark-gray"] .public-cta-on-hero {
+  color: hsl(207 72% 22%);
+}
+
+:root[data-theme="dark-gray"] .clinical-alert-warning,
+:root[data-theme="dark-gray"] .clinical-table-state.clinical-alert-warning,
+:root[data-theme="dark-gray"] [class*="text-amber-6"],
+:root[data-theme="dark-gray"] [class*="text-amber-7"],
+:root[data-theme="dark-gray"] [class*="text-amber-8"] {
+  color: hsl(38 88% 64%);
+}
+
+:root[data-theme="dark-gray"] .dashboard-kpi-pill[data-tone="critical"] {
+  color: hsl(38 84% 64%);
+}
+/* theme-mode-dark-gray:end */
