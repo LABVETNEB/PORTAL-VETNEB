@@ -137,3 +137,51 @@ test("desktop navbar pill becomes visible at xl width", async ({ page }) => {
     page.getByRole("navigation", { name: "Navegación principal" }),
   ).toBeVisible();
 });
+
+for (const activation of [
+  { key: "Enter", width: 1280 },
+  { key: "Space", width: 375 },
+] as const) {
+  test(`keyboard users activate the skip control with ${activation.key}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: activation.width, height: 812 });
+    await page.goto("/");
+
+    const skipControl = page.getByRole("button", {
+      name: "Saltar al contenido principal",
+    });
+
+    const hidden = await skipControl.boundingBox();
+    expect(hidden, "skip control must exist in the public layout").not.toBeNull();
+    expect(hidden!.y).toBeLessThan(0);
+
+    await page.keyboard.press("Tab");
+    await expect(skipControl).toBeFocused();
+
+    const revealed = await skipControl.boundingBox();
+    expect(revealed).not.toBeNull();
+    expect(revealed!.y).toBeGreaterThanOrEqual(0);
+    expect(revealed!.x).toBeGreaterThanOrEqual(0);
+    expect(revealed!.x + revealed!.width).toBeLessThanOrEqual(activation.width);
+
+    await page.keyboard.press(activation.key);
+    await expect(page.locator("#main-content")).toBeFocused();
+    await expect(page.locator("#main-content")).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+
+    await page.keyboard.press("Tab");
+    await expect(page.locator("#main-content")).not.toBeFocused();
+    await expect(page.locator("#main-content")).not.toHaveAttribute("tabindex");
+
+    expect(
+      await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      ),
+    ).toBeLessThanOrEqual(0);
+  });
+}
