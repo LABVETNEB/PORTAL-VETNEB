@@ -105,3 +105,35 @@ test("mobile navigation opens closes and retains public links", async ({
     await page.evaluate(() => document.documentElement.clientWidth),
   );
 });
+
+const intermediateOverflowRoutes = ["/", "/servicios", "/precios", "/contacto"];
+
+for (const width of [1024, 1180]) {
+  test(`public routes have no horizontal overflow at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+
+    for (const route of intermediateOverflowRoutes) {
+      await page.goto(route);
+      const overflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      expect(
+        overflow,
+        `${route} must not overflow horizontally at ${width}px`,
+      ).toBeLessThanOrEqual(0);
+    }
+  });
+}
+
+test("desktop navbar pill becomes visible at xl width", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("navigation", { name: "Navegación principal" }),
+  ).toBeVisible();
+});

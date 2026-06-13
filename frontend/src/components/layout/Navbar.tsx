@@ -19,7 +19,7 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-vetneb-line/80 bg-card/92 backdrop-blur-sm shadow-[0_10px_28px_rgba(15,45,62,0.08)]">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="relative lg:hidden">
+        <div className="relative xl:hidden">
           <details className="group">
             <summary
               className="flex h-9 cursor-pointer list-none items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-bold text-primary-foreground shadow-[0_10px_26px_hsl(var(--vetneb-navy)/0.20)] ring-1 ring-vetneb-teal/30 transition-[background-color,box-shadow,border-color] hover:shadow-[0_12px_30px_hsl(var(--vetneb-navy)/0.24)] [&::-webkit-details-marker]:hidden"
@@ -55,19 +55,19 @@ export function Navbar() {
           href={ROUTES.home}
           variant="bare"
           aria-label="VETNEB — Inicio"
-          className="group hidden cursor-pointer items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 lg:flex"
+          className="group hidden cursor-pointer items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 xl:flex"
         >
           <span className="flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-bold text-primary-foreground shadow-[0_10px_26px_hsl(var(--vetneb-navy)/0.20)] ring-1 ring-vetneb-teal/30 transition-[background-color,box-shadow,border-color] group-hover:shadow-[0_12px_30px_hsl(var(--vetneb-navy)/0.24)]">
             <Microscope className="h-4 w-4" aria-hidden="true" />
             VETNEB
           </span>
-          <span className="hidden text-xs font-semibold text-muted-foreground lg:inline">
+          <span className="hidden text-xs font-semibold text-muted-foreground xl:inline">
             Patología veterinaria
           </span>
         </PublicRouteControl>
 
         <nav
-          className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 lg:flex"
+          className="hidden items-center gap-1 rounded-md border border-vetneb-line/80 bg-card/88 p-1 xl:flex"
           aria-label="Navegación principal"
         >
           {navLinks.map((link) => (
