@@ -116,6 +116,7 @@ test("Frontend CI ejecuta gates obligatorios en orden", () => {
     "      - name: Lint frontend\n        run: pnpm --dir frontend lint",
     "      - name: Typecheck frontend\n        run: pnpm --dir frontend typecheck",
     "      - name: Build frontend\n        run: pnpm --dir frontend build",
+    "      - name: Audit built public surface\n        run: pnpm security:public-surface",
     "      - name: Install Playwright browsers\n        run: pnpm --dir frontend exec playwright install --with-deps chromium",
     "      - name: Run frontend E2E smoke tests\n        run: pnpm --dir frontend e2e",
   ]);

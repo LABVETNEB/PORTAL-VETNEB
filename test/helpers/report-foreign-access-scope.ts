@@ -1,6 +1,7 @@
-const REPORT_FOREIGN_ACCESS_BACKEND_FILES = new Set([
+const SHARED_BACKEND_SCOPE_EXCEPTIONS = new Set([
   "server/db-report-access.ts",
   "server/db.ts",
+  "server/lib/http-runtime.ts",
   "server/routes/particular-auth.fastify.ts",
   "server/routes/particular-tokens.fastify.ts",
   "server/routes/public-report-access.fastify.ts",
@@ -10,6 +11,10 @@ const REPORT_FOREIGN_ACCESS_BACKEND_FILES = new Set([
   "server/routes/study-tracking.fastify.ts",
 ]);
 
+export function isSharedBackendScopeException(file: string): boolean {
+  return SHARED_BACKEND_SCOPE_EXCEPTIONS.has(file.replace(/\\/g, "/"));
+}
+
 export function isReportForeignAccessBackendFile(file: string): boolean {
-  return REPORT_FOREIGN_ACCESS_BACKEND_FILES.has(file.replace(/\\/g, "/"));
+  return isSharedBackendScopeException(file);
 }
