@@ -47,21 +47,39 @@ export default function manifest(): MetadataRoute.Manifest {
         short_name: "Servicios",
         description: "Ver servicios del laboratorio patológico veterinario.",
         url: "/servicios",
-        icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192" }],
+        icons: [
+          {
+            src: "/icons/icon-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+        ],
       },
       {
         name: "Precios",
         short_name: "Precios",
         description: "Consultar la información pública de precios.",
         url: "/precios",
-        icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192" }],
+        icons: [
+          {
+            src: "/icons/icon-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+        ],
       },
       {
         name: "Login",
         short_name: "Login",
         description: "Acceso seguro para clínicas y particulares.",
         url: "/login",
-        icons: [{ src: "/icons/icon-192x192.png", sizes: "192x192" }],
+        icons: [
+          {
+            src: "/icons/icon-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+        ],
       },
     ],
     prefer_related_applications: false,
