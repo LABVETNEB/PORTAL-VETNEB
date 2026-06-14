@@ -16,12 +16,18 @@ export type HealthCheckPayload = {
   uptimeSeconds: number;
   responseTimeMs: number;
   timestamp: string;
-  details?: Record<string, unknown>;
 };
 
 export type HealthCheckResponse = {
   statusCode: 200 | 503;
   payload: HealthCheckPayload;
+};
+
+type HealthCheckDependencies = {
+  checkDatabase: () => Promise<unknown>;
+  checkStorage: () => Promise<unknown>;
+  now: () => number;
+  uptime: () => number;
 };
 
 export function buildServiceInfoPayload() {
@@ -32,30 +38,35 @@ export function buildServiceInfoPayload() {
   };
 }
 
-export async function getHealthCheckResponse(): Promise<HealthCheckResponse> {
-  const startedAt = Date.now();
+export async function getHealthCheckResponse(
+  dependencies: Partial<HealthCheckDependencies> = {},
+): Promise<HealthCheckResponse> {
+  const checkDatabase =
+    dependencies.checkDatabase ?? (() => db.execute(sql`select 1`));
+  const checkStorage = dependencies.checkStorage ?? checkStorageHealth;
+  const now = dependencies.now ?? Date.now;
+  const uptime = dependencies.uptime ?? process.uptime;
+  const startedAt = now();
 
   let database: DependencyStatus = "down";
   let storage: DependencyStatus = "down";
-  const details: Record<string, unknown> = {};
 
   try {
-    await db.execute(sql`select 1`);
+    await checkDatabase();
     database = "up";
-  } catch (error) {
-    details.databaseError =
-      error instanceof Error ? error.message : "unknown database error";
+  } catch {
+    database = "down";
   }
 
   try {
-    await checkStorageHealth();
+    await checkStorage();
     storage = "up";
-  } catch (error) {
-    details.storageError =
-      error instanceof Error ? error.message : "unknown storage error";
+  } catch {
+    storage = "down";
   }
 
   const ok = database === "up" && storage === "up";
+  const finishedAt = now();
 
   return {
     statusCode: ok ? 200 : 503,
@@ -66,10 +77,9 @@ export async function getHealthCheckResponse(): Promise<HealthCheckResponse> {
         database,
         storage,
       },
-      uptimeSeconds: Math.round(process.uptime()),
-      responseTimeMs: Date.now() - startedAt,
-      timestamp: new Date().toISOString(),
-      ...(Object.keys(details).length ? { details } : {}),
+      uptimeSeconds: Math.round(uptime()),
+      responseTimeMs: Math.max(0, finishedAt - startedAt),
+      timestamp: new Date(finishedAt).toISOString(),
     },
   };
 }
