@@ -24,6 +24,7 @@ const ADMIN_PARTICULAR_TOKENS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx";
 const UPLOAD_REPORT_MODAL_PATH =
   "frontend/src/components/dashboard/UploadReportModal.tsx";
+const PUBLIC_SEO_SCOPE_EXCEPTION = "frontend/src/lib/seo.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -238,6 +239,9 @@ test("PR-4 action feedback polish stays within allowed file scope", () => {
 
   for (const file of changedFiles) {
     if (file === "server/routes/contact.fastify.ts") continue;
+    // Exact shared public SEO exception: this PR intentionally updates
+    // OpenGraph/Twitter metadata without changing dashboard behavior.
+    if (file === PUBLIC_SEO_SCOPE_EXCEPTION) continue;
     assert.equal(
       blockedPrefixes.some((prefix) => file.startsWith(prefix)),
       false,

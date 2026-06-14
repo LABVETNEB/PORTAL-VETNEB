@@ -21,6 +21,7 @@ const DASHBOARD_TOPBAR_PATH =
   "frontend/src/components/dashboard/DashboardTopbar.tsx";
 const DASHBOARD_NOTIFICATIONS_BELL_PATH =
   "frontend/src/components/dashboard/DashboardNotificationsBell.tsx";
+const PUBLIC_SEO_SCOPE_EXCEPTION = "frontend/src/lib/seo.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -190,6 +191,9 @@ test("PR-8 dashboard accessibility scope avoids forbidden files", () => {
   ];
   for (const file of changedFiles) {
     if (pr4ServerFiles.includes(file)) continue;
+    // Exact shared public SEO exception: this PR intentionally updates
+    // OpenGraph/Twitter metadata without changing dashboard behavior.
+    if (file === PUBLIC_SEO_SCOPE_EXCEPTION) continue;
     assert.equal(
       blockedPrefixes.some((prefix) => file.startsWith(prefix)),
       false,

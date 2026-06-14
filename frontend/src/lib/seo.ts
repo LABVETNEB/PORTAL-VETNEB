@@ -14,10 +14,24 @@ export const SITE_URL = (
 export const SITE_DESCRIPTION =
   "La anatomía patológica veterinaria estudia los motivos, el desarrollo y las consecuencias de distintas enfermedades mediante el análisis de tejidos, órganos y muestras celulares. Servicio patológico veterinario con histopatología, citología, citopatología, hematología, diagnóstico hematológico y hemoparásitos.";
 export const SITE_LOCALE = "es_AR";
-export const SITE_OG_IMAGE_PATH = "/images/hero-microscope-vetneb.webp";
+export const SITE_OG_IMAGE_PATH = "/images/og-vetneb.png";
 export const SITE_OG_IMAGE_URL = `${SITE_URL}${SITE_OG_IMAGE_PATH}`;
+export const SITE_OG_IMAGE_ALT =
+  "Portal VETNEB — Patología veterinaria y diagnóstico con precisión clínica";
+export const SITE_OG_IMAGE_WIDTH = 1200;
+export const SITE_OG_IMAGE_HEIGHT = 630;
 export const SITE_THEME_COLOR = "#0c354e";
 export const SITE_BACKGROUND_COLOR = "#f7fbfb";
+
+function getSocialImageMetadata() {
+  return {
+    url: SITE_OG_IMAGE_URL,
+    width: SITE_OG_IMAGE_WIDTH,
+    height: SITE_OG_IMAGE_HEIGHT,
+    alt: SITE_OG_IMAGE_ALT,
+    type: "image/png",
+  };
+}
 
 export function buildCanonicalUrl(path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
@@ -97,17 +111,14 @@ export const baseMetadata: Metadata = {
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
     images: [
-      {
-        url: SITE_OG_IMAGE_URL,
-        alt: "Portal VETNEB — Laboratorio patológico veterinario, histopatología, citología y hematología",
-      },
+      getSocialImageMetadata(),
     ],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
-    images: [SITE_OG_IMAGE_URL],
+    images: [getSocialImageMetadata()],
   },
   alternates: {
     canonical: SITE_URL,
@@ -134,17 +145,14 @@ export function createPageMetadata(
       description,
       url: canonicalUrl,
       images: [
-        {
-          url: SITE_OG_IMAGE_URL,
-          alt: "Portal VETNEB — Laboratorio patológico veterinario, histopatología, citología y hematología",
-        },
+        getSocialImageMetadata(),
       ],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [SITE_OG_IMAGE_URL],
+      images: [getSocialImageMetadata()],
     },
     alternates: {
       canonical: canonicalUrl,

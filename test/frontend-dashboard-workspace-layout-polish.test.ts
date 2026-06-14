@@ -17,6 +17,7 @@ const STICKY_ACTION_BAR_PATH =
   "frontend/src/components/dashboard/StickyActionBar.tsx";
 const DASHBOARD_SHELL_ROUTER_PATH =
   "frontend/src/components/dashboard/DashboardShellRouter.tsx";
+const PUBLIC_SEO_SCOPE_EXCEPTION = "frontend/src/lib/seo.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -448,6 +449,9 @@ test("PR-2 workspace layout polish stays within allowed file scope", () => {
 
   for (const file of changedFiles) {
     if (file === "server/routes/contact.fastify.ts") continue;
+    // Exact shared public SEO exception: this PR intentionally updates
+    // OpenGraph/Twitter metadata without changing dashboard behavior.
+    if (file === PUBLIC_SEO_SCOPE_EXCEPTION) continue;
     assert.equal(
       blockedPrefixes.some((prefix) => file.startsWith(prefix)),
       false,

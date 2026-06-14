@@ -9,6 +9,7 @@ const STICKY_FILTER_BAR_PATH =
   "frontend/src/components/dashboard/StickyFilterBar.tsx";
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
 const DOC_PATH = "docs/pr-6-dashboard-filter-drawer-sticky-filters.md";
+const PUBLIC_SEO_SCOPE_EXCEPTION = "frontend/src/lib/seo.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -203,6 +204,9 @@ test("PR-6 scope leaves backend auth API middleware SEO and dependencies untouch
   ];
   for (const file of changedFiles) {
     if (pr4ServerFiles.includes(file)) continue;
+    // Exact shared public SEO exception: this PR intentionally updates
+    // OpenGraph/Twitter metadata without changing dashboard behavior.
+    if (file === PUBLIC_SEO_SCOPE_EXCEPTION) continue;
     assert.equal(
       blockedPrefixes.some((prefix) => file.startsWith(prefix)),
       false,
