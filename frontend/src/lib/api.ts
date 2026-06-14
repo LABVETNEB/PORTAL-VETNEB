@@ -46,6 +46,7 @@ import type {
   AdminFailedLoginAlertsQuery,
   AdminFailedLoginAlertsSnapshot,
 } from "@/types";
+import { ApiResponseError } from "@/lib/api-error";
 
 const LOCAL_DEVELOPMENT_API_BASE_URL = "http://localhost:3000";
 const SAME_ORIGIN_API_BASE_URL = "";
@@ -278,14 +279,17 @@ async function apiFetch<T>(
     }
 
     if (backendMessage) {
-      throw new Error(backendMessage);
+      throw new ApiResponseError(res.status, backendMessage);
     }
 
     if (res.status >= 500) {
-      throw new Error(BACKEND_OPERATION_ERROR_MESSAGE);
+      throw new ApiResponseError(
+        res.status,
+        BACKEND_OPERATION_ERROR_MESSAGE,
+      );
     }
 
-    throw new Error(`HTTP ${res.status}`);
+    throw new ApiResponseError(res.status, `HTTP ${res.status}`);
   }
 
   if (res.status === 204) {

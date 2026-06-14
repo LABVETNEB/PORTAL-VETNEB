@@ -15,6 +15,7 @@ import {
   getLogisticsFieldVisits,
   getReports,
 } from "@/lib/api";
+import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 
 export const metadata: Metadata = {
   title: "Dashboard Clínica — Portal VETNEB",
@@ -67,7 +68,8 @@ export default async function DashboardPage({
 
   try {
     stats = await getDashboardStats(requestOptions);
-  } catch {
+  } catch (error) {
+    redirectToLoginOnUnauthorized(error);
     statsLoadError = true;
   }
 
@@ -77,7 +79,8 @@ export default async function DashboardPage({
         reports = await getReports(requestOptions, undefined, {
           throwOnError: true,
         });
-      } catch {
+      } catch (error) {
+        redirectToLoginOnUnauthorized(error);
         reportsLoadError = true;
       }
     })(),
@@ -86,7 +89,8 @@ export default async function DashboardPage({
         visits = await getLogisticsFieldVisits(requestOptions, {
           throwOnError: true,
         });
-      } catch {
+      } catch (error) {
+        redirectToLoginOnUnauthorized(error);
         visitsLoadError = true;
       }
     })(),

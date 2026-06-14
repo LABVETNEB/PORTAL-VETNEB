@@ -12,6 +12,7 @@ import {
   getLogisticsFieldVisits,
   getRoutePlans,
 } from "@/lib/api";
+import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 import { LogisticsCommandCenter } from "./LogisticsCommandCenter";
 
 export const metadata: Metadata = {
@@ -41,7 +42,8 @@ export default async function LogisticaPage() {
         fieldVisits = await getLogisticsFieldVisits(requestOptions, {
           throwOnError: true,
         });
-      } catch {
+      } catch (error) {
+        redirectToLoginOnUnauthorized(error);
         fieldVisitsLoadError = true;
       }
     })(),
@@ -50,7 +52,8 @@ export default async function LogisticaPage() {
         routePlans = await getRoutePlans(requestOptions, {
           throwOnError: true,
         });
-      } catch {
+      } catch (error) {
+        redirectToLoginOnUnauthorized(error);
         routePlansLoadError = true;
       }
     })(),

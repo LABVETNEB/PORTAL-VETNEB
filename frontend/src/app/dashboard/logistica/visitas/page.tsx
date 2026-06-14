@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getLogisticsFieldVisits } from "@/lib/api";
+import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 import {
   getFieldVisitStatusLabel,
   getFieldVisitStatusVariant,
@@ -41,7 +42,8 @@ export default async function VisitasPage() {
       await getLogisticsRequestOptions(),
       { throwOnError: true },
     );
-  } catch {
+  } catch (error) {
+    redirectToLoginOnUnauthorized(error);
     visitsLoadError = true;
   }
 

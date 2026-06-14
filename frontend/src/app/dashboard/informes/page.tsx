@@ -39,6 +39,7 @@ import {
   searchReportsPaginated,
   type PaginatedReports,
 } from "@/lib/api";
+import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 import {
   cn,
   getReportStatusLabel,
@@ -284,7 +285,8 @@ export default async function InformesPage({
           },
           { throwOnError: true },
         );
-  } catch {
+  } catch (error) {
+    redirectToLoginOnUnauthorized(error);
     reportsLoadError = true;
   }
 

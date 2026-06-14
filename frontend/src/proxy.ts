@@ -29,10 +29,6 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (isAdminDashboardPath(pathname)) {
-    return new NextResponse("Not Found", { status: 404 });
-  }
-
   const loginUrl = request.nextUrl.clone();
   const nextPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
 

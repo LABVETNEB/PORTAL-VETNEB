@@ -27,7 +27,6 @@ test("frontend dashboard proxy exists and protects dashboard routes", () => {
   assert.ok(source.includes('LOGIN_PATH = "/login"'));
   assert.ok(source.includes('ADMIN_DASHBOARD_PATH_PREFIX = "/dashboard/admin"'));
   assert.ok(source.includes("NextResponse.next()"));
-  assert.ok(source.includes('new NextResponse("Not Found", { status: 404 })'));
   assert.ok(source.includes("NextResponse.redirect(loginUrl)"));
   assert.ok(source.includes('matcher: ["/dashboard/:path*"]'));
 });
@@ -49,16 +48,19 @@ test("frontend dashboard proxy separates clinic and admin sessions", () => {
   assert.equal(source.includes("hasClinicSession || hasAdminSession"), false);
 });
 
-test("frontend dashboard proxy blocks unauthenticated admin dashboard from public login", () => {
+test("frontend dashboard proxy redirects unauthenticated admin dashboard to login", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes("const pathname = request.nextUrl.pathname;"));
-  assert.ok(source.includes("if (isAdminDashboardPath(pathname)) {"));
-  assert.ok(source.includes('return new NextResponse("Not Found", { status: 404 });'));
-  assert.equal(source.includes("loginUrl.pathname = LOGIN_PATH;\\n  loginUrl.searchParams.set"), false);
+  assert.equal(
+    source.includes('new NextResponse("Not Found", { status: 404 })'),
+    false,
+  );
+  assert.ok(source.includes("loginUrl.pathname = LOGIN_PATH;"));
+  assert.ok(source.includes('loginUrl.searchParams.set("next", nextPath);'));
 });
 
-test("frontend dashboard proxy preserves requested clinic dashboard path on login redirect", () => {
+test("frontend dashboard proxy preserves requested dashboard path on login redirect", () => {
   const source = read(MIDDLEWARE_PATH);
 
   assert.ok(source.includes("request.nextUrl.clone()"));

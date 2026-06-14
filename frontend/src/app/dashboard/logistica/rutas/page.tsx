@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getRoutePlans } from "@/lib/api";
+import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 import {
   getRoutePlanStatusLabel,
   getRoutePlanStatusVariant,
@@ -40,7 +41,8 @@ export default async function RutasPage() {
     routePlans = await getRoutePlans(await getLogisticsRequestOptions(), {
       throwOnError: true,
     });
-  } catch {
+  } catch (error) {
+    redirectToLoginOnUnauthorized(error);
     routePlansLoadError = true;
   }
 

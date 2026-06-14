@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getRoutePlanMetrics, getRoutePlans } from "@/lib/api";
+import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 
 export const metadata: Metadata = {
   title: "Métricas de logística — Portal VETNEB",
@@ -36,7 +37,8 @@ export default async function MetricasPage() {
     routePlans = await getRoutePlans(requestOptions, {
       throwOnError: true,
     });
-  } catch {
+  } catch (error) {
+    redirectToLoginOnUnauthorized(error);
     routePlansLoadError = true;
   }
 
@@ -51,7 +53,8 @@ export default async function MetricasPage() {
           ),
         )
       ).flat();
-    } catch {
+    } catch (error) {
+      redirectToLoginOnUnauthorized(error);
       routeMetricsLoadError = true;
     }
   }
