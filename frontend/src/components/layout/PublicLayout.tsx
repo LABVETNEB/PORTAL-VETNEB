@@ -5,9 +5,13 @@ import { SkipToContent } from "@/components/public/SkipToContent";
 
 interface PublicLayoutProps {
   children: React.ReactNode;
+  showFaq?: boolean;
 }
 
-export function PublicLayout({ children }: PublicLayoutProps) {
+export function PublicLayout({
+  children,
+  showFaq = true,
+}: PublicLayoutProps) {
   return (
     <div className="flex min-h-screen flex-col">
       <SkipToContent />
@@ -17,7 +21,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
         id="main-content"
       >
         {children}
-        <FooterFaq />
+        {showFaq ? <FooterFaq /> : null}
       </main>
       <Footer />
     </div>

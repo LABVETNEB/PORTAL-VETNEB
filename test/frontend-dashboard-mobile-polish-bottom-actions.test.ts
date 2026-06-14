@@ -17,6 +17,7 @@ const MASTER_DETAIL_WORKSPACE_PATH =
   "frontend/src/components/dashboard/MasterDetailWorkspace.tsx";
 const ADMIN_SECTION_TABS_PATH =
   "frontend/src/app/dashboard/admin/AdminSectionTabs.tsx";
+const PUBLIC_SEO_SCOPE_EXCEPTION = "frontend/src/lib/seo.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -184,6 +185,9 @@ test("PR-9 mobile polish scope avoids forbidden surfaces and dependencies", () =
   ];
   for (const file of changedFiles) {
     if (pr4ServerFiles.includes(file)) continue;
+    // Exact shared public SEO exception: this PR intentionally updates
+    // OpenGraph/Twitter metadata without changing dashboard behavior.
+    if (file === PUBLIC_SEO_SCOPE_EXCEPTION) continue;
     assert.equal(
       blockedPrefixes.some((prefix) => file.startsWith(prefix)),
       false,

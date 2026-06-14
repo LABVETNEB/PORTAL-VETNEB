@@ -56,8 +56,17 @@ test("frontend SEO base metadata defines canonical brand and indexable robots", 
 test("frontend SEO metadata exposes Open Graph and Twitter cards", () => {
   const source = read(SEO_PATH);
 
-  assert.ok(source.includes("export const SITE_OG_IMAGE_PATH ="));
+  assert.ok(
+    source.includes(
+      'export const SITE_OG_IMAGE_PATH = "/images/og-vetneb.png";',
+    ),
+  );
   assert.ok(source.includes("export const SITE_OG_IMAGE_URL ="));
+  assert.ok(source.includes("export const SITE_OG_IMAGE_ALT ="));
+  assert.ok(source.includes("export const SITE_OG_IMAGE_WIDTH = 1200;"));
+  assert.ok(source.includes("export const SITE_OG_IMAGE_HEIGHT = 630;"));
+  assert.ok(source.includes("function getSocialImageMetadata()"));
+  assert.ok(source.includes('type: "image/png",'));
   assert.ok(source.includes("openGraph: {"));
   assert.ok(source.includes('type: "website",'));
   assert.ok(source.includes("locale: SITE_LOCALE,"));
@@ -65,7 +74,7 @@ test("frontend SEO metadata exposes Open Graph and Twitter cards", () => {
   assert.ok(source.includes("url: SITE_OG_IMAGE_URL,"));
   assert.ok(source.includes("twitter: {"));
   assert.ok(source.includes('card: "summary_large_image",'));
-  assert.ok(source.includes("images: [SITE_OG_IMAGE_URL],"));
+  assert.ok(source.includes("images: [getSocialImageMetadata()],"));
   assert.ok(source.includes("alternates: {"));
   assert.ok(source.includes("canonical: SITE_URL,"));
 });

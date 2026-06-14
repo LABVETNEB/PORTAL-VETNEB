@@ -25,3 +25,22 @@ test("frontend/public/favicon.ico has valid ICO magic bytes", () => {
   assert.equal(bytes[2], 0x01, "byte 2 debe ser 0x01 (ICO type)");
   assert.equal(bytes[3], 0x00, "byte 3 debe ser 0x00 (ICO type hi)");
 });
+
+test("dedicated OpenGraph source is a reasonably sized 1200x630 PNG", () => {
+  const p = assetPath("frontend/public/images/og-vetneb.png");
+
+  assert.ok(existsSync(p), "debe existir el asset OpenGraph dedicado");
+
+  const stats = statSync(p);
+  const bytes = readFileSync(p);
+
+  assert.deepEqual(
+    [...bytes.subarray(0, 8)],
+    [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+    "el asset OpenGraph debe ser un PNG válido",
+  );
+  assert.equal(bytes.readUInt32BE(16), 1200, "el ancho debe ser 1200 px");
+  assert.equal(bytes.readUInt32BE(20), 630, "el alto debe ser 630 px");
+  assert.ok(stats.size > 50_000, "el asset no debe estar vacío o degradado");
+  assert.ok(stats.size < 750_000, "el asset debe conservar un peso razonable");
+});
