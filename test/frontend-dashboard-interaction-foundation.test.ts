@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
 
 const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 const DASHBOARD_MODULE_HUB_PATH =
@@ -322,6 +323,7 @@ test("PR-1 interaction foundation stays within allowed file scope", () => {
   ];
 
   for (const file of changedFiles) {
+    if (isReportForeignAccessBackendFile(file)) continue;
     if (file === "server/routes/contact.fastify.ts") continue;
     // Exact shared public SEO exception: this PR intentionally updates
     // OpenGraph/Twitter metadata without changing dashboard behavior.

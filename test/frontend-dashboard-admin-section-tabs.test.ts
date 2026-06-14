@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
 
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const ADMIN_SECTION_TABS_PATH =
@@ -171,6 +172,7 @@ test("dashboard admin tabs stay inside frontend-only PR-7 scope", () => {
     "server/routes/contact.fastify.ts",
   ];
   for (const file of changedFiles) {
+    if (isReportForeignAccessBackendFile(file)) continue;
     if (pr4ServerFiles.includes(file)) continue;
     assert.equal(
       forbiddenChangedPaths.some((path) => file.startsWith(path)),

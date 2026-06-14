@@ -7,7 +7,7 @@ import test from "node:test";
 const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
 
 type ExpectedFailure = {
-  status: 403 | 404 | 410;
+  status: 403 | 404;
   noDisclosure: boolean;
   reason: string;
 };
@@ -55,9 +55,9 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     operation: "clinic A must not download report from clinic B",
     requiredOwnerKey: "clinicId",
     expectedFailure: {
-      status: 403,
+      status: 404,
       noDisclosure: true,
-      reason: "forbidden_cross_tenant_report_download",
+      reason: "hidden_or_missing_cross_tenant_report_download",
     },
     protectedSurface: "server/routes/reports.fastify.ts",
     runtimeEvidence: [
@@ -77,9 +77,9 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     operation: "clinic A must not generate signed URL for clinic B report",
     requiredOwnerKey: "clinicId",
     expectedFailure: {
-      status: 403,
+      status: 404,
       noDisclosure: true,
-      reason: "forbidden_cross_tenant_signed_url",
+      reason: "hidden_or_missing_cross_tenant_signed_url",
     },
     protectedSurface: "server/routes/reports.fastify.ts",
     runtimeEvidence: [
@@ -143,9 +143,9 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     operation: "clinic A must not modify report status from clinic B",
     requiredOwnerKey: "clinicId",
     expectedFailure: {
-      status: 403,
+      status: 404,
       noDisclosure: true,
-      reason: "forbidden_cross_tenant_report_status_update",
+      reason: "hidden_or_missing_cross_tenant_report_status_update",
     },
     protectedSurface: "server/routes/reports-status.fastify.ts",
     runtimeEvidence: [
@@ -187,9 +187,9 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     operation: "clinic A must not link particular token to report from clinic B",
     requiredOwnerKey: "clinicId",
     expectedFailure: {
-      status: 403,
+      status: 404,
       noDisclosure: true,
-      reason: "forbidden_cross_tenant_particular_token_linking",
+      reason: "hidden_or_missing_cross_tenant_particular_token_linking",
     },
     protectedSurface: "server/routes/particular-tokens.fastify.ts",
     runtimeEvidence: [
@@ -231,14 +231,14 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     operation: "public report token must not access another report or revoked token payload",
     requiredOwnerKey: "tokenHash",
     expectedFailure: {
-      status: 410,
+      status: 404,
       noDisclosure: true,
-      reason: "revoked_or_expired_public_token",
+      reason: "hidden_or_missing_public_report_token",
     },
     protectedSurface: "server/routes/public-report-access.fastify.ts",
     runtimeEvidence: [
       "staging access attempt with revoked or expired token",
-      "verify 410 response with no report payload disclosure",
+      "verify generic 404 response with no report payload disclosure",
     ],
     requiredTestEvidence: [
       "test/public-report-access.fastify.test.ts",
@@ -398,20 +398,11 @@ test("every cross-tenant IDOR contract uses explicit expected failure semantics"
     const { expectedFailure } = contract;
     assert.ok(
       expectedFailure.status === 403 ||
-        expectedFailure.status === 404 ||
-        expectedFailure.status === 410,
-      `${contract.id} expected failure status must be 403 404 or 410`,
+        expectedFailure.status === 404,
+      `${contract.id} expected failure status must be 403 or 404`,
     );
     assert.equal(expectedFailure.noDisclosure, true, `${contract.id} must avoid disclosure`);
     assertHasText(expectedFailure.reason, `${contract.id} expected failure reason`);
-
-    if (expectedFailure.status === 410) {
-      assert.match(
-        expectedFailure.reason,
-        /(revoked|expired|gone)/,
-        `${contract.id} status 410 must document revoked or expired behavior`,
-      );
-    }
   }
 });
 

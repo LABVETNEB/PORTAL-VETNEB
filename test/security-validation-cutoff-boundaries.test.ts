@@ -9,7 +9,7 @@ const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const VALIDATION_CUTOFF_BOUNDARIES = {
   publicRawTokens: [
     "parse raw public token shape",
-    "return 400 before hash db signing audit",
+    "return generic 404 before hash db signing audit",
   ],
   routeParams: [
     "parse ids as positive integers only",
@@ -99,7 +99,7 @@ test("validation cut-off matrix documents the protected contract", () => {
   assert.deepEqual(VALIDATION_CUTOFF_BOUNDARIES, {
     publicRawTokens: [
       "parse raw public token shape",
-      "return 400 before hash db signing audit",
+      "return generic 404 before hash db signing audit",
     ],
     routeParams: [
       "parse ids as positive integers only",
@@ -128,7 +128,7 @@ test("public report access validates raw token before hash db signing and audit"
     [
       "const parsed = reportAccessTokenRawTokenSchema.safeParse(request.params.token);",
       "if (!parsed.success) {",
-      "return reply.code(400).send({",
+      "return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);",
       "const tokenHash = deps.hashSessionToken(parsed.data);",
       "const record = await deps.getReportAccessTokenWithReportByTokenHash(tokenHash);",
       "const updatedToken = await deps.recordReportAccessTokenAccess(record.token.id);",
@@ -180,7 +180,7 @@ test("clinic report access token create validates body before report lookup toke
       "const parsed = clinicCreateReportAccessTokenSchema.safeParse(request.body);",
       "if (!parsed.success) {",
       "return reply.code(400).send({",
-      "const report = await deps.getReportById(parsed.data.reportId);",
+      "const report = await deps.getClinicScopedReportById(",
       "const rawToken = deps.generateSessionToken();",
       "const tokenHash = deps.hashSessionToken(rawToken);",
       "const reportAccessToken = await deps.createReportAccessToken({",
@@ -253,7 +253,7 @@ test("clinic study tracking create validates body before linked lookups writes n
       "return reply.code(400).send({",
       "const clinic = await deps.getClinicById(auth.clinicId);",
       'if (typeof parsed.data.reportId === "number") {',
-      "const report = await deps.getReportById(parsed.data.reportId);",
+      "const report = await deps.getClinicScopedReportById(",
       'if (typeof parsed.data.particularTokenId === "number") {',
       "const particularToken = await deps.getParticularTokenById(",
       "const delivery = applyEstimatedDeliveryRules({",
@@ -417,7 +417,7 @@ test("runtime validation tests remain explicit for cut-off behavior", () => {
 
   assertContains(
     publicReportAccess,
-    "publicReportAccessNativeRoutes devuelve 400 cuando el token es invalido",
+    "publicReportAccessNativeRoutes oculta token malformado como informe no encontrado",
     "public report access invalid token runtime test",
   );
   assertContains(

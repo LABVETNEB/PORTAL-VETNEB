@@ -137,7 +137,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
     slug: "response-disclosure",
     path: "test/security-response-disclosure-boundaries.test.ts",
     purpose:
-      "Security responses preserve stable 400 401 403 404 409 410 and 429 semantics without scope leaks.",
+      "Security responses preserve stable 401 403 404 409 and 429 semantics without scope leaks.",
     protectedDimensions: [
       "public response codes",
       "cross-scope hiding",
@@ -146,7 +146,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
     runtimeAnchors: [
       {
         path: "server/routes/public-report-access.fastify.ts",
-        markers: ["reply.code(400)", "reply.code(404)", "reply.code(409)", "reply.code(410)"],
+        markers: ["REPORT_NOT_FOUND_RESPONSE", "reply.code(404)", "reply.code(409)", "reply.code(429)"],
       },
       {
         path: "server/routes/report-access-tokens.fastify.ts",
@@ -155,7 +155,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
     ],
     testAnchors: [
       "response disclosure matrix documents stable public error semantics",
-      "public report access uses explicit 400 404 409 410 and 429 boundaries",
+      "public report access unifies unusable tokens as 404 and preserves 409 and 429",
       "runtime disclosure tests remain explicit for hidden resources and response codes",
     ],
   },
@@ -592,7 +592,7 @@ test("security boundary suite keeps required downstream runtime tests explicit",
     },
     {
       path: "test/public-report-access.fastify.test.ts",
-      marker: "publicReportAccessNativeRoutes devuelve 400 cuando el token es invalido",
+      marker: "publicReportAccessNativeRoutes oculta token malformado como informe no encontrado",
     },
     {
       path: "test/report-access-tokens.fastify.test.ts",

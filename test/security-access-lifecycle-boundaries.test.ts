@@ -8,8 +8,8 @@ const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
 
 const ACCESS_LIFECYCLE_BOUNDARIES = {
   publicReportAccessToken: {
-    invalidTokenStatus: 400,
-    revokedOrExpiredStatus: 410,
+    invalidTokenStatus: 404,
+    revokedOrExpiredStatus: 404,
     unavailableReportStatus: 409,
     rateLimitedStatus: 429,
     successfulAccessEvent: "REPORT_PUBLIC_ACCESSED",
@@ -43,8 +43,8 @@ function assertMatches(source: string, pattern: RegExp, context: string) {
 test("access lifecycle matrix documents public token revoke session and rate-limit states", () => {
   assert.deepEqual(ACCESS_LIFECYCLE_BOUNDARIES, {
     publicReportAccessToken: {
-      invalidTokenStatus: 400,
-      revokedOrExpiredStatus: 410,
+      invalidTokenStatus: 404,
+      revokedOrExpiredStatus: 404,
       unavailableReportStatus: 409,
       rateLimitedStatus: 429,
       successfulAccessEvent: "REPORT_PUBLIC_ACCESSED",
@@ -124,17 +124,17 @@ test("runtime lifecycle tests remain explicit for public report access", () => {
 
   assertMatches(
     publicReportAccessTests,
-    /publicReportAccessNativeRoutes devuelve 400 cuando el token es invalido/,
+    /publicReportAccessNativeRoutes oculta token malformado como informe no encontrado/,
     "public invalid token runtime test",
   );
   assertMatches(
     publicReportAccessTests,
-    /publicReportAccessNativeRoutes devuelve 410 cuando el token fue revocado/,
+    /publicReportAccessNativeRoutes oculta token revocado como informe no encontrado/,
     "public revoked token runtime test",
   );
   assertMatches(
     publicReportAccessTests,
-    /publicReportAccessNativeRoutes devuelve 410 cuando el token expir/,
+    /publicReportAccessNativeRoutes oculta token expirado como informe no encontrado/,
     "public expired token runtime test",
   );  assertContains(
     publicReportAccessTests,

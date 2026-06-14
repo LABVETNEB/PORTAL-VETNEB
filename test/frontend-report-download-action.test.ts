@@ -40,6 +40,8 @@ test("frontend report actions handles unavailable loading and error states", () 
   assert.ok(source.includes("Informe no disponible para descarga."));
   assert.ok(source.includes("Archivo no disponible."));
   assert.ok(source.includes('role="alert"'));
+  assert.equal(source.includes("sin permiso"), false);
+  assert.equal(source.includes("No autorizado"), false);
 });
 
 test("frontend informes page uses report file actions", () => {

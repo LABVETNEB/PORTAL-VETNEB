@@ -94,6 +94,10 @@ export type StudyTrackingNativeRoutesOptions = {
   hashSessionToken?: (token: string) => string;
   getClinicById?: (clinicId: number) => Promise<ClinicRecord | null>;
   getReportById?: (reportId: number) => Promise<Report | null>;
+  getClinicScopedReportById?: (
+    reportId: number,
+    clinicId: number,
+  ) => Promise<Report | null | undefined>;
   getParticularTokenById?: (
     tokenId: number,
   ) => Promise<ParticularToken | null | undefined>;
@@ -199,7 +203,7 @@ type NativeStudyTrackingDeps = Required<
     | "updateSessionLastAccess"
     | "hashSessionToken"
     | "getClinicById"
-    | "getReportById"
+    | "getClinicScopedReportById"
     | "getParticularTokenById"
     | "updateParticularTokenReport"
     | "createStudyTrackingCase"
@@ -234,7 +238,7 @@ async function loadDefaultDeps(): Promise<NativeStudyTrackingDeps> {
         updateSessionLastAccess: db.updateSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
         getClinicById: db.getClinicById,
-        getReportById: db.getReportById,
+        getClinicScopedReportById: db.getClinicScopedReportById,
         getParticularTokenById: dbParticular.getParticularTokenById,
         updateParticularTokenReport: dbParticular.updateParticularTokenReport,
         createStudyTrackingCase: dbStudyTracking.createStudyTrackingCase,
@@ -621,7 +625,7 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
     !!options.updateSessionLastAccess &&
     !!options.hashSessionToken &&
     !!options.getClinicById &&
-    !!options.getReportById &&
+    (!!options.getClinicScopedReportById || !!options.getReportById) &&
     !!options.getParticularTokenById &&
     !!options.updateParticularTokenReport &&
     !!options.createStudyTrackingCase &&
@@ -649,7 +653,14 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
     hashSessionToken:
       options.hashSessionToken ?? defaultDeps!.hashSessionToken,
     getClinicById: options.getClinicById ?? defaultDeps!.getClinicById,
-    getReportById: options.getReportById ?? defaultDeps!.getReportById,
+    getClinicScopedReportById:
+      options.getClinicScopedReportById ??
+      (options.getReportById
+        ? async (reportId: number, clinicId: number) => {
+            const report = await options.getReportById!(reportId);
+            return report?.clinicId === clinicId ? report : null;
+          }
+        : defaultDeps!.getClinicScopedReportById),
     getParticularTokenById:
       options.getParticularTokenById ?? defaultDeps!.getParticularTokenById,
     updateParticularTokenReport:
@@ -895,19 +906,15 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
     }
 
     if (typeof parsed.data.reportId === "number") {
-      const report = await deps.getReportById(parsed.data.reportId);
+      const report = await deps.getClinicScopedReportById(
+        parsed.data.reportId,
+        auth.clinicId,
+      );
 
       if (!report) {
         return reply.code(404).send({
           success: false,
           error: "Informe no encontrado",
-        });
-      }
-
-      if (report.clinicId !== auth.clinicId) {
-        return reply.code(400).send({
-          success: false,
-          error: "El informe no pertenece a la clínica autenticada",
         });
       }
     }

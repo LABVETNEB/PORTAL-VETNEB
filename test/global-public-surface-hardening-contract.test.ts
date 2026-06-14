@@ -224,7 +224,7 @@ test("public professionals serializes signed avatar URL without private storage 
   }
 });
 
-test("invalid public report token rejects before hashing lookup signing or audit", async () => {
+test("invalid public report token is hidden before hashing lookup signing or audit", async () => {
   const calls = createEmptyPublicReportAccessCalls();
   const app = await createContractApp(calls);
   const originalConsoleLog = console.log;
@@ -237,7 +237,7 @@ test("invalid public report token rejects before hashing lookup signing or audit
       url: "/api/public/report-access/not-a-token",
     });
 
-    assert.equal(response.statusCode, 400);
+    assert.equal(response.statusCode, 404);
     assertPublicApiSecurityHeaders(response, "public report invalid token");
     assert.notEqual(response.headers["cache-control"], "no-store");
     assert.deepEqual(calls.hash, []);
@@ -247,6 +247,16 @@ test("invalid public report token rejects before hashing lookup signing or audit
     assert.deepEqual(calls.download, []);
     assert.equal(calls.audit, 0);
     assert.equal(response.body.includes("not-a-token"), false);
+    const body = JSON.parse(response.body) as Record<string, unknown>;
+    assert.deepEqual(Object.keys(body).sort(), ["error", "requestId", "success"]);
+    assert.deepEqual(
+      { success: body.success, error: body.error },
+      {
+      success: false,
+      error: "Informe no encontrado",
+      },
+    );
+    assert.equal(typeof body.requestId, "string");
     assertBodyDoesNotExposePublicMarkers(response.body, "public report invalid token");
   } finally {
     console.log = originalConsoleLog;

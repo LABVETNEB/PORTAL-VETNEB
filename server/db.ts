@@ -516,6 +516,16 @@ export async function getReportById(id: number) {
   return result[0];
 }
 
+export async function getClinicScopedReportById(id: number, clinicId: number) {
+  const result = await db
+    .select()
+    .from(reports)
+    .where(and(eq(reports.id, id), eq(reports.clinicId, clinicId)))
+    .limit(1);
+
+  return result[0];
+}
+
 export async function getReportStatusHistory(reportId: number) {
   return db
     .select()

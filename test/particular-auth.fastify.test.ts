@@ -467,6 +467,67 @@ test(
 );
 
 test(
+  "particularAuthNativeRoutes unifica informe ajeno e inexistente como 404 seguro",
+  async () => {
+    const sessionOverrides = {
+      now: () => Date.UTC(2026, 3, 24, 0, 0, 0),
+      getParticularSessionByToken: async () => ({
+        particularTokenId: 7,
+        expiresAt: new Date(Date.UTC(2026, 3, 24, 1, 0, 0)),
+        lastAccess: new Date(Date.UTC(2026, 3, 23, 23, 0, 0)),
+      }),
+      getParticularTokenById: async () => ({
+        id: 7,
+        clinicId: 3,
+        reportId: 55,
+        isActive: true,
+      }),
+      updateParticularSessionLastAccess: async () => {},
+      createSignedReportUrl: async () => {
+        throw new Error("hidden report must not produce signed URL");
+      },
+    };
+    const foreignReportApp = await createTestApp({
+      ...sessionOverrides,
+      getReportById: async () => createReportFixture({ clinicId: 99 }),
+    });
+    const missingReportApp = await createTestApp({
+      ...sessionOverrides,
+      getReportById: async () => null,
+    });
+
+    try {
+      const request = {
+        method: "GET" as const,
+        url: "/api/particular/auth/report/preview-url",
+        headers: {
+          cookie: `${ENV.particularCookieName}=particular-session-token`,
+        },
+      };
+      const [foreignResponse, missingResponse] = await Promise.all([
+        foreignReportApp.inject(request),
+        missingReportApp.inject(request),
+      ]);
+      const expectedBody = {
+        success: false,
+        error: "Informe no encontrado",
+      };
+
+      assert.equal(foreignResponse.statusCode, 404);
+      assert.equal(missingResponse.statusCode, 404);
+      assert.deepEqual(JSON.parse(foreignResponse.body), expectedBody);
+      assert.deepEqual(JSON.parse(missingResponse.body), expectedBody);
+      assert.equal(foreignResponse.body, missingResponse.body);
+      assert.equal(foreignResponse.body.includes("clinicId"), false);
+      assert.equal(foreignResponse.body.includes("reportId"), false);
+    } finally {
+      await foreignReportApp.close();
+      await missingReportApp.close();
+    }
+  },
+);
+
+test(
   "particularAuthNativeRoutes aplica rate limit de login sobre intentos fallidos",
   async () => {
     const app = await createTestApp({

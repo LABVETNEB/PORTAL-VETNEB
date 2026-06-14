@@ -79,6 +79,10 @@ export type ReportsStatusNativeRoutesOptions = {
   updateSessionLastAccess?: (tokenHash: string) => Promise<void>;
   hashSessionToken?: (token: string) => string;
   getReportById?: (reportId: number) => Promise<Report | null>;
+  getClinicScopedReportById?: (
+    reportId: number,
+    clinicId: number,
+  ) => Promise<Report | null | undefined>;
   updateReportStatus?: (input: {
     reportId: number;
     toStatus: ReportStatus;
@@ -110,7 +114,7 @@ type NativeReportsStatusDeps = Required<
     | "getClinicUserById"
     | "updateSessionLastAccess"
     | "hashSessionToken"
-    | "getReportById"
+    | "getClinicScopedReportById"
     | "updateReportStatus"
     | "createSignedReportUrl"
     | "createSignedReportDownloadUrl"
@@ -134,7 +138,7 @@ async function loadDefaultDeps(): Promise<NativeReportsStatusDeps> {
         getClinicUserById: db.getClinicUserById,
         updateSessionLastAccess: db.updateSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
-        getReportById: db.getReportById,
+        getClinicScopedReportById: db.getClinicScopedReportById,
         updateReportStatus: db.updateReportStatus,
         createSignedReportUrl: storage.createSignedReportUrl,
         createSignedReportDownloadUrl: storage.createSignedReportDownloadUrl,
@@ -156,7 +160,7 @@ function hasAllInjectedDeps(options: ReportsStatusNativeRoutesOptions) {
     !!options.getClinicUserById &&
     !!options.updateSessionLastAccess &&
     !!options.hashSessionToken &&
-    !!options.getReportById &&
+    (!!options.getClinicScopedReportById || !!options.getReportById) &&
     !!options.updateReportStatus &&
     !!options.createSignedReportUrl &&
     !!options.createSignedReportDownloadUrl &&
@@ -180,7 +184,14 @@ async function resolveDeps(
       options.updateSessionLastAccess ?? defaultDeps!.updateSessionLastAccess,
     hashSessionToken:
       options.hashSessionToken ?? defaultDeps!.hashSessionToken,
-    getReportById: options.getReportById ?? defaultDeps!.getReportById,
+    getClinicScopedReportById:
+      options.getClinicScopedReportById ??
+      (options.getReportById
+        ? async (reportId: number, clinicId: number) => {
+            const report = await options.getReportById!(reportId);
+            return report?.clinicId === clinicId ? report : null;
+          }
+        : defaultDeps!.getClinicScopedReportById),
     updateReportStatus:
       options.updateReportStatus ?? defaultDeps!.updateReportStatus,
     createSignedReportUrl:
@@ -507,22 +518,14 @@ function requireReportStatusWritePermission(
 async function getAuthorizedReport(
   reportId: number,
   clinicId: number,
-  unauthorizedMessage: string,
   deps: NativeReportsStatusDeps,
-): Promise<{ report: Report } | { status: 403 | 404; error: string }> {
-  const report = await deps.getReportById(reportId);
+): Promise<{ report: Report } | { status: 404; error: string }> {
+  const report = await deps.getClinicScopedReportById(reportId, clinicId);
 
   if (!report) {
     return {
       status: 404,
       error: "Informe no encontrado",
-    };
-  }
-
-  if (report.clinicId !== clinicId) {
-    return {
-      status: 403,
-      error: unauthorizedMessage,
     };
   }
 
@@ -642,7 +645,6 @@ export const reportsStatusNativeRoutes: FastifyPluginAsync<
     const reportResult = await getAuthorizedReport(
       reportId,
       auth.clinicId,
-      "No autorizado para cambiar el estado de este informe",
       deps,
     );
 
