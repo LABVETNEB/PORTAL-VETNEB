@@ -32,6 +32,7 @@ import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
 import { AdminDashboardWorkspaceController } from "./AdminDashboardWorkspaceController";
 import type { AdminModule } from "./AdminDashboardWorkspaceController";
 import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
+import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 import { formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -320,7 +321,8 @@ export default async function AdminPage({
     auditEntries = await getAuditEntries(await getAdminRequestOptions(), {
       throwOnError: true,
     });
-  } catch {
+  } catch (error) {
+    redirectToLoginOnUnauthorized(error);
     auditEntriesLoadError = true;
   }
 

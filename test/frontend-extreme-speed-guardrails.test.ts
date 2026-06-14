@@ -335,8 +335,8 @@ test("proxy protects /dashboard and /dashboard/admin with correct cookies", () =
     "middleware matcher must cover /dashboard/:path*",
   );
   assert.ok(
-    source.includes("status: 404"),
-    "admin without valid session must return 404 not 401/redirect",
+    source.includes("return NextResponse.redirect(loginUrl)"),
+    "dashboard requests without the required session must redirect to login",
   );
 });
 

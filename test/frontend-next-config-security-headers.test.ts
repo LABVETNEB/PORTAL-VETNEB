@@ -183,8 +183,8 @@ test("middleware session separation contract is intact after next.config changes
     "admin session cookie name must be admin_session_id",
   );
   assert.ok(
-    source.includes('return new NextResponse("Not Found", { status: 404 })'),
-    "unauthenticated admin dashboard must return 404",
+    source.includes("return NextResponse.redirect(loginUrl)"),
+    "unauthenticated dashboard requests must redirect to login",
   );
   assert.equal(
     source.includes("hasClinicSession || hasAdminSession"),

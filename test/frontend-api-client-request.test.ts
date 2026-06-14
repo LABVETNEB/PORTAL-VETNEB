@@ -77,6 +77,7 @@ test("frontend API client manages JSON content type without overriding FormData"
 test("frontend API client surfaces backend errors safely", () => {
   const source = read(API_CLIENT_PATH);
 
+  assert.ok(source.includes('import { ApiResponseError } from "@/lib/api-error";'));
   assert.ok(source.includes("if (!res.ok) {"));
   assert.ok(source.includes("const body = (await res.json().catch(() => ({}))) as {"));
   assert.ok(source.includes("error?: unknown;"));
@@ -87,10 +88,19 @@ test("frontend API client surfaces backend errors safely", () => {
   assert.ok(source.includes("buildRateLimitErrorMessage(retryAfterSeconds)"));
   assert.equal(source.includes("buildRateLimitErrorMessage(backendMessage,"), false);
   assert.ok(source.includes("if (backendMessage) {"));
-  assert.ok(source.includes("throw new Error(backendMessage);"));
+  assert.ok(
+    source.includes(
+      "throw new ApiResponseError(res.status, backendMessage);",
+    ),
+  );
   assert.ok(source.includes("if (res.status >= 500) {"));
-  assert.ok(source.includes("throw new Error(BACKEND_OPERATION_ERROR_MESSAGE);"));
-  assert.ok(source.includes("throw new Error(`HTTP ${res.status}`);"));
+  assert.ok(source.includes("throw new ApiResponseError("));
+  assert.ok(source.includes("BACKEND_OPERATION_ERROR_MESSAGE,"));
+  assert.ok(
+    source.includes(
+      "throw new ApiResponseError(res.status, `HTTP ${res.status}`);",
+    ),
+  );
 });
 
 test("frontend API client formats 429 rate-limit guidance from headers or JSON metadata", () => {

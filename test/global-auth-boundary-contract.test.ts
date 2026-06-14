@@ -153,7 +153,7 @@ test("session cookie names remain separated across backend and dashboard proxy",
   );
   assertContains(
     middlewareSource,
-    'return new NextResponse("Not Found", { status: 404 })',
+    "return NextResponse.redirect(loginUrl)",
     "frontend admin dashboard unauth response",
   );
 });
