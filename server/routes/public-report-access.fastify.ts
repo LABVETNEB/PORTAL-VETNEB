@@ -96,6 +96,11 @@ type NativePublicReportAccessDeps = Required<
   >
 >;
 
+const REPORT_NOT_FOUND_RESPONSE = {
+  success: false,
+  error: "Informe no encontrado",
+} as const;
+
 let defaultDepsPromise: Promise<NativePublicReportAccessDeps> | undefined;
 
 async function loadDefaultDeps(): Promise<NativePublicReportAccessDeps> {
@@ -355,36 +360,20 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
     const parsed = reportAccessTokenRawTokenSchema.safeParse(request.params.token);
 
     if (!parsed.success) {
-      return reply.code(400).send({
-        success: false,
-        error: "Token de acceso inválido",
-      });
+      return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);
     }
 
     const tokenHash = deps.hashSessionToken(parsed.data);
     const record = await deps.getReportAccessTokenWithReportByTokenHash(tokenHash);
 
-    if (!record) {
-      return reply.code(404).send({
-        success: false,
-        error: "Token público de informe no encontrado",
-      });
+    if (!record || record.token.clinicId !== record.report.clinicId) {
+      return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);
     }
 
     const tokenState = getReportAccessTokenState(record.token, new Date(currentTime));
 
-    if (tokenState === "revoked") {
-      return reply.code(410).send({
-        success: false,
-        error: "El token público de informe fue revocado",
-      });
-    }
-
-    if (tokenState === "expired") {
-      return reply.code(410).send({
-        success: false,
-        error: "El token público de informe expiró",
-      });
+    if (tokenState === "revoked" || tokenState === "expired") {
+      return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);
     }
 
     if (!canAccessReportPublicly(record.report.currentStatus)) {

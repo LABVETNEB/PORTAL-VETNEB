@@ -80,27 +80,27 @@ test("clinic-owned resources reject cross-clinic reports tokens and tracking cas
   assertContains(reports, "getReadClinicScope", "clinic reports query scope");
   assertContains(reports, "scope.clinicId", "clinic reports query scope");
   assertContains(reports, "getAuthorizedReport", "clinic reports parameterized scope");
-  assertContains(reports, "report.clinicId !== clinicId", "clinic reports parameterized scope");
+  assertContains(reports, "getClinicScopedReportById", "clinic reports parameterized scope");
 
   assertContains(reportsStatus, "getAuthorizedReport", "clinic report status ownership");
-  assertContains(reportsStatus, "report.clinicId !== clinicId", "clinic report status ownership");
+  assertContains(reportsStatus, "getClinicScopedReportById", "clinic report status ownership");
   assertContains(reportsStatus, "auth.clinicId", "clinic report status ownership");
 
-  assertContains(reportAccessTokens, "report.clinicId !== auth.clinicId", "clinic report access token report ownership");
+  assertContains(reportAccessTokens, "getClinicScopedReportById", "clinic report access token report ownership");
   assertMatches(
     reportAccessTokens,
     /getClinicScopedReportAccessToken\(\s*tokenId,\s*auth\.clinicId/s,
     "clinic report access token detail ownership",
   );
 
-  assertContains(particularTokens, "report.clinicId !== auth.clinicId", "clinic particular token report ownership");
+  assertContains(particularTokens, "getClinicScopedReportById", "clinic particular token report ownership");
   assertMatches(
     particularTokens,
     /getClinicScopedParticularToken\(\s*tokenId,\s*auth\.clinicId/s,
     "clinic particular token detail ownership",
   );
 
-  assertContains(studyTracking, "report.clinicId !== auth.clinicId", "clinic study tracking report ownership");
+  assertContains(studyTracking, "getClinicScopedReportById", "clinic study tracking report ownership");
   assertContains(studyTracking, "particularToken.clinicId !== auth.clinicId", "clinic study tracking token ownership");
   assertMatches(
     studyTracking,
@@ -211,7 +211,7 @@ test("critical ownership tests remain explicit and runtime-backed", () => {
 
   assertContains(
     reportsTests,
-    "reportsNativeRoutes bloquea informe ajeno en rutas parametrizadas",
+    "reportsNativeRoutes unifica informe ajeno e inexistente como 404 seguro",
     "reports ownership tests",
   );
   assertContains(
@@ -222,7 +222,7 @@ test("critical ownership tests remain explicit and runtime-backed", () => {
 
   assertContains(
     reportsStatusTests,
-    "reportsStatusNativeRoutes bloquea informe ajeno o inexistente",
+    "reportsStatusNativeRoutes unifica informe ajeno e inexistente como 404 seguro",
     "report status ownership tests",
   );
 

@@ -89,6 +89,10 @@ export type ParticularAuthNativeRoutesOptions = {
   updateParticularSessionLastAccess?: (tokenHash: string) => Promise<void>;
   updateParticularTokenLastLogin?: (tokenId: number) => Promise<void>;
   getReportById?: (reportId: number) => Promise<Report | null>;
+  getClinicScopedReportById?: (
+    reportId: number,
+    clinicId: number,
+  ) => Promise<Report | null | undefined>;
   createSignedReportUrl?: (storagePath: string) => Promise<string>;
   createSignedReportDownloadUrl?: (
     storagePath: string,
@@ -122,7 +126,7 @@ type NativeParticularAuthDeps = Required<
     | "getParticularTokenByTokenHash"
     | "updateParticularSessionLastAccess"
     | "updateParticularTokenLastLogin"
-    | "getReportById"
+    | "getClinicScopedReportById"
     | "createSignedReportUrl"
     | "createSignedReportDownloadUrl"
     | "generateSessionToken"
@@ -156,7 +160,7 @@ async function loadDefaultDeps(): Promise<NativeParticularAuthDefaultDeps> {
           dbParticular.updateParticularSessionLastAccess,
         updateParticularTokenLastLogin:
           dbParticular.updateParticularTokenLastLogin,
-        getReportById: db.getReportById,
+        getClinicScopedReportById: db.getClinicScopedReportById,
         createSignedReportUrl: supabase.createSignedReportUrl,
         createSignedReportDownloadUrl:
           supabase.createSignedReportDownloadUrl,
@@ -434,7 +438,10 @@ async function buildParticularResponse(
 
   const report =
     typeof particularToken.reportId === "number"
-      ? await deps.getReportById(particularToken.reportId)
+      ? await deps.getClinicScopedReportById(
+          particularToken.reportId,
+          particularToken.clinicId,
+        )
       : null;
 
   return serializeParticularTokenDetail(
@@ -519,7 +526,7 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     !!options.getParticularTokenByTokenHash &&
     !!options.updateParticularSessionLastAccess &&
     !!options.updateParticularTokenLastLogin &&
-    !!options.getReportById &&
+    (!!options.getClinicScopedReportById || !!options.getReportById) &&
     !!options.createSignedReportUrl &&
     !!options.createSignedReportDownloadUrl &&
     !!options.generateSessionToken &&
@@ -546,7 +553,14 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
     updateParticularTokenLastLogin:
       options.updateParticularTokenLastLogin ??
       defaultDeps!.updateParticularTokenLastLogin,
-    getReportById: options.getReportById ?? defaultDeps!.getReportById,
+    getClinicScopedReportById:
+      options.getClinicScopedReportById ??
+      (options.getReportById
+        ? async (reportId: number, clinicId: number) => {
+            const report = await options.getReportById!(reportId);
+            return report?.clinicId === clinicId ? report : null;
+          }
+        : defaultDeps!.getClinicScopedReportById),
     createSignedReportUrl:
       options.createSignedReportUrl ?? defaultDeps!.createSignedReportUrl,
     createSignedReportDownloadUrl:
@@ -955,9 +969,12 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const report = await deps.getReportById(reportId);
+    const report = await deps.getClinicScopedReportById(
+      reportId,
+      particular.clinicId,
+    );
 
-    if (!report || report.clinicId !== particular.clinicId) {
+    if (!report) {
       return reply.code(404).send({
         success: false,
         error: "Informe no encontrado",
@@ -993,9 +1010,12 @@ export const particularAuthNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const report = await deps.getReportById(reportId);
+    const report = await deps.getClinicScopedReportById(
+      reportId,
+      particular.clinicId,
+    );
 
-    if (!report || report.clinicId !== particular.clinicId) {
+    if (!report) {
       return reply.code(404).send({
         success: false,
         error: "Informe no encontrado",

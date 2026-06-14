@@ -87,6 +87,10 @@ export type ReportsNativeRoutesOptions = {
   ) => Promise<number>;
   getStudyTypes?: (clinicId: number) => Promise<string[]>;
   getReportById?: (reportId: number) => Promise<Report | null>;
+  getClinicScopedReportById?: (
+    reportId: number,
+    clinicId: number,
+  ) => Promise<Report | null | undefined>;
   getReportStatusHistory?: (reportId: number) => Promise<unknown[]>;
   createSignedReportUrl?: (storagePath: string) => Promise<string>;
   createSignedReportDownloadUrl?: (
@@ -115,7 +119,7 @@ type NativeReportsDeps = Required<
     | "searchReports"
     | "countSearchReports"
     | "getStudyTypes"
-    | "getReportById"
+    | "getClinicScopedReportById"
     | "getReportStatusHistory"
     | "createSignedReportUrl"
     | "createSignedReportDownloadUrl"
@@ -142,7 +146,7 @@ async function loadDefaultDeps(): Promise<NativeReportsDeps> {
         searchReports: db.searchReports,
         countSearchReports: db.countSearchReports,
         getStudyTypes: db.getStudyTypes,
-        getReportById: db.getReportById,
+        getClinicScopedReportById: db.getClinicScopedReportById,
         getReportStatusHistory: db.getReportStatusHistory,
         createSignedReportUrl: storage.createSignedReportUrl,
         createSignedReportDownloadUrl: storage.createSignedReportDownloadUrl,
@@ -165,7 +169,7 @@ function hasAllInjectedDeps(options: ReportsNativeRoutesOptions) {
     !!options.searchReports &&
     !!options.countSearchReports &&
     !!options.getStudyTypes &&
-    !!options.getReportById &&
+    (!!options.getClinicScopedReportById || !!options.getReportById) &&
     !!options.getReportStatusHistory &&
     !!options.createSignedReportUrl &&
     !!options.createSignedReportDownloadUrl
@@ -196,7 +200,14 @@ async function resolveDeps(
     countSearchReports:
       options.countSearchReports ?? defaultDeps!.countSearchReports,
     getStudyTypes: options.getStudyTypes ?? defaultDeps!.getStudyTypes,
-    getReportById: options.getReportById ?? defaultDeps!.getReportById,
+    getClinicScopedReportById:
+      options.getClinicScopedReportById ??
+      (options.getReportById
+        ? async (reportId: number, clinicId: number) => {
+            const report = await options.getReportById!(reportId);
+            return report?.clinicId === clinicId ? report : null;
+          }
+        : defaultDeps!.getClinicScopedReportById),
     getReportStatusHistory:
       options.getReportStatusHistory ?? defaultDeps!.getReportStatusHistory,
     createSignedReportUrl:
@@ -458,22 +469,14 @@ function serializeReports(reports: Report[], _deps: NativeReportsDeps) {
 async function getAuthorizedReport(
   reportId: number,
   clinicId: number,
-  unauthorizedMessage: string,
   deps: NativeReportsDeps,
-): Promise<{ report: Report } | { status: 403 | 404; error: string }> {
-  const report = await deps.getReportById(reportId);
+): Promise<{ report: Report } | { status: 404; error: string }> {
+  const report = await deps.getClinicScopedReportById(reportId, clinicId);
 
   if (!report) {
     return {
       status: 404,
       error: "Informe no encontrado",
-    };
-  }
-
-  if (report.clinicId !== clinicId) {
-    return {
-      status: 403,
-      error: unauthorizedMessage,
     };
   }
 
@@ -724,7 +727,6 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
       const reportResult = await getAuthorizedReport(
         reportId,
         auth.clinicId,
-        "No autorizado para consultar el historial de este informe",
         deps,
       );
 
@@ -770,7 +772,6 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
       const reportResult = await getAuthorizedReport(
         reportId,
         auth.clinicId,
-        "No autorizado para previsualizar este informe",
         deps,
       );
 
@@ -815,7 +816,6 @@ export const reportsNativeRoutes: FastifyPluginAsync<ReportsNativeRoutesOptions>
       const reportResult = await getAuthorizedReport(
         reportId,
         auth.clinicId,
-        "No autorizado para descargar este informe",
         deps,
       );
 

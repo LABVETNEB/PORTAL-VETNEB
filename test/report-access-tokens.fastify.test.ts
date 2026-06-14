@@ -197,6 +197,65 @@ test(
 );
 
 test(
+  "reportAccessTokensNativeRoutes unifica informe ajeno e inexistente al crear token",
+  async () => {
+    let createCalls = 0;
+    let auditCalls = 0;
+    const createApp = (report: ReturnType<typeof createReportFixture> | null) =>
+      createTestApp({
+        getReportById: async () => report,
+        createReportAccessToken: async () => {
+          createCalls += 1;
+          return createReportAccessTokenFixture();
+        },
+        writeAuditLog: async () => {
+          auditCalls += 1;
+        },
+      });
+    const foreignReportApp = await createApp(
+      createReportFixture({ clinicId: 99 }),
+    );
+    const missingReportApp = await createApp(null);
+
+    try {
+      const request = {
+        method: "POST" as const,
+        url: "/api/report-access-tokens",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          reportId: 55,
+        },
+      };
+      const [foreignResponse, missingResponse] = await Promise.all([
+        foreignReportApp.inject(request),
+        missingReportApp.inject(request),
+      ]);
+      const expectedBody = {
+        success: false,
+        error: "Informe no encontrado",
+      };
+
+      assert.equal(foreignResponse.statusCode, 404);
+      assert.equal(missingResponse.statusCode, 404);
+      assert.deepEqual(JSON.parse(foreignResponse.body), expectedBody);
+      assert.deepEqual(JSON.parse(missingResponse.body), expectedBody);
+      assert.equal(foreignResponse.body, missingResponse.body);
+      assert.equal(foreignResponse.body.includes("clinicId"), false);
+      assert.equal(foreignResponse.body.includes("reportId"), false);
+      assert.equal(createCalls, 0);
+      assert.equal(auditCalls, 0);
+    } finally {
+      await foreignReportApp.close();
+      await missingReportApp.close();
+    }
+  },
+);
+
+test(
   "reportAccessTokensNativeRoutes bloquea POST / con origin no permitido",
   async () => {
     const app = await createTestApp();

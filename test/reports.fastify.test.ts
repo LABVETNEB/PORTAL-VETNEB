@@ -357,33 +357,80 @@ test("reportsNativeRoutes bloquea reportId invÃ¡lido en rutas parametrizadas",
   }
 });
 
-test("reportsNativeRoutes bloquea informe ajeno en rutas parametrizadas", async () => {
-  const app = await createTestApp({
+test("reportsNativeRoutes unifica informe ajeno e inexistente como 404 seguro", async () => {
+  const foreignReportApp = await createTestApp({
     getReportById: async () => createReportFixture({ clinicId: 99 }),
+    getReportStatusHistory: async () => {
+      throw new Error("foreign report history must not be loaded");
+    },
+    createSignedReportUrl: async () => {
+      throw new Error("foreign report preview must not be signed");
+    },
+    createSignedReportDownloadUrl: async () => {
+      throw new Error("foreign report download must not be signed");
+    },
+  });
+  const missingReportApp = await createTestApp({
+    getReportById: async () => null,
+    getReportStatusHistory: async () => {
+      throw new Error("missing report history must not be loaded");
+    },
+    createSignedReportUrl: async () => {
+      throw new Error("missing report preview must not be signed");
+    },
+    createSignedReportDownloadUrl: async () => {
+      throw new Error("missing report download must not be signed");
+    },
   });
 
   try {
-    const response = await app.inject({
-      method: "GET",
-      url: "/api/reports/55/download-url",
-      headers: {
-        cookie: `${ENV.cookieName}=session-token`,
-      },
-    });
-
-    assert.equal(response.statusCode, 403);
-    assert.deepEqual(JSON.parse(response.body), {
+    const expectedBody = {
       success: false,
-      error: "No autorizado para descargar este informe",
-    });
+      error: "Informe no encontrado",
+    };
+
+    for (const url of [
+      "/api/reports/55/history",
+      "/api/reports/55/preview-url",
+      "/api/reports/55/download-url",
+    ]) {
+      const [foreignResponse, missingResponse] = await Promise.all([
+        foreignReportApp.inject({
+          method: "GET",
+          url,
+          headers: {
+            cookie: `${ENV.cookieName}=session-token`,
+          },
+        }),
+        missingReportApp.inject({
+          method: "GET",
+          url,
+          headers: {
+            cookie: `${ENV.cookieName}=session-token`,
+          },
+        }),
+      ]);
+
+      assert.equal(foreignResponse.statusCode, 404);
+      assert.equal(missingResponse.statusCode, 404);
+      assert.deepEqual(JSON.parse(foreignResponse.body), expectedBody);
+      assert.deepEqual(JSON.parse(missingResponse.body), expectedBody);
+      assert.equal(foreignResponse.body, missingResponse.body);
+      assert.equal(foreignResponse.body.includes("clinicId"), false);
+      assert.equal(foreignResponse.body.includes("reportId"), false);
+      assert.equal(foreignResponse.body.includes("storagePath"), false);
+    }
   } finally {
-    await app.close();
+    await foreignReportApp.close();
+    await missingReportApp.close();
   }
 });
 
-test("reportsNativeRoutes devuelve 404 cuando el informe no existe en rutas parametrizadas", async () => {
+test("reportsNativeRoutes conserva errores reales de servidor como 500", async () => {
   const app = await createTestApp({
-    getReportById: async () => null,
+    getReportById: async () => {
+      throw new Error("simulated report lookup failure");
+    },
   });
 
   try {
@@ -395,8 +442,8 @@ test("reportsNativeRoutes devuelve 404 cuando el informe no existe en rutas para
       },
     });
 
-    assert.equal(response.statusCode, 404);
-    assert.deepEqual(JSON.parse(response.body), {
+    assert.equal(response.statusCode, 500);
+    assert.notDeepEqual(JSON.parse(response.body), {
       success: false,
       error: "Informe no encontrado",
     });

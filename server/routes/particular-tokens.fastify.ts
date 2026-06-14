@@ -74,6 +74,10 @@ export type ParticularTokensNativeRoutesOptions = {
   generateSessionToken?: () => string;
   hashSessionToken?: (token: string) => string;
   getReportById?: (reportId: number) => Promise<Report | null>;
+  getClinicScopedReportById?: (
+    reportId: number,
+    clinicId: number,
+  ) => Promise<Report | null | undefined>;
   createParticularToken?: (input: {
     clinicId: number;
     reportId: number | null;
@@ -149,7 +153,7 @@ type NativeParticularTokensDeps = Required<
     | "updateSessionLastAccess"
     | "generateSessionToken"
     | "hashSessionToken"
-    | "getReportById"
+    | "getClinicScopedReportById"
     | "createParticularToken"
     | "getClinicScopedParticularToken"
     | "listParticularTokens"
@@ -181,7 +185,7 @@ async function loadDefaultDeps(): Promise<NativeParticularTokensDeps> {
         updateSessionLastAccess: db.updateSessionLastAccess,
         generateSessionToken: authSecurity.generateSessionToken,
         hashSessionToken: authSecurity.hashSessionToken,
-        getReportById: db.getReportById,
+        getClinicScopedReportById: db.getClinicScopedReportById,
         createParticularToken: dbParticular.createParticularToken,
         getClinicScopedParticularToken:
           dbParticular.getClinicScopedParticularToken,
@@ -523,7 +527,7 @@ export const particularTokensNativeRoutes: FastifyPluginAsync<
     !!options.updateSessionLastAccess &&
     !!options.generateSessionToken &&
     !!options.hashSessionToken &&
-    !!options.getReportById &&
+    (!!options.getClinicScopedReportById || !!options.getReportById) &&
     !!options.createParticularToken &&
     !!options.getClinicScopedParticularToken &&
     !!options.listParticularTokens &&
@@ -550,7 +554,14 @@ export const particularTokensNativeRoutes: FastifyPluginAsync<
       options.generateSessionToken ?? defaultDeps!.generateSessionToken,
     hashSessionToken:
       options.hashSessionToken ?? defaultDeps!.hashSessionToken,
-    getReportById: options.getReportById ?? defaultDeps!.getReportById,
+    getClinicScopedReportById:
+      options.getClinicScopedReportById ??
+      (options.getReportById
+        ? async (reportId: number, clinicId: number) => {
+            const report = await options.getReportById!(reportId);
+            return report?.clinicId === clinicId ? report : null;
+          }
+        : defaultDeps!.getClinicScopedReportById),
     createParticularToken:
       options.createParticularToken ?? defaultDeps!.createParticularToken,
     getClinicScopedParticularToken:
@@ -707,19 +718,15 @@ export const particularTokensNativeRoutes: FastifyPluginAsync<
     }
 
     if (typeof parsed.data.reportId === "number") {
-      const report = await deps.getReportById(parsed.data.reportId);
+      const report = await deps.getClinicScopedReportById(
+        parsed.data.reportId,
+        auth.clinicId,
+      );
 
       if (!report) {
         return reply.code(404).send({
           success: false,
           error: "Informe no encontrado",
-        });
-      }
-
-      if (report.clinicId !== auth.clinicId) {
-        return reply.code(400).send({
-          success: false,
-          error: "El informe no pertenece a la clínica autenticada",
         });
       }
     }
@@ -860,7 +867,7 @@ export const particularTokensNativeRoutes: FastifyPluginAsync<
 
     const report =
       typeof token.reportId === "number"
-        ? await deps.getReportById(token.reportId)
+        ? await deps.getClinicScopedReportById(token.reportId, auth.clinicId)
         : null;
 
     return reply.code(200).send({
@@ -922,19 +929,15 @@ export const particularTokensNativeRoutes: FastifyPluginAsync<
     }
 
     if (typeof parsed.data.reportId === "number") {
-      const report = await deps.getReportById(parsed.data.reportId);
+      const report = await deps.getClinicScopedReportById(
+        parsed.data.reportId,
+        auth.clinicId,
+      );
 
       if (!report) {
         return reply.code(404).send({
           success: false,
           error: "Informe no encontrado",
-        });
-      }
-
-      if (report.clinicId !== auth.clinicId) {
-        return reply.code(400).send({
-          success: false,
-          error: "El informe no pertenece a la clínica autenticada",
         });
       }
     }
@@ -946,7 +949,10 @@ export const particularTokensNativeRoutes: FastifyPluginAsync<
 
     const report =
       updated && typeof updated.reportId === "number"
-        ? await deps.getReportById(updated.reportId)
+        ? await deps.getClinicScopedReportById(
+            updated.reportId,
+            auth.clinicId,
+          )
         : null;
 
     return reply.code(200).send({

@@ -98,7 +98,7 @@ test("clinic routes force authenticated clinic relationships and reject cross cl
   const clinicAudit = readSource("server/routes/clinic-audit.fastify.ts");
 
   assertContains(studyTracking, "clinicId: auth.clinicId", "clinic study tracking");
-  assertContains(studyTracking, "report.clinicId !== auth.clinicId", "clinic study tracking");
+  assertContains(studyTracking, "getClinicScopedReportById", "clinic study tracking");
   assertContains(studyTracking, "particularToken.clinicId !== auth.clinicId", "clinic study tracking");
   assertMatches(
     studyTracking,
@@ -107,7 +107,7 @@ test("clinic routes force authenticated clinic relationships and reject cross cl
   );
 
   assertContains(particularTokens, "clinicId: auth.clinicId", "clinic particular tokens");
-  assertContains(particularTokens, "report.clinicId !== auth.clinicId", "clinic particular tokens");
+  assertContains(particularTokens, "getClinicScopedReportById", "clinic particular tokens");
   assertMatches(
     particularTokens,
     /getClinicScopedParticularToken\(\s*tokenId,\s*auth\.clinicId/s,
@@ -115,7 +115,7 @@ test("clinic routes force authenticated clinic relationships and reject cross cl
   );
 
   assertContains(reportAccessTokens, "clinicId: auth.clinicId", "clinic report access tokens");
-  assertContains(reportAccessTokens, "report.clinicId !== auth.clinicId", "clinic report access tokens");
+  assertContains(reportAccessTokens, "getClinicScopedReportById", "clinic report access tokens");
   assertMatches(
     reportAccessTokens,
     /getClinicScopedReportAccessToken\(\s*tokenId,\s*auth\.clinicId/s,
@@ -157,7 +157,7 @@ test("particular routes force authenticated particular token relationships", () 
     "particular study tracking notifications",
   );
 
-  assertContains(particularAuth, "getReportById", "particular auth report access");
+  assertContains(particularAuth, "getClinicScopedReportById", "particular auth report access");
   assertContains(particularAuth, "/report/preview-url", "particular auth preview route");
   assertContains(particularAuth, "/report/download-url", "particular auth download route");
   assertNotContains(particularAuth, "reportId?: unknown", "particular auth must not accept reportId input");

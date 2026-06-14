@@ -17,15 +17,11 @@ const RESPONSE_DISCLOSURE_BOUNDARIES = {
   },
   hiddenOrMissing: {
     status: 404,
-    meaning: "missing resource or resource hidden from current scope",
+    meaning: "missing resource, hidden scope, or unusable public report token",
   },
   stateConflict: {
     status: 409,
     meaning: "resource exists but current state does not allow the requested public action",
-  },
-  gone: {
-    status: 410,
-    meaning: "public access token is expired or revoked",
   },
   rateLimited: {
     status: 429,
@@ -57,15 +53,11 @@ test("response disclosure matrix documents stable public error semantics", () =>
     },
     hiddenOrMissing: {
       status: 404,
-      meaning: "missing resource or resource hidden from current scope",
+      meaning: "missing resource, hidden scope, or unusable public report token",
     },
     stateConflict: {
       status: 409,
       meaning: "resource exists but current state does not allow the requested public action",
-    },
-    gone: {
-      status: 410,
-      meaning: "public access token is expired or revoked",
     },
     rateLimited: {
       status: 429,
@@ -74,18 +66,18 @@ test("response disclosure matrix documents stable public error semantics", () =>
   });
 });
 
-test("public report access uses explicit 400 404 409 410 and 429 boundaries", () => {
+test("public report access unifies unusable tokens as 404 and preserves 409 and 429", () => {
   const publicReportAccess = readSource("server/routes/public-report-access.fastify.ts");
 
   assertContains(publicReportAccess, "reportAccessTokenRawTokenSchema.safeParse", "public token shape validation");
-  assertContains(publicReportAccess, "return reply.code(400).send", "public invalid token response");
+  assertContains(publicReportAccess, "REPORT_NOT_FOUND_RESPONSE", "public generic not found response");
 
   assertContains(publicReportAccess, "getReportAccessTokenWithReportByTokenHash", "public token lookup");
   assertContains(publicReportAccess, "reply.code(404).send", "public unknown token response");
 
   assertContains(publicReportAccess, 'tokenState === "revoked"', "public revoked token response");
   assertContains(publicReportAccess, 'tokenState === "expired"', "public expired token response");
-  assertContains(publicReportAccess, "reply.code(410).send", "public gone token response");
+  assertNotContains(publicReportAccess, "reply.code(410).send", "public token lifecycle must not reveal prior existence");
 
   assertContains(publicReportAccess, "canAccessReportPublicly", "public report availability gate");
   assertContains(publicReportAccess, "reply.code(409).send", "public unavailable report response");
@@ -99,12 +91,11 @@ test("clinic report and token surfaces do not disclose cross-scope resources as 
   const reportsStatus = readSource("server/routes/reports-status.fastify.ts");
   const reportAccessTokens = readSource("server/routes/report-access-tokens.fastify.ts");
 
-  assertContains(reports, "report.clinicId !== clinicId", "clinic report ownership check");
-  assertContains(reports, "reply.code(403).send", "clinic foreign report response");
+  assertContains(reports, "getClinicScopedReportById", "clinic report ownership check");
+  assertContains(reports, "status: 404", "clinic foreign report response");
   assertContains(reports, "Informe no encontrado", "clinic report not found body");
 
-  assertContains(reportsStatus, "report.clinicId !== clinicId", "clinic report status ownership check");
-  assertContains(reportsStatus, "reply.code(403).send", "clinic foreign report status response");
+  assertContains(reportsStatus, "getClinicScopedReportById", "clinic report status ownership check");
   assertContains(reportsStatus, "reply.code(404).send", "clinic missing report status response");
   assertContains(reportsStatus, "Informe no encontrado", "clinic report status not found body");
 
@@ -131,7 +122,7 @@ test("particular surfaces keep unauthenticated inactive missing and unlinked sta
   }
 
   assertContains(particularAuth, "reply.code(409).send", "particular report missing link conflict");
-  assertContains(particularAuth, "report.clinicId !== particular.clinicId", "particular report hidden ownership check");
+  assertContains(particularAuth, "getClinicScopedReportById", "particular report hidden ownership check");
   assertContains(particularAuth, "reply.code(404).send", "particular hidden or missing linked report response");
 
   assertContains(particularStudyTracking, "getParticularStudyTrackingCase", "particular tracking scoped lookup");
@@ -166,17 +157,16 @@ test("runtime disclosure tests remain explicit for hidden resources and response
   const particularStudyTrackingTests = readSource("test/particular-study-tracking.fastify.test.ts");
   const auditExportTests = readSource("test/audit-export-boundaries.test.ts");
 
-  assertContains(reportsTests, "reportsNativeRoutes bloquea informe ajeno en rutas parametrizadas", "reports foreign resource runtime test");
-  assertContains(reportsTests, "reportsNativeRoutes devuelve 404 cuando el informe no existe en rutas parametrizadas", "reports missing resource runtime test");
+  assertContains(reportsTests, "reportsNativeRoutes unifica informe ajeno e inexistente como 404 seguro", "reports hidden or missing runtime test");
 
-  assertContains(reportsStatusTests, "reportsStatusNativeRoutes bloquea informe ajeno o inexistente", "report status hidden or missing runtime test");
+  assertContains(reportsStatusTests, "reportsStatusNativeRoutes unifica informe ajeno e inexistente como 404 seguro", "report status hidden or missing runtime test");
 
   assertContains(reportAccessTokenTests, "reportAccessTokensNativeRoutes oculta detalle de token ajeno con 404", "token detail hidden runtime test");
   assertContains(reportAccessTokenTests, "reportAccessTokensNativeRoutes oculta revocacion de token ajeno antes de mutar", "token revoke hidden runtime test");
 
-  assertContains(publicReportAccessTests, "publicReportAccessNativeRoutes devuelve 400 cuando el token es invalido", "public invalid token runtime test");
-  assertContains(publicReportAccessTests, "publicReportAccessNativeRoutes devuelve 410 cuando el token fue revocado", "public revoked token runtime test");
-  assertContains(publicReportAccessTests, "publicReportAccessNativeRoutes devuelve 410 cuando el token expir", "public expired token runtime test");
+  assertContains(publicReportAccessTests, "publicReportAccessNativeRoutes oculta token malformado como informe no encontrado", "public invalid token runtime test");
+  assertContains(publicReportAccessTests, "publicReportAccessNativeRoutes oculta token revocado como informe no encontrado", "public revoked token runtime test");
+  assertContains(publicReportAccessTests, "publicReportAccessNativeRoutes oculta token expirado como informe no encontrado", "public expired token runtime test");
   assertContains(publicReportAccessTests, "publicReportAccessNativeRoutes devuelve 409 cuando el informe no", "public unavailable report runtime test");
   assertContains(publicReportAccessTests, "publicReportAccessNativeRoutes aplica rate limit nativo fijo por IP", "public rate limit runtime test");
 

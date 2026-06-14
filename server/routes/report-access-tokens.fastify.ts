@@ -107,6 +107,10 @@ export type ReportAccessTokensNativeRoutesOptions = {
     passwordHash: string,
   ) => Promise<VerifyPasswordResult>;
   getReportById?: (reportId: number) => Promise<Report | null>;
+  getClinicScopedReportById?: (
+    reportId: number,
+    clinicId: number,
+  ) => Promise<Report | null | undefined>;
   createReportAccessToken?: (input: {
     clinicId: number;
     reportId: number;
@@ -158,7 +162,7 @@ type NativeReportAccessTokensDeps = Required<
     | "hashPassword"
     | "hashSessionToken"
     | "verifyPassword"
-    | "getReportById"
+    | "getClinicScopedReportById"
     | "createReportAccessToken"
     | "getClinicScopedReportAccessToken"
     | "listReportAccessTokens"
@@ -187,7 +191,7 @@ async function loadDefaultDeps(): Promise<NativeReportAccessTokensDeps> {
         hashPassword: authSecurity.hashPassword,
         hashSessionToken: authSecurity.hashSessionToken,
         verifyPassword: authSecurity.verifyPassword,
-        getReportById: db.getReportById,
+        getClinicScopedReportById: db.getClinicScopedReportById,
         createReportAccessToken: dbReportAccess.createReportAccessToken,
         getClinicScopedReportAccessToken:
           dbReportAccess.getClinicScopedReportAccessToken,
@@ -563,7 +567,7 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
     !!options.hashPassword &&
     !!options.hashSessionToken &&
     !!options.verifyPassword &&
-    !!options.getReportById &&
+    (!!options.getClinicScopedReportById || !!options.getReportById) &&
     !!options.createReportAccessToken &&
     !!options.getClinicScopedReportAccessToken &&
     !!options.listReportAccessTokens &&
@@ -587,7 +591,14 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
     hashSessionToken:
       options.hashSessionToken ?? defaultDeps!.hashSessionToken,
     verifyPassword: options.verifyPassword ?? defaultDeps!.verifyPassword,
-    getReportById: options.getReportById ?? defaultDeps!.getReportById,
+    getClinicScopedReportById:
+      options.getClinicScopedReportById ??
+      (options.getReportById
+        ? async (reportId: number, clinicId: number) => {
+            const report = await options.getReportById!(reportId);
+            return report?.clinicId === clinicId ? report : null;
+          }
+        : defaultDeps!.getClinicScopedReportById),
     createReportAccessToken:
       options.createReportAccessToken ?? defaultDeps!.createReportAccessToken,
     getClinicScopedReportAccessToken:
@@ -751,12 +762,15 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const report = await deps.getReportById(parsed.data.reportId);
+    const report = await deps.getClinicScopedReportById(
+      parsed.data.reportId,
+      auth.clinicId,
+    );
 
-    if (!report || report.clinicId !== auth.clinicId) {
+    if (!report) {
       return reply.code(404).send({
         success: false,
-        error: "Informe no encontrado para la clínica autenticada",
+        error: "Informe no encontrado",
       });
     }
 
@@ -866,7 +880,10 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const report = await deps.getReportById(token.reportId);
+    const report = await deps.getClinicScopedReportById(
+      token.reportId,
+      auth.clinicId,
+    );
 
     return reply.code(200).send({
       success: true,
@@ -924,7 +941,9 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
       revokedByAdminUserId: null,
     });
 
-    const report = revoked ? await deps.getReportById(revoked.reportId) : null;
+    const report = revoked
+      ? await deps.getClinicScopedReportById(revoked.reportId, auth.clinicId)
+      : null;
 
     if (revoked) {
       await deps.writeAuditLog(createAuditRequestLike(request, auth), {
@@ -949,4 +968,3 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
     });
   });
 };
-

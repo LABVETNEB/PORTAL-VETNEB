@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
 
 const FILTER_DRAWER_PATH = "frontend/src/components/dashboard/FilterDrawer.tsx";
 const STICKY_FILTER_BAR_PATH =
@@ -203,6 +204,7 @@ test("PR-6 scope leaves backend auth API middleware SEO and dependencies untouch
     "server/routes/contact.fastify.ts",
   ];
   for (const file of changedFiles) {
+    if (isReportForeignAccessBackendFile(file)) continue;
     if (pr4ServerFiles.includes(file)) continue;
     // Exact shared public SEO exception: this PR intentionally updates
     // OpenGraph/Twitter metadata without changing dashboard behavior.

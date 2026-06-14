@@ -169,9 +169,13 @@ test(
 );
 
 test(
-  "publicReportAccessNativeRoutes devuelve 400 cuando el token es invalido",
+  "publicReportAccessNativeRoutes oculta token malformado como informe no encontrado",
   async () => {
-    const app = await createTestApp();
+    const app = await createTestApp({
+      getReportAccessTokenWithReportByTokenHash: async () => {
+        throw new Error("malformed token must not reach lookup");
+      },
+    });
 
     try {
       const response = await app.inject({
@@ -179,10 +183,10 @@ test(
         url: "/api/public/report-access/token-invalido",
       });
 
-      assert.equal(response.statusCode, 400);
+      assert.equal(response.statusCode, 404);
       assert.deepEqual(JSON.parse(response.body), {
         success: false,
-        error: "Token de acceso inválido",
+        error: "Informe no encontrado",
       });
     } finally {
       await app.close();
@@ -191,7 +195,7 @@ test(
 );
 
 test(
-  "publicReportAccessNativeRoutes devuelve 410 cuando el token fue revocado",
+  "publicReportAccessNativeRoutes oculta token revocado como informe no encontrado",
   async () => {
     const rawToken = "b".repeat(64);
     const report = createReportFixture();
@@ -209,10 +213,10 @@ test(
         url: `/api/public/report-access/${rawToken}`,
       });
 
-      assert.equal(response.statusCode, 410);
+      assert.equal(response.statusCode, 404);
       assert.deepEqual(JSON.parse(response.body), {
         success: false,
-        error: "El token público de informe fue revocado",
+        error: "Informe no encontrado",
       });
     } finally {
       await app.close();
@@ -222,7 +226,7 @@ test(
 
 
 test(
-  "publicReportAccessNativeRoutes devuelve 410 cuando el token expiró",
+  "publicReportAccessNativeRoutes oculta token expirado como informe no encontrado",
   async () => {
     const rawToken = "e".repeat(64);
     const report = createReportFixture();
@@ -256,11 +260,54 @@ test(
         url: `/api/public/report-access/${rawToken}`,
       });
 
-      assert.equal(response.statusCode, 410);
+      assert.equal(response.statusCode, 404);
       assert.deepEqual(JSON.parse(response.body), {
         success: false,
-        error: "El token público de informe expiró",
+        error: "Informe no encontrado",
       });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "publicReportAccessNativeRoutes oculta token vinculado a clinica ajena como informe no encontrado",
+  async () => {
+    const rawToken = "f".repeat(64);
+    const report = createReportFixture({ clinicId: 99 });
+    const token = createReportAccessTokenFixture({ clinicId: 3 });
+
+    const app = await createTestApp({
+      getReportAccessTokenWithReportByTokenHash: async () => ({ token, report }),
+      recordReportAccessTokenAccess: async () => {
+        throw new Error("foreign token must not record access");
+      },
+      createSignedReportUrl: async () => {
+        throw new Error("foreign token must not sign preview");
+      },
+      createSignedReportDownloadUrl: async () => {
+        throw new Error("foreign token must not sign download");
+      },
+      writeAuditLog: async () => {
+        throw new Error("foreign token must not write access audit");
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/public/report-access/${rawToken}`,
+      });
+
+      assert.equal(response.statusCode, 404);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error: "Informe no encontrado",
+      });
+      assert.equal(response.body.includes("clinicId"), false);
+      assert.equal(response.body.includes("reportId"), false);
+      assert.equal(response.body.includes("token"), false);
     } finally {
       await app.close();
     }

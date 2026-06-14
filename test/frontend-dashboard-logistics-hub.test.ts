@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
 
 const LOGISTICS_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
 const COMMAND_CENTER_PATH =
@@ -324,7 +325,11 @@ test("logistics hub changes do not touch backend, API routes, auth, middleware o
   ];
   const filteredChangedFiles = changedFiles
     .split("\n")
-    .filter((f) => !pr4ServerFiles.includes(f.trim()))
+    .filter(
+      (f) =>
+        !pr4ServerFiles.includes(f.trim()) &&
+        !isReportForeignAccessBackendFile(f.trim()),
+    )
     .join("\n");
   for (const path of forbiddenPaths) {
     const matching = filteredChangedFiles

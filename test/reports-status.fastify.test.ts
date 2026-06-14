@@ -218,38 +218,68 @@ test("reportsStatusNativeRoutes valida reportId y status invalidos", async () =>
   }
 });
 
-test("reportsStatusNativeRoutes bloquea informe ajeno o inexistente", async () => {
+test("reportsStatusNativeRoutes unifica informe ajeno e inexistente como 404 seguro", async () => {
+  let foreignUpdateCalls = 0;
+  let missingUpdateCalls = 0;
   const foreignReportApp = await createTestApp({
     getReportById: async () => createReportFixture({ clinicId: 99 }),
+    updateReportStatus: async () => {
+      foreignUpdateCalls += 1;
+      return createReportFixture();
+    },
   });
-
-  try {
-    const response = await foreignReportApp.inject({
-      method: "PATCH",
-      url: "/api/reports/55/status",
-      headers: {
-        cookie: `${ENV.cookieName}=session-token`,
-      },
-      payload: {
-        status: "ready",
-      },
-    });
-
-    assert.equal(response.statusCode, 403);
-    assert.deepEqual(JSON.parse(response.body), {
-      success: false,
-      error: "No autorizado para cambiar el estado de este informe",
-    });
-  } finally {
-    await foreignReportApp.close();
-  }
-
   const missingReportApp = await createTestApp({
     getReportById: async () => null,
+    updateReportStatus: async () => {
+      missingUpdateCalls += 1;
+      return createReportFixture();
+    },
   });
 
   try {
-    const response = await missingReportApp.inject({
+    const request = {
+      method: "PATCH" as const,
+      url: "/api/reports/55/status",
+      headers: {
+        cookie: `${ENV.cookieName}=session-token`,
+      },
+      payload: {
+        status: "ready",
+      },
+    };
+    const [foreignResponse, missingResponse] = await Promise.all([
+      foreignReportApp.inject(request),
+      missingReportApp.inject(request),
+    ]);
+    const expectedBody = {
+      success: false,
+      error: "Informe no encontrado",
+    };
+
+    assert.equal(foreignResponse.statusCode, 404);
+    assert.equal(missingResponse.statusCode, 404);
+    assert.deepEqual(JSON.parse(foreignResponse.body), expectedBody);
+    assert.deepEqual(JSON.parse(missingResponse.body), expectedBody);
+    assert.equal(foreignResponse.body, missingResponse.body);
+    assert.equal(foreignResponse.body.includes("clinicId"), false);
+    assert.equal(foreignResponse.body.includes("reportId"), false);
+    assert.equal(foreignUpdateCalls, 0);
+    assert.equal(missingUpdateCalls, 0);
+  } finally {
+    await foreignReportApp.close();
+    await missingReportApp.close();
+  }
+});
+
+test("reportsStatusNativeRoutes conserva errores reales de servidor como 500", async () => {
+  const app = await createTestApp({
+    getReportById: async () => {
+      throw new Error("simulated report status lookup failure");
+    },
+  });
+
+  try {
+    const response = await app.inject({
       method: "PATCH",
       url: "/api/reports/55/status",
       headers: {
@@ -260,13 +290,13 @@ test("reportsStatusNativeRoutes bloquea informe ajeno o inexistente", async () =
       },
     });
 
-    assert.equal(response.statusCode, 404);
-    assert.deepEqual(JSON.parse(response.body), {
+    assert.equal(response.statusCode, 500);
+    assert.notDeepEqual(JSON.parse(response.body), {
       success: false,
       error: "Informe no encontrado",
     });
   } finally {
-    await missingReportApp.close();
+    await app.close();
   }
 });
 

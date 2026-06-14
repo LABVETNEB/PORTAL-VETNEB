@@ -154,7 +154,13 @@ export async function getReportAccessTokenWithReportByTokenHash(tokenHash: strin
       report: reports,
     })
     .from(reportAccessTokens)
-    .innerJoin(reports, eq(reportAccessTokens.reportId, reports.id))
+    .innerJoin(
+      reports,
+      and(
+        eq(reportAccessTokens.reportId, reports.id),
+        eq(reportAccessTokens.clinicId, reports.clinicId),
+      ),
+    )
     .where(eq(reportAccessTokens.tokenHash, tokenHash))
     .limit(1);
 

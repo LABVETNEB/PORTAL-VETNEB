@@ -214,7 +214,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         path: "test/security-response-disclosure-boundaries.test.ts",
         markers: [
           "response disclosure matrix documents stable public error semantics",
-          "public report access uses explicit 400 404 409 410 and 429 boundaries",
+          "public report access unifies unusable tokens as 404 and preserves 409 and 429",
           "runtime disclosure tests remain explicit for hidden resources and response codes",
         ],
       },

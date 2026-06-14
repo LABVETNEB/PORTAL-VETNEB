@@ -251,8 +251,8 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         markers: [
           "publicReportAccessNativeRoutes responde acceso",
           "urls firmadas",
-          "devuelve 400 cuando el token es invalido",
-          "devuelve 410 cuando el token fue revocado",
+          "oculta token malformado como informe no encontrado",
+          "oculta token revocado como informe no encontrado",
           "aplica rate limit nativo fijo",
         ],
       },

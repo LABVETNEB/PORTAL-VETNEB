@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
 
 const ADMIN_SECTION_TABS_PATH =
   "frontend/src/app/dashboard/admin/AdminSectionTabs.tsx";
@@ -190,6 +191,7 @@ test("PR-8 dashboard accessibility scope avoids forbidden files", () => {
     "server/routes/contact.fastify.ts",
   ];
   for (const file of changedFiles) {
+    if (isReportForeignAccessBackendFile(file)) continue;
     if (pr4ServerFiles.includes(file)) continue;
     // Exact shared public SEO exception: this PR intentionally updates
     // OpenGraph/Twitter metadata without changing dashboard behavior.
