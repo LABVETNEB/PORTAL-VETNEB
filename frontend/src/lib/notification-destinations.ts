@@ -24,10 +24,10 @@ export function buildNotificationDestination(
         notification.particularTokenId ||
         isReportNotification(notification)
       ) {
-        return `${ROUTES.dashboardAdmin}#admin-particular-tokens`;
+        return `${ROUTES.dashboardAdmin}?module=admin-particular-tokens`;
       }
 
-      return `${ROUTES.dashboardAdmin}#admin-notifications`;
+      return `${ROUTES.dashboardAdmin}?module=audit-log`;
 
     case "clinic":
       if (notification.reportId) {
