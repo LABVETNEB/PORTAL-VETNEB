@@ -3,7 +3,9 @@ import type {
   FastifyReply,
   FastifyRequest,
 } from "fastify";
+import { eq } from "drizzle-orm";
 
+import { adminUsers } from "../../drizzle/schema.ts";
 import { AUDIT_EVENTS } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
@@ -105,8 +107,16 @@ export type AdminAuthNativeRoutesOptions = {
   getAdminUserByUsername?: (
     username: string,
   ) => Promise<AdminUserRecord | null>;
+  getAdminUserForPasswordChange?: (
+    adminUserId: number,
+  ) => Promise<AdminUserRecord | null>;
   updateAdminSessionLastAccess?: (tokenHash: string) => Promise<void>;
+  updateAdminPasswordHash?: (
+    adminUserId: number,
+    passwordHash: string,
+  ) => Promise<unknown>;
   generateSessionToken?: () => string;
+  hashPassword?: (password: string) => Promise<string>;
   hashSessionToken?: (token: string) => string;
   verifyPassword?: (
     password: string,
@@ -124,6 +134,9 @@ export type AdminAuthNativeRoutesOptions = {
 
 const REQUEST_TIMER_KEY = "__adminAuthRequestTimer";
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const PASSWORD_CHANGE_MIN_LENGTH = 8;
+const PASSWORD_CHANGE_ERROR_MESSAGE = "No se pudo actualizar la credencial.";
+const ADMIN_PASSWORD_CHANGED_AUDIT_EVENT = "auth.admin.password.changed";
 
 type AdminAuthFastifyRequest = FastifyRequest & {
   [REQUEST_TIMER_KEY]?: RuntimeTimer;
@@ -137,8 +150,11 @@ type NativeAdminAuthDeps = Required<
     | "getAdminSessionByToken"
     | "getAdminUserById"
     | "getAdminUserByUsername"
+    | "getAdminUserForPasswordChange"
     | "updateAdminSessionLastAccess"
+    | "updateAdminPasswordHash"
     | "generateSessionToken"
+    | "hashPassword"
     | "hashSessionToken"
     | "verifyPassword"
     | "writeAuditLog"
@@ -165,8 +181,22 @@ async function loadDefaultDeps(): Promise<NativeAdminAuthDefaultDeps> {
         getAdminSessionByToken: db.getAdminSessionByToken,
         getAdminUserById: db.getAdminUserById,
         getAdminUserByUsername: db.getAdminUserByUsername,
+        getAdminUserForPasswordChange: db.getAdminUserById,
         updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
+        updateAdminPasswordHash: async (
+          adminUserId: number,
+          passwordHash: string,
+        ) => {
+          await db.db
+            .update(adminUsers)
+            .set({
+              passwordHash,
+              updatedAt: new Date(),
+            })
+            .where(eq(adminUsers.id, adminUserId));
+        },
         generateSessionToken: authSecurity.generateSessionToken,
+        hashPassword: authSecurity.hashPassword,
         hashSessionToken: authSecurity.hashSessionToken,
         verifyPassword: authSecurity.verifyPassword,
         writeAuditLog: audit.writeAuditLog as (
@@ -378,6 +408,40 @@ function setLoginRateLimitHeaders(
   }
 }
 
+function isPasswordChangeBody(
+  body: unknown,
+): body is { currentPassword: string; newPassword: string } {
+  if (!body || typeof body !== "object") {
+    return false;
+  }
+
+  const candidate = body as {
+    currentPassword?: unknown;
+    newPassword?: unknown;
+  };
+
+  return (
+    typeof candidate.currentPassword === "string" &&
+    candidate.currentPassword.length > 0 &&
+    typeof candidate.newPassword === "string" &&
+    candidate.newPassword.length >= PASSWORD_CHANGE_MIN_LENGTH &&
+    candidate.newPassword.trim().length >= PASSWORD_CHANGE_MIN_LENGTH
+  );
+}
+
+function sendPasswordChangeRejected(reply: FastifyReply) {
+  return reply.code(400).send({
+    success: false,
+    error: PASSWORD_CHANGE_ERROR_MESSAGE,
+  });
+}
+
+function createMissingAdminPasswordChangeDep(name: string) {
+  return async () => {
+    throw new Error(`${name} dependency is required for admin password change`);
+  };
+}
+
 
 
 function getUserAgent(request: FastifyRequest) {
@@ -448,11 +512,31 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
       options.getAdminUserById ?? defaultDeps!.getAdminUserById,
     getAdminUserByUsername:
       options.getAdminUserByUsername ?? defaultDeps!.getAdminUserByUsername,
+    getAdminUserForPasswordChange:
+      options.getAdminUserForPasswordChange ??
+      defaultDeps?.getAdminUserForPasswordChange ??
+      (async (adminUserId: number) => {
+        const getAdminUserById =
+          options.getAdminUserById ?? defaultDeps?.getAdminUserById;
+        const record = await getAdminUserById?.(adminUserId);
+
+        return record && "passwordHash" in record
+          ? (record as AdminUserRecord)
+          : null;
+      }),
     updateAdminSessionLastAccess:
       options.updateAdminSessionLastAccess ??
       defaultDeps!.updateAdminSessionLastAccess,
+    updateAdminPasswordHash:
+      options.updateAdminPasswordHash ??
+      defaultDeps?.updateAdminPasswordHash ??
+      createMissingAdminPasswordChangeDep("updateAdminPasswordHash"),
     generateSessionToken:
       options.generateSessionToken ?? defaultDeps!.generateSessionToken,
+    hashPassword:
+      options.hashPassword ??
+      defaultDeps?.hashPassword ??
+      createMissingAdminPasswordChangeDep("hashPassword"),
     hashSessionToken:
       options.hashSessionToken ?? defaultDeps!.hashSessionToken,
     verifyPassword: options.verifyPassword ?? defaultDeps!.verifyPassword,
@@ -530,6 +614,7 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
   app.options("/login", optionsHandler);
   app.options("/me", optionsHandler);
   app.options("/logout", optionsHandler);
+  app.options("/change-password", optionsHandler);
 
   app.post<{
     Body: {
@@ -832,6 +917,202 @@ export const adminAuthNativeRoutes: FastifyPluginAsync<
         id: admin.id,
         username: admin.username,
       },
+    });
+  });
+
+  app.post<{
+    Body: {
+      currentPassword?: unknown;
+      newPassword?: unknown;
+    };
+  }>("/change-password", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const admin = await authenticateAdminUser(request, reply, deps, now);
+
+    if (!admin) {
+      return reply;
+    }
+
+    const currentTime = now();
+    const rateLimitKey = buildLoginRateLimitKey({
+      surface: "admin",
+      identifier: `password-change:${admin.id}`,
+      ipAddress: request.ip || null,
+    });
+
+    const failureEntry: RateLimitEntry = {
+      count: 0,
+      resetAt: currentTime + loginRateLimitWindowMs,
+    };
+    let canUseRateLimitStore = true;
+
+    try {
+      const existingEntry = await getOrCreateRateLimitEntry(
+        loginRateLimitStore,
+        rateLimitKey,
+        loginRateLimitWindowMs,
+        currentTime,
+      );
+
+      failureEntry.count = existingEntry.count;
+      failureEntry.resetAt = existingEntry.resetAt;
+    } catch (error) {
+      canUseRateLimitStore = false;
+      request.log.error(
+        {
+          err: error,
+          code: "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED",
+          route: "/api/admin/auth/change-password",
+        },
+        "No se pudo leer el rate limit de cambio de contraseña admin",
+      );
+    }
+
+    if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
+      setLoginRateLimitHeaders(reply, {
+        max: loginRateLimitMaxAttempts,
+        windowMs: loginRateLimitWindowMs,
+        failedCount: failureEntry.count,
+        resetAt: failureEntry.resetAt,
+        now: currentTime,
+        includeRetryAfter: true,
+      });
+
+      return reply.code(429).send(
+        buildLoginRateLimitResponse({
+          resetAt: failureEntry.resetAt,
+          now: currentTime,
+        }),
+      );
+    }
+
+    const markFailure = async () => {
+      if (!canUseRateLimitStore) {
+        return;
+      }
+
+      try {
+        const updatedEntry = await incrementRateLimitEntry(
+          loginRateLimitStore,
+          rateLimitKey,
+          failureEntry,
+          currentTime,
+        );
+
+        failureEntry.count = updatedEntry.count;
+        failureEntry.resetAt = updatedEntry.resetAt;
+
+        setLoginRateLimitHeaders(reply, {
+          max: loginRateLimitMaxAttempts,
+          windowMs: loginRateLimitWindowMs,
+          failedCount: failureEntry.count,
+          resetAt: failureEntry.resetAt,
+          now: currentTime,
+        });
+      } catch (error) {
+        canUseRateLimitStore = false;
+        request.log.error(
+          {
+            err: error,
+            code: "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_INCREMENT_FAILED",
+            route: "/api/admin/auth/change-password",
+          },
+          "No se pudo actualizar el rate limit de cambio de contraseña admin",
+        );
+      }
+    };
+
+    const markSuccess = async () => {
+      if (!canUseRateLimitStore) {
+        return;
+      }
+
+      if (loginRateLimitStore.delete) {
+        try {
+          await loginRateLimitStore.delete(rateLimitKey);
+        } catch (error) {
+          request.log.warn(
+            {
+              err: error,
+              code: "ADMIN_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED",
+              route: "/api/admin/auth/change-password",
+            },
+            "No se pudo limpiar el rate limit tras cambio de contraseña admin",
+          );
+        }
+      }
+
+      setLoginRateLimitHeaders(reply, {
+        max: loginRateLimitMaxAttempts,
+        windowMs: loginRateLimitWindowMs,
+        failedCount: 0,
+        resetAt: currentTime + loginRateLimitWindowMs,
+        now: currentTime,
+      });
+    };
+
+    if (!isPasswordChangeBody(request.body)) {
+      await markFailure();
+
+      return sendPasswordChangeRejected(reply);
+    }
+
+    const adminUser = await deps.getAdminUserForPasswordChange(admin.id);
+
+    if (!adminUser || adminUser.id !== admin.id || !adminUser.passwordHash) {
+      await markFailure();
+
+      return sendPasswordChangeRejected(reply);
+    }
+
+    const currentPasswordCheck = await deps.verifyPassword(
+      request.body.currentPassword,
+      adminUser.passwordHash,
+    );
+
+    if (!currentPasswordCheck.valid) {
+      await markFailure();
+
+      return sendPasswordChangeRejected(reply);
+    }
+
+    const newPasswordMatchesCurrent =
+      request.body.newPassword === request.body.currentPassword ||
+      (
+        await deps.verifyPassword(request.body.newPassword, adminUser.passwordHash)
+      ).valid;
+
+    if (newPasswordMatchesCurrent) {
+      await markFailure();
+
+      return sendPasswordChangeRejected(reply);
+    }
+
+    const newPasswordHash = await deps.hashPassword(request.body.newPassword);
+
+    await deps.updateAdminPasswordHash(admin.id, newPasswordHash);
+
+    await deps.writeAuditLog(createAuditRequestLike(request, admin), {
+      event: ADMIN_PASSWORD_CHANGED_AUDIT_EVENT,
+      targetAdminUserId: admin.id,
+      metadata: {
+        username: admin.username,
+        selfService: true,
+        sessionMaintained: true,
+      },
+      actor: {
+        type: "admin_user",
+        adminUserId: admin.id,
+      },
+    });
+
+    await markSuccess();
+
+    return reply.code(200).send({
+      success: true,
     });
   });
 

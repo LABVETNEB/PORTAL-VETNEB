@@ -19,6 +19,11 @@ test("sensitive response cache helper clasifica API no publica para no-store", (
   assert.equal(SENSITIVE_API_CACHE_CONTROL, "no-store");
   assert.equal(shouldApplySensitiveApiNoStore("/api/admin/auth/me"), true);
   assert.equal(
+    shouldApplySensitiveApiNoStore("/api/admin/auth/change-password"),
+    true,
+  );
+  assert.equal(shouldApplySensitiveApiNoStore("/api/auth/change-password"), true);
+  assert.equal(
     shouldApplySensitiveApiNoStore("/api/admin/failed-login-alerts?limit=5"),
     true,
   );
