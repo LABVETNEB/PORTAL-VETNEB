@@ -94,6 +94,20 @@ test("dashboard sidebar frame expands labels at 2xl while staying compact below 
   assert.ok(source.includes("2xl:not-sr-only"));
 });
 
+test("dashboard sidebar header shows brand identity only at 2xl and stays accessible when compact", () => {
+  const source = read(DASHBOARD_SIDEBAR_FRAME_PATH);
+
+  // Reuses the existing dashboardLabel prop — no hardcoded admin/clinic copy.
+  assert.ok(source.includes("Portal VETNEB"));
+  assert.ok(source.includes("{dashboardLabel}"));
+
+  // Compact (<2xl): brand text stays screen-reader-only.
+  assert.ok(/<span className="sr-only 2xl:hidden">/.test(source));
+
+  // Expanded (2xl+): visible brand block, hidden below 2xl.
+  assert.ok(source.includes('className="hidden min-w-0 2xl:block"'));
+});
+
 test("clinic dashboard sidebar keeps clinic operations and excludes admin navigation", () => {
   const source = read(CLINIC_DASHBOARD_SIDEBAR_PATH);
 

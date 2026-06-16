@@ -109,14 +109,24 @@ export function DashboardSidebarFrame({
       data-dashboard-sidebar-polish="true"
       aria-label="Navegación principal"
     >
-      <div className="flex items-center justify-center border-b border-sidebar-border px-2 py-5">
+      <div className="flex items-center justify-center 2xl:justify-start 2xl:gap-3 border-b border-sidebar-border px-2 2xl:px-3 py-5">
         <div
-          className="flex h-9 w-9 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_14px_34px_hsl(var(--sidebar-primary)/0.22)] ring-1 ring-white/20"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_14px_34px_hsl(var(--sidebar-primary)/0.22)] ring-1 ring-white/20"
           title="Portal VETNEB"
         >
           <Microscope className="h-4 w-4" aria-hidden="true" />
         </div>
-        <span className="sr-only">Portal VETNEB — {dashboardLabel}</span>
+        <span className="sr-only 2xl:hidden">
+          Portal VETNEB — {dashboardLabel}
+        </span>
+        <div className="hidden min-w-0 2xl:block">
+          <p className="truncate text-sm font-semibold leading-tight">
+            Portal VETNEB
+          </p>
+          <p className="truncate text-xs leading-tight text-sidebar-foreground/70">
+            {dashboardLabel}
+          </p>
+        </div>
       </div>
 
       <Suspense fallback={<div className="flex-1" aria-hidden="true" />}>
