@@ -19,6 +19,7 @@ type DashboardModuleHubProps = {
   heading: string;
   description?: string;
   cards: DashboardModuleCard[];
+  hero?: ReactNode;
   className?: string;
 };
 
@@ -26,20 +27,25 @@ export function DashboardModuleHub({
   heading,
   description,
   cards,
+  hero,
   className,
 }: DashboardModuleHubProps) {
   return (
-    <section
-      aria-label={heading}
-      data-dashboard-module-hub="true"
-      className={cn("space-y-4", className)}
-    >
-      <div>
-        <h2 className="dashboard-section-heading">{heading}</h2>
-        {description ? (
-          <p className="dashboard-section-description">{description}</p>
-        ) : null}
-      </div>
+    <div className={cn("space-y-5", className)}>
+      {hero ? (
+        <div data-dashboard-hub-hero-slot="true">{hero}</div>
+      ) : null}
+      <section
+        aria-label={heading}
+        data-dashboard-module-hub="true"
+        className="space-y-5"
+      >
+        <div>
+          <h2 className="dashboard-section-heading">{heading}</h2>
+          {description ? (
+            <p className="dashboard-section-description">{description}</p>
+          ) : null}
+        </div>
       <ul className="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => {
           const key = card.moduleId ?? card.href ?? card.title;
@@ -105,6 +111,7 @@ export function DashboardModuleHub({
           );
         })}
       </ul>
-    </section>
+      </section>
+    </div>
   );
 }

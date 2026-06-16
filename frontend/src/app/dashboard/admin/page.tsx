@@ -870,6 +870,8 @@ export default async function AdminPage({
             systemStatus={systemStatus}
             systemStatusLabel={formatSystemStatus(systemStatus)}
             systemStatusVariant={getSystemStatusVariant(systemStatus)}
+            auditEntriesCount={auditEntries.length}
+            eventTypesCount={Object.keys(eventCounts).length}
           />
         </Suspense>
         <div className="h-24 md:hidden" aria-hidden="true" />
