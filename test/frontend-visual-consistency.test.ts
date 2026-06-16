@@ -313,10 +313,10 @@ test("dashboard sidebar keeps shell consistency and responsive navigation classe
   assertMatchesAll(
     source,
     [
-      /className="sticky top-0 flex h-dvh w-\[4\.5rem\] shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground"/,
+      /className="sticky top-0 flex h-dvh w-\[4\.5rem\] 2xl:w-60 shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground"/,
       /className="flex items-center justify-center border-b border-sidebar-border px-2 py-5"/,
       /className="flex-1 space-y-1 px-2 py-4"/,
-      /"flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-semibold dashboard-nav-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring\/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"/,
+      /"flex items-center justify-center 2xl:justify-start gap-3 rounded-md px-2 py-2 2xl:px-3 text-sm font-semibold dashboard-nav-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring\/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"/,
       /className="sr-only" aria-hidden="true"/,
       /className="border-t border-sidebar-border px-2 py-4 sm:px-3"/,
     ],
