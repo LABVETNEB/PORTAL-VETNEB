@@ -1,4 +1,28 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+// The branded not-found CTAs navigate through an onClick handler (router.push),
+// which only runs after React hydrates. Right after a `domcontentloaded`
+// navigation the handler may not be attached yet, so the first click can be a
+// no-op and the URL stays put. Retry the click until the navigation actually
+// happens, mirroring the hydration-probe pattern used elsewhere in the suite
+// (see contacto-hydration.spec.ts).
+async function clickAndExpectNavigation(
+  page: Page,
+  name: string,
+  expectedUrl: string,
+): Promise<void> {
+  const control = page.getByRole("button", { name });
+
+  await expect(control).toBeVisible();
+  await expect(control).toBeEnabled();
+  await expect(async () => {
+    await control.click();
+    await expect(page).toHaveURL(expectedUrl, { timeout: 500 });
+  }).toPass({
+    intervals: [50, 100, 250],
+    timeout: 5_000,
+  });
+}
 
 const routes = [
   { path: "/", text: /VETNEB/i },
@@ -80,20 +104,17 @@ test("unknown route renders the branded not-found page without mobile overflow",
   );
   expect(overflow).toBeLessThanOrEqual(0);
 
-  await page.getByRole("button", { name: "Ver servicios" }).click();
-  await expect(page).toHaveURL("/servicios");
+  await clickAndExpectNavigation(page, "Ver servicios", "/servicios");
 
   await page.goto("/ruta-institucional-inexistente", {
     waitUntil: "domcontentloaded",
   });
-  await page.getByRole("button", { name: "Contactar" }).click();
-  await expect(page).toHaveURL("/contacto");
+  await clickAndExpectNavigation(page, "Contactar", "/contacto");
 
   await page.goto("/ruta-institucional-inexistente", {
     waitUntil: "domcontentloaded",
   });
-  await page.getByRole("button", { name: "Volver al inicio" }).click();
-  await expect(page).toHaveURL("/");
+  await clickAndExpectNavigation(page, "Volver al inicio", "/");
 });
 
 test("global metadata publishes one dedicated OpenGraph and Twitter image", async ({

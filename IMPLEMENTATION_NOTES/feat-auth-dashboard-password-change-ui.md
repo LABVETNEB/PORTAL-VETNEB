@@ -88,3 +88,33 @@ or navigation changes.
 
 ## Rollback
 Revert this PR.
+
+## CI follow-up
+- Investigated the Frontend CI failure in `frontend/e2e/public-routes.spec.ts`
+  ("unknown route renders the branded not-found page ..."), which is unrelated to
+  the password-change scope (the PR diff does not touch the not-found page or any
+  public navigation).
+- Root cause: the branded not-found CTAs navigate via an `onClick` handler
+  (`PublicRouteControl` → `router.push`), which only runs after React hydrates.
+  The test clicked "Contactar"/"Volver al inicio" immediately after a
+  `domcontentloaded` navigation, so the click raced hydration and was lost
+  (URL stayed on the unknown route). "Ver servicios" passed only because many
+  awaited assertions preceded it, giving hydration time.
+- The repo intentionally forbids `next/link` and `<a>` in frontend source
+  (public navigation hardening contract), so the product stays on the
+  button + `router.push` pattern. Fix is test-only: wrap the not-found CTA
+  navigations in the suite's established hydration-safe `toPass` retry
+  (mirrors `frontend/e2e/contacto-hydration.spec.ts`).
+- No backend, dependency, product or password-flow scope changes.
+
+### CI follow-up validation
+- `pnpm --dir frontend lint` -> PASS
+- `pnpm --dir frontend typecheck` -> PASS
+- `pnpm --dir frontend build` -> PASS
+- `pnpm --dir frontend exec playwright test e2e/public-routes.spec.ts
+  --project=chromium` -> PASS (9/9, including the previously failing not-found
+  test)
+- `pnpm test` -> PASS (2749 passed, 0 failed; navigation-hardening contracts
+  stay green)
+- `pnpm typecheck:test` -> PASS
+- `pnpm security:public-surface` -> PASS
