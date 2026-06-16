@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Route,
 } from "lucide-react";
+import { DashboardHubHero } from "./DashboardHubHero";
 import { DashboardModuleHub } from "./DashboardModuleHub";
 import { DashboardModuleWorkspace } from "./DashboardModuleWorkspace";
 import { ROUTES } from "@/lib/routes";
@@ -132,6 +133,32 @@ export function ClinicDashboardWorkspaceController({
     router.replace(ROUTES.dashboard, { scroll: false });
   }, [router]);
 
+  const clinicHero = (
+    <DashboardHubHero
+      variant="clinic"
+      icon={LayoutDashboard}
+      eyebrow="Workspace operativo · Clínica"
+      title="Centro de operaciones clínica"
+      description="Resumen accionable de informes y logística antes de abrir cada módulo."
+      statusLabel={pendingReports > 0 ? "Atención requerida" : "Operación al día"}
+      statusTone={pendingReports > 0 ? "warn" : "ok"}
+      metrics={[
+        {
+          label: "Informes pendientes",
+          value: pendingReports,
+          hint: pendingReports > 0 ? "Requieren atención" : "Sin pendientes",
+        },
+        {
+          label: "Visitas activas",
+          value: activeVisits,
+          hint: activeVisits > 0 ? "En curso o programadas" : "Sin visitas activas",
+        },
+      ]}
+      primaryActionLabel="Abrir centro de operaciones"
+      onPrimaryAction={() => activateModule("operaciones")}
+    />
+  );
+
   const clinicCards = [
     {
       icon: LayoutDashboard,
@@ -212,6 +239,7 @@ export function ClinicDashboardWorkspaceController({
       heading="Módulos operativos"
       description="Acceso rápido a informes, logística, perfil público y tokens de la clínica."
       cards={clinicCards}
+      hero={clinicHero}
     />
   );
 }

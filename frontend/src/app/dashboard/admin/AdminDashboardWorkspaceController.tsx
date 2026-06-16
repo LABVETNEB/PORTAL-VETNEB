@@ -15,6 +15,8 @@ import {
   UsersRound,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { DashboardHubHero } from "@/components/dashboard/DashboardHubHero";
+import type { DashboardHubHeroStatusTone } from "@/components/dashboard/DashboardHubHero";
 import { DashboardModuleHub } from "@/components/dashboard/DashboardModuleHub";
 import { DashboardModuleWorkspace } from "@/components/dashboard/DashboardModuleWorkspace";
 import {
@@ -74,7 +76,16 @@ type AdminDashboardWorkspaceControllerProps = {
   systemStatus: string;
   systemStatusLabel: string;
   systemStatusVariant: "default" | "secondary" | "destructive" | "outline";
+  auditEntriesCount: number;
+  eventTypesCount: number;
 };
+
+function getHeroStatusTone(systemStatus: string): DashboardHubHeroStatusTone {
+  if (systemStatus === "ok") return "ok";
+  if (systemStatus === "degraded") return "warn";
+  if (systemStatus === "down") return "down";
+  return "neutral";
+}
 
 const ADMIN_MODULE_META: Record<AdminModule, { title: string; description: string }> = {
   admin: {
@@ -125,6 +136,8 @@ export function AdminDashboardWorkspaceController({
   systemStatus,
   systemStatusLabel,
   systemStatusVariant,
+  auditEntriesCount,
+  eventTypesCount,
 }: AdminDashboardWorkspaceControllerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -168,6 +181,32 @@ export function AdminDashboardWorkspaceController({
     setHasManuallyReturnedToHub(true);
     router.replace("/dashboard/admin", { scroll: false });
   }, [router]);
+
+  const adminHero = (
+    <DashboardHubHero
+      variant="admin"
+      icon={ShieldCheck}
+      eyebrow="Centro de control · Administración"
+      title="Centro de control operativo"
+      description="Estado del sistema, seguridad y auditoría en una sola lectura antes de abrir cada módulo."
+      statusLabel={systemStatusLabel}
+      statusTone={getHeroStatusTone(systemStatus)}
+      metrics={[
+        {
+          label: "Eventos de auditoría",
+          value: auditEntriesCount,
+          hint: "Registros totales",
+        },
+        {
+          label: "Tipos de evento",
+          value: eventTypesCount,
+          hint: "Categorías distintas",
+        },
+      ]}
+      primaryActionLabel="Abrir administración"
+      onPrimaryAction={() => activateModule("admin")}
+    />
+  );
 
   const adminCards = [
     {
@@ -275,6 +314,7 @@ export function AdminDashboardWorkspaceController({
       heading="Módulos de administración"
       description="Acceso a clínicas, precios, sesiones, auditoría y estado del sistema."
       cards={adminCards}
+      hero={adminHero}
     />
   );
 }

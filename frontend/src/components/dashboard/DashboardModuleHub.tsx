@@ -19,6 +19,7 @@ type DashboardModuleHubProps = {
   heading: string;
   description?: string;
   cards: DashboardModuleCard[];
+  hero?: ReactNode;
   className?: string;
 };
 
@@ -26,14 +27,16 @@ export function DashboardModuleHub({
   heading,
   description,
   cards,
+  hero,
   className,
 }: DashboardModuleHubProps) {
   return (
     <section
       aria-label={heading}
       data-dashboard-module-hub="true"
-      className={cn("space-y-4", className)}
+      className={cn("space-y-5", className)}
     >
+      {hero ? <div>{hero}</div> : null}
       <div>
         <h2 className="dashboard-section-heading">{heading}</h2>
         {description ? (
