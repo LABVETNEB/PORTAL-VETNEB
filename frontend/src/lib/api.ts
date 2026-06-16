@@ -329,6 +329,39 @@ export async function logout(): Promise<void> {
   await apiFetch<void>("/api/auth/logout", { method: "POST" });
 }
 
+export type ChangePasswordInput = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+export type ChangePasswordResponse = {
+  success: true;
+};
+
+export async function changeClinicPassword(
+  input: ChangePasswordInput,
+): Promise<ChangePasswordResponse> {
+  return apiFetch<ChangePasswordResponse>("/api/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({
+      currentPassword: input.currentPassword,
+      newPassword: input.newPassword,
+    }),
+  });
+}
+
+export async function changeAdminPassword(
+  input: ChangePasswordInput,
+): Promise<ChangePasswordResponse> {
+  return apiFetch<ChangePasswordResponse>("/api/admin/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({
+      currentPassword: input.currentPassword,
+      newPassword: input.newPassword,
+    }),
+  });
+}
+
 export async function loginParticular(
   credentials: ParticularLoginCredentials,
 ): Promise<ParticularAuthResponse> {
