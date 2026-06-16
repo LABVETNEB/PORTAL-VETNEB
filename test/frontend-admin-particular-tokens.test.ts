@@ -291,7 +291,7 @@ test("admin dashboard mounts token generator and exposes admin navigation anchor
   assert.ok(page.includes('id="admin-particular-tokens"'));
   assert.ok(page.includes("<AdminParticularTokensCard />"));
   assert.ok(sidebar.includes('label: "Tokens particulares"'));
-  assert.ok(sidebar.includes('`${ROUTES.dashboardAdmin}#admin-particular-tokens`'));
+  assert.ok(sidebar.includes('`${ROUTES.dashboardAdmin}?module=admin-particular-tokens`'));
 });
 
 test("clinic token generator remains clinic-scoped and separate from admin generator", () => {

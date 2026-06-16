@@ -19,47 +19,47 @@ const API_CLIENT_PATH = "frontend/src/lib/api.ts";
 const SIDEBAR_SECTIONS = [
   {
     label: "Subir informe",
-    href: '#admin-report-upload',
+    href: '?module=admin-report-upload',
     anchor: 'id="admin-report-upload"',
   },
   {
     label: "Estado",
-    href: '#admin-health',
+    href: '?module=admin-health',
     anchor: 'id="admin-health"',
   },
   {
     label: "Clínicas",
-    href: '#admin-clinics',
+    href: '?module=admin-clinics',
     anchor: 'id="admin-clinics"',
   },
   {
     label: "Tokens particulares",
-    href: '#admin-particular-tokens',
+    href: '?module=admin-particular-tokens',
     anchor: 'id="admin-particular-tokens"',
   },
   {
     label: "Precios",
-    href: '#admin-pricing',
+    href: '?module=admin-pricing',
     anchor: 'id="admin-pricing"',
   },
   {
     label: "Sesiones",
-    href: '#admin-sessions',
+    href: '?module=admin-sessions',
     anchor: 'id="admin-sessions"',
   },
   {
     label: "Roles clínica",
-    href: '#admin-users-roles',
+    href: '?module=admin-users-roles',
     anchor: 'id="admin-users-roles"',
   },
   {
     label: "Auditoría",
-    href: '#audit-log',
+    href: '?module=audit-log',
     anchor: 'id="audit-log"',
   },
   {
     label: "Mantenimiento",
-    href: '#admin-maintenance',
+    href: '?module=admin-maintenance',
     anchor: 'id="admin-maintenance"',
   },
 ] as const;

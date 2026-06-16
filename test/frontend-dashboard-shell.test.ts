@@ -60,7 +60,7 @@ test("dashboard sidebar frame is the shared visual shell for both roles", () => 
   const source = read(DASHBOARD_SIDEBAR_FRAME_PATH);
 
   assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes('import { usePathname } from "next/navigation";'));
+  assert.ok(source.includes('import { usePathname, useSearchParams } from "next/navigation";'));
   assert.ok(source.includes('import { ROUTES } from "@/lib/routes";'));
   assert.ok(source.includes("export type DashboardNavItem = {"));
   assert.ok(source.includes("dashboardLabel: string;"));
@@ -72,7 +72,8 @@ test("dashboard sidebar frame is the shared visual shell for both roles", () => 
   assert.ok(source.includes('aria-label="Menú principal"'));
   assert.ok(source.includes("focus-visible:ring-2 focus-visible:ring-ring/85"));
   assert.ok(source.includes("function isActive(href: string, exact = false)"));
-  assert.ok(source.includes("if (exact) return pathname === hrefPath;"));
+  assert.ok(source.includes('const activeModule = searchParams.get("module");'));
+  assert.ok(source.includes("if (exact) return pathname === hrefPath && !activeModule;"));
   assert.ok(source.includes("item.children && isActive(item.href)"));
   assert.ok(source.includes("item.children.map((child) =>"));
   assert.ok(source.includes("Portal VETNEB"));
@@ -110,9 +111,9 @@ test("admin dashboard sidebar keeps admin operations and excludes clinic navigat
   assert.ok(source.includes('label: "Auditoría"'));
   assert.ok(source.includes('label: "Mantenimiento"'));
   assert.ok(source.includes("ROUTES.dashboardAdmin"));
-  assert.ok(source.includes('href: `${ROUTES.dashboardAdmin}#admin-clinics`'));
-  assert.ok(source.includes('href: `${ROUTES.dashboardAdmin}#admin-pricing`'));
-  assert.ok(source.includes('href: `${ROUTES.dashboardAdmin}#admin-users-roles`'));
+  assert.ok(source.includes('href: `${ROUTES.dashboardAdmin}?module=admin-clinics`'));
+  assert.ok(source.includes('href: `${ROUTES.dashboardAdmin}?module=admin-pricing`'));
+  assert.ok(source.includes('href: `${ROUTES.dashboardAdmin}?module=admin-users-roles`'));
   assert.equal(source.includes('href: `${ROUTES.dashboardAdmin}#audit-role-changes`'), false);
   assert.equal(source.includes("clinic-public-profile"), false);
   assert.equal(source.includes("clinic-particular-tokens"), false);
