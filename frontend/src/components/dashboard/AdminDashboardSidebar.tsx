@@ -25,47 +25,47 @@ const adminNavItems: DashboardNavItem[] = [
   },
   {
     label: "Subir informe",
-    href: `${ROUTES.dashboardAdmin}#admin-report-upload`,
+    href: `${ROUTES.dashboardAdmin}?module=admin-report-upload`,
     icon: ClipboardPlus,
   },
   {
     label: "Estado",
-    href: `${ROUTES.dashboardAdmin}#admin-health`,
+    href: `${ROUTES.dashboardAdmin}?module=admin-health`,
     icon: Activity,
   },
   {
     label: "Clínicas",
-    href: `${ROUTES.dashboardAdmin}#admin-clinics`,
+    href: `${ROUTES.dashboardAdmin}?module=admin-clinics`,
     icon: Building2,
   },
   {
     label: "Tokens particulares",
-    href: `${ROUTES.dashboardAdmin}#admin-particular-tokens`,
+    href: `${ROUTES.dashboardAdmin}?module=admin-particular-tokens`,
     icon: TicketCheck,
   },
   {
     label: "Precios",
-    href: `${ROUTES.dashboardAdmin}#admin-pricing`,
+    href: `${ROUTES.dashboardAdmin}?module=admin-pricing`,
     icon: ReceiptText,
   },
   {
     label: "Sesiones",
-    href: `${ROUTES.dashboardAdmin}#admin-sessions`,
+    href: `${ROUTES.dashboardAdmin}?module=admin-sessions`,
     icon: KeyRound,
   },
   {
     label: "Roles clínica",
-    href: `${ROUTES.dashboardAdmin}#admin-users-roles`,
+    href: `${ROUTES.dashboardAdmin}?module=admin-users-roles`,
     icon: UsersRound,
   },
   {
     label: "Auditoría",
-    href: `${ROUTES.dashboardAdmin}#audit-log`,
+    href: `${ROUTES.dashboardAdmin}?module=audit-log`,
     icon: ScrollText,
   },
   {
     label: "Mantenimiento",
-    href: `${ROUTES.dashboardAdmin}#admin-maintenance`,
+    href: `${ROUTES.dashboardAdmin}?module=admin-maintenance`,
     icon: ShieldCheck,
   },
 ];
