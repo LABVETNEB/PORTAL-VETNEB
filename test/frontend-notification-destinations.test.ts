@@ -41,11 +41,11 @@ test("buildNotificationDestination admin routes report and token notifications t
   assert.ok(adminCase.includes("isReportNotification(notification)"));
   assert.ok(
     adminCase.includes(
-      "`${ROUTES.dashboardAdmin}#admin-particular-tokens`",
+      "`${ROUTES.dashboardAdmin}?module=admin-particular-tokens`",
     ),
   );
   assert.ok(
-    adminCase.includes("`${ROUTES.dashboardAdmin}#admin-notifications`"),
+    adminCase.includes("`${ROUTES.dashboardAdmin}?module=audit-log`"),
   );
 });
 
@@ -92,4 +92,54 @@ test("buildNotificationDestination particular routes report and study tracking n
     ),
   );
   assert.ok(particularCase.includes("return ROUTES.particulares;"));
+});
+
+test("admin notification destinations use the ?module= contract with valid module ids", () => {
+  const source = read(DESTINATIONS_PATH);
+  const controller = read(
+    "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx",
+  );
+  const adminCase = sectionBetween(source, 'case "admin":', 'case "clinic":');
+
+  assert.equal(
+    /#admin-/.test(adminCase),
+    false,
+    "admin notification destinations must not use legacy #admin- anchors",
+  );
+
+  const adminModuleIds = [...adminCase.matchAll(/\?module=([a-z-]+)/g)].map(
+    (match) => match[1],
+  );
+
+  assert.ok(adminModuleIds.includes("admin-particular-tokens"));
+  assert.ok(adminModuleIds.includes("audit-log"));
+
+  for (const moduleId of adminModuleIds) {
+    assert.ok(
+      controller.includes(`"${moduleId}"`),
+      `notification module ${moduleId} must be a valid admin module`,
+    );
+  }
+});
+
+test("notification destinations stay internal and keep clinic/particular anchors", () => {
+  const source = read(DESTINATIONS_PATH);
+  const clinicCase = sectionBetween(
+    source,
+    'case "clinic":',
+    'case "particular":',
+  );
+
+  assert.ok(clinicCase.includes("#report-${notification.reportId}"));
+  assert.ok(
+    clinicCase.includes(
+      "#clinic-particular-token-${notification.particularTokenId}",
+    ),
+  );
+
+  assert.equal(
+    /https?:\/\//.test(source),
+    false,
+    "notification destinations must stay internal (no external URLs)",
+  );
 });
