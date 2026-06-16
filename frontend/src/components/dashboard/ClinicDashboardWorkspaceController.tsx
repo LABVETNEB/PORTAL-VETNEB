@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, type ReactNode } from "react";
+import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Building2,
@@ -12,6 +12,11 @@ import {
 import { DashboardModuleHub } from "./DashboardModuleHub";
 import { DashboardModuleWorkspace } from "./DashboardModuleWorkspace";
 import { ROUTES } from "@/lib/routes";
+import {
+  CLINIC_LAST_MODULE_STORAGE_KEY,
+  readDashboardLastModule,
+  writeDashboardLastModule,
+} from "@/lib/dashboard-last-module";
 
 const CLINIC_MODULE_VALUES = [
   "operaciones",
@@ -87,10 +92,31 @@ export function ClinicDashboardWorkspaceController({
   const [activeModule, setActiveModule] = useState<ClinicModule | null>(
     initialModule ?? null,
   );
+  const hasRestoredLastModule = useRef(false);
+  const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
+    useState(false);
 
   useEffect(() => {
     setActiveModule(parseModuleFromUrl(searchParams.get("module")));
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!activeModule) return;
+    writeDashboardLastModule(CLINIC_LAST_MODULE_STORAGE_KEY, activeModule);
+  }, [activeModule]);
+
+  useEffect(() => {
+    if (hasRestoredLastModule.current || hasManuallyReturnedToHub) return;
+    if (searchParams.get("module")) return;
+    const lastModule = parseModuleFromUrl(
+      readDashboardLastModule(CLINIC_LAST_MODULE_STORAGE_KEY),
+    );
+    if (!lastModule) return;
+    hasRestoredLastModule.current = true;
+    router.replace(`${ROUTES.dashboard}?module=${lastModule}`, {
+      scroll: false,
+    });
+  }, [searchParams, hasManuallyReturnedToHub, router]);
 
   const activateModule = useCallback(
     (moduleId: ClinicModule) => {
@@ -102,6 +128,7 @@ export function ClinicDashboardWorkspaceController({
 
   const backToHub = useCallback(() => {
     setActiveModule(null);
+    setHasManuallyReturnedToHub(true);
     router.replace(ROUTES.dashboard, { scroll: false });
   }, [router]);
 
