@@ -77,14 +77,26 @@ test("DashboardHubHero stores or renders no sensitive identifiers", () => {
 
 // ── Module hub: optional hero slot above cards ───────────────────────────────
 
-test("DashboardModuleHub accepts an optional hero slot and keeps module-card contracts", () => {
+test("DashboardModuleHub renders the hero slot outside the module-card section", () => {
   const source = read(HUB_PATH);
 
   assert.ok(source.includes("hero?: ReactNode;"));
   assert.ok(source.includes("hero,"));
-  assert.ok(source.includes("{hero ? <div>{hero}</div> : null}"));
+  assert.ok(source.includes('data-dashboard-hub-hero-slot="true"'));
   assert.ok(source.includes('data-dashboard-module-hub="true"'));
   assert.ok(source.includes("data-dashboard-module-card={card.moduleId}"));
+
+  // Regression guard for the E2E `hub.locator("button")` selector: the hero
+  // (with its CTA button) must render BEFORE/OUTSIDE the module-card section so
+  // it is never counted among the hub's accessible module cards.
+  const heroSlotIndex = source.indexOf('data-dashboard-hub-hero-slot="true"');
+  const moduleHubIndex = source.indexOf('data-dashboard-module-hub="true"');
+  assert.ok(heroSlotIndex >= 0);
+  assert.ok(moduleHubIndex >= 0);
+  assert.ok(
+    heroSlotIndex < moduleHubIndex,
+    "hero slot must render before (outside) the module-card section",
+  );
 });
 
 // ── Clinic controller wiring ─────────────────────────────────────────────────
