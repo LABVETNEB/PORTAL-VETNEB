@@ -145,8 +145,8 @@ export default async function DashboardPage({
               ),
               perfil: (
                 <div className="space-y-6">
-                  <ClinicPublicProfileCard />
                   <PasswordChangePanel variant="clinic" />
+                  <ClinicPublicProfileCard />
                 </div>
               ),
               tokens: <ClinicParticularTokensCard />,

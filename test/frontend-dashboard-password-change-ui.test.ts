@@ -70,6 +70,18 @@ test("clinic dashboard wires the panel with the clinic variant", () => {
   assert.ok(source.includes('<PasswordChangePanel variant="clinic" />'));
   // The existing public profile card is preserved in the same workspace.
   assert.ok(source.includes("<ClinicPublicProfileCard />"));
+
+  // PR #1005: the security panel is surfaced above the public profile card so
+  // it is visible immediately when the perfil workspace opens.
+  assert.ok(
+    source.indexOf('<PasswordChangePanel variant="clinic" />') <
+      source.indexOf("<ClinicPublicProfileCard />"),
+    "clinic password panel must render before the public profile card",
+  );
+
+  // No new "Seguridad" module/navigation is introduced; the panel stays inside
+  // the existing perfil workspace.
+  assert.equal(source.toLowerCase().includes('"seguridad"'), false);
 });
 
 test("admin dashboard wires the panel with the admin variant", () => {
@@ -84,6 +96,18 @@ test("admin dashboard wires the panel with the admin variant", () => {
   // The existing sessions card and its anchor are preserved.
   assert.ok(source.includes("<AdminSessionsReadOnlyCard />"));
   assert.ok(source.includes('id="admin-sessions"'));
+
+  // PR #1005: the security panel is surfaced above the sessions card so it is
+  // visible immediately when the admin-sessions workspace opens.
+  assert.ok(
+    source.indexOf('<PasswordChangePanel variant="admin" />') <
+      source.indexOf("<AdminSessionsReadOnlyCard />"),
+    "admin password panel must render before the sessions card",
+  );
+
+  // No new "Seguridad" admin module/navigation is introduced; the panel stays
+  // inside the existing admin-sessions workspace.
+  assert.equal(source.toLowerCase().includes('"seguridad"'), false);
 });
 
 test("no clinic, admin or particular password change leaks to public/particular surfaces", () => {

@@ -589,8 +589,8 @@ export default async function AdminPage({
   // ── Sesiones workspace ──────────────────────────────────────────────────────
   const sessionsWorkspaceSlot = (
     <section id="admin-sessions" className="space-y-6">
-      <AdminSessionsReadOnlyCard />
       <PasswordChangePanel variant="admin" />
+      <AdminSessionsReadOnlyCard />
     </section>
   );
 
