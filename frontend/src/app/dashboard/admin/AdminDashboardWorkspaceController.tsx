@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, type ReactNode } from "react";
+import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
@@ -17,6 +17,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { DashboardModuleHub } from "@/components/dashboard/DashboardModuleHub";
 import { DashboardModuleWorkspace } from "@/components/dashboard/DashboardModuleWorkspace";
+import {
+  ADMIN_LAST_MODULE_STORAGE_KEY,
+  readDashboardLastModule,
+  writeDashboardLastModule,
+} from "@/lib/dashboard-last-module";
 
 export type AdminModule =
   | "admin"
@@ -126,10 +131,29 @@ export function AdminDashboardWorkspaceController({
   const [activeModule, setActiveModule] = useState<AdminModule | null>(
     initialModule ?? null,
   );
+  const hasRestoredLastModule = useRef(false);
+  const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
+    useState(false);
 
   useEffect(() => {
     setActiveModule(parseModuleFromUrl(searchParams.get("module")));
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!activeModule) return;
+    writeDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY, activeModule);
+  }, [activeModule]);
+
+  useEffect(() => {
+    if (hasRestoredLastModule.current || hasManuallyReturnedToHub) return;
+    if (searchParams.get("module")) return;
+    const lastModule = parseModuleFromUrl(
+      readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY),
+    );
+    if (!lastModule) return;
+    hasRestoredLastModule.current = true;
+    router.replace(`/dashboard/admin?module=${lastModule}`, { scroll: false });
+  }, [searchParams, hasManuallyReturnedToHub, router]);
 
   const activateModule = useCallback(
     (moduleId: AdminModule) => {
@@ -141,6 +165,7 @@ export function AdminDashboardWorkspaceController({
 
   const backToHub = useCallback(() => {
     setActiveModule(null);
+    setHasManuallyReturnedToHub(true);
     router.replace("/dashboard/admin", { scroll: false });
   }, [router]);
 

@@ -147,16 +147,34 @@ test("cookie persistence contract: serializeCookie emits Max-Age directive", () 
 // 4. No frontend code uses sessionStorage / localStorage as auth source
 // ---------------------------------------------------------------------------
 
-// Non-auth UI preference files allowed to persist the visual theme choice.
-// They must only touch the vetneb-theme-mode key and never session/auth state.
-const THEME_PREFERENCE_FILES = [
-  "frontend/src/lib/theme.ts",
-  "frontend/src/components/theme/ThemeModeToggle.tsx",
+// Non-auth UI preference files allowed to persist a non-sensitive client choice
+// via localStorage. Each may only touch its own allowlisted preference key(s)
+// and never session/auth state.
+const UI_PREFERENCE_FILES: Array<{ path: string; keyMarkers: string[] }> = [
+  {
+    path: "frontend/src/lib/theme.ts",
+    keyMarkers: ['"vetneb-theme-mode"', "THEME_STORAGE_KEY"],
+  },
+  {
+    path: "frontend/src/components/theme/ThemeModeToggle.tsx",
+    keyMarkers: ['"vetneb-theme-mode"', "THEME_STORAGE_KEY"],
+  },
+  {
+    path: "frontend/src/lib/dashboard-last-module.ts",
+    keyMarkers: [
+      "CLINIC_LAST_MODULE_STORAGE_KEY",
+      "ADMIN_LAST_MODULE_STORAGE_KEY",
+    ],
+  },
 ];
 
-function isThemePreferenceFile(file: string): boolean {
+function matchUiPreferenceFile(
+  file: string,
+): { path: string; keyMarkers: string[] } | undefined {
   const normalized = file.split("\\").join("/");
-  return THEME_PREFERENCE_FILES.some((allowed) => normalized.endsWith(allowed));
+  return UI_PREFERENCE_FILES.find((allowed) =>
+    normalized.endsWith(allowed.path),
+  );
 }
 
 test("cookie persistence contract: frontend has no sessionStorage or localStorage auth source", () => {
@@ -173,11 +191,11 @@ test("cookie persistence contract: frontend has no sessionStorage or localStorag
       `${relPath} must not use sessionStorage`,
     );
 
-    if (isThemePreferenceFile(file)) {
+    const uiPreference = matchUiPreferenceFile(file);
+    if (uiPreference) {
       assert.ok(
-        source.includes('"vetneb-theme-mode"') ||
-          source.includes("THEME_STORAGE_KEY"),
-        `${relPath} may only use localStorage for the vetneb-theme-mode key`,
+        uiPreference.keyMarkers.some((marker) => source.includes(marker)),
+        `${relPath} may only use localStorage for its allowlisted preference key`,
       );
       for (const forbidden of ["session", "auth", "cookie", "token"]) {
         assert.equal(
