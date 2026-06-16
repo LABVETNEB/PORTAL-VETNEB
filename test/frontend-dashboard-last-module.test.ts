@@ -6,11 +6,15 @@ import test from "node:test";
 const {
   CLINIC_LAST_MODULE_STORAGE_KEY,
   ADMIN_LAST_MODULE_STORAGE_KEY,
+  clearDashboardLastModules,
   readDashboardLastModule,
   writeDashboardLastModule,
 } = await import("../frontend/src/lib/dashboard-last-module.ts");
 
 const STORAGE_PATH = "frontend/src/lib/dashboard-last-module.ts";
+const AUTH_CONTEXT_PATH = "frontend/src/context/AuthContext.tsx";
+const DASHBOARD_TOPBAR_PATH =
+  "frontend/src/components/dashboard/DashboardTopbar.tsx";
 const ADMIN_CONTROLLER_PATH =
   "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx";
 const CLINIC_CONTROLLER_PATH =
@@ -24,6 +28,17 @@ function read(relativePath: string): string {
 }
 
 const globalRef = globalThis as { window?: unknown };
+
+function withoutWindow(run: () => void): void {
+  const had = "window" in globalRef;
+  const prev = globalRef.window;
+  if (had) delete globalRef.window;
+  try {
+    run();
+  } finally {
+    if (had) globalRef.window = prev;
+  }
+}
 
 function withStubbedWindow(stub: unknown, run: () => void): void {
   const had = "window" in globalRef;
@@ -40,14 +55,9 @@ function withStubbedWindow(stub: unknown, run: () => void): void {
 // ── 9.1 Helper runtime behavior ─────────────────────────────────────────────
 
 test("readDashboardLastModule returns null when window is unavailable (SSR)", () => {
-  const had = "window" in globalRef;
-  const prev = globalRef.window;
-  if (had) delete globalRef.window;
-  try {
+  withoutWindow(() => {
     assert.equal(readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY), null);
-  } finally {
-    if (had) globalRef.window = prev;
-  }
+  });
 });
 
 test("readDashboardLastModule returns null when localStorage.getItem throws", () => {
@@ -113,6 +123,58 @@ test("write/read round-trips a module id under the exact role key and isolates r
         readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY),
         "admin-clinics",
       );
+    },
+  );
+});
+
+test("clearDashboardLastModules removes both role keys and keeps other UI preferences", () => {
+  const store = new Map<string, string>([
+    [CLINIC_LAST_MODULE_STORAGE_KEY, "perfil"],
+    [ADMIN_LAST_MODULE_STORAGE_KEY, "admin-clinics"],
+    ["vetneb-theme-mode", "dark"],
+  ]);
+  const removedKeys: string[] = [];
+
+  withStubbedWindow(
+    {
+      localStorage: {
+        removeItem: (key: string) => {
+          removedKeys.push(key);
+          store.delete(key);
+        },
+      },
+    },
+    () => {
+      clearDashboardLastModules();
+
+      assert.equal(store.has(CLINIC_LAST_MODULE_STORAGE_KEY), false);
+      assert.equal(store.has(ADMIN_LAST_MODULE_STORAGE_KEY), false);
+      assert.equal(store.get("vetneb-theme-mode"), "dark");
+      assert.deepEqual(removedKeys, [
+        CLINIC_LAST_MODULE_STORAGE_KEY,
+        ADMIN_LAST_MODULE_STORAGE_KEY,
+      ]);
+    },
+  );
+});
+
+test("clearDashboardLastModules does not throw when window is unavailable (SSR)", () => {
+  withoutWindow(() => {
+    assert.doesNotThrow(() => clearDashboardLastModules());
+  });
+});
+
+test("clearDashboardLastModules does not throw when localStorage.removeItem throws", () => {
+  withStubbedWindow(
+    {
+      localStorage: {
+        removeItem() {
+          throw new Error("storage blocked");
+        },
+      },
+    },
+    () => {
+      assert.doesNotThrow(() => clearDashboardLastModules());
     },
   );
 });
@@ -228,7 +290,38 @@ test("clinic controller persists/restores with the clinic key and replace-only r
   assert.equal(source.includes("localStorage"), false);
 });
 
-// ── 9.4 Scope: persisted-module surface stays client-side and self-contained ─
+// ── 9.4 Logout clears persisted module preferences ─────────────────────────
+
+test("dashboard topbar logout clears persisted module keys before routing to login", () => {
+  const source = read(DASHBOARD_TOPBAR_PATH);
+
+  assert.ok(
+    source.includes(
+      'import { clearDashboardLastModules } from "@/lib/dashboard-last-module";',
+    ),
+  );
+  assert.ok(source.includes("onClick={clearDashboardLastModules}"));
+  assert.ok(source.includes("href={ROUTES.login}"));
+  assert.equal(source.includes("localStorage"), false);
+});
+
+test("AuthContext logout clears persisted module keys after backend logout succeeds", () => {
+  const source = read(AUTH_CONTEXT_PATH);
+
+  assert.ok(
+    source.includes(
+      'import { clearDashboardLastModules } from "@/lib/dashboard-last-module";',
+    ),
+  );
+  assert.ok(
+    source.includes(
+      "await logoutClinic();\n    clearDashboardLastModules();\n    setUser(null);",
+    ),
+  );
+  assert.equal(source.includes("localStorage"), false);
+});
+
+// ── 9.5 Scope: persisted-module surface stays client-side and self-contained ─
 
 test("persisted-module surface does not reach backend, api, proxy or public layers", () => {
   const helper = read(STORAGE_PATH);

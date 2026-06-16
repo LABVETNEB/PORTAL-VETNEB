@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { getClinicSession, logout as logoutClinic } from "@/lib/api";
+import { clearDashboardLastModules } from "@/lib/dashboard-last-module";
 import type { AuthUser } from "@/types";
 
 type AuthContextValue = {
@@ -40,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await logoutClinic();
+    clearDashboardLastModules();
     setUser(null);
   }, []);
 

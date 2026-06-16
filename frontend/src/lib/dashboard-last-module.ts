@@ -20,3 +20,13 @@ export function writeDashboardLastModule(key: string, moduleId: string): void {
     // localStorage unavailable (private mode / disabled) — ignore.
   }
 }
+
+export function clearDashboardLastModules(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(CLINIC_LAST_MODULE_STORAGE_KEY);
+    window.localStorage.removeItem(ADMIN_LAST_MODULE_STORAGE_KEY);
+  } catch {
+    // localStorage unavailable - ignore.
+  }
+}
