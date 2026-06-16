@@ -29,6 +29,7 @@ import { AdminPricingEditorCard } from "./AdminPricingEditorCard";
 import { AdminSchemaHealthStatusCard } from "./AdminSchemaHealthStatusCard";
 import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";
 import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
+import { PasswordChangePanel } from "@/components/dashboard/PasswordChangePanel";
 import { AdminDashboardWorkspaceController } from "./AdminDashboardWorkspaceController";
 import type { AdminModule } from "./AdminDashboardWorkspaceController";
 import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
@@ -587,8 +588,9 @@ export default async function AdminPage({
 
   // ── Sesiones workspace ──────────────────────────────────────────────────────
   const sessionsWorkspaceSlot = (
-    <section id="admin-sessions">
+    <section id="admin-sessions" className="space-y-6">
       <AdminSessionsReadOnlyCard />
+      <PasswordChangePanel variant="admin" />
     </section>
   );
 

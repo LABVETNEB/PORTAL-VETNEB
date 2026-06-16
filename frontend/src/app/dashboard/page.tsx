@@ -8,6 +8,7 @@ import type { ClinicModule } from "@/components/dashboard/ClinicDashboardWorkspa
 import { ClinicCommandCenter } from "./ClinicCommandCenter";
 import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";
 import { ClinicPublicProfileCard } from "@/components/dashboard/ClinicPublicProfileCard";
+import { PasswordChangePanel } from "@/components/dashboard/PasswordChangePanel";
 import { ClinicInformesWorkspaceSummary } from "./ClinicInformesWorkspaceSummary";
 import { ClinicLogisticaWorkspaceSummary } from "./ClinicLogisticaWorkspaceSummary";
 import {
@@ -142,7 +143,12 @@ export default async function DashboardPage({
                   visitsLoadError={visitsLoadError}
                 />
               ),
-              perfil: <ClinicPublicProfileCard />,
+              perfil: (
+                <div className="space-y-6">
+                  <ClinicPublicProfileCard />
+                  <PasswordChangePanel variant="clinic" />
+                </div>
+              ),
               tokens: <ClinicParticularTokensCard />,
             }}
           />
