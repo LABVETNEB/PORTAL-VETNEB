@@ -55,6 +55,7 @@ type SessionClinicUserRecord = {
   id: number;
   clinicId: number;
   username: string;
+  passwordHash?: string;
   authProId?: string | null;
   role: unknown;
 };
@@ -87,6 +88,7 @@ type AuthenticatedClinicUser = {
   permissions: ReturnType<typeof getClinicPermissions>;
   canUploadReports: boolean;
   canManageClinicUsers: boolean;
+  passwordHash?: string;
   sessionToken: string;
 };
 
@@ -229,6 +231,8 @@ export type AuthNativeRoutesOptions = {
 
 const REQUEST_TIMER_KEY = "__clinicAuthRequestTimer";
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const PASSWORD_CHANGE_MIN_LENGTH = 8;
+const PASSWORD_CHANGE_ERROR_MESSAGE = "No se pudo actualizar la credencial.";
 
 type AuthFastifyRequest = FastifyRequest & {
   [REQUEST_TIMER_KEY]?: RuntimeTimer;
@@ -580,6 +584,34 @@ function setLoginRateLimitHeaders(
   }
 }
 
+function isPasswordChangeBody(
+  body: unknown,
+): body is { currentPassword: string; newPassword: string } {
+  if (!body || typeof body !== "object") {
+    return false;
+  }
+
+  const candidate = body as {
+    currentPassword?: unknown;
+    newPassword?: unknown;
+  };
+
+  return (
+    typeof candidate.currentPassword === "string" &&
+    candidate.currentPassword.length > 0 &&
+    typeof candidate.newPassword === "string" &&
+    candidate.newPassword.length >= PASSWORD_CHANGE_MIN_LENGTH &&
+    candidate.newPassword.trim().length >= PASSWORD_CHANGE_MIN_LENGTH
+  );
+}
+
+function sendPasswordChangeRejected(reply: FastifyReply) {
+  return reply.code(400).send({
+    success: false,
+    error: PASSWORD_CHANGE_ERROR_MESSAGE,
+  });
+}
+
 function getUserAgent(request: FastifyRequest) {
   const value = request.headers["user-agent"];
 
@@ -870,6 +902,7 @@ async function authenticateClinicUser(
     permissions,
     canUploadReports: permissions.canUploadReports,
     canManageClinicUsers: permissions.canManageClinicUsers,
+    passwordHash: clinicUser.passwordHash,
     sessionToken: token,
   };
 }
@@ -1022,6 +1055,7 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
   app.options("/login", optionsHandler);
   app.options("/me", optionsHandler);
   app.options("/logout", optionsHandler);
+  app.options("/change-password", optionsHandler);
 
   app.post<{
     Body: {
@@ -1348,6 +1382,208 @@ export const clinicAuthNativeRoutes: FastifyPluginAsync<
         role: auth.role,
       },
       permissions: auth.permissions,
+    });
+  });
+
+  app.post<{
+    Body: {
+      currentPassword?: unknown;
+      newPassword?: unknown;
+    };
+  }>("/change-password", async (request, reply) => {
+    if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
+      return reply;
+    }
+
+    const auth = await authenticateClinicUser(request, reply, deps, now);
+
+    if (!auth) {
+      return reply;
+    }
+
+    const currentTime = now();
+    const rateLimitKey = buildLoginRateLimitKey({
+      surface: "clinic",
+      identifier: `password-change:${auth.id}`,
+      ipAddress: request.ip || null,
+    });
+
+    const failureEntry: RateLimitEntry = {
+      count: 0,
+      resetAt: currentTime + loginRateLimitWindowMs,
+    };
+    let canUseRateLimitStore = true;
+
+    try {
+      const existingEntry = await getOrCreateRateLimitEntry(
+        loginRateLimitStore,
+        rateLimitKey,
+        loginRateLimitWindowMs,
+        currentTime,
+      );
+
+      failureEntry.count = existingEntry.count;
+      failureEntry.resetAt = existingEntry.resetAt;
+    } catch (error) {
+      canUseRateLimitStore = false;
+      request.log.error(
+        {
+          err: error,
+          code: "AUTH_PASSWORD_CHANGE_RATE_LIMIT_GET_FAILED",
+          route: "/api/auth/change-password",
+        },
+        "No se pudo leer el rate limit de cambio de contraseña clinic",
+      );
+    }
+
+    if (canUseRateLimitStore && failureEntry.count >= loginRateLimitMaxAttempts) {
+      setLoginRateLimitHeaders(reply, {
+        max: loginRateLimitMaxAttempts,
+        windowMs: loginRateLimitWindowMs,
+        failedCount: failureEntry.count,
+        resetAt: failureEntry.resetAt,
+        now: currentTime,
+        includeRetryAfter: true,
+      });
+
+      return reply.code(429).send(
+        buildLoginRateLimitResponse({
+          resetAt: failureEntry.resetAt,
+          now: currentTime,
+        }),
+      );
+    }
+
+    const markFailure = async () => {
+      if (!canUseRateLimitStore) {
+        return;
+      }
+
+      try {
+        const updatedEntry = await incrementRateLimitEntry(
+          loginRateLimitStore,
+          rateLimitKey,
+          failureEntry,
+          currentTime,
+        );
+
+        failureEntry.count = updatedEntry.count;
+        failureEntry.resetAt = updatedEntry.resetAt;
+
+        setLoginRateLimitHeaders(reply, {
+          max: loginRateLimitMaxAttempts,
+          windowMs: loginRateLimitWindowMs,
+          failedCount: failureEntry.count,
+          resetAt: failureEntry.resetAt,
+          now: currentTime,
+        });
+      } catch (error) {
+        canUseRateLimitStore = false;
+        request.log.error(
+          {
+            err: error,
+            code: "AUTH_PASSWORD_CHANGE_RATE_LIMIT_INCREMENT_FAILED",
+            route: "/api/auth/change-password",
+          },
+          "No se pudo actualizar el rate limit de cambio de contraseña clinic",
+        );
+      }
+    };
+
+    const markSuccess = async () => {
+      if (!canUseRateLimitStore) {
+        return;
+      }
+
+      if (loginRateLimitStore.delete) {
+        try {
+          await loginRateLimitStore.delete(rateLimitKey);
+        } catch (error) {
+          request.log.warn(
+            {
+              err: error,
+              code: "AUTH_PASSWORD_CHANGE_RATE_LIMIT_RESET_FAILED",
+              route: "/api/auth/change-password",
+            },
+            "No se pudo limpiar el rate limit tras cambio de contraseña clinic",
+          );
+        }
+      }
+
+      setLoginRateLimitHeaders(reply, {
+        max: loginRateLimitMaxAttempts,
+        windowMs: loginRateLimitWindowMs,
+        failedCount: 0,
+        resetAt: currentTime + loginRateLimitWindowMs,
+        now: currentTime,
+      });
+    };
+
+    if (!isPasswordChangeBody(request.body)) {
+      await markFailure();
+
+      return sendPasswordChangeRejected(reply);
+    }
+
+    if (!auth.passwordHash) {
+      await markFailure();
+
+      return sendPasswordChangeRejected(reply);
+    }
+
+    const currentPasswordCheck = await deps.verifyPassword(
+      request.body.currentPassword,
+      auth.passwordHash,
+    );
+
+    if (!currentPasswordCheck.valid) {
+      await markFailure();
+
+      return sendPasswordChangeRejected(reply);
+    }
+
+    const newPasswordMatchesCurrent =
+      request.body.newPassword === request.body.currentPassword ||
+      (
+        await deps.verifyPassword(request.body.newPassword, auth.passwordHash)
+      ).valid;
+
+    if (newPasswordMatchesCurrent) {
+      await markFailure();
+
+      return sendPasswordChangeRejected(reply);
+    }
+
+    const newPasswordHash = await deps.hashPassword(request.body.newPassword);
+
+    await deps.upsertClinicUser({
+      clinicId: auth.clinicId,
+      username: auth.username,
+      passwordHash: newPasswordHash,
+      authProId: auth.authProId,
+      role: auth.role,
+    });
+
+    await deps.writeAuditLog(createAuditRequestLike(request, auth), {
+      event: AUDIT_EVENTS.CLINIC_USER_CREDENTIALS_UPDATED,
+      clinicId: auth.clinicId,
+      targetClinicUserId: auth.id,
+      metadata: {
+        username: auth.username,
+        role: auth.role,
+        selfService: true,
+        sessionMaintained: true,
+      },
+      actor: {
+        type: "clinic_user",
+        clinicUserId: auth.id,
+      },
+    });
+
+    await markSuccess();
+
+    return reply.code(200).send({
+      success: true,
     });
   });
 

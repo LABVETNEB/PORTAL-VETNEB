@@ -232,6 +232,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           'app.options("/login"',
           'app.options("/me"',
           'app.options("/logout"',
+          'app.options("/change-password"',
         ],
       },
       {
@@ -240,6 +241,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           'app.options("/login"',
           'app.options("/me"',
           'app.options("/logout"',
+          'app.options("/change-password"',
         ],
       },
       {

@@ -209,6 +209,7 @@ test("auth login y mutations bloquean Origin no permitido antes de tocar depende
       createApp: createClinicAuthApp,
       loginUrl: "/api/auth/login",
       logoutUrl: "/api/auth/logout",
+      changePasswordUrl: "/api/auth/change-password",
       cookie: `${ENV.cookieName}=session-token`,
       payload: {
         username: "vetneb",
@@ -220,6 +221,7 @@ test("auth login y mutations bloquean Origin no permitido antes de tocar depende
       createApp: createAdminAuthApp,
       loginUrl: "/api/admin/auth/login",
       logoutUrl: "/api/admin/auth/logout",
+      changePasswordUrl: "/api/admin/auth/change-password",
       cookie: `${ENV.adminCookieName}=admin-session-token`,
       payload: {
         username: "VETNEB",
@@ -231,6 +233,7 @@ test("auth login y mutations bloquean Origin no permitido antes de tocar depende
       createApp: createParticularAuthApp,
       loginUrl: "/api/particular/auth/login",
       logoutUrl: "/api/particular/auth/logout",
+      changePasswordUrl: null,
       cookie: `${ENV.particularCookieName}=particular-session-token`,
       payload: {
         token: "PARTICULAR-RAW-TOKEN",
@@ -263,6 +266,23 @@ test("auth login y mutations bloquean Origin no permitido antes de tocar depende
       });
 
       assertForbiddenOriginResponse(logoutResponse);
+
+      if (scenario.changePasswordUrl) {
+        const changePasswordResponse = await app.inject({
+          method: "POST",
+          url: scenario.changePasswordUrl,
+          headers: {
+            origin: BLOCKED_ORIGIN,
+            cookie: scenario.cookie,
+          },
+          payload: {
+            currentPassword: "secret",
+            newPassword: "new-secret",
+          },
+        });
+
+        assertForbiddenOriginResponse(changePasswordResponse);
+      }
     } finally {
       await app.close();
     }
@@ -274,7 +294,12 @@ test("auth preflight OPTIONS solo expone CORS con origins confiables y sin wildc
     {
       name: "clinic auth",
       createApp: createClinicAuthApp,
-      urls: ["/api/auth/login", "/api/auth/me", "/api/auth/logout"],
+      urls: [
+        "/api/auth/login",
+        "/api/auth/me",
+        "/api/auth/logout",
+        "/api/auth/change-password",
+      ],
     },
     {
       name: "admin auth",
@@ -283,6 +308,7 @@ test("auth preflight OPTIONS solo expone CORS con origins confiables y sin wildc
         "/api/admin/auth/login",
         "/api/admin/auth/me",
         "/api/admin/auth/logout",
+        "/api/admin/auth/change-password",
       ],
     },
     {

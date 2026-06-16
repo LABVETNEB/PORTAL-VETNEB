@@ -70,7 +70,7 @@ type MutatingRouteFile = {
 
 const MUTATING_ROUTE_FILES: readonly MutatingRouteFile[] = [
   // Admin — clase A (operaciones autenticadas con admin_session_id)
-  { file: "server/routes/admin-auth.fastify.ts", expectedMutations: 2, class: "B" },
+  { file: "server/routes/admin-auth.fastify.ts", expectedMutations: 3, class: "B" },
   { file: "server/routes/admin-clinics.fastify.ts", expectedMutations: 3, class: "A" },
   { file: "server/routes/admin-particular-tokens.fastify.ts", expectedMutations: 4, class: "A" },
   { file: "server/routes/admin-pricing.fastify.ts", expectedMutations: 1, class: "A" },
@@ -82,7 +82,7 @@ const MUTATING_ROUTE_FILES: readonly MutatingRouteFile[] = [
   { file: "server/routes/admin-system-maintenance.fastify.ts", expectedMutations: 1, class: "A" },
   { file: "server/routes/admin-users-roles.fastify.ts", expectedMutations: 2, class: "A" },
   // Clínica — clase A/B (operaciones autenticadas con app_session_id)
-  { file: "server/routes/auth.fastify.ts", expectedMutations: 2, class: "B" },
+  { file: "server/routes/auth.fastify.ts", expectedMutations: 3, class: "B" },
   { file: "server/routes/clinic-public-profile.fastify.ts", expectedMutations: 3, class: "A" },
   { file: "server/routes/report-access-tokens.fastify.ts", expectedMutations: 2, class: "A" },
   { file: "server/routes/reports-status.fastify.ts", expectedMutations: 1, class: "A" },
@@ -651,6 +651,5 @@ test("rutas de preview y download pasan por deps.createSignedReport* (no storage
     );
   }
 });
-
 
 
