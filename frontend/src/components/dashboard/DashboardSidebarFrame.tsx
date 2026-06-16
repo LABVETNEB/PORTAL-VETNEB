@@ -62,7 +62,7 @@ function DashboardSidebarNav({ navItems }: { navItems: DashboardNavItem[] }) {
             href={item.href}
             variant="bare"
             className={cn(
-              "flex items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-semibold dashboard-nav-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar",
+              "flex items-center justify-center 2xl:justify-start gap-3 rounded-md px-2 py-2 2xl:px-3 text-sm font-semibold dashboard-nav-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar",
               isActive(item.href, item.exact)
                 ? "bg-sidebar-accent/90 text-sidebar-accent-foreground shadow-[0_10px_28px_rgba(8,35,50,0.24)] ring-1 ring-white/15"
                 : "text-sidebar-foreground/72 hover:bg-sidebar-accent/45 hover:text-sidebar-foreground",
@@ -72,7 +72,9 @@ function DashboardSidebarNav({ navItems }: { navItems: DashboardNavItem[] }) {
             title={item.label}
           >
             <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="sr-only">{item.label}</span>
+            <span className="sr-only 2xl:not-sr-only 2xl:truncate">
+              {item.label}
+            </span>
           </PublicRouteControl>
 
           {item.children && isActive(item.href) && (
@@ -103,7 +105,7 @@ export function DashboardSidebarFrame({
   return (
     <aside
       role="navigation"
-      className="sticky top-0 flex h-dvh w-[4.5rem] shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground"
+      className="sticky top-0 flex h-dvh w-[4.5rem] 2xl:w-60 shrink-0 flex-col overflow-y-auto bg-sidebar text-sidebar-foreground"
       data-dashboard-sidebar-polish="true"
       aria-label="Navegación principal"
     >
@@ -127,10 +129,12 @@ export function DashboardSidebarFrame({
           variant="bare"
           aria-label="Volver al sitio público"
           title="Volver al sitio público"
-          className="flex items-center justify-center gap-2 rounded-md px-2 py-2 text-xs text-sidebar-foreground/60 dashboard-nav-interactive hover:bg-sidebar-accent/40 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+          className="flex items-center justify-center 2xl:justify-start gap-2 rounded-md px-2 py-2 2xl:px-3 text-xs text-sidebar-foreground/60 dashboard-nav-interactive hover:bg-sidebar-accent/40 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="sr-only">Volver al sitio público</span>
+          <span className="sr-only 2xl:not-sr-only 2xl:truncate">
+            Volver al sitio público
+          </span>
         </PublicRouteControl>
       </div>
     </aside>

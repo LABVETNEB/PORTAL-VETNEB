@@ -80,6 +80,20 @@ test("dashboard sidebar frame is the shared visual shell for both roles", () => 
   assert.ok(source.includes("Volver al sitio público"));
 });
 
+test("dashboard sidebar frame expands labels at 2xl while staying compact below it", () => {
+  const source = read(DASHBOARD_SIDEBAR_FRAME_PATH);
+
+  // Compact (default) behavior preserved below 2xl.
+  assert.ok(source.includes("w-[4.5rem]"));
+  assert.ok(source.includes("justify-center"));
+  assert.ok(/<span className="sr-only 2xl:not-sr-only 2xl:truncate">/.test(source));
+
+  // Expanded icon + label behavior at 2xl and above.
+  assert.ok(source.includes("2xl:w-60"));
+  assert.ok(source.includes("2xl:justify-start"));
+  assert.ok(source.includes("2xl:not-sr-only"));
+});
+
 test("clinic dashboard sidebar keeps clinic operations and excludes admin navigation", () => {
   const source = read(CLINIC_DASHBOARD_SIDEBAR_PATH);
 
