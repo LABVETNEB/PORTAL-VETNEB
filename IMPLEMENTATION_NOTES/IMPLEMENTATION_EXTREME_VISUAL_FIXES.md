@@ -2,7 +2,7 @@
 
 > Portal VETNEB — notas de implementación del trabajo visual.
 > Fecha: 2026-06-13 · Rama base: `main` · Base commit: `fd6e3e9`.
-> Complemento de [`AUDIT_EXTREME_VISUAL_PRODUCTION_READINESS.md`](AUDIT_EXTREME_VISUAL_PRODUCTION_READINESS.md).
+> Complemento de [`AUDIT_EXTREME_VISUAL_PRODUCTION_READINESS.md`](../docs/audits/AUDIT_EXTREME_VISUAL_PRODUCTION_READINESS.md).
 
 ## Scope of this change
 
