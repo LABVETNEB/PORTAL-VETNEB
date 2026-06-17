@@ -396,20 +396,61 @@ export default async function InformesPage({
               </div>
             </form>
 
-            {reportsLoadError ? (
-              <div role="alert">
-                <ErrorState
-                  title="No se pudieron cargar los informes"
-                  message="No se pudieron cargar los informes. Intente nuevamente."
-                />
-              </div>
-            ) : null}
+            {reportsLoadError || reports.length === 0 ? (
+              <div className="grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-[0.86fr_1.44fr]">
+                <section
+                  id="reports-master-list"
+                  aria-labelledby="reports-list-heading"
+                  className="dashboard-master-panel rounded-xl border border-vetneb-line/75 bg-card/82"
+                >
+                  <div className="border-b border-vetneb-line/70 px-4 py-3">
+                    <h2
+                      id="reports-list-heading"
+                      className="dashboard-section-heading"
+                    >
+                      Lista de informes
+                    </h2>
+                    <p className="dashboard-section-description">
+                      Click en un informe para ver detalles y acciones.
+                    </p>
+                  </div>
 
-            {!reportsLoadError && reports.length === 0 ? (
-              <EmptyState
-                title="No hay informes disponibles."
-                description="Cuando haya informes para los filtros actuales, aparecerán en esta lista."
-              />
+                  <div className="p-4">
+                    {reportsLoadError ? (
+                      <div role="alert">
+                        <ErrorState
+                          title="No se pudieron cargar los informes"
+                          message="No se pudieron cargar los informes. Intente nuevamente."
+                        />
+                      </div>
+                    ) : (
+                      <EmptyState
+                        title="No hay informes disponibles."
+                        description="Cuando haya informes para los filtros actuales, aparecerán en esta lista."
+                      />
+                    )}
+                  </div>
+                </section>
+
+                <section
+                  id="report-detail"
+                  aria-labelledby="report-detail-heading"
+                  className="dashboard-detail-panel rounded-xl border border-vetneb-line/75 bg-card/82"
+                >
+                  <div className="p-4">
+                    <h2
+                      id="report-detail-heading"
+                      className="sr-only"
+                    >
+                      Detalle del informe
+                    </h2>
+                    <EmptyState
+                      title="No hay informe seleccionado"
+                      description="Seleccione un informe de la lista para ver el detalle operativo."
+                    />
+                  </div>
+                </section>
+              </div>
             ) : null}
 
             {!reportsLoadError && reports.length > 0 ? (
