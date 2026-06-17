@@ -44,7 +44,7 @@ test("frontend report actions handles unavailable loading and error states", () 
   assert.equal(source.includes("No autorizado"), false);
 });
 
-test("frontend informes page uses report file actions", () => {
+test("frontend informes page uses selected report file actions", () => {
   const source = read(INFORMES_PAGE_PATH);
 
   assert.ok(
@@ -53,8 +53,8 @@ test("frontend informes page uses report file actions", () => {
     ),
   );
   assert.ok(source.includes("<ReportFileActions"));
-  assert.ok(source.includes("reportId={report.id}"));
-  assert.ok(source.includes("hasFile={report.hasFile}"));
+  assert.ok(source.includes("reportId={selectedReport.id}"));
+  assert.ok(source.includes("hasFile={selectedReport.hasFile}"));
   assert.equal(source.includes("storagePath"), false);
   assert.equal(source.includes("<button"), false);
 });

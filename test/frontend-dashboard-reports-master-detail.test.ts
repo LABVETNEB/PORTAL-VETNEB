@@ -108,32 +108,26 @@ test("StudyTimeline supports ordered visual states without business calculations
   assert.equal(source.includes("fetch("), false);
 });
 
-test("dashboard informes composes master-detail, selected report detail, timeline, and sticky actions", () => {
+test("dashboard informes composes profile-layout list, selected report detail, timeline, and actions", () => {
   const source = read(INFORMES_PAGE_PATH);
 
   assert.ok(source.includes("<DashboardPageHeader"));
-  assert.ok(source.includes("<StickyActionBar"));
-  assert.ok(source.includes("<MasterDetailWorkspace"));
+  assert.equal(source.includes("<StickyActionBar"), false);
+  assert.equal(source.includes("<MasterDetailWorkspace"), false);
+  assert.ok(source.includes("Lista de informes"));
+  assert.ok(source.includes("Detalle del informe"));
   assert.ok(source.includes("<StudyTimeline steps={selectedReportTimelineSteps} />"));
   assert.ok(source.includes("buildStudyTimelineSteps(selectedReport)"));
   assert.ok(source.includes("const selectedReport ="));
   assert.ok(source.includes("selectedReportId === null"));
   assert.ok(source.includes("? (reports[0] ?? null)"));
   assert.ok(source.includes(": (reports.find((report) => report.id === selectedReportId) ?? null)"));
-  assert.ok(source.includes("const stickyActions = ["));
-  assert.ok(source.includes('label: "Lista"'));
-  assert.ok(source.includes('href: "#reports-master-list"'));
-  assert.ok(source.includes('label: "Detalle"'));
-  assert.ok(source.includes('href: "#report-detail"'));
   assert.ok(source.includes('id="reports-master-list"'));
   assert.ok(source.includes('id="report-detail"'));
-  assert.ok(source.includes('id="report-actions"'));
   assert.ok(source.includes("Línea de tiempo del estudio"));
-  assert.ok(source.includes("Pasos derivados del estado y fechas ya disponibles del informe."));
+  assert.ok(source.includes("Pasos derivados del estado y fechas ya disponibles."));
   assert.ok(source.includes("reportId={selectedReport.id}"));
   assert.ok(source.includes("hasFile={selectedReport.hasFile}"));
-  assert.ok(source.includes("reportId={report.id}"));
-  assert.ok(source.includes("hasFile={report.hasFile}"));
 });
 
 test("dashboard informes derives timeline steps from existing report fields only", () => {
@@ -153,7 +147,7 @@ test("dashboard informes derives timeline steps from existing report fields only
   assert.equal(source.includes("new Date("), false);
 });
 
-test("dashboard informes server-side pagination controls and summary", () => {
+test("dashboard informes server-side pagination controls and compact summary", () => {
   const source = read(INFORMES_PAGE_PATH);
 
   assert.ok(source.includes("reportsTotalPages > 1"));
@@ -161,9 +155,8 @@ test("dashboard informes server-side pagination controls and summary", () => {
   assert.ok(source.includes('aria-label="Página anterior"'));
   assert.ok(source.includes('aria-label="Página siguiente"'));
   assert.ok(source.includes("Página {page} de {reportsTotalPages}"));
-  assert.ok(source.includes("Mostrando ${pageStart}"));
-  assert.ok(source.includes("de ${reportsTotal}"));
-  assert.ok(source.includes("const REPORTS_PAGE_SIZE = 20"));
+  assert.ok(source.includes("{reportsTotal > 0 ? `${pageStart}-${pageEnd}` : \"0\"}"));
+  assert.ok(source.includes("const REPORTS_PAGE_SIZE = 6"));
   assert.ok(source.includes("page: page - 1"));
   assert.ok(source.includes("page: page + 1"));
   assert.ok(source.includes("disabled={page <= 1}"));

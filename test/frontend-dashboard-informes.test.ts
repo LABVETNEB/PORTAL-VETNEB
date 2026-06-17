@@ -25,9 +25,9 @@ test("dashboard informes defines non-indexable metadata and clinic read dependen
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
   assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
-  assert.ok(source.includes('import { MasterDetailWorkspace } from "@/components/dashboard/MasterDetailWorkspace";'));
+  assert.equal(source.includes('import { MasterDetailWorkspace } from "@/components/dashboard/MasterDetailWorkspace";'), false);
   assert.ok(source.includes('import { StatusBadge } from "@/components/dashboard/StatusBadge";'));
-  assert.ok(source.includes('} from "@/components/dashboard/StickyActionBar";'));
+  assert.equal(source.includes('} from "@/components/dashboard/StickyActionBar";'), false);
   assert.ok(source.includes('} from "@/components/dashboard/StudyTimeline";'));
   assert.ok(source.includes('import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";'));
   assert.equal(source.includes("UploadReportModal"), false);
@@ -75,7 +75,7 @@ test("dashboard informes keeps status filter options aligned to report statuses"
   assert.ok(source.includes('{ value: "delivered", label: "Entregado" }'));
 });
 
-test("dashboard informes renders clinic reports surface without technical source copy", () => {
+test("dashboard informes renders profile-layout clinic reports surface without technical source copy", () => {
   const source = read(INFORMES_PAGE_PATH);
   const removedSourceCopy = "Lectura clinic-" + "scoped conectada a";
   const removedReportsEndpoint = "GET " + "/api/reports";
@@ -84,8 +84,10 @@ test("dashboard informes renders clinic reports surface without technical source
   assert.ok(source.includes('subtitle="Consulta de informes médicos veterinarios"'));
   assert.ok(source.includes('notifications="clinic"'));
   assert.ok(source.includes("<DashboardPageHeader"));
-  assert.ok(source.includes("<StickyActionBar"));
-  assert.ok(source.includes("<MasterDetailWorkspace"));
+  assert.equal(source.includes("<StickyActionBar"), false);
+  assert.equal(source.includes("<MasterDetailWorkspace"), false);
+  assert.ok(source.includes("Lista de informes"));
+  assert.ok(source.includes("Detalle del informe"));
   assert.ok(source.includes("<StudyTimeline"));
   assert.equal(source.includes("<UploadReportModal />"), false);
   assert.equal(source.includes("/api/admin"), false);
@@ -93,10 +95,11 @@ test("dashboard informes renders clinic reports surface without technical source
   assert.equal(source.includes(removedReportsEndpoint), false);
 });
 
-test("dashboard informes renders filters and reports table columns", () => {
+test("dashboard informes renders compact inline filters and profile-layout list/detail columns", () => {
   const source = read(INFORMES_PAGE_PATH);
 
-  assert.ok(source.includes('<form method="get"'));
+  assert.ok(source.includes('<form'));
+  assert.ok(source.includes('method="get"'));
   assert.ok(source.includes('placeholder="Buscar por paciente o tipo de estudio..."'));
   assert.ok(source.includes('name="query"'));
   assert.ok(source.includes("defaultValue={query}"));
@@ -110,29 +113,23 @@ test("dashboard informes renders filters and reports table columns", () => {
   assert.ok(source.includes("Limpiar"));
   assert.ok(source.includes('id="reports-master-list"'));
   assert.ok(source.includes('id="report-detail"'));
-  assert.ok(source.includes("<TableHead>ID</TableHead>"));
-  assert.ok(source.includes("<TableHead>Paciente</TableHead>"));
-  assert.ok(source.includes("<TableHead>Tipo de estudio</TableHead>"));
-  assert.ok(source.includes(">Clínica</TableHead>"));
-  assert.ok(source.includes("<TableHead>Fecha</TableHead>"));
-  assert.ok(source.includes("<TableHead>Estado</TableHead>"));
-  assert.ok(source.includes('<TableHead className="text-right">Acciones</TableHead>'));
+  assert.ok(source.includes("Lista de informes"));
+  assert.ok(source.includes("Detalle del informe"));
+  assert.equal(source.includes("<TableHead>"), false);
 });
 
-test("dashboard informes keeps row rendering badges dates and report actions", () => {
+test("dashboard informes keeps list rendering badges dates and selected report actions", () => {
   const source = read(INFORMES_PAGE_PATH);
 
   assert.ok(source.includes("reports.map((report) =>"));
   assert.ok(source.includes("const isSelected = selectedReport?.id === report.id;"));
-  assert.ok(source.includes('report.patientName ?? "—"'));
-  assert.ok(source.includes('report.studyType ?? "—"'));
-  assert.ok(source.includes("report.clinicName ?? `Clínica #${report.clinicId}`"));
+  assert.ok(source.includes('report.patientName ?? "Paciente sin nombre"'));
+  assert.ok(source.includes('report.studyType ?? "Tipo sin registrar"'));
   assert.ok(source.includes("formatDate(report.uploadDate)"));
   assert.ok(source.includes("getReportStatusVariant(report.status)"));
   assert.ok(source.includes("getReportStatusLabel(report.status)"));
+  assert.ok(source.includes("id={`report-${report.id}`}"));
   assert.ok(source.includes("<ReportFileActions"));
-  assert.ok(source.includes("reportId={report.id}"));
-  assert.ok(source.includes("hasFile={report.hasFile}"));
   assert.ok(source.includes("reportId={selectedReport.id}"));
   assert.ok(source.includes("hasFile={selectedReport.hasFile}"));
   assert.equal(source.includes("storagePath"), false);
@@ -143,7 +140,7 @@ test("dashboard informes keeps empty state and avoids client-side fetch literals
 
   assert.ok(source.includes("No hay informes disponibles."));
   assert.ok(source.includes("<EmptyState"));
-  assert.ok(source.includes("colSpan={7}"));
+  assert.equal(source.includes("colSpan={7}"), false);
   assert.equal(source.includes("fetch("), false);
   assert.equal(source.includes("mock"), false);
 });
@@ -156,9 +153,9 @@ test("dashboard informes separates fetch failures from real empty report lists",
   assert.ok(source.includes("try {"));
   assert.ok(source.includes("reportsLoadError = true;"));
   assert.ok(source.includes("reportsLoadError ?"));
-  assert.ok(source.includes("No se pudieron cargar los informes. Intente nuevamente."));
-  assert.ok(source.includes('role="alert"'));
-  assert.ok(source.includes(": reports.length ?"));
+  assert.ok(source.includes("No se pudieron cargar los informes"));
+  assert.ok(source.includes("<ErrorState"));
+  assert.ok(source.includes("reports.length > 0 ?"));
   assert.ok(source.includes("No hay informes disponibles."));
 });
 

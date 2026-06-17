@@ -449,41 +449,39 @@ test("admin token card consume seguimiento por token desde study-tracking", () =
   assert.ok(api.includes("export async function getAdminStudyTrackingCases("));
 });
 
-test("admin token card exposes report upload action scoped to each token", () => {
+test("admin token card removes report upload action from token workspace", () => {
   const card = read(ADMIN_CARD_PATH);
   const uploadModal = read("frontend/src/components/dashboard/UploadReportModal.tsx");
 
-  assert.ok(card.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'));
-  assert.ok(card.includes("triggerLabel={"));
-  assert.ok(card.includes('"Subir informe para este token"'));
-  assert.ok(card.includes('"Reemplazar informe"'));
-  assert.ok(card.includes("presetClinic={buildTokenPresetClinic(clinicOptions, token)}"));
-  assert.ok(card.includes("presetParticularToken={token}"));
-  assert.ok(card.includes("onUploaded={loadTokens}"));
+  assert.equal(card.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'), false);
+  assert.equal(card.includes("triggerLabel={"), false);
+  assert.equal(card.includes('"Subir informe para este token"'), false);
+  assert.equal(card.includes('"Reemplazar informe"'), false);
+  assert.equal(card.includes("presetClinic={buildTokenPresetClinic(clinicOptions, token)}"), false);
+  assert.equal(card.includes("presetParticularToken={token}"), false);
+  assert.equal(card.includes("onUploaded={loadTokens}"), false);
   assert.ok(uploadModal.includes("presetParticularToken?: AdminParticularTokenSummary;"));
-  assert.ok(uploadModal.includes('formData.append("clinicId", String(presetClinic.id));'));
   assert.ok(uploadModal.includes('formData.append("particularTokenId", String(presetParticularToken.id));'));
   assert.equal(card.includes("tokenHash"), false);
-  assert.ok(card.includes("Token ****{token.tokenLast4}"));
+  assert.ok(card.includes("Token ****{selectedToken.tokenLast4}"));
 });
 
-test("admin token card shows linked report preview and download actions without exposing token", () => {
+test("admin token card shows selected linked report preview and download actions without exposing token", () => {
   const card = read(ADMIN_CARD_PATH);
 
   assert.ok(card.includes('import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";'));
-  assert.ok(card.includes("token.hasLinkedReport && token.reportId ? ("));
-  assert.ok(card.includes("Informe: {token.reportId ? `#${token.reportId}` : \"—\"}"));
+  assert.ok(card.includes("selectedToken.hasLinkedReport && selectedToken.reportId ? ("));
   assert.ok(card.includes("<ReportFileActions"));
-  assert.ok(card.includes("reportId={token.reportId}"));
+  assert.ok(card.includes("reportId={selectedToken.reportId}"));
   assert.ok(card.includes('scope="admin"'));
   assert.ok(card.includes('align="start"'));
-  assert.ok(card.includes("Acciones"));
-  assert.ok(card.includes('"Reemplazar informe"'));
+  assert.ok(card.includes("Informe vinculado"));
+  assert.equal(card.includes('"Reemplazar informe"'), false);
   assert.equal(card.includes("tokenHash"), false);
   assert.equal(card.includes("storagePath"), false);
 });
 
-test("admin token card renders clinic name in title and vínculo with fallback", () => {
+test("admin token card renders clinic name in list and selected detail with fallback", () => {
   const card = read(ADMIN_CARD_PATH);
 
   assert.ok(card.includes("hasResolvedName: boolean;"));
@@ -496,21 +494,22 @@ test("admin token card renders clinic name in title and vínculo with fallback",
   assert.ok(card.includes("`Clínica: ${clinicName} (#${clinicId})`"));
   assert.ok(card.includes("`Clínica #${clinicId}`"));
   assert.ok(card.includes("{formatTokenTitle(clinicOptions, token)}"));
-  assert.ok(card.includes("{formatTokenClinicLink(clinicOptions, token.clinicId)}"));
+  assert.ok(card.includes("{formatTokenClinicLink(clinicOptions, selectedToken.clinicId)}"));
 });
 
-test("admin token tracking stage uses local draft and explicit update button", () => {
+test("admin token tracking stage uses selected local draft and explicit update button", () => {
   const card = read(ADMIN_CARD_PATH);
 
   assert.ok(card.includes("trackingStageDraftsByCaseId"));
   assert.ok(card.includes("function handleTrackingStageDraftChange("));
   assert.ok(card.includes("function handleTrackingStageUpdate("));
   assert.ok(card.includes("currentStage: nextStage"));
-  assert.ok(card.includes("value={trackingStageDraft ?? trackingCase.currentStage}"));
+  assert.ok(card.includes("selectedTrackingStageDraft"));
+  assert.ok(card.includes("selectedHasTrackingStageChange"));
   assert.ok(card.includes("handleTrackingStageDraftChange("));
-  assert.ok(card.includes("void handleTrackingStageUpdate(token.id, trackingCase)"));
+  assert.ok(card.includes("void handleTrackingStageUpdate("));
   assert.ok(card.includes("disabled={"));
-  assert.ok(card.includes("!hasTrackingStageChange || isUpdatingTrackingCase"));
+  assert.ok(card.includes("!selectedHasTrackingStageChange"));
   assert.ok(card.includes('"Actualizar estado"'));
   assert.ok(card.includes('"Actualizando..."'));
 });
