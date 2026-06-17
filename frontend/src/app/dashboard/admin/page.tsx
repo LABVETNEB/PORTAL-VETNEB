@@ -25,6 +25,8 @@ import { PasswordChangePanel } from "@/components/dashboard/PasswordChangePanel"
 import { AdminDashboardWorkspaceController } from "./AdminDashboardWorkspaceController";
 import type { AdminModule } from "./AdminDashboardWorkspaceController";
 import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
+import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
+import { Button } from "@/components/ui/button";
 import { AdminAuditLogTable, type AdminAuditLogRow } from "./AdminAuditLogTable";
 import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
@@ -78,8 +80,17 @@ const VALID_ADMIN_MODULES: AdminModule[] = [
   "admin-maintenance",
 ];
 
+const ADMIN_MODULE_ALIASES: Partial<Record<string, AdminModule>> = {
+  "admin-upload-report": "admin-report-upload",
+  maintenance: "admin-maintenance",
+};
+
 function parseAdminModule(value: string | undefined): AdminModule | null {
   if (!value) return null;
+  const alias = ADMIN_MODULE_ALIASES[value];
+  if (alias) {
+    return alias;
+  }
   return VALID_ADMIN_MODULES.includes(value as AdminModule)
     ? (value as AdminModule)
     : null;
@@ -440,143 +451,141 @@ export default async function AdminPage({
   );
 
   // ── Estado del sistema workspace ────────────────────────────────────────────
+  // Single-viewport App Shell: the service grid + runtime + schema are split into
+  // tabs so each fits one desktop viewport without scroll (fixed chrome that
+  // previously overflowed even with empty data).
+  const healthServicesGrid = (
+    <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+      <div className="surface-soft">
+        <p className="mb-2 text-xs text-muted-foreground">Base de datos</p>
+        <Badge variant={getServiceVariant(serviceChecks.database)}>
+          {formatServiceStatus(serviceChecks.database)}
+        </Badge>
+      </div>
+      <div className="surface-soft">
+        <p className="mb-2 text-xs text-muted-foreground">Almacenamiento</p>
+        <Badge variant={getServiceVariant(serviceChecks.storage)}>
+          {formatServiceStatus(serviceChecks.storage)}
+        </Badge>
+      </div>
+      <div className="surface-soft">
+        <p className="mb-2 text-xs text-muted-foreground">
+          Transporte de correo
+        </p>
+        <Badge
+          variant={getEmailTransportBadgeVariant(serviceChecks.email_transport)}
+        >
+          {formatEmailTransport(serviceChecks.email_transport)}
+        </Badge>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Gmail API: {formatServiceStatus(serviceChecks.gmail_api)}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          SMTP: {formatServiceStatus(serviceChecks.smtp)}
+        </p>
+      </div>
+      <div className="surface-soft">
+        <p className="mb-2 text-xs text-muted-foreground">Contacto email</p>
+        <Badge variant={getServiceVariant(serviceChecks.contact_email)}>
+          {formatServiceStatus(serviceChecks.contact_email)}
+        </Badge>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {contactRecipients.length > 0
+            ? `Destino: ${contactRecipients.join(", ")}`
+            : "Sin destinatarios configurados"}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          CONTACT_TO: {formatConfigurationFlag(serviceChecks.contact_to_configured)}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          SMTP_FROM: {formatConfigurationFlag(serviceChecks.smtp_from_configured)}
+        </p>
+      </div>
+      <div className="surface-soft">
+        <p className="mb-2 text-xs text-muted-foreground">CORS público</p>
+        <Badge variant={getServiceVariant(serviceChecks.cors)}>
+          {formatServiceStatus(serviceChecks.cors)}
+        </Badge>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {corsOrigins.length > 0
+            ? `${corsOrigins.length} origen(es) activo(s)`
+            : "Sin orígenes configurados"}
+        </p>
+        {corsOrigins.length > 0 ? (
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {corsOrigins.join(", ")}
+          </p>
+        ) : null}
+        <p className="mt-1 text-xs text-muted-foreground">
+          Orígenes locales/LAN:{" "}
+          {serviceChecks.cors_has_local_or_lan_origins === true
+            ? "Presentes"
+            : "No"}
+        </p>
+      </div>
+    </div>
+  );
+
+  const healthRuntimeGrid = (
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="surface-soft">
+        <p className="text-xs text-muted-foreground">Entorno</p>
+        <p className="mt-1 text-lg font-semibold text-vetneb-ink">{nodeEnv}</p>
+        <p className="mt-1 text-xs text-muted-foreground">nodeEnv activo</p>
+      </div>
+      <div className="surface-soft">
+        <p className="text-xs text-muted-foreground">Backend</p>
+        <p className="mt-1 text-lg font-semibold text-vetneb-ink">
+          {systemHealth?.version ?? "—"}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">Versión activa</p>
+      </div>
+      <div className="surface-soft">
+        <p className="text-xs text-muted-foreground">Tiempo activo</p>
+        <p className="mt-1 text-lg font-semibold text-vetneb-ink">
+          {formatUptime(systemHealth?.runtime.uptimeSeconds)}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Control: {formatHealthTimestamp(systemHealth?.health?.timestamp)}
+        </p>
+      </div>
+      <div className="surface-soft">
+        <p className="text-xs text-muted-foreground">Memoria runtime</p>
+        <p className="mt-1 text-lg font-semibold text-vetneb-ink">
+          {systemHealth?.runtime.memory.rssMb ?? "—"} MB
+        </p>
+        <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+          <p>RSS: {systemHealth?.runtime.memory.rssMb ?? "—"} MB</p>
+          <p>Heap usado: {systemHealth?.runtime.memory.heapUsedMb ?? "—"} MB</p>
+          <p>Heap total: {systemHealth?.runtime.memory.heapTotalMb ?? "—"} MB</p>
+          <p>Memoria externa: {systemHealth?.runtime.memory.externalMb ?? "—"} MB</p>
+          <p>Buffers: {systemHealth?.runtime.memory.arrayBuffersMb ?? "—"} MB</p>
+        </div>
+      </div>
+    </div>
+  );
+
   const healthWorkspaceSlot = (
-    <div className="space-y-4">
+    <section id="admin-health" className="flex min-h-0 flex-1 flex-col gap-3">
       {hasSystemHealthFetchError ? (
-        <div role="alert" className="clinical-alert-warning">
+        <div role="alert" className="clinical-alert-warning shrink-0">
           No se pudo consultar el estado del sistema. Los valores de salud
           operacional se muestran como desconocidos hasta recuperar la lectura.
         </div>
       ) : null}
-      <Card id="admin-health" className="dashboard-surface">
-        <CardHeader>
-          <CardTitle className="text-base">Estado y mantenimiento</CardTitle>
-          <CardDescription>
-            Estado de servicios, versión y consumo runtime del backend en producción
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-            <div className="surface-soft">
-              <p className="mb-2 text-xs text-muted-foreground">Base de datos</p>
-              <Badge variant={getServiceVariant(serviceChecks.database)}>
-                {formatServiceStatus(serviceChecks.database)}
-              </Badge>
-            </div>
-            <div className="surface-soft">
-              <p className="mb-2 text-xs text-muted-foreground">Almacenamiento</p>
-              <Badge variant={getServiceVariant(serviceChecks.storage)}>
-                {formatServiceStatus(serviceChecks.storage)}
-              </Badge>
-            </div>
-            <div className="surface-soft">
-              <p className="mb-2 text-xs text-muted-foreground">
-                Transporte de correo
-              </p>
-              <Badge
-                variant={getEmailTransportBadgeVariant(
-                  serviceChecks.email_transport,
-                )}
-              >
-                {formatEmailTransport(serviceChecks.email_transport)}
-              </Badge>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Gmail API: {formatServiceStatus(serviceChecks.gmail_api)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                SMTP: {formatServiceStatus(serviceChecks.smtp)}
-              </p>
-            </div>
-            <div className="surface-soft">
-              <p className="mb-2 text-xs text-muted-foreground">Contacto email</p>
-              <Badge variant={getServiceVariant(serviceChecks.contact_email)}>
-                {formatServiceStatus(serviceChecks.contact_email)}
-              </Badge>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {contactRecipients.length > 0
-                  ? `Destino: ${contactRecipients.join(", ")}`
-                  : "Sin destinatarios configurados"}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                CONTACT_TO: {formatConfigurationFlag(serviceChecks.contact_to_configured)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                SMTP_FROM: {formatConfigurationFlag(serviceChecks.smtp_from_configured)}
-              </p>
-            </div>
-            <div className="surface-soft">
-              <p className="mb-2 text-xs text-muted-foreground">CORS público</p>
-              <Badge variant={getServiceVariant(serviceChecks.cors)}>
-                {formatServiceStatus(serviceChecks.cors)}
-              </Badge>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {corsOrigins.length > 0
-                  ? `${corsOrigins.length} origen(es) activo(s)`
-                  : "Sin orígenes configurados"}
-              </p>
-              {corsOrigins.length > 0 ? (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {corsOrigins.join(", ")}
-                </p>
-              ) : null}
-              <p className="mt-1 text-xs text-muted-foreground">
-                Orígenes locales/LAN:{" "}
-                {serviceChecks.cors_has_local_or_lan_origins === true
-                  ? "Presentes"
-                  : "No"}
-              </p>
-            </div>
-            <div className="surface-soft">
-              <p className="text-xs text-muted-foreground">Entorno</p>
-              <p className="mt-1 text-lg font-semibold text-vetneb-ink">
-                {nodeEnv}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">nodeEnv activo</p>
-            </div>
-            <div className="surface-soft">
-              <p className="text-xs text-muted-foreground">Backend</p>
-              <p className="mt-1 text-lg font-semibold text-vetneb-ink">
-                {systemHealth?.version ?? "—"}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">Versión activa</p>
-            </div>
-            <div className="surface-soft">
-              <p className="text-xs text-muted-foreground">Tiempo activo</p>
-              <p className="mt-1 text-lg font-semibold text-vetneb-ink">
-                {formatUptime(systemHealth?.runtime.uptimeSeconds)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Control: {formatHealthTimestamp(systemHealth?.health?.timestamp)}
-              </p>
-            </div>
-            <div className="surface-soft">
-              <p className="text-xs text-muted-foreground">Memoria runtime</p>
-              <p className="mt-1 text-lg font-semibold text-vetneb-ink">
-                {systemHealth?.runtime.memory.rssMb ?? "—"} MB
-              </p>
-              <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                <p>RSS: {systemHealth?.runtime.memory.rssMb ?? "—"} MB</p>
-                <p>
-                  Heap usado: {systemHealth?.runtime.memory.heapUsedMb ?? "—"} MB
-                </p>
-                <p>
-                  Heap total: {systemHealth?.runtime.memory.heapTotalMb ?? "—"} MB
-                </p>
-                <p>
-                  Memoria externa:{" "}
-                  {systemHealth?.runtime.memory.externalMb ?? "—"} MB
-                </p>
-                <p>
-                  Buffers:{" "}
-                  {systemHealth?.runtime.memory.arrayBuffersMb ?? "—"} MB
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      <AdminSchemaHealthStatusCard />
-    </div>
+      <ModuleTabs
+        ariaLabel="Estado y mantenimiento"
+        tabs={[
+          { id: "servicios", label: "Servicios", content: healthServicesGrid },
+          { id: "runtime", label: "Runtime", content: healthRuntimeGrid },
+          {
+            id: "esquema",
+            label: "Esquema",
+            content: <AdminSchemaHealthStatusCard />,
+          },
+        ]}
+      />
+    </section>
   );
 
   // ── Clínicas workspace ──────────────────────────────────────────────────────
@@ -597,23 +606,25 @@ export default async function AdminPage({
   );
 
   // ── Sesiones workspace ──────────────────────────────────────────────────────
+  // Single-viewport App Shell: the sessions card needs the full viewport height,
+  // so password change moves into a compact dialog (button) instead of a sibling
+  // tab/card — keeping the card the primary, no-scroll surface.
   const sessionsWorkspaceSlot = (
-    <section id="admin-sessions" className="flex min-h-0 flex-1 flex-col">
-      <ModuleTabs
-        ariaLabel="Secciones de sesiones"
-        tabs={[
-          {
-            id: "acceso",
-            label: "Acceso",
-            content: <PasswordChangePanel variant="admin" />,
-          },
-          {
-            id: "sesiones",
-            label: "Sesiones",
-            content: <AdminSessionsReadOnlyCard />,
-          },
-        ]}
-      />
+    <section id="admin-sessions" className="flex min-h-0 flex-1 flex-col gap-2">
+      <div className="flex shrink-0 items-center justify-end">
+        <ModuleDialog
+          title="Cambiar contraseña"
+          description="Actualizá tu contraseña de acceso sin cerrar la sesión actual."
+          trigger={
+            <Button type="button" variant="outline" size="sm">
+              Cambiar contraseña
+            </Button>
+          }
+        >
+          <PasswordChangePanel variant="admin" />
+        </ModuleDialog>
+      </div>
+      <AdminSessionsReadOnlyCard />
     </section>
   );
 

@@ -48,9 +48,9 @@ const ClinicEditDrawer = dynamic(
 );
 
 // Single-viewport App Shell: a full page of clinics must fit the desktop
-// viewport without scroll, so the server page size is bounded to the compact
-// table height and clinic creation moves into a dialog.
-const PAGE_SIZE = 8;
+// viewport (1366×768) without scroll, so the server page size is bounded to the
+// compact table height and clinic creation moves into a dialog.
+const PAGE_SIZE = 5;
 
 type CreateClinicForm = {
   clinicName: string;
@@ -63,6 +63,7 @@ type CreateClinicForm = {
 type ClinicUserRow = {
   clinic: AdminClinicManagementSummary;
   user: AdminClinicManagementSummary["users"][number] | null;
+  extraUsers: number;
 };
 
 function getInitialCreateForm(): CreateClinicForm {
@@ -75,21 +76,16 @@ function getInitialCreateForm(): CreateClinicForm {
   };
 }
 
+// Single-viewport App Shell: ONE row per clinic (not per user). The legacy
+// one-row-per-user flattening made a page of clinics overflow the viewport when
+// clinics had multiple users; the primary user is shown with a "+N" hint and the
+// full user list stays available in the edit drawer.
 function getClinicUserRows(snapshot: AdminClinicsSnapshot | null): ClinicUserRow[] {
-  const rows: ClinicUserRow[] = [];
-
-  for (const clinic of snapshot?.clinics ?? []) {
-    if (!clinic.users.length) {
-      rows.push({ clinic, user: null });
-      continue;
-    }
-
-    for (const user of clinic.users) {
-      rows.push({ clinic, user });
-    }
-  }
-
-  return rows;
+  return (snapshot?.clinics ?? []).map((clinic) => ({
+    clinic,
+    user: clinic.users[0] ?? null,
+    extraUsers: Math.max(0, clinic.users.length - 1),
+  }));
 }
 
 function formatAdminClinicsError(error: unknown, fallback: string) {
@@ -238,8 +234,8 @@ export function AdminClinicsManagementCard() {
   }, [searchQuery]);
 
   return (
-    <Card id="admin-clinics" className="dashboard-surface">
-      <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-center lg:justify-between">
+    <Card id="admin-clinics" className="dashboard-surface flex min-h-0 flex-1 flex-col">
+      <CardHeader className="shrink-0 flex flex-col gap-2 border-b border-vetneb-line/70 py-3 lg:flex-row lg:items-center lg:justify-between">
         <CardTitle className="text-base">Clínicas</CardTitle>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -258,7 +254,7 @@ export function AdminClinicsManagementCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 pt-5">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
         <ModuleDialog
           open={isCreateOpen}
           onOpenChange={setIsCreateOpen}
@@ -424,40 +420,37 @@ export function AdminClinicsManagementCard() {
             </TableHeader>
             <TableBody>
               {rows.length ? (
-                rows.map(({ clinic, user }) => (
+                rows.map(({ clinic, user, extraUsers }) => (
                   <TableRow
                     key={`${clinic.clinicId}-${user?.userId ?? "empty"}`}
                   >
-                    <TableCell className="align-top">
-                      <div>
-                        <span className="block text-sm font-medium">
+                    <TableCell className="py-1.5">
+                      <span className="flex items-center gap-1.5">
+                        <span className="max-w-[13rem] truncate text-sm font-medium">
                           {clinic.clinicName}
                         </span>
-                        <span className="block font-mono text-xs text-muted-foreground">
+                        <span className="shrink-0 font-mono text-[0.62rem] text-muted-foreground">
                           #{clinic.clinicId}
                         </span>
-                      </div>
+                      </span>
                     </TableCell>
 
-                    <TableCell className="align-top text-sm">
-                      <div className="space-y-0.5">
-                        <span className="block">{clinic.contactEmail ?? "—"}</span>
-                        {clinic.contactPhone ? (
-                          <span className="block text-xs text-muted-foreground">
-                            {clinic.contactPhone}
-                          </span>
-                        ) : null}
-                      </div>
+                    <TableCell className="py-1.5 text-sm">
+                      <span className="block max-w-[14rem] truncate">
+                        {clinic.contactEmail ?? "—"}
+                      </span>
                     </TableCell>
 
-                    <TableCell className="align-top text-sm">
+                    <TableCell className="py-1.5 text-sm">
                       {user ? (
-                        <div>
-                          <span className="block">{user.username}</span>
-                          <span className="block font-mono text-xs text-muted-foreground">
-                            #{user.userId}
-                          </span>
-                        </div>
+                        <span className="inline-flex max-w-[12rem] items-center gap-1">
+                          <span className="truncate">{user.username}</span>
+                          {extraUsers > 0 ? (
+                            <span className="shrink-0 text-[0.66rem] text-muted-foreground">
+                              +{extraUsers}
+                            </span>
+                          ) : null}
+                        </span>
                       ) : (
                         <span className="text-sm text-muted-foreground">
                           Sin usuario
@@ -465,14 +458,14 @@ export function AdminClinicsManagementCard() {
                       )}
                     </TableCell>
 
-                    <TableCell className="align-top text-xs text-muted-foreground">
-                      <div className="space-y-0.5">
-                        <p>Creada: {formatDateTime(clinic.createdAt)}</p>
-                        <p>Actualizada: {formatDateTime(clinic.updatedAt)}</p>
-                      </div>
+                    <TableCell
+                      className="whitespace-nowrap py-1.5 text-[0.66rem] text-muted-foreground"
+                      title={`Creada: ${formatDateTime(clinic.createdAt)} · Actualizada: ${formatDateTime(clinic.updatedAt)}`}
+                    >
+                      {formatDateTime(clinic.updatedAt)}
                     </TableCell>
 
-                    <TableCell className="align-top text-right">
+                    <TableCell className="py-1.5 text-right">
                       <Button
                         type="button"
                         variant="outline"

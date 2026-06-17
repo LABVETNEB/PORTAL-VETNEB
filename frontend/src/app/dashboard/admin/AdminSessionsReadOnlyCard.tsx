@@ -30,9 +30,10 @@ import type {
   AdminSessionsSnapshot,
 } from "@/types";
 
-// Single-viewport App Shell: a full page must fit the desktop viewport without
-// scroll, so the server page size is bounded to what the compact table shows.
-const PAGE_SIZE = 8;
+// Single-viewport App Shell: a full page must fit the desktop viewport (1366×768)
+// without scroll. With the fixed filter-stats bar + 7-column table, the server
+// page size is bounded to what the compact table shows.
+const PAGE_SIZE = 3;
 
 function formatOptionalDate(value: string | null) {
   return value ? formatDateTime(value) : "—";
@@ -151,8 +152,8 @@ export function AdminSessionsReadOnlyCard() {
     : false;
 
   return (
-    <Card className="dashboard-surface">
-      <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-start lg:justify-between">
+    <Card className="dashboard-surface flex min-h-0 flex-1 flex-col">
+      <CardHeader className="shrink-0 flex flex-col gap-2 border-b border-vetneb-line/70 py-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <CardTitle className="text-base">Sesiones activas y expiradas</CardTitle>
           <CardDescription>
@@ -167,19 +168,21 @@ export function AdminSessionsReadOnlyCard() {
         </Button>
       </CardHeader>
 
-      <CardContent className="space-y-4 pt-6">
-        <div className="dashboard-filter-stats-grid">
-          <div className="surface-soft">
-            <p className="text-xs text-muted-foreground">Total filtrado</p>
-            <p className="mt-1 text-2xl font-bold text-vetneb-ink">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
+        {/* Compact single-row filter bar (no surface-soft boxes) to keep the
+            sessions card within one desktop viewport. */}
+        <div className="dashboard-filter-stats-grid shrink-0 items-end">
+          <div className="flex items-baseline gap-2">
+            <span className="text-xs text-muted-foreground">Total filtrado</span>
+            <span className="text-lg font-bold text-vetneb-ink">
               {snapshot?.total ?? "—"}
-            </p>
+            </span>
           </div>
 
-          <label className="surface-soft">
+          <label className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Tipo de sesión</span>
             <select
-              className="field-select mt-1"
+              className="field-select"
               value={sessionType}
               onChange={(event) => {
                 setOffset(0);
@@ -193,10 +196,10 @@ export function AdminSessionsReadOnlyCard() {
             </select>
           </label>
 
-          <label className="surface-soft">
+          <label className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Estado</span>
             <select
-              className="field-select mt-1"
+              className="field-select"
               value={status}
               onChange={(event) => {
                 setOffset(0);
@@ -209,14 +212,14 @@ export function AdminSessionsReadOnlyCard() {
             </select>
           </label>
 
-          <div className="surface-soft">
-            <p className="text-xs text-muted-foreground">Página</p>
-            <p className="mt-1 text-sm font-semibold text-vetneb-ink">
+          <div className="flex items-baseline gap-2">
+            <span className="text-xs text-muted-foreground">Página</span>
+            <span className="text-sm font-semibold text-vetneb-ink">
               {Math.floor(offset / PAGE_SIZE) + 1}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            </span>
+            <span className="text-xs text-muted-foreground">
               {snapshot ? `${snapshot.sessions.length} visibles` : "—"}
-            </p>
+            </span>
           </div>
         </div>
 
@@ -226,8 +229,8 @@ export function AdminSessionsReadOnlyCard() {
           </div>
         ) : null}
 
-        <div className="dashboard-table-responsive">
-          <Table>
+        <div className="dashboard-table-responsive min-h-0 flex-1">
+          <Table className="[&_td]:py-1.5 [&_th]:h-9">
             <TableHeader>
               <TableRow>
                 <TableHead>Sesión</TableHead>
@@ -251,8 +254,8 @@ export function AdminSessionsReadOnlyCard() {
 
                   return (
                     <TableRow key={sessionKey}>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
+                      <TableCell className="py-1.5">
+                        <div className="flex items-center gap-2">
                           <Badge
                             variant={getSessionTypeVariant(session.sessionType)}
                           >
@@ -263,27 +266,29 @@ export function AdminSessionsReadOnlyCard() {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-vetneb-ink/88">
+                      <TableCell className="whitespace-nowrap py-1.5 text-sm text-vetneb-ink/88">
                         {formatActorType(session.actorType)} #{session.actorId}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-1.5">
                         <Badge variant={getStatusVariant(session.status)}>
                           {formatStatus(session.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
+                      <TableCell className="whitespace-nowrap py-1.5 text-xs text-muted-foreground">
                         {formatOptionalDate(session.createdAt)}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
+                      <TableCell className="whitespace-nowrap py-1.5 text-xs text-muted-foreground">
                         {formatOptionalDate(session.lastAccess)}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
+                      <TableCell className="whitespace-nowrap py-1.5 text-xs text-muted-foreground">
                         {formatOptionalDate(session.expiresAt)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="py-1.5 text-right">
                         <Button
                           type="button"
                           variant="outline"
+                          size="sm"
+                          className="whitespace-nowrap"
                           disabled={isRevoking || isCurrentAdminSession}
                           aria-busy={isRevoking ? true : undefined}
                           aria-label={

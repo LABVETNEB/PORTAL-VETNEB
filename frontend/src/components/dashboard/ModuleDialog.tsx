@@ -6,8 +6,9 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export type ModuleDialogProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  /** Controlled open state. Omit (with a `trigger`) for an uncontrolled dialog. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   title: string;
   description?: string;
   /** Optional trigger; when omitted the dialog is controlled externally. */
@@ -42,10 +43,10 @@ export function ModuleDialog({
 
   return (
     <Dialog.Root
-      open={open}
+      {...(open !== undefined ? { open } : {})}
       onOpenChange={(next) => {
         if (!next && busy) return;
-        onOpenChange(next);
+        onOpenChange?.(next);
       }}
     >
       {trigger ? <Dialog.Trigger asChild>{trigger}</Dialog.Trigger> : null}
