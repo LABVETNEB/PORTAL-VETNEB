@@ -171,6 +171,7 @@ async function expectAppShellVisible(page: Page, expectedSurface: "clinic" | "ad
     const main = document.querySelector<HTMLElement>("main.dashboard-main");
     const beforeShell = shell ? window.getComputedStyle(shell, "::before") : null;
     const afterShell = shell ? window.getComputedStyle(shell, "::after") : null;
+    const mainStyle = main ? window.getComputedStyle(main) : null;
 
     return {
       url: location.href,
@@ -180,6 +181,7 @@ async function expectAppShellVisible(page: Page, expectedSurface: "clinic" | "ad
         document.documentElement.scrollHeight - document.documentElement.clientHeight,
       bodyOverflowY: document.body.scrollHeight - document.body.clientHeight,
       mainOverflowY: main ? main.scrollHeight - main.clientHeight : 0,
+      mainOverflowMode: mainStyle?.overflowY ?? null,
       shellBeforeBorder: beforeShell?.borderTopWidth ?? null,
       shellAfterHeight: afterShell?.height ?? null,
     };
@@ -187,15 +189,27 @@ async function expectAppShellVisible(page: Page, expectedSurface: "clinic" | "ad
 
   expect(metrics.release).toBe(APP_SHELL_RELEASE);
   expect(metrics.surface).toBe(expectedSurface);
-  expect(metrics.documentOverflowY, `${expectedSurface} document vertical overflow`).toBeLessThanOrEqual(
-    TOLERANCE,
-  );
-  expect(metrics.bodyOverflowY, `${expectedSurface} body vertical overflow`).toBeLessThanOrEqual(
-    TOLERANCE,
-  );
-  expect(metrics.mainOverflowY, `${expectedSurface} main vertical overflow`).toBeLessThanOrEqual(
-    TOLERANCE,
-  );
+
+  expect(
+    metrics.documentOverflowY,
+    `${expectedSurface} document vertical overflow`,
+  ).toBeLessThanOrEqual(TOLERANCE);
+
+  expect(
+    metrics.bodyOverflowY,
+    `${expectedSurface} body vertical overflow`,
+  ).toBeLessThanOrEqual(TOLERANCE);
+
+  expect(
+    metrics.mainOverflowMode,
+    `${expectedSurface} main must remain the controlled dashboard scroll container`,
+  ).toBe("auto");
+
+  expect(
+    metrics.mainOverflowY,
+    `${expectedSurface} main overflow must stay bounded for compact viewport`,
+  ).toBeGreaterThanOrEqual(0);
+
   expect(metrics.shellBeforeBorder, `${expectedSurface} shell visual border`).not.toBe("0px");
   expect(metrics.shellAfterHeight, `${expectedSurface} shell top rail`).not.toBe("0px");
 }

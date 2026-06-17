@@ -2008,37 +2008,6 @@
     opacity: 0.95;
   }
 
-  .dashboard-app-shell .dashboard-main {
-    display: flex;
-    min-height: 0;
-    min-width: 0;
-    flex: 1 1 auto;
-    flex-direction: column;
-    overflow: hidden;
-    padding: clamp(0.75rem, 1.25vw, 1.1rem);
-  }
-
-  .dashboard-app-shell .dashboard-main > [data-dashboard-module-workspace],
-  .dashboard-app-shell .dashboard-main > [data-dashboard-module-hub="true"] {
-    min-height: 0;
-    min-width: 0;
-    flex: 1 1 auto;
-  }
-
-  .dashboard-app-shell .dashboard-main [data-dashboard-module-workspace] {
-    border-radius: 1rem;
-  }
-
-  .dashboard-app-shell .dashboard-main .dashboard-workspace-header {
-    flex-shrink: 0;
-  }
-
-  .dashboard-app-shell .dashboard-main [data-dashboard-module-viewport] {
-    min-height: 0;
-    min-width: 0;
-    flex: 1 1 auto;
-  }
-
   @media (max-width: 767px) {
     .dashboard-app-shell::before {
       inset: 0.35rem;
@@ -2049,10 +2018,6 @@
       top: 0.35rem;
       left: 0.95rem;
       right: 0.95rem;
-    }
-
-    .dashboard-app-shell .dashboard-main {
-      padding: 0.75rem;
     }
   }
 }
