@@ -80,9 +80,13 @@ test.describe("precios — actionable pricing conversion layer (PR-11)", () => {
   });
 
   test("estado de carga muestra skeleton visual en lugar de texto plano", async ({ page }) => {
-    // Delay the API response to observe the loading skeleton
+    let releasePricingResponse: () => void = () => {};
+    const pricingResponseGate = new Promise<void>((resolve) => {
+      releasePricingResponse = resolve;
+    });
+
     await page.route("**/api/public/pricing**", async (route) => {
-      await new Promise<void>((r) => setTimeout(r, 500));
+      await pricingResponseGate;
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -90,15 +94,19 @@ test.describe("precios — actionable pricing conversion layer (PR-11)", () => {
       });
     });
 
-    await page.goto("/precios");
+    const navigationPromise = page.goto("/precios", { waitUntil: "domcontentloaded" });
 
-    // Skeleton is visible immediately after load (before API responds)
     await expect(
       page.locator("[data-pricing-skeleton='true']").first(),
-    ).toBeVisible({ timeout: 3000 });
+    ).toBeVisible({ timeout: 5000 });
 
-    // Old plain text loading message is gone
-    await expect(page.getByText("Cargando precios disponibles...")).not.toBeVisible();
+    await expect(
+      page.locator(".sr-only", { hasText: "Cargando precios disponibles..." }),
+    ).toHaveCount(1);
+
+    releasePricingResponse();
+    await navigationPromise;
+    await page.waitForLoadState("networkidle");
   });
 
   test("estado de error muestra alerta visible", async ({ page }) => {
