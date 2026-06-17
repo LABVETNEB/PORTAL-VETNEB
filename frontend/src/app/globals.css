@@ -1960,3 +1960,100 @@
   }
 }
 /* dashboard-single-viewport-app-shell:end */
+
+/* dashboard-app-shell-visibility-contract:start */
+@layer components {
+  .dashboard-app-shell {
+    position: relative;
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 18% 12%, hsl(var(--vetneb-teal) / 0.13), transparent 28rem),
+      radial-gradient(circle at 84% 4%, hsl(var(--vetneb-cyan) / 0.12), transparent 24rem),
+      linear-gradient(140deg, hsl(var(--vetneb-surface-raised)) 0%, hsl(var(--vetneb-surface)) 48%, hsl(var(--vetneb-surface-muted)) 100%);
+  }
+
+  .dashboard-app-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0.5rem;
+    z-index: 35;
+    pointer-events: none;
+    border: 1px solid hsl(var(--vetneb-teal) / 0.22);
+    border-radius: 1.25rem;
+    box-shadow:
+      inset 0 1px 0 hsl(var(--background) / 0.58),
+      0 0 0 1px hsl(var(--vetneb-navy) / 0.045),
+      0 18px 70px rgba(15, 45, 62, 0.1);
+  }
+
+  .dashboard-app-shell::after {
+    content: "";
+    position: absolute;
+    top: 0.5rem;
+    left: 1.25rem;
+    right: 1.25rem;
+    z-index: 36;
+    height: 3px;
+    pointer-events: none;
+    border-radius: 999px;
+    background:
+      linear-gradient(
+        90deg,
+        transparent 0%,
+        hsl(var(--vetneb-teal) / 0.18) 10%,
+        hsl(var(--vetneb-cyan) / 0.5) 50%,
+        hsl(var(--vetneb-teal) / 0.18) 90%,
+        transparent 100%
+      );
+    opacity: 0.95;
+  }
+
+  .dashboard-app-shell .dashboard-main {
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    overflow: hidden;
+    padding: clamp(0.75rem, 1.25vw, 1.1rem);
+  }
+
+  .dashboard-app-shell .dashboard-main > [data-dashboard-module-workspace],
+  .dashboard-app-shell .dashboard-main > [data-dashboard-module-hub="true"] {
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .dashboard-app-shell .dashboard-main [data-dashboard-module-workspace] {
+    border-radius: 1rem;
+  }
+
+  .dashboard-app-shell .dashboard-main .dashboard-workspace-header {
+    flex-shrink: 0;
+  }
+
+  .dashboard-app-shell .dashboard-main [data-dashboard-module-viewport] {
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  @media (max-width: 767px) {
+    .dashboard-app-shell::before {
+      inset: 0.35rem;
+      border-radius: 1rem;
+    }
+
+    .dashboard-app-shell::after {
+      top: 0.35rem;
+      left: 0.95rem;
+      right: 0.95rem;
+    }
+
+    .dashboard-app-shell .dashboard-main {
+      padding: 0.75rem;
+    }
+  }
+}
+/* dashboard-app-shell-visibility-contract:end */
