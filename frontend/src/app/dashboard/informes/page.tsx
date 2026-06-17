@@ -339,6 +339,8 @@ export default async function InformesPage({
           <CardContent className="space-y-4 pt-4">
             <form
               method="get"
+              role="search"
+              aria-label="Filtros compactos de informes"
               className="rounded-xl border border-vetneb-line/75 bg-card/78 p-3 shadow-[0_8px_28px_rgba(15,45,62,0.04)]"
             >
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_0.8fr_1fr_auto] lg:items-end">
@@ -415,7 +417,7 @@ export default async function InformesPage({
                 <section
                   id="reports-master-list"
                   aria-labelledby="reports-list-heading"
-                  className="rounded-xl border border-vetneb-line/75 bg-card/82"
+                  className="dashboard-master-panel rounded-xl border border-vetneb-line/75 bg-card/82"
                 >
                   <div className="border-b border-vetneb-line/70 px-4 py-3">
                     <h2
@@ -532,7 +534,7 @@ export default async function InformesPage({
                 <section
                   id="report-detail"
                   aria-labelledby="report-detail-heading"
-                  className="rounded-xl border border-vetneb-line/75 bg-card/82"
+                  className="dashboard-master-panel rounded-xl border border-vetneb-line/75 bg-card/82"
                 >
                   {selectedReport ? (
                     <div className="space-y-4 p-4">
