@@ -20,7 +20,7 @@ export function DashboardModuleWorkspace({
 }: DashboardModuleWorkspaceProps) {
   return (
     <section
-      className="flex h-full min-h-0 flex-col dashboard-workspace-enter"
+      className="flex min-h-0 flex-1 flex-col dashboard-workspace-enter"
       data-dashboard-module-workspace={moduleId}
       aria-label={title}
     >
