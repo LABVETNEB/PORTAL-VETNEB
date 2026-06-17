@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { ChevronLeft, ChevronRight, Loader2, Pencil, Plus, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import {
   Card,
   CardContent,
@@ -46,7 +47,10 @@ const ClinicEditDrawer = dynamic(
   { ssr: false },
 );
 
-const PAGE_SIZE = 50;
+// Single-viewport App Shell: a full page of clinics must fit the desktop
+// viewport without scroll, so the server page size is bounded to the compact
+// table height and clinic creation moves into a dialog.
+const PAGE_SIZE = 8;
 
 type CreateClinicForm = {
   clinicName: string;
@@ -108,6 +112,7 @@ export function AdminClinicsManagementCard() {
   const [currentOffset, setCurrentOffset] = useState(0);
   const [createForm, setCreateForm] = useState<CreateClinicForm>(getInitialCreateForm);
   const [editingClinic, setEditingClinic] = useState<AdminClinicManagementSummary | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
@@ -175,6 +180,7 @@ export function AdminClinicsManagementCard() {
       setSuccessMessage(
         `Clínica creada: ${result.clinic.clinicName} con usuario ${result.user.username}.`,
       );
+      setIsCreateOpen(false);
       loadClinics(0);
     } catch (err) {
       setError(formatAdminClinicsError(err, "No se pudo crear la clínica."));
@@ -235,18 +241,36 @@ export function AdminClinicsManagementCard() {
     <Card id="admin-clinics" className="dashboard-surface">
       <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-center lg:justify-between">
         <CardTitle className="text-base">Clínicas</CardTitle>
-        <Button type="button" onClick={() => loadClinics()} disabled={isBusy} aria-busy={isPending ? true : undefined}>
-          {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
-          {isPending ? "Actualizando..." : "Actualizar"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsCreateOpen(true)}
+            disabled={isBusy}
+          >
+            <Plus aria-hidden="true" />
+            Nueva clínica
+          </Button>
+          <Button type="button" onClick={() => loadClinics()} disabled={isBusy} aria-busy={isPending ? true : undefined}>
+            {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
+            {isPending ? "Actualizando..." : "Actualizar"}
+          </Button>
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-4 pt-5">
+        <ModuleDialog
+          open={isCreateOpen}
+          onOpenChange={setIsCreateOpen}
+          title="Nueva clínica"
+          description="Alta de clínica con su usuario de acceso inicial."
+          busy={activeActionKey === "create-clinic"}
+        >
         <form
-          className="surface-soft p-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6"
+          className="grid grid-cols-1 gap-3 md:grid-cols-2"
           onSubmit={(event) => void handleCreateClinic(event)}
         >
-          <label className="space-y-1.5 xl:col-span-2">
+          <label className="space-y-1.5 md:col-span-2">
             <span className="text-xs text-muted-foreground">Nombre clínica</span>
             <Input
               value={createForm.clinicName}
@@ -315,20 +339,21 @@ export function AdminClinicsManagementCard() {
             />
           </label>
 
-          <div className="flex items-end xl:col-span-5">
+          <div className="md:col-span-2">
             <p id="create-clinic-password-hint" className="text-xs text-muted-foreground">
               La contraseña anterior no se puede consultar. Para recuperación,
               cargue una nueva contraseña visible y guárdela.
             </p>
           </div>
 
-          <div className="flex items-end">
+          <div className="flex items-end md:col-span-2">
             <Button type="submit" className="w-full" disabled={isBusy} aria-busy={activeActionKey === "create-clinic" ? true : undefined}>
               {activeActionKey === "create-clinic" ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
               {activeActionKey === "create-clinic" ? "Creando..." : "Crear clínica"}
             </Button>
           </div>
         </form>
+        </ModuleDialog>
 
         {error ? (
           <div role="alert" className="clinical-alert-error">

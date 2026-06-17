@@ -12,6 +12,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
+import { CompactPager } from "@/components/dashboard/CompactPager";
+import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import {
   BACKEND_CONNECTION_ERROR_MESSAGE,
   getAdminPricing,
@@ -20,6 +23,11 @@ import {
   type AdminPricingItem,
   type AdminPricingUpdatePayload,
 } from "@/lib/api";
+
+// Single-viewport App Shell: prices are organized by category tabs and paginated
+// within each category so a page of editable studies fits one desktop viewport
+// without scroll. The full catalog stays reachable via tabs + pager.
+const ITEMS_PER_PAGE = 2;
 
 const LOAD_ERROR_MESSAGE = "No se pudieron cargar los precios. Intente nuevamente.";
 const EMPTY_STATE_MESSAGE = "No hay precios configurados.";
@@ -151,6 +159,186 @@ function formatAdminPricingError(error: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+type PricingCategoryItemsProps = {
+  items: AdminPricingCategory["items"];
+  formStateById: Record<number, PricingItemFormState>;
+  savingItemId: number | null;
+  isSavingAll: boolean;
+  onUpdateItem: (
+    itemId: number,
+    updater: (current: PricingItemFormState) => PricingItemFormState,
+  ) => void;
+  onSaveItem: (itemId: number) => void;
+};
+
+// Paginated editable studies for a single pricing category. Keeps the per-item
+// manual form contract while bounding how many forms render so a page fits one
+// desktop viewport without scroll.
+function PricingCategoryItems({
+  items,
+  formStateById,
+  savingItemId,
+  isSavingAll,
+  onUpdateItem,
+  onSaveItem,
+}: PricingCategoryItemsProps) {
+  const paged = usePagedRows(items, ITEMS_PER_PAGE);
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 content-start">
+        {paged.pageItems.map((item) => {
+          const formState = formStateById[item.id];
+
+          if (!formState) {
+            return null;
+          }
+
+          const isSaving = savingItemId === item.id;
+
+          return (
+            <form
+              key={item.id}
+              data-admin-pricing-item-form
+              className="rounded-lg border border-vetneb-line/75 bg-vetneb-surface-raised/76 p-3.5 shadow-[0_8px_22px_rgba(15,45,62,0.07)]"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void onSaveItem(item.id);
+              }}
+            >
+              <fieldset
+                className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3"
+                disabled={isSaving || isSavingAll}
+              >
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Estudio
+                  </span>
+                  <Input value={item.studyName} readOnly className="bg-card/90" />
+                </label>
+
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Precio
+                  </span>
+                  <Input
+                    value={formState.priceLabel}
+                    onChange={(event) =>
+                      onUpdateItem(item.id, (current) => ({
+                        ...current,
+                        priceLabel: event.target.value,
+                        statusMessage: null,
+                        errorMessage: null,
+                      }))
+                    }
+                    placeholder="Consultar"
+                  />
+                </label>
+
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Orden
+                  </span>
+                  <Input
+                    type="number"
+                    min="0"
+                    inputMode="numeric"
+                    value={formState.displayOrder}
+                    onChange={(event) =>
+                      onUpdateItem(item.id, (current) => ({
+                        ...current,
+                        displayOrder: event.target.value,
+                        statusMessage: null,
+                        errorMessage: null,
+                      }))
+                    }
+                  />
+                </label>
+
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Estado
+                  </span>
+                  <select
+                    value={formState.isActive ? "active" : "inactive"}
+                    onChange={(event) =>
+                      onUpdateItem(item.id, (current) => ({
+                        ...current,
+                        isActive: event.target.value === "active",
+                        statusMessage: null,
+                        errorMessage: null,
+                      }))
+                    }
+                    className="field-select"
+                  >
+                    <option value="active">Activo</option>
+                    <option value="inactive">Inactivo</option>
+                  </select>
+                </label>
+
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Vista pública
+                  </span>
+                  <Input
+                    value={normalizePriceLabel(formState.priceLabel)}
+                    readOnly
+                    className="bg-card/90"
+                  />
+                </label>
+
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Última actualización
+                  </span>
+                  <Input
+                    value={formatUpdatedAt(item.updatedAt)}
+                    readOnly
+                    className="bg-card/90"
+                  />
+                </label>
+              </fieldset>
+
+              <div className="mt-3 flex flex-col gap-3 border-t border-vetneb-line/65 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-h-5">
+                  {formState.errorMessage ? (
+                    <p className="clinical-alert-error px-3 py-2" role="alert">
+                      {formState.errorMessage}
+                    </p>
+                  ) : null}
+
+                  {formState.statusMessage ? (
+                    <p className="clinical-alert-success px-3 py-2">
+                      {formState.statusMessage}
+                    </p>
+                  ) : null}
+                </div>
+
+                <Button type="submit" className="w-full sm:w-auto" disabled={isSaving || isSavingAll}>
+                  {isSaving ? "Guardando..." : "Guardar precio"}
+                </Button>
+              </div>
+            </form>
+          );
+        })}
+      </div>
+
+      <CompactPager
+        page={paged.page}
+        pageCount={paged.pageCount}
+        rangeStart={paged.rangeStart}
+        rangeEnd={paged.rangeEnd}
+        total={paged.total}
+        hasPrev={paged.hasPrev}
+        hasNext={paged.hasNext}
+        onPrev={paged.goPrev}
+        onNext={paged.goNext}
+        itemLabel="estudios"
+      />
+    </div>
+  );
 }
 
 export function AdminPricingEditorCard() {
@@ -402,8 +590,8 @@ export function AdminPricingEditorCard() {
   }
 
   return (
-    <Card className="dashboard-surface">
-      <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-start lg:justify-between">
+    <Card className="dashboard-surface flex min-h-0 flex-1 flex-col">
+      <CardHeader className="shrink-0 flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <CardTitle className="text-base">Lista de precios</CardTitle>
           <CardDescription>
@@ -441,7 +629,7 @@ export function AdminPricingEditorCard() {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 pt-6">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
         {loadError ? (
           <p
             role="alert"
@@ -458,164 +646,28 @@ export function AdminPricingEditorCard() {
         ) : null}
 
         {!loadError && hasPricingItems ? (
-          <div className="space-y-6">
-            {categories.map((category) => (
-              <section
-                key={category.category}
-                className="overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/95 shadow-[0_10px_28px_rgba(15,45,62,0.08)]"
-              >
-                <header className="clinical-card-header border-b border-vetneb-line/70 px-4 py-3 text-center">
-                  <h3 className="text-sm font-semibold uppercase tracking-[0.18em]">
-                    {category.category}
-                  </h3>
-                  <p className="mt-1 text-xs text-primary-foreground/80">
-                    {category.items.length} estudios configurables
-                  </p>
-                </header>
-
-                <div className="space-y-3 p-4">
-                  {category.items.map((item) => {
-                    const formState = formStateById[item.id];
-
-                    if (!formState) {
-                      return null;
-                    }
-
-                    const isSaving = savingItemId === item.id;
-
-                    return (
-                      <form
-                        key={item.id}
-                        data-admin-pricing-item-form
-                        className="rounded-lg border border-vetneb-line/75 bg-vetneb-surface-raised/76 p-3.5 shadow-[0_8px_22px_rgba(15,45,62,0.07)]"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          void handleSaveItem(item.id);
-                        }}
-                      >
-                        <fieldset
-                          className="grid grid-cols-1 gap-3 lg:grid-cols-2"
-                          disabled={isSaving || isSavingAll}
-                        >
-                          <label className="space-y-2">
-                            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              Estudio
-                            </span>
-                            <Input
-                              value={item.studyName}
-                              readOnly
-                              className="bg-card/90"
-                            />
-                          </label>
-
-                          <label className="space-y-2">
-                            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              Precio
-                            </span>
-                            <Input
-                              value={formState.priceLabel}
-                              onChange={(event) =>
-                                updateItemFormState(item.id, (current) => ({
-                                  ...current,
-                                  priceLabel: event.target.value,
-                                  statusMessage: null,
-                                  errorMessage: null,
-                                }))
-                              }
-                              placeholder="Consultar"
-                            />
-                          </label>
-
-                          <label className="space-y-2">
-                            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              Orden
-                            </span>
-                            <Input
-                              type="number"
-                              min="0"
-                              inputMode="numeric"
-                              value={formState.displayOrder}
-                              onChange={(event) =>
-                                updateItemFormState(item.id, (current) => ({
-                                  ...current,
-                                  displayOrder: event.target.value,
-                                  statusMessage: null,
-                                  errorMessage: null,
-                                }))
-                              }
-                            />
-                          </label>
-
-                          <label className="space-y-2">
-                            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              Estado
-                            </span>
-                            <select
-                              value={formState.isActive ? "active" : "inactive"}
-                              onChange={(event) =>
-                                updateItemFormState(item.id, (current) => ({
-                                  ...current,
-                                  isActive: event.target.value === "active",
-                                  statusMessage: null,
-                                  errorMessage: null,
-                                }))
-                              }
-                              className="field-select"
-                            >
-                              <option value="active">Activo</option>
-                              <option value="inactive">Inactivo</option>
-                            </select>
-                          </label>
-
-                          <label className="space-y-2">
-                            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              Vista pública
-                            </span>
-                            <Input
-                              value={normalizePriceLabel(formState.priceLabel)}
-                              readOnly
-                              className="bg-card/90"
-                            />
-                          </label>
-
-                          <label className="space-y-2">
-                            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              Última actualización
-                            </span>
-                            <Input
-                              value={formatUpdatedAt(item.updatedAt)}
-                              readOnly
-                              className="bg-card/90"
-                            />
-                          </label>
-                        </fieldset>
-
-                        <div className="mt-3 flex flex-col gap-3 border-t border-vetneb-line/65 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="min-h-5">
-                            {formState.errorMessage ? (
-                              <p className="clinical-alert-error px-3 py-2" role="alert">
-                                {formState.errorMessage}
-                              </p>
-                            ) : null}
-
-                            {formState.statusMessage ? (
-                              <p className="clinical-alert-success px-3 py-2">
-                                {formState.statusMessage}
-                              </p>
-                            ) : null}
-                          </div>
-
-                          <Button type="submit" className="w-full sm:w-auto" disabled={isSaving || isSavingAll}>
-                            {isSaving ? "Guardando..." : "Guardar precio"}
-                          </Button>
-                        </div>
-                      </form>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
-          </div>
+          <ModuleTabs
+            ariaLabel="Categorías de precios"
+            tabs={categories.map((category) => ({
+              id: category.category,
+              label: category.category,
+              badge: (
+                <span className="rounded-full bg-vetneb-surface-muted px-1.5 text-[0.62rem] font-semibold text-muted-foreground">
+                  {category.items.length}
+                </span>
+              ),
+              content: (
+                <PricingCategoryItems
+                  items={category.items}
+                  formStateById={formStateById}
+                  savingItemId={savingItemId}
+                  isSavingAll={isSavingAll}
+                  onUpdateItem={updateItemFormState}
+                  onSaveItem={handleSaveItem}
+                />
+              ),
+            }))}
+          />
         ) : null}
       </CardContent>
     </Card>

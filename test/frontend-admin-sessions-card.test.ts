@@ -31,7 +31,7 @@ test("admin sessions card keeps typed session contracts", () => {
   assert.ok(source.includes("AdminSessionSummary"));
   assert.ok(source.includes("AdminSessionType"));
   assert.ok(source.includes("AdminSessionsSnapshot"));
-  assert.ok(source.includes("const PAGE_SIZE = 25;"));
+  assert.ok(source.includes("const PAGE_SIZE = 8;"));
 });
 
 test("admin sessions card keeps formatters and badge variants", () => {

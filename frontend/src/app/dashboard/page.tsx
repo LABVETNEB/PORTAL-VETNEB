@@ -9,6 +9,7 @@ import { ClinicCommandCenter } from "./ClinicCommandCenter";
 import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";
 import { ClinicPublicProfileCard } from "@/components/dashboard/ClinicPublicProfileCard";
 import { PasswordChangePanel } from "@/components/dashboard/PasswordChangePanel";
+import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
 import { ClinicInformesWorkspaceSummary } from "./ClinicInformesWorkspaceSummary";
 import { ClinicLogisticaWorkspaceSummary } from "./ClinicLogisticaWorkspaceSummary";
 import {
@@ -111,15 +112,17 @@ export default async function DashboardPage({
         notifications="clinic"
       />
       <main className="dashboard-main">
-        <DashboardPageHeader
-          title="Dashboard Clínica"
-          description="Seleccione un módulo para acceder a sus funciones."
-        />
         <Suspense>
           <ClinicDashboardWorkspaceController
             initialModule={initialModule}
             pendingReports={pendingReports}
             activeVisits={activeVisits}
+            pageHeader={
+              <DashboardPageHeader
+                title="Dashboard Clínica"
+                description="Seleccione un módulo para acceder a sus funciones."
+              />
+            }
             workspaces={{
               operaciones: (
                 <ClinicCommandCenter
@@ -144,10 +147,21 @@ export default async function DashboardPage({
                 />
               ),
               perfil: (
-                <div className="space-y-6">
-                  <PasswordChangePanel variant="clinic" />
-                  <ClinicPublicProfileCard />
-                </div>
+                <ModuleTabs
+                  ariaLabel="Secciones de perfil"
+                  tabs={[
+                    {
+                      id: "acceso",
+                      label: "Acceso",
+                      content: <PasswordChangePanel variant="clinic" />,
+                    },
+                    {
+                      id: "perfil-publico",
+                      label: "Perfil público",
+                      content: <ClinicPublicProfileCard />,
+                    },
+                  ]}
+                />
               ),
               tokens: <ClinicParticularTokensCard />,
             }}

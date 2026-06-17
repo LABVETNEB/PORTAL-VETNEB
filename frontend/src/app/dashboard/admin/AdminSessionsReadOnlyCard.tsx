@@ -30,7 +30,9 @@ import type {
   AdminSessionsSnapshot,
 } from "@/types";
 
-const PAGE_SIZE = 25;
+// Single-viewport App Shell: a full page must fit the desktop viewport without
+// scroll, so the server page size is bounded to what the compact table shows.
+const PAGE_SIZE = 8;
 
 function formatOptionalDate(value: string | null) {
   return value ? formatDateTime(value) : "—";

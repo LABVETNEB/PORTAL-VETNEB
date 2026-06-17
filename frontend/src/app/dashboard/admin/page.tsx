@@ -2,14 +2,6 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Card,
   CardContent,
   CardHeader,
@@ -32,6 +24,8 @@ import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
 import { PasswordChangePanel } from "@/components/dashboard/PasswordChangePanel";
 import { AdminDashboardWorkspaceController } from "./AdminDashboardWorkspaceController";
 import type { AdminModule } from "./AdminDashboardWorkspaceController";
+import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
+import { AdminAuditLogTable, type AdminAuditLogRow } from "./AdminAuditLogTable";
 import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 import { formatDateTime } from "@/lib/utils";
@@ -377,6 +371,22 @@ export default async function AdminPage({
   void auditEventOptions;
   void actorTypeOptions;
 
+  // Pre-format audit rows server-side into serializable values so the client
+  // table component can paginate them without re-importing server-only helpers.
+  const auditRows: AdminAuditLogRow[] = filteredAuditEntries.map((entry) => ({
+    id: entry.id,
+    eventLabel: EVENT_LABELS[entry.event] ?? entry.event,
+    eventVariant: getEventVariant(entry.event),
+    actor: entry.actorId ? `#${entry.actorId}` : "—",
+    actorTypeLabel: ACTOR_LABELS[entry.actorType] ?? entry.actorType,
+    target:
+      entry.targetType && entry.targetId
+        ? `${entry.targetType} #${entry.targetId}`
+        : "—",
+    detail: getAuditMetadataSummary(entry),
+    date: formatDateTime(entry.createdAt),
+  }));
+
   // ── Administración workspace: command center + critical alerts ──────────────
   const adminWorkspaceSlot = (
     <div className="space-y-6">
@@ -588,9 +598,22 @@ export default async function AdminPage({
 
   // ── Sesiones workspace ──────────────────────────────────────────────────────
   const sessionsWorkspaceSlot = (
-    <section id="admin-sessions" className="space-y-6">
-      <PasswordChangePanel variant="admin" />
-      <AdminSessionsReadOnlyCard />
+    <section id="admin-sessions" className="flex min-h-0 flex-1 flex-col">
+      <ModuleTabs
+        ariaLabel="Secciones de sesiones"
+        tabs={[
+          {
+            id: "acceso",
+            label: "Acceso",
+            content: <PasswordChangePanel variant="admin" />,
+          },
+          {
+            id: "sesiones",
+            label: "Sesiones",
+            content: <AdminSessionsReadOnlyCard />,
+          },
+        ]}
+      />
     </section>
   );
 
@@ -603,7 +626,15 @@ export default async function AdminPage({
 
   // ── Auditoría workspace ─────────────────────────────────────────────────────
   const auditLogWorkspaceSlot = (
-    <div className="space-y-4">
+    <ModuleTabs
+      ariaLabel="Secciones de auditoría"
+      defaultTabId="registro"
+      tabs={[
+        {
+          id: "resumen",
+          label: "Resumen",
+          content: (
+            <div className="grid grid-cols-1 gap-3 content-start lg:grid-cols-3">
       <Card id="admin-notifications" className="dashboard-surface">
         <CardHeader>
           <CardTitle className="text-base">Notificaciones</CardTitle>
@@ -712,117 +743,25 @@ export default async function AdminPage({
           </div>
         </CardContent>
       </Card>
-
-      <Card id="audit-log" className="dashboard-surface">
-        <CardHeader>
-          <CardTitle className="text-base">
-            Log de auditoría ({filteredAuditEntries.length}/{auditEntries.length})
-          </CardTitle>
-          <CardDescription>
-            Filtros activos: evento{" "}
-            <strong>{selectedAuditEventLabel}</strong>
-            {" · "}actor <strong>{selectedActorTypeLabel}</strong>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 p-0">
-          {hasActiveAuditFilters ? (
-            <div className="clinical-muted-band mx-6 mt-4 flex flex-col gap-2 rounded-lg px-4 py-3 text-sm text-vetneb-navy md:flex-row md:items-center md:justify-between">
-              <span>
-                Mostrando {filteredAuditEntries.length} de{" "}
-                {auditEntries.length} eventos.
-              </span>
-              <PublicRouteControl
-                href="/dashboard/admin?module=audit-log"
-                replace
-                variant="textLink"
-                className="font-semibold text-vetneb-navy hover:text-vetneb-teal"
-              >
-                Limpiar filtros
-              </PublicRouteControl>
             </div>
-          ) : null}
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Evento</TableHead>
-                <TableHead>Actor</TableHead>
-                <TableHead>Tipo actor</TableHead>
-                <TableHead>Objetivo</TableHead>
-                <TableHead>Detalle</TableHead>
-                <TableHead>Fecha</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {auditEntriesLoadError ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    role="alert"
-                    className="clinical-table-state clinical-alert-warning"
-                  >
-                    No se pudieron cargar los eventos de auditoría. Intente nuevamente.
-                  </TableCell>
-                </TableRow>
-              ) : filteredAuditEntries.length ? (
-                filteredAuditEntries.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
-                      #{entry.id}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getEventVariant(entry.event)}>
-                        {EVENT_LABELS[entry.event] ?? entry.event}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-vetneb-ink/88">
-                      {entry.actorId ? `#${entry.actorId}` : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {ACTOR_LABELS[entry.actorType] ?? entry.actorType}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {entry.targetType && entry.targetId
-                        ? `${entry.targetType} #${entry.targetId}`
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="max-w-md whitespace-normal wrap-break-word text-xs text-muted-foreground">
-                      {getAuditMetadataSummary(entry)}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {formatDateTime(entry.createdAt)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="clinical-table-state"
-                  >
-                    {hasActiveAuditFilters
-                      ? "No hay eventos para los filtros seleccionados."
-                      : "No hay eventos de auditoría disponibles."}
-                    {hasActiveAuditFilters ? (
-                      <div className="mt-2">
-                        <PublicRouteControl
-                          href="/dashboard/admin?module=audit-log"
-                          replace
-                          variant="textLink"
-                          className="font-semibold text-vetneb-navy hover:text-vetneb-teal"
-                        >
-                          Limpiar filtros
-                        </PublicRouteControl>
-                      </div>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+          ),
+        },
+        {
+          id: "registro",
+          label: "Registro",
+          content: (
+            <AdminAuditLogTable
+              rows={auditRows}
+              totalCount={auditEntries.length}
+              loadError={auditEntriesLoadError}
+              hasActiveFilters={hasActiveAuditFilters}
+              selectedAuditEventLabel={selectedAuditEventLabel}
+              selectedActorTypeLabel={selectedActorTypeLabel}
+            />
+          ),
+        },
+      ]}
+    />
   );
 
   // ── Mantenimiento workspace ─────────────────────────────────────────────────
@@ -843,18 +782,20 @@ export default async function AdminPage({
         notifications="admin"
       />
       <main className="dashboard-main">
-        <DashboardPageHeader
-          title="Administración"
-          description="Seleccione un módulo para acceder a sus funciones."
-          badge={
-            <Badge variant={getSystemStatusVariant(systemStatus)}>
-              {formatSystemStatus(systemStatus)}
-            </Badge>
-          }
-        />
         <Suspense>
           <AdminDashboardWorkspaceController
             initialModule={initialModule}
+            pageHeader={
+              <DashboardPageHeader
+                title="Administración"
+                description="Seleccione un módulo para acceder a sus funciones."
+                badge={
+                  <Badge variant={getSystemStatusVariant(systemStatus)}>
+                    {formatSystemStatus(systemStatus)}
+                  </Badge>
+                }
+              />
+            }
             workspaces={{
               admin: adminWorkspaceSlot,
               "admin-report-upload": reportUploadWorkspaceSlot,

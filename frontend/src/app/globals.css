@@ -1844,3 +1844,119 @@
   }
 }
 /* dashboard-no-scroll-cockpit:end */
+/* dashboard-single-viewport-app-shell:start */
+@layer components {
+  /* App Shell module primitives. Every module renders inside a strict height
+     chain (shell h-dvh overflow-hidden → main min-h-0 → workspace min-h-0 →
+     ModuleSurface). These classes guarantee the body fills the available height
+     and never introduces operational scroll on desktop: content is bounded with
+     tabs/pagination/dialog, never clipped. */
+
+  .dashboard-module-surface {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: 0.75rem;
+  }
+
+  /* Fixed (non-growing) toolbar row: filters, search, primary actions. */
+  .dashboard-module-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    min-width: 0;
+  }
+
+  /* Growing body: holds tables/lists/tabs. min-h-0 lets children shrink so the
+     bounded content (paginated) fits without scrolling the document. */
+  .dashboard-module-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  /* Segmented tab control (no new dependency; reuses native buttons). */
+  .dashboard-module-tabs {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: 0.75rem;
+  }
+
+  .dashboard-module-tablist {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    min-width: 0;
+    border-radius: 0.7rem;
+    border: 1px solid hsl(var(--vetneb-line) / 0.78);
+    background: hsl(var(--card) / 0.8);
+    padding: 0.28rem;
+  }
+
+  .dashboard-module-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.25rem;
+    white-space: nowrap;
+    border-radius: 0.5rem;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: hsl(var(--foreground) / 0.74);
+  }
+
+  .dashboard-module-tab[aria-selected="true"] {
+    background: hsl(var(--vetneb-navy));
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 8px 20px rgba(15, 45, 62, 0.18);
+  }
+
+  .dashboard-module-tab[aria-selected="false"]:hover {
+    background: hsl(var(--accent) / 0.7);
+    color: hsl(var(--accent-foreground));
+  }
+
+  .dashboard-module-tabpanel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  /* Compact pager pinned to the bottom of a module body. */
+  .dashboard-compact-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    padding-top: 0.6rem;
+    margin-top: auto;
+    border-top: 1px solid hsl(var(--vetneb-line) / 0.6);
+    font-size: 0.78rem;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Bounded table wrapper: fixed layout, no overflow. Rows are limited by
+     pagination (usePagedRows) so the table never exceeds the body. */
+  .dashboard-fitted-table {
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .dashboard-fitted-table table {
+    width: 100%;
+  }
+}
+/* dashboard-single-viewport-app-shell:end */

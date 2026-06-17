@@ -14,6 +14,8 @@ const SIDEBAR_PATH = "frontend/src/components/dashboard/AdminDashboardSidebar.ts
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const ADMIN_CLINICS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx";
+const ADMIN_AUDIT_LOG_TABLE_PATH =
+  "frontend/src/app/dashboard/admin/AdminAuditLogTable.tsx";
 const API_CLIENT_PATH = "frontend/src/lib/api.ts";
 
 const SIDEBAR_SECTIONS = [
@@ -68,6 +70,7 @@ test("admin dashboard sidebar sections keep visible anchors mapped", () => {
   const sidebarSource = read(SIDEBAR_PATH);
   const pageSource = read(ADMIN_PAGE_PATH);
   const clinicsCardSource = read(ADMIN_CLINICS_CARD_PATH);
+  const auditLogTableSource = read(ADMIN_AUDIT_LOG_TABLE_PATH);
 
   for (const section of SIDEBAR_SECTIONS) {
     assert.ok(
@@ -83,9 +86,14 @@ test("admin dashboard sidebar sections keep visible anchors mapped", () => {
     const isRenderedInClinicsCard =
       section.anchor === 'id="admin-clinics"' &&
       clinicsCardSource.includes(section.anchor);
+    // The audit registry table is a dedicated client component (App Shell
+    // single-viewport pagination), so its anchor lives there, like clinics.
+    const isRenderedInAuditTable =
+      section.anchor === 'id="audit-log"' &&
+      auditLogTableSource.includes(section.anchor);
 
     assert.equal(
-      isRenderedInPage || isRenderedInClinicsCard,
+      isRenderedInPage || isRenderedInClinicsCard || isRenderedInAuditTable,
       true,
       `anchor ${section.anchor} must be rendered in admin surfaces`,
     );

@@ -54,6 +54,8 @@ type ClinicDashboardWorkspaceControllerProps = {
   pendingReports: number;
   activeVisits: number;
   workspaces: ClinicWorkspaceSlots;
+  /** Page header rendered only on the hub; hidden in modules to reclaim height. */
+  pageHeader?: ReactNode;
 };
 
 const MODULE_META: Record<
@@ -87,6 +89,7 @@ export function ClinicDashboardWorkspaceController({
   pendingReports,
   activeVisits,
   workspaces,
+  pageHeader,
 }: ClinicDashboardWorkspaceControllerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -235,11 +238,14 @@ export function ClinicDashboardWorkspaceController({
   }
 
   return (
-    <DashboardModuleHub
-      heading="Módulos operativos"
-      description="Acceso rápido a informes, logística, perfil público y tokens de la clínica."
-      cards={clinicCards}
-      hero={clinicHero}
-    />
+    <>
+      {pageHeader}
+      <DashboardModuleHub
+        heading="Módulos operativos"
+        description="Acceso rápido a informes, logística, perfil público y tokens de la clínica."
+        cards={clinicCards}
+        hero={clinicHero}
+      />
+    </>
   );
 }

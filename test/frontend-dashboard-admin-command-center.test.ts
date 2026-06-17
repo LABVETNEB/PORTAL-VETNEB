@@ -130,16 +130,19 @@ test("dashboard admin composes module hub, command center, and existing cards", 
   const commandCenterIndex = source.indexOf("<AdminCommandCenter");
   const alertsIndex = source.indexOf("Alertas críticas");
   const alertsCardIndex = source.indexOf("<AdminFailedLoginAlertsReadOnlyCard />");
-  const auditLogIndex = source.indexOf('id="audit-log"');
+  // App Shell: the audit registry is a dedicated component rendered in the slot.
+  const auditLogIndex = source.indexOf("<AdminAuditLogTable");
 
   // PR5C: slot vars defined before <main>; each workspace is isolated per module.
+  // App Shell: page header is a controller prop, so it appears after the
+  // controller opening tag (last in source order).
   const order = [
     commandCenterIndex,
     alertsIndex,
     alertsCardIndex,
     auditLogIndex,
-    pageHeaderIndex,
     workspaceControllerIndex,
+    pageHeaderIndex,
   ];
 
   for (const index of order) {

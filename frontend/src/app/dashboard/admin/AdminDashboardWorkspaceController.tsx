@@ -78,6 +78,8 @@ type AdminDashboardWorkspaceControllerProps = {
   systemStatusVariant: "default" | "secondary" | "destructive" | "outline";
   auditEntriesCount: number;
   eventTypesCount: number;
+  /** Page header rendered only on the hub; hidden in modules to reclaim height. */
+  pageHeader?: ReactNode;
 };
 
 function getHeroStatusTone(systemStatus: string): DashboardHubHeroStatusTone {
@@ -138,6 +140,7 @@ export function AdminDashboardWorkspaceController({
   systemStatusVariant,
   auditEntriesCount,
   eventTypesCount,
+  pageHeader,
 }: AdminDashboardWorkspaceControllerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -310,11 +313,14 @@ export function AdminDashboardWorkspaceController({
   }
 
   return (
-    <DashboardModuleHub
-      heading="Módulos de administración"
-      description="Acceso a clínicas, precios, sesiones, auditoría y estado del sistema."
-      cards={adminCards}
-      hero={adminHero}
-    />
+    <>
+      {pageHeader}
+      <DashboardModuleHub
+        heading="Módulos de administración"
+        description="Acceso a clínicas, precios, sesiones, auditoría y estado del sistema."
+        cards={adminCards}
+        hero={adminHero}
+      />
+    </>
   );
 }
