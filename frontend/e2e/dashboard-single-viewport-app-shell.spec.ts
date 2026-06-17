@@ -5,8 +5,8 @@ import { expect, test } from "@playwright/test";
 //
 // Desktop dashboard modules must fit one viewport with ZERO operational scroll:
 // no document scroll (vertical or horizontal) and no effective scroll on the
-// `.dashboard-main` container (its `overflow-y: auto` is kept only for the legacy
-// scroll-container contract; the real metric is scrollHeight ≤ clientHeight).
+// `.dashboard-main` container (which is `overflow: hidden` — not a scroll
+// container; the real metric is scrollHeight ≤ clientHeight).
 //
 // Verified at the two mandated desktop viewports: 1440×900 (target) and
 // 1366×768 (minimum acceptable). The e2e server runs with NEXT_PUBLIC_API_URL=""
@@ -192,8 +192,8 @@ for (const viewport of VIEWPORTS) {
             m.bodyClientW + TOLERANCE,
           );
 
-          // The main dashboard container keeps overflow-y:auto for the legacy
-          // contract, but must have no effective scroll.
+          // The main dashboard container is overflow:hidden (not a scroll
+          // container) and must have no effective scroll.
           expect(m.hasMain, "main.dashboard-main present").toBe(true);
           expect(
             m.mainScrollH,

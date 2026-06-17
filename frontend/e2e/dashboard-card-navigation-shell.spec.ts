@@ -431,19 +431,23 @@ test.describe("dashboard shell — no global scroll", () => {
     expect(shellClass).toContain("overflow-hidden");
   });
 
-  test("dashboard main content area is scroll container (overflow-y-auto)", async ({ page }) => {
+  test("dashboard main content area is NOT an operational scroll container", async ({ page }) => {
     await page.goto("/dashboard");
 
-    await page.waitForSelector("main", { timeout: 8_000 });
+    await page.waitForSelector("main.dashboard-main", { timeout: 8_000 });
 
-    const mainHasOverflowAuto = await page.evaluate(() => {
-      const main = document.querySelector("main");
-      if (!main) return false;
+    const mainOverflow = await page.evaluate(() => {
+      const main = document.querySelector("main.dashboard-main");
+      if (!main) return null;
       const style = window.getComputedStyle(main);
-      return style.overflowY === "auto" || style.overflow === "auto";
+      return { overflowY: style.overflowY, overflowX: style.overflowX };
     });
 
-    expect(mainHasOverflowAuto).toBe(true);
+    // App Shell contract: `main` must not re-enable document-like vertical scroll.
+    // Modules fit the viewport via the no-scroll primitives instead.
+    expect(mainOverflow).not.toBeNull();
+    expect(mainOverflow!.overflowY).not.toBe("auto");
+    expect(mainOverflow!.overflowY).not.toBe("scroll");
   });
 
   test("body does not scroll when clinic dashboard hub fills viewport", async ({ page }) => {

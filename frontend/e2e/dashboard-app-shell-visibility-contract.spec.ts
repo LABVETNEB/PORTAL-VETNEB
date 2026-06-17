@@ -200,15 +200,18 @@ async function expectAppShellVisible(page: Page, expectedSurface: "clinic" | "ad
     `${expectedSurface} body vertical overflow`,
   ).toBeLessThanOrEqual(TOLERANCE);
 
+  // App Shell contract: `main` is not an operational scroll container. Module
+  // fit (`scrollHeight ≤ clientHeight`) is asserted by the dedicated no-scroll
+  // specs at the supported viewports (≥768px height); this visibility spec runs
+  // at intentionally short 650px viewports to verify shell chrome only.
   expect(
     metrics.mainOverflowMode,
-    `${expectedSurface} main must remain the controlled dashboard scroll container`,
-  ).toBe("auto");
-
+    `${expectedSurface} main must NOT be an operational scroll container`,
+  ).not.toBe("auto");
   expect(
-    metrics.mainOverflowY,
-    `${expectedSurface} main overflow must stay bounded for compact viewport`,
-  ).toBeGreaterThanOrEqual(0);
+    metrics.mainOverflowMode,
+    `${expectedSurface} main must NOT be an operational scroll container`,
+  ).not.toBe("scroll");
 
   expect(metrics.shellBeforeBorder, `${expectedSurface} shell visual border`).not.toBe("0px");
   expect(metrics.shellAfterHeight, `${expectedSurface} shell top rail`).not.toBe("0px");
