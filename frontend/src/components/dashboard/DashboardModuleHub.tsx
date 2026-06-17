@@ -65,7 +65,7 @@ export function DashboardModuleHub({
             const cardBody = (
               <>
                 <div className="flex items-start justify-between gap-2">
-                  <span className="dashboard-cockpit-tile-icon">
+                  <span className="dashboard-cockpit-tile-icon rounded-lg bg-gradient-to-br from-vetneb-teal/15 to-vetneb-cyan/20">
                     <card.icon className="h-4 w-4" aria-hidden="true" />
                   </span>
                   {card.badge != null ? (
