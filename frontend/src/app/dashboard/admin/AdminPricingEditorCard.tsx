@@ -25,9 +25,11 @@ import {
 } from "@/lib/api";
 
 // Single-viewport App Shell: prices are organized by category tabs and paginated
-// within each category so a page of editable studies fits one desktop viewport
-// without scroll. The full catalog stays reachable via tabs + pager.
-const ITEMS_PER_PAGE = 2;
+// within each category. The per-item manual form (contract) is tall, so a single
+// study fits one desktop viewport (1366×768) without scroll; the full catalog
+// stays reachable via category tabs + the compact pager (pagination is preferred
+// over scroll per the no-scroll contract).
+const ITEMS_PER_PAGE = 1;
 
 const LOAD_ERROR_MESSAGE = "No se pudieron cargar los precios. Intente nuevamente.";
 const EMPTY_STATE_MESSAGE = "No hay precios configurados.";

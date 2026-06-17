@@ -155,12 +155,12 @@ export function PasswordChangePanel({
 
   return (
     <Card id={`${variant}-password-change`} className="dashboard-surface">
-      <CardHeader className="border-b border-vetneb-line/70">
+      <CardHeader className="border-b border-vetneb-line/70 px-5 py-4">
         <CardTitle className="text-base">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="pt-6">
-        <form className="space-y-4" onSubmit={handleSubmit}>
+      <CardContent className="px-5 py-4">
+        <form className="space-y-3" onSubmit={handleSubmit}>
           <div>
             <label htmlFor={currentPasswordId} className="field-label">
               Contraseña actual

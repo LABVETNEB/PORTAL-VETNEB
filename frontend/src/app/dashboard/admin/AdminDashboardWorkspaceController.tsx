@@ -50,8 +50,17 @@ const ADMIN_MODULE_VALUES = [
   "admin-maintenance",
 ] as const;
 
+const ADMIN_MODULE_ALIASES: Partial<Record<string, AdminModule>> = {
+  "admin-upload-report": "admin-report-upload",
+  maintenance: "admin-maintenance",
+};
+
 function parseModuleFromUrl(value: string | null): AdminModule | null {
   if (!value) return null;
+  const alias = ADMIN_MODULE_ALIASES[value];
+  if (alias) {
+    return alias;
+  }
   return (ADMIN_MODULE_VALUES as readonly string[]).includes(value)
     ? (value as AdminModule)
     : null;
