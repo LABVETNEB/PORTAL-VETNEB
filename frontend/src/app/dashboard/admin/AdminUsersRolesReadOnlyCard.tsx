@@ -31,7 +31,7 @@ import type {
   ClinicUserRole,
 } from "@/types";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 5;
 
 function formatUserType(value: AdminRoleUserType) {
   return value === "admin" ? "Admin" : "Clínica";
@@ -208,7 +208,7 @@ export function AdminUsersRolesReadOnlyCard() {
     : false;
 
   return (
-    <Card className="dashboard-surface">
+    <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
       <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <CardTitle className="text-base">Usuarios y roles</CardTitle>
@@ -225,7 +225,7 @@ export function AdminUsersRolesReadOnlyCard() {
         </Button>
       </CardHeader>
 
-      <CardContent className="space-y-4 pt-6">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
         <div className="dashboard-filter-stats-grid-5">
           <div className="surface-soft">
             <p className="text-xs text-muted-foreground">Total filtrado</p>
@@ -298,7 +298,7 @@ export function AdminUsersRolesReadOnlyCard() {
           </div>
         ) : null}
 
-        <div className="dashboard-table-responsive">
+        <div className="dashboard-table-responsive min-h-0 flex-1">
           <Table>
             <TableHeader>
               <TableRow>
@@ -394,7 +394,7 @@ export function AdminUsersRolesReadOnlyCard() {
           </Table>
         </div>
 
-        <div className="dashboard-table-pagination">
+        <div className="dashboard-table-pagination shrink-0">
           <div className="dashboard-table-pagination-controls">
             <Button
               type="button"

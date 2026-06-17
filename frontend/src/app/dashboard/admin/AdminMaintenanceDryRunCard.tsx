@@ -11,6 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CompactPager } from "@/components/dashboard/CompactPager";
+import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import { getAdminMaintenancePurgeDryRun } from "@/lib/api";
 import type {
   MaintenancePurgeCandidateGroup,
@@ -85,6 +87,7 @@ export function AdminMaintenanceDryRunCard() {
     useState<MaintenancePurgeDryRunSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const pagedCandidates = usePagedRows(snapshot?.candidates ?? [], 4);
 
   function handleAnalyze() {
     setError(null);
@@ -106,7 +109,7 @@ export function AdminMaintenanceDryRunCard() {
   }
 
   return (
-    <Card className="dashboard-surface">
+    <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
       <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 md:flex-row md:items-start md:justify-between">
         <div>
           <CardTitle className="text-base">
@@ -122,7 +125,7 @@ export function AdminMaintenanceDryRunCard() {
         </Button>
       </CardHeader>
 
-      <CardContent className="space-y-4 pt-6">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
         {error ? (
           <div className="clinical-alert-error">
             {error}
@@ -174,14 +177,26 @@ export function AdminMaintenanceDryRunCard() {
               ) : null}
             </div>
 
-            <div className="space-y-3">
-              {snapshot.candidates.map((candidate) => (
+            <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
+              {pagedCandidates.pageItems.map((candidate) => (
                 <MaintenanceCandidateRow
                   key={candidate.category}
                   candidate={candidate}
                 />
               ))}
             </div>
+            <CompactPager
+              page={pagedCandidates.page}
+              pageCount={pagedCandidates.pageCount}
+              rangeStart={pagedCandidates.rangeStart}
+              rangeEnd={pagedCandidates.rangeEnd}
+              total={pagedCandidates.total}
+              hasPrev={pagedCandidates.hasPrev}
+              hasNext={pagedCandidates.hasNext}
+              onPrev={pagedCandidates.goPrev}
+              onNext={pagedCandidates.goNext}
+              itemLabel="grupos"
+            />
           </>
         )}
       </CardContent>

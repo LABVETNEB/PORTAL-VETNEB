@@ -167,7 +167,6 @@ export default async function DashboardPage({
             }}
           />
         </Suspense>
-        <div className="h-24 md:hidden" aria-hidden="true" />
       </main>
     </>
   );

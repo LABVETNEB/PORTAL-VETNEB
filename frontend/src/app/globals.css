@@ -220,7 +220,7 @@
      primitives (ModuleSurface/ModuleTabs/usePagedRows/MasterDetail), never by
      scrolling `main`. Replaces the legacy `overflow-y-auto` escape hatch. */
   .dashboard-main {
-    @apply flex min-h-0 flex-1 flex-col space-y-6 overflow-hidden px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6;
+    @apply flex min-h-0 flex-1 flex-col space-y-4 overflow-hidden px-3 py-3 sm:space-y-6 sm:px-6 sm:py-5 lg:px-8 lg:py-6;
   }
 
   .surface-note-info {
@@ -260,7 +260,7 @@
   }
 
   .clinical-modal {
-    @apply rounded-lg border border-vetneb-line/85 bg-card text-card-foreground shadow-[0_24px_72px_rgba(8,35,50,0.22)];
+    @apply overflow-hidden rounded-lg border border-vetneb-line/85 bg-card text-card-foreground shadow-[0_24px_72px_rgba(8,35,50,0.22)];
   }
 
   .clinical-progress {
@@ -1779,6 +1779,16 @@
     min-height: 0;
   }
 
+  .dashboard-cockpit-launcher-dense {
+    gap: 0.65rem;
+    padding: 0.75rem;
+  }
+
+  .dashboard-cockpit-grid-dense {
+    gap: 0.45rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   /* Premium module tile: compact, dense, no fixed height so rows can stretch
      (auto-rows: 1fr) to fit the viewport without scrolling. */
   .dashboard-cockpit-tile {
@@ -1864,6 +1874,17 @@
     min-width: 0;
     flex: 1 1 auto;
     gap: 0.75rem;
+    overflow: hidden;
+  }
+
+  .dashboard-cockpit-launcher-dense .dashboard-cockpit-tile {
+    gap: 0.25rem;
+    padding: 0.5rem 0.55rem;
+  }
+
+  .dashboard-cockpit-launcher-dense .dashboard-cockpit-tile-icon {
+    height: 1.55rem;
+    width: 1.55rem;
   }
 
   /* Fixed (non-growing) toolbar row: filters, search, primary actions. */
@@ -1883,6 +1904,7 @@
     min-height: 0;
     min-width: 0;
     flex: 1 1 auto;
+    overflow: hidden;
   }
 
   /* Segmented tab control (no new dependency; reuses native buttons). */

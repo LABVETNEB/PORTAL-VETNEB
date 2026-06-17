@@ -1,11 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CompactPager } from "@/components/dashboard/CompactPager";
+import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
+import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import {
   createClinicParticularToken,
   getClinicStudyTrackingCases,
@@ -14,7 +18,7 @@ import {
   type ClinicParticularTokenCreatePayload,
   type ClinicParticularTokenSummary,
 } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 type ClinicParticularTokenFormState = {
   reportId: string;
@@ -35,6 +39,18 @@ type ClinicParticularTokenFormState = {
 type GeneratedTokenDetails = {
   petName: string;
   tutorLastName: string;
+};
+
+/** Maximum tokens visible per page in the master list (rest via CompactPager). */
+const TOKENS_PAGE_SIZE = 4;
+
+const CREATE_TOKEN_STEP_ORDER = ["contact", "patient", "sample"] as const;
+type CreateTokenStep = (typeof CREATE_TOKEN_STEP_ORDER)[number];
+
+const CREATE_TOKEN_STEP_LABELS: Record<CreateTokenStep, string> = {
+  contact: "Vínculo",
+  patient: "Paciente",
+  sample: "Muestra",
 };
 
 const INITIAL_FORM_STATE: ClinicParticularTokenFormState = {
@@ -73,6 +89,22 @@ const REQUIRED_FIELD_LABELS: Array<{
   { key: "extractionDate", label: "Fecha de extracción" },
   { key: "shippingDate", label: "Fecha de envío" },
 ];
+
+const FORM_FIELD_STEPS: Record<keyof ClinicParticularTokenFormState, CreateTokenStep> = {
+  reportId: "contact",
+  particularEmail: "contact",
+  tutorLastName: "contact",
+  petName: "patient",
+  petAge: "patient",
+  petBreed: "patient",
+  petSex: "patient",
+  petSpecies: "patient",
+  sampleLocation: "sample",
+  sampleEvolution: "sample",
+  detailsLesion: "sample",
+  extractionDate: "sample",
+  shippingDate: "sample",
+};
 
 const PET_SEX_OPTIONS = [
   { value: "Macho", label: "Macho" },
@@ -129,6 +161,16 @@ function validateFormState(formState: ClinicParticularTokenFormState): void {
   }
 }
 
+function getFirstMissingFieldStep(
+  formState: ClinicParticularTokenFormState,
+): CreateTokenStep | null {
+  const missingField = REQUIRED_FIELD_LABELS.find(
+    (field) => !String(formState[field.key]).trim(),
+  );
+
+  return missingField ? FORM_FIELD_STEPS[missingField.key] : null;
+}
+
 function buildPayload(
   formState: ClinicParticularTokenFormState,
 ): ClinicParticularTokenCreatePayload {
@@ -177,10 +219,20 @@ function getTrackingStageLabel(
   return TRACKING_STAGE_LABELS[stage] ?? stage;
 }
 
+function getCreateStepIndex(step: CreateTokenStep): number {
+  return CREATE_TOKEN_STEP_ORDER.indexOf(step);
+}
+
 export function ClinicParticularTokensCard() {
+  // Alta in a dedicated dialog layer (audit §4): the form never grows `main`.
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [createStep, setCreateStep] = useState<CreateTokenStep>("contact");
   const [formState, setFormState] =
     useState<ClinicParticularTokenFormState>(INITIAL_FORM_STATE);
   const [tokens, setTokens] = useState<ClinicParticularTokenSummary[]>([]);
+  const [selectedTokenId, setSelectedTokenId] = useState<number | null>(null);
+  // Mobile/tablet replacement layer: detail covers the list (no vertical stack).
+  const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false);
   const [trackingCasesByTokenId, setTrackingCasesByTokenId] = useState<
     Record<number, ClinicStudyTrackingCaseSummary>
   >({});
@@ -201,22 +253,42 @@ export function ClinicParticularTokensCard() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const pagedTokens = usePagedRows(tokens, TOKENS_PAGE_SIZE);
+  const selectedToken =
+    selectedTokenId === null
+      ? (tokens[0] ?? null)
+      : (tokens.find((token) => token.id === selectedTokenId) ?? tokens[0] ?? null);
+  const selectedTrackingCase = selectedToken
+    ? trackingCasesByTokenId[selectedToken.id]
+    : undefined;
+
+  const activeTokensCount = tokens.filter((token) => token.isActive).length;
+  const linkedReportsCount = tokens.filter((token) => token.hasLinkedReport).length;
+  const createStepIndex = getCreateStepIndex(createStep);
+  const isLastCreateStep = createStep === "sample";
+
   async function loadTokens() {
     setIsLoadingTokens(true);
     setTrackingLoadError(null);
 
     try {
       const snapshot = await getClinicParticularTokens({ limit: 10, offset: 0 });
-      setTokens(snapshot.particularTokens);
+      const nextTokens = snapshot.particularTokens;
+      setTokens(nextTokens);
+      setSelectedTokenId((current) =>
+        current && nextTokens.some((token) => token.id === current)
+          ? current
+          : nextTokens[0]?.id ?? null,
+      );
 
-      if (snapshot.particularTokens.length === 0) {
+      if (nextTokens.length === 0) {
         setTrackingCasesByTokenId({});
         return;
       }
 
       try {
         const trackingEntries = await Promise.all(
-          snapshot.particularTokens.map(async (token) => {
+          nextTokens.map(async (token) => {
             const trackingSnapshot = await getClinicStudyTrackingCases({
               particularTokenId: token.id,
               limit: 1,
@@ -269,6 +341,35 @@ export function ClinicParticularTokensCard() {
     setStatusMessage(null);
   }
 
+  function selectToken(tokenId: number) {
+    setSelectedTokenId(tokenId);
+    setIsMobileDetailOpen(true);
+  }
+
+  function handleCreateDialogOpenChange(open: boolean) {
+    setIsCreateDialogOpen(open);
+    if (!open) {
+      setCreateStep("contact");
+    }
+  }
+
+  function goToPreviousCreateStep() {
+    setCreateStep((current) => {
+      const previousIndex = Math.max(0, getCreateStepIndex(current) - 1);
+      return CREATE_TOKEN_STEP_ORDER[previousIndex];
+    });
+  }
+
+  function goToNextCreateStep() {
+    setCreateStep((current) => {
+      const nextIndex = Math.min(
+        CREATE_TOKEN_STEP_ORDER.length - 1,
+        getCreateStepIndex(current) + 1,
+      );
+      return CREATE_TOKEN_STEP_ORDER[nextIndex];
+    });
+  }
+
   function clearGeneratedTokenState() {
     setGeneratedToken(null);
     setGeneratedTokenRecipientEmail(null);
@@ -315,6 +416,7 @@ export function ClinicParticularTokensCard() {
 
   function resetForm() {
     setFormState(INITIAL_FORM_STATE);
+    setCreateStep("contact");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -334,11 +436,22 @@ export function ClinicParticularTokensCard() {
       return;
     }
 
+    if (!isLastCreateStep) {
+      goToNextCreateStep();
+      return;
+    }
+
     let payload: ClinicParticularTokenCreatePayload;
 
     try {
       payload = buildPayload(formState);
     } catch (error) {
+      const missingStep = getFirstMissingFieldStep(formState);
+      if (missingStep) {
+        setCreateStep(missingStep);
+      } else if (formState.reportId.trim()) {
+        setCreateStep("contact");
+      }
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -367,6 +480,7 @@ export function ClinicParticularTokensCard() {
       setStatusMessage(response.message);
       resetForm();
       await loadTokens();
+      setIsCreateDialogOpen(false);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -379,503 +493,711 @@ export function ClinicParticularTokensCard() {
   }
 
   return (
-    <Card id="clinic-particular-tokens" className="dashboard-surface">
-      <CardHeader className="border-b border-vetneb-line/70">
-        <CardTitle className="text-base">Generación de tokens particulares</CardTitle>
+    <Card
+      id="clinic-particular-tokens"
+      className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden"
+    >
+      <CardHeader className="shrink-0 border-b border-vetneb-line/70">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0">
+            <CardTitle className="text-base">Generación de tokens particulares</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Gestión compacta: generar token en una capa dedicada, seleccionar de la
+              lista y revisar el seguimiento solo desde el detalle.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 text-sm xl:min-w-[20rem]">
+            <div className="surface-soft px-3 py-2">
+              <p className="text-xs text-muted-foreground">Tokens</p>
+              <p className="mt-0.5 font-semibold text-vetneb-ink">{tokens.length}</p>
+            </div>
+            <div className="surface-soft px-3 py-2">
+              <p className="text-xs text-muted-foreground">Activos</p>
+              <p className="mt-0.5 font-semibold text-vetneb-ink">
+                {activeTokensCount}
+              </p>
+            </div>
+            <div className="surface-soft px-3 py-2">
+              <p className="text-xs text-muted-foreground">Informes</p>
+              <p className="mt-0.5 font-semibold text-vetneb-ink">
+                {linkedReportsCount}
+              </p>
+            </div>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-6 pt-6">
-        <form className="space-y-4" onSubmit={handleSubmit} autoComplete="off">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
-              <label htmlFor="clinic-token-report-id" className="field-label">
-                ID informe vinculado
-              </label>
-              <Input
-                id="clinic-token-report-id"
-                name="reportId"
-                type="number"
-                autoComplete="off"
-                min="1"
-                inputMode="numeric"
-                placeholder="Opcional"
-                value={formState.reportId}
-                onChange={(event) => updateField("reportId", event.target.value)}
-                disabled={isSubmitting}
-              />
-            </div>
 
-            <div>
-              <label htmlFor="clinic-token-particular-email" className="field-label">
-                Email del particular
-              </label>
-              <Input
-                id="clinic-token-particular-email"
-                name="particularEmail"
-                type="email"
-                autoComplete="off"
-                placeholder="email@ejemplo.com"
-                required
-                value={formState.particularEmail}
-                onChange={(event) =>
-                  updateField("particularEmail", event.target.value)
-                }
-                disabled={isSubmitting}
-                aria-describedby="clinic-token-particular-email-help"
-              />
-              <p
-                id="clinic-token-particular-email-help"
-                className="mt-1 text-xs text-muted-foreground"
-              >
-                Obligatorio. El backend enviará el token a este email usando la
-                configuración de correo de VETNEB.
-              </p>
-            </div>
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-4 pt-4">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            Lista limitada con paginación compacta. La generación abre una capa
+            dedicada y no apila el formulario sobre la lista.
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setIsCreateDialogOpen(true)}
+            disabled={generatedToken !== null}
+          >
+            Generar token particular
+          </Button>
+        </div>
 
-            <div>
-              <label htmlFor="clinic-token-tutor-last-name" className="field-label">
-                Apellido del tutor
-              </label>
-              <Input
-                id="clinic-token-tutor-last-name"
-                name="tutorLastName"
-                type="text"
-                autoComplete="off"
-                required
-                value={formState.tutorLastName}
-                onChange={(event) =>
-                  updateField("tutorLastName", event.target.value)
-                }
-                disabled={isSubmitting}
-              />
-            </div>
+        {errorMessage ? (
+          <p className="clinical-alert-error shrink-0 px-3 py-2" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
 
-            <div>
-              <label htmlFor="clinic-token-pet-name" className="field-label">
-                Nombre del paciente
-              </label>
-              <Input
-                id="clinic-token-pet-name"
-                name="petName"
-                type="text"
-                autoComplete="off"
-                required
-                value={formState.petName}
-                onChange={(event) => updateField("petName", event.target.value)}
-                disabled={isSubmitting}
-              />
-            </div>
+        {statusMessage ? (
+          <p className="clinical-alert-success shrink-0 px-3 py-2">
+            {statusMessage}
+          </p>
+        ) : null}
 
-            <div>
-              <label htmlFor="clinic-token-pet-age" className="field-label">
-                Edad
-              </label>
-              <Input
-                id="clinic-token-pet-age"
-                name="petAge"
-                type="text"
-                autoComplete="off"
-                required
-                value={formState.petAge}
-                onChange={(event) => updateField("petAge", event.target.value)}
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="clinic-token-pet-breed" className="field-label">
-                Raza
-              </label>
-              <Input
-                id="clinic-token-pet-breed"
-                name="petBreed"
-                type="text"
-                autoComplete="off"
-                required
-                value={formState.petBreed}
-                onChange={(event) => updateField("petBreed", event.target.value)}
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="clinic-token-pet-sex" className="field-label">
-                Sexo
-              </label>
-              <select
-                id="clinic-token-pet-sex"
-                name="petSex"
-                className="field-select"
-                required
-                value={formState.petSex}
-                onChange={(event) => updateField("petSex", event.target.value)}
-                disabled={isSubmitting}
-              >
-                {PET_SEX_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="clinic-token-pet-species" className="field-label">
-                Especie
-              </label>
-              <select
-                id="clinic-token-pet-species"
-                name="petSpecies"
-                className="field-select"
-                required
-                value={formState.petSpecies}
-                onChange={(event) =>
-                  updateField("petSpecies", event.target.value)
-                }
-                disabled={isSubmitting}
-              >
-                {PET_SPECIES_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="clinic-token-sample-location" className="field-label">
-                Ubicación de la muestra
-              </label>
-              <Input
-                id="clinic-token-sample-location"
-                name="sampleLocation"
-                type="text"
-                autoComplete="off"
-                required
-                value={formState.sampleLocation}
-                onChange={(event) =>
-                  updateField("sampleLocation", event.target.value)
-                }
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="clinic-token-sample-evolution" className="field-label">
-                Evolución
-              </label>
-              <Input
-                id="clinic-token-sample-evolution"
-                name="sampleEvolution"
-                type="text"
-                autoComplete="off"
-                required
-                value={formState.sampleEvolution}
-                onChange={(event) =>
-                  updateField("sampleEvolution", event.target.value)
-                }
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="clinic-token-extraction-date" className="field-label">
-                Fecha de extracción
-              </label>
-              <Input
-                id="clinic-token-extraction-date"
-                name="extractionDate"
-                type="date"
-                autoComplete="off"
-                required
-                value={formState.extractionDate}
-                onChange={(event) =>
-                  updateField("extractionDate", event.target.value)
-                }
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="clinic-token-shipping-date" className="field-label">
-                Fecha de envío
-              </label>
-              <Input
-                id="clinic-token-shipping-date"
-                name="shippingDate"
-                type="date"
-                autoComplete="off"
-                required
-                value={formState.shippingDate}
-                onChange={(event) =>
-                  updateField("shippingDate", event.target.value)
-                }
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="clinic-token-details-lesion" className="field-label">
-              Detalle de lesión
-            </label>
-            <textarea
-              id="clinic-token-details-lesion"
-              name="detailsLesion"
-              className="field-textarea"
-              autoComplete="off"
-              required
-              value={formState.detailsLesion}
-              onChange={(event) =>
-                updateField("detailsLesion", event.target.value)
-              }
-              disabled={isSubmitting}
-            />
-          </div>
-
-          {errorMessage ? (
-            <p
-              className="clinical-alert-error px-3 py-2"
-              role="alert"
-            >
-              {errorMessage}
-            </p>
-          ) : null}
-
-          {statusMessage ? (
-            <p className="clinical-alert-success px-3 py-2">
-              {statusMessage}
-            </p>
-          ) : null}
-
-          {generatedToken ? (
-            <div className="clinical-muted-band space-y-3 rounded-lg p-4">
-              <p className="text-sm font-semibold text-vetneb-navy">
-                Token generado
-              </p>
-              <Input
-                className="mt-2 font-mono text-sm"
-                readOnly
-                value={generatedToken}
-                aria-label="Token particular generado"
-              />
-              <p className="mt-2 text-xs text-muted-foreground">
-                Copiar ahora. El token completo solo se muestra una vez.
-              </p>
-              <div className="clinical-alert-error px-3 py-2">
-                <p className="text-sm font-semibold">
-                  IMPORTANTE: el token completo solo se muestra una vez.
-                </p>
-                <p className="mt-1 text-sm">
-                  Antes de cerrar este bloque, verificá que el token haya sido
-                  copiado si necesitás respaldo operativo.
+        <section
+          aria-label="Tokens particulares de la clínica"
+          className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[0.82fr_1.46fr]"
+        >
+          <div
+            className={cn(
+              "flex min-h-0 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82",
+              isMobileDetailOpen && "hidden xl:flex",
+            )}
+          >
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-vetneb-line/70 px-4 py-3">
+              <div>
+                <h3 className="text-sm font-semibold text-vetneb-ink">
+                  Últimos tokens de la clínica
+                </h3>
+                <p className="dashboard-section-description">
+                  Seleccionar un token abre el detalle.
                 </p>
               </div>
-              <p className="text-sm text-vetneb-ink">
-                {generatedTokenRecipientEmail
-                  ? `Email enviado a: ${generatedTokenRecipientEmail}`
-                  : "El backend informó envío correcto del email."}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void handleCopyManualMessage()}
-                >
-                  Copiar mensaje para enviar
-                </Button>
-              </div>
-              {copyStatusMessage ? (
-                <p className="clinical-alert-success px-3 py-2 text-sm">
-                  {copyStatusMessage}
-                </p>
-              ) : null}
-              {copyErrorMessage ? (
-                <p className="clinical-alert-error px-3 py-2 text-sm" role="alert">
-                  {copyErrorMessage}
-                </p>
-              ) : null}
-              <label className="flex items-start gap-2 text-sm text-vetneb-ink">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={isGeneratedTokenConfirmed}
-                  onChange={(event) =>
-                    setIsGeneratedTokenConfirmed(event.target.checked)
-                  }
-                />
-                <span>
-                  Confirmo que registré el token visible o que no necesito copia
-                  adicional.
-                </span>
-              </label>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={handleCloseGeneratedToken}
-                disabled={!isGeneratedTokenConfirmed}
+                onClick={() => void loadTokens()}
+                disabled={isLoadingTokens}
               >
-                Cerrar token visible
+                {isLoadingTokens ? "Actualizando..." : "Actualizar"}
               </Button>
             </div>
+
+            {trackingLoadError ? (
+              <p className="clinical-alert-warning m-3 px-3 py-2 text-sm" role="alert">
+                {trackingLoadError}
+              </p>
+            ) : null}
+
+            {tokens.length ? (
+              <>
+                <div className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden">
+                  {pagedTokens.pageItems.map((token) => {
+                    const isSelected = selectedToken?.id === token.id;
+                    const trackingCase = trackingCasesByTokenId[token.id];
+
+                    return (
+                      <button
+                        key={token.id}
+                        type="button"
+                        id={`clinic-particular-token-${token.id}`}
+                        onClick={() => selectToken(token.id)}
+                        aria-pressed={isSelected}
+                        className={cn(
+                          "block w-full px-4 py-3 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset",
+                          isSelected && "bg-vetneb-cyan/12",
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-vetneb-ink">
+                              {token.petName} · {token.tutorLastName}
+                            </p>
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                              Token ****{token.tokenLast4}
+                            </p>
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                              {trackingCase
+                                ? getTrackingStageLabel(trackingCase.currentStage)
+                                : "Sin seguimiento vinculado"}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <Badge variant={token.isActive ? "default" : "outline"}>
+                              {token.isActive ? "Activo" : "Inactivo"}
+                            </Badge>
+                            <Badge variant={token.hasLinkedReport ? "default" : "outline"}>
+                              {token.hasLinkedReport ? "Informe" : "Sin informe"}
+                            </Badge>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <CompactPager
+                  className="shrink-0"
+                  page={pagedTokens.page}
+                  pageCount={pagedTokens.pageCount}
+                  rangeStart={pagedTokens.rangeStart}
+                  rangeEnd={pagedTokens.rangeEnd}
+                  total={pagedTokens.total}
+                  hasPrev={pagedTokens.hasPrev}
+                  hasNext={pagedTokens.hasNext}
+                  onPrev={pagedTokens.goPrev}
+                  onNext={pagedTokens.goNext}
+                  itemLabel="tokens"
+                />
+              </>
+            ) : (
+              <p className="surface-empty m-4">
+                {isLoadingTokens
+                  ? "Cargando tokens particulares..."
+                  : "No hay tokens particulares generados por esta clínica."}
+              </p>
+            )}
+          </div>
+
+          <div
+            className={cn(
+              "min-h-0 overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82",
+              !isMobileDetailOpen && "hidden xl:block",
+            )}
+          >
+            {selectedToken ? (
+              <div className="space-y-3 p-4">
+                <div className="flex flex-col gap-3 border-b border-vetneb-line/70 pb-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mb-2 xl:hidden"
+                      onClick={() => setIsMobileDetailOpen(false)}
+                    >
+                      <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                      Volver a la lista
+                    </Button>
+                    <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                      Detalle del token
+                    </p>
+                    <h3 className="mt-1 text-lg font-semibold text-vetneb-ink">
+                      {selectedToken.petName} · {selectedToken.tutorLastName}
+                    </h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Token ****{selectedToken.tokenLast4}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant={selectedToken.isActive ? "default" : "outline"}>
+                      {selectedToken.isActive ? "Activo" : "Inactivo"}
+                    </Badge>
+                    <Badge variant={selectedToken.hasLinkedReport ? "default" : "outline"}>
+                      {selectedToken.hasLinkedReport ? "Informe vinculado" : "Sin informe"}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                  <div className="clinical-muted-band rounded-lg px-3 py-2">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                      Paciente
+                    </p>
+                    <p className="mt-1 text-xs text-vetneb-ink">
+                      {selectedToken.petSpecies} · {selectedToken.petBreed} · {selectedToken.petSex}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">Edad: {selectedToken.petAge}</p>
+                  </div>
+
+                  <div className="clinical-muted-band rounded-lg px-3 py-2">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                      Muestra
+                    </p>
+                    <p className="mt-1 text-xs text-vetneb-ink">{selectedToken.sampleLocation}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Evolución: {selectedToken.sampleEvolution}
+                    </p>
+                  </div>
+
+                  <div className="clinical-muted-band rounded-lg px-3 py-2">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                      Fechas
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Extracción: {formatDate(selectedToken.extractionDate)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Envío: {formatDate(selectedToken.shippingDate)}
+                    </p>
+                  </div>
+
+                  <div className="clinical-muted-band rounded-lg px-3 py-2">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                      Publicación
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Informe: {selectedToken.reportId ? `#${selectedToken.reportId}` : "—"}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Último acceso: {selectedToken.lastLoginAt ? formatDate(selectedToken.lastLoginAt) : "—"}
+                    </p>
+                  </div>
+
+                  <div className="clinical-muted-band rounded-lg px-3 py-2">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                      Vínculo
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Tutor: {selectedToken.tutorLastName}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Origen: {formatTokenSource(selectedToken)}
+                    </p>
+                  </div>
+
+                  <div className="clinical-muted-band rounded-lg px-3 py-2">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                      Seguimiento
+                    </p>
+                    {selectedTrackingCase ? (
+                      <>
+                        <p className="mt-1 text-xs text-vetneb-ink">
+                          Etapa: {getTrackingStageLabel(selectedTrackingCase.currentStage)}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {selectedTrackingCase.specialStainRequired
+                            ? "Alerta: Solicitud de tinción especial"
+                            : "Sin alerta de tinción especial"}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Sin seguimiento vinculado.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="surface-empty m-4">
+                Seleccione un token para abrir el detalle.
+              </p>
+            )}
+          </div>
+        </section>
+      </CardContent>
+
+      <ModuleDialog
+        open={isCreateDialogOpen}
+        onOpenChange={handleCreateDialogOpenChange}
+        busy={isSubmitting}
+        title="Generar token particular"
+        description={`Paso ${createStepIndex + 1} de ${CREATE_TOKEN_STEP_ORDER.length}: ${CREATE_TOKEN_STEP_LABELS[createStep]}`}
+      >
+        <form
+          className="flex min-h-0 flex-col gap-4"
+          onSubmit={handleSubmit}
+          autoComplete="off"
+        >
+          <div className="flex shrink-0 flex-wrap gap-2" aria-label="Pasos del alta de token">
+            {CREATE_TOKEN_STEP_ORDER.map((step, index) => (
+              <button
+                key={step}
+                type="button"
+                onClick={() => setCreateStep(step)}
+                className={cn(
+                  "clinical-pill px-3 py-1 text-[0.68rem] tracking-normal",
+                  step === createStep && "border-vetneb-teal bg-vetneb-teal/15",
+                )}
+                aria-current={step === createStep ? "step" : undefined}
+              >
+                {index + 1}. {CREATE_TOKEN_STEP_LABELS[step]}
+              </button>
+            ))}
+          </div>
+
+          <div className="min-h-0">
+            {createStep === "contact" ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div>
+                <label htmlFor="clinic-token-report-id" className="field-label">
+                  ID informe vinculado
+                </label>
+                <Input
+                  id="clinic-token-report-id"
+                  name="reportId"
+                  type="number"
+                  autoComplete="off"
+                  min="1"
+                  inputMode="numeric"
+                  placeholder="Opcional"
+                  value={formState.reportId}
+                  onChange={(event) => updateField("reportId", event.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="clinic-token-particular-email" className="field-label">
+                  Email del particular
+                </label>
+                <Input
+                  id="clinic-token-particular-email"
+                  name="particularEmail"
+                  type="email"
+                  autoComplete="off"
+                  placeholder="email@ejemplo.com"
+                  required
+                  value={formState.particularEmail}
+                  onChange={(event) =>
+                    updateField("particularEmail", event.target.value)
+                  }
+                  disabled={isSubmitting}
+                  aria-describedby="clinic-token-particular-email-help"
+                />
+                <p
+                  id="clinic-token-particular-email-help"
+                  className="mt-1 text-xs text-muted-foreground"
+                >
+                  Obligatorio. El backend enviará el token a este email usando la
+                  configuración de correo de VETNEB.
+                </p>
+              </div>
+
+              <div className="md:col-span-2">
+                <label htmlFor="clinic-token-tutor-last-name" className="field-label">
+                  Apellido del tutor
+                </label>
+                <Input
+                  id="clinic-token-tutor-last-name"
+                  name="tutorLastName"
+                  type="text"
+                  autoComplete="off"
+                  required
+                  value={formState.tutorLastName}
+                  onChange={(event) =>
+                    updateField("tutorLastName", event.target.value)
+                  }
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+            ) : null}
+
+            {createStep === "patient" ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div>
+                <label htmlFor="clinic-token-pet-name" className="field-label">
+                  Nombre del paciente
+                </label>
+                <Input
+                  id="clinic-token-pet-name"
+                  name="petName"
+                  type="text"
+                  autoComplete="off"
+                  required
+                  value={formState.petName}
+                  onChange={(event) => updateField("petName", event.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="clinic-token-pet-age" className="field-label">
+                  Edad
+                </label>
+                <Input
+                  id="clinic-token-pet-age"
+                  name="petAge"
+                  type="text"
+                  autoComplete="off"
+                  required
+                  value={formState.petAge}
+                  onChange={(event) => updateField("petAge", event.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="clinic-token-pet-breed" className="field-label">
+                  Raza
+                </label>
+                <Input
+                  id="clinic-token-pet-breed"
+                  name="petBreed"
+                  type="text"
+                  autoComplete="off"
+                  required
+                  value={formState.petBreed}
+                  onChange={(event) => updateField("petBreed", event.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="clinic-token-pet-sex" className="field-label">
+                  Sexo
+                </label>
+                <select
+                  id="clinic-token-pet-sex"
+                  name="petSex"
+                  className="field-select"
+                  required
+                  value={formState.petSex}
+                  onChange={(event) => updateField("petSex", event.target.value)}
+                  disabled={isSubmitting}
+                >
+                  {PET_SEX_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="clinic-token-pet-species" className="field-label">
+                  Especie
+                </label>
+                <select
+                  id="clinic-token-pet-species"
+                  name="petSpecies"
+                  className="field-select"
+                  required
+                  value={formState.petSpecies}
+                  onChange={(event) =>
+                    updateField("petSpecies", event.target.value)
+                  }
+                  disabled={isSubmitting}
+                >
+                  {PET_SPECIES_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            ) : null}
+
+            {createStep === "sample" ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div>
+                <label htmlFor="clinic-token-sample-location" className="field-label">
+                  Ubicación de la muestra
+                </label>
+                <Input
+                  id="clinic-token-sample-location"
+                  name="sampleLocation"
+                  type="text"
+                  autoComplete="off"
+                  required
+                  value={formState.sampleLocation}
+                  onChange={(event) =>
+                    updateField("sampleLocation", event.target.value)
+                  }
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="clinic-token-sample-evolution" className="field-label">
+                  Evolución
+                </label>
+                <Input
+                  id="clinic-token-sample-evolution"
+                  name="sampleEvolution"
+                  type="text"
+                  autoComplete="off"
+                  required
+                  value={formState.sampleEvolution}
+                  onChange={(event) =>
+                    updateField("sampleEvolution", event.target.value)
+                  }
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="clinic-token-extraction-date" className="field-label">
+                  Fecha de extracción
+                </label>
+                <Input
+                  id="clinic-token-extraction-date"
+                  name="extractionDate"
+                  type="date"
+                  autoComplete="off"
+                  required
+                  value={formState.extractionDate}
+                  onChange={(event) =>
+                    updateField("extractionDate", event.target.value)
+                  }
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="clinic-token-shipping-date" className="field-label">
+                  Fecha de envío
+                </label>
+                <Input
+                  id="clinic-token-shipping-date"
+                  name="shippingDate"
+                  type="date"
+                  autoComplete="off"
+                  required
+                  value={formState.shippingDate}
+                  onChange={(event) =>
+                    updateField("shippingDate", event.target.value)
+                  }
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label htmlFor="clinic-token-details-lesion" className="field-label">
+                  Detalle de lesión
+                </label>
+                <textarea
+                  id="clinic-token-details-lesion"
+                  name="detailsLesion"
+                  className="field-textarea"
+                  autoComplete="off"
+                  required
+                  value={formState.detailsLesion}
+                  onChange={(event) =>
+                    updateField("detailsLesion", event.target.value)
+                  }
+                  disabled={isSubmitting}
+                  rows={3}
+                />
+              </div>
+            </div>
+            ) : null}
+          </div>
+
+          {errorMessage ? (
+            <p className="clinical-alert-error px-3 py-2 text-sm" role="alert">
+              {errorMessage}
+            </p>
           ) : null}
 
-          <Button type="submit" disabled={isSubmitting || generatedToken !== null}>
-            {isSubmitting ? "Generando token..." : "Generar token particular"}
-          </Button>
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-vetneb-line/70 pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleCreateDialogOpenChange(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <div className="flex flex-wrap gap-2">
+              {createStepIndex > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={goToPreviousCreateStep}
+                  disabled={isSubmitting}
+                >
+                  Anterior
+                </Button>
+              ) : null}
+              {isLastCreateStep ? (
+                <Button type="submit" disabled={isSubmitting || generatedToken !== null}>
+                  {isSubmitting ? "Generando token..." : "Generar token particular"}
+                </Button>
+              ) : (
+                <Button type="submit" disabled={isSubmitting}>
+                  Siguiente
+                </Button>
+              )}
+            </div>
+          </div>
         </form>
+      </ModuleDialog>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-vetneb-ink">
-              Últimos tokens de la clínica
-            </h3>
+      <ModuleDialog
+        open={generatedToken !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseGeneratedToken();
+          }
+        }}
+        busy={!isGeneratedTokenConfirmed}
+        title="Token generado"
+        description="Copiar ahora. El token completo solo se muestra una vez."
+      >
+        <div className="flex min-h-0 flex-col gap-3">
+          <Input
+            className="font-mono text-sm"
+            readOnly
+            value={generatedToken ?? ""}
+            aria-label="Token particular generado"
+          />
+          <div className="clinical-alert-error px-3 py-2">
+            <p className="text-sm font-semibold">
+              IMPORTANTE: el token completo solo se muestra una vez.
+            </p>
+            <p className="mt-1 text-sm">
+              Antes de cerrar este bloque, verificá que el token haya sido
+              copiado si necesitás respaldo operativo.
+            </p>
+          </div>
+          <p className="text-sm text-vetneb-ink">
+            {generatedTokenRecipientEmail
+              ? `Email enviado a: ${generatedTokenRecipientEmail}`
+              : "El backend informó envío correcto del email."}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => void loadTokens()}
-              disabled={isLoadingTokens}
+              onClick={() => void handleCopyManualMessage()}
             >
-              {isLoadingTokens ? "Actualizando..." : "Actualizar"}
+              Copiar mensaje para enviar
             </Button>
           </div>
-
-          {trackingLoadError ? (
-            <p className="clinical-alert-warning px-3 py-2 text-sm" role="alert">
-              {trackingLoadError}
+          {copyStatusMessage ? (
+            <p className="clinical-alert-success px-3 py-2 text-sm">
+              {copyStatusMessage}
             </p>
           ) : null}
-
-          {tokens.length ? (
-            <div className="space-y-2">
-              {tokens.map((token) => {
-                const trackingCase = trackingCasesByTokenId[token.id];
-
-                return (
-                  <div
-                    key={token.id}
-                    id={`clinic-particular-token-${token.id}`}
-                    className="rounded-lg border border-vetneb-line/75 bg-vetneb-surface-raised/74 px-4 py-3 shadow-[0_8px_20px_rgba(15,45,62,0.06)]"
-                  >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-vetneb-ink">
-                        {token.petName} · {token.tutorLastName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Token ****{token.tokenLast4}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={
-                          token.isActive
-                            ? "clinical-pill shrink-0 px-2.5 py-0.5 text-[0.68rem] tracking-[0.08em]"
-                            : "inline-flex shrink-0 items-center rounded-full border border-vetneb-line/90 bg-card/80 px-2.5 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
-                        }
-                      >
-                        {token.isActive ? "Activo" : "Inactivo"}
-                      </span>
-                      <Badge variant={token.hasLinkedReport ? "default" : "outline"}>
-                        {token.hasLinkedReport ? "Informe vinculado" : "Sin informe"}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-6">
-                    <div className="clinical-muted-band rounded-lg px-3 py-2">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                        Paciente
-                      </p>
-                      <p className="mt-1 text-xs text-vetneb-ink">
-                        {token.petSpecies} · {token.petBreed} · {token.petSex}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">Edad: {token.petAge}</p>
-                    </div>
-
-                    <div className="clinical-muted-band rounded-lg px-3 py-2">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                        Muestra
-                      </p>
-                      <p className="mt-1 text-xs text-vetneb-ink">{token.sampleLocation}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Evolución: {token.sampleEvolution}
-                      </p>
-                    </div>
-
-                    <div className="clinical-muted-band rounded-lg px-3 py-2">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                        Fechas
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Extracción: {formatDate(token.extractionDate)}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Envío: {formatDate(token.shippingDate)}
-                      </p>
-                    </div>
-
-                    <div className="clinical-muted-band rounded-lg px-3 py-2">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                        Publicación
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Informe: {token.reportId ? `#${token.reportId}` : "—"}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Último acceso: {token.lastLoginAt ? formatDate(token.lastLoginAt) : "—"}
-                      </p>
-                    </div>
-
-                    <div className="clinical-muted-band rounded-lg px-3 py-2">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                        Vínculo
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Tutor: {token.tutorLastName}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Origen: {formatTokenSource(token)}
-                      </p>
-                    </div>
-
-                    <div className="clinical-muted-band rounded-lg px-3 py-2">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                        Seguimiento
-                      </p>
-                      {trackingCase ? (
-                        <>
-                          <p className="mt-1 text-xs text-vetneb-ink">
-                            Etapa: {getTrackingStageLabel(trackingCase.currentStage)}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {trackingCase.specialStainRequired
-                              ? "Alerta: Solicitud de tinción especial"
-                              : "Sin alerta de tinción especial"}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Sin seguimiento vinculado.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="surface-empty">
-              {isLoadingTokens
-                ? "Cargando tokens particulares..."
-                : "No hay tokens particulares generados por esta clínica."}
+          {copyErrorMessage ? (
+            <p className="clinical-alert-error px-3 py-2 text-sm" role="alert">
+              {copyErrorMessage}
             </p>
-          )}
+          ) : null}
+          <label className="flex items-start gap-2 text-sm text-vetneb-ink">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={isGeneratedTokenConfirmed}
+              onChange={(event) =>
+                setIsGeneratedTokenConfirmed(event.target.checked)
+              }
+            />
+            <span>
+              Confirmo que registré el token visible o que no necesito copia
+              adicional.
+            </span>
+          </label>
+          <div className="flex justify-end border-t border-vetneb-line/70 pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCloseGeneratedToken}
+              disabled={!isGeneratedTokenConfirmed}
+            >
+              Cerrar token visible
+            </Button>
+          </div>
         </div>
-      </CardContent>
+      </ModuleDialog>
     </Card>
   );
 }

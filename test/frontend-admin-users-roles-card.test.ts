@@ -33,7 +33,7 @@ test("admin users roles card keeps typed role contracts and pagination size", ()
   assert.ok(source.includes("AdminRoleUserType"));
   assert.ok(source.includes("AdminUsersRolesSnapshot"));
   assert.ok(source.includes("ClinicUserRole"));
-  assert.ok(source.includes("const PAGE_SIZE = 25;"));
+  assert.ok(source.includes("const PAGE_SIZE = 5;"));
 });
 
 test("admin users roles card keeps user type role and clinic formatters", () => {

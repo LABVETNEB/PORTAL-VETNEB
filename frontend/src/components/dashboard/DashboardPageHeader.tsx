@@ -19,7 +19,7 @@ export function DashboardPageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col gap-4 border-b border-vetneb-line/70 pb-5 sm:flex-row sm:items-start sm:justify-between",
+        "flex flex-col gap-3 border-b border-vetneb-line/70 pb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:pb-5",
         className,
       )}
     >
@@ -29,7 +29,7 @@ export function DashboardPageHeader({
           {badge ? <div className="shrink-0">{badge}</div> : null}
         </div>
         {description ? (
-          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+          <p className="mt-1 hidden max-w-3xl text-sm text-muted-foreground sm:block">
             {description}
           </p>
         ) : null}

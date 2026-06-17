@@ -5,6 +5,10 @@ import test from "node:test";
 
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
 const CLINIC_COMMAND_CENTER_PATH = "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
+const CLINIC_INFORMES_SUMMARY_PATH =
+  "frontend/src/app/dashboard/ClinicInformesWorkspaceSummary.tsx";
+const CLINIC_LOGISTICA_SUMMARY_PATH =
+  "frontend/src/app/dashboard/ClinicLogisticaWorkspaceSummary.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -124,6 +128,8 @@ test("dashboard home clinic command center receives all required data props", ()
 test("dashboard home clinic command center presentational props contain operational section strings", () => {
   const source = read(CLINIC_COMMAND_CENTER_PATH);
 
+  assert.ok(source.includes("ModuleSurface"));
+  assert.ok(source.includes("ModuleTabs"));
   assert.ok(source.includes("Estado operativo clínica"));
   assert.ok(source.includes("Priorice informes pendientes y visitas activas"));
   assert.ok(source.includes("<StatsCards stats={stats} />"));
@@ -136,6 +142,24 @@ test("dashboard home clinic command center presentational props contain operatio
   assert.ok(source.includes('role="alert"'));
   assert.ok(source.includes("No hay informes recientes disponibles."));
   assert.ok(source.includes("No hay visitas de campo recientes disponibles."));
+});
+
+test("clinic informes and logistica summaries use in-shell master-detail layers", () => {
+  for (const [context, path] of [
+    ["informes", CLINIC_INFORMES_SUMMARY_PATH],
+    ["logistica", CLINIC_LOGISTICA_SUMMARY_PATH],
+  ] as const) {
+    const source = read(path);
+
+    assert.ok(source.includes('"use client";'), `${context} summary must own state`);
+    assert.ok(source.includes("ModuleSurface"), `${context} summary must use ModuleSurface`);
+    assert.ok(source.includes("useState"), `${context} summary must use selection state`);
+    assert.ok(source.includes("isMobileDetailOpen"), `${context} summary must use mobile replacement layer`);
+    assert.ok(source.includes("Volver a la lista"), `${context} summary must expose internal back action`);
+    assert.ok(source.includes("hidden xl:flex"), `${context} master must hide under detail on mobile`);
+    assert.ok(source.includes("hidden xl:block"), `${context} detail must replace list on mobile`);
+    assert.equal(source.includes("space-y-4"), false, `${context} summary must not stack teaser blocks`);
+  }
 });
 
 test("dashboard home keeps status badge and date formatting in clinic command center", () => {

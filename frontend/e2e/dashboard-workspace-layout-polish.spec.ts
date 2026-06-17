@@ -70,7 +70,10 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
       timeout: 8_000,
     });
     await expect(
-      page.getByRole("region", { name: "Informes del dashboard" }),
+      page.getByRole("region", { name: "Lista de informes" }),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(
+      page.getByRole("region", { name: "Detalle del informe" }),
     ).toBeVisible({ timeout: 8_000 });
   });
 
