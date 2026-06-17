@@ -98,13 +98,14 @@ test("dashboard admin integrates tabs below module hub, command center and criti
   assert.ok(source.includes('"admin-pricing"'));
   assert.ok(source.includes('"audit-log"'));
 
-  // PR5C: slot vars defined before <main>; workspace slots appear before <DashboardPageHeader>.
+  // App Shell: slot vars defined before <main>; the page header is now a
+  // controller prop, so it appears after the controller opening tag.
   const order = [
     "<AdminCommandCenter",
     "Alertas críticas",
     "<AdminFailedLoginAlertsReadOnlyCard />",
-    "<DashboardPageHeader",
     "<AdminDashboardWorkspaceController",
+    "<DashboardPageHeader",
   ].map((marker) => source.indexOf(marker));
 
   for (const index of order) {
@@ -132,7 +133,7 @@ test("dashboard admin tabs preserve existing admin cards and audit filter contra
     "<AdminPricingEditorCard />",
     "<AdminSessionsReadOnlyCard />",
     "<AdminUsersRolesReadOnlyCard />",
-    'id="audit-log"',
+    "<AdminAuditLogTable",
     "buildAdminAuditFilterHref",
     'return `/dashboard/admin?${query.toString()}`;',
   ]) {

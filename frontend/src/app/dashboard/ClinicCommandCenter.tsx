@@ -25,7 +25,7 @@ export function ClinicCommandCenter({
 }: ClinicCommandCenterProps) {
   return (
     <section
-      className="space-y-5"
+      className="flex h-full min-h-0 flex-col gap-3"
       aria-labelledby="clinic-command-center-heading"
     >
       <section className="surface-note-info" aria-labelledby="dashboard-operational-priority">

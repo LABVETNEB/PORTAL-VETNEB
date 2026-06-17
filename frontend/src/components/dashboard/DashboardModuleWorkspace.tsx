@@ -43,7 +43,10 @@ export function DashboardModuleWorkspace({
           </div>
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto pt-4">
+      <div
+        className="flex min-h-0 min-w-0 flex-1 flex-col pt-4"
+        data-dashboard-module-viewport={moduleId}
+      >
         {children}
       </div>
     </section>

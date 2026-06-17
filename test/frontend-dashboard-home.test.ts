@@ -99,9 +99,12 @@ test("dashboard home page layout order: header before workspace controller befor
   assert.ok(workspaceControllerIndex >= 0);
   assert.ok(commandCenterIndex >= 0);
   assert.ok(clinicPublicIndex >= 0);
-  assert.ok(mainIndex < pageHeaderIndex);
-  assert.ok(pageHeaderIndex < workspaceControllerIndex);
-  assert.ok(workspaceControllerIndex < commandCenterIndex);
+  assert.ok(mainIndex < workspaceControllerIndex);
+  // App Shell: the page header is now passed as a prop to the controller and
+  // rendered hub-only (to reclaim height in modules), so it appears after the
+  // controller opening tag but before the workspace slot contents.
+  assert.ok(workspaceControllerIndex < pageHeaderIndex);
+  assert.ok(pageHeaderIndex < commandCenterIndex);
   assert.ok(commandCenterIndex < clinicPublicIndex);
 });
 

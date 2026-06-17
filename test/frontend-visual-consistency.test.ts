@@ -22,6 +22,8 @@ const DASHBOARD_CLINIC_COMMAND_CENTER_PATH =
 const DASHBOARD_ADMIN_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const DASHBOARD_ADMIN_COMMAND_CENTER_PATH =
   "frontend/src/app/dashboard/admin/AdminCommandCenter.tsx";
+const DASHBOARD_ADMIN_AUDIT_TABLE_PATH =
+  "frontend/src/app/dashboard/admin/AdminAuditLogTable.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -446,7 +448,8 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
 test("dashboard admin keeps dense professional layout and visual state surfaces", () => {
   const source = read(DASHBOARD_ADMIN_PATH);
   const commandCenterSource = read(DASHBOARD_ADMIN_COMMAND_CENTER_PATH);
-  const combinedSource = `${source}\n${commandCenterSource}`;
+  const auditTableSource = read(DASHBOARD_ADMIN_AUDIT_TABLE_PATH);
+  const combinedSource = `${source}\n${commandCenterSource}\n${auditTableSource}`;
 
   assertContainsAll(
     source,
@@ -460,7 +463,8 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
       "<AdminFailedLoginAlertsReadOnlyCard />",
       "<AdminUsersRolesReadOnlyCard />",
       "Alertas críticas",
-      'id="audit-log"',
+      // App Shell: audit registry table is a dedicated paginated component.
+      "<AdminAuditLogTable",
       'id="audit-role-changes"',
       'id="admin-sessions"',
       'id="admin-pricing"',
@@ -468,6 +472,11 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
       "getSystemStatusIndicatorClass(",
     ],
     "dashboard admin structure",
+  );
+
+  assert.ok(
+    auditTableSource.includes('id="audit-log"'),
+    "audit registry table keeps the audit-log anchor",
   );
 
   assertMatchesAll(
@@ -479,7 +488,7 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
       /className="surface-soft"/,
       /className="grid grid-cols-1 gap-3 md:grid-cols-3"/,
       /className="clinical-muted-band flex items-center gap-2 rounded-lg px-3 py-2"/,
-      /className="clinical-muted-band mx-6 mt-4 flex flex-col gap-2 rounded-lg px-4 py-3 text-sm text-vetneb-navy md:flex-row md:items-center md:justify-between"/,
+      /className="clinical-muted-band mx-6 mt-3 flex flex-col gap-2 rounded-lg px-4 py-2 text-sm text-vetneb-navy md:flex-row md:items-center md:justify-between"/,
       /className="max-w-md whitespace-normal wrap-break-word text-xs text-muted-foreground"/,
     ],
     "dashboard admin visual contracts",

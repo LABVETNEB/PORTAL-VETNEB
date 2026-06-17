@@ -210,7 +210,8 @@ test("dashboard admin keeps module hub cards and preserves admin sections", () =
   assert.ok(source.includes('id="admin-sessions"'));
   assert.ok(source.includes('id="admin-users-roles"'));
   assert.ok(source.includes('id="audit-role-changes"'));
-  assert.ok(source.includes('id="audit-log"'));
+  // App Shell: the audit registry table is a dedicated paginated component.
+  assert.ok(source.includes("<AdminAuditLogTable"));
 
   const mainIndex = source.indexOf('<main className="dashboard-main">');
   const pageHeaderIndex = source.indexOf("<DashboardPageHeader", mainIndex);
@@ -226,8 +227,10 @@ test("dashboard admin keeps module hub cards and preserves admin sections", () =
   assert.ok(commandCenterIndex >= 0);
   assert.ok(alertsCardIndex >= 0);
   assert.ok(reportUploadTitleIndex >= 0);
-  assert.ok(mainIndex < pageHeaderIndex);
-  assert.ok(pageHeaderIndex < workspaceControllerIndex);
+  assert.ok(mainIndex < workspaceControllerIndex);
+  // App Shell: page header is a controller prop, rendered hub-only after the
+  // controller opening tag.
+  assert.ok(workspaceControllerIndex < pageHeaderIndex);
   assert.ok(commandCenterIndex < alertsCardIndex);
   assert.ok(alertsCardIndex < reportUploadTitleIndex);
   assert.equal(source.includes(`xl:grid-cols-${7}`), false);
@@ -261,35 +264,49 @@ test("dashboard admin surfaces study tracking notifications", () => {
 
 test("dashboard admin renders role-change audit and audit log table", () => {
   const source = read(ADMIN_PAGE_PATH);
+  const tableSource = read(
+    "frontend/src/app/dashboard/admin/AdminAuditLogTable.tsx",
+  );
 
+  // Resumen tab content stays in page.tsx.
   assert.ok(source.includes('id="audit-role-changes"'));
   assert.ok(source.includes("Auditoría de cambios de rol clínica"));
   assert.ok(source.includes('event: "clinic_user.role.changed"'));
   assert.ok(source.includes("Ver cambios de rol"));
   assert.ok(source.includes("Resumen por tipo de evento"));
-  assert.ok(source.includes('id="audit-log"'));
-  assert.ok(source.includes("Log de auditoría ({filteredAuditEntries.length}/{auditEntries.length})"));
-  assert.ok(source.includes("<TableHead>ID</TableHead>"));
-  assert.ok(source.includes("<TableHead>Evento</TableHead>"));
-  assert.ok(source.includes("<TableHead>Actor</TableHead>"));
-  assert.ok(source.includes("<TableHead>Tipo actor</TableHead>"));
-  assert.ok(source.includes("<TableHead>Objetivo</TableHead>"));
-  assert.ok(source.includes("<TableHead>Detalle</TableHead>"));
-  assert.ok(source.includes("<TableHead>Fecha</TableHead>"));
+
+  // App Shell: the paginated registry table lives in AdminAuditLogTable.
+  assert.ok(source.includes("<AdminAuditLogTable"));
+  assert.ok(tableSource.includes('id="audit-log"'));
+  assert.ok(tableSource.includes("Log de auditoría ({rows.length}/{totalCount})"));
+  assert.ok(tableSource.includes("<TableHead>ID</TableHead>"));
+  assert.ok(tableSource.includes("<TableHead>Evento</TableHead>"));
+  assert.ok(tableSource.includes("<TableHead>Actor</TableHead>"));
+  assert.ok(tableSource.includes("<TableHead>Tipo actor</TableHead>"));
+  assert.ok(tableSource.includes("<TableHead>Objetivo</TableHead>"));
+  assert.ok(tableSource.includes("<TableHead>Detalle</TableHead>"));
+  assert.ok(tableSource.includes("<TableHead>Fecha</TableHead>"));
 });
 
 test("dashboard admin distinguishes audit log load failures from empty states", () => {
   const source = read(ADMIN_PAGE_PATH);
+  const tableSource = read(
+    "frontend/src/app/dashboard/admin/AdminAuditLogTable.tsx",
+  );
 
-  assert.ok(source.includes("auditEntriesLoadError ? ("));
-  assert.ok(source.includes('role="alert"'));
-  assert.ok(source.includes("No se pudieron cargar los eventos de auditoría. Intente nuevamente."));
-  assert.ok(source.includes("No hay eventos para los filtros seleccionados."));
-  assert.ok(source.includes("No hay eventos de auditoría disponibles."));
-  assert.ok(source.includes("Limpiar filtros"));
+  // Server-side: page.tsx shapes safe rows and forwards the load-error flag.
+  assert.ok(source.includes("loadError={auditEntriesLoadError}"));
   assert.ok(source.includes("getAuditMetadataSummary(entry)"));
   assert.ok(source.includes("formatDateTime(entry.createdAt)"));
   assert.equal(source.includes("fetch("), false);
+
+  // Client table distinguishes load failures from empty states.
+  assert.ok(tableSource.includes("loadError ? ("));
+  assert.ok(tableSource.includes('role="alert"'));
+  assert.ok(tableSource.includes("No se pudieron cargar los eventos de auditoría. Intente nuevamente."));
+  assert.ok(tableSource.includes("No hay eventos para los filtros seleccionados."));
+  assert.ok(tableSource.includes("No hay eventos de auditoría disponibles."));
+  assert.ok(tableSource.includes("Limpiar filtros"));
 });
 
 test("AdminDashboardWorkspaceController syncs module from URL with useSearchParams and useEffect", () => {
