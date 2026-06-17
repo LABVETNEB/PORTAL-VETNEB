@@ -2049,3 +2049,150 @@
   }
 }
 /* dashboard-app-shell-visibility-contract:end */
+/* dashboard-viewport-zoom-adaptability:start */
+/*
+  Viewport-aware Adaptive App Shell — global density layer for BOTH dashboards
+  (Clínica + Administración).
+
+  PROBLEM: the fixed App Shell (`h-dvh overflow-hidden` + `main overflow-hidden`,
+  contract PR-A/#1014) pins the screen correctly, but every padding/gap/min-height
+  below it was authored in fixed `rem` units. The *effective viewport* shrinks as
+  browser zoom rises (a 1920×1080 panel at 150% behaves like ~1280×720 CSS px), so
+  at 100% zoom those fixed measures looked oversized/dense and the layout only felt
+  balanced when the user manually dropped Chrome to 50% (which inflates the
+  effective viewport). The shell adapted *position*, not *density*.
+
+  FIX: a density-token layer scoped to `.dashboard-app-shell`. Tokens are fluid via
+  `clamp()` keyed to width (`vw`) and to the effective viewport height (`vh`), then
+  step down through `@media (max-height/-width)` compact tiers. Because browser zoom
+  changes the CSS viewport height, the height media queries make the shell
+  auto-compact under zoom WITHOUT manual zoom, `zoom` CSS, or a global font-size
+  shrink. Tokens are applied through higher-specificity `.dashboard-app-shell …`
+  selectors, so the pinned `@apply`/className contracts are never edited and the
+  no-scroll contract is preserved — every reduction only helps content fit.
+*/
+@layer components {
+  .dashboard-app-shell {
+    /* Chrome (documented; already width-adaptive via the pinned sidebar rail /
+       2xl expand and the topbar min-h-[4.5rem] floor). */
+    --dash-header-h: 4.5rem;
+    --dash-sidebar-rail: 4.5rem;
+    --dash-sidebar-expanded: 15rem;
+
+    /* Page frame: outer padding + vertical rhythm between top-level sections. */
+    --dash-pad-x: clamp(0.75rem, 0.45rem + 1vw, 2rem);
+    --dash-pad-y: clamp(0.6rem, 0.4rem + 0.7vh, 1.5rem);
+    --dash-rhythm: clamp(0.6rem, 0.4rem + 0.7vh, 1.5rem);
+
+    /* Panels / cards: gap between panels, internal card padding, master/detail
+       floor (replaces the rigid 18rem that forced 36rem in single-column). */
+    --dash-gap: clamp(0.55rem, 0.35rem + 0.55vh, 1rem);
+    --dash-card-pad: clamp(0.65rem, 0.45rem + 0.5vw, 1rem);
+    --dash-panel-min: clamp(6rem, 1rem + 18vh, 18rem);
+
+    /* Controls: compact filter/toolbar control + tab heights. */
+    --dash-control-h: clamp(2rem, 1.75rem + 0.6vh, 2.5rem);
+    --dash-tab-h: clamp(1.9rem, 1.6rem + 0.7vh, 2.25rem);
+
+    /* Hub + lists density. */
+    --dash-cockpit-gap: clamp(0.5rem, 0.3rem + 0.6vh, 1.15rem);
+    --dash-list-pad-y: clamp(0.4rem, 0.3rem + 0.25vh, 0.65rem);
+
+    /* Secondary text size used only by the compact tiers. */
+    --dash-secondary-font: 0.75rem;
+  }
+
+  /* Compact tier — effective height of a common laptop at 100% zoom
+     (1366×768 / 1280×720 / 1536×864 effective). */
+  @media (max-height: 860px) {
+    .dashboard-app-shell {
+      --dash-pad-y: clamp(0.5rem, 0.3rem + 0.5vh, 1rem);
+      --dash-rhythm: clamp(0.5rem, 0.3rem + 0.5vh, 0.95rem);
+      --dash-gap: clamp(0.5rem, 0.3rem + 0.45vh, 0.85rem);
+      --dash-card-pad: clamp(0.6rem, 0.45rem + 0.4vw, 0.9rem);
+      --dash-panel-min: clamp(5rem, 0.5rem + 16vh, 13rem);
+      --dash-cockpit-gap: clamp(0.5rem, 0.3rem + 0.5vh, 0.9rem);
+    }
+  }
+
+  /* Dense tier — small laptops / higher zoom. */
+  @media (max-height: 760px) {
+    .dashboard-app-shell {
+      --dash-header-h: 4rem;
+      --dash-pad-y: clamp(0.45rem, 0.3rem + 0.4vh, 0.8rem);
+      --dash-rhythm: clamp(0.45rem, 0.3rem + 0.4vh, 0.8rem);
+      --dash-gap: clamp(0.45rem, 0.3rem + 0.4vh, 0.75rem);
+      --dash-panel-min: clamp(4.5rem, 0.5rem + 14vh, 11rem);
+      --dash-tab-h: clamp(1.85rem, 1.6rem + 0.5vh, 2.1rem);
+      --dash-list-pad-y: clamp(0.35rem, 0.25rem + 0.2vh, 0.55rem);
+    }
+  }
+
+  /* Ultra-compact tier — strong zoom on a 1080p panel (~1280×720 effective). */
+  @media (max-height: 680px) {
+    .dashboard-app-shell {
+      --dash-header-h: 3.6rem;
+      --dash-pad-y: 0.4rem;
+      --dash-rhythm: 0.4rem;
+      --dash-gap: 0.4rem;
+      --dash-card-pad: 0.7rem;
+      --dash-panel-min: 4rem;
+      --dash-cockpit-gap: 0.45rem;
+      --dash-secondary-font: 0.7rem;
+    }
+  }
+
+  /* Narrow effective width (high zoom on common laptops) keeps page padding sane. */
+  @media (max-width: 1280px) {
+    .dashboard-app-shell {
+      --dash-pad-x: clamp(0.7rem, 0.4rem + 0.8vw, 1.5rem);
+    }
+  }
+
+  /* ── Apply tokens (higher specificity than the base utility rules) ───────── */
+  .dashboard-app-shell .dashboard-main {
+    padding-inline: var(--dash-pad-x);
+    padding-block: var(--dash-pad-y);
+  }
+
+  .dashboard-app-shell .dashboard-main > :not([hidden]) ~ :not([hidden]) {
+    margin-block-start: var(--dash-rhythm);
+  }
+
+  .dashboard-app-shell .dashboard-cockpit {
+    gap: var(--dash-cockpit-gap);
+  }
+
+  .dashboard-app-shell .dashboard-module-surface,
+  .dashboard-app-shell .dashboard-module-tabs {
+    gap: var(--dash-gap);
+  }
+
+  .dashboard-app-shell .dashboard-module-tab {
+    min-height: var(--dash-tab-h);
+  }
+
+  .dashboard-app-shell .dashboard-master-panel,
+  .dashboard-app-shell .dashboard-detail-panel {
+    min-height: var(--dash-panel-min);
+  }
+
+  .dashboard-app-shell .dashboard-list-row {
+    padding-block: var(--dash-list-pad-y);
+  }
+
+  /* Compact-only chrome + secondary-text density. Targets the topbar via its
+     existing data hook (no className edit) and trims secondary descriptions
+     only — never a global font-size reduction. */
+  @media (max-height: 760px) {
+    .dashboard-app-shell [data-dashboard-topbar-polish="true"] {
+      min-height: var(--dash-header-h);
+      padding-block: 0.4rem;
+    }
+
+    .dashboard-app-shell .dashboard-section-description {
+      font-size: var(--dash-secondary-font);
+    }
+  }
+}
+/* dashboard-viewport-zoom-adaptability:end */
