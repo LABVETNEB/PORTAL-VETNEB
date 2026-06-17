@@ -20,7 +20,7 @@ function read(relativePath: string): string {
   );
 }
 
-test("dashboard admin elimina seguimiento redundante y mueve carga de informes al token", () => {
+test("dashboard admin elimina seguimiento redundante y quita carga de informes del token workspace", () => {
   const page = read(PAGE_PATH);
   const card = read(ADMIN_PARTICULAR_TOKENS_CARD_PATH);
 
@@ -39,15 +39,17 @@ test("dashboard admin elimina seguimiento redundante y mueve carga de informes a
     false,
   );
   assert.equal(page.includes("<UploadReportModal />"), false);
-  assert.ok(
+  assert.equal(
     card.includes(
       'import { UploadReportModal } from "@/components/dashboard/UploadReportModal";',
     ),
+    false,
   );
-  assert.ok(card.includes("triggerLabel={"));
-  assert.ok(card.includes('"Subir informe para este token"'));
-  assert.ok(card.includes('"Reemplazar informe"'));
-  assert.ok(card.includes("presetParticularToken={token}"));
+  assert.equal(card.includes('"Subir informe para este token"'), false);
+  assert.equal(card.includes('"Reemplazar informe"'), false);
+  assert.equal(card.includes("presetParticularToken={token}"), false);
+  assert.ok(card.includes("Informe vinculado"));
+  assert.ok(card.includes("<ReportFileActions"));
 });
 
 test("sidebar admin no muestra seguimiento de informes y conserva anclas operativas", () => {

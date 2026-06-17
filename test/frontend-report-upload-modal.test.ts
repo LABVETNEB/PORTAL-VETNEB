@@ -74,7 +74,7 @@ test("frontend informes page does not expose admin upload modal in clinic dashbo
   assert.equal(source.includes("dashboard administrador"), false);
 });
 
-test("frontend admin dashboard routes upload report modal through token cards", () => {
+test("frontend admin token workspace does not mount upload report modal", () => {
   const page = read(ADMIN_PAGE_PATH);
   const card = read(ADMIN_CARD_PATH);
 
@@ -82,12 +82,11 @@ test("frontend admin dashboard routes upload report modal through token cards", 
   assert.ok(page.includes('id="admin-report-upload"'));
   assert.equal(page.includes("<UploadReportModal />"), false);
   assert.ok(page.includes("Carga de informes"));
-  assert.ok(page.includes("cada token administrado"));
-  assert.ok(card.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'));
-  assert.ok(card.includes("triggerLabel={"));
-  assert.ok(card.includes('"Subir informe para este token"'));
-  assert.ok(card.includes('"Reemplazar informe"'));
-  assert.ok(card.includes("presetParticularToken={token}"));
+  assert.equal(card.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'), false);
+  assert.equal(card.includes("triggerLabel={"), false);
+  assert.equal(card.includes('"Subir informe para este token"'), false);
+  assert.equal(card.includes('"Reemplazar informe"'), false);
+  assert.equal(card.includes("presetParticularToken={token}"), false);
 });
 
 test("frontend upload report modal supports preset particular token uploads", () => {

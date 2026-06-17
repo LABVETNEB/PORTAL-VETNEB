@@ -123,27 +123,16 @@ test("StickyFilterBar renders sticky active-filter summary and action slots", ()
   assert.equal(source.includes("shadow-xl"), false);
 });
 
-test("dashboard informes integrates drawer and sticky filter bar without changing reports behavior", () => {
+test("dashboard informes uses compact inline filters without drawer sticky overlap", () => {
   const source = read(INFORMES_PAGE_PATH);
-  const mainSource = source.slice(source.indexOf('<main className="dashboard-main">'));
 
-  assert.ok(source.includes('import { FilterDrawer } from "@/components/dashboard/FilterDrawer";'));
-  assert.ok(source.includes('} from "@/components/dashboard/StickyFilterBar";'));
-  assert.ok(source.includes("type ActiveFilter,"));
-  assert.ok(source.includes("function buildActiveFilters(input: {"));
-  assert.ok(source.includes("query: string;"));
-  assert.ok(source.includes("status: string;"));
-  assert.ok(source.includes("studyType: string;"));
-  assert.ok(source.includes('activeFilters.push({ label: "Búsqueda", value: input.query });'));
-  assert.ok(source.includes('label: "Estado"'));
-  assert.ok(source.includes('label: "Tipo de estudio"'));
-  assert.ok(source.includes("const activeFilters = buildActiveFilters({ query, status, studyType });"));
-  assert.ok(source.includes("<StickyFilterBar"));
-  assert.ok(source.includes("activeFilters={activeFilters}"));
-  assert.ok(source.includes("<FilterDrawer"));
-  assert.ok(source.includes('triggerLabel="Filtrar informes"'));
-  assert.ok(source.includes("activeCount={activeFilters.length}"));
-  assert.ok(source.includes('<form method="get"'));
+  assert.equal(source.includes('import { FilterDrawer } from "@/components/dashboard/FilterDrawer";'), false);
+  assert.equal(source.includes('} from "@/components/dashboard/StickyFilterBar";'), false);
+  assert.equal(source.includes("<StickyFilterBar"), false);
+  assert.equal(source.includes("<FilterDrawer"), false);
+  assert.equal(source.includes('triggerLabel="Filtrar informes"'), false);
+  assert.ok(source.includes('<form'));
+  assert.ok(source.includes('method="get"'));
   assert.ok(source.includes('name="query"'));
   assert.ok(source.includes("defaultValue={query}"));
   assert.ok(source.includes('name="status"'));
@@ -159,21 +148,13 @@ test("dashboard informes integrates drawer and sticky filter bar without changin
   assert.ok(source.includes("studyType: studyType || undefined,"));
   assert.ok(source.includes(": await getReportsPaginated("));
   assert.ok(source.includes("requestOptions,"));
-  assert.ok(source.includes("<MasterDetailWorkspace"));
+  assert.equal(source.includes("<MasterDetailWorkspace"), false);
   assert.ok(source.includes("<StudyTimeline steps={selectedReportTimelineSteps} />"));
-  assert.ok(source.includes("<StickyActionBar"));
+  assert.equal(source.includes("<StickyActionBar"), false);
   assert.ok(source.includes("<ReportFileActions"));
   assert.equal(source.includes('from "next/link"'), false);
   assert.equal(source.includes("<Link"), false);
   assert.equal(source.includes("<a"), false);
-
-  const stickyActionIndex = mainSource.indexOf("<StickyActionBar");
-  const stickyFilterIndex = mainSource.indexOf("<StickyFilterBar");
-  const workspaceIndex = mainSource.indexOf("<MasterDetailWorkspace");
-
-  assert.ok(stickyActionIndex >= 0);
-  assert.ok(stickyFilterIndex > stickyActionIndex);
-  assert.ok(workspaceIndex > stickyFilterIndex);
 });
 
 test("PR-6 scope leaves backend auth API middleware SEO and dependencies untouched", () => {

@@ -1,39 +1,26 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { FileText, ListChecks } from "lucide-react";
 
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorState } from "@/components/dashboard/ErrorState";
-import { FilterDrawer } from "@/components/dashboard/FilterDrawer";
-import { MasterDetailWorkspace } from "@/components/dashboard/MasterDetailWorkspace";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-  StickyFilterBar,
-  type ActiveFilter,
-} from "@/components/dashboard/StickyFilterBar";
-import {
-  StickyActionBar,
-  type StickyActionBarAction,
-} from "@/components/dashboard/StickyActionBar";
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   StudyTimeline,
   type StudyTimelineStep,
 } from "@/components/dashboard/StudyTimeline";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   getReportsPaginated,
   searchReportsPaginated,
@@ -54,7 +41,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const REPORTS_PAGE_SIZE = 20;
+const REPORTS_PAGE_SIZE = 6;
 
 const statusOptions = [
   { value: "", label: "Todos los estados" },
@@ -96,36 +83,8 @@ function normalizeReportIdFilter(value: string) {
 
 function normalizePageParam(value: string): number {
   const n = Number(value);
+
   return Number.isInteger(n) && n > 0 ? n : 1;
-}
-
-function getStatusFilterLabel(value: string) {
-  return statusOptions.find((option) => option.value === value)?.label ?? value;
-}
-
-function buildActiveFilters(input: {
-  query: string;
-  status: string;
-  studyType: string;
-}): ActiveFilter[] {
-  const activeFilters: ActiveFilter[] = [];
-
-  if (input.query) {
-    activeFilters.push({ label: "Búsqueda", value: input.query });
-  }
-
-  if (input.status) {
-    activeFilters.push({
-      label: "Estado",
-      value: getStatusFilterLabel(input.status),
-    });
-  }
-
-  if (input.studyType) {
-    activeFilters.push({ label: "Tipo de estudio", value: input.studyType });
-  }
-
-  return activeFilters;
 }
 
 function buildInformesHref(input: {
@@ -134,7 +93,6 @@ function buildInformesHref(input: {
   studyType?: string;
   reportId?: number | null;
   page?: number;
-  hash?: string;
 }) {
   const params = new URLSearchParams();
 
@@ -159,13 +117,14 @@ function buildInformesHref(input: {
   }
 
   const qs = params.toString();
-  const hash = input.hash ? `#${input.hash}` : "";
 
-  return `/dashboard/informes${qs ? `?${qs}` : ""}${hash}`;
+  return `/dashboard/informes${qs ? `?${qs}` : ""}`;
 }
 
 function getReportTitle(report: Report) {
-  return report.patientName ? `${report.patientName} · Informe #${report.id}` : `Informe #${report.id}`;
+  return report.patientName
+    ? `${report.patientName} · Informe #${report.id}`
+    : `Informe #${report.id}`;
 }
 
 const REPORT_STATUS_ORDER = {
@@ -301,30 +260,12 @@ export default async function InformesPage({
     selectedReportId === null
       ? (reports[0] ?? null)
       : (reports.find((report) => report.id === selectedReportId) ?? null);
-  const selectedReportIdValue = selectedReport ? String(selectedReport.id) : null;
+
   const selectedReportTimelineSteps = selectedReport
     ? buildStudyTimelineSteps(selectedReport)
     : [];
-  const activeFilters = buildActiveFilters({ query, status, studyType });
-  const stickyActions = [
-    {
-      label: "Lista",
-      href: "#reports-master-list",
-      variant: "outline",
-      icon: <ListChecks className="h-4 w-4" aria-hidden="true" />,
-      "aria-label": "Ir a lista de informes",
-    },
-    {
-      label: "Detalle",
-      href: "#report-detail",
-      variant: "default",
-      disabled: !selectedReport,
-      icon: <FileText className="h-4 w-4" aria-hidden="true" />,
-      "aria-label": selectedReport
-        ? `Ir al detalle del informe ${selectedReport.id}`
-        : "Detalle de informe no disponible",
-    },
-  ] satisfies StickyActionBarAction[];
+
+  const hasActiveFilters = Boolean(query || status || studyType);
 
   return (
     <>
@@ -336,7 +277,7 @@ export default async function InformesPage({
       <main className="dashboard-main">
         <DashboardPageHeader
           title="Informes"
-          description="Workspace operativo para revisar informes clinic-scoped, abrir detalle y consultar el avance del estudio sin salir de la lista."
+          description="Consulta compacta de informes: lista operativa, selección directa y detalle separado sin superponer filtros."
           badge={
             selectedReport ? (
               <StatusBadge
@@ -358,359 +299,402 @@ export default async function InformesPage({
           }
         />
 
-        <StickyActionBar
-          context={selectedReport ? `Informe #${selectedReport.id}` : "Informes"}
-          actions={stickyActions}
-        >
-          {selectedReport ? (
-            <ReportFileActions
-              reportId={selectedReport.id}
-              hasFile={selectedReport.hasFile}
-              align="start"
-            />
-          ) : null}
-        </StickyActionBar>
+        <Card className="dashboard-surface overflow-hidden">
+          <CardHeader className="border-b border-vetneb-line/70">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+              <div>
+                <CardTitle className="text-base">Informes disponibles</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Seleccione un informe de la lista para abrir el detalle operativo.
+                </p>
+              </div>
 
-        <StickyFilterBar
-          title="Filtros"
-          activeFilters={activeFilters}
-          drawer={
-            <FilterDrawer
-              title="Filtros de informes"
-              description="Búsqueda por paciente o tipo de estudio, y estado operativo."
-              triggerLabel="Filtrar informes"
-              activeCount={activeFilters.length}
+              <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 xl:min-w-[34rem]">
+                <div className="surface-soft px-3 py-2">
+                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="mt-0.5 font-semibold text-vetneb-ink">{reportsTotal}</p>
+                </div>
+                <div className="surface-soft px-3 py-2">
+                  <p className="text-xs text-muted-foreground">Mostrando</p>
+                  <p className="mt-0.5 font-semibold text-vetneb-ink">
+                    {reportsTotal > 0 ? `${pageStart}-${pageEnd}` : "0"}
+                  </p>
+                </div>
+                <div className="surface-soft px-3 py-2">
+                  <p className="text-xs text-muted-foreground">Página</p>
+                  <p className="mt-0.5 font-semibold text-vetneb-ink">
+                    {Math.max(page, 1)} / {Math.max(reportsTotalPages, 1)}
+                  </p>
+                </div>
+                <div className="surface-soft px-3 py-2">
+                  <p className="text-xs text-muted-foreground">Filtros</p>
+                  <p className="mt-0.5 font-semibold text-vetneb-ink">
+                    {hasActiveFilters ? "Activos" : "Sin filtros"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-4 pt-4">
+            <form
+              method="get"
+              role="search"
+              aria-label="Filtros compactos de informes"
+              className="rounded-xl border border-vetneb-line/75 bg-card/78 p-3 shadow-[0_8px_28px_rgba(15,45,62,0.04)]"
             >
-              <form method="get" className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_0.8fr_1fr_auto] lg:items-end">
                 <label className="block">
-                  <span className="text-sm font-semibold text-vetneb-ink">
-                    Buscar
-                  </span>
+                  <span className="field-label">Buscar</span>
                   <Input
                     name="query"
                     defaultValue={query}
                     placeholder="Buscar por paciente o tipo de estudio..."
-                    className="mt-1.5 min-w-0"
                     aria-label="Buscar informes"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="text-sm font-semibold text-vetneb-ink">
-                    Estado
-                  </span>
+                  <span className="field-label">Estado</span>
                   <select
                     name="status"
                     defaultValue={status}
-                    className="field-select mt-1.5"
+                    className="field-select"
                     aria-label="Filtrar por estado"
                   >
-                    {statusOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
+                    {statusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
                 </label>
 
                 <label className="block">
-                  <span className="text-sm font-semibold text-vetneb-ink">
-                    Tipo de estudio
-                  </span>
+                  <span className="field-label">Tipo de estudio</span>
                   <Input
                     name="studyType"
                     defaultValue={studyType}
                     placeholder="Filtrar por tipo de estudio..."
-                    className="mt-1.5 min-w-0"
                     aria-label="Filtrar por tipo de estudio"
                   />
                 </label>
 
-                <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+                <div className="flex flex-wrap gap-2">
+                  <Button type="submit" size="sm">
+                    Filtrar
+                  </Button>
                   <PublicRouteControl
                     href="/dashboard/informes"
                     replace
                     variant="bare"
-                    className="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-semibold text-foreground/80 transition-[background-color,color] duration-150 hover:bg-accent/70 hover:text-accent-foreground"
+                    className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70"
                   >
                     Limpiar
                   </PublicRouteControl>
-                  <Button type="submit" size="sm">
-                    Filtrar
-                  </Button>
                 </div>
-              </form>
-            </FilterDrawer>
-          }
-        />
-
-        <MasterDetailWorkspace
-          selectedId={selectedReportIdValue}
-          master={
-            <div id="reports-master-list" className="space-y-4 p-4">
-              <div>
-                <h2 className="dashboard-section-heading">Informes</h2>
-                <p className="dashboard-section-description">
-                  {reportsTotal > 0
-                    ? `Mostrando ${pageStart}–${pageEnd} de ${reportsTotal}`
-                    : "Lista clinic-scoped con selección de detalle."}
-                </p>
               </div>
+            </form>
 
-              <div className="min-w-0 overflow-x-auto rounded-lg border border-vetneb-line/70">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Paciente</TableHead>
-                      <TableHead>Tipo de estudio</TableHead>
-                      <TableHead className="hidden lg:table-cell">Clínica</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reportsLoadError ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={7}
-                          role="alert"
-                          className="clinical-table-state"
-                        >
-                          <ErrorState
-                            title="No se pudieron cargar los informes"
-                            message="No se pudieron cargar los informes. Intente nuevamente."
-                            className="text-left"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ) : reports.length ? (
-                      reports.map((report) => {
-                        const isSelected = selectedReport?.id === report.id;
-
-                        return (
-                          <TableRow
-                            key={report.id}
-                            id={`report-${report.id}`}
-                            className={cn("dashboard-row-interactive", isSelected && "bg-vetneb-cyan/10 dashboard-table-row-selected")}
-                          >
-                            <TableCell className="font-mono text-xs text-muted-foreground">
-                              #{report.id}
-                            </TableCell>
-                            <TableCell className="font-medium">
-                              {report.patientName ?? "—"}
-                            </TableCell>
-                            <TableCell className="text-vetneb-ink/75">
-                              {report.studyType ?? "—"}
-                            </TableCell>
-                            <TableCell className="hidden text-sm text-vetneb-ink/75 lg:table-cell">
-                              {report.clinicName ?? `Clínica #${report.clinicId}`}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {formatDate(report.uploadDate)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={getReportStatusVariant(report.status)}>
-                                {getReportStatusLabel(report.status)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex flex-col items-end gap-2">
-                                <PublicRouteControl
-                                  href={buildInformesHref({
-                                    query,
-                                    status,
-                                    studyType,
-                                    reportId: report.id,
-                                    page,
-                                    hash: "report-detail",
-                                  })}
-                                  replace
-                                  prefetch={false}
-                                  variant="bare"
-                                  aria-current={isSelected ? "true" : undefined}
-                                  aria-label={
-                                    isSelected
-                                      ? `Informe seleccionado: ${getReportTitle(report)}`
-                                      : `Seleccionar informe: ${getReportTitle(report)}`
-                                  }
-                                  className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-2 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70"
-                                >
-                                  {isSelected ? "Seleccionado" : "Seleccionar"}
-                                </PublicRouteControl>
-                                <ReportFileActions
-                                  reportId={report.id}
-                                  hasFile={report.hasFile}
-                                />
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    ) : (
-                      <TableRow>
-                        <TableCell
-                          colSpan={7}
-                          className="clinical-table-state"
-                        >
-                          <EmptyState
-                            title="No hay informes disponibles."
-                            description="Cuando haya informes para los filtros actuales, aparecerán en este panel."
-                            className="border-0 bg-transparent"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {reportsTotalPages > 1 && (
-                <nav
-                  aria-label="Paginación de informes"
-                  className="flex items-center justify-between gap-2 pt-1"
+            {reportsLoadError || reports.length === 0 ? (
+              <div className="grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-[0.86fr_1.44fr]">
+                <section
+                  id="reports-master-list"
+                  aria-labelledby="reports-list-heading"
+                  className="dashboard-master-panel rounded-xl border border-vetneb-line/75 bg-card/82"
                 >
-                  <PublicRouteControl
-                    href={buildInformesHref({ query, status, studyType, page: page - 1 })}
-                    replace
-                    prefetch={false}
-                    variant="bare"
-                    disabled={page <= 1}
-                    aria-label="Página anterior"
-                    aria-disabled={page <= 1 ? "true" : undefined}
-                    className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Anterior
-                  </PublicRouteControl>
-                  <span className="dashboard-pagination-context">
-                    Página {page} de {reportsTotalPages}
-                  </span>
-                  <PublicRouteControl
-                    href={buildInformesHref({ query, status, studyType, page: page + 1 })}
-                    replace
-                    prefetch={false}
-                    variant="bare"
-                    disabled={page >= reportsTotalPages}
-                    aria-label="Página siguiente"
-                    aria-disabled={page >= reportsTotalPages ? "true" : undefined}
-                    className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Siguiente
-                  </PublicRouteControl>
-                </nav>
-              )}
-            </div>
-          }
-          detail={
-            selectedReport ? (
-              <div id="report-detail" className="space-y-6 p-5">
-                <div className="flex flex-col gap-3 border-b border-vetneb-line/70 pb-4 md:flex-row md:items-start md:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                      Detalle del informe
-                    </p>
-                    <h2 className="mt-1 text-xl font-semibold text-vetneb-ink">
-                      {getReportTitle(selectedReport)}
+                  <div className="border-b border-vetneb-line/70 px-4 py-3">
+                    <h2
+                      id="reports-list-heading"
+                      className="dashboard-section-heading"
+                    >
+                      Lista de informes
                     </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Clínica {selectedReport.clinicName ?? `#${selectedReport.clinicId}`}
+                    <p className="dashboard-section-description">
+                      Click en un informe para ver detalles y acciones.
                     </p>
                   </div>
-                  <StatusBadge
-                    status={selectedReport.status}
-                    label={getReportStatusLabel(selectedReport.status)}
-                  />
-                </div>
 
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  <div className="surface-soft">
-                    <p className="text-xs text-muted-foreground">Paciente</p>
-                    <p className="mt-1 font-semibold text-vetneb-ink">
-                      {selectedReport.patientName ?? "—"}
-                    </p>
+                  <div className="p-4">
+                    {reportsLoadError ? (
+                      <div role="alert">
+                        <ErrorState
+                          title="No se pudieron cargar los informes"
+                          message="No se pudieron cargar los informes. Intente nuevamente."
+                        />
+                      </div>
+                    ) : (
+                      <EmptyState
+                        title="No hay informes disponibles."
+                        description="Cuando haya informes para los filtros actuales, aparecerán en esta lista."
+                      />
+                    )}
                   </div>
-                  <div className="surface-soft">
-                    <p className="text-xs text-muted-foreground">Tipo de estudio</p>
-                    <p className="mt-1 font-semibold text-vetneb-ink">
-                      {selectedReport.studyType ?? "—"}
-                    </p>
-                  </div>
-                  <div className="surface-soft">
-                    <p className="text-xs text-muted-foreground">Fecha</p>
-                    <p className="mt-1 font-semibold text-vetneb-ink">
-                      {formatDate(selectedReport.uploadDate)}
-                    </p>
-                  </div>
-                  <div className="surface-soft">
-                    <p className="text-xs text-muted-foreground">Creado</p>
-                    <p className="mt-1 font-semibold text-vetneb-ink">
-                      {formatDate(selectedReport.createdAt)}
-                    </p>
-                  </div>
-                  <div className="surface-soft">
-                    <p className="text-xs text-muted-foreground">Actualizado</p>
-                    <p className="mt-1 font-semibold text-vetneb-ink">
-                      {formatDate(selectedReport.updatedAt)}
-                    </p>
-                  </div>
-                  <div className="surface-soft">
-                    <p className="text-xs text-muted-foreground">Archivo</p>
-                    <p className="mt-1 font-semibold text-vetneb-ink">
-                      {selectedReport.fileName ?? (selectedReport.hasFile ? "Disponible" : "—")}
-                    </p>
-                  </div>
-                </div>
-
-                <section id="report-actions" className="space-y-3">
-                  <div>
-                    <h3 className="text-base font-semibold text-vetneb-ink">
-                      Acciones
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Acciones reales existentes para visualizar o descargar el archivo.
-                    </p>
-                  </div>
-                  <ReportFileActions
-                    reportId={selectedReport.id}
-                    hasFile={selectedReport.hasFile}
-                    align="start"
-                  />
                 </section>
 
-                <section className="space-y-3" aria-labelledby="study-timeline-heading">
-                  <div>
-                    <h3
-                      id="study-timeline-heading"
-                      className="text-base font-semibold text-vetneb-ink"
+                <section
+                  id="report-detail"
+                  aria-labelledby="report-detail-heading"
+                  className="dashboard-detail-panel rounded-xl border border-vetneb-line/75 bg-card/82"
+                >
+                  <div className="p-4">
+                    <h2
+                      id="report-detail-heading"
+                      className="sr-only"
                     >
-                      Línea de tiempo del estudio
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Pasos derivados del estado y fechas ya disponibles del informe.
-                    </p>
+                      Detalle del informe
+                    </h2>
+                    <EmptyState
+                      title="No hay informe seleccionado"
+                      description="Seleccione un informe de la lista para ver el detalle operativo."
+                    />
                   </div>
-                  <StudyTimeline steps={selectedReportTimelineSteps} />
                 </section>
               </div>
-            ) : (
-              <EmptyState
-                title="No hay informe seleccionado"
-                description="Seleccione un informe de la lista para ver el detalle operativo."
-                className="m-5"
-              />
-            )
-          }
-          emptyDetail={
-            <EmptyState
-              title="No hay informe seleccionado"
-              description="Seleccione un informe de la lista para ver el detalle operativo."
-              className="m-5"
-            />
-          }
-        />
+            ) : null}
 
-        <div className="h-24 md:hidden" aria-hidden="true" />
+            {!reportsLoadError && reports.length > 0 ? (
+              <div className="grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-[0.86fr_1.44fr]">
+                <section
+                  id="reports-master-list"
+                  aria-labelledby="reports-list-heading"
+                  className="dashboard-master-panel rounded-xl border border-vetneb-line/75 bg-card/82"
+                >
+                  <div className="border-b border-vetneb-line/70 px-4 py-3">
+                    <h2
+                      id="reports-list-heading"
+                      className="dashboard-section-heading"
+                    >
+                      Lista de informes
+                    </h2>
+                    <p className="dashboard-section-description">
+                      Click en un informe para ver detalles y acciones.
+                    </p>
+                  </div>
+
+                  <div className="divide-y divide-vetneb-line/60">
+                    {reports.map((report) => {
+                      const isSelected = selectedReport?.id === report.id;
+
+                      return (
+                        <PublicRouteControl
+                          key={report.id}
+                          id={`report-${report.id}`}
+                          href={buildInformesHref({
+                            query,
+                            status,
+                            studyType,
+                            reportId: report.id,
+                            page,
+                          })}
+                          replace
+                          prefetch={false}
+                          variant="bare"
+                          aria-current={isSelected ? "true" : undefined}
+                          aria-label={
+                            isSelected
+                              ? `Informe seleccionado: ${getReportTitle(report)}`
+                              : `Seleccionar informe: ${getReportTitle(report)}`
+                          }
+                          className={cn(
+                            "block w-full px-4 py-3 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset",
+                            isSelected && "bg-vetneb-cyan/12",
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                                Informe #{report.id}
+                              </p>
+                              <p className="mt-1 truncate text-sm font-semibold text-vetneb-ink">
+                                {report.patientName ?? "Paciente sin nombre"}
+                              </p>
+                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                {report.studyType ?? "Tipo sin registrar"} ·{" "}
+                                {formatDate(report.uploadDate)}
+                              </p>
+                            </div>
+                            <Badge
+                              variant={getReportStatusVariant(report.status)}
+                              className="shrink-0"
+                            >
+                              {getReportStatusLabel(report.status)}
+                            </Badge>
+                          </div>
+                        </PublicRouteControl>
+                      );
+                    })}
+                  </div>
+
+                  {reportsTotalPages > 1 ? (
+                    <nav
+                      aria-label="Paginación de informes"
+                      className="flex items-center justify-between gap-2 border-t border-vetneb-line/70 px-4 py-3"
+                    >
+                      <PublicRouteControl
+                        href={buildInformesHref({
+                          query,
+                          status,
+                          studyType,
+                          page: page - 1,
+                        })}
+                        replace
+                        prefetch={false}
+                        variant="bare"
+                        disabled={page <= 1}
+                        aria-label="Página anterior"
+                        aria-disabled={page <= 1 ? "true" : undefined}
+                        className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Anterior
+                      </PublicRouteControl>
+                      <span className="dashboard-pagination-context">
+                        Página {page} de {reportsTotalPages}
+                      </span>
+                      <PublicRouteControl
+                        href={buildInformesHref({
+                          query,
+                          status,
+                          studyType,
+                          page: page + 1,
+                        })}
+                        replace
+                        prefetch={false}
+                        variant="bare"
+                        disabled={page >= reportsTotalPages}
+                        aria-label="Página siguiente"
+                        aria-disabled={page >= reportsTotalPages ? "true" : undefined}
+                        className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Siguiente
+                      </PublicRouteControl>
+                    </nav>
+                  ) : null}
+                </section>
+
+                <section
+                  id="report-detail"
+                  aria-labelledby="report-detail-heading"
+                  className="dashboard-master-panel rounded-xl border border-vetneb-line/75 bg-card/82"
+                >
+                  {selectedReport ? (
+                    <div className="space-y-4 p-4">
+                      <div className="flex flex-col gap-3 border-b border-vetneb-line/70 pb-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                            Detalle del informe
+                          </p>
+                          <h2
+                            id="report-detail-heading"
+                            className="mt-1 text-xl font-semibold text-vetneb-ink"
+                          >
+                            {getReportTitle(selectedReport)}
+                          </h2>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Clínica{" "}
+                            {selectedReport.clinicName ??
+                              `#${selectedReport.clinicId}`}
+                          </p>
+                        </div>
+                        <StatusBadge
+                          status={selectedReport.status}
+                          label={getReportStatusLabel(selectedReport.status)}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="surface-soft">
+                          <p className="text-xs text-muted-foreground">Paciente</p>
+                          <p className="mt-1 font-semibold text-vetneb-ink">
+                            {selectedReport.patientName ?? "—"}
+                          </p>
+                        </div>
+                        <div className="surface-soft">
+                          <p className="text-xs text-muted-foreground">
+                            Tipo de estudio
+                          </p>
+                          <p className="mt-1 font-semibold text-vetneb-ink">
+                            {selectedReport.studyType ?? "—"}
+                          </p>
+                        </div>
+                        <div className="surface-soft">
+                          <p className="text-xs text-muted-foreground">Fecha</p>
+                          <p className="mt-1 font-semibold text-vetneb-ink">
+                            {formatDate(selectedReport.uploadDate)}
+                          </p>
+                        </div>
+                        <div className="surface-soft">
+                          <p className="text-xs text-muted-foreground">Creado</p>
+                          <p className="mt-1 font-semibold text-vetneb-ink">
+                            {formatDate(selectedReport.createdAt)}
+                          </p>
+                        </div>
+                        <div className="surface-soft">
+                          <p className="text-xs text-muted-foreground">
+                            Actualizado
+                          </p>
+                          <p className="mt-1 font-semibold text-vetneb-ink">
+                            {formatDate(selectedReport.updatedAt)}
+                          </p>
+                        </div>
+                        <div className="surface-soft">
+                          <p className="text-xs text-muted-foreground">Archivo</p>
+                          <p className="mt-1 font-semibold text-vetneb-ink">
+                            {selectedReport.fileName ??
+                              (selectedReport.hasFile ? "Disponible" : "—")}
+                          </p>
+                        </div>
+                      </div>
+
+                      <section className="space-y-3" aria-labelledby="report-actions-heading">
+                        <div>
+                          <h3
+                            id="report-actions-heading"
+                            className="text-base font-semibold text-vetneb-ink"
+                          >
+                            Acciones
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Visualización y descarga del archivo disponible.
+                          </p>
+                        </div>
+                        <ReportFileActions
+                          reportId={selectedReport.id}
+                          hasFile={selectedReport.hasFile}
+                          align="start"
+                        />
+                      </section>
+
+                      <section
+                        className="space-y-3"
+                        aria-labelledby="study-timeline-heading"
+                      >
+                        <div>
+                          <h3
+                            id="study-timeline-heading"
+                            className="text-base font-semibold text-vetneb-ink"
+                          >
+                            Línea de tiempo del estudio
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Pasos derivados del estado y fechas ya disponibles.
+                          </p>
+                        </div>
+                        <StudyTimeline steps={selectedReportTimelineSteps} />
+                      </section>
+                    </div>
+                  ) : (
+                    <EmptyState
+                      title="No hay informe seleccionado"
+                      description="Seleccione un informe de la lista para ver el detalle operativo."
+                      className="m-5"
+                    />
+                  )}
+                </section>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
       </main>
     </>
   );
