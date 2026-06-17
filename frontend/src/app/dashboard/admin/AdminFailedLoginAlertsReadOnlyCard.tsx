@@ -32,7 +32,7 @@ import type {
   AdminFailedLoginAlertSurface,
 } from "@/types";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 5;
 
 function formatSurface(value: AdminFailedLoginAlertSurface) {
   if (value === "admin") return "Admin";
@@ -134,7 +134,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
     : false;
 
   return (
-    <Card id="failed-login-alerts" className="dashboard-surface">
+    <Card id="failed-login-alerts" className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
       <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <CardTitle className="text-base">
@@ -170,7 +170,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 pt-6">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
         <div className="dashboard-filter-stats-grid">
           <div className="surface-soft">
             <p className="text-xs text-muted-foreground">Total filtrado</p>
@@ -236,7 +236,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           </div>
         ) : null}
 
-        <div className="dashboard-table-responsive">
+        <div className="dashboard-table-responsive min-h-0 flex-1">
           <Table>
             <TableHeader>
               <TableRow>
@@ -311,7 +311,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           </Table>
         </div>
 
-        <div className="dashboard-table-pagination">
+        <div className="dashboard-table-pagination shrink-0">
           <div className="dashboard-table-pagination-controls">
             <Button
               type="button"

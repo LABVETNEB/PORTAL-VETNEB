@@ -32,7 +32,8 @@ export function DashboardModuleHub({
 }: DashboardModuleHubProps) {
   // Dense launchers (admin, 10 modules) drop the tile description so every tile
   // fits the viewport height without scroll; sparse launchers (clinic) keep it.
-  const showDescription = cards.length <= 6;
+  const isDenseLauncher = cards.length > 6;
+  const showDescription = !isDenseLauncher;
 
   return (
     <div className={cn("dashboard-cockpit min-h-0 lg:flex-1", className)}>
@@ -44,13 +45,16 @@ export function DashboardModuleHub({
       <section
         aria-label={heading}
         data-dashboard-module-hub="true"
-        className="dashboard-cockpit-launcher"
+        className={cn(
+          "dashboard-cockpit-launcher",
+          isDenseLauncher && "dashboard-cockpit-launcher-dense",
+        )}
       >
         <div className="flex items-baseline justify-between gap-3">
           <div className="min-w-0">
             <h2 className="dashboard-section-heading">{heading}</h2>
             {description ? (
-              <p className="dashboard-section-description line-clamp-1">{description}</p>
+              <p className="dashboard-section-description hidden sm:line-clamp-1">{description}</p>
             ) : null}
           </div>
           <span className="shrink-0 rounded-full border border-vetneb-line/70 bg-vetneb-surface-muted/60 px-2.5 py-0.5 text-[0.66rem] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -58,7 +62,12 @@ export function DashboardModuleHub({
           </span>
         </div>
 
-        <ul className="dashboard-cockpit-grid list-none p-0">
+        <ul
+          className={cn(
+            "dashboard-cockpit-grid list-none p-0",
+            isDenseLauncher && "dashboard-cockpit-grid-dense",
+          )}
+        >
           {cards.map((card) => {
             const key = card.moduleId ?? card.href ?? card.title;
             const ariaLabel = `${card.title}: ${card.description}`;
@@ -77,13 +86,13 @@ export function DashboardModuleHub({
                 </p>
                 <div className="min-h-0 flex-1 overflow-hidden">
                   {showDescription ? (
-                    <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                    <p className="hidden text-xs leading-relaxed text-muted-foreground sm:line-clamp-2">
                       {card.description}
                     </p>
                   ) : null}
                 </div>
-                <div className="flex items-center gap-1 pt-0.5 text-xs font-semibold text-vetneb-teal">
-                  <span>{card.actionLabel ?? "Abrir"}</span>
+                <div className="flex min-w-0 items-center gap-1 pt-0.5 text-xs font-semibold text-vetneb-teal">
+                  <span className="truncate">{card.actionLabel ?? "Abrir"}</span>
                   <ChevronRight
                     className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5"
                     aria-hidden="true"

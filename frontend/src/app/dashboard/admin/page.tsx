@@ -399,38 +399,62 @@ export default async function AdminPage({
   }));
 
   // ── Administración workspace: command center + critical alerts ──────────────
+  // Single-viewport App Shell: split the resumen command center and the critical
+  // alerts table into tabs so each fits one desktop viewport without scroll
+  // (previously stacked via space-y-6, growing past the viewport).
   const adminWorkspaceSlot = (
-    <div className="space-y-6">
-      <div id="admin-command-center">
-        <AdminCommandCenter
-          auditEntriesCount={auditEntries.length}
-          eventTypesCount={Object.keys(eventCounts).length}
-          systemStatusLabel={formatSystemStatus(systemStatus)}
-          systemStatusVariant={getSystemStatusVariant(systemStatus)}
-          systemStatusIndicatorClass={getSystemStatusIndicatorClass(systemStatus)}
-          systemStatusDetail={formatSystemStatusDetail(serviceChecks)}
-          hasSystemHealthFetchError={hasSystemHealthFetchError}
-        />
-      </div>
-      <section className="space-y-4" aria-labelledby="admin-alertas-heading">
-        <div>
-          <h2 id="admin-alertas-heading" className="dashboard-section-heading">
-            Alertas críticas
-          </h2>
-          <p className="dashboard-section-description">
-            Intentos fallidos y señales de acceso se revisan antes de las tareas secundarias.
-          </p>
-        </div>
-        <AdminFailedLoginAlertsReadOnlyCard />
-      </section>
-    </div>
+    <ModuleTabs
+      ariaLabel="Resumen y alertas"
+      tabs={[
+        {
+          id: "resumen",
+          label: "Resumen",
+          content: (
+            <div
+              id="admin-command-center"
+              className="flex min-h-0 flex-1 flex-col"
+            >
+              <AdminCommandCenter
+                auditEntriesCount={auditEntries.length}
+                eventTypesCount={Object.keys(eventCounts).length}
+                systemStatusLabel={formatSystemStatus(systemStatus)}
+                systemStatusVariant={getSystemStatusVariant(systemStatus)}
+                systemStatusIndicatorClass={getSystemStatusIndicatorClass(systemStatus)}
+                systemStatusDetail={formatSystemStatusDetail(serviceChecks)}
+                hasSystemHealthFetchError={hasSystemHealthFetchError}
+              />
+            </div>
+          ),
+        },
+        {
+          id: "alertas",
+          label: "Alertas",
+          content: (
+            <section
+              className="flex min-h-0 flex-1 flex-col gap-4"
+              aria-labelledby="admin-alertas-heading"
+            >
+              <div>
+                <h2 id="admin-alertas-heading" className="dashboard-section-heading">
+                  Alertas críticas
+                </h2>
+                <p className="dashboard-section-description">
+                  Intentos fallidos y señales de acceso se revisan antes de las tareas secundarias.
+                </p>
+              </div>
+              <AdminFailedLoginAlertsReadOnlyCard />
+            </section>
+          ),
+        },
+      ]}
+    />
   );
 
   // ── Subir informe workspace ─────────────────────────────────────────────────
   const reportUploadWorkspaceSlot = (
     <section
       id="admin-report-upload"
-      className="dashboard-surface overflow-hidden p-0"
+      className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden p-0"
     >
       <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
@@ -593,14 +617,14 @@ export default async function AdminPage({
 
   // ── Tokens particulares workspace ───────────────────────────────────────────
   const tokensWorkspaceSlot = (
-    <section id="admin-particular-tokens">
+    <section id="admin-particular-tokens" className="flex min-h-0 flex-1 flex-col">
       <AdminParticularTokensCard />
     </section>
   );
 
   // ── Precios workspace ───────────────────────────────────────────────────────
   const pricingWorkspaceSlot = (
-    <section id="admin-pricing">
+    <section id="admin-pricing" className="flex min-h-0 flex-1 flex-col">
       <AdminPricingEditorCard />
     </section>
   );
@@ -629,8 +653,9 @@ export default async function AdminPage({
   );
 
   // ── Roles clínica workspace ─────────────────────────────────────────────────
+  // Height chain so the read-only roles card owns the viewport without scroll.
   const usersRolesWorkspaceSlot = (
-    <section id="admin-users-roles">
+    <section id="admin-users-roles" className="flex min-h-0 flex-1 flex-col">
       <AdminUsersRolesReadOnlyCard />
     </section>
   );
@@ -776,13 +801,28 @@ export default async function AdminPage({
   );
 
   // ── Mantenimiento workspace ─────────────────────────────────────────────────
+  // Single-viewport App Shell: schema health and the dry-run card switch via tabs
+  // so each owns the viewport without the previous space-y-4 vertical stack.
   const maintenanceWorkspaceSlot = (
-    <div className="space-y-4">
-      <AdminSchemaHealthStatusCard />
-      <section id="admin-maintenance">
-        <AdminMaintenanceDryRunCard />
-      </section>
-    </div>
+    <ModuleTabs
+      ariaLabel="Mantenimiento del sistema"
+      tabs={[
+        {
+          id: "esquema",
+          label: "Esquema",
+          content: <AdminSchemaHealthStatusCard />,
+        },
+        {
+          id: "dry-run",
+          label: "Dry-run",
+          content: (
+            <section id="admin-maintenance">
+              <AdminMaintenanceDryRunCard />
+            </section>
+          ),
+        },
+      ]}
+    />
   );
 
   return (
@@ -826,7 +866,6 @@ export default async function AdminPage({
             eventTypesCount={Object.keys(eventCounts).length}
           />
         </Suspense>
-        <div className="h-24 md:hidden" aria-hidden="true" />
       </main>
     </>
   );

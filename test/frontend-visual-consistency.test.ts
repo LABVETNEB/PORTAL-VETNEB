@@ -419,7 +419,9 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
   assertContainsAll(
     commandCenterSource,
     [
-      '<section className="surface-note-info" aria-labelledby="dashboard-operational-priority">',
+      '<ModuleSurface',
+      '<ModuleTabs',
+      '<section className="surface-note-info w-full" aria-labelledby="dashboard-operational-priority">',
       "<StatsCards stats={stats} />",
       "recentReports.map((report) =>",
       "recentVisits.map((visit) =>",
@@ -430,7 +432,7 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
   assertMatchesAll(
     combinedSource,
     [
-      /className="grid grid-cols-1 gap-6 lg:grid-cols-2"/,
+      /className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2"/,
       /className="dashboard-list-row"/,
       /className="truncate text-sm font-semibold text-vetneb-ink"/,
       /className="text-xs text-muted-foreground"/,

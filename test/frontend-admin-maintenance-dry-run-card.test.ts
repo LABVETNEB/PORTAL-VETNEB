@@ -20,6 +20,8 @@ test("admin maintenance dry-run card is client-side and imports required depende
   assert.ok(source.includes('import { useState, useTransition } from "react";'));
   assert.ok(source.includes('import { Badge } from "@/components/ui/badge";'));
   assert.ok(source.includes('import { Button } from "@/components/ui/button";'));
+  assert.ok(source.includes('import { CompactPager } from "@/components/dashboard/CompactPager";'));
+  assert.ok(source.includes('import { usePagedRows } from "@/components/dashboard/usePagedRows";'));
   assert.ok(source.includes('import { getAdminMaintenancePurgeDryRun } from "@/lib/api";'));
   assert.ok(source.includes("MaintenancePurgeCandidateGroup"));
   assert.ok(source.includes("MaintenancePurgeDryRunSnapshot"));
@@ -70,6 +72,7 @@ test("admin maintenance dry-run card keeps state and transition handling", () =>
   assert.ok(source.includes("useState<MaintenancePurgeDryRunSnapshot | null>(null);"));
   assert.ok(source.includes("const [error, setError] = useState<string | null>(null);"));
   assert.ok(source.includes("const [isPending, startTransition] = useTransition();"));
+  assert.ok(source.includes("usePagedRows(snapshot?.candidates ?? [], 4)"));
 });
 
 test("admin maintenance dry-run card calls dry-run API without destructive action", () => {
@@ -126,8 +129,10 @@ test("admin maintenance dry-run card renders dry-run totals and audit context", 
 test("admin maintenance dry-run card renders candidate list from snapshot", () => {
   const source = read(ADMIN_MAINTENANCE_CARD_PATH);
 
-  assert.ok(source.includes("snapshot.candidates.map((candidate) => ("));
+  assert.ok(source.includes("pagedCandidates.pageItems.map((candidate) => ("));
   assert.ok(source.includes("<MaintenanceCandidateRow"));
   assert.ok(source.includes("key={candidate.category}"));
   assert.ok(source.includes("candidate={candidate}"));
+  assert.ok(source.includes("<CompactPager"));
+  assert.ok(source.includes('itemLabel="grupos"'));
 });

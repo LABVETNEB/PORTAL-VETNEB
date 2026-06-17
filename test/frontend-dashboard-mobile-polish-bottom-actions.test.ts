@@ -116,7 +116,7 @@ test("PR-9 MasterDetailWorkspace and AdminSectionTabs avoid horizontal page over
   assertNoForbiddenSurfaceImports(tabsSource, "AdminSectionTabs");
 });
 
-test("PR-9 private dashboard pages leave bottom space for mobile fixed actions", () => {
+test("dashboard pages do not use mobile bottom spacers as layout compensation", () => {
   const dashboardSource = read(DASHBOARD_HOME_PATH);
   const adminSource = read(ADMIN_PAGE_PATH);
   const informesSource = read(INFORMES_PAGE_PATH);
@@ -128,9 +128,10 @@ test("PR-9 private dashboard pages leave bottom space for mobile fixed actions",
   assert.ok(informesSource.includes("Detalle del informe"));
 
   assert.ok(logisticaSource.includes("<StickyActionBar"), "logistica uses StickyActionBar");
-  assert.ok(
+  assert.equal(
     logisticaSource.includes('className="h-24 md:hidden" aria-hidden="true"'),
-    "logistica keeps mobile bottom spacer",
+    false,
+    "logistica must not keep mobile bottom spacer",
   );
 
   for (const [context, source] of [
@@ -143,9 +144,10 @@ test("PR-9 private dashboard pages leave bottom space for mobile fixed actions",
       source.includes("<AdminDashboardWorkspaceController") ||
       source.includes("<DashboardModuleHub");
     assert.ok(usesHubPattern, `${context} uses DashboardModuleHub card hub`);
-    assert.ok(
+    assert.equal(
       source.includes('className="h-24 md:hidden" aria-hidden="true"'),
-      `${context} keeps mobile bottom spacer`,
+      false,
+      `${context} must not keep mobile bottom spacer`,
     );
   }
 });

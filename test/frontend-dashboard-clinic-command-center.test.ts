@@ -176,7 +176,9 @@ test("ClinicCommandCenter shows visits load error alert", () => {
 test("ClinicCommandCenter uses two-column responsive grid for reports and visits", () => {
   const source = read(CLINIC_COMMAND_CENTER_PATH);
 
-  assert.ok(source.includes("grid grid-cols-1 gap-6 lg:grid-cols-2"));
+  assert.ok(source.includes('import { ModuleSurface } from "@/components/dashboard/ModuleSurface";'));
+  assert.ok(source.includes('import { ModuleTabs } from "@/components/dashboard/ModuleTabs";'));
+  assert.ok(source.includes("grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2"));
   assert.ok(source.includes("dashboard-surface"));
   assert.ok(source.includes("dashboard-list-row"));
 });

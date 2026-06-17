@@ -343,7 +343,7 @@ test("particular token invariants: hard delete, legacy revoke hard-delete, casca
 
   assertIncludes(
     clinicCardSource,
-    '<form className="space-y-4" onSubmit={handleSubmit} autoComplete="off">',
+    '<form\n          className="flex min-h-0 flex-col gap-4"',
     clinicCardFile,
   );
   assertNotIncludes(clinicCardSource, 'autoComplete="on"', clinicCardFile);

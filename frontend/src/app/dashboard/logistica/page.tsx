@@ -112,7 +112,6 @@ export default async function LogisticaPage() {
           fieldVisitsLoadError={fieldVisitsLoadError}
           routePlansLoadError={routePlansLoadError}
         />
-        <div className="h-24 md:hidden" aria-hidden="true" />
       </main>
     </>
   );

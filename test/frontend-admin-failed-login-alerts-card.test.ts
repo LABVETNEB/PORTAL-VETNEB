@@ -32,7 +32,7 @@ test("admin failed login alerts card keeps typed contracts and pagination size",
   assert.ok(source.includes("AdminFailedLoginAlertReason"));
   assert.ok(source.includes("AdminFailedLoginAlertsSnapshot"));
   assert.ok(source.includes("AdminFailedLoginAlertSurface"));
-  assert.ok(source.includes("const PAGE_SIZE = 25;"));
+  assert.ok(source.includes("const PAGE_SIZE = 5;"));
 });
 
 test("admin failed login alerts card keeps surface reason and nullable formatters", () => {

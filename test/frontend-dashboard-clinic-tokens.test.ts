@@ -78,6 +78,26 @@ test("clinic particular tokens card exists and uses clinic helpers", () => {
   assert.equal(source.includes(removedTokenEndpoint), false);
 });
 
+test("clinic tokens uses masked master-detail with paged list and step dialogs", () => {
+  const source = read(CLINIC_TOKENS_CARD_PATH);
+
+  assert.ok(source.includes("const TOKENS_PAGE_SIZE = 4;"));
+  assert.ok(source.includes("usePagedRows(tokens, TOKENS_PAGE_SIZE)"));
+  assert.ok(source.includes("<CompactPager"));
+  assert.ok(source.includes("selectedTokenId"));
+  assert.ok(source.includes("isMobileDetailOpen"));
+  assert.ok(source.includes("Volver a la lista"));
+  assert.ok(source.includes('hidden xl:flex'));
+  assert.ok(source.includes('hidden xl:block'));
+  assert.ok(source.includes("CREATE_TOKEN_STEP_ORDER"));
+  assert.ok(source.includes("createStep"));
+  assert.ok(source.includes("Siguiente"));
+  assert.ok(source.includes("Anterior"));
+  assert.ok(source.includes('title="Generar token particular"'));
+  assert.ok(source.includes('title="Token generado"'));
+  assert.equal(source.includes("overflow-y-auto"), false);
+});
+
 test("clinic token generation requires all programmed data fields", () => {
   const source = read(CLINIC_TOKENS_CARD_PATH);
 

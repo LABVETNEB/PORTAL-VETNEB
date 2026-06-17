@@ -121,7 +121,7 @@ test("dashboard admin composes module hub, command center, and existing cards", 
   assert.ok(source.includes("<AdminPricingEditorCard />"));
   assert.ok(source.includes("<AdminSessionsReadOnlyCard />"));
   assert.ok(source.includes("<AdminUsersRolesReadOnlyCard />"));
-  assert.ok(source.includes('className="h-24 md:hidden" aria-hidden="true"'));
+  assert.equal(source.includes('className="h-24 md:hidden" aria-hidden="true"'), false);
 
   const mainIndex = source.indexOf('<main className="dashboard-main">');
   const pageHeaderIndex = source.indexOf("<DashboardPageHeader", mainIndex);
