@@ -35,8 +35,8 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0
       nodemailer:
-        specifier: ^8.0.10
-        version: 8.0.10
+        specifier: ^9.0.1
+        version: 9.0.1
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
@@ -2615,8 +2615,8 @@ packages:
     resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
     hasBin: true
 
-  nodemailer@8.0.10:
-    resolution: {integrity: sha512-BLFuSth7QtHOkBzyqTehWWyub0NTRDuK2Q2SQfnGLsrJnzyU+Yeh4WpV1eZGuARFj1xQJHIdnTuJZLP+b9R1GQ==}
+  nodemailer@9.0.1:
+    resolution: {integrity: sha512-Gwv8SQewT616ZM/URn0H54b8PWo/Wum7md3EW2aWy1lO27+WZCX+Xyak3J+NlmHUjDh5ME+uesJUDRbR3Ye8Bw==}
     engines: {node: '>=6.0.0'}
 
   object-assign@4.1.1:
@@ -5634,7 +5634,7 @@ snapshots:
 
   node-gyp-build@4.8.4: {}
 
-  nodemailer@8.0.10: {}
+  nodemailer@9.0.1: {}
 
   object-assign@4.1.1: {}
 
