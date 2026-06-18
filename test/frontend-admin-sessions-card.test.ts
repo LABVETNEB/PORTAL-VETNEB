@@ -31,7 +31,7 @@ test("admin sessions card keeps typed session contracts", () => {
   assert.ok(source.includes("AdminSessionSummary"));
   assert.ok(source.includes("AdminSessionType"));
   assert.ok(source.includes("AdminSessionsSnapshot"));
-  assert.ok(source.includes("const PAGE_SIZE = 3;"));
+  assert.ok(source.includes("const PAGE_SIZE = 8;"));
 });
 
 test("admin sessions card keeps formatters and badge variants", () => {
@@ -90,7 +90,7 @@ test("admin sessions card revokes sessions only after explicit confirmation", ()
   const source = read(ADMIN_SESSIONS_CARD_PATH);
 
   assert.ok(source.includes("async function handleRevokeSession(session: AdminSessionSummary)"));
-  assert.ok(source.includes("const sessionKey = `${session.sessionType}-${session.sessionId}`;"));
+  assert.ok(source.includes("const sessionKey = getSessionKey(session);"));
   assert.ok(source.includes("const confirmed = window.confirm("));
   assert.ok(source.includes("Esta acción cerrará esa sesión y quedará auditada."));
   assert.ok(source.includes("if (!confirmed) {"));
@@ -105,28 +105,33 @@ test("admin sessions card renders safe description filters and table columns", (
   const source = read(ADMIN_SESSIONS_CARD_PATH);
 
   assert.ok(source.includes("Sesiones activas y expiradas"));
-  assert.ok(source.includes("Vista de sesiones Admin, clínica y particulares. No expone tokens,"));
-  assert.ok(source.includes("hashes ni cookies. La revocación requiere confirmación explícita."));
+  assert.ok(source.includes("Sin tokens ni hashes. Revocación auditada."));
   assert.ok(source.includes("Total filtrado"));
+  assert.ok(source.includes("Activas"));
+  assert.ok(source.includes("Expiradas"));
   assert.ok(source.includes("Tipo de sesión"));
   assert.ok(source.includes("Estado"));
+  assert.ok(source.includes("dashboard-filter-stats-grid"));
   assert.ok(source.includes("Página"));
-  assert.ok(source.includes("<TableHead>Sesión</TableHead>"));
-  assert.ok(source.includes("<TableHead>Actor</TableHead>"));
-  assert.ok(source.includes("<TableHead>Estado</TableHead>"));
-  assert.ok(source.includes("<TableHead>Creada</TableHead>"));
-  assert.ok(source.includes("<TableHead>Último acceso</TableHead>"));
-  assert.ok(source.includes("<TableHead>Expira</TableHead>"));
-  assert.ok(source.includes('<TableHead className="text-right">Acción</TableHead>'));
+  assert.ok(source.includes(">Sesión</TableHead>"));
+  assert.ok(source.includes(">Actor</TableHead>"));
+  assert.ok(source.includes(">Estado</TableHead>"));
+  assert.ok(source.includes("Creada"));
+  assert.ok(source.includes("Último acceso"));
+  assert.ok(source.includes("Expira"));
+  assert.ok(source.includes("Acción</TableHead>"));
+  assert.ok(source.includes('aria-label="Tabla de sesiones administrativas"'));
+  assert.ok(source.includes("text-[13px]"));
+  assert.ok(source.includes("md:hidden"));
 });
 
 test("admin sessions card renders rows actions empty state and pagination", () => {
   const source = read(ADMIN_SESSIONS_CARD_PATH);
 
-  assert.ok(source.includes("snapshot.sessions.map((session) => {"));
+  assert.ok(source.includes("sessions.map((session) => {"));
   assert.ok(source.includes("formatSessionType(session.sessionType)"));
   assert.ok(source.includes("formatActorType(session.actorType)"));
-  assert.ok(source.includes("formatStatus(session.status)"));
+  assert.ok(source.includes("SessionStatusBadge"));
   assert.ok(source.includes("formatOptionalDate(session.createdAt)"));
   assert.ok(source.includes("formatOptionalDate(session.lastAccess)"));
   assert.ok(source.includes("formatOptionalDate(session.expiresAt)"));
@@ -134,8 +139,9 @@ test("admin sessions card renders rows actions empty state and pagination", () =
   assert.ok(source.includes('"Revocando..."'));
   assert.ok(source.includes('"Revocar"'));
   assert.ok(source.includes("isPending ?"));
-  assert.ok(source.includes("LoadingState"));
+  assert.ok(source.includes("Cargando sesiones..."));
   assert.ok(source.includes('"No se pudieron cargar las sesiones."'));
+  assert.ok(source.includes("clinical-alert-error"));
   assert.ok(source.includes("No hay sesiones para los filtros seleccionados."));
   assert.ok(source.includes("const hasPreviousPage = offset > 0;"));
   assert.ok(source.includes("const hasNextPage = snapshot"));
@@ -165,6 +171,7 @@ test("admin sessions card detecta sesión actual via currentAdminSessionId y des
   assert.ok(source.includes('session.sessionType === "admin"'));
   assert.ok(source.includes("snapshot.currentAdminSessionId"));
   assert.ok(source.includes("session.sessionId === snapshot.currentAdminSessionId"));
+  assert.ok(source.includes("snapshot?.currentAdminSessionId"));
   assert.ok(source.includes("disabled={isRevoking || isCurrentAdminSession}"));
 });
 
