@@ -38,13 +38,11 @@ test("frontend admin page uses audit API client wrapper", () => {
 
   assertIncludes(source, 'from "@/lib/api"', adminPage);
   assertIncludes(source, "getAuditEntries", adminPage);
-  assertIncludes(source, "let auditEntries: Awaited<ReturnType<typeof getAuditEntries>> = [];", adminPage);
-  assertIncludes(source, "let auditEntriesLoadError = false;", adminPage);
-  assertIncludes(source, "auditEntries = await getAuditEntries(await getAdminRequestOptions(), {", adminPage);
-  assertIncludes(source, "throwOnError: true,", adminPage);
-  assertIncludes(source, "auditEntriesLoadError = true;", adminPage);
-  assertIncludes(source, "auditEntries.reduce", adminPage);
-  assertIncludes(source, "auditEntries.map", adminPage);
+  assertIncludes(source, "async function loadAdminAuditSnapshot(", adminPage);
+  assertIncludes(source, "snapshot: await getAuditEntries(query, options, { throwOnError: true })", adminPage);
+  assertIncludes(source, "{ throwOnError: true }", adminPage);
+  assertIncludes(source, "loadError: true,", adminPage);
+  assertIncludes(source, "auditSnapshot.items.map", adminPage);
 });
 
 test("frontend admin page forces dynamic server reads with forwarded cookies", () => {
@@ -66,9 +64,10 @@ test("frontend admin audit API wrapper accepts request options", () => {
     "export async function getAuditEntries(",
     frontendApiClient,
   );
+  assertIncludes(source, "params: AdminAuditQuery = {}", frontendApiClient);
   assertIncludes(source, "options?: RequestInit", frontendApiClient);
   assertIncludes(source, "readOptions: AdminReadOptions = {}", frontendApiClient);
-  assertIncludes(source, '"/api/admin/audit-log"', frontendApiClient);
+  assertIncludes(source, "`/api/admin/audit-log${query ? `?${query}` : \"\"}`", frontendApiClient);
   assertIncludes(source, "options,", frontendApiClient);
   assertIncludes(
     source,
@@ -77,7 +76,7 @@ test("frontend admin audit API wrapper accepts request options", () => {
   );
   assertIncludes(source, "if (readOptions.throwOnError) {", frontendApiClient);
   assertIncludes(source, "throw error;", frontendApiClient);
-  assertIncludes(source, "return []", frontendApiClient);
+  assertIncludes(source, "items: []", frontendApiClient);
   assertNotIncludes(source, "return MOCK_AUDIT_ENTRIES", frontendApiClient);
 });
 

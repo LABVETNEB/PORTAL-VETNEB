@@ -22,8 +22,10 @@ const DASHBOARD_CLINIC_COMMAND_CENTER_PATH =
 const DASHBOARD_ADMIN_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const DASHBOARD_ADMIN_COMMAND_CENTER_PATH =
   "frontend/src/app/dashboard/admin/AdminCommandCenter.tsx";
+const DASHBOARD_ADMIN_AUDIT_CARD_PATH =
+  "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
 const DASHBOARD_ADMIN_AUDIT_TABLE_PATH =
-  "frontend/src/app/dashboard/admin/AdminAuditLogTable.tsx";
+  "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -450,8 +452,9 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
 test("dashboard admin keeps dense professional layout and visual state surfaces", () => {
   const source = read(DASHBOARD_ADMIN_PATH);
   const commandCenterSource = read(DASHBOARD_ADMIN_COMMAND_CENTER_PATH);
+  const auditCardSource = read(DASHBOARD_ADMIN_AUDIT_CARD_PATH);
   const auditTableSource = read(DASHBOARD_ADMIN_AUDIT_TABLE_PATH);
-  const combinedSource = `${source}\n${commandCenterSource}\n${auditTableSource}`;
+  const combinedSource = `${source}\n${commandCenterSource}\n${auditCardSource}\n${auditTableSource}`;
 
   assertContainsAll(
     source,
@@ -465,9 +468,7 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
       "<AdminFailedLoginAlertsReadOnlyCard />",
       "<AdminUsersRolesReadOnlyCard />",
       "Alertas críticas",
-      // App Shell: audit registry table is a dedicated paginated component.
-      "<AdminAuditLogTable",
-      'id="audit-role-changes"',
+      "<AdminAuditCard",
       'id="admin-sessions"',
       'id="admin-pricing"',
       "parseAdminModule",
@@ -477,24 +478,12 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
   );
 
   assert.ok(
-    auditTableSource.includes('id="audit-log"'),
-    "audit registry table keeps the audit-log anchor",
+    auditCardSource.includes('id="audit-log"'),
+    "audit registry card keeps the audit-log anchor",
   );
-
-  assertMatchesAll(
-    combinedSource,
-    [
-      /className="grid grid-cols-2 gap-2 lg:grid-cols-3"/,
-      /className="dashboard-surface"/,
-      /className="grid grid-cols-1 md:grid-cols-5 gap-3"/,
-      /className="surface-soft"/,
-      /className="grid grid-cols-1 gap-3 md:grid-cols-3"/,
-      /className="clinical-muted-band flex items-center gap-2 rounded-lg px-3 py-2"/,
-      /className="clinical-muted-band mx-6 mt-3 flex flex-col gap-2 rounded-lg px-4 py-2 text-sm text-vetneb-navy md:flex-row md:items-center md:justify-between"/,
-      /className="max-w-md whitespace-normal wrap-break-word text-xs text-muted-foreground"/,
-    ],
-    "dashboard admin visual contracts",
-  );
+  assert.ok(combinedSource.includes("dashboard-surface"));
+  assert.ok(combinedSource.includes("dashboard-fitted-table"));
+  assert.ok(combinedSource.includes("text-[13px]"));
 
   assertInlineStylesAtMost(source, 0, "dashboard admin");
   assert.equal(source.includes("fetch("), false, "dashboard admin must avoid fetch()");

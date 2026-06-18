@@ -22,7 +22,7 @@ test("frontend audit api client uses real admin audit endpoint", () => {
   const source = read(API_CLIENT_PATH);
 
   assert.ok(source.includes("export async function getAuditEntries("));
-  assert.ok(source.includes('"/api/admin/audit-log"'));
+  assert.ok(source.includes("/api/admin/audit-log"));
 });
 
 test("frontend audit api client returns empty state instead of mock fallback", () => {

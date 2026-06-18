@@ -323,6 +323,15 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         ],
       },
       {
+        path: "test/admin-audit-enterprise-density.test.ts",
+        markers: [
+          "PR-6 preserves the real audit-log navigation surface",
+          "PR-6 uses viewport-safe server pagination",
+          "PR-6 uses controlled detail",
+          "PR-6 does not introduce logging",
+        ],
+      },
+      {
         path: "test/clinic-audit.fastify.test.ts",
         markers: ["clinicAuditNativeRoutes", "export.csv", "ENV.cookieName"],
       },

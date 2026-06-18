@@ -6,6 +6,12 @@ import test from "node:test";
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const ADMIN_COMMAND_CENTER_PATH =
   "frontend/src/app/dashboard/admin/AdminCommandCenter.tsx";
+const ADMIN_AUDIT_CARD_PATH =
+  "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
+const ADMIN_AUDIT_TABLE_PATH =
+  "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
+const ADMIN_AUDIT_FILTER_PATH =
+  "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -18,7 +24,6 @@ test("dashboard admin defines non-indexable metadata and admin dependencies", ()
   const source = read(ADMIN_PAGE_PATH);
 
   assert.ok(source.includes('import type { Metadata } from "next";'));
-  assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('import { cookies } from "next/headers";'));
   assert.ok(source.includes('title: "Administración — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
@@ -26,7 +31,10 @@ test("dashboard admin defines non-indexable metadata and admin dependencies", ()
   assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
   assert.ok(source.includes('import { AdminDashboardWorkspaceController } from "./AdminDashboardWorkspaceController";'));
   assert.ok(source.includes('import { AdminCommandCenter } from "./AdminCommandCenter";'));
-  assert.ok(source.includes('import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";'));
+  assert.ok(source.includes("getAdminSystemHealth,"));
+  assert.ok(source.includes("getAuditEntries,"));
+  assert.ok(source.includes('from "@/lib/api";'));
+  assert.ok(source.includes('from "./AdminAuditCard";'));
   assert.ok(source.includes('import { formatDateTime } from "@/lib/utils";'));
 });
 
@@ -103,6 +111,9 @@ test("dashboard admin keeps sensitive audit metadata redaction", () => {
   assert.ok(source.includes('"cookie"'));
   assert.ok(source.includes('"auth"'));
   assert.ok(source.includes('"hash"'));
+  assert.ok(source.includes('"email"'));
+  assert.ok(source.includes('"session"'));
+  assert.ok(source.includes('return "Dato estructurado omitido";'));
   assert.ok(source.includes("function isSensitiveAuditMetadataKey(key: string)"));
   assert.ok(source.includes("normalizedKey.includes(part)"));
   assert.ok(source.includes("!isSensitiveAuditMetadataKey(key)"));
@@ -116,31 +127,41 @@ test("dashboard admin forwards cookies and performs no-store admin reads", () =>
   assert.ok(source.includes("const cookieHeader = (await cookies()).toString();"));
   assert.ok(source.includes('cache: "no-store"'));
   assert.ok(source.includes("headers: cookieHeader ? { Cookie: cookieHeader } : {},"));
-  assert.ok(source.includes("let auditEntries: Awaited<ReturnType<typeof getAuditEntries>> = [];"));
-  assert.ok(source.includes("let auditEntriesLoadError = false;"));
-  assert.ok(source.includes("auditEntries = await getAuditEntries(await getAdminRequestOptions(), {"));
-  assert.ok(source.includes("throwOnError: true,"));
-  assert.ok(source.includes("const systemHealth = await getAdminSystemHealth(await getAdminRequestOptions());"));
+  assert.ok(source.includes("const requestOptions = await getAdminRequestOptions();"));
+  assert.ok(source.includes("async function loadAdminAuditSnapshot("));
+  assert.ok(source.includes("snapshot: await getAuditEntries(query, options, { throwOnError: true })"));
+  assert.ok(source.includes("{ throwOnError: true }"));
+  assert.ok(source.includes("getAdminSystemHealth(requestOptions)"));
 });
 
-test("dashboard admin keeps audit filters and filter href builder", () => {
+test("dashboard admin keeps URL-backed server audit filters", () => {
   const source = read(ADMIN_PAGE_PATH);
+  const filterSource = read(ADMIN_AUDIT_FILTER_PATH);
 
   assert.ok(source.includes("type AdminPageSearchParams = {"));
   assert.ok(source.includes("event?: string;"));
   assert.ok(source.includes("actorType?: string;"));
+  assert.ok(source.includes("from?: string;"));
+  assert.ok(source.includes("to?: string;"));
+  assert.ok(source.includes("clinicId?: string;"));
+  assert.ok(source.includes("reportId?: string;"));
+  assert.ok(source.includes("auditPage?: string;"));
   assert.ok(source.includes("function normalizeAuditFilter(value: string | string[] | undefined)"));
-  assert.ok(source.includes("function buildAdminAuditFilterHref(input: {"));
-  assert.ok(source.includes('query.set("event", input.event);'));
-  assert.ok(source.includes('query.set("actorType", input.actorType);'));
-  assert.ok(source.includes('return `/dashboard/admin?${query.toString()}`;'));
-  assert.ok(source.includes("const hasActiveAuditFilters ="));
+  assert.ok(source.includes("const auditQuery: AdminAuditQuery = {"));
+  assert.ok(source.includes("limit: ADMIN_AUDIT_PAGE_SIZE"));
+  assert.ok(source.includes("offset: (auditPage - 1) * ADMIN_AUDIT_PAGE_SIZE"));
+  assert.ok(filterSource.includes('action="/dashboard/admin"'));
+  assert.ok(filterSource.includes('name="event"'));
+  assert.ok(filterSource.includes('name="actorType"'));
+  assert.ok(filterSource.includes('name="from"'));
+  assert.ok(filterSource.includes('name="to"'));
 });
 
 test("dashboard admin renders topbar, health, and summary cards", () => {
   const source = read(ADMIN_PAGE_PATH);
   const commandCenterSource = read(ADMIN_COMMAND_CENTER_PATH);
-  const combinedSource = `${source}\n${commandCenterSource}`;
+  const auditCardSource = read(ADMIN_AUDIT_CARD_PATH);
+  const combinedSource = `${source}\n${commandCenterSource}\n${auditCardSource}`;
 
   assert.ok(source.includes('title="Administración"'));
   assert.ok(source.includes('subtitle="Auditoría, reportes y estado operacional"'));
@@ -160,7 +181,7 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(source.includes('id="admin-sessions"'));
   assert.ok(source.includes('id="admin-particular-tokens"'));
   assert.ok(source.includes('id="admin-users-roles"'));
-  assert.ok(source.includes('id="admin-event-summary"'));
+  assert.ok(auditCardSource.includes('id="admin-event-summary"'));
   assert.ok(source.includes("Estado y mantenimiento"));
   assert.ok(source.includes("Transporte de correo"));
   assert.ok(source.includes("Gmail API"));
@@ -184,6 +205,7 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
 test("dashboard admin keeps module hub cards and preserves admin sections", () => {
   const source = read(ADMIN_PAGE_PATH);
   const controllerSource = read("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx");
+  const auditCardSource = read(ADMIN_AUDIT_CARD_PATH);
 
   // PR5B: admin cards and DashboardModuleHub are inside AdminDashboardWorkspaceController.
   assert.ok(controllerSource.includes("const adminCards = ["));
@@ -207,9 +229,8 @@ test("dashboard admin keeps module hub cards and preserves admin sections", () =
   assert.ok(source.includes('id="admin-particular-tokens"'));
   assert.ok(source.includes('id="admin-sessions"'));
   assert.ok(source.includes('id="admin-users-roles"'));
-  assert.ok(source.includes('id="audit-role-changes"'));
-  // App Shell: the audit registry table is a dedicated paginated component.
-  assert.ok(source.includes("<AdminAuditLogTable"));
+  assert.ok(auditCardSource.includes('id="audit-role-changes"'));
+  assert.ok(source.includes("<AdminAuditCard"));
 
   const mainIndex = source.indexOf('<main className="dashboard-main">');
   const pageHeaderIndex = source.indexOf("<DashboardPageHeader", mainIndex);
@@ -247,64 +268,51 @@ test("dashboard admin surfaces system health fetch failures", () => {
 
 test("dashboard admin surfaces study tracking notifications", () => {
   const source = read(ADMIN_PAGE_PATH);
+  const cardSource = read(ADMIN_AUDIT_CARD_PATH);
 
-  assert.ok(source.includes("const notificationAuditEntries = auditEntries.filter("));
-  assert.ok(source.includes('(entry) => entry.event === "study_tracking.notification.created",'));
-  assert.ok(source.includes("const lastNotificationAuditEntry = notificationAuditEntries[0];"));
-  assert.ok(source.includes('id="admin-notifications"'));
-  assert.ok(source.includes('<CardTitle className="text-base">Notificaciones</CardTitle>'));
-  assert.ok(source.includes("notificationAuditEntries.length"));
-  assert.ok(source.includes("lastNotificationAuditEntry"));
-  assert.ok(source.includes("formatDateTime(lastNotificationAuditEntry.createdAt)"));
+  assert.ok(source.includes('event: "study_tracking.notification.created", limit: 1, offset: 0'));
+  assert.ok(source.includes("const notificationSnapshot = notificationRead.snapshot;"));
+  assert.ok(cardSource.includes('id="admin-notifications"'));
+  assert.ok(cardSource.includes("Notificaciones"));
+  assert.ok(source.includes("notificationSnapshot.pagination.total"));
+  assert.ok(source.includes("notificationSnapshot.items[0]?.createdAt"));
   assert.ok(source.includes('event: "study_tracking.notification.created",'));
-  assert.ok(source.includes("Ver notificaciones"));
 });
 
-test("dashboard admin renders role-change audit and audit log table", () => {
+test("dashboard admin renders role-change summary and dense audit table", () => {
   const source = read(ADMIN_PAGE_PATH);
-  const tableSource = read(
-    "frontend/src/app/dashboard/admin/AdminAuditLogTable.tsx",
-  );
+  const cardSource = read(ADMIN_AUDIT_CARD_PATH);
+  const tableSource = read(ADMIN_AUDIT_TABLE_PATH);
 
-  // Resumen tab content stays in page.tsx.
-  assert.ok(source.includes('id="audit-role-changes"'));
-  assert.ok(source.includes("Auditoría de cambios de rol clínica"));
+  assert.ok(cardSource.includes('id="audit-role-changes"'));
+  assert.ok(cardSource.includes("Cambios de rol"));
   assert.ok(source.includes('event: "clinic_user.role.changed"'));
-  assert.ok(source.includes("Ver cambios de rol"));
-  assert.ok(source.includes("Resumen por tipo de evento"));
-
-  // App Shell: the paginated registry table lives in AdminAuditLogTable.
-  assert.ok(source.includes("<AdminAuditLogTable"));
-  assert.ok(tableSource.includes('id="audit-log"'));
-  assert.ok(tableSource.includes("Log de auditoría ({rows.length}/{totalCount})"));
-  assert.ok(tableSource.includes("<TableHead>ID</TableHead>"));
-  assert.ok(tableSource.includes("<TableHead>Evento</TableHead>"));
-  assert.ok(tableSource.includes("<TableHead>Actor</TableHead>"));
-  assert.ok(tableSource.includes("<TableHead>Tipo actor</TableHead>"));
-  assert.ok(tableSource.includes("<TableHead>Objetivo</TableHead>"));
-  assert.ok(tableSource.includes("<TableHead>Detalle</TableHead>"));
-  assert.ok(tableSource.includes("<TableHead>Fecha</TableHead>"));
+  assert.ok(source.includes("roleChangeSnapshot.pagination.total"));
+  assert.ok(source.includes("<AdminAuditCard"));
+  assert.ok(cardSource.includes('id="audit-log"'));
+  assert.ok(cardSource.includes("Registro operativo"));
+  assert.ok(tableSource.includes(">Fecha</TableHead>"));
+  assert.ok(tableSource.includes(">Actor</TableHead>"));
+  assert.ok(tableSource.includes("<TableHead className=\"w-[12rem]\">Acción</TableHead>"));
+  assert.ok(tableSource.includes("Entidad"));
+  assert.ok(tableSource.includes(">Detalle</TableHead>"));
 });
 
 test("dashboard admin distinguishes audit log load failures from empty states", () => {
   const source = read(ADMIN_PAGE_PATH);
-  const tableSource = read(
-    "frontend/src/app/dashboard/admin/AdminAuditLogTable.tsx",
-  );
+  const tableSource = read(ADMIN_AUDIT_TABLE_PATH);
 
   // Server-side: page.tsx shapes safe rows and forwards the load-error flag.
   assert.ok(source.includes("loadError={auditEntriesLoadError}"));
   assert.ok(source.includes("getAuditMetadataSummary(entry)"));
-  assert.ok(source.includes("formatDateTime(entry.createdAt)"));
+  assert.ok(source.includes("formatAuditDate(entry.createdAt)"));
   assert.equal(source.includes("fetch("), false);
 
   // Client table distinguishes load failures from empty states.
-  assert.ok(tableSource.includes("loadError ? ("));
   assert.ok(tableSource.includes('role="alert"'));
-  assert.ok(tableSource.includes("No se pudieron cargar los eventos de auditoría. Intente nuevamente."));
+  assert.ok(tableSource.includes("No se pudieron cargar los eventos. Reintentá la consulta."));
   assert.ok(tableSource.includes("No hay eventos para los filtros seleccionados."));
   assert.ok(tableSource.includes("No hay eventos de auditoría disponibles."));
-  assert.ok(tableSource.includes("Limpiar filtros"));
 });
 
 test("AdminDashboardWorkspaceController syncs module from URL with useSearchParams and useEffect", () => {
@@ -334,11 +342,12 @@ test("admin page wraps AdminDashboardWorkspaceController in Suspense for useSear
 
 test("dashboard admin avoids duplicate section ids in navigation anchors", () => {
   const source = read(ADMIN_PAGE_PATH);
+  const auditCardSource = read(ADMIN_AUDIT_CARD_PATH);
   const adminHealthIdMatches = source.match(/id="admin-health"/g) ?? [];
   const adminNotificationsIdMatches =
-    source.match(/id="admin-notifications"/g) ?? [];
+    auditCardSource.match(/id="admin-notifications"/g) ?? [];
 
   assert.equal(adminHealthIdMatches.length, 1);
   assert.equal(adminNotificationsIdMatches.length, 1);
-  assert.equal(source.includes('id="admin-event-summary"'), true);
+  assert.equal(auditCardSource.includes('id="admin-event-summary"'), true);
 });

@@ -14,8 +14,8 @@ const SIDEBAR_PATH = "frontend/src/components/dashboard/AdminDashboardSidebar.ts
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const ADMIN_CLINICS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx";
-const ADMIN_AUDIT_LOG_TABLE_PATH =
-  "frontend/src/app/dashboard/admin/AdminAuditLogTable.tsx";
+const ADMIN_AUDIT_CARD_PATH =
+  "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
 const API_CLIENT_PATH = "frontend/src/lib/api.ts";
 
 const SIDEBAR_SECTIONS = [
@@ -70,7 +70,7 @@ test("admin dashboard sidebar sections keep visible anchors mapped", () => {
   const sidebarSource = read(SIDEBAR_PATH);
   const pageSource = read(ADMIN_PAGE_PATH);
   const clinicsCardSource = read(ADMIN_CLINICS_CARD_PATH);
-  const auditLogTableSource = read(ADMIN_AUDIT_LOG_TABLE_PATH);
+  const auditCardSource = read(ADMIN_AUDIT_CARD_PATH);
 
   for (const section of SIDEBAR_SECTIONS) {
     assert.ok(
@@ -86,14 +86,12 @@ test("admin dashboard sidebar sections keep visible anchors mapped", () => {
     const isRenderedInClinicsCard =
       section.anchor === 'id="admin-clinics"' &&
       clinicsCardSource.includes(section.anchor);
-    // The audit registry table is a dedicated client component (App Shell
-    // single-viewport pagination), so its anchor lives there, like clinics.
-    const isRenderedInAuditTable =
+    const isRenderedInAuditCard =
       section.anchor === 'id="audit-log"' &&
-      auditLogTableSource.includes(section.anchor);
+      auditCardSource.includes(section.anchor);
 
     assert.equal(
-      isRenderedInPage || isRenderedInClinicsCard || isRenderedInAuditTable,
+      isRenderedInPage || isRenderedInClinicsCard || isRenderedInAuditCard,
       true,
       `anchor ${section.anchor} must be rendered in admin surfaces`,
     );
@@ -127,7 +125,7 @@ test("admin dashboard visible sections keep operational API endpoints", () => {
     "getAdminUsersRoles(",
     "changeAdminClinicUserRole(",
     "updateAdminClinicUserCredentials(",
-    '"/api/admin/audit-log"',
+    "/api/admin/audit-log",
     "getAdminMaintenancePurgeDryRun(",
     '"/api/admin/system/maintenance/purge-dry-run"',
   ]) {

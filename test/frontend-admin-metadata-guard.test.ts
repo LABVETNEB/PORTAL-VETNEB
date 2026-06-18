@@ -24,7 +24,7 @@ function assertNotIncludes(
 
 const adminPage = "frontend/src/app/dashboard/admin/page.tsx";
 const adminAuditTable =
-  "frontend/src/app/dashboard/admin/AdminAuditLogTable.tsx";
+  "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
 
 test("frontend admin metadata keeps sensitive key guard centralized", () => {
   const source = read(adminPage);
@@ -108,9 +108,8 @@ test("frontend admin audit table keeps detail column wired to safe metadata summ
   const source = read(adminPage);
   const tableSource = read(adminAuditTable);
 
-  // App Shell: the audit registry table is a dedicated paginated client
-  // component. The detail value is pre-sanitized server-side in page.tsx via
-  // getAuditMetadataSummary, so the client only ever receives a safe string.
+  // The detail value is pre-sanitized server-side in page.tsx, so the table and
+  // dialog only receive a safe display string.
   assertIncludes(source, "getAuditMetadataSummary(entry)", adminPage);
   assertIncludes(source, "function getAuditMetadataSummary", adminPage);
   assert.match(
@@ -119,7 +118,7 @@ test("frontend admin audit table keeps detail column wired to safe metadata summ
     "detail column summary must keep sensitive metadata filtering",
   );
 
-  assertIncludes(tableSource, "<TableHead>Detalle</TableHead>", adminAuditTable);
-  assertIncludes(tableSource, "{entry.detail}", adminAuditTable);
-  assertIncludes(tableSource, "colSpan={7}", adminAuditTable);
+  assertIncludes(tableSource, ">Detalle</TableHead>", adminAuditTable);
+  assertIncludes(tableSource, "{row.detail}", adminAuditTable);
+  assertIncludes(tableSource, "<AdminAuditDetailDialog row={row} />", adminAuditTable);
 });
