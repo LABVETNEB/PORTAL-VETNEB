@@ -104,8 +104,8 @@ const ADMIN_MODULE_META: Record<AdminModule, { title: string; description: strin
     description: "Resumen operativo, alertas críticas y métricas del sistema.",
   },
   "admin-report-upload": {
-    title: "Subir informe",
-    description: "Cargar nuevos informes vinculados a tokens de clínica.",
+    title: "Informes",
+    description: "Carga, estado y trazabilidad de informes administrados.",
   },
   "admin-health": {
     title: "Estado del sistema",
