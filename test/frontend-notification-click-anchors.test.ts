@@ -9,6 +9,8 @@ const CLINIC_TOKENS_CARD_PATH =
 const PARTICULARES_CONTENT_PATH =
   "frontend/src/components/public/ParticularesContent.tsx";
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
+const ADMIN_AUDIT_CARD_PATH =
+  "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -22,6 +24,7 @@ test("notification click targets render stable clinic, particular, and admin anc
   const clinicTokensCard = read(CLINIC_TOKENS_CARD_PATH);
   const particularesContent = read(PARTICULARES_CONTENT_PATH);
   const adminPage = read(ADMIN_PAGE_PATH);
+  const adminAuditCard = read(ADMIN_AUDIT_CARD_PATH);
 
   assert.ok(
     informesPage.includes("id={`report-${report.id}`}"),
@@ -48,7 +51,7 @@ test("notification click targets render stable clinic, particular, and admin anc
     "admin particular token section anchor must exist",
   );
   assert.ok(
-    adminPage.includes('id="admin-notifications"'),
+    adminAuditCard.includes('id="admin-notifications"'),
     "admin notifications section anchor must exist",
   );
 });

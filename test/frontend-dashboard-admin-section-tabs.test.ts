@@ -133,9 +133,10 @@ test("dashboard admin tabs preserve existing admin cards and audit filter contra
     "<AdminPricingEditorCard />",
     "<AdminSessionsReadOnlyCard />",
     "<AdminUsersRolesReadOnlyCard />",
-    "<AdminAuditLogTable",
-    "buildAdminAuditFilterHref",
-    'return `/dashboard/admin?${query.toString()}`;',
+    "<AdminAuditCard",
+    "const auditQuery: AdminAuditQuery = {",
+    "limit: ADMIN_AUDIT_PAGE_SIZE",
+    "offset: (auditPage - 1) * ADMIN_AUDIT_PAGE_SIZE",
   ]) {
     assert.ok(source.includes(marker), `admin page must keep ${marker}`);
   }

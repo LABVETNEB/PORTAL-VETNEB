@@ -11,7 +11,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
-import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { AdminCommandCenter } from "./AdminCommandCenter";
 import { AdminClinicsManagementCard } from "./AdminClinicsManagementCard";
 import { AdminFailedLoginAlertsReadOnlyCard } from "./AdminFailedLoginAlertsReadOnlyCard";
@@ -28,8 +27,18 @@ import type { AdminModule } from "./AdminDashboardWorkspaceController";
 import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { Button } from "@/components/ui/button";
-import { AdminAuditLogTable, type AdminAuditLogRow } from "./AdminAuditLogTable";
-import { getAdminSystemHealth, getAuditEntries } from "@/lib/api";
+import {
+  AdminAuditCard,
+  ADMIN_AUDIT_PAGE_SIZE,
+} from "./AdminAuditCard";
+import type { AdminAuditRow } from "./AdminAuditDenseTable";
+import {
+  getAdminSystemHealth,
+  getAuditEntries,
+  type AdminAuditEntry,
+  type AdminAuditQuery,
+  type AdminAuditSnapshot,
+} from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
 import { formatDateTime } from "@/lib/utils";
 
@@ -59,6 +68,8 @@ const EVENT_LABELS: Record<string, string> = {
   "report_access_token.created": "Token creado",
   "report_access_token.revoked": "Token revocado",
   "report.public_accessed": "Acceso público",
+  "logistics.route_plan.lifecycle_changed": "Ciclo de ruta",
+  "logistics.route_event.created": "Evento logístico",
 };
 
 const ACTOR_LABELS: Record<string, string> = {
@@ -222,6 +233,13 @@ const SENSITIVE_AUDIT_METADATA_KEY_PARTS = [
   "auth",
   "hash",
   "storage",
+  "email",
+  "session",
+  "ip",
+  "useragent",
+  "user_agent",
+  "requestid",
+  "request_id",
 ] as const;
 
 function isSensitiveAuditMetadataKey(key: string) {
@@ -240,7 +258,7 @@ function formatAuditMetadataValue(value: unknown) {
   ) {
     return String(value);
   }
-  return JSON.stringify(value);
+  return "Dato estructurado omitido";
 }
 
 function formatAuditClinicRole(value: unknown) {
@@ -289,6 +307,11 @@ type AdminPageSearchParams = {
   module?: string;
   event?: string;
   actorType?: string;
+  from?: string;
+  to?: string;
+  clinicId?: string;
+  reportId?: string;
+  auditPage?: string;
 };
 
 function normalizeAuditFilter(value: string | string[] | undefined) {
@@ -296,12 +319,79 @@ function normalizeAuditFilter(value: string | string[] | undefined) {
   return value ?? "";
 }
 
-function buildAdminAuditFilterHref(input: { event?: string; actorType?: string }) {
-  const query = new URLSearchParams();
-  query.set("module", "audit-log");
-  if (input.event) query.set("event", input.event);
-  if (input.actorType) query.set("actorType", input.actorType);
-  return `/dashboard/admin?${query.toString()}`;
+function normalizeAuditDate(value: string | string[] | undefined) {
+  const normalized = normalizeAuditFilter(value);
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
+}
+
+function normalizeAuditId(value: string | string[] | undefined) {
+  const normalized = normalizeAuditFilter(value);
+  return /^[1-9]\d*$/.test(normalized) ? normalized : "";
+}
+
+function parseAuditPage(value: string | string[] | undefined) {
+  const normalized = Number.parseInt(normalizeAuditFilter(value), 10);
+  return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : 1;
+}
+
+function createEmptyAuditSnapshot(query: AdminAuditQuery): AdminAuditSnapshot {
+  return {
+    success: true,
+    count: 0,
+    items: [],
+    pagination: {
+      limit: query.limit ?? ADMIN_AUDIT_PAGE_SIZE,
+      offset: query.offset ?? 0,
+      total: 0,
+    },
+    filters: {},
+  };
+}
+
+async function loadAdminAuditSnapshot(
+  query: AdminAuditQuery,
+  options: RequestInit,
+) {
+  try {
+    return {
+      snapshot: await getAuditEntries(query, options, { throwOnError: true }),
+      loadError: false,
+    };
+  } catch (error) {
+    redirectToLoginOnUnauthorized(error);
+    return {
+      snapshot: createEmptyAuditSnapshot(query),
+      loadError: true,
+    };
+  }
+}
+
+function formatAuditDate(value: string | null) {
+  return value ? formatDateTime(value) : "—";
+}
+
+function getAuditActor(entry: AdminAuditEntry) {
+  const actorType = entry.actorType ?? "system";
+  const actorId =
+    entry.actorAdminUserId ??
+    entry.actorClinicUserId ??
+    entry.actorReportAccessTokenId;
+  const actorLabel = ACTOR_LABELS[actorType] ?? actorType;
+  return actorId ? `${actorLabel} #${actorId}` : actorLabel;
+}
+
+function getAuditEntity(entry: AdminAuditEntry) {
+  if (entry.entity) {
+    return entry.entityId ? `${entry.entity} #${entry.entityId}` : entry.entity;
+  }
+  if (entry.reportId) return `Informe #${entry.reportId}`;
+  if (entry.clinicId) return `Clínica #${entry.clinicId}`;
+  if (entry.targetClinicUserId) return `Usuario clínica #${entry.targetClinicUserId}`;
+  if (entry.targetAdminUserId) return `Usuario admin #${entry.targetAdminUserId}`;
+  if (entry.targetReportAccessTokenId) {
+    return `Token particular ref. #${entry.targetReportAccessTokenId}`;
+  }
+  return "—";
 }
 
 async function getAdminRequestOptions(): Promise<RequestInit> {
@@ -319,21 +409,65 @@ export default async function AdminPage({
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const initialModule = parseAdminModule(resolvedSearchParams.module);
-  const selectedAuditEvent = normalizeAuditFilter(resolvedSearchParams.event);
-  const selectedActorType = normalizeAuditFilter(resolvedSearchParams.actorType);
-  let auditEntries: Awaited<ReturnType<typeof getAuditEntries>> = [];
-  let auditEntriesLoadError = false;
-
-  try {
-    auditEntries = await getAuditEntries(await getAdminRequestOptions(), {
-      throwOnError: true,
-    });
-  } catch (error) {
-    redirectToLoginOnUnauthorized(error);
-    auditEntriesLoadError = true;
-  }
-
-  const systemHealth = await getAdminSystemHealth(await getAdminRequestOptions());
+  const requestedAuditEvent = normalizeAuditFilter(resolvedSearchParams.event);
+  const requestedActorType = normalizeAuditFilter(resolvedSearchParams.actorType);
+  const selectedAuditEvent = Object.hasOwn(EVENT_LABELS, requestedAuditEvent)
+    ? requestedAuditEvent
+    : "";
+  const selectedActorType = Object.hasOwn(ACTOR_LABELS, requestedActorType)
+    ? requestedActorType
+    : "";
+  const selectedAuditFrom = normalizeAuditDate(resolvedSearchParams.from);
+  const selectedAuditTo = normalizeAuditDate(resolvedSearchParams.to);
+  const selectedAuditClinicId = normalizeAuditId(resolvedSearchParams.clinicId);
+  const selectedAuditReportId = normalizeAuditId(resolvedSearchParams.reportId);
+  const auditPage = parseAuditPage(resolvedSearchParams.auditPage);
+  const auditFilters = {
+    event: selectedAuditEvent,
+    actorType: selectedActorType,
+    from: selectedAuditFrom,
+    to: selectedAuditTo,
+    clinicId: selectedAuditClinicId,
+    reportId: selectedAuditReportId,
+  };
+  const auditQuery: AdminAuditQuery = {
+    ...(selectedAuditEvent ? { event: selectedAuditEvent } : {}),
+    ...(selectedActorType ? { actorType: selectedActorType } : {}),
+    ...(selectedAuditFrom ? { from: `${selectedAuditFrom}T00:00:00.000Z` } : {}),
+    ...(selectedAuditTo ? { to: `${selectedAuditTo}T23:59:59.999Z` } : {}),
+    ...(selectedAuditClinicId ? { clinicId: Number(selectedAuditClinicId) } : {}),
+    ...(selectedAuditReportId ? { reportId: Number(selectedAuditReportId) } : {}),
+    limit: ADMIN_AUDIT_PAGE_SIZE,
+    offset: (auditPage - 1) * ADMIN_AUDIT_PAGE_SIZE,
+  };
+  const requestOptions = await getAdminRequestOptions();
+  const [
+    auditRead,
+    auditOverviewRead,
+    roleChangeRead,
+    notificationRead,
+    systemHealth,
+  ] = await Promise.all([
+    loadAdminAuditSnapshot(auditQuery, requestOptions),
+    loadAdminAuditSnapshot(
+      { limit: ADMIN_AUDIT_PAGE_SIZE, offset: 0 },
+      requestOptions,
+    ),
+    loadAdminAuditSnapshot(
+      { event: "clinic_user.role.changed", limit: 1, offset: 0 },
+      requestOptions,
+    ),
+    loadAdminAuditSnapshot(
+      { event: "study_tracking.notification.created", limit: 1, offset: 0 },
+      requestOptions,
+    ),
+    getAdminSystemHealth(requestOptions),
+  ]);
+  const auditSnapshot = auditRead.snapshot;
+  const auditEntriesLoadError = auditRead.loadError;
+  const auditOverviewSnapshot = auditOverviewRead.snapshot;
+  const roleChangeSnapshot = roleChangeRead.snapshot;
+  const notificationSnapshot = notificationRead.snapshot;
   const hasSystemHealthFetchError = systemHealth === null;
   const serviceChecks = systemHealth?.services ?? {};
   const contactRecipients = getConfiguredContactRecipients(serviceChecks);
@@ -343,69 +477,36 @@ export default async function AdminPage({
       ? serviceChecks.node_env
       : "unknown";
   const systemStatus = systemHealth?.status ?? "unknown";
-  const eventCounts = auditEntries.reduce(
-    (acc, entry) => {
-      acc[entry.event] = (acc[entry.event] ?? 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
-  const roleChangeAuditEntries = auditEntries.filter(
-    (entry) => entry.event === "clinic_user.role.changed",
-  );
-  const lastRoleChangeAuditEntry = roleChangeAuditEntries[0];
-  const notificationAuditEntries = auditEntries.filter(
-    (entry) => entry.event === "study_tracking.notification.created",
-  );
-  const lastNotificationAuditEntry = notificationAuditEntries[0];
-  const auditEventOptions = Object.keys(eventCounts).sort();
-  const actorTypeOptions = Array.from(
-    new Set(auditEntries.map((entry) => entry.actorType)),
-  ).sort();
-  const filteredAuditEntries = auditEntries.filter((entry) => {
-    const matchesEvent = selectedAuditEvent
-      ? entry.event === selectedAuditEvent
-      : true;
-    const matchesActorType = selectedActorType
-      ? entry.actorType === selectedActorType
-      : true;
-    return matchesEvent && matchesActorType;
-  });
-  const hasActiveAuditFilters =
-    Boolean(selectedAuditEvent) || Boolean(selectedActorType);
-  const selectedAuditEventLabel = selectedAuditEvent
-    ? EVENT_LABELS[selectedAuditEvent] ?? selectedAuditEvent
-    : "Todos";
-  const selectedActorTypeLabel = selectedActorType
-    ? ACTOR_LABELS[selectedActorType] ?? selectedActorType
-    : "Todos";
+  const eventTypesCount = new Set(
+    auditOverviewSnapshot.items.map((entry) => entry.event),
+  ).size;
+  const auditEventOptions = Object.entries(EVENT_LABELS)
+    .map(([value, label]) => ({ value, label }))
+    .sort((left, right) => left.label.localeCompare(right.label, "es"));
+  const actorTypeOptions = Object.entries(ACTOR_LABELS).map(([value, label]) => ({
+    value,
+    label,
+  }));
 
-  void auditEventOptions;
-  void actorTypeOptions;
-
-  // Pre-format audit rows server-side into serializable values so the client
-  // table component can paginate them without re-importing server-only helpers.
-  const auditRows: AdminAuditLogRow[] = filteredAuditEntries.map((entry) => ({
+  // Only safe, display-ready values cross the server/client boundary. Network,
+  // session and raw metadata fields stay on the server.
+  const auditRows: AdminAuditRow[] = auditSnapshot.items.map((entry) => ({
     id: entry.id,
+    eventCode: entry.event,
     eventLabel: EVENT_LABELS[entry.event] ?? entry.event,
     eventVariant: getEventVariant(entry.event),
-    actor: entry.actorId ? `#${entry.actorId}` : "—",
-    actorTypeLabel: ACTOR_LABELS[entry.actorType] ?? entry.actorType,
-    target:
-      entry.targetType && entry.targetId
-        ? `${entry.targetType} #${entry.targetId}`
-        : "—",
+    actor: getAuditActor(entry),
+    action: entry.action ?? EVENT_LABELS[entry.event] ?? entry.event,
+    entity: getAuditEntity(entry),
     detail: getAuditMetadataSummary(entry),
-    date: formatDateTime(entry.createdAt),
+    date: formatAuditDate(entry.createdAt),
   }));
-  const latestAuditEntry = auditEntries[0];
+  const latestAuditEntry = auditOverviewSnapshot.items[0];
   const recentAdminActivity = latestAuditEntry
     ? {
         event: EVENT_LABELS[latestAuditEntry.event] ?? latestAuditEntry.event,
-        actor: `${ACTOR_LABELS[latestAuditEntry.actorType] ?? latestAuditEntry.actorType}${
-          latestAuditEntry.actorId ? ` #${latestAuditEntry.actorId}` : ""
-        }`,
-        date: formatDateTime(latestAuditEntry.createdAt),
+        actor: getAuditActor(latestAuditEntry),
+        date: formatAuditDate(latestAuditEntry.createdAt),
       }
     : null;
 
@@ -426,8 +527,8 @@ export default async function AdminPage({
               className="flex min-h-0 flex-1 flex-col"
             >
               <AdminCommandCenter
-                auditEntriesCount={auditEntries.length}
-                eventTypesCount={Object.keys(eventCounts).length}
+                auditEntriesCount={auditOverviewSnapshot.pagination.total}
+                eventTypesCount={eventTypesCount}
                 systemStatusLabel={formatSystemStatus(systemStatus)}
                 systemStatusVariant={getSystemStatusVariant(systemStatus)}
                 systemStatusIndicatorClass={getSystemStatusIndicatorClass(systemStatus)}
@@ -660,141 +761,23 @@ export default async function AdminPage({
 
   // ── Auditoría workspace ─────────────────────────────────────────────────────
   const auditLogWorkspaceSlot = (
-    <ModuleTabs
-      ariaLabel="Secciones de auditoría"
-      defaultTabId="registro"
-      tabs={[
-        {
-          id: "resumen",
-          label: "Resumen",
-          content: (
-            <div className="grid grid-cols-1 gap-3 content-start lg:grid-cols-3">
-      <Card id="admin-notifications" className="dashboard-surface">
-        <CardHeader>
-          <CardTitle className="text-base">Notificaciones</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="surface-soft">
-              <p className="text-xs text-muted-foreground">Registradas</p>
-              <p className="mt-1 text-2xl font-bold text-vetneb-ink">
-                {notificationAuditEntries.length}
-              </p>
-            </div>
-            <div className="surface-soft">
-              <p className="text-xs text-muted-foreground">
-                Última notificación
-              </p>
-              <p className="mt-1 text-sm font-semibold text-vetneb-ink">
-                {lastNotificationAuditEntry
-                  ? formatDateTime(lastNotificationAuditEntry.createdAt)
-                  : "—"}
-              </p>
-            </div>
-            <div className="surface-soft">
-              <p className="text-xs text-muted-foreground">Auditoría</p>
-              <PublicRouteControl
-                href={buildAdminAuditFilterHref({
-                  event: "study_tracking.notification.created",
-                })}
-                variant="textLink"
-                className="mt-1 inline-flex text-sm font-semibold text-vetneb-navy hover:text-vetneb-teal"
-              >
-                Ver notificaciones
-              </PublicRouteControl>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card id="audit-role-changes" className="dashboard-surface">
-        <CardHeader>
-          <CardTitle className="text-base">
-            Auditoría de cambios de rol clínica
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="surface-soft">
-              <p className="text-xs text-muted-foreground">
-                Cambios registrados
-              </p>
-              <p className="mt-1 text-2xl font-bold text-vetneb-ink">
-                {roleChangeAuditEntries.length}
-              </p>
-            </div>
-            <div className="surface-soft">
-              <p className="text-xs text-muted-foreground">Último cambio</p>
-              <p className="mt-1 text-sm font-semibold text-vetneb-ink">
-                {lastRoleChangeAuditEntry
-                  ? formatDateTime(lastRoleChangeAuditEntry.createdAt)
-                  : "—"}
-              </p>
-            </div>
-            <div className="surface-soft">
-              <p className="text-xs text-muted-foreground">Filtro audit</p>
-              <PublicRouteControl
-                href={buildAdminAuditFilterHref({
-                  event: "clinic_user.role.changed",
-                })}
-                variant="textLink"
-                className="mt-1 inline-flex text-sm font-semibold text-vetneb-navy hover:text-vetneb-teal"
-              >
-                Ver cambios de rol
-              </PublicRouteControl>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card id="admin-event-summary" className="dashboard-surface">
-        <CardHeader>
-          <CardTitle className="text-base">
-            Resumen por tipo de evento
-          </CardTitle>
-          <CardDescription>
-            Distribución de eventos registrados en el log de auditoría
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(eventCounts).map(([event, count]) => (
-              <div
-                key={event}
-                className="clinical-muted-band flex items-center gap-2 rounded-lg px-3 py-2"
-              >
-                <Badge
-                  variant={getEventVariant(event)}
-                  className="text-xs"
-                >
-                  {EVENT_LABELS[event] ?? event}
-                </Badge>
-                <span className="clinical-pill px-2.5 py-0.5 text-xs tracking-normal">
-                  {count}
-                </span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-            </div>
-          ),
-        },
-        {
-          id: "registro",
-          label: "Registro",
-          content: (
-            <AdminAuditLogTable
-              rows={auditRows}
-              totalCount={auditEntries.length}
-              loadError={auditEntriesLoadError}
-              hasActiveFilters={hasActiveAuditFilters}
-              selectedAuditEventLabel={selectedAuditEventLabel}
-              selectedActorTypeLabel={selectedActorTypeLabel}
-            />
-          ),
-        },
-      ]}
+    <AdminAuditCard
+      rows={auditRows}
+      totalCount={auditSnapshot.pagination.total}
+      page={auditPage}
+      loadError={auditEntriesLoadError}
+      filters={auditFilters}
+      eventOptions={auditEventOptions}
+      actorTypeOptions={actorTypeOptions}
+      globalTotal={auditOverviewSnapshot.pagination.total}
+      roleChanges={{
+        total: roleChangeSnapshot.pagination.total,
+        latestDate: formatAuditDate(roleChangeSnapshot.items[0]?.createdAt ?? null),
+      }}
+      notifications={{
+        total: notificationSnapshot.pagination.total,
+        latestDate: formatAuditDate(notificationSnapshot.items[0]?.createdAt ?? null),
+      }}
     />
   );
 
@@ -860,8 +843,8 @@ export default async function AdminPage({
             systemStatus={systemStatus}
             systemStatusLabel={formatSystemStatus(systemStatus)}
             systemStatusVariant={getSystemStatusVariant(systemStatus)}
-            auditEntriesCount={auditEntries.length}
-            eventTypesCount={Object.keys(eventCounts).length}
+            auditEntriesCount={auditOverviewSnapshot.pagination.total}
+            eventTypesCount={eventTypesCount}
           />
         </Suspense>
       </main>

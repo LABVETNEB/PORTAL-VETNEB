@@ -17,7 +17,6 @@ import type {
   FieldVisit,
   RoutePlan,
   RouteMetrics,
-  AuditEntry,
   AuthUser,
   LoginCredentials,
   UnifiedLoginCredentials,
@@ -1418,23 +1417,98 @@ type AdminReadOptions = {
   throwOnError?: boolean;
 };
 
+export type AdminAuditQuery = {
+  event?: string;
+  actorType?: string;
+  clinicId?: number;
+  reportId?: number;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export type AdminAuditEntry = {
+  id: number;
+  event: string;
+  action: string | null;
+  entity: string | null;
+  entityId: number | null;
+  actorType: string | null;
+  actorAdminUserId: number | null;
+  actorClinicUserId: number | null;
+  actorReportAccessTokenId: number | null;
+  clinicId: number | null;
+  reportId: number | null;
+  targetAdminUserId: number | null;
+  targetClinicUserId: number | null;
+  targetReportAccessTokenId: number | null;
+  requestId: string | null;
+  requestMethod: string | null;
+  requestPath: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string | null;
+};
+
+export type AdminAuditSnapshot = {
+  success: true;
+  count: number;
+  items: AdminAuditEntry[];
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+  };
+  filters: Record<string, unknown>;
+};
+
+function buildAdminAuditQueryString(params: AdminAuditQuery = {}) {
+  const query = new URLSearchParams();
+
+  for (const key of ["event", "actorType", "from", "to"] as const) {
+    const value = params[key];
+    if (value) query.set(key, value);
+  }
+
+  for (const key of ["clinicId", "reportId", "limit", "offset"] as const) {
+    const value = params[key];
+    if (typeof value === "number") query.set(key, String(value));
+  }
+
+  return query.toString();
+}
+
 export async function getAuditEntries(
+  params: AdminAuditQuery = {},
   options?: RequestInit,
   readOptions: AdminReadOptions = {},
-): Promise<AuditEntry[]> {
+): Promise<AdminAuditSnapshot> {
+  const query = buildAdminAuditQueryString(params);
+
   try {
-    const res = await apiFetch<{ entries?: AuditEntry[]; items?: AuditEntry[] }>(
-      "/api/admin/audit-log",
+    return await apiFetch<AdminAuditSnapshot>(
+      `/api/admin/audit-log${query ? `?${query}` : ""}`,
       options,
     );
-    return res.items ?? res.entries ?? [];
   } catch (error) {
     warnApiFallback("getAuditEntries", error);
     if (readOptions.throwOnError) {
       throw error;
     }
 
-    return [];
+    return {
+      success: true,
+      count: 0,
+      items: [],
+      pagination: {
+        limit: params.limit ?? 50,
+        offset: params.offset ?? 0,
+        total: 0,
+      },
+      filters: {},
+    };
   }
 }
 

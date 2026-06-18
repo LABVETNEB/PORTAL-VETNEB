@@ -133,8 +133,8 @@ test("admin controller renders an admin control hero with audit metrics and syst
 test("admin page forwards live audit counts to the workspace controller", () => {
   const source = read(ADMIN_PAGE_PATH);
 
-  assert.ok(source.includes("auditEntriesCount={auditEntries.length}"));
-  assert.ok(source.includes("eventTypesCount={Object.keys(eventCounts).length}"));
+  assert.ok(source.includes("auditEntriesCount={auditOverviewSnapshot.pagination.total}"));
+  assert.ok(source.includes("eventTypesCount={eventTypesCount}"));
 });
 
 // ── Scope invariant: no new dependency surfaced by this feature ──────────────
