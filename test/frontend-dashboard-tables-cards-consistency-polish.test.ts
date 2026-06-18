@@ -120,16 +120,16 @@ test("PR-7 AdminFailedLoginAlertsReadOnlyCard uses dashboard-filter-stats-grid f
   );
 });
 
-test("PR-7 AdminUsersRolesReadOnlyCard uses dashboard-filter-stats-grid-5 for stats bar", () => {
+test("PR-7A AdminUsersRolesReadOnlyCard uses a compact three-metric strip", () => {
   const source = read(USERS_ROLES_CARD_PATH);
   assert.ok(
-    source.includes("dashboard-filter-stats-grid-5"),
-    "AdminUsersRolesReadOnlyCard must use dashboard-filter-stats-grid-5 class",
+    source.includes("grid min-h-11 shrink-0 grid-cols-3"),
+    "AdminUsersRolesReadOnlyCard must keep its metrics in one compact row",
   );
   assert.equal(
-    source.includes('className="grid grid-cols-1 gap-3 md:grid-cols-5"'),
+    source.includes("dashboard-filter-stats-grid-5"),
     false,
-    "AdminUsersRolesReadOnlyCard must not hardcode 5-col grid",
+    "AdminUsersRolesReadOnlyCard must not use the former stacked five-card grid",
   );
 });
 

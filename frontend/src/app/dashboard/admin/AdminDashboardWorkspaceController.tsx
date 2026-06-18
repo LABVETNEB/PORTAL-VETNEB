@@ -128,8 +128,8 @@ const ADMIN_MODULE_META: Record<AdminModule, { title: string; description: strin
     description: "Consultar y revocar sesiones activas de clínicas.",
   },
   "admin-users-roles": {
-    title: "Roles clínica",
-    description: "Auditoría de cambios de rol en usuarios de clínicas.",
+    title: "Usuarios y roles",
+    description: "Permisos administrativos y de clínica con trazabilidad.",
   },
   "audit-log": {
     title: "Auditoría",
@@ -283,11 +283,11 @@ export function AdminDashboardWorkspaceController({
     },
     {
       icon: UsersRound,
-      title: "Roles clínica",
-      description: "Auditoría de cambios de rol en usuarios de clínicas.",
+      title: "Usuarios y roles",
+      description: "Permisos administrativos y de clínica con trazabilidad.",
       moduleId: "admin-users-roles" as AdminModule,
       onClick: () => activateModule("admin-users-roles"),
-      actionLabel: "Ver roles",
+      actionLabel: "Ver usuarios",
     },
     {
       icon: ScrollText,
