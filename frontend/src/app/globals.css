@@ -2196,3 +2196,93 @@
   }
 }
 /* dashboard-viewport-zoom-adaptability:end */
+/* dashboard-global-inline-adaptive:start */
+/*
+  Global inline master-detail + adaptive overflow guard for BOTH dashboards
+  (Administración + Clínica).
+
+  Builds on the no-scroll App Shell (PR-A/#1014) and the density layer
+  (#1017 / dashboard-viewport-zoom-adaptability). Goal: the detail opens INLINE
+  inside the selected list item (no rigid lateral panel) and every dashboard
+  surface adapts to the effective viewport/zoom without overlapping, without
+  horizontal overflow and without leaving the page. Reusable classes scoped to
+  `.dashboard-app-shell`; the pinned className/@apply contracts are not edited,
+  so the no-scroll contract is preserved — every rule only helps content fit.
+*/
+@layer components {
+  /* Inline master-detail list: the list is the only column; the selected item
+     expands its detail within the list flow. The list body is bounded and
+     internally scrollable so the expanded detail is always reachable while the
+     shell stays no-scroll (an inner scroll never grows `main`). */
+  .dashboard-inline-list {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .dashboard-inline-scroll {
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
+
+  /* Inline detail card: expands under the selected row, fluid to the available
+     width; long values wrap instead of forcing a horizontal scroll. */
+  .dashboard-inline-detail {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-wrap: break-word;
+  }
+
+  /* ── Global no-horizontal-overflow guard (both dashboards) ───────────────── */
+  /* Cards/surfaces shrink in flex/grid instead of forcing width; media and
+     tables never exceed their container. */
+  .dashboard-app-shell :is(.dashboard-surface, .surface-soft, .clinical-muted-band) {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dashboard-app-shell :is(img, svg, video, table, pre) {
+    max-width: 100%;
+  }
+
+  /* Opt-in wrapper: a wide table scrolls inside its own card, never the page. */
+  .dashboard-table-scroll {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  /* Data tables own the remaining card height. Their existing table wrapper
+     handles local overflow, so long audit values cannot grow over pagination. */
+  .dashboard-app-shell .dashboard-fitted-table {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .dashboard-app-shell .dashboard-fitted-table > div {
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .dashboard-app-shell .dashboard-compact-pager {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+
+  /* Chips compact with the effective viewport (browser zoom) so estados/etiquetas
+     never overflow their row. Scoped to dashboards only. */
+  @media (max-height: 760px), (max-width: 1280px) {
+    .dashboard-app-shell .clinical-pill {
+      font-size: var(--dash-secondary-font);
+    }
+  }
+}
+/* dashboard-global-inline-adaptive:end */
