@@ -1,0 +1,93 @@
+---
+description: Límites estrictos de Git, GitHub CLI y flujo PR para VETNEB.
+alwaysApply: true
+---
+
+# Git y PR boundaries VETNEB
+
+## Permitido para Cursor
+
+Cursor puede ejecutar o proponer comandos de solo lectura:
+
+- git status --short
+- git branch --show-current
+- git log -1 --oneline
+- git diff --stat
+- git diff --check
+- git diff --name-only
+- git fetch --prune
+- git branch
+- git branch -r --no-merged origin/main
+
+Cursor puede crear rama de trabajo si Nico solicita implementación:
+
+- git switch main
+- git pull --ff-only
+- git switch -c <branch-name>
+
+## Prohibido para Cursor salvo instrucción explícita de Nico en el mismo mensaje
+
+No ejecutar:
+
+- git add
+- git commit
+- git push
+- git reset
+- git clean
+- git checkout -- .
+- git restore .
+- git restore --staged
+- git rebase
+- git merge
+- git tag
+- gh pr create
+- gh pr merge
+- gh pr checks
+- gh run
+- cualquier comando gh
+
+## Checks
+
+Cuando Nico haga manualmente el PR, el comando correcto de checks es:
+
+gh pr checks --watch
+
+Está prohibido usar:
+
+gh pr checks <NUMERO_PR> --watch
+
+## Trabajo manual reservado para Nico
+
+Nico ejecuta manualmente:
+
+- git status
+- git add
+- git status
+- git commit -m
+- git push -u
+- gh pr create
+- gh pr checks --watch
+- gh pr merge --squash --delete-branch
+- git checkout main
+- git pull --ff-only
+- git fetch --prune
+- git status --short
+- git log -1 --oneline
+- gh pr list --state open
+- git branch -r --no-merged origin/main
+- git branch
+
+## Si el estado no está limpio
+
+Si git status --short muestra archivos modificados inesperados:
+
+1. detenerse,
+2. no sobrescribir,
+3. listar archivos,
+4. pedir confirmación a Nico.
+
+## Dependabot
+
+No tocar ramas Dependabot.
+No mezclar cambios con PRs Dependabot.
+No resolver Dependabot dentro de PRs funcionales, visuales, seguridad o auditoría salvo instrucción explícita.

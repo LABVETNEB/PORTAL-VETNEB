@@ -1,0 +1,82 @@
+---
+description: Invariantes de seguridad productiva para todo VETNEB.
+alwaysApply: true
+---
+
+# Seguridad productiva VETNEB
+
+## Prohibido leer, imprimir, modificar o exponer
+
+- .env
+- .env.*
+- secretos
+- tokens reales
+- cookies reales
+- passwords
+- hashes
+- signed URLs
+- claves privadas
+- dumps
+- backups
+- logs sensibles
+- datos clínicos o comerciales innecesarios
+
+.env.example y .env.sample pueden usarse solo como referencia de nombres de variables, nunca como fuente de secretos.
+
+## Auth y sesiones
+
+Preservar separación estricta:
+
+- Admin usa admin_session_id.
+- Clínica usa app_session_id.
+- No mezclar sesiones.
+- No relajar middleware.
+- No relajar roles.
+- No exponer dashboard privado sin sesión válida.
+- No convertir 401/403 en éxito silencioso.
+- No filtrar errores DB crudos al frontend.
+- No introducir cache privada insegura.
+
+## Backend y DB
+
+No tocar backend, DB, migraciones, Drizzle, schema, endpoints, cookies, CORS, CSP, rate limits o auth salvo que el scope lo indique explícitamente.
+
+Si el cambio requiere backend/DB:
+
+1. detenerse,
+2. justificar,
+3. listar archivos,
+4. explicar riesgo,
+5. pedir aprobación.
+
+## Logs y errores
+
+No agregar console.log con datos sensibles.
+No imprimir tokens.
+No imprimir payloads completos de usuarios, sesiones, reportes o clínicas.
+No exponer stack traces al cliente.
+No cambiar redacción de errores de seguridad sin test.
+
+## Superficie pública
+
+Preservar:
+
+- no secrets in public surface,
+- no devtools sensitive leaks,
+- no cache sensitive responses,
+- safe CSP,
+- safe headers,
+- no internal DB details in API responses.
+
+## Mutaciones
+
+Toda acción mutante debe preservar:
+
+- auth,
+- permisos,
+- CSRF si aplica,
+- auditoría si aplica,
+- ownership,
+- tenant boundary,
+- validación de input,
+- respuesta segura.

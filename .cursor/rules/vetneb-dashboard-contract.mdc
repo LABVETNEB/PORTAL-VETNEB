@@ -1,0 +1,53 @@
+---
+description: Contrato específico para dashboard VETNEB.
+alwaysApply: true
+---
+
+# Dashboard VETNEB
+
+Aplicar solo cuando el trabajo involucre dashboard admin o dashboard clínica.
+
+## Regla de scope dashboard
+
+Si el scope es Dashboard Admin:
+- no tocar Dashboard Clínica salvo instrucción explícita.
+
+Si el scope es Dashboard Clínica:
+- no tocar Dashboard Admin salvo instrucción explícita.
+
+Si el scope es un módulo admin específico:
+- no tocar otros módulos admin cerrados.
+- no tocar login/auth estructural.
+- no tocar backend/DB/deps salvo autorización explícita.
+
+## Contrato visual operativo
+
+Dashboard debe comportarse como software administrativo, no como página larga.
+
+Priorizar:
+
+- densidad operativa premium,
+- lectura rápida,
+- acciones visibles,
+- jerarquía clara,
+- estados compactos,
+- datos reales,
+- sin mocks de producción,
+- componentes reutilizables solo si no rompen otros módulos.
+
+## No-scroll
+
+Cuando Nico exija no-scroll:
+
+- no scroll externo desktop,
+- no scroll interno del módulo desktop,
+- no resolver con overflow-y auto como salida fácil,
+- usar densidad, paginación, tabs, paneles, master-detail o truncado seguro.
+
+## Seguridad dashboard
+
+No revelar datos privados sin sesión válida.
+No mezclar admin_session_id y app_session_id.
+No ocultar errores 401/403 como estados vacíos.
+No exponer tokens completos.
+No mostrar IDs sensibles si no aportan valor operativo.

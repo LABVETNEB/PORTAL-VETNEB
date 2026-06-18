@@ -1,0 +1,115 @@
+# ============================================================
+# VETNEB Cursor Ignore
+# Evita indexar dependencias, builds, artefactos, secretos,
+# dumps, logs, scripts operativos y contenido local/sensible.
+# ============================================================
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+frontend/dist/
+build/
+frontend/build/
+.next/
+frontend/.next/
+out/
+frontend/out/
+
+# Coverage / reports / test artifacts
+coverage/
+frontend/coverage/
+playwright-report/
+frontend/playwright-report/
+test-results/
+frontend/test-results/
+.ci-artifacts*/
+ci-artifacts*/
+junit.xml
+coverage-final.json
+
+# Package manager caches / generated files
+.pnpm-store/
+.cache/
+.turbo/
+.eslintcache
+.tsbuildinfo
+*.tsbuildinfo
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.cert
+*.keystore
+
+# Databases / dumps / backups
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.backup
+*.bak
+*.sql
+*.tar
+*.tar.gz
+*.zip
+*.7z
+*.rar
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+render*.log
+vercel*.log
+
+# Runtime/private storage
+uploads/
+storage/
+backups/
+tmp/
+temp/
+
+# Local editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local screenshots / generated visual artifacts
+screenshots/
+videos/
+trace/
+traces/
+
+# Sensitive generated exports
+exports/
+private/
+secrets/
+
+# Other agent/vendor configs not needed by Cursor rules
+.claude/
+
+# Legacy code
+legacy/
+
+# Database migrations and DB operational scripts
+drizzle/migrations/
+scripts/db/
+
+# Operational scripts that must not be suggested/executed by agents
+scripts/maintenance/
+scripts/smoke/
+# Local/dev scripts should be manual-only
+scripts/dev/
