@@ -22,10 +22,9 @@ import type {
   AdminSessionsSnapshot,
 } from "@/types";
 
-// Nine rows match the viewport-safe contract used across admin enterprise modules.
-// The admin-sessions workspace also renders a compact credential-change control above
-// this card; if no-scroll regressions appear at 1366×768, reduce to 8 and document.
-const PAGE_SIZE = 9;
+// Eight rows preserve the 1366×768 no-scroll contract because the workspace also
+// renders the credential-change control above this card.
+const PAGE_SIZE = 8;
 
 function formatOptionalDate(value: string | null) {
   return value ? formatDateTime(value) : "—";
@@ -192,7 +191,7 @@ export function AdminSessionsReadOnlyCard() {
 
   return (
     <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none">
-      <CardHeader className="flex min-h-12 shrink-0 flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-3 py-2 sm:px-4">
+      <CardHeader className="flex min-h-11 shrink-0 flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-3 py-1 sm:px-4">
         <div className="min-w-0">
           <CardTitle className="text-base">Sesiones activas y expiradas</CardTitle>
           <p
@@ -221,7 +220,7 @@ export function AdminSessionsReadOnlyCard() {
       </CardHeader>
 
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-        <div className="dashboard-filter-stats-grid min-h-11 shrink-0 border-b border-vetneb-line/70">
+        <div className="dashboard-filter-stats-grid min-h-10 shrink-0 border-b border-vetneb-line/70">
           <div className="flex items-center justify-between gap-2 px-1 py-1">
             <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
               Total filtrado
@@ -263,7 +262,7 @@ export function AdminSessionsReadOnlyCard() {
         </div>
 
         <div
-          className="flex min-h-12 shrink-0 items-end gap-2 border-b border-vetneb-line/70 bg-muted/15 px-3 py-2 sm:px-4"
+          className="flex min-h-11 shrink-0 items-end gap-2 border-b border-vetneb-line/70 bg-muted/15 px-3 py-1 sm:px-4"
           aria-label="Filtros de sesiones"
         >
           <label className="grid min-w-0 flex-1 gap-1 text-[11px] font-medium text-muted-foreground sm:max-w-48">
@@ -308,7 +307,7 @@ export function AdminSessionsReadOnlyCard() {
           </span>
         </div>
 
-        <div className="min-h-0 flex-1 py-2">
+        <div className="min-h-0 flex-1 py-1">
           {sessions.length ? (
             <>
               <div className="dashboard-table-responsive dashboard-fitted-table hidden px-3 md:block sm:px-4">
@@ -475,7 +474,7 @@ export function AdminSessionsReadOnlyCard() {
         </div>
 
         <footer
-          className="dashboard-table-pagination min-h-10 shrink-0 border-t border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground sm:px-4"
+          className="dashboard-table-pagination min-h-9 shrink-0 border-t border-vetneb-line/70 px-3 py-1 text-xs text-muted-foreground sm:px-4"
           aria-label="Paginación de sesiones"
         >
           <span aria-live="polite">

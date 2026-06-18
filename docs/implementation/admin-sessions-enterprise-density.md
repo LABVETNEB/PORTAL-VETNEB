@@ -44,23 +44,23 @@ No se modificaron API, backend, base de datos, migraciones ni dependencias.
   badges de 20 px (`h-5 text-[11px]`) y acciones de 28 px (`h-7 px-2 text-xs`).
 - Lista mobile priorizada (`md:hidden`); tabla solo desde `md:block`.
 - Paginación compacta con rango `start–end de total` y controles anterior/siguiente.
+- Ajuste CI no-scroll: header `min-h-11 py-1`, métricas `min-h-10`, filtros
+  `min-h-11 py-1`, cuerpo `py-1` y paginación `min-h-9 py-1`.
 - Errores de carga en `role="alert"` y bloque `clinical-alert-error`; no se
   convierten en empty state silencioso.
 
 ### PAGE_SIZE final
 
-Se eligió **`PAGE_SIZE = 9`**, alineado con PR-3, PR-4, PR-6 y PR-7A.
+Se eligió **`PAGE_SIZE = 8`** como fallback final del contrato no-scroll.
 
 Justificación:
 
-- Nueve filas densas + header + métricas + filtros + paginación caben en el
-  presupuesto del App Shell con columnas progresivamente ocultas en breakpoints
-  (`lg`/`xl`).
-- La fila superior de cambio de contraseña vive en `page.tsx` fuera del card;
-  el card usa `overflow-hidden`, `p-0` y alturas mínimas compactas para
-  compensar ese costo vertical.
-- Fallback documentado: si E2E no-scroll en 1366×768 regresara, reducir a
-  `PAGE_SIZE = 8` sin tocar backend.
+- Frontend CI no-scroll en 1366×768 falló con nueve filas: `Expected <= 521` /
+  `Received 586`, un exceso vertical de 65 px.
+- Ocho filas conservan la paginación server-side y reducen el alto de la tabla
+  sin introducir scroll regional ni tocar backend.
+- La fila superior “Cambiar contraseña” vive en `page.tsx` fuera del card y
+  consume altura adicional dentro del mismo presupuesto del App Shell.
 
 ### Seguridad de sesiones
 
@@ -76,19 +76,30 @@ Justificación:
 - No se agrega `overflow-y-auto`, `overflow-y-scroll` ni
   `data-dashboard-scroll-region`.
 - El card mantiene `flex min-h-0 flex-1 flex-col overflow-hidden`.
-- Nueve filas densas + paginación fija dentro del presupuesto de viewport.
+- Ocho filas densas + paginación fija dentro del presupuesto de viewport.
 
 ## Tests y validaciones
 
-Resultados finales (Terminal 1):
+Resultados finales del parche (Terminal 1 / Terminal 2):
 
-- Focal sesiones + polish: OK (incluye `admin-sessions-enterprise-density`, card, API, responsive, password UI, tables-cards polish).
-- `pnpm test`: OK — **2806** aprobados, **0** fallos.
-- `pnpm build`: OK — `dist/index.js` generado.
-- `pnpm security:public-surface`: OK — PASS (notas server-only preexistentes en proxy).
+- Tests focales solicitados mediante `pnpm test ...`: OK — el script nativo
+  ejecutó la suite completa, **2806** aprobados y **0** fallos.
+- E2E `admin sessions populated`: OK — **2/2** en Chromium; pasan 1366×768 y
+  1440×900 sin scroll externo ni interno.
 - `pnpm --dir frontend lint`: OK.
 - `pnpm --dir frontend typecheck`: OK.
 - `pnpm --dir frontend build`: OK — Next.js 16.2.7 compilación exitosa.
+- `pnpm build`: OK — `dist/index.js` generado.
+- `pnpm security:public-surface`: OK — PASS, sin exposición pública.
+
+Trazabilidad de incidencias durante la validación:
+
+- Con `PAGE_SIZE = 8` antes de compactar contenedores, 1366×768 todavía falló
+  con `Expected <= 521` / `Received 544`; 1440×900 pasó.
+- Una ejecución concurrente de Playwright y tests hizo que Next reescribiera
+  temporalmente `frontend/next-env.d.ts` a la ruta de tipos de desarrollo y
+  activó nueve guardrails de scope. Se restituyó exactamente el archivo base y
+  la suite aislada final pasó 2806/2806; el archivo quedó fuera del diff.
 
 ## No alcance
 
@@ -107,8 +118,9 @@ Resultados finales (Terminal 1):
 2. `total` backend puede estar acotado por merge in-memory en cargas muy grandes
    (deuda preexistente en `db-admin-sessions.ts`).
 3. Confirmación de revocación sigue usando diálogo nativo del navegador.
-4. El fit final depende de mantener nueve filas y métricas compactas; ampliar a
-   25/50/100 requiere PR de scroll regional.
+4. El fit final depende de mantener ocho filas y métricas compactas; la fila
+   “Cambiar contraseña” consume altura adicional. Ampliar a 25/50/100 requiere
+   PR de scroll regional.
 
 ## Exclusiones explícitas
 

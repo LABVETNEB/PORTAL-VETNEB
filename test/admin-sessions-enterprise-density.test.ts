@@ -32,11 +32,11 @@ test("PR-7B preserves the real admin-sessions navigation surface", () => {
   assert.ok(nav.includes("?module=admin-sessions"));
 });
 
-test("PR-7B uses viewport-safe server pagination with nine rows", () => {
+test("PR-7B uses viewport-safe server pagination with eight rows", () => {
   const card = read(CARD_PATH);
   const api = read(API_PATH);
 
-  assert.ok(card.includes("const PAGE_SIZE = 9;"));
+  assert.ok(card.includes("const PAGE_SIZE = 8;"));
   assert.ok(card.includes("limit: PAGE_SIZE"));
   assert.ok(card.includes("offset"));
   assert.ok(card.includes("getAdminSessions(query)"));
