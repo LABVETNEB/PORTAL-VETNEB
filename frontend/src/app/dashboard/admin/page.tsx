@@ -17,6 +17,7 @@ import { AdminClinicsManagementCard } from "./AdminClinicsManagementCard";
 import { AdminFailedLoginAlertsReadOnlyCard } from "./AdminFailedLoginAlertsReadOnlyCard";
 import { AdminMaintenanceDryRunCard } from "./AdminMaintenanceDryRunCard";
 import { AdminParticularTokensCard } from "./AdminParticularTokensCard";
+import { AdminReportsCard } from "./AdminReportsCard";
 import { AdminPricingEditorCard } from "./AdminPricingEditorCard";
 import { AdminSchemaHealthStatusCard } from "./AdminSchemaHealthStatusCard";
 import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";
@@ -461,27 +462,13 @@ export default async function AdminPage({
     />
   );
 
-  // ── Subir informe workspace ─────────────────────────────────────────────────
+  // ── Informes workspace ──────────────────────────────────────────────────────
   const reportUploadWorkspaceSlot = (
     <section
       id="admin-report-upload"
-      className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden p-0"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
     >
-      <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-widest text-vetneb-navy">
-            Panel administrador
-          </p>
-          <h2 className="mt-2 text-xl font-semibold text-vetneb-ink">
-            Carga de informes
-          </h2>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            La carga de informes se realiza desde cada token administrado
-            en &quot;Últimos tokens administrados&quot;, para vincular clínica y token
-            sin búsqueda manual.
-          </p>
-        </div>
-      </div>
+      <AdminReportsCard />
     </section>
   );
 

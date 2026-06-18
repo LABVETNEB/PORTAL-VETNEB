@@ -151,9 +151,8 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   assert.ok(combinedSource.includes("Tipos de evento"));
   assert.ok(combinedSource.includes("Estado del sistema"));
   assert.ok(source.includes('id="admin-report-upload"'));
-  assert.ok(source.includes("Panel administrador"));
-  assert.ok(source.includes("cada token administrado"));
-  assert.ok(source.includes("sin búsqueda manual"));
+  assert.ok(source.includes('import { AdminReportsCard } from "./AdminReportsCard";'));
+  assert.ok(source.includes("<AdminReportsCard />"));
   assert.equal(source.includes("<UploadReportModal />"), false);
   assert.ok(source.includes('id="admin-health"'));
   assert.ok(source.includes("<AdminClinicsManagementCard />"));
@@ -198,8 +197,7 @@ test("dashboard admin keeps module hub cards and preserves admin sections", () =
   assert.ok(controllerSource.includes('"admin-health"'));
   assert.ok(source.includes('<AdminDashboardWorkspaceController'));
   assert.ok(source.includes('id="admin-report-upload"'));
-  assert.ok(source.includes("Carga de informes"));
-  assert.ok(source.includes("cada token administrado"));
+  assert.ok(source.includes("<AdminReportsCard />"));
   assert.ok(source.includes("Alertas críticas"));
   assert.ok(source.includes("Sistema"));
   assert.ok(source.includes("Auditoría"));
@@ -219,20 +217,20 @@ test("dashboard admin keeps module hub cards and preserves admin sections", () =
   // PR5B: slot vars defined before <main> in render order (commandCenter → alerts → tabs).
   const commandCenterIndex = source.indexOf("<AdminCommandCenter");
   const alertsCardIndex = source.indexOf("<AdminFailedLoginAlertsReadOnlyCard />");
-  const reportUploadTitleIndex = source.indexOf("Carga de informes");
+  const reportsCardIndex = source.indexOf("<AdminReportsCard />");
 
   assert.ok(mainIndex >= 0);
   assert.ok(pageHeaderIndex >= 0);
   assert.ok(workspaceControllerIndex >= 0);
   assert.ok(commandCenterIndex >= 0);
   assert.ok(alertsCardIndex >= 0);
-  assert.ok(reportUploadTitleIndex >= 0);
+  assert.ok(reportsCardIndex >= 0);
   assert.ok(mainIndex < workspaceControllerIndex);
   // App Shell: page header is a controller prop, rendered hub-only after the
   // controller opening tag.
   assert.ok(workspaceControllerIndex < pageHeaderIndex);
   assert.ok(commandCenterIndex < alertsCardIndex);
-  assert.ok(alertsCardIndex < reportUploadTitleIndex);
+  assert.ok(alertsCardIndex < reportsCardIndex);
   assert.equal(source.includes(`xl:grid-cols-${7}`), false);
 });
 

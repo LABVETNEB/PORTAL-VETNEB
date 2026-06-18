@@ -81,7 +81,7 @@ test("frontend admin token workspace does not mount upload report modal", () => 
   assert.equal(page.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'), false);
   assert.ok(page.includes('id="admin-report-upload"'));
   assert.equal(page.includes("<UploadReportModal />"), false);
-  assert.ok(page.includes("Carga de informes"));
+  assert.ok(page.includes("<AdminReportsCard />"));
   assert.equal(card.includes('import { UploadReportModal } from "@/components/dashboard/UploadReportModal";'), false);
   assert.equal(card.includes("triggerLabel={"), false);
   assert.equal(card.includes('"Subir informe para este token"'), false);
