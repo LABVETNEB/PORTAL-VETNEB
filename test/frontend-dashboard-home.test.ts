@@ -144,7 +144,7 @@ test("dashboard home clinic command center presentational props contain operatio
   assert.ok(source.includes("No hay visitas de campo recientes disponibles."));
 });
 
-test("clinic informes and logistica summaries use in-shell master-detail layers", () => {
+test("clinic informes and logistica summaries use inline master-detail layers", () => {
   for (const [context, path] of [
     ["informes", CLINIC_INFORMES_SUMMARY_PATH],
     ["logistica", CLINIC_LOGISTICA_SUMMARY_PATH],
@@ -154,10 +154,14 @@ test("clinic informes and logistica summaries use in-shell master-detail layers"
     assert.ok(source.includes('"use client";'), `${context} summary must own state`);
     assert.ok(source.includes("ModuleSurface"), `${context} summary must use ModuleSurface`);
     assert.ok(source.includes("useState"), `${context} summary must use selection state`);
-    assert.ok(source.includes("isMobileDetailOpen"), `${context} summary must use mobile replacement layer`);
-    assert.ok(source.includes("Volver a la lista"), `${context} summary must expose internal back action`);
-    assert.ok(source.includes("hidden xl:flex"), `${context} master must hide under detail on mobile`);
-    assert.ok(source.includes("hidden xl:block"), `${context} detail must replace list on mobile`);
+    assert.ok(source.includes("dashboard-inline-list"), `${context} summary must use inline list`);
+    assert.ok(source.includes("dashboard-inline-scroll"), `${context} summary must bound list overflow`);
+    assert.ok(source.includes("dashboard-inline-detail"), `${context} summary must render inline detail`);
+    assert.ok(source.includes("aria-expanded={isSelected}"), `${context} selection must expose expanded state`);
+    assert.ok(source.includes('data-detail-state="selected"'), `${context} detail must remain inside the selected row`);
+    assert.equal(source.includes("isMobileDetailOpen"), false, `${context} summary must not use a replacement layer`);
+    assert.equal(source.includes("Volver a la lista"), false, `${context} summary must keep list and detail together`);
+    assert.equal(source.includes('xl:grid-cols-[0.85fr_1.15fr]'), false, `${context} summary must not use a lateral grid`);
     assert.equal(source.includes("space-y-4"), false, `${context} summary must not stack teaser blocks`);
   }
 });

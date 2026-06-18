@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -231,8 +230,6 @@ export function ClinicParticularTokensCard() {
     useState<ClinicParticularTokenFormState>(INITIAL_FORM_STATE);
   const [tokens, setTokens] = useState<ClinicParticularTokenSummary[]>([]);
   const [selectedTokenId, setSelectedTokenId] = useState<number | null>(null);
-  // Mobile/tablet replacement layer: detail covers the list (no vertical stack).
-  const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false);
   const [trackingCasesByTokenId, setTrackingCasesByTokenId] = useState<
     Record<number, ClinicStudyTrackingCaseSummary>
   >({});
@@ -339,11 +336,6 @@ export function ClinicParticularTokensCard() {
     setFormState((current) => ({ ...current, [field]: value }));
     setErrorMessage(null);
     setStatusMessage(null);
-  }
-
-  function selectToken(tokenId: number) {
-    setSelectedTokenId(tokenId);
-    setIsMobileDetailOpen(true);
   }
 
   function handleCreateDialogOpenChange(open: boolean) {
@@ -558,21 +550,16 @@ export function ClinicParticularTokensCard() {
 
         <section
           aria-label="Tokens particulares de la clínica"
-          className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[0.82fr_1.46fr]"
+          className="flex min-h-0 flex-1 flex-col"
         >
-          <div
-            className={cn(
-              "flex min-h-0 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82",
-              isMobileDetailOpen && "hidden xl:flex",
-            )}
-          >
+          <div className="dashboard-master-panel dashboard-inline-list flex-1 rounded-xl border border-vetneb-line/75 bg-card/82">
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-vetneb-line/70 px-4 py-3">
               <div>
                 <h3 className="text-sm font-semibold text-vetneb-ink">
                   Últimos tokens de la clínica
                 </h3>
                 <p className="dashboard-section-description">
-                  Seleccionar un token abre el detalle.
+                  Seleccionar un token despliega el detalle dentro del propio token.
                 </p>
               </div>
               <Button
@@ -594,47 +581,160 @@ export function ClinicParticularTokensCard() {
 
             {tokens.length ? (
               <>
-                <div className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden">
+                <div className="dashboard-inline-scroll divide-y divide-vetneb-line/60">
                   {pagedTokens.pageItems.map((token) => {
                     const isSelected = selectedToken?.id === token.id;
                     const trackingCase = trackingCasesByTokenId[token.id];
 
                     return (
-                      <button
-                        key={token.id}
-                        type="button"
-                        id={`clinic-particular-token-${token.id}`}
-                        onClick={() => selectToken(token.id)}
-                        aria-pressed={isSelected}
-                        className={cn(
-                          "block w-full px-4 py-3 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset",
-                          isSelected && "bg-vetneb-cyan/12",
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-vetneb-ink">
-                              {token.petName} · {token.tutorLastName}
-                            </p>
-                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                              Token ****{token.tokenLast4}
-                            </p>
-                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                              {trackingCase
-                                ? getTrackingStageLabel(trackingCase.currentStage)
-                                : "Sin seguimiento vinculado"}
-                            </p>
+                      <div key={token.id} className="min-w-0">
+                        <button
+                          type="button"
+                          id={`clinic-particular-token-${token.id}`}
+                          onClick={() => setSelectedTokenId(token.id)}
+                          aria-pressed={isSelected}
+                          aria-expanded={isSelected}
+                          className={cn(
+                            "block w-full px-4 py-3 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset",
+                            isSelected && "bg-vetneb-cyan/12",
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-vetneb-ink">
+                                {token.petName} · {token.tutorLastName}
+                              </p>
+                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                Token ****{token.tokenLast4}
+                              </p>
+                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                {trackingCase
+                                  ? getTrackingStageLabel(trackingCase.currentStage)
+                                  : "Sin seguimiento vinculado"}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 flex-col items-end gap-1">
+                              <Badge variant={token.isActive ? "default" : "outline"}>
+                                {token.isActive ? "Activo" : "Inactivo"}
+                              </Badge>
+                              <Badge variant={token.hasLinkedReport ? "default" : "outline"}>
+                                {token.hasLinkedReport ? "Informe" : "Sin informe"}
+                              </Badge>
+                            </div>
                           </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1">
-                            <Badge variant={token.isActive ? "default" : "outline"}>
-                              {token.isActive ? "Activo" : "Inactivo"}
-                            </Badge>
-                            <Badge variant={token.hasLinkedReport ? "default" : "outline"}>
-                              {token.hasLinkedReport ? "Informe" : "Sin informe"}
-                            </Badge>
+                        </button>
+
+                        {isSelected && selectedToken ? (
+                          <div
+                            data-detail-state="selected"
+                            className="dashboard-inline-detail border-t border-vetneb-line/60 bg-vetneb-surface-muted/40"
+                          >
+                            <div className="space-y-3 p-4">
+                              <div className="flex flex-col gap-3 border-b border-vetneb-line/70 pb-3 lg:flex-row lg:items-start lg:justify-between">
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                                    Detalle del token
+                                  </p>
+                                  <h3 className="mt-1 text-lg font-semibold text-vetneb-ink">
+                                    {selectedToken.petName} · {selectedToken.tutorLastName}
+                                  </h3>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Token ****{selectedToken.tokenLast4}
+                                  </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <Badge variant={selectedToken.isActive ? "default" : "outline"}>
+                                    {selectedToken.isActive ? "Activo" : "Inactivo"}
+                                  </Badge>
+                                  <Badge variant={selectedToken.hasLinkedReport ? "default" : "outline"}>
+                                    {selectedToken.hasLinkedReport ? "Informe vinculado" : "Sin informe"}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                                <div className="clinical-muted-band rounded-lg px-3 py-2">
+                                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                                    Paciente
+                                  </p>
+                                  <p className="mt-1 text-xs text-vetneb-ink">
+                                    {selectedToken.petSpecies} · {selectedToken.petBreed} · {selectedToken.petSex}
+                                  </p>
+                                  <p className="mt-1 text-xs text-muted-foreground">Edad: {selectedToken.petAge}</p>
+                                </div>
+
+                                <div className="clinical-muted-band rounded-lg px-3 py-2">
+                                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                                    Muestra
+                                  </p>
+                                  <p className="mt-1 text-xs text-vetneb-ink">{selectedToken.sampleLocation}</p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Evolución: {selectedToken.sampleEvolution}
+                                  </p>
+                                </div>
+
+                                <div className="clinical-muted-band rounded-lg px-3 py-2">
+                                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                                    Fechas
+                                  </p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Extracción: {formatDate(selectedToken.extractionDate)}
+                                  </p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Envío: {formatDate(selectedToken.shippingDate)}
+                                  </p>
+                                </div>
+
+                                <div className="clinical-muted-band rounded-lg px-3 py-2">
+                                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                                    Publicación
+                                  </p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Informe: {selectedToken.reportId ? `#${selectedToken.reportId}` : "—"}
+                                  </p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Último acceso: {selectedToken.lastLoginAt ? formatDate(selectedToken.lastLoginAt) : "—"}
+                                  </p>
+                                </div>
+
+                                <div className="clinical-muted-band rounded-lg px-3 py-2">
+                                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                                    Vínculo
+                                  </p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Tutor: {selectedToken.tutorLastName}
+                                  </p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Origen: {formatTokenSource(selectedToken)}
+                                  </p>
+                                </div>
+
+                                <div className="clinical-muted-band rounded-lg px-3 py-2">
+                                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                                    Seguimiento
+                                  </p>
+                                  {selectedTrackingCase ? (
+                                    <>
+                                      <p className="mt-1 text-xs text-vetneb-ink">
+                                        Etapa: {getTrackingStageLabel(selectedTrackingCase.currentStage)}
+                                      </p>
+                                      <p className="mt-1 text-xs text-muted-foreground">
+                                        {selectedTrackingCase.specialStainRequired
+                                          ? "Alerta: Solicitud de tinción especial"
+                                          : "Sin alerta de tinción especial"}
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      Sin seguimiento vinculado.
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </button>
+                        ) : null}
+                      </div>
                     );
                   })}
                 </div>
@@ -657,135 +757,8 @@ export function ClinicParticularTokensCard() {
                 {isLoadingTokens
                   ? "Cargando tokens particulares..."
                   : "No hay tokens particulares generados por esta clínica."}
-              </p>
-            )}
-          </div>
-
-          <div
-            className={cn(
-              "min-h-0 overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82",
-              !isMobileDetailOpen && "hidden xl:block",
-            )}
-          >
-            {selectedToken ? (
-              <div className="space-y-3 p-4">
-                <div className="flex flex-col gap-3 border-b border-vetneb-line/70 pb-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="mb-2 xl:hidden"
-                      onClick={() => setIsMobileDetailOpen(false)}
-                    >
-                      <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                      Volver a la lista
-                    </Button>
-                    <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                      Detalle del token
-                    </p>
-                    <h3 className="mt-1 text-lg font-semibold text-vetneb-ink">
-                      {selectedToken.petName} · {selectedToken.tutorLastName}
-                    </h3>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Token ****{selectedToken.tokenLast4}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant={selectedToken.isActive ? "default" : "outline"}>
-                      {selectedToken.isActive ? "Activo" : "Inactivo"}
-                    </Badge>
-                    <Badge variant={selectedToken.hasLinkedReport ? "default" : "outline"}>
-                      {selectedToken.hasLinkedReport ? "Informe vinculado" : "Sin informe"}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                  <div className="clinical-muted-band rounded-lg px-3 py-2">
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                      Paciente
-                    </p>
-                    <p className="mt-1 text-xs text-vetneb-ink">
-                      {selectedToken.petSpecies} · {selectedToken.petBreed} · {selectedToken.petSex}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">Edad: {selectedToken.petAge}</p>
-                  </div>
-
-                  <div className="clinical-muted-band rounded-lg px-3 py-2">
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                      Muestra
-                    </p>
-                    <p className="mt-1 text-xs text-vetneb-ink">{selectedToken.sampleLocation}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Evolución: {selectedToken.sampleEvolution}
-                    </p>
-                  </div>
-
-                  <div className="clinical-muted-band rounded-lg px-3 py-2">
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                      Fechas
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Extracción: {formatDate(selectedToken.extractionDate)}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Envío: {formatDate(selectedToken.shippingDate)}
-                    </p>
-                  </div>
-
-                  <div className="clinical-muted-band rounded-lg px-3 py-2">
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                      Publicación
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Informe: {selectedToken.reportId ? `#${selectedToken.reportId}` : "—"}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Último acceso: {selectedToken.lastLoginAt ? formatDate(selectedToken.lastLoginAt) : "—"}
-                    </p>
-                  </div>
-
-                  <div className="clinical-muted-band rounded-lg px-3 py-2">
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                      Vínculo
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Tutor: {selectedToken.tutorLastName}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Origen: {formatTokenSource(selectedToken)}
-                    </p>
-                  </div>
-
-                  <div className="clinical-muted-band rounded-lg px-3 py-2">
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                      Seguimiento
-                    </p>
-                    {selectedTrackingCase ? (
-                      <>
-                        <p className="mt-1 text-xs text-vetneb-ink">
-                          Etapa: {getTrackingStageLabel(selectedTrackingCase.currentStage)}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {selectedTrackingCase.specialStainRequired
-                            ? "Alerta: Solicitud de tinción especial"
-                            : "Sin alerta de tinción especial"}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Sin seguimiento vinculado.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p className="surface-empty m-4">
-                Seleccione un token para abrir el detalle.
-              </p>
-            )}
+                </p>
+              )}
           </div>
         </section>
       </CardContent>

@@ -299,8 +299,8 @@ export default async function InformesPage({
           }
         />
 
-        <Card className="dashboard-surface overflow-hidden">
-          <CardHeader className="border-b border-vetneb-line/70">
+        <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
+          <CardHeader className="shrink-0 border-b border-vetneb-line/70">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
               <div>
                 <CardTitle className="text-base">Informes disponibles</CardTitle>
@@ -336,12 +336,12 @@ export default async function InformesPage({
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-4 pt-4">
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-4 pt-4">
             <form
               method="get"
               role="search"
               aria-label="Filtros compactos de informes"
-              className="rounded-xl border border-vetneb-line/75 bg-card/78 p-3 shadow-[0_8px_28px_rgba(15,45,62,0.04)]"
+              className="shrink-0 rounded-xl border border-vetneb-line/75 bg-card/78 p-3 shadow-[0_8px_28px_rgba(15,45,62,0.04)]"
             >
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_0.8fr_1fr_auto] lg:items-end">
                 <label className="block">
@@ -397,13 +397,13 @@ export default async function InformesPage({
             </form>
 
             {reportsLoadError || reports.length === 0 ? (
-              <div className="grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-[0.86fr_1.44fr]">
+              <div className="flex min-h-0 flex-1 flex-col">
                 <section
                   id="reports-master-list"
                   aria-labelledby="reports-list-heading"
-                  className="dashboard-master-panel rounded-xl border border-vetneb-line/75 bg-card/82"
+                  className="dashboard-master-panel dashboard-inline-list flex-1 rounded-xl border border-vetneb-line/75 bg-card/82"
                 >
-                  <div className="border-b border-vetneb-line/70 px-4 py-3">
+                  <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-3">
                     <h2
                       id="reports-list-heading"
                       className="dashboard-section-heading"
@@ -415,7 +415,7 @@ export default async function InformesPage({
                     </p>
                   </div>
 
-                  <div className="p-4">
+                  <div className="dashboard-inline-scroll p-4">
                     {reportsLoadError ? (
                       <div role="alert">
                         <ErrorState
@@ -431,36 +431,17 @@ export default async function InformesPage({
                     )}
                   </div>
                 </section>
-
-                <section
-                  id="report-detail"
-                  aria-labelledby="report-detail-heading"
-                  className="dashboard-detail-panel rounded-xl border border-vetneb-line/75 bg-card/82"
-                >
-                  <div className="p-4">
-                    <h2
-                      id="report-detail-heading"
-                      className="sr-only"
-                    >
-                      Detalle del informe
-                    </h2>
-                    <EmptyState
-                      title="No hay informe seleccionado"
-                      description="Seleccione un informe de la lista para ver el detalle operativo."
-                    />
-                  </div>
-                </section>
               </div>
             ) : null}
 
             {!reportsLoadError && reports.length > 0 ? (
-              <div className="grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-[0.86fr_1.44fr]">
+              <div className="flex min-h-0 flex-1 flex-col">
                 <section
                   id="reports-master-list"
                   aria-labelledby="reports-list-heading"
-                  className="dashboard-master-panel rounded-xl border border-vetneb-line/75 bg-card/82"
+                  className="dashboard-master-panel dashboard-inline-list flex-1 rounded-xl border border-vetneb-line/75 bg-card/82"
                 >
-                  <div className="border-b border-vetneb-line/70 px-4 py-3">
+                  <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-3">
                     <h2
                       id="reports-list-heading"
                       className="dashboard-section-heading"
@@ -468,60 +449,177 @@ export default async function InformesPage({
                       Lista de informes
                     </h2>
                     <p className="dashboard-section-description">
-                      Click en un informe para ver detalles y acciones.
+                      Click en un informe para ver el detalle desplegado dentro del propio informe.
                     </p>
                   </div>
 
-                  <div className="divide-y divide-vetneb-line/60">
+                  <div className="dashboard-inline-scroll divide-y divide-vetneb-line/60">
                     {reports.map((report) => {
                       const isSelected = selectedReport?.id === report.id;
 
                       return (
-                        <PublicRouteControl
-                          key={report.id}
-                          id={`report-${report.id}`}
-                          href={buildInformesHref({
-                            query,
-                            status,
-                            studyType,
-                            reportId: report.id,
-                            page,
-                          })}
-                          replace
-                          prefetch={false}
-                          variant="bare"
-                          aria-current={isSelected ? "true" : undefined}
-                          aria-label={
-                            isSelected
-                              ? `Informe seleccionado: ${getReportTitle(report)}`
-                              : `Seleccionar informe: ${getReportTitle(report)}`
-                          }
-                          className={cn(
-                            "block w-full px-4 py-3 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset",
-                            isSelected && "bg-vetneb-cyan/12",
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                                Informe #{report.id}
-                              </p>
-                              <p className="mt-1 truncate text-sm font-semibold text-vetneb-ink">
-                                {report.patientName ?? "Paciente sin nombre"}
-                              </p>
-                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                {report.studyType ?? "Tipo sin registrar"} ·{" "}
-                                {formatDate(report.uploadDate)}
-                              </p>
+                        <div key={report.id} className="min-w-0">
+                          <PublicRouteControl
+                            id={`report-${report.id}`}
+                            href={buildInformesHref({
+                              query,
+                              status,
+                              studyType,
+                              reportId: report.id,
+                              page,
+                            })}
+                            replace
+                            prefetch={false}
+                            variant="bare"
+                            aria-current={isSelected ? "true" : undefined}
+                            aria-expanded={isSelected}
+                            aria-label={
+                              isSelected
+                                ? `Informe seleccionado: ${getReportTitle(report)}`
+                                : `Seleccionar informe: ${getReportTitle(report)}`
+                            }
+                            className={cn(
+                              "block w-full px-4 py-3 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset",
+                              isSelected && "bg-vetneb-cyan/12",
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                                  Informe #{report.id}
+                                </p>
+                                <p className="mt-1 truncate text-sm font-semibold text-vetneb-ink">
+                                  {report.patientName ?? "Paciente sin nombre"}
+                                </p>
+                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                  {report.studyType ?? "Tipo sin registrar"} ·{" "}
+                                  {formatDate(report.uploadDate)}
+                                </p>
+                              </div>
+                              <Badge
+                                variant={getReportStatusVariant(report.status)}
+                                className="shrink-0"
+                              >
+                                {getReportStatusLabel(report.status)}
+                              </Badge>
                             </div>
-                            <Badge
-                              variant={getReportStatusVariant(report.status)}
-                              className="shrink-0"
+                          </PublicRouteControl>
+
+                          {isSelected && selectedReport ? (
+                            <div
+                              id="report-detail"
+                              aria-labelledby="report-detail-heading"
+                              data-detail-state="selected"
+                              className="dashboard-inline-detail border-t border-vetneb-line/60 bg-vetneb-surface-muted/40"
                             >
-                              {getReportStatusLabel(report.status)}
-                            </Badge>
-                          </div>
-                        </PublicRouteControl>
+                              <div className="space-y-4 p-4">
+                                <div className="flex flex-col gap-3 border-b border-vetneb-line/70 pb-4 lg:flex-row lg:items-start lg:justify-between">
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                                      Detalle del informe
+                                    </p>
+                                    <h2
+                                      id="report-detail-heading"
+                                      className="mt-1 text-xl font-semibold text-vetneb-ink"
+                                    >
+                                      {getReportTitle(selectedReport)}
+                                    </h2>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                      Clínica{" "}
+                                      {selectedReport.clinicName ??
+                                        `#${selectedReport.clinicId}`}
+                                    </p>
+                                  </div>
+                                  <StatusBadge
+                                    status={selectedReport.status}
+                                    label={getReportStatusLabel(selectedReport.status)}
+                                  />
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                  <div className="surface-soft">
+                                    <p className="text-xs text-muted-foreground">Paciente</p>
+                                    <p className="mt-1 font-semibold text-vetneb-ink">
+                                      {selectedReport.patientName ?? "—"}
+                                    </p>
+                                  </div>
+                                  <div className="surface-soft">
+                                    <p className="text-xs text-muted-foreground">
+                                      Tipo de estudio
+                                    </p>
+                                    <p className="mt-1 font-semibold text-vetneb-ink">
+                                      {selectedReport.studyType ?? "—"}
+                                    </p>
+                                  </div>
+                                  <div className="surface-soft">
+                                    <p className="text-xs text-muted-foreground">Fecha</p>
+                                    <p className="mt-1 font-semibold text-vetneb-ink">
+                                      {formatDate(selectedReport.uploadDate)}
+                                    </p>
+                                  </div>
+                                  <div className="surface-soft">
+                                    <p className="text-xs text-muted-foreground">Creado</p>
+                                    <p className="mt-1 font-semibold text-vetneb-ink">
+                                      {formatDate(selectedReport.createdAt)}
+                                    </p>
+                                  </div>
+                                  <div className="surface-soft">
+                                    <p className="text-xs text-muted-foreground">
+                                      Actualizado
+                                    </p>
+                                    <p className="mt-1 font-semibold text-vetneb-ink">
+                                      {formatDate(selectedReport.updatedAt)}
+                                    </p>
+                                  </div>
+                                  <div className="surface-soft">
+                                    <p className="text-xs text-muted-foreground">Archivo</p>
+                                    <p className="mt-1 font-semibold text-vetneb-ink">
+                                      {selectedReport.fileName ??
+                                        (selectedReport.hasFile ? "Disponible" : "—")}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <section className="space-y-3" aria-labelledby="report-actions-heading">
+                                  <div>
+                                    <h3
+                                      id="report-actions-heading"
+                                      className="text-base font-semibold text-vetneb-ink"
+                                    >
+                                      Acciones
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                      Visualización y descarga del archivo disponible.
+                                    </p>
+                                  </div>
+                                  <ReportFileActions
+                                    reportId={selectedReport.id}
+                                    hasFile={selectedReport.hasFile}
+                                    align="start"
+                                  />
+                                </section>
+
+                                <section
+                                  className="space-y-3"
+                                  aria-labelledby="study-timeline-heading"
+                                >
+                                  <div>
+                                    <h3
+                                      id="study-timeline-heading"
+                                      className="text-base font-semibold text-vetneb-ink"
+                                    >
+                                      Línea de tiempo del estudio
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                      Pasos derivados del estado y fechas ya disponibles.
+                                    </p>
+                                  </div>
+                                  <StudyTimeline steps={selectedReportTimelineSteps} />
+                                </section>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                       );
                     })}
                   </div>
@@ -529,7 +627,7 @@ export default async function InformesPage({
                   {reportsTotalPages > 1 ? (
                     <nav
                       aria-label="Paginación de informes"
-                      className="flex items-center justify-between gap-2 border-t border-vetneb-line/70 px-4 py-3"
+                      className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/70 px-4 py-3"
                     >
                       <PublicRouteControl
                         href={buildInformesHref({
@@ -570,126 +668,6 @@ export default async function InformesPage({
                       </PublicRouteControl>
                     </nav>
                   ) : null}
-                </section>
-
-                <section
-                  id="report-detail"
-                  aria-labelledby="report-detail-heading"
-                  className="dashboard-master-panel rounded-xl border border-vetneb-line/75 bg-card/82"
-                >
-                  {selectedReport ? (
-                    <div className="space-y-4 p-4">
-                      <div className="flex flex-col gap-3 border-b border-vetneb-line/70 pb-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                            Detalle del informe
-                          </p>
-                          <h2
-                            id="report-detail-heading"
-                            className="mt-1 text-xl font-semibold text-vetneb-ink"
-                          >
-                            {getReportTitle(selectedReport)}
-                          </h2>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            Clínica{" "}
-                            {selectedReport.clinicName ??
-                              `#${selectedReport.clinicId}`}
-                          </p>
-                        </div>
-                        <StatusBadge
-                          status={selectedReport.status}
-                          label={getReportStatusLabel(selectedReport.status)}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        <div className="surface-soft">
-                          <p className="text-xs text-muted-foreground">Paciente</p>
-                          <p className="mt-1 font-semibold text-vetneb-ink">
-                            {selectedReport.patientName ?? "—"}
-                          </p>
-                        </div>
-                        <div className="surface-soft">
-                          <p className="text-xs text-muted-foreground">
-                            Tipo de estudio
-                          </p>
-                          <p className="mt-1 font-semibold text-vetneb-ink">
-                            {selectedReport.studyType ?? "—"}
-                          </p>
-                        </div>
-                        <div className="surface-soft">
-                          <p className="text-xs text-muted-foreground">Fecha</p>
-                          <p className="mt-1 font-semibold text-vetneb-ink">
-                            {formatDate(selectedReport.uploadDate)}
-                          </p>
-                        </div>
-                        <div className="surface-soft">
-                          <p className="text-xs text-muted-foreground">Creado</p>
-                          <p className="mt-1 font-semibold text-vetneb-ink">
-                            {formatDate(selectedReport.createdAt)}
-                          </p>
-                        </div>
-                        <div className="surface-soft">
-                          <p className="text-xs text-muted-foreground">
-                            Actualizado
-                          </p>
-                          <p className="mt-1 font-semibold text-vetneb-ink">
-                            {formatDate(selectedReport.updatedAt)}
-                          </p>
-                        </div>
-                        <div className="surface-soft">
-                          <p className="text-xs text-muted-foreground">Archivo</p>
-                          <p className="mt-1 font-semibold text-vetneb-ink">
-                            {selectedReport.fileName ??
-                              (selectedReport.hasFile ? "Disponible" : "—")}
-                          </p>
-                        </div>
-                      </div>
-
-                      <section className="space-y-3" aria-labelledby="report-actions-heading">
-                        <div>
-                          <h3
-                            id="report-actions-heading"
-                            className="text-base font-semibold text-vetneb-ink"
-                          >
-                            Acciones
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Visualización y descarga del archivo disponible.
-                          </p>
-                        </div>
-                        <ReportFileActions
-                          reportId={selectedReport.id}
-                          hasFile={selectedReport.hasFile}
-                          align="start"
-                        />
-                      </section>
-
-                      <section
-                        className="space-y-3"
-                        aria-labelledby="study-timeline-heading"
-                      >
-                        <div>
-                          <h3
-                            id="study-timeline-heading"
-                            className="text-base font-semibold text-vetneb-ink"
-                          >
-                            Línea de tiempo del estudio
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Pasos derivados del estado y fechas ya disponibles.
-                          </p>
-                        </div>
-                        <StudyTimeline steps={selectedReportTimelineSteps} />
-                      </section>
-                    </div>
-                  ) : (
-                    <EmptyState
-                      title="No hay informe seleccionado"
-                      description="Seleccione un informe de la lista para ver el detalle operativo."
-                      className="m-5"
-                    />
-                  )}
                 </section>
               </div>
             ) : null}

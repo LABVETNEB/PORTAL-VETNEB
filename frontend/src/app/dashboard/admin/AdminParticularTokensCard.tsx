@@ -917,8 +917,8 @@ export function AdminParticularTokensCard() {
   }
 
   return (
-    <Card className="dashboard-surface overflow-hidden">
-      <CardHeader className="border-b border-vetneb-line/70">
+    <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
+      <CardHeader className="shrink-0 border-b border-vetneb-line/70">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <CardTitle className="text-base">Generación de tokens particulares</CardTitle>
@@ -955,11 +955,11 @@ export function AdminParticularTokensCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 pt-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-4 pt-4">
         <div
           role="tablist"
           aria-label="Secciones de tokens particulares"
-          className="flex flex-wrap gap-2 rounded-xl border border-vetneb-line/75 bg-card/78 p-1"
+          className="flex shrink-0 flex-wrap gap-2 rounded-xl border border-vetneb-line/75 bg-card/78 p-1"
         >
           <Button
             type="button"
@@ -986,7 +986,7 @@ export function AdminParticularTokensCard() {
         {generatedToken ? (
           <section
             aria-labelledby="generated-token-heading"
-            className="rounded-xl border border-vetneb-cyan/45 bg-vetneb-cyan/10 p-4 shadow-[0_10px_32px_rgba(14,116,144,0.08)]"
+            className="shrink-0 rounded-xl border border-vetneb-cyan/45 bg-vetneb-cyan/10 p-4 shadow-[0_10px_32px_rgba(14,116,144,0.08)]"
           >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
@@ -1070,20 +1070,20 @@ export function AdminParticularTokensCard() {
         ) : null}
 
         {errorMessage ? (
-          <p className="clinical-alert-error px-3 py-2" role="alert">
+          <p className="clinical-alert-error shrink-0 px-3 py-2" role="alert">
             {errorMessage}
           </p>
         ) : null}
 
         {statusMessage ? (
-          <p className="clinical-alert-success px-3 py-2">{statusMessage}</p>
+          <p className="clinical-alert-success shrink-0 px-3 py-2">{statusMessage}</p>
         ) : null}
 
         {activePanel === "create" ? (
           <section
             role="tabpanel"
             aria-label="Generar token particular"
-            className="rounded-xl border border-vetneb-line/75 bg-card/82 p-4"
+            className="dashboard-inline-scroll rounded-xl border border-vetneb-line/75 bg-card/82 p-4"
           >
             <div className="mb-4">
               <h3 className="dashboard-section-heading">Nuevo token particular</h3>
@@ -1423,16 +1423,16 @@ export function AdminParticularTokensCard() {
           <section
             role="tabpanel"
             aria-label="Tokens particulares administrados"
-            className="grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-[0.82fr_1.46fr]"
+            className="flex min-h-0 flex-1 flex-col"
           >
-            <div className="rounded-xl border border-vetneb-line/75 bg-card/82">
-              <div className="flex items-center justify-between gap-3 border-b border-vetneb-line/70 px-4 py-3">
+            <div className="dashboard-master-panel dashboard-inline-list flex-1 rounded-xl border border-vetneb-line/75 bg-card/82">
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-vetneb-line/70 px-4 py-3">
                 <div>
                   <h3 className="dashboard-section-heading">
                     Últimos tokens administrados
                   </h3>
                   <p className="dashboard-section-description">
-                    Seleccionar un token abre el detalle.
+                    Seleccionar un token despliega el detalle dentro del propio token.
                   </p>
                 </div>
                 <Button
@@ -1447,29 +1447,30 @@ export function AdminParticularTokensCard() {
               </div>
 
               {trackingLoadError ? (
-                <p className="clinical-alert-warning m-3 px-3 py-2 text-sm" role="alert">
+                <p className="clinical-alert-warning m-3 shrink-0 px-3 py-2 text-sm" role="alert">
                   {trackingLoadError}
                 </p>
               ) : null}
 
               {tokens.length ? (
-                <div className="divide-y divide-vetneb-line/60">
+                <div className="dashboard-inline-scroll divide-y divide-vetneb-line/60">
                   {tokens.map((token) => {
                     const isSelected = selectedToken?.id === token.id;
                     const trackingCase = trackingCasesByTokenId[token.id];
 
                     return (
-                      <button
-                        key={token.id}
-                        type="button"
-                        onClick={() => setSelectedTokenId(token.id)}
-                        aria-pressed={isSelected}
-                        className={cn(
-                          "block w-full px-4 py-3 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset",
-                          isSelected && "bg-vetneb-cyan/12",
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3">
+                      <div key={token.id} className="min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTokenId(token.id)}
+                          aria-pressed={isSelected}
+                          aria-expanded={isSelected}
+                          className={cn(
+                            "block w-full px-4 py-3 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset",
+                            isSelected && "bg-vetneb-cyan/12",
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold text-vetneb-ink">
                               {formatTokenTitle(clinicOptions, token)}
@@ -1493,21 +1494,13 @@ export function AdminParticularTokensCard() {
                             </Badge>
                           </div>
                         </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="surface-empty m-4">
-                  {isLoadingTokens
-                    ? "Cargando tokens particulares..."
-                    : "No hay tokens particulares administrados."}
-                </p>
-              )}
-            </div>
+                        </button>
 
-            <div className="rounded-xl border border-vetneb-line/75 bg-card/82">
-              {selectedToken ? (
+                        {isSelected && selectedToken ? (
+                          <div
+                            data-detail-state="selected"
+                            className="dashboard-inline-detail border-t border-vetneb-line/60 bg-vetneb-surface-muted/40"
+                          >
                 <div className="space-y-4 p-4">
                   <div className="flex flex-col gap-3 border-b border-vetneb-line/70 pb-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
@@ -1767,9 +1760,17 @@ export function AdminParticularTokensCard() {
                     </Button>
                   </div>
                 </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
                 <p className="surface-empty m-4">
-                  Seleccione un token para abrir el detalle.
+                  {isLoadingTokens
+                    ? "Cargando tokens particulares..."
+                    : "No hay tokens particulares administrados."}
                 </p>
               )}
             </div>

@@ -201,11 +201,14 @@ test.describe("Informes — accessible profile-layout actions", () => {
     }
   });
 
-  test("reports list and detail are visible", async ({ page }) => {
+  test("reports list renders with inline detail contract", async ({ page }) => {
     await expect(page.locator("#reports-master-list")).toBeVisible({
       timeout: 4_000,
     });
-    await expect(page.locator("#report-detail")).toBeVisible();
+    // Inline master-detail: the detail expands inside the selected report row,
+    // so there is no persistent lateral detail panel. With the e2e empty-API
+    // frame there is no selected report, hence no #report-detail node.
+    await expect(page.locator("#report-detail")).toHaveCount(0);
   });
 });
 
@@ -217,10 +220,12 @@ test.describe("ReportFileActions — aria-busy (PR-8)", () => {
   }) => {
     await setClinicSession(page);
     await page.goto("/dashboard/informes");
-    await expect(page.locator("#report-detail")).toBeVisible({
+    await expect(page.locator("#reports-master-list")).toBeVisible({
       timeout: 8_000,
     });
 
+    // Action buttons live inside the selected report's inline detail; under the
+    // empty-API frame there is no selection, so the assertions stay conditional.
     const actionButtons = page.locator(
       'button[aria-label="Ver informe"], button[aria-label="Archivo no disponible."], button[aria-label="Descargar informe"]',
     );

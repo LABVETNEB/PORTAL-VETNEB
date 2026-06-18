@@ -22,13 +22,18 @@ test.describe("dashboard reports profile-layout state polish — smoke", () => {
     await expect(page.getByText("Lista de informes")).toBeVisible();
   });
 
-  test("informes: selected report detail panel renders", async ({ page }) => {
+  test("informes: detail is inline, not a standalone lateral panel", async ({
+    page,
+  }) => {
     await setClinicSession(page);
     await page.goto("/dashboard/informes");
-    await expect(page.locator("#report-detail")).toBeVisible({
+    await expect(page.locator("#reports-master-list")).toBeVisible({
       timeout: 8_000,
     });
-    await expect(page.getByText("Detalle del informe")).toBeVisible();
+    // Inline master-detail: the detail expands inside the selected list item, so
+    // there is no persistent lateral detail panel. With the e2e empty-API frame
+    // there is no selected report, hence no #report-detail node is rendered.
+    await expect(page.locator("#report-detail")).toHaveCount(0);
   });
 
   test("informes: compact filter search region visible", async ({ page }) => {

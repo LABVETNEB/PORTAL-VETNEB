@@ -79,8 +79,8 @@ export function AdminAuditLogTable({
           </div>
         ) : null}
 
-        <div className="dashboard-fitted-table px-6">
-          <Table>
+        <div className="dashboard-fitted-table px-3 sm:px-6">
+          <Table className="[&_td]:py-2 [&_th]:h-9">
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
@@ -112,19 +112,19 @@ export function AdminAuditLogTable({
                     <TableCell>
                       <Badge variant={entry.eventVariant}>{entry.eventLabel}</Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-vetneb-ink/88">
+                    <TableCell className="whitespace-normal wrap-break-word text-sm text-vetneb-ink/88">
                       {entry.actor}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="whitespace-normal wrap-break-word text-sm text-muted-foreground">
                       {entry.actorTypeLabel}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="whitespace-normal wrap-break-word text-sm text-muted-foreground">
                       {entry.target}
                     </TableCell>
                     <TableCell className="max-w-md whitespace-normal wrap-break-word text-xs text-muted-foreground">
                       {entry.detail}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="whitespace-normal text-xs text-muted-foreground">
                       {entry.date}
                     </TableCell>
                   </TableRow>
@@ -142,7 +142,7 @@ export function AdminAuditLogTable({
           </Table>
         </div>
 
-        <div className="px-6 pb-4">
+        <div className="shrink-0 px-3 pb-4 sm:px-6">
           <CompactPager
             page={paged.page}
             pageCount={paged.pageCount}

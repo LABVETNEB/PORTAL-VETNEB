@@ -72,9 +72,9 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
     await expect(
       page.getByRole("region", { name: "Lista de informes" }),
     ).toBeVisible({ timeout: 8_000 });
-    await expect(
-      page.getByRole("region", { name: "Detalle del informe" }),
-    ).toBeVisible({ timeout: 8_000 });
+    // Inline master-detail: the detail expands inside the selected report row,
+    // so there is no standalone "Detalle del informe" region without a selection.
+    await expect(page.locator("#report-detail")).toHaveCount(0);
   });
 
   test("workspace Volver button keeps dashboard-btn-interactive (PR-1 contract preserved)", async ({

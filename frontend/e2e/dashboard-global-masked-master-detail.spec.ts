@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Global masked Master-Detail / no-scroll contract for BOTH dashboards.
+// Global inline/masked Master-Detail / no-scroll contract for BOTH dashboards.
 //
 // Governing audit: docs/audit/dashboard-masked-master-detail-no-scroll-audit.md
 // Governing contract: docs/implementation/dashboard-internal-no-scroll-contract.md
@@ -40,7 +40,7 @@ type ModuleCase = {
 
 const MODULES: ModuleCase[] = [
   {
-    label: "clinic Tokens particulares (master-detail + dialog alta)",
+    label: "clinic Tokens particulares (inline detail + dialog alta)",
     surface: "clinic",
     path: "/dashboard?module=tokens",
     moduleId: "tokens",
@@ -352,7 +352,7 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
-test("clinic Tokens desktop limits the master list and selects detail without scroll", async ({
+test("clinic Tokens desktop limits the list and expands detail inline without shell scroll", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
@@ -367,6 +367,11 @@ test("clinic Tokens desktop limits the master list and selects detail without sc
   await expect(page.getByText(/1.4 de 6 tokens/)).toBeVisible();
 
   await page.locator("#clinic-particular-token-2").click();
+  await expect(page.locator("#clinic-particular-token-2")).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  await expect(page.locator('[data-detail-state="selected"]')).toHaveCount(1);
   await expect(page.getByRole("heading", { name: "Paciente 2 · Tutor 2" })).toBeVisible();
   await expect(page.getByText("Alerta: Solicitud de tinción especial")).toBeVisible();
 
@@ -374,7 +379,7 @@ test("clinic Tokens desktop limits the master list and selects detail without sc
   assertNoInternalScroll(metrics, "desktop clinic Tokens selected detail");
 });
 
-test("clinic Tokens mobile replaces list with detail and internal back returns", async ({
+test("clinic Tokens mobile keeps the list and expands the selected detail inline", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -388,13 +393,14 @@ test("clinic Tokens mobile replaces list with detail and internal back returns",
   await expect(page.locator("#clinic-particular-token-1")).toBeVisible();
 
   await page.locator("#clinic-particular-token-2").click();
-  await expect(page.locator("#clinic-particular-token-1")).toBeHidden();
+  await expect(page.locator("#clinic-particular-token-1")).toBeVisible();
+  await expect(page.locator("#clinic-particular-token-2")).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  await expect(page.locator('[data-detail-state="selected"]')).toHaveCount(1);
   await expect(page.getByRole("heading", { name: "Paciente 2 · Tutor 2" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Volver a la lista" }).click();
-  await expect(page.locator("#clinic-particular-token-1")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Paciente 2 · Tutor 2" })).toBeHidden();
-
   const metrics = await readScrollContract(page);
-  assertNoInternalScroll(metrics, "mobile clinic Tokens detail back");
+  assertNoInternalScroll(metrics, "mobile clinic Tokens inline detail");
 });
