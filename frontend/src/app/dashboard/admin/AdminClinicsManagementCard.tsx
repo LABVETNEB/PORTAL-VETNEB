@@ -47,10 +47,12 @@ const ClinicEditDrawer = dynamic(
   { ssr: false },
 );
 
-// Single-viewport App Shell: a full page of clinics must fit the desktop
-// viewport (1366×768) without scroll, so the server page size is bounded to the
-// compact table height and clinic creation moves into a dialog.
-const PAGE_SIZE = 5;
+// Enterprise density without breaking the App Shell no-scroll contract: denser
+// rows/header let a full page fit the 1366×768 minimum viewport, so the server
+// page size is raised from 5 to a conservative value that leaves one dense-row
+// margin in the 1366×768 viewport without internal scroll. True 25/50/100 needs
+// the no-scroll contract relaxation (audit §3) and is deferred.
+const PAGE_SIZE = 9;
 
 type CreateClinicForm = {
   clinicName: string;
@@ -235,26 +237,40 @@ export function AdminClinicsManagementCard() {
 
   return (
     <Card id="admin-clinics" className="dashboard-surface flex min-h-0 flex-1 flex-col">
-      <CardHeader className="shrink-0 flex flex-col gap-2 border-b border-vetneb-line/70 py-3 lg:flex-row lg:items-center lg:justify-between">
-        <CardTitle className="text-base">Clínicas</CardTitle>
+      <CardHeader className="shrink-0 flex flex-col gap-2 border-b border-vetneb-line/70 px-4 py-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <CardTitle className="text-[0.95rem] leading-tight">Clínicas</CardTitle>
+          <p className="text-[0.72rem] text-muted-foreground">
+            Administración de clínicas registradas · alto volumen.
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
+            size="sm"
+            className="h-8"
             onClick={() => setIsCreateOpen(true)}
             disabled={isBusy}
           >
             <Plus aria-hidden="true" />
             Nueva clínica
           </Button>
-          <Button type="button" onClick={() => loadClinics()} disabled={isBusy} aria-busy={isPending ? true : undefined}>
+          <Button
+            type="button"
+            size="sm"
+            className="h-8"
+            onClick={() => loadClinics()}
+            disabled={isBusy}
+            aria-busy={isPending ? true : undefined}
+          >
             {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
             {isPending ? "Actualizando..." : "Actualizar"}
           </Button>
         </div>
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4 pt-3">
         <ModuleDialog
           open={isCreateOpen}
           onOpenChange={setIsCreateOpen}
@@ -378,14 +394,14 @@ export function AdminClinicsManagementCard() {
           </div>
           {totalClinics > 0 ? (
             <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-              <span>
+              <span className="tabular-nums">
                 {pageStart}–{pageEnd} de {totalClinics}
               </span>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-9 w-9 p-0 sm:h-7 sm:w-7"
+                className="h-8 w-8 p-0"
                 onClick={() => loadClinics(currentOffset - PAGE_SIZE)}
                 disabled={isBusy || !hasPrev}
                 aria-label="Página anterior"
@@ -396,7 +412,7 @@ export function AdminClinicsManagementCard() {
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-9 w-9 p-0 sm:h-7 sm:w-7"
+                className="h-8 w-8 p-0"
                 onClick={() => loadClinics(currentOffset + PAGE_SIZE)}
                 disabled={isBusy || !hasNext}
                 aria-label="Página siguiente"
@@ -408,7 +424,7 @@ export function AdminClinicsManagementCard() {
         </div>
 
         <div className="dashboard-table-responsive">
-          <Table>
+          <Table className="text-[0.8125rem] [&_th]:h-9 [&_th]:px-3 [&_td]:px-3">
             <TableHeader>
               <TableRow>
                 <TableHead>Clínica</TableHead>
@@ -424,9 +440,9 @@ export function AdminClinicsManagementCard() {
                   <TableRow
                     key={`${clinic.clinicId}-${user?.userId ?? "empty"}`}
                   >
-                    <TableCell className="py-1.5">
+                    <TableCell className="py-1">
                       <span className="flex items-center gap-1.5">
-                        <span className="max-w-[13rem] truncate text-sm font-medium">
+                        <span className="max-w-[13rem] truncate font-medium">
                           {clinic.clinicName}
                         </span>
                         <span className="shrink-0 font-mono text-[0.62rem] text-muted-foreground">
@@ -435,13 +451,13 @@ export function AdminClinicsManagementCard() {
                       </span>
                     </TableCell>
 
-                    <TableCell className="py-1.5 text-sm">
+                    <TableCell className="py-1">
                       <span className="block max-w-[14rem] truncate">
                         {clinic.contactEmail ?? "—"}
                       </span>
                     </TableCell>
 
-                    <TableCell className="py-1.5 text-sm">
+                    <TableCell className="py-1">
                       {user ? (
                         <span className="inline-flex max-w-[12rem] items-center gap-1">
                           <span className="truncate">{user.username}</span>
@@ -452,20 +468,20 @@ export function AdminClinicsManagementCard() {
                           ) : null}
                         </span>
                       ) : (
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-muted-foreground">
                           Sin usuario
                         </span>
                       )}
                     </TableCell>
 
                     <TableCell
-                      className="whitespace-nowrap py-1.5 text-[0.66rem] text-muted-foreground"
+                      className="whitespace-nowrap py-1 text-xs text-muted-foreground"
                       title={`Creada: ${formatDateTime(clinic.createdAt)} · Actualizada: ${formatDateTime(clinic.updatedAt)}`}
                     >
                       {formatDateTime(clinic.updatedAt)}
                     </TableCell>
 
-                    <TableCell className="py-1.5 text-right">
+                    <TableCell className="py-1 text-right">
                       <Button
                         type="button"
                         variant="outline"
@@ -473,7 +489,7 @@ export function AdminClinicsManagementCard() {
                         disabled={isBusy || editingClinic !== null}
                         onClick={() => setEditingClinic(clinic)}
                         aria-label={`Editar clínica ${clinic.clinicName}`}
-                        className="min-h-[2.75rem]"
+                        className="h-8"
                       >
                         <Pencil aria-hidden="true" />
                         Editar

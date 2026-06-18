@@ -72,7 +72,7 @@ test("StickyActionBar keeps reusable fixed and sticky action contracts", () => {
   assert.equal(source.includes("fetch("), false);
 });
 
-test("AdminCommandCenter keeps real KPI summary and alert shortcuts", () => {
+test("AdminCommandCenter keeps a compact KPI summary and module access", () => {
   const source = read(ADMIN_COMMAND_CENTER_PATH);
 
   assert.ok(source.includes("type AdminCommandCenterProps = {"));
@@ -80,6 +80,7 @@ test("AdminCommandCenter keeps real KPI summary and alert shortcuts", () => {
   assert.ok(source.includes("eventTypesCount: number;"));
   assert.ok(source.includes("systemStatusLabel: string;"));
   assert.ok(source.includes("hasSystemHealthFetchError: boolean;"));
+  assert.ok(source.includes("recentActivity: RecentAdminActivity | null;"));
   assert.ok(source.includes('aria-labelledby="admin-command-center-heading"'));
   assert.ok(source.includes("Resumen operativo"));
   assert.ok(source.includes("Eventos de auditoría"));
@@ -88,11 +89,34 @@ test("AdminCommandCenter keeps real KPI summary and alert shortcuts", () => {
   assert.ok(source.includes("Registros totales"));
   assert.ok(source.includes("Categorías distintas"));
   assert.ok(source.includes("No se pudo consultar el estado del sistema."));
-  assert.ok(source.includes("Alertas"));
-  assert.ok(source.includes("Intentos fallidos de login"));
-  assert.ok(source.includes("Consultar salud, esquema y mantenimiento agrupados."));
+  assert.ok(source.includes("Atención requerida"));
+  assert.ok(source.includes("Actividad reciente"));
+  assert.ok(source.includes("Alertas y estados"));
+  assert.ok(source.includes("<AdminOverviewQuickLinks"));
   assert.ok(source.includes('className="surface-soft"'));
+
+  // Enterprise density: no oversized KPI typography in the overview module.
+  assert.equal(source.includes("text-2xl"), false);
+  assert.equal(source.includes("text-3xl"), false);
   assert.equal(source.includes("<a"), false);
+  assert.equal(source.includes("fetch("), false);
+});
+
+test("AdminOverviewQuickLinks preserves admin ?module= navigation", () => {
+  const source = read(
+    "frontend/src/app/dashboard/admin/AdminOverviewQuickLinks.tsx",
+  );
+
+  assert.ok(source.includes('"use client";'));
+  assert.ok(
+    source.includes(
+      'import { PublicRouteControl } from "@/components/public/PublicRouteControl";',
+    ),
+  );
+  assert.ok(source.includes("`${ROUTES.dashboardAdmin}?module=${link.module}`"));
+  assert.ok(source.includes('module: "admin-clinics"'));
+  assert.ok(source.includes('module: "admin-report-upload"'));
+  assert.ok(source.includes('aria-label="Módulos operativos"'));
   assert.equal(source.includes("fetch("), false);
 });
 
@@ -104,6 +128,7 @@ test("dashboard admin composes module hub, command center, and existing cards", 
   // PR5B: DashboardModuleHub and adminCards are inside AdminDashboardWorkspaceController.
   assert.ok(source.includes("<AdminDashboardWorkspaceController"));
   assert.ok(source.includes("<AdminCommandCenter"));
+  assert.ok(source.includes("recentActivity={recentAdminActivity}"));
   assert.ok(controllerSource.includes("const adminCards = ["));
   assert.ok(controllerSource.includes('title: "Subir informe"'));
   assert.ok(controllerSource.includes('"admin-report-upload"'));

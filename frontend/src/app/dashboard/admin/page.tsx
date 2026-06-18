@@ -397,6 +397,16 @@ export default async function AdminPage({
     detail: getAuditMetadataSummary(entry),
     date: formatDateTime(entry.createdAt),
   }));
+  const latestAuditEntry = auditEntries[0];
+  const recentAdminActivity = latestAuditEntry
+    ? {
+        event: EVENT_LABELS[latestAuditEntry.event] ?? latestAuditEntry.event,
+        actor: `${ACTOR_LABELS[latestAuditEntry.actorType] ?? latestAuditEntry.actorType}${
+          latestAuditEntry.actorId ? ` #${latestAuditEntry.actorId}` : ""
+        }`,
+        date: formatDateTime(latestAuditEntry.createdAt),
+      }
+    : null;
 
   // ── Administración workspace: command center + critical alerts ──────────────
   // Single-viewport App Shell: split the resumen command center and the critical
@@ -422,6 +432,7 @@ export default async function AdminPage({
                 systemStatusIndicatorClass={getSystemStatusIndicatorClass(systemStatus)}
                 systemStatusDetail={formatSystemStatusDetail(serviceChecks)}
                 hasSystemHealthFetchError={hasSystemHealthFetchError}
+                recentActivity={recentAdminActivity}
               />
             </div>
           ),
