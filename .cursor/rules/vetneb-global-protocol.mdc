@@ -1,0 +1,117 @@
+---
+description: Protocolo global obligatorio VETNEB para todo trabajo de Cursor Agent.
+alwaysApply: true
+---
+
+# Protocolo global VETNEB
+
+Estas reglas aplican a todo el repositorio VETNEB, no solo a un PR específico.
+
+## Identidad operativa
+
+El usuario es Nico.
+Nivel esperado: Senior Web Developer.
+Entorno: Windows.
+Terminal obligatoria: Windows PowerShell.
+Gestor obligatorio: PNPM.
+Trabajo obligatorio: todo por terminal.
+Las respuestas deben ser específicas, no genéricas.
+Cuando se proporcione código, debe ser código completo, no fragmentos aislados.
+Indicar siempre Terminal 1 / Terminal 2 cuando se propongan comandos.
+
+## Principio de scope
+
+Limitar cualquier trabajo al scope indicado por Nico.
+
+No modificar archivos fuera del scope.
+No mezclar tareas.
+No mezclar Dependabot.
+No aprovechar un PR para hacer refactors no solicitados.
+No cambiar diseño, arquitectura, backend, DB, dependencias o flujos globales salvo autorización explícita de Nico.
+
+Si una mejora requiere tocar algo fuera del scope:
+1. detenerse,
+2. explicar necesidad,
+3. listar archivos afectados,
+4. esperar aprobación.
+
+## Antes de tocar código
+
+Siempre ejecutar o proponer estos pasos antes de modificar archivos:
+
+1. Asegurar base limpia.
+2. Inspeccionar paridad local.
+3. Buscar referencias legacy relacionadas con el scope.
+4. Confirmar tests nativos existentes.
+5. Identificar archivos reales del módulo.
+6. Identificar riesgos.
+7. Proponer plan mínimo.
+8. Confirmar validaciones.
+
+No implementar hasta completar la auditoría previa.
+
+## Flujo de PR
+
+Toda implementación debe realizarse en rama dedicada.
+
+Pasos esperados:
+
+1. Crear rama desde main limpio.
+2. Aplicar cambio mínimo.
+3. Revisar diff y estado.
+4. Validar.
+5. Crear archivo markdown de entrega.
+6. Dejar el trabajo listo para que Nico haga stage, commit, push y PR manualmente, salvo que Nico indique explícitamente otra cosa.
+
+## Formato de trabajo
+
+Usar comentarios mínimos.
+Evitar explicaciones largas dentro del código.
+No generar cambios cosméticos sin valor operativo.
+No reordenar imports o archivos masivamente si no es necesario.
+No cambiar formato global del proyecto.
+
+## Validación obligatoria
+
+Cuando haya implementación, ejecutar o solicitar ejecución de:
+
+- pnpm test
+- pnpm build
+- pnpm security:public-surface
+- pnpm --dir frontend lint
+- pnpm --dir frontend typecheck
+- pnpm --dir frontend build
+
+Si algún script no existe, reportarlo y usar el equivalente real disponible.
+No inventar scripts.
+
+## Entrega markdown obligatoria
+
+Toda implementación debe entregar un archivo markdown en docs/implementation, docs/audit o IMPLEMENTATION_NOTES según el patrón existente.
+
+Debe incluir:
+
+- estado base,
+- scope incluido,
+- scope excluido,
+- auditoría previa,
+- archivos modificados,
+- implementación,
+- validaciones ejecutadas,
+- resultado,
+- riesgo residual,
+- estado final.
+
+## Estándares de calidad
+
+Alinear el trabajo con:
+
+- ISO/IEC 25000 SQuaRE,
+- ISO/IEC 25010,
+- ISO 9001,
+- ISO/IEC 5055,
+- ISO/IEC 15504 SPICE,
+- ISO 27001,
+- ISO/IEC 14598.
+
+Aplicar toda implementación en todos los formatos relevantes: desktop, tablet y móvil.

@@ -1,0 +1,80 @@
+---
+description: Calidad, validación, ISO y criterios de entrega para VETNEB.
+alwaysApply: true
+---
+
+# Calidad e ISO VETNEB
+
+Todo cambio debe orientarse a calidad productiva real.
+
+## Criterios generales
+
+- Correctitud funcional.
+- Seguridad.
+- Mantenibilidad.
+- Performance razonable.
+- Accesibilidad cuando aplique.
+- Responsive completo.
+- Observabilidad segura.
+- Bajo riesgo.
+- Cambio mínimo suficiente.
+- Sin sobreingeniería.
+- Sin mocks silenciosos en producción.
+- Sin fallbacks falsos que oculten errores reales.
+
+## Normas de referencia
+
+Alinear decisiones con:
+
+- ISO/IEC 25000 SQuaRE.
+- ISO/IEC 25010.
+- ISO 9001.
+- ISO/IEC 5055.
+- ISO/IEC 15504 SPICE.
+- ISO 27001.
+- ISO/IEC 14598.
+
+## Tests
+
+Antes de modificar, identificar tests nativos existentes relacionados.
+
+Después de modificar, ejecutar los tests adecuados al scope y, salvo excepción justificada, la suite estándar:
+
+- pnpm test
+- pnpm build
+- pnpm security:public-surface
+- pnpm --dir frontend lint
+- pnpm --dir frontend typecheck
+- pnpm --dir frontend build
+
+## No simular éxito
+
+No marcar validaciones como verdes si no fueron ejecutadas.
+No decir "debería pasar" como si fuera resultado.
+Distinguir claramente:
+
+- ejecutado y pasó,
+- ejecutado y falló,
+- no ejecutado,
+- script no disponible.
+
+## Markdown de implementación
+
+Toda implementación debe crear documentación markdown con evidencia mínima:
+
+- comandos,
+- resultados,
+- archivos modificados,
+- contrato preservado,
+- riesgo residual.
+
+## Diff
+
+Antes de finalizar, siempre revisar:
+
+- git status --short
+- git diff --stat
+- git diff --check
+- git diff --name-only
+
+No dejar cambios accidentales.

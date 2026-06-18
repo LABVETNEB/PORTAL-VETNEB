@@ -1,0 +1,56 @@
+---
+description: Contrato frontend responsive y UX productiva para todo VETNEB.
+alwaysApply: true
+---
+
+# Frontend responsive VETNEB
+
+Toda implementación frontend debe aplicarse en todos los formatos relevantes:
+
+- desktop,
+- laptop,
+- tablet,
+- móvil.
+
+## Desktop
+
+Cuando el scope involucre dashboard o software administrativo:
+
+- evitar scroll externo innecesario,
+- evitar scroll interno salvo contrato explícito,
+- priorizar layout operativo,
+- mantener acciones visibles,
+- evitar páginas largas para tareas administrativas.
+
+## Tablet
+
+- Evitar overflow horizontal.
+- Mantener acciones críticas accesibles.
+- Mantener jerarquía clara.
+- Preservar legibilidad.
+
+## Mobile
+
+- Sin overflow horizontal.
+- Botones táctiles usables.
+- Estados empty/loading/error visibles.
+- Formularios legibles.
+- Scroll vertical permitido si el viewport lo exige, pero sin romper layout.
+
+## Accesibilidad
+
+Preservar:
+
+- foco visible,
+- navegación por teclado cuando aplique,
+- labels y aria cuando aplique,
+- contraste razonable,
+- orden semántico.
+
+## Diseño
+
+No degradar identidad visual VETNEB.
+No copiar estilos externos literalmente.
+No introducir texto innecesario.
+No cambiar contenido institucional sin instrucción explícita.
+No sacrificar operación por decoración.
