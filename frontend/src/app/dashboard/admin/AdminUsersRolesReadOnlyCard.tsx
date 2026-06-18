@@ -4,12 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -18,10 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  changeAdminClinicUserRole,
-  getAdminUsersRoles,
-} from "@/lib/api";
+import { changeAdminClinicUserRole, getAdminUsersRoles } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 import type {
   AdminRoleUserRole,
@@ -31,7 +23,9 @@ import type {
   ClinicUserRole,
 } from "@/types";
 
-const PAGE_SIZE = 5;
+// Nine compact rows are the viewport-safe contract established for the admin
+// modules while dashboard-main intentionally remains non-scrollable.
+const PAGE_SIZE = 9;
 
 function formatUserType(value: AdminRoleUserType) {
   return value === "admin" ? "Admin" : "Clínica";
@@ -61,6 +55,17 @@ function formatClinic(user: AdminRoleUserSummary) {
   if (user.userType === "admin") return "—";
 
   return user.clinicName ? `${user.clinicName} #${user.clinicId}` : `#${user.clinicId}`;
+}
+
+function getClinicMetadata(user: AdminRoleUserSummary) {
+  if (user.userType === "admin") return null;
+
+  return [
+    `Clínica #${user.clinicId}`,
+    user.clinicLocality?.trim() || null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function getNextClinicRole(role: ClinicUserRole): ClinicUserRole {
@@ -94,6 +99,36 @@ function formatRoleChangeError(error: unknown) {
   }
 
   return message;
+}
+
+type RoleBadgeProps = {
+  role: AdminRoleUserRole;
+};
+
+function AdminRoleBadge({ role }: RoleBadgeProps) {
+  return (
+    <Badge
+      variant={getRoleVariant(role)}
+      className="h-5 max-w-full truncate px-1.5 text-[11px] font-medium"
+    >
+      {formatRole(role)}
+    </Badge>
+  );
+}
+
+type UserTypeBadgeProps = {
+  userType: AdminRoleUserType;
+};
+
+function AdminUserTypeBadge({ userType }: UserTypeBadgeProps) {
+  return (
+    <Badge
+      variant={getUserTypeVariant(userType)}
+      className="h-5 px-1.5 text-[11px] font-medium"
+    >
+      {formatUserType(userType)}
+    </Badge>
+  );
 }
 
 export function AdminUsersRolesReadOnlyCard() {
@@ -154,7 +189,7 @@ export function AdminUsersRolesReadOnlyCard() {
 
     const nextRole = getNextClinicRole(user.role);
     const confirmed = window.confirm(
-      `¿Cambiar el rol de ${user.username} de ${formatRole(user.role)} a ${formatRole(nextRole)}?`,
+      `¿Cambiar el rol de ${user.username} de ${formatRole(user.role)} a ${formatRole(nextRole)}? El cambio quedará registrado en auditoría.`,
     );
 
     if (!confirmed) {
@@ -202,20 +237,42 @@ export function AdminUsersRolesReadOnlyCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
+  const users = snapshot?.users ?? [];
   const hasPreviousPage = offset > 0;
   const hasNextPage = snapshot
     ? offset + snapshot.users.length < snapshot.total
     : false;
+  const page = Math.floor(offset / PAGE_SIZE) + 1;
+  const pageCount = snapshot ? Math.max(1, Math.ceil(snapshot.total / PAGE_SIZE)) : 1;
+  const rangeStart = users.length ? offset + 1 : 0;
+  const rangeEnd = offset + users.length;
 
   return (
-    <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
-      <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-start lg:justify-between">
-        <div>
+    <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none">
+      <CardHeader className="flex min-h-12 shrink-0 flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-3 py-2 sm:px-4">
+        <div className="min-w-0">
           <CardTitle className="text-base">Usuarios y roles</CardTitle>
+          <p
+            className={`line-clamp-2 text-xs sm:truncate ${
+              error
+                ? "text-destructive"
+                : roleChangeMessage
+                  ? "text-vetneb-teal"
+                  : "text-muted-foreground"
+            }`}
+            role={error ? "alert" : roleChangeMessage ? "status" : undefined}
+            title={error ?? roleChangeMessage ?? undefined}
+          >
+            {error ??
+              roleChangeMessage ??
+              "Permisos administrativos y de clínica con cambios auditados."}
+          </p>
         </div>
-
         <Button
           type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 shrink-0 px-2.5 text-xs"
           onClick={loadUsersRoles}
           disabled={isPending || isMutatingRole}
           aria-busy={isPending ? true : undefined}
@@ -225,33 +282,42 @@ export function AdminUsersRolesReadOnlyCard() {
         </Button>
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
-        <div className="dashboard-filter-stats-grid-5">
-          <div className="surface-soft">
-            <p className="text-xs text-muted-foreground">Total filtrado</p>
-            <p className="mt-1 text-2xl font-bold text-vetneb-ink">
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+        <div className="grid min-h-11 shrink-0 grid-cols-3 border-b border-vetneb-line/70">
+          <div className="flex items-center justify-between gap-2 px-3 py-1 sm:px-4">
+            <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
+              Total filtrado
+            </span>
+            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink">
               {snapshot?.total ?? "—"}
-            </p>
+            </strong>
           </div>
-
-          <div className="surface-soft">
-            <p className="text-xs text-muted-foreground">Admins</p>
-            <p className="mt-1 text-2xl font-bold text-vetneb-ink">
+          <div className="flex items-center justify-between gap-2 border-x border-vetneb-line/70 px-3 py-1 sm:px-4">
+            <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
+              Admins
+            </span>
+            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink">
               {snapshot?.totals.adminUsers ?? "—"}
-            </p>
+            </strong>
           </div>
-
-          <div className="surface-soft">
-            <p className="text-xs text-muted-foreground">Clínicas</p>
-            <p className="mt-1 text-2xl font-bold text-vetneb-ink">
+          <div className="flex items-center justify-between gap-2 px-3 py-1 sm:px-4">
+            <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
+              Clínicas
+            </span>
+            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink">
               {snapshot?.totals.clinicUsers ?? "—"}
-            </p>
+            </strong>
           </div>
+        </div>
 
-          <label className="surface-soft">
-            <span className="text-xs text-muted-foreground">Tipo usuario</span>
+        <div
+          className="flex min-h-12 shrink-0 items-end gap-2 border-b border-vetneb-line/70 bg-muted/15 px-3 py-2 sm:px-4"
+          aria-label="Filtros de usuarios y roles"
+        >
+          <label className="grid min-w-0 flex-1 gap-1 text-[11px] font-medium text-muted-foreground sm:max-w-48">
+            Tipo usuario
             <select
-              className="field-select mt-2"
+              className="field-select h-8 text-xs"
               value={userType}
               disabled={disableUserActions}
               onChange={(event) => {
@@ -266,10 +332,10 @@ export function AdminUsersRolesReadOnlyCard() {
             </select>
           </label>
 
-          <label className="surface-soft">
-            <span className="text-xs text-muted-foreground">Rol</span>
+          <label className="grid min-w-0 flex-1 gap-1 text-[11px] font-medium text-muted-foreground sm:max-w-48">
+            Rol
             <select
-              className="field-select mt-2"
+              className="field-select h-8 text-xs"
               value={role}
               disabled={disableUserActions}
               onChange={(event) => {
@@ -284,127 +350,165 @@ export function AdminUsersRolesReadOnlyCard() {
               <option value="clinic_staff">Staff clínica</option>
             </select>
           </label>
+
+          <span className="ml-auto hidden pb-2 text-[11px] text-muted-foreground md:inline">
+            {PAGE_SIZE} por página
+          </span>
         </div>
 
-        {error ? (
-          <div className="clinical-alert-error">
-            {error}
-          </div>
-        ) : null}
+        <div className="min-h-0 flex-1 py-2">
+          {users.length ? (
+            <>
+              <div className="dashboard-table-responsive dashboard-fitted-table hidden px-3 md:block sm:px-4">
+                <Table
+                  className="table-fixed text-[13px] [&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold"
+                  aria-label="Tabla de usuarios y roles administrativos"
+                >
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[18%]">Usuario</TableHead>
+                      <TableHead className="w-[10%]">Tipo</TableHead>
+                      <TableHead className="w-[14%]">Rol</TableHead>
+                      <TableHead>Clínica</TableHead>
+                      <TableHead className="hidden w-[9.5rem] xl:table-cell">Creado</TableHead>
+                      <TableHead className="w-[9.5rem]">Actualizado</TableHead>
+                      <TableHead className="w-[8.5rem] text-right">Acción</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => {
+                      const userKey = getUserKey(user);
+                      const isChanging = changingUserKey === userKey;
+                      const wasChanged = changedUserKey === userKey;
 
-        {roleChangeMessage ? (
-          <div className="clinical-alert-success">
-            {roleChangeMessage}
-          </div>
-        ) : null}
+                      return (
+                        <TableRow
+                          key={userKey}
+                          className={wasChanged ? "bg-vetneb-teal/10" : undefined}
+                        >
+                          <TableCell>
+                            <p className="truncate font-semibold text-vetneb-ink/90">
+                              {user.username}
+                            </p>
+                            <p className="truncate font-mono text-[11px] text-muted-foreground">
+                              ID {user.userId}{wasChanged ? " · Actualizado" : ""}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <AdminUserTypeBadge userType={user.userType} />
+                          </TableCell>
+                          <TableCell>
+                            <AdminRoleBadge role={user.role} />
+                          </TableCell>
+                          <TableCell>
+                            <p className="truncate text-xs text-vetneb-ink/85">
+                              {user.userType === "clinic"
+                                ? user.clinicName || `Clínica #${user.clinicId}`
+                                : "Administración VETNEB"}
+                            </p>
+                            {getClinicMetadata(user) ? (
+                              <p className="truncate text-[11px] text-muted-foreground">
+                                {getClinicMetadata(user)}
+                              </p>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="hidden truncate text-xs text-muted-foreground xl:table-cell">
+                            {formatDateTime(user.createdAt)}
+                          </TableCell>
+                          <TableCell className="truncate text-xs text-muted-foreground">
+                            {formatDateTime(user.updatedAt)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {user.userType === "clinic" ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                disabled={disableUserActions}
+                                aria-busy={isChanging ? true : undefined}
+                                onClick={() => void handleChangeClinicRole(user)}
+                              >
+                                {isChanging ? "Cambiando..." : "Cambiar rol"}
+                              </Button>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground">
+                                No editable
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
 
-        <div className="dashboard-table-responsive min-h-0 flex-1">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Usuario</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Clínica</TableHead>
-                <TableHead>Creado</TableHead>
-                <TableHead>Actualizado</TableHead>
-                <TableHead className="text-right">Acción</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {snapshot?.users.length ? (
-                snapshot.users.map((user) => {
+              <div className="divide-y divide-vetneb-line/70 border-y border-vetneb-line/70 md:hidden">
+                {users.map((user) => {
                   const userKey = getUserKey(user);
                   const isChanging = changingUserKey === userKey;
-                  const wasChanged = changedUserKey === userKey;
 
                   return (
-                    <TableRow
-                      key={userKey}
-                      className={wasChanged ? "bg-vetneb-teal/10" : undefined}
-                    >
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-sm font-semibold text-vetneb-ink/88">
+                    <div key={userKey} className="flex min-h-10 items-center gap-2 px-3 py-1">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-xs font-semibold text-vetneb-ink">
                             {user.username}
-                          </span>
-                          <span className="font-mono text-xs text-muted-foreground">
-                            #{user.userId}
-                          </span>
-                          {wasChanged ? (
-                            <span className="text-xs font-medium text-vetneb-teal">
-                              Actualizado
-                            </span>
-                          ) : null}
+                          </p>
+                          <AdminRoleBadge role={user.role} />
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getUserTypeVariant(user.userType)}>
-                          {formatUserType(user.userType)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getRoleVariant(user.role)}>
-                          {formatRole(user.role)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatClinic(user)}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {formatDateTime(user.createdAt)}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {formatDateTime(user.updatedAt)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {user.userType === "clinic" ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={disableUserActions}
-                            onClick={() => void handleChangeClinicRole(user)}
-                          >
-                            {isChanging
-                              ? "Cambiando..."
-                              : `Cambiar a ${formatRole(getNextClinicRole(user.role))}`}
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            No editable
-                          </span>
-                        )}
-                      </TableCell>
-                    </TableRow>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          ID {user.userId} · {formatClinic(user)}
+                        </p>
+                      </div>
+                      {user.userType === "clinic" ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 shrink-0 px-2 text-xs"
+                          disabled={disableUserActions}
+                          aria-busy={isChanging ? true : undefined}
+                          onClick={() => void handleChangeClinicRole(user)}
+                        >
+                          {isChanging ? "Cambiando..." : "Cambiar"}
+                        </Button>
+                      ) : (
+                        <AdminUserTypeBadge userType={user.userType} />
+                      )}
+                    </div>
                   );
-                })
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="clinical-table-state"
-                  >
-                    {isPending
-                      ? "Cargando usuarios y roles..."
-                      : "No hay usuarios para los filtros seleccionados."}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="mx-3 flex min-h-20 items-center justify-center rounded-md border border-vetneb-line/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground sm:mx-4">
+              {isPending
+                ? "Cargando usuarios y roles..."
+                : "No hay usuarios para los filtros seleccionados."}
+            </div>
+          )}
         </div>
 
-        <div className="dashboard-table-pagination shrink-0">
+        <footer
+          className="dashboard-table-pagination min-h-10 shrink-0 border-t border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground sm:px-4"
+          aria-label="Paginación de usuarios y roles"
+        >
+          <span aria-live="polite">
+            {users.length ? `${rangeStart}–${rangeEnd} de ${snapshot?.total ?? 0}` : "Sin usuarios"}
+          </span>
           <div className="dashboard-table-pagination-controls">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               disabled={!hasPreviousPage || disableUserActions}
               onClick={() => {
                 resetFiltersFeedback();
                 setOffset(Math.max(offset - PAGE_SIZE, 0));
               }}
-              className="flex-1 sm:flex-none"
+              className="h-7 px-2 text-xs flex-1 sm:flex-none"
             >
               Anterior
             </Button>
@@ -413,23 +517,23 @@ export function AdminUsersRolesReadOnlyCard() {
               aria-live="polite"
               aria-atomic="true"
             >
-              Pág.&nbsp;{Math.floor(offset / PAGE_SIZE) + 1}
-              {snapshot ? ` / ${Math.max(1, Math.ceil(snapshot.total / PAGE_SIZE))}` : null}
+              Pág. {page} / {pageCount}
             </span>
             <Button
               type="button"
               variant="outline"
+              size="sm"
               disabled={!hasNextPage || disableUserActions}
               onClick={() => {
                 resetFiltersFeedback();
                 setOffset(offset + PAGE_SIZE);
               }}
-              className="flex-1 sm:flex-none"
+              className="h-7 px-2 text-xs flex-1 sm:flex-none"
             >
               Siguiente
             </Button>
           </div>
-        </div>
+        </footer>
       </CardContent>
     </Card>
   );

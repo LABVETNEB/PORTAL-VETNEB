@@ -33,7 +33,7 @@ test("admin users roles card keeps typed role contracts and pagination size", ()
   assert.ok(source.includes("AdminRoleUserType"));
   assert.ok(source.includes("AdminUsersRolesSnapshot"));
   assert.ok(source.includes("ClinicUserRole"));
-  assert.ok(source.includes("const PAGE_SIZE = 5;"));
+  assert.ok(source.includes("const PAGE_SIZE = 9;"));
 });
 
 test("admin users roles card keeps user type role and clinic formatters", () => {
@@ -152,28 +152,28 @@ test("admin users roles card renders title counters filters and table columns", 
   assert.ok(source.includes("Clínicas"));
   assert.ok(source.includes("Tipo usuario"));
   assert.ok(source.includes("Rol"));
-  assert.ok(source.includes("<TableHead>Usuario</TableHead>"));
-  assert.ok(source.includes("<TableHead>Tipo</TableHead>"));
-  assert.ok(source.includes("<TableHead>Rol</TableHead>"));
-  assert.ok(source.includes("<TableHead>Clínica</TableHead>"));
-  assert.ok(source.includes("<TableHead>Creado</TableHead>"));
-  assert.ok(source.includes("<TableHead>Actualizado</TableHead>"));
-  assert.ok(source.includes('<TableHead className="text-right">Acción</TableHead>'));
+  assert.ok(source.includes(">Usuario</TableHead>"));
+  assert.ok(source.includes(">Tipo</TableHead>"));
+  assert.ok(source.includes(">Rol</TableHead>"));
+  assert.ok(source.includes(">Clínica</TableHead>"));
+  assert.ok(source.includes(">Creado</TableHead>"));
+  assert.ok(source.includes(">Actualizado</TableHead>"));
+  assert.ok(source.includes(">Acción</TableHead>"));
 });
 
 test("admin users roles card renders rows editable clinic actions and admin non-editable state", () => {
   const source = read(ADMIN_USERS_ROLES_CARD_PATH);
 
-  assert.ok(source.includes("snapshot.users.map((user) => {"));
+  assert.ok(source.includes("users.map((user) => {"));
   assert.ok(source.includes("const userKey = getUserKey(user);"));
   assert.ok(source.includes("const isChanging = changingUserKey === userKey;"));
   assert.ok(source.includes("const wasChanged = changedUserKey === userKey;"));
   assert.ok(source.includes('className={wasChanged ? "bg-vetneb-teal/10" : undefined}'));
   assert.ok(source.includes("{user.username}"));
-  assert.ok(source.includes("#{user.userId}"));
+  assert.ok(source.includes("ID {user.userId}"));
   assert.ok(source.includes("Actualizado"));
-  assert.ok(source.includes("formatUserType(user.userType)"));
-  assert.ok(source.includes("formatRole(user.role)"));
+  assert.ok(source.includes("<AdminUserTypeBadge userType={user.userType} />"));
+  assert.ok(source.includes("<AdminRoleBadge role={user.role} />"));
   assert.ok(source.includes("formatClinic(user)"));
   assert.ok(source.includes("formatDateTime(user.createdAt)"));
   assert.ok(source.includes("formatDateTime(user.updatedAt)"));
