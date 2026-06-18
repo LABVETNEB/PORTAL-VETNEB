@@ -493,7 +493,8 @@ test("admin token card renders clinic name in list and selected detail with fall
   assert.ok(card.includes("function formatTokenClinicLink("));
   assert.ok(card.includes("`Clínica: ${clinicName} (#${clinicId})`"));
   assert.ok(card.includes("`Clínica #${clinicId}`"));
-  assert.ok(card.includes("{formatTokenTitle(clinicOptions, token)}"));
+  assert.ok(card.includes("resolveClinicName(clinicOptions, token.clinicId) ??"));
+  assert.ok(card.includes("description={formatTokenTitle(clinicOptions, selectedToken)}"));
   assert.ok(card.includes("{formatTokenClinicLink(clinicOptions, selectedToken.clinicId)}"));
 });
 
