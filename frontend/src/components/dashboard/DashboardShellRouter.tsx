@@ -5,8 +5,6 @@ import {
   VETNEB_APP_SHELL_LABEL,
   VETNEB_APP_SHELL_RELEASE,
 } from "@/lib/app-shell-release";
-import { AdminDashboardSidebar } from "./AdminDashboardSidebar";
-import { ClinicDashboardSidebar } from "./ClinicDashboardSidebar";
 
 export function DashboardShellRouter({
   children,
@@ -19,17 +17,12 @@ export function DashboardShellRouter({
 
   return (
     <div
-      className="dashboard-app-shell flex h-dvh overflow-hidden bg-vetneb-surface"
+      className="dashboard-app-shell flex flex-col h-dvh overflow-hidden bg-vetneb-surface"
       data-vetneb-app-shell="true"
       data-vetneb-app-shell-release={VETNEB_APP_SHELL_RELEASE}
       data-vetneb-app-shell-surface={surface}
       aria-label={VETNEB_APP_SHELL_LABEL}
     >
-      {isAdminDashboard ? (
-        <AdminDashboardSidebar />
-      ) : (
-        <ClinicDashboardSidebar />
-      )}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {children}
       </div>

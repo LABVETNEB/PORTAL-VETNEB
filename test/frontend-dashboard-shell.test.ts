@@ -42,18 +42,20 @@ test("private dashboard shell keeps children and delegates role routing to dashb
   assert.ok(source.includes("<DashboardShellRouter>{children}</DashboardShellRouter>"));
 });
 
-test("dashboard shell router selects clinic/admin sidebar by route segment", () => {
+test("dashboard shell router renders a no-sidebar horizontal app shell column", () => {
   const source = read(DASHBOARD_SHELL_ROUTER_PATH);
 
   assert.ok(source.includes('"use client";'));
   assert.ok(source.includes('import { useSelectedLayoutSegment } from "next/navigation";'));
-  assert.ok(source.includes('import { AdminDashboardSidebar } from "./AdminDashboardSidebar";'));
-  assert.ok(source.includes('import { ClinicDashboardSidebar } from "./ClinicDashboardSidebar";'));
   assert.ok(source.includes("const selectedSegment = useSelectedLayoutSegment();"));
   assert.ok(source.includes('const isAdminDashboard = selectedSegment === "admin";'));
-  assert.ok(source.includes("isAdminDashboard ? ("));
-  assert.ok(source.includes("<AdminDashboardSidebar />"));
-  assert.ok(source.includes("<ClinicDashboardSidebar />"));
+  assert.ok(source.includes("data-vetneb-app-shell-surface={surface}"));
+
+  // PR-2: the vertical sidebar is no longer the primary navigation; the shell is
+  // a full-width vertical column that reserves no lateral aside.
+  assert.ok(source.includes("flex flex-col h-dvh overflow-hidden"));
+  assert.equal(source.includes("<AdminDashboardSidebar />"), false);
+  assert.equal(source.includes("<ClinicDashboardSidebar />"), false);
 });
 
 test("dashboard sidebar frame is the shared visual shell for both roles", () => {
