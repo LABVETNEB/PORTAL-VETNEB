@@ -484,7 +484,7 @@ test("dashboard admin keeps dense professional layout and visual state surfaces"
   assertMatchesAll(
     combinedSource,
     [
-      /className="grid grid-cols-1 divide-y divide-vetneb-line\/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0"/,
+      /className="grid grid-cols-2 gap-2 lg:grid-cols-3"/,
       /className="dashboard-surface"/,
       /className="grid grid-cols-1 md:grid-cols-5 gap-3"/,
       /className="surface-soft"/,

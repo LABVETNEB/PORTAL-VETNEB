@@ -1,9 +1,15 @@
 import { Badge } from "@/components/ui/badge";
 import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
-import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
+import { AdminOverviewQuickLinks } from "./AdminOverviewQuickLinks";
 import { cn } from "@/lib/utils";
 
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
+
+type RecentAdminActivity = {
+  event: string;
+  actor: string;
+  date: string;
+};
 
 type AdminCommandCenterProps = {
   auditEntriesCount: number;
@@ -13,6 +19,7 @@ type AdminCommandCenterProps = {
   systemStatusIndicatorClass: string;
   systemStatusDetail: string;
   hasSystemHealthFetchError: boolean;
+  recentActivity: RecentAdminActivity | null;
 };
 
 export function AdminCommandCenter({
@@ -23,78 +30,8 @@ export function AdminCommandCenter({
   systemStatusIndicatorClass,
   systemStatusDetail,
   hasSystemHealthFetchError,
+  recentActivity,
 }: AdminCommandCenterProps) {
-  const metricsPanel = (
-    <div
-      className="overflow-hidden rounded-lg border border-vetneb-line/80 bg-card/95 shadow-[0_12px_34px_rgba(15,45,62,0.08)] ring-1 ring-white/55 transition-[border-color,box-shadow,background-color] duration-200 hover:border-vetneb-teal/35"
-      role="region"
-      aria-label="Métricas de auditoría"
-    >
-      <div className="grid grid-cols-1 divide-y divide-vetneb-line/60 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        <div className="px-5 py-3.5">
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Eventos de auditoría
-          </p>
-          <p className="mt-1.5 text-2xl font-bold tracking-tight text-vetneb-ink">
-            {auditEntriesCount}
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">Registros totales</p>
-        </div>
-
-        <div className="px-5 py-3.5">
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Tipos de evento
-          </p>
-          <p className="mt-1.5 text-2xl font-bold tracking-tight text-vetneb-ink">
-            {eventTypesCount}
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">Categorías distintas</p>
-        </div>
-
-        <div className="px-5 py-3.5">
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Estado del sistema
-          </p>
-          <div className="mt-1.5 flex items-center gap-2">
-            <span
-              className={cn("h-2.5 w-2.5 rounded-full", systemStatusIndicatorClass)}
-              aria-hidden="true"
-            />
-            <Badge variant={systemStatusVariant}>
-              {systemStatusLabel}
-            </Badge>
-          </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {hasSystemHealthFetchError
-              ? "No se pudo consultar el estado del sistema."
-              : systemStatusDetail}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const alertsPanel = (
-    <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 md:grid-cols-2">
-      <div className="surface-soft">
-        <p className="text-sm font-semibold text-vetneb-ink">
-          Intentos fallidos de login
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Revisar actividad de acceso antes de cambios administrativos.
-        </p>
-      </div>
-      <div className="surface-soft">
-        <p className="text-sm font-semibold text-vetneb-ink">
-          Sistema
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Consultar salud, esquema y mantenimiento agrupados.
-        </p>
-      </div>
-    </div>
-  );
-
   return (
     <section
       className="flex min-h-0 flex-1 flex-col"
@@ -115,13 +52,94 @@ export function AdminCommandCenter({
           </div>
         }
       >
-        <ModuleTabs
-          ariaLabel="Resumen operativo"
-          tabs={[
-            { id: "metricas", label: "Métricas", content: metricsPanel },
-            { id: "alertas", label: "Alertas", content: alertsPanel },
-          ]}
-        />
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div
+            className="grid grid-cols-2 gap-2 lg:grid-cols-3"
+            role="group"
+            aria-label="Métricas operativas"
+          >
+            <div className="rounded-md border border-vetneb-line/70 bg-card/95 px-3 py-1.5">
+              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                Eventos de auditoría
+              </p>
+              <p className="mt-0.5 text-xl font-semibold leading-tight tracking-tight text-vetneb-ink">
+                {auditEntriesCount}
+              </p>
+              <p className="text-[0.7rem] text-muted-foreground">Registros totales</p>
+            </div>
+
+            <div className="rounded-md border border-vetneb-line/70 bg-card/95 px-3 py-1.5">
+              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                Tipos de evento
+              </p>
+              <p className="mt-0.5 text-xl font-semibold leading-tight tracking-tight text-vetneb-ink">
+                {eventTypesCount}
+              </p>
+              <p className="text-[0.7rem] text-muted-foreground">Categorías distintas</p>
+            </div>
+
+            <div className="col-span-2 rounded-md border border-vetneb-line/70 bg-card/95 px-3 py-1.5 lg:col-span-1">
+              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                Estado del sistema
+              </p>
+              <div className="mt-0.5 flex items-center gap-2">
+                <span
+                  className={cn("h-2 w-2 rounded-full", systemStatusIndicatorClass)}
+                  aria-hidden="true"
+                />
+                <Badge variant={systemStatusVariant}>{systemStatusLabel}</Badge>
+              </div>
+              <p className="mt-0.5 line-clamp-1 text-[0.7rem] text-muted-foreground">
+                {hasSystemHealthFetchError
+                  ? "No se pudo consultar el estado del sistema."
+                  : systemStatusDetail}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="surface-soft">
+              <p className="text-[0.8rem] font-semibold text-vetneb-ink">
+                Atención requerida
+              </p>
+              <p className="mt-1 text-[0.72rem] text-muted-foreground">
+                Revisar intentos fallidos de login y salud del sistema antes de
+                cambios administrativos.
+              </p>
+            </div>
+
+            <div className="surface-soft min-h-0">
+              <p className="text-[0.8rem] font-semibold text-vetneb-ink">
+                Actividad reciente
+              </p>
+              {recentActivity ? (
+                <p className="mt-1 line-clamp-2 text-[0.72rem] text-muted-foreground">
+                  <span className="font-semibold text-foreground/85">
+                    {recentActivity.event}
+                  </span>{" "}
+                  · {recentActivity.actor} · {recentActivity.date}
+                </p>
+              ) : (
+                <p className="mt-1 text-[0.72rem] text-muted-foreground">
+                  Sin actividad de auditoría disponible.
+                </p>
+              )}
+            </div>
+
+            <AdminOverviewQuickLinks />
+
+            <div className="surface-soft min-h-0">
+              <p className="text-[0.8rem] font-semibold text-vetneb-ink">
+                Alertas y estados
+              </p>
+              <p className="mt-1 line-clamp-2 text-[0.72rem] text-muted-foreground">
+                {hasSystemHealthFetchError
+                  ? "Estado no disponible; revisar conectividad del servicio."
+                  : `${systemStatusLabel}: ${systemStatusDetail}`}
+              </p>
+            </div>
+          </div>
+        </div>
       </ModuleSurface>
     </section>
   );
