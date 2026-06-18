@@ -653,45 +653,83 @@ test.describe("admin dashboard — browser back/forward sync", () => {
   });
 });
 
-// ─── Sidebar rail compacto ────────────────────────────────────────────────────
+// ─── Navegación horizontal superior ───────────────────────────────────────────
 
-test.describe("dashboard sidebar — compact rail", () => {
+test.describe("dashboard horizontal nav — top bar", () => {
   test.beforeEach(async ({ page }) => {
     await setClinicSession(page);
   });
 
-  test("sidebar renders as compact rail (width ~72px) at desktop viewport", async ({ page }) => {
+  test("renders as a full-width horizontal bar (not a vertical rail) at desktop", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/dashboard");
 
-    const sidebar = page.locator(
+    const nav = page.locator(
       "[role='navigation'][aria-label='Navegación principal']",
     );
-    await expect(sidebar).toBeVisible({ timeout: 8_000 });
+    await expect(nav).toBeVisible({ timeout: 8_000 });
 
-    const box = await sidebar.boundingBox();
+    const box = await nav.boundingBox();
     expect(box).not.toBeNull();
-    expect(box!.width).toBeLessThanOrEqual(80);
+    expect(box!.width).toBeGreaterThan(600);
+    expect(box!.height).toBeLessThanOrEqual(96);
   });
 
-  test("sidebar nav items have aria-label for accessibility", async ({ page }) => {
+  test("nav items have aria-label for accessibility", async ({ page }) => {
     await page.goto("/dashboard");
 
-    const sidebar = page.locator(
+    const nav = page.locator(
       "[role='navigation'][aria-label='Navegación principal']",
     );
-    await expect(sidebar).toBeVisible({ timeout: 8_000 });
+    await expect(nav).toBeVisible({ timeout: 8_000 });
 
-    const navButtons = sidebar.locator("button[aria-label]");
+    const navButtons = nav.locator("button[aria-label]");
     const count = await navButtons.count();
     expect(count).toBeGreaterThanOrEqual(4);
   });
 
-  test("sidebar back-to-home link is accessible", async ({ page }) => {
+  test("back-to-home link is accessible", async ({ page }) => {
     await page.goto("/dashboard");
 
     const backBtn = page.getByRole("button", { name: /Volver al sitio p.blico/i });
     await expect(backBtn).toBeVisible({ timeout: 8_000 });
+  });
+
+  test("clinic nav exposes operational modules", async ({ page }) => {
+    await page.goto("/dashboard");
+
+    const nav = page.locator(
+      "[role='navigation'][aria-label='Navegación principal']",
+    );
+    await expect(nav.getByRole("button", { name: "Informes" })).toBeVisible({
+      timeout: 8_000,
+    });
+    await expect(nav.getByRole("button", { name: "Logística" })).toBeVisible();
+    await expect(nav.getByRole("button", { name: "Perfil" })).toBeVisible();
+  });
+});
+
+test.describe("dashboard horizontal nav — admin module navigation", () => {
+  test.beforeEach(async ({ page }) => {
+    await setAdminSession(page);
+  });
+
+  test("clicking a nav module preserves ?module= and marks it active", async ({ page }) => {
+    await page.goto("/dashboard/admin");
+
+    const nav = page.locator(
+      "[role='navigation'][aria-label='Navegación principal']",
+    );
+    await expect(nav).toBeVisible({ timeout: 8_000 });
+
+    const clinicasItem = nav.getByRole("button", { name: "Clínicas" });
+    await clinicasItem.click();
+
+    await expect(page).toHaveURL(/module=admin-clinics/, { timeout: 5_000 });
+    await expect(
+      page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
+    ).toBeVisible({ timeout: 5_000 });
+    await expect(clinicasItem).toHaveAttribute("aria-current", "page");
   });
 });
 

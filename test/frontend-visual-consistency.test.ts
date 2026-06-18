@@ -383,9 +383,9 @@ test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () 
   assertMatchesAll(
     source,
     [
-      /className="sticky top-0 z-40 flex min-h-\[4\.5rem\] items-center justify-between border-b border-vetneb-line\/80 bg-card\/90 px-4 py-2\.5 shadow-sm backdrop-blur supports-\[backdrop-filter\]:bg-card\/78 sm:px-6"/,
-      /className="truncate text-xl font-semibold leading-tight text-vetneb-ink sm:text-2xl"/,
-      /className="mt-0\.5 truncate text-xs text-muted-foreground sm:text-sm"/,
+      /className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line\/80 bg-card\/90 shadow-sm backdrop-blur supports-\[backdrop-filter\]:bg-card\/78"/,
+      /className="truncate text-lg font-semibold leading-tight text-vetneb-ink sm:text-xl"/,
+      /className="truncate text-xs text-muted-foreground sm:text-\[0\.8125rem\]"/,
       /className="ml-3 flex shrink-0 items-center gap-2 sm:gap-3"/,
     ],
     "dashboard topbar class contracts",
