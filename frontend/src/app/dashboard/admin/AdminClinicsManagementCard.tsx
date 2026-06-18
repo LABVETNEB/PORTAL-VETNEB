@@ -49,10 +49,10 @@ const ClinicEditDrawer = dynamic(
 
 // Enterprise density without breaking the App Shell no-scroll contract: denser
 // rows/header let a full page fit the 1366×768 minimum viewport, so the server
-// page size is raised from 5 to a value that fills the dense viewport without
-// internal scroll. True 25/50/100 needs the no-scroll contract relaxation
-// (audit §3) and is deferred. CI must confirm this fits 1366×768.
-const PAGE_SIZE = 10;
+// page size is raised from 5 to a conservative value that leaves one dense-row
+// margin in the 1366×768 viewport without internal scroll. True 25/50/100 needs
+// the no-scroll contract relaxation (audit §3) and is deferred.
+const PAGE_SIZE = 9;
 
 type CreateClinicForm = {
   clinicName: string;

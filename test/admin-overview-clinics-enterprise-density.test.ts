@@ -69,8 +69,8 @@ test("admin overview keeps the four compact operational panels", () => {
 test("admin clinics console raises the server page size while respecting no-scroll", () => {
   const source = read(CLINICS_CARD_PATH);
 
-  // Denser rows let a full page fit the minimum viewport without internal scroll.
-  assert.ok(source.includes("const PAGE_SIZE = 10;"));
+  // Nine dense rows preserve a full-row margin in the minimum viewport.
+  assert.ok(source.includes("const PAGE_SIZE = 9;"));
   assert.ok(source.includes("limit: PAGE_SIZE"));
   assert.ok(source.includes("snapshot?.total"));
 

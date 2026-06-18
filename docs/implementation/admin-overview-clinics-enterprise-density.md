@@ -10,10 +10,11 @@ continúa con `overflow-hidden`; no se agrega scroll global ni una región verti
 interna. Resumen y Clínicas se ajustan al viewport mediante densidad, paginación
 acotada y superficies flex existentes.
 
-Clínicas usa un page size fijo de **10 filas**. Es el primer valor dentro del
-objetivo de 10–14/15 filas que permite conservar filas de aproximadamente 40 px,
-header de 36 px, filtros y acciones dentro del viewport mínimo de 1366×768 sin
-convertir `main` ni el body de tabla en un contenedor de scroll.
+Clínicas usa un page size fijo de **9 filas**. El valor inicial de 10 filas
+producía 12 px de scroll vertical interno en `.dashboard-table-responsive` en
+el E2E de CI a 1366×768. Nueve filas conservan la densidad de aproximadamente
+40 px por fila y dejan un margen estable sin convertir `main` ni el body de
+tabla en un contenedor de scroll.
 
 ## Deuda técnica explícita
 
@@ -37,7 +38,7 @@ Esta deuda no se implementa en PR-3.
 - Header, acciones y buscador compactos.
 - Padding de panel limitado a 8–16 px.
 - Tabla de 13 px, headers de 12 px semibold y filas de aproximadamente 40 px.
-- Paginación server-side existente elevada de 5 a 10 filas.
+- Paginación server-side existente elevada de 5 a 9 filas.
 - Alta en diálogo y edición en drawer se conservan; no hay detalle inline grande.
 - No se agrega selector 25/50/100 ni scroll vertical al body de tabla.
 
@@ -55,7 +56,7 @@ Esta deuda no se implementa en PR-3.
 ## Tests y validaciones
 
 Se validan los contratos de densidad, los cuatro paneles del Resumen, la
-navegación `?module=admin-clinics`, el page size 10, la ausencia de scroll
+navegación `?module=admin-clinics`, el page size 9, la ausencia de scroll
 vertical nuevo y la continuidad del shell horizontal sin sidebar.
 
 Resultados finales:
@@ -64,8 +65,9 @@ Resultados finales:
 - `pnpm --dir frontend typecheck`: OK, sin errores.
 - `pnpm --dir frontend build`: OK, build de producción completo.
 - `pnpm test`: OK, 2777 tests aprobados, 0 fallos.
-- E2E local: no ejecutado; queda para CI porque el servidor de Playwright puede
-  regenerar `next-env.d.ts` y ensuciar el worktree.
+- E2E específico `admin clinics populated fits without external or internal
+  scroll`: OK, 2/2 casos en Chromium (1366×768 y 1440×900). El web server local
+  regeneró `next-env.d.ts`; se restauró al contenido previo y no integra el diff.
 
 ## No alcance
 
@@ -78,8 +80,8 @@ Resultados finales:
 
 ## Riesgos residuales
 
-- El fit real con 10 filas depende de la validación visual/E2E de CI en
-  1366×768 y de que el contenido truncado conserve sus límites actuales.
+- El fit con 9 filas se valida en 1366×768 mediante el contrato E2E específico;
+  el contenido truncado debe conservar sus límites actuales.
 - Mensajes transitorios de error o éxito agregan altura; el shell mantiene el
   contrato no-scroll y puede recortarlos en viewports excepcionalmente bajos.
 - La ampliación a 25/50/100 continúa bloqueada hasta implementar y aprobar la
