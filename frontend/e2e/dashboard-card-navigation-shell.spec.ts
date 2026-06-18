@@ -744,7 +744,7 @@ test.describe("admin dashboard — per-module workspace activation", () => {
     { cardTitle: "Clínicas", workspaceId: "admin-clinics" },
     { cardTitle: "Precios", workspaceId: "admin-pricing" },
     { cardTitle: "Sesiones", workspaceId: "admin-sessions" },
-    { cardTitle: "Roles clínica", workspaceId: "admin-users-roles" },
+    { cardTitle: "Usuarios y roles", workspaceId: "admin-users-roles" },
     { cardTitle: "Estado del sistema", workspaceId: "admin-health" },
     { cardTitle: "Tokens particulares", workspaceId: "admin-particular-tokens" },
     { cardTitle: "Mantenimiento", workspaceId: "admin-maintenance" },
