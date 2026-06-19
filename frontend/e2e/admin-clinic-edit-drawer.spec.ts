@@ -165,6 +165,43 @@ test.describe("admin clinic edit drawer — component behavior", () => {
     await expect(editButton).toBeEnabled();
   });
 
+  test("new clinic password starts hidden and only reveals by explicit reversible action", async ({
+    page,
+  }) => {
+    const syntheticPassword = "ClaveInicialSintetica42";
+
+    await page.goto("/dashboard/admin");
+    await navigateToGestionTab(page);
+    await waitForClinicList(page);
+
+    await page.getByRole("button", { name: "Nueva clínica" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "Nueva clínica" });
+    const passwordInput = dialog.getByRole("textbox", {
+      name: "Contraseña inicial",
+    });
+    await passwordInput.fill(syntheticPassword);
+
+    await expect(passwordInput).toHaveAttribute("type", "password");
+    await expect(dialog.getByText(syntheticPassword, { exact: true })).toHaveCount(0);
+
+    const revealButton = dialog.getByRole("button", {
+      name: "Mostrar contraseña inicial",
+    });
+    await expect(revealButton).toHaveAttribute("aria-pressed", "false");
+    await revealButton.click();
+
+    await expect(passwordInput).toHaveAttribute("type", "text");
+    await expect(
+      dialog.getByRole("button", { name: "Ocultar contraseña inicial" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    await dialog
+      .getByRole("button", { name: "Ocultar contraseña inicial" })
+      .click();
+    await expect(passwordInput).toHaveAttribute("type", "password");
+  });
+
   test("clicking Edit opens the drawer with clinic data", async ({ page }) => {
     await page.goto("/dashboard/admin");
     await navigateToGestionTab(page);
@@ -186,6 +223,44 @@ test.describe("admin clinic edit drawer — component behavior", () => {
 
     // Drawer should show the clinic ID
     await expect(drawer.getByText(/clínica #1/i)).toBeVisible();
+  });
+
+  test("replacement password starts hidden and only reveals by explicit reversible action", async ({
+    page,
+  }) => {
+    const syntheticPassword = "ClaveReemplazoSintetica42";
+
+    await page.goto("/dashboard/admin");
+    await navigateToGestionTab(page);
+    await waitForClinicList(page);
+    await page
+      .getByRole("button", { name: /editar clínica clínica test/i })
+      .click();
+
+    const drawer = page.getByRole("dialog", { name: /editar clínica/i });
+    const passwordInput = drawer.getByRole("textbox", {
+      name: "Nueva contraseña",
+    });
+    await passwordInput.fill(syntheticPassword);
+
+    await expect(passwordInput).toHaveAttribute("type", "password");
+    await expect(drawer.getByText(syntheticPassword, { exact: true })).toHaveCount(0);
+
+    const revealButton = drawer.getByRole("button", {
+      name: "Mostrar nueva contraseña",
+    });
+    await expect(revealButton).toHaveAttribute("aria-pressed", "false");
+    await revealButton.click();
+
+    await expect(passwordInput).toHaveAttribute("type", "text");
+    await expect(
+      drawer.getByRole("button", { name: "Ocultar nueva contraseña" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    await drawer
+      .getByRole("button", { name: "Ocultar nueva contraseña" })
+      .click();
+    await expect(passwordInput).toHaveAttribute("type", "password");
   });
 
   test("drawer has accessible close button and title", async ({ page }) => {

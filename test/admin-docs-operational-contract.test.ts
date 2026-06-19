@@ -21,7 +21,8 @@ test("staging smoke runbook enforces real admin operation without demo/smoke flo
     "Transporte de correo",
     "Gmail API HTTPS",
     "usuario de acceso (usar email real de la clínica)",
-    "contraseña inicial visible mientras se ingresa",
+    "contraseña inicial enmascarada por defecto",
+    "revelarla de forma explícita",
   ]) {
     assert.ok(
       source.includes(marker),
@@ -40,6 +41,8 @@ test("release readiness tracks full admin sections and safe delete policy", () =
     "`Auditoría`, `Mantenimiento`",
     "eliminar clínicas desde UI con confirmación",
     "exacta por nombre",
+    "contraseña inicial enmascarada por defecto",
+    "reveal explícito y reversible",
     "No se usa demo/smoke/smock como operación real",
     "clinic.deleted",
     "Gmail API HTTPS",

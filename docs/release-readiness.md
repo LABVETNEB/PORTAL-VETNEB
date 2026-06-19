@@ -407,9 +407,10 @@ Remove-Item Env:\SMOKE_PASSWORD
 - [ ] `[BLOCKER]` Panel admin carga health, sesiones, audit log, usuarios/roles,
   pricing, mantenimiento y tokens particulares con datos reales.
 - [ ] `[BLOCKER]` Panel admin permite crear clinica sin seleccionar rol,
-  crear usuario/contraseña inicial visible durante la carga, editar
-  nombre/email/telefono, cambiar username (email real de clínica) y reemplazar contraseña visible
-  durante la carga sin exponer passwords, hashes ni secretos.
+  crear usuario con contraseña inicial enmascarada por defecto, con reveal explícito y reversible,
+  editar nombre/email/telefono, cambiar username (email
+  real de clínica) y reemplazar contraseña con el mismo comportamiento seguro
+  sin exponer passwords, hashes ni secretos.
 - [ ] `[BLOCKER]` Panel admin permite eliminar clínicas desde UI con confirmación
   exacta por nombre y advertencia destructiva explícita.
 - [ ] `[BLOCKER]` Audit log admin registra `clinic.created`,

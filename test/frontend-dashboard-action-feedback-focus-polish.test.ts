@@ -98,7 +98,7 @@ test("PR-4 globals.css defines dashboard-option-row for listbox focus", () => {
 test("PR-4 AdminClinicsManagementCard Actualizar button has aria-busy when loading", () => {
   const source = read(ADMIN_CLINICS_CARD_PATH);
   assert.ok(source.includes("aria-busy={isPending ? true : undefined}"));
-  assert.ok(source.includes('import { ChevronLeft, ChevronRight, Loader2, Pencil, Plus, RefreshCw, Search } from "lucide-react";'));
+  assert.ok(source.includes('import { ChevronLeft, ChevronRight, Eye, EyeOff, Loader2, Pencil, Plus, RefreshCw, Search } from "lucide-react";'));
 });
 
 test("PR-4 AdminFailedLoginAlertsReadOnlyCard Actualizar button has aria-busy and spinner", () => {
