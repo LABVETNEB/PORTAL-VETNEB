@@ -97,7 +97,9 @@ for (const viewport of MOBILE_VIEWPORTS) {
     );
 
     await nav.getByRole("button", { name: "Inicio", exact: true }).click();
-    await expect(page.locator('[data-dashboard-module-hub="true"]')).toBeVisible({
+    await expect(
+      page.locator('[data-admin-mobile-hub-launcher="true"]'),
+    ).toBeVisible({
       timeout: 15_000,
     });
 
