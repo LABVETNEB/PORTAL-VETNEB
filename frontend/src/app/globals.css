@@ -2286,3 +2286,29 @@
   }
 }
 /* dashboard-global-inline-adaptive:end */
+/* admin-mobile-module-layer-isolation:start */
+[data-vetneb-app-shell-surface="admin"] [data-dashboard-module-workspace],
+[data-vetneb-app-shell-surface="admin"] [data-dashboard-module-hub] {
+  background: hsl(var(--vetneb-surface)) !important;
+  isolation: isolate;
+}
+
+@media (max-width: 767px) {
+  [data-vetneb-app-shell-surface="admin"] [data-dashboard-topbar-polish="true"],
+  [data-vetneb-app-shell-surface="admin"] [data-dashboard-horizontal-nav-shell="true"] {
+    --tw-backdrop-blur: none !important;
+    background: hsl(var(--card)) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .dashboard-workspace-enter {
+    animation: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] [data-dashboard-module-hub],
+  [data-vetneb-app-shell-surface="admin"] [data-dashboard-module-hub] .dashboard-cockpit-tile {
+    background: hsl(var(--card)) !important;
+  }
+}
+/* admin-mobile-module-layer-isolation:end */
