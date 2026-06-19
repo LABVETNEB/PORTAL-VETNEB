@@ -249,7 +249,7 @@ export function AdminUsersRolesReadOnlyCard() {
 
   return (
     <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none">
-      <CardHeader className="flex min-h-12 shrink-0 flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-3 py-2 sm:px-4">
+      <CardHeader className="flex min-h-12 shrink-0 flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-3 py-2 sm:px-4 md:min-h-10 md:py-1.5">
         <div className="min-w-0">
           <CardTitle className="text-base">Usuarios y roles</CardTitle>
           <p
@@ -272,7 +272,7 @@ export function AdminUsersRolesReadOnlyCard() {
           type="button"
           variant="outline"
           size="sm"
-          className="h-8 shrink-0 px-2.5 text-xs"
+          className="h-8 shrink-0 px-2.5 text-xs md:h-7 md:px-2"
           onClick={loadUsersRoles}
           disabled={isPending || isMutatingRole}
           aria-busy={isPending ? true : undefined}
@@ -283,41 +283,41 @@ export function AdminUsersRolesReadOnlyCard() {
       </CardHeader>
 
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-        <div className="grid min-h-11 shrink-0 grid-cols-3 border-b border-vetneb-line/70">
-          <div className="flex items-center justify-between gap-2 px-3 py-1 sm:px-4">
+        <div className="grid min-h-11 shrink-0 grid-cols-3 border-b border-vetneb-line/70 md:min-h-9">
+          <div className="flex items-center justify-between gap-2 px-3 py-1 sm:px-4 md:py-0.5">
             <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
               Total filtrado
             </span>
-            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink">
+            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink md:text-lg">
               {snapshot?.total ?? "—"}
             </strong>
           </div>
-          <div className="flex items-center justify-between gap-2 border-x border-vetneb-line/70 px-3 py-1 sm:px-4">
+          <div className="flex items-center justify-between gap-2 border-x border-vetneb-line/70 px-3 py-1 sm:px-4 md:py-0.5">
             <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
               Admins
             </span>
-            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink">
+            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink md:text-lg">
               {snapshot?.totals.adminUsers ?? "—"}
             </strong>
           </div>
-          <div className="flex items-center justify-between gap-2 px-3 py-1 sm:px-4">
+          <div className="flex items-center justify-between gap-2 px-3 py-1 sm:px-4 md:py-0.5">
             <span className="truncate text-[11px] text-muted-foreground sm:text-xs">
               Clínicas
             </span>
-            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink">
+            <strong className="text-xl font-semibold tabular-nums text-vetneb-ink md:text-lg">
               {snapshot?.totals.clinicUsers ?? "—"}
             </strong>
           </div>
         </div>
 
         <div
-          className="flex min-h-12 shrink-0 items-end gap-2 border-b border-vetneb-line/70 bg-muted/15 px-3 py-2 sm:px-4"
+          className="flex min-h-12 shrink-0 items-end gap-2 border-b border-vetneb-line/70 bg-muted/15 px-3 py-2 sm:px-4 md:min-h-10 md:py-1"
           aria-label="Filtros de usuarios y roles"
         >
-          <label className="grid min-w-0 flex-1 gap-1 text-[11px] font-medium text-muted-foreground sm:max-w-48">
+          <label className="grid min-w-0 flex-1 gap-1 text-[11px] font-medium text-muted-foreground sm:max-w-48 md:gap-0.5">
             Tipo usuario
             <select
-              className="field-select h-8 text-xs"
+              className="field-select h-8 text-xs md:h-7"
               value={userType}
               disabled={disableUserActions}
               onChange={(event) => {
@@ -332,10 +332,10 @@ export function AdminUsersRolesReadOnlyCard() {
             </select>
           </label>
 
-          <label className="grid min-w-0 flex-1 gap-1 text-[11px] font-medium text-muted-foreground sm:max-w-48">
+          <label className="grid min-w-0 flex-1 gap-1 text-[11px] font-medium text-muted-foreground sm:max-w-48 md:gap-0.5">
             Rol
             <select
-              className="field-select h-8 text-xs"
+              className="field-select h-8 text-xs md:h-7"
               value={role}
               disabled={disableUserActions}
               onChange={(event) => {
@@ -356,12 +356,12 @@ export function AdminUsersRolesReadOnlyCard() {
           </span>
         </div>
 
-        <div className="min-h-0 flex-1 py-2">
+        <div className="min-h-0 flex-1 py-2 md:py-1">
           {users.length ? (
             <>
               <div className="dashboard-table-responsive dashboard-fitted-table hidden px-3 md:block sm:px-4">
                 <Table
-                  className="table-fixed text-[13px] [&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold"
+                  className="table-fixed text-[13px] [&_td]:h-8 [&_td]:px-2 [&_td]:py-0.5 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold"
                   aria-label="Tabla de usuarios y roles administrativos"
                 >
                   <TableHeader>
@@ -492,7 +492,7 @@ export function AdminUsersRolesReadOnlyCard() {
         </div>
 
         <footer
-          className="dashboard-table-pagination min-h-10 shrink-0 border-t border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground sm:px-4"
+          className="dashboard-table-pagination min-h-10 shrink-0 border-t border-vetneb-line/70 px-3 py-1.5 text-xs text-muted-foreground sm:px-4 md:min-h-8 md:py-1"
           aria-label="Paginación de usuarios y roles"
         >
           <span aria-live="polite">

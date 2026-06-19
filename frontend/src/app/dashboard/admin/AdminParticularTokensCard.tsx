@@ -977,24 +977,24 @@ export function AdminParticularTokensCard() {
 
   return (
     <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
-      <CardHeader className="shrink-0 border-b border-vetneb-line/70 px-4 py-3">
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+      <CardHeader className="shrink-0 border-b border-vetneb-line/70 px-4 py-3 md:py-2">
+        <div className="flex flex-col gap-2 md:gap-1 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <CardTitle className="text-xl">Tokens particulares</CardTitle>
+            <CardTitle className="text-xl md:text-base">Tokens particulares</CardTitle>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Accesos sensibles, trazabilidad bajo demanda y acciones controladas.
             </p>
           </div>
-          <div className="flex min-h-10 items-center divide-x divide-vetneb-line/70 rounded-lg border border-vetneb-line/75 bg-vetneb-surface-muted/45">
+          <div className="flex min-h-10 items-center divide-x divide-vetneb-line/70 rounded-lg border border-vetneb-line/75 bg-vetneb-surface-muted/45 md:min-h-8">
             {[
               ["En página", tokens.length],
               ["Activos", activeTokensCount],
               ["Con informe", linkedReportsCount],
               ["Página", page + 1],
             ].map(([label, value]) => (
-              <div key={label} className="min-w-[4.5rem] px-3 py-1 text-center">
+              <div key={label} className="min-w-[4.5rem] px-3 py-1 text-center md:px-2 md:py-0.5">
                 <p className="text-[0.6875rem] text-muted-foreground">{label}</p>
-                <p className="text-xl font-semibold leading-5 text-vetneb-ink">
+                <p className="text-xl font-semibold leading-5 text-vetneb-ink md:text-base md:leading-4">
                   {value}
                 </p>
               </div>
@@ -1003,8 +1003,8 @@ export function AdminParticularTokensCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 py-3">
-        <div className="flex min-h-10 shrink-0 flex-col gap-2 rounded-lg border border-vetneb-line/70 bg-card/80 px-2 py-1.5 md:flex-row md:items-center md:justify-between">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 py-3 md:gap-1.5 md:py-2">
+        <div className="flex min-h-10 shrink-0 flex-col gap-2 rounded-lg border border-vetneb-line/70 bg-card/80 px-2 py-1.5 md:min-h-8 md:flex-row md:items-center md:justify-between md:py-0.5">
           <div
             role="tablist"
             aria-label="Secciones de tokens particulares"
@@ -1015,6 +1015,7 @@ export function AdminParticularTokensCard() {
               size="sm"
               role="tab"
               aria-selected={!isCreateDialogOpen}
+              className="md:h-8 md:px-2 md:text-xs"
             >
               Tokens administrados
             </Button>
@@ -1024,6 +1025,7 @@ export function AdminParticularTokensCard() {
               size="sm"
               role="tab"
               aria-selected={isCreateDialogOpen}
+              className="md:h-8 md:px-2 md:text-xs"
               onClick={() => handleCreateDialogOpenChange(true)}
               disabled={generatedToken !== null}
             >
@@ -1046,11 +1048,11 @@ export function AdminParticularTokensCard() {
               value={clinicFilterDraft}
               onChange={(event) => setClinicFilterDraft(event.target.value)}
             />
-            <Button type="submit" variant="outline" size="sm">
+            <Button type="submit" variant="outline" size="sm" className="md:h-8 md:px-2 md:text-xs">
               Filtrar
             </Button>
             {appliedClinicId ? (
-              <Button type="button" variant="ghost" size="sm" onClick={clearClinicFilter}>
+              <Button type="button" variant="ghost" size="sm" className="md:h-8 md:px-2 md:text-xs" onClick={clearClinicFilter}>
                 Limpiar
               </Button>
             ) : null}
@@ -1058,6 +1060,7 @@ export function AdminParticularTokensCard() {
               type="button"
               variant="outline"
               size="sm"
+              className="md:h-8 md:px-2 md:text-xs"
               onClick={() => void loadTokens()}
               disabled={isLoadingTokens}
             >
@@ -1082,7 +1085,7 @@ export function AdminParticularTokensCard() {
           className="flex min-h-0 flex-1 flex-col"
         >
           <div className="dashboard-table-responsive hidden min-h-0 flex-1 md:block">
-            <Table className="table-fixed text-[0.8125rem] [&_th]:h-9 [&_th]:px-2.5 [&_td]:px-2.5">
+            <Table className="table-fixed text-[0.8125rem] [&_th]:h-8 [&_th]:px-2.5 [&_td]:px-2.5">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[20%]">Token / paciente</TableHead>
@@ -1097,7 +1100,7 @@ export function AdminParticularTokensCard() {
               <TableBody>
                 {tokens.map((token) => (
                   <TableRow key={token.id}>
-                    <TableCell className="py-1">
+                    <TableCell className="py-0.5">
                       <p className="truncate font-mono text-xs font-semibold text-vetneb-ink">
                         ****{token.tokenLast4}
                       </p>
@@ -1105,13 +1108,13 @@ export function AdminParticularTokensCard() {
                         {token.petName} · {token.tutorLastName}
                       </p>
                     </TableCell>
-                    <TableCell className="py-1">
+                    <TableCell className="py-0.5">
                       <p className="truncate">
                         {resolveClinicName(clinicOptions, token.clinicId) ??
                           `Clínica #${token.clinicId}`}
                       </p>
                     </TableCell>
-                    <TableCell className="py-1">
+                    <TableCell className="py-0.5">
                       <Badge
                         variant={token.isActive ? "default" : "outline"}
                         className="h-5 px-1.5 text-[0.6875rem]"
@@ -1119,16 +1122,16 @@ export function AdminParticularTokensCard() {
                         {token.isActive ? "Activo" : "Inactivo"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="py-1 text-xs">
+                    <TableCell className="py-0.5 text-xs">
                       {token.reportId ? `#${token.reportId}` : "Sin vínculo"}
                     </TableCell>
-                    <TableCell className="hidden py-1 text-xs lg:table-cell">
+                    <TableCell className="hidden py-0.5 text-xs lg:table-cell">
                       {token.lastLoginAt ? formatDate(token.lastLoginAt) : "—"}
                     </TableCell>
-                    <TableCell className="hidden py-1 text-xs xl:table-cell">
+                    <TableCell className="hidden py-0.5 text-xs xl:table-cell">
                       {formatDate(token.createdAt)}
                     </TableCell>
-                    <TableCell className="py-1 text-right">
+                    <TableCell className="py-0.5 text-right">
                       <Button
                         type="button"
                         variant="outline"
@@ -1185,7 +1188,7 @@ export function AdminParticularTokensCard() {
             </p>
           ) : null}
 
-          <div className="mt-2 flex min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground">
+          <div className="mt-2 flex min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:min-h-8 md:pt-1">
             <span>
               {tokens.length ? `${rangeStart}–${rangeEnd}` : "0 resultados"} · 9 por página
             </span>
@@ -1194,6 +1197,7 @@ export function AdminParticularTokensCard() {
                 type="button"
                 variant="outline"
                 size="sm"
+                className="md:h-8 md:px-2 md:text-xs"
                 disabled={page === 0 || isLoadingTokens}
                 onClick={() => {
                   setIsDetailDialogOpen(false);
@@ -1207,6 +1211,7 @@ export function AdminParticularTokensCard() {
                 type="button"
                 variant="outline"
                 size="sm"
+                className="md:h-8 md:px-2 md:text-xs"
                 disabled={!canGoNext || isLoadingTokens}
                 onClick={() => {
                   setIsDetailDialogOpen(false);

@@ -19,7 +19,15 @@ type RouteCase = {
   path: string;
   ready: string;
   populated?: string | RegExp;
+  populatedAdminModule?: PopulatedAdminModule;
 };
+
+type PopulatedAdminModule =
+  | "overview"
+  | "tokens"
+  | "reports"
+  | "audit"
+  | "users-roles";
 
 const ROUTES: RouteCase[] = [
   {
@@ -59,6 +67,13 @@ const ROUTES: RouteCase[] = [
     ready: '[data-dashboard-module-hub="true"]',
   },
   {
+    label: "admin overview populated",
+    surface: "admin",
+    path: "/dashboard/admin?module=admin",
+    ready: '[data-dashboard-module-workspace="admin"]',
+    populatedAdminModule: "overview",
+  },
+  {
     label: "admin clinics populated",
     surface: "admin",
     path: "/dashboard/admin?module=admin-clinics",
@@ -66,10 +81,32 @@ const ROUTES: RouteCase[] = [
     populated: "Clinica Veterinaria de Prueba Numero 1",
   },
   {
-    label: "admin audit log",
+    label: "admin tokens populated",
+    surface: "admin",
+    path: "/dashboard/admin?module=admin-particular-tokens",
+    ready: '[data-dashboard-module-workspace="admin-particular-tokens"]',
+    populatedAdminModule: "tokens",
+  },
+  {
+    label: "admin reports populated",
+    surface: "admin",
+    path: "/dashboard/admin?module=admin-report-upload",
+    ready: '[data-dashboard-module-workspace="admin-report-upload"]',
+    populatedAdminModule: "reports",
+  },
+  {
+    label: "admin audit populated",
     surface: "admin",
     path: "/dashboard/admin?module=audit-log",
     ready: '[data-dashboard-module-workspace="audit-log"]',
+    populatedAdminModule: "audit",
+  },
+  {
+    label: "admin users and roles populated",
+    surface: "admin",
+    path: "/dashboard/admin?module=admin-users-roles",
+    ready: '[data-dashboard-module-workspace="admin-users-roles"]',
+    populatedAdminModule: "users-roles",
   },
   {
     label: "admin pricing populated",
@@ -115,11 +152,13 @@ async function setClinicSession(page: Page) {
   ]);
 }
 
-async function setAdminSession(page: Page) {
+async function setAdminSession(page: Page, populated = false) {
   await page.context().addCookies([
     {
       name: "admin_session_id",
-      value: "e2e_test_admin_session",
+      value: populated
+        ? "e2e_populated_admin_session"
+        : "e2e_test_admin_session",
       url: "http://127.0.0.1:3000",
     },
   ]);
@@ -159,6 +198,145 @@ function collectHydrationFailures(page: Page) {
       expect(hydrationConsoleErrors).toEqual([]);
     },
   };
+}
+
+function collectBrowserFailures(page: Page) {
+  const pageErrors: string[] = [];
+  const consoleErrors: string[] = [];
+
+  page.on("pageerror", (error) => {
+    pageErrors.push(error.message);
+  });
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      consoleErrors.push(message.text());
+    }
+  });
+
+  return {
+    async assertClean() {
+      await page.waitForTimeout(500);
+      const relevantConsoleErrors = consoleErrors.filter(
+        (message) =>
+          message !==
+          "The Content Security Policy directive 'upgrade-insecure-requests' is ignored when delivered in a report-only policy.",
+      );
+      expect(pageErrors).toEqual([]);
+      expect(relevantConsoleErrors).toEqual([]);
+    },
+  };
+}
+
+async function expectActiveAdminNavigation(page: Page, label: string) {
+  const navigation = page.getByRole("navigation", {
+    name: "Navegación principal",
+  });
+  await expect(
+    navigation.getByRole("button", { name: label, exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+}
+
+async function expectNinePopulatedRows(workspace: ReturnType<Page["locator"]>) {
+  const table = workspace.getByRole("table").first();
+  await expect(table).toBeVisible();
+  await expect(table.getByRole("row")).toHaveCount(10);
+}
+
+async function expectPopulatedAdminModule(
+  page: Page,
+  module: PopulatedAdminModule,
+) {
+  if (module === "overview") {
+    const workspace = page.locator('[data-dashboard-module-workspace="admin"]');
+    await expect(
+      workspace.getByRole("heading", { name: "Resumen operativo", exact: true }),
+    ).toBeVisible();
+    await expect(workspace.getByText("47", { exact: true })).toBeVisible();
+    await expect(workspace.getByText("9", { exact: true })).toBeVisible();
+    await expect(workspace.getByText("Operativo", { exact: true })).toBeVisible();
+    await expect(workspace.getByText("Login admin", { exact: true })).toBeVisible();
+    await expect(
+      workspace.getByText("Sin actividad de auditoría disponible."),
+    ).toHaveCount(0);
+    await expectActiveAdminNavigation(page, "Resumen");
+    await expect(page).toHaveURL(/module=admin(?:&|$)/);
+    return;
+  }
+
+  if (module === "tokens") {
+    const workspace = page.locator(
+      '[data-dashboard-module-workspace="admin-particular-tokens"]',
+    );
+    await expect(workspace.getByText("****4201", { exact: true })).toBeVisible();
+    await expect(workspace.getByText("Mora · Gómez", { exact: true })).toBeVisible();
+    await expect(workspace.getByText("Clínica #12", { exact: true })).toBeVisible();
+    await expect(workspace.getByText("Activo", { exact: true }).first()).toBeVisible();
+    await expect(workspace.getByText("#7301", { exact: true })).toBeVisible();
+    await expect(
+      workspace.getByText("No hay tokens particulares administrados."),
+    ).toHaveCount(0);
+    await expectNinePopulatedRows(workspace);
+    await expectActiveAdminNavigation(page, "Tokens");
+    await expect(page).toHaveURL(/module=admin-particular-tokens(?:&|$)/);
+    return;
+  }
+
+  if (module === "reports") {
+    const workspace = page.locator(
+      '[data-dashboard-module-workspace="admin-report-upload"]',
+    );
+    const table = workspace.getByRole("table");
+    await expect(table.getByText("Mora", { exact: true })).toBeVisible();
+    await expect(table.getByText("Clínica E2E 01", { exact: true })).toBeVisible();
+    await expect(table.getByText("Informe #7301", { exact: true })).toBeVisible();
+    await expect(table.getByText("Muestra recibida", { exact: true }).first()).toBeVisible();
+    await expect(table.getByText("informe-e2e-7301.pdf", { exact: true })).toBeVisible();
+    await expect(
+      workspace.getByText("No hay informes en esta página."),
+    ).toHaveCount(0);
+    await expectNinePopulatedRows(workspace);
+    await expectActiveAdminNavigation(page, "Informes");
+    await expect(page).toHaveURL(/module=admin-report-upload(?:&|$)/);
+    return;
+  }
+
+  if (module === "audit") {
+    const workspace = page.locator(
+      '[data-dashboard-module-workspace="audit-log"]',
+    );
+    const table = workspace.getByRole("table");
+    const firstDataRow = table.getByRole("row").nth(1);
+    await expect(firstDataRow.getByText("Admin #41", { exact: true })).toBeVisible();
+    await expect(firstDataRow.getByText("Login admin", { exact: true })).toBeVisible();
+    await expect(firstDataRow.getByRole("cell").first()).not.toBeEmpty();
+    await expect(workspace.getByText("47 coincidencias", { exact: true })).toBeVisible();
+    await expect(
+      workspace.getByText("No hay eventos de auditoría disponibles."),
+    ).toHaveCount(0);
+    await expectNinePopulatedRows(workspace);
+    await expectActiveAdminNavigation(page, "Auditoría");
+    await expect(page).toHaveURL(/module=audit-log(?:&|$)/);
+    return;
+  }
+
+  const workspace = page.locator(
+    '[data-dashboard-module-workspace="admin-users-roles"]',
+  );
+  const table = workspace.getByRole("table", {
+    name: "Tabla de usuarios y roles administrativos",
+  });
+  await expect(table.getByText("admin_operaciones", { exact: true })).toBeVisible();
+  await expect(table.getByText("usuario_clinica_02", { exact: true })).toBeVisible();
+  await expect(table.getByText("Clínica E2E 02", { exact: true })).toBeVisible();
+  await expect(table.getByText("Owner clínica", { exact: true }).first()).toBeVisible();
+  await expect(table.getByText("Staff clínica", { exact: true }).first()).toBeVisible();
+  await expect(
+    workspace.getByText("No hay usuarios para los filtros seleccionados."),
+  ).toHaveCount(0);
+  await expectNinePopulatedRows(workspace);
+  await expectActiveAdminNavigation(page, "Usuarios");
+  await expect(page).toHaveURL(/module=admin-users-roles(?:&|$)/);
 }
 
 function denseClinicsSnapshot(limit: number) {
@@ -470,10 +648,9 @@ for (const viewport of VIEWPORTS) {
       test(`${routeCase.label} fits without external or internal scroll`, async ({
         page,
       }, testInfo) => {
-        const hydrationFailures =
-          routeCase.label === "admin audit log"
-            ? collectHydrationFailures(page)
-            : null;
+        const browserFailures = routeCase.populatedAdminModule
+          ? collectBrowserFailures(page)
+          : null;
 
         await page.setViewportSize({
           width: viewport.width,
@@ -483,7 +660,7 @@ for (const viewport of VIEWPORTS) {
         if (routeCase.surface === "clinic") {
           await setClinicSession(page);
         } else {
-          await setAdminSession(page);
+          await setAdminSession(page, Boolean(routeCase.populatedAdminModule));
         }
 
         await mockBrowserApis(page);
@@ -498,13 +675,17 @@ for (const viewport of VIEWPORTS) {
           });
         }
 
+        if (routeCase.populatedAdminModule) {
+          await expectPopulatedAdminModule(page, routeCase.populatedAdminModule);
+        }
+
         await expectPageNoOverflow(
           page,
           testInfo,
           `${viewport.name}-${routeCase.label}`,
           routeCase.ready.includes("workspace"),
         );
-        await hydrationFailures?.assertClean();
+        await browserFailures?.assertClean();
       });
     }
 
@@ -545,7 +726,7 @@ test("admin audit mobile filter keeps keyboard interaction hydration-safe", asyn
   const hydrationFailures = collectHydrationFailures(page);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await setAdminSession(page);
+  await setAdminSession(page, true);
   await mockBrowserApis(page);
   await page.goto("/dashboard/admin?module=audit-log");
 
