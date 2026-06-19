@@ -1004,11 +1004,14 @@ export function AdminParticularTokensCard() {
       </CardHeader>
 
       <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 py-3 md:gap-1.5 md:py-2">
-        <div className="flex min-h-10 shrink-0 flex-col gap-2 rounded-lg border border-vetneb-line/70 bg-card/80 px-2 py-1.5 md:min-h-8 md:flex-row md:items-center md:justify-between md:py-0.5">
+        <div
+          data-admin-particulars-toolbar="true"
+          className="flex min-h-10 shrink-0 flex-col gap-2 rounded-lg border border-vetneb-line/70 bg-card/80 px-2 py-1.5 md:min-h-8 md:flex-row md:items-center md:justify-between md:py-0.5"
+        >
           <div
             role="tablist"
             aria-label="Secciones de tokens particulares"
-            className="flex items-center gap-1"
+            className="flex flex-wrap items-center gap-1"
           >
             <Button
               type="button"
@@ -1034,12 +1037,12 @@ export function AdminParticularTokensCard() {
           </div>
 
           <form
-            className="flex min-w-0 items-center gap-1.5"
+            className="flex min-w-0 flex-wrap items-center gap-1.5"
             onSubmit={applyClinicFilter}
             aria-label="Filtrar tokens por clínica"
           >
             <Input
-              className="h-8 w-36 text-xs"
+              className="h-8 w-full text-xs md:w-36"
               type="number"
               min="1"
               inputMode="numeric"
@@ -1148,7 +1151,10 @@ export function AdminParticularTokensCard() {
             </Table>
           </div>
 
-          <div className="divide-y divide-vetneb-line/60 rounded-lg border border-vetneb-line/75 md:hidden">
+          <div
+            data-admin-particulars-mobile-list="true"
+            className="divide-y divide-vetneb-line/60 rounded-lg border border-vetneb-line/75 md:hidden"
+          >
             {tokens.map((token) => (
               <div key={token.id} className="flex min-h-10 items-center gap-2 px-2.5 py-1.5">
                 <div className="min-w-0 flex-1">
