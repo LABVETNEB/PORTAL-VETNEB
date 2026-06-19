@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
@@ -24,6 +31,14 @@ import {
   readDashboardLastModule,
   writeDashboardLastModule,
 } from "@/lib/dashboard-last-module";
+import {
+  clearAdminAccessError,
+  getAdminAccessErrorServerSnapshot,
+  getAdminAccessErrorSnapshot,
+  subscribeAdminAccessError,
+} from "@/lib/admin-access-error";
+import type { AdminAccessErrorStatus } from "@/lib/api-error";
+import { AdminAccessErrorState } from "./AdminAccessErrorState";
 
 export type AdminModule =
   | "admin"
@@ -81,6 +96,7 @@ type AdminWorkspaceSlots = {
 
 type AdminDashboardWorkspaceControllerProps = {
   initialModule?: AdminModule | null;
+  initialAccessErrorStatus?: AdminAccessErrorStatus | null;
   workspaces: AdminWorkspaceSlots;
   systemStatus: string;
   systemStatusLabel: string;
@@ -143,6 +159,7 @@ const ADMIN_MODULE_META: Record<AdminModule, { title: string; description: strin
 
 export function AdminDashboardWorkspaceController({
   initialModule,
+  initialAccessErrorStatus,
   workspaces,
   systemStatus,
   systemStatusLabel,
@@ -156,13 +173,30 @@ export function AdminDashboardWorkspaceController({
   const [activeModule, setActiveModule] = useState<AdminModule | null>(
     initialModule ?? null,
   );
+  const browserAccessErrorStatus = useSyncExternalStore(
+    subscribeAdminAccessError,
+    getAdminAccessErrorSnapshot,
+    getAdminAccessErrorServerSnapshot,
+  );
+  const accessErrorStatus =
+    browserAccessErrorStatus ?? initialAccessErrorStatus ?? null;
   const hasRestoredLastModule = useRef(false);
+  const previousUrlModule = useRef<AdminModule | null>(initialModule ?? null);
   const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
     useState(false);
 
   useEffect(() => {
+    const nextModule = parseModuleFromUrl(searchParams.get("module"));
+
+    if (previousUrlModule.current !== nextModule) {
+      clearAdminAccessError();
+      previousUrlModule.current = nextModule;
+    }
+
     setActiveModule(parseModuleFromUrl(searchParams.get("module")));
   }, [searchParams]);
+
+  useEffect(() => () => clearAdminAccessError(), []);
 
   useEffect(() => {
     if (!activeModule) return;
@@ -182,6 +216,7 @@ export function AdminDashboardWorkspaceController({
 
   const activateModule = useCallback(
     (moduleId: AdminModule) => {
+      clearAdminAccessError();
       setActiveModule(moduleId);
       router.push(`/dashboard/admin?module=${moduleId}`, { scroll: false });
     },
@@ -189,6 +224,7 @@ export function AdminDashboardWorkspaceController({
   );
 
   const backToHub = useCallback(() => {
+    clearAdminAccessError();
     setActiveModule(null);
     setHasManuallyReturnedToHub(true);
     router.replace("/dashboard/admin", { scroll: false });
@@ -316,8 +352,21 @@ export function AdminDashboardWorkspaceController({
         moduleId={activeModule}
         onBack={backToHub}
       >
-        {workspaces[activeModule]}
+        {accessErrorStatus ? (
+          <AdminAccessErrorState status={accessErrorStatus} />
+        ) : (
+          workspaces[activeModule]
+        )}
       </DashboardModuleWorkspace>
+    );
+  }
+
+  if (accessErrorStatus) {
+    return (
+      <>
+        {pageHeader}
+        <AdminAccessErrorState status={accessErrorStatus} />
+      </>
     );
   }
 
