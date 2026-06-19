@@ -391,14 +391,16 @@ habilitar operaciones admin desde frontend con `credentials: "include"`.
    - email de contacto,
    - telefono opcional,
    - usuario de acceso (usar email real de la clínica),
-   - contraseña inicial visible mientras se ingresa.
+   - contraseña inicial enmascarada por defecto; revelarla de forma explícita
+     solo durante la verificación y volver a ocultarla.
 6. Confirmar que la respuesta visual no muestra contraseña, hashes ni secretos.
 7. En la misma seccion, cambiar nombre/email/telefono de la clinica y guardar.
 8. Cambiar el username del usuario de clinica y confirmar que el listado se
    actualiza.
-9. Para recuperacion de contraseña, asignar una nueva contraseña visible y
-   guardar. La contraseña anterior no se consulta ni se recupera. Confirmar el
-   dialogo: `Se reemplazará la contraseña de acceso de esta clínica. ¿Confirmás el cambio?`
+9. Para recuperacion de contraseña, asignar una nueva contraseña enmascarada por
+   defecto. Verificar que reveal/hide requiere una acción explícita, volver a
+   ocultarla y guardar. La contraseña anterior no se consulta ni se recupera.
+   Confirmar el dialogo: `Se reemplazará la contraseña de acceso de esta clínica. ¿Confirmás el cambio?`
 10. Confirmar que `Clínicas` no muestra selector, columna ni acciones de rol.
    Los roles se gestionan aparte en `Roles clínica`, si aplica.
 11. Revisar `Log de auditoría` y confirmar eventos sanitizados:

@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
-import { ChevronLeft, ChevronRight, Loader2, Pencil, Plus, RefreshCw, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, EyeOff, Loader2, Pencil, Plus, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
@@ -111,6 +111,7 @@ export function AdminClinicsManagementCard() {
   const [createForm, setCreateForm] = useState<CreateClinicForm>(getInitialCreateForm);
   const [editingClinic, setEditingClinic] = useState<AdminClinicManagementSummary | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreatePasswordVisible, setIsCreatePasswordVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
@@ -156,6 +157,11 @@ export function AdminClinicsManagementCard() {
     setCreateForm((current) => ({ ...current, [key]: value }));
   }
 
+  function handleCreateDialogOpenChange(open: boolean) {
+    setIsCreateOpen(open);
+    if (!open) setIsCreatePasswordVisible(false);
+  }
+
   async function handleCreateClinic(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -178,6 +184,7 @@ export function AdminClinicsManagementCard() {
       setSuccessMessage(
         `Clínica creada: ${result.clinic.clinicName} con usuario ${result.user.username}.`,
       );
+      setIsCreatePasswordVisible(false);
       setIsCreateOpen(false);
       loadClinics(0);
     } catch (err) {
@@ -273,7 +280,7 @@ export function AdminClinicsManagementCard() {
       <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4 pt-3">
         <ModuleDialog
           open={isCreateOpen}
-          onOpenChange={setIsCreateOpen}
+          onOpenChange={handleCreateDialogOpenChange}
           title="Nueva clínica"
           description="Alta de clínica con su usuario de acceso inicial."
           busy={activeActionKey === "create-clinic"}
@@ -335,26 +342,50 @@ export function AdminClinicsManagementCard() {
             />
           </label>
 
-          <label className="space-y-1.5">
-            <span className="text-xs text-muted-foreground">Contraseña inicial</span>
-            <Input
-              type="text"
-              value={createForm.password}
-              disabled={isBusy}
-              minLength={8}
-              required
-              autoComplete="new-password"
-              aria-describedby="create-clinic-password-hint"
-              onChange={(event) =>
-                updateCreateField("password", event.target.value)
-              }
-            />
-          </label>
+          <div className="space-y-1.5">
+            <label
+              htmlFor="create-clinic-password"
+              className="text-xs text-muted-foreground"
+            >
+              Contraseña inicial
+            </label>
+            <div className="relative">
+              <Input
+                id="create-clinic-password"
+                type={isCreatePasswordVisible ? "text" : "password"}
+                value={createForm.password}
+                disabled={isBusy}
+                minLength={8}
+                required
+                autoComplete="new-password"
+                aria-describedby="create-clinic-password-hint"
+                className="pr-10"
+                onChange={(event) =>
+                  updateCreateField("password", event.target.value)
+                }
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55"
+                onClick={() => setIsCreatePasswordVisible((current) => !current)}
+                disabled={isBusy}
+                aria-label={isCreatePasswordVisible ? "Ocultar contraseña inicial" : "Mostrar contraseña inicial"}
+                aria-pressed={isCreatePasswordVisible}
+                aria-controls="create-clinic-password"
+              >
+                {isCreatePasswordVisible ? (
+                  <EyeOff className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <Eye className="h-4 w-4" aria-hidden="true" />
+                )}
+              </button>
+            </div>
+          </div>
 
           <div className="md:col-span-2">
             <p id="create-clinic-password-hint" className="text-xs text-muted-foreground">
               La contraseña anterior no se puede consultar. Para recuperación,
-              cargue una nueva contraseña visible y guárdela.
+              cargue una nueva contraseña y guárdela.
             </p>
           </div>
 

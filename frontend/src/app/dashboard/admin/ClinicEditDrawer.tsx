@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useId, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { KeyRound, Loader2, Save, X } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { AdminClinicManagementSummary } from "@/types";
@@ -58,6 +58,9 @@ export function ClinicEditDrawer({
   const [userDrafts, setUserDrafts] = useState<
     Record<number, { username: string; password: string }>
   >({});
+  const [visiblePasswordUserIds, setVisiblePasswordUserIds] = useState<
+    Record<number, boolean>
+  >({});
   const [clinicSaving, setClinicSaving] = useState(false);
   const [credentialsSaving, setCredentialsSaving] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -73,6 +76,7 @@ export function ClinicEditDrawer({
     if (!clinic) return;
     setClinicDraft(getInitialClinicDraft(clinic));
     setUserDrafts(getInitialUserDrafts(clinic));
+    setVisiblePasswordUserIds({});
     setClinicError(null);
     setCredentialsErrors({});
     setDeleteError(null);
@@ -144,6 +148,7 @@ export function ClinicEditDrawer({
         ...prev,
         [userId]: { ...prev[userId]!, password: "" },
       }));
+      setVisiblePasswordUserIds((prev) => ({ ...prev, [userId]: false }));
     } catch (err) {
       setCredentialsErrors((prev) => ({
         ...prev,
@@ -154,6 +159,13 @@ export function ClinicEditDrawer({
     } finally {
       setCredentialsSaving(null);
     }
+  }
+
+  function togglePasswordVisibility(userId: number) {
+    setVisiblePasswordUserIds((prev) => ({
+      ...prev,
+      [userId]: !prev[userId],
+    }));
   }
 
   async function handleDelete() {
@@ -306,6 +318,9 @@ export function ClinicEditDrawer({
               };
               const credError = credentialsErrors[user.userId];
               const isSavingThis = credentialsSaving === user.userId;
+              const passwordInputId = `clinic-user-${user.userId}-password`;
+              const isPasswordVisible =
+                visiblePasswordUserIds[user.userId] ?? false;
 
               return (
                 <section
@@ -343,27 +358,48 @@ export function ClinicEditDrawer({
                           }
                         />
                       </label>
-                      <label className="block space-y-1">
-                        <span className="text-xs text-muted-foreground">
+                      <div className="block space-y-1">
+                        <label
+                          htmlFor={passwordInputId}
+                          className="text-xs text-muted-foreground"
+                        >
                           Nueva contraseña
-                        </span>
-                        <Input
-                          type="text"
-                          value={draft.password}
-                          minLength={8}
-                          autoComplete="new-password"
-                          placeholder="Dejar vacío para no cambiar"
-                          onChange={(e) =>
-                            setUserDrafts((prev) => ({
-                              ...prev,
-                              [user.userId]: {
-                                ...prev[user.userId]!,
-                                password: e.target.value,
-                              },
-                            }))
-                          }
-                        />
-                      </label>
+                        </label>
+                        <div className="relative">
+                          <Input
+                            id={passwordInputId}
+                            type={isPasswordVisible ? "text" : "password"}
+                            value={draft.password}
+                            minLength={8}
+                            autoComplete="new-password"
+                            placeholder="Dejar vacío para no cambiar"
+                            className="pr-10"
+                            onChange={(e) =>
+                              setUserDrafts((prev) => ({
+                                ...prev,
+                                [user.userId]: {
+                                  ...prev[user.userId]!,
+                                  password: e.target.value,
+                                },
+                              }))
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:opacity-55"
+                            onClick={() => togglePasswordVisibility(user.userId)}
+                            aria-label={isPasswordVisible ? "Ocultar nueva contraseña" : "Mostrar nueva contraseña"}
+                            aria-pressed={isPasswordVisible}
+                            aria-controls={passwordInputId}
+                          >
+                            {isPasswordVisible ? (
+                              <EyeOff className="h-4 w-4" aria-hidden="true" />
+                            ) : (
+                              <Eye className="h-4 w-4" aria-hidden="true" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         La contraseña anterior no se puede consultar.
                       </p>

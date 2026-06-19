@@ -69,18 +69,34 @@ test("admin clinics management card lists clinics users and editable actions wit
   assert.equal(source.includes("ShieldCheck"), false);
 });
 
-test("admin clinics management card keeps admin-entered passwords visible and avoids hashes", () => {
+test("admin clinics management card hides admin-entered passwords by default and avoids hashes", () => {
   const source = read(ADMIN_CLINICS_CARD_PATH);
-  // Password confirmation and new-password fields live in the drawer (PR3C)
   const drawerSource = read(ADMIN_CLINICS_DRAWER_PATH);
 
   assert.ok(drawerSource.includes("window.confirm("));
   assert.ok(drawerSource.includes("Se reemplazará la contraseña de acceso de esta clínica. ¿Confirmás el cambio?"));
   assert.ok(source.includes("La contraseña anterior no se puede consultar. Para recuperación,"));
   assert.ok(drawerSource.includes("Nueva contraseña"));
-  assert.equal(source.includes('type="password"'), false);
-  assert.equal(drawerSource.includes('type="password"'), false);
-  assert.ok(source.includes('type="text"'));
+  assert.ok(
+    source.includes(
+      "const [isCreatePasswordVisible, setIsCreatePasswordVisible] = useState(false)",
+    ),
+  );
+  assert.ok(
+    source.includes(
+      'type={isCreatePasswordVisible ? "text" : "password"}',
+    ),
+  );
+  assert.ok(
+    drawerSource.includes(
+      "const [visiblePasswordUserIds, setVisiblePasswordUserIds] = useState<",
+    ),
+  );
+  assert.ok(
+    drawerSource.includes('type={isPasswordVisible ? "text" : "password"}'),
+  );
+  assert.equal(source.includes('type="text"'), false);
+  assert.equal(drawerSource.includes('type="text"'), false);
   assert.equal(source.includes("passwordHash"), false);
   assert.equal(drawerSource.includes("passwordHash"), false);
   assert.equal(source.includes("password_hash"), false);
@@ -89,6 +105,39 @@ test("admin clinics management card keeps admin-entered passwords visible and av
   assert.equal(drawerSource.includes("hash"), false);
   assert.equal(source.includes("contraseña actual"), false);
   assert.equal(drawerSource.includes("contraseña actual"), false);
+});
+
+test("admin clinic password reveal controls require explicit accessible interaction", () => {
+  const source = read(ADMIN_CLINICS_CARD_PATH);
+  const drawerSource = read(ADMIN_CLINICS_DRAWER_PATH);
+
+  assert.ok(source.includes('type="button"'));
+  assert.ok(
+    source.includes(
+      'aria-label={isCreatePasswordVisible ? "Ocultar contraseña inicial" : "Mostrar contraseña inicial"}',
+    ),
+  );
+  assert.ok(source.includes("aria-pressed={isCreatePasswordVisible}"));
+  assert.ok(source.includes('aria-controls="create-clinic-password"'));
+  assert.ok(
+    source.includes(
+      "onClick={() => setIsCreatePasswordVisible((current) => !current)}",
+    ),
+  );
+
+  assert.ok(drawerSource.includes('type="button"'));
+  assert.ok(
+    drawerSource.includes(
+      'aria-label={isPasswordVisible ? "Ocultar nueva contraseña" : "Mostrar nueva contraseña"}',
+    ),
+  );
+  assert.ok(drawerSource.includes("aria-pressed={isPasswordVisible}"));
+  assert.ok(drawerSource.includes("aria-controls={passwordInputId}"));
+  assert.ok(
+    drawerSource.includes(
+      "onClick={() => togglePasswordVisibility(user.userId)}",
+    ),
+  );
 });
 
 test("admin clinics management card maps fetch failures to an operational backend message", () => {
