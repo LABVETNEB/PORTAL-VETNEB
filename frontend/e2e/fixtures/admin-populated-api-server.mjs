@@ -3,6 +3,48 @@ import { createServer } from "node:http";
 const HOST = "127.0.0.1";
 const PORT = 3107;
 const POPULATED_ADMIN_SESSION = "e2e_populated_admin_session";
+const POPULATED_CLINIC_SESSION = "e2e_populated_clinic_session";
+
+const CLINIC_REPORTS = [
+  {
+    id: 8401,
+    clinicId: 77,
+    clinicName: "Clínica E2E Informes Mobile",
+    patientName: "Mora",
+    studyType:
+      "Histopatología dermatológica con evaluación de márgenes quirúrgicos ampliados",
+    status: "uploaded",
+    uploadDate: "2026-06-18T12:00:00.000Z",
+    hasFile: true,
+    createdAt: "2026-06-18T12:00:00.000Z",
+    updatedAt: "2026-06-18T14:30:00.000Z",
+  },
+  {
+    id: 8402,
+    clinicId: 77,
+    clinicName: "Clínica E2E Informes Mobile",
+    patientName:
+      "Paciente con nombre clínico extraordinariamente extenso para validar el detalle mobile",
+    studyType: "Citología",
+    status: "processing",
+    uploadDate: "2026-06-17T11:30:00.000Z",
+    hasFile: false,
+    createdAt: "2026-06-17T11:30:00.000Z",
+    updatedAt: "2026-06-18T13:15:00.000Z",
+  },
+  {
+    id: 8403,
+    clinicId: 77,
+    clinicName: "Clínica E2E Informes Mobile",
+    patientName: "Simón",
+    studyType: "Inmunohistoquímica",
+    status: "delivered",
+    uploadDate: "2026-06-16T09:45:00.000Z",
+    hasFile: true,
+    createdAt: "2026-06-16T09:45:00.000Z",
+    updatedAt: "2026-06-18T10:00:00.000Z",
+  },
+];
 
 const AUDIT_EVENTS = [
   {
@@ -213,6 +255,13 @@ function hasPopulatedAdminSession(request) {
     .includes(`admin_session_id=${POPULATED_ADMIN_SESSION}`);
 }
 
+function hasPopulatedClinicSession(request) {
+  return (request.headers.cookie ?? "")
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .includes(`app_session_id=${POPULATED_CLINIC_SESSION}`);
+}
+
 function auditSnapshot(url) {
   const event = url.searchParams.get("event");
   const limit = Number(url.searchParams.get("limit") ?? 9);
@@ -354,6 +403,11 @@ const server = createServer((request, response) => {
 
   if (url.pathname === "/__e2e/health") {
     sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  if (hasPopulatedClinicSession(request) && url.pathname === "/api/reports") {
+    sendJson(response, 200, { reports: CLINIC_REPORTS });
     return;
   }
 
