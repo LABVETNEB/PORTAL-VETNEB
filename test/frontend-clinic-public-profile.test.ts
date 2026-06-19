@@ -68,6 +68,16 @@ test("clinic public profile card exposes required publication fields", () => {
   assert.ok(source.includes("isSearchEligible"));
 });
 
+test("clinic public profile editor keeps mobile fields operable", () => {
+  const source = read(PROFILE_CARD_PATH);
+
+  assert.ok(source.includes('data-clinic-profile-editor="true"'));
+  assert.ok(source.includes('data-clinic-profile-fields="true"'));
+  assert.ok(source.includes("h-12 w-12 sm:h-16 sm:w-16"));
+  assert.ok(source.includes("text-xl sm:text-2xl"));
+  assert.ok(source.includes("min-h-0 flex-1 overflow-y-auto"));
+});
+
 test("frontend api exposes clinic public profile helpers", () => {
   const source = read(API_PATH);
 
