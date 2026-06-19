@@ -479,7 +479,10 @@ export function ClinicPublicProfileCard() {
   );
 
   const statusTab = (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div
+      data-clinic-profile-fields="true"
+      className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
+    >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <div className="surface-soft">
           <p className="text-xs text-muted-foreground">Estado</p>
@@ -489,7 +492,7 @@ export function ClinicPublicProfileCard() {
         </div>
         <div className="surface-soft">
           <p className="text-xs text-muted-foreground">Calidad</p>
-          <p className="mt-1 text-2xl font-bold text-vetneb-ink">
+          <p className="mt-1 text-xl sm:text-2xl font-bold text-vetneb-ink">
             {publication ? publication.qualityScore : "—"}
             <span className="text-sm font-medium text-muted-foreground">
               /{publication?.minimumQualityScore ?? 75}
@@ -515,7 +518,7 @@ export function ClinicPublicProfileCard() {
           Avatar o logo
         </label>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-vetneb-line/70 bg-white">
+          <div className="flex h-12 w-12 sm:h-16 sm:w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-vetneb-line/70 bg-white">
             {profileAvatarSrc ? (
               <NextImage
                 src={profileAvatarSrc}
@@ -569,131 +572,139 @@ export function ClinicPublicProfileCard() {
   );
 
   const detailsTab = (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-      <div>
-        <label htmlFor="clinic-profile-display-name" className="field-label">
-          Nombre visible
-        </label>
-        <Input
-          id="clinic-profile-display-name"
-          name="displayName"
-          type="text"
-          required
-          value={formState.displayName}
-          onChange={(event) => updateField("displayName", event.target.value)}
-          disabled={isWorking}
-        />
-      </div>
+    <div
+      data-clinic-profile-fields="true"
+      className="min-h-0 flex-1 overflow-y-auto lg:overflow-y-visible"
+    >
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div>
+          <label htmlFor="clinic-profile-display-name" className="field-label">
+            Nombre visible
+          </label>
+          <Input
+            id="clinic-profile-display-name"
+            name="displayName"
+            type="text"
+            required
+            value={formState.displayName}
+            onChange={(event) => updateField("displayName", event.target.value)}
+            disabled={isWorking}
+          />
+        </div>
 
-      <div>
-        <label htmlFor="clinic-profile-specialty" className="field-label">
-          Especialidad
-        </label>
-        <Input
-          id="clinic-profile-specialty"
-          name="specialtyText"
-          type="text"
-          required
-          value={formState.specialtyText}
-          onChange={(event) => updateField("specialtyText", event.target.value)}
-          disabled={isWorking}
-          placeholder="Ej: Anatomía patológica veterinaria"
-        />
-      </div>
+        <div>
+          <label htmlFor="clinic-profile-specialty" className="field-label">
+            Especialidad
+          </label>
+          <Input
+            id="clinic-profile-specialty"
+            name="specialtyText"
+            type="text"
+            required
+            value={formState.specialtyText}
+            onChange={(event) => updateField("specialtyText", event.target.value)}
+            disabled={isWorking}
+            placeholder="Ej: Anatomía patológica veterinaria"
+          />
+        </div>
 
-      <div>
-        <label htmlFor="clinic-profile-locality" className="field-label">
-          Localidad
-        </label>
-        <Input
-          id="clinic-profile-locality"
-          name="locality"
-          type="text"
-          required
-          value={formState.locality}
-          onChange={(event) => updateField("locality", event.target.value)}
-          disabled={isWorking}
-        />
-      </div>
+        <div>
+          <label htmlFor="clinic-profile-locality" className="field-label">
+            Localidad
+          </label>
+          <Input
+            id="clinic-profile-locality"
+            name="locality"
+            type="text"
+            required
+            value={formState.locality}
+            onChange={(event) => updateField("locality", event.target.value)}
+            disabled={isWorking}
+          />
+        </div>
 
-      <div>
-        <label htmlFor="clinic-profile-country" className="field-label">
-          País
-        </label>
-        <Input
-          id="clinic-profile-country"
-          name="country"
-          type="text"
-          required
-          value={formState.country}
-          onChange={(event) => updateField("country", event.target.value)}
-          disabled={isWorking}
-        />
-      </div>
+        <div>
+          <label htmlFor="clinic-profile-country" className="field-label">
+            País
+          </label>
+          <Input
+            id="clinic-profile-country"
+            name="country"
+            type="text"
+            required
+            value={formState.country}
+            onChange={(event) => updateField("country", event.target.value)}
+            disabled={isWorking}
+          />
+        </div>
 
-      <div>
-        <label htmlFor="clinic-profile-email" className="field-label">
-          Email público
-        </label>
-        <Input
-          id="clinic-profile-email"
-          name="email"
-          type="email"
-          value={formState.email}
-          onChange={(event) => updateField("email", event.target.value)}
-          disabled={isWorking}
-        />
-      </div>
+        <div>
+          <label htmlFor="clinic-profile-email" className="field-label">
+            Email público
+          </label>
+          <Input
+            id="clinic-profile-email"
+            name="email"
+            type="email"
+            value={formState.email}
+            onChange={(event) => updateField("email", event.target.value)}
+            disabled={isWorking}
+          />
+        </div>
 
-      <div>
-        <label htmlFor="clinic-profile-phone" className="field-label">
-          Teléfono público
-        </label>
-        <Input
-          id="clinic-profile-phone"
-          name="phone"
-          type="text"
-          value={formState.phone}
-          onChange={(event) => updateField("phone", event.target.value)}
-          disabled={isWorking}
-        />
-      </div>
+        <div>
+          <label htmlFor="clinic-profile-phone" className="field-label">
+            Teléfono público
+          </label>
+          <Input
+            id="clinic-profile-phone"
+            name="phone"
+            type="text"
+            value={formState.phone}
+            onChange={(event) => updateField("phone", event.target.value)}
+            disabled={isWorking}
+          />
+        </div>
 
-      <div>
-        <label htmlFor="clinic-profile-public-address" className="field-label">
-          Dirección pública
-        </label>
-        <Input
-          id="clinic-profile-public-address"
-          name="publicAddress"
-          type="text"
-          maxLength={160}
-          value={formState.publicAddress}
-          onChange={(event) => updateField("publicAddress", event.target.value)}
-          disabled={isWorking}
-          placeholder="Calle, número, ciudad"
-        />
-      </div>
+        <div>
+          <label htmlFor="clinic-profile-public-address" className="field-label">
+            Dirección pública
+          </label>
+          <Input
+            id="clinic-profile-public-address"
+            name="publicAddress"
+            type="text"
+            maxLength={160}
+            value={formState.publicAddress}
+            onChange={(event) => updateField("publicAddress", event.target.value)}
+            disabled={isWorking}
+            placeholder="Calle, número, ciudad"
+          />
+        </div>
 
-      <div>
-        <label htmlFor="clinic-profile-map-link" className="field-label">
-          Enlace a mapa
-        </label>
-        <Input
-          id="clinic-profile-map-link"
-          name="mapLink"
-          type="url"
-          value={formState.mapLink}
-          onChange={(event) => updateField("mapLink", event.target.value)}
-          disabled={isWorking}
-          placeholder="https://maps.google.com/..."
-        />
+        <div>
+          <label htmlFor="clinic-profile-map-link" className="field-label">
+            Enlace a mapa
+          </label>
+          <Input
+            id="clinic-profile-map-link"
+            name="mapLink"
+            type="url"
+            value={formState.mapLink}
+            onChange={(event) => updateField("mapLink", event.target.value)}
+            disabled={isWorking}
+            placeholder="https://maps.google.com/..."
+          />
+        </div>
       </div>
     </div>
   );
 
   const contentTab = (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div
+      data-clinic-profile-fields="true"
+      className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
+    >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div>
           <label htmlFor="clinic-profile-services" className="field-label">
@@ -747,6 +758,7 @@ export function ClinicPublicProfileCard() {
   return (
     <Card
       id="clinic-public-profile"
+      data-clinic-profile-editor="true"
       className="dashboard-surface flex min-h-0 flex-1 flex-col"
     >
       <CardHeader className="shrink-0 border-b border-vetneb-line/70 px-5 py-3">
