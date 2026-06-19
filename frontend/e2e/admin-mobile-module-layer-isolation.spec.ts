@@ -225,15 +225,21 @@ async function openModule(
   moduleId: string,
   viewportLabel: string,
 ) {
-  const moduleCard = page.locator(
-    `[data-dashboard-module-hub="true"] [data-dashboard-module-card="${moduleId}"]`,
-  );
+  const launcher = page.locator('[data-admin-mobile-hub-launcher="true"]');
+  const moduleTile = launcher.locator(`[data-admin-mobile-hub-tile="${moduleId}"]`);
   const workspace = page.locator(
     `[data-dashboard-module-workspace="${moduleId}"]`,
   );
 
-  await expect(moduleCard).toBeVisible();
-  await moduleCard.click();
+  if ((await moduleTile.count()) === 0) {
+    await launcher
+      .locator('[data-admin-mobile-hub-pager="true"]')
+      .getByRole("button", { name: "Siguiente", exact: true })
+      .click();
+  }
+
+  await expect(moduleTile).toBeVisible();
+  await moduleTile.click();
   await expect(workspace).toBeVisible({ timeout: 15_000 });
   await expectLayerContract(
     page,
@@ -250,12 +256,12 @@ async function backToHub(page: Page, viewportLabel: string) {
     .getByRole("button", { name: "Inicio", exact: true })
     .click();
 
-  const hub = page.locator('[data-dashboard-module-hub="true"]');
+  const hub = page.locator('[data-admin-mobile-hub-launcher="true"]');
   await expect(hub).toBeVisible({ timeout: 15_000 });
   await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(0);
   await expectLayerContract(
     page,
-    '[data-dashboard-module-hub="true"]',
+    '[data-admin-mobile-hub-launcher="true"]',
     `${viewportLabel} hub`,
   );
 }
@@ -274,11 +280,11 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await page.goto("/dashboard/admin");
     await suppressNextDevIndicator(page);
 
-    const hub = page.locator('[data-dashboard-module-hub="true"]');
+    const hub = page.locator('[data-admin-mobile-hub-launcher="true"]');
     await expect(hub).toBeVisible({ timeout: 15_000 });
     await expectLayerContract(
       page,
-      '[data-dashboard-module-hub="true"]',
+      '[data-admin-mobile-hub-launcher="true"]',
       `${viewport.name} initial hub`,
     );
 

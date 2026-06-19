@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ChevronRight } from "lucide-react";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { AdminMobileHubLauncher } from "./AdminMobileHubLauncher";
 import { cn } from "@/lib/utils";
 
 export type DashboardModuleCard = {
@@ -36,18 +37,30 @@ export function DashboardModuleHub({
   const showDescription = !isDenseLauncher;
 
   return (
-    <div className={cn("dashboard-cockpit min-h-0 lg:flex-1", className)}>
+    <div
+      data-dashboard-hub-root="true"
+      className={cn("dashboard-cockpit min-h-0 lg:flex-1", className)}
+    >
       {hero ? (
-        <div data-dashboard-hub-hero-slot="true" className="dashboard-cockpit-rail">
+        <div
+          data-dashboard-hub-hero-slot="true"
+          className={cn(
+            "dashboard-cockpit-rail",
+            isDenseLauncher && "admin-mobile-hub-hero-slot",
+          )}
+        >
           {hero}
         </div>
+      ) : null}
+      {isDenseLauncher ? (
+        <AdminMobileHubLauncher heading={heading} cards={cards} />
       ) : null}
       <section
         aria-label={heading}
         data-dashboard-module-hub="true"
         className={cn(
           "dashboard-cockpit-launcher",
-          isDenseLauncher && "dashboard-cockpit-launcher-dense",
+          isDenseLauncher && "dashboard-cockpit-launcher-dense admin-mobile-hub-desktop-launcher",
         )}
       >
         <div className="flex items-baseline justify-between gap-3">

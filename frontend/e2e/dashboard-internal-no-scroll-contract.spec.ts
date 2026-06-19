@@ -55,7 +55,7 @@ const SHELLS: ShellCase[] = [
     label: "admin dashboard shell",
     surface: "admin",
     path: "/dashboard/admin",
-    ready: '[data-dashboard-module-hub="true"]',
+    ready: '[data-dashboard-hub-root="true"]',
   },
 ];
 

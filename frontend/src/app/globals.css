@@ -2646,3 +2646,172 @@
   }
 }
 /* admin-mobile-app-shell:end */
+/* admin-mobile-hub-launcher:start */
+@media (min-width: 768px) {
+  [data-admin-mobile-hub-launcher="true"] {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  [data-vetneb-app-shell-surface="admin"] .dashboard-cockpit {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-hero-slot,
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-desktop-launcher {
+    display: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-hub-launcher="true"] {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    gap: 0.5rem;
+    overflow: hidden;
+    isolation: isolate;
+    background: hsl(var(--card));
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-launcher-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    gap: 0.5rem;
+    overflow: hidden;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-launcher-grid > li {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-tile {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 0;
+    gap: 0.3rem;
+    overflow: hidden;
+    border-radius: 0.85rem;
+    border: 1px solid hsl(var(--vetneb-line) / 0.8);
+    background: hsl(var(--card));
+    padding: 0.4rem;
+    text-align: center;
+    touch-action: manipulation;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-tile-icon {
+    display: inline-flex;
+    height: 1.85rem;
+    width: 1.85rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 0.6rem;
+    color: #fff;
+    background: linear-gradient(135deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal) / 0.85));
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-tile-label {
+    display: -webkit-box;
+    width: 100%;
+    overflow: hidden;
+    color: hsl(var(--vetneb-ink));
+    font-size: 0.7rem;
+    font-weight: 650;
+    line-height: 1.15;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager {
+    display: flex;
+    flex: 0 0 auto;
+    min-width: 0;
+    min-height: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    overflow: hidden;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager-button {
+    display: inline-flex;
+    min-height: 2.1rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 0.3rem 0.65rem;
+    border: 1px solid hsl(var(--vetneb-line));
+    border-radius: 0.5rem;
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    font-size: 0.72rem;
+    font-weight: 650;
+    touch-action: manipulation;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager-button:disabled {
+    opacity: 0.45;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager-dots {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    overflow: hidden;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager-dot {
+    display: block;
+    width: 0.4rem;
+    height: 0.4rem;
+    flex: 0 0 auto;
+    overflow: hidden;
+    border-radius: 999px;
+    background: hsl(var(--vetneb-line));
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager-dot[aria-current="page"] {
+    background: hsl(var(--vetneb-teal));
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-pager-status {
+    flex: 0 0 auto;
+    overflow: hidden;
+    white-space: nowrap;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.64rem;
+    font-weight: 600;
+  }
+
+  [data-vetneb-app-shell-surface="admin"]
+    :is(
+      .admin-mobile-hub-launcher-grid,
+      .admin-mobile-hub-tile,
+      .admin-mobile-hub-pager,
+      .admin-mobile-hub-pager-dots
+    ) {
+    overflow-x: hidden;
+    overflow-y: hidden;
+  }
+}
+/* admin-mobile-hub-launcher:end */
