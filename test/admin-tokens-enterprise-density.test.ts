@@ -47,8 +47,8 @@ test("admin tokens replaces row cards and inline detail with a dense table and d
 
   assert.ok(source.includes('aria-label="Tabla de tokens particulares"'));
   assert.ok(source.includes("<Table"));
-  assert.ok(source.includes("[&_th]:h-9"));
-  assert.ok(source.includes('className="py-1"'));
+  assert.ok(source.includes("[&_th]:h-8"));
+  assert.ok(source.includes('className="py-0.5"'));
   assert.ok(source.includes('className="h-7 px-2 text-xs"'));
   assert.ok(source.includes("<ModuleDialog"));
   assert.ok(source.includes('title={`Token ****${selectedToken.tokenLast4}`}'));

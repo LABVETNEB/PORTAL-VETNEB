@@ -187,9 +187,9 @@ export function AdminReportsCard() {
 
   return (
     <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden shadow-none">
-      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3">
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:py-2">
         <div className="min-w-0">
-          <CardTitle className="text-xl leading-tight">Informes</CardTitle>
+          <CardTitle className="text-xl leading-tight md:text-base">Informes</CardTitle>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Cola administrativa, trazabilidad y documentos en una sola vista.
           </p>
@@ -199,7 +199,7 @@ export function AdminReportsCard() {
             type="button"
             variant="outline"
             size="sm"
-            className="h-8 px-2.5 text-xs"
+            className="h-8 px-2.5 text-xs md:h-7 md:px-2"
             onClick={() => void loadReports(page)}
             disabled={isLoading || busyReportId !== null}
           >
@@ -213,7 +213,7 @@ export function AdminReportsCard() {
           <Button
             type="button"
             size="sm"
-            className="h-8 px-2.5 text-xs"
+            className="h-8 px-2.5 text-xs md:h-7 md:px-2"
             onClick={() => setIsUploadOpen(true)}
           >
             <FilePlus2 aria-hidden="true" />
@@ -222,7 +222,7 @@ export function AdminReportsCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3 pt-2">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3 pt-2 md:gap-1.5 md:pb-2 md:pt-1.5">
         <div className="flex min-h-8 flex-wrap items-center justify-between gap-2 rounded-md border border-vetneb-line/65 bg-vetneb-surface-raised/45 px-2.5 text-xs text-muted-foreground">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span>
@@ -256,7 +256,7 @@ export function AdminReportsCard() {
           {reports.length ? (
             <>
               <div className="dashboard-table-responsive hidden min-h-0 flex-1 md:block">
-                <Table className="table-fixed text-[0.8125rem] [&_th]:h-9 [&_th]:px-2.5 [&_td]:px-2.5">
+                <Table className="table-fixed text-[0.8125rem] [&_th]:h-8 [&_th]:px-2.5 [&_td]:px-2.5">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[20%]">Caso / paciente</TableHead>
@@ -271,7 +271,7 @@ export function AdminReportsCard() {
                   <TableBody>
                     {reports.map((report) => (
                       <TableRow key={report.id}>
-                        <TableCell className="py-1">
+                        <TableCell className="py-0.5">
                           <p className="truncate font-medium text-vetneb-ink">
                             {report.patientName || "Paciente sin registrar"}
                           </p>
@@ -279,15 +279,15 @@ export function AdminReportsCard() {
                             Informe #{report.id}
                           </p>
                         </TableCell>
-                        <TableCell className="py-1">
+                        <TableCell className="py-0.5">
                           <p className="truncate">
                             {report.clinicName || `Clínica #${report.clinicId}`}
                           </p>
                         </TableCell>
-                        <TableCell className="py-1">
+                        <TableCell className="py-0.5">
                           <span className="block truncate">{studyLabel(report.studyType)}</span>
                         </TableCell>
-                        <TableCell className="py-1">
+                        <TableCell className="py-0.5">
                           <AdminReportStatusBadge stage={report.workflowStage} />
                           {report.specialStainRequested ? (
                             <span className="ml-1 text-[0.6875rem] font-semibold text-amber-700">
@@ -295,15 +295,15 @@ export function AdminReportsCard() {
                             </span>
                           ) : null}
                         </TableCell>
-                        <TableCell className="hidden py-1 text-xs lg:table-cell">
+                        <TableCell className="hidden py-0.5 text-xs lg:table-cell">
                           {formatDate(report.uploadDate ?? report.createdAt)}
                         </TableCell>
-                        <TableCell className="hidden py-1 xl:table-cell">
+                        <TableCell className="hidden py-0.5 xl:table-cell">
                           <span className="block truncate text-xs text-muted-foreground">
                             {report.fileName || "Sin archivo"}
                           </span>
                         </TableCell>
-                        <TableCell className="py-1 text-right">
+                        <TableCell className="py-0.5 text-right">
                           <Button
                             type="button"
                             variant="outline"
@@ -355,7 +355,7 @@ export function AdminReportsCard() {
           )}
 
           <nav
-            className="mt-2 flex min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground"
+            className="mt-2 flex min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:min-h-8 md:pt-1"
             aria-label="Paginación de informes admin"
           >
             <span>
@@ -366,7 +366,7 @@ export function AdminReportsCard() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 md:h-7 md:w-7"
                 disabled={page === 0 || isLoading}
                 onClick={() => setPage((current) => Math.max(0, current - 1))}
                 aria-label="Página anterior"
@@ -378,7 +378,7 @@ export function AdminReportsCard() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 md:h-7 md:w-7"
                 disabled={!hasMore || isLoading}
                 onClick={() => setPage((current) => current + 1)}
                 aria-label="Página siguiente"
