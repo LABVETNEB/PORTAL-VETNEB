@@ -489,11 +489,11 @@ export function ClinicParticularTokensCard() {
       id="clinic-particular-tokens"
       className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden"
     >
-      <CardHeader className="shrink-0 border-b border-vetneb-line/70">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+      <CardHeader className="shrink-0 border-b border-vetneb-line/70 p-4 sm:p-6">
+        <div className="flex flex-col gap-2 sm:gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0">
             <CardTitle className="text-base">Generación de tokens particulares</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground sm:line-clamp-none">
               Gestión compacta: generar token en una capa dedicada, seleccionar de la
               lista y revisar el seguimiento solo desde el detalle.
             </p>
@@ -520,9 +520,9 @@ export function ClinicParticularTokensCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-4 pt-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4 pt-3 sm:gap-4 sm:px-6 sm:pb-6 sm:pt-4">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground">
+          <p className="line-clamp-2 text-xs text-muted-foreground sm:line-clamp-none">
             Lista limitada con paginación compacta. La generación abre una capa
             dedicada y no apila el formulario sobre la lista.
           </p>
@@ -552,13 +552,13 @@ export function ClinicParticularTokensCard() {
           aria-label="Tokens particulares de la clínica"
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="dashboard-master-panel dashboard-inline-list flex-1 rounded-xl border border-vetneb-line/75 bg-card/82">
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-vetneb-line/70 px-4 py-3">
+          <div className="dashboard-master-panel dashboard-inline-list min-h-0 flex-1 rounded-xl border border-vetneb-line/75 bg-card/82">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-vetneb-line/70 px-3 py-2 sm:px-4 sm:py-3">
               <div>
                 <h3 className="text-sm font-semibold text-vetneb-ink">
                   Últimos tokens de la clínica
                 </h3>
-                <p className="dashboard-section-description">
+                <p className="dashboard-section-description line-clamp-1 sm:line-clamp-none">
                   Seleccionar un token despliega el detalle dentro del propio token.
                 </p>
               </div>
