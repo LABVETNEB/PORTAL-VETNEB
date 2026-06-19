@@ -45,7 +45,13 @@ import type {
   AdminFailedLoginAlertsQuery,
   AdminFailedLoginAlertsSnapshot,
 } from "@/types";
+import {
+  getAdminAccessErrorState,
+  getAdminAccessErrorStatus,
+  isAdminAccessErrorStatus,
+} from "@/lib/api-error";
 import { ApiResponseError } from "@/lib/api-error";
+import { publishAdminAccessErrorStatus } from "@/lib/admin-access-error";
 
 const LOCAL_DEVELOPMENT_API_BASE_URL = "http://localhost:3000";
 const SAME_ORIGIN_API_BASE_URL = "";
@@ -56,8 +62,6 @@ export const BACKEND_CONNECTION_ERROR_MESSAGE =
   "No se pudo conectar con el backend. Verifique sesión admin, CORS y despliegue backend/frontend.";
 export const BACKEND_OPERATION_ERROR_MESSAGE =
   "El backend no pudo completar la operación. Reintentá y, si persiste, revisá estado del sistema y logs de backend.";
-export const ADMIN_SCHEMA_HEALTH_UNAUTHORIZED_MESSAGE =
-  "Sesión admin no autenticada o inválida. Iniciá sesión nuevamente.";
 export const LOGIN_RATE_LIMIT_CLIENT_ERROR_MESSAGE =
   "Acceso temporalmente restringido. Intentá nuevamente más tarde.";
 
@@ -255,6 +259,15 @@ async function apiFetch<T>(
   }
 
   if (!res.ok) {
+    if (isAdminApiPath(path) && isAdminAccessErrorStatus(res.status)) {
+      publishAdminAccessErrorStatus(res.status);
+      const accessState = getAdminAccessErrorState(res.status);
+
+      if (accessState) {
+        throw new ApiResponseError(res.status, accessState.message);
+      }
+    }
+
     const body = (await res.json().catch(() => ({}))) as {
       error?: unknown;
       message?: unknown;
@@ -296,6 +309,10 @@ async function apiFetch<T>(
   }
 
   return res.json() as Promise<T>;
+}
+
+function isAdminApiPath(path: string): boolean {
+  return path === "/api/admin" || path.startsWith("/api/admin/");
 }
 
 export async function loginClinic(
@@ -1708,6 +1725,10 @@ export async function getAdminSystemHealth(
       options,
     );
   } catch (error) {
+    if (getAdminAccessErrorStatus(error)) {
+      throw error;
+    }
+
     warnApiFallback("getAdminSystemHealth", error);
     return null;
   }
@@ -1761,12 +1782,17 @@ export async function getAdminSchemaHealth(
     throw error;
   }
 
+  if (isAdminAccessErrorStatus(res.status)) {
+    publishAdminAccessErrorStatus(res.status);
+    const accessState = getAdminAccessErrorState(res.status);
+
+    if (accessState) {
+      throw new ApiResponseError(res.status, accessState.message);
+    }
+  }
+
   const body = (await res.json().catch(() => null)) as unknown;
   const backendMessage = readBackendMessageFromBody(body);
-
-  if (res.status === 401) {
-    throw new Error(ADMIN_SCHEMA_HEALTH_UNAUTHORIZED_MESSAGE);
-  }
 
   const parsedSnapshot =
     body && typeof body === "object"

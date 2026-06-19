@@ -40,6 +40,7 @@ import {
   type AdminAuditSnapshot,
 } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
+import { getAdminAccessErrorStatus } from "@/lib/api-error";
 import { formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -356,12 +357,29 @@ async function loadAdminAuditSnapshot(
     return {
       snapshot: await getAuditEntries(query, options, { throwOnError: true }),
       loadError: false,
+      accessErrorStatus: null,
     };
   } catch (error) {
     redirectToLoginOnUnauthorized(error);
     return {
       snapshot: createEmptyAuditSnapshot(query),
       loadError: true,
+      accessErrorStatus: getAdminAccessErrorStatus(error),
+    };
+  }
+}
+
+async function loadAdminSystemHealth(requestOptions: RequestInit) {
+  try {
+    return {
+      snapshot: await getAdminSystemHealth(requestOptions),
+      accessErrorStatus: null,
+    };
+  } catch (error) {
+    redirectToLoginOnUnauthorized(error);
+    return {
+      snapshot: null,
+      accessErrorStatus: getAdminAccessErrorStatus(error),
     };
   }
 }
@@ -446,7 +464,7 @@ export default async function AdminPage({
     auditOverviewRead,
     roleChangeRead,
     notificationRead,
-    systemHealth,
+    systemHealthRead,
   ] = await Promise.all([
     loadAdminAuditSnapshot(auditQuery, requestOptions),
     loadAdminAuditSnapshot(
@@ -461,13 +479,28 @@ export default async function AdminPage({
       { event: "study_tracking.notification.created", limit: 1, offset: 0 },
       requestOptions,
     ),
-    getAdminSystemHealth(requestOptions),
+    loadAdminSystemHealth(requestOptions),
   ]);
   const auditSnapshot = auditRead.snapshot;
   const auditEntriesLoadError = auditRead.loadError;
   const auditOverviewSnapshot = auditOverviewRead.snapshot;
   const roleChangeSnapshot = roleChangeRead.snapshot;
   const notificationSnapshot = notificationRead.snapshot;
+  const systemHealth = systemHealthRead.snapshot;
+  const initialAccessErrorStatus =
+    initialModule === "audit-log"
+      ? auditRead.accessErrorStatus ??
+        auditOverviewRead.accessErrorStatus ??
+        roleChangeRead.accessErrorStatus ??
+        notificationRead.accessErrorStatus
+      : initialModule === "admin-health"
+        ? systemHealthRead.accessErrorStatus
+        : initialModule === null || initialModule === "admin"
+          ? auditOverviewRead.accessErrorStatus ??
+            roleChangeRead.accessErrorStatus ??
+            notificationRead.accessErrorStatus ??
+            systemHealthRead.accessErrorStatus
+          : null;
   const hasSystemHealthFetchError = systemHealth === null;
   const serviceChecks = systemHealth?.services ?? {};
   const contactRecipients = getConfiguredContactRecipients(serviceChecks);
@@ -817,6 +850,7 @@ export default async function AdminPage({
         <Suspense>
           <AdminDashboardWorkspaceController
             initialModule={initialModule}
+            initialAccessErrorStatus={initialAccessErrorStatus}
             pageHeader={
               <DashboardPageHeader
                 title="Administración"
