@@ -2312,3 +2312,337 @@
   }
 }
 /* admin-mobile-module-layer-isolation:end */
+/* admin-mobile-app-shell:start */
+@media (max-width: 767px) {
+  html:has([data-vetneb-app-shell-surface="admin"]),
+  body:has([data-vetneb-app-shell-surface="admin"]) {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] {
+    width: 100%;
+    height: 100vh;
+    height: 100svh;
+    min-height: 0;
+    max-height: 100svh;
+    overflow: hidden;
+    overscroll-behavior: none;
+    isolation: isolate;
+  }
+
+  [data-vetneb-app-shell-surface="admin"]
+    > [data-vetneb-app-shell-frame="true"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  [data-vetneb-app-shell-surface="admin"]
+    [data-admin-mobile-app-bar="true"] {
+    position: relative;
+    top: auto;
+    z-index: 60;
+    flex: 0 0 auto;
+    min-height: 0 !important;
+    overflow: visible;
+    padding: 0 !important;
+    isolation: isolate;
+    background: hsl(var(--card)) !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transform: none !important;
+  }
+
+  .dashboard-app-shell[data-vetneb-app-shell-surface="admin"]
+    [data-dashboard-topbar-polish="true"][data-admin-mobile-app-bar="true"] {
+    box-sizing: border-box;
+    height: calc(3rem + env(safe-area-inset-top)) !important;
+    min-height: calc(3rem + env(safe-area-inset-top)) !important;
+    max-height: calc(3rem + env(safe-area-inset-top)) !important;
+    padding: 0 !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"]
+    [data-admin-mobile-app-bar="true"]
+    > div:first-child {
+    box-sizing: border-box;
+    height: calc(3rem + env(safe-area-inset-top));
+    min-height: calc(3rem + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 0.75rem 0;
+    gap: 0.5rem;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] #dashboard-topbar-title,
+  [data-vetneb-app-shell-surface="admin"]
+    [data-admin-mobile-topbar-subtitle="true"],
+  [data-vetneb-app-shell-surface="admin"]
+    [data-dashboard-desktop-actions="true"],
+  [data-vetneb-app-shell-surface="admin"]
+    [data-dashboard-horizontal-nav-shell="true"] {
+    display: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-context-title {
+    display: block !important;
+    overflow: hidden;
+    color: hsl(var(--vetneb-ink));
+    font-size: 1rem;
+    font-weight: 650;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-root {
+    position: relative;
+    display: block !important;
+    flex: 0 0 auto;
+    isolation: isolate;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-trigger,
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-icon-button {
+    display: inline-flex;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid hsl(var(--vetneb-line));
+    border-radius: 0.5rem;
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    touch-action: manipulation;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-trigger:focus-visible,
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-icon-button:focus-visible,
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-page-button:focus-visible,
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-module-link:focus-visible,
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-bottom-nav-item:focus-visible,
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-action:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-menu {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    right: 0;
+    z-index: 75;
+    display: flex;
+    width: min(20rem, calc(100vw - 1.5rem));
+    max-height: calc(100svh - 4rem - env(safe-area-inset-bottom));
+    flex-direction: column;
+    gap: 0.35rem;
+    overflow: hidden;
+    padding: 0.5rem;
+    border: 1px solid hsl(var(--vetneb-line));
+    border-radius: 0.75rem;
+    background: hsl(var(--card));
+    box-shadow: 0 12px 30px rgba(15, 45, 62, 0.18);
+    isolation: isolate;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transform: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-row,
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-action {
+    display: flex;
+    min-width: 0;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    overflow: hidden;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.45rem;
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-align: left;
+    touch-action: manipulation;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-action {
+    justify-content: flex-start;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-logout {
+    color: hsl(var(--destructive));
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .dashboard-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    padding: 0.5rem;
+  }
+
+  [data-vetneb-app-shell-surface="admin"]
+    [data-dashboard-module-back-button="true"] {
+    display: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-bottom-nav {
+    position: relative;
+    z-index: 65;
+    display: flex !important;
+    width: 100%;
+    height: calc(3.5rem + env(safe-area-inset-bottom));
+    min-height: 0;
+    flex: 0 0 auto;
+    align-items: stretch;
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid hsl(var(--vetneb-line));
+    background: hsl(var(--card));
+    isolation: isolate;
+    overscroll-behavior: none;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transform: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-bottom-nav-item {
+    display: inline-flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 20%;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.15rem;
+    overflow: hidden;
+    padding: 0.25rem 0.1rem;
+    border-radius: 0;
+    background: hsl(var(--card));
+    color: hsl(var(--muted-foreground));
+    font-size: 0.64rem;
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+
+  [data-vetneb-app-shell-surface="admin"]
+    .admin-mobile-bottom-nav-item-active {
+    color: hsl(var(--vetneb-navy));
+    background: hsl(var(--vetneb-surface-muted));
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-module-menu {
+    position: fixed;
+    right: 0.5rem;
+    bottom: calc(4rem + env(safe-area-inset-bottom));
+    left: 0.5rem;
+    z-index: 70;
+    display: flex !important;
+    max-height: calc(
+      100svh - 7.75rem - env(safe-area-inset-top) -
+        env(safe-area-inset-bottom)
+    );
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow: hidden;
+    padding: 0.65rem;
+    border: 1px solid hsl(var(--vetneb-line));
+    border-radius: 0.85rem;
+    background: hsl(var(--card));
+    box-shadow: 0 12px 30px rgba(15, 45, 62, 0.2);
+    isolation: isolate;
+    overscroll-behavior: none;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transform: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-module-grid {
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
+    overflow: hidden;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-module-link {
+    display: inline-flex;
+    min-width: 0;
+    min-height: 2.6rem;
+    align-items: center;
+    gap: 0.45rem;
+    overflow: hidden;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid hsl(var(--vetneb-line));
+    border-radius: 0.55rem;
+    background: hsl(var(--vetneb-surface-raised));
+    color: hsl(var(--foreground));
+    font-size: 0.72rem;
+    font-weight: 650;
+    touch-action: manipulation;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-page-button {
+    display: inline-flex;
+    min-width: 4.5rem;
+    min-height: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid hsl(var(--vetneb-line));
+    border-radius: 0.5rem;
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    font-size: 0.7rem;
+    font-weight: 650;
+    touch-action: manipulation;
+  }
+
+  [data-vetneb-app-shell-surface="admin"]
+    .admin-mobile-page-button:disabled {
+    opacity: 0.45;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] .admin-mobile-page-dot {
+    display: block;
+    width: 0.4rem;
+    height: 0.4rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: hsl(var(--vetneb-line));
+  }
+
+  [data-vetneb-app-shell-surface="admin"]
+    .admin-mobile-page-dot[aria-current="page"] {
+    background: hsl(var(--vetneb-teal));
+  }
+
+  [data-vetneb-app-shell-surface="admin"]
+    :is(
+      .admin-mobile-kebab-trigger,
+      .admin-mobile-kebab-menu,
+      .admin-mobile-bottom-nav,
+      .admin-mobile-bottom-nav-item,
+      .admin-mobile-module-menu,
+      .admin-mobile-module-grid,
+      .admin-mobile-module-link,
+      .admin-mobile-page-button
+    ) {
+    overflow-x: hidden;
+    overflow-y: hidden;
+  }
+}
+/* admin-mobile-app-shell:end */

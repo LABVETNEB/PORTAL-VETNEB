@@ -140,7 +140,7 @@ function DashboardHorizontalNavInner() {
       >
         <span className="hidden sm:inline">Volver al sitio público</span>
         <span className="sm:hidden" aria-hidden="true">
-          Salir
+          {surface === "admin" ? "Ver sitio público" : "Salir"}
         </span>
       </PublicRouteControl>
     </div>
