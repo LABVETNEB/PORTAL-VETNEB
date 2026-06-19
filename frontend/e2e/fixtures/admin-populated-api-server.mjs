@@ -46,6 +46,48 @@ const CLINIC_REPORTS = [
   },
 ];
 
+const CLINIC_FIELD_VISITS = [
+  {
+    id: 8501,
+    clinicId: 77,
+    clinicName: "Clínica Veterinaria Palermo Norte",
+    status: "scheduled",
+    scheduledAt: "2026-06-20T13:30:00.000Z",
+    completedAt: null,
+    address: "Avenida Santa Fe 3250, Palermo, Ciudad Autónoma de Buenos Aires",
+    notes: "Retiro programado de muestras para anatomía patológica.",
+    createdAt: "2026-06-18T10:00:00.000Z",
+    updatedAt: "2026-06-19T09:15:00.000Z",
+  },
+  {
+    id: 8502,
+    clinicId: 78,
+    clinicName:
+      "Centro Veterinario Integral de Diagnóstico y Seguimiento Los Arrayanes",
+    status: "in_progress",
+    scheduledAt: "2026-06-19T15:45:00.000Z",
+    completedAt: null,
+    address:
+      "Avenida de los Diagnósticos Veterinarios Integrales 4850, Torre Norte, Piso 12, Consultorio 1204, Ciudad Autónoma de Buenos Aires",
+    notes:
+      "Entrega de resultados y retiro de material refrigerado con trazabilidad prioritaria.",
+    createdAt: "2026-06-17T11:20:00.000Z",
+    updatedAt: "2026-06-19T15:50:00.000Z",
+  },
+  {
+    id: 8503,
+    clinicId: 79,
+    clinicName: "Hospital Veterinario del Parque",
+    status: "done",
+    scheduledAt: "2026-06-18T12:00:00.000Z",
+    completedAt: "2026-06-18T13:10:00.000Z",
+    address: "Calle 14 865, La Plata, Provincia de Buenos Aires",
+    notes: "Visita completada con recepción conforme.",
+    createdAt: "2026-06-16T08:30:00.000Z",
+    updatedAt: "2026-06-18T13:10:00.000Z",
+  },
+];
+
 const AUDIT_EVENTS = [
   {
     event: "auth.admin.login.succeeded",
@@ -408,6 +450,14 @@ const server = createServer((request, response) => {
 
   if (hasPopulatedClinicSession(request) && url.pathname === "/api/reports") {
     sendJson(response, 200, { reports: CLINIC_REPORTS });
+    return;
+  }
+
+  if (
+    hasPopulatedClinicSession(request) &&
+    url.pathname === "/api/logistics/field-visits"
+  ) {
+    sendJson(response, 200, { visits: CLINIC_FIELD_VISITS });
     return;
   }
 
