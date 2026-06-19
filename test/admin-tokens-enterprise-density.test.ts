@@ -42,6 +42,15 @@ test("admin tokens uses viewport-safe server pagination with nine rows", () => {
   assert.equal(source.includes("25/50/100"), false);
 });
 
+test("admin tokens toolbar is mobile-safe and wraps actions", () => {
+  const source = read(TOKENS_CARD_PATH);
+
+  assert.ok(source.includes('data-admin-particulars-toolbar="true"'));
+  assert.ok(source.includes('data-admin-particulars-mobile-list="true"'));
+  assert.ok(source.includes("flex min-w-0 flex-wrap items-center gap-1.5"));
+  assert.ok(source.includes('className="h-8 w-full text-xs md:w-36"'));
+});
+
 test("admin tokens replaces row cards and inline detail with a dense table and dialogs", () => {
   const source = read(TOKENS_CARD_PATH);
 
