@@ -1,3 +1,5 @@
+"use client";
+
 import { Filter } from "lucide-react";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
