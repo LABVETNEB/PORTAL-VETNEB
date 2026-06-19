@@ -185,7 +185,7 @@ test("admin clinics management card resets to page 0 when search changes", () =>
   const source = read(ADMIN_CLINICS_CARD_PATH);
 
   // useEffect depends on searchQuery and calls loadClinics with offset 0
-  assert.ok(source.includes("searchQuery]"));
+  assert.ok(source.includes("searchQuery, effectivePageSize]"));
   assert.ok(source.includes("loadClinics(0"));
 });
 
@@ -219,4 +219,33 @@ test("clinic edit drawer exports ClinicDraft and CredentialsPayload types for co
   assert.ok(drawerSource.includes("export type ClinicDraft"));
   assert.ok(drawerSource.includes("export type CredentialsPayload"));
   assert.ok(drawerSource.includes("export function ClinicEditDrawer"));
+});
+
+test("admin clinics management card renders mobile cards while preserving desktop table", () => {
+  const source = read(ADMIN_CLINICS_CARD_PATH);
+
+  assert.ok(
+    source.includes("const MOBILE_PAGE_SIZE = 3;"),
+    "mobile page size must keep the clinics list viewport-safe",
+  );
+  assert.ok(
+    source.includes("effectivePageSize"),
+    "admin clinics must use responsive page size",
+  );
+  assert.ok(
+    source.includes('data-admin-clinics-mobile-list="true"'),
+    "mobile list landmark must exist",
+  );
+  assert.ok(
+    source.includes('data-admin-clinic-mobile-card="true"'),
+    "mobile clinic cards must exist",
+  );
+  assert.ok(
+    source.includes('dashboard-table-responsive hidden md:block'),
+    "desktop table must be hidden on mobile and preserved from md upward",
+  );
+  assert.ok(
+    source.includes('aria-label={`Editar clínica ${clinic.clinicName}`}'),
+    "mobile edit action must keep the accessible clinic-specific label",
+  );
 });

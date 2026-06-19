@@ -53,6 +53,7 @@ const ClinicEditDrawer = dynamic(
 // margin in the 1366×768 viewport without internal scroll. True 25/50/100 needs
 // the no-scroll contract relaxation (audit §3) and is deferred.
 const PAGE_SIZE = 9;
+const MOBILE_PAGE_SIZE = 3;
 
 type CreateClinicForm = {
   clinicName: string;
@@ -116,14 +117,20 @@ export function AdminClinicsManagementCard() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(max-width: 767px)").matches
+      : false,
+  );
 
   const rows = useMemo(() => getClinicUserRows(snapshot), [snapshot]);
 
+  const effectivePageSize = isMobileViewport ? MOBILE_PAGE_SIZE : PAGE_SIZE;
   const totalClinics = snapshot?.total ?? 0;
   const pageStart = totalClinics > 0 ? currentOffset + 1 : 0;
-  const pageEnd = Math.min(currentOffset + PAGE_SIZE, totalClinics);
+  const pageEnd = Math.min(currentOffset + effectivePageSize, totalClinics);
   const hasPrev = currentOffset > 0;
-  const hasNext = currentOffset + PAGE_SIZE < totalClinics;
+  const hasNext = currentOffset + effectivePageSize < totalClinics;
   const isBusy = isPending || activeActionKey !== null;
 
   function loadClinics(offset = currentOffset, search = searchQuery) {
@@ -135,7 +142,7 @@ export function AdminClinicsManagementCard() {
           const trimmedSearch = search.trim();
           setSnapshot(
             await getAdminClinics({
-              limit: PAGE_SIZE,
+              limit: effectivePageSize,
               offset,
               ...(trimmedSearch ? { search: trimmedSearch } : {}),
             }),
@@ -225,6 +232,21 @@ export function AdminClinicsManagementCard() {
     loadClinics();
   }
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+
+    const updateMobileViewport = () => {
+      setIsMobileViewport(mediaQuery.matches);
+    };
+
+    updateMobileViewport();
+    mediaQuery.addEventListener("change", updateMobileViewport);
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateMobileViewport);
+    };
+  }, []);
+
   const isFirstRender = useRef(true);
 
   useEffect(() => {
@@ -240,7 +262,7 @@ export function AdminClinicsManagementCard() {
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery]);
+  }, [searchQuery, effectivePageSize]);
 
   return (
     <Card id="admin-clinics" className="dashboard-surface flex min-h-0 flex-1 flex-col">
@@ -433,7 +455,7 @@ export function AdminClinicsManagementCard() {
                 size="sm"
                 variant="outline"
                 className="h-8 w-8 p-0"
-                onClick={() => loadClinics(currentOffset - PAGE_SIZE)}
+                onClick={() => loadClinics(currentOffset - effectivePageSize)}
                 disabled={isBusy || !hasPrev}
                 aria-label="Página anterior"
               >
@@ -444,7 +466,7 @@ export function AdminClinicsManagementCard() {
                 size="sm"
                 variant="outline"
                 className="h-8 w-8 p-0"
-                onClick={() => loadClinics(currentOffset + PAGE_SIZE)}
+                onClick={() => loadClinics(currentOffset + effectivePageSize)}
                 disabled={isBusy || !hasNext}
                 aria-label="Página siguiente"
               >
@@ -454,7 +476,7 @@ export function AdminClinicsManagementCard() {
           ) : null}
         </div>
 
-        <div className="dashboard-table-responsive">
+        <div className="dashboard-table-responsive hidden md:block">
           <Table className="text-[0.8125rem] [&_th]:h-9 [&_th]:px-3 [&_td]:px-3">
             <TableHeader>
               <TableRow>
@@ -564,6 +586,85 @@ export function AdminClinicsManagementCard() {
           </Table>
         </div>
 
+        <div
+          className="grid gap-2 md:hidden"
+          data-admin-clinics-mobile-list="true"
+        >
+          {rows.length ? (
+            rows.map(({ clinic, user, extraUsers }) => (
+              <article
+                key={`mobile-${clinic.clinicId}-${user?.userId ?? "empty"}`}
+                className="rounded-lg border border-vetneb-line/70 bg-card/92 px-3 py-2 shadow-[0_1px_2px_rgba(15,45,62,0.05)]"
+                data-admin-clinic-mobile-card="true"
+              >
+                <div className="flex min-w-0 items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <h3 className="truncate text-sm font-semibold leading-tight text-vetneb-ink">
+                        {clinic.clinicName}
+                      </h3>
+                      <span className="shrink-0 font-mono text-[0.62rem] text-muted-foreground">
+                        #{clinic.clinicId}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 truncate text-[0.72rem] text-muted-foreground">
+                      {clinic.contactEmail ?? "Sin email de contacto"}
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isBusy || editingClinic !== null}
+                    onClick={() => setEditingClinic(clinic)}
+                    aria-label={`Editar clínica ${clinic.clinicName}`}
+                    className="h-9 shrink-0 px-2.5"
+                  >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                    Editar
+                  </Button>
+                </div>
+
+                <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.68rem] leading-tight text-muted-foreground">
+                  <span className="min-w-0 truncate">
+                    Usuario: {user ? user.username : "Sin usuario"}
+                    {extraUsers > 0 ? ` +${extraUsers}` : ""}
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span className="whitespace-nowrap">
+                    Actualizada: {formatDateTime(clinic.updatedAt)}
+                  </span>
+                </div>
+              </article>
+            ))
+          ) : isPending ? (
+            <LoadingState
+              variant="table"
+              compact
+              rows={3}
+              className="border-0 bg-transparent shadow-none rounded-none"
+            />
+          ) : (
+            <div className="clinical-table-state rounded-lg border border-vetneb-line/70 bg-card/90 p-3">
+              {searchQuery.trim() ? (
+                <EmptyState
+                  title={`Sin resultados para "${searchQuery}"`}
+                  description="No hay clínicas que coincidan con la búsqueda."
+                  size="sm"
+                  className="border-0 bg-transparent"
+                />
+              ) : (
+                <EmptyState
+                  title="Sin clínicas"
+                  description="No hay clínicas para mostrar."
+                  size="sm"
+                  className="border-0 bg-transparent"
+                />
+              )}
+            </div>
+          )}
+        </div>
         <ClinicEditDrawer
           clinic={editingClinic}
           onSaveClinic={handleSaveClinic}
