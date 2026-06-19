@@ -388,7 +388,7 @@ test("dashboard topbar keeps sticky hierarchy and compact responsive shell", () 
       /className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-vetneb-line\/80 bg-card\/90 shadow-sm backdrop-blur supports-\[backdrop-filter\]:bg-card\/78"/,
       /className="truncate text-lg font-semibold leading-tight text-vetneb-ink sm:text-xl"/,
       /className="truncate text-xs text-muted-foreground sm:text-\[0\.8125rem\]"/,
-      /className="ml-3 flex shrink-0 items-center gap-2 sm:gap-3"/,
+      /className="ml-2 flex shrink-0 items-center gap-1.5 sm:ml-3 sm:gap-3"/,
     ],
     "dashboard topbar class contracts",
   );

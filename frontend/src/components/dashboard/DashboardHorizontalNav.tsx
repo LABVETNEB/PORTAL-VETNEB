@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
@@ -78,10 +78,22 @@ function DashboardHorizontalNavInner() {
   const surface = resolveSurface(pathname);
   const items = surface === "admin" ? ADMIN_NAV_ITEMS : CLINIC_NAV_ITEMS;
   const surfaceLabel = surface === "admin" ? "Administración" : "Clínica";
+  const navScrollerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const activeElement = navScrollerRef.current?.querySelector<HTMLElement>(
+      "[aria-current='page']",
+    );
+
+    activeElement?.scrollIntoView({
+      block: "nearest",
+      inline: "center",
+    });
+  }, [activeModule, pathname, surface]);
 
   return (
     <div
-      className="flex min-h-[2.25rem] items-center gap-2 px-3 sm:px-6"
+      className="flex min-h-[2.75rem] min-w-0 items-center gap-2 px-2 sm:min-h-[2.25rem] sm:px-6"
       data-dashboard-horizontal-nav={surface}
     >
       <span className="hidden shrink-0 items-center gap-1.5 md:flex">
@@ -93,7 +105,7 @@ function DashboardHorizontalNavInner() {
         </span>
       </span>
 
-      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain">
+      <div ref={navScrollerRef} className="flex min-w-0 flex-1 scroll-px-2 items-center gap-1 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {items.map((item) => {
           const active = isItemActive(item, pathname, activeModule);
 
@@ -106,7 +118,7 @@ function DashboardHorizontalNavInner() {
               aria-label={item.label}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex min-h-[1.85rem] shrink-0 items-center whitespace-nowrap rounded-md border-b-2 border-transparent px-2.5 py-1 text-[0.8125rem] font-semibold dashboard-nav-interactive focus-visible:ring-offset-2",
+                "inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-md border-b-2 border-transparent px-2.5 py-1.5 text-[0.8125rem] font-semibold dashboard-nav-interactive focus-visible:ring-offset-2 sm:min-h-[1.85rem] sm:py-1",
                 active
                   ? "border-vetneb-teal bg-vetneb-navy/8 text-vetneb-navy"
                   : "text-foreground/70 hover:bg-accent/60 hover:text-foreground",
@@ -124,7 +136,7 @@ function DashboardHorizontalNavInner() {
         variant="bare"
         aria-label="Volver al sitio público"
         title="Volver al sitio público"
-        className="shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-[0.75rem] font-semibold text-muted-foreground dashboard-nav-interactive hover:bg-accent/60 hover:text-foreground focus-visible:ring-offset-2"
+        className="inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-md px-2.5 py-1.5 text-[0.75rem] font-semibold text-muted-foreground dashboard-nav-interactive hover:bg-accent/60 hover:text-foreground focus-visible:ring-offset-2 sm:min-h-0 sm:py-1"
       >
         <span className="hidden sm:inline">Volver al sitio público</span>
         <span className="sm:hidden" aria-hidden="true">
@@ -143,7 +155,7 @@ export function DashboardHorizontalNav() {
       data-dashboard-horizontal-nav-shell="true"
       className="shrink-0 border-t border-vetneb-line/70 bg-card/85"
     >
-      <Suspense fallback={<div className="min-h-[2.25rem]" aria-hidden="true" />}>
+      <Suspense fallback={<div className="min-h-[2.75rem] sm:min-h-[2.25rem]" aria-hidden="true" />}>
         <DashboardHorizontalNavInner />
       </Suspense>
     </nav>

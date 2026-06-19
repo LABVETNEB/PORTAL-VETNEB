@@ -25,7 +25,7 @@ export function DashboardTopbar({
       aria-label="Barra superior del dashboard"
       aria-labelledby="dashboard-topbar-title"
     >
-      <div className="flex min-h-[2.5rem] items-center justify-between gap-3 px-4 py-1.5 sm:px-6">
+      <div className="flex min-h-[2.75rem] min-w-0 items-center justify-between gap-2 px-3 py-1.5 sm:min-h-[2.5rem] sm:gap-3 sm:px-6">
         <div className="min-w-0">
           <h1
             id="dashboard-topbar-title"
@@ -40,16 +40,19 @@ export function DashboardTopbar({
           )}
         </div>
 
-        <div className="ml-3 flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="ml-2 flex shrink-0 items-center gap-1.5 sm:ml-3 sm:gap-3">
           <ThemeModeToggle />
           {notifications ? <DashboardNotificationsBell surface={notifications} /> : null}
           <PublicRouteControl
             href={ROUTES.login}
             variant="bare"
             onClick={clearDashboardLastModules}
-            className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-sm font-semibold text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+            aria-label="Cerrar sesión"
+            title="Cerrar sesión"
+            className="inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-input bg-card/95 px-2 text-sm font-semibold text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 sm:h-9 sm:min-w-0 sm:px-3"
           >
-            Cerrar sesión
+            <span className="hidden sm:inline">Cerrar sesión</span>
+            <span className="sm:hidden" aria-hidden="true">Salir</span>
           </PublicRouteControl>
         </div>
       </div>
