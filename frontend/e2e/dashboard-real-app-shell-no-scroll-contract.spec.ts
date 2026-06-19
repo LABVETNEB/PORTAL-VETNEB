@@ -133,6 +133,34 @@ function json(route: Route, body: unknown) {
   });
 }
 
+function collectHydrationFailures(page: Page) {
+  const pageErrors: string[] = [];
+  const consoleErrors: string[] = [];
+
+  page.on("pageerror", (error) => {
+    pageErrors.push(error.message);
+  });
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      consoleErrors.push(message.text());
+    }
+  });
+
+  return {
+    async assertClean() {
+      await page.waitForTimeout(500);
+
+      const hydrationConsoleErrors = consoleErrors.filter((message) =>
+        /hydration|server rendered html|text content does not match/i.test(message),
+      );
+
+      expect(pageErrors).toEqual([]);
+      expect(hydrationConsoleErrors).toEqual([]);
+    },
+  };
+}
+
 function denseClinicsSnapshot(limit: number) {
   const usersPerClinic = 3;
   const clinics = Array.from({ length: limit }, (_, i) => {
@@ -442,6 +470,11 @@ for (const viewport of VIEWPORTS) {
       test(`${routeCase.label} fits without external or internal scroll`, async ({
         page,
       }, testInfo) => {
+        const hydrationFailures =
+          routeCase.label === "admin audit log"
+            ? collectHydrationFailures(page)
+            : null;
+
         await page.setViewportSize({
           width: viewport.width,
           height: viewport.height,
@@ -471,6 +504,7 @@ for (const viewport of VIEWPORTS) {
           `${viewport.name}-${routeCase.label}`,
           routeCase.ready.includes("workspace"),
         );
+        await hydrationFailures?.assertClean();
       });
     }
 
@@ -504,3 +538,35 @@ for (const viewport of VIEWPORTS) {
     });
   });
 }
+
+test("admin audit mobile filter keeps keyboard interaction hydration-safe", async ({
+  page,
+}) => {
+  const hydrationFailures = collectHydrationFailures(page);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await setAdminSession(page);
+  await mockBrowserApis(page);
+  await page.goto("/dashboard/admin?module=audit-log");
+
+  await expect(
+    page.locator('[data-dashboard-module-workspace="audit-log"]'),
+  ).toBeVisible({ timeout: 12_000 });
+
+  const filterTrigger = page.getByRole("button", {
+    name: "Filtros",
+    exact: true,
+  });
+  await expect(filterTrigger).toBeVisible();
+  await filterTrigger.focus();
+  await filterTrigger.press("Enter");
+
+  const filterDialog = page.getByRole("dialog", {
+    name: "Filtrar auditoría",
+  });
+  await expect(filterDialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(filterDialog).toBeHidden();
+  await expect(filterTrigger).toBeFocused();
+  await hydrationFailures.assertClean();
+});
