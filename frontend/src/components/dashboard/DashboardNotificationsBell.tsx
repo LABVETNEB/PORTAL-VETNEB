@@ -17,13 +17,18 @@ import { formatDateTime } from "@/lib/utils";
 
 const NOTIFICATIONS_LIMIT = 20;
 const POLLING_INTERVAL_MS = 30_000;
+const ADMIN_MOBILE_PAGE_SIZE = 2;
 
 type DashboardNotificationsBellProps = {
   surface: DashboardNotificationSurface;
+  mobileNoScroll?: boolean;
+  suppressMobileAutoShow?: boolean;
 };
 
 export function DashboardNotificationsBell({
   surface,
+  mobileNoScroll = false,
+  suppressMobileAutoShow = false,
 }: DashboardNotificationsBellProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -38,6 +43,7 @@ export function DashboardNotificationsBell({
     number | null
   >(null);
   const [mobileBannerVisible, setMobileBannerVisible] = useState(false);
+  const [mobilePage, setMobilePage] = useState(0);
   const [portalContainer, setPortalContainer] = useState<Element | null>(null);
 
   const isFetchingRef = useRef(false);
@@ -52,6 +58,14 @@ export function DashboardNotificationsBell({
     (notification) => !notification.isRead,
   ).length;
   const unreadNotifications = notifications.filter((n) => !n.isRead);
+  const mobilePageCount = Math.max(
+    1,
+    Math.ceil(notifications.length / ADMIN_MOBILE_PAGE_SIZE),
+  );
+  const mobilePageNotifications = notifications.slice(
+    mobilePage * ADMIN_MOBILE_PAGE_SIZE,
+    mobilePage * ADMIN_MOBILE_PAGE_SIZE + ADMIN_MOBILE_PAGE_SIZE,
+  );
   const desktopPanelId = `dashboard-notifications-${surface}-panel`;
   const mobilePanelId = `dashboard-notifications-${surface}-mobile-panel`;
   const desktopPanelTitleId = `dashboard-notifications-${surface}-title`;
@@ -61,7 +75,9 @@ export function DashboardNotificationsBell({
   useEffect(() => {
     setPortalContainer(document.body);
 
-    const mq = window.matchMedia("(max-width: 639px)");
+    const mq = window.matchMedia(
+      mobileNoScroll ? "(max-width: 767px)" : "(max-width: 639px)",
+    );
     isMobileRef.current = mq.matches;
 
     const handler = (e: MediaQueryListEvent) => {
@@ -69,7 +85,7 @@ export function DashboardNotificationsBell({
     };
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
-  }, []);
+  }, [mobileNoScroll]);
 
   const loadNotifications = useCallback(async () => {
     if (isFetchingRef.current) {
@@ -98,7 +114,11 @@ export function DashboardNotificationsBell({
         autoShownUnreadCountRef.current = 0;
       } else if (newUnreadCount > autoShownUnreadCountRef.current) {
         autoShownUnreadCountRef.current = newUnreadCount;
-        if (isMobileRef.current) {
+        if (isMobileRef.current && suppressMobileAutoShow) {
+          setMobileBannerVisible(false);
+        } else if (isMobileRef.current && mobileNoScroll) {
+          setIsOpen(true);
+        } else if (isMobileRef.current) {
           setMobileBannerVisible(true);
         } else {
           setIsOpen(true);
@@ -110,7 +130,11 @@ export function DashboardNotificationsBell({
       isFetchingRef.current = false;
       setIsLoading(false);
     }
-  }, [surface]);
+  }, [mobileNoScroll, suppressMobileAutoShow, surface]);
+
+  useEffect(() => {
+    setMobilePage((current) => Math.min(current, mobilePageCount - 1));
+  }, [mobilePageCount]);
 
   // Initial silent load on mount to detect unread notifications and
   // auto-show the appropriate surface without any manual interaction.
@@ -140,6 +164,7 @@ export function DashboardNotificationsBell({
 
       if (next) {
         setMobileBannerVisible(false);
+        setMobilePage(0);
         void loadNotifications();
       }
 
@@ -281,10 +306,16 @@ export function DashboardNotificationsBell({
     titleId,
     listClassName,
     showCloseButton = false,
+    visibleNotifications = notifications,
+    showPagination = false,
+    compact = false,
   }: {
     titleId: string;
     listClassName: string;
     showCloseButton?: boolean;
+    visibleNotifications?: AdminStudyTrackingNotificationSummary[];
+    showPagination?: boolean;
+    compact?: boolean;
   }) {
     return (
       <>
@@ -356,7 +387,7 @@ export function DashboardNotificationsBell({
         ) : null}
 
         <ul className={listClassName}>
-          {notifications.map((notification) => (
+          {visibleNotifications.map((notification) => (
             <li key={notification.id}>
               <button
                 type="button"
@@ -366,14 +397,18 @@ export function DashboardNotificationsBell({
                 disabled={updatingNotificationId === notification.id}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-xs font-semibold text-vetneb-ink">
+                  <p
+                    className={`text-xs font-semibold text-vetneb-ink ${compact ? "line-clamp-1" : ""}`}
+                  >
                     {notification.title}
                   </p>
                   <span className="text-[0.66rem] text-muted-foreground">
                     {notification.isRead ? "Leída" : "No leída"}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p
+                  className={`mt-1 text-xs text-muted-foreground ${compact ? "line-clamp-2" : ""}`}
+                >
                   {notification.message}
                 </p>
                 <p className="mt-1 text-[0.66rem] text-muted-foreground">
@@ -383,6 +418,40 @@ export function DashboardNotificationsBell({
             </li>
           ))}
         </ul>
+        {showPagination && notifications.length > ADMIN_MOBILE_PAGE_SIZE ? (
+          <div
+            className="mt-2 flex shrink-0 items-center justify-between gap-3"
+            aria-label="Paginación de notificaciones"
+          >
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={mobilePage === 0}
+              onClick={() =>
+                setMobilePage((current) => Math.max(0, current - 1))
+              }
+            >
+              Anterior
+            </Button>
+            <span className="text-[0.68rem] font-semibold text-muted-foreground">
+              {mobilePage + 1}/{mobilePageCount}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={mobilePage === mobilePageCount - 1}
+              onClick={() =>
+                setMobilePage((current) =>
+                  Math.min(mobilePageCount - 1, current + 1),
+                )
+              }
+            >
+              Siguiente
+            </Button>
+          </div>
+        ) : null}
       </>
     );
   }
@@ -406,7 +475,7 @@ export function DashboardNotificationsBell({
         ) : null}
       </button>
 
-      {isOpen ? (
+      {isOpen && !mobileNoScroll ? (
         <div
           id={desktopPanelId}
           role="region"
@@ -422,17 +491,36 @@ export function DashboardNotificationsBell({
         </div>
       ) : null}
 
+      {isOpen && mobileNoScroll ? (
+        <div
+          id={desktopPanelId}
+          role="region"
+          aria-label="Panel de notificaciones"
+          aria-labelledby={desktopPanelTitleId}
+          className="absolute right-0 z-50 mt-2 hidden w-[min(28rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-vetneb-line/80 bg-card p-3 shadow-xl md:block"
+          data-dashboard-notifications-desktop-panel="true"
+        >
+          {renderPanelContent({
+            titleId: desktopPanelTitleId,
+            listClassName: "max-h-72 space-y-2 overflow-y-auto pr-1",
+          })}
+        </div>
+      ) : null}
+
       {portalContainer && isOpen
         ? createPortal(
             <div
-              className="fixed inset-0 z-[90] bg-vetneb-navy/30 sm:hidden"
+              className={`fixed inset-0 z-[90] ${mobileNoScroll ? "bg-vetneb-surface md:hidden" : "bg-vetneb-navy/30 sm:hidden"}`}
               data-dashboard-notifications-mobile-overlay="true"
               onClick={handleClosePanel}
             >
               <div
                 id={mobilePanelId}
-                className="fixed inset-x-3 top-3 flex max-h-[calc(100vh-1.5rem)] flex-col overflow-hidden rounded-lg border border-vetneb-line/85 bg-card p-3 shadow-2xl"
+                className="fixed inset-x-3 top-3 flex max-h-[calc(100svh-1.5rem)] flex-col overflow-hidden rounded-lg border border-vetneb-line/85 bg-card p-3 shadow-2xl"
                 data-dashboard-notifications-mobile-panel="true"
+                data-admin-mobile-notifications-panel={
+                  mobileNoScroll ? "true" : undefined
+                }
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={mobilePanelTitleId}
@@ -440,8 +528,15 @@ export function DashboardNotificationsBell({
               >
                 {renderPanelContent({
                   titleId: mobilePanelTitleId,
-                  listClassName: "min-h-0 flex-1 space-y-2 overflow-y-auto pr-1",
+                  listClassName: mobileNoScroll
+                    ? "min-h-0 flex-1 space-y-2 overflow-hidden"
+                    : "min-h-0 flex-1 space-y-2 overflow-y-auto pr-1",
                   showCloseButton: true,
+                  visibleNotifications: mobileNoScroll
+                    ? mobilePageNotifications
+                    : notifications,
+                  showPagination: mobileNoScroll,
+                  compact: mobileNoScroll,
                 })}
               </div>
             </div>,
@@ -452,7 +547,7 @@ export function DashboardNotificationsBell({
       {/* Mobile auto-show banner: visible only on narrow viewports (< 640 px).
           Portaled to document.body to avoid stacking-context clipping from the
           sticky topbar. Notifications are NOT marked as read by appearing here. */}
-      {portalContainer && mobileBannerVisible && unreadCount > 0
+      {portalContainer && mobileBannerVisible && unreadCount > 0 && !mobileNoScroll
         ? createPortal(
             <div
               className="fixed inset-x-0 top-0 z-[80] border-b border-vetneb-teal/30 bg-card shadow-xl sm:hidden"

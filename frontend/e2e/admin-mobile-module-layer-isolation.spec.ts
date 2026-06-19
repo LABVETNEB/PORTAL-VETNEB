@@ -33,6 +33,12 @@ async function setPopulatedAdminSession(page: Page) {
   ]);
 }
 
+async function suppressNextDevIndicator(page: Page) {
+  await page.addStyleTag({
+    content: "nextjs-portal { display: none !important; }",
+  });
+}
+
 async function mockAdminSessions(page: Page) {
   await page.route("**/api/admin/sessions**", async (route) => {
     const request = route.request();
@@ -88,8 +94,9 @@ function readCssAlpha(color: string) {
 type LayerContract = {
   topbarBackdropFilter: string;
   topbarBackgroundColor: string;
-  navBackdropFilter: string;
-  navBackgroundColor: string;
+  bottomNavBackdropFilter: string;
+  bottomNavBackgroundColor: string;
+  horizontalNavVisible: boolean;
   activeIsolation: string;
   activeBackgroundColor: string;
   htmlOverflowX: number;
@@ -109,7 +116,10 @@ async function readLayerContract(
     const topbar = document.querySelector<HTMLElement>(
       '[data-dashboard-topbar-polish="true"]',
     );
-    const nav = document.querySelector<HTMLElement>(
+    const bottomNav = document.querySelector<HTMLElement>(
+      '[data-admin-mobile-bottom-nav="true"]',
+    );
+    const horizontalNav = document.querySelector<HTMLElement>(
       '[data-dashboard-horizontal-nav-shell="true"]',
     );
     const activeRegion = document.querySelector<HTMLElement>(selector);
@@ -118,12 +128,12 @@ async function readLayerContract(
     );
     const main = document.querySelector<HTMLElement>("main.dashboard-main");
 
-    if (!topbar || !nav || !activeRegion || !shell || !main) {
+    if (!topbar || !bottomNav || !activeRegion || !shell || !main) {
       throw new Error(`Admin layer contract is incomplete for ${selector}`);
     }
 
     const topbarStyle = window.getComputedStyle(topbar);
-    const navStyle = window.getComputedStyle(nav);
+    const bottomNavStyle = window.getComputedStyle(bottomNav);
     const activeStyle = window.getComputedStyle(activeRegion);
     const shellStyle = window.getComputedStyle(shell);
     const mainStyle = window.getComputedStyle(main);
@@ -132,9 +142,13 @@ async function readLayerContract(
       topbarBackdropFilter:
         topbarStyle.getPropertyValue("backdrop-filter") || "none",
       topbarBackgroundColor: topbarStyle.backgroundColor,
-      navBackdropFilter:
-        navStyle.getPropertyValue("backdrop-filter") || "none",
-      navBackgroundColor: navStyle.backgroundColor,
+      bottomNavBackdropFilter:
+        bottomNavStyle.getPropertyValue("backdrop-filter") || "none",
+      bottomNavBackgroundColor: bottomNavStyle.backgroundColor,
+      horizontalNavVisible: horizontalNav
+        ? window.getComputedStyle(horizontalNav).display !== "none" &&
+          horizontalNav.getBoundingClientRect().height > 1
+        : false,
       activeIsolation: activeStyle.isolation,
       activeBackgroundColor: activeStyle.backgroundColor,
       htmlOverflowX:
@@ -164,8 +178,16 @@ async function expectLayerContract(
     expect(readCssAlpha(contract.topbarBackgroundColor), `${label}: topbar alpha`).toBe(
       1,
     );
-    expect(contract.navBackdropFilter, `${label}: nav blur`).toBe("none");
-    expect(readCssAlpha(contract.navBackgroundColor), `${label}: nav alpha`).toBe(1);
+    expect(contract.bottomNavBackdropFilter, `${label}: bottom nav blur`).toBe(
+      "none",
+    );
+    expect(
+      readCssAlpha(contract.bottomNavBackgroundColor),
+      `${label}: bottom nav alpha`,
+    ).toBe(1);
+    expect(contract.horizontalNavVisible, `${label}: legacy nav hidden`).toBe(
+      false,
+    );
     expect(contract.activeIsolation, `${label}: active region isolation`).toBe(
       "isolate",
     );
@@ -223,7 +245,10 @@ async function openModule(
 }
 
 async function backToHub(page: Page, viewportLabel: string) {
-  await page.getByRole("button", { name: "Volver a módulos" }).click();
+  await page
+    .locator('[data-admin-mobile-bottom-nav="true"]')
+    .getByRole("button", { name: "Inicio", exact: true })
+    .click();
 
   const hub = page.locator('[data-dashboard-module-hub="true"]');
   await expect(hub).toBeVisible({ timeout: 15_000 });
@@ -247,6 +272,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await mockAdminSessions(page);
 
     await page.goto("/dashboard/admin");
+    await suppressNextDevIndicator(page);
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 15_000 });

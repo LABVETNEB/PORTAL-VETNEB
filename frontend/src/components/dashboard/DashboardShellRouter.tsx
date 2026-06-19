@@ -5,6 +5,7 @@ import {
   VETNEB_APP_SHELL_LABEL,
   VETNEB_APP_SHELL_RELEASE,
 } from "@/lib/app-shell-release";
+import { AdminMobileBottomNav } from "./AdminMobileBottomNav";
 
 export function DashboardShellRouter({
   children,
@@ -23,9 +24,15 @@ export function DashboardShellRouter({
       data-vetneb-app-shell-surface={surface}
       aria-label={VETNEB_APP_SHELL_LABEL}
     >
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div
+        className="flex min-w-0 flex-1 flex-col overflow-hidden"
+        data-vetneb-app-shell-frame="true"
+      >
         {children}
       </div>
+      {isAdminDashboard ? (
+        <AdminMobileBottomNav />
+      ) : null}
     </div>
   );
 }

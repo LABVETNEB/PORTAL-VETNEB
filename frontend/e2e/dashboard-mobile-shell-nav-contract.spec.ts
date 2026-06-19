@@ -92,10 +92,12 @@ type ShellNavContract = {
   bodyScrollWidth: number;
   bodyClientWidth: number;
   topbarVisible: boolean;
-  navVisible: boolean;
+  horizontalNavVisible: boolean;
+  bottomNavVisible: boolean;
   clippedTopbarControls: ShellNavMetric[];
   undersizedShellControls: ShellNavMetric[];
-  activeNavItemVisible: boolean;
+  activeHorizontalNavItemVisible: boolean;
+  activeBottomNavItemVisible: boolean;
 };
 
 async function readShellNavContract(page: Page): Promise<ShellNavContract> {
@@ -152,6 +154,9 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
     const nav = document.querySelector(
       "[data-dashboard-horizontal-nav-shell='true']",
     );
+    const bottomNav = document.querySelector(
+      "[data-admin-mobile-bottom-nav='true']",
+    );
 
     const topbarControls = Array.from(
       document.querySelectorAll(
@@ -161,7 +166,7 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
 
     const shellControls = Array.from(
       document.querySelectorAll(
-        "header[aria-label='Barra superior del dashboard'] a, header[aria-label='Barra superior del dashboard'] button",
+        "header[aria-label='Barra superior del dashboard'] a, header[aria-label='Barra superior del dashboard'] button, [data-admin-mobile-bottom-nav='true'] button",
       ),
     ).filter(isVisible);
 
@@ -185,15 +190,29 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
       })
       .map(metricFor);
 
-    const activeNavItem = document.querySelector(
+    const activeHorizontalNavItem = document.querySelector(
       "[data-dashboard-horizontal-nav-shell='true'] [aria-current='page']",
     );
+    const activeBottomNavItem = document.querySelector(
+      "[data-admin-mobile-bottom-nav='true'] [aria-current='page']",
+    );
 
-    let activeNavItemVisible = false;
-    if (activeNavItem) {
-      const rect = (activeNavItem as HTMLElement).getBoundingClientRect();
-      activeNavItemVisible =
-        isVisible(activeNavItem) &&
+    let activeHorizontalNavItemVisible = false;
+    if (activeHorizontalNavItem) {
+      const rect = (activeHorizontalNavItem as HTMLElement).getBoundingClientRect();
+      activeHorizontalNavItemVisible =
+        isVisible(activeHorizontalNavItem) &&
+        rect.left >= -tolerance &&
+        rect.right <= viewportWidth + tolerance &&
+        rect.top >= -tolerance &&
+        rect.bottom <= viewportHeight + tolerance;
+    }
+
+    let activeBottomNavItemVisible = false;
+    if (activeBottomNavItem) {
+      const rect = (activeBottomNavItem as HTMLElement).getBoundingClientRect();
+      activeBottomNavItemVisible =
+        isVisible(activeBottomNavItem) &&
         rect.left >= -tolerance &&
         rect.right <= viewportWidth + tolerance &&
         rect.top >= -tolerance &&
@@ -206,17 +225,44 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
       bodyScrollWidth: body.scrollWidth,
       bodyClientWidth: body.clientWidth,
       topbarVisible: topbar ? isVisible(topbar) : false,
-      navVisible: nav ? isVisible(nav) : false,
+      horizontalNavVisible: nav ? isVisible(nav) : false,
+      bottomNavVisible: bottomNav ? isVisible(bottomNav) : false,
       clippedTopbarControls,
       undersizedShellControls,
-      activeNavItemVisible,
+      activeHorizontalNavItemVisible,
+      activeBottomNavItemVisible,
     };
   }, TOLERANCE);
 }
 
-function assertShellNavContract(contract: ShellNavContract, label: string) {
+function assertShellNavContract(
+  contract: ShellNavContract,
+  surface: Surface,
+  label: string,
+) {
   expect(contract.topbarVisible, `${label}: topbar visible`).toBe(true);
-  expect(contract.navVisible, `${label}: horizontal nav visible`).toBe(true);
+
+  if (surface === "admin") {
+    expect(
+      contract.horizontalNavVisible,
+      `${label}: legacy horizontal nav hidden`,
+    ).toBe(false);
+    expect(contract.bottomNavVisible, `${label}: bottom nav visible`).toBe(true);
+    expect(
+      contract.activeBottomNavItemVisible,
+      `${label}: active bottom nav item visible`,
+    ).toBe(true);
+  } else {
+    expect(
+      contract.horizontalNavVisible,
+      `${label}: clinic horizontal nav visible`,
+    ).toBe(true);
+    expect(contract.bottomNavVisible, `${label}: no Admin bottom nav`).toBe(false);
+    expect(
+      contract.activeHorizontalNavItemVisible,
+      `${label}: active clinic nav item visible`,
+    ).toBe(true);
+  }
 
   expect(
     contract.htmlScrollWidth,
@@ -238,10 +284,6 @@ function assertShellNavContract(contract: ShellNavContract, label: string) {
     `${label}: topbar/nav controls must keep mobile touch target >=36px`,
   ).toEqual([]);
 
-  expect(
-    contract.activeNavItemVisible,
-    `${label}: active nav item must remain visible in mobile viewport`,
-  ).toBe(true);
 }
 
 for (const viewport of MOBILE_VIEWPORTS) {
@@ -257,7 +299,11 @@ for (const viewport of MOBILE_VIEWPORTS) {
 
         await expect(async () => {
           const contract = await readShellNavContract(page);
-          assertShellNavContract(contract, `${viewport.name} ${route.label}`);
+          assertShellNavContract(
+            contract,
+            route.surface,
+            `${viewport.name} ${route.label}`,
+          );
         }).toPass({ timeout: 10_000 });
       });
     }
