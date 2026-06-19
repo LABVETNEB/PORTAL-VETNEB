@@ -424,7 +424,10 @@ test.describe("admin clinic edit drawer — component behavior", () => {
 
     // Set a search query
     const searchInput = page.getByRole("textbox", { name: /buscar clínicas/i });
-    await searchInput.fill("Test");
+    await expect(async () => {
+      await searchInput.fill("Test");
+      await expect(searchInput).toHaveValue("Test");
+    }).toPass({ intervals: [200, 400, 800], timeout: 5_000 });
 
     // Open and close the drawer
     await page.getByRole("button", { name: /editar clínica clínica test/i }).click();

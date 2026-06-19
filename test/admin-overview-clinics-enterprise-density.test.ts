@@ -71,7 +71,8 @@ test("admin clinics console raises the server page size while respecting no-scro
 
   // Nine dense rows preserve a full-row margin in the minimum viewport.
   assert.ok(source.includes("const PAGE_SIZE = 9;"));
-  assert.ok(source.includes("limit: PAGE_SIZE"));
+  assert.ok(source.includes("const MOBILE_PAGE_SIZE = 3;"));
+  assert.ok(source.includes("limit: effectivePageSize"));
   assert.ok(source.includes("snapshot?.total"));
 
   // No-scroll contract: the table body must NOT become an internal scroll region
