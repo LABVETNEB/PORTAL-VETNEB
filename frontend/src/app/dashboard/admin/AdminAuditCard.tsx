@@ -5,6 +5,7 @@ import {
   AdminAuditFilterBar,
   type AdminAuditFilterValues,
 } from "./AdminAuditFilterBar";
+import { AdminMobileAuditModule } from "./AdminMobileAuditModule";
 
 export const ADMIN_AUDIT_PAGE_SIZE = 9;
 
@@ -60,11 +61,25 @@ export function AdminAuditCard({
   const rangeEnd = Math.min(page * ADMIN_AUDIT_PAGE_SIZE, totalCount);
 
   return (
-    <section
-      id="audit-log"
-      aria-labelledby="admin-audit-register-title"
-      className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/80 bg-card"
-    >
+    <div id="audit-log" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <AdminMobileAuditModule
+        rows={rows}
+        totalCount={totalCount}
+        serverPage={page}
+        serverPageSize={ADMIN_AUDIT_PAGE_SIZE}
+        loadError={loadError}
+        filters={filters}
+        eventOptions={eventOptions}
+        actorTypeOptions={actorTypeOptions}
+        globalTotal={globalTotal}
+        roleChangesTotal={roleChanges.total}
+        notificationsTotal={notifications.total}
+      />
+
+      <section
+        aria-labelledby="admin-audit-register-title"
+        className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/80 bg-card md:flex"
+      >
       <header className="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-vetneb-line/70 px-3 py-2 sm:px-4">
         <div className="min-w-0">
           <h2 id="admin-audit-register-title" className="text-base font-semibold text-vetneb-ink">
@@ -143,6 +158,7 @@ export function AdminAuditCard({
           </PublicRouteControl>
         </div>
       </footer>
-    </section>
+      </section>
+    </div>
   );
 }

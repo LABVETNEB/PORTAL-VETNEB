@@ -2815,3 +2815,30 @@
   }
 }
 /* admin-mobile-hub-launcher:end */
+/* admin-mobile-ops-modules:start */
+@media (max-width: 767px) {
+  [data-vetneb-app-shell-surface="admin"]
+    [data-dashboard-module-workspace]:has([data-admin-mobile-ops-module])
+    .dashboard-workspace-header {
+    display: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"]
+    [data-dashboard-module-workspace]:has([data-admin-mobile-ops-module])
+    [data-dashboard-module-viewport] {
+    min-height: 0;
+    overflow: hidden;
+    padding-top: 0 !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-ops-module],
+  [data-vetneb-app-shell-surface="admin"]
+    [data-admin-mobile-ops-module]
+    :is(article, nav, header) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: hidden;
+  }
+}
+/* admin-mobile-ops-modules:end */
