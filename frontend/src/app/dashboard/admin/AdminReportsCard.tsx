@@ -37,6 +37,7 @@ import { AdminReportsUploadPanel } from "./AdminReportsUploadPanel";
 // PR-3 established nine dense rows as the safe 1366x768 limit while the App
 // Shell intentionally has no vertical scroll region.
 const PAGE_SIZE = 9;
+const MOBILE_PAGE_SIZE = 3;
 
 const STUDY_LABELS: Record<string, string> = {
   histopatologia: "Histopatología",
@@ -71,9 +72,25 @@ export function AdminReportsCard() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  // Mobile renders a smaller, independently paginated slice of the same
+  // server-side workflow queue. Desktop keeps its own PAGE_SIZE=9 fetch
+  // untouched so the dense viewport-safe contract stays pinned.
+  const [mobileReports, setMobileReports] = useState<AdminReportWorkflowItem[]>([]);
+  const [mobilePage, setMobilePage] = useState(0);
+  const [mobileHasMore, setMobileHasMore] = useState(false);
+  const [isMobileLoading, setIsMobileLoading] = useState(true);
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(max-width: 767px)").matches
+      : false,
+  );
+
   const selectedReport = useMemo(
-    () => reports.find((report) => report.id === selectedReportId) ?? null,
-    [reports, selectedReportId],
+    () =>
+      reports.find((report) => report.id === selectedReportId) ??
+      mobileReports.find((report) => report.id === selectedReportId) ??
+      null,
+    [mobileReports, reports, selectedReportId],
   );
 
   const deliveredCount = reports.filter(
@@ -84,6 +101,10 @@ export function AdminReportsCard() {
   ).length;
   const rangeStart = reports.length ? page * PAGE_SIZE + 1 : 0;
   const rangeEnd = page * PAGE_SIZE + reports.length;
+  const mobileRangeStart = mobileReports.length
+    ? mobilePage * MOBILE_PAGE_SIZE + 1
+    : 0;
+  const mobileRangeEnd = mobilePage * MOBILE_PAGE_SIZE + mobileReports.length;
 
   const loadReports = useCallback(async (nextPage: number) => {
     setIsLoading(true);
@@ -113,12 +134,53 @@ export function AdminReportsCard() {
     }
   }, []);
 
+  const loadMobileReports = useCallback(async (nextPage: number) => {
+    setIsMobileLoading(true);
+
+    try {
+      const snapshot = await getAdminReportWorkflow({
+        limit: MOBILE_PAGE_SIZE,
+        offset: nextPage * MOBILE_PAGE_SIZE,
+      });
+      setMobileReports(snapshot.reports);
+      setMobileHasMore(snapshot.pagination.hasMore);
+    } catch {
+      setMobileReports([]);
+      setMobileHasMore(false);
+    } finally {
+      setIsMobileLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+
+    const updateMobileViewport = () => {
+      setIsMobileViewport(mediaQuery.matches);
+    };
+
+    updateMobileViewport();
+    mediaQuery.addEventListener("change", updateMobileViewport);
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateMobileViewport);
+    };
+  }, []);
+
   useEffect(() => {
     void loadReports(page);
   }, [loadReports, page]);
 
+  useEffect(() => {
+    if (!isMobileViewport) return;
+    void loadMobileReports(mobilePage);
+  }, [isMobileViewport, loadMobileReports, mobilePage]);
+
   function replaceReport(updated: AdminReportWorkflowItem) {
     setReports((current) =>
+      current.map((report) => (report.id === updated.id ? updated : report)),
+    );
+    setMobileReports((current) =>
       current.map((report) => (report.id === updated.id ? updated : report)),
     );
   }
@@ -182,6 +244,13 @@ export function AdminReportsCard() {
       await loadReports(0);
     } else {
       setPage(0);
+    }
+    if (isMobileViewport) {
+      if (mobilePage === 0) {
+        await loadMobileReports(0);
+      } else {
+        setMobilePage(0);
+      }
     }
   }
 
@@ -253,109 +322,157 @@ export function AdminReportsCard() {
           aria-label="Cola administrativa de informes"
           className="flex min-h-0 flex-1 flex-col"
         >
-          {reports.length ? (
-            <>
-              <div className="dashboard-table-responsive hidden min-h-0 flex-1 md:block">
-                <Table className="table-fixed text-[0.8125rem] [&_th]:h-8 [&_th]:px-2.5 [&_td]:px-2.5">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[20%]">Caso / paciente</TableHead>
-                      <TableHead className="w-[18%]">Clínica</TableHead>
-                      <TableHead className="w-[14%]">Estudio</TableHead>
-                      <TableHead className="w-[15%]">Estado</TableHead>
-                      <TableHead className="hidden w-[12%] lg:table-cell">Fecha</TableHead>
-                      <TableHead className="hidden w-[13%] xl:table-cell">Archivo</TableHead>
-                      <TableHead className="w-[8%] text-right">Acción</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reports.map((report) => (
-                      <TableRow key={report.id}>
-                        <TableCell className="py-0.5">
-                          <p className="truncate font-medium text-vetneb-ink">
-                            {report.patientName || "Paciente sin registrar"}
-                          </p>
-                          <p className="font-mono text-[0.6875rem] text-muted-foreground">
-                            Informe #{report.id}
-                          </p>
-                        </TableCell>
-                        <TableCell className="py-0.5">
-                          <p className="truncate">
-                            {report.clinicName || `Clínica #${report.clinicId}`}
-                          </p>
-                        </TableCell>
-                        <TableCell className="py-0.5">
-                          <span className="block truncate">{studyLabel(report.studyType)}</span>
-                        </TableCell>
-                        <TableCell className="py-0.5">
-                          <AdminReportStatusBadge stage={report.workflowStage} />
-                          {report.specialStainRequested ? (
-                            <span className="ml-1 text-[0.6875rem] font-semibold text-amber-700">
-                              Tinción
-                            </span>
-                          ) : null}
-                        </TableCell>
-                        <TableCell className="hidden py-0.5 text-xs lg:table-cell">
-                          {formatDate(report.uploadDate ?? report.createdAt)}
-                        </TableCell>
-                        <TableCell className="hidden py-0.5 xl:table-cell">
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {report.fileName || "Sin archivo"}
+          <div className="dashboard-table-responsive hidden min-h-0 flex-1 md:block">
+            {reports.length ? (
+              <Table className="table-fixed text-[0.8125rem] [&_th]:h-8 [&_th]:px-2.5 [&_td]:px-2.5">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[20%]">Caso / paciente</TableHead>
+                    <TableHead className="w-[18%]">Clínica</TableHead>
+                    <TableHead className="w-[14%]">Estudio</TableHead>
+                    <TableHead className="w-[15%]">Estado</TableHead>
+                    <TableHead className="hidden w-[12%] lg:table-cell">Fecha</TableHead>
+                    <TableHead className="hidden w-[13%] xl:table-cell">Archivo</TableHead>
+                    <TableHead className="w-[8%] text-right">Acción</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reports.map((report) => (
+                    <TableRow key={report.id}>
+                      <TableCell className="py-0.5">
+                        <p className="truncate font-medium text-vetneb-ink">
+                          {report.patientName || "Paciente sin registrar"}
+                        </p>
+                        <p className="font-mono text-[0.6875rem] text-muted-foreground">
+                          Informe #{report.id}
+                        </p>
+                      </TableCell>
+                      <TableCell className="py-0.5">
+                        <p className="truncate">
+                          {report.clinicName || `Clínica #${report.clinicId}`}
+                        </p>
+                      </TableCell>
+                      <TableCell className="py-0.5">
+                        <span className="block truncate">{studyLabel(report.studyType)}</span>
+                      </TableCell>
+                      <TableCell className="py-0.5">
+                        <AdminReportStatusBadge stage={report.workflowStage} />
+                        {report.specialStainRequested ? (
+                          <span className="ml-1 text-[0.6875rem] font-semibold text-amber-700">
+                            Tinción
                           </span>
-                        </TableCell>
-                        <TableCell className="py-0.5 text-right">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => setSelectedReportId(report.id)}
-                          >
-                            Ver
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="hidden py-0.5 text-xs lg:table-cell">
+                        {formatDate(report.uploadDate ?? report.createdAt)}
+                      </TableCell>
+                      <TableCell className="hidden py-0.5 xl:table-cell">
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {report.fileName || "Sin archivo"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-0.5 text-right">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => setSelectedReportId(report.id)}
+                        >
+                          Ver
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
+                {isLoading ? "Cargando informes…" : "No hay informes en esta página."}
+              </p>
+            )}
+          </div>
 
-              <div className="divide-y divide-vetneb-line/60 rounded-md border border-vetneb-line/75 md:hidden">
-                {reports.map((report) => (
-                  <div
-                    key={report.id}
-                    className="flex min-h-10 items-center gap-2 px-2.5 py-1.5"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold">
-                        #{report.id} · {report.patientName || "Sin paciente"}
-                      </p>
-                      <p className="truncate text-[0.6875rem] text-muted-foreground">
-                        {report.clinicName || `Clínica #${report.clinicId}`} · {studyLabel(report.studyType)}
-                      </p>
+          <div
+            className="flex min-h-0 flex-1 flex-col gap-2 md:hidden"
+            data-admin-mobile-core-module="reports"
+          >
+            {mobileReports.length ? (
+              <>
+                <div
+                  className="divide-y divide-vetneb-line/60 overflow-hidden rounded-md border border-vetneb-line/75"
+                  data-admin-reports-mobile-list="true"
+                >
+                  {mobileReports.map((report) => (
+                    <div
+                      key={report.id}
+                      className="flex min-h-10 items-center gap-2 px-2.5 py-1.5"
+                      data-admin-mobile-core-item="true"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-semibold">
+                          #{report.id} · {report.patientName || "Sin paciente"}
+                        </p>
+                        <p className="truncate text-[0.6875rem] text-muted-foreground">
+                          {report.clinicName || `Clínica #${report.clinicId}`} · {studyLabel(report.studyType)}
+                        </p>
+                      </div>
+                      <AdminReportStatusBadge stage={report.workflowStage} />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setSelectedReportId(report.id)}
+                      >
+                        Ver
+                      </Button>
                     </div>
-                    <AdminReportStatusBadge stage={report.workflowStage} />
+                  ))}
+                </div>
+
+                <div
+                  className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 pt-2 text-xs text-muted-foreground"
+                  data-admin-mobile-core-pager="true"
+                >
+                  <span>
+                    {mobileRangeStart}–{mobileRangeEnd}
+                  </span>
+                  <div className="flex items-center gap-1.5">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-7 px-2 text-xs"
-                      onClick={() => setSelectedReportId(report.id)}
+                      className="h-9 w-9 p-0"
+                      disabled={mobilePage === 0 || isMobileLoading}
+                      onClick={() => setMobilePage((current) => Math.max(0, current - 1))}
+                      aria-label="Página anterior"
                     >
-                      Ver
+                      <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 p-0"
+                      disabled={!mobileHasMore || isMobileLoading}
+                      onClick={() => setMobilePage((current) => current + 1)}
+                      aria-label="Página siguiente"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
                     </Button>
                   </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
-              {isLoading ? "Cargando informes…" : "No hay informes en esta página."}
-            </p>
-          )}
+                </div>
+              </>
+            ) : isMobileViewport ? (
+              <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
+                {isMobileLoading ? "Cargando informes…" : "No hay informes en esta página."}
+              </p>
+            ) : null}
+          </div>
 
           <nav
-            className="mt-2 flex min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:min-h-8 md:pt-1"
+            className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:flex md:min-h-8 md:pt-1"
             aria-label="Paginación de informes admin"
           >
             <span>
