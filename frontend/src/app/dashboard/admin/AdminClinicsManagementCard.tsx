@@ -117,11 +117,13 @@ export function AdminClinicsManagementCard() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [isMobileViewport, setIsMobileViewport] = useState(() =>
-    typeof window !== "undefined"
-      ? window.matchMedia("(max-width: 767px)").matches
-      : false,
-  );
+  // Start false so SSR and the client's first render agree. The media-query
+  // effect below promotes this to the real viewport value right after mount,
+  // which avoids a hydration mismatch on the mobile-only branches.
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  // Gates the initial fetch below until the viewport is known, so the first
+  // load uses the resolved effectivePageSize instead of the SSR-safe default.
+  const [isViewportResolved, setIsViewportResolved] = useState(false);
 
   const rows = useMemo(() => getClinicUserRows(snapshot), [snapshot]);
 
@@ -237,6 +239,7 @@ export function AdminClinicsManagementCard() {
 
     const updateMobileViewport = () => {
       setIsMobileViewport(mediaQuery.matches);
+      setIsViewportResolved(true);
     };
 
     updateMobileViewport();
@@ -250,6 +253,10 @@ export function AdminClinicsManagementCard() {
   const isFirstRender = useRef(true);
 
   useEffect(() => {
+    // Wait for the viewport to resolve so the first fetch below uses the
+    // settled effectivePageSize, not the SSR-safe desktop default.
+    if (!isViewportResolved) return;
+
     if (isFirstRender.current) {
       isFirstRender.current = false;
       loadClinics(0, searchQuery);
@@ -262,7 +269,7 @@ export function AdminClinicsManagementCard() {
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, effectivePageSize]);
+  }, [isViewportResolved, searchQuery, effectivePageSize]);
 
   return (
     <Card id="admin-clinics" className="dashboard-surface flex min-h-0 flex-1 flex-col">
@@ -430,7 +437,7 @@ export function AdminClinicsManagementCard() {
           <div className="clinical-alert-success">{successMessage}</div>
         ) : null}
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="hidden items-center justify-between gap-2 md:flex">
           <div className="relative max-w-xs flex-1">
             <Search
               className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
@@ -587,15 +594,35 @@ export function AdminClinicsManagementCard() {
         </div>
 
         <div
-          className="grid gap-2 md:hidden"
-          data-admin-clinics-mobile-list="true"
+          className="flex min-h-0 flex-1 flex-col gap-2 md:hidden"
+          data-admin-mobile-core-module="clinics"
         >
+          <div className="relative max-w-xs flex-1 shrink-0">
+            <Search
+              className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              className="h-8 pl-8 text-sm"
+              placeholder="Buscar clínica..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={isBusy}
+              aria-label="Buscar clínicas"
+            />
+          </div>
+
+          <div
+            className="grid min-h-0 flex-1 gap-2 overflow-hidden"
+            data-admin-clinics-mobile-list="true"
+          >
           {rows.length ? (
             rows.map(({ clinic, user, extraUsers }) => (
               <article
                 key={`mobile-${clinic.clinicId}-${user?.userId ?? "empty"}`}
                 className="rounded-lg border border-vetneb-line/70 bg-card/92 px-3 py-2 shadow-[0_1px_2px_rgba(15,45,62,0.05)]"
                 data-admin-clinic-mobile-card="true"
+                data-admin-mobile-core-item="true"
               >
                 <div className="flex min-w-0 items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -664,6 +691,42 @@ export function AdminClinicsManagementCard() {
               )}
             </div>
           )}
+          </div>
+
+          {totalClinics > 0 ? (
+            <div
+              className="flex shrink-0 items-center justify-between gap-2 text-xs text-muted-foreground"
+              data-admin-mobile-core-pager="true"
+            >
+              <span className="tabular-nums">
+                {pageStart}–{pageEnd} de {totalClinics}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-9 w-9 p-0"
+                  onClick={() => loadClinics(currentOffset - effectivePageSize)}
+                  disabled={isBusy || !hasPrev}
+                  aria-label="Página anterior"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-9 w-9 p-0"
+                  onClick={() => loadClinics(currentOffset + effectivePageSize)}
+                  disabled={isBusy || !hasNext}
+                  aria-label="Página siguiente"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </div>
         <ClinicEditDrawer
           clinic={editingClinic}

@@ -74,6 +74,7 @@ const CREATE_STEP_LABELS: Record<CreateStep, string> = {
 // The API supports limit/offset but does not expose a total, so pagination uses
 // the returned page length to enable the next-page control.
 const PAGE_SIZE = 9;
+const MOBILE_PAGE_SIZE = 3;
 
 const INITIAL_FORM_STATE: AdminParticularTokenFormState = {
   clinicId: "",
@@ -410,6 +411,20 @@ export function AdminParticularTokensCard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Start false so SSR and the client's first render agree. The media-query
+  // effect below promotes this to the real viewport value right after mount,
+  // which avoids a hydration mismatch on the mobile-only branches (the empty
+  // state and mobile list/pager). A mismatch would make React discard the
+  // server tree and regenerate it, leaving the toolbar's filter handlers
+  // briefly unbound and racing the no-scroll mobile contract.
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+
+  // Mobile renders a smaller, independently paginated slice of the same
+  // server-side token list. Desktop keeps its own PAGE_SIZE=9 fetch untouched
+  // so the dense viewport-safe contract stays pinned.
+  const [mobileTokens, setMobileTokens] = useState<AdminParticularTokenSummary[]>([]);
+  const [mobilePage, setMobilePage] = useState(0);
+  const [isLoadingMobileTokens, setIsLoadingMobileTokens] = useState(false);
 
   const selectedClinic = clinicOptions.find(
     (option) => String(option.id) === formState.clinicId,
@@ -425,7 +440,9 @@ export function AdminParticularTokensCard() {
   const selectedToken =
     selectedTokenId === null
       ? null
-      : (tokens.find((token) => token.id === selectedTokenId) ?? null);
+      : (tokens.find((token) => token.id === selectedTokenId) ??
+        mobileTokens.find((token) => token.id === selectedTokenId) ??
+        null);
   const selectedTrackingCase = selectedToken
     ? trackingCasesByTokenId[selectedToken.id]
     : null;
@@ -452,6 +469,11 @@ export function AdminParticularTokensCard() {
   const rangeStart = tokens.length ? page * PAGE_SIZE + 1 : 0;
   const rangeEnd = page * PAGE_SIZE + tokens.length;
   const canGoNext = tokens.length === PAGE_SIZE;
+  const mobileRangeStart = mobileTokens.length
+    ? mobilePage * MOBILE_PAGE_SIZE + 1
+    : 0;
+  const mobileRangeEnd = mobilePage * MOBILE_PAGE_SIZE + mobileTokens.length;
+  const canGoNextMobile = mobileTokens.length === MOBILE_PAGE_SIZE;
   const createStepIndex = getCreateStepIndex(createStep);
   const isLastCreateStep = createStep === "sample";
 
@@ -487,9 +509,49 @@ export function AdminParticularTokensCard() {
     [appliedClinicId, page],
   );
 
+  const loadMobileTokens = useCallback(
+    async (nextPage = mobilePage, nextClinicId = appliedClinicId) => {
+      setIsLoadingMobileTokens(true);
+
+      try {
+        const snapshot = await getAdminParticularTokens({
+          ...(nextClinicId ? { clinicId: nextClinicId } : {}),
+          limit: MOBILE_PAGE_SIZE,
+          offset: nextPage * MOBILE_PAGE_SIZE,
+        });
+        setMobileTokens(snapshot.particularTokens);
+      } catch {
+        setMobileTokens([]);
+      } finally {
+        setIsLoadingMobileTokens(false);
+      }
+    },
+    [appliedClinicId, mobilePage],
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+
+    const updateMobileViewport = () => {
+      setIsMobileViewport(mediaQuery.matches);
+    };
+
+    updateMobileViewport();
+    mediaQuery.addEventListener("change", updateMobileViewport);
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateMobileViewport);
+    };
+  }, []);
+
   useEffect(() => {
     void loadTokens();
   }, [loadTokens]);
+
+  useEffect(() => {
+    if (!isMobileViewport) return;
+    void loadMobileTokens();
+  }, [isMobileViewport, loadMobileTokens]);
 
   // The clinic catalogue is only needed by the creation flow. Deferring this
   // legacy paged load avoids doing it on every visit to the operational list.
@@ -713,12 +775,14 @@ export function AdminParticularTokensCard() {
     if (!normalized) {
       setAppliedClinicId(null);
       setPage(0);
+      setMobilePage(0);
       return;
     }
 
     try {
       setAppliedClinicId(parsePositiveInteger(normalized, "El ID de clínica"));
       setPage(0);
+      setMobilePage(0);
       setErrorMessage(null);
     } catch (error) {
       setErrorMessage(
@@ -731,6 +795,7 @@ export function AdminParticularTokensCard() {
     setClinicFilterDraft("");
     setAppliedClinicId(null);
     setPage(0);
+    setMobilePage(0);
     setErrorMessage(null);
   }
 
@@ -790,7 +855,9 @@ export function AdminParticularTokensCard() {
       setStatusMessage(response.message);
       resetForm();
       setPage(0);
+      setMobilePage(0);
       await loadTokens(0, appliedClinicId);
+      if (isMobileViewport) await loadMobileTokens(0, appliedClinicId);
       setIsCreateDialogOpen(false);
     } catch (error) {
       setErrorMessage(
@@ -830,6 +897,7 @@ export function AdminParticularTokensCard() {
         return next;
       });
       await loadTokens(page, appliedClinicId);
+      if (isMobileViewport) await loadMobileTokens(mobilePage, appliedClinicId);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -1064,7 +1132,10 @@ export function AdminParticularTokensCard() {
               variant="outline"
               size="sm"
               className="md:h-8 md:px-2 md:text-xs"
-              onClick={() => void loadTokens()}
+              onClick={() => {
+                void loadTokens();
+                if (isMobileViewport) void loadMobileTokens();
+              }}
               disabled={isLoadingTokens}
             >
               {isLoadingTokens ? "Actualizando…" : "Actualizar"}
@@ -1152,40 +1223,99 @@ export function AdminParticularTokensCard() {
           </div>
 
           <div
-            data-admin-particulars-mobile-list="true"
-            className="divide-y divide-vetneb-line/60 rounded-lg border border-vetneb-line/75 md:hidden"
+            className="flex min-h-0 flex-1 flex-col gap-2 md:hidden"
+            data-admin-mobile-core-module="tokens"
           >
-            {tokens.map((token) => (
-              <div key={token.id} className="flex min-h-10 items-center gap-2 px-2.5 py-1.5">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-xs font-semibold">
-                    ****{token.tokenLast4} · {token.petName}
-                  </p>
-                  <p className="truncate text-[0.6875rem] text-muted-foreground">
-                    Clínica #{token.clinicId} · {token.reportId ? `Informe #${token.reportId}` : "Sin informe"}
-                  </p>
+            <div
+              data-admin-particulars-mobile-list="true"
+              className="divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75"
+            >
+              {mobileTokens.map((token) => (
+                <div
+                  key={token.id}
+                  className="flex min-h-10 items-center gap-2 px-2.5 py-1.5"
+                  data-admin-mobile-core-item="true"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-mono text-xs font-semibold">
+                      ****{token.tokenLast4} · {token.petName}
+                    </p>
+                    <p className="truncate text-[0.6875rem] text-muted-foreground">
+                      Clínica #{token.clinicId} · {token.reportId ? `Informe #${token.reportId}` : "Sin informe"}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={token.isActive ? "default" : "outline"}
+                    className="h-5 px-1.5 text-[0.6875rem]"
+                  >
+                    {token.isActive ? "Activo" : "Inactivo"}
+                  </Badge>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => openTokenDetail(token)}
+                  >
+                    Ver
+                  </Button>
                 </div>
-                <Badge
-                  variant={token.isActive ? "default" : "outline"}
-                  className="h-5 px-1.5 text-[0.6875rem]"
-                >
-                  {token.isActive ? "Activo" : "Inactivo"}
-                </Badge>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => openTokenDetail(token)}
-                >
-                  Ver
-                </Button>
+              ))}
+            </div>
+
+            {!mobileTokens.length && isMobileViewport ? (
+              <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
+                {isLoadingMobileTokens
+                  ? "Cargando tokens particulares…"
+                  : appliedClinicId
+                    ? `No hay tokens para la clínica #${appliedClinicId}.`
+                    : "No hay tokens particulares administrados."}
+              </p>
+            ) : null}
+
+            {mobileTokens.length ? (
+              <div
+                className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 pt-2 text-xs text-muted-foreground"
+                data-admin-mobile-core-pager="true"
+              >
+                <span>
+                  {mobileRangeStart}–{mobileRangeEnd}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-2.5 text-xs"
+                    disabled={mobilePage === 0 || isLoadingMobileTokens}
+                    onClick={() => {
+                      setIsDetailDialogOpen(false);
+                      setMobilePage((current) => Math.max(0, current - 1));
+                    }}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="min-w-12 text-center">Pág. {mobilePage + 1}</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-2.5 text-xs"
+                    disabled={!canGoNextMobile || isLoadingMobileTokens}
+                    onClick={() => {
+                      setIsDetailDialogOpen(false);
+                      setMobilePage((current) => current + 1);
+                    }}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
               </div>
-            ))}
+            ) : null}
           </div>
 
           {!tokens.length ? (
-            <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
+            <p className="surface-empty hidden min-h-20 flex-1 items-center justify-center text-xs md:flex">
               {isLoadingTokens
                 ? "Cargando tokens particulares…"
                 : appliedClinicId
@@ -1194,7 +1324,7 @@ export function AdminParticularTokensCard() {
             </p>
           ) : null}
 
-          <div className="mt-2 flex min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:min-h-8 md:pt-1">
+          <div className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:flex md:min-h-8 md:pt-1">
             <span>
               {tokens.length ? `${rangeStart}–${rangeEnd}` : "0 resultados"} · 9 por página
             </span>
