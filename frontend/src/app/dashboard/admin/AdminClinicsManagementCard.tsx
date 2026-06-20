@@ -117,11 +117,13 @@ export function AdminClinicsManagementCard() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [isMobileViewport, setIsMobileViewport] = useState(() =>
-    typeof window !== "undefined"
-      ? window.matchMedia("(max-width: 767px)").matches
-      : false,
-  );
+  // Start false so SSR and the client's first render agree. The media-query
+  // effect below promotes this to the real viewport value right after mount,
+  // which avoids a hydration mismatch on the mobile-only branches.
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  // Gates the initial fetch below until the viewport is known, so the first
+  // load uses the resolved effectivePageSize instead of the SSR-safe default.
+  const [isViewportResolved, setIsViewportResolved] = useState(false);
 
   const rows = useMemo(() => getClinicUserRows(snapshot), [snapshot]);
 
@@ -237,6 +239,7 @@ export function AdminClinicsManagementCard() {
 
     const updateMobileViewport = () => {
       setIsMobileViewport(mediaQuery.matches);
+      setIsViewportResolved(true);
     };
 
     updateMobileViewport();
@@ -250,6 +253,10 @@ export function AdminClinicsManagementCard() {
   const isFirstRender = useRef(true);
 
   useEffect(() => {
+    // Wait for the viewport to resolve so the first fetch below uses the
+    // settled effectivePageSize, not the SSR-safe desktop default.
+    if (!isViewportResolved) return;
+
     if (isFirstRender.current) {
       isFirstRender.current = false;
       loadClinics(0, searchQuery);
@@ -262,7 +269,7 @@ export function AdminClinicsManagementCard() {
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, effectivePageSize]);
+  }, [isViewportResolved, searchQuery, effectivePageSize]);
 
   return (
     <Card id="admin-clinics" className="dashboard-surface flex min-h-0 flex-1 flex-col">

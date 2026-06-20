@@ -79,11 +79,10 @@ export function AdminReportsCard() {
   const [mobilePage, setMobilePage] = useState(0);
   const [mobileHasMore, setMobileHasMore] = useState(false);
   const [isMobileLoading, setIsMobileLoading] = useState(true);
-  const [isMobileViewport, setIsMobileViewport] = useState(() =>
-    typeof window !== "undefined"
-      ? window.matchMedia("(max-width: 767px)").matches
-      : false,
-  );
+  // Start false so SSR and the client's first render agree. The media-query
+  // effect below promotes this to the real viewport value right after mount,
+  // which avoids a hydration mismatch on the mobile-only branches.
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   const selectedReport = useMemo(
     () =>

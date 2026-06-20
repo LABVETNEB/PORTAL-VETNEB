@@ -411,11 +411,13 @@ export function AdminParticularTokensCard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isMobileViewport, setIsMobileViewport] = useState(() =>
-    typeof window !== "undefined"
-      ? window.matchMedia("(max-width: 767px)").matches
-      : false,
-  );
+  // Start false so SSR and the client's first render agree. The media-query
+  // effect below promotes this to the real viewport value right after mount,
+  // which avoids a hydration mismatch on the mobile-only branches (the empty
+  // state and mobile list/pager). A mismatch would make React discard the
+  // server tree and regenerate it, leaving the toolbar's filter handlers
+  // briefly unbound and racing the no-scroll mobile contract.
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   // Mobile renders a smaller, independently paginated slice of the same
   // server-side token list. Desktop keeps its own PAGE_SIZE=9 fetch untouched
