@@ -21,6 +21,7 @@ import type {
   AdminSessionType,
   AdminSessionsSnapshot,
 } from "@/types";
+import { AdminMobileSessionsModule } from "./AdminMobileSessionsModule";
 
 // Eight rows preserve the 1366×768 no-scroll contract because the workspace also
 // renders the credential-change control above this card.
@@ -95,6 +96,7 @@ function SessionStatusBadge({ status }: SessionStatusBadgeProps) {
 }
 
 export function AdminSessionsReadOnlyCard() {
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const [snapshot, setSnapshot] = useState<AdminSessionsSnapshot | null>(null);
   const [sessionType, setSessionType] = useState<AdminSessionType | "all">(
     "all",
@@ -167,9 +169,18 @@ export function AdminSessionsReadOnlyCard() {
   }
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const syncViewport = () => setIsDesktopViewport(mediaQuery.matches);
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+    return () => mediaQuery.removeEventListener("change", syncViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktopViewport) return;
     loadSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [isDesktopViewport, query]);
 
   const sessions = snapshot?.sessions ?? [];
   const hasPreviousPage = offset > 0;
@@ -190,7 +201,9 @@ export function AdminSessionsReadOnlyCard() {
   const disableActions = isPending || revokingSessionKey !== null;
 
   return (
-    <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none">
+    <>
+      <AdminMobileSessionsModule />
+      <Card className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none md:flex">
       <CardHeader className="flex min-h-11 shrink-0 flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-3 py-1 sm:px-4">
         <div className="min-w-0">
           <CardTitle className="text-base">Sesiones activas y expiradas</CardTitle>
@@ -521,6 +534,7 @@ export function AdminSessionsReadOnlyCard() {
           </div>
         </footer>
       </CardContent>
-    </Card>
+      </Card>
+    </>
   );
 }

@@ -22,6 +22,7 @@ import type {
   AdminUsersRolesSnapshot,
   ClinicUserRole,
 } from "@/types";
+import { AdminMobileUsersModule } from "./AdminMobileUsersModule";
 
 // Nine compact rows are the viewport-safe contract established for the admin
 // modules while dashboard-main intentionally remains non-scrollable.
@@ -132,6 +133,7 @@ function AdminUserTypeBadge({ userType }: UserTypeBadgeProps) {
 }
 
 export function AdminUsersRolesReadOnlyCard() {
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const [snapshot, setSnapshot] = useState<AdminUsersRolesSnapshot | null>(null);
   const [userType, setUserType] = useState<AdminRoleUserType | "all">("all");
   const [role, setRole] = useState<AdminRoleUserRole | "all">("all");
@@ -233,9 +235,18 @@ export function AdminUsersRolesReadOnlyCard() {
   }
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const syncViewport = () => setIsDesktopViewport(mediaQuery.matches);
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+    return () => mediaQuery.removeEventListener("change", syncViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktopViewport) return;
     loadUsersRoles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [isDesktopViewport, query]);
 
   const users = snapshot?.users ?? [];
   const hasPreviousPage = offset > 0;
@@ -248,7 +259,9 @@ export function AdminUsersRolesReadOnlyCard() {
   const rangeEnd = offset + users.length;
 
   return (
-    <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none">
+    <>
+      <AdminMobileUsersModule />
+      <Card className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none md:flex">
       <CardHeader className="flex min-h-12 shrink-0 flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-3 py-2 sm:px-4 md:min-h-10 md:py-1.5">
         <div className="min-w-0">
           <CardTitle className="text-base">Usuarios y roles</CardTitle>
@@ -535,6 +548,7 @@ export function AdminUsersRolesReadOnlyCard() {
           </div>
         </footer>
       </CardContent>
-    </Card>
+      </Card>
+    </>
   );
 }

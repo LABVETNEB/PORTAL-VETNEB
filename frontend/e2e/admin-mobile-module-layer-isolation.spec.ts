@@ -299,7 +299,9 @@ for (const viewport of MOBILE_VIEWPORTS) {
       }),
     ).toBeVisible({ timeout: 15_000 });
     await expect(
-      sessionsWorkspace.locator('[aria-label="Paginación de sesiones"]'),
+      sessionsWorkspace.locator(
+        '[data-admin-mobile-ops-module="sessions"] [aria-label="Paginación de sesiones"]',
+      ),
     ).toBeVisible();
 
     await backToHub(page, viewport.name);
@@ -314,14 +316,14 @@ for (const viewport of MOBILE_VIEWPORTS) {
 
     const auditWorkspace = await openModule(page, "audit-log", viewport.name);
     await expect(
-      auditWorkspace.getByRole("heading", { name: "Registro operativo" }),
+      auditWorkspace.locator('[data-admin-mobile-ops-module="audit"]'),
     ).toBeVisible();
     await expect(auditWorkspace.locator("#audit-log")).toBeVisible();
 
     await backToHub(page, viewport.name);
     await expect(page.locator("#audit-log")).toHaveCount(0);
     await expect(
-      page.getByRole("heading", { name: "Registro operativo" }),
+      page.locator('[data-admin-mobile-ops-module="audit"]'),
     ).toHaveCount(0);
 
     const tokensWorkspace = await openModule(

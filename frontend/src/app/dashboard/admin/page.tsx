@@ -767,7 +767,7 @@ export default async function AdminPage({
   // tab/card — keeping the card the primary, no-scroll surface.
   const sessionsWorkspaceSlot = (
     <section id="admin-sessions" className="flex min-h-0 flex-1 flex-col gap-2">
-      <div className="flex shrink-0 items-center justify-end">
+      <div className="hidden shrink-0 items-center justify-end md:flex">
         <ModuleDialog
           title="Cambiar contraseña"
           description="Actualizá tu contraseña de acceso sin cerrar la sesión actual."
