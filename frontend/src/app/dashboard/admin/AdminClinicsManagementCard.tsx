@@ -597,7 +597,7 @@ export function AdminClinicsManagementCard() {
           className="flex min-h-0 flex-1 flex-col gap-2 md:hidden"
           data-admin-mobile-core-module="clinics"
         >
-          <div className="relative max-w-xs flex-1 shrink-0">
+          <div className="relative max-w-xs shrink-0">
             <Search
               className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
               aria-hidden="true"
