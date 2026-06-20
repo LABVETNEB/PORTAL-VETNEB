@@ -1086,7 +1086,7 @@ export function AdminParticularTokensCard() {
               size="sm"
               role="tab"
               aria-selected={!isCreateDialogOpen}
-              className="md:h-8 md:px-2 md:text-xs"
+              className="h-8 px-2 text-xs"
             >
               Tokens administrados
             </Button>
@@ -1096,7 +1096,7 @@ export function AdminParticularTokensCard() {
               size="sm"
               role="tab"
               aria-selected={isCreateDialogOpen}
-              className="md:h-8 md:px-2 md:text-xs"
+              className="h-8 px-2 text-xs"
               onClick={() => handleCreateDialogOpenChange(true)}
               disabled={generatedToken !== null}
             >
