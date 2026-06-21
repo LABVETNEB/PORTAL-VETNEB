@@ -1,5 +1,7 @@
+import { mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Page, TestInfo } from "@playwright/test";
 
 const TOLERANCE = 2;
 const VERTICAL_TOLERANCE = 5;
@@ -99,6 +101,13 @@ type LayerContract = {
   horizontalNavVisible: boolean;
   activeIsolation: string;
   activeBackgroundColor: string;
+  // Persistent ancestors that survive the Hub<->module swap. They must paint an
+  // opaque background so the mobile GPU compositor cannot keep a recycled tile
+  // from the previous module behind them (real-device ghosting / scanlines).
+  frameBackgroundColor: string;
+  frameBackdropFilter: string;
+  mainBackgroundColor: string;
+  hubRootBackgroundColor: string | null;
   htmlOverflowX: number;
   bodyOverflowX: number;
   documentOverflowY: number;
@@ -127,8 +136,15 @@ async function readLayerContract(
       '[data-vetneb-app-shell-surface="admin"]',
     );
     const main = document.querySelector<HTMLElement>("main.dashboard-main");
+    const frame = shell?.querySelector<HTMLElement>(
+      ':scope > [data-vetneb-app-shell-frame="true"]',
+    );
+    // Hub root only exists while the Hub is mounted (absent inside a module).
+    const hubRoot = document.querySelector<HTMLElement>(
+      "[data-dashboard-hub-root]",
+    );
 
-    if (!topbar || !bottomNav || !activeRegion || !shell || !main) {
+    if (!topbar || !bottomNav || !activeRegion || !shell || !main || !frame) {
       throw new Error(`Admin layer contract is incomplete for ${selector}`);
     }
 
@@ -137,6 +153,8 @@ async function readLayerContract(
     const activeStyle = window.getComputedStyle(activeRegion);
     const shellStyle = window.getComputedStyle(shell);
     const mainStyle = window.getComputedStyle(main);
+    const frameStyle = window.getComputedStyle(frame);
+    const hubRootStyle = hubRoot ? window.getComputedStyle(hubRoot) : null;
 
     return {
       topbarBackdropFilter:
@@ -151,6 +169,13 @@ async function readLayerContract(
         : false,
       activeIsolation: activeStyle.isolation,
       activeBackgroundColor: activeStyle.backgroundColor,
+      frameBackgroundColor: frameStyle.backgroundColor,
+      frameBackdropFilter:
+        frameStyle.getPropertyValue("backdrop-filter") || "none",
+      mainBackgroundColor: mainStyle.backgroundColor,
+      hubRootBackgroundColor: hubRootStyle
+        ? hubRootStyle.backgroundColor
+        : null,
       htmlOverflowX:
         document.documentElement.scrollWidth -
         document.documentElement.clientWidth,
@@ -195,6 +220,27 @@ async function expectLayerContract(
       readCssAlpha(contract.activeBackgroundColor),
       `${label}: active region alpha`,
     ).toBe(1);
+
+    // Persistent ancestors of the active region must be opaque too: the leaf
+    // surface being opaque is not enough if a transparent ancestor lets a
+    // recycled GPU tile of the previous module show through.
+    expect(
+      readCssAlpha(contract.frameBackgroundColor),
+      `${label}: app shell frame alpha`,
+    ).toBe(1);
+    expect(contract.frameBackdropFilter, `${label}: app shell frame blur`).toBe(
+      "none",
+    );
+    expect(
+      readCssAlpha(contract.mainBackgroundColor),
+      `${label}: dashboard main alpha`,
+    ).toBe(1);
+    if (contract.hubRootBackgroundColor !== null) {
+      expect(
+        readCssAlpha(contract.hubRootBackgroundColor),
+        `${label}: hub root alpha`,
+      ).toBe(1);
+    }
 
     expect(contract.htmlOverflowX, `${label}: document horizontal overflow`).toBeLessThanOrEqual(
       TOLERANCE,
@@ -349,5 +395,219 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await expect(
       page.locator('[data-admin-particulars-mobile-list="true"]'),
     ).toHaveCount(0);
+  });
+}
+
+// ── PR-A: real-device opaque paint chain (light + dark) ──────────────────────
+// The hub leaf surface and active workspace were already opaque, but their
+// persistent ancestors (app-shell frame, dashboard-main, hub root) painted no
+// background, letting the mobile GPU compositor recycle a stale tile from the
+// previous module behind them (ghosting / scanlines on real devices). This
+// guards the full opaque paint chain after a real Hub→Tokens→Hub round trip in
+// both light and dark, and emits structural before/after screenshots. Headless
+// Chromium does not reproduce the GPU recycling itself, so the screenshots are
+// structural; the opaque-ancestor invariant is the automated guard.
+const SNAPSHOT_PHASE =
+  process.env.PRA_SNAPSHOT_PHASE === "before" ? "before" : "after";
+
+const PAINT_CHAIN_MATRIX = [
+  { width: 360, height: 740, mode: "light" as const },
+  { width: 360, height: 740, mode: "dark" as const },
+  { width: 390, height: 844, mode: "light" as const },
+  { width: 430, height: 932, mode: "light" as const },
+];
+
+async function applyColorMode(page: Page, mode: "light" | "dark") {
+  if (mode === "dark") {
+    // Mirror real persistence: theme-init.js reads this before first paint and
+    // sets data-theme="dark-gray", which drives the dark token (--card) chain.
+    await page.addInitScript(() => {
+      try {
+        window.localStorage.setItem("vetneb-theme-mode", "dark-gray");
+      } catch {
+        /* localStorage unavailable: emulateMedia below still hints dark */
+      }
+    });
+  }
+  await page.emulateMedia({ colorScheme: mode, reducedMotion: "reduce" });
+}
+
+async function openTokensFromHub(page: Page) {
+  const launcher = page.locator('[data-admin-mobile-hub-launcher="true"]');
+  const tile = launcher.locator(
+    '[data-admin-mobile-hub-tile="admin-particular-tokens"]',
+  );
+  if ((await tile.count()) === 0) {
+    await launcher
+      .locator('[data-admin-mobile-hub-pager="true"]')
+      .getByRole("button", { name: "Siguiente", exact: true })
+      .click();
+  }
+  await expect(tile).toBeVisible();
+  const workspace = page.locator(
+    '[data-dashboard-module-workspace="admin-particular-tokens"]',
+  );
+  // Hydration race: re-click the tile until the workspace actually mounts.
+  await expect(async () => {
+    await tile.click();
+    await expect(workspace).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(
+    workspace.locator('[data-admin-particulars-mobile-list="true"]'),
+  ).toBeVisible({ timeout: 15_000 });
+}
+
+async function readHubPaintChain(page: Page) {
+  return page.evaluate(() => {
+    const surface = document.querySelector<HTMLElement>(
+      '[data-vetneb-app-shell-surface="admin"]',
+    );
+    const frame = surface?.querySelector<HTMLElement>(
+      ':scope > [data-vetneb-app-shell-frame="true"]',
+    );
+    const main = document.querySelector<HTMLElement>("main.dashboard-main");
+    const hubRoot = document.querySelector<HTMLElement>(
+      "[data-dashboard-hub-root]",
+    );
+    const launcher = document.querySelector<HTMLElement>(
+      '[data-admin-mobile-hub-launcher="true"]',
+    );
+    const appBar = document.querySelector<HTMLElement>(
+      '[data-admin-mobile-app-bar="true"]',
+    );
+    const bottomNav = document.querySelector<HTMLElement>(
+      '[data-admin-mobile-bottom-nav="true"]',
+    );
+
+    if (
+      !surface ||
+      !frame ||
+      !main ||
+      !hubRoot ||
+      !launcher ||
+      !appBar ||
+      !bottomNav
+    ) {
+      throw new Error("Admin mobile paint chain is incomplete on the hub");
+    }
+
+    function describe(element: HTMLElement) {
+      const style = window.getComputedStyle(element);
+      return {
+        backgroundColor: style.backgroundColor,
+        backdropFilter: style.getPropertyValue("backdrop-filter") || "none",
+        opacity: style.opacity,
+        overflowY: style.overflowY,
+      };
+    }
+
+    return {
+      workspaceCount: document.querySelectorAll(
+        "[data-dashboard-module-workspace]",
+      ).length,
+      frame: describe(frame),
+      main: describe(main),
+      hubRoot: describe(hubRoot),
+      launcher: describe(launcher),
+      appBar: describe(appBar),
+      bottomNav: describe(bottomNav),
+    };
+  });
+}
+
+for (const cell of PAINT_CHAIN_MATRIX) {
+  test(`admin mobile hub keeps an opaque paint chain after tokens — ${cell.width}x${cell.height} ${cell.mode}`, async ({
+    page,
+  }, testInfo: TestInfo) => {
+    await page.setViewportSize({ width: cell.width, height: cell.height });
+    await applyColorMode(page, cell.mode);
+    await setPopulatedAdminSession(page);
+    await mockAdminSessions(page);
+
+    await page.goto("/dashboard/admin");
+    await suppressNextDevIndicator(page);
+
+    const hub = page.locator('[data-admin-mobile-hub-launcher="true"]');
+    await expect(hub).toBeVisible({ timeout: 15_000 });
+
+    await openTokensFromHub(page);
+
+    // Real SPA round trip: tapping the bottom-nav "Inicio" must return the
+    // controller to the hub with NO stale module workspace left mounted. This
+    // guards the bottom-nav/controller restore-last-module desync directly,
+    // with no hard reload / localStorage workaround.
+    await page
+      .locator('[data-admin-mobile-bottom-nav="true"]')
+      .getByRole("button", { name: "Inicio", exact: true })
+      .click();
+    await expect(hub).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(
+      0,
+    );
+    await expect(
+      page.locator('[data-admin-particulars-mobile-list="true"]'),
+    ).toHaveCount(0);
+
+    // Structural screenshot first, so the red (pre-fix) run still emits
+    // before-* evidence even though the assertions below fail.
+    const screenshotDirectory = resolve(
+      testInfo.config.rootDir,
+      "..",
+      "test-results",
+      "admin-mobile-real-device-layer-isolation",
+    );
+    await mkdir(screenshotDirectory, { recursive: true });
+    await page.screenshot({
+      path: resolve(
+        screenshotDirectory,
+        `${SNAPSHOT_PHASE}-${cell.width}-${cell.mode}-hub-after-tokens.png`,
+      ),
+      animations: "disabled",
+      fullPage: false,
+    });
+
+    // Opaque paint-chain invariant: every persistent ancestor must paint an
+    // opaque background (alpha 1, opacity 1, no backdrop-filter) so no recycled
+    // GPU tile can show through. FAILS before the fix (frame/main/hub-root are
+    // transparent); PASSES after.
+    await expect(async () => {
+      const chain = await readHubPaintChain(page);
+      const label = `${cell.width}x${cell.height} ${cell.mode}`;
+
+      expect(chain.workspaceCount, `${label}: stale workspace mounted`).toBe(0);
+
+      const opaqueNodes = {
+        frame: chain.frame,
+        main: chain.main,
+        hubRoot: chain.hubRoot,
+        launcher: chain.launcher,
+        appBar: chain.appBar,
+        bottomNav: chain.bottomNav,
+      };
+      for (const [name, node] of Object.entries(opaqueNodes)) {
+        expect(
+          readCssAlpha(node.backgroundColor),
+          `${label}: ${name} background alpha`,
+        ).toBe(1);
+        expect(node.backdropFilter, `${label}: ${name} backdrop-filter`).toBe(
+          "none",
+        );
+        expect(Number(node.opacity), `${label}: ${name} opacity`).toBe(1);
+      }
+
+      // No scroll container introduced on the persistent shell ancestors:
+      // overflow may be hidden/clip/visible, but never a scrollable auto/scroll.
+      for (const [name, node] of Object.entries({
+        frame: chain.frame,
+        main: chain.main,
+        hubRoot: chain.hubRoot,
+        launcher: chain.launcher,
+      })) {
+        expect(
+          ["auto", "scroll"],
+          `${label}: ${name} overflow-y must not be scrollable`,
+        ).not.toContain(node.overflowY);
+      }
+    }).toPass({ timeout: 10_000 });
   });
 }

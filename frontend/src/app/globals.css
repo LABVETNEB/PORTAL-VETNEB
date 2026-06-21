@@ -2842,3 +2842,26 @@
   }
 }
 /* admin-mobile-ops-modules:end */
+/* admin-mobile-real-device-layer-isolation:start */
+/* PR-A — real-device GPU layer recycling guard.
+   The Hub leaf surface ([data-admin-mobile-hub-launcher]) and the active module
+   workspace are already opaque, but the ancestors that PERSIST across the
+   Hub<->module swap paint no background of their own: the app-shell frame, the
+   dashboard main region, and the hub root/cockpit. On mobile GPUs the
+   compositor can keep a recycled tile from the previous module behind those
+   transparent ancestors when React swaps the subtree, surfacing as the reported
+   ghosting / scanlines on the Hub. Forcing an opaque paint chain on every
+   persistent ancestor guarantees the previous frame is always painted over,
+   regardless of compositor tile recycling.
+   Scoped to Admin mobile only (<=767px + surface="admin"); desktop, Clinic and
+   the data/layout of every module stay untouched. No transform/opacity/blur is
+   introduced and no scroll container is created. */
+@media (max-width: 767px) {
+  [data-vetneb-app-shell-surface="admin"]
+    > [data-vetneb-app-shell-frame="true"],
+  [data-vetneb-app-shell-surface="admin"] .dashboard-main,
+  [data-vetneb-app-shell-surface="admin"] [data-dashboard-hub-root] {
+    background: hsl(var(--card));
+  }
+}
+/* admin-mobile-real-device-layer-isolation:end */

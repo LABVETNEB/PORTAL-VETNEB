@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Building2, Home, KeyRound, Menu, ScrollText } from "lucide-react";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { requestAdminHubReset } from "@/lib/admin-hub-reset";
 import {
   ADMIN_LAST_MODULE_STORAGE_KEY,
   writeDashboardLastModule,
@@ -41,6 +42,9 @@ export function AdminMobileBottomNav() {
     writeDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY, "");
     setActiveModule(null);
     closeModuleMenu();
+    // Force the workspace controller back to the hub even if the URL push is a
+    // same-URL no-op (in-flight module navigation not yet committed).
+    requestAdminHubReset();
   }
 
   return (
