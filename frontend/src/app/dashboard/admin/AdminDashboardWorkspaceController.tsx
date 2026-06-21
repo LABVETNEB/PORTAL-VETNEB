@@ -37,6 +37,7 @@ import {
   getAdminAccessErrorSnapshot,
   subscribeAdminAccessError,
 } from "@/lib/admin-access-error";
+import { subscribeAdminHubReset } from "@/lib/admin-hub-reset";
 import type { AdminAccessErrorStatus } from "@/lib/api-error";
 import { AdminAccessErrorState } from "./AdminAccessErrorState";
 
@@ -197,6 +198,20 @@ export function AdminDashboardWorkspaceController({
   }, [searchParams]);
 
   useEffect(() => () => clearAdminAccessError(), []);
+
+  // The mobile bottom-nav "Inicio" publishes a hub-reset signal; honour it by
+  // dropping back to the hub even when its URL navigation collapses into a
+  // same-URL no-op (in-flight module push cancelled before it committed), which
+  // would otherwise leave the controller stranded on the previous module.
+  useEffect(
+    () =>
+      subscribeAdminHubReset(() => {
+        clearAdminAccessError();
+        setActiveModule(null);
+        setHasManuallyReturnedToHub(true);
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (!activeModule) return;
