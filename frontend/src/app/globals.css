@@ -2159,6 +2159,15 @@
     margin-block-start: var(--dash-rhythm);
   }
 
+  /* The persistent module stage is now main's single flex child and owns the
+     hub page-header <-> content rhythm, so mirror the adaptive gap token here. */
+  .dashboard-app-shell
+    [data-dashboard-module-stage="true"]
+    > :not([hidden])
+    ~ :not([hidden]) {
+    margin-block-start: var(--dash-rhythm);
+  }
+
   .dashboard-app-shell .dashboard-cockpit {
     gap: var(--dash-cockpit-gap);
   }
@@ -2934,3 +2943,31 @@
   }
 }
 /* admin-mobile-real-device-layer-isolation:end */
+/* admin-mobile-stage-layer:start */
+/* Root-cause fix for the residual Hub<->module bleed-through. The opaque-ancestor
+   guard (above) painted every PERSISTENT ancestor, but the swap site itself had
+   no stable surface: the Hub root and the module workspace are differently-typed
+   isolated subtrees that REPLACE each other directly under <main>, so the
+   stacking context at the swap point is destroyed and recreated (different
+   bounds) on every navigation. On mobile GPUs that lets a recycled tile of the
+   just-unmounted module survive behind the freshly-created Hub context — an
+   opaque ancestor below it in z-order cannot cover it.
+
+   The controller now wraps BOTH branches in one persistent stage
+   ([data-dashboard-module-stage]) that never unmounts; only its children swap.
+   On Admin mobile the stage becomes a single opaque, isolated, GPU-promoted
+   layer (translateZ(0)). Because that layer is persistent, the compositor
+   repaints IT in place on every swap instead of recycling an orphan tile from a
+   destroyed per-module layer. No fixed-position descendant lives inside the
+   stage (the bottom nav, app bar, menus and Radix dialogs render outside it), so
+   the new containing block is inert. Scoped to Admin mobile (<=767px); desktop
+   and Clinic keep the stage as a transparent flex passthrough. */
+@media (max-width: 767px) {
+  [data-vetneb-app-shell-surface="admin"] [data-dashboard-module-stage="true"] {
+    isolation: isolate;
+    background: hsl(var(--card));
+    transform: translateZ(0);
+    overscroll-behavior: none;
+  }
+}
+/* admin-mobile-stage-layer:end */

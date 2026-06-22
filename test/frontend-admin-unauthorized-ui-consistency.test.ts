@@ -95,7 +95,7 @@ test("admin access state replaces the workspace instead of rendering an empty st
   assert.ok(controllerSource.includes("initialAccessErrorStatus"));
   assert.ok(
     controllerSource.includes(
-      "accessErrorStatus ? (\n          <AdminAccessErrorState status={accessErrorStatus} />\n        ) : (\n          workspaces[activeModule]\n        )",
+      "accessErrorStatus ? (\n            <AdminAccessErrorState status={accessErrorStatus} />\n          ) : (\n            workspaces[activeModule]\n          )",
     ),
   );
   assert.ok(stateSource.includes('role="alert"'));
