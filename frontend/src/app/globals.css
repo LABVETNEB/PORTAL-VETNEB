@@ -2352,7 +2352,6 @@
     --admin-mobile-appbar-h: clamp(2.75rem, 0.1rem + 0.41svh, 3rem);
     --admin-mobile-appbar-pad-x: clamp(0.6rem, 0.4rem + 0.6svw, 0.85rem);
     --admin-mobile-appbar-gap: clamp(0.4rem, 0.3rem + 0.4svw, 0.55rem);
-    --admin-mobile-icon-btn-size: clamp(2.1rem, 1.9rem + 0.5svw, 2.3rem);
     --admin-mobile-bottom-nav-h: clamp(3.2rem, 0.3rem + 0.46svh, 3.5rem);
     --admin-mobile-bottom-nav-gap: clamp(0.12rem, 0.08rem + 0.1svw, 0.18rem);
     --admin-mobile-tile-gap: clamp(0.4rem, 0.28rem + 0.5svw, 0.6rem);
@@ -2459,8 +2458,12 @@
   [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-trigger,
   [data-vetneb-app-shell-surface="admin"] .admin-mobile-icon-button {
     display: inline-flex;
-    width: var(--admin-mobile-icon-btn-size);
-    height: var(--admin-mobile-icon-btn-size);
+    /* Touch-target floor, not a density value — kept fixed like the other
+       accessibility minimums in this file (kebab-row/module-link/page-button
+       min-height) instead of shrinking under --admin-mobile-icon-btn-size,
+       which CI's dashboard-mobile-shell-nav-contract.spec.ts pins at >=36px. */
+    width: 2.25rem;
+    height: 2.25rem;
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;

@@ -18,8 +18,10 @@ import {
 const TOLERANCE = 2;
 
 const MOBILE_VIEWPORTS = [
+  { name: "android-short-360x640", width: 360, height: 640 },
   { name: "android-small-360x740", width: 360, height: 740 },
   { name: "iphone-standard-390x844", width: 390, height: 844 },
+  { name: "android-large-412x915", width: 412, height: 915 },
   { name: "iphone-pro-max-430x932", width: 430, height: 932 },
 ] as const;
 
@@ -344,7 +346,7 @@ for (const moduleSpec of CONFIG_MODULES) {
           `${viewport.name} ${mode}: desktop nav hidden`,
         ).toBeHidden();
 
-        const shortViewport = String(viewport.width);
+        const shortViewport = `${viewport.width}x${viewport.height}`;
         await captureScreen(page, testInfo, `${CONFIG_SNAPSHOT_PHASE}-${shortViewport}-${mode}-${moduleSpec.key}`);
 
         const moduleSelector = `[data-admin-mobile-config-module="${moduleSpec.key}"]`;
