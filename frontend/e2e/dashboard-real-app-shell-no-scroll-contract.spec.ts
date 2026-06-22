@@ -252,10 +252,21 @@ async function expectPopulatedAdminModule(
     await expect(
       workspace.getByRole("heading", { name: "Resumen operativo", exact: true }),
     ).toBeVisible();
-    await expect(workspace.getByText("47", { exact: true })).toBeVisible();
-    await expect(workspace.getByText("9", { exact: true })).toBeVisible();
-    await expect(workspace.getByText("Operativo", { exact: true })).toBeVisible();
-    await expect(workspace.getByText("Login admin", { exact: true })).toBeVisible();
+    // The Admin overview now ships a mobile-only (md:hidden) variant alongside
+    // the desktop command center, so these metric labels exist twice in the DOM.
+    // Scope to the visible (desktop) copy at these desktop viewports.
+    await expect(
+      workspace.getByText("47", { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
+    await expect(
+      workspace.getByText("9", { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
+    await expect(
+      workspace.getByText("Operativo", { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
+    await expect(
+      workspace.getByText("Login admin", { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
     await expect(
       workspace.getByText("Sin actividad de auditoría disponible."),
     ).toHaveCount(0);
