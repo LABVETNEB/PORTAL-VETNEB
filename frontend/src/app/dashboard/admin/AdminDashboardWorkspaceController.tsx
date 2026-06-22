@@ -358,42 +358,48 @@ export function AdminDashboardWorkspaceController({
     },
   ];
 
-  if (activeModule) {
-    const meta = ADMIN_MODULE_META[activeModule];
-    return (
-      <DashboardModuleWorkspace
-        title={meta.title}
-        description={meta.description}
-        moduleId={activeModule}
-        onBack={backToHub}
-      >
-        {accessErrorStatus ? (
-          <AdminAccessErrorState status={accessErrorStatus} />
-        ) : (
-          workspaces[activeModule]
-        )}
-      </DashboardModuleWorkspace>
-    );
-  }
+  const activeMeta = activeModule ? ADMIN_MODULE_META[activeModule] : null;
 
-  if (accessErrorStatus) {
-    return (
-      <>
-        {pageHeader}
-        <AdminAccessErrorState status={accessErrorStatus} />
-      </>
-    );
-  }
-
+  // Single persistent, opaque, isolated stage for the Hub<->module swap. The
+  // stage node never unmounts (only its children swap), so the swap happens
+  // inside one stable stacking/paint surface instead of recreating a new
+  // stacking context per navigation — which let mobile GPUs keep a recycled
+  // tile of the previous module behind the freshly-mounted hub (the reported
+  // ghosting / bleed-through). See admin-mobile-stage-layer in globals.css.
   return (
-    <>
-      {pageHeader}
-      <DashboardModuleHub
-        heading="Módulos de administración"
-        description="Acceso a clínicas, precios, sesiones, auditoría y estado del sistema."
-        cards={adminCards}
-        hero={adminHero}
-      />
-    </>
+    <div
+      data-dashboard-module-stage="true"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden dashboard-module-stage"
+    >
+      {activeModule && activeMeta ? (
+        <DashboardModuleWorkspace
+          title={activeMeta.title}
+          description={activeMeta.description}
+          moduleId={activeModule}
+          onBack={backToHub}
+        >
+          {accessErrorStatus ? (
+            <AdminAccessErrorState status={accessErrorStatus} />
+          ) : (
+            workspaces[activeModule]
+          )}
+        </DashboardModuleWorkspace>
+      ) : accessErrorStatus ? (
+        <>
+          {pageHeader}
+          <AdminAccessErrorState status={accessErrorStatus} />
+        </>
+      ) : (
+        <>
+          {pageHeader}
+          <DashboardModuleHub
+            heading="Módulos de administración"
+            description="Acceso a clínicas, precios, sesiones, auditoría y estado del sistema."
+            cards={adminCards}
+            hero={adminHero}
+          />
+        </>
+      )}
+    </div>
   );
 }
