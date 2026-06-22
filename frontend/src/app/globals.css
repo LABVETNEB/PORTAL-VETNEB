@@ -2340,6 +2340,47 @@
     overflow: hidden;
     overscroll-behavior: none;
     isolation: isolate;
+
+    /* Fluid density tokens (PR-E) — width-keyed (svw) gutters/gaps/type scale
+       between the narrowest and widest tested phones, height-keyed (svh)
+       chrome bars that saturate at their CURRENT fixed value for every
+       height already covered by the no-scroll e2e matrix (>=740px) and only
+       compact below that, so short-viewport devices gain room instead of
+       clipping. Values only ever shrink the existing rem defaults or hold
+       them steady — never grow chrome past today's footprint. */
+    --admin-mobile-shell-gutter: clamp(0.4rem, 0.32rem + 0.5svw, 0.6rem);
+    --admin-mobile-appbar-h: clamp(2.75rem, 0.1rem + 0.41svh, 3rem);
+    --admin-mobile-appbar-pad-x: clamp(0.6rem, 0.4rem + 0.6svw, 0.85rem);
+    --admin-mobile-appbar-gap: clamp(0.4rem, 0.3rem + 0.4svw, 0.55rem);
+    --admin-mobile-icon-btn-size: clamp(2.1rem, 1.9rem + 0.5svw, 2.3rem);
+    --admin-mobile-bottom-nav-h: clamp(3.2rem, 0.3rem + 0.46svh, 3.5rem);
+    --admin-mobile-bottom-nav-gap: clamp(0.12rem, 0.08rem + 0.1svw, 0.18rem);
+    --admin-mobile-tile-gap: clamp(0.4rem, 0.28rem + 0.5svw, 0.6rem);
+    --admin-mobile-tile-pad: clamp(0.32rem, 0.2rem + 0.4svw, 0.5rem);
+    --admin-mobile-tile-icon-size: clamp(1.7rem, 1.5rem + 0.6svw, 2rem);
+    --admin-mobile-type-2xs: clamp(0.6rem, 0.5rem + 0.3svw, 0.68rem);
+    --admin-mobile-type-xs: clamp(0.66rem, 0.56rem + 0.3svw, 0.76rem);
+    --admin-mobile-chip-gap: clamp(0.18rem, 0.12rem + 0.15svw, 0.28rem);
+    --admin-mobile-chip-pad-y: clamp(0.3rem, 0.22rem + 0.2svw, 0.42rem);
+    --admin-mobile-chip-pad-x: clamp(0.4rem, 0.3rem + 0.3svw, 0.55rem);
+    --admin-mobile-panel-pad: clamp(0.4rem, 0.3rem + 0.3svw, 0.55rem);
+  }
+
+  /* Short-height step: the app-bar/bottom-nav tokens above already self-
+     compact via svh, but width-keyed gap/padding/icon tokens need an explicit
+     tier to free vertical room on short phones (e.g. 360x640) without
+     affecting any currently-covered height (>=740px stays on the base
+     values). Mirrors the desktop --dash-* max-height tier pattern. */
+  @media (max-height: 700px) {
+    [data-vetneb-app-shell-surface="admin"] {
+      --admin-mobile-shell-gutter: 0.34rem;
+      --admin-mobile-tile-gap: 0.32rem;
+      --admin-mobile-tile-pad: 0.26rem;
+      --admin-mobile-tile-icon-size: 1.55rem;
+      --admin-mobile-chip-gap: 0.14rem;
+      --admin-mobile-chip-pad-y: 0.22rem;
+      --admin-mobile-panel-pad: 0.32rem;
+    }
   }
 
   [data-vetneb-app-shell-surface="admin"]
@@ -2371,9 +2412,9 @@
   .dashboard-app-shell[data-vetneb-app-shell-surface="admin"]
     [data-dashboard-topbar-polish="true"][data-admin-mobile-app-bar="true"] {
     box-sizing: border-box;
-    height: calc(3rem + env(safe-area-inset-top)) !important;
-    min-height: calc(3rem + env(safe-area-inset-top)) !important;
-    max-height: calc(3rem + env(safe-area-inset-top)) !important;
+    height: calc(var(--admin-mobile-appbar-h) + env(safe-area-inset-top)) !important;
+    min-height: calc(var(--admin-mobile-appbar-h) + env(safe-area-inset-top)) !important;
+    max-height: calc(var(--admin-mobile-appbar-h) + env(safe-area-inset-top)) !important;
     padding: 0 !important;
   }
 
@@ -2381,10 +2422,10 @@
     [data-admin-mobile-app-bar="true"]
     > div:first-child {
     box-sizing: border-box;
-    height: calc(3rem + env(safe-area-inset-top));
-    min-height: calc(3rem + env(safe-area-inset-top));
-    padding: env(safe-area-inset-top) 0.75rem 0;
-    gap: 0.5rem;
+    height: calc(var(--admin-mobile-appbar-h) + env(safe-area-inset-top));
+    min-height: calc(var(--admin-mobile-appbar-h) + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) var(--admin-mobile-appbar-pad-x) 0;
+    gap: var(--admin-mobile-appbar-gap);
   }
 
   [data-vetneb-app-shell-surface="admin"] #dashboard-topbar-title,
@@ -2418,8 +2459,8 @@
   [data-vetneb-app-shell-surface="admin"] .admin-mobile-kebab-trigger,
   [data-vetneb-app-shell-surface="admin"] .admin-mobile-icon-button {
     display: inline-flex;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: var(--admin-mobile-icon-btn-size);
+    height: var(--admin-mobile-icon-btn-size);
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
@@ -2450,9 +2491,9 @@
     width: min(20rem, calc(100vw - 1.5rem));
     max-height: calc(100svh - 4rem - env(safe-area-inset-bottom));
     flex-direction: column;
-    gap: 0.35rem;
+    gap: var(--admin-mobile-chip-gap);
     overflow: hidden;
-    padding: 0.5rem;
+    padding: var(--admin-mobile-shell-gutter);
     border: 1px solid hsl(var(--vetneb-line));
     border-radius: 0.75rem;
     background: hsl(var(--card));
@@ -2472,11 +2513,11 @@
     justify-content: space-between;
     gap: 0.75rem;
     overflow: hidden;
-    padding: 0.25rem 0.5rem;
+    padding: 0.25rem var(--admin-mobile-chip-pad-x);
     border-radius: 0.45rem;
     background: hsl(var(--card));
     color: hsl(var(--foreground));
-    font-size: 0.78rem;
+    font-size: var(--admin-mobile-type-xs);
     font-weight: 600;
     text-align: left;
     touch-action: manipulation;
@@ -2496,7 +2537,7 @@
     min-height: 0;
     overflow: hidden;
     overscroll-behavior: none;
-    padding: 0.5rem;
+    padding: var(--admin-mobile-shell-gutter);
   }
 
   [data-vetneb-app-shell-surface="admin"]
@@ -2509,7 +2550,7 @@
     z-index: 65;
     display: flex !important;
     width: 100%;
-    height: calc(3.5rem + env(safe-area-inset-bottom));
+    height: calc(var(--admin-mobile-bottom-nav-h) + env(safe-area-inset-bottom));
     min-height: 0;
     flex: 0 0 auto;
     align-items: stretch;
@@ -2532,13 +2573,13 @@
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    gap: 0.15rem;
+    gap: var(--admin-mobile-bottom-nav-gap);
     overflow: hidden;
     padding: 0.25rem 0.1rem;
     border-radius: 0;
     background: hsl(var(--card));
     color: hsl(var(--muted-foreground));
-    font-size: 0.64rem;
+    font-size: var(--admin-mobile-type-2xs);
     font-weight: 650;
     line-height: 1;
     white-space: nowrap;
@@ -2563,9 +2604,9 @@
         env(safe-area-inset-bottom)
     );
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--admin-mobile-tile-gap);
     overflow: hidden;
-    padding: 0.65rem;
+    padding: var(--admin-mobile-tile-pad);
     border: 1px solid hsl(var(--vetneb-line));
     border-radius: 0.85rem;
     background: hsl(var(--card));
@@ -2582,7 +2623,7 @@
     min-width: 0;
     min-height: 0;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.35rem;
+    gap: var(--admin-mobile-tile-gap);
     overflow: hidden;
   }
 
@@ -2598,7 +2639,7 @@
     border-radius: 0.55rem;
     background: hsl(var(--vetneb-surface-raised));
     color: hsl(var(--foreground));
-    font-size: 0.72rem;
+    font-size: var(--admin-mobile-type-xs);
     font-weight: 650;
     touch-action: manipulation;
   }
@@ -2615,7 +2656,7 @@
     border-radius: 0.5rem;
     background: hsl(var(--card));
     color: hsl(var(--foreground));
-    font-size: 0.7rem;
+    font-size: var(--admin-mobile-type-xs);
     font-weight: 650;
     touch-action: manipulation;
   }
@@ -2681,7 +2722,7 @@
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
-    gap: 0.5rem;
+    gap: var(--admin-mobile-tile-gap);
     overflow: hidden;
     isolation: isolate;
     background: hsl(var(--card));
@@ -2694,7 +2735,7 @@
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
-    gap: 0.5rem;
+    gap: var(--admin-mobile-tile-gap);
     overflow: hidden;
   }
 
@@ -2718,15 +2759,15 @@
     border-radius: 0.85rem;
     border: 1px solid hsl(var(--vetneb-line) / 0.8);
     background: hsl(var(--card));
-    padding: 0.4rem;
+    padding: var(--admin-mobile-tile-pad);
     text-align: center;
     touch-action: manipulation;
   }
 
   [data-vetneb-app-shell-surface="admin"] .admin-mobile-hub-tile-icon {
     display: inline-flex;
-    height: 1.85rem;
-    width: 1.85rem;
+    height: var(--admin-mobile-tile-icon-size);
+    width: var(--admin-mobile-tile-icon-size);
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
@@ -2741,7 +2782,7 @@
     width: 100%;
     overflow: hidden;
     color: hsl(var(--vetneb-ink));
-    font-size: 0.7rem;
+    font-size: var(--admin-mobile-type-xs);
     font-weight: 650;
     line-height: 1.15;
     -webkit-line-clamp: 2;
@@ -2771,7 +2812,7 @@
     border-radius: 0.5rem;
     background: hsl(var(--card));
     color: hsl(var(--foreground));
-    font-size: 0.72rem;
+    font-size: var(--admin-mobile-type-xs);
     font-weight: 650;
     touch-action: manipulation;
   }
@@ -2808,7 +2849,7 @@
     overflow: hidden;
     white-space: nowrap;
     color: hsl(var(--muted-foreground));
-    font-size: 0.64rem;
+    font-size: var(--admin-mobile-type-2xs);
     font-weight: 600;
   }
 
@@ -2920,6 +2961,35 @@
   }
 }
 /* admin-mobile-config-modules:end */
+/* admin-mobile-module-rhythm-fluid:start */
+/* PR-E — the chip tablist/chip/panel shell shared by every Admin mobile
+   STATUS and CONFIG module (Resumen, Estado del sistema, Precios,
+   Mantenimiento all render through AdminMobileStatusModule /
+   AdminMobileConfigModule) still used the fixed Tailwind paddings/gap/font
+   the components ship with (p-1.5/gap-1/px-2 py-1.5/text-[0.72rem]/p-2).
+   Override them here with the same fluid tokens as the rest of the shell so
+   "module rhythm" scales with viewport instead of staying pinned — higher
+   attribute-selector specificity wins over the components' utility classes
+   without editing the .tsx files. */
+@media (max-width: 767px) {
+  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-status-module] [role="tablist"],
+  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-config-module] [role="tablist"] {
+    gap: var(--admin-mobile-chip-gap);
+    padding: var(--admin-mobile-chip-pad-y);
+  }
+
+  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-status-chip],
+  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-config-chip] {
+    padding: var(--admin-mobile-chip-pad-y) var(--admin-mobile-chip-pad-x);
+    font-size: var(--admin-mobile-type-xs);
+  }
+
+  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-status-panel],
+  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-config-panel] {
+    padding: var(--admin-mobile-panel-pad);
+  }
+}
+/* admin-mobile-module-rhythm-fluid:end */
 /* admin-mobile-real-device-layer-isolation:start */
 /* PR-A — real-device GPU layer recycling guard.
    The Hub leaf surface ([data-admin-mobile-hub-launcher]) and the active module
