@@ -2842,27 +2842,39 @@
   }
 }
 /* admin-mobile-ops-modules:end */
-/* admin-mobile-status-modules:start */
-/* PR-B — Administración/Resumen + Estado del sistema previously rendered the
-   desktop ModuleTabs/grids on mobile; collapsed to one column they overflowed
-   under the bottom nav. The dedicated mobile variant carries
-   [data-admin-mobile-status-module]; here we hide the workspace header and
-   reclaim the viewport so the chip-segmented surface owns the full content band
-   with zero scroll. Scoped to Admin mobile only (<=767px + surface="admin"):
-   desktop, Clinic and the module data stay untouched. */
+/* admin-mobile-module-header-reclaim:start */
+/* PR-B addendum — on Admin mobile the in-workspace module header (title +
+   description + a `border-bottom` divider + 1rem padding + 1rem margin, defined
+   on `.dashboard-workspace-header`) is redundant: the app bar already shows the
+   module context, the back button is hidden on mobile and the bottom nav drives
+   navigation. It only burned ~64px of critical height and left a divider/empty
+   band above the module controls/chips. Hide it on EVERY admin module and zero
+   the viewport top padding so content sits ~one gutter (≈8px) below the app bar.
+   Desktop (>=768px) keeps the header — there the back button + divider are the
+   real module chrome. Scoped to surface="admin"; Clínica uses another shell
+   surface and is untouched. */
 @media (max-width: 767px) {
   [data-vetneb-app-shell-surface="admin"]
-    [data-dashboard-module-workspace]:has([data-admin-mobile-status-module])
+    [data-dashboard-module-workspace]
     .dashboard-workspace-header {
     display: none !important;
   }
 
   [data-vetneb-app-shell-surface="admin"]
-    [data-dashboard-module-workspace]:has([data-admin-mobile-status-module])
+    [data-dashboard-module-workspace]
     [data-dashboard-module-viewport] {
     min-height: 0;
-    overflow: hidden;
     padding-top: 0 !important;
+  }
+}
+/* admin-mobile-module-header-reclaim:end */
+/* admin-mobile-status-modules:start */
+/* Status modules (admin / admin-health) overflow safety + viewport clipping. */
+@media (max-width: 767px) {
+  [data-vetneb-app-shell-surface="admin"]
+    [data-dashboard-module-workspace]:has([data-admin-mobile-status-module])
+    [data-dashboard-module-viewport] {
+    overflow: hidden;
   }
 
   [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-status-module],

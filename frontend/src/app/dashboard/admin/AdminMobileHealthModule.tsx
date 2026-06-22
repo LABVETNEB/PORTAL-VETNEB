@@ -196,40 +196,49 @@ export function AdminMobileHealthModule({
           No se pudo consultar el estado del sistema; valores como desconocidos.
         </div>
       ) : null}
-      {services.map((service) => (
-        <div
-          key={service.label}
-          data-admin-mobile-status-item="true"
-          className="flex min-h-0 items-center justify-between gap-2 overflow-hidden rounded-md border border-vetneb-line/70 bg-card/95 px-2.5 py-1.5"
-        >
-          <div className="min-w-0">
-            <p className="truncate text-xs font-semibold text-vetneb-ink">
-              {service.label}
-            </p>
-            {service.detail ? (
-              <p className="truncate text-[0.66rem] text-muted-foreground">
-                {service.detail}
-              </p>
-            ) : null}
-          </div>
-          <Badge
-            variant={service.variant}
-            className="h-5 shrink-0 px-1.5 text-[10px]"
+      {/* Service rows fill the band as equal rows so the last (CORS público)
+          lands ~one gutter above the bottom nav instead of leaving a void. */}
+      <div
+        className="grid min-h-0 flex-1 gap-1.5 overflow-hidden"
+        style={{ gridTemplateRows: `repeat(${services.length}, minmax(0, 1fr))` }}
+      >
+        {services.map((service) => (
+          <div
+            key={service.label}
+            data-admin-mobile-status-item="true"
+            className="flex min-h-0 items-center justify-between gap-2 overflow-hidden rounded-md border border-vetneb-line/70 bg-card/95 px-2.5 py-1.5"
           >
-            {service.statusLabel}
-          </Badge>
-        </div>
-      ))}
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold text-vetneb-ink">
+                {service.label}
+              </p>
+              {service.detail ? (
+                <p className="truncate text-[0.66rem] text-muted-foreground">
+                  {service.detail}
+                </p>
+              ) : null}
+            </div>
+            <Badge
+              variant={service.variant}
+              className="h-5 shrink-0 px-1.5 text-[10px]"
+            >
+              {service.statusLabel}
+            </Badge>
+          </div>
+        ))}
+      </div>
     </div>
   );
 
   const runtimeSection = (
-    <div className="grid min-h-0 flex-1 grid-cols-2 content-start gap-1.5 overflow-hidden">
+    // 2×2 tiles fill the band; content vertically centered so the stretched
+    // tiles read as intentional cards, last row ~one gutter above the nav.
+    <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-1.5 overflow-hidden">
       {runtime.map((tile) => (
         <div
           key={tile.label}
           data-admin-mobile-status-item="true"
-          className="rounded-md border border-vetneb-line/70 bg-card/95 px-2.5 py-1.5"
+          className="flex min-h-0 flex-col justify-center overflow-hidden rounded-md border border-vetneb-line/70 bg-card/95 px-2.5 py-1.5"
         >
           <p className="truncate text-[0.62rem] text-muted-foreground">
             {tile.label}

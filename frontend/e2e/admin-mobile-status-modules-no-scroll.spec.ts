@@ -292,6 +292,85 @@ async function captureScreen(
   });
 }
 
+type ContentGutters = {
+  bottomGutter: number;
+  sideGutter: number;
+  appBarToChipsGap: number;
+  headerVisible: boolean;
+};
+
+// Measures, for the active panel of a status module: the gutter below the last
+// visible content element (down to the bottom nav), the side gutter of the
+// panel, the app-bar -> chips gap, and whether the redundant workspace header is
+// still painted. Used to enforce the balanced-gutter + no-divider contract.
+async function readContentGutters(
+  page: Page,
+  moduleSelector: string,
+): Promise<ContentGutters> {
+  return page.evaluate((selector) => {
+    const moduleRoot = document.querySelector<HTMLElement>(selector);
+    const panel = moduleRoot?.querySelector<HTMLElement>(
+      "[data-admin-mobile-status-panel]",
+    );
+    const chipRow = moduleRoot?.querySelector<HTMLElement>('[role="tablist"]');
+    const bottomNav = document.querySelector<HTMLElement>(
+      '[data-admin-mobile-bottom-nav="true"]',
+    );
+    const appBar = document.querySelector<HTMLElement>(
+      '[data-admin-mobile-app-bar="true"]',
+    );
+    const workspace = moduleRoot?.closest<HTMLElement>(
+      "[data-dashboard-module-workspace]",
+    );
+    const header = workspace?.querySelector<HTMLElement>(
+      ".dashboard-workspace-header",
+    );
+
+    if (!moduleRoot || !panel || !chipRow || !bottomNav || !appBar) {
+      throw new Error(`Gutter contract incomplete for ${selector}`);
+    }
+
+    const navTop = bottomNav.getBoundingClientRect().top;
+    // Lowest visible content pixel inside the active panel (the real content,
+    // not an empty wrapper): take the max bottom across visible descendants.
+    let maxBottom = Number.NEGATIVE_INFINITY;
+    for (const element of Array.from(panel.querySelectorAll<HTMLElement>("*"))) {
+      const rect = element.getBoundingClientRect();
+      if (rect.width > 1 && rect.height > 1 && rect.bottom > maxBottom) {
+        maxBottom = rect.bottom;
+      }
+    }
+    const panelRect = panel.getBoundingClientRect();
+    const headerStyle = header ? window.getComputedStyle(header) : null;
+
+    return {
+      bottomGutter: navTop - maxBottom,
+      sideGutter: Math.min(panelRect.left, window.innerWidth - panelRect.right),
+      appBarToChipsGap:
+        chipRow.getBoundingClientRect().top -
+        appBar.getBoundingClientRect().bottom,
+      headerVisible: headerStyle ? headerStyle.display !== "none" : false,
+    };
+  }, moduleSelector);
+}
+
+function assertGutterContract(gutters: ContentGutters, label: string) {
+  // Bottom margin of the visible content must mirror the side gutter: never
+  // pegged to the bottom nav, never a void above it.
+  expect(
+    gutters.bottomGutter,
+    `${label}: bottom gutter not pegged (>= 10px); got ${gutters.bottomGutter}`,
+  ).toBeGreaterThanOrEqual(10);
+  expect(
+    gutters.bottomGutter,
+    `${label}: bottom gutter >= side gutter (${gutters.sideGutter})`,
+  ).toBeGreaterThanOrEqual(gutters.sideGutter - 2);
+  expect(
+    gutters.bottomGutter,
+    `${label}: bottom gutter balanced with side gutter ${gutters.sideGutter} (no void)`,
+  ).toBeLessThanOrEqual(gutters.sideGutter + 24);
+}
+
 for (const moduleSpec of STATUS_MODULES) {
   for (const viewport of MOBILE_VIEWPORTS) {
     for (const mode of COLOR_MODES) {
@@ -349,8 +428,24 @@ for (const moduleSpec of STATUS_MODULES) {
           `${viewport.name} ${mode} ${moduleSpec.key} initial`,
         );
 
-        // Every section chip must be reachable, fit the content band and keep
-        // the no-scroll contract — no section may fall under the bottom nav.
+        // No redundant workspace-header divider/band between the app bar and the
+        // chips on Admin mobile (the app-bar -> chips gap is asserted per chip).
+        await expect(
+          page.locator(
+            `[data-dashboard-module-workspace="${moduleSpec.moduleId}"] .dashboard-workspace-header`,
+          ),
+          `${viewport.name} ${mode} ${moduleSpec.key}: workspace header hidden`,
+        ).toBeHidden();
+
+        // No console errors during the whole interaction.
+        const consoleErrors: string[] = [];
+        page.on("console", (message) => {
+          if (message.type() === "error") consoleErrors.push(message.text());
+        });
+
+        // Every section chip must be reachable, fit the content band, keep the
+        // no-scroll contract and land its last visible element ~one gutter above
+        // the bottom nav (balanced bottom margin, no void, not pegged).
         const chips = moduleRoot.locator("[data-admin-mobile-status-chip]");
         const chipCount = await chips.count();
         expect(
@@ -360,11 +455,14 @@ for (const moduleSpec of STATUS_MODULES) {
 
         for (let index = 0; index < chipCount; index += 1) {
           const chip = chips.nth(index);
+          const chipId =
+            (await chip.getAttribute("data-admin-mobile-status-chip")) ??
+            String(index);
           await expectInsideContentBand(
             page,
             chip,
             viewport,
-            `${viewport.name} ${mode} ${moduleSpec.key} chip ${index + 1}`,
+            `${viewport.name} ${mode} ${moduleSpec.key} chip ${chipId}`,
           );
           await chip.click();
 
@@ -373,25 +471,45 @@ for (const moduleSpec of STATUS_MODULES) {
           );
           await expect(
             panel,
-            `${viewport.name} ${mode} ${moduleSpec.key} panel ${index + 1}`,
+            `${viewport.name} ${mode} ${moduleSpec.key} panel ${chipId}`,
           ).toBeVisible();
+          // Wait for the (possibly lazy-fetched) content to render so the
+          // gutter is measured against real content, not a transient state.
+          await panel
+            .locator(
+              '[data-admin-mobile-status-item="true"], [data-admin-mobile-ops-pager="true"]',
+            )
+            .first()
+            .waitFor({ state: "visible", timeout: 10_000 })
+            .catch(() => {});
+
           await expectInsideContentBand(
             page,
             panel,
             viewport,
-            `${viewport.name} ${mode} ${moduleSpec.key} panel ${index + 1}`,
+            `${viewport.name} ${mode} ${moduleSpec.key} panel ${chipId}`,
           );
           assertNoScrollContract(
             await readNoScrollContract(page, moduleSelector),
-            `${viewport.name} ${mode} ${moduleSpec.key} section ${index + 1}`,
+            `${viewport.name} ${mode} ${moduleSpec.key} section ${chipId}`,
+          );
+
+          const gutters = await readContentGutters(page, moduleSelector);
+          expect(
+            gutters.appBarToChipsGap,
+            `${viewport.name} ${mode} ${moduleSpec.key} ${chipId}: app bar -> chips gap <= 14px; got ${gutters.appBarToChipsGap}`,
+          ).toBeLessThanOrEqual(14);
+          assertGutterContract(
+            gutters,
+            `${viewport.name} ${mode} ${moduleSpec.key} ${chipId}`,
+          );
+
+          await captureScreen(
+            page,
+            testInfo,
+            `${STATUS_SNAPSHOT_PHASE}-${shortViewport}-${mode}-${moduleSpec.screenshotKey}-${chipId}`,
           );
         }
-
-        // No console errors during the whole interaction.
-        const consoleErrors: string[] = [];
-        page.on("console", (message) => {
-          if (message.type() === "error") consoleErrors.push(message.text());
-        });
 
         await page
           .locator('[data-admin-mobile-bottom-nav="true"]')
@@ -435,6 +553,14 @@ for (const moduleSpec of STATUS_MODULES) {
       page.locator(`[data-admin-mobile-status-module="${moduleSpec.key}"]`),
       `${moduleSpec.key} desktop: mobile status module hidden`,
     ).toBeHidden();
+    // Desktop keeps the workspace header (back button + structural divider) —
+    // the mobile reclaim must not bleed into desktop.
+    await expect(
+      page.locator(
+        `[data-dashboard-module-workspace="${moduleSpec.moduleId}"] .dashboard-workspace-header`,
+      ),
+      `${moduleSpec.key} desktop: workspace header visible`,
+    ).toBeVisible({ timeout: 15_000 });
     await expect(
       page
         .locator(`[data-dashboard-module-workspace="${moduleSpec.moduleId}"]`)

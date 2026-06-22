@@ -244,8 +244,11 @@ export function AdminMobileCommandModule({
   recentActivity,
 }: AdminMobileCommandModuleProps) {
   const resumenSection = (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-      <div className="grid shrink-0 grid-cols-2 gap-1.5">
+    // Fill the band: KPIs stay compact on top, the two info cards grow to share
+    // the remaining height so the last card lands ~one gutter above the bottom
+    // nav (balanced bottom gutter, no empty box).
+    <div className="grid min-h-0 flex-1 grid-rows-[auto_1fr_1fr] gap-2 overflow-hidden">
+      <div className="grid grid-cols-2 gap-1.5">
         <MetricTile
           label="Auditoría"
           value={auditEntriesCount}
@@ -259,7 +262,7 @@ export function AdminMobileCommandModule({
       </div>
       <div
         data-admin-mobile-status-item="true"
-        className="shrink-0 rounded-md border border-vetneb-line/70 bg-card/95 px-2.5 py-1.5"
+        className="flex min-h-0 flex-col justify-center overflow-hidden rounded-md border border-vetneb-line/70 bg-card/95 px-2.5 py-2"
       >
         <p className="text-[0.62rem] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
           Estado del sistema
@@ -271,7 +274,7 @@ export function AdminMobileCommandModule({
           />
           <Badge variant={systemStatusVariant}>{systemStatusLabel}</Badge>
         </div>
-        <p className="mt-1 line-clamp-2 text-[0.68rem] text-muted-foreground">
+        <p className="mt-1 line-clamp-3 text-[0.68rem] text-muted-foreground">
           {hasSystemHealthFetchError
             ? "No se pudo consultar el estado del sistema."
             : systemStatusDetail}
@@ -279,12 +282,12 @@ export function AdminMobileCommandModule({
       </div>
       <div
         data-admin-mobile-status-item="true"
-        className="surface-soft min-h-0 shrink-0"
+        className="surface-soft flex min-h-0 flex-col justify-center overflow-hidden"
       >
         <p className="text-[0.78rem] font-semibold text-vetneb-ink">
           Alertas y estados
         </p>
-        <p className="mt-1 line-clamp-2 text-[0.7rem] text-muted-foreground">
+        <p className="mt-1 line-clamp-3 text-[0.7rem] text-muted-foreground">
           {hasSystemHealthFetchError
             ? "Estado no disponible; revisar conectividad del servicio."
             : `${systemStatusLabel}: ${systemStatusDetail}`}
@@ -294,22 +297,30 @@ export function AdminMobileCommandModule({
   );
 
   const actividadSection = (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-      <div data-admin-mobile-status-item="true" className="surface-soft shrink-0">
+    // Three blocks share the height evenly so the last (accesos) lands ~one
+    // gutter above the bottom nav.
+    <div className="grid min-h-0 flex-1 grid-rows-3 gap-2 overflow-hidden">
+      <div
+        data-admin-mobile-status-item="true"
+        className="surface-soft flex min-h-0 flex-col justify-center overflow-hidden"
+      >
         <p className="text-[0.78rem] font-semibold text-vetneb-ink">
           Atención requerida
         </p>
-        <p className="mt-1 text-[0.7rem] text-muted-foreground">
+        <p className="mt-1 line-clamp-3 text-[0.7rem] text-muted-foreground">
           Revisar intentos fallidos de login y salud del sistema antes de
           cambios administrativos.
         </p>
       </div>
-      <div data-admin-mobile-status-item="true" className="surface-soft shrink-0">
+      <div
+        data-admin-mobile-status-item="true"
+        className="surface-soft flex min-h-0 flex-col justify-center overflow-hidden"
+      >
         <p className="text-[0.78rem] font-semibold text-vetneb-ink">
           Actividad reciente
         </p>
         {recentActivity ? (
-          <p className="mt-1 line-clamp-2 text-[0.7rem] text-muted-foreground">
+          <p className="mt-1 line-clamp-3 text-[0.7rem] text-muted-foreground">
             <span className="font-semibold text-foreground/85">
               {recentActivity.event}
             </span>{" "}
@@ -321,7 +332,10 @@ export function AdminMobileCommandModule({
           </p>
         )}
       </div>
-      <div className="min-h-0 shrink-0">
+      <div
+        data-admin-mobile-status-item="true"
+        className="flex min-h-0 flex-col justify-center overflow-hidden"
+      >
         <AdminOverviewQuickLinks />
       </div>
     </div>
