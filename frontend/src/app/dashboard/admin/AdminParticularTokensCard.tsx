@@ -1223,12 +1223,12 @@ export function AdminParticularTokensCard() {
           </div>
 
           <div
-            className="flex min-h-0 flex-1 flex-col gap-1.5 md:hidden"
+            className="flex h-full min-h-0 flex-1 flex-col gap-1.5 md:hidden"
             data-admin-mobile-core-module="tokens"
           >
             <div
               data-admin-particulars-mobile-list="true"
-              className="divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75"
+              className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75"
             >
               {mobileTokens.map((token) => (
                 <div

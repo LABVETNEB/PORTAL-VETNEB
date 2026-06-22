@@ -46,7 +46,7 @@ async function setAdminSession(page: Page) {
   ]);
 }
 
-async function mockAdminParticularTokens(page: Page) {
+async function mockAdminParticularTokens(page: Page, sourceTokens = MOCK_TOKENS) {
   await page.route("**/api/admin/particular-tokens**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -64,8 +64,8 @@ async function mockAdminParticularTokens(page: Page) {
     const clinicIdParam = url.searchParams.get("clinicId");
     const clinicId = clinicIdParam ? Number(clinicIdParam) : null;
     const filteredTokens = clinicId
-      ? MOCK_TOKENS.filter((token) => token.clinicId === clinicId)
-      : MOCK_TOKENS;
+      ? sourceTokens.filter((token) => token.clinicId === clinicId)
+      : sourceTokens;
     const particularTokens = filteredTokens.slice(offset, offset + limit);
 
     await route.fulfill({
@@ -80,6 +80,33 @@ async function mockAdminParticularTokens(page: Page) {
       }),
     });
   });
+}
+
+const MOCK_TOKENS_SHORT = MOCK_TOKENS.slice(0, 6);
+
+const PAGER_BOTTOM_TOLERANCE = 28;
+
+async function assertPagerAnchoredToModuleBottom(
+  page: Page,
+  label: string,
+) {
+  const moduleRoot = page.locator('[data-admin-mobile-core-module="tokens"]');
+  const pager = moduleRoot.locator('[data-admin-mobile-core-pager="true"]');
+
+  await expect(pager, `${label}: pager visible`).toBeVisible();
+
+  const moduleBox = await moduleRoot.boundingBox();
+  const pagerBox = await pager.boundingBox();
+  expect(moduleBox, `${label}: module bounding box`).not.toBeNull();
+  expect(pagerBox, `${label}: pager bounding box`).not.toBeNull();
+
+  const moduleBottom = moduleBox!.y + moduleBox!.height;
+  const pagerBottom = pagerBox!.y + pagerBox!.height;
+
+  expect(
+    moduleBottom - pagerBottom,
+    `${label}: gap below pager inside module`,
+  ).toBeLessThanOrEqual(PAGER_BOTTOM_TOLERANCE);
 }
 
 for (const viewport of MOBILE_VIEWPORTS) {
@@ -212,5 +239,77 @@ for (const viewport of MOBILE_VIEWPORTS) {
       updateMetrics.height,
       `${viewport.name}: Actualizar touch target height`,
     ).toBeGreaterThanOrEqual(34);
+  });
+}
+
+for (const viewport of MOBILE_VIEWPORTS) {
+  test(`admin tokens mobile pager stays bottom-anchored with a full page — ${viewport.name}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await setAdminSession(page);
+    await mockAdminParticularTokens(page, MOCK_TOKENS);
+    await page.goto("/dashboard/admin?module=admin-particular-tokens");
+
+    const workspace = page.locator(
+      '[data-dashboard-module-workspace="admin-particular-tokens"]',
+    );
+    await expect(workspace).toBeVisible({ timeout: 15_000 });
+
+    const items = page.locator(
+      '[data-admin-mobile-core-module="tokens"] [data-admin-mobile-core-item="true"]',
+    );
+    await expect(items).toHaveCount(10);
+
+    await assertPagerAnchoredToModuleBottom(
+      page,
+      `${viewport.name}: full page (10 tokens)`,
+    );
+  });
+
+  test(`admin tokens mobile pager stays bottom-anchored with a short dataset — ${viewport.name}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await setAdminSession(page);
+    await mockAdminParticularTokens(page, MOCK_TOKENS_SHORT);
+    await page.goto("/dashboard/admin?module=admin-particular-tokens");
+
+    const workspace = page.locator(
+      '[data-dashboard-module-workspace="admin-particular-tokens"]',
+    );
+    await expect(workspace).toBeVisible({ timeout: 15_000 });
+
+    const items = page.locator(
+      '[data-admin-mobile-core-module="tokens"] [data-admin-mobile-core-item="true"]',
+    );
+    await expect(items).toHaveCount(6);
+
+    const pager = page.locator(
+      '[data-admin-mobile-core-module="tokens"] [data-admin-mobile-core-pager="true"]',
+    );
+    await expect(pager.getByText("1–6", { exact: true })).toBeVisible();
+
+    await assertPagerAnchoredToModuleBottom(
+      page,
+      `${viewport.name}: short dataset (6 tokens)`,
+    );
+
+    const forbiddenOverflow = await page.evaluate((selector) => {
+      const root = document.querySelector(selector);
+      if (!root) return [];
+      const elements = [root, ...Array.from(root.querySelectorAll("*"))];
+      return elements.flatMap((element) => {
+        const style = window.getComputedStyle(element);
+        return ["auto", "scroll"].includes(style.overflowX) ||
+          ["auto", "scroll"].includes(style.overflowY)
+          ? [`${element.tagName}.${(element as HTMLElement).className}`]
+          : [];
+      });
+    }, '[data-admin-mobile-core-module="tokens"]');
+    expect(
+      forbiddenOverflow,
+      `${viewport.name}: forbidden overflow auto/scroll (short dataset)`,
+    ).toEqual([]);
   });
 }
