@@ -48,7 +48,7 @@ test("admin tokens toolbar is mobile-safe and wraps actions", () => {
   assert.ok(source.includes('data-admin-particulars-toolbar="true"'));
   assert.ok(source.includes('data-admin-particulars-mobile-list="true"'));
   assert.ok(source.includes("flex min-w-0 flex-wrap items-center gap-1.5"));
-  assert.ok(source.includes('className="h-8 w-full text-xs md:w-36"'));
+  assert.ok(source.includes('className="h-8 w-28 text-xs md:w-36"'));
 });
 
 test("admin tokens replaces row cards and inline detail with a dense table and dialogs", () => {
