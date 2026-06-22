@@ -469,10 +469,6 @@ export function AdminParticularTokensCard() {
   const rangeStart = tokens.length ? page * PAGE_SIZE + 1 : 0;
   const rangeEnd = page * PAGE_SIZE + tokens.length;
   const canGoNext = tokens.length === PAGE_SIZE;
-  const mobileRangeStart = mobileTokens.length
-    ? mobilePage * MOBILE_PAGE_SIZE + 1
-    : 0;
-  const mobileRangeEnd = mobilePage * MOBILE_PAGE_SIZE + mobileTokens.length;
   const canGoNextMobile = mobileTokens.length === MOBILE_PAGE_SIZE;
   const createStepIndex = getCreateStepIndex(createStep);
   const isLastCreateStep = createStep === "sample";
@@ -1275,41 +1271,36 @@ export function AdminParticularTokensCard() {
 
             {mobileTokens.length ? (
               <div
-                className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
+                className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
                 data-admin-mobile-core-pager="true"
               >
-                <span>
-                  {mobileRangeStart}–{mobileRangeEnd}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-2.5 text-xs"
-                    disabled={mobilePage === 0 || isLoadingMobileTokens}
-                    onClick={() => {
-                      setIsDetailDialogOpen(false);
-                      setMobilePage((current) => Math.max(0, current - 1));
-                    }}
-                  >
-                    Anterior
-                  </Button>
-                  <span className="min-w-12 text-center">Pág. {mobilePage + 1}</span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-2.5 text-xs"
-                    disabled={!canGoNextMobile || isLoadingMobileTokens}
-                    onClick={() => {
-                      setIsDetailDialogOpen(false);
-                      setMobilePage((current) => current + 1);
-                    }}
-                  >
-                    Siguiente
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-2.5 text-xs"
+                  disabled={mobilePage === 0 || isLoadingMobileTokens}
+                  onClick={() => {
+                    setIsDetailDialogOpen(false);
+                    setMobilePage((current) => Math.max(0, current - 1));
+                  }}
+                >
+                  Anterior
+                </Button>
+                <span className="min-w-12 text-center">Pág. {mobilePage + 1}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-2.5 text-xs"
+                  disabled={!canGoNextMobile || isLoadingMobileTokens}
+                  onClick={() => {
+                    setIsDetailDialogOpen(false);
+                    setMobilePage((current) => current + 1);
+                  }}
+                >
+                  Siguiente
+                </Button>
               </div>
             ) : null}
           </div>
@@ -1365,7 +1356,7 @@ export function AdminParticularTokensCard() {
         open={isCreateDialogOpen}
         onOpenChange={handleCreateDialogOpenChange}
         busy={isSubmitting}
-        title="Generar token particular"
+        title="Generar token"
         description={`Paso ${createStepIndex + 1} de ${CREATE_STEP_ORDER.length}: ${CREATE_STEP_LABELS[createStep]}`}
       >
         <form className="space-y-4" onSubmit={handleSubmit} autoComplete="off">
@@ -1390,7 +1381,7 @@ export function AdminParticularTokensCard() {
             <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
               <div className="md:col-span-2">
                 <label htmlFor="admin-token-clinic-search" className="field-label">
-                  Clínica
+                  Clínica vinculada
                 </label>
                 <Input
                   id="admin-token-clinic-search"
@@ -1445,22 +1436,7 @@ export function AdminParticularTokensCard() {
                 </div>
               </div>
 
-              <label className="block">
-                <span className="field-label">ID informe vinculado</span>
-                <Input
-                  id="admin-token-report-id"
-                  name="reportId"
-                  type="number"
-                  min="1"
-                  inputMode="numeric"
-                  placeholder="Opcional"
-                  autoComplete="off"
-                  value={formState.reportId}
-                  onChange={(event) => updateField("reportId", event.target.value)}
-                  disabled={isSubmitting}
-                />
-              </label>
-              <label className="block">
+              <label className="block md:col-span-2">
                 <span className="field-label">Email del particular</span>
                 <Input
                   id="admin-token-particular-email"
@@ -1542,12 +1518,12 @@ export function AdminParticularTokensCard() {
             <p className="clinical-alert-error px-2.5 py-1.5 text-xs" role="alert">{errorMessage}</p>
           ) : null}
 
-          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/70 pt-3">
+          <div className="flex flex-wrap shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/70 pt-3">
             <Button type="button" variant="ghost" size="sm" onClick={resetForm} disabled={isSubmitting}>Limpiar</Button>
-            <div className="flex gap-1.5">
+            <div className="flex flex-wrap items-center justify-end gap-1.5">
               {createStepIndex > 0 ? <Button type="button" variant="outline" size="sm" onClick={goToPreviousCreateStep} disabled={isSubmitting}>Anterior</Button> : null}
               {isLastCreateStep ? (
-                <Button type="submit" size="sm" disabled={isSubmitting || generatedToken !== null}>{isSubmitting ? "Generando…" : "Generar token particular"}</Button>
+                <Button type="submit" size="sm" disabled={isSubmitting || generatedToken !== null}>{isSubmitting ? "Generando…" : "Generar token"}</Button>
               ) : (
                 <Button type="submit" size="sm" disabled={isSubmitting}>Siguiente</Button>
               )}

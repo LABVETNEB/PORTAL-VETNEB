@@ -376,7 +376,6 @@ test("admin particular token form has autoComplete off on form element and all s
     "admin-token-sample-evolution",
     "admin-token-extraction-date",
     "admin-token-shipping-date",
-    "admin-token-report-id",
   ];
 
   for (const id of sensitiveInputIds) {

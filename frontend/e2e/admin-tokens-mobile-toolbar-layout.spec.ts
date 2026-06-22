@@ -109,6 +109,45 @@ async function assertPagerAnchoredToModuleBottom(
   ).toBeLessThanOrEqual(PAGER_BOTTOM_TOLERANCE);
 }
 
+const CENTER_TOLERANCE = 6;
+const RANGE_TEXT_PATTERN = /^\d+[–-]\d+$/;
+
+async function assertPagerHasNoRangeText(page: Page, label: string) {
+  const pager = page.locator(
+    '[data-admin-mobile-core-module="tokens"] [data-admin-mobile-core-pager="true"]',
+  );
+  await expect(
+    pager.getByText(RANGE_TEXT_PATTERN),
+    `${label}: pager range text removed`,
+  ).toHaveCount(0);
+}
+
+async function assertPagerControlsCentered(page: Page, label: string) {
+  const pager = page.locator(
+    '[data-admin-mobile-core-module="tokens"] [data-admin-mobile-core-pager="true"]',
+  );
+  const pagerBox = await pager.boundingBox();
+  const anteriorBox = await pager
+    .getByRole("button", { name: "Anterior" })
+    .boundingBox();
+  const siguienteBox = await pager
+    .getByRole("button", { name: "Siguiente" })
+    .boundingBox();
+
+  expect(pagerBox, `${label}: pager bounding box`).not.toBeNull();
+  expect(anteriorBox, `${label}: Anterior bounding box`).not.toBeNull();
+  expect(siguienteBox, `${label}: Siguiente bounding box`).not.toBeNull();
+
+  const leftGap = anteriorBox!.x - pagerBox!.x;
+  const rightGap =
+    pagerBox!.x + pagerBox!.width - (siguienteBox!.x + siguienteBox!.width);
+
+  expect(
+    Math.abs(leftGap - rightGap),
+    `${label}: pager controls not centered (left=${leftGap}, right=${rightGap})`,
+  ).toBeLessThanOrEqual(CENTER_TOLERANCE);
+}
+
 for (const viewport of MOBILE_VIEWPORTS) {
   test(`admin tokens toolbar stays operable — ${viewport.name}`, async ({
     page,
@@ -265,6 +304,8 @@ for (const viewport of MOBILE_VIEWPORTS) {
       page,
       `${viewport.name}: full page (10 tokens)`,
     );
+    await assertPagerHasNoRangeText(page, `${viewport.name}: full page (10 tokens)`);
+    await assertPagerControlsCentered(page, `${viewport.name}: full page (10 tokens)`);
   });
 
   test(`admin tokens mobile pager stays bottom-anchored with a short dataset — ${viewport.name}`, async ({
@@ -285,10 +326,8 @@ for (const viewport of MOBILE_VIEWPORTS) {
     );
     await expect(items).toHaveCount(6);
 
-    const pager = page.locator(
-      '[data-admin-mobile-core-module="tokens"] [data-admin-mobile-core-pager="true"]',
-    );
-    await expect(pager.getByText("1–6", { exact: true })).toBeVisible();
+    await assertPagerHasNoRangeText(page, `${viewport.name}: short dataset (6 tokens)`);
+    await assertPagerControlsCentered(page, `${viewport.name}: short dataset (6 tokens)`);
 
     await assertPagerAnchoredToModuleBottom(
       page,
@@ -311,5 +350,132 @@ for (const viewport of MOBILE_VIEWPORTS) {
       forbiddenOverflow,
       `${viewport.name}: forbidden overflow auto/scroll (short dataset)`,
     ).toEqual([]);
+  });
+}
+
+async function mockAdminUsersRolesClinics(page: Page) {
+  await page.route("**/api/admin/users-roles**", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.fallback();
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        users: [
+          {
+            userType: "clinic",
+            userId: 501,
+            username: "clinica.norte",
+            role: "clinic_owner",
+            clinicId: 77,
+            clinicName: "Clínica Norte",
+            clinicLocality: "Rosario",
+            createdAt: "2026-05-01T10:00:00.000Z",
+            updatedAt: "2026-05-01T10:00:00.000Z",
+          },
+        ],
+        total: 1,
+        limit: 100,
+        offset: 0,
+        totals: { adminUsers: 0, clinicUsers: 1 },
+      }),
+    });
+  });
+}
+
+for (const viewport of MOBILE_VIEWPORTS) {
+  test(`admin tokens create dialog uses linked-clinic search and short copy — ${viewport.name}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await setAdminSession(page);
+    await mockAdminParticularTokens(page, MOCK_TOKENS_SHORT);
+    await mockAdminUsersRolesClinics(page);
+    await page.goto("/dashboard/admin?module=admin-particular-tokens");
+
+    const workspace = page.locator(
+      '[data-dashboard-module-workspace="admin-particular-tokens"]',
+    );
+    await expect(workspace).toBeVisible({ timeout: 15_000 });
+
+    const toolbar = workspace.locator('[data-admin-particulars-toolbar="true"]');
+    await toolbar.getByRole("tab", { name: "Generar token" }).click();
+
+    const dialog = page.locator('[data-module-dialog="true"]');
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+
+    await expect(
+      dialog.getByText("Generar token particular"),
+      `${viewport.name}: legacy long copy removed`,
+    ).toHaveCount(0);
+    await expect(
+      dialog.getByText("ID informe vinculado"),
+      `${viewport.name}: report-id label removed`,
+    ).toHaveCount(0);
+
+    const clinicSearchInput = dialog.getByLabel("Clínica vinculada");
+    await expect(clinicSearchInput).toBeVisible();
+
+    await clinicSearchInput.fill("Norte");
+    const clinicOption = dialog.getByRole("option", { name: /Clínica Norte/ });
+    await expect(clinicOption).toBeVisible();
+    await clinicOption.click();
+    await expect(clinicSearchInput).toHaveValue("Clínica Norte");
+
+    await page.locator("#admin-token-particular-email").fill("particular@example.com");
+    await dialog.getByRole("button", { name: "Siguiente" }).click();
+    await expect(dialog.getByText("Paso 2 de 3: Paciente")).toBeVisible();
+
+    await page.locator("#admin-token-tutor-last-name").fill("Tutor Demo");
+    await page.locator("#admin-token-pet-name").fill("Paciente Demo");
+    await page.locator("#admin-token-pet-age").fill("4 años");
+    await page.locator("#admin-token-pet-breed").fill("Mestizo");
+    await dialog.getByRole("button", { name: "Siguiente" }).click();
+    await expect(dialog.getByText("Paso 3 de 3: Muestra")).toBeVisible();
+
+    const limpiarButton = dialog.getByRole("button", { name: "Limpiar" });
+    const anteriorButton = dialog.getByRole("button", { name: "Anterior" });
+    const submitButton = dialog.getByRole("button", {
+      name: "Generar token",
+      exact: true,
+    });
+
+    await expect(limpiarButton).toBeVisible();
+    await expect(anteriorButton).toBeVisible();
+    await expect(submitButton).toBeVisible();
+
+    for (const [label, button] of [
+      ["Limpiar", limpiarButton],
+      ["Anterior", anteriorButton],
+      ["Generar token", submitButton],
+    ] as const) {
+      const box = await button.boundingBox();
+      expect(box, `${viewport.name}: ${label} bounding box`).not.toBeNull();
+      expect(
+        box!.x,
+        `${viewport.name}: ${label} clipped on the left`,
+      ).toBeGreaterThanOrEqual(-TOLERANCE);
+      expect(
+        box!.x + box!.width,
+        `${viewport.name}: ${label} clipped on the right`,
+      ).toBeLessThanOrEqual(viewport.width + TOLERANCE);
+      expect(
+        box!.height,
+        `${viewport.name}: ${label} touch target height`,
+      ).toBeGreaterThanOrEqual(36);
+    }
+
+    const overflow = await page.evaluate(() => ({
+      htmlScrollWidth: document.documentElement.scrollWidth,
+      htmlClientWidth: document.documentElement.clientWidth,
+    }));
+    expect(
+      overflow.htmlScrollWidth,
+      `${viewport.name}: dialog causes horizontal page overflow`,
+    ).toBeLessThanOrEqual(overflow.htmlClientWidth + TOLERANCE);
   });
 }
