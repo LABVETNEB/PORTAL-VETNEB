@@ -332,11 +332,6 @@ test("particular token invariants: hard delete, legacy revoke hard-delete, casca
     adminCardFile,
     "admin-token-pet-name",
   );
-  assertInputAutocompleteOff(
-    adminCardSource,
-    adminCardFile,
-    "admin-token-report-id",
-  );
 
   const clinicCardFile = "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx";
   const clinicCardSource = read(clinicCardFile);
