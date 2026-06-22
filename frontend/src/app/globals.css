@@ -2842,6 +2842,40 @@
   }
 }
 /* admin-mobile-ops-modules:end */
+/* admin-mobile-status-modules:start */
+/* PR-B — Administración/Resumen + Estado del sistema previously rendered the
+   desktop ModuleTabs/grids on mobile; collapsed to one column they overflowed
+   under the bottom nav. The dedicated mobile variant carries
+   [data-admin-mobile-status-module]; here we hide the workspace header and
+   reclaim the viewport so the chip-segmented surface owns the full content band
+   with zero scroll. Scoped to Admin mobile only (<=767px + surface="admin"):
+   desktop, Clinic and the module data stay untouched. */
+@media (max-width: 767px) {
+  [data-vetneb-app-shell-surface="admin"]
+    [data-dashboard-module-workspace]:has([data-admin-mobile-status-module])
+    .dashboard-workspace-header {
+    display: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"]
+    [data-dashboard-module-workspace]:has([data-admin-mobile-status-module])
+    [data-dashboard-module-viewport] {
+    min-height: 0;
+    overflow: hidden;
+    padding-top: 0 !important;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-status-module],
+  [data-vetneb-app-shell-surface="admin"]
+    [data-admin-mobile-status-module]
+    :is(article, nav, header) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: hidden;
+  }
+}
+/* admin-mobile-status-modules:end */
 /* admin-mobile-real-device-layer-isolation:start */
 /* PR-A — real-device GPU layer recycling guard.
    The Hub leaf surface ([data-admin-mobile-hub-launcher]) and the active module

@@ -24,6 +24,8 @@ import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
 import { PasswordChangePanel } from "@/components/dashboard/PasswordChangePanel";
 import { AdminDashboardWorkspaceController } from "./AdminDashboardWorkspaceController";
 import type { AdminModule } from "./AdminDashboardWorkspaceController";
+import { AdminMobileCommandModule } from "./AdminMobileCommandModule";
+import { AdminMobileHealthModule } from "./AdminMobileHealthModule";
 import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { Button } from "@/components/ui/button";
@@ -548,9 +550,21 @@ export default async function AdminPage({
   // alerts table into tabs so each fits one desktop viewport without scroll
   // (previously stacked via space-y-6, growing past the viewport).
   const adminWorkspaceSlot = (
-    <ModuleTabs
-      ariaLabel="Resumen y alertas"
-      tabs={[
+    <>
+      <AdminMobileCommandModule
+        auditEntriesCount={auditOverviewSnapshot.pagination.total}
+        eventTypesCount={eventTypesCount}
+        systemStatusLabel={formatSystemStatus(systemStatus)}
+        systemStatusVariant={getSystemStatusVariant(systemStatus)}
+        systemStatusIndicatorClass={getSystemStatusIndicatorClass(systemStatus)}
+        systemStatusDetail={formatSystemStatusDetail(serviceChecks)}
+        hasSystemHealthFetchError={hasSystemHealthFetchError}
+        recentActivity={recentAdminActivity}
+      />
+      <div className="hidden min-h-0 flex-1 flex-col md:flex">
+        <ModuleTabs
+          ariaLabel="Resumen y alertas"
+          tabs={[
         {
           id: "resumen",
           label: "Resumen",
@@ -592,8 +606,10 @@ export default async function AdminPage({
             </section>
           ),
         },
-      ]}
-    />
+        ]}
+        />
+      </div>
+    </>
   );
 
   // ── Informes workspace ──────────────────────────────────────────────────────
@@ -721,27 +737,97 @@ export default async function AdminPage({
     </div>
   );
 
+  // Mobile (md:hidden) compact, no-scroll variant of the health module. Desktop
+  // grids collapse to one column and the last service card falls under the
+  // bottom nav; these compact display rows fit the mobile content band.
+  const healthMobileServices = [
+    {
+      label: "Base de datos",
+      statusLabel: formatServiceStatus(serviceChecks.database),
+      variant: getServiceVariant(serviceChecks.database),
+      detail: null,
+    },
+    {
+      label: "Almacenamiento",
+      statusLabel: formatServiceStatus(serviceChecks.storage),
+      variant: getServiceVariant(serviceChecks.storage),
+      detail: null,
+    },
+    {
+      label: "Transporte de correo",
+      statusLabel: formatEmailTransport(serviceChecks.email_transport),
+      variant: getEmailTransportBadgeVariant(serviceChecks.email_transport),
+      detail: `Gmail API: ${formatServiceStatus(serviceChecks.gmail_api)} · SMTP: ${formatServiceStatus(serviceChecks.smtp)}`,
+    },
+    {
+      label: "Contacto email",
+      statusLabel: formatServiceStatus(serviceChecks.contact_email),
+      variant: getServiceVariant(serviceChecks.contact_email),
+      detail:
+        contactRecipients.length > 0
+          ? `Destino: ${contactRecipients.join(", ")}`
+          : "Sin destinatarios configurados",
+    },
+    {
+      label: "CORS público",
+      statusLabel: formatServiceStatus(serviceChecks.cors),
+      variant: getServiceVariant(serviceChecks.cors),
+      detail:
+        corsOrigins.length > 0
+          ? `${corsOrigins.length} origen(es) activo(s)`
+          : "Sin orígenes configurados",
+    },
+  ];
+  const healthMobileRuntime = [
+    { label: "Entorno", value: nodeEnv, hint: "nodeEnv activo" },
+    {
+      label: "Backend",
+      value: systemHealth?.version ?? "—",
+      hint: "Versión activa",
+    },
+    {
+      label: "Tiempo activo",
+      value: formatUptime(systemHealth?.runtime.uptimeSeconds),
+      hint: `Control: ${formatHealthTimestamp(systemHealth?.health?.timestamp)}`,
+    },
+    {
+      label: "Memoria runtime",
+      value: `${systemHealth?.runtime.memory.rssMb ?? "—"} MB`,
+      hint: `Heap ${systemHealth?.runtime.memory.heapUsedMb ?? "—"}/${systemHealth?.runtime.memory.heapTotalMb ?? "—"} MB`,
+    },
+  ];
+
   const healthWorkspaceSlot = (
-    <section id="admin-health" className="flex min-h-0 flex-1 flex-col gap-3">
-      {hasSystemHealthFetchError ? (
-        <div role="alert" className="clinical-alert-warning shrink-0">
-          No se pudo consultar el estado del sistema. Los valores de salud
-          operacional se muestran como desconocidos hasta recuperar la lectura.
-        </div>
-      ) : null}
-      <ModuleTabs
-        ariaLabel="Estado y mantenimiento"
-        tabs={[
-          { id: "servicios", label: "Servicios", content: healthServicesGrid },
-          { id: "runtime", label: "Runtime", content: healthRuntimeGrid },
-          {
-            id: "esquema",
-            label: "Esquema",
-            content: <AdminSchemaHealthStatusCard />,
-          },
-        ]}
+    <>
+      <AdminMobileHealthModule
+        hasError={hasSystemHealthFetchError}
+        services={healthMobileServices}
+        runtime={healthMobileRuntime}
       />
-    </section>
+      <section
+        id="admin-health"
+        className="hidden min-h-0 flex-1 flex-col gap-3 md:flex"
+      >
+        {hasSystemHealthFetchError ? (
+          <div role="alert" className="clinical-alert-warning shrink-0">
+            No se pudo consultar el estado del sistema. Los valores de salud
+            operacional se muestran como desconocidos hasta recuperar la lectura.
+          </div>
+        ) : null}
+        <ModuleTabs
+          ariaLabel="Estado y mantenimiento"
+          tabs={[
+            { id: "servicios", label: "Servicios", content: healthServicesGrid },
+            { id: "runtime", label: "Runtime", content: healthRuntimeGrid },
+            {
+              id: "esquema",
+              label: "Esquema",
+              content: <AdminSchemaHealthStatusCard />,
+            },
+          ]}
+        />
+      </section>
+    </>
   );
 
   // ── Clínicas workspace ──────────────────────────────────────────────────────
