@@ -74,7 +74,7 @@ const CREATE_STEP_LABELS: Record<CreateStep, string> = {
 // The API supports limit/offset but does not expose a total, so pagination uses
 // the returned page length to enable the next-page control.
 const PAGE_SIZE = 9;
-const MOBILE_PAGE_SIZE = 3;
+const MOBILE_PAGE_SIZE = 10;
 
 const INITIAL_FORM_STATE: AdminParticularTokenFormState = {
   clinicId: "",
@@ -1045,7 +1045,7 @@ export function AdminParticularTokensCard() {
 
   return (
     <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
-      <CardHeader className="shrink-0 border-b border-vetneb-line/70 px-4 py-3 md:py-2">
+      <CardHeader className="hidden shrink-0 border-b border-vetneb-line/70 px-4 py-3 md:flex md:py-2">
         <div className="flex flex-col gap-2 md:gap-1 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <CardTitle className="text-xl md:text-base">Tokens particulares</CardTitle>
@@ -1071,10 +1071,10 @@ export function AdminParticularTokensCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 py-3 md:gap-1.5 md:py-2">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-1.5 px-4 py-2 md:gap-1.5 md:py-2">
         <div
           data-admin-particulars-toolbar="true"
-          className="flex min-h-10 shrink-0 flex-col gap-2 rounded-lg border border-vetneb-line/70 bg-card/80 px-2 py-1.5 md:min-h-8 md:flex-row md:items-center md:justify-between md:py-0.5"
+          className="flex min-h-9 shrink-0 flex-col gap-1.5 rounded-lg border border-vetneb-line/70 bg-card/80 px-2 py-1 md:min-h-8 md:flex-row md:items-center md:justify-between md:py-0.5"
         >
           <div
             role="tablist"
@@ -1110,7 +1110,7 @@ export function AdminParticularTokensCard() {
             aria-label="Filtrar tokens por clínica"
           >
             <Input
-              className="h-8 w-full text-xs md:w-36"
+              className="h-8 w-28 text-xs md:w-36"
               type="number"
               min="1"
               inputMode="numeric"
@@ -1223,7 +1223,7 @@ export function AdminParticularTokensCard() {
           </div>
 
           <div
-            className="flex min-h-0 flex-1 flex-col gap-2 md:hidden"
+            className="flex min-h-0 flex-1 flex-col gap-1.5 md:hidden"
             data-admin-mobile-core-module="tokens"
           >
             <div
@@ -1233,7 +1233,7 @@ export function AdminParticularTokensCard() {
               {mobileTokens.map((token) => (
                 <div
                   key={token.id}
-                  className="flex min-h-10 items-center gap-2 px-2.5 py-1.5"
+                  className="flex min-h-9 items-center gap-2 px-2.5 py-1"
                   data-admin-mobile-core-item="true"
                 >
                   <div className="min-w-0 flex-1">
@@ -1275,7 +1275,7 @@ export function AdminParticularTokensCard() {
 
             {mobileTokens.length ? (
               <div
-                className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 pt-2 text-xs text-muted-foreground"
+                className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
                 data-admin-mobile-core-pager="true"
               >
                 <span>

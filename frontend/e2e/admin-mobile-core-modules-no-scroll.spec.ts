@@ -46,13 +46,13 @@ const MOCK_REPORTS = Array.from({ length: 9 }, (_, index) => {
   };
 });
 
-const MOCK_TOKENS = Array.from({ length: 9 }, (_, index) => ({
+const MOCK_TOKENS = Array.from({ length: 13 }, (_, index) => ({
   id: 9300 + index,
   clinicId: 30 + index,
   reportId: index % 3 === 0 ? 7400 + index : null,
   tokenLast4: String(5100 + index),
   tutorLastName: ["Gómez", "Pérez", "Luna"][index % 3],
-  petName: ["Mora", "Simón", "Lola", "Bruno", "Kira", "Toby", "Nina", "Rocco", "Uma"][index],
+  petName: ["Mora", "Simón", "Lola", "Bruno", "Kira", "Toby", "Nina", "Rocco", "Uma"][index % 9],
   petAge: `${2 + index} años`,
   petBreed: index % 2 === 0 ? "Mestizo" : "Labrador",
   petSex: index % 2 === 0 ? "Hembra" : "Macho",
@@ -162,12 +162,14 @@ type ModuleSpec = {
   key: "clinics" | "reports" | "tokens";
   moduleId: string;
   mock: (page: Page) => Promise<void>;
+  // Viewport-safe page-size ceiling for this module's mobile list; differs per module.
+  maxItemsPerPage: number;
 };
 
 const MODULES: ModuleSpec[] = [
-  { key: "clinics", moduleId: "admin-clinics", mock: mockAdminClinics },
-  { key: "reports", moduleId: "admin-report-upload", mock: mockAdminReportWorkflow },
-  { key: "tokens", moduleId: "admin-particular-tokens", mock: mockAdminParticularTokens },
+  { key: "clinics", moduleId: "admin-clinics", mock: mockAdminClinics, maxItemsPerPage: 5 },
+  { key: "reports", moduleId: "admin-report-upload", mock: mockAdminReportWorkflow, maxItemsPerPage: 5 },
+  { key: "tokens", moduleId: "admin-particular-tokens", mock: mockAdminParticularTokens, maxItemsPerPage: 10 },
 ];
 
 type NoScrollContract = {
@@ -315,7 +317,7 @@ for (const moduleSpec of MODULES) {
       expect(
         itemCount,
         `${viewport.name}: ${moduleSpec.key} page size must remain viewport-safe`,
-      ).toBeLessThanOrEqual(5);
+      ).toBeLessThanOrEqual(moduleSpec.maxItemsPerPage);
 
       for (let index = 0; index < itemCount; index += 1) {
         await expectInsideViewport(

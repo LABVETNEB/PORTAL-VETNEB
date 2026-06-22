@@ -9,14 +9,14 @@ const MOBILE_VIEWPORTS = [
   { name: "iphone-pro-max-430x932", width: 430, height: 932 },
 ] as const;
 
-const MOCK_TOKENS = Array.from({ length: 9 }, (_, index) => ({
+const MOCK_TOKENS = Array.from({ length: 11 }, (_, index) => ({
   id: 9101 + index,
   clinicId: 12 + index,
   reportId: index % 3 === 0 ? 7301 + index : null,
   tokenLast4: String(4201 + index),
   tutorLastName: ["Gómez", "Pérez", "Luna"][index % 3],
   petName: ["Mora", "Simón", "Lola", "Bruno", "Kira", "Toby", "Nina", "Rocco", "Uma"][
-    index
+    index % 9
   ],
   petAge: `${2 + index} años`,
   petBreed: index % 2 === 0 ? "Mestizo" : "Labrador",
@@ -107,6 +107,53 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await expect(workspace).toBeVisible({ timeout: 15_000 });
     await expect(toolbar).toBeVisible();
     await expect(mobileList).toBeVisible();
+
+    await expect(
+      workspace.getByRole("heading", { name: "Tokens particulares" }),
+      `${viewport.name}: redundant intro header hidden on mobile`,
+    ).toBeHidden();
+    await expect(
+      workspace.getByText("En página", { exact: true }),
+      `${viewport.name}: metrics row hidden on mobile`,
+    ).toBeHidden();
+
+    const items = workspace.locator('[data-admin-mobile-core-item="true"]');
+    await expect(
+      items,
+      `${viewport.name}: ten tokens visible per mobile page`,
+    ).toHaveCount(10);
+
+    const verticalOverflow = await page.evaluate(() => ({
+      htmlScrollHeight: document.documentElement.scrollHeight,
+      htmlClientHeight: document.documentElement.clientHeight,
+      bodyScrollHeight: document.body.scrollHeight,
+      bodyClientHeight: document.body.clientHeight,
+    }));
+    expect(
+      verticalOverflow.htmlScrollHeight,
+      `${viewport.name}: documentElement vertical overflow`,
+    ).toBeLessThanOrEqual(verticalOverflow.htmlClientHeight + TOLERANCE);
+    expect(
+      verticalOverflow.bodyScrollHeight,
+      `${viewport.name}: body vertical overflow`,
+    ).toBeLessThanOrEqual(verticalOverflow.bodyClientHeight + TOLERANCE);
+
+    const forbiddenOverflow = await page.evaluate((selector) => {
+      const root = document.querySelector(selector);
+      if (!root) return [];
+      const elements = [root, ...Array.from(root.querySelectorAll("*"))];
+      return elements.flatMap((element) => {
+        const style = window.getComputedStyle(element);
+        return ["auto", "scroll"].includes(style.overflowX) ||
+          ["auto", "scroll"].includes(style.overflowY)
+          ? [`${element.tagName}.${(element as HTMLElement).className}`]
+          : [];
+      });
+    }, '[data-admin-mobile-core-module="tokens"]');
+    expect(
+      forbiddenOverflow,
+      `${viewport.name}: forbidden overflow auto/scroll`,
+    ).toEqual([]);
 
     await toolbar.getByRole("spinbutton", { name: "ID de clínica" }).fill("12");
     await toolbar.getByRole("button", { name: "Filtrar", exact: true }).click();
