@@ -2888,6 +2888,29 @@
   }
 }
 /* admin-mobile-status-modules:end */
+/* admin-mobile-config-modules:start */
+/* PR-C — Precios / Mantenimiento config modules. Same no-scroll safety as the
+   status family (header-hide + viewport reclaim already applied by
+   admin-mobile-module-header-reclaim). Scoped to Admin mobile only; desktop and
+   Clínica untouched. */
+@media (max-width: 767px) {
+  [data-vetneb-app-shell-surface="admin"]
+    [data-dashboard-module-workspace]:has([data-admin-mobile-config-module])
+    [data-dashboard-module-viewport] {
+    overflow: hidden;
+  }
+
+  [data-vetneb-app-shell-surface="admin"] [data-admin-mobile-config-module],
+  [data-vetneb-app-shell-surface="admin"]
+    [data-admin-mobile-config-module]
+    :is(article, nav, header) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: hidden;
+  }
+}
+/* admin-mobile-config-modules:end */
 /* admin-mobile-real-device-layer-isolation:start */
 /* PR-A — real-device GPU layer recycling guard.
    The Hub leaf surface ([data-admin-mobile-hub-launcher]) and the active module

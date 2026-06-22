@@ -26,6 +26,8 @@ import { AdminDashboardWorkspaceController } from "./AdminDashboardWorkspaceCont
 import type { AdminModule } from "./AdminDashboardWorkspaceController";
 import { AdminMobileCommandModule } from "./AdminMobileCommandModule";
 import { AdminMobileHealthModule } from "./AdminMobileHealthModule";
+import { AdminMobilePricingModule } from "./AdminMobilePricingModule";
+import { AdminMobileMaintenanceModule } from "./AdminMobileMaintenanceModule";
 import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { Button } from "@/components/ui/button";
@@ -841,10 +843,18 @@ export default async function AdminPage({
   );
 
   // ── Precios workspace ───────────────────────────────────────────────────────
+  // Mobile (md:hidden) compact segmented editor; desktop card stays in hidden
+  // md:flex so the per-study form never collapses under the bottom nav on mobile.
   const pricingWorkspaceSlot = (
-    <section id="admin-pricing" className="flex min-h-0 flex-1 flex-col">
-      <AdminPricingEditorCard />
-    </section>
+    <>
+      <AdminMobilePricingModule />
+      <section
+        id="admin-pricing"
+        className="hidden min-h-0 flex-1 flex-col md:flex"
+      >
+        <AdminPricingEditorCard />
+      </section>
+    </>
   );
 
   // ── Sesiones workspace ──────────────────────────────────────────────────────
@@ -904,25 +914,30 @@ export default async function AdminPage({
   // Single-viewport App Shell: schema health and the dry-run card switch via tabs
   // so each owns the viewport without the previous space-y-4 vertical stack.
   const maintenanceWorkspaceSlot = (
-    <ModuleTabs
-      ariaLabel="Mantenimiento del sistema"
-      tabs={[
-        {
-          id: "esquema",
-          label: "Esquema",
-          content: <AdminSchemaHealthStatusCard />,
-        },
-        {
-          id: "dry-run",
-          label: "Dry-run",
-          content: (
-            <section id="admin-maintenance">
-              <AdminMaintenanceDryRunCard />
-            </section>
-          ),
-        },
-      ]}
-    />
+    <>
+      <AdminMobileMaintenanceModule />
+      <div className="hidden min-h-0 flex-1 flex-col md:flex">
+        <ModuleTabs
+          ariaLabel="Mantenimiento del sistema"
+          tabs={[
+            {
+              id: "esquema",
+              label: "Esquema",
+              content: <AdminSchemaHealthStatusCard />,
+            },
+            {
+              id: "dry-run",
+              label: "Dry-run",
+              content: (
+                <section id="admin-maintenance">
+                  <AdminMaintenanceDryRunCard />
+                </section>
+              ),
+            },
+          ]}
+        />
+      </div>
+    </>
   );
 
   return (
