@@ -1,12 +1,14 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-const TOLERANCE = 2;
-
-const MOBILE_VIEWPORTS = [
-  { name: "android-small-360x740", width: 360, height: 740 },
-  { name: "iphone-standard-390x844", width: 390, height: 844 },
-  { name: "iphone-pro-max-430x932", width: 430, height: 932 },
-] as const;
+import {
+  ADMIN_MOBILE_VIEWPORTS,
+  assertDocumentNoScrollContract,
+  expectInsideViewport,
+  fulfillJson,
+  readDocumentNoScrollContract,
+  setTestAdminSession,
+  suppressNextDevIndicator,
+} from "./helpers/admin-mobile-contracts";
 
 const MOCK_CLINICS = Array.from({ length: 13 }, (_, index) => {
   const id = index + 1;
@@ -71,22 +73,6 @@ const MOCK_TOKENS = Array.from({ length: 13 }, (_, index) => ({
   hasLinkedReport: index % 3 === 0,
 }));
 
-async function setAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_test_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-async function suppressNextDevIndicator(page: Page) {
-  await page.addStyleTag({
-    content: "nextjs-portal { display: none !important; }",
-  });
-}
-
 async function mockAdminClinics(page: Page) {
   await page.route("**/api/admin/clinics**", async (route) => {
     if (route.request().method() !== "GET") {
@@ -97,16 +83,12 @@ async function mockAdminClinics(page: Page) {
     const limit = Number(url.searchParams.get("limit") ?? "9");
     const offset = Number(url.searchParams.get("offset") ?? "0");
     const clinics = MOCK_CLINICS.slice(offset, offset + limit);
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        success: true,
-        clinics,
-        total: MOCK_CLINICS.length,
-        limit,
-        offset,
-      }),
+    await fulfillJson(route, {
+      success: true,
+      clinics,
+      total: MOCK_CLINICS.length,
+      limit,
+      offset,
     });
   });
 }
@@ -121,14 +103,10 @@ async function mockAdminReportWorkflow(page: Page) {
     const limit = Number(url.searchParams.get("limit") ?? "9");
     const offset = Number(url.searchParams.get("offset") ?? "0");
     const reports = MOCK_REPORTS.slice(offset, offset + limit);
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        success: true,
-        reports,
-        pagination: { limit, offset, hasMore: offset + limit < MOCK_REPORTS.length },
-      }),
+    await fulfillJson(route, {
+      success: true,
+      reports,
+      pagination: { limit, offset, hasMore: offset + limit < MOCK_REPORTS.length },
     });
   });
 }
@@ -144,16 +122,12 @@ async function mockAdminParticularTokens(page: Page) {
     const limit = Number(url.searchParams.get("limit") ?? "9");
     const offset = Number(url.searchParams.get("offset") ?? "0");
     const particularTokens = MOCK_TOKENS.slice(offset, offset + limit);
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        success: true,
-        count: particularTokens.length,
-        particularTokens,
-        pagination: { limit, offset },
-        filters: { clinicId: null },
-      }),
+    await fulfillJson(route, {
+      success: true,
+      count: particularTokens.length,
+      particularTokens,
+      pagination: { limit, offset },
+      filters: { clinicId: null },
     });
   });
 }
@@ -172,105 +146,13 @@ const MODULES: ModuleSpec[] = [
   { key: "tokens", moduleId: "admin-particular-tokens", mock: mockAdminParticularTokens, maxItemsPerPage: 10 },
 ];
 
-type NoScrollContract = {
-  html: { scrollHeight: number; clientHeight: number; scrollWidth: number; clientWidth: number };
-  body: { scrollHeight: number; clientHeight: number; scrollWidth: number; clientWidth: number };
-  forbiddenOverflow: Array<{ tag: string; cls: string; overflowX: string; overflowY: string }>;
-};
-
-async function readNoScrollContract(
-  page: Page,
-  moduleSelector: string,
-): Promise<NoScrollContract> {
-  return page.evaluate((selector) => {
-    const shell = document.querySelector<HTMLElement>(
-      '[data-vetneb-app-shell-surface="admin"]',
-    );
-    const main = document.querySelector<HTMLElement>("main.dashboard-main");
-    const moduleRoot = document.querySelector<HTMLElement>(selector);
-
-    const candidates: HTMLElement[] = [];
-    if (shell) candidates.push(shell);
-    if (main) candidates.push(main);
-    if (moduleRoot) {
-      candidates.push(moduleRoot, ...Array.from(moduleRoot.querySelectorAll<HTMLElement>("*")));
-    }
-
-    const forbiddenOverflow = candidates.flatMap((element) => {
-      const style = window.getComputedStyle(element);
-      return ["auto", "scroll"].includes(style.overflowX) ||
-        ["auto", "scroll"].includes(style.overflowY)
-        ? [
-            {
-              tag: element.tagName,
-              cls: element.className,
-              overflowX: style.overflowX,
-              overflowY: style.overflowY,
-            },
-          ]
-        : [];
-    });
-
-    return {
-      html: {
-        scrollHeight: document.documentElement.scrollHeight,
-        clientHeight: document.documentElement.clientHeight,
-        scrollWidth: document.documentElement.scrollWidth,
-        clientWidth: document.documentElement.clientWidth,
-      },
-      body: {
-        scrollHeight: document.body.scrollHeight,
-        clientHeight: document.body.clientHeight,
-        scrollWidth: document.body.scrollWidth,
-        clientWidth: document.body.clientWidth,
-      },
-      forbiddenOverflow,
-    };
-  }, moduleSelector);
-}
-
-function assertNoScrollContract(contract: NoScrollContract, label: string) {
-  expect(contract.html.scrollHeight, `${label}: html vertical overflow`).toBeLessThanOrEqual(
-    contract.html.clientHeight + TOLERANCE,
-  );
-  expect(contract.body.scrollHeight, `${label}: body vertical overflow`).toBeLessThanOrEqual(
-    contract.body.clientHeight + TOLERANCE,
-  );
-  expect(contract.html.scrollWidth, `${label}: html horizontal overflow`).toBeLessThanOrEqual(
-    contract.html.clientWidth + TOLERANCE,
-  );
-  expect(contract.body.scrollWidth, `${label}: body horizontal overflow`).toBeLessThanOrEqual(
-    contract.body.clientWidth + TOLERANCE,
-  );
-  expect(contract.forbiddenOverflow, `${label}: forbidden overflow auto/scroll`).toEqual([]);
-}
-
-async function expectInsideViewport(
-  locator: Locator,
-  viewportWidth: number,
-  viewportHeight: number,
-  label: string,
-) {
-  await expect(locator, `${label}: visible`).toBeVisible();
-  const box = await locator.boundingBox();
-  expect(box, `${label}: bounding box`).not.toBeNull();
-  expect(box!.x, `${label}: left edge`).toBeGreaterThanOrEqual(-TOLERANCE);
-  expect(box!.y, `${label}: top edge`).toBeGreaterThanOrEqual(-TOLERANCE);
-  expect(box!.x + box!.width, `${label}: right edge`).toBeLessThanOrEqual(
-    viewportWidth + TOLERANCE,
-  );
-  expect(box!.y + box!.height, `${label}: bottom edge`).toBeLessThanOrEqual(
-    viewportHeight + TOLERANCE,
-  );
-}
-
 for (const moduleSpec of MODULES) {
-  for (const viewport of MOBILE_VIEWPORTS) {
+  for (const viewport of ADMIN_MOBILE_VIEWPORTS) {
     test(`Admin mobile core module "${moduleSpec.key}" is no-scroll at ${viewport.name}`, async ({
       page,
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await setAdminSession(page);
+      await setTestAdminSession(page);
       await moduleSpec.mock(page);
       await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
       await suppressNextDevIndicator(page);
@@ -300,11 +182,11 @@ for (const moduleSpec of MODULES) {
         `${viewport.name}: horizontal nav absent`,
       ).toBeHidden();
 
-      const contract = await readNoScrollContract(
+      const contract = await readDocumentNoScrollContract(
         page,
         `[data-admin-mobile-core-module="${moduleSpec.key}"]`,
       );
-      assertNoScrollContract(contract, `${viewport.name} ${moduleSpec.key} page 1`);
+      assertDocumentNoScrollContract(contract, `${viewport.name} ${moduleSpec.key} page 1`);
 
       const itemSelector = `[data-admin-mobile-core-module="${moduleSpec.key}"] [data-admin-mobile-core-item="true"]`;
       const items = page.locator(itemSelector);
@@ -322,8 +204,7 @@ for (const moduleSpec of MODULES) {
       for (let index = 0; index < itemCount; index += 1) {
         await expectInsideViewport(
           items.nth(index),
-          viewport.width,
-          viewport.height,
+          viewport,
           `${viewport.name}: ${moduleSpec.key} item ${index + 1}`,
         );
       }
@@ -333,8 +214,7 @@ for (const moduleSpec of MODULES) {
       );
       await expectInsideViewport(
         pager,
-        viewport.width,
-        viewport.height,
+        viewport,
         `${viewport.name}: ${moduleSpec.key} pager`,
       );
 
@@ -350,11 +230,11 @@ for (const moduleSpec of MODULES) {
         })
         .not.toBe(firstPageLabels.join("|"));
 
-      const page2Contract = await readNoScrollContract(
+      const page2Contract = await readDocumentNoScrollContract(
         page,
         `[data-admin-mobile-core-module="${moduleSpec.key}"]`,
       );
-      assertNoScrollContract(page2Contract, `${viewport.name} ${moduleSpec.key} page 2`);
+      assertDocumentNoScrollContract(page2Contract, `${viewport.name} ${moduleSpec.key} page 2`);
 
       const bottomNav = page.locator('[data-admin-mobile-bottom-nav="true"]');
       await bottomNav.getByRole("button", { name: "Inicio", exact: true }).click();
@@ -367,9 +247,9 @@ for (const moduleSpec of MODULES) {
 }
 
 test("Admin mobile core modules reachable from bottom nav and Más menu", async ({ page }) => {
-  const viewport = MOBILE_VIEWPORTS[0];
+  const viewport = ADMIN_MOBILE_VIEWPORTS[0];
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
-  await setAdminSession(page);
+  await setTestAdminSession(page);
   await mockAdminClinics(page);
   await mockAdminReportWorkflow(page);
   await mockAdminParticularTokens(page);
@@ -410,7 +290,7 @@ test("Admin mobile reports pagination advances through 10-record pages with page
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await setAdminSession(page);
+  await setTestAdminSession(page);
   await mockAdminReportWorkflow(page);
 
   await page.goto("/dashboard/admin?module=admin-report-upload");
@@ -445,7 +325,7 @@ test("Admin mobile reports pagination advances through 10-record pages with page
 for (const moduleSpec of MODULES) {
   test(`Admin desktop preserves ${moduleSpec.key} layout at 1280x800`, async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await setAdminSession(page);
+    await setTestAdminSession(page);
     await moduleSpec.mock(page);
     await page.goto(`/dashboard/admin?module=${moduleSpec.moduleId}`);
 

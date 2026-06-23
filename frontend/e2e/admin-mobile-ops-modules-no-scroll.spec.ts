@@ -1,12 +1,14 @@
-import { expect, test, type Locator, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-const TOLERANCE = 2;
-
-const MOBILE_VIEWPORTS = [
-  { name: "android-small-360x740", width: 360, height: 740 },
-  { name: "iphone-standard-390x844", width: 390, height: 844 },
-  { name: "iphone-pro-max-430x932", width: 430, height: 932 },
-] as const;
+import {
+  ADMIN_MOBILE_VIEWPORTS,
+  assertModuleNoScrollContract,
+  expectInsideViewport,
+  fulfillJson,
+  readModuleNoScrollContract,
+  setPopulatedAdminSession,
+  suppressNextDevIndicator,
+} from "./helpers/admin-mobile-contracts";
 
 const MOCK_SESSIONS = Array.from({ length: 13 }, (_, index) => ({
   sessionType: (["admin", "clinic", "particular"] as const)[index % 3],
@@ -83,24 +85,6 @@ const OPS_MODULES: OpsModule[] = [
   },
 ];
 
-async function setPopulatedAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_populated_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-function fulfillJson(route: Route, body: unknown) {
-  return route.fulfill({
-    status: 200,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
-
 async function mockOpsApis(page: Page) {
   await page.route("**/api/admin/sessions**", async (route) => {
     const request = route.request();
@@ -143,12 +127,6 @@ async function mockOpsApis(page: Page) {
   });
 }
 
-async function suppressNextDevIndicator(page: Page) {
-  await page.addStyleTag({
-    content: "nextjs-portal { display: none !important; }",
-  });
-}
-
 async function openModuleFromMobileNavigation(page: Page, module: OpsModule) {
   await page.goto("/dashboard/admin");
   await suppressNextDevIndicator(page);
@@ -178,111 +156,8 @@ async function openModuleFromMobileNavigation(page: Page, module: OpsModule) {
   ).toBeVisible({ timeout: 15_000 });
 }
 
-type NoScrollContract = {
-  html: { scrollHeight: number; clientHeight: number; scrollWidth: number; clientWidth: number };
-  body: { scrollHeight: number; clientHeight: number; scrollWidth: number; clientWidth: number };
-  module: { scrollHeight: number; clientHeight: number; scrollWidth: number; clientWidth: number };
-  forbiddenOverflow: Array<{
-    tag: string;
-    className: string;
-    overflowX: string;
-    overflowY: string;
-  }>;
-};
-
-async function readNoScrollContract(page: Page, selector: string): Promise<NoScrollContract> {
-  return page.evaluate((moduleSelector) => {
-    const shell = document.querySelector<HTMLElement>(
-      '[data-vetneb-app-shell-surface="admin"]',
-    );
-    const main = document.querySelector<HTMLElement>("main.dashboard-main");
-    const moduleRoot = document.querySelector<HTMLElement>(moduleSelector);
-
-    if (!moduleRoot) throw new Error(`Missing module root: ${moduleSelector}`);
-
-    const candidates = [
-      document.documentElement,
-      document.body,
-      ...(shell ? [shell] : []),
-      ...(main ? [main] : []),
-      moduleRoot,
-      ...Array.from(moduleRoot.querySelectorAll<HTMLElement>("*")),
-    ];
-
-    const forbiddenOverflow = candidates.flatMap((element) => {
-      const style = window.getComputedStyle(element);
-      if (
-        !["auto", "scroll"].includes(style.overflowX) &&
-        !["auto", "scroll"].includes(style.overflowY)
-      ) {
-        return [];
-      }
-
-      return [
-        {
-          tag: element.tagName,
-          className: element.className,
-          overflowX: style.overflowX,
-          overflowY: style.overflowY,
-        },
-      ];
-    });
-
-    const metrics = (element: HTMLElement) => ({
-      scrollHeight: element.scrollHeight,
-      clientHeight: element.clientHeight,
-      scrollWidth: element.scrollWidth,
-      clientWidth: element.clientWidth,
-    });
-
-    return {
-      html: metrics(document.documentElement),
-      body: metrics(document.body),
-      module: metrics(moduleRoot),
-      forbiddenOverflow,
-    };
-  }, selector);
-}
-
-function assertNoScrollContract(contract: NoScrollContract, label: string) {
-  for (const [surface, metrics] of Object.entries({
-    html: contract.html,
-    body: contract.body,
-    module: contract.module,
-  })) {
-    expect(
-      metrics.scrollHeight,
-      `${label}: ${surface} vertical clipping/overflow`,
-    ).toBeLessThanOrEqual(metrics.clientHeight + TOLERANCE);
-    expect(
-      metrics.scrollWidth,
-      `${label}: ${surface} horizontal clipping/overflow`,
-    ).toBeLessThanOrEqual(metrics.clientWidth + TOLERANCE);
-  }
-
-  expect(contract.forbiddenOverflow, `${label}: overflow auto/scroll`).toEqual([]);
-}
-
-async function expectInsideViewport(
-  locator: Locator,
-  viewport: { width: number; height: number },
-  label: string,
-) {
-  await expect(locator, `${label}: visible`).toBeVisible();
-  const box = await locator.boundingBox();
-  expect(box, `${label}: bounding box`).not.toBeNull();
-  expect(box!.x, `${label}: left`).toBeGreaterThanOrEqual(-TOLERANCE);
-  expect(box!.y, `${label}: top`).toBeGreaterThanOrEqual(-TOLERANCE);
-  expect(box!.x + box!.width, `${label}: right`).toBeLessThanOrEqual(
-    viewport.width + TOLERANCE,
-  );
-  expect(box!.y + box!.height, `${label}: bottom`).toBeLessThanOrEqual(
-    viewport.height + TOLERANCE,
-  );
-}
-
 for (const moduleSpec of OPS_MODULES) {
-  for (const viewport of MOBILE_VIEWPORTS) {
+  for (const viewport of ADMIN_MOBILE_VIEWPORTS) {
     test(`Admin mobile ops ${moduleSpec.key} is absolute no-scroll at ${viewport.name}`, async ({
       page,
     }) => {
@@ -333,8 +208,8 @@ for (const moduleSpec of OPS_MODULES) {
         .poll(async () => (await items.allTextContents()).join("|"))
         .not.toBe(pageOneLabels.join("|"));
 
-      assertNoScrollContract(
-        await readNoScrollContract(page, moduleSelector),
+      assertModuleNoScrollContract(
+        await readModuleNoScrollContract(page, moduleSelector),
         `${viewport.name} ${moduleSpec.key} page 2`,
       );
       await expectInsideViewport(pager, viewport, `${viewport.name} ${moduleSpec.key} page 2 pager`);
@@ -349,8 +224,8 @@ for (const moduleSpec of OPS_MODULES) {
         await expect(primaryAction).toBeEnabled();
       }
 
-      assertNoScrollContract(
-        await readNoScrollContract(page, moduleSelector),
+      assertModuleNoScrollContract(
+        await readModuleNoScrollContract(page, moduleSelector),
         `${viewport.name} ${moduleSpec.key} action`,
       );
 
