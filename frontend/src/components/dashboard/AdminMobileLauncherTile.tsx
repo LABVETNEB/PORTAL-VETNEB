@@ -13,7 +13,7 @@ export function AdminMobileLauncherTile({ card }: AdminMobileLauncherTileProps) 
   const body = (
     <>
       <span className="admin-mobile-hub-tile-icon">
-        <card.icon className="h-4 w-4" aria-hidden="true" />
+        <card.icon className="h-6 w-6" aria-hidden="true" />
       </span>
       <span className="admin-mobile-hub-tile-label">{card.title}</span>
     </>
