@@ -549,10 +549,14 @@ export function AdminParticularTokensCard() {
     void loadMobileTokens();
   }, [isMobileViewport, loadMobileTokens]);
 
-  // The clinic catalogue is only needed by the creation flow. Deferring this
-  // legacy paged load avoids doing it on every visit to the operational list.
+  // The clinic catalogue is needed by the creation flow (any viewport) and,
+  // on mobile only, by the operational list's clinic-name filter/display
+  // (mobile's "buscar por nombre de clínica" requirement). Desktop keeps the
+  // original lazy-on-dialog-open behavior untouched.
   useEffect(() => {
-    if (!isCreateDialogOpen || clinicOptions.length > 0) return;
+    if ((!isMobileViewport && !isCreateDialogOpen) || clinicOptions.length > 0) {
+      return;
+    }
 
     let cancelled = false;
     async function loadClinicOptions() {
@@ -606,7 +610,7 @@ export function AdminParticularTokensCard() {
     return () => {
       cancelled = true;
     };
-  }, [clinicOptions.length, isCreateDialogOpen]);
+  }, [clinicOptions.length, isCreateDialogOpen, isMobileViewport]);
 
   // No batch endpoint exists for tracking. Load exactly one case when the
   // operator opens a token, cache it, and never issue one request per table row.
@@ -775,16 +779,34 @@ export function AdminParticularTokensCard() {
       return;
     }
 
-    try {
-      setAppliedClinicId(parsePositiveInteger(normalized, "El ID de clínica"));
-      setPage(0);
-      setMobilePage(0);
-      setErrorMessage(null);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Revise el filtro de clínica.",
-      );
+    if (isLoadingClinics) {
+      setErrorMessage("Cargando clínicas registradas, intente nuevamente en un momento.");
+      return;
     }
+
+    const matches = clinicOptions.filter((option) =>
+      matchClinicOption(option, normalized),
+    );
+    const exactMatch = matches.find(
+      (option) =>
+        normalizeSearchText(option.name) === normalizeSearchText(normalized),
+    );
+    const resolvedClinic = exactMatch ?? (matches.length === 1 ? matches[0] : undefined);
+
+    if (!resolvedClinic) {
+      setErrorMessage(
+        matches.length > 1
+          ? `Hay ${matches.length} clínicas que coinciden con "${normalized}". Sea más específico.`
+          : `No se encontró una clínica con el nombre "${normalized}".`,
+      );
+      return;
+    }
+
+    setAppliedClinicId(resolvedClinic.id);
+    setClinicFilterDraft(resolvedClinic.name);
+    setPage(0);
+    setMobilePage(0);
+    setErrorMessage(null);
   }
 
   function clearClinicFilter() {
@@ -1107,11 +1129,9 @@ export function AdminParticularTokensCard() {
           >
             <Input
               className="h-8 w-28 text-xs md:w-36"
-              type="number"
-              min="1"
-              inputMode="numeric"
-              placeholder="ID clínica"
-              aria-label="ID de clínica"
+              type="text"
+              placeholder="Nombre de clínica"
+              aria-label="Nombre de clínica"
               value={clinicFilterDraft}
               onChange={(event) => setClinicFilterDraft(event.target.value)}
             />
@@ -1237,7 +1257,9 @@ export function AdminParticularTokensCard() {
                       ****{token.tokenLast4} · {token.petName}
                     </p>
                     <p className="truncate text-[0.6875rem] text-muted-foreground">
-                      Clínica #{token.clinicId} · {token.reportId ? `Informe #${token.reportId}` : "Sin informe"}
+                      {resolveClinicName(clinicOptions, token.clinicId) ??
+                        `Clínica #${token.clinicId}`}{" "}
+                      · {token.reportId ? `Informe #${token.reportId}` : "Sin informe"}
                     </p>
                   </div>
                   <Badge
