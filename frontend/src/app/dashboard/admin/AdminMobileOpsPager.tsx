@@ -1,6 +1,5 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type AdminMobileOpsPagerProps = {
@@ -30,38 +29,36 @@ export function AdminMobileOpsPager({
     <nav
       aria-label={ariaLabel}
       data-admin-mobile-ops-pager="true"
-      className="flex min-h-10 shrink-0 items-center justify-between gap-2 overflow-hidden border-t border-vetneb-line/70 px-2 py-1 text-[11px] text-muted-foreground"
+      className="flex min-h-10 shrink-0 items-center justify-center gap-1.5 overflow-hidden border-t border-vetneb-line/70 px-2 py-0.5 text-xs text-muted-foreground"
     >
-      <span className="min-w-0 truncate" aria-live="polite">
+      <span className="sr-only" aria-live="polite">
         {rangeLabel}
       </span>
-      <div className="flex shrink-0 items-center gap-1.5">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          aria-label="Anterior"
-          disabled={disabled || previousDisabled}
-          onClick={onPrevious}
-        >
-          <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        </Button>
-        <span className="min-w-14 text-center tabular-nums">
-          {page} / {pageCount}
-        </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          aria-label="Siguiente"
-          disabled={disabled || nextDisabled}
-          onClick={onNext}
-        >
-          <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </Button>
-      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-9 px-2.5 text-xs"
+        aria-label="Anterior"
+        disabled={disabled || previousDisabled}
+        onClick={onPrevious}
+      >
+        Anterior
+      </Button>
+      <span className="min-w-16 text-center tabular-nums">
+        Pág. {page} / {pageCount}
+      </span>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-9 px-2.5 text-xs"
+        aria-label="Siguiente"
+        disabled={disabled || nextDisabled}
+        onClick={onNext}
+      >
+        Siguiente
+      </Button>
     </nav>
   );
 }
