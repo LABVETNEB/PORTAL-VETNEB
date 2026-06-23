@@ -9,7 +9,7 @@ const MOBILE_VIEWPORTS = [
   { name: "iphone-pro-max-430x932", width: 430, height: 932 },
 ] as const;
 
-const MOCK_CLINICS = Array.from({ length: 9 }, (_, index) => {
+const MOCK_CLINICS = Array.from({ length: 13 }, (_, index) => {
   const id = index + 1;
 
   return {
@@ -48,7 +48,7 @@ async function mockAdminClinics(page: Page) {
     }
 
     const url = new URL(route.request().url());
-    const limit = Number(url.searchParams.get("limit") ?? "9");
+    const limit = Number(url.searchParams.get("limit") ?? "10");
     const offset = Number(url.searchParams.get("offset") ?? "0");
     const clinics = MOCK_CLINICS.slice(offset, offset + limit);
 
@@ -73,6 +73,8 @@ type MobileClinicsContract = {
   bodyClientWidth: number;
   visibleMobileCards: number;
   visibleDesktopTables: number;
+  cardsShowingEmail: number;
+  secondaryDetailLineCount: number;
   clippedActions: Array<{
     label: string;
     left: number;
@@ -143,6 +145,13 @@ async function readMobileClinicsContract(
       };
     };
 
+    const cardsShowingEmail = mobileCards.filter((card) =>
+      /@/.test((card as HTMLElement).innerText),
+    ).length;
+    const secondaryDetailLineCount = mobileCards.filter((card) =>
+      /Usuario:|Actualizada:/.test((card as HTMLElement).innerText),
+    ).length;
+
     return {
       htmlScrollWidth: html.scrollWidth,
       htmlClientWidth: html.clientWidth,
@@ -150,6 +159,8 @@ async function readMobileClinicsContract(
       bodyClientWidth: body.clientWidth,
       visibleMobileCards: mobileCards.length,
       visibleDesktopTables: desktopTables.length,
+      cardsShowingEmail,
+      secondaryDetailLineCount,
       clippedActions: editActions
         .filter((element) => {
           const rect = (element as HTMLElement).getBoundingClientRect();
@@ -183,12 +194,19 @@ function assertMobileClinicsContract(
   contract: MobileClinicsContract,
   label: string,
 ) {
-  expect(contract.visibleMobileCards, `${label}: mobile cards visible`).toBeGreaterThan(0);
   expect(
     contract.visibleMobileCards,
-    `${label}: mobile page size must remain viewport-safe`,
-  ).toBeLessThanOrEqual(3);
+    `${label}: mobile page size must show exactly 10 clinics`,
+  ).toBe(10);
   expect(contract.visibleDesktopTables, `${label}: desktop table hidden on mobile`).toBe(0);
+  expect(
+    contract.cardsShowingEmail,
+    `${label}: every card must show the clinic email`,
+  ).toBe(10);
+  expect(
+    contract.secondaryDetailLineCount,
+    `${label}: secondary details (user/updated date) must not render on the card body`,
+  ).toBe(0);
 
   expect(
     contract.htmlScrollWidth,
@@ -241,11 +259,44 @@ for (const viewport of MOBILE_VIEWPORTS) {
     assertMobileClinicsContract(contract, viewport.name);
 
     await page
-      .getByRole("button", { name: /editar clínica clínica mobile 1/i })
+      .locator("[data-admin-clinic-mobile-card='true']")
+      .first()
+      .getByRole("button", { name: /^editar clínica/i })
       .click();
 
-    await expect(
-      page.getByRole("dialog", { name: /editar clínica/i }),
-    ).toBeVisible();
+    const dialog = page.getByRole("dialog", { name: /editar clínica/i });
+    await expect(dialog).toBeVisible();
+
+    // The username/updated-date detail removed from the card body must stay
+    // reachable from Editar.
+    await expect(dialog.locator('input[value="mobile-owner-1"]')).toBeVisible();
   });
 }
+
+test("admin clinics mobile pagination advances through 10-record pages", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await setAdminSession(page);
+  await mockAdminClinics(page);
+
+  await page.goto("/dashboard/admin?module=admin-clinics");
+  await expect(
+    page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
+  ).toBeVisible({ timeout: 15_000 });
+
+  const list = page.locator("[data-admin-clinics-mobile-list='true']");
+  await expect(list).toBeVisible();
+  await expect(list.getByText("Clínica Mobile 1", { exact: true })).toBeVisible();
+  await expect(list.getByText("Clínica Mobile 10", { exact: true })).toBeVisible();
+  await expect(list.getByText("Clínica Mobile 11", { exact: true })).toHaveCount(0);
+
+  const pager = page.locator("[data-admin-mobile-core-pager='true']");
+  await expect(pager.getByText("Pág. 1 / 2")).toBeVisible();
+  await pager.getByRole("button", { name: "Página siguiente" }).click();
+
+  await expect(list.getByText("Clínica Mobile 11", { exact: true })).toBeVisible();
+  await expect(list.getByText("Clínica Mobile 13", { exact: true })).toBeVisible();
+  await expect(list.getByText("Clínica Mobile 1", { exact: true })).toHaveCount(0);
+  await expect(pager.getByText("Pág. 2 / 2")).toBeVisible();
+});
