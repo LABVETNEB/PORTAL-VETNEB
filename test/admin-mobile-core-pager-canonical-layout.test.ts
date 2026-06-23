@@ -157,12 +157,22 @@ test("admin core pagers preserve accessible labels, data hooks and the no-scroll
   }
 });
 
-test("admin core pagers do not alter fetch, page size or pagination logic", () => {
+// Clinics intentionally raised its mobile page size from 3 to 10 (PR2,
+// admin-mobile-clinics-density): 10 clinics per mobile page, compacted to a
+// borderless name+email row so the list stays viewport-safe/no-scroll. The
+// fetch call and desktop PAGE_SIZE are untouched — only the mobile page-size
+// constant and row density changed.
+test("admin clinics mobile pager: page size intentionally raised to 10, fetch/desktop untouched", () => {
   const clinicsSource = read(CLINICS_CARD_PATH);
   assert.ok(clinicsSource.includes("const PAGE_SIZE = 9;"));
-  assert.ok(clinicsSource.includes("const MOBILE_PAGE_SIZE = 3;"));
+  assert.ok(
+    clinicsSource.includes("const MOBILE_PAGE_SIZE = 10;"),
+    "clinics mobile page size must be 10 (intentional density change, PR2)",
+  );
   assert.ok(clinicsSource.includes("getAdminClinics("));
+});
 
+test("admin reports mobile pager do not alter fetch, page size or pagination logic", () => {
   const reportsSource = read(REPORTS_CARD_PATH);
   assert.ok(reportsSource.includes("const PAGE_SIZE = 9;"));
   assert.ok(reportsSource.includes("const MOBILE_PAGE_SIZE = 3;"));

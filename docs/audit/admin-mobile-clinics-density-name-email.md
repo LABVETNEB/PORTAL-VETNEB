@@ -182,6 +182,38 @@ archivo bajo `test/` ni backend.
    Riesgo bajo: el ajuste es de espaciado/Tailwind puro, sin transform ni
    composición GPU.
 
+## 13. Nota de CI (PR2 — fix posterior al PR abierto #1083)
+
+- **Backend CI falló** en #1083: `pnpm test` (suite root, Node `--test`)
+  tenía 3 contratos pineados a la densidad mobile anterior, esperando
+  literalmente `const MOBILE_PAGE_SIZE = 3;` en
+  `AdminClinicsManagementCard.tsx`:
+  - `test/admin-mobile-core-pager-canonical-layout.test.ts` — test
+    `admin core pagers do not alter fetch, page size or pagination logic`.
+  - `test/admin-overview-clinics-enterprise-density.test.ts` — test
+    `admin clinics console raises the server page size while respecting
+    no-scroll`.
+  - `test/frontend-admin-clinics-management-card.test.ts` — test
+    `admin clinics management card renders mobile cards while preserving
+    desktop table`.
+- **No era flaky**: los 3 contratos fallaban de forma determinística
+  porque seguían codificando el valor viejo (3) del cambio intencional de
+  este mismo PR (10). No se hizo rerun; se corrigieron los contratos.
+- **Corrección aplicada**: se actualizaron los 3 archivos para esperar
+  `MOBILE_PAGE_SIZE = 10` en Clínicas. El test compartido de
+  `admin-mobile-core-pager-canonical-layout.test.ts` que mezclaba
+  Clínicas+Informes en un solo `test()` con nombre "do not alter... page
+  size" se separó en dos tests independientes: uno para Clínicas
+  (`page size intentionally raised to 10, fetch/desktop untouched`) y uno
+  para Informes (`do not alter fetch, page size or pagination logic`, sin
+  cambios — Informes sigue en 3 en esta rama; su propio cambio a 10 vive en
+  el PR de Informes, módulo 5, rama aparte). No se tocó ningún otro
+  contrato, ni backend/API/DB/auth/deps/lockfiles/CI.
+- **Validación tras el fix**: `pnpm test` (root) → **2826/2826 OK**;
+  `pnpm typecheck`, `pnpm typecheck:test`, `pnpm build` (backend) → OK;
+  `pnpm --dir frontend lint`/`typecheck` → OK (frontend ya estaba verde,
+  sin cambios adicionales).
+
 ---
 
 ### Cierre / Git manual (protocolo VETNEB)

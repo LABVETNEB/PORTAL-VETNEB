@@ -225,8 +225,8 @@ test("admin clinics management card renders mobile cards while preserving deskto
   const source = read(ADMIN_CLINICS_CARD_PATH);
 
   assert.ok(
-    source.includes("const MOBILE_PAGE_SIZE = 3;"),
-    "mobile page size must keep the clinics list viewport-safe",
+    source.includes("const MOBILE_PAGE_SIZE = 10;"),
+    "mobile page size intentionally raised to 10 (PR2); the compacted borderless name+email row keeps the list viewport-safe",
   );
   assert.ok(
     source.includes("effectivePageSize"),
