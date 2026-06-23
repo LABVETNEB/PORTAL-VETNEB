@@ -240,6 +240,46 @@ for (const viewport of MOBILE_VIEWPORTS) {
   });
 }
 
+test("Admin mobile hub tiles are borderless with a larger icon and preserved tile size", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await setPopulatedAdminSession(page);
+  await page.goto("/dashboard/admin");
+  await suppressNextDevIndicator(page);
+
+  const launcher = page.locator('[data-admin-mobile-hub-launcher="true"]');
+  await expect(launcher).toBeVisible({ timeout: 15_000 });
+
+  const tiles = launcher.locator('[data-admin-mobile-hub-tile]');
+  const tileCount = await tiles.count();
+  expect(tileCount).toBeGreaterThan(0);
+
+  for (let index = 0; index < tileCount; index += 1) {
+    const tile = tiles.nth(index);
+    const tileBox = await tile.boundingBox();
+    expect(tileBox, `tile ${index + 1}: bounding box`).not.toBeNull();
+
+    const border = await tile.evaluate((element) => {
+      const style = window.getComputedStyle(element);
+      return { width: style.borderWidth, style: style.borderStyle };
+    });
+    expect(border.style, `tile ${index + 1}: border style`).toBe("none");
+
+    const icon = tile.locator(".admin-mobile-hub-tile-icon svg").first();
+    await expect(icon, `tile ${index + 1}: icon visible`).toBeVisible();
+    const iconBox = await icon.boundingBox();
+    expect(iconBox, `tile ${index + 1}: icon bounding box`).not.toBeNull();
+    expect(iconBox!.width, `tile ${index + 1}: icon width`).toBeGreaterThanOrEqual(20);
+
+    // Icon must not overflow its rounded badge container.
+    const badgeBox = await tile.locator(".admin-mobile-hub-tile-icon").boundingBox();
+    expect(badgeBox, `tile ${index + 1}: icon badge bounding box`).not.toBeNull();
+    expect(iconBox!.width).toBeLessThanOrEqual(badgeBox!.width + TOLERANCE);
+    expect(iconBox!.height).toBeLessThanOrEqual(badgeBox!.height + TOLERANCE);
+  }
+});
+
 test("Admin desktop hub keeps the previous layout and has no mobile launcher", async ({
   page,
 }) => {
