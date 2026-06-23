@@ -84,6 +84,40 @@ async function mockAdminParticularTokens(page: Page, sourceTokens = MOCK_TOKENS)
 
 const MOCK_TOKENS_SHORT = MOCK_TOKENS.slice(0, 6);
 
+async function mockAdminUsersRolesClinicCatalog(page: Page) {
+  await page.route("**/api/admin/users-roles**", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.fallback();
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        users: [
+          {
+            userType: "clinic",
+            userId: 601,
+            username: "clinica.doce",
+            role: "clinic_owner",
+            clinicId: 12,
+            clinicName: "Clínica Doce",
+            clinicLocality: "Buenos Aires",
+            createdAt: "2026-05-01T10:00:00.000Z",
+            updatedAt: "2026-05-01T10:00:00.000Z",
+          },
+        ],
+        total: 1,
+        limit: 100,
+        offset: 0,
+        totals: { adminUsers: 0, clinicUsers: 1 },
+      }),
+    });
+  });
+}
+
 const PAGER_BOTTOM_TOLERANCE = 28;
 
 async function assertPagerAnchoredToModuleBottom(
@@ -159,6 +193,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
 
     await setAdminSession(page);
     await mockAdminParticularTokens(page);
+    await mockAdminUsersRolesClinicCatalog(page);
 
     await page.goto("/dashboard/admin?module=admin-particular-tokens");
 
@@ -188,6 +223,11 @@ for (const viewport of MOBILE_VIEWPORTS) {
       items,
       `${viewport.name}: ten tokens visible per mobile page`,
     ).toHaveCount(10);
+
+    await expect(
+      items.first(),
+      `${viewport.name}: clinic name shown instead of id under each token`,
+    ).toContainText("Clínica Doce");
 
     const verticalOverflow = await page.evaluate(() => ({
       htmlScrollHeight: document.documentElement.scrollHeight,
@@ -221,7 +261,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       `${viewport.name}: forbidden overflow auto/scroll`,
     ).toEqual([]);
 
-    await toolbar.getByRole("spinbutton", { name: "ID de clínica" }).fill("12");
+    await toolbar.getByRole("textbox", { name: "Nombre de clínica" }).fill("Clínica Doce");
     await toolbar.getByRole("button", { name: "Filtrar", exact: true }).click();
 
     await expect(
