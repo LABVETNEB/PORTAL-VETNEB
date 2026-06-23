@@ -59,7 +59,7 @@ const STATUS_MODULES: StatusModule[] = [
   },
 ];
 
-const MOCK_FAILED_LOGIN_ALERTS = Array.from({ length: 8 }, (_, index) => ({
+const MOCK_FAILED_LOGIN_ALERTS = Array.from({ length: 13 }, (_, index) => ({
   id: 6100 + index,
   surface: (["admin", "clinic", "particular"] as const)[index % 3],
   username: index % 4 === 0 ? null : `intento_${index}`,
@@ -106,7 +106,7 @@ async function mockStatusApis(page: Page) {
       await route.fallback();
       return;
     }
-    const limit = Number(url.searchParams.get("limit") ?? "3");
+    const limit = Number(url.searchParams.get("limit") ?? "10");
     const offset = Number(url.searchParams.get("offset") ?? "0");
     await fulfillJson(route, {
       success: true,
@@ -573,3 +573,29 @@ for (const moduleSpec of STATUS_MODULES) {
     ).toBeVisible({ timeout: 15_000 });
   });
 }
+
+test("Admin mobile Alertas chip shows 10 failed-login alerts per page", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await setPopulatedAdminSession(page);
+  await mockStatusApis(page);
+  await page.goto("/dashboard/admin?module=admin");
+  await suppressNextDevIndicator(page);
+
+  const moduleRoot = page.locator('[data-admin-mobile-status-module="admin"]');
+  await expect(moduleRoot).toBeVisible({ timeout: 15_000 });
+  await moduleRoot.locator('[data-admin-mobile-status-chip="alertas"]').click();
+
+  const panel = moduleRoot.locator('[data-admin-mobile-status-panel="alertas"]');
+  const items = panel.locator('[data-admin-mobile-status-item="true"]');
+  await expect(items.first()).toBeVisible({ timeout: 10_000 });
+  await expect(items).toHaveCount(10);
+
+  const pager = panel.getByRole("navigation", { name: "Paginación de intentos fallidos" });
+  await expect(pager.getByText("Pág. 1 / 2")).toBeVisible();
+  await pager.getByRole("button", { name: "Siguiente" }).click();
+
+  await expect(items).toHaveCount(3);
+  await expect(pager.getByText("Pág. 2 / 2")).toBeVisible();
+});
