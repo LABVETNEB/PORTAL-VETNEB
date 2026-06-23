@@ -264,3 +264,9 @@ git worktree remove ../PORTAL-VETNEB-audit
 - El PR extrajo la lógica segura a dmin-audit-shared.ts; se actualizaron los tests para validar el archivo compartido y mantener integración desde page.tsx.
 - Frontend CI falló en la navegación mobile al módulo dmin-sessions; se reforzó el click de destinos fijos del bottom nav para persistir/sincronizar el módulo activo sin relajar el test.
 - No se tocó backend, API, DB, auth, dependencias, lockfiles ni CI.
+
+## Nota adicional Frontend CI
+
+- En CI la navegación mobile hacia dmin-sessions podía quedar en carrera al depender únicamente del link del bottom nav.
+- Se endureció el click de destinos fijos del bottom nav usando outer.push() explícito, preventDefault(), persistencia del módulo y sincronización visual local.
+- El objetivo sigue siendo corregir navegación real, no relajar el e2e.
