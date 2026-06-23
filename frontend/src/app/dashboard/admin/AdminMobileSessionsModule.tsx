@@ -14,7 +14,7 @@ import type {
 } from "@/types";
 import { AdminMobileOpsPager } from "./AdminMobileOpsPager";
 
-const MOBILE_PAGE_SIZE = 3;
+const MOBILE_PAGE_SIZE = 10;
 
 function formatSessionType(value: AdminSessionType) {
   if (value === "admin") return "Admin";
@@ -142,7 +142,7 @@ export function AdminMobileSessionsModule() {
         <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
           Tipo
           <select
-            className="field-select h-7 text-xs"
+            className="field-select h-9 items-center px-2 py-1 text-xs leading-none"
             value={sessionType}
             disabled={disabled}
             onChange={(event) => {
@@ -159,7 +159,7 @@ export function AdminMobileSessionsModule() {
         <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
           Estado
           <select
-            className="field-select h-7 text-xs"
+            className="field-select h-9 items-center px-2 py-1 text-xs leading-none"
             value={status}
             disabled={disabled}
             onChange={(event) => {
@@ -174,7 +174,7 @@ export function AdminMobileSessionsModule() {
         </label>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-rows-3 overflow-hidden">
+      <div className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden">
         {sessions.length ? (
           sessions.map((session) => {
             const sessionKey = getSessionKey(session);
@@ -187,20 +187,20 @@ export function AdminMobileSessionsModule() {
               <article
                 key={sessionKey}
                 data-admin-mobile-ops-item="true"
-                className="flex min-h-0 items-center gap-2 overflow-hidden border-b border-vetneb-line/70 px-2 py-1 last:border-b-0"
+                className="flex min-h-9 items-center gap-2 overflow-hidden px-2 py-0.5"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex min-w-0 items-center gap-1.5">
                     <Badge variant={session.sessionType === "admin" ? "default" : "secondary"} className="h-5 px-1.5 text-[10px]">
                       {formatSessionType(session.sessionType)}
                     </Badge>
                     <Badge variant={session.status === "active" ? "default" : "outline"} className="h-5 px-1.5 text-[10px]">
                       {session.status === "active" ? "Activa" : "Expirada"}
                     </Badge>
+                    <span className="min-w-0 truncate text-xs font-medium text-vetneb-ink">
+                      {formatActorType(session.actorType)} · #{session.sessionId}
+                    </span>
                   </div>
-                  <p className="truncate text-xs font-medium text-vetneb-ink">
-                    {formatActorType(session.actorType)} · #{session.sessionId}
-                  </p>
                   <p className="truncate text-[10px] text-muted-foreground">
                     Acceso {session.lastAccess ? formatDateTime(session.lastAccess) : "—"}
                   </p>
@@ -221,7 +221,7 @@ export function AdminMobileSessionsModule() {
             );
           })
         ) : (
-          <div className="col-span-full row-span-3 flex items-center justify-center px-4 text-center text-xs text-muted-foreground">
+          <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
             {error ? "Error al cargar sesiones" : isPending ? "Cargando sesiones..." : "Sin sesiones"}
           </div>
         )}
