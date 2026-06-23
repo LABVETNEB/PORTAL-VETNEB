@@ -63,11 +63,6 @@ export function AdminAuditCard({
   return (
     <div id="audit-log" className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <AdminMobileAuditModule
-        rows={rows}
-        totalCount={totalCount}
-        serverPage={page}
-        serverPageSize={ADMIN_AUDIT_PAGE_SIZE}
-        loadError={loadError}
         filters={filters}
         eventOptions={eventOptions}
         actorTypeOptions={actorTypeOptions}

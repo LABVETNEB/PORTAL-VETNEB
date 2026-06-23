@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const ADMIN_PAGE = "frontend/src/app/dashboard/admin/page.tsx";
+const AUDIT_SHARED = "frontend/src/app/dashboard/admin/admin-audit-shared.ts";
 const AUDIT_CARD = "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
 const AUDIT_TABLE = "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
 const AUDIT_FILTER = "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx";
@@ -74,6 +75,7 @@ test("PR-6 audit surfaces keep enterprise density tokens", () => {
 
 test("PR-6 uses controlled detail without raw sensitive audit fields", () => {
   const page = read(ADMIN_PAGE);
+  const auditShared = read(AUDIT_SHARED);
   const detail = read(AUDIT_DETAIL);
   const table = read(AUDIT_TABLE);
   const rowStart = page.indexOf("const auditRows: AdminAuditRow[]");
@@ -89,12 +91,12 @@ test("PR-6 uses controlled detail without raw sensitive audit fields", () => {
   assert.equal(rowProjection.includes("userAgent"), false);
   assert.equal(rowProjection.includes("requestId"), false);
   assert.equal(rowProjection.includes("metadata:"), false);
-  assert.ok(page.includes('return "Dato estructurado omitido";'));
-  assert.ok(page.includes('"password"'));
-  assert.ok(page.includes('"token"'));
-  assert.ok(page.includes('"hash"'));
-  assert.ok(page.includes('"email"'));
-  assert.ok(page.includes('"session"'));
+  assert.ok(auditShared.includes('return "Dato estructurado omitido";'));
+  assert.ok(auditShared.includes('"password"'));
+  assert.ok(auditShared.includes('"token"'));
+  assert.ok(auditShared.includes('"hash"'));
+  assert.ok(auditShared.includes('"email"'));
+  assert.ok(auditShared.includes('"session"'));
 });
 
 test("PR-6 does not introduce logging, public fetches, or regional scroll", () => {
