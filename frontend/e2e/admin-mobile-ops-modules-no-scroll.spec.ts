@@ -53,6 +53,10 @@ type OpsModule = {
   moduleId: "audit-log" | "admin-sessions" | "admin-users-roles";
   pagerName: RegExp;
   primaryActionName: RegExp;
+  // Viewport-safe page-size ceiling for this module's mobile list; differs
+  // per module (audit moved to 10/page, sessions/users stay at their
+  // existing density).
+  maxItemsPerPage: number;
 };
 
 const OPS_MODULES: OpsModule[] = [
@@ -61,18 +65,21 @@ const OPS_MODULES: OpsModule[] = [
     moduleId: "audit-log",
     pagerName: /paginación de auditoría/i,
     primaryActionName: /filtros/i,
+    maxItemsPerPage: 10,
   },
   {
     key: "sessions",
     moduleId: "admin-sessions",
     pagerName: /paginación de sesiones/i,
     primaryActionName: /actualizar/i,
+    maxItemsPerPage: 4,
   },
   {
     key: "users",
     moduleId: "admin-users-roles",
     pagerName: /paginación de usuarios/i,
     primaryActionName: /actualizar/i,
+    maxItemsPerPage: 4,
   },
 ];
 
@@ -296,7 +303,7 @@ for (const moduleSpec of OPS_MODULES) {
       await expect(items.first()).toBeVisible({ timeout: 15_000 });
       const itemCount = await items.count();
       expect(itemCount).toBeGreaterThan(0);
-      expect(itemCount).toBeLessThanOrEqual(4);
+      expect(itemCount).toBeLessThanOrEqual(moduleSpec.maxItemsPerPage);
 
       for (let index = 0; index < itemCount; index += 1) {
         await expectInsideViewport(
