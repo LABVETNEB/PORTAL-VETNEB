@@ -2356,7 +2356,7 @@
     --admin-mobile-bottom-nav-gap: clamp(0.12rem, 0.08rem + 0.1svw, 0.18rem);
     --admin-mobile-tile-gap: clamp(0.4rem, 0.28rem + 0.5svw, 0.6rem);
     --admin-mobile-tile-pad: clamp(0.32rem, 0.2rem + 0.4svw, 0.5rem);
-    --admin-mobile-tile-icon-size: clamp(1.7rem, 1.5rem + 0.6svw, 2rem);
+    --admin-mobile-tile-icon-size: clamp(2.05rem, 1.85rem + 0.6svw, 2.4rem);
     --admin-mobile-type-2xs: clamp(0.6rem, 0.5rem + 0.3svw, 0.68rem);
     --admin-mobile-type-xs: clamp(0.66rem, 0.56rem + 0.3svw, 0.76rem);
     --admin-mobile-chip-gap: clamp(0.18rem, 0.12rem + 0.15svw, 0.28rem);
@@ -2375,7 +2375,7 @@
       --admin-mobile-shell-gutter: 0.34rem;
       --admin-mobile-tile-gap: 0.32rem;
       --admin-mobile-tile-pad: 0.26rem;
-      --admin-mobile-tile-icon-size: 1.55rem;
+      --admin-mobile-tile-icon-size: 1.9rem;
       --admin-mobile-chip-gap: 0.14rem;
       --admin-mobile-chip-pad-y: 0.22rem;
       --admin-mobile-panel-pad: 0.32rem;
@@ -2760,7 +2760,7 @@
     gap: 0.3rem;
     overflow: hidden;
     border-radius: 0.85rem;
-    border: 1px solid hsl(var(--vetneb-line) / 0.8);
+    border: none;
     background: hsl(var(--card));
     padding: var(--admin-mobile-tile-pad);
     text-align: center;
