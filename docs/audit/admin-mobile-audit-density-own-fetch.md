@@ -257,3 +257,10 @@ gh pr checks --watch
 cd C:\PORTAL-VETNEB
 git worktree remove ../PORTAL-VETNEB-audit
 ```
+
+## Nota de CI manual
+
+- Backend CI falló porque contratos root antiguos seguían buscando helpers de auditoría directamente en page.tsx.
+- El PR extrajo la lógica segura a dmin-audit-shared.ts; se actualizaron los tests para validar el archivo compartido y mantener integración desde page.tsx.
+- Frontend CI falló en la navegación mobile al módulo dmin-sessions; se reforzó el click de destinos fijos del bottom nav para persistir/sincronizar el módulo activo sin relajar el test.
+- No se tocó backend, API, DB, auth, dependencias, lockfiles ni CI.

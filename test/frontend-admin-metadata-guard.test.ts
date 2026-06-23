@@ -23,16 +23,17 @@ function assertNotIncludes(
 }
 
 const adminPage = "frontend/src/app/dashboard/admin/page.tsx";
+const adminAuditShared = "frontend/src/app/dashboard/admin/admin-audit-shared.ts";
 const adminAuditTable =
   "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
 
 test("frontend admin metadata keeps sensitive key guard centralized", () => {
-  const source = read(adminPage);
+  const source = read(adminAuditShared);
 
   assertIncludes(
     source,
     "const SENSITIVE_AUDIT_METADATA_KEY_PARTS = [",
-    adminPage,
+    adminAuditShared,
   );
 
   for (const sensitiveKeyPart of [
@@ -44,35 +45,35 @@ test("frontend admin metadata keeps sensitive key guard centralized", () => {
     "hash",
     "storage",
   ]) {
-    assertIncludes(source, `"${sensitiveKeyPart}"`, adminPage);
+    assertIncludes(source, `"${sensitiveKeyPart}"`, adminAuditShared);
   }
 
-  assertIncludes(source, "function isSensitiveAuditMetadataKey", adminPage);
-  assertIncludes(source, "const normalizedKey = key.toLowerCase()", adminPage);
-  assertIncludes(source, "normalizedKey.includes(part)", adminPage);
+  assertIncludes(source, "function isSensitiveAuditMetadataKey", adminAuditShared);
+  assertIncludes(source, "const normalizedKey = key.toLowerCase()", adminAuditShared);
+  assertIncludes(source, "normalizedKey.includes(part)", adminAuditShared);
 });
 
 test("frontend admin metadata filters sensitive keys before display", () => {
-  const source = read(adminPage);
+  const source = read(adminAuditShared);
 
-  assertIncludes(source, "Object.entries(metadata)", adminPage);
+  assertIncludes(source, "Object.entries(metadata)", adminAuditShared);
   assert.match(
     source,
     /!\s*isSensitiveAuditMetadataKey\(key\)/,
     "metadata display must filter sensitive keys",
   );
-  assertIncludes(source, "value !== null", adminPage);
-  assertIncludes(source, "value !== undefined", adminPage);
-  assertIncludes(source, 'value !== ""', adminPage);
+  assertIncludes(source, "value !== null", adminAuditShared);
+  assertIncludes(source, "value !== undefined", adminAuditShared);
+  assertIncludes(source, 'value !== ""', adminAuditShared);
   assertIncludes(
     source,
     "`${key}: ${formatAuditMetadataValue(value)}`",
-    adminPage,
+    adminAuditShared,
   );
 });
 
 test("frontend admin role-change metadata summary only reads approved fields", () => {
-  const source = read(adminPage);
+  const source = read(adminAuditShared);
   const roleChangeBlockMatch = source.match(
     /if \(entry\.event === "clinic_user\.role\.changed"\) \{[\s\S]*?\n  \}/,
   );
@@ -106,14 +107,15 @@ test("frontend admin role-change metadata summary only reads approved fields", (
 });
 test("frontend admin audit table keeps detail column wired to safe metadata summary", () => {
   const source = read(adminPage);
+  const sharedSource = read(adminAuditShared);
   const tableSource = read(adminAuditTable);
 
-  // The detail value is pre-sanitized server-side in page.tsx, so the table and
-  // dialog only receive a safe display string.
+  // The detail value is pre-sanitized server-side by shared audit helpers, and
+  // page.tsx keeps wiring the safe display string into the table.
   assertIncludes(source, "getAuditMetadataSummary(entry)", adminPage);
-  assertIncludes(source, "function getAuditMetadataSummary", adminPage);
+  assertIncludes(sharedSource, "function getAuditMetadataSummary", adminAuditShared);
   assert.match(
-    source,
+    sharedSource,
     /!\s*isSensitiveAuditMetadataKey\(key\)/,
     "detail column summary must keep sensitive metadata filtering",
   );

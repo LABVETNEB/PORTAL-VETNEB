@@ -12,6 +12,8 @@ const ADMIN_AUDIT_TABLE_PATH =
   "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
 const ADMIN_AUDIT_FILTER_PATH =
   "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx";
+const ADMIN_AUDIT_SHARED_PATH =
+  "frontend/src/app/dashboard/admin/admin-audit-shared.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -57,9 +59,9 @@ test("dashboard admin includes read-only admin cards", () => {
 });
 
 test("dashboard admin keeps audit event and actor labels", () => {
-  const source = read(ADMIN_PAGE_PATH);
+  const source = read(ADMIN_AUDIT_SHARED_PATH);
 
-  assert.ok(source.includes("const EVENT_LABELS: Record<string, string> = {"));
+  assert.ok(source.includes("export const EVENT_LABELS: Record<string, string> = {"));
   assert.ok(source.includes('"auth.admin.login.succeeded": "Login admin"'));
   assert.ok(source.includes('"auth.clinic.login.succeeded": "Login clínica"'));
   assert.ok(source.includes('"clinic.created": "Clínica creada"'));
@@ -71,7 +73,7 @@ test("dashboard admin keeps audit event and actor labels", () => {
   assert.ok(source.includes('"report.uploaded": "Informe subido"'));
   assert.ok(source.includes('"report_access_token.revoked": "Token revocado"'));
   assert.ok(source.includes('"report.public_accessed": "Acceso público"'));
-  assert.ok(source.includes("const ACTOR_LABELS: Record<string, string> = {"));
+  assert.ok(source.includes("export const ACTOR_LABELS: Record<string, string> = {"));
   assert.ok(source.includes('system: "Sistema"'));
   assert.ok(source.includes('admin_user: "Admin"'));
   assert.ok(source.includes('clinic_user: "Clínica"'));
@@ -80,10 +82,11 @@ test("dashboard admin keeps audit event and actor labels", () => {
 
 test("dashboard admin keeps status and service formatting helpers", () => {
   const source = read(ADMIN_PAGE_PATH);
+  const auditSharedSource = read(ADMIN_AUDIT_SHARED_PATH);
 
-  assert.ok(source.includes("function getEventVariant("));
-  assert.ok(source.includes('if (event.includes("login")) return "default";'));
-  assert.ok(source.includes('if (event.includes("revoked") || event.includes("canceled")) return "outline";'));
+  assert.ok(auditSharedSource.includes("export function getEventVariant("));
+  assert.ok(auditSharedSource.includes('if (event.includes("login")) return "default";'));
+  assert.ok(auditSharedSource.includes('if (event.includes("revoked") || event.includes("canceled")) return "outline";'));
   assert.ok(source.includes("function getServiceVariant("));
   assert.ok(source.includes('if (value === "up") return "default";'));
   assert.ok(source.includes('if (value === "degraded") return "secondary";'));
@@ -102,7 +105,7 @@ test("dashboard admin keeps status and service formatting helpers", () => {
 });
 
 test("dashboard admin keeps sensitive audit metadata redaction", () => {
-  const source = read(ADMIN_PAGE_PATH);
+  const source = read(ADMIN_AUDIT_SHARED_PATH);
 
   assert.ok(source.includes("const SENSITIVE_AUDIT_METADATA_KEY_PARTS = ["));
   assert.ok(source.includes('"password"'));
@@ -117,7 +120,7 @@ test("dashboard admin keeps sensitive audit metadata redaction", () => {
   assert.ok(source.includes("function isSensitiveAuditMetadataKey(key: string)"));
   assert.ok(source.includes("normalizedKey.includes(part)"));
   assert.ok(source.includes("!isSensitiveAuditMetadataKey(key)"));
-  assert.ok(source.includes("function getAuditMetadataSummary(entry: { event: string; metadata: Record<string, unknown> | null })"));
+  assert.ok(source.includes("export function getAuditMetadataSummary(entry: {"));
 });
 
 test("dashboard admin forwards cookies and performs no-store admin reads", () => {
@@ -161,6 +164,7 @@ test("dashboard admin renders topbar, health, and summary cards", () => {
   const source = read(ADMIN_PAGE_PATH);
   const commandCenterSource = read(ADMIN_COMMAND_CENTER_PATH);
   const auditCardSource = read(ADMIN_AUDIT_CARD_PATH);
+  const auditSharedSource = read(ADMIN_AUDIT_SHARED_PATH);
   const combinedSource = `${source}\n${commandCenterSource}\n${auditCardSource}`;
 
   assert.ok(source.includes('title="Administración"'));
@@ -206,6 +210,7 @@ test("dashboard admin keeps module hub cards and preserves admin sections", () =
   const source = read(ADMIN_PAGE_PATH);
   const controllerSource = read("frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx");
   const auditCardSource = read(ADMIN_AUDIT_CARD_PATH);
+  const auditSharedSource = read(ADMIN_AUDIT_SHARED_PATH);
 
   // PR5B: admin cards and DashboardModuleHub are inside AdminDashboardWorkspaceController.
   assert.ok(controllerSource.includes("const adminCards = ["));
@@ -221,7 +226,7 @@ test("dashboard admin keeps module hub cards and preserves admin sections", () =
   assert.ok(source.includes('id="admin-report-upload"'));
   assert.ok(source.includes("<AdminReportsCard />"));
   assert.ok(source.includes("Alertas críticas"));
-  assert.ok(source.includes("Sistema"));
+  assert.ok(auditSharedSource.includes('system: "Sistema"'));
   assert.ok(source.includes("Auditoría"));
   assert.ok(source.includes('id="admin-health"'));
   assert.ok(source.includes("<AdminClinicsManagementCard />"));
