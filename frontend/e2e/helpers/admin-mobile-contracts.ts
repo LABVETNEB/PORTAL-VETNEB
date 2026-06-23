@@ -231,3 +231,38 @@ export function assertModuleNoScrollContract(
 
   expect(contract.forbiddenOverflow, `${label}: overflow auto/scroll`).toEqual([]);
 }
+
+// Color-mode emulation shared by the admin mobile status/config specs: persists
+// the dark theme preference and pins reduced motion for deterministic captures.
+export async function applyColorMode(page: Page, mode: "light" | "dark") {
+  if (mode === "dark") {
+    await page.addInitScript(() => {
+      try {
+        window.localStorage.setItem("vetneb-theme-mode", "dark-gray");
+      } catch {
+        /* localStorage unavailable: emulateMedia still hints dark */
+      }
+    });
+  }
+  await page.emulateMedia({ colorScheme: mode, reducedMotion: "reduce" });
+}
+
+// Balanced bottom-gutter contract shared by the admin mobile status/config
+// specs: the bottom margin mirrors the side gutter (never pegged, never a void).
+export function assertGutterContract(
+  gutters: { bottomGutter: number; sideGutter: number },
+  label: string,
+) {
+  expect(
+    gutters.bottomGutter,
+    `${label}: bottom gutter not pegged (>= 10px); got ${gutters.bottomGutter}`,
+  ).toBeGreaterThanOrEqual(10);
+  expect(
+    gutters.bottomGutter,
+    `${label}: bottom gutter >= side gutter (${gutters.sideGutter})`,
+  ).toBeGreaterThanOrEqual(gutters.sideGutter - 2);
+  expect(
+    gutters.bottomGutter,
+    `${label}: bottom gutter balanced with side gutter ${gutters.sideGutter} (no void)`,
+  ).toBeLessThanOrEqual(gutters.sideGutter + 24);
+}

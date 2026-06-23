@@ -5,9 +5,18 @@ import {
   test,
   type Locator,
   type Page,
-  type Route,
   type TestInfo,
 } from "@playwright/test";
+import {
+  ADMIN_MOBILE_TOLERANCE as TOLERANCE,
+  applyColorMode,
+  assertGutterContract,
+  assertModuleNoScrollContract as assertNoScrollContract,
+  fulfillJson,
+  readModuleNoScrollContract as readNoScrollContract,
+  setPopulatedAdminSession,
+  suppressNextDevIndicator,
+} from "./helpers/admin-mobile-contracts";
 
 // PR-B — Admin mobile STATUS modules (Administración/Resumen + Estado del
 // sistema). These two modules still rendered the desktop ModuleTabs/grids on
@@ -15,8 +24,6 @@ import {
 // nav (P1 no-scroll defect). This spec pins a dedicated mobile variant
 // (`[data-admin-mobile-status-module]`) that fits 360/390/430 in light + dark
 // with zero scroll, zero overflow auto/scroll, and nothing under the bottom nav.
-
-const TOLERANCE = 2;
 
 const MOBILE_VIEWPORTS = [
   { name: "android-short-360x640", width: 360, height: 640 },
@@ -34,7 +41,6 @@ const DESKTOP_VIEWPORT = {
   height: 800,
 } as const;
 
-type ColorMode = (typeof COLOR_MODES)[number];
 type Viewport = { name: string; width: number; height: number };
 
 type StatusModule = {
@@ -73,24 +79,6 @@ const MOCK_FAILED_LOGIN_ALERTS = Array.from({ length: 13 }, (_, index) => ({
 
 const STATUS_SNAPSHOT_PHASE =
   process.env.STATUS_SNAPSHOT_PHASE === "before" ? "before" : "after";
-
-async function setPopulatedAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_populated_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-function fulfillJson(route: Route, body: unknown) {
-  return route.fulfill({
-    status: 200,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 // The status modules fetch two client-side surfaces on demand (failed-login
 // alerts and schema health). The populated fixture server does not serve them,
@@ -137,112 +125,6 @@ async function mockStatusApis(page: Page) {
       missing: [],
     });
   });
-}
-
-async function suppressNextDevIndicator(page: Page) {
-  await page.addStyleTag({
-    content: "nextjs-portal { display: none !important; }",
-  });
-}
-
-async function applyColorMode(page: Page, mode: ColorMode) {
-  if (mode === "dark") {
-    await page.addInitScript(() => {
-      try {
-        window.localStorage.setItem("vetneb-theme-mode", "dark-gray");
-      } catch {
-        /* localStorage unavailable: emulateMedia still hints dark */
-      }
-    });
-  }
-  await page.emulateMedia({ colorScheme: mode, reducedMotion: "reduce" });
-}
-
-type NoScrollContract = {
-  html: { scrollHeight: number; clientHeight: number; scrollWidth: number; clientWidth: number };
-  body: { scrollHeight: number; clientHeight: number; scrollWidth: number; clientWidth: number };
-  module: { scrollHeight: number; clientHeight: number; scrollWidth: number; clientWidth: number };
-  forbiddenOverflow: Array<{
-    tag: string;
-    className: string;
-    overflowX: string;
-    overflowY: string;
-  }>;
-};
-
-async function readNoScrollContract(
-  page: Page,
-  selector: string,
-): Promise<NoScrollContract> {
-  return page.evaluate((moduleSelector) => {
-    const shell = document.querySelector<HTMLElement>(
-      '[data-vetneb-app-shell-surface="admin"]',
-    );
-    const main = document.querySelector<HTMLElement>("main.dashboard-main");
-    const moduleRoot = document.querySelector<HTMLElement>(moduleSelector);
-
-    if (!moduleRoot) throw new Error(`Missing module root: ${moduleSelector}`);
-
-    const candidates = [
-      document.documentElement,
-      document.body,
-      ...(shell ? [shell] : []),
-      ...(main ? [main] : []),
-      moduleRoot,
-      ...Array.from(moduleRoot.querySelectorAll<HTMLElement>("*")),
-    ];
-
-    const forbiddenOverflow = candidates.flatMap((element) => {
-      const style = window.getComputedStyle(element);
-      if (
-        !["auto", "scroll"].includes(style.overflowX) &&
-        !["auto", "scroll"].includes(style.overflowY)
-      ) {
-        return [];
-      }
-      return [
-        {
-          tag: element.tagName,
-          className: element.className,
-          overflowX: style.overflowX,
-          overflowY: style.overflowY,
-        },
-      ];
-    });
-
-    const metrics = (element: HTMLElement) => ({
-      scrollHeight: element.scrollHeight,
-      clientHeight: element.clientHeight,
-      scrollWidth: element.scrollWidth,
-      clientWidth: element.clientWidth,
-    });
-
-    return {
-      html: metrics(document.documentElement),
-      body: metrics(document.body),
-      module: metrics(moduleRoot),
-      forbiddenOverflow,
-    };
-  }, selector);
-}
-
-function assertNoScrollContract(contract: NoScrollContract, label: string) {
-  for (const [surface, metrics] of Object.entries({
-    html: contract.html,
-    body: contract.body,
-    module: contract.module,
-  })) {
-    expect(
-      metrics.scrollHeight,
-      `${label}: ${surface} vertical clipping/overflow`,
-    ).toBeLessThanOrEqual(metrics.clientHeight + TOLERANCE);
-    expect(
-      metrics.scrollWidth,
-      `${label}: ${surface} horizontal clipping/overflow`,
-    ).toBeLessThanOrEqual(metrics.clientWidth + TOLERANCE);
-  }
-
-  expect(contract.forbiddenOverflow, `${label}: overflow auto/scroll`).toEqual([]);
 }
 
 async function expectInsideContentBand(
@@ -354,23 +236,6 @@ async function readContentGutters(
       headerVisible: headerStyle ? headerStyle.display !== "none" : false,
     };
   }, moduleSelector);
-}
-
-function assertGutterContract(gutters: ContentGutters, label: string) {
-  // Bottom margin of the visible content must mirror the side gutter: never
-  // pegged to the bottom nav, never a void above it.
-  expect(
-    gutters.bottomGutter,
-    `${label}: bottom gutter not pegged (>= 10px); got ${gutters.bottomGutter}`,
-  ).toBeGreaterThanOrEqual(10);
-  expect(
-    gutters.bottomGutter,
-    `${label}: bottom gutter >= side gutter (${gutters.sideGutter})`,
-  ).toBeGreaterThanOrEqual(gutters.sideGutter - 2);
-  expect(
-    gutters.bottomGutter,
-    `${label}: bottom gutter balanced with side gutter ${gutters.sideGutter} (no void)`,
-  ).toBeLessThanOrEqual(gutters.sideGutter + 24);
 }
 
 for (const moduleSpec of STATUS_MODULES) {
