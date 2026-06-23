@@ -100,10 +100,6 @@ export function AdminReportsCard() {
   ).length;
   const rangeStart = reports.length ? page * PAGE_SIZE + 1 : 0;
   const rangeEnd = page * PAGE_SIZE + reports.length;
-  const mobileRangeStart = mobileReports.length
-    ? mobilePage * MOBILE_PAGE_SIZE + 1
-    : 0;
-  const mobileRangeEnd = mobilePage * MOBILE_PAGE_SIZE + mobileReports.length;
 
   const loadReports = useCallback(async (nextPage: number) => {
     setIsLoading(true);
@@ -431,36 +427,32 @@ export function AdminReportsCard() {
                 </div>
 
                 <div
-                  className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 pt-2 text-xs text-muted-foreground"
+                  className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
                   data-admin-mobile-core-pager="true"
                 >
-                  <span>
-                    {mobileRangeStart}–{mobileRangeEnd}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 w-9 p-0"
-                      disabled={mobilePage === 0 || isMobileLoading}
-                      onClick={() => setMobilePage((current) => Math.max(0, current - 1))}
-                      aria-label="Página anterior"
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 w-9 p-0"
-                      disabled={!mobileHasMore || isMobileLoading}
-                      onClick={() => setMobilePage((current) => current + 1)}
-                      aria-label="Página siguiente"
-                    >
-                      <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-2.5 text-xs"
+                    disabled={mobilePage === 0 || isMobileLoading}
+                    onClick={() => setMobilePage((current) => Math.max(0, current - 1))}
+                    aria-label="Página anterior"
+                  >
+                    Anterior
+                  </Button>
+                  <span className="min-w-12 text-center">Pág. {mobilePage + 1}</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-2.5 text-xs"
+                    disabled={!mobileHasMore || isMobileLoading}
+                    onClick={() => setMobilePage((current) => current + 1)}
+                    aria-label="Página siguiente"
+                  >
+                    Siguiente
+                  </Button>
                 </div>
               </>
             ) : isMobileViewport ? (

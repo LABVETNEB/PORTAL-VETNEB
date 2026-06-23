@@ -133,6 +133,8 @@ export function AdminClinicsManagementCard() {
   const pageEnd = Math.min(currentOffset + effectivePageSize, totalClinics);
   const hasPrev = currentOffset > 0;
   const hasNext = currentOffset + effectivePageSize < totalClinics;
+  const page = Math.floor(currentOffset / effectivePageSize) + 1;
+  const pageCount = Math.max(1, Math.ceil(totalClinics / effectivePageSize));
   const isBusy = isPending || activeActionKey !== null;
 
   function loadClinics(offset = currentOffset, search = searchQuery) {
@@ -695,36 +697,34 @@ export function AdminClinicsManagementCard() {
 
           {totalClinics > 0 ? (
             <div
-              className="flex shrink-0 items-center justify-between gap-2 text-xs text-muted-foreground"
+              className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
               data-admin-mobile-core-pager="true"
             >
-              <span className="tabular-nums">
-                {pageStart}–{pageEnd} de {totalClinics}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-9 px-2.5 text-xs"
+                onClick={() => loadClinics(currentOffset - effectivePageSize)}
+                disabled={isBusy || !hasPrev}
+                aria-label="Página anterior"
+              >
+                Anterior
+              </Button>
+              <span className="min-w-16 text-center tabular-nums">
+                Pág. {page} / {pageCount}
               </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-9 w-9 p-0"
-                  onClick={() => loadClinics(currentOffset - effectivePageSize)}
-                  disabled={isBusy || !hasPrev}
-                  aria-label="Página anterior"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-9 w-9 p-0"
-                  onClick={() => loadClinics(currentOffset + effectivePageSize)}
-                  disabled={isBusy || !hasNext}
-                  aria-label="Página siguiente"
-                >
-                  <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-                </Button>
-              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-9 px-2.5 text-xs"
+                onClick={() => loadClinics(currentOffset + effectivePageSize)}
+                disabled={isBusy || !hasNext}
+                aria-label="Página siguiente"
+              >
+                Siguiente
+              </Button>
             </div>
           ) : null}
         </div>
