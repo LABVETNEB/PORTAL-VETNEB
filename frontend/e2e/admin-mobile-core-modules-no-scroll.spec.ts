@@ -29,7 +29,7 @@ const MOCK_CLINICS = Array.from({ length: 13 }, (_, index) => {
 });
 
 const REPORT_STAGES = ["sample_received", "processing", "delivered"] as const;
-const MOCK_REPORTS = Array.from({ length: 9 }, (_, index) => {
+const MOCK_REPORTS = Array.from({ length: 13 }, (_, index) => {
   const id = 7400 + index;
   return {
     id,
@@ -168,7 +168,7 @@ type ModuleSpec = {
 
 const MODULES: ModuleSpec[] = [
   { key: "clinics", moduleId: "admin-clinics", mock: mockAdminClinics, maxItemsPerPage: 10 },
-  { key: "reports", moduleId: "admin-report-upload", mock: mockAdminReportWorkflow, maxItemsPerPage: 5 },
+  { key: "reports", moduleId: "admin-report-upload", mock: mockAdminReportWorkflow, maxItemsPerPage: 10 },
   { key: "tokens", moduleId: "admin-particular-tokens", mock: mockAdminParticularTokens, maxItemsPerPage: 10 },
 ];
 
@@ -404,6 +404,42 @@ test("Admin mobile core modules reachable from bottom nav and Más menu", async 
   await expect(
     page.locator('[data-admin-mobile-core-module="tokens"]'),
   ).toBeVisible({ timeout: 15_000 });
+});
+
+test("Admin mobile reports pagination advances through 10-record pages with pager anchored at the bottom", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await setAdminSession(page);
+  await mockAdminReportWorkflow(page);
+
+  await page.goto("/dashboard/admin?module=admin-report-upload");
+  await expect(
+    page.locator('[data-dashboard-module-workspace="admin-report-upload"]'),
+  ).toBeVisible({ timeout: 15_000 });
+
+  const list = page.locator("[data-admin-reports-mobile-list='true']");
+  await expect(list).toBeVisible();
+  await expect(list.getByText("#7400 ", { exact: false })).toBeVisible();
+  await expect(list.getByText("#7409 ", { exact: false })).toBeVisible();
+  await expect(list.getByText("#7410 ", { exact: false })).toHaveCount(0);
+
+  const pager = page.locator("[data-admin-mobile-core-pager='true']");
+  await expect(pager.getByText("Pág. 1")).toBeVisible();
+
+  const [pagerBox, bottomNavBox] = await Promise.all([
+    pager.boundingBox(),
+    page.locator('[data-admin-mobile-bottom-nav="true"]').boundingBox(),
+  ]);
+  expect(pagerBox).not.toBeNull();
+  expect(bottomNavBox).not.toBeNull();
+  expect(pagerBox!.y + pagerBox!.height).toBeLessThanOrEqual(bottomNavBox!.y + 2);
+
+  await pager.getByRole("button", { name: "Página siguiente" }).click();
+  await expect(list.getByText("#7410 ", { exact: false })).toBeVisible();
+  await expect(list.getByText("#7412 ", { exact: false })).toBeVisible();
+  await expect(list.getByText("#7400 ", { exact: false })).toHaveCount(0);
+  await expect(pager.getByText("Pág. 2")).toBeVisible();
 });
 
 for (const moduleSpec of MODULES) {

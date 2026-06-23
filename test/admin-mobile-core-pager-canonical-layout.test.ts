@@ -172,9 +172,16 @@ test("admin clinics mobile pager: page size intentionally raised to 10, fetch/de
   assert.ok(clinicsSource.includes("getAdminClinics("));
 });
 
-test("admin reports mobile pager do not alter fetch, page size or pagination logic", () => {
+// Reports intentionally raised its mobile page size from 3 to 10 (PR5,
+ // admin-mobile-reports-density): 10 reports per mobile page, compacted and
+ // anchored to the bottom pager while desktop PAGE_SIZE and fetch semantics
+ // stay untouched.
+test("admin reports mobile pager: page size intentionally raised to 10, fetch/desktop untouched", () => {
   const reportsSource = read(REPORTS_CARD_PATH);
   assert.ok(reportsSource.includes("const PAGE_SIZE = 9;"));
-  assert.ok(reportsSource.includes("const MOBILE_PAGE_SIZE = 3;"));
+  assert.ok(
+    reportsSource.includes("const MOBILE_PAGE_SIZE = 10;"),
+    "reports mobile page size must be 10 (intentional density change, PR5)",
+  );
   assert.ok(reportsSource.includes("getAdminReportWorkflow({"));
 });

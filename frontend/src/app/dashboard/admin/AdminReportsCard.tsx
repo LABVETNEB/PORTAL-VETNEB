@@ -37,7 +37,7 @@ import { AdminReportsUploadPanel } from "./AdminReportsUploadPanel";
 // PR-3 established nine dense rows as the safe 1366x768 limit while the App
 // Shell intentionally has no vertical scroll region.
 const PAGE_SIZE = 9;
-const MOBILE_PAGE_SIZE = 3;
+const MOBILE_PAGE_SIZE = 10;
 
 const STUDY_LABELS: Record<string, string> = {
   histopatologia: "Histopatología",
@@ -401,7 +401,7 @@ export function AdminReportsCard() {
                   {mobileReports.map((report) => (
                     <div
                       key={report.id}
-                      className="flex min-h-10 items-center gap-2 px-2.5 py-1.5"
+                      className="flex min-h-9 items-center gap-2 px-2.5 py-0.5"
                       data-admin-mobile-core-item="true"
                     >
                       <div className="min-w-0 flex-1">
