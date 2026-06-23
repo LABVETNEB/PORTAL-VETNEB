@@ -8,7 +8,7 @@ const MOBILE_VIEWPORTS = [
   { name: "iphone-pro-max-430x932", width: 430, height: 932 },
 ] as const;
 
-const MOCK_CLINICS = Array.from({ length: 9 }, (_, index) => {
+const MOCK_CLINICS = Array.from({ length: 13 }, (_, index) => {
   const id = index + 1;
   return {
     clinicId: id,
@@ -167,7 +167,7 @@ type ModuleSpec = {
 };
 
 const MODULES: ModuleSpec[] = [
-  { key: "clinics", moduleId: "admin-clinics", mock: mockAdminClinics, maxItemsPerPage: 5 },
+  { key: "clinics", moduleId: "admin-clinics", mock: mockAdminClinics, maxItemsPerPage: 10 },
   { key: "reports", moduleId: "admin-report-upload", mock: mockAdminReportWorkflow, maxItemsPerPage: 5 },
   { key: "tokens", moduleId: "admin-particular-tokens", mock: mockAdminParticularTokens, maxItemsPerPage: 10 },
 ];

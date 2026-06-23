@@ -71,7 +71,9 @@ test("admin clinics console raises the server page size while respecting no-scro
 
   // Nine dense rows preserve a full-row margin in the minimum viewport.
   assert.ok(source.includes("const PAGE_SIZE = 9;"));
-  assert.ok(source.includes("const MOBILE_PAGE_SIZE = 3;"));
+  // Mobile intentionally raised to 10 (PR2, admin-mobile-clinics-density):
+  // a compacted borderless name+email row keeps 10 rows viewport-safe.
+  assert.ok(source.includes("const MOBILE_PAGE_SIZE = 10;"));
   assert.ok(source.includes("limit: effectivePageSize"));
   assert.ok(source.includes("snapshot?.total"));
 
