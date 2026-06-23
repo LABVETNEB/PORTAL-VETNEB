@@ -8,7 +8,7 @@ const MOBILE_VIEWPORTS = [
   { name: "iphone-pro-max-430x932", width: 430, height: 932 },
 ] as const;
 
-const MOCK_SESSIONS = Array.from({ length: 9 }, (_, index) => ({
+const MOCK_SESSIONS = Array.from({ length: 13 }, (_, index) => ({
   sessionType: (["admin", "clinic", "particular"] as const)[index % 3],
   sessionId: 8100 + index,
   actorType: (["admin_user", "clinic_user", "particular_token"] as const)[
@@ -54,7 +54,7 @@ type OpsModule = {
   pagerName: RegExp;
   primaryActionName: RegExp;
   // Viewport-safe page-size ceiling for this module's mobile list; differs
-  // per module (audit moved to 10/page, sessions/users stay at their
+  // per module (audit and sessions moved to 10/page, users stays at its
   // existing density).
   maxItemsPerPage: number;
 };
@@ -72,7 +72,7 @@ const OPS_MODULES: OpsModule[] = [
     moduleId: "admin-sessions",
     pagerName: /paginación de sesiones/i,
     primaryActionName: /actualizar/i,
-    maxItemsPerPage: 4,
+    maxItemsPerPage: 10,
   },
   {
     key: "users",
@@ -384,3 +384,49 @@ for (const moduleSpec of OPS_MODULES) {
     ).toBeHidden();
   });
 }
+
+test("Admin mobile sessions Tipo/Estado selects render their full option text uncut", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await setPopulatedAdminSession(page);
+  await mockOpsApis(page);
+  await page.goto("/dashboard/admin?module=admin-sessions");
+
+  const moduleRoot = page.locator('[data-admin-mobile-ops-module="sessions"]');
+  await expect(moduleRoot).toBeVisible({ timeout: 15_000 });
+
+  const tipoSelect = moduleRoot.getByLabel("Tipo");
+  const estadoSelect = moduleRoot.getByLabel("Estado");
+  await expect(tipoSelect).toBeVisible();
+  await expect(estadoSelect).toBeVisible();
+
+  for (const [select, label] of [
+    [tipoSelect, "Tipo"],
+    [estadoSelect, "Estado"],
+  ] as const) {
+    const metrics = await select.evaluate((element) => {
+      const select = element as HTMLSelectElement;
+      const style = window.getComputedStyle(select);
+      const fontSizePx = parseFloat(style.fontSize);
+      const paddingY =
+        parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      return {
+        contentHeight: select.clientHeight - paddingY,
+        // Browsers render a single line of text at roughly 1.15-1.2x the
+        // font size even under `line-height: 1`; this is the minimum
+        // content box needed to avoid clipping the glyph's top/bottom.
+        minTextHeight: fontSizePx * 1.15,
+      };
+    });
+    expect(
+      metrics.contentHeight,
+      `${label}: content height must fit a full text line (no vertical clipping)`,
+    ).toBeGreaterThanOrEqual(metrics.minTextHeight);
+  }
+
+  const itemCount = await moduleRoot
+    .locator('[data-admin-mobile-ops-item="true"]')
+    .count();
+  expect(itemCount, "sessions: 10 per mobile page").toBeLessThanOrEqual(10);
+});
