@@ -5,11 +5,15 @@ import {
   test,
   type Locator,
   type Page,
-  type Route,
   type TestInfo,
 } from "@playwright/test";
 
-const TOLERANCE = 2;
+import {
+  ADMIN_MOBILE_TOLERANCE as TOLERANCE,
+  fulfillJson,
+  setPopulatedAdminSession,
+  suppressNextDevIndicator,
+} from "./helpers/admin-mobile-contracts";
 
 const MOBILE_VIEWPORTS = [
   { name: "android-small-360x740", width: 360, height: 740 },
@@ -128,24 +132,6 @@ const MODULE_SCREENS: AdminModuleScreen[] = [
   },
 ];
 
-async function setPopulatedAdminSession(page: Page) {
-  await page.context().addCookies([
-    {
-      name: "admin_session_id",
-      value: "e2e_populated_admin_session",
-      url: "http://127.0.0.1:3000",
-    },
-  ]);
-}
-
-function fulfillJson(route: Route, body: unknown) {
-  return route.fulfill({
-    status: 200,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
-
 async function mockMissingPopulatedApis(page: Page) {
   await page.route("**/api/admin/clinics**", async (route) => {
     const request = route.request();
@@ -184,12 +170,6 @@ async function mockMissingPopulatedApis(page: Page) {
       offset,
       currentAdminSessionId: 8200,
     });
-  });
-}
-
-async function suppressNextDevIndicator(page: Page) {
-  await page.addStyleTag({
-    content: "nextjs-portal { display: none !important; }",
   });
 }
 
