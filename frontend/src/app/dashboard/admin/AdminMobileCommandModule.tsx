@@ -35,7 +35,7 @@ type AdminMobileCommandModuleProps = {
   recentActivity: RecentAdminActivity | null;
 };
 
-const FAILED_LOGIN_PAGE_SIZE = 3;
+const FAILED_LOGIN_PAGE_SIZE = 10;
 
 function formatSurface(value: AdminFailedLoginAlertSurface) {
   if (value === "admin") return "Admin";
@@ -143,43 +143,45 @@ function AdminMobileFailedLoginSection() {
         </Button>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-rows-3 gap-1.5 overflow-hidden">
+      <div className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75">
         {alerts.length ? (
           alerts.map((alert) => (
             <article
               key={alert.id}
               data-admin-mobile-status-item="true"
-              className="flex min-h-0 flex-col justify-center gap-1 overflow-hidden rounded-md border border-vetneb-line/70 bg-card/92 px-2.5 py-1.5"
+              className="flex min-h-9 items-center gap-2 overflow-hidden px-2.5 py-0.5"
             >
-              <div className="flex min-w-0 items-center gap-1.5">
-                <Badge
-                  variant={getSurfaceVariant(alert.surface)}
-                  className="h-5 px-1.5 text-[10px]"
-                >
-                  {formatSurface(alert.surface)}
-                </Badge>
-                <Badge
-                  variant={getReasonVariant(alert.reason)}
-                  className="h-5 px-1.5 text-[10px]"
-                >
-                  {formatReason(alert.reason)}
-                </Badge>
-                <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">
-                  #{alert.id}
-                </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <Badge
+                    variant={getSurfaceVariant(alert.surface)}
+                    className="h-5 px-1.5 text-[10px]"
+                  >
+                    {formatSurface(alert.surface)}
+                  </Badge>
+                  <Badge
+                    variant={getReasonVariant(alert.reason)}
+                    className="h-5 px-1.5 text-[10px]"
+                  >
+                    {formatReason(alert.reason)}
+                  </Badge>
+                  <span className="min-w-0 truncate text-xs font-medium text-vetneb-ink">
+                    {alert.username && alert.username.trim()
+                      ? alert.username
+                      : "Sin usuario"}
+                  </span>
+                </div>
+                <p className="truncate text-[10px] text-muted-foreground">
+                  {alert.ipAddress ?? "IP —"} · {formatDateTime(alert.createdAt)}
+                </p>
               </div>
-              <p className="truncate text-xs font-medium text-vetneb-ink">
-                {alert.username && alert.username.trim()
-                  ? alert.username
-                  : "Sin usuario"}
-              </p>
-              <p className="truncate text-[10px] text-muted-foreground">
-                {alert.ipAddress ?? "IP —"} · {formatDateTime(alert.createdAt)}
-              </p>
+              <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                #{alert.id}
+              </span>
             </article>
           ))
         ) : (
-          <div className="row-span-3 flex items-center justify-center px-4 text-center text-xs text-muted-foreground">
+          <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
             {error
               ? "No se pudieron cargar los intentos fallidos."
               : isPending
