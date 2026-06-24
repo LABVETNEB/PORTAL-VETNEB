@@ -55,9 +55,9 @@ This PR does not change:
 | Backend readiness | Runtime readiness is stable before release | Runtime /health and API root request without cookies or secrets | Readiness endpoints respond successfully for the observed runtime | Passed | Production /health returned HTTP 200 with database/storage readiness; API root returned HTTP 200 with service identity and production environment. Deployment commit mapping remains tracked separately in the Deployment commit row. |
 | Admin private route without cookie | Admin private surface rejects unauthenticated access | Terminal HEAD request without cookies | Request is rejected or redirected without exposing private data | Passed | No-session request to /dashboard/admin returned HTTP 307 to /login?next=%2Fdashboard%2Fadmin with Cache-Control: no-store, no-cache, must-revalidate; no private response body was printed. |
 | Clinic private route without cookie | Clinic private surface rejects unauthenticated access | Terminal HEAD request without cookies | Request is rejected or redirected without exposing private data | Passed | No-session requests to /dashboard and /dashboard/informes returned HTTP 307 to login with Cache-Control: no-store, no-cache, must-revalidate; no private response bodies were printed. |
-| Admin session cookie | Admin session uses dmin_session_id only | Browser DevTools Application/Cookies with values redacted | Admin flow does not require or create pp_session_id as admin session authority | Pending | Source review confirms admin session authority is represented as dmin_session_id in rontend/src/proxy.ts and server env defaults, but browser/runtime cookie review was not performed in this PR. Do not mark Passed until cookie-name-only runtime evidence is collected without copying values. |
-| Clinic session cookie | Clinic session uses pp_session_id only | Browser DevTools Application/Cookies with values redacted | Clinic flow does not require or create dmin_session_id as clinic session authority | Pending | Source review confirms clinic session authority is represented as pp_session_id in rontend/src/proxy.ts and server env defaults, but browser/runtime cookie review was not performed in this PR. Do not mark Passed until cookie-name-only runtime evidence is collected without copying values. |
-| Session separation | Admin and clinic session authorities remain separated | Manual two-browser or two-profile verification with cookie names only | No session authority mixing between admin and clinic surfaces | Pending | Source review confirms /dashboard/admin requires dmin_session_id while non-admin dashboard routes require pp_session_id; runtime two-surface cookie review was not performed in this PR, so this row remains Pending. |
+| Admin session cookie | Admin session uses `admin_session_id` only | Browser DevTools Application/Cookies with values redacted | Admin flow does not require or create `app_session_id` as admin session authority | Pending | Source review confirms admin session authority is represented as `admin_session_id` in `frontend/src/proxy.ts` and server env defaults, but browser/runtime cookie review was not performed. Do not mark Passed until cookie-name-only runtime evidence is collected without copying values. |
+| Clinic session cookie | Clinic session uses `app_session_id` only | Browser DevTools Application/Cookies with values redacted | Clinic flow does not require or create `admin_session_id` as clinic session authority | Pending | Source review confirms clinic session authority is represented as `app_session_id` in `frontend/src/proxy.ts` and server env defaults, but browser/runtime cookie review was not performed. Do not mark Passed until cookie-name-only runtime evidence is collected without copying values. |
+| Session separation | Admin and clinic session authorities remain separated | Manual two-browser or two-profile verification with cookie names only | No session authority mixing between admin and clinic surfaces | Pending | Source review confirms `/dashboard/admin` requires `admin_session_id` while non-admin dashboard routes require `app_session_id`; runtime two-surface cookie review was not performed, so this row remains Pending. |
 | RLS tenant isolation | Tenant-scoped data remains isolated | Existing RLS matrix evidence and staging verification with sanitized identifiers | Tenant A cannot access Tenant B data | Pending | RLS/enforcement matrices remain represented, but runtime two-tenant cross-tenant smoke remains pending per PR #1116. This row must not be marked Passed until sanitized Clinic A/B evidence is executed and recorded. |
 | Cross-tenant smoke | Cross-tenant smoke runbook evidence is collected | Existing cross-tenant smoke runbook, sanitized output only | Smoke attempt is blocked and produces no sensitive leakage | Pending | See "Runtime evidence gap - cross-tenant smoke and audit logging" below: the runbook itself records NO-GO and no live two-tenant smoke has been executed. |
 | Audit logging | Security-relevant denied access is auditable | Staging logs, observability dashboard or approved audit source | Denied access is observable without logging secrets | Pending | See "Runtime evidence gap - cross-tenant smoke and audit logging" below: denied-login auditing has code/test evidence, cross-tenant resource denial has no audit event and no staging log review was performed. |
@@ -259,29 +259,6 @@ Scope: documentation-only review of existing runbooks, security matrices and aut
 - Cross-tenant smoke requires a live two-tenant runtime smoke that has not been executed. The runbook itself still declares NO-GO, and the only related automated test is a static contract that self-declares `pending_runtime_staging_evidence` for all 15 scenarios.
 - Audit logging has real, tested evidence for denied **login** attempts only. It has no audit trail for cross-tenant resource denial, and no staging or observability log review was available in this session. Marking it Passed would overstate current evidence and contradict the still-open status in `rls-enforcement-matrix.md` and `ENDPOINT_TEST_MATRIX.md`.
 
-## Runtime evidence — sessions, cookie separation and health readiness
-
-Date: 2026-06-24
-Evidence base commit: `94d798f docs(security): record cross-tenant and audit evidence (#1116)`
-Scope: PR-S5 runtime evidence for admin session, clinic session, cookie separation, private session boundaries and health/readiness.
-
-Evidence recorded:
-
-- Admin session: browser cookie review confirmed `admin_session_id` as the admin session cookie without copying cookie values.
-- Clinic session: browser cookie review confirmed `app_session_id` as the clinic session cookie without copying cookie values.
-- Cookie separation: source verification in `frontend/src/proxy.ts` confirms admin dashboard access requires `admin_session_id` and non-admin dashboard access requires `app_session_id`.
-- Logout continuity: prior post-merge evidence remains valid for admin and clinic logout followed by browser Back and `Ctrl+R`; private dashboard data was not displayed.
-- Private route boundary: no-session requests to `/dashboard`, `/dashboard/admin` and `/dashboard/informes` redirect to login without exposing private data.
-- Health/readiness: production `/health` was reachable and returned success/status OK with database/storage readiness fields.
-- RLS/tenant enforcement continuity: RLS and tenant-enforcement matrices remain represented, but runtime cross-tenant smoke remains Pending per PR #1116 and is not overstated as Passed.
-
-Result:
-
-- Admin session: Passed.
-- Clinic session: Passed.
-- Cookie separation: Passed.
-- Health / readiness: Passed.
-- RLS / tenant enforcement continuity: Pending until cross-tenant smoke is executed and recorded.
 
 ## Runtime evidence - backend health, readiness and no-session private routes
 
