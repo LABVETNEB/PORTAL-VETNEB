@@ -2,10 +2,8 @@
 
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
-import { clearDashboardLastModules } from "@/lib/dashboard-last-module";
-import { ROUTES } from "@/lib/routes";
+import { DashboardLogoutControl } from "./DashboardLogoutControl";
 import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
 import { DashboardHorizontalNav } from "./DashboardHorizontalNav";
 import { AdminMobileKebabMenu } from "./AdminMobileKebabMenu";
@@ -99,10 +97,8 @@ export function DashboardTopbar({
         >
           <ThemeModeToggle />
           <DashboardTopbarNotifications notifications={notifications} />
-          <PublicRouteControl
-            href={ROUTES.login}
-            variant="bare"
-            onClick={clearDashboardLastModules}
+          <DashboardLogoutControl
+            surface={isAdmin ? "admin" : "clinic"}
             aria-label="Cerrar sesión"
             title="Cerrar sesión"
             className="inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-input bg-card/95 px-2 text-sm font-semibold text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 sm:h-9 sm:min-w-0 sm:px-3"
@@ -113,7 +109,7 @@ export function DashboardTopbar({
                 Salir
               </span>
             ) : null}
-          </PublicRouteControl>
+          </DashboardLogoutControl>
         </div>
         {isAdmin ? <AdminMobileKebabMenu /> : null}
       </div>

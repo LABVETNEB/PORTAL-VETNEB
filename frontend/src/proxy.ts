@@ -5,6 +5,18 @@ const ADMIN_SESSION_COOKIE_NAME = "admin_session_id";
 const LOGIN_PATH = "/login";
 const ADMIN_DASHBOARD_PATH_PREFIX = "/dashboard/admin";
 
+// Private surfaces must never be cached by the browser, shared caches or the
+// back/forward cache. `no-store` also makes these pages ineligible for bfcache
+// in Chromium/Firefox, so Back + reload after logout hit the proxy instead of a
+// stale private snapshot.
+const PRIVATE_CACHE_CONTROL = "no-store, no-cache, must-revalidate";
+
+function applyPrivateCacheHeaders(response: NextResponse): NextResponse {
+  response.headers.set("Cache-Control", PRIVATE_CACHE_CONTROL);
+  response.headers.set("Pragma", "no-cache");
+  return response;
+}
+
 function isAdminDashboardPath(pathname: string): boolean {
   return (
     pathname === ADMIN_DASHBOARD_PATH_PREFIX ||
@@ -26,7 +38,7 @@ export function proxy(request: NextRequest) {
   );
 
   if (hasRequiredSession) {
-    return NextResponse.next();
+    return applyPrivateCacheHeaders(NextResponse.next());
   }
 
   const loginUrl = request.nextUrl.clone();
@@ -35,7 +47,7 @@ export function proxy(request: NextRequest) {
   loginUrl.pathname = LOGIN_PATH;
   loginUrl.searchParams.set("next", nextPath);
 
-  return NextResponse.redirect(loginUrl);
+  return applyPrivateCacheHeaders(NextResponse.redirect(loginUrl));
 }
 
 export const config = {

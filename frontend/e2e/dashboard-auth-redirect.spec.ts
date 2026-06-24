@@ -2,7 +2,11 @@ import { expect, test } from "@playwright/test";
 
 const LOGIN_FORM_NAME = "Formulario de inicio de sesión";
 
-for (const dashboardPath of ["/dashboard", "/dashboard/admin"] as const) {
+for (const dashboardPath of [
+  "/dashboard",
+  "/dashboard/admin",
+  "/dashboard/informes",
+] as const) {
   test(`unauthenticated ${dashboardPath} redirects to a stable login page`, async ({
     page,
   }) => {

@@ -99,6 +99,23 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Private dashboard surfaces must never be stored by the browser, a
+        // shared cache or the back/forward cache. `no-store` also makes the
+        // document ineligible for bfcache in Chromium/Firefox, so Back + reload
+        // after logout reach the proxy instead of a stale private snapshot.
+        source: "/dashboard/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, no-cache, must-revalidate",
+          },
+          {
+            key: "Pragma",
+            value: "no-cache",
+          },
+        ],
+      },
+      {
         source: "/sw.js",
         headers: [
           {
