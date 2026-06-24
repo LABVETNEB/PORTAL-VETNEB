@@ -62,8 +62,8 @@ This PR does not change:
 | Cross-tenant smoke | Cross-tenant smoke runbook evidence is collected | Existing cross-tenant smoke runbook, sanitized output only | Smoke attempt is blocked and produces no sensitive leakage | Pending | |
 | Audit logging | Security-relevant denied access is auditable | Staging logs, observability dashboard or approved audit source | Denied access is observable without logging secrets | Pending | |
 | Secret sanitization | Logs and evidence do not expose sensitive values | Manual review of submitted evidence | No cookies, tokens, passwords, hashes, signed URLs or secret env values are present | Pending | |
-| PWA cache | Private surfaces are not cached as reusable private content | Browser DevTools Application/Cache Storage/Service Worker review | Private authenticated data is not available after logout or without session | Pending | |
-| HTTP cache headers | Private responses have safe cache behavior | Browser DevTools Network headers review | Private responses are not cacheable in a way that exposes authenticated data | Pending | |
+| PWA cache | Private surfaces are not cached as reusable private content | Browser DevTools Application/Cache Storage/Service Worker review plus source/runtime verification | Private authenticated data is not available after logout or without session | Passed | Post-merge evidence after PR #1112/#1113: rontend/public/sw.js excludes /dashboard, /api/, /admin and responses with Set-Cookie from service-worker caching; production no-session /dashboard* requests redirect to login with Cache-Control: no-store, no-cache, must-revalidate; admin and clinic logout + Back + Ctrl+R did not display private dashboard data. |
+| HTTP cache headers | Private responses have safe cache behavior | Production header verification plus source/runtime verification | Private responses are not cacheable in a way that exposes authenticated data | Passed | Post-merge evidence after PR #1112/#1113: production no-session requests to /dashboard, /dashboard/admin and /dashboard/informes return 307 to login with Cache-Control: no-store, no-cache, must-revalidate, Pragma: no-cache and cf-cache-status: DYNAMIC; rontend/next.config.ts declares Cache-Control: no-store, no-cache, must-revalidate for /dashboard/:path*. |
 | Logout behavior | Logout invalidates private access | Browser verification after logout and reload/back navigation | Private data is not visible after logout | Passed | Post-merge evidence for `a69207c` / PR #1112: admin and clinic logout followed by Back + Ctrl+R did not display private dashboard data; browser remained outside the private dashboard / login-safe state. |
 | Unauthorized API access | Private API endpoints do not return data without session | Sanitized terminal request or browser Network request without cookies | Response does not expose private records | Pending | |
 | Deployment commit | Staging evidence corresponds to expected release commit | Deployment dashboard, GitHub commit reference or approved release record | Evidence maps to the intended release commit | Pending | |
@@ -173,3 +173,24 @@ Result:
 
 - Logout behavior: Passed for admin and clinic post-merge runtime verification.
 - HTTP cache headers and PWA cache rows remain pending unless separately verified in staging DevTools against the promoted deployment commit.
+
+## Runtime evidence — HTTP cache headers and PWA cache after PR #1112/#1113
+
+Date: 2026-06-24
+Runtime code commit: `a69207c fix(security): invalidate dashboard logout sessions (#1112)`
+Prior evidence commit: `02005a8 docs(security): record logout runtime evidence (#1113)`
+Scope: PR-S5 runtime evidence for HTTP cache headers and PWA cache rows.
+
+Evidence recorded:
+
+- Production no-session request to `/dashboard` returned `307` to `/login?next=%2Fdashboard` with `Cache-Control: no-store, no-cache, must-revalidate`, `Pragma: no-cache` and `cf-cache-status: DYNAMIC`.
+- Production no-session request to `/dashboard/admin` returned `307` to `/login?next=%2Fdashboard%2Fadmin` with `Cache-Control: no-store, no-cache, must-revalidate`, `Pragma: no-cache` and `cf-cache-status: DYNAMIC`.
+- Production no-session request to `/dashboard/informes` returned `307` to `/login?next=%2Fdashboard%2Finformes` with `Cache-Control: no-store, no-cache, must-revalidate`, `Pragma: no-cache` and `cf-cache-status: DYNAMIC`.
+- Source policy in `frontend/next.config.ts` declares `Cache-Control: no-store, no-cache, must-revalidate` for `/dashboard/:path*`.
+- Service worker source in `frontend/public/sw.js` excludes `/dashboard`, `/api/`, `/admin` and responses with `Set-Cookie` from caching.
+- Prior post-merge evidence from PR #1113 remains valid: admin and clinic logout followed by browser Back and `Ctrl+R` did not display private dashboard data.
+
+Result:
+
+- HTTP cache headers: Passed.
+- PWA cache: Passed.
