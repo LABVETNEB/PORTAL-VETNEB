@@ -61,11 +61,11 @@ This PR does not change:
 | RLS tenant isolation | Tenant-scoped data remains isolated | Existing RLS matrix evidence and staging verification with sanitized identifiers | Tenant A cannot access Tenant B data | Pending | |
 | Cross-tenant smoke | Cross-tenant smoke runbook evidence is collected | Existing cross-tenant smoke runbook, sanitized output only | Smoke attempt is blocked and produces no sensitive leakage | Pending | |
 | Audit logging | Security-relevant denied access is auditable | Staging logs, observability dashboard or approved audit source | Denied access is observable without logging secrets | Pending | |
-| Secret sanitization | Logs and evidence do not expose sensitive values | Manual review of submitted evidence | No cookies, tokens, passwords, hashes, signed URLs or secret env values are present | Pending | |
+| Secret sanitization | Logs and evidence do not expose sensitive values | Manual review of submitted evidence and docs diff | No cookies, tokens, passwords, hashes, signed URLs or secret env values are present | Passed | Evidence was collected without cookies and without printing private API response bodies. Documentation diff was reviewed for secret-like values; no cookie values, bearer tokens, passwords, hashes, signed URLs or secret env values were recorded. |
 | PWA cache | Private surfaces are not cached as reusable private content | Browser DevTools Application/Cache Storage/Service Worker review plus source/runtime verification | Private authenticated data is not available after logout or without session | Passed | Post-merge evidence after PR #1112/#1113: rontend/public/sw.js excludes /dashboard, /api/, /admin and responses with Set-Cookie from service-worker caching; production no-session /dashboard* requests redirect to login with Cache-Control: no-store, no-cache, must-revalidate; admin and clinic logout + Back + Ctrl+R did not display private dashboard data. |
 | HTTP cache headers | Private responses have safe cache behavior | Production header verification plus source/runtime verification | Private responses are not cacheable in a way that exposes authenticated data | Passed | Post-merge evidence after PR #1112/#1113: production no-session requests to /dashboard, /dashboard/admin and /dashboard/informes return 307 to login with Cache-Control: no-store, no-cache, must-revalidate, Pragma: no-cache and cf-cache-status: DYNAMIC; rontend/next.config.ts declares Cache-Control: no-store, no-cache, must-revalidate for /dashboard/:path*. |
 | Logout behavior | Logout invalidates private access | Browser verification after logout and reload/back navigation | Private data is not visible after logout | Passed | Post-merge evidence for `a69207c` / PR #1112: admin and clinic logout followed by Back + Ctrl+R did not display private dashboard data; browser remained outside the private dashboard / login-safe state. |
-| Unauthorized API access | Private API endpoints do not return data without session | Sanitized terminal request or browser Network request without cookies | Response does not expose private records | Pending | |
+| Unauthorized API access | Private API endpoints do not return data without session | Sanitized terminal request without cookies; response bodies not printed | Response does not expose private records | Passed | Post-merge no-session probe against representative private API candidates returned no unexpected 2xx responses and did not print response bodies. Dashboard private routes /dashboard, /dashboard/admin and /dashboard/informes redirect to login without exposing private data. API status summary: /api/admin/auth/me=401; /api/admin/clinics=401; /api/admin/sessions=401; /api/admin/audit=404; /api/admin/alerts=404; /api/admin/reports=404; /api/admin/tokens=404; /api/auth/me=401; /api/clinic/me=404; /api/studies=404; /api/tokens=404; /api/reports=401. Web summary: /dashboard -> HTTP/1.1 307 Temporary Redirect location: /login?next=%2Fdashboard; /dashboard/admin -> HTTP/1.1 307 Temporary Redirect location: /login?next=%2Fdashboard%2Fadmin; /dashboard/informes -> HTTP/1.1 307 Temporary Redirect location: /login?next=%2Fdashboard%2Finformes. |
 | Deployment commit | Staging evidence corresponds to expected release commit | Deployment dashboard, GitHub commit reference or approved release record | Evidence maps to the intended release commit | Pending | |
 | PR-S1 continuity | Session/security audit evidence remains represented | PR-S1 documentation or merged PR evidence | No unresolved session/security blocker remains | Pending | |
 | PR-S2 continuity | RLS/enforcement matrix remains represented | PR-S2 documentation or merged PR evidence | RLS/enforcement expectations are covered | Pending | |
@@ -194,3 +194,24 @@ Result:
 
 - HTTP cache headers: Passed.
 - PWA cache: Passed.
+
+## Runtime evidence — unauthorized API access and secret sanitization
+
+Date: 2026-06-24
+Current evidence base commit: `9e453f4 docs(security): record cache and pwa runtime evidence (#1114)`
+Scope: PR-S5 runtime evidence for unauthorized API access and secret sanitization rows.
+
+Evidence recorded:
+
+- No-session private API probe used only unauthenticated requests. No cookies, tokens or credentials were supplied.
+- Private API response bodies were intentionally not printed to terminal or documentation.
+- No-session private API candidates produced no unexpected `2xx` responses.
+- API status summary: `/api/admin/auth/me=401; /api/admin/clinics=401; /api/admin/sessions=401; /api/admin/audit=404; /api/admin/alerts=404; /api/admin/reports=404; /api/admin/tokens=404; /api/auth/me=401; /api/clinic/me=404; /api/studies=404; /api/tokens=404; /api/reports=401`.
+- No-session private dashboard requests remained blocked or redirected to login without exposing private data.
+- Web status summary: `/dashboard -> HTTP/1.1 307 Temporary Redirect location: /login?next=%2Fdashboard; /dashboard/admin -> HTTP/1.1 307 Temporary Redirect location: /login?next=%2Fdashboard%2Fadmin; /dashboard/informes -> HTTP/1.1 307 Temporary Redirect location: /login?next=%2Fdashboard%2Finformes`.
+- Submitted evidence and documentation diff contain no cookie values, bearer tokens, passwords, hashes, signed URLs or secret environment values.
+
+Result:
+
+- Unauthorized API access: Passed.
+- Secret sanitization: Passed.
