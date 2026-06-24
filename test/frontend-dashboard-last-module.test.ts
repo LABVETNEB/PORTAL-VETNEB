@@ -292,7 +292,7 @@ test("clinic controller persists/restores with the clinic key and replace-only r
 
 // ── 9.4 Logout clears persisted module preferences ─────────────────────────
 
-test("dashboard topbar logout clears persisted module keys before routing to login", () => {
+test("dashboard topbar logout clears persisted module keys and invalidates the session before routing to login", () => {
   const source = read(DASHBOARD_TOPBAR_PATH);
 
   assert.ok(
@@ -300,9 +300,33 @@ test("dashboard topbar logout clears persisted module keys before routing to log
       'import { clearDashboardLastModules } from "@/lib/dashboard-last-module";',
     ),
   );
-  assert.ok(source.includes("onClick={clearDashboardLastModules}"));
+  // Persisted module keys must still be cleared before leaving the surface.
+  assert.ok(source.includes("clearDashboardLastModules();"));
   assert.ok(source.includes("href={ROUTES.login}"));
   assert.equal(source.includes("localStorage"), false);
+
+  // Security regression guard (fix/security-admin-logout-private-cache): logout
+  // must invalidate the server session, not only navigate to /login. A bare
+  // `onClick={clearDashboardLastModules}` left the session cookie valid and let
+  // Back + reload re-render private dashboard data — this evolves the previous
+  // (insecure) contract to require real session invalidation.
+  assert.ok(
+    source.includes("logoutAdmin") && source.includes("logoutClinic"),
+    "logout must call the per-surface logout endpoint",
+  );
+  assert.ok(
+    source.includes("event.preventDefault();"),
+    "logout must cancel PublicRouteControl client navigation so the session is invalidated first",
+  );
+  assert.ok(
+    source.includes("window.location.replace(ROUTES.login)"),
+    "logout must hard-redirect to /login after invalidating the session",
+  );
+  assert.equal(
+    source.includes("onClick={clearDashboardLastModules}"),
+    false,
+    "logout must not use the insecure navigate-only handler",
+  );
 });
 
 test("AuthContext logout clears persisted module keys after backend logout succeeds", () => {
