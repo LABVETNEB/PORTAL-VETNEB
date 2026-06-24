@@ -118,7 +118,7 @@ test("Frontend CI ejecuta gates obligatorios en orden", () => {
     "      - name: Build frontend\n        run: pnpm --dir frontend build",
     "      - name: Audit built public surface\n        run: pnpm security:public-surface",
     "      - name: Install Playwright browsers\n        run: pnpm --dir frontend exec playwright install --with-deps chromium",
-    "      - name: Run frontend E2E smoke tests\n        run: pnpm --dir frontend e2e",
+    "      - name: Run frontend E2E layered tests\n        run: |\n          set +e\n\n          pnpm --dir frontend e2e:smoke\n          smoke_status=$?\n\n          pnpm --dir frontend e2e:admin-mobile\n          admin_mobile_status=$?\n\n          pnpm --dir frontend e2e:visual-contract\n          visual_contract_status=$?\n\n          pnpm --dir frontend e2e:public-clinic\n          public_clinic_status=$?\n\n          if [ \"$smoke_status\" -ne 0 ] || [ \"$admin_mobile_status\" -ne 0 ] || [ \"$visual_contract_status\" -ne 0 ] || [ \"$public_clinic_status\" -ne 0 ]; then\n            exit 1\n          fi",
   ]);
 });
 

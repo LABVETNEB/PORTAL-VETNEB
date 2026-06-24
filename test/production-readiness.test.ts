@@ -287,7 +287,7 @@ test("frontend CI audits the built public surface before E2E", () => {
     "      - name: Audit built public surface\n        run: pnpm security:public-surface",
   );
   const e2eIndex = workflow.indexOf(
-    "      - name: Run frontend E2E smoke tests\n        run: pnpm --dir frontend e2e",
+    "      - name: Run frontend E2E layered tests\n        run: |\n          set +e\n\n          pnpm --dir frontend e2e:smoke",
   );
 
   assert.ok(buildIndex >= 0);
