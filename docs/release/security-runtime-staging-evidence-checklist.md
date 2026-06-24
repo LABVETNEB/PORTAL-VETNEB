@@ -64,7 +64,7 @@ This PR does not change:
 | Secret sanitization | Logs and evidence do not expose sensitive values | Manual review of submitted evidence | No cookies, tokens, passwords, hashes, signed URLs or secret env values are present | Pending | |
 | PWA cache | Private surfaces are not cached as reusable private content | Browser DevTools Application/Cache Storage/Service Worker review | Private authenticated data is not available after logout or without session | Pending | |
 | HTTP cache headers | Private responses have safe cache behavior | Browser DevTools Network headers review | Private responses are not cacheable in a way that exposes authenticated data | Pending | |
-| Logout behavior | Logout invalidates private access | Browser verification after logout and reload/back navigation | Private data is not visible after logout | Pending | |
+| Logout behavior | Logout invalidates private access | Browser verification after logout and reload/back navigation | Private data is not visible after logout | Passed | Post-merge evidence for `a69207c` / PR #1112: admin and clinic logout followed by Back + Ctrl+R did not display private dashboard data; browser remained outside the private dashboard / login-safe state. |
 | Unauthorized API access | Private API endpoints do not return data without session | Sanitized terminal request or browser Network request without cookies | Response does not expose private records | Pending | |
 | Deployment commit | Staging evidence corresponds to expected release commit | Deployment dashboard, GitHub commit reference or approved release record | Evidence maps to the intended release commit | Pending | |
 | PR-S1 continuity | Session/security audit evidence remains represented | PR-S1 documentation or merged PR evidence | No unresolved session/security blocker remains | Pending | |
@@ -156,3 +156,20 @@ Blocked items must be escalated into a separate scoped PR or incident note. This
 For future security releases, copy this checklist into the release evidence record and complete it against the exact staging deployment commit being promoted.
 
 Do not reuse old evidence for a new deployment unless the reviewer explicitly confirms that the runtime artifact, configuration and commit are unchanged.
+
+## Runtime evidence — logout/back/reload after PR #1112
+
+Date: 2026-06-24
+Commit: `a69207c fix(security): invalidate dashboard logout sessions (#1112)`
+Scope: post-merge browser verification of the PR-S5 logout behavior row.
+
+Evidence recorded:
+
+- Admin dashboard: after login, `/dashboard/admin`, logout, browser Back and `Ctrl+R`, private dashboard data was not displayed. Browser remained outside the private dashboard.
+- Clinic dashboard: after login, `/dashboard`, logout, browser Back and `Ctrl+R`, private dashboard data was not displayed. Browser remained outside the private dashboard.
+- CI for PR #1112: Backend CI push passed, Backend CI pull_request passed, Frontend CI pull_request passed; Supabase Preview skipped as expected.
+
+Result:
+
+- Logout behavior: Passed for admin and clinic post-merge runtime verification.
+- HTTP cache headers and PWA cache rows remain pending unless separately verified in staging DevTools against the promoted deployment commit.
