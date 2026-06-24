@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Building2, Home, KeyRound, Menu, ScrollText } from "lucide-react";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
-import { requestAdminHubReset } from "@/lib/admin-hub-reset";
+import {
+  requestAdminHubReset,
+  requestAdminModuleActivate,
+} from "@/lib/admin-hub-reset";
 import {
   ADMIN_LAST_MODULE_STORAGE_KEY,
   writeDashboardLastModule,
@@ -90,6 +93,11 @@ export function AdminMobileBottomNav() {
               data-admin-mobile-bottom-nav-item="true"
               onClick={() => {
                 setActiveModule(destination.moduleId);
+                // Activate the module synchronously so the workspace swaps
+                // immediately, instead of waiting for the async URL push (which
+                // can lag under load and strand the controller on the previous
+                // module). The router.push below keeps the URL in sync.
+                requestAdminModuleActivate(destination.moduleId);
                 closeModuleMenu();
               }}
               className={cn(

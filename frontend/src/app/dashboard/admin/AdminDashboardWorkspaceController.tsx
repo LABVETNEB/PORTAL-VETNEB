@@ -37,7 +37,10 @@ import {
   getAdminAccessErrorSnapshot,
   subscribeAdminAccessError,
 } from "@/lib/admin-access-error";
-import { subscribeAdminHubReset } from "@/lib/admin-hub-reset";
+import {
+  subscribeAdminHubReset,
+  subscribeAdminModuleActivate,
+} from "@/lib/admin-hub-reset";
 import type { AdminAccessErrorStatus } from "@/lib/api-error";
 import { AdminAccessErrorState } from "./AdminAccessErrorState";
 
@@ -209,6 +212,23 @@ export function AdminDashboardWorkspaceController({
         clearAdminAccessError();
         setActiveModule(null);
         setHasManuallyReturnedToHub(true);
+      }),
+    [],
+  );
+
+  // The mobile bottom-nav module destinations publish their target so the
+  // workspace swaps synchronously, mirroring the hub cards' optimistic
+  // activateModule. Without this the swap waited on the async URL push, which
+  // intermittently lagged past the navigation under load and left the previous
+  // module rendered (mobile bottom-nav flake).
+  useEffect(
+    () =>
+      subscribeAdminModuleActivate((moduleId) => {
+        const parsed = parseModuleFromUrl(moduleId);
+        if (!parsed) return;
+        clearAdminAccessError();
+        setHasManuallyReturnedToHub(false);
+        setActiveModule(parsed);
       }),
     [],
   );
