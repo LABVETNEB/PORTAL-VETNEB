@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { ExternalLink, KeyRound, LogOut, MoreVertical } from "lucide-react";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
-import { clearDashboardLastModules } from "@/lib/dashboard-last-module";
 import { ROUTES } from "@/lib/routes";
+import { DashboardLogoutControl } from "./DashboardLogoutControl";
 import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
 
 export function AdminMobileKebabMenu() {
@@ -70,17 +70,14 @@ export function AdminMobileKebabMenu() {
             <ExternalLink className="h-4 w-4" aria-hidden="true" />
             <span>Ver sitio público</span>
           </PublicRouteControl>
-          <PublicRouteControl
-            href={ROUTES.login}
-            prefetch={false}
-            variant="bare"
+          <DashboardLogoutControl
+            surface="admin"
             aria-label="Cerrar sesión"
-            onClick={clearDashboardLastModules}
             className="admin-mobile-kebab-action admin-mobile-kebab-logout"
           >
             <LogOut className="h-4 w-4" aria-hidden="true" />
             <span>Cerrar sesión</span>
-          </PublicRouteControl>
+          </DashboardLogoutControl>
         </section>
       ) : null}
     </div>

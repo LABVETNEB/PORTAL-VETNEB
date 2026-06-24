@@ -1,9 +1,15 @@
 "use client";
 
-import { Suspense } from "react";
+import {
+  Suspense,
+  useCallback,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ThemeModeToggle } from "@/components/theme/ThemeModeToggle";
+import { logout as logoutClinic, logoutAdmin } from "@/lib/api";
 import { clearDashboardLastModules } from "@/lib/dashboard-last-module";
 import { ROUTES } from "@/lib/routes";
 import { DashboardNotificationsBell } from "./DashboardNotificationsBell";
@@ -59,6 +65,38 @@ export function DashboardTopbar({
   notifications = false,
 }: DashboardTopbarProps) {
   const isAdmin = notifications === "admin";
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Secure logout: PublicRouteControl keeps the route-registry presentation
+  // (href={ROUTES.login}), but its client-side navigation is cancelled with
+  // preventDefault so logout invalidates the server session instead of merely
+  // routing to /login (which would leave the session alive and let Back/reload
+  // re-render private data). Persisted module keys are cleared before leaving.
+  const handleLogout = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      if (isLoggingOut) {
+        return;
+      }
+      setIsLoggingOut(true);
+      clearDashboardLastModules();
+      void (async () => {
+        try {
+          if (isAdmin) {
+            await logoutAdmin();
+          } else {
+            await logoutClinic();
+          }
+        } catch {
+          // Transport failure must not strand the user on a private surface; the
+          // hard redirect below unloads it and the proxy re-checks the cookie.
+        }
+        // Hard navigation drops the authenticated SPA and in-memory private state.
+        window.location.replace(ROUTES.login);
+      })();
+    },
+    [isAdmin, isLoggingOut],
+  );
 
   return (
     <header
@@ -102,7 +140,8 @@ export function DashboardTopbar({
           <PublicRouteControl
             href={ROUTES.login}
             variant="bare"
-            onClick={clearDashboardLastModules}
+            onClick={handleLogout}
+            disabled={isLoggingOut}
             aria-label="Cerrar sesión"
             title="Cerrar sesión"
             className="inline-flex h-10 min-w-10 items-center justify-center rounded-md border border-input bg-card/95 px-2 text-sm font-semibold text-foreground shadow-[0_1px_2px_rgba(15,45,62,0.05)] transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-vetneb-teal/45 hover:bg-accent/70 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 sm:h-9 sm:min-w-0 sm:px-3"

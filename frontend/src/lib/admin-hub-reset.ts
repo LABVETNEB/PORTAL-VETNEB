@@ -27,3 +27,32 @@ export function subscribeAdminHubReset(
   hubResetListeners.add(listener);
   return () => hubResetListeners.delete(listener);
 }
+
+// The mobile bottom-nav module destinations also navigate via `router.push`, but
+// that URL push is async and, under load, can lag well past the navigation —
+// leaving the controller stranded on the previous module because its
+// `useSearchParams` reconciliation effect only runs once the URL commits. The
+// hub cards never show this because `activateModule` sets the active module from
+// local state synchronously, ahead of the URL. Mirror that: publish the target
+// module so the controller activates it synchronously (optimistically) while the
+// URL catches up in the background. Only the mobile bottom-nav publishes, so
+// desktop behaviour is unchanged.
+
+type AdminModuleActivateListener = (moduleId: string) => void;
+
+const moduleActivateListeners = new Set<AdminModuleActivateListener>();
+
+/** Ask the admin workspace controller to open a module immediately. */
+export function requestAdminModuleActivate(moduleId: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  moduleActivateListeners.forEach((listener) => listener(moduleId));
+}
+
+export function subscribeAdminModuleActivate(
+  listener: AdminModuleActivateListener,
+): () => void {
+  moduleActivateListeners.add(listener);
+  return () => moduleActivateListeners.delete(listener);
+}

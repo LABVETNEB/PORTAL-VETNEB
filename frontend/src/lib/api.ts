@@ -345,6 +345,10 @@ export async function logout(): Promise<void> {
   await apiFetch<void>("/api/auth/logout", { method: "POST" });
 }
 
+export async function logoutAdmin(): Promise<void> {
+  await apiFetch<void>("/api/admin/auth/logout", { method: "POST" });
+}
+
 export type ChangePasswordInput = {
   currentPassword: string;
   newPassword: string;
