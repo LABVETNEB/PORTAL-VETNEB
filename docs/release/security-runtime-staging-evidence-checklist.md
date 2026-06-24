@@ -59,8 +59,8 @@ This PR does not change:
 | Clinic session cookie | Clinic session uses `app_session_id` only | Browser DevTools Application/Cookies with values redacted | Clinic flow does not require or create `admin_session_id` as clinic session authority | Pending | |
 | Session separation | Admin and clinic session authorities remain separated | Manual two-browser or two-profile verification with cookie names only | No session authority mixing between admin and clinic surfaces | Pending | |
 | RLS tenant isolation | Tenant-scoped data remains isolated | Existing RLS matrix evidence and staging verification with sanitized identifiers | Tenant A cannot access Tenant B data | Pending | |
-| Cross-tenant smoke | Cross-tenant smoke runbook evidence is collected | Existing cross-tenant smoke runbook, sanitized output only | Smoke attempt is blocked and produces no sensitive leakage | Pending | |
-| Audit logging | Security-relevant denied access is auditable | Staging logs, observability dashboard or approved audit source | Denied access is observable without logging secrets | Pending | |
+| Cross-tenant smoke | Cross-tenant smoke runbook evidence is collected | Existing cross-tenant smoke runbook, sanitized output only | Smoke attempt is blocked and produces no sensitive leakage | Pending | See "Runtime evidence gap - cross-tenant smoke and audit logging" below: the runbook itself records NO-GO and no live two-tenant smoke has been executed. |
+| Audit logging | Security-relevant denied access is auditable | Staging logs, observability dashboard or approved audit source | Denied access is observable without logging secrets | Pending | See "Runtime evidence gap - cross-tenant smoke and audit logging" below: denied-login auditing has code/test evidence, cross-tenant resource denial has no audit event and no staging log review was performed. |
 | Secret sanitization | Logs and evidence do not expose sensitive values | Manual review of submitted evidence and docs diff | No cookies, tokens, passwords, hashes, signed URLs or secret env values are present | Passed | Evidence was collected without cookies and without printing private API response bodies. Documentation diff was reviewed for secret-like values; no cookie values, bearer tokens, passwords, hashes, signed URLs or secret env values were recorded. |
 | PWA cache | Private surfaces are not cached as reusable private content | Browser DevTools Application/Cache Storage/Service Worker review plus source/runtime verification | Private authenticated data is not available after logout or without session | Passed | Post-merge evidence after PR #1112/#1113: rontend/public/sw.js excludes /dashboard, /api/, /admin and responses with Set-Cookie from service-worker caching; production no-session /dashboard* requests redirect to login with Cache-Control: no-store, no-cache, must-revalidate; admin and clinic logout + Back + Ctrl+R did not display private dashboard data. |
 | HTTP cache headers | Private responses have safe cache behavior | Production header verification plus source/runtime verification | Private responses are not cacheable in a way that exposes authenticated data | Passed | Post-merge evidence after PR #1112/#1113: production no-session requests to /dashboard, /dashboard/admin and /dashboard/informes return 307 to login with Cache-Control: no-store, no-cache, must-revalidate, Pragma: no-cache and cf-cache-status: DYNAMIC; rontend/next.config.ts declares Cache-Control: no-store, no-cache, must-revalidate for /dashboard/:path*. |
@@ -195,7 +195,7 @@ Result:
 - HTTP cache headers: Passed.
 - PWA cache: Passed.
 
-## Runtime evidence — unauthorized API access and secret sanitization
+## Runtime evidence ï¿½ unauthorized API access and secret sanitization
 
 Date: 2026-06-24
 Current evidence base commit: `9e453f4 docs(security): record cache and pwa runtime evidence (#1114)`
@@ -215,3 +215,46 @@ Result:
 
 - Unauthorized API access: Passed.
 - Secret sanitization: Passed.
+
+## Runtime evidence gap - cross-tenant smoke and audit logging
+
+Date: 2026-06-24
+Evidence base commit: `b7e2894 docs(security): record unauthorized and secret evidence (#1115)`
+Scope: documentation-only review of existing runbooks, security matrices and automated tests for the PR-S5 cross-tenant smoke and audit logging rows. No staging or production access, no live tenant sessions and no observability dashboard were available in this session.
+
+### What was inspected
+
+- `docs/ops/CROSS_TENANT_SMOKE_EVIDENCE_RUNBOOK.md` defines checks CT-01 through CT-16 for Clinic A/B, particular tokens and public tokens. The runbook's own stated result is **NO-GO** until an authorized cross-tenant smoke is executed and recorded with a technical and a business responsible.
+- `docs/security/rls-enforcement-matrix.md` and `docs/security/security-sessions-tenant-rls-audit.md` mark every tenant-scoped resource row, including `Audit log`, as `Abierto - pendiente runtime/staging`.
+- `docs/security/ENDPOINT_TEST_MATRIX.md` lists existing guardrails for the audit log surface (`test/admin-audit.fastify.test.ts`, `test/clinic-audit.fastify.test.ts`, `test/particular-audit.fastify.test.ts`, `test/security-audit-logging-phase-boundaries.test.ts`) but keeps its production status `Abierto - pendiente evidencia runtime/staging` because the required smoke ("export y revision de redaccion") has not run.
+- `test/security-cross-tenant-idor-contract.test.ts` is a documentation-contract test covering 15 cross-tenant IDOR scenarios (`CTIDOR-001`..`CTIDOR-015`). Every entry hardcodes `productionReadinessStatus: "pending_runtime_staging_evidence"`; the test validates contract shape only, not actual runtime behavior.
+- `test/security-audit-logging-phase-boundaries.test.ts` confirms, via source inspection of `server/lib/audit.ts` and route files, that `writeAuditLog` is called only after successful mutations (login succeeded, report status changed, report uploaded, access token created/revoked, public report accessed), with metadata normalization, sanitized request paths, and audit-write failures isolated from the business response.
+- `server/lib/audit-log.ts` defines the full `AUDIT_EVENTS` enum (21 events). All 21 are success-path events; none represents a denied or cross-tenant-blocked attempt.
+- `server/routes/admin-failed-login-alerts.fastify.ts`, `server/db-admin-failed-login-alerts.ts` and `test/admin-failed-login-alerts.fastify.test.ts` show a separate, real mechanism that records denied **login** attempts (`missing_credentials`, `invalid_credentials`, `rate_limited`) per surface (admin/clinic/particular) with `ipAddress`, `userAgent` and `createdAt`, with no password or secret stored. The route requires an authenticated admin session, and the existing test confirms a `401` response without an admin session and a sanitized response shape when one is present.
+
+### What is missing
+
+- No staging or production smoke with two real or controlled tenant sessions (Clinic A / Clinic B) has been executed or recorded for checks CT-01 through CT-16. This requires live access to a staging or controlled-production environment with two test clinics, which was not available in this session.
+- No audit event exists today for a cross-tenant resource-access denial (403/404 IDOR). The only denied-access audit trail found covers failed **login** attempts, not cross-tenant resource access attempts (runbook checks CT-04, CT-06, CT-08, CT-11, CT-12, CT-14).
+- No staging or observability log export was reviewed for secret-free content in this session, since no staging logs or observability dashboard access was available.
+- The canonical security matrices (`rls-enforcement-matrix.md`, `ENDPOINT_TEST_MATRIX.md`, `security-sessions-tenant-rls-audit.md`) still declare these surfaces `Abierto - pendiente runtime/staging` or NO-GO. Marking this checklist `Passed` while those remain open would create documentation drift of the kind PR-S4's guard is meant to prevent.
+
+### Exact manual steps to close (Nico / responsible operator)
+
+1. Confirm explicit authorization for the target environment (staging or controlled production) and identify two test clinics (`Clinic A`, `Clinic B`) with independent sessions and owned resources, per `docs/ops/CROSS_TENANT_SMOKE_EVIDENCE_RUNBOOK.md` section 3.
+2. Execute checks CT-01 through CT-16 from that runbook manually, with the technical and business responsible present.
+3. Record only the sanitized evidence columns allowed in runbook section 5 (status codes, `signedUrl=present/absent`, `foreignReportVisible=false`, cookie flags without values) in the runbook's own evidence table (section 11), not pasted directly into this checklist file.
+4. For the audit logging row specifically, additionally check `/api/admin/audit-log` (or the approved observability/log source) after a denied cross-tenant attempt and confirm whether any event is recorded. If none is recorded, treat the absence of a cross-tenant-denial audit event as a documented product gap for a future scoped PR rather than a checklist failure to hide.
+5. Review the exported or queried audit and failed-login-alert output and confirm it contains no cookies, tokens, passwords, hashes, signed URLs or secret environment values before recording any excerpt.
+6. Update this checklist's two rows to `Passed` only after steps 1-5 produce sanitized evidence with a PASS result per runbook section 9, and update `docs/security/rls-enforcement-matrix.md` / `docs/security/ENDPOINT_TEST_MATRIX.md` in a coordinated follow-up so the matrices do not drift apart.
+
+### How to sanitize evidence before recording it
+
+- Use only the evidence patterns from runbook section 5 (status codes, presence/absence flags, redacted actor labels such as `Clinic A` / `Clinic B`).
+- Never paste cookie values, bearer tokens, passwords, hashes, signed URLs, full response bodies or real patient/tutor data.
+- Prefer terminal status summaries (method, route, HTTP status) over raw logs or screenshots that could contain private data.
+
+### Why this was not marked Passed
+
+- Cross-tenant smoke requires a live two-tenant runtime smoke that has not been executed. The runbook itself still declares NO-GO, and the only related automated test is a static contract that self-declares `pending_runtime_staging_evidence` for all 15 scenarios.
+- Audit logging has real, tested evidence for denied **login** attempts only. It has no audit trail for cross-tenant resource denial, and no staging or observability log review was available in this session. Marking it Passed would overstate current evidence and contradict the still-open status in `rls-enforcement-matrix.md` and `ENDPOINT_TEST_MATRIX.md`.
