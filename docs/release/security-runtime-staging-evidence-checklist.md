@@ -159,8 +159,8 @@ Do not reuse old evidence for a new deployment unless the reviewer explicitly co
 
 ## Runtime evidence — logout/back/reload after PR #1112
 
-Date: 2026-06-24  
-Commit: `a69207c fix(security): invalidate dashboard logout sessions (#1112)`  
+Date: 2026-06-24
+Commit: `a69207c fix(security): invalidate dashboard logout sessions (#1112)`
 Scope: post-merge browser verification of the PR-S5 logout behavior row.
 
 Evidence recorded:
