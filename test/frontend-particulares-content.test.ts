@@ -317,3 +317,44 @@ test("particulares content omite datos ausentes y sensibles en mensaje de tincio
     );
   }
 });
+
+// ─── PR-PUX2: claridad de estados y acciones de informe ─────────────────────
+
+test("particulares content fija contrato de estados de informe disponible/pendiente", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  const availableCount = (
+    source.match(/data-particulares-report-state="available"/g) ?? []
+  ).length;
+  const actionsCount = (
+    source.match(/data-particulares-report-actions="true"/g) ?? []
+  ).length;
+
+  assert.equal(
+    availableCount,
+    2,
+    "must mark both mobile and desktop report blocks as available",
+  );
+  assert.ok(source.includes('data-particulares-report-state="pending"'));
+  assert.equal(
+    actionsCount,
+    2,
+    "must mark both mobile and desktop report action groups",
+  );
+});
+
+test("particulares content keeps distinct ver/descargar actions and safe pending copy", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(source.includes('onClick={() => openReport("preview")}'));
+  assert.ok(source.includes('onClick={() => openReport("download")}'));
+  assert.ok(source.includes("Ver informe"));
+  assert.ok(source.includes("Descargar"));
+  assert.ok(source.includes("Sin informe vinculado todavía"));
+  assert.ok(source.includes("clinical-alert-info"));
+  assert.equal(
+    source.includes('className="clinical-alert-warning p-4"'),
+    false,
+    "pending report state must not use the alarming warning style",
+  );
+});
