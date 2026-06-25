@@ -358,3 +358,83 @@ test("particulares content keeps distinct ver/descargar actions and safe pending
     "pending report state must not use the alarming warning style",
   );
 });
+
+// ─── PR-PUX3: claridad de sesión/error/recovery ─────────────────────────────
+
+test("particulares content fija contrato de selectores de sesión/recovery", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(source.includes('data-particulares-session-state="checking"'));
+  assert.ok(source.includes("data-particulares-session-state={"));
+  assert.ok(source.includes('"recoverable-error"'));
+  assert.ok(source.includes('"expired"'));
+  assert.ok(source.includes('data-particulares-session-retry="true"'));
+  assert.ok(source.includes('data-particulares-rate-limit="true"'));
+});
+
+test("particulares content marca verificación inicial como accesible y ocupada", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  const checkingBlockStart = source.indexOf(
+    'data-particulares-session-state="checking"',
+  );
+  assert.notEqual(checkingBlockStart, -1);
+  const checkingBlock = source.slice(
+    source.lastIndexOf("<div", checkingBlockStart),
+    checkingBlockStart + 200,
+  );
+  assert.ok(checkingBlock.includes('role="status"'));
+  assert.ok(checkingBlock.includes('aria-live="polite"'));
+  assert.ok(checkingBlock.includes('aria-busy="true"'));
+});
+
+test("particulares content mantiene reintento de verificación accesible y wireado a refreshSession", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(source.includes("Reintentar verificación"));
+  assert.ok(source.includes("void refreshSession()"));
+  assert.ok(
+    source.includes('aria-label="Reintentar verificación de sesión"'),
+  );
+
+  const retryButtonStart = source.indexOf(
+    'data-particulares-session-retry="true"',
+  );
+  assert.notEqual(retryButtonStart, -1);
+  const retryButtonBlock = source.slice(
+    source.lastIndexOf("<Button", retryButtonStart),
+    retryButtonStart + 400,
+  );
+  assert.ok(retryButtonBlock.includes("onClick={() => { void refreshSession(); }}"));
+});
+
+test("particulares content distingue copy de sesión vencida vs error recuperable", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(source.includes("PARTICULAR_SESSION_EXPIRED_MESSAGE"));
+  assert.ok(
+    source.includes(
+      "Esto no significa que haya perdido el acceso a su caso. Puede reintentar la verificación.",
+    ),
+  );
+});
+
+test("particulares content muestra estado de espera por rate-limit sin tono de error fatal", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.ok(source.includes("RateLimitError"));
+  assert.ok(source.includes("rateLimitCooldown"));
+  assert.ok(
+    source.includes(
+      "Demasiados intentos. Espere {rateLimitCooldown}s antes de volver a intentar; su caso no se ve afectado.",
+    ),
+  );
+  assert.equal(source.includes("error fatal"), false);
+});
+
+test("particulares content no introduce almacenamiento de sesión en el navegador", () => {
+  const source = read(PARTICULARES_CONTENT_PATH);
+
+  assert.equal(source.includes("sessionStorage"), false);
+  assert.equal(source.includes("localStorage"), false);
+});

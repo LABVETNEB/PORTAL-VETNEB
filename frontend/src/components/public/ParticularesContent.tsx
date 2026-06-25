@@ -618,6 +618,8 @@ export function ParticularesContent() {
                   className="surface-empty p-4 text-sm"
                   role="status"
                   aria-live="polite"
+                  aria-busy="true"
+                  data-particulares-session-state="checking"
                 >
                   Verificando sesión...
                 </div>
@@ -1098,22 +1100,40 @@ export function ParticularesContent() {
                   </div>
 
                   {errorMessage ? (
-                    <div role="alert">
+                    <div
+                      role="alert"
+                      aria-live="assertive"
+                      data-particulares-session-state={
+                        sessionCheckError
+                          ? "recoverable-error"
+                          : errorMessage === PARTICULAR_SESSION_EXPIRED_MESSAGE
+                            ? "expired"
+                            : undefined
+                      }
+                    >
                       <p className="clinical-alert-error px-3 py-2">
                         {errorMessage}
                       </p>
                       {sessionCheckError ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => { void refreshSession(); }}
-                          disabled={isCheckingSession}
-                          className="mt-2 w-full public-cta-outline text-sm"
-                        >
-                          {isCheckingSession
-                            ? "Verificando..."
-                            : "Reintentar verificación"}
-                        </Button>
+                        <>
+                          <p className="mt-1 px-3 text-xs text-muted-foreground">
+                            Esto no significa que haya perdido el acceso a su caso. Puede reintentar la verificación.
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => { void refreshSession(); }}
+                            disabled={isCheckingSession}
+                            aria-busy={isCheckingSession}
+                            aria-label="Reintentar verificación de sesión"
+                            data-particulares-session-retry="true"
+                            className="mt-2 w-full public-cta-outline text-sm"
+                          >
+                            {isCheckingSession
+                              ? "Verificando..."
+                              : "Reintentar verificación"}
+                          </Button>
+                        </>
                       ) : null}
                     </div>
                   ) : null}
@@ -1134,6 +1154,17 @@ export function ParticularesContent() {
                       "Ingresar"
                     )}
                   </Button>
+
+                  {rateLimitCooldown > 0 ? (
+                    <p
+                      className="text-center text-xs text-muted-foreground"
+                      role="status"
+                      aria-live="polite"
+                      data-particulares-rate-limit="true"
+                    >
+                      Demasiados intentos. Espere {rateLimitCooldown}s antes de volver a intentar; su caso no se ve afectado.
+                    </p>
+                  ) : null}
 
                   <p className="text-center text-sm text-muted-foreground">
                     ¿Tiene credenciales de clínica?{" "}
