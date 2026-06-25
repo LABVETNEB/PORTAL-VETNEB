@@ -1285,3 +1285,85 @@ Acceptance:
 - This closeout changes documentation only.
 - The block can be resumed from this closeout without re-auditing the same contracts.
 - Future PRs must cite the relevant contract section before implementation.
+
+## PR-PUX5 — Particulares Product UX closeout
+
+### Scope closed
+
+This closeout finalizes the frontend-only Particulares Product UX block opened after the Product UX Dashboard audit.
+
+Closed PRs:
+
+- PR-PUX1 / `#1130` — Hero and primary action hierarchy for `/particulares`.
+- PR-PUX2 / `#1131` — Report-state and report-action clarity.
+- PR-PUX3 / `#1132` — Session verification, recoverable error, expired session, retry, and cooldown clarity.
+- PR-PUX4 / `#1133` — Mobile no-overflow / no-regression evidence.
+
+### Final product contract
+
+The public `/particulares` surface is confirmed as a tutor-facing product surface, not a private dashboard module.
+
+The canonical UX contract after this block is:
+
+- The primary token/session action is prioritized in the mobile first viewport.
+- The hero, primary action, and next-step guidance remain explicitly marked for regression evidence.
+- Report availability, pending report state, and report actions have stable state/action selectors.
+- Session checking, recoverable verification error, expired session, retry, and cooldown states have stable recovery selectors.
+- Mobile evidence covers 390x844 and 360x740 viewports with no horizontal overflow.
+- Public navigation from `/particulares` to `/login` remains reachable.
+- The surface does not introduce admin/clinic dashboard navigation, private modules, internal operational controls, or dashboard shell coupling.
+
+### Security and privacy boundaries preserved
+
+This block did not change:
+
+- backend
+- API
+- auth
+- database
+- migrations
+- dependencies
+- lockfiles
+- CI/config
+- endpoints
+- cookies
+- real sessions
+- tokens
+- signed URLs
+
+Sensitive behavior remains governed by existing token/session/security contracts.
+
+PR-PUX3 included only a safe public devtools audit allowlist extension for stable public selectors. It did not change security behavior.
+
+### Evidence baseline
+
+Accepted evidence for this block:
+
+- `frontend/e2e/public-routes.spec.ts`
+  - `/particulares` public route renders.
+  - Hero, primary action, and next-step zone render.
+  - Primary action stays in the first mobile viewport.
+  - No horizontal overflow at 390x844.
+  - No horizontal overflow at 360x740.
+  - Public `/login` navigation remains reachable from `/particulares`.
+
+- `test/frontend-particulares-content.test.ts`
+  - Report-state selectors are present.
+  - Report-action selectors are present.
+  - Session-state selectors are present.
+  - Retry and cooldown selectors are present.
+  - Safe recovery copy and accessibility semantics are preserved.
+
+### Acceptance
+
+PR-PUX5 is docs-only. It closes the Particulares Product UX block without production code changes and without changing security-sensitive behavior.
+
+Future `/particulares` UX work must preserve:
+
+- mobile first primary-action visibility
+- no horizontal overflow
+- tutor-facing language
+- public/private boundary separation
+- token/session/report security boundaries
+- no dashboard shell coupling
+- no new backend/API/auth/DB behavior unless explicitly authorized in a separate scoped PR
