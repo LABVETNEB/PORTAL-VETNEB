@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import {
   CalendarDays,
   Clipboard,
+  Clock,
   Download,
   Eye,
   FileText,
@@ -891,6 +892,7 @@ export function ParticularesContent() {
                       {/* Mobile flat report — sin VisualIcon ni clinical-muted-band */}
                       <div
                         data-particular-mobile-flat-card="report"
+                        data-particulares-report-state="available"
                         className="rounded-lg border border-vetneb-line bg-card p-4 sm:hidden"
                       >
                         <div className="flex items-start gap-3">
@@ -900,9 +902,14 @@ export function ParticularesContent() {
                             strokeWidth={1.8}
                           />
                           <div>
-                            <h3 className="font-semibold text-vetneb-navy">
-                              Informe vinculado
-                            </h3>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="font-semibold text-vetneb-navy">
+                                Informe vinculado
+                              </h3>
+                              <span className="inline-flex items-center rounded-full border border-vetneb-teal/40 bg-vetneb-teal/10 px-2 py-0.5 text-xs font-semibold text-vetneb-teal">
+                                Disponible
+                              </span>
+                            </div>
                             <p className="mt-1 text-sm text-muted-foreground">
                               {session.report.studyType ?? "Estudio"} ·{" "}
                               {session.report.fileName ?? "Archivo disponible"}
@@ -912,6 +919,7 @@ export function ParticularesContent() {
 
                         <div
                           data-particular-mobile-flat-actions="true"
+                          data-particulares-report-actions="true"
                           className="mt-4 flex flex-col gap-3"
                         >
                           <Button
@@ -939,6 +947,7 @@ export function ParticularesContent() {
                       {/* Desktop report — oculto en mobile, visible desde sm */}
                       <div
                         id="particular-report"
+                        data-particulares-report-state="available"
                         className="hidden rounded-lg p-4 shadow-sm clinical-muted-band sm:block"
                       >
                         <div className="flex items-start gap-3">
@@ -948,9 +957,14 @@ export function ParticularesContent() {
                             className="h-10 w-10 shrink-0 rounded-xl"
                           />
                           <div>
-                            <h3 className="font-semibold text-vetneb-navy">
-                              Informe vinculado
-                            </h3>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="font-semibold text-vetneb-navy">
+                                Informe vinculado
+                              </h3>
+                              <span className="inline-flex items-center rounded-full border border-vetneb-teal/40 bg-vetneb-teal/10 px-2 py-0.5 text-xs font-semibold text-vetneb-teal">
+                                Disponible
+                              </span>
+                            </div>
                             <p className="mt-1 text-sm text-muted-foreground">
                               {session.report.studyType ?? "Estudio"} ·{" "}
                               {session.report.fileName ?? "Archivo disponible"}
@@ -958,7 +972,10 @@ export function ParticularesContent() {
                           </div>
                         </div>
 
-                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                        <div
+                          data-particulares-report-actions="true"
+                          className="mt-4 flex flex-col gap-3 sm:flex-row"
+                        >
                           <Button
                             type="button"
                             onClick={() => openReport("preview")}
@@ -982,10 +999,25 @@ export function ParticularesContent() {
                       </div>
                     </>
                   ) : (
-                    <div className="clinical-alert-warning p-4">
-                      {trackingCase
-                        ? `El caso todavía no tiene un informe vinculado. Estado del estudio: ${getTrackingStageLabel(trackingCase.currentStage)}.`
-                        : "El caso todavía no tiene un informe vinculado. El estudio continúa en evaluación profesional y se habilitará cuando finalice la validación diagnóstica."}
+                    <div
+                      data-particulares-report-state="pending"
+                      className="clinical-alert-info flex items-start gap-3 p-4"
+                    >
+                      <Clock
+                        className="mt-0.5 h-5 w-5 shrink-0"
+                        aria-hidden="true"
+                        strokeWidth={1.8}
+                      />
+                      <div>
+                        <h3 className="font-semibold text-vetneb-navy">
+                          Sin informe vinculado todavía
+                        </h3>
+                        <p className="mt-1 text-sm">
+                          {trackingCase
+                            ? `El caso continúa en evaluación profesional. Estado del estudio: ${getTrackingStageLabel(trackingCase.currentStage)}. El informe se habilitará automáticamente al finalizar.`
+                            : "El caso continúa en evaluación profesional. El informe se habilitará automáticamente cuando finalice la validación diagnóstica."}
+                        </p>
+                      </div>
                     </div>
                   )}
 
