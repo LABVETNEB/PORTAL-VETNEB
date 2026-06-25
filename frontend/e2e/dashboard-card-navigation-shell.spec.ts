@@ -219,18 +219,18 @@ test.describe("clinic dashboard — workspace activation", () => {
     await expect(hub).not.toBeVisible();
   });
 
-  test("workspace shows Volver a módulos button", async ({ page }) => {
+  test("workspace shows Vista general button", async ({ page }) => {
     await page.goto("/dashboard");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
     await hubCard(hub, "Centro de operaciones").click();
 
-    const backBtn = page.getByRole("button", { name: "Volver a módulos" });
+    const backBtn = page.getByRole("button", { name: "Vista general" });
     await expect(backBtn).toBeVisible({ timeout: 5_000 });
   });
 
-  test("Volver a módulos returns to hub", async ({ page }) => {
+  test("Vista general returns to hub", async ({ page }) => {
     await page.goto("/dashboard");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
@@ -241,7 +241,7 @@ test.describe("clinic dashboard — workspace activation", () => {
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
     ).toBeVisible({ timeout: 5_000 });
 
-    await page.getByRole("button", { name: "Volver a módulos" }).click();
+    await page.getByRole("button", { name: "Vista general" }).click();
 
     await expect(hub).toBeVisible({ timeout: 5_000 });
     await expect(
@@ -377,18 +377,18 @@ test.describe("admin dashboard — workspace activation", () => {
     await expect(hub).not.toBeVisible();
   });
 
-  test("admin workspace shows Volver a módulos button", async ({ page }) => {
+  test("admin workspace shows Vista general button", async ({ page }) => {
     await page.goto("/dashboard/admin");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
     await hubCard(hub, "Administración").click();
 
-    const backBtn = page.getByRole("button", { name: "Volver a módulos" });
+    const backBtn = page.getByRole("button", { name: "Vista general" });
     await expect(backBtn).toBeVisible({ timeout: 5_000 });
   });
 
-  test("Volver a módulos returns to admin hub", async ({ page }) => {
+  test("Vista general returns to admin hub", async ({ page }) => {
     await page.goto("/dashboard/admin");
 
     const hub = page.locator('[data-dashboard-module-hub="true"]');
@@ -399,7 +399,7 @@ test.describe("admin dashboard — workspace activation", () => {
       page.locator('[data-dashboard-module-workspace="admin"]'),
     ).toBeVisible({ timeout: 5_000 });
 
-    await page.getByRole("button", { name: "Volver a módulos" }).click();
+    await page.getByRole("button", { name: "Vista general" }).click();
 
     await expect(hub).toBeVisible({ timeout: 5_000 });
     await expect(
@@ -518,14 +518,14 @@ test.describe("clinic dashboard — deep link direct navigation", () => {
     ).not.toBeVisible();
   });
 
-  test("Volver a módulos from clinic deep link clears query and returns to hub", async ({ page }) => {
+  test("Vista general from clinic deep link clears query and returns to hub", async ({ page }) => {
     await page.goto("/dashboard?module=operaciones");
 
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
     ).toBeVisible({ timeout: 8_000 });
 
-    await page.getByRole("button", { name: "Volver a módulos" }).click();
+    await page.getByRole("button", { name: "Vista general" }).click();
 
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
@@ -574,14 +574,14 @@ test.describe("admin dashboard — deep link direct navigation", () => {
     ).not.toBeVisible();
   });
 
-  test("Volver a módulos from admin deep link clears query and returns to admin hub", async ({ page }) => {
+  test("Vista general from admin deep link clears query and returns to admin hub", async ({ page }) => {
     await page.goto("/dashboard/admin?module=admin-clinics");
 
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
     ).toBeVisible({ timeout: 8_000 });
 
-    await page.getByRole("button", { name: "Volver a módulos" }).click();
+    await page.getByRole("button", { name: "Vista general" }).click();
 
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
@@ -766,7 +766,7 @@ test.describe("admin dashboard — per-module workspace activation", () => {
     });
   }
 
-  test("each admin workspace shows Volver a módulos — Clínicas", async ({ page }) => {
+  test("each admin workspace shows Vista general — Clínicas", async ({ page }) => {
     await page.goto("/dashboard/admin");
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -774,10 +774,10 @@ test.describe("admin dashboard — per-module workspace activation", () => {
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
     ).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByRole("button", { name: "Volver a módulos" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Vista general" })).toBeVisible();
   });
 
-  test("each admin workspace shows Volver a módulos — Auditoría", async ({ page }) => {
+  test("each admin workspace shows Vista general — Auditoría", async ({ page }) => {
     await page.goto("/dashboard/admin");
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -785,10 +785,10 @@ test.describe("admin dashboard — per-module workspace activation", () => {
     await expect(
       page.locator('[data-dashboard-module-workspace="audit-log"]'),
     ).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByRole("button", { name: "Volver a módulos" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Vista general" })).toBeVisible();
   });
 
-  test("Volver a módulos from Clínicas workspace returns to admin hub", async ({ page }) => {
+  test("Vista general from Clínicas workspace returns to admin hub", async ({ page }) => {
     await page.goto("/dashboard/admin");
     const hub = page.locator('[data-dashboard-module-hub="true"]');
     await expect(hub).toBeVisible({ timeout: 8_000 });
@@ -796,7 +796,7 @@ test.describe("admin dashboard — per-module workspace activation", () => {
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),
     ).toBeVisible({ timeout: 5_000 });
-    await page.getByRole("button", { name: "Volver a módulos" }).click();
+    await page.getByRole("button", { name: "Vista general" }).click();
     await expect(hub).toBeVisible({ timeout: 5_000 });
     await expect(
       page.locator('[data-dashboard-module-workspace="admin-clinics"]'),

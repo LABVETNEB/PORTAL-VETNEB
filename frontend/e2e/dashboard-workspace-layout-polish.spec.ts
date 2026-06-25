@@ -86,7 +86,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
       '[data-dashboard-module-workspace="operaciones"]',
     );
     await expect(workspace).toBeVisible({ timeout: 8_000 });
-    const volverBtn = workspace.locator('button[aria-label="Volver a módulos"]');
+    const volverBtn = workspace.locator('button[aria-label="Vista general"]');
     await expect(volverBtn).toBeVisible();
     await expect(volverBtn).toHaveClass(/dashboard-btn-interactive/);
   });
