@@ -369,7 +369,7 @@ test("particulares content fija contrato de selectores de sesión/recovery", () 
   assert.ok(source.includes('"recoverable-error"'));
   assert.ok(source.includes('"expired"'));
   assert.ok(source.includes('data-particulares-session-retry="true"'));
-  assert.ok(source.includes('data-particulares-rate-limit="true"'));
+  assert.ok(source.includes('data-particulares-cooldown="true"'));
 });
 
 test("particulares content marca verificación inicial como accesible y ocupada", () => {
@@ -426,7 +426,7 @@ test("particulares content muestra estado de espera por rate-limit sin tono de e
   assert.ok(source.includes("rateLimitCooldown"));
   assert.ok(
     source.includes(
-      "Demasiados intentos. Espere {rateLimitCooldown}s antes de volver a intentar; su caso no se ve afectado.",
+      "Espere {rateLimitCooldown}s antes de volver a intentar; su caso no se ve afectado.",
     ),
   );
   assert.equal(source.includes("error fatal"), false);

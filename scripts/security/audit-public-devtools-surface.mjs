@@ -133,7 +133,7 @@ const PUBLIC_PRESENTATION_DATA_ATTRIBUTES = new Set([
   "particular-session-field",
   "particulares-session-state",
   "particulares-session-retry",
-  "particulares-rate-limit",
+  "particulares-cooldown",
 ]);
 const SENSITIVE_ATTRIBUTE_VALUE_REGEX =
   /(bearer\s+[a-z0-9._-]{10,}|token\s*[=:]|secret\s*[=:]|password\s*[=:]|api[_-]?key\s*[=:]|jwt\s*[=:]|cookie\s*[=:]|access[_-]?token|refresh[_-]?token|session[_-]?id)/i;

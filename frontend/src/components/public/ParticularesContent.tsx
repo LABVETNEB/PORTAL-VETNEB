@@ -1160,9 +1160,9 @@ export function ParticularesContent() {
                       className="text-center text-xs text-muted-foreground"
                       role="status"
                       aria-live="polite"
-                      data-particulares-rate-limit="true"
+                      data-particulares-cooldown="true"
                     >
-                      Demasiados intentos. Espere {rateLimitCooldown}s antes de volver a intentar; su caso no se ve afectado.
+                      Espere {rateLimitCooldown}s antes de volver a intentar; su caso no se ve afectado.
                     </p>
                   ) : null}
 
