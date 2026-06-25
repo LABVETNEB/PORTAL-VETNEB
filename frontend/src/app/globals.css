@@ -2083,6 +2083,9 @@
     --dash-pad-x: clamp(0.75rem, 0.45rem + 1vw, 2rem);
     --dash-pad-y: clamp(0.6rem, 0.4rem + 0.7vh, 1.5rem);
     --dash-rhythm: clamp(0.6rem, 0.4rem + 0.7vh, 1.5rem);
+    --dash-frame-inset-inline: var(--dash-pad-x);
+    --dash-frame-inset-block-start: var(--dash-pad-y);
+    --dash-frame-inset-block-end: var(--dash-pad-x);
 
     /* Panels / cards: gap between panels, internal card padding, master/detail
        floor (replaces the rigid 18rem that forced 36rem in single-column). */
@@ -2151,8 +2154,9 @@
 
   /* ── Apply tokens (higher specificity than the base utility rules) ───────── */
   .dashboard-app-shell .dashboard-main {
-    padding-inline: var(--dash-pad-x);
-    padding-block: var(--dash-pad-y);
+    padding-inline: var(--dash-frame-inset-inline);
+    padding-block-start: var(--dash-frame-inset-block-start);
+    padding-block-end: var(--dash-frame-inset-block-end);
   }
 
   .dashboard-app-shell .dashboard-main > :not([hidden]) ~ :not([hidden]) {
@@ -2166,6 +2170,16 @@
     > :not([hidden])
     ~ :not([hidden]) {
     margin-block-start: var(--dash-rhythm);
+  }
+
+  .dashboard-app-shell [data-dashboard-module-stage="true"] {
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 0;
+    max-width: 100%;
+    max-height: 100%;
+    flex: 1 1 auto;
+    overflow: hidden;
   }
 
   .dashboard-app-shell .dashboard-cockpit {
