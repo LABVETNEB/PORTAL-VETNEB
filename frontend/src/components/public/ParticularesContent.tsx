@@ -516,11 +516,22 @@ export function ParticularesContent() {
     }
   }
 
+  const nextStepCopy = session
+    ? session.report
+      ? "Use los botones de arriba para ver o descargar el informe vinculado a su caso."
+      : "Su caso sigue en evaluación profesional. El informe se habilitará automáticamente cuando finalice la validación diagnóstica."
+    : "Ingrese el token recibido por su clínica o por VETNEB para consultar el estado de su caso.";
+
   return (
     <section className="public-secondary-hero-surface py-16 md:py-20">
-      <div className="container relative z-10 mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_0.95fr] lg:px-8">
+      <div
+        className="container relative z-10 mx-auto grid grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_0.95fr] lg:px-8"
+        data-particulares-hero="true"
+      >
         {/* Columna info: oculta en móvil cuando la sesión está activa para evitar duplicación visual */}
-        <div className={session !== null ? "hidden lg:block" : ""}>
+        <div
+          className={`order-2 lg:order-1 ${session !== null ? "hidden lg:block" : ""}`}
+        >
 <h1 className="max-w-3xl text-4xl font-bold text-primary-foreground md:text-5xl">
             Acceda al seguimiento y al informe de su caso con token seguro
           </h1>
@@ -568,8 +579,9 @@ export function ParticularesContent() {
         </div>
 
         <PremiumPanel
-          className="overflow-hidden"
+          className="order-1 overflow-hidden lg:order-2"
           data-particular-session-panel={session ? "true" : undefined}
+          data-particulares-primary-action="true"
         >
           <Card className="border-0 bg-transparent shadow-none">
             <CardHeader className="clinical-muted-band border-b">
@@ -1091,11 +1103,6 @@ export function ParticularesContent() {
                     )}
                   </Button>
 
-                  <p className="text-center text-xs text-muted-foreground">
-                    La disponibilidad del informe depende de la complejidad
-                    diagnóstica y del proceso de validación profesional.
-                  </p>
-
                   <p className="text-center text-sm text-muted-foreground">
                     ¿Tiene credenciales de clínica?{" "}
                     <PublicRouteControl
@@ -1109,6 +1116,43 @@ export function ParticularesContent() {
                 </form>
               )}
             </CardContent>
+
+            <div
+              className="clinical-muted-band mx-6 mb-6 rounded-lg p-4"
+              data-particulares-next-step-zone="true"
+            >
+              <h3 className="text-sm font-semibold text-vetneb-ink">
+                Próximos pasos
+              </h3>
+              <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+                <li>
+                  <span className="font-medium text-vetneb-ink">
+                    ¿Qué hago ahora?
+                  </span>{" "}
+                  {nextStepCopy}
+                </li>
+                <li>
+                  <span className="font-medium text-vetneb-ink">
+                    ¿Qué pasa si no hay informe vinculado?
+                  </span>{" "}
+                  El estudio continúa en evaluación profesional; vuelva a
+                  consultar más tarde.
+                </li>
+                <li>
+                  <span className="font-medium text-vetneb-ink">
+                    ¿Cómo contacto a VETNEB?
+                  </span>{" "}
+                  <PublicRouteControl
+                    href={ROUTES.contacto}
+                    variant="textLink"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Escríbanos desde contacto
+                  </PublicRouteControl>
+                  .
+                </li>
+              </ul>
+            </div>
           </Card>
         </PremiumPanel>
       </div>

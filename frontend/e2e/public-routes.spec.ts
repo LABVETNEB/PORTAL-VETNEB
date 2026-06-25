@@ -44,6 +44,40 @@ for (const route of routes) {
   });
 }
 
+test.describe("particulares hero action hierarchy (PR-PUX1)", () => {
+  test("renders hero, primary action and next-step zone", async ({ page }) => {
+    await page.goto("/particulares");
+
+    await expect(page.locator('[data-particulares-hero="true"]')).toBeVisible();
+    await expect(
+      page.locator('[data-particulares-primary-action="true"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-particulares-next-step-zone="true"]'),
+    ).toBeVisible();
+  });
+
+  test("primary action is visible in the first viewport on mobile without horizontal overflow", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/particulares");
+
+    const primaryAction = page.locator(
+      '[data-particulares-primary-action="true"]',
+    );
+    await expect(primaryAction).toBeVisible();
+    await expect(primaryAction).toBeInViewport();
+
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+});
+
 test("unknown route renders the branded not-found page without mobile overflow", async ({
   page,
 }) => {
