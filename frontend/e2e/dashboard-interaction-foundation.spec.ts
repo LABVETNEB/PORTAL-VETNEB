@@ -82,7 +82,7 @@ test.describe("dashboard interaction foundation — smoke (PR-1)", () => {
     await expect(workspace).toBeVisible({ timeout: 8_000 });
 
     const volverBtn = workspace.locator(
-      'button[aria-label="Volver a módulos"]',
+      'button[aria-label="Vista general"]',
     );
     await expect(volverBtn).toBeVisible();
     await expect(volverBtn).toHaveClass(/dashboard-btn-interactive/);

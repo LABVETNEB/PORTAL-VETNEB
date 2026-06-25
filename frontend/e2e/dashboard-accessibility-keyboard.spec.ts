@@ -313,10 +313,10 @@ test.describe("Admin module hub — keyboard & a11y (PR-8)", () => {
     await expect(
       page.locator('[data-dashboard-module-workspace="admin"]'),
     ).toBeVisible({ timeout: 8_000 });
-    const backBtn = page.getByRole("button", { name: /volver a módulos/i });
+    const backBtn = page.getByRole("button", { name: /vista general/i });
     await expect(backBtn).toBeVisible();
     const ariaLabel = await backBtn.getAttribute("aria-label");
-    expect(ariaLabel).toMatch(/volver a módulos/i);
+    expect(ariaLabel).toMatch(/vista general/i);
   });
 
   test("admin workspace section has accessible label", async ({ page }) => {
