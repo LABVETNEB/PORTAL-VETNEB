@@ -82,9 +82,9 @@ Características estructurales clave del benchmark Admin:
 - **CL-GAP-2** — El hub de Clínica (`ClinicDashboardWorkspaceController` en modo hub) es funcionalmente un launcher de cards + hero, mientras que el módulo `operaciones` (`ClinicCommandCenter`) ya es un cockpit razonable pero más liviano que `AdminCommandCenter` (sin bloques de "atención requerida", "actividad reciente" ni "alertas y estados" equivalentes).
 - **CL-GAP-3** — No existe taxonomía de módulos mobile dedicados para Clínica (cero archivos `Clinic*Mobile*.tsx`), mientras Admin tiene 10 módulos con wrapper mobile propio. La densidad mobile de Clínica depende enteramente de componentes genéricos compartidos.
 - **CL-GAP-4** — La evidencia poblada de Clínica (specs `dashboard-clinic-*-mobile-parity.spec.ts`) no tiene un cuerpo de auditoría documental equivalente al de `docs/audit/admin-mobile-*.md` (10+ documentos de densidad, paginación, overlap). No hay comparación formal admin↔clínica de evidencia.
-- **CL-GAP-5** — La navegación activa de Clínica no tiene señalización sync equivalente a `admin-hub-reset`/`admin-module-activate` para el bottom-nav mobile; depende solo de `router.push`/`searchParams`. Riesgo de flake de bottom-nav bajo carga, análogo al que Admin ya resolvió y documentó (memoria `project_admin_mobile_bottomnav_removechild_flake`), no verificado todavía para Clínica.
+- **CL-GAP-5** — *(mitigado en PR-CL4, ver evidencia abajo)* La navegación activa de Clínica no tiene señalización sync equivalente a `admin-hub-reset`/`admin-module-activate` para el bottom-nav mobile; depende solo de `router.push`/`searchParams`. Riesgo de flake de bottom-nav bajo carga, análogo al que Admin ya resolvió y documentó (memoria `project_admin_mobile_bottomnav_removechild_flake`). PR-CL4 hace que `aria-current="page"` sea uniformemente verificable en los 5 módulos (antes solo 3 de 5), reduciendo la superficie de inconsistencia; la señalización sync en sí (análoga a `admin-hub-reset`) sigue sin implementarse y queda diferida — no hay segunda implementación de nav mobile-only en Clínica que compita con la de desktop, así que el patrón de flake que resolvió Admin no tiene la misma superficie aquí.
 - **CL-GAP-6** — Estados loading/empty/error/retry son inconsistentes entre módulos de Clínica: `operaciones`/`informes`/`logistica` propagan `*LoadError` explícito con `EmptyState` + alerta; `perfil` y `tokens` no tienen un contrato de loading/error de módulo visible en `page.tsx`. Admin centraliza esto vía `AdminAccessErrorState` para todos los módulos.
-- **CL-GAP-7** *(adicional, no solicitado explícitamente pero detectado)* — Dualidad de navegación: `informes` y `logistica` tienen tanto un resumen dentro de `?module=` como rutas full independientes (`/dashboard/informes`, `/dashboard/logistica/*`) fuera del sistema de módulos. Admin no tiene este patrón dual. Se documenta como gap estructural a resolver o a justificar explícitamente en el roadmap.
+- **CL-GAP-7** — *(cerrado en PR-CL4, ver evidencia abajo)* Dualidad de navegación: `informes` y `logistica` tenían tanto un resumen dentro de `?module=` como rutas full independientes (`/dashboard/informes`, `/dashboard/logistica/*`) fuera del sistema de módulos, y el nav horizontal apuntaba a las rutas full en vez del workspace canónico. PR-CL4 hizo que el nav resuelva los 5 módulos vía `?module=`; las rutas full se conservan como superficie extendida, accesible desde los CTAs "Abrir módulo completo" ya existentes dentro de cada `*WorkspaceSummary`.
 
 ## Target architecture
 
@@ -264,3 +264,41 @@ Validaciones ejecutadas:
 - `next-env.d.ts` revertido a su estado de `main` tras las corridas e2e.
 
 No producción, backend, API, auth, DB, deps, lockfiles, CI ni `/clinicas` tocados. `frontend/src/app/dashboard/admin/**` no modificado (solo leído como referencia/cita).
+
+### PR-CL4 evidence (clinic canonical module nav parity — CL-GAP-7, CL-GAP-5)
+
+Rama: `fix/clinic-canonical-module-nav-parity`. Base: `main` @ `4b70d74` (test(clinic): add mobile nav stage parity evidence #1138). Nota: este PR resuelve CL-GAP-7/CL-GAP-5 directamente en vez de seguir el orden original del roadmap (que asignaba el wrapper mobile de `operaciones` a "PR-CL4"); ese ítem de roadmap queda pendiente para un PR futuro sin numeración reasignada todavía.
+
+Archivos tocados:
+
+- `frontend/src/components/dashboard/DashboardHorizontalNav.tsx`
+- `frontend/e2e/dashboard-clinic-controller-workspace-parity.spec.ts`
+- `frontend/e2e/dashboard-clinic-mobile-nav-stage-parity.spec.ts`
+- `test/frontend-dashboard-horizontal-nav.test.ts` (scope test legacy que pinneaba el source de `DashboardHorizontalNav.tsx`; alineado al nuevo contrato, mismo patrón que precedente #958 documentado en memoria)
+- `docs/audit/clinic-dashboard-admin-structure-parity-audit.md` (este archivo)
+
+Cambio productivo (el único de este PR): en `CLINIC_NAV_ITEMS` de `DashboardHorizontalNav.tsx`, los ítems "Informes" y "Logística" pasan de apuntar a las rutas full (`ROUTES.dashboardInformes`/`ROUTES.dashboardLogistica` con `routePrefix: true`) a apuntar a `${ROUTES.dashboard}?module=informes` / `?module=logistica`, igual que los otros 3 módulos. Como ningún ítem usaba ya `routePrefix`, se eliminó ese campo del tipo y su rama en `isItemActive` (código muerto, no había otro consumidor — confirmado por grep).
+
+Las rutas full (`/dashboard/informes`, `/dashboard/logistica`, `/dashboard/logistica/{metricas,rutas,visitas}`) **no se tocaron ni se eliminaron**: siguen montadas en `frontend/src/app/dashboard/{informes,logistica}/`, y siguen siendo alcanzables desde los CTAs "Abrir módulo completo" ya existentes dentro de `ClinicInformesWorkspaceSummary`/`ClinicLogisticaWorkspaceSummary` (sin cambios en esos componentes).
+
+**CL-GAP-7 — cerrado.** Los 5 módulos de Clínica (`operaciones`, `informes`, `logistica`, `perfil`, `tokens`) ahora resuelven de forma canónica vía nav horizontal a `?module=`, sin dualidad. `aria-current="page"` es uniformemente verificable en los 5 (antes solo en 3: `operaciones`/`perfil`/`tokens`).
+
+**CL-GAP-5 — mitigado, no cerrado.** La señalización sync mobile-nav (análoga a `admin-hub-reset`) sigue sin implementarse — `activateModule` del controller sigue siendo `setActiveModule` optimista + `router.push`, y el nav horizontal sigue navegando solo por `router.push(href)` vía `PublicRouteControl`, derivando `activeModule` de `searchParams`. Lo que cambia es que ahora los 5 módulos comparten exactamente el mismo patrón de navegación (antes 2 de 5 navegaban por ruta full), reduciendo la superficie de inconsistencia que motivaba el gap. Cerrar CL-GAP-5 por completo seguiría requiriendo la instrumentación de clicks repetidos bajo carga descrita en la evidencia de PR-CL3.
+
+Tests actualizados:
+
+- `dashboard-clinic-controller-workspace-parity.spec.ts`: `CLINIC_MODULES_WITH_VERIFIABLE_NAV` ahora incluye `informes: "Informes"` y `logistica: "Logística"` (antes `null`), extendiendo el assert de `aria-current="page"` a los 5 módulos. Se agregaron 2 tests nuevos (`clinic /dashboard/informes full route still loads`, `clinic /dashboard/logistica full route still loads`) que confirman que las rutas full siguen cargando tras el cambio de nav.
+- `dashboard-clinic-mobile-nav-stage-parity.spec.ts`: el test de "active horizontal nav item stays visible through the round trip" ahora recorre los 5 módulos (se agregaron "Informes"/"Logística" al loop, antes solo Resumen/Tokens/Perfil). Los tests de "no stale previous module mounted" para `informes`/`logistica` pasaron de `page.goto` directo a click real sobre el nav horizontal (`navItem(page, label).click()`), con assert adicional de `aria-current="page"`, ya que ahora son alcanzables por nav igual que el resto. Comentarios que documentaban CL-GAP-7 como abierto se actualizaron para reflejar el cierre.
+
+Validaciones ejecutadas:
+
+- `pnpm --dir frontend exec playwright test e2e/dashboard-clinic-controller-workspace-parity.spec.ts` — ver resultado en el resumen de entrega.
+- `pnpm --dir frontend exec playwright test e2e/dashboard-clinic-mobile-nav-stage-parity.spec.ts` — ver resultado en el resumen de entrega.
+- `pnpm --dir frontend exec playwright test e2e/dashboard-mobile-shell-nav-contract.spec.ts` — ver resultado en el resumen de entrega.
+- `pnpm --dir frontend lint` — ver resultado en el resumen de entrega.
+- `pnpm typecheck:test` — ver resultado en el resumen de entrega.
+- `pnpm --dir frontend build` — ver resultado en el resumen de entrega (cambia frontend productivo).
+- `git diff --check` — ver resultado en el resumen de entrega.
+- `next-env.d.ts` revertido a su estado de `main` tras las corridas e2e.
+
+No producción ajena al nav horizontal de Clínica, backend, API, auth, DB, deps, lockfiles, CI ni `/clinicas` tocados. `frontend/src/app/dashboard/admin/**` no modificado. No se implementó stage persistente (CL-GAP-1) en este PR.

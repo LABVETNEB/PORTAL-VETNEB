@@ -68,7 +68,7 @@ test("admin horizontal nav exposes the expected modules and preserves ?module=",
   }
 });
 
-test("clinic horizontal nav keeps existing routes and module params", () => {
+test("clinic horizontal nav resolves all 5 modules via ?module= (PR-CL4)", () => {
   const source = read(HORIZONTAL_NAV_PATH);
 
   assert.ok(source.includes('label: "Resumen"'));
@@ -77,9 +77,9 @@ test("clinic horizontal nav keeps existing routes and module params", () => {
   assert.ok(source.includes('label: "Logística"'));
   assert.ok(source.includes('label: "Perfil"'));
 
-  assert.ok(source.includes("href: ROUTES.dashboardInformes"));
-  assert.ok(source.includes("href: ROUTES.dashboardLogistica"));
   assert.ok(source.includes('`${ROUTES.dashboard}?module=operaciones`'));
+  assert.ok(source.includes('`${ROUTES.dashboard}?module=informes`'));
+  assert.ok(source.includes('`${ROUTES.dashboard}?module=logistica`'));
   assert.ok(source.includes('`${ROUTES.dashboard}?module=tokens`'));
   assert.ok(source.includes('`${ROUTES.dashboard}?module=perfil`'));
 });

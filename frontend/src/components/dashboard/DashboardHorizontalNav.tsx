@@ -13,8 +13,6 @@ type DashboardHorizontalNavItem = {
   href: string;
   /** Resumen item: also active on the base path when no module is selected. */
   baseFallback?: boolean;
-  /** Route item: active on its path and nested subroutes. */
-  routePrefix?: boolean;
 };
 
 const ADMIN_NAV_ITEMS: DashboardHorizontalNavItem[] = [
@@ -35,9 +33,14 @@ const ADMIN_NAV_ITEMS: DashboardHorizontalNavItem[] = [
 
 const CLINIC_NAV_ITEMS: DashboardHorizontalNavItem[] = [
   { label: "Resumen", href: `${ROUTES.dashboard}?module=operaciones`, baseFallback: true },
-  { label: "Informes", href: ROUTES.dashboardInformes, routePrefix: true },
+  // PR-CL4: Informes/Logística resolve to their canonical `?module=` workspace
+  // (closes CL-GAP-7's nav dualism). The standalone full routes
+  // (/dashboard/informes, /dashboard/logistica/*) stay live as extended
+  // surfaces, reachable from the "Abrir módulo completo" CTAs inside each
+  // workspace summary.
+  { label: "Informes", href: `${ROUTES.dashboard}?module=informes` },
   { label: "Tokens", href: `${ROUTES.dashboard}?module=tokens` },
-  { label: "Logística", href: ROUTES.dashboardLogistica, routePrefix: true },
+  { label: "Logística", href: `${ROUTES.dashboard}?module=logistica` },
   { label: "Perfil", href: `${ROUTES.dashboard}?module=perfil` },
 ];
 
@@ -68,10 +71,6 @@ function isItemActive(
     if (pathname !== itemPath) return false;
     if (activeModule === itemModule) return true;
     return Boolean(item.baseFallback) && !activeModule;
-  }
-
-  if (item.routePrefix) {
-    return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
   }
 
   return pathname === itemPath;

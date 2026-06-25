@@ -199,7 +199,7 @@ test.describe("clinic mobile nav/stage parity evidence (PR-CL3)", () => {
     await expectNoScrollContract(page, "perfil");
 
     // perfil -> hub via the workspace "Vista general" back control (Clinic's
-    // nav has no item that targets the bare hub; see CL-GAP-7).
+    // nav has no item that targets the bare hub).
     await page
       .locator('[data-dashboard-module-workspace="perfil"]')
       .locator('button[aria-label="Vista general"]')
@@ -249,6 +249,8 @@ test.describe("clinic mobile nav/stage parity evidence (PR-CL3)", () => {
 
     for (const [label, moduleId] of [
       ["Resumen", "operaciones"],
+      ["Informes", "informes"],
+      ["Logística", "logistica"],
       ["Tokens", "tokens"],
       ["Perfil", "perfil"],
     ] as const) {
@@ -271,15 +273,14 @@ test.describe("clinic mobile nav/stage parity evidence (PR-CL3)", () => {
     }
   });
 
-  // CL-GAP-7 (documented in docs/audit/clinic-dashboard-admin-structure-parity-
-  // audit.md): the horizontal nav items for Informes/Logística point at full
-  // standalone routes, not at `?module=`, so they cannot be reached or
-  // verified via nav click the way Resumen/Tokens/Perfil are above. This
-  // exercises their `?module=` workspace directly (same access path the
-  // controller itself supports) to confirm the swap-hygiene contract still
-  // holds for them, without asserting an aria-current that the current
-  // navigation structure does not produce.
-  for (const moduleId of ["informes", "logistica"] as const) {
+  // PR-CL4 resolved CL-GAP-7: the horizontal nav items for Informes/Logística
+  // now resolve to their canonical `?module=` workspace, so they are
+  // reachable and verifiable via the same real nav click used for
+  // Resumen/Tokens/Perfil above.
+  for (const [label, moduleId] of [
+    ["Informes", "informes"],
+    ["Logística", "logistica"],
+  ] as const) {
     test(`${moduleId} module leaves no stale previous module mounted — 390x844`, async ({
       page,
     }) => {
@@ -291,7 +292,7 @@ test.describe("clinic mobile nav/stage parity evidence (PR-CL3)", () => {
         page.locator('[data-dashboard-module-workspace="operaciones"]'),
       ).toBeVisible({ timeout: 8_000 });
 
-      await page.goto(`/dashboard?module=${moduleId}`);
+      await navItem(page, label).click();
       await expect(
         page.locator(`[data-dashboard-module-workspace="${moduleId}"]`),
       ).toBeVisible({ timeout: 8_000 });
@@ -299,6 +300,7 @@ test.describe("clinic mobile nav/stage parity evidence (PR-CL3)", () => {
         page.locator('[data-dashboard-module-workspace="operaciones"]'),
       ).toHaveCount(0);
       await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
+      await expect(navItem(page, label)).toHaveAttribute("aria-current", "page");
 
       const contract = await expectNoScrollContract(page, moduleId);
       expect(contract.workspaceCount, `${moduleId}: exactly one workspace mounted`).toBe(1);
