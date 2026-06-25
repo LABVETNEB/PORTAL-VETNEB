@@ -22,14 +22,14 @@ const CLINIC_MODULES: ClinicModule[] = [
 
 /**
  * Nav items whose href resolves to `/dashboard?module=<id>` exactly, so
- * aria-current is verifiable there. "informes"/"logistica" nav items point to
- * standalone routes (/dashboard/informes, /dashboard/logistica) instead of the
- * `?module=` workspace, so aria-current is not applicable on those module URLs.
+ * aria-current is verifiable there. PR-CL4 resolved the Informes/Logística
+ * nav dualism (CL-GAP-7): all 5 clinic modules now navigate through the
+ * canonical `?module=` workspace, so aria-current is uniformly verifiable.
  */
 const CLINIC_MODULES_WITH_VERIFIABLE_NAV: Record<ClinicModule, string | null> = {
   operaciones: "Resumen",
-  informes: null,
-  logistica: null,
+  informes: "Informes",
+  logistica: "Logística",
   perfil: "Perfil",
   tokens: "Tokens",
 };
@@ -103,6 +103,23 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
       ).toBeVisible({ timeout: 8_000 });
     });
   }
+
+  // PR-CL4: Informes/Logística nav items now resolve to `?module=`, but the
+  // standalone full routes must keep working as extended surfaces (linked
+  // from the "Abrir módulo completo" CTAs inside each workspace summary).
+  test("clinic /dashboard/informes full route still loads", async ({ page }) => {
+    await setClinicSession(page);
+    await page.goto("/dashboard/informes");
+    await expect(page.locator("main")).toBeVisible({ timeout: 8_000 });
+    await expect(page).toHaveURL(/\/dashboard\/informes/);
+  });
+
+  test("clinic /dashboard/logistica full route still loads", async ({ page }) => {
+    await setClinicSession(page);
+    await page.goto("/dashboard/logistica");
+    await expect(page.locator("main")).toBeVisible({ timeout: 8_000 });
+    await expect(page).toHaveURL(/\/dashboard\/logistica/);
+  });
 
   test("admin /dashboard/admin baseline still loads hub", async ({ page }) => {
     await setAdminSession(page);
