@@ -169,3 +169,25 @@ Este documento (PR-CL0) se considera completo si:
 - Revisión de specs e2e listados (estructura de `dashboard-clinic-*-mobile-parity.spec.ts` y `dashboard-mobile-shell-nav-contract.spec.ts` confirmando que ya cubren ambas superficies clinic/admin con rutas y selectores distintos).
 - Confirmado que `/clinicas` pública no aparece en ningún archivo tocado ni referenciado como dependencia de este bloque.
 - `git diff --check` — pendiente de ejecutar post-commit; este documento es texto plano sin código, no se esperan conflictos de whitespace.
+
+### PR-CL1 evidence (test-only, sin frontend productivo)
+
+Rama: `test/clinic-controller-workspace-parity-contract`. Base: `main` @ `5caccae` (docs(clinic): audit admin structure parity #1135).
+
+Entregado: `frontend/e2e/dashboard-clinic-controller-workspace-parity.spec.ts` (nuevo). Declara el contrato controller/workspace mínimo que Clínica ya cumple respecto a Admin, sin tocar ningún componente de render:
+
+- `/dashboard` y `/dashboard?module={operaciones,informes,logistica,perfil,tokens}` resuelven hub/workspace vía los mismos selectores `data-dashboard-module-hub`/`data-dashboard-module-workspace` que usa Admin.
+- Baseline Admin no se rompe: `/dashboard/admin` (hub) y `/dashboard/admin?module=admin-clinics` (workspace) siguen resolviendo.
+- "Vista general" (mismo `DashboardModuleWorkspace` compartido con Admin) vuelve al hub en un solo click, sin URL con `module=` residual.
+- `aria-current="page"` se mantiene verificable en el nav horizontal de Clínica para `operaciones`, `tokens`, `perfil` (cuyo href de nav resuelve a `?module=` exacto). Para `informes`/`logistica` no es verificable porque el nav apunta a las rutas full `/dashboard/informes` y `/dashboard/logistica` (dualidad ya documentada como **CL-GAP-7**) en vez de a `?module=`; se documenta como hallazgo, no se fuerza un assert que no aplica a la implementación actual.
+- 390x844: sin overflow horizontal en `documentElement`/`body` y `main.dashboard-main` no se convierte en scroll container, en los 5 módulos de Clínica + hub.
+
+No se confirma ni se descarta en este PR ningún otro gap (CL-GAP-1 a CL-GAP-6); este contrato es deliberadamente el subconjunto mínimo pedido, no una auditoría ampliada.
+
+Validaciones ejecutadas:
+
+- `pnpm --dir frontend exec playwright test e2e/dashboard-clinic-controller-workspace-parity.spec.ts` — 18 passed.
+- `pnpm --dir frontend lint` — sin errores.
+- `pnpm typecheck:test` — sin errores.
+- `git diff --check` — sin conflictos de whitespace.
+- `next-env.d.ts` revertido a su estado de `main` tras la corrida e2e (regenerado por el dev server de Playwright; no es parte del diff de este PR).
