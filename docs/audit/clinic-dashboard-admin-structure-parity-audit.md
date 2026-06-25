@@ -83,7 +83,7 @@ Características estructurales clave del benchmark Admin:
 - **CL-GAP-3** — No existe taxonomía de módulos mobile dedicados para Clínica (cero archivos `Clinic*Mobile*.tsx`), mientras Admin tiene 10 módulos con wrapper mobile propio. La densidad mobile de Clínica depende enteramente de componentes genéricos compartidos.
 - **CL-GAP-4** — La evidencia poblada de Clínica (specs `dashboard-clinic-*-mobile-parity.spec.ts`) no tiene un cuerpo de auditoría documental equivalente al de `docs/audit/admin-mobile-*.md` (10+ documentos de densidad, paginación, overlap). No hay comparación formal admin↔clínica de evidencia.
 - **CL-GAP-5** — *(mitigado en PR-CL4, ver evidencia abajo)* La navegación activa de Clínica no tiene señalización sync equivalente a `admin-hub-reset`/`admin-module-activate` para el bottom-nav mobile; depende solo de `router.push`/`searchParams`. Riesgo de flake de bottom-nav bajo carga, análogo al que Admin ya resolvió y documentó (memoria `project_admin_mobile_bottomnav_removechild_flake`). PR-CL4 hace que `aria-current="page"` sea uniformemente verificable en los 5 módulos (antes solo 3 de 5), reduciendo la superficie de inconsistencia; la señalización sync en sí (análoga a `admin-hub-reset`) sigue sin implementarse y queda diferida — no hay segunda implementación de nav mobile-only en Clínica que compita con la de desktop, así que el patrón de flake que resolvió Admin no tiene la misma superficie aquí.
-- **CL-GAP-6** — *(evidenciado con precisión por módulo en PR-CL5, ver evidencia abajo; no mitigado — PR test-only)* Estados loading/empty/error/retry son inconsistentes entre módulos de Clínica: `operaciones`/`informes`/`logistica` propagan `*LoadError` explícito con `EmptyState` + alerta; `perfil` y `tokens` no tienen un contrato de loading/error de módulo visible en `page.tsx`. Admin centraliza esto vía `AdminAccessErrorState` para todos los módulos. **Matiz de PR-CL5:** la frase "`perfil` y `tokens` no tienen contrato" es parcialmente imprecisa — ambos sí tienen contrato propio (estado local del componente cliente, fetch vía `useEffect`), solo que vive a nivel de componente y no se propaga a `page.tsx` como `*LoadError`; el gap real no es "ausencia de contrato" sino **calidad/consistencia desigual** del contrato que cada módulo ya tiene (ver matriz PR-CL5).
+- **CL-GAP-6** — *(evidenciado con precisión por módulo en PR-CL5; parcialmente mitigado en PR-CL6 — ver evidencia abajo)* Estados loading/empty/error/retry son inconsistentes entre módulos de Clínica: `operaciones`/`informes`/`logistica` propagan `*LoadError` explícito con `EmptyState` + alerta; `perfil` y `tokens` no tienen un contrato de loading/error de módulo visible en `page.tsx`. Admin centraliza esto vía `AdminAccessErrorState` para todos los módulos. **Matiz de PR-CL5:** la frase "`perfil` y `tokens` no tienen contrato" es parcialmente imprecisa — ambos sí tienen contrato propio (estado local del componente cliente, fetch vía `useEffect`), solo que vive a nivel de componente y no se propaga a `page.tsx` como `*LoadError`; el gap real no es "ausencia de contrato" sino **calidad/consistencia desigual** del contrato que cada módulo ya tiene (ver matriz PR-CL5).
 - **CL-GAP-7** — *(cerrado en PR-CL4, ver evidencia abajo)* Dualidad de navegación: `informes` y `logistica` tenían tanto un resumen dentro de `?module=` como rutas full independientes (`/dashboard/informes`, `/dashboard/logistica/*`) fuera del sistema de módulos, y el nav horizontal apuntaba a las rutas full en vez del workspace canónico. PR-CL4 hizo que el nav resuelva los 5 módulos vía `?module=`; las rutas full se conservan como superficie extendida, accesible desde los CTAs "Abrir módulo completo" ya existentes dentro de cada `*WorkspaceSummary`.
 
 ## Target architecture
@@ -350,3 +350,43 @@ Validaciones ejecutadas:
 - `next-env.d.ts` revertido a su estado de `main` tras las corridas e2e.
 
 No producción, backend, API, auth, DB, deps, lockfiles, CI ni `/clinicas` tocados. `frontend/src/app/dashboard/admin/**` no modificado. No se modificó `frontend/e2e/fixtures/admin-populated-api-server.mjs` (deliberado — ver hallazgo de sesión arriba). No se cambió ningún componente productivo de Clínica; los bugs de retry y las ambigüedades de loading documentados arriba quedan sin corregir a propósito (test-only).
+
+### PR-CL6 evidence (clinic tokens retry clears stale error — CL-GAP-6, parcial)
+
+Rama: `fix/clinic-tokens-retry-clears-error`. Base: `main` @ `0a844ee` (test(clinic): add module state parity evidence #1140). Tipo: fix puntual + test + docs.
+
+Archivos tocados:
+
+- `frontend/src/components/dashboard/ClinicParticularTokensCard.tsx`
+- `frontend/e2e/dashboard-clinic-module-state-parity.spec.ts`
+- `docs/audit/clinic-dashboard-admin-structure-parity-audit.md` (este archivo)
+
+**Fix:** `loadTokens()` ahora llama `setErrorMessage(null)` junto a `setTrackingLoadError(null)` al inicio de cada carga (mount inicial, click en "Actualizar", o refresh post-alta exitosa), antes del `await` a `getClinicParticularTokens`. Efecto:
+
+- Un reintento exitoso después de un fallo limpia el banner de error stale del intento anterior — ya no queda un `role="alert"` huérfano junto al token recién cargado.
+- Un reintento que vuelve a fallar sigue mostrando el error real: el `catch` del bloque externo de `loadTokens()` sigue ejecutando `setErrorMessage(...)` sin cambios, así que limpiar al inicio nunca oculta un fallo genuino de la nueva carga.
+- No se tocó ningún contrato de API/payload — el fix es exclusivamente de estado local de React. `getClinicParticularTokens`/`createClinicParticularToken` no cambiaron.
+
+**CL-GAP-6 — parcialmente mitigado.** El bug concreto de `tokens` documentado en PR-CL5 ("loadTokens() nunca limpia errorMessage en su rama de éxito") pasa de *bug confirmado* a *contrato corregido y cubierto por e2e*. Lo que queda pendiente del gap original (no tocado en este PR, fuera de scope):
+
+- **Módulos SSR** (`operaciones`/`informes`/`logistica`): siguen sin ningún control de retry — sus alertas son texto puro sin botón asociado, y el fetch ocurre en `page.tsx` (Server Component), fuera del alcance de un fix client-side como este.
+- **`perfil` → Perfil público** (`ClinicPublicProfileCard`): sigue sin ningún mecanismo de reintento (ni botón "Actualizar" ni equivalente); la única recuperación tras un fallo de carga sigue siendo recargar la página completa.
+- Inconsistencia de `EmptyState` compartido en `tokens` (párrafo plano en vez del componente común) — señalada en PR-CL5, no afectada por este fix.
+
+Test actualizado en `dashboard-clinic-module-state-parity.spec.ts`:
+
+- El test que documentaba el gap (`"retry gap: a successful Actualizar after a failed load does not clear the stale error banner"`) se reemplazó por `"retry: a successful Actualizar after a failed load clears the stale error banner"`, que verifica el flujo completo: primer fetch falla y muestra el alert con el mensaje del backend → click en "Actualizar" dispara un segundo fetch exitoso → el alert desaparece (`toHaveCount(0)`) → el token recuperado (`RETRY_TOKEN`, id `9201`) se renderiza visible en la lista.
+- Se agregó un test nuevo, `"retry: a second failed load after a first failure still surfaces the new error"`, que cubre el caso inverso: si el reintento vuelve a fallar, el banner de error sigue mostrando el mensaje real (evita que el fix de este PR oculte fallos genuinos de una segunda carga).
+
+Validaciones ejecutadas:
+
+- `git diff --check` — sin conflictos de whitespace.
+- `pnpm --dir frontend exec playwright test e2e/dashboard-clinic-module-state-parity.spec.ts` — ver resultado en el resumen de entrega.
+- `pnpm --dir frontend exec playwright test e2e/dashboard-clinic-tokens-mobile-parity.spec.ts` — ver resultado en el resumen de entrega.
+- `pnpm --dir frontend exec playwright test e2e/dashboard-global-masked-master-detail.spec.ts` — ver resultado en el resumen de entrega.
+- `pnpm --dir frontend lint` — ver resultado en el resumen de entrega.
+- `pnpm typecheck:test` — ver resultado en el resumen de entrega.
+- `pnpm --dir frontend build` — ver resultado en el resumen de entrega.
+- `next-env.d.ts` revertido a su estado de `main` tras las corridas e2e.
+
+No backend, API, auth, DB, migrations, deps, lockfiles, CI/config tocados. No se tocó `/clinicas` pública ni `frontend/src/app/dashboard/admin/**`. Sin cambios visuales: el fix es de estado, no de markup/estilos. Sin dependencias nuevas.

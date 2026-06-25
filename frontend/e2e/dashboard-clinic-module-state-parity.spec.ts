@@ -348,7 +348,7 @@ test.describe("clinic tokens module state parity (client-driven, CL-GAP-6)", () 
     await expectMainNotScrollContainer(page);
   });
 
-  test("retry gap: a successful Actualizar after a failed load does not clear the stale error banner", async ({
+  test("retry: a successful Actualizar after a failed load clears the stale error banner", async ({
     page,
   }) => {
     await setClinicSession(page);
@@ -394,11 +394,37 @@ test.describe("clinic tokens module state parity (client-driven, CL-GAP-6)", () 
     const refreshButton = card.getByRole("button", { name: "Actualizar", exact: true });
     await refreshButton.click();
 
-    await expect(card.locator('[id^="clinic-particular-token-"]')).toHaveCount(1);
-    // Real, current behavior: loadTokens() never calls setErrorMessage(null) on
-    // its success path, so the stale failure banner from the first attempt
-    // stays on screen next to the freshly loaded token.
-    await expect(errorBanner).toBeVisible();
+    // Fix verification: loadTokens() now clears errorMessage at the start of
+    // every load (success or failure), so a successful retry leaves no stale
+    // failure banner from the first attempt next to the freshly loaded token.
+    await expect(errorBanner).toHaveCount(0);
+    const recoveredTokenRow = card.locator("#clinic-particular-token-9201");
+    await expect(recoveredTokenRow).toBeVisible();
+    await expect(recoveredTokenRow).toContainText("Mora");
+  });
+
+  test("retry: a second failed load after a first failure still surfaces the new error", async ({
+    page,
+  }) => {
+    await setClinicSession(page);
+
+    await page.route(
+      (url) => url.pathname === "/api/particular-tokens",
+      (route) => {
+        if (route.request().method() !== "GET") return route.fallback();
+        return fulfillJson(route, 500, { error: "E2E forced failure" });
+      },
+    );
+
+    await page.goto("/dashboard?module=tokens");
+    const card = page.locator("#clinic-particular-tokens");
+    const errorBanner = card.getByRole("alert");
+    await expect(errorBanner).toHaveText("E2E forced failure");
+
+    // A second failed attempt must still surface a real error: clearing the
+    // stale banner up front must never hide a genuine new failure.
+    const refreshButton = card.getByRole("button", { name: "Actualizar", exact: true });
+    await refreshButton.click();
     await expect(errorBanner).toHaveText("E2E forced failure");
   });
 });

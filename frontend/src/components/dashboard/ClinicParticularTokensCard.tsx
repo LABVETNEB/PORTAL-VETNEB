@@ -267,6 +267,7 @@ export function ClinicParticularTokensCard() {
   async function loadTokens() {
     setIsLoadingTokens(true);
     setTrackingLoadError(null);
+    setErrorMessage(null);
 
     try {
       const snapshot = await getClinicParticularTokens({ limit: 10, offset: 0 });
