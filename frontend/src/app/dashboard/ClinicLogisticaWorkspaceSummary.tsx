@@ -35,7 +35,7 @@ export function ClinicLogisticaWorkspaceSummary({
       aria-label="Abrir módulo completo de logística"
     >
       <ExternalLink className="h-4 w-4" aria-hidden="true" />
-      Ver módulo de logística completo
+      Abrir módulo completo
     </PublicRouteControl>
   );
 

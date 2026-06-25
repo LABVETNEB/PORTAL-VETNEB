@@ -35,7 +35,7 @@ export function ClinicInformesWorkspaceSummary({
       aria-label="Abrir módulo completo de informes"
     >
       <ExternalLink className="h-4 w-4" aria-hidden="true" />
-      Ver módulo de informes completo
+      Abrir módulo completo
     </PublicRouteControl>
   );
 
