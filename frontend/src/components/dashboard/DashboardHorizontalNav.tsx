@@ -25,6 +25,12 @@ const ADMIN_NAV_ITEMS: DashboardHorizontalNavItem[] = [
   { label: "Auditoría", href: `${ROUTES.dashboardAdmin}?module=audit-log` },
   { label: "Usuarios", href: `${ROUTES.dashboardAdmin}?module=admin-users-roles` },
   { label: "Sesiones", href: `${ROUTES.dashboardAdmin}?module=admin-sessions` },
+  // PR-GD1: system/configuration modules promoted into the canonical nav so they
+  // are reachable in one step instead of only through the hub (closes the hidden
+  // module gap for Estado / Precios / Mantenimiento). Same `?module=` contract.
+  { label: "Estado", href: `${ROUTES.dashboardAdmin}?module=admin-health` },
+  { label: "Precios", href: `${ROUTES.dashboardAdmin}?module=admin-pricing` },
+  { label: "Mantenimiento", href: `${ROUTES.dashboardAdmin}?module=admin-maintenance` },
 ];
 
 const CLINIC_NAV_ITEMS: DashboardHorizontalNavItem[] = [
