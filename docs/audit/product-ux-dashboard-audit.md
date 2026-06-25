@@ -1160,3 +1160,30 @@ Acceptance:
 - Canonical ids remain the only ids used by new UI links.
 - Existing aliases remain compatibility-only and must not appear in new navigation surfaces.
 - Future dashboard navigation changes must preserve role-specific module separation and no-scroll SLA.
+
+## PR-GD6 — Dashboard server-state / loading / empty / error contract
+
+Decision:
+- Dashboard modules must keep loading, empty, error, and retry states explicit and distinguishable.
+- Empty states must mean successful load with no records.
+- Error states must mean failed load or failed action, never silent fallback to empty data.
+- Retry actions must use the existing ErrorState `onRetry` contract where applicable.
+- Loading states must use bounded dashboard skeletons/status regions, not fullscreen overlays.
+- Error UI must not expose stack traces, internal exception details, raw backend payloads, tokens, cookies, signed URLs, or sensitive diagnostics.
+
+Required state semantics:
+- `loading`: request/action in progress.
+- `empty`: successful response with no rows/items.
+- `error`: failed request/action with safe user copy.
+- `retry`: explicit recovery action when the surface can reload safely.
+
+Scope:
+- Documentation-only contract.
+- No production code changes.
+- No backend/API/auth/DB/migrations/deps/lockfiles/CI/config changes.
+- No dashboard visual redesign.
+
+Acceptance:
+- Future dashboard modules must preserve the distinction between empty and error states.
+- Existing shared LoadingState, EmptyState, and ErrorState contracts remain canonical.
+- New dashboard server-state work must preserve no-scroll SLA and role-specific module separation.
