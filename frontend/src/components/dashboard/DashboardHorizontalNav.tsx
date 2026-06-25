@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
+import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -113,6 +114,7 @@ function DashboardHorizontalNavInner() {
       <div ref={navScrollerRef} className="flex min-w-0 flex-1 scroll-px-2 items-center gap-1 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {items.map((item) => {
           const active = isItemActive(item, pathname, activeModule);
+          const itemModule = getModuleFromHref(item.href);
 
           return (
             <PublicRouteControl
@@ -122,6 +124,10 @@ function DashboardHorizontalNavInner() {
               variant="bare"
               aria-label={item.label}
               aria-current={active ? "page" : undefined}
+              onClick={() => {
+                if (surface !== "clinic" || !itemModule) return;
+                requestClinicModuleActivate(itemModule);
+              }}
               className={cn(
                 "inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-md border-b-2 border-transparent px-2.5 py-1.5 text-[0.8125rem] font-semibold dashboard-nav-interactive focus-visible:ring-offset-2 sm:min-h-[1.85rem] sm:py-1",
                 active
@@ -158,7 +164,7 @@ export function DashboardHorizontalNav() {
       role="navigation"
       aria-label="Navegación principal"
       data-dashboard-horizontal-nav-shell="true"
-      className="shrink-0 border-t border-vetneb-line/70 bg-card/85"
+      className="hidden shrink-0 border-t border-vetneb-line/70 bg-card/85 md:block"
     >
       <Suspense fallback={<div className="min-h-[2.75rem] sm:min-h-[2.25rem]" aria-hidden="true" />}>
         <DashboardHorizontalNavInner />

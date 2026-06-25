@@ -84,6 +84,15 @@ test("clinic horizontal nav resolves all 5 modules via ?module= (PR-CL4)", () =>
   assert.ok(source.includes('`${ROUTES.dashboard}?module=perfil`'));
 });
 
+test("clinic horizontal nav notifies the controller before route navigation", () => {
+  const source = read(HORIZONTAL_NAV_PATH);
+
+  assert.ok(source.includes('import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";'));
+  assert.ok(source.includes("const itemModule = getModuleFromHref(item.href);"));
+  assert.ok(source.includes('if (surface !== "clinic" || !itemModule) return;'));
+  assert.ok(source.includes("requestClinicModuleActivate(itemModule);"));
+});
+
 test("horizontal nav resolves admin/clinic surface from the route", () => {
   const source = read(HORIZONTAL_NAV_PATH);
 
@@ -120,9 +129,14 @@ test("topbar embeds the horizontal nav and drops the decorative eyebrow", () => 
 test("shell router no longer renders a vertical sidebar as primary navigation", () => {
   const source = read(SHELL_ROUTER_PATH);
 
+  assert.ok(source.includes('import { AdminMobileBottomNav } from "./AdminMobileBottomNav";'));
+  assert.ok(source.includes('import { ClinicMobileBottomNav } from "./ClinicMobileBottomNav";'));
   assert.equal(source.includes("AdminDashboardSidebar"), false);
   assert.equal(source.includes("ClinicDashboardSidebar"), false);
   assert.equal(source.includes("<aside"), false);
   assert.ok(source.includes("flex flex-col h-dvh overflow-hidden"));
   assert.ok(source.includes("data-vetneb-app-shell-surface={surface}"));
+  assert.ok(source.includes("isAdminDashboard ? ("));
+  assert.ok(source.includes("<AdminMobileBottomNav />"));
+  assert.ok(source.includes("<ClinicMobileBottomNav />"));
 });

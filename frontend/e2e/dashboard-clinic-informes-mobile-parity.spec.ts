@@ -36,6 +36,23 @@ async function setClinicSession(page: Page) {
   ]);
 }
 
+async function expectClinicMobileBottomNav(page: Page, label: string) {
+  const clinicNav = page.locator('[data-clinic-mobile-bottom-nav="true"]');
+  await expect(clinicNav, `${label}: clinic bottom nav visible`).toBeVisible();
+  await expect(
+    clinicNav.locator('[data-clinic-mobile-bottom-nav-item="true"]'),
+    `${label}: clinic bottom nav item count`,
+  ).toHaveCount(6);
+  await expect(
+    page.locator('[data-admin-mobile-bottom-nav="true"]'),
+    `${label}: admin bottom nav absent`,
+  ).toHaveCount(0);
+  await expect(
+    page.locator('[data-dashboard-horizontal-nav-shell="true"]'),
+    `${label}: horizontal nav hidden on clinic mobile`,
+  ).toBeHidden();
+}
+
 async function readLayoutContract(page: Page): Promise<LayoutContract> {
   return page.evaluate(() => {
     const html = document.documentElement;
@@ -129,6 +146,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await expect(async () => {
       await expect(workspace).toBeVisible();
       await expect(card).toBeVisible();
+      await expectClinicMobileBottomNav(page, viewport.name);
       await expect(reportRows).toHaveCount(3);
 
       for (let index = 0; index < 3; index += 1) {

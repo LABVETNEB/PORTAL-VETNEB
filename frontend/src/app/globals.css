@@ -3034,7 +3034,8 @@
    destroyed per-module layer. No fixed-position descendant lives inside the
    stage (the bottom nav, app bar, menus and Radix dialogs render outside it), so
    the new containing block is inert. Scoped to Admin mobile (<=767px); desktop
-   and Clinic keep the stage as a transparent flex passthrough. */
+   stays a transparent flex passthrough. Clinic parity has its own scoped stage
+   contract below. */
 @media (max-width: 767px) {
   [data-vetneb-app-shell-surface="admin"] [data-dashboard-module-stage="true"] {
     isolation: isolate;
@@ -3044,3 +3045,172 @@
   }
 }
 /* admin-mobile-stage-layer:end */
+/* clinic-admin-structure-parity:start */
+@layer components {
+  .clinic-mobile-module-frame {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .clinic-cockpit-hub {
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 767px) {
+  html:has([data-vetneb-app-shell-surface="clinic"]),
+  body:has([data-vetneb-app-shell-surface="clinic"]) {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] {
+    width: 100%;
+    height: 100vh;
+    height: 100svh;
+    min-height: 0;
+    max-height: 100svh;
+    overflow: hidden;
+    overscroll-behavior: none;
+    isolation: isolate;
+    --clinic-mobile-shell-gutter: clamp(0.45rem, 0.34rem + 0.45svw, 0.62rem);
+    --clinic-mobile-bottom-nav-h: clamp(3.15rem, 0.3rem + 0.45svh, 3.5rem);
+    --clinic-mobile-bottom-nav-gap: clamp(0.1rem, 0.08rem + 0.08svw, 0.16rem);
+    --clinic-mobile-type-2xs: clamp(0.56rem, 0.48rem + 0.22svw, 0.64rem);
+  }
+
+  [data-vetneb-app-shell-surface="clinic"]
+    > [data-vetneb-app-shell-frame="true"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] [data-dashboard-topbar-polish="true"] {
+    --tw-backdrop-blur: none !important;
+    background: hsl(var(--card)) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"]
+    [data-dashboard-horizontal-nav-shell="true"] {
+    display: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] .dashboard-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    padding: var(--clinic-mobile-shell-gutter);
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] [data-dashboard-module-stage="true"] {
+    isolation: isolate;
+    background: hsl(var(--card));
+    transform: translateZ(0);
+    overscroll-behavior: none;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] [data-dashboard-module-workspace],
+  [data-vetneb-app-shell-surface="clinic"] [data-dashboard-module-hub] {
+    background: hsl(var(--card));
+    isolation: isolate;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"]
+    [data-dashboard-module-back-button="true"] {
+    display: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] .clinic-mobile-bottom-nav {
+    position: relative;
+    z-index: 65;
+    display: flex !important;
+    width: 100%;
+    height: calc(var(--clinic-mobile-bottom-nav-h) + env(safe-area-inset-bottom));
+    min-height: 0;
+    flex: 0 0 auto;
+    align-items: stretch;
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid hsl(var(--vetneb-line));
+    background: hsl(var(--card));
+    isolation: isolate;
+    overscroll-behavior: none;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transform: none !important;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] .clinic-mobile-bottom-nav-item {
+    display: inline-flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 16.666%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--clinic-mobile-bottom-nav-gap);
+    overflow: hidden;
+    padding: 0.24rem 0.05rem;
+    border-radius: 0;
+    background: hsl(var(--card));
+    color: hsl(var(--muted-foreground));
+    font-size: var(--clinic-mobile-type-2xs);
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"]
+    .clinic-mobile-bottom-nav-item-active {
+    color: hsl(var(--vetneb-navy));
+    background: hsl(var(--vetneb-surface-muted));
+  }
+
+  [data-vetneb-app-shell-surface="clinic"]
+    .clinic-mobile-bottom-nav-item:focus-visible {
+    outline: none;
+    box-shadow:
+      inset 0 0 0 2px hsl(var(--ring) / 0.85),
+      inset 0 0 0 4px hsl(var(--card));
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] .clinic-cockpit-hub {
+    gap: 0.45rem;
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"]
+    [data-clinic-cockpit="true"]
+    .surface-soft {
+    padding: 0.5rem;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"]
+    [data-clinic-cockpit="true"]
+    .dashboard-kpi-pill {
+    padding: 0.45rem 0.55rem;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"]
+    [data-clinic-cockpit-primary-actions="true"]
+    button {
+    min-height: 2rem;
+    font-size: var(--clinic-mobile-type-2xs);
+  }
+}
+/* clinic-admin-structure-parity:end */

@@ -1,22 +1,8 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
-// CL-GAP-6 evidence (docs/audit/clinic-dashboard-admin-structure-parity-audit.md).
-//
-// `operaciones`/`informes`/`logistica` get their data from `page.tsx` (a Server
-// Component): the fetch happens in the Next.js server process, so Playwright's
-// `page.route` cannot intercept it. Their loading/empty/error states are only
-// reachable through the two session fixtures the e2e API server already
-// recognizes (`e2e_test_clinic_session` / `e2e_populated_clinic_session`) — see
-// `frontend/e2e/fixtures/admin-populated-api-server.mjs`. No session value
-// today produces a genuine empty-but-succeeded response for reports/visits, and
-// `/api/logistics/route-plans` has no handler at all, so `statsLoadError` is
-// unconditionally `true` for every clinic session in this fixture. This file
-// audits exactly what that leaves observable; it does not add a new fixture
-// branch to manufacture states that aren't reachable today.
-//
-// `tokens` and `perfil` (`ClinicParticularTokensCard`, `ClinicPublicProfileCard`,
-// `PasswordChangePanel`) fetch client-side via `useEffect`, so their states are
-// fully reachable with `page.route` mocks below.
+// PR-CL7 state parity. `operaciones`/`informes`/`logistica` get SSR data from
+// page.tsx, so their recovery action is a client `router.refresh()` button.
+// `tokens` and `perfil` fetch client-side and expose direct retry/reload paths.
 
 const TOLERANCE = 2;
 const MOBILE_VIEWPORT = { width: 390, height: 844 } as const;
@@ -129,7 +115,7 @@ const BLANK_PROFILE = {
 };
 
 test.describe("clinic operaciones/informes/logistica SSR module state parity (CL-GAP-6)", () => {
-  test("default session: operaciones surfaces stats/reports/visits load errors with no retry control", async ({
+  test("default session: operaciones surfaces stats/reports/visits load errors with retry controls", async ({
     page,
   }) => {
     await setClinicSession(page);
@@ -138,25 +124,34 @@ test.describe("clinic operaciones/informes/logistica SSR module state parity (CL
     const commandCenter = page.locator('[data-clinic-command-center="true"]');
     await expect(commandCenter).toBeVisible({ timeout: 8_000 });
 
+    const metricsAlert = commandCenter
+      .getByRole("alert")
+      .filter({ hasText: "métricas operativas" });
+    await expect(metricsAlert).toBeVisible();
     await expect(
-      commandCenter.getByRole("alert").filter({ hasText: "métricas operativas" }),
+      metricsAlert.getByRole("button", { name: "Reintentar" }),
     ).toBeVisible();
 
     await commandCenter.getByRole("tab", { name: "Recientes" }).click();
+    const reportsAlert = commandCenter
+      .getByRole("alert")
+      .filter({ hasText: "informes recientes" });
+    const visitsAlert = commandCenter
+      .getByRole("alert")
+      .filter({ hasText: "visitas de campo recientes" });
+    await expect(reportsAlert).toBeVisible();
     await expect(
-      commandCenter.getByRole("alert").filter({ hasText: "informes recientes" }),
+      reportsAlert.getByRole("button", { name: "Reintentar" }),
     ).toBeVisible();
+    await expect(visitsAlert).toBeVisible();
     await expect(
-      commandCenter.getByRole("alert").filter({ hasText: "visitas de campo recientes" }),
+      visitsAlert.getByRole("button", { name: "Reintentar" }),
     ).toBeVisible();
 
     await commandCenter.getByRole("tab", { name: "Estado" }).click();
     await expect(
       commandCenter.locator('[data-clinic-command-continuity="true"]'),
     ).toContainText("Estado degradado");
-
-    // No SSR-sourced error banner in this module has an associated retry control.
-    await expect(page.getByRole("button", { name: /reintentar|recargar/i })).toHaveCount(0);
   });
 
   test("default session: informes workspace shows the load error, not the empty state", async ({
@@ -170,9 +165,10 @@ test.describe("clinic operaciones/informes/logistica SSR module state parity (CL
     ).toBeVisible({ timeout: 8_000 });
 
     const card = page.locator('[aria-label="Informes recientes de la clínica"]');
-    await expect(card.getByRole("alert")).toHaveText(
+    await expect(card.getByRole("alert")).toContainText(
       "No se pudieron cargar los informes recientes. Intente nuevamente.",
     );
+    await expect(card.getByRole("button", { name: "Reintentar" })).toBeVisible();
     await expect(card.getByText("Sin informes recientes")).toHaveCount(0);
   });
 
@@ -187,9 +183,10 @@ test.describe("clinic operaciones/informes/logistica SSR module state parity (CL
     ).toBeVisible({ timeout: 8_000 });
 
     const card = page.locator('[aria-label="Visitas de campo recientes de la clínica"]');
-    await expect(card.getByRole("alert")).toHaveText(
+    await expect(card.getByRole("alert")).toContainText(
       "No se pudieron cargar las visitas de campo. Intente nuevamente.",
     );
+    await expect(card.getByRole("button", { name: "Reintentar" })).toBeVisible();
     await expect(card.getByText("Sin visitas recientes")).toHaveCount(0);
   });
 
@@ -291,7 +288,7 @@ test.describe("clinic tokens module state parity (client-driven, CL-GAP-6)", () 
     await expect(refreshButton).toHaveText("Actualizar", { timeout: 4_000 });
   });
 
-  test("empty: zero tokens renders a plain message, not the shared EmptyState component", async ({
+  test("empty: zero tokens renders the shared EmptyState pattern", async ({
     page,
   }) => {
     await setClinicSession(page);
@@ -315,6 +312,7 @@ test.describe("clinic tokens module state parity (client-driven, CL-GAP-6)", () 
     await expect(
       card.getByText("No hay tokens particulares generados por esta clínica."),
     ).toBeVisible();
+    await expect(card.getByText("Sin tokens particulares")).toBeVisible();
     await expect(
       card.getByRole("button", { name: "Generar token particular", exact: true }),
     ).toBeEnabled();
@@ -430,7 +428,7 @@ test.describe("clinic tokens module state parity (client-driven, CL-GAP-6)", () 
 });
 
 test.describe("clinic perfil → perfil público module state parity (client-driven, CL-GAP-6)", () => {
-  test("loading: the only observable cue is the 'Sin cargar' badge, no spinner or text", async ({
+  test("loading: profile load exposes explicit loading copy", async ({
     page,
   }) => {
     await setClinicSession(page);
@@ -446,13 +444,12 @@ test.describe("clinic perfil → perfil público module state parity (client-dri
     const editor = page.locator('[data-clinic-profile-editor="true"]');
     await expect(editor).toBeVisible();
 
-    await expect(editor.getByText("Sin cargar")).toBeVisible();
-    await expect(editor.getByText(/cargando/i)).toHaveCount(0);
+    await expect(editor.getByText("Cargando perfil público...")).toBeVisible();
 
     await expect(editor.getByText("Borrador privado")).toBeVisible({ timeout: 4_000 });
   });
 
-  test("error: failed profile load shows an alert with no in-app retry control", async ({
+  test("error: failed profile load shows an alert with in-app retry control", async ({
     page,
   }) => {
     await setClinicSession(page);
@@ -466,13 +463,10 @@ test.describe("clinic perfil → perfil público module state parity (client-dri
     await page.getByRole("tab", { name: "Perfil público", exact: true }).first().click();
 
     const editor = page.locator('[data-clinic-profile-editor="true"]');
-    await expect(editor.getByRole("alert")).toHaveText("No se pudo cargar el perfil.");
-
-    // Gap: unlike tokens' "Actualizar", nothing in this card re-invokes
-    // loadProfile() — the only recovery path is a full page reload.
+    await expect(editor.getByRole("alert")).toContainText("No se pudo cargar el perfil.");
     await expect(
-      editor.getByRole("button", { name: /actualizar|recargar|reintentar/i }),
-    ).toHaveCount(0);
+      editor.getByRole("button", { name: "Reintentar carga", exact: true }),
+    ).toBeVisible();
 
     await expectNoHorizontalOverflow(page);
     await expectMainNotScrollContainer(page);

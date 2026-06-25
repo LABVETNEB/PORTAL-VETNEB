@@ -20,6 +20,23 @@ async function setClinicSession(page: Page) {
   ]);
 }
 
+async function expectClinicMobileBottomNav(page: Page, label: string) {
+  const clinicNav = page.locator('[data-clinic-mobile-bottom-nav="true"]');
+  await expect(clinicNav, `${label}: clinic bottom nav visible`).toBeVisible();
+  await expect(
+    clinicNav.locator('[data-clinic-mobile-bottom-nav-item="true"]'),
+    `${label}: clinic bottom nav item count`,
+  ).toHaveCount(6);
+  await expect(
+    page.locator('[data-admin-mobile-bottom-nav="true"]'),
+    `${label}: admin bottom nav absent`,
+  ).toHaveCount(0);
+  await expect(
+    page.locator('[data-dashboard-horizontal-nav-shell="true"]'),
+    `${label}: horizontal nav hidden on clinic mobile`,
+  ).toBeHidden();
+}
+
 async function mockClinicProfile(page: Page) {
   await page.route("**/api/clinic/profile**", async (route) => {
     if (route.request().method() !== "GET") return route.continue();
@@ -87,6 +104,7 @@ for (const viewport of VIEWPORTS) {
 
     const editor = page.locator('[data-clinic-profile-editor="true"]');
     await expect(editor).toBeVisible();
+    await expectClinicMobileBottomNav(page, viewport.name);
 
     await expect(async () => {
       await editor.getByRole("tab", { name: "Datos", exact: true }).click();

@@ -101,15 +101,23 @@ test("DashboardModuleHub renders the hero slot outside the module-card section",
 
 // ── Clinic controller wiring ─────────────────────────────────────────────────
 
-test("clinic controller renders a clinic hero with live operational metrics", () => {
+test("clinic controller renders a clinic cockpit with live operational metrics", () => {
   const source = read(CLINIC_CONTROLLER_PATH);
 
-  assert.ok(source.includes('import { DashboardHubHero } from "./DashboardHubHero";'));
-  assert.ok(source.includes('variant="clinic"'));
-  assert.ok(source.includes("value: pendingReports,"));
-  assert.ok(source.includes("value: activeVisits,"));
-  assert.ok(source.includes('onPrimaryAction={() => activateModule("operaciones")}'));
-  assert.ok(source.includes("hero={clinicHero}"));
+  assert.equal(source.includes('import { DashboardHubHero } from "./DashboardHubHero";'), false);
+  assert.equal(source.includes('import { DashboardModuleHub } from "./DashboardModuleHub";'), false);
+  assert.ok(source.includes('data-clinic-cockpit="true"'));
+  assert.ok(source.includes('data-clinic-cockpit-status="true"'));
+  assert.ok(source.includes('data-clinic-cockpit-attention="true"'));
+  assert.ok(source.includes('data-clinic-cockpit-continuity="true"'));
+  assert.ok(source.includes('data-clinic-cockpit-activity="true"'));
+  assert.ok(source.includes('data-clinic-cockpit-modules="true"'));
+  assert.ok(source.includes('data-clinic-cockpit-primary-actions="true"'));
+  assert.ok(source.includes("{statsLoadError ? \"—\" : pendingReports}"));
+  assert.ok(source.includes("{statsLoadError ? \"—\" : activeVisits}"));
+  assert.ok(source.includes("onClick={() => activateModule(item.moduleId)}"));
+  assert.ok(source.includes('data-dashboard-module-stage="true"'));
+  assert.ok(source.includes('data-clinic-dashboard-stage="true"'));
   assert.equal(source.includes('variant="admin"'), false);
 });
 

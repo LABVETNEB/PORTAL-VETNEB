@@ -260,6 +260,9 @@ export function ClinicPublicProfileCard() {
   const [isAvatarDeleting, setIsAvatarDeleting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [profileLoadErrorMessage, setProfileLoadErrorMessage] = useState<
+    string | null
+  >(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const avatarObjectUrlRef = useRef<string | null>(null);
 
@@ -285,6 +288,7 @@ export function ClinicPublicProfileCard() {
   async function loadProfile() {
     setIsLoading(true);
     setErrorMessage(null);
+    setProfileLoadErrorMessage(null);
 
     try {
       const snapshot = await getClinicPublicProfile();
@@ -292,7 +296,7 @@ export function ClinicPublicProfileCard() {
       setProfile(snapshot.profile);
       setFormState(toFormState(snapshot.profile));
     } catch (error) {
-      setErrorMessage(
+      setProfileLoadErrorMessage(
         error instanceof Error
           ? error.message
           : "No se pudo cargar el perfil público de la clínica.",
@@ -770,6 +774,30 @@ export function ClinicPublicProfileCard() {
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col px-5 py-3">
         <form className="flex min-h-0 flex-1 flex-col gap-3" onSubmit={handleSubmit}>
+          {isLoading ? (
+            <p className="clinical-alert-info px-3 py-2" role="status">
+              Cargando perfil público...
+            </p>
+          ) : null}
+
+          {profileLoadErrorMessage ? (
+            <div
+              className="clinical-alert-error flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+              role="alert"
+            >
+              <span>{profileLoadErrorMessage}</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void loadProfile()}
+                disabled={isWorking}
+              >
+                Reintentar carga
+              </Button>
+            </div>
+          ) : null}
+
           <ModuleTabs
             ariaLabel="Edición de perfil público"
             tabs={[

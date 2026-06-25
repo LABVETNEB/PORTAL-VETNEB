@@ -5,6 +5,7 @@ import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
 import { ClinicDashboardWorkspaceController } from "@/components/dashboard/ClinicDashboardWorkspaceController";
 import type { ClinicModule } from "@/components/dashboard/ClinicDashboardWorkspaceController";
+import { ClinicMobileModuleFrame } from "@/components/dashboard/ClinicMobileModuleFrame";
 import { ClinicCommandCenter } from "./ClinicCommandCenter";
 import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";
 import { ClinicPublicProfileCard } from "@/components/dashboard/ClinicPublicProfileCard";
@@ -115,6 +116,12 @@ export default async function DashboardPage({
         <Suspense>
           <ClinicDashboardWorkspaceController
             initialModule={initialModule}
+            stats={stats}
+            statsLoadError={statsLoadError}
+            recentReports={recentReports}
+            reportsLoadError={reportsLoadError}
+            recentVisits={recentVisits}
+            visitsLoadError={visitsLoadError}
             pendingReports={pendingReports}
             activeVisits={activeVisits}
             pageHeader={
@@ -125,45 +132,57 @@ export default async function DashboardPage({
             }
             workspaces={{
               operaciones: (
-                <ClinicCommandCenter
-                  stats={stats}
-                  statsLoadError={statsLoadError}
-                  recentReports={recentReports}
-                  recentVisits={recentVisits}
-                  reportsLoadError={reportsLoadError}
-                  visitsLoadError={visitsLoadError}
-                />
+                <ClinicMobileModuleFrame moduleId="operaciones">
+                  <ClinicCommandCenter
+                    stats={stats}
+                    statsLoadError={statsLoadError}
+                    recentReports={recentReports}
+                    recentVisits={recentVisits}
+                    reportsLoadError={reportsLoadError}
+                    visitsLoadError={visitsLoadError}
+                  />
+                </ClinicMobileModuleFrame>
               ),
               informes: (
-                <ClinicInformesWorkspaceSummary
-                  recentReports={recentReports}
-                  reportsLoadError={reportsLoadError}
-                />
+                <ClinicMobileModuleFrame moduleId="informes">
+                  <ClinicInformesWorkspaceSummary
+                    recentReports={recentReports}
+                    reportsLoadError={reportsLoadError}
+                  />
+                </ClinicMobileModuleFrame>
               ),
               logistica: (
-                <ClinicLogisticaWorkspaceSummary
-                  recentVisits={recentVisits}
-                  visitsLoadError={visitsLoadError}
-                />
+                <ClinicMobileModuleFrame moduleId="logistica">
+                  <ClinicLogisticaWorkspaceSummary
+                    recentVisits={recentVisits}
+                    visitsLoadError={visitsLoadError}
+                  />
+                </ClinicMobileModuleFrame>
               ),
               perfil: (
-                <ModuleTabs
-                  ariaLabel="Secciones de perfil"
-                  tabs={[
-                    {
-                      id: "acceso",
-                      label: "Acceso",
-                      content: <PasswordChangePanel variant="clinic" />,
-                    },
-                    {
-                      id: "perfil-publico",
-                      label: "Perfil público",
-                      content: <ClinicPublicProfileCard />,
-                    },
-                  ]}
-                />
+                <ClinicMobileModuleFrame moduleId="perfil">
+                  <ModuleTabs
+                    ariaLabel="Secciones de perfil"
+                    tabs={[
+                      {
+                        id: "acceso",
+                        label: "Acceso",
+                        content: <PasswordChangePanel variant="clinic" />,
+                      },
+                      {
+                        id: "perfil-publico",
+                        label: "Perfil público",
+                        content: <ClinicPublicProfileCard />,
+                      },
+                    ]}
+                  />
+                </ClinicMobileModuleFrame>
               ),
-              tokens: <ClinicParticularTokensCard />,
+              tokens: (
+                <ClinicMobileModuleFrame moduleId="tokens">
+                  <ClinicParticularTokensCard />
+                </ClinicMobileModuleFrame>
+              ),
             }}
           />
         </Suspense>

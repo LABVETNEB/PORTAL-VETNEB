@@ -5,6 +5,7 @@ import type { Report } from "@/types";
 import { ClipboardList, ExternalLink } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
 import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
@@ -57,9 +58,13 @@ export function ClinicInformesWorkspaceSummary({
       }
     >
       {reportsLoadError ? (
-        <p role="alert" className="clinical-alert-warning">
-          No se pudieron cargar los informes recientes. Intente nuevamente.
-        </p>
+        <div
+          role="alert"
+          className="clinical-alert-warning flex flex-wrap items-center justify-between gap-2"
+        >
+          <span>No se pudieron cargar los informes recientes. Intente nuevamente.</span>
+          <DashboardRefreshButton />
+        </div>
       ) : recentReports.length ? (
         <div className="dashboard-inline-list min-h-0 flex-1 rounded-lg border border-vetneb-line/75 bg-card/82">
             <div className="dashboard-inline-scroll divide-y divide-vetneb-line/60">
