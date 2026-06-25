@@ -49,6 +49,11 @@ test("admin horizontal nav exposes the expected modules and preserves ?module=",
     { label: "Auditoría", moduleId: "audit-log" },
     { label: "Usuarios", moduleId: "admin-users-roles" },
     { label: "Sesiones", moduleId: "admin-sessions" },
+    // PR-GD1: critical system/configuration modules must be reachable from the
+    // canonical horizontal nav (no longer hidden behind the hub).
+    { label: "Estado", moduleId: "admin-health" },
+    { label: "Precios", moduleId: "admin-pricing" },
+    { label: "Mantenimiento", moduleId: "admin-maintenance" },
   ];
 
   for (const { label, moduleId } of adminModules) {
