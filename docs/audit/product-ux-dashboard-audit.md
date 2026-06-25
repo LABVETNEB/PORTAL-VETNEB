@@ -1246,3 +1246,42 @@ Acceptance:
 - Particulares remains separated from admin and clinic dashboard OS navigation.
 - Future particulares implementation must preserve existing security boundaries, redaction, ownership, and response-disclosure contracts.
 - Any future visual/product implementation must be opened as a separate frontend-only PR with desktop and mobile evidence.
+
+## PR-GD9 — Product UX Dashboard closeout
+
+Decision:
+- The Product UX Dashboard audit block is closed as a documented baseline.
+- The Global Dashboard Operating System now has explicit contracts for navigation, module ids, sidebar/orphan navigation, server-state semantics, observability/privacy, and particulares product-surface separation.
+- This closeout does not implement new UI. It freezes the audit baseline and defines the next implementation work as separate, small, scoped PRs.
+- Future implementation PRs must keep admin, clinic, and particulares separated by role, surface, navigation model, data exposure, and operational complexity.
+- No future dashboard or particulares work may bypass the documented no-scroll SLA, server-state, privacy, security, and role-separation contracts.
+
+Closed block summary:
+- PR-GD0: baseline Global Dashboard Operating System.
+- PR-GD1: admin system modules promoted into canonical navigation.
+- PR-GD2: module overview action clarified to avoid mandatory hub double-hop.
+- PR-GD3: clinic summary module actions clarified.
+- PR-GD4: sidebar/orphan navigation contract.
+- PR-GD5: canonical module ids and legacy aliases contract.
+- PR-GD6: loading, empty, error, and retry server-state contract.
+- PR-GD7: observability/privacy plan contract.
+- PR-GD8: particulares product surface audit contract.
+
+Implementation not included in this closeout:
+- No particulares visual/product redesign.
+- No analytics, telemetry, session replay, Clarity, or third-party observability integration.
+- No governance test implementation.
+- No backend/API/auth/DB/migrations/deps/lockfiles/CI/config changes.
+- No dashboard visual redesign.
+
+Next allowed implementation tracks:
+- Frontend-only particulares UX implementation with desktop and mobile evidence.
+- Frontend-only dashboard action hierarchy refinements where already covered by the audit contract.
+- Optional governance tests/e2e/screenshot evidence in a separate explicitly scoped PR.
+- Any dependency, backend, API, auth, database, CI, or observability-vendor work must be authorized separately.
+
+Acceptance:
+- `main` remains clean after merge.
+- This closeout changes documentation only.
+- The block can be resumed from this closeout without re-auditing the same contracts.
+- Future PRs must cite the relevant contract section before implementation.
