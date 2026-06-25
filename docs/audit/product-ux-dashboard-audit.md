@@ -1118,3 +1118,45 @@ Acceptance:
 - The current dashboard shell remains no-sidebar as primary navigation.
 - Existing sidebar components stay governed by tests but are not promoted back into the primary shell.
 - Any future change must preserve no-scroll SLA and role-specific navigation separation.
+
+## PR-GD5 — Canonical module ids / legacy aliases contract
+
+Decision:
+- Dashboard `?module=` navigation must use canonical module ids for all new links, tests, and documentation.
+- Legacy aliases may remain only as compatibility inputs when already covered by tests.
+- New UI surfaces must not introduce new aliases or duplicate ids.
+- Any future alias must be documented here before implementation.
+
+Clinic canonical module ids:
+- `operaciones`
+- `informes`
+- `logistica`
+- `perfil`
+- `tokens`
+
+Admin canonical module ids:
+- `admin`
+- `admin-report-upload`
+- `admin-health`
+- `admin-clinics`
+- `admin-particular-tokens`
+- `admin-pricing`
+- `admin-sessions`
+- `admin-users-roles`
+- `audit-log`
+- `admin-maintenance`
+
+Allowed legacy aliases:
+- `maintenance` -> `admin-maintenance`
+- `admin-upload-report` -> `admin-report-upload`
+
+Scope:
+- Documentation-only contract.
+- No production code changes.
+- No backend/API/auth/DB/migrations/deps/lockfiles/CI/config changes.
+- No navigation rewrite.
+
+Acceptance:
+- Canonical ids remain the only ids used by new UI links.
+- Existing aliases remain compatibility-only and must not appear in new navigation surfaces.
+- Future dashboard navigation changes must preserve role-specific module separation and no-scroll SLA.
