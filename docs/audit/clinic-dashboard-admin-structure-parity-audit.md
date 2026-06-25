@@ -191,3 +191,38 @@ Validaciones ejecutadas:
 - `pnpm typecheck:test` — sin errores.
 - `git diff --check` — sin conflictos de whitespace.
 - `next-env.d.ts` revertido a su estado de `main` tras la corrida e2e (regenerado por el dev server de Playwright; no es parte del diff de este PR).
+
+### PR-CL2 evidence (clinic hub command center parity)
+
+Rama: `feat/clinic-command-center-parity`. Base: `main` @ `3d25d28` (test(clinic): add controller workspace parity contract #1136).
+
+Archivos tocados:
+
+- `frontend/src/app/dashboard/ClinicCommandCenter.tsx`
+- `frontend/e2e/dashboard-clinic-controller-workspace-parity.spec.ts`
+- `docs/audit/clinic-dashboard-admin-structure-parity-audit.md` (este archivo)
+
+Mejora agregada (cierra parcialmente **CL-GAP-2**): se agregó una tercera pestaña "Estado" dentro del `ModuleTabs` ya existente en `ClinicCommandCenter` (junto a "Métricas" y "Recientes"), con tres bloques estructurales análogos a los de `AdminCommandCenter` — pero derivados exclusivamente de los props ya disponibles (`stats`, `recentReports`, `recentVisits`, `*LoadError`), sin nuevos fetches ni endpoints:
+
+- **Atención requerida** (`data-clinic-command-attention="true"`): lista informes pendientes y visitas activas con conteo > 0, o el mensaje de error de métricas si `statsLoadError`. Estado vacío seguro ("Sin pendientes operativos detectados.") cuando no hay nada que atender.
+- **Actividad reciente** (`data-clinic-command-activity="true"`): selecciona el ítem más reciente entre el primer informe y la primera visita ya cargados (comparando fecha), sin inventar datos. Estado vacío seguro si ambas listas están vacías.
+- **Continuidad operativa** (`data-clinic-command-continuity="true"`): mensaje binario operativo/degradado derivado de `statsLoadError || reportsLoadError || visitsLoadError`, sin exponer detalles sensibles.
+
+El componente raíz quedó envuelto en `<section data-clinic-command-center="true">` para dar un selector estable de evidencia equivalente al patrón Admin.
+
+Límites preservados:
+
+- No se tocó `fetch`/API ni `frontend/src/app/dashboard/page.tsx` (los props que ya se pasaban a `ClinicCommandCenter` fueron suficientes).
+- No se copiaron controles admin-only (precios, sesiones, usuarios/roles, auditoría, mantenimiento).
+- No se tocó `/clinicas` pública ni `frontend/src/app/dashboard/admin/**`.
+- Se mantuvo `ModuleSurface` + `ModuleTabs` y el contrato no-scroll (cada tab renderiza solo su panel activo, igual que "Métricas"/"Recientes").
+- No se agregaron dependencias nuevas.
+
+Validaciones ejecutadas:
+
+- `pnpm --dir frontend exec playwright test e2e/dashboard-clinic-controller-workspace-parity.spec.ts` — 21 passed (18 del contrato PR-CL1 + 3 nuevos del cockpit PR-CL2, incluyendo verificación 390x844 sin overflow horizontal ni scroll en `main.dashboard-main` con la pestaña "Estado" activa).
+- `pnpm --dir frontend lint` — sin errores.
+- `pnpm typecheck:test` — sin errores.
+- `pnpm test` — 2839 passed, 0 failed (suite completa, incluye contratos de estructura existentes sobre `ClinicCommandCenter.tsx`).
+- `git diff --check` — sin conflictos de whitespace.
+- `next-env.d.ts` revertido a su estado de `main` tras la corrida e2e.

@@ -17,6 +17,45 @@ export type ClinicCommandCenterProps = {
   visitsLoadError: boolean;
 };
 
+type RecentActivityEntry = {
+  label: string;
+  detail: string;
+  date: string | null;
+};
+
+function pickMostRecentActivity(
+  recentReports: Report[],
+  recentVisits: FieldVisit[],
+): RecentActivityEntry | null {
+  const candidates: RecentActivityEntry[] = [];
+
+  const latestReport = recentReports[0];
+  if (latestReport) {
+    candidates.push({
+      label: latestReport.patientName ?? "Informe sin nombre",
+      detail: `${latestReport.studyType ?? "Estudio"} · ${formatDate(latestReport.uploadDate)}`,
+      date: latestReport.updatedAt ?? latestReport.uploadDate,
+    });
+  }
+
+  const latestVisit = recentVisits[0];
+  if (latestVisit) {
+    candidates.push({
+      label: latestVisit.clinicName ?? `Clínica #${latestVisit.clinicId}`,
+      detail: `Visita de campo · ${formatDate(latestVisit.scheduledAt)}`,
+      date: latestVisit.scheduledAt,
+    });
+  }
+
+  if (!candidates.length) return null;
+
+  return candidates.reduce((latest, current) => {
+    const latestTime = latest.date ? new Date(latest.date).getTime() : 0;
+    const currentTime = current.date ? new Date(current.date).getTime() : 0;
+    return currentTime > latestTime ? current : latest;
+  });
+}
+
 export function ClinicCommandCenter({
   stats,
   statsLoadError,
@@ -25,9 +64,32 @@ export function ClinicCommandCenter({
   reportsLoadError,
   visitsLoadError,
 }: ClinicCommandCenterProps) {
+  const attentionItems: string[] = [];
+  if (statsLoadError) {
+    attentionItems.push("No se pudieron cargar las métricas operativas.");
+  } else {
+    if ((stats?.pendingReports ?? 0) > 0) {
+      attentionItems.push(
+        `${stats!.pendingReports} informe(s) pendiente(s) de entrega.`,
+      );
+    }
+    if ((stats?.activeVisits ?? 0) > 0) {
+      attentionItems.push(
+        `${stats!.activeVisits} visita(s) de campo activa(s) en curso.`,
+      );
+    }
+  }
+
+  const recentActivity = pickMostRecentActivity(recentReports, recentVisits);
+  const hasAnyError = statsLoadError || reportsLoadError || visitsLoadError;
+
   return (
-    <ModuleSurface
-      ariaLabel="Centro de operaciones clínica"
+    <section
+      className="flex min-h-0 flex-1 flex-col"
+      data-clinic-command-center="true"
+    >
+      <ModuleSurface
+        ariaLabel="Centro de operaciones clínica"
       toolbar={
         <section className="surface-note-info w-full" aria-labelledby="dashboard-operational-priority">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -196,8 +258,71 @@ export function ClinicCommandCenter({
               </div>
             ),
           },
+          {
+            id: "estado",
+            label: "Estado",
+            content: (
+              <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
+                <div
+                  className="surface-soft min-h-0"
+                  data-clinic-command-attention="true"
+                >
+                  <p className="text-[0.8rem] font-semibold text-vetneb-ink">
+                    Atención requerida
+                  </p>
+                  {attentionItems.length ? (
+                    <ul className="mt-1 space-y-1 text-[0.72rem] text-muted-foreground">
+                      {attentionItems.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-[0.72rem] text-muted-foreground">
+                      Sin pendientes operativos detectados.
+                    </p>
+                  )}
+                </div>
+
+                <div
+                  className="surface-soft min-h-0"
+                  data-clinic-command-activity="true"
+                >
+                  <p className="text-[0.8rem] font-semibold text-vetneb-ink">
+                    Actividad reciente
+                  </p>
+                  {recentActivity ? (
+                    <p className="mt-1 line-clamp-2 text-[0.72rem] text-muted-foreground">
+                      <span className="font-semibold text-foreground/85">
+                        {recentActivity.label}
+                      </span>{" "}
+                      · {recentActivity.detail}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[0.72rem] text-muted-foreground">
+                      Sin actividad reciente disponible.
+                    </p>
+                  )}
+                </div>
+
+                <div
+                  className="surface-soft min-h-0"
+                  data-clinic-command-continuity="true"
+                >
+                  <p className="text-[0.8rem] font-semibold text-vetneb-ink">
+                    Continuidad operativa
+                  </p>
+                  <p className="mt-1 text-[0.72rem] text-muted-foreground">
+                    {hasAnyError
+                      ? "Estado degradado: revisar conectividad de informes, visitas o métricas."
+                      : "Operativo: informes y logística sincronizados sin incidentes detectados."}
+                  </p>
+                </div>
+              </div>
+            ),
+          },
         ]}
       />
     </ModuleSurface>
+    </section>
   );
 }

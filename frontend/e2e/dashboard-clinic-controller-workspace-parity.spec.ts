@@ -189,3 +189,60 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     await expectMainNotScrollContainer(page);
   });
 });
+
+test.describe("clinic command center operational cockpit (PR-CL2)", () => {
+  test("operaciones module renders the command center root", async ({ page }) => {
+    await setClinicSession(page);
+    await page.goto("/dashboard?module=operaciones");
+    await expect(
+      page.locator('[data-dashboard-module-workspace="operaciones"]'),
+    ).toBeVisible({ timeout: 8_000 });
+
+    await expect(
+      page.locator('[data-clinic-command-center="true"]'),
+    ).toBeVisible();
+  });
+
+  test("Estado tab exposes attention, activity and continuity blocks", async ({
+    page,
+  }) => {
+    await setClinicSession(page);
+    await page.goto("/dashboard?module=operaciones");
+    await expect(
+      page.locator('[data-dashboard-module-workspace="operaciones"]'),
+    ).toBeVisible({ timeout: 8_000 });
+
+    const commandCenter = page.locator('[data-clinic-command-center="true"]');
+    await commandCenter.getByRole("tab", { name: "Estado" }).click();
+
+    await expect(
+      commandCenter.locator('[data-clinic-command-attention="true"]'),
+    ).toBeVisible();
+    await expect(
+      commandCenter.locator('[data-clinic-command-activity="true"]'),
+    ).toBeVisible();
+    await expect(
+      commandCenter.locator('[data-clinic-command-continuity="true"]'),
+    ).toBeVisible();
+  });
+
+  test("Estado tab fits 390x844 without horizontal overflow or main scroll", async ({
+    page,
+  }) => {
+    await setClinicSession(page);
+    await page.setViewportSize(MOBILE_VIEWPORT);
+    await page.goto("/dashboard?module=operaciones");
+    await expect(
+      page.locator('[data-dashboard-module-workspace="operaciones"]'),
+    ).toBeVisible({ timeout: 8_000 });
+
+    const commandCenter = page.locator('[data-clinic-command-center="true"]');
+    await commandCenter.getByRole("tab", { name: "Estado" }).click();
+    await expect(
+      commandCenter.locator('[data-clinic-command-continuity="true"]'),
+    ).toBeVisible();
+
+    await expectNoHorizontalOverflow(page);
+    await expectMainNotScrollContainer(page);
+  });
+});
