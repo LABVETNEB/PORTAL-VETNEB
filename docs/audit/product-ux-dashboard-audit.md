@@ -1187,3 +1187,32 @@ Acceptance:
 - Future dashboard modules must preserve the distinction between empty and error states.
 - Existing shared LoadingState, EmptyState, and ErrorState contracts remain canonical.
 - New dashboard server-state work must preserve no-scroll SLA and role-specific module separation.
+
+## PR-GD7 — Observability / privacy plan contract
+
+Decision:
+- Dashboard observability must remain privacy-first and security-boundary aware.
+- No analytics, telemetry, session replay, Clarity, heatmaps, tracking pixels, or third-party scripts may be introduced without explicit privacy review.
+- Any future observability must preserve existing request logging, audit, redaction, and sensitive-output guardrails.
+- Observability must never capture or expose raw tokens, token hashes, cookies, signed URLs, passwords, report URLs, private identifiers, backend exception details, or clinical/private payloads.
+- Request diagnostics must use safe identifiers such as `requestId` or existing audit ids, not raw secrets.
+- Session replay, if ever approved, must default to masking and must be limited to non-sensitive public/product UX evidence.
+
+Required privacy gates before implementation:
+- Explicit approval for tool/vendor.
+- Explicit masking policy.
+- Explicit allowlist of tracked events.
+- Explicit denylist of sensitive fields and surfaces.
+- Explicit evidence that no backend/API/auth/DB/migrations/deps/lockfiles/CI/config changes are required unless separately authorized.
+
+Scope:
+- Documentation-only contract.
+- No production code changes.
+- No third-party observability integration.
+- No backend/API/auth/DB/migrations/deps/lockfiles/CI/config changes.
+- No dashboard visual redesign.
+
+Acceptance:
+- Current redaction and request logging contracts remain the baseline.
+- Future dashboard observability must preserve no-scroll SLA, role-specific module separation, and sensitive-data minimization.
+- Any future analytics/session replay work must be opened as a separate explicitly approved PR.
