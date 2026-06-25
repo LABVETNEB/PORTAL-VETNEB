@@ -1216,3 +1216,33 @@ Acceptance:
 - Current redaction and request logging contracts remain the baseline.
 - Future dashboard observability must preserve no-scroll SLA, role-specific module separation, and sensitive-data minimization.
 - Any future analytics/session replay work must be opened as a separate explicitly approved PR.
+
+## PR-GD8 — Particulares product surface audit contract
+
+Decision:
+- The particulares surface is a public/product tutor-facing surface, not an admin/clinic dashboard module.
+- The canonical frontend surface is `/particulares`, backed by `frontend/src/app/particulares/page.tsx` and `frontend/src/components/public/ParticularesContent.tsx`.
+- Future particulares UX work must be frontend-only unless backend/API/auth/DB changes are explicitly authorized in a separate PR.
+- The surface must not introduce dashboard shell navigation, admin/clinic module ids, private dashboard hierarchy, or internal operational controls.
+- The surface must prioritize clear next-step guidance for tutors: access token, report consultation, linked report availability, and safe recovery states.
+- Mobile particulares must remain simple and shallow: no buried primary action, no long operational workflow, no internal module scroll, and no sensitive data exposure.
+- Desktop particulares may use richer product storytelling, but must not hide the primary tutor action below non-essential content.
+
+Required UX semantics:
+- `public`: marketing/product explanation only.
+- `token access`: tutor entry point for report consultation.
+- `linked report available`: clear path to preview/download when authorized.
+- `unlinked report`: safe explanation without leaking internal report or clinic metadata.
+- `invalid/expired/inactive`: safe recovery copy with no token, cookie, signed URL, or backend detail exposure.
+
+Scope:
+- Documentation-only contract.
+- No production code changes.
+- No backend/API/auth/DB/migrations/deps/lockfiles/CI/config changes.
+- No auth/session/token behavior changes.
+- No dashboard visual redesign.
+
+Acceptance:
+- Particulares remains separated from admin and clinic dashboard OS navigation.
+- Future particulares implementation must preserve existing security boundaries, redaction, ownership, and response-disclosure contracts.
+- Any future visual/product implementation must be opened as a separate frontend-only PR with desktop and mobile evidence.
