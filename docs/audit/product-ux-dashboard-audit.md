@@ -1098,3 +1098,23 @@ veto de deps/CI sin autorización.
 - ✅ Cobertura global: 6 superficies (admin/clínica/particulares × desktop/mobile), con
   particulares explícitamente marcado como **EXISTENTE fuera del OS** y su aplicación como
   **frontend-only / sin backend**.
+
+## PR-GD4 — Sidebar / orphan navigation contract
+
+Decision:
+- DashboardSidebarFrame, ClinicDashboardSidebar and AdminDashboardSidebar remain legacy/shared navigation components covered by tests, but they must not be reintroduced as the primary dashboard shell navigation.
+- Desktop dashboard navigation must remain the canonical horizontal navigation contract.
+- Admin mobile navigation must remain the dedicated bottom navigation contract.
+- Clinic dashboard navigation must remain inside the current in-shell module navigation contract.
+- Future sidebar work must prove that it does not create parallel navigation, duplicate hierarchy, or a double-hop path.
+
+Scope:
+- Documentation-only contract.
+- No production code changes.
+- No backend/API/auth/DB/migrations/deps/lockfiles/CI/config changes.
+- No dashboard visual redesign.
+
+Acceptance:
+- The current dashboard shell remains no-sidebar as primary navigation.
+- Existing sidebar components stay governed by tests but are not promoted back into the primary shell.
+- Any future change must preserve no-scroll SLA and role-specific navigation separation.
