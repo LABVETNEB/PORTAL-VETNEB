@@ -1,40 +1,23 @@
-import { mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
-import type { Page, TestInfo } from "@playwright/test";
-
-// PR-CL3 — Clinic mobile nav/stage parity evidence (test-only, no production
-// change). Decides whether Clinic needs an Admin-style persistent module
-// stage ([data-dashboard-module-stage], CL-GAP-1) and/or sync mobile-nav
-// signaling (CL-GAP-5) before either is built.
-//
-// Confirmed by reading frontend/src/app/globals.css (admin-mobile-real-device
-// -layer-isolation / admin-mobile-stage-layer blocks): the opaque-ancestor
-// forcing and the GPU-promoted persistent stage that Admin uses to prevent
-// mobile bleed-through/ghosting are BOTH explicitly scoped to
-// `[data-vetneb-app-shell-surface="admin"]`. The blocks say so directly:
-// "Scoped to Admin mobile only... desktop, Clinic and the data/layout of
-// every module stay untouched" / "desktop and Clinic keep the stage as a
-// transparent flex passthrough". Clinic's controller
-// (ClinicDashboardWorkspaceController) swaps Hub<->module the same way Admin
-// did BEFORE that fix: two differently-typed branches returned directly,
-// no persistent stage wrapper.
-//
-// Headless Chromium cannot reproduce the real-device GPU tile recycling
-// itself (documented limitation in admin-mobile-hub-stale-layer-stage.spec.ts
-// and admin-mobile-module-layer-isolation.spec.ts too), so this spec does not
-// assert opacity/isolation contracts that would fail today and that nothing
-// in this PR fixes. It instead pins what IS verifiable headlessly: real
-// nav-driven swaps leave no stale/duplicate DOM mount, frame/main keep their
-// own node identity across the swap (no remount), and the mobile no-scroll
-// contract holds through a realistic multi-step round trip (not just single
-// fresh `goto`s, which is what PR-CL1 already covered).
+import type { Page } from "@playwright/test";
 
 const VIEWPORT = { width: 390, height: 844 } as const;
 const TOLERANCE = 2;
 
-const FRAME_SELECTOR = '[data-vetneb-app-shell-frame="true"]';
-const MAIN_SELECTOR = "main.dashboard-main";
+type ClinicModule =
+  | "operaciones"
+  | "informes"
+  | "logistica"
+  | "perfil"
+  | "tokens";
+
+const MODULES: Array<{ label: string; moduleId: ClinicModule }> = [
+  { label: "Operaciones", moduleId: "operaciones" },
+  { label: "Informes", moduleId: "informes" },
+  { label: "Logística", moduleId: "logistica" },
+  { label: "Perfil", moduleId: "perfil" },
+  { label: "Tokens", moduleId: "tokens" },
+];
 
 async function setClinicSession(page: Page) {
   await page.context().addCookies([
@@ -46,54 +29,58 @@ async function setClinicSession(page: Page) {
   ]);
 }
 
+async function setAdminSession(page: Page) {
+  await page.context().addCookies([
+    {
+      name: "admin_session_id",
+      value: "e2e_test_admin_session",
+      url: "http://127.0.0.1:3000",
+    },
+  ]);
+}
+
 async function suppressNextDevIndicator(page: Page) {
   await page.addStyleTag({
     content: "nextjs-portal { display: none !important; }",
   });
 }
 
-async function stampNode(page: Page, selector: string, token: string) {
-  await page.evaluate(
-    ({ selector, token }) => {
-      const node = document.querySelector<HTMLElement>(selector);
-      if (!node) throw new Error(`node missing while stamping: ${selector}`);
-      (node as unknown as Record<string, string>).__e2eIdentityToken = token;
-    },
-    { selector, token },
-  );
+function bottomNav(page: Page) {
+  return page.locator('[data-clinic-mobile-bottom-nav="true"]');
 }
 
-async function readStampedToken(page: Page, selector: string) {
-  return page.evaluate((selector) => {
-    const node = document.querySelector<HTMLElement>(selector);
-    return node
-      ? ((node as unknown as Record<string, string>).__e2eIdentityToken ?? null)
-      : null;
-  }, selector);
+function bottomNavItem(page: Page, label: string) {
+  return bottomNav(page).getByRole("button", { name: label, exact: true });
 }
 
-type NoScrollContract = {
-  htmlOverflowX: number;
-  bodyOverflowX: number;
-  mainOverflowY: number;
-  workspaceCount: number;
-  hubCount: number;
-};
+function horizontalNavItem(page: Page, label: string) {
+  return page
+    .getByRole("navigation", { name: "Navegación principal" })
+    .getByRole("button", { name: label, exact: true });
+}
 
-async function readNoScrollContract(page: Page): Promise<NoScrollContract> {
+async function readNoScrollContract(page: Page) {
   return page.evaluate(() => {
     const main = document.querySelector<HTMLElement>("main.dashboard-main");
+    const nav = document.querySelector<HTMLElement>(
+      '[data-clinic-mobile-bottom-nav="true"]',
+    );
+
     return {
       htmlOverflowX:
         document.documentElement.scrollWidth -
         document.documentElement.clientWidth,
       bodyOverflowX: document.body.scrollWidth - document.body.clientWidth,
       mainOverflowY: main ? main.scrollHeight - main.clientHeight : 0,
+      navOverflowX: nav ? nav.scrollWidth - nav.clientWidth : 0,
       workspaceCount: document.querySelectorAll(
         "[data-dashboard-module-workspace]",
       ).length,
       hubCount: document.querySelectorAll('[data-dashboard-module-hub="true"]')
         .length,
+      stageCount: document.querySelectorAll(
+        '[data-dashboard-module-stage="true"][data-clinic-dashboard-stage="true"]',
+      ).length,
     };
   });
 }
@@ -110,200 +97,124 @@ async function expectNoScrollContract(page: Page, label: string) {
     expect(contract.mainOverflowY, `${label}: main vertical overflow`).toBeLessThanOrEqual(
       TOLERANCE,
     );
-  }).toPass({ timeout: 10_000 });
-
-  return readNoScrollContract(page);
-}
-
-function navItem(page: Page, label: string) {
-  return page
-    .getByRole("navigation", { name: "Navegación principal" })
-    .getByRole("button", { name: label, exact: true });
-}
-
-test.describe("clinic mobile nav/stage parity evidence (PR-CL3)", () => {
-  test("frame and main keep node identity across a real hub->module->hub round trip — 390x844", async ({
-    page,
-  }, testInfo: TestInfo) => {
-    await page.setViewportSize(VIEWPORT);
-    await setClinicSession(page);
-    await page.goto("/dashboard");
-    await suppressNextDevIndicator(page);
-    await expect(page.locator('[data-dashboard-module-hub="true"]')).toBeVisible({
-      timeout: 8_000,
-    });
-
-    const frameToken = "frame-390x844";
-    const mainToken = "main-390x844";
-    await stampNode(page, FRAME_SELECTOR, frameToken);
-    await stampNode(page, MAIN_SELECTOR, mainToken);
-
-    let contract = await expectNoScrollContract(page, "initial hub");
-    expect(contract.hubCount, "initial hub: exactly one hub mounted").toBe(1);
-    expect(contract.workspaceCount, "initial hub: no module workspace mounted").toBe(0);
-
-    // Hub -> operaciones via the real horizontal nav (same path desktop uses;
-    // Clinic has no separate mobile-only nav component, unlike Admin's
-    // dedicated bottom nav).
-    await navItem(page, "Resumen").click();
-    await expect(
-      page.locator('[data-dashboard-module-workspace="operaciones"]'),
-    ).toBeVisible({ timeout: 8_000 });
-    expect(
-      await readStampedToken(page, FRAME_SELECTOR),
-      "operaciones: app-shell frame node persisted (no remount)",
-    ).toBe(frameToken);
-    expect(
-      await readStampedToken(page, MAIN_SELECTOR),
-      "operaciones: dashboard-main node persisted (no remount)",
-    ).toBe(mainToken);
-    contract = await expectNoScrollContract(page, "operaciones");
-    expect(contract.hubCount, "operaciones: hub unmounted").toBe(0);
-    expect(contract.workspaceCount, "operaciones: exactly one workspace mounted").toBe(1);
-
-    // operaciones -> tokens: the previous module must be fully gone, not just
-    // covered.
-    await navItem(page, "Tokens").click();
-    await expect(
-      page.locator('[data-dashboard-module-workspace="tokens"]'),
-    ).toBeVisible({ timeout: 8_000 });
-    await expect(
-      page.locator('[data-dashboard-module-workspace="operaciones"]'),
-    ).toHaveCount(0);
-    expect(
-      await readStampedToken(page, FRAME_SELECTOR),
-      "tokens: app-shell frame node persisted",
-    ).toBe(frameToken);
-    expect(
-      await readStampedToken(page, MAIN_SELECTOR),
-      "tokens: dashboard-main node persisted",
-    ).toBe(mainToken);
-    await expectNoScrollContract(page, "tokens");
-
-    // tokens -> perfil
-    await navItem(page, "Perfil").click();
-    await expect(
-      page.locator('[data-dashboard-module-workspace="perfil"]'),
-    ).toBeVisible({ timeout: 8_000 });
-    await expect(
-      page.locator('[data-dashboard-module-workspace="tokens"]'),
-    ).toHaveCount(0);
-    expect(
-      await readStampedToken(page, FRAME_SELECTOR),
-      "perfil: app-shell frame node persisted",
-    ).toBe(frameToken);
-    expect(
-      await readStampedToken(page, MAIN_SELECTOR),
-      "perfil: dashboard-main node persisted",
-    ).toBe(mainToken);
-    await expectNoScrollContract(page, "perfil");
-
-    // perfil -> hub via the workspace "Vista general" back control (Clinic's
-    // nav has no item that targets the bare hub).
-    await page
-      .locator('[data-dashboard-module-workspace="perfil"]')
-      .locator('button[aria-label="Vista general"]')
-      .click();
-    await expect(page.locator('[data-dashboard-module-hub="true"]')).toBeVisible({
-      timeout: 8_000,
-    });
-    contract = await expectNoScrollContract(page, "hub after round trip");
-    expect(contract.hubCount, "hub after round trip: exactly one hub mounted").toBe(1);
-    expect(
-      contract.workspaceCount,
-      "hub after round trip: no stale module workspace left mounted",
-    ).toBe(0);
-    expect(
-      await readStampedToken(page, FRAME_SELECTOR),
-      "hub after round trip: app-shell frame node persisted",
-    ).toBe(frameToken);
-    expect(
-      await readStampedToken(page, MAIN_SELECTOR),
-      "hub after round trip: dashboard-main node persisted",
-    ).toBe(mainToken);
-
-    const screenshotDirectory = resolve(
-      testInfo.config.rootDir,
-      "..",
-      "test-results",
-      "dashboard-clinic-mobile-nav-stage-parity",
+    expect(contract.navOverflowX, `${label}: bottom nav overflow`).toBeLessThanOrEqual(
+      TOLERANCE,
     );
-    await mkdir(screenshotDirectory, { recursive: true });
-    await page.screenshot({
-      path: resolve(screenshotDirectory, "390x844-hub-after-round-trip.png"),
-      animations: "disabled",
-      fullPage: false,
-    });
-  });
+    expect(contract.stageCount, `${label}: clinic stage mounted`).toBe(1);
+  }).toPass({ timeout: 10_000 });
+}
 
-  test("active horizontal nav item stays visible through the round trip (Resumen/Tokens/Perfil) — 390x844", async ({
+async function expectWorkspace(page: Page, moduleId: ClinicModule) {
+  await expect(
+    page.locator(`[data-dashboard-module-workspace="${moduleId}"]`),
+  ).toBeVisible({ timeout: 8_000 });
+  await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
+}
+
+test.describe("clinic mobile bottom nav/stage parity (PR-CL7)", () => {
+  test("mobile 390x844 mounts ClinicMobileBottomNav and never AdminMobileBottomNav", async ({
     page,
   }) => {
     await page.setViewportSize(VIEWPORT);
     await setClinicSession(page);
-    await page.goto("/dashboard?module=operaciones");
+    await page.goto("/dashboard");
     await suppressNextDevIndicator(page);
+
+    await expect(bottomNav(page)).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toHaveCount(0);
     await expect(
-      page.locator('[data-dashboard-module-workspace="operaciones"]'),
-    ).toBeVisible({ timeout: 8_000 });
+      page.locator('[data-dashboard-horizontal-nav-shell="true"]'),
+    ).toBeHidden();
+    await expect(bottomNav(page).locator('[data-clinic-mobile-bottom-nav-item="true"]')).toHaveCount(6);
 
-    for (const [label, moduleId] of [
-      ["Resumen", "operaciones"],
-      ["Informes", "informes"],
-      ["Logística", "logistica"],
-      ["Tokens", "tokens"],
-      ["Perfil", "perfil"],
-    ] as const) {
-      await navItem(page, label).click();
-      await expect(
-        page.locator(`[data-dashboard-module-workspace="${moduleId}"]`),
-      ).toBeVisible({ timeout: 8_000 });
+    await expectNoScrollContract(page, "clinic hub");
+  });
 
-      const item = navItem(page, label);
-      await expect(item).toHaveAttribute("aria-current", "page");
-      const box = await item.boundingBox();
-      expect(box, `${label}: nav item has a bounding box`).not.toBeNull();
-      expect(box!.x, `${label}: nav item left edge in viewport`).toBeGreaterThanOrEqual(
-        -TOLERANCE,
+  test("bottom nav reaches the five clinic modules and keeps aria-current", async ({
+    page,
+  }) => {
+    await page.setViewportSize(VIEWPORT);
+    await setClinicSession(page);
+    await page.goto("/dashboard");
+    await suppressNextDevIndicator(page);
+    await expect(bottomNav(page)).toBeVisible({ timeout: 8_000 });
+
+    for (const { label, moduleId } of MODULES) {
+      await bottomNavItem(page, label).click();
+      await expectWorkspace(page, moduleId);
+      await expect(bottomNavItem(page, label)).toHaveAttribute(
+        "aria-current",
+        "page",
       );
-      expect(
-        box!.x + box!.width,
-        `${label}: nav item right edge in viewport`,
-      ).toBeLessThanOrEqual(VIEWPORT.width + TOLERANCE);
+      await expectNoScrollContract(page, moduleId);
     }
   });
 
-  // PR-CL4 resolved CL-GAP-7: the horizontal nav items for Informes/Logística
-  // now resolve to their canonical `?module=` workspace, so they are
-  // reachable and verifiable via the same real nav click used for
-  // Resumen/Tokens/Perfil above.
-  for (const [label, moduleId] of [
-    ["Informes", "informes"],
-    ["Logística", "logistica"],
-  ] as const) {
-    test(`${moduleId} module leaves no stale previous module mounted — 390x844`, async ({
-      page,
-    }) => {
-      await page.setViewportSize(VIEWPORT);
-      await setClinicSession(page);
-      await page.goto("/dashboard?module=operaciones");
-      await suppressNextDevIndicator(page);
-      await expect(
-        page.locator('[data-dashboard-module-workspace="operaciones"]'),
-      ).toBeVisible({ timeout: 8_000 });
+  test("hub reset returns to cockpit inside the same clinic stage", async ({
+    page,
+  }) => {
+    await page.setViewportSize(VIEWPORT);
+    await setClinicSession(page);
+    await page.goto("/dashboard?module=tokens");
+    await suppressNextDevIndicator(page);
+    await expectWorkspace(page, "tokens");
 
-      await navItem(page, label).click();
-      await expect(
-        page.locator(`[data-dashboard-module-workspace="${moduleId}"]`),
-      ).toBeVisible({ timeout: 8_000 });
-      await expect(
-        page.locator('[data-dashboard-module-workspace="operaciones"]'),
-      ).toHaveCount(0);
-      await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
-      await expect(navItem(page, label)).toHaveAttribute("aria-current", "page");
-
-      const contract = await expectNoScrollContract(page, moduleId);
-      expect(contract.workspaceCount, `${moduleId}: exactly one workspace mounted`).toBe(1);
+    const stage = page.locator(
+      '[data-dashboard-module-stage="true"][data-clinic-dashboard-stage="true"]',
+    );
+    await stage.evaluate((element) => {
+      (element as HTMLElement).dataset.e2eStageToken = "mobile-clinic-stage";
     });
-  }
+
+    await bottomNavItem(page, "Inicio").click();
+    await expect(page.locator('[data-clinic-cockpit="true"]')).toBeVisible({
+      timeout: 8_000,
+    });
+    await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(0);
+    await expect(bottomNavItem(page, "Inicio")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(
+      page.locator(
+        '[data-dashboard-module-stage="true"][data-clinic-dashboard-stage="true"][data-e2e-stage-token="mobile-clinic-stage"]',
+      ),
+    ).toBeVisible();
+    await expectNoScrollContract(page, "hub reset");
+  });
+
+  test("desktop horizontal nav still syncs to the clinic controller", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await setClinicSession(page);
+    await page.goto("/dashboard");
+    await expect(
+      page.locator('[data-dashboard-horizontal-nav-shell="true"]'),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(bottomNav(page)).toBeHidden();
+
+    for (const { label, moduleId } of MODULES) {
+      const itemLabel = label === "Operaciones" ? "Resumen" : label;
+      await horizontalNavItem(page, itemLabel).click();
+      await expectWorkspace(page, moduleId);
+      await expect(horizontalNavItem(page, itemLabel)).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+    }
+  });
+
+  test("admin dashboard keeps AdminMobileBottomNav and does not mount clinic nav", async ({
+    page,
+  }) => {
+    await page.setViewportSize(VIEWPORT);
+    await setAdminSession(page);
+    await page.goto("/dashboard/admin");
+
+    await expect(page.locator('[data-admin-mobile-bottom-nav="true"]')).toBeVisible({
+      timeout: 8_000,
+    });
+    await expect(bottomNav(page)).toHaveCount(0);
+  });
 });

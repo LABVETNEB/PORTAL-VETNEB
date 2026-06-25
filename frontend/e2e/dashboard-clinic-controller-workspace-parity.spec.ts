@@ -83,13 +83,39 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(metric.bodyScrollWidth).toBeLessThanOrEqual(metric.bodyClientWidth + TOLERANCE);
 }
 
+async function expectClinicStage(page: Page) {
+  const stage = page.locator(
+    '[data-dashboard-module-stage="true"][data-clinic-dashboard-stage="true"]',
+  );
+  await expect(stage).toBeVisible({ timeout: 8_000 });
+  await expect(stage).toHaveCount(1);
+  return stage;
+}
+
+async function expectSingleClinicLayer(
+  page: Page,
+  expected: "hub" | ClinicModule,
+) {
+  await expectClinicStage(page);
+
+  if (expected === "hub") {
+    await expect(page.locator('[data-dashboard-module-hub="true"]')).toBeVisible();
+    await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(0);
+    return;
+  }
+
+  await expect(
+    page.locator(`[data-dashboard-module-workspace="${expected}"]`),
+  ).toBeVisible();
+  await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
+}
+
 test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
   test("clinic /dashboard loads the module hub", async ({ page }) => {
     await setClinicSession(page);
     await page.goto("/dashboard");
-    await expect(
-      page.locator('[data-dashboard-module-hub="true"]'),
-    ).toBeVisible({ timeout: 8_000 });
+    await expectSingleClinicLayer(page, "hub");
+    await expect(page.locator('[data-clinic-cockpit="true"]')).toBeVisible();
   });
 
   for (const moduleId of CLINIC_MODULES) {
@@ -98,9 +124,7 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     }) => {
       await setClinicSession(page);
       await page.goto(`/dashboard?module=${moduleId}`);
-      await expect(
-        page.locator(`[data-dashboard-module-workspace="${moduleId}"]`),
-      ).toBeVisible({ timeout: 8_000 });
+      await expectSingleClinicLayer(page, moduleId);
     });
   }
 
@@ -147,11 +171,32 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
 
     await workspace.locator('button[aria-label="Vista general"]').click();
 
-    await expect(page.locator('[data-dashboard-module-hub="true"]')).toBeVisible({
-      timeout: 4_000,
-    });
+    await expectSingleClinicLayer(page, "hub");
     await expect(page).toHaveURL(/\/dashboard(?:\?.*)?$/);
     await expect(page).not.toHaveURL(/module=/);
+  });
+
+  test("clinic stage persists when returning to hub", async ({ page }) => {
+    await setClinicSession(page);
+    await page.goto("/dashboard?module=operaciones");
+    await expectSingleClinicLayer(page, "operaciones");
+
+    const stage = await expectClinicStage(page);
+    await stage.evaluate((element) => {
+      (element as HTMLElement).dataset.e2eStageToken = "clinic-stage";
+    });
+
+    await page
+      .locator('[data-dashboard-module-workspace="operaciones"]')
+      .locator('button[aria-label="Vista general"]')
+      .click();
+
+    await expectSingleClinicLayer(page, "hub");
+    await expect(
+      page.locator(
+        '[data-dashboard-module-stage="true"][data-clinic-dashboard-stage="true"][data-e2e-stage-token="clinic-stage"]',
+      ),
+    ).toBeVisible();
   });
 
   for (const moduleId of CLINIC_MODULES) {
@@ -163,9 +208,7 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     }) => {
       await setClinicSession(page);
       await page.goto(`/dashboard?module=${moduleId}`);
-      await expect(
-        page.locator(`[data-dashboard-module-workspace="${moduleId}"]`),
-      ).toBeVisible({ timeout: 8_000 });
+      await expectSingleClinicLayer(page, moduleId);
 
       const navigation = page.getByRole("navigation", {
         name: "Navegación principal",
@@ -198,12 +241,45 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     await setClinicSession(page);
     await page.setViewportSize(MOBILE_VIEWPORT);
     await page.goto("/dashboard");
-    await expect(
-      page.locator('[data-dashboard-module-hub="true"]'),
-    ).toBeVisible({ timeout: 8_000 });
+    await expectSingleClinicLayer(page, "hub");
 
     await expectNoHorizontalOverflow(page);
     await expectMainNotScrollContainer(page);
+  });
+});
+
+test.describe("clinic cockpit hub parity (PR-CL7)", () => {
+  test("hub exposes operational cockpit sections and primary actions", async ({
+    page,
+  }) => {
+    await setClinicSession(page);
+    await page.goto("/dashboard");
+
+    const cockpit = page.locator('[data-clinic-cockpit="true"]');
+    await expect(cockpit).toBeVisible({ timeout: 8_000 });
+
+    for (const selector of [
+      '[data-clinic-cockpit-status="true"]',
+      '[data-clinic-cockpit-attention="true"]',
+      '[data-clinic-cockpit-continuity="true"]',
+      '[data-clinic-cockpit-activity="true"]',
+      '[data-clinic-cockpit-modules="true"]',
+      '[data-clinic-cockpit-primary-actions="true"]',
+    ]) {
+      await expect(cockpit.locator(selector)).toBeVisible();
+    }
+
+    for (const label of [
+      "Abrir operaciones",
+      "Abrir informes",
+      "Abrir logística",
+      "Abrir perfil",
+      "Generar o abrir tokens",
+    ]) {
+      await expect(
+        cockpit.getByRole("button", { name: label, exact: true }),
+      ).toBeVisible();
+    }
   });
 });
 

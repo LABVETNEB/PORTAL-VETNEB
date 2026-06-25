@@ -67,6 +67,23 @@ async function setClinicSession(page: Page) {
   ]);
 }
 
+async function expectClinicMobileBottomNav(page: Page, label: string) {
+  const clinicNav = page.locator('[data-clinic-mobile-bottom-nav="true"]');
+  await expect(clinicNav, `${label}: clinic bottom nav visible`).toBeVisible();
+  await expect(
+    clinicNav.locator('[data-clinic-mobile-bottom-nav-item="true"]'),
+    `${label}: clinic bottom nav item count`,
+  ).toHaveCount(6);
+  await expect(
+    page.locator('[data-admin-mobile-bottom-nav="true"]'),
+    `${label}: admin bottom nav absent`,
+  ).toHaveCount(0);
+  await expect(
+    page.locator('[data-dashboard-horizontal-nav-shell="true"]'),
+    `${label}: horizontal nav hidden on clinic mobile`,
+  ).toBeHidden();
+}
+
 async function mockClinicTokens(page: Page) {
   await page.route(
     (url) => url.pathname === "/api/particular-tokens",
@@ -203,6 +220,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await expect(async () => {
       await expect(workspace).toBeVisible();
       await expect(card).toBeVisible();
+      await expectClinicMobileBottomNav(page, viewport.name);
       await expect(tokenRows).toHaveCount(4);
 
       for (let index = 0; index < 4; index += 1) {

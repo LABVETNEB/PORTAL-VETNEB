@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CompactPager } from "@/components/dashboard/CompactPager";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import {
@@ -754,12 +755,23 @@ export function ClinicParticularTokensCard() {
                 />
               </>
             ) : (
-              <p className="surface-empty m-4">
-                {isLoadingTokens
-                  ? "Cargando tokens particulares..."
-                  : "No hay tokens particulares generados por esta clínica."}
-                </p>
-              )}
+              <div className="m-4 flex min-h-0 flex-1">
+                <EmptyState
+                  title={
+                    isLoadingTokens
+                      ? "Cargando tokens particulares..."
+                      : "Sin tokens particulares"
+                  }
+                  description={
+                    isLoadingTokens
+                      ? "Consultando los últimos tokens generados por la clínica."
+                      : "No hay tokens particulares generados por esta clínica."
+                  }
+                  size="sm"
+                  className="w-full"
+                />
+              </div>
+            )}
           </div>
         </section>
       </CardContent>

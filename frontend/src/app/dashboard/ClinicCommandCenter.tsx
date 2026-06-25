@@ -4,6 +4,7 @@ import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
 import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
+import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClipboardList, Route } from "lucide-react";
 import { formatDate } from "@/lib/utils";
@@ -127,9 +128,13 @@ export function ClinicCommandCenter({
       }
     >
       {statsLoadError ? (
-        <p role="alert" className="clinical-alert-warning shrink-0">
-          No se pudieron cargar las métricas operativas. Intente nuevamente.
-        </p>
+        <div
+          role="alert"
+          className="clinical-alert-warning flex shrink-0 flex-wrap items-center justify-between gap-2"
+        >
+          <span>No se pudieron cargar las métricas operativas. Intente nuevamente.</span>
+          <DashboardRefreshButton />
+        </div>
       ) : null}
       <ModuleTabs
         ariaLabel="Secciones del centro operativo clínica"
@@ -175,9 +180,15 @@ export function ClinicCommandCenter({
                   </CardHeader>
                   <CardContent className="min-h-0 flex-1 space-y-1.5">
                     {reportsLoadError ? (
-                      <p role="alert" className="clinical-alert-warning">
-                        No se pudieron cargar los informes recientes. Intente nuevamente.
-                      </p>
+                      <div
+                        role="alert"
+                        className="clinical-alert-warning flex flex-wrap items-center justify-between gap-2"
+                      >
+                        <span>
+                          No se pudieron cargar los informes recientes. Intente nuevamente.
+                        </span>
+                        <DashboardRefreshButton />
+                      </div>
                     ) : recentReports.length ? (
                       recentReports.map((report) => (
                         <div
@@ -221,9 +232,15 @@ export function ClinicCommandCenter({
                   </CardHeader>
                   <CardContent className="min-h-0 flex-1 space-y-1.5">
                     {visitsLoadError ? (
-                      <p role="alert" className="clinical-alert-warning">
-                        No se pudieron cargar las visitas de campo recientes. Intente nuevamente.
-                      </p>
+                      <div
+                        role="alert"
+                        className="clinical-alert-warning flex flex-wrap items-center justify-between gap-2"
+                      >
+                        <span>
+                          No se pudieron cargar las visitas de campo recientes. Intente nuevamente.
+                        </span>
+                        <DashboardRefreshButton />
+                      </div>
                     ) : recentVisits.length ? (
                       recentVisits.map((visit) => (
                         <div

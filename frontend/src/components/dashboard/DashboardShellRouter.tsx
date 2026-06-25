@@ -7,6 +7,7 @@ import {
 } from "@/lib/app-shell-release";
 import { AdminMobileBottomNav } from "./AdminMobileBottomNav";
 import { BackForwardCacheGuard } from "./BackForwardCacheGuard";
+import { ClinicMobileBottomNav } from "./ClinicMobileBottomNav";
 
 export function DashboardShellRouter({
   children,
@@ -34,7 +35,9 @@ export function DashboardShellRouter({
       </div>
       {isAdminDashboard ? (
         <AdminMobileBottomNav />
-      ) : null}
+      ) : (
+        <ClinicMobileBottomNav />
+      )}
     </div>
   );
 }
