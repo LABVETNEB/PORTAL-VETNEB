@@ -226,3 +226,41 @@ Validaciones ejecutadas:
 - `pnpm test` — 2839 passed, 0 failed (suite completa, incluye contratos de estructura existentes sobre `ClinicCommandCenter.tsx`).
 - `git diff --check` — sin conflictos de whitespace.
 - `next-env.d.ts` revertido a su estado de `main` tras la corrida e2e.
+
+### PR-CL3 evidence (clinic mobile nav/stage parity — CL-GAP-1, CL-GAP-5, CL-GAP-7)
+
+Rama: `test/clinic-mobile-nav-stage-parity-evidence`. Base: `main` @ `50c2ac0` (feat(clinic): improve command center parity #1137). Tipo: test-only + docs. Ningún archivo de frontend productivo, backend, API, auth, DB, deps, lockfiles ni CI fue tocado.
+
+Archivo nuevo: [frontend/e2e/dashboard-clinic-mobile-nav-stage-parity.spec.ts](../../frontend/e2e/dashboard-clinic-mobile-nav-stage-parity.spec.ts) — 4 tests, 390x844, sesión `app_session_id=e2e_test_clinic_session`.
+
+**Hallazgo de código (no de comportamiento observado en runtime):** `frontend/src/app/globals.css`, bloques `admin-mobile-real-device-layer-isolation` (línea ~2996) y `admin-mobile-stage-layer` (línea ~3019), declaran explícitamente en sus propios comentarios que el forzado de ancestros opacos y el stage persistente promovido a capa GPU (`transform: translateZ(0)`) que Admin usa para evitar bleed-through/ghosting en mobile están **scoped exclusivamente a `[data-vetneb-app-shell-surface="admin"]`**:
+
+> "Scoped to Admin mobile only (<=767px + surface="admin"); desktop, **Clinic** and the data/layout of every module stay untouched."
+> "Scoped to Admin mobile (<=767px); desktop **and Clinic** keep the stage as a transparent flex passthrough."
+
+`ClinicDashboardWorkspaceController.tsx` confirma esto a nivel de componente: hace `if (activeModule) return <DashboardModuleWorkspace>...</DashboardModuleWorkspace>; return <DashboardModuleHub ... />` — dos ramas de tipo distinto que se reemplazan directamente, sin ningún wrapper `[data-dashboard-module-stage]` (ese atributo solo existe en `AdminDashboardWorkspaceController.tsx`, confirmado por grep). Es la misma forma estructural que tenía Admin **antes** del fix que cerró CL-GAP-1 para Admin.
+
+**Lo que el spec sí puede probar headless (igual limitación documentada en los specs de Admin: la recreación de stacking context por GPU en dispositivo real no es reproducible en Chromium headless):**
+
+- `frame` (`[data-vetneb-app-shell-frame="true"]`) y `main.dashboard-main` **conservan identidad de nodo** (mismo DOM node, vía técnica de stamping) a través de un round trip real hub→operaciones→tokens→perfil→hub usando la navegación horizontal real (no `goto` directo). Esto es una buena noticia parcial: el árbol persistente alrededor del swap no se desmonta — pero esto **ya era cierto en Admin antes de su fix** y no impidió el bug real; el fix de Admin fue específicamente la promoción a capa GPU + opacidad forzada del punto exacto de swap, que Clinic no tiene.
+- En cada paso del round trip: exactamente un `[data-dashboard-module-workspace]` o un `[data-dashboard-module-hub]` montado, nunca ambos ni el módulo anterior residual (sin "stale layer" a nivel DOM).
+- Sin overflow horizontal en `documentElement`/`body` y `main.dashboard-main` no se vuelve scroll container en ningún paso del round trip (extiende la cobertura per-route de PR-CL1 a una secuencia real de swaps, no solo `goto` aislados).
+- El ítem activo de la navegación horizontal (`aria-current="page"`) permanece visible dentro del viewport 390x844 en cada paso para `operaciones`/`tokens`/`perfil`.
+- `informes`/`logistica`: al no ser alcanzables por click de nav (CL-GAP-7, el nav apunta a rutas full), se verifican vía `goto` directo a `?module=`; confirmado que no dejan residuo del módulo anterior ni overflow. No se afirma `aria-current` ahí porque la navegación actual no lo produce.
+
+**Resultado: CL-GAP-1 confirmado estructuralmente (por evidencia directa del código, no inferido), no reproducido como bug real** — no hay reporte de ghosting visible en Clínica y el límite de Playwright headless para reproducir recycling de GPU es el mismo que ya reconoce la suite de Admin. La ausencia de implementación no es un descuido: el código de Admin la excluye a propósito ("desktop and Clinic keep the stage as a transparent flex passthrough"), consistente con `## Target architecture` de este documento ("Stage persistente... condicionado a evidencia real de necesidad"). Recomendación: diferir el port del stage a PR-CL4 y construirlo solo si se reporta bleed-through real en Clínica, en vez de adelantarlo preventivamente sin evidencia de dispositivo real.
+
+**CL-GAP-5** — no mitigado ni descartado por este PR. Se confirma que `ClinicDashboardWorkspaceController.activateModule` hace `setActiveModule` (optimista) seguido de `router.push`, pero los ítems de la navegación horizontal (`DashboardHorizontalNav` vía `PublicRouteControl`) **no llaman a `activateModule`** — navegan solo por `router.push(href)`, y el controller deriva `activeModule` de `searchParams` vía `useEffect`, igual que el bottom-nav de Admin antes de su fix de sync. La diferencia estructural real: Clínica no tiene una segunda implementación de navegación mobile-only compitiendo con la de desktop (a diferencia de Admin, que tiene `AdminMobileBottomNav` como componente separado de `DashboardHorizontalNav`), así que la superficie específica de flake que resolvió `admin-hub-reset` (dos implementaciones de nav corriendo en paralelo) no existe en Clínica. Esto reduce el riesgo pero no lo descarta: un único nav async-only podría flakear bajo carga igual. No se intentó reproducir flake bajo carga en este PR (fuera de scope test-only de bajo riesgo); si se quiere cerrar CL-GAP-5 con evidencia, un PR futuro debería instrumentar clicks rápidos repetidos (10+) sobre la navegación horizontal real, análogo a la metodología que cerró el flake de Admin.
+
+**CL-GAP-7** — reconfirmado sin cambios: el spec documenta explícitamente (comentarios + lógica de test) que `informes`/`logistica` solo son alcanzables por `goto` directo a `?module=`, no por click de nav.
+
+Validaciones ejecutadas:
+
+- `pnpm --dir frontend exec playwright test e2e/dashboard-clinic-mobile-nav-stage-parity.spec.ts` — 4 passed.
+- `pnpm --dir frontend exec playwright test e2e/dashboard-mobile-shell-nav-contract.spec.ts` — 25 passed.
+- `pnpm --dir frontend lint` — sin errores.
+- `pnpm typecheck:test` — sin errores.
+- `git diff --check` — sin conflictos de whitespace.
+- `next-env.d.ts` revertido a su estado de `main` tras las corridas e2e.
+
+No producción, backend, API, auth, DB, deps, lockfiles, CI ni `/clinicas` tocados. `frontend/src/app/dashboard/admin/**` no modificado (solo leído como referencia/cita).
