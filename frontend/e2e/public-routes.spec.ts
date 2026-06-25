@@ -6,6 +6,15 @@ import { expect, test, type Page } from "@playwright/test";
 // no-op and the URL stays put. Retry the click until the navigation actually
 // happens, mirroring the hydration-probe pattern used elsewhere in the suite
 // (see contacto-hydration.spec.ts).
+async function expectNoHorizontalOverflow(page: Page): Promise<void> {
+  const overflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+}
+
 async function clickAndExpectNavigation(
   page: Page,
   name: string,
@@ -69,12 +78,52 @@ test.describe("particulares hero action hierarchy (PR-PUX1)", () => {
     await expect(primaryAction).toBeVisible();
     await expect(primaryAction).toBeInViewport();
 
-    const overflow = await page.evaluate(
-      () =>
-        document.documentElement.scrollWidth -
-        document.documentElement.clientWidth,
+    await expectNoHorizontalOverflow(page);
+  });
+});
+
+test.describe("particulares mobile no-regression evidence (PR-PUX4)", () => {
+  const mobileViewports = [
+    { width: 390, height: 844 },
+    { width: 360, height: 740 },
+  ];
+
+  for (const viewport of mobileViewports) {
+    test(`keeps hero, primary action and next-step zone visible without horizontal overflow at ${viewport.width}x${viewport.height}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      await page.goto("/particulares");
+
+      await expect(page.locator('[data-particulares-hero="true"]')).toBeVisible();
+
+      const primaryAction = page.locator(
+        '[data-particulares-primary-action="true"]',
+      );
+      await expect(primaryAction).toBeVisible();
+      await expect(primaryAction).toBeInViewport();
+
+      await expect(
+        page.locator('[data-particulares-next-step-zone="true"]'),
+      ).toBeVisible();
+
+      await expectNoHorizontalOverflow(page);
+    });
+  }
+
+  test("keeps public navigation to /login reachable from /particulares on mobile", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/particulares");
+
+    await expectNoHorizontalOverflow(page);
+
+    await clickAndExpectNavigation(
+      page,
+      "Inicie sesión en el portal",
+      "/login",
     );
-    expect(overflow).toBeLessThanOrEqual(0);
   });
 });
 
@@ -131,12 +180,7 @@ test("unknown route renders the branded not-found page without mobile overflow",
     await expect(page.locator("body")).not.toContainText(prohibited);
   }
 
-  const overflow = await page.evaluate(
-    () =>
-      document.documentElement.scrollWidth -
-      document.documentElement.clientWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
+  await expectNoHorizontalOverflow(page);
 
   await clickAndExpectNavigation(page, "Ver servicios", "/servicios");
 
