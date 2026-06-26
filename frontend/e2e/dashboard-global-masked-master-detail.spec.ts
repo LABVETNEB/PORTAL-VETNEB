@@ -394,6 +394,7 @@ test("clinic Tokens mobile keeps the list and expands the selected detail inline
 
   await page.locator("#clinic-particular-token-2").click();
   await expect(page.locator("#clinic-particular-token-1")).toBeVisible();
+  await expect(page.locator("#clinic-particular-token-2")).toBeVisible();
   await expect(page.locator("#clinic-particular-token-2")).toHaveAttribute(
     "aria-expanded",
     "true",

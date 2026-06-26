@@ -94,6 +94,7 @@ test("clinic tokens uses inline master-detail with paged list and step dialogs",
   assert.ok(source.includes('data-detail-state="selected"'));
   assert.equal(source.includes("isMobileDetailOpen"), false);
   assert.equal(source.includes("Volver a la lista"), false);
+  assert.equal(source.includes('hasOpenDetail && !isSelected && "hidden sm:block"'), false);
   assert.equal(source.includes('xl:grid-cols-[0.82fr_1.46fr]'), false);
   assert.equal(source.includes("dashboard-inline-scroll"), false);
   assert.ok(source.includes("CREATE_TOKEN_STEP_ORDER"));

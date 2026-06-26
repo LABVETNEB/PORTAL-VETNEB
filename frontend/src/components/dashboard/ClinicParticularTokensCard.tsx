@@ -571,7 +571,7 @@ export function ClinicParticularTokensCard() {
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
               <div
                 data-clinic-access-list-panel="true"
-                className="dashboard-master-panel dashboard-inline-list min-h-0 flex-1 rounded-lg border border-vetneb-line/75 bg-card/82"
+                className="dashboard-master-panel dashboard-inline-list min-h-0 flex-none rounded-lg border border-vetneb-line/75 bg-card/82 sm:flex-1"
               >
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-vetneb-line/70 px-3 py-2">
                   <div className="min-w-0">
@@ -597,7 +597,7 @@ export function ClinicParticularTokensCard() {
 
                 <div
                   data-clinic-access-list-body="true"
-                  className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden"
+                  className="min-h-[12rem] flex-none divide-y divide-vetneb-line/60 overflow-hidden sm:min-h-0 sm:flex-1"
                 >
                   {pagedTokens.pageItems.map((token) => {
                     const isSelected = selectedToken?.id === token.id;
@@ -608,7 +608,7 @@ export function ClinicParticularTokensCard() {
                         key={token.id}
                         className={cn(
                           "min-w-0",
-                          hasOpenDetail && !isSelected && "hidden sm:block",
+                          hasOpenDetail && !isSelected && "opacity-90",
                         )}
                       >
                         <button
@@ -680,16 +680,17 @@ export function ClinicParticularTokensCard() {
 
               {selectedToken ? (
                 <div
+                  data-clinic-access-detail="true"
                   data-detail-state="selected"
-                  className="dashboard-detail-panel dashboard-inline-detail flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/92"
+                  className="dashboard-detail-panel dashboard-inline-detail flex min-h-0 flex-none flex-col overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/92 sm:flex-1"
                 >
-                  <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
-                    <div className="flex shrink-0 flex-col gap-2 border-b border-vetneb-line/70 pb-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3">
+                    <div className="flex shrink-0 flex-col gap-1.5 border-b border-vetneb-line/70 pb-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-2 sm:pb-2">
                       <div className="min-w-0">
                         <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                           Detalle del token
                         </p>
-                        <h3 className="mt-0.5 truncate text-base font-semibold text-vetneb-ink">
+                        <h3 className="mt-0.5 truncate text-sm font-semibold text-vetneb-ink sm:text-base">
                           {selectedToken.petName} · {selectedToken.tutorLastName}
                         </h3>
                         <p className="mt-0.5 text-xs text-muted-foreground">
@@ -699,6 +700,7 @@ export function ClinicParticularTokensCard() {
                       <div className="flex flex-wrap gap-1.5">
                         <Badge
                           variant={selectedToken.isActive ? "default" : "outline"}
+                          className="h-5 px-1.5 text-[0.6875rem]"
                         >
                           {selectedToken.isActive ? "Activo" : "Inactivo"}
                         </Badge>
@@ -706,6 +708,7 @@ export function ClinicParticularTokensCard() {
                           variant={
                             selectedToken.hasLinkedReport ? "default" : "outline"
                           }
+                          className="h-5 px-1.5 text-[0.6875rem]"
                         >
                           {selectedToken.hasLinkedReport
                             ? "Informe vinculado"
@@ -714,8 +717,8 @@ export function ClinicParticularTokensCard() {
                       </div>
                     </div>
 
-                    <div className="grid min-h-0 flex-1 grid-cols-2 gap-1.5 sm:gap-2 xl:grid-cols-3">
-                      <div className="clinical-muted-band rounded-md px-2 py-1.5 sm:px-2.5 sm:py-2">
+                    <div className="grid min-h-0 flex-1 grid-cols-3 gap-1 sm:gap-2">
+                      <div className="clinical-muted-band rounded-md px-1.5 py-1 sm:px-2.5 sm:py-2">
                         <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
                           Paciente
                         </p>
@@ -728,7 +731,7 @@ export function ClinicParticularTokensCard() {
                         </p>
                       </div>
 
-                      <div className="clinical-muted-band rounded-md px-2 py-1.5 sm:px-2.5 sm:py-2">
+                      <div className="clinical-muted-band rounded-md px-1.5 py-1 sm:px-2.5 sm:py-2">
                         <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
                           Muestra
                         </p>
@@ -740,7 +743,7 @@ export function ClinicParticularTokensCard() {
                         </p>
                       </div>
 
-                      <div className="clinical-muted-band rounded-md px-2 py-1.5 sm:px-2.5 sm:py-2">
+                      <div className="clinical-muted-band rounded-md px-1.5 py-1 sm:px-2.5 sm:py-2">
                         <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
                           Fechas
                         </p>
@@ -752,7 +755,7 @@ export function ClinicParticularTokensCard() {
                         </p>
                       </div>
 
-                      <div className="clinical-muted-band rounded-md px-2 py-1.5 sm:px-2.5 sm:py-2">
+                      <div className="clinical-muted-band rounded-md px-1.5 py-1 sm:px-2.5 sm:py-2">
                         <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
                           Publicación
                         </p>
@@ -770,7 +773,7 @@ export function ClinicParticularTokensCard() {
                         </p>
                       </div>
 
-                      <div className="clinical-muted-band rounded-md px-2 py-1.5 sm:px-2.5 sm:py-2">
+                      <div className="clinical-muted-band rounded-md px-1.5 py-1 sm:px-2.5 sm:py-2">
                         <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
                           Vínculo
                         </p>
@@ -782,7 +785,7 @@ export function ClinicParticularTokensCard() {
                         </p>
                       </div>
 
-                      <div className="clinical-muted-band rounded-md px-2 py-1.5 sm:px-2.5 sm:py-2">
+                      <div className="clinical-muted-band rounded-md px-1.5 py-1 sm:px-2.5 sm:py-2">
                         <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
                           Seguimiento
                         </p>

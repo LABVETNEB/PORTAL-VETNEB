@@ -309,6 +309,8 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await secondToken.click();
 
     await expect(async () => {
+      await expect(page.locator("#clinic-particular-token-1")).toBeVisible();
+      await expect(secondToken).toBeVisible();
       await expect(secondToken).toHaveAttribute(
         "aria-expanded",
         "true",

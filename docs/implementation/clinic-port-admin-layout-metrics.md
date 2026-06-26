@@ -145,3 +145,91 @@
 
 - Implementacion completada y validada.
 - Sin cambios en backend, API, auth, DB, migraciones, dependencias, lockfiles, CI ni workflows.
+
+## Fix CI Tokens mobile inline detail
+
+### Estado base
+
+- Fecha: 2026-06-26.
+- Rama: `fix/clinic-port-admin-layout-metrics`.
+- HEAD auditado: `0ae6fa4 fix(clinic): port admin dashboard layout metrics to clinic modules`.
+- Estado inicial del fix: `git status --short --untracked-files=all` limpio.
+- Entorno: Windows, PowerShell, PNPM 10.8.1.
+
+### Scope incluido
+
+- Corregir exclusivamente Tokens Clinica mobile para mantener visible la lista al seleccionar un token.
+- Mantener visibles `#clinic-particular-token-1` y `#clinic-particular-token-2` despues de abrir el detalle de token 2.
+- Compactar lista y detalle dentro de `ModuleSurface` sin scroll interno visible.
+- Reforzar tests e2e y nativo del contrato de lista visible.
+- Actualizar esta evidencia de implementacion.
+
+### Scope excluido
+
+- Dashboard Admin productivo, salvo lectura y validacion opcional.
+- Backend, API, auth, DB, migraciones, dependencias, lockfiles, CI y workflows.
+- Cambios globales de CSS o refactors fuera del modulo Tokens Clinica.
+
+### Auditoria previa
+
+- Base limpia y rama esperada confirmadas.
+- Scripts reales confirmados: `pnpm test`, `pnpm build`, `pnpm security:public-surface`, `pnpm --dir frontend lint`, `pnpm --dir frontend typecheck`, `pnpm --dir frontend build`, `pnpm typecheck:test`.
+- Archivos leidos del scope: componente Tokens Clinica, `globals.css`, specs e2e indicados, test nativo de Tokens y este documento.
+- Referencia legacy vinculada al fallo: el componente aplicaba `hasOpenDetail && !isSelected && "hidden sm:block"` en cada fila no seleccionada.
+
+### Causa raiz
+
+- Al abrir detalle mobile, Tokens Clinica ocultaba las filas no seleccionadas para reducir altura.
+- Eso dejaba `#clinic-particular-token-1` en estado hidden despues de seleccionar `#clinic-particular-token-2`, rompiendo el contrato de lista visible.
+
+### Cambios
+
+- `ClinicParticularTokensCard`:
+  - Reemplaza el ocultamiento mobile de filas no seleccionadas por una compactacion visual (`opacity-90`).
+  - Mantiene la lista en flujo con 4 filas visibles y `min-h-[12rem]` mobile en el cuerpo de lista.
+  - Ajusta panel de lista y detalle a `flex-none` en mobile y `sm:flex-1` en viewports mayores.
+  - Compacta el detalle mobile: menos padding/gap, heading menor, badges densos y grilla de 3 columnas.
+  - No agrega `overflow-y-auto`, `overflow-y: auto`, `overflow-y: scroll` ni `dashboard-inline-scroll`.
+- Specs e2e:
+  - `dashboard-global-masked-master-detail.spec.ts` ahora verifica que token 2 tambien siga visible tras el click.
+  - `dashboard-clinic-tokens-mobile-parity.spec.ts` ahora verifica token 1 y token 2 visibles con detalle abierto.
+- Test nativo:
+  - `frontend-dashboard-clinic-tokens.test.ts` blinda que no vuelva el patron `hidden sm:block` para filas no seleccionadas.
+
+### Archivos modificados
+
+- `frontend/src/components/dashboard/ClinicParticularTokensCard.tsx`
+- `frontend/e2e/dashboard-global-masked-master-detail.spec.ts`
+- `frontend/e2e/dashboard-clinic-tokens-mobile-parity.spec.ts`
+- `test/frontend-dashboard-clinic-tokens.test.ts`
+- `docs/implementation/clinic-port-admin-layout-metrics.md`
+
+### Validaciones
+
+- `git diff --check`: ejecutado, paso; solo avisos CRLF de Git en Windows.
+- `pnpm --dir frontend exec playwright test e2e/dashboard-global-masked-master-detail.spec.ts`: ejecutado, paso; 16/16.
+- `pnpm --dir frontend exec playwright test e2e/dashboard-global-masked-master-detail.spec.ts e2e/dashboard-clinic-tokens-mobile-parity.spec.ts e2e/dashboard-internal-no-scroll-contract.spec.ts e2e/dashboard-workspace-layout-polish.spec.ts`: ejecutado, paso; 45/45.
+- `pnpm --dir frontend lint`: ejecutado, paso.
+- `pnpm typecheck:test`: ejecutado, paso.
+- `pnpm --dir frontend build`: ejecutado, paso.
+- `pnpm test`: ejecutado, paso; 2840/2840.
+- `pnpm --dir frontend typecheck`: ejecutado, paso.
+- `pnpm security:public-surface`: ejecutado, paso; sin exposicion publica, solo findings informativos `server-only` existentes en `frontend/src/proxy.ts`.
+- `pnpm build`: ejecutado, paso.
+- `pnpm --dir frontend exec playwright test e2e/admin-mobile-bottom-navigation-no-scroll.spec.ts`: ejecutado, paso; 4/4.
+
+### Resultado
+
+- Tokens Clinica mobile mantiene la lista visible al seleccionar token 2.
+- `#clinic-particular-token-1` y `#clinic-particular-token-2` quedan visibles con detalle abierto.
+- El detalle sigue inline compacto dentro del modulo.
+- No se restauro scroll interno visible.
+
+### Riesgo residual
+
+- La evidencia visual/no-scroll se valido en Chromium Playwright; no reemplaza prueba manual en dispositivo fisico.
+
+### Estado final del fix
+
+- Implementacion completada y validada.
+- Sin cambios en Admin productivo, backend, API, auth, DB, migraciones, dependencias, lockfiles, CI ni workflows.
