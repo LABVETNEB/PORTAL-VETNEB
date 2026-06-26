@@ -6,6 +6,8 @@ import test from "node:test";
 const PANEL_PATH =
   "frontend/src/components/dashboard/PasswordChangePanel.tsx";
 const CLINIC_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
+const CLINIC_PROFILE_CARD_PATH =
+  "frontend/src/components/dashboard/ClinicPublicProfileCard.tsx";
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const API_CLIENT_PATH = "frontend/src/lib/api.ts";
 
@@ -60,28 +62,37 @@ test("password change panel reuses both merged API clients mapped by variant", (
 });
 
 test("clinic dashboard wires the panel with the clinic variant", () => {
-  const source = read(CLINIC_PAGE_PATH);
+  const pageSource = read(CLINIC_PAGE_PATH);
+  const profileSource = read(CLINIC_PROFILE_CARD_PATH);
+
+  assert.equal(
+    pageSource.includes(
+      'import { PasswordChangePanel } from "@/components/dashboard/PasswordChangePanel";',
+    ),
+    false,
+  );
+  assert.equal(pageSource.includes('ariaLabel="Secciones de perfil"'), false);
+  assert.equal(pageSource.includes('label: "Acceso"'), false);
+  assert.equal(pageSource.includes('label: "Perfil público"'), false);
+  assert.ok(pageSource.includes("<ClinicPublicProfileCard />"));
 
   assert.ok(
-    source.includes(
+    profileSource.includes(
       'import { PasswordChangePanel } from "@/components/dashboard/PasswordChangePanel";',
     ),
   );
-  assert.ok(source.includes('<PasswordChangePanel variant="clinic" />'));
-  // The existing public profile card is preserved in the same workspace.
-  assert.ok(source.includes("<ClinicPublicProfileCard />"));
-
-  // PR #1005: the security panel is surfaced above the public profile card so
-  // it is visible immediately when the perfil workspace opens.
   assert.ok(
-    source.indexOf('<PasswordChangePanel variant="clinic" />') <
-      source.indexOf("<ClinicPublicProfileCard />"),
-    "clinic password panel must render before the public profile card",
+    profileSource.includes(
+      '{ id: PASSWORD_TAB_ID, label: "Cambiar contraseña", content: <PasswordChangePanel variant="clinic" /> }',
+    ) ||
+      profileSource.includes('label: "Cambiar contraseña"'),
   );
+  assert.equal(profileSource.includes('label: "Acceso"'), false);
 
   // No new "Seguridad" module/navigation is introduced; the panel stays inside
   // the existing perfil workspace.
-  assert.equal(source.toLowerCase().includes('"seguridad"'), false);
+  assert.equal(pageSource.toLowerCase().includes('"seguridad"'), false);
+  assert.equal(profileSource.toLowerCase().includes('"seguridad"'), false);
 });
 
 test("admin dashboard wires the panel with the admin variant", () => {
