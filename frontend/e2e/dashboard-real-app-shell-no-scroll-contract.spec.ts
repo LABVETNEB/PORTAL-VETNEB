@@ -714,7 +714,6 @@ for (const viewport of VIEWPORTS) {
       await expect(
         page.locator('[data-dashboard-module-workspace="perfil"]'),
       ).toBeVisible({ timeout: 12_000 });
-      await page.getByRole("tab", { name: /Perfil p.blico/ }).click();
       await expect(page.locator("#clinic-public-profile")).toBeVisible({
         timeout: 12_000,
       });

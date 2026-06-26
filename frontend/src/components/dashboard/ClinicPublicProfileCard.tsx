@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, type ChangeEvent, useEffect, useRef, useState } from "react";
+import {
+  FormEvent,
+  type ChangeEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import NextImage from "next/image";
 
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +23,7 @@ import {
 } from "@/lib/api";
 import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
 import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
+import { PasswordChangePanel } from "@/components/dashboard/PasswordChangePanel";
 
 type ProfileFormState = {
   displayName: string;
@@ -55,6 +63,8 @@ const ALLOWED_AVATAR_MIME_TYPES = new Set([
   "image/png",
   "image/webp",
 ]);
+const PROFILE_FORM_ID = "clinic-public-profile-form";
+const PASSWORD_TAB_ID = "cambiar-contrasena";
 
 const PUBLICATION_FIELD_LABELS: Record<string, string> = {
   displayName: "Nombre visible",
@@ -246,6 +256,7 @@ function getPublicationLabel(profile: ClinicPublicProfile | null) {
 export function ClinicPublicProfileCard() {
   const [profile, setProfile] = useState<ClinicPublicProfile | null>(null);
   const [formState, setFormState] = useState<ProfileFormState>(INITIAL_FORM_STATE);
+  const [activeTabId, setActiveTabId] = useState("estado");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -762,12 +773,21 @@ export function ClinicPublicProfileCard() {
     </div>
   );
 
+  function renderProfileForm(content: ReactNode) {
+    return (
+      <form id={PROFILE_FORM_ID} className="contents" onSubmit={handleSubmit}>
+        {content}
+      </form>
+    );
+  }
+
+  const isPasswordTabActive = activeTabId === PASSWORD_TAB_ID;
+
   return (
-    <form
+    <div
       id="clinic-public-profile"
       data-clinic-profile-editor="true"
       className="flex min-h-0 flex-1 flex-col"
-      onSubmit={handleSubmit}
     >
       <ModuleSurface
         ariaLabel="Perfil público de la clínica"
@@ -788,9 +808,16 @@ export function ClinicPublicProfileCard() {
               <Badge variant={getPublicationVariant(profile)}>
                 {getPublicationLabel(profile)}
               </Badge>
-              <Button type="submit" size="sm" disabled={isWorking}>
-                {isSubmitting ? "Guardando..." : "Guardar perfil público"}
-              </Button>
+              {!isPasswordTabActive ? (
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isWorking}
+                  form={PROFILE_FORM_ID}
+                >
+                  {isSubmitting ? "Guardando..." : "Guardar perfil público"}
+                </Button>
+              ) : null}
             </div>
           </div>
         }
@@ -821,37 +848,62 @@ export function ClinicPublicProfileCard() {
 
         <ModuleTabs
           ariaLabel="Edición de perfil público"
+          defaultTabId="estado"
+          onTabChange={setActiveTabId}
           tabs={[
-            { id: "estado", label: "Estado", content: statusTab },
-            { id: "datos", label: "Datos", content: detailsTab },
-            { id: "contacto", label: "Contacto", content: contactTab },
-            { id: "contenido", label: "Contenido", content: contentTab },
+            {
+              id: "estado",
+              label: "Estado",
+              content: renderProfileForm(statusTab),
+            },
+            {
+              id: "datos",
+              label: "Datos",
+              content: renderProfileForm(detailsTab),
+            },
+            {
+              id: "contacto",
+              label: "Contacto",
+              content: renderProfileForm(contactTab),
+            },
+            {
+              id: "contenido",
+              label: "Contenido",
+              content: renderProfileForm(contentTab),
+            },
+            {
+              id: PASSWORD_TAB_ID,
+              label: "Cambiar contraseña",
+              content: <PasswordChangePanel variant="clinic" />,
+            },
           ]}
         />
 
-        <div
-          data-clinic-profile-footer="true"
-          className="flex min-h-8 shrink-0 flex-wrap items-center gap-2 border-t border-vetneb-line/65 pt-2 text-xs"
-        >
-          {errorMessage ? (
-            <p className="clinical-alert-error px-3 py-1.5" role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
+        {!isPasswordTabActive ? (
+          <div
+            data-clinic-profile-footer="true"
+            className="flex min-h-8 shrink-0 flex-wrap items-center gap-2 border-t border-vetneb-line/65 pt-2 text-xs"
+          >
+            {errorMessage ? (
+              <p className="clinical-alert-error px-3 py-1.5" role="alert">
+                {errorMessage}
+              </p>
+            ) : null}
 
-          {statusMessage ? (
-            <p className="clinical-alert-success px-3 py-1.5">
-              {statusMessage}
-            </p>
-          ) : null}
+            {statusMessage ? (
+              <p className="clinical-alert-success px-3 py-1.5">
+                {statusMessage}
+              </p>
+            ) : null}
 
-          {!errorMessage && !statusMessage ? (
-            <p className="text-muted-foreground">
-              Cambios del perfil se guardan desde la acción principal del módulo.
-            </p>
-          ) : null}
-        </div>
+            {!errorMessage && !statusMessage ? (
+              <p className="text-muted-foreground">
+                Cambios del perfil se guardan desde la acción principal del módulo.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </ModuleSurface>
-    </form>
+    </div>
   );
 }

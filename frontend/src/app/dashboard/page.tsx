@@ -9,8 +9,6 @@ import { ClinicMobileModuleFrame } from "@/components/dashboard/ClinicMobileModu
 import { ClinicCommandCenter } from "./ClinicCommandCenter";
 import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";
 import { ClinicPublicProfileCard } from "@/components/dashboard/ClinicPublicProfileCard";
-import { PasswordChangePanel } from "@/components/dashboard/PasswordChangePanel";
-import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
 import { ClinicInformesWorkspaceSummary } from "./ClinicInformesWorkspaceSummary";
 import { ClinicLogisticaWorkspaceSummary } from "./ClinicLogisticaWorkspaceSummary";
 import {
@@ -161,21 +159,7 @@ export default async function DashboardPage({
               ),
               perfil: (
                 <ClinicMobileModuleFrame moduleId="perfil">
-                  <ModuleTabs
-                    ariaLabel="Secciones de perfil"
-                    tabs={[
-                      {
-                        id: "acceso",
-                        label: "Acceso",
-                        content: <PasswordChangePanel variant="clinic" />,
-                      },
-                      {
-                        id: "perfil-publico",
-                        label: "Perfil público",
-                        content: <ClinicPublicProfileCard />,
-                      },
-                    ]}
-                  />
+                  <ClinicPublicProfileCard />
                 </ClinicMobileModuleFrame>
               ),
               tokens: (

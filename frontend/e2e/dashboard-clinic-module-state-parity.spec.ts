@@ -439,7 +439,6 @@ test.describe("clinic perfil → perfil público module state parity (client-dri
     });
 
     await page.goto("/dashboard?module=perfil");
-    await page.getByRole("tab", { name: "Perfil público", exact: true }).first().click();
 
     const editor = page.locator('[data-clinic-profile-editor="true"]');
     await expect(editor).toBeVisible();
@@ -460,7 +459,6 @@ test.describe("clinic perfil → perfil público module state parity (client-dri
 
     await page.setViewportSize(MOBILE_VIEWPORT);
     await page.goto("/dashboard?module=perfil");
-    await page.getByRole("tab", { name: "Perfil público", exact: true }).first().click();
 
     const editor = page.locator('[data-clinic-profile-editor="true"]');
     await expect(editor.getByRole("alert")).toContainText("No se pudo cargar el perfil.");
@@ -473,11 +471,12 @@ test.describe("clinic perfil → perfil público module state parity (client-dri
   });
 });
 
-test.describe("clinic perfil → acceso (password) module state parity (CL-GAP-6)", () => {
+test.describe("clinic perfil → cambiar contraseña module state parity (CL-GAP-6)", () => {
   test("validation error is local and needs no network mock", async ({ page }) => {
     await setClinicSession(page);
     await page.goto("/dashboard?module=perfil");
 
+    await page.getByRole("tab", { name: "Cambiar contraseña", exact: true }).click();
     const panel = page.locator("#clinic-password-change");
     await expect(panel).toBeVisible({ timeout: 8_000 });
 
@@ -508,6 +507,7 @@ test.describe("clinic perfil → acceso (password) module state parity (CL-GAP-6
     });
 
     await page.goto("/dashboard?module=perfil");
+    await page.getByRole("tab", { name: "Cambiar contraseña", exact: true }).click();
     const panel = page.locator("#clinic-password-change");
     await expect(panel).toBeVisible({ timeout: 8_000 });
 

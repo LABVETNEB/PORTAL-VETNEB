@@ -140,22 +140,46 @@ for (const viewport of VIEWPORTS) {
     await mockClinicProfile(page);
 
     await page.goto("/dashboard?module=perfil");
-    await expect(
-      page.locator('[data-dashboard-module-workspace="perfil"]'),
-    ).toBeVisible({ timeout: 12_000 });
+    const workspace = page.locator('[data-dashboard-module-workspace="perfil"]');
+    await expect(workspace).toBeVisible({ timeout: 12_000 });
 
     await expect(async () => {
-      const publicProfileTab = page
-        .getByRole("tab", { name: "Perfil público", exact: true })
-        .first();
-      await expect(publicProfileTab).toBeVisible();
-      await publicProfileTab.click();
+      await expect(
+        workspace.getByRole("tab", { name: "Acceso", exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        workspace.getByRole("tab", { name: "Perfil público", exact: true }),
+      ).toHaveCount(0);
       await expect(page.locator("#clinic-public-profile")).toBeVisible();
     }).toPass({ timeout: 12_000 });
 
     const editor = page.locator('[data-clinic-profile-editor="true"]');
     await expect(editor).toBeVisible();
     await expectClinicMobileBottomNav(page, viewport.name);
+
+    for (const tabName of [
+      "Estado",
+      "Datos",
+      "Contacto",
+      "Contenido",
+      "Cambiar contraseña",
+    ]) {
+      await expect(
+        editor.getByRole("tab", { name: tabName, exact: true }),
+      ).toBeVisible();
+    }
+    await expect(
+      editor.getByRole("tab", { name: "Acceso", exact: true }),
+    ).toHaveCount(0);
+
+    await editor
+      .getByRole("tab", { name: "Cambiar contraseña", exact: true })
+      .click();
+    const passwordPanel = editor.locator("#clinic-password-change");
+    await expect(passwordPanel).toBeVisible();
+    await expect(passwordPanel.locator('input[name="currentPassword"]')).toBeVisible();
+    await expect(passwordPanel.locator('input[name="newPassword"]')).toBeVisible();
+    await expect(passwordPanel.locator('input[name="confirmPassword"]')).toBeVisible();
 
     await expect(async () => {
       await editor.getByRole("tab", { name: "Datos", exact: true }).click();
