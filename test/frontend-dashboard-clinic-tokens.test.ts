@@ -83,7 +83,6 @@ test("clinic tokens uses table/list row actions with dialog detail and step dial
 
   assert.ok(source.includes("const TOKENS_PAGE_SIZE = 4;"));
   assert.ok(source.includes("usePagedRows(tokens, TOKENS_PAGE_SIZE)"));
-  assert.ok(source.includes("<CompactPager"));
   assert.ok(source.includes("selectedTokenId"));
   assert.ok(source.includes("ModuleSurface"));
   assert.ok(source.includes('data-clinic-access-table="true"'));
@@ -91,6 +90,16 @@ test("clinic tokens uses table/list row actions with dialog detail and step dial
   assert.ok(source.includes('data-clinic-access-mobile-list="true"'));
   assert.ok(source.includes('data-clinic-access-mobile-row="true"'));
   assert.ok(source.includes('data-clinic-access-list-body="true"'));
+  assert.ok(source.includes('data-clinic-access-future-slots="true"'));
+  assert.ok(source.includes('data-clinic-access-pagination-footer="true"'));
+  assert.ok(source.includes('data-clinic-access-pagination-controls="true"'));
+  assert.ok(source.includes('aria-label="Página anterior"'));
+  assert.ok(source.includes('aria-label="Página siguiente"'));
+  assert.ok(source.includes("Página {pagedTokens.page + 1} / {pagedTokens.pageCount}"));
+  assert.equal(source.includes("<CompactPager"), false);
+  assert.equal(source.includes("rangeStart={pagedTokens.rangeStart}"), false);
+  assert.equal(source.includes("rangeEnd={pagedTokens.rangeEnd}"), false);
+  assert.equal(source.includes('itemLabel="tokens"'), false);
   assert.ok(source.includes("Ver detalle"));
   assert.ok(source.includes("openTokenDetail"));
   assert.ok(source.includes('data-clinic-access-detail-dialog="true"'));

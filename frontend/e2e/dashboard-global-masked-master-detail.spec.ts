@@ -366,7 +366,14 @@ test("clinic Tokens desktop limits the list and opens detail dialog without shel
     timeout: 12_000,
   });
   await expect(card.locator('[data-clinic-access-table-row="true"]')).toHaveCount(4);
-  await expect(page.getByText(/1.4 de 6 tokens/)).toBeVisible();
+  await expect(
+    card.locator('[data-clinic-access-pagination-footer="true"]'),
+  ).toBeVisible();
+  await expect(
+    card.locator('[data-clinic-access-pagination-controls="true"]'),
+  ).toBeVisible();
+  await expect(card.locator('[data-clinic-access-future-slots="true"]')).toBeVisible();
+  await expect(card.getByText(/1[\u2013-]4 de \d+ tokens/)).toHaveCount(0);
 
   await card.getByRole("button", { name: "Ver detalle", exact: true }).nth(1).click();
   await expect(
