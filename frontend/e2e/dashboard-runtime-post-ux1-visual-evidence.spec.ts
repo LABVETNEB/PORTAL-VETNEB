@@ -475,6 +475,22 @@ test("clinic profile runtime visual evidence after UX1", async ({ page }, testIn
         viewport,
         `${viewport.name} ${profileTab.label}: active panel`,
       );
+      if (profileTab.id === "cambiar-contrasena") {
+        expect(metrics.activePanel.scrollHeight).toBeLessThanOrEqual(
+          metrics.activePanel.clientHeight + TOLERANCE,
+        );
+        for (const controlMetric of metrics.criticalControls) {
+          expect(
+            controlMetric.insideViewport,
+            `${viewport.name} ${profileTab.label}: ${controlMetric.label} inside viewport`,
+          ).toBe(true);
+          expectBoundsInsideViewport(
+            controlMetric.bounds,
+            viewport,
+            `${viewport.name} ${profileTab.label}: ${controlMetric.label}`,
+          );
+        }
+      }
       for (const tabMetric of metrics.tabs) {
         expectBoundsInsideViewport(
           tabMetric.bounds,
