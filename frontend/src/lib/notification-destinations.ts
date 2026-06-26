@@ -9,8 +9,28 @@ export type NotificationDestinationInput = {
   type: string;
 };
 
+const TRACKING_NOTIFICATION_TYPES = new Set([
+  "stage_changed",
+  "special_stain_required",
+  "special_stain_resolved",
+  "report_delivered",
+  "study_tracking_case_created",
+  "study_tracking_case_updated",
+]);
+
+function getNotificationType(notification: NotificationDestinationInput): string {
+  return notification.type.trim().toLowerCase();
+}
+
 function isReportNotification(notification: NotificationDestinationInput): boolean {
-  return notification.type.toLowerCase().includes("report");
+  return getNotificationType(notification).includes("report");
+}
+
+function isTrackingNotification(notification: NotificationDestinationInput): boolean {
+  return (
+    TRACKING_NOTIFICATION_TYPES.has(getNotificationType(notification)) ||
+    Boolean(notification.studyTrackingCaseId)
+  );
 }
 
 export function buildNotificationDestination(
@@ -19,12 +39,18 @@ export function buildNotificationDestination(
 ): string {
   switch (surface) {
     case "admin":
-      if (
-        notification.reportId ||
-        notification.particularTokenId ||
-        isReportNotification(notification)
-      ) {
-        return `${ROUTES.dashboardAdmin}?module=admin-particular-tokens`;
+      if (isTrackingNotification(notification) || notification.reportId) {
+        return `${ROUTES.dashboardAdmin}?module=admin-report-upload${
+          notification.reportId ? `#report-${notification.reportId}` : ""
+        }`;
+      }
+
+      if (notification.particularTokenId) {
+        return `${ROUTES.dashboardAdmin}?module=admin-particular-tokens#admin-particular-token-${notification.particularTokenId}`;
+      }
+
+      if (isReportNotification(notification)) {
+        return `${ROUTES.dashboardAdmin}?module=admin-report-upload`;
       }
 
       return `${ROUTES.dashboardAdmin}?module=audit-log`;
@@ -38,7 +64,7 @@ export function buildNotificationDestination(
         return `${ROUTES.dashboard}#clinic-particular-token-${notification.particularTokenId}`;
       }
 
-      if (isReportNotification(notification)) {
+      if (isTrackingNotification(notification) || isReportNotification(notification)) {
         return ROUTES.dashboardInformes;
       }
 
