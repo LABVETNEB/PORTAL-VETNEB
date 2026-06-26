@@ -144,26 +144,44 @@ test("dashboard home clinic command center presentational props contain operatio
   assert.ok(source.includes("No hay visitas de campo recientes disponibles."));
 });
 
-test("clinic informes and logistica summaries use inline master-detail layers", () => {
-  for (const [context, path] of [
-    ["informes", CLINIC_INFORMES_SUMMARY_PATH],
-    ["logistica", CLINIC_LOGISTICA_SUMMARY_PATH],
-  ] as const) {
-    const source = read(path);
+test("clinic informes summary uses table/list row actions with controlled detail dialog", () => {
+  const source = read(CLINIC_INFORMES_SUMMARY_PATH);
 
-    assert.ok(source.includes('"use client";'), `${context} summary must own state`);
-    assert.ok(source.includes("ModuleSurface"), `${context} summary must use ModuleSurface`);
-    assert.ok(source.includes("useState"), `${context} summary must use selection state`);
-    assert.ok(source.includes("dashboard-inline-list"), `${context} summary must use inline list`);
-    assert.ok(source.includes("dashboard-inline-scroll"), `${context} summary must bound list overflow`);
-    assert.ok(source.includes("dashboard-inline-detail"), `${context} summary must render inline detail`);
-    assert.ok(source.includes("aria-expanded={isSelected}"), `${context} selection must expose expanded state`);
-    assert.ok(source.includes('data-detail-state="selected"'), `${context} detail must remain inside the selected row`);
-    assert.equal(source.includes("isMobileDetailOpen"), false, `${context} summary must not use a replacement layer`);
-    assert.equal(source.includes("Volver a la lista"), false, `${context} summary must keep list and detail together`);
-    assert.equal(source.includes('xl:grid-cols-[0.85fr_1.15fr]'), false, `${context} summary must not use a lateral grid`);
-    assert.equal(source.includes("space-y-4"), false, `${context} summary must not stack teaser blocks`);
-  }
+  assert.ok(source.includes('"use client";'));
+  assert.ok(source.includes("ModuleSurface"));
+  assert.ok(source.includes("useState"));
+  assert.ok(source.includes('data-clinic-reports-table="true"'));
+  assert.ok(source.includes('data-clinic-reports-mobile-list="true"'));
+  assert.ok(source.includes('data-clinic-reports-detail-dialog="true"'));
+  assert.ok(source.includes("ReportFileActions"));
+  assert.ok(source.includes("Ver"));
+  assert.ok(source.includes("Abrir módulo completo"));
+  assert.equal(source.includes("dashboard-inline-list"), false);
+  assert.equal(source.includes("dashboard-inline-scroll"), false);
+  assert.equal(source.includes("dashboard-inline-detail"), false);
+  assert.equal(source.includes("aria-expanded={isSelected}"), false);
+  assert.equal(source.includes('data-detail-state="selected"'), false);
+  assert.equal(source.includes("isMobileDetailOpen"), false);
+  assert.equal(source.includes("Volver a la lista"), false);
+  assert.equal(source.includes('xl:grid-cols-[0.85fr_1.15fr]'), false);
+  assert.equal(source.includes("space-y-4"), false);
+});
+
+test("clinic logistica summary keeps its existing inline master-detail layer", () => {
+  const source = read(CLINIC_LOGISTICA_SUMMARY_PATH);
+
+  assert.ok(source.includes('"use client";'));
+  assert.ok(source.includes("ModuleSurface"));
+  assert.ok(source.includes("useState"));
+  assert.ok(source.includes("dashboard-inline-list"));
+  assert.ok(source.includes("dashboard-inline-scroll"));
+  assert.ok(source.includes("dashboard-inline-detail"));
+  assert.ok(source.includes("aria-expanded={isSelected}"));
+  assert.ok(source.includes('data-detail-state="selected"'));
+  assert.equal(source.includes("isMobileDetailOpen"), false);
+  assert.equal(source.includes("Volver a la lista"), false);
+  assert.equal(source.includes('xl:grid-cols-[0.85fr_1.15fr]'), false);
+  assert.equal(source.includes("space-y-4"), false);
 });
 
 test("dashboard home keeps status badge and date formatting in clinic command center", () => {

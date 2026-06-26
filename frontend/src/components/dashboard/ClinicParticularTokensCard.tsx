@@ -259,7 +259,6 @@ export function ClinicParticularTokensCard() {
   const selectedTrackingCase = selectedToken
     ? trackingCasesByTokenId[selectedToken.id]
     : undefined;
-  const hasOpenDetail = selectedToken !== null;
 
   const activeTokensCount = tokens.filter((token) => token.isActive).length;
   const linkedReportsCount = tokens.filter((token) => token.hasLinkedReport).length;
@@ -346,6 +345,10 @@ export function ClinicParticularTokensCard() {
     if (!open) {
       setCreateStep("contact");
     }
+  }
+
+  function openTokenDetail(tokenId: number) {
+    setSelectedTokenId(tokenId);
   }
 
   function goToPreviousCreateStep() {
@@ -568,10 +571,10 @@ export function ClinicParticularTokensCard() {
           className="flex min-h-0 flex-1 flex-col"
         >
           {tokens.length ? (
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
+            <div className="flex min-h-0 flex-1 flex-col">
               <div
                 data-clinic-access-list-panel="true"
-                className="dashboard-master-panel dashboard-inline-list min-h-0 flex-none rounded-lg border border-vetneb-line/75 bg-card/82 sm:flex-1"
+                className="min-h-0 flex-1 overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/82"
               >
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-vetneb-line/70 px-3 py-2">
                   <div className="min-w-0">
@@ -597,70 +600,120 @@ export function ClinicParticularTokensCard() {
 
                 <div
                   data-clinic-access-list-body="true"
-                  className="min-h-[12rem] flex-none divide-y divide-vetneb-line/60 overflow-hidden sm:min-h-0 sm:flex-1"
+                  className="min-h-0 flex-1 overflow-hidden"
                 >
-                  {pagedTokens.pageItems.map((token) => {
-                    const isSelected = selectedToken?.id === token.id;
-                    const trackingCase = trackingCasesByTokenId[token.id];
-
-                    return (
-                      <div
-                        key={token.id}
-                        className={cn(
-                          "min-w-0",
-                          hasOpenDetail && !isSelected && "opacity-90",
-                        )}
-                      >
-                        <button
-                          type="button"
-                          id={`clinic-particular-token-${token.id}`}
-                          onClick={() => setSelectedTokenId(token.id)}
-                          aria-pressed={isSelected}
-                          aria-expanded={isSelected}
-                          className={cn(
-                            "block w-full px-3 py-1.5 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset sm:py-2",
-                            hasOpenDetail && "py-1 sm:py-2",
-                            isSelected && "bg-vetneb-cyan/12",
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-vetneb-ink">
+                  <div
+                    data-clinic-access-table="true"
+                    className="hidden min-h-0 flex-1 overflow-hidden md:block"
+                  >
+                    <table className="w-full table-fixed text-[0.8125rem]">
+                      <thead className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground">
+                        <tr>
+                          <th className="w-[32%] px-3 py-2 text-left">Token / Paciente</th>
+                          <th className="w-[13%] px-3 py-2 text-left">Estado</th>
+                          <th className="w-[15%] px-3 py-2 text-left">Informe</th>
+                          <th className="w-[24%] px-3 py-2 text-left">
+                            Último acceso o creado
+                          </th>
+                          <th className="w-[16%] px-3 py-2 text-right">Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-vetneb-line/60">
+                        {pagedTokens.pageItems.map((token) => (
+                          <tr
+                            key={token.id}
+                            data-clinic-access-table-row="true"
+                            className="hover:bg-vetneb-cyan/8"
+                          >
+                            <td className="px-3 py-1.5">
+                              <p className="truncate font-mono text-xs font-semibold text-vetneb-ink">
+                                ****{token.tokenLast4}
+                              </p>
+                              <p className="truncate text-[0.6875rem] text-muted-foreground">
                                 {token.petName} · {token.tutorLastName}
                               </p>
-                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                Token ****{token.tokenLast4}
-                              </p>
-                              <p className="hidden truncate text-xs text-muted-foreground sm:mt-0.5 sm:block">
-                                {trackingCase
-                                  ? getTrackingStageLabel(trackingCase.currentStage)
-                                  : "Sin seguimiento vinculado"}
-                              </p>
-                            </div>
-                            <div
-                              className={cn(
-                                "flex shrink-0 flex-col items-end gap-1",
-                                hasOpenDetail && "hidden sm:flex",
-                              )}
-                            >
+                            </td>
+                            <td className="px-3 py-1.5">
                               <Badge
                                 variant={token.isActive ? "default" : "outline"}
                                 className="h-5 px-1.5 text-[0.6875rem]"
                               >
                                 {token.isActive ? "Activo" : "Inactivo"}
                               </Badge>
-                              <Badge
-                                variant={token.hasLinkedReport ? "default" : "outline"}
-                                className="h-5 px-1.5 text-[0.6875rem]"
+                            </td>
+                            <td className="px-3 py-1.5 text-xs text-muted-foreground">
+                              {token.hasLinkedReport && token.reportId
+                                ? `#${token.reportId}`
+                                : token.hasLinkedReport
+                                  ? "Con informe"
+                                  : "Sin informe"}
+                            </td>
+                            <td className="px-3 py-1.5 text-xs text-muted-foreground">
+                              {token.lastLoginAt
+                                ? `Acceso ${formatDate(token.lastLoginAt)}`
+                                : `Creado ${formatDate(token.createdAt)}`}
+                            </td>
+                            <td className="px-3 py-1.5 text-right">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => openTokenDetail(token.id)}
                               >
-                                {token.hasLinkedReport ? "Informe" : "Sin informe"}
-                              </Badge>
-                            </div>
+                                Ver detalle
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div
+                    data-clinic-access-mobile-list="true"
+                    className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
+                  >
+                    {pagedTokens.pageItems.map((token) => {
+                      const trackingCase = trackingCasesByTokenId[token.id];
+
+                      return (
+                        <div
+                          key={token.id}
+                          id={`clinic-particular-token-${token.id}`}
+                          data-clinic-access-mobile-row="true"
+                          className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold text-vetneb-ink">
+                              ****{token.tokenLast4} · {token.petName}
+                            </p>
+                            <p className="truncate text-[0.6875rem] text-muted-foreground">
+                              {token.isActive ? "Activo" : "Inactivo"} ·{" "}
+                              {token.hasLinkedReport ? "Informe" : "Sin informe"} ·{" "}
+                              {token.lastLoginAt
+                                ? formatDate(token.lastLoginAt)
+                                : formatDate(token.createdAt)}
+                            </p>
+                            <p className="truncate text-[0.6875rem] text-muted-foreground">
+                              {trackingCase
+                                ? getTrackingStageLabel(trackingCase.currentStage)
+                                : token.tutorLastName}
+                            </p>
                           </div>
-                        </button>
-                      </div>
-                    );
-                  })}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => openTokenDetail(token.id)}
+                          >
+                            Ver detalle
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <CompactPager
@@ -672,147 +725,17 @@ export function ClinicParticularTokensCard() {
                   total={pagedTokens.total}
                   hasPrev={pagedTokens.hasPrev}
                   hasNext={pagedTokens.hasNext}
-                  onPrev={pagedTokens.goPrev}
-                  onNext={pagedTokens.goNext}
+                  onPrev={() => {
+                    setSelectedTokenId(null);
+                    pagedTokens.goPrev();
+                  }}
+                  onNext={() => {
+                    setSelectedTokenId(null);
+                    pagedTokens.goNext();
+                  }}
                   itemLabel="tokens"
                 />
               </div>
-
-              {selectedToken ? (
-                <div
-                  data-clinic-access-detail="true"
-                  data-detail-state="selected"
-                  className="dashboard-detail-panel dashboard-inline-detail flex min-h-0 flex-none flex-col overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/92 sm:flex-1"
-                >
-                  <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3">
-                    <div className="flex shrink-0 flex-col gap-1.5 border-b border-vetneb-line/70 pb-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-2 sm:pb-2">
-                      <div className="min-w-0">
-                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                          Detalle del token
-                        </p>
-                        <h3 className="mt-0.5 truncate text-sm font-semibold text-vetneb-ink sm:text-base">
-                          {selectedToken.petName} · {selectedToken.tutorLastName}
-                        </h3>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          Token ****{selectedToken.tokenLast4}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        <Badge
-                          variant={selectedToken.isActive ? "default" : "outline"}
-                          className="h-5 px-1.5 text-[0.6875rem]"
-                        >
-                          {selectedToken.isActive ? "Activo" : "Inactivo"}
-                        </Badge>
-                        <Badge
-                          variant={
-                            selectedToken.hasLinkedReport ? "default" : "outline"
-                          }
-                          className="h-5 px-1.5 text-[0.6875rem]"
-                        >
-                          {selectedToken.hasLinkedReport
-                            ? "Informe vinculado"
-                            : "Sin informe"}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <div className="grid min-h-0 flex-1 grid-cols-3 gap-1 sm:gap-2">
-                      <div className="clinical-muted-band rounded-md px-1.5 py-1 sm:px-2.5 sm:py-2">
-                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                          Paciente
-                        </p>
-                        <p className="mt-1 line-clamp-1 text-xs text-vetneb-ink">
-                          {selectedToken.petSpecies} · {selectedToken.petBreed} ·{" "}
-                          {selectedToken.petSex}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          Edad: {selectedToken.petAge}
-                        </p>
-                      </div>
-
-                      <div className="clinical-muted-band rounded-md px-1.5 py-1 sm:px-2.5 sm:py-2">
-                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                          Muestra
-                        </p>
-                        <p className="mt-1 line-clamp-1 text-xs text-vetneb-ink">
-                          {selectedToken.sampleLocation}
-                        </p>
-                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                          Evolución: {selectedToken.sampleEvolution}
-                        </p>
-                      </div>
-
-                      <div className="clinical-muted-band rounded-md px-1.5 py-1 sm:px-2.5 sm:py-2">
-                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                          Fechas
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Extracción: {formatDate(selectedToken.extractionDate)}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          Envío: {formatDate(selectedToken.shippingDate)}
-                        </p>
-                      </div>
-
-                      <div className="clinical-muted-band rounded-md px-1.5 py-1 sm:px-2.5 sm:py-2">
-                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                          Publicación
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Informe:{" "}
-                          {selectedToken.reportId
-                            ? `#${selectedToken.reportId}`
-                            : "—"}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          Último acceso:{" "}
-                          {selectedToken.lastLoginAt
-                            ? formatDate(selectedToken.lastLoginAt)
-                            : "—"}
-                        </p>
-                      </div>
-
-                      <div className="clinical-muted-band rounded-md px-1.5 py-1 sm:px-2.5 sm:py-2">
-                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                          Vínculo
-                        </p>
-                        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                          Tutor: {selectedToken.tutorLastName}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          Origen: {formatTokenSource(selectedToken)}
-                        </p>
-                      </div>
-
-                      <div className="clinical-muted-band rounded-md px-1.5 py-1 sm:px-2.5 sm:py-2">
-                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                          Seguimiento
-                        </p>
-                        {selectedTrackingCase ? (
-                          <>
-                            <p className="mt-1 line-clamp-1 text-xs text-vetneb-ink">
-                              Etapa:{" "}
-                              {getTrackingStageLabel(
-                                selectedTrackingCase.currentStage,
-                              )}
-                            </p>
-                            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                              {selectedTrackingCase.specialStainRequired
-                                ? "Alerta: Solicitud de tinción especial"
-                                : "Sin alerta de tinción especial"}
-                            </p>
-                          </>
-                        ) : (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Sin seguimiento vinculado.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 rounded-lg border border-vetneb-line/75 bg-card/82 p-3">
@@ -1243,6 +1166,139 @@ export function ClinicParticularTokensCard() {
           </div>
         </div>
       </ModuleDialog>
+
+      {selectedToken ? (
+        <ModuleDialog
+          open={selectedToken !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedTokenId(null);
+            }
+          }}
+          title={`Token ****${selectedToken.tokenLast4}`}
+          description={`${selectedToken.petName} · ${selectedToken.tutorLastName}`}
+        >
+          <div
+            data-clinic-access-detail-dialog="true"
+            className="flex min-h-0 flex-col gap-3 text-xs"
+          >
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge
+                variant={selectedToken.isActive ? "default" : "outline"}
+                className="h-5 px-1.5 text-[0.6875rem]"
+              >
+                {selectedToken.isActive ? "Activo" : "Inactivo"}
+              </Badge>
+              <Badge
+                variant={selectedToken.hasLinkedReport ? "default" : "outline"}
+                className="h-5 px-1.5 text-[0.6875rem]"
+              >
+                {selectedToken.hasLinkedReport ? "Informe vinculado" : "Sin informe"}
+              </Badge>
+            </div>
+
+            <dl className="grid grid-cols-1 divide-y divide-vetneb-line/55 rounded-lg border border-vetneb-line/70 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+              <div className="space-y-1 p-2.5">
+                <dt className="text-[0.6875rem] text-muted-foreground">
+                  Paciente
+                </dt>
+                <dd className="font-medium text-vetneb-ink">
+                  {selectedToken.petName} · {selectedToken.tutorLastName}
+                </dd>
+                <dd className="text-muted-foreground">
+                  {selectedToken.petSpecies} · {selectedToken.petBreed} ·{" "}
+                  {selectedToken.petSex} · {selectedToken.petAge}
+                </dd>
+              </div>
+              <div className="space-y-1 p-2.5">
+                <dt className="text-[0.6875rem] text-muted-foreground">
+                  Vínculo
+                </dt>
+                <dd className="font-medium text-vetneb-ink">
+                  Tutor: {selectedToken.tutorLastName}
+                </dd>
+                <dd className="text-muted-foreground">
+                  Origen: {formatTokenSource(selectedToken)}
+                </dd>
+              </div>
+            </dl>
+
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
+              <div>
+                <dt className="text-[0.6875rem] text-muted-foreground">Muestra</dt>
+                <dd className="truncate text-vetneb-ink">
+                  {selectedToken.sampleLocation}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[0.6875rem] text-muted-foreground">Evolución</dt>
+                <dd className="truncate text-vetneb-ink">
+                  {selectedToken.sampleEvolution}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[0.6875rem] text-muted-foreground">
+                  Extracción
+                </dt>
+                <dd>{formatDate(selectedToken.extractionDate)}</dd>
+              </div>
+              <div>
+                <dt className="text-[0.6875rem] text-muted-foreground">Envío</dt>
+                <dd>{formatDate(selectedToken.shippingDate)}</dd>
+              </div>
+              <div>
+                <dt className="text-[0.6875rem] text-muted-foreground">
+                  Informe
+                </dt>
+                <dd>{selectedToken.reportId ? `#${selectedToken.reportId}` : "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[0.6875rem] text-muted-foreground">
+                  Último acceso
+                </dt>
+                <dd>
+                  {selectedToken.lastLoginAt
+                    ? formatDate(selectedToken.lastLoginAt)
+                    : "—"}
+                </dd>
+              </div>
+            </dl>
+
+            {selectedToken.detailsLesion ? (
+              <div className="rounded-lg border border-vetneb-line/65 px-2.5 py-2">
+                <p className="text-[0.6875rem] text-muted-foreground">
+                  Detalle de lesión
+                </p>
+                <p className="line-clamp-2 text-vetneb-ink">
+                  {selectedToken.detailsLesion}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="rounded-lg border border-vetneb-line/65 px-2.5 py-2">
+              <p className="text-[0.6875rem] text-muted-foreground">
+                Seguimiento
+              </p>
+              {selectedTrackingCase ? (
+                <>
+                  <p className="mt-1 font-medium text-vetneb-ink">
+                    {getTrackingStageLabel(selectedTrackingCase.currentStage)}
+                  </p>
+                  <p className="mt-0.5 text-muted-foreground">
+                    {selectedTrackingCase.specialStainRequired
+                      ? "Alerta: Solicitud de tinción especial"
+                      : "Sin alerta de tinción especial"}
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 text-muted-foreground">
+                  Sin seguimiento vinculado.
+                </p>
+              )}
+            </div>
+          </div>
+        </ModuleDialog>
+      ) : null}
     </section>
   );
 }

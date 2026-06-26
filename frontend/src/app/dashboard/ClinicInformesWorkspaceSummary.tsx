@@ -3,30 +3,44 @@
 import { useState } from "react";
 import type { Report } from "@/types";
 import { ClipboardList, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CompactPager } from "@/components/dashboard/CompactPager";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
+import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
+import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
+import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
-import { cn, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 type Props = {
   recentReports: Report[];
   reportsLoadError: boolean;
 };
 
+const REPORTS_PAGE_SIZE = 3;
+
+function formatReportFile(report: Report): string {
+  if (report.fileName) {
+    return report.fileName;
+  }
+
+  return report.hasFile ? "Con archivo" : "Sin archivo";
+}
+
 export function ClinicInformesWorkspaceSummary({
   recentReports,
   reportsLoadError,
 }: Props) {
-  const [selectedReportId, setSelectedReportId] = useState<number | null>(
-    recentReports[0]?.id ?? null,
-  );
+  const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
+  const pagedReports = usePagedRows(recentReports, REPORTS_PAGE_SIZE);
   const selectedReport =
-    recentReports.find((report) => report.id === selectedReportId) ??
-    recentReports[0] ??
-    null;
+    selectedReportId === null
+      ? null
+      : (recentReports.find((report) => report.id === selectedReportId) ?? null);
 
   const fullModuleLink = (
     <PublicRouteControl
@@ -66,97 +80,128 @@ export function ClinicInformesWorkspaceSummary({
           <DashboardRefreshButton />
         </div>
       ) : recentReports.length ? (
-        <div className="dashboard-inline-list min-h-0 flex-1 rounded-lg border border-vetneb-line/75 bg-card/82">
-            <div className="dashboard-inline-scroll divide-y divide-vetneb-line/60">
-              {recentReports.map((report) => {
-                const isSelected = selectedReport?.id === report.id;
-
-                return (
-                  <div key={report.id} className="min-w-0">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedReportId(report.id)}
-                      aria-pressed={isSelected}
-                      aria-expanded={isSelected}
-                      className={cn(
-                        "flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset",
-                        isSelected && "bg-vetneb-cyan/12",
-                      )}
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-vetneb-ink">
-                          {report.patientName ?? "Sin nombre"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {report.studyType} · {formatDate(report.uploadDate)}
-                        </p>
-                      </div>
-                      <StatusBadge status={report.status} size="sm" className="ml-2 shrink-0" />
-                    </button>
-
-                    {isSelected && selectedReport ? (
-                      <div
-                        data-detail-state="selected"
-                        className="dashboard-inline-detail border-t border-vetneb-line/60 bg-vetneb-surface-muted/40 p-4"
+        <div
+          data-clinic-reports-list-panel="true"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/82"
+        >
+          <div
+            data-clinic-reports-table="true"
+            className="hidden min-h-0 flex-1 overflow-hidden md:block"
+          >
+            <table className="w-full table-fixed text-[0.8125rem]">
+              <thead className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground">
+                <tr>
+                  <th className="w-[26%] px-3 py-2 text-left">Caso / Paciente</th>
+                  <th className="w-[17%] px-3 py-2 text-left">Estudio</th>
+                  <th className="w-[15%] px-3 py-2 text-left">Estado</th>
+                  <th className="w-[14%] px-3 py-2 text-left">Fecha</th>
+                  <th className="w-[18%] px-3 py-2 text-left">Archivo / Informe</th>
+                  <th className="w-[10%] px-3 py-2 text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-vetneb-line/60">
+                {pagedReports.pageItems.map((report) => (
+                  <tr
+                    key={report.id}
+                    data-clinic-reports-table-row="true"
+                    className="hover:bg-vetneb-cyan/8"
+                  >
+                    <td className="px-3 py-1.5">
+                      <p className="truncate font-semibold text-vetneb-ink">
+                        {report.patientName ?? "Sin nombre"}
+                      </p>
+                      <p className="font-mono text-[0.6875rem] text-muted-foreground">
+                        Informe #{report.id}
+                      </p>
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <span className="block truncate">
+                        {report.studyType ?? "Tipo sin registrar"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <StatusBadge status={report.status} size="sm" />
+                    </td>
+                    <td className="px-3 py-1.5 text-xs text-muted-foreground">
+                      {formatDate(report.uploadDate)}
+                    </td>
+                    <td className="px-3 py-1.5 text-xs text-muted-foreground">
+                      <span className="block truncate">{formatReportFile(report)}</span>
+                    </td>
+                    <td className="px-3 py-1.5 text-right">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setSelectedReportId(report.id)}
                       >
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                                Detalle del informe
-                              </p>
-                              <h4 className="mt-1 break-words text-lg font-semibold text-vetneb-ink">
-                                {selectedReport.patientName ?? "Sin nombre"}
-                              </h4>
-                            </div>
-                            <StatusBadge status={selectedReport.status} size="sm" className="shrink-0" />
-                          </div>
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <div className="clinical-muted-band rounded-lg px-3 py-2">
-                              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                                Estudio
-                              </p>
-                              <p className="mt-1 text-xs text-vetneb-ink">
-                                {selectedReport.studyType ?? "—"}
-                              </p>
-                            </div>
-                            <div className="clinical-muted-band rounded-lg px-3 py-2">
-                              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                                Carga
-                              </p>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {formatDate(selectedReport.uploadDate)}
-                              </p>
-                            </div>
-                            <div className="clinical-muted-band rounded-lg px-3 py-2">
-                              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                                Informe
-                              </p>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                #{selectedReport.id} · {selectedReport.hasFile ? "Con archivo" : "Sin archivo"}
-                              </p>
-                            </div>
-                            <div className="clinical-muted-band rounded-lg px-3 py-2">
-                              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                                Acción
-                              </p>
-                              <PublicRouteControl
-                                href={`${ROUTES.dashboardInformes}?reportId=${selectedReport.id}`}
-                                variant="textLink"
-                                className="mt-1 inline-flex text-xs font-semibold text-vetneb-navy hover:text-vetneb-teal"
-                                aria-label={`Abrir informe ${selectedReport.id} en el módulo completo`}
-                              >
-                                Abrir en módulo completo
-                              </PublicRouteControl>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
+                        Ver
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div
+            data-clinic-reports-mobile-list="true"
+            className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
+          >
+            {pagedReports.pageItems.map((report) => (
+              <div
+                key={report.id}
+                data-clinic-reports-mobile-row="true"
+                className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-vetneb-ink">
+                    #{report.id} · {report.patientName ?? "Sin nombre"}
+                  </p>
+                  <p className="truncate text-[0.6875rem] text-muted-foreground">
+                    {report.studyType ?? "Tipo sin registrar"} ·{" "}
+                    {formatDate(report.uploadDate)}
+                  </p>
+                  <p className="truncate text-[0.6875rem] text-muted-foreground">
+                    {formatReportFile(report)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <StatusBadge status={report.status} size="sm" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setSelectedReportId(report.id)}
+                  >
+                    Ver
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <CompactPager
+            className="shrink-0 px-3 pb-2"
+            page={pagedReports.page}
+            pageCount={pagedReports.pageCount}
+            rangeStart={pagedReports.rangeStart}
+            rangeEnd={pagedReports.rangeEnd}
+            total={pagedReports.total}
+            hasPrev={pagedReports.hasPrev}
+            hasNext={pagedReports.hasNext}
+            onPrev={() => {
+              setSelectedReportId(null);
+              pagedReports.goPrev();
+            }}
+            onNext={() => {
+              setSelectedReportId(null);
+              pagedReports.goNext();
+            }}
+            itemLabel="informes"
+          />
         </div>
       ) : (
         <EmptyState
@@ -165,6 +210,78 @@ export function ClinicInformesWorkspaceSummary({
           icon={ClipboardList}
         />
       )}
+
+      {selectedReport ? (
+        <ModuleDialog
+          open={selectedReport !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedReportId(null);
+            }
+          }}
+          title={`Informe #${selectedReport.id}`}
+          description={selectedReport.patientName ?? "Sin nombre"}
+        >
+          <div
+            data-clinic-reports-detail-dialog="true"
+            className="flex min-h-0 flex-col gap-3 text-xs"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[0.6875rem] text-muted-foreground">
+                  Caso / Paciente
+                </p>
+                <p className="truncate text-sm font-semibold text-vetneb-ink">
+                  {selectedReport.patientName ?? "Sin nombre"}
+                </p>
+              </div>
+              <StatusBadge
+                status={selectedReport.status}
+                size="sm"
+                className="shrink-0"
+              />
+            </div>
+
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-vetneb-line/70 px-3 py-2">
+              <div>
+                <dt className="text-[0.6875rem] text-muted-foreground">Estudio</dt>
+                <dd className="truncate font-medium">
+                  {selectedReport.studyType ?? "Tipo sin registrar"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[0.6875rem] text-muted-foreground">Fecha</dt>
+                <dd>{formatDate(selectedReport.uploadDate)}</dd>
+              </div>
+              <div className="col-span-2 min-w-0">
+                <dt className="text-[0.6875rem] text-muted-foreground">
+                  Archivo / Informe
+                </dt>
+                <dd className="truncate">{formatReportFile(selectedReport)}</dd>
+              </div>
+            </dl>
+
+            <div className="border-t border-vetneb-line/65 pt-2">
+              <p className="mb-1 text-xs font-medium">Documento seguro</p>
+              <ReportFileActions
+                reportId={selectedReport.id}
+                hasFile={selectedReport.hasFile}
+                scope="clinic"
+                align="start"
+              />
+            </div>
+
+            <PublicRouteControl
+              href={`${ROUTES.dashboardInformes}?reportId=${selectedReport.id}`}
+              variant="textLink"
+              className="text-xs"
+              aria-label={`Abrir informe ${selectedReport.id} en el módulo completo`}
+            >
+              Abrir en módulo completo
+            </PublicRouteControl>
+          </div>
+        </ModuleDialog>
+      ) : null}
     </ModuleSurface>
   );
 }

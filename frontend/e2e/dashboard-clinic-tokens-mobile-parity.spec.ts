@@ -230,7 +230,11 @@ for (const viewport of MOBILE_VIEWPORTS) {
       .locator('[data-dashboard-module-workspace="tokens"]')
       .first();
     const card = page.locator("#clinic-particular-tokens");
-    const tokenRows = card.locator('[id^="clinic-particular-token-"]');
+    const tokenRows = card.locator('[data-clinic-access-mobile-row="true"]');
+    const detailButtons = card.getByRole("button", {
+      name: "Ver detalle",
+      exact: true,
+    });
     const refreshButton = card.getByRole("button", {
       name: "Actualizar",
       exact: true,
@@ -254,9 +258,11 @@ for (const viewport of MOBILE_VIEWPORTS) {
       await expect(card).toBeVisible();
       await expectClinicMobileBottomNav(page, viewport.name);
       await expect(tokenRows).toHaveCount(4);
+      await expect(detailButtons).toHaveCount(4);
 
       for (let index = 0; index < 4; index += 1) {
         await expect(tokenRows.nth(index)).toBeVisible();
+        await expect(detailButtons.nth(index)).toBeVisible();
       }
 
       await expect(refreshButton).toBeVisible();
@@ -298,34 +304,41 @@ for (const viewport of MOBILE_VIEWPORTS) {
       `${viewport.name}: Página siguiente`,
     );
 
-    await expect(card.locator("table")).toHaveCount(0);
+    await expect(card.locator('[data-clinic-access-table="true"]')).toBeHidden();
+    await expect(
+      card.locator('[data-clinic-access-mobile-list="true"]'),
+    ).toBeVisible();
+    await expect(
+      card.locator('[data-detail-state="selected"], .dashboard-inline-detail'),
+    ).toHaveCount(0);
 
     await expect(async () => {
       const metrics = await readLayoutContract(page);
       assertNoGlobalOverflow(metrics, `${viewport.name}: initial layout`);
     }).toPass({ timeout: 10_000 });
 
-    const secondToken = page.locator("#clinic-particular-token-2");
-    await secondToken.click();
+    await detailButtons.nth(1).click();
 
     await expect(async () => {
-      await expect(page.locator("#clinic-particular-token-1")).toBeVisible();
-      await expect(secondToken).toBeVisible();
-      await expect(secondToken).toHaveAttribute(
-        "aria-expanded",
-        "true",
-      );
-      const inlineDetail = card.locator('[data-detail-state="selected"]');
-      await expect(inlineDetail).toHaveCount(1);
-      await expect(inlineDetail).toBeVisible();
+      await expect(tokenRows).toHaveCount(4);
+      await expect(tokenRows.nth(0)).toBeVisible();
+      await expect(tokenRows.nth(1)).toBeVisible();
       await expect(
-        inlineDetail.getByRole("heading", {
-          name: /Paciente veterinario 2 .* Apellido compuesto del tutor 2/,
-        }),
+        card.locator('[data-detail-state="selected"], .dashboard-inline-detail'),
+      ).toHaveCount(0);
+
+      const detailDialog = page.locator(
+        '[data-clinic-access-detail-dialog="true"]',
+      );
+      await expect(detailDialog).toBeVisible();
+      await expect(
+        detailDialog.getByText(
+          /Paciente veterinario 2 .* Apellido compuesto del tutor 2/,
+        ),
       ).toBeVisible();
 
       const metrics = await readLayoutContract(page);
-      assertNoGlobalOverflow(metrics, `${viewport.name}: expanded inline detail`);
+      assertNoGlobalOverflow(metrics, `${viewport.name}: modal detail`);
     }).toPass({ timeout: 10_000 });
   });
 }
