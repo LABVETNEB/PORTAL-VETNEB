@@ -3090,6 +3090,22 @@
     overflow: hidden;
     overscroll-behavior: none;
   }
+
+  [data-vetneb-app-shell-surface="clinic"] [data-clinic-access-future-slots="true"] {
+    flex: 1 1 auto;
+    min-height: 0;
+    border-top: 1px solid hsl(var(--vetneb-line) / 0.42);
+    pointer-events: none;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        hsl(var(--vetneb-surface-muted) / 0.24) 0,
+        hsl(var(--vetneb-surface-muted) / 0.24) 2.35rem,
+        hsl(var(--vetneb-line) / 0.42) 2.35rem,
+        hsl(var(--vetneb-line) / 0.42) calc(2.35rem + 1px)
+      ),
+      hsl(var(--card) / 0.78);
+  }
 }
 
 @media (max-width: 767px) {

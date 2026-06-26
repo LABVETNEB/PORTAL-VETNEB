@@ -218,6 +218,37 @@ async function expectHorizontallyUnclipped(
   );
 }
 
+async function expectFooterBottomRightAligned(
+  footer: Locator,
+  controls: Locator,
+  panel: Locator,
+  label: string,
+) {
+  await expect(footer, `${label}: footer visible`).toBeVisible();
+  await expect(controls, `${label}: controls visible`).toBeVisible();
+
+  const footerBox = await footer.boundingBox();
+  const controlsBox = await controls.boundingBox();
+  const panelBox = await panel.boundingBox();
+
+  expect(footerBox, `${label}: footer box`).not.toBeNull();
+  expect(controlsBox, `${label}: controls box`).not.toBeNull();
+  expect(panelBox, `${label}: panel box`).not.toBeNull();
+
+  expect(
+    Math.abs(footerBox!.y + footerBox!.height - (panelBox!.y + panelBox!.height)),
+    `${label}: footer sits on panel bottom edge`,
+  ).toBeLessThanOrEqual(TOLERANCE);
+  expect(
+    panelBox!.x + panelBox!.width - (controlsBox!.x + controlsBox!.width),
+    `${label}: controls align to the right side of the footer`,
+  ).toBeGreaterThanOrEqual(0);
+  expect(
+    panelBox!.x + panelBox!.width - (controlsBox!.x + controlsBox!.width),
+    `${label}: controls stay close to the right side of the footer`,
+  ).toBeLessThanOrEqual(18);
+}
+
 for (const viewport of MOBILE_VIEWPORTS) {
   test(`clinic Tokens mobile parity at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -230,6 +261,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       .locator('[data-dashboard-module-workspace="tokens"]')
       .first();
     const card = page.locator("#clinic-particular-tokens");
+    const listPanel = card.locator('[data-clinic-access-list-panel="true"]');
     const tokenRows = card.locator('[data-clinic-access-mobile-row="true"]');
     const detailButtons = card.getByRole("button", {
       name: "Ver detalle",
@@ -243,7 +275,15 @@ for (const viewport of MOBILE_VIEWPORTS) {
       name: "Generar token particular",
       exact: true,
     });
-    const pager = card.locator('[data-dashboard-compact-pager="true"]');
+    const pager = card.locator(
+      '[data-clinic-access-pagination-footer="true"]',
+    );
+    const pagerControls = card.locator(
+      '[data-clinic-access-pagination-controls="true"]',
+    );
+    const futureSlots = card.locator(
+      '[data-clinic-access-future-slots="true"]',
+    );
     const previousButton = pager.getByRole("button", {
       name: "Página anterior",
       exact: true,
@@ -273,6 +313,9 @@ for (const viewport of MOBILE_VIEWPORTS) {
       await expect(previousButton).toBeVisible();
       await expect(nextButton).toBeVisible();
       await expect(nextButton).toBeEnabled();
+      await expect(pager.getByText("Página 1 / 2")).toBeVisible();
+      await expect(card.getByText(/1[\u2013-]4 de \d+ tokens/)).toHaveCount(0);
+      await expect(futureSlots).toBeVisible();
       await expect(card.getByText("Usuarios y roles")).toHaveCount(0);
       await expect(card.getByText("Auditoría")).toHaveCount(0);
       await expect(card.getByText("Mantenimiento")).toHaveCount(0);
@@ -294,6 +337,11 @@ for (const viewport of MOBILE_VIEWPORTS) {
       `${viewport.name}: paginador`,
     );
     await expectHorizontallyUnclipped(
+      pagerControls,
+      viewport.width,
+      `${viewport.name}: controles de paginación`,
+    );
+    await expectHorizontallyUnclipped(
       previousButton,
       viewport.width,
       `${viewport.name}: Página anterior`,
@@ -302,6 +350,12 @@ for (const viewport of MOBILE_VIEWPORTS) {
       nextButton,
       viewport.width,
       `${viewport.name}: Página siguiente`,
+    );
+    await expectFooterBottomRightAligned(
+      pager,
+      pagerControls,
+      listPanel,
+      `${viewport.name}: footer de paginación`,
     );
 
     await expect(card.locator('[data-clinic-access-table="true"]')).toBeHidden();

@@ -5,7 +5,6 @@ import { FormEvent, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CompactPager } from "@/components/dashboard/CompactPager";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
@@ -41,7 +40,7 @@ type GeneratedTokenDetails = {
   tutorLastName: string;
 };
 
-/** Maximum tokens visible per page in the master list (rest via CompactPager). */
+/** Maximum tokens visible per page in the master list (rest via footer pager). */
 const TOKENS_PAGE_SIZE = 4;
 
 const CREATE_TOKEN_STEP_ORDER = ["contact", "patient", "sample"] as const;
@@ -574,7 +573,7 @@ export function ClinicParticularTokensCard() {
             <div className="flex min-h-0 flex-1 flex-col">
               <div
                 data-clinic-access-list-panel="true"
-                className="min-h-0 flex-1 overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/82"
+                className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/82"
               >
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-vetneb-line/70 px-3 py-2">
                   <div className="min-w-0">
@@ -600,11 +599,11 @@ export function ClinicParticularTokensCard() {
 
                 <div
                   data-clinic-access-list-body="true"
-                  className="min-h-0 flex-1 overflow-hidden"
+                  className="flex min-h-0 flex-1 flex-col overflow-hidden"
                 >
                   <div
                     data-clinic-access-table="true"
-                    className="hidden min-h-0 flex-1 overflow-hidden md:block"
+                    className="hidden min-h-0 shrink-0 overflow-hidden md:block"
                   >
                     <table className="w-full table-fixed text-[0.8125rem]">
                       <thead className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground">
@@ -672,7 +671,7 @@ export function ClinicParticularTokensCard() {
 
                   <div
                     data-clinic-access-mobile-list="true"
-                    className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
+                    className="flex min-h-0 shrink-0 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
                   >
                     {pagedTokens.pageItems.map((token) => {
                       const trackingCase = trackingCasesByTokenId[token.id];
@@ -714,27 +713,57 @@ export function ClinicParticularTokensCard() {
                       );
                     })}
                   </div>
+
+                  <div
+                    aria-hidden="true"
+                    data-clinic-access-future-slots="true"
+                  />
                 </div>
 
-                <CompactPager
-                  className="shrink-0"
-                  page={pagedTokens.page}
-                  pageCount={pagedTokens.pageCount}
-                  rangeStart={pagedTokens.rangeStart}
-                  rangeEnd={pagedTokens.rangeEnd}
-                  total={pagedTokens.total}
-                  hasPrev={pagedTokens.hasPrev}
-                  hasNext={pagedTokens.hasNext}
-                  onPrev={() => {
-                    setSelectedTokenId(null);
-                    pagedTokens.goPrev();
-                  }}
-                  onNext={() => {
-                    setSelectedTokenId(null);
-                    pagedTokens.goNext();
-                  }}
-                  itemLabel="tokens"
-                />
+                <div
+                  data-clinic-access-pagination-footer="true"
+                  className="flex min-h-10 shrink-0 items-center justify-end border-t border-vetneb-line/65 px-3 py-2 text-xs text-muted-foreground"
+                >
+                  <div
+                    data-clinic-access-pagination-controls="true"
+                    className="flex items-center justify-end gap-1.5"
+                  >
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2 text-xs"
+                      disabled={!pagedTokens.hasPrev || isLoadingTokens}
+                      onClick={() => {
+                        setSelectedTokenId(null);
+                        pagedTokens.goPrev();
+                      }}
+                      aria-label="Página anterior"
+                    >
+                      Anterior
+                    </Button>
+                    <span
+                      data-clinic-access-pagination-status="true"
+                      className="min-w-16 text-center"
+                    >
+                      Página {pagedTokens.page + 1} / {pagedTokens.pageCount}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2 text-xs"
+                      disabled={!pagedTokens.hasNext || isLoadingTokens}
+                      onClick={() => {
+                        setSelectedTokenId(null);
+                        pagedTokens.goNext();
+                      }}
+                      aria-label="Página siguiente"
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
