@@ -19,7 +19,7 @@
     "e2e:public-clinic": "playwright test e2e/public-clinics-b2b-operations.spec.ts e2e/public-report-preview.spec.ts e2e/public-service-bento-specimen-journey.spec.ts e2e/public-pricing-actionable.spec.ts e2e/public-perspective-scroll.spec.ts e2e/public-navigation-footer.spec.ts e2e/home-hero-evidence-first.spec.ts e2e/dashboard-clinic-informes-mobile-parity.spec.ts e2e/dashboard-clinic-logistica-mobile-parity.spec.ts e2e/dashboard-clinic-tokens-mobile-parity.spec.ts e2e/dashboard-clinic-perfil-mobile-operability.spec.ts"
   },
   "dependencies": {
-    "@radix-ui/react-avatar": "^1.1.1",
+    "@radix-ui/react-avatar": "^1.2.0",
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-dropdown-menu": "^2.1.2",
     "@radix-ui/react-label": "^2.1.0",
