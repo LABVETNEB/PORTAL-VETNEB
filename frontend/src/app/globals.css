@@ -3074,6 +3074,22 @@
     min-height: 0;
     overflow: hidden;
   }
+
+  [data-vetneb-app-shell-surface="clinic"] [data-clinic-access-toolbar="true"],
+  [data-vetneb-app-shell-surface="clinic"] [data-clinic-profile-toolbar="true"] {
+    min-width: 0;
+    max-width: 100%;
+    gap: var(--dash-gap);
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] [data-clinic-access-list-body="true"],
+  [data-vetneb-app-shell-surface="clinic"] [data-clinic-access-list-panel="true"],
+  [data-vetneb-app-shell-surface="clinic"] [data-clinic-profile-fields="true"] {
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
 }
 
 @media (max-width: 767px) {

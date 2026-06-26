@@ -73,9 +73,14 @@ test("clinic public profile editor keeps mobile fields operable", () => {
 
   assert.ok(source.includes('data-clinic-profile-editor="true"'));
   assert.ok(source.includes('data-clinic-profile-fields="true"'));
+  assert.ok(source.includes('data-clinic-profile-toolbar="true"'));
+  assert.ok(source.includes('data-clinic-profile-footer="true"'));
+  assert.ok(source.includes("ModuleSurface"));
+  assert.ok(source.includes('label: "Contacto"'));
   assert.ok(source.includes("h-12 w-12 sm:h-16 sm:w-16"));
   assert.ok(source.includes("text-xl sm:text-2xl"));
-  assert.ok(source.includes("min-h-0 flex-1 overflow-y-auto"));
+  assert.ok(source.includes("min-h-0 flex-1 overflow-hidden"));
+  assert.equal(source.includes("overflow-y-auto"), false);
 });
 
 test("frontend api exposes clinic public profile helpers", () => {

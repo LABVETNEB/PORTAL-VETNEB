@@ -52,6 +52,18 @@ const SHELLS: ShellCase[] = [
     ready: '[data-dashboard-module-hub="true"]',
   },
   {
+    label: "clinic tokens module",
+    surface: "clinic",
+    path: "/dashboard?module=tokens",
+    ready: '[data-dashboard-module-workspace="tokens"]',
+  },
+  {
+    label: "clinic perfil module",
+    surface: "clinic",
+    path: "/dashboard?module=perfil",
+    ready: '[data-dashboard-module-workspace="perfil"]',
+  },
+  {
     label: "admin dashboard shell",
     surface: "admin",
     path: "/dashboard/admin",

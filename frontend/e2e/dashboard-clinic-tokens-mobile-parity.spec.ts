@@ -53,6 +53,9 @@ type LayoutContract = {
   mainClientHeight: number;
   mainOverflowY: string;
   listClientHeight: number;
+  listScrollHeight: number;
+  listOverflowY: string;
+  moduleScrollContainers: Array<{ tag: string; overflowY: string }>;
   hasMain: boolean;
   hasList: boolean;
 };
@@ -118,7 +121,21 @@ async function readLayoutContract(page: Page): Promise<LayoutContract> {
     const html = document.documentElement;
     const body = document.body;
     const main = document.querySelector<HTMLElement>("main.dashboard-main");
-    const list = document.querySelector<HTMLElement>(".dashboard-inline-scroll");
+    const card = document.querySelector<HTMLElement>("#clinic-particular-tokens");
+    const list = document.querySelector<HTMLElement>(
+      '[data-clinic-access-list-body="true"]',
+    );
+    const moduleScrollContainers = card
+      ? [card, ...Array.from(card.querySelectorAll<HTMLElement>("*"))].flatMap(
+          (element) => {
+            const style = window.getComputedStyle(element);
+            return ["auto", "scroll"].includes(style.overflowY)
+              ? [{ tag: element.tagName, overflowY: style.overflowY }]
+              : [];
+          },
+        )
+      : [];
+    const listStyle = list ? window.getComputedStyle(list) : null;
 
     return {
       htmlScrollWidth: html.scrollWidth,
@@ -133,6 +150,9 @@ async function readLayoutContract(page: Page): Promise<LayoutContract> {
       mainClientHeight: main?.clientHeight ?? 0,
       mainOverflowY: main ? window.getComputedStyle(main).overflowY : "none",
       listClientHeight: list?.clientHeight ?? 0,
+      listScrollHeight: list?.scrollHeight ?? 0,
+      listOverflowY: listStyle?.overflowY ?? "missing",
+      moduleScrollContainers,
       hasMain: main !== null,
       hasList: list !== null,
     };
@@ -169,6 +189,18 @@ function assertNoGlobalOverflow(metrics: LayoutContract, label: string) {
     metrics.listClientHeight,
     `${label}: inline list must keep an operable height`,
   ).toBeGreaterThanOrEqual(44);
+  expect(
+    metrics.listScrollHeight,
+    `${label}: token list must not clip hidden overflow`,
+  ).toBeLessThanOrEqual(metrics.listClientHeight + TOLERANCE);
+  expect(
+    ["auto", "scroll"],
+    `${label}: token list must not expose vertical scroll`,
+  ).not.toContain(metrics.listOverflowY);
+  expect(
+    metrics.moduleScrollContainers,
+    `${label}: tokens module must not contain internal scroll containers`,
+  ).toEqual([]);
 }
 
 async function expectHorizontallyUnclipped(
@@ -235,6 +267,9 @@ for (const viewport of MOBILE_VIEWPORTS) {
       await expect(previousButton).toBeVisible();
       await expect(nextButton).toBeVisible();
       await expect(nextButton).toBeEnabled();
+      await expect(card.getByText("Usuarios y roles")).toHaveCount(0);
+      await expect(card.getByText("Auditoría")).toHaveCount(0);
+      await expect(card.getByText("Mantenimiento")).toHaveCount(0);
     }).toPass({ timeout: 12_000 });
 
     await expectHorizontallyUnclipped(
@@ -274,6 +309,8 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await secondToken.click();
 
     await expect(async () => {
+      await expect(page.locator("#clinic-particular-token-1")).toBeVisible();
+      await expect(secondToken).toBeVisible();
       await expect(secondToken).toHaveAttribute(
         "aria-expanded",
         "true",
