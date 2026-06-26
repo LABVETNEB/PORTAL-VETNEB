@@ -58,6 +58,12 @@ const FRAME_ROUTES: FrameRouteCase[] = [
     ready: '[data-dashboard-module-workspace="tokens"]',
   },
   {
+    label: "clinic perfil",
+    surface: "clinic",
+    path: "/dashboard?module=perfil",
+    ready: '[data-dashboard-module-workspace="perfil"]',
+  },
+  {
     label: "admin resumen",
     surface: "admin",
     path: "/dashboard/admin?module=admin",

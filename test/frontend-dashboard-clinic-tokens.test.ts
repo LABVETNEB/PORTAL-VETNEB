@@ -85,14 +85,17 @@ test("clinic tokens uses inline master-detail with paged list and step dialogs",
   assert.ok(source.includes("usePagedRows(tokens, TOKENS_PAGE_SIZE)"));
   assert.ok(source.includes("<CompactPager"));
   assert.ok(source.includes("selectedTokenId"));
+  assert.ok(source.includes("ModuleSurface"));
   assert.ok(source.includes("dashboard-inline-list"));
-  assert.ok(source.includes("dashboard-inline-scroll"));
+  assert.ok(source.includes('data-clinic-access-list-body="true"'));
   assert.ok(source.includes("dashboard-inline-detail"));
+  assert.ok(source.includes("dashboard-detail-panel"));
   assert.ok(source.includes("aria-expanded={isSelected}"));
   assert.ok(source.includes('data-detail-state="selected"'));
   assert.equal(source.includes("isMobileDetailOpen"), false);
   assert.equal(source.includes("Volver a la lista"), false);
   assert.equal(source.includes('xl:grid-cols-[0.82fr_1.46fr]'), false);
+  assert.equal(source.includes("dashboard-inline-scroll"), false);
   assert.ok(source.includes("CREATE_TOKEN_STEP_ORDER"));
   assert.ok(source.includes("createStep"));
   assert.ok(source.includes("Siguiente"));

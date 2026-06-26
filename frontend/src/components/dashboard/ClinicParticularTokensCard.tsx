@@ -4,11 +4,11 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CompactPager } from "@/components/dashboard/CompactPager";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
+import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import {
   createClinicParticularToken,
@@ -254,11 +254,12 @@ export function ClinicParticularTokensCard() {
   const pagedTokens = usePagedRows(tokens, TOKENS_PAGE_SIZE);
   const selectedToken =
     selectedTokenId === null
-      ? (tokens[0] ?? null)
-      : (tokens.find((token) => token.id === selectedTokenId) ?? tokens[0] ?? null);
+      ? null
+      : (tokens.find((token) => token.id === selectedTokenId) ?? null);
   const selectedTrackingCase = selectedToken
     ? trackingCasesByTokenId[selectedToken.id]
     : undefined;
+  const hasOpenDetail = selectedToken !== null;
 
   const activeTokensCount = tokens.filter((token) => token.isActive).length;
   const linkedReportsCount = tokens.filter((token) => token.hasLinkedReport).length;
@@ -277,7 +278,7 @@ export function ClinicParticularTokensCard() {
       setSelectedTokenId((current) =>
         current && nextTokens.some((token) => token.id === current)
           ? current
-          : nextTokens[0]?.id ?? null,
+          : null,
       );
 
       if (nextTokens.length === 0) {
@@ -487,57 +488,69 @@ export function ClinicParticularTokensCard() {
   }
 
   return (
-    <Card
+    <section
       id="clinic-particular-tokens"
-      className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
     >
-      <CardHeader className="shrink-0 border-b border-vetneb-line/70 p-4 sm:p-6">
-        <div className="flex flex-col gap-2 sm:gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="min-w-0">
-            <CardTitle className="text-base">Generación de tokens particulares</CardTitle>
-            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground sm:line-clamp-none">
-              Gestión compacta: generar token en una capa dedicada, seleccionar de la
-              lista y revisar el seguimiento solo desde el detalle.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 text-sm xl:min-w-[20rem]">
-            <div className="surface-soft px-3 py-2">
-              <p className="text-xs text-muted-foreground">Tokens</p>
-              <p className="mt-0.5 font-semibold text-vetneb-ink">{tokens.length}</p>
-            </div>
-            <div className="surface-soft px-3 py-2">
-              <p className="text-xs text-muted-foreground">Activos</p>
-              <p className="mt-0.5 font-semibold text-vetneb-ink">
-                {activeTokensCount}
-              </p>
-            </div>
-            <div className="surface-soft px-3 py-2">
-              <p className="text-xs text-muted-foreground">Informes</p>
-              <p className="mt-0.5 font-semibold text-vetneb-ink">
-                {linkedReportsCount}
-              </p>
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4 pt-3 sm:gap-4 sm:px-6 sm:pb-6 sm:pt-4">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-          <p className="line-clamp-2 text-xs text-muted-foreground sm:line-clamp-none">
-            Lista limitada con paginación compacta. La generación abre una capa
-            dedicada y no apila el formulario sobre la lista.
-          </p>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => setIsCreateDialogOpen(true)}
-            disabled={generatedToken !== null}
+      <ModuleSurface
+        ariaLabel="Tokens particulares de la clínica"
+        toolbar={
+          <div
+            data-clinic-access-toolbar="true"
+            className="flex w-full flex-wrap items-center justify-between gap-2"
           >
-            Generar token particular
-          </Button>
-        </div>
+            <div className="min-w-0">
+              <h3 className="dashboard-section-heading">
+                Tokens particulares
+              </h3>
+              <p className="dashboard-section-description line-clamp-1">
+                Generación, actualización, estado y detalle clínico en un módulo
+                compacto.
+              </p>
+            </div>
 
+            <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+              <div
+                className="grid grid-cols-3 divide-x divide-vetneb-line/70 rounded-md border border-vetneb-line/75 bg-vetneb-surface-muted/45 text-center"
+                aria-label="Métricas de tokens particulares"
+              >
+                {[
+                  ["Tokens", tokens.length],
+                  ["Activos", activeTokensCount],
+                  ["Informes", linkedReportsCount],
+                ].map(([label, value]) => (
+                  <div key={label} className="min-w-[4.25rem] px-2 py-1">
+                    <p className="text-[0.6875rem] text-muted-foreground">
+                      {label}
+                    </p>
+                    <p className="text-sm font-semibold leading-tight text-vetneb-ink">
+                      {value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void loadTokens()}
+                disabled={isLoadingTokens}
+              >
+                {isLoadingTokens ? "Actualizando..." : "Actualizar"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setIsCreateDialogOpen(true)}
+                disabled={generatedToken !== null}
+              >
+                Generar token particular
+              </Button>
+            </div>
+          </div>
+        }
+      >
         {errorMessage ? (
           <p className="clinical-alert-error shrink-0 px-3 py-2" role="alert">
             {errorMessage}
@@ -554,42 +567,50 @@ export function ClinicParticularTokensCard() {
           aria-label="Tokens particulares de la clínica"
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="dashboard-master-panel dashboard-inline-list min-h-0 flex-1 rounded-xl border border-vetneb-line/75 bg-card/82">
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-vetneb-line/70 px-3 py-2 sm:px-4 sm:py-3">
-              <div>
-                <h3 className="text-sm font-semibold text-vetneb-ink">
-                  Últimos tokens de la clínica
-                </h3>
-                <p className="dashboard-section-description line-clamp-1 sm:line-clamp-none">
-                  Seleccionar un token despliega el detalle dentro del propio token.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void loadTokens()}
-                disabled={isLoadingTokens}
+          {tokens.length ? (
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
+              <div
+                data-clinic-access-list-panel="true"
+                className="dashboard-master-panel dashboard-inline-list min-h-0 flex-1 rounded-lg border border-vetneb-line/75 bg-card/82"
               >
-                {isLoadingTokens ? "Actualizando..." : "Actualizar"}
-              </Button>
-            </div>
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-vetneb-line/70 px-3 py-2">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-vetneb-ink">
+                      Últimos tokens de la clínica
+                    </h3>
+                    <p className="dashboard-section-description line-clamp-1">
+                      Lista paginada sin scroll interno.
+                    </p>
+                    {trackingLoadError ? (
+                      <p
+                        className="line-clamp-1 text-[0.68rem] text-amber-700"
+                        role="alert"
+                      >
+                        Seguimiento parcial: {trackingLoadError}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Badge variant="outline" className="shrink-0">
+                    Pág. {pagedTokens.page + 1}
+                  </Badge>
+                </div>
 
-            {trackingLoadError ? (
-              <p className="clinical-alert-warning m-3 px-3 py-2 text-sm" role="alert">
-                {trackingLoadError}
-              </p>
-            ) : null}
-
-            {tokens.length ? (
-              <>
-                <div className="dashboard-inline-scroll divide-y divide-vetneb-line/60">
+                <div
+                  data-clinic-access-list-body="true"
+                  className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden"
+                >
                   {pagedTokens.pageItems.map((token) => {
                     const isSelected = selectedToken?.id === token.id;
                     const trackingCase = trackingCasesByTokenId[token.id];
 
                     return (
-                      <div key={token.id} className="min-w-0">
+                      <div
+                        key={token.id}
+                        className={cn(
+                          "min-w-0",
+                          hasOpenDetail && !isSelected && "hidden sm:block",
+                        )}
+                      >
                         <button
                           type="button"
                           id={`clinic-particular-token-${token.id}`}
@@ -597,7 +618,8 @@ export function ClinicParticularTokensCard() {
                           aria-pressed={isSelected}
                           aria-expanded={isSelected}
                           className={cn(
-                            "block w-full px-4 py-3 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset",
+                            "block w-full px-3 py-1.5 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset sm:py-2",
+                            hasOpenDetail && "py-1 sm:py-2",
                             isSelected && "bg-vetneb-cyan/12",
                           )}
                         >
@@ -609,137 +631,38 @@ export function ClinicParticularTokensCard() {
                               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                                 Token ****{token.tokenLast4}
                               </p>
-                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                              <p className="hidden truncate text-xs text-muted-foreground sm:mt-0.5 sm:block">
                                 {trackingCase
                                   ? getTrackingStageLabel(trackingCase.currentStage)
                                   : "Sin seguimiento vinculado"}
                               </p>
                             </div>
-                            <div className="flex shrink-0 flex-col items-end gap-1">
-                              <Badge variant={token.isActive ? "default" : "outline"}>
+                            <div
+                              className={cn(
+                                "flex shrink-0 flex-col items-end gap-1",
+                                hasOpenDetail && "hidden sm:flex",
+                              )}
+                            >
+                              <Badge
+                                variant={token.isActive ? "default" : "outline"}
+                                className="h-5 px-1.5 text-[0.6875rem]"
+                              >
                                 {token.isActive ? "Activo" : "Inactivo"}
                               </Badge>
-                              <Badge variant={token.hasLinkedReport ? "default" : "outline"}>
+                              <Badge
+                                variant={token.hasLinkedReport ? "default" : "outline"}
+                                className="h-5 px-1.5 text-[0.6875rem]"
+                              >
                                 {token.hasLinkedReport ? "Informe" : "Sin informe"}
                               </Badge>
                             </div>
                           </div>
                         </button>
-
-                        {isSelected && selectedToken ? (
-                          <div
-                            data-detail-state="selected"
-                            className="dashboard-inline-detail border-t border-vetneb-line/60 bg-vetneb-surface-muted/40"
-                          >
-                            <div className="space-y-3 p-4">
-                              <div className="flex flex-col gap-3 border-b border-vetneb-line/70 pb-3 lg:flex-row lg:items-start lg:justify-between">
-                                <div className="min-w-0">
-                                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                                    Detalle del token
-                                  </p>
-                                  <h3 className="mt-1 text-lg font-semibold text-vetneb-ink">
-                                    {selectedToken.petName} · {selectedToken.tutorLastName}
-                                  </h3>
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    Token ****{selectedToken.tokenLast4}
-                                  </p>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  <Badge variant={selectedToken.isActive ? "default" : "outline"}>
-                                    {selectedToken.isActive ? "Activo" : "Inactivo"}
-                                  </Badge>
-                                  <Badge variant={selectedToken.hasLinkedReport ? "default" : "outline"}>
-                                    {selectedToken.hasLinkedReport ? "Informe vinculado" : "Sin informe"}
-                                  </Badge>
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                                <div className="clinical-muted-band rounded-lg px-3 py-2">
-                                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                                    Paciente
-                                  </p>
-                                  <p className="mt-1 text-xs text-vetneb-ink">
-                                    {selectedToken.petSpecies} · {selectedToken.petBreed} · {selectedToken.petSex}
-                                  </p>
-                                  <p className="mt-1 text-xs text-muted-foreground">Edad: {selectedToken.petAge}</p>
-                                </div>
-
-                                <div className="clinical-muted-band rounded-lg px-3 py-2">
-                                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                                    Muestra
-                                  </p>
-                                  <p className="mt-1 text-xs text-vetneb-ink">{selectedToken.sampleLocation}</p>
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    Evolución: {selectedToken.sampleEvolution}
-                                  </p>
-                                </div>
-
-                                <div className="clinical-muted-band rounded-lg px-3 py-2">
-                                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                                    Fechas
-                                  </p>
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    Extracción: {formatDate(selectedToken.extractionDate)}
-                                  </p>
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    Envío: {formatDate(selectedToken.shippingDate)}
-                                  </p>
-                                </div>
-
-                                <div className="clinical-muted-band rounded-lg px-3 py-2">
-                                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                                    Publicación
-                                  </p>
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    Informe: {selectedToken.reportId ? `#${selectedToken.reportId}` : "—"}
-                                  </p>
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    Último acceso: {selectedToken.lastLoginAt ? formatDate(selectedToken.lastLoginAt) : "—"}
-                                  </p>
-                                </div>
-
-                                <div className="clinical-muted-band rounded-lg px-3 py-2">
-                                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                                    Vínculo
-                                  </p>
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    Tutor: {selectedToken.tutorLastName}
-                                  </p>
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    Origen: {formatTokenSource(selectedToken)}
-                                  </p>
-                                </div>
-
-                                <div className="clinical-muted-band rounded-lg px-3 py-2">
-                                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
-                                    Seguimiento
-                                  </p>
-                                  {selectedTrackingCase ? (
-                                    <>
-                                      <p className="mt-1 text-xs text-vetneb-ink">
-                                        Etapa: {getTrackingStageLabel(selectedTrackingCase.currentStage)}
-                                      </p>
-                                      <p className="mt-1 text-xs text-muted-foreground">
-                                        {selectedTrackingCase.specialStainRequired
-                                          ? "Alerta: Solicitud de tinción especial"
-                                          : "Sin alerta de tinción especial"}
-                                      </p>
-                                    </>
-                                  ) : (
-                                    <p className="mt-1 text-xs text-muted-foreground">
-                                      Sin seguimiento vinculado.
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ) : null}
                       </div>
                     );
                   })}
                 </div>
+
                 <CompactPager
                   className="shrink-0"
                   page={pagedTokens.page}
@@ -753,28 +676,161 @@ export function ClinicParticularTokensCard() {
                   onNext={pagedTokens.goNext}
                   itemLabel="tokens"
                 />
-              </>
-            ) : (
-              <div className="m-4 flex min-h-0 flex-1">
-                <EmptyState
-                  title={
-                    isLoadingTokens
-                      ? "Cargando tokens particulares..."
-                      : "Sin tokens particulares"
-                  }
-                  description={
-                    isLoadingTokens
-                      ? "Consultando los últimos tokens generados por la clínica."
-                      : "No hay tokens particulares generados por esta clínica."
-                  }
-                  size="sm"
-                  className="w-full"
-                />
               </div>
-            )}
-          </div>
+
+              {selectedToken ? (
+                <div
+                  data-detail-state="selected"
+                  className="dashboard-detail-panel dashboard-inline-detail flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/92"
+                >
+                  <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
+                    <div className="flex shrink-0 flex-col gap-2 border-b border-vetneb-line/70 pb-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                          Detalle del token
+                        </p>
+                        <h3 className="mt-0.5 truncate text-base font-semibold text-vetneb-ink">
+                          {selectedToken.petName} · {selectedToken.tutorLastName}
+                        </h3>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Token ****{selectedToken.tokenLast4}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Badge
+                          variant={selectedToken.isActive ? "default" : "outline"}
+                        >
+                          {selectedToken.isActive ? "Activo" : "Inactivo"}
+                        </Badge>
+                        <Badge
+                          variant={
+                            selectedToken.hasLinkedReport ? "default" : "outline"
+                          }
+                        >
+                          {selectedToken.hasLinkedReport
+                            ? "Informe vinculado"
+                            : "Sin informe"}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div className="grid min-h-0 flex-1 grid-cols-2 gap-1.5 sm:gap-2 xl:grid-cols-3">
+                      <div className="clinical-muted-band rounded-md px-2 py-1.5 sm:px-2.5 sm:py-2">
+                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                          Paciente
+                        </p>
+                        <p className="mt-1 line-clamp-1 text-xs text-vetneb-ink">
+                          {selectedToken.petSpecies} · {selectedToken.petBreed} ·{" "}
+                          {selectedToken.petSex}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Edad: {selectedToken.petAge}
+                        </p>
+                      </div>
+
+                      <div className="clinical-muted-band rounded-md px-2 py-1.5 sm:px-2.5 sm:py-2">
+                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                          Muestra
+                        </p>
+                        <p className="mt-1 line-clamp-1 text-xs text-vetneb-ink">
+                          {selectedToken.sampleLocation}
+                        </p>
+                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                          Evolución: {selectedToken.sampleEvolution}
+                        </p>
+                      </div>
+
+                      <div className="clinical-muted-band rounded-md px-2 py-1.5 sm:px-2.5 sm:py-2">
+                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                          Fechas
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Extracción: {formatDate(selectedToken.extractionDate)}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Envío: {formatDate(selectedToken.shippingDate)}
+                        </p>
+                      </div>
+
+                      <div className="clinical-muted-band rounded-md px-2 py-1.5 sm:px-2.5 sm:py-2">
+                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                          Publicación
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Informe:{" "}
+                          {selectedToken.reportId
+                            ? `#${selectedToken.reportId}`
+                            : "—"}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Último acceso:{" "}
+                          {selectedToken.lastLoginAt
+                            ? formatDate(selectedToken.lastLoginAt)
+                            : "—"}
+                        </p>
+                      </div>
+
+                      <div className="clinical-muted-band rounded-md px-2 py-1.5 sm:px-2.5 sm:py-2">
+                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                          Vínculo
+                        </p>
+                        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                          Tutor: {selectedToken.tutorLastName}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Origen: {formatTokenSource(selectedToken)}
+                        </p>
+                      </div>
+
+                      <div className="clinical-muted-band rounded-md px-2 py-1.5 sm:px-2.5 sm:py-2">
+                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-vetneb-navy">
+                          Seguimiento
+                        </p>
+                        {selectedTrackingCase ? (
+                          <>
+                            <p className="mt-1 line-clamp-1 text-xs text-vetneb-ink">
+                              Etapa:{" "}
+                              {getTrackingStageLabel(
+                                selectedTrackingCase.currentStage,
+                              )}
+                            </p>
+                            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                              {selectedTrackingCase.specialStainRequired
+                                ? "Alerta: Solicitud de tinción especial"
+                                : "Sin alerta de tinción especial"}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Sin seguimiento vinculado.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="flex min-h-0 flex-1 rounded-lg border border-vetneb-line/75 bg-card/82 p-3">
+              <EmptyState
+                title={
+                  isLoadingTokens
+                    ? "Cargando tokens particulares..."
+                    : "Sin tokens particulares"
+                }
+                description={
+                  isLoadingTokens
+                    ? "Consultando los últimos tokens generados por la clínica."
+                    : "No hay tokens particulares generados por esta clínica."
+                }
+                size="sm"
+                className="w-full"
+              />
+            </div>
+          )}
         </section>
-      </CardContent>
+      </ModuleSurface>
 
       <ModuleDialog
         open={isCreateDialogOpen}
@@ -1184,6 +1240,6 @@ export function ClinicParticularTokensCard() {
           </div>
         </div>
       </ModuleDialog>
-    </Card>
+    </section>
   );
 }

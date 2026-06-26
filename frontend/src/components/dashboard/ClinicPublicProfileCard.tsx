@@ -5,13 +5,6 @@ import NextImage from "next/image";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   getClinicPublicProfile,
@@ -21,6 +14,7 @@ import {
   type ClinicPublicProfile,
   type ClinicPublicProfileUpdatePayload,
 } from "@/lib/api";
+import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
 import { ModuleTabs } from "@/components/dashboard/ModuleTabs";
 
 type ProfileFormState = {
@@ -485,9 +479,9 @@ export function ClinicPublicProfileCard() {
   const statusTab = (
     <div
       data-clinic-profile-fields="true"
-      className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
+      className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
     >
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <div className="surface-soft">
           <p className="text-xs text-muted-foreground">Estado</p>
           <Badge className="mt-2" variant={getPublicationVariant(profile)}>
@@ -521,7 +515,7 @@ export function ClinicPublicProfileCard() {
         <label htmlFor="clinic-profile-avatar" className="field-label">
           Avatar o logo
         </label>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex h-12 w-12 sm:h-16 sm:w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-vetneb-line/70 bg-white">
             {profileAvatarSrc ? (
               <NextImage
@@ -578,9 +572,9 @@ export function ClinicPublicProfileCard() {
   const detailsTab = (
     <div
       data-clinic-profile-fields="true"
-      className="min-h-0 flex-1 overflow-y-auto lg:overflow-y-visible"
+      className="min-h-0 flex-1 overflow-hidden"
     >
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         <div>
           <label htmlFor="clinic-profile-display-name" className="field-label">
             Nombre visible
@@ -641,7 +635,16 @@ export function ClinicPublicProfileCard() {
             disabled={isWorking}
           />
         </div>
+      </div>
+    </div>
+  );
 
+  const contactTab = (
+    <div
+      data-clinic-profile-fields="true"
+      className="min-h-0 flex-1 overflow-hidden"
+    >
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         <div>
           <label htmlFor="clinic-profile-email" className="field-label">
             Email público
@@ -707,9 +710,9 @@ export function ClinicPublicProfileCard() {
   const contentTab = (
     <div
       data-clinic-profile-fields="true"
-      className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
+      className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
     >
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         <div>
           <label htmlFor="clinic-profile-services" className="field-label">
             Servicios
@@ -717,7 +720,7 @@ export function ClinicPublicProfileCard() {
           <textarea
             id="clinic-profile-services"
             name="servicesText"
-            className="field-textarea h-24 min-h-0"
+            className="field-textarea h-20 min-h-0"
             value={formState.servicesText}
             onChange={(event) => updateField("servicesText", event.target.value)}
             disabled={isWorking}
@@ -732,7 +735,7 @@ export function ClinicPublicProfileCard() {
           <textarea
             id="clinic-profile-about"
             name="aboutText"
-            className="field-textarea h-24 min-h-0"
+            className="field-textarea h-20 min-h-0"
             value={formState.aboutText}
             onChange={(event) => updateField("aboutText", event.target.value)}
             disabled={isWorking}
@@ -741,7 +744,7 @@ export function ClinicPublicProfileCard() {
         </div>
       </div>
 
-      <label className="clinical-muted-band flex items-start gap-3 rounded-lg px-3 py-2 text-sm text-vetneb-navy">
+      <label className="clinical-muted-band flex items-start gap-3 rounded-lg px-3 py-2 text-xs text-vetneb-navy sm:text-sm">
         <input
           type="checkbox"
           className="mt-1"
@@ -760,73 +763,95 @@ export function ClinicPublicProfileCard() {
   );
 
   return (
-    <Card
+    <form
       id="clinic-public-profile"
       data-clinic-profile-editor="true"
-      className="dashboard-surface flex min-h-0 flex-1 flex-col"
+      className="flex min-h-0 flex-1 flex-col"
+      onSubmit={handleSubmit}
     >
-      <CardHeader className="shrink-0 border-b border-vetneb-line/70 px-5 py-3">
-        <CardTitle className="text-base">Perfil para banco de especialidades</CardTitle>
-        <CardDescription>
-          Complete y publique el perfil de la clínica para aparecer en el banco
-          público de especialidades y profesionales.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col px-5 py-3">
-        <form className="flex min-h-0 flex-1 flex-col gap-3" onSubmit={handleSubmit}>
-          {isLoading ? (
-            <p className="clinical-alert-info px-3 py-2" role="status">
-              Cargando perfil público...
+      <ModuleSurface
+        ariaLabel="Perfil público de la clínica"
+        toolbar={
+          <div
+            data-clinic-profile-toolbar="true"
+            className="flex w-full flex-wrap items-center justify-between gap-2"
+          >
+            <div className="min-w-0">
+              <h3 className="dashboard-section-heading">
+                Perfil para banco de especialidades
+              </h3>
+              <p className="dashboard-section-description line-clamp-1">
+                Publicación, calidad, avatar y datos visibles en tabs compactos.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Badge variant={getPublicationVariant(profile)}>
+                {getPublicationLabel(profile)}
+              </Badge>
+              <Button type="submit" size="sm" disabled={isWorking}>
+                {isSubmitting ? "Guardando..." : "Guardar perfil público"}
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        {isLoading ? (
+          <p className="clinical-alert-info shrink-0 px-3 py-2" role="status">
+            Cargando perfil público...
+          </p>
+        ) : null}
+
+        {profileLoadErrorMessage ? (
+          <div
+            className="clinical-alert-error flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 py-2"
+            role="alert"
+          >
+            <span>{profileLoadErrorMessage}</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void loadProfile()}
+              disabled={isWorking}
+            >
+              Reintentar carga
+            </Button>
+          </div>
+        ) : null}
+
+        <ModuleTabs
+          ariaLabel="Edición de perfil público"
+          tabs={[
+            { id: "estado", label: "Estado", content: statusTab },
+            { id: "datos", label: "Datos", content: detailsTab },
+            { id: "contacto", label: "Contacto", content: contactTab },
+            { id: "contenido", label: "Contenido", content: contentTab },
+          ]}
+        />
+
+        <div
+          data-clinic-profile-footer="true"
+          className="flex min-h-8 shrink-0 flex-wrap items-center gap-2 border-t border-vetneb-line/65 pt-2 text-xs"
+        >
+          {errorMessage ? (
+            <p className="clinical-alert-error px-3 py-1.5" role="alert">
+              {errorMessage}
             </p>
           ) : null}
 
-          {profileLoadErrorMessage ? (
-            <div
-              className="clinical-alert-error flex flex-wrap items-center justify-between gap-2 px-3 py-2"
-              role="alert"
-            >
-              <span>{profileLoadErrorMessage}</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void loadProfile()}
-                disabled={isWorking}
-              >
-                Reintentar carga
-              </Button>
-            </div>
+          {statusMessage ? (
+            <p className="clinical-alert-success px-3 py-1.5">
+              {statusMessage}
+            </p>
           ) : null}
 
-          <ModuleTabs
-            ariaLabel="Edición de perfil público"
-            tabs={[
-              { id: "estado", label: "Estado", content: statusTab },
-              { id: "datos", label: "Datos", content: detailsTab },
-              { id: "contenido", label: "Contenido", content: contentTab },
-            ]}
-          />
-
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-vetneb-line/65 pt-3">
-            <div className="min-h-5 text-sm">
-              {errorMessage ? (
-                <p className="clinical-alert-error px-3 py-2" role="alert">
-                  {errorMessage}
-                </p>
-              ) : null}
-
-              {statusMessage ? (
-                <p className="clinical-alert-success px-3 py-2">
-                  {statusMessage}
-                </p>
-              ) : null}
-            </div>
-            <Button type="submit" disabled={isWorking}>
-              {isSubmitting ? "Guardando perfil..." : "Guardar perfil público"}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+          {!errorMessage && !statusMessage ? (
+            <p className="text-muted-foreground">
+              Cambios del perfil se guardan desde la acción principal del módulo.
+            </p>
+          ) : null}
+        </div>
+      </ModuleSurface>
+    </form>
   );
 }
