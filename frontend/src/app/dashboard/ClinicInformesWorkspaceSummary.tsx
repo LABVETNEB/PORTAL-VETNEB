@@ -4,7 +4,6 @@ import { useState } from "react";
 import type { Report } from "@/types";
 import { ClipboardList, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CompactPager } from "@/components/dashboard/CompactPager";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
@@ -183,25 +182,52 @@ export function ClinicInformesWorkspaceSummary({
             ))}
           </div>
 
-          <CompactPager
-            className="shrink-0 px-3 pb-2"
-            page={pagedReports.page}
-            pageCount={pagedReports.pageCount}
-            rangeStart={pagedReports.rangeStart}
-            rangeEnd={pagedReports.rangeEnd}
-            total={pagedReports.total}
-            hasPrev={pagedReports.hasPrev}
-            hasNext={pagedReports.hasNext}
-            onPrev={() => {
-              setSelectedReportId(null);
-              pagedReports.goPrev();
-            }}
-            onNext={() => {
-              setSelectedReportId(null);
-              pagedReports.goNext();
-            }}
-            itemLabel="informes"
-          />
+          <div
+            data-clinic-reports-pagination-footer="true"
+            className="flex min-h-10 shrink-0 items-center justify-end border-t border-vetneb-line/65 px-3 py-2 text-xs text-muted-foreground"
+          >
+            <div
+              data-clinic-reports-pagination-controls="true"
+              className="flex items-center justify-end gap-1.5"
+            >
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                disabled={!pagedReports.hasPrev}
+                onClick={() => {
+                  setSelectedReportId(null);
+                  pagedReports.goPrev();
+                }}
+                aria-label="Página anterior"
+              >
+                Anterior
+              </Button>
+
+              <span
+                data-clinic-reports-pagination-status="true"
+                className="min-w-16 text-center"
+              >
+                Página {pagedReports.page + 1} / {pagedReports.pageCount}
+              </span>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                disabled={!pagedReports.hasNext}
+                onClick={() => {
+                  setSelectedReportId(null);
+                  pagedReports.goNext();
+                }}
+                aria-label="Página siguiente"
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
         </div>
       ) : (
         <EmptyState
