@@ -185,7 +185,11 @@ type PublicExternalControlProps = {
   className?: string;
   icon?: ReactNode;
   target?: "_blank" | "_self";
-} & Omit<ComponentPropsWithoutRef<"button">, "type" | "children" | "className">;
+  disabled?: boolean;
+} & Omit<
+  ComponentPropsWithoutRef<"a">,
+  "href" | "children" | "className" | "target" | "aria-disabled" | "rel"
+>;
 
 export function PublicExternalControl({
   href,
@@ -193,38 +197,39 @@ export function PublicExternalControl({
   className,
   icon,
   target = "_blank",
-  disabled,
+  disabled = false,
   onClick,
   ...props
 }: PublicExternalControlProps) {
-  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+  const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
     onClick?.(event);
 
-    if (event.defaultPrevented || disabled) {
+    if (event.defaultPrevented) {
       return;
     }
 
-    if (target === "_self") {
-      window.location.assign(href);
-      return;
+    if (disabled) {
+      event.preventDefault();
     }
-
-    window.open(href, target, "noopener,noreferrer");
   };
 
   return (
-    <button
-      type="button"
-      disabled={disabled}
+    <a
+      href={href}
+      target={target}
+      rel={target === "_blank" ? "noopener noreferrer" : undefined}
+      aria-disabled={disabled ? "true" : undefined}
+      tabIndex={disabled ? -1 : props.tabIndex}
       onClick={handleClick}
       className={cn(
         "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2",
+        disabled && "pointer-events-none opacity-60",
         className,
       )}
       {...props}
     >
       {children}
       {icon}
-    </button>
+    </a>
   );
 }
