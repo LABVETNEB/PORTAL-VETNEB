@@ -262,7 +262,10 @@ export function DashboardNotificationsBell({
           ),
         );
       } catch {
-        setErrorMessage("No se pudo marcar la notificación como leída.");
+        setErrorMessage(
+          "No se pudo marcar la notificación como leída. No se abrió el destino para evitar un falso leído.",
+        );
+        return;
       } finally {
         setUpdatingNotificationId(null);
       }
@@ -296,7 +299,7 @@ export function DashboardNotificationsBell({
         ),
       );
     } catch {
-      setErrorMessage("No se pudieron cargar las notificaciones.");
+      setErrorMessage("No se pudieron marcar las notificaciones como leídas.");
     } finally {
       setIsMarkingAllAsRead(false);
     }
