@@ -40,13 +40,13 @@ type ModuleCase = {
 
 const MODULES: ModuleCase[] = [
   {
-    label: "clinic Tokens particulares (inline detail + dialog alta)",
+    label: "clinic Tokens particulares (table actions + dialog alta)",
     surface: "clinic",
     path: "/dashboard?module=tokens",
     moduleId: "tokens",
   },
   {
-    label: "clinic Informes (in-shell master-detail)",
+    label: "clinic Informes (table actions)",
     surface: "clinic",
     path: "/dashboard?module=informes",
     moduleId: "informes",
@@ -352,7 +352,7 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
-test("clinic Tokens desktop limits the list and expands detail inline without shell scroll", async ({
+test("clinic Tokens desktop limits the list and opens detail dialog without shell scroll", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
@@ -360,26 +360,29 @@ test("clinic Tokens desktop limits the list and expands detail inline without sh
   await mockClinicTokens(page);
 
   await page.goto("/dashboard?module=tokens");
-  await expect(page.locator('[data-dashboard-module-workspace="tokens"]').first()).toBeVisible({
+  const workspace = page.locator('[data-dashboard-module-workspace="tokens"]').first();
+  const card = page.locator("#clinic-particular-tokens");
+  await expect(workspace).toBeVisible({
     timeout: 12_000,
   });
-  await expect(page.locator('[id^="clinic-particular-token-"]')).toHaveCount(4);
+  await expect(card.locator('[data-clinic-access-table-row="true"]')).toHaveCount(4);
   await expect(page.getByText(/1.4 de 6 tokens/)).toBeVisible();
 
-  await page.locator("#clinic-particular-token-2").click();
-  await expect(page.locator("#clinic-particular-token-2")).toHaveAttribute(
-    "aria-expanded",
-    "true",
-  );
-  await expect(page.locator('[data-detail-state="selected"]')).toHaveCount(1);
-  await expect(page.getByRole("heading", { name: "Paciente 2 · Tutor 2" })).toBeVisible();
-  await expect(page.getByText("Alerta: Solicitud de tinción especial")).toBeVisible();
+  await card.getByRole("button", { name: "Ver detalle", exact: true }).nth(1).click();
+  await expect(
+    card.locator('[data-detail-state="selected"], .dashboard-inline-detail'),
+  ).toHaveCount(0);
+  await expect(card.locator('[data-clinic-access-table-row="true"]')).toHaveCount(4);
+  const detailDialog = page.locator('[data-clinic-access-detail-dialog="true"]');
+  await expect(detailDialog).toBeVisible();
+  await expect(detailDialog).toContainText("Paciente 2 · Tutor 2");
+  await expect(detailDialog.getByText("Alerta: Solicitud de tinción especial")).toBeVisible();
 
   const metrics = await readScrollContract(page);
-  assertNoInternalScroll(metrics, "desktop clinic Tokens selected detail");
+  assertNoInternalScroll(metrics, "desktop clinic Tokens selected dialog");
 });
 
-test("clinic Tokens mobile keeps the list and expands the selected detail inline", async ({
+test("clinic Tokens mobile keeps the list and opens the selected detail dialog", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -387,21 +390,22 @@ test("clinic Tokens mobile keeps the list and expands the selected detail inline
   await mockClinicTokens(page);
 
   await page.goto("/dashboard?module=tokens");
-  await expect(page.locator('[data-dashboard-module-workspace="tokens"]').first()).toBeVisible({
+  const workspace = page.locator('[data-dashboard-module-workspace="tokens"]').first();
+  const card = page.locator("#clinic-particular-tokens");
+  await expect(workspace).toBeVisible({
     timeout: 12_000,
   });
-  await expect(page.locator("#clinic-particular-token-1")).toBeVisible();
+  await expect(card.locator('[data-clinic-access-mobile-row="true"]').first()).toBeVisible();
 
-  await page.locator("#clinic-particular-token-2").click();
-  await expect(page.locator("#clinic-particular-token-1")).toBeVisible();
-  await expect(page.locator("#clinic-particular-token-2")).toBeVisible();
-  await expect(page.locator("#clinic-particular-token-2")).toHaveAttribute(
-    "aria-expanded",
-    "true",
-  );
-  await expect(page.locator('[data-detail-state="selected"]')).toHaveCount(1);
-  await expect(page.getByRole("heading", { name: "Paciente 2 · Tutor 2" })).toBeVisible();
+  await card.getByRole("button", { name: "Ver detalle", exact: true }).nth(1).click();
+  await expect(card.locator('[data-clinic-access-mobile-row="true"]')).toHaveCount(4);
+  await expect(
+    card.locator('[data-detail-state="selected"], .dashboard-inline-detail'),
+  ).toHaveCount(0);
+  const detailDialog = page.locator('[data-clinic-access-detail-dialog="true"]');
+  await expect(detailDialog).toBeVisible();
+  await expect(detailDialog).toContainText("Paciente 2 · Tutor 2");
 
   const metrics = await readScrollContract(page);
-  assertNoInternalScroll(metrics, "mobile clinic Tokens inline detail");
+  assertNoInternalScroll(metrics, "mobile clinic Tokens selected dialog");
 });

@@ -22,6 +22,9 @@ type LayoutContract = {
   mainScrollHeight: number;
   mainClientHeight: number;
   listClientHeight: number;
+  listScrollHeight: number;
+  listOverflowY: string;
+  moduleScrollContainers: Array<{ tag: string; overflowY: string }>;
   hasMain: boolean;
   hasList: boolean;
 };
@@ -58,7 +61,23 @@ async function readLayoutContract(page: Page): Promise<LayoutContract> {
     const html = document.documentElement;
     const body = document.body;
     const main = document.querySelector<HTMLElement>("main.dashboard-main");
-    const list = document.querySelector<HTMLElement>(".dashboard-inline-scroll");
+    const card = document.querySelector<HTMLElement>(
+      '[aria-label="Informes recientes de la clínica"]',
+    );
+    const list = document.querySelector<HTMLElement>(
+      '[data-clinic-reports-mobile-list="true"]',
+    );
+    const moduleScrollContainers = card
+      ? [card, ...Array.from(card.querySelectorAll<HTMLElement>("*"))].flatMap(
+          (element) => {
+            const style = window.getComputedStyle(element);
+            return ["auto", "scroll"].includes(style.overflowY)
+              ? [{ tag: element.tagName, overflowY: style.overflowY }]
+              : [];
+          },
+        )
+      : [];
+    const listStyle = list ? window.getComputedStyle(list) : null;
 
     return {
       htmlScrollWidth: html.scrollWidth,
@@ -72,6 +91,9 @@ async function readLayoutContract(page: Page): Promise<LayoutContract> {
       mainScrollHeight: main?.scrollHeight ?? 0,
       mainClientHeight: main?.clientHeight ?? 0,
       listClientHeight: list?.clientHeight ?? 0,
+      listScrollHeight: list?.scrollHeight ?? 0,
+      listOverflowY: listStyle?.overflowY ?? "missing",
+      moduleScrollContainers,
       hasMain: main !== null,
       hasList: list !== null,
     };
@@ -102,8 +124,20 @@ function assertNoGlobalOverflow(metrics: LayoutContract, label: string) {
   expect(metrics.hasList, `${label}: inline list present`).toBe(true);
   expect(
     metrics.listClientHeight,
-    `${label}: inline list must keep an operable height`,
+    `${label}: report list must keep an operable height`,
   ).toBeGreaterThanOrEqual(44);
+  expect(
+    metrics.listScrollHeight,
+    `${label}: report list must not clip hidden overflow`,
+  ).toBeLessThanOrEqual(metrics.listClientHeight + TOLERANCE);
+  expect(
+    ["auto", "scroll"],
+    `${label}: report list must not expose vertical scroll`,
+  ).not.toContain(metrics.listOverflowY);
+  expect(
+    metrics.moduleScrollContainers,
+    `${label}: informes module must not contain internal scroll containers`,
+  ).toEqual([]);
 }
 
 async function expectHorizontallyUnclipped(
@@ -136,8 +170,9 @@ for (const viewport of MOBILE_VIEWPORTS) {
     const card = workspace.locator(
       '[aria-label="Informes recientes de la clínica"]',
     );
-    const inlineList = card.locator(".dashboard-inline-scroll");
-    const reportRows = inlineList.locator('button[aria-pressed]');
+    const mobileList = card.locator('[data-clinic-reports-mobile-list="true"]');
+    const reportRows = card.locator('[data-clinic-reports-mobile-row="true"]');
+    const viewButtons = card.getByRole("button", { name: "Ver", exact: true });
     const fullModuleButton = card.getByRole("button", {
       name: "Abrir módulo completo de informes",
       exact: true,
@@ -147,17 +182,23 @@ for (const viewport of MOBILE_VIEWPORTS) {
       await expect(workspace).toBeVisible();
       await expect(card).toBeVisible();
       await expectClinicMobileBottomNav(page, viewport.name);
+      await expect(mobileList).toBeVisible();
       await expect(reportRows).toHaveCount(3);
+      await expect(viewButtons).toHaveCount(3);
 
       for (let index = 0; index < 3; index += 1) {
         await expect(reportRows.nth(index)).toBeVisible();
+        await expect(viewButtons.nth(index)).toBeVisible();
       }
 
       await expect(fullModuleButton).toBeVisible();
       await expect(fullModuleButton).toBeEnabled();
     }).toPass({ timeout: 12_000 });
 
-    await expect(card.locator("table")).toHaveCount(0);
+    await expect(card.locator('[data-clinic-reports-table="true"]')).toBeHidden();
+    await expect(
+      card.locator('[data-detail-state="selected"], .dashboard-inline-detail'),
+    ).toHaveCount(0);
     await expectHorizontallyUnclipped(
       fullModuleButton,
       viewport.width,
@@ -177,19 +218,23 @@ for (const viewport of MOBILE_VIEWPORTS) {
       assertNoGlobalOverflow(metrics, `${viewport.name}: initial layout`);
     }).toPass({ timeout: 10_000 });
 
-    const secondReport = reportRows.nth(1);
-    await secondReport.click();
+    await viewButtons.nth(1).click();
 
     await expect(async () => {
-      await expect(secondReport).toHaveAttribute("aria-expanded", "true");
+      await expect(reportRows).toHaveCount(3);
+      await expect(reportRows.nth(1)).toBeVisible();
+      await expect(
+        card.locator('[data-detail-state="selected"], .dashboard-inline-detail'),
+      ).toHaveCount(0);
 
-      const inlineDetail = card.locator('[data-detail-state="selected"]');
-      await expect(inlineDetail).toHaveCount(1);
-      await expect(inlineDetail).toBeVisible();
-      await expect(inlineDetail).toContainText(LONG_PATIENT_NAME);
+      const detailDialog = page.locator(
+        '[data-clinic-reports-detail-dialog="true"]',
+      );
+      await expect(detailDialog).toBeVisible();
+      await expect(detailDialog).toContainText(LONG_PATIENT_NAME);
 
       const metrics = await readLayoutContract(page);
-      assertNoGlobalOverflow(metrics, `${viewport.name}: expanded inline detail`);
+      assertNoGlobalOverflow(metrics, `${viewport.name}: modal detail`);
     }).toPass({ timeout: 10_000 });
   });
 }

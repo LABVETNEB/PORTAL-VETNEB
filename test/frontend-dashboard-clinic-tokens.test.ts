@@ -78,7 +78,7 @@ test("clinic particular tokens card exists and uses clinic helpers", () => {
   assert.equal(source.includes(removedTokenEndpoint), false);
 });
 
-test("clinic tokens uses inline master-detail with paged list and step dialogs", () => {
+test("clinic tokens uses table/list row actions with dialog detail and step dialogs", () => {
   const source = read(CLINIC_TOKENS_CARD_PATH);
 
   assert.ok(source.includes("const TOKENS_PAGE_SIZE = 4;"));
@@ -86,12 +86,18 @@ test("clinic tokens uses inline master-detail with paged list and step dialogs",
   assert.ok(source.includes("<CompactPager"));
   assert.ok(source.includes("selectedTokenId"));
   assert.ok(source.includes("ModuleSurface"));
-  assert.ok(source.includes("dashboard-inline-list"));
+  assert.ok(source.includes('data-clinic-access-table="true"'));
+  assert.ok(source.includes('data-clinic-access-table-row="true"'));
+  assert.ok(source.includes('data-clinic-access-mobile-list="true"'));
+  assert.ok(source.includes('data-clinic-access-mobile-row="true"'));
   assert.ok(source.includes('data-clinic-access-list-body="true"'));
-  assert.ok(source.includes("dashboard-inline-detail"));
-  assert.ok(source.includes("dashboard-detail-panel"));
-  assert.ok(source.includes("aria-expanded={isSelected}"));
-  assert.ok(source.includes('data-detail-state="selected"'));
+  assert.ok(source.includes("Ver detalle"));
+  assert.ok(source.includes("openTokenDetail"));
+  assert.ok(source.includes('data-clinic-access-detail-dialog="true"'));
+  assert.equal(source.includes("dashboard-inline-detail"), false);
+  assert.equal(source.includes("dashboard-detail-panel"), false);
+  assert.equal(source.includes("aria-expanded={isSelected}"), false);
+  assert.equal(source.includes('data-detail-state="selected"'), false);
   assert.equal(source.includes("isMobileDetailOpen"), false);
   assert.equal(source.includes("Volver a la lista"), false);
   assert.equal(source.includes('hasOpenDetail && !isSelected && "hidden sm:block"'), false);
