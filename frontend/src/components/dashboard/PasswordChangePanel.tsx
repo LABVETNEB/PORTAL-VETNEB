@@ -17,8 +17,10 @@ import {
   type ChangePasswordInput,
   type ChangePasswordResponse,
 } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export type PasswordChangeVariant = "clinic" | "admin";
+export type PasswordChangeDensity = "default" | "compact";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -52,6 +54,7 @@ const PASSWORD_CHANGE_HANDLERS: Record<
 
 type PasswordChangePanelProps = {
   variant: PasswordChangeVariant;
+  density?: PasswordChangeDensity;
   title?: string;
   description?: string;
 };
@@ -94,13 +97,23 @@ function getValidationError(state: PasswordFormState): string | null {
 
 export function PasswordChangePanel({
   variant,
+  density = "default",
   title = DEFAULT_TITLE,
   description = DEFAULT_DESCRIPTION,
 }: PasswordChangePanelProps) {
+  const isCompact = density === "compact";
   const fieldId = useId();
   const currentPasswordId = `${fieldId}-current-password`;
   const newPasswordId = `${fieldId}-new-password`;
   const confirmPasswordId = `${fieldId}-confirm-password`;
+  const labelClassName = cn(
+    "field-label",
+    isCompact && "mb-1 text-xs leading-tight sm:mb-1.5 sm:text-sm",
+  );
+  const alertClassName = cn(
+    "px-3 py-2",
+    isCompact && "px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm",
+  );
 
   const [formState, setFormState] =
     useState<PasswordFormState>(INITIAL_FORM_STATE);
@@ -154,15 +167,45 @@ export function PasswordChangePanel({
   }
 
   return (
-    <Card id={`${variant}-password-change`} className="dashboard-surface">
-      <CardHeader className="border-b border-vetneb-line/70 px-5 py-4">
+    <Card
+      id={`${variant}-password-change`}
+      className={cn(
+        "dashboard-surface",
+        isCompact &&
+          "flex min-h-0 flex-1 flex-col overflow-hidden sm:block sm:overflow-visible",
+      )}
+    >
+      {isCompact ? (
+        <div className="sr-only sm:hidden">
+          <h3>{title}</h3>
+          <p>{description}</p>
+        </div>
+      ) : null}
+      <CardHeader
+        className={cn(
+          "border-b border-vetneb-line/70 px-5 py-4",
+          isCompact && "hidden sm:flex",
+        )}
+      >
         <CardTitle className="text-base">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="px-5 py-4">
-        <form className="space-y-3" onSubmit={handleSubmit}>
+      <CardContent
+        className={cn(
+          "px-5 py-4",
+          isCompact &&
+            "flex min-h-0 flex-1 flex-col px-3 py-2.5 sm:block sm:px-5 sm:py-4",
+        )}
+      >
+        <form
+          className={cn(
+            "space-y-3",
+            isCompact && "space-y-2 sm:space-y-3",
+          )}
+          onSubmit={handleSubmit}
+        >
           <div>
-            <label htmlFor={currentPasswordId} className="field-label">
+            <label htmlFor={currentPasswordId} className={labelClassName}>
               Contraseña actual
             </label>
             <Input
@@ -180,7 +223,7 @@ export function PasswordChangePanel({
           </div>
 
           <div>
-            <label htmlFor={newPasswordId} className="field-label">
+            <label htmlFor={newPasswordId} className={labelClassName}>
               Nueva contraseña
             </label>
             <Input
@@ -196,13 +239,19 @@ export function PasswordChangePanel({
               }
               disabled={isSubmitting}
             />
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p
+              className={cn(
+                "mt-1 text-xs text-muted-foreground",
+                isCompact &&
+                  "mt-0.5 text-[11px] leading-tight sm:mt-1 sm:text-xs",
+              )}
+            >
               Mínimo 8 caracteres.
             </p>
           </div>
 
           <div>
-            <label htmlFor={confirmPasswordId} className="field-label">
+            <label htmlFor={confirmPasswordId} className={labelClassName}>
               Confirmar nueva contraseña
             </label>
             <Input
@@ -222,7 +271,7 @@ export function PasswordChangePanel({
 
           <div aria-live="polite" role="status">
             {statusMessage ? (
-              <p className="clinical-alert-success px-3 py-2">
+              <p className={cn("clinical-alert-success", alertClassName)}>
                 {statusMessage}
               </p>
             ) : null}
@@ -230,13 +279,22 @@ export function PasswordChangePanel({
 
           <div aria-live="assertive">
             {errorMessage ? (
-              <p className="clinical-alert-error px-3 py-2" role="alert">
+              <p
+                className={cn("clinical-alert-error", alertClassName)}
+                role="alert"
+              >
                 {errorMessage}
               </p>
             ) : null}
           </div>
 
-          <Button type="submit" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className={cn(
+              isCompact && "h-9 px-3 py-1.5 sm:h-10 sm:px-4 sm:py-2",
+            )}
+          >
             {isSubmitting ? "Actualizando..." : "Actualizar contraseña"}
           </Button>
         </form>

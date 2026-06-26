@@ -874,7 +874,9 @@ export function ClinicPublicProfileCard() {
             {
               id: PASSWORD_TAB_ID,
               label: "Cambiar contraseña",
-              content: <PasswordChangePanel variant="clinic" />,
+              content: (
+                <PasswordChangePanel variant="clinic" density="compact" />
+              ),
             },
           ]}
         />

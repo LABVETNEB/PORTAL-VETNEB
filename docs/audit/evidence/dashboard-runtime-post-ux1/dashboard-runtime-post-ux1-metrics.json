@@ -531,7 +531,7 @@
     },
     "activePanel": {
       "id": "cambiar-contrasena",
-      "scrollHeight": 439,
+      "scrollHeight": 358,
       "clientHeight": 358,
       "bounds": {
         "x": 7.1875,
@@ -608,50 +608,50 @@
       {
         "label": "Contraseña actual",
         "bounds": {
-          "x": 28.1875,
-          "y": 477.953125,
-          "width": 303.625,
+          "x": 20.1875,
+          "y": 353.953125,
+          "width": 319.625,
           "height": 40,
-          "right": 331.8125,
-          "bottom": 517.953125
+          "right": 339.8125,
+          "bottom": 393.953125
         },
         "insideViewport": true
       },
       {
         "label": "Nueva contraseña",
         "bounds": {
-          "x": 28.1875,
-          "y": 555.953125,
-          "width": 303.625,
+          "x": 20.1875,
+          "y": 420.953125,
+          "width": 319.625,
           "height": 40,
-          "right": 331.8125,
-          "bottom": 595.953125
+          "right": 339.8125,
+          "bottom": 460.953125
         },
         "insideViewport": true
       },
       {
         "label": "Confirmar nueva contraseña",
         "bounds": {
-          "x": 28.1875,
-          "y": 653.953125,
-          "width": 303.625,
+          "x": 20.1875,
+          "y": 503.703125,
+          "width": 319.625,
           "height": 40,
-          "right": 331.8125,
-          "bottom": 693.953125
+          "right": 339.8125,
+          "bottom": 543.703125
         },
         "insideViewport": true
       },
       {
         "label": "Actualizar contraseña",
         "bounds": {
-          "x": 28.1875,
-          "y": 705.953125,
-          "width": 182.65625,
-          "height": 40,
-          "right": 210.84375,
-          "bottom": 745.953125
+          "x": 20.1875,
+          "y": 551.703125,
+          "width": 174.65625,
+          "height": 36,
+          "right": 194.84375,
+          "bottom": 587.703125
         },
-        "insideViewport": false
+        "insideViewport": true
       }
     ]
   },
@@ -1264,48 +1264,48 @@
       {
         "label": "Contraseña actual",
         "bounds": {
-          "x": 28.1875,
-          "y": 469.109375,
-          "width": 333.625,
+          "x": 20.1875,
+          "y": 345.109375,
+          "width": 349.625,
           "height": 40,
-          "right": 361.8125,
-          "bottom": 509.109375
+          "right": 369.8125,
+          "bottom": 385.109375
         },
         "insideViewport": true
       },
       {
         "label": "Nueva contraseña",
         "bounds": {
-          "x": 28.1875,
-          "y": 547.109375,
-          "width": 333.625,
+          "x": 20.1875,
+          "y": 412.109375,
+          "width": 349.625,
           "height": 40,
-          "right": 361.8125,
-          "bottom": 587.109375
+          "right": 369.8125,
+          "bottom": 452.109375
         },
         "insideViewport": true
       },
       {
         "label": "Confirmar nueva contraseña",
         "bounds": {
-          "x": 28.1875,
-          "y": 645.109375,
-          "width": 333.625,
+          "x": 20.1875,
+          "y": 494.859375,
+          "width": 349.625,
           "height": 40,
-          "right": 361.8125,
-          "bottom": 685.109375
+          "right": 369.8125,
+          "bottom": 534.859375
         },
         "insideViewport": true
       },
       {
         "label": "Actualizar contraseña",
         "bounds": {
-          "x": 28.1875,
-          "y": 697.109375,
-          "width": 182.65625,
-          "height": 40,
-          "right": 210.84375,
-          "bottom": 737.109375
+          "x": 20.1875,
+          "y": 542.859375,
+          "width": 174.65625,
+          "height": 36,
+          "right": 194.84375,
+          "bottom": 578.859375
         },
         "insideViewport": true
       }
@@ -1920,48 +1920,48 @@
       {
         "label": "Contraseña actual",
         "bounds": {
-          "x": 28.375,
-          "y": 474.765625,
-          "width": 373.25,
+          "x": 20.375,
+          "y": 350.765625,
+          "width": 389.25,
           "height": 40,
-          "right": 401.625,
-          "bottom": 514.765625
+          "right": 409.625,
+          "bottom": 390.765625
         },
         "insideViewport": true
       },
       {
         "label": "Nueva contraseña",
         "bounds": {
-          "x": 28.375,
-          "y": 552.765625,
-          "width": 373.25,
+          "x": 20.375,
+          "y": 417.765625,
+          "width": 389.25,
           "height": 40,
-          "right": 401.625,
-          "bottom": 592.765625
+          "right": 409.625,
+          "bottom": 457.765625
         },
         "insideViewport": true
       },
       {
         "label": "Confirmar nueva contraseña",
         "bounds": {
-          "x": 28.375,
-          "y": 650.765625,
-          "width": 373.25,
+          "x": 20.375,
+          "y": 500.515625,
+          "width": 389.25,
           "height": 40,
-          "right": 401.625,
-          "bottom": 690.765625
+          "right": 409.625,
+          "bottom": 540.515625
         },
         "insideViewport": true
       },
       {
         "label": "Actualizar contraseña",
         "bounds": {
-          "x": 28.375,
-          "y": 702.765625,
-          "width": 182.65625,
-          "height": 40,
-          "right": 211.03125,
-          "bottom": 742.765625
+          "x": 20.375,
+          "y": 548.515625,
+          "width": 174.65625,
+          "height": 36,
+          "right": 195.03125,
+          "bottom": 584.515625
         },
         "insideViewport": true
       }
@@ -2577,11 +2577,11 @@
         "label": "Contraseña actual",
         "bounds": {
           "x": 41.859375,
-          "y": 426.359375,
+          "y": 423.859375,
           "width": 1282.28125,
           "height": 40,
           "right": 1324.140625,
-          "bottom": 466.359375
+          "bottom": 463.859375
         },
         "insideViewport": true
       },
@@ -2589,11 +2589,11 @@
         "label": "Nueva contraseña",
         "bounds": {
           "x": 41.859375,
-          "y": 504.359375,
+          "y": 499.359375,
           "width": 1282.28125,
           "height": 40,
           "right": 1324.140625,
-          "bottom": 544.359375
+          "bottom": 539.359375
         },
         "insideViewport": true
       },
@@ -2601,11 +2601,11 @@
         "label": "Confirmar nueva contraseña",
         "bounds": {
           "x": 41.859375,
-          "y": 602.359375,
+          "y": 593.859375,
           "width": 1282.28125,
           "height": 40,
           "right": 1324.140625,
-          "bottom": 642.359375
+          "bottom": 633.859375
         },
         "insideViewport": true
       },
@@ -2613,11 +2613,11 @@
         "label": "Actualizar contraseña",
         "bounds": {
           "x": 41.859375,
-          "y": 654.359375,
+          "y": 645.859375,
           "width": 182.65625,
           "height": 40,
           "right": 224.515625,
-          "bottom": 694.359375
+          "bottom": 685.859375
         },
         "insideViewport": true
       }

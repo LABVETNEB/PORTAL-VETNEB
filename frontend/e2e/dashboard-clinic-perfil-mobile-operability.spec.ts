@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+type Locator = import("@playwright/test").Locator;
 type Page = import("@playwright/test").Page;
 
 const TOLERANCE = 2;
@@ -128,6 +129,72 @@ async function expectNoProfileInternalScroll(page: Page, label: string) {
   ).toEqual([]);
 }
 
+async function expectLocatorInsideViewport(
+  locator: Locator,
+  viewport: (typeof VIEWPORTS)[number],
+  label: string,
+) {
+  const box = await locator.boundingBox();
+
+  expect(box, `${label}: bounds`).not.toBeNull();
+  expect(box!.x, `${label}: left cut`).toBeGreaterThanOrEqual(-TOLERANCE);
+  expect(box!.y, `${label}: top cut`).toBeGreaterThanOrEqual(-TOLERANCE);
+  expect(box!.x + box!.width, `${label}: right cut`).toBeLessThanOrEqual(
+    viewport.width + TOLERANCE,
+  );
+  expect(box!.y + box!.height, `${label}: bottom cut`).toBeLessThanOrEqual(
+    viewport.height + TOLERANCE,
+  );
+}
+
+async function expectNoGlobalDashboardScroll(page: Page, label: string) {
+  const shellMetrics = await page.evaluate(() => {
+    const main = document.querySelector<HTMLElement>("main.dashboard-main");
+    return {
+      html: {
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+        scrollHeight: document.documentElement.scrollHeight,
+        clientHeight: document.documentElement.clientHeight,
+      },
+      body: {
+        scrollWidth: document.body.scrollWidth,
+        clientWidth: document.body.clientWidth,
+        scrollHeight: document.body.scrollHeight,
+        clientHeight: document.body.clientHeight,
+      },
+      main: main
+        ? {
+            scrollHeight: main.scrollHeight,
+            clientHeight: main.clientHeight,
+          }
+        : null,
+    };
+  });
+
+  expect(
+    shellMetrics.html.scrollWidth,
+    `${label}: html horizontal scroll`,
+  ).toBeLessThanOrEqual(shellMetrics.html.clientWidth + TOLERANCE);
+  expect(
+    shellMetrics.body.scrollWidth,
+    `${label}: body horizontal scroll`,
+  ).toBeLessThanOrEqual(shellMetrics.body.clientWidth + TOLERANCE);
+  expect(
+    shellMetrics.html.scrollHeight,
+    `${label}: html vertical scroll`,
+  ).toBeLessThanOrEqual(shellMetrics.html.clientHeight + TOLERANCE);
+  expect(
+    shellMetrics.body.scrollHeight,
+    `${label}: body vertical scroll`,
+  ).toBeLessThanOrEqual(shellMetrics.body.clientHeight + TOLERANCE);
+  expect(shellMetrics.main, `${label}: dashboard main`).not.toBeNull();
+  expect(
+    shellMetrics.main!.scrollHeight,
+    `${label}: main vertical scroll`,
+  ).toBeLessThanOrEqual(shellMetrics.main!.clientHeight + TOLERANCE);
+}
+
 for (const viewport of VIEWPORTS) {
   test(`clinic perfil public editor is operable at ${viewport.name}`, async ({
     page,
@@ -177,9 +244,45 @@ for (const viewport of VIEWPORTS) {
       .click();
     const passwordPanel = editor.locator("#clinic-password-change");
     await expect(passwordPanel).toBeVisible();
-    await expect(passwordPanel.locator('input[name="currentPassword"]')).toBeVisible();
-    await expect(passwordPanel.locator('input[name="newPassword"]')).toBeVisible();
-    await expect(passwordPanel.locator('input[name="confirmPassword"]')).toBeVisible();
+    const currentPassword = passwordPanel.locator(
+      'input[name="currentPassword"]',
+    );
+    const newPassword = passwordPanel.locator('input[name="newPassword"]');
+    const confirmPassword = passwordPanel.locator(
+      'input[name="confirmPassword"]',
+    );
+    const submitPassword = passwordPanel.getByRole("button", {
+      name: "Actualizar contraseña",
+      exact: true,
+    });
+    await expect(currentPassword).toBeVisible();
+    await expect(newPassword).toBeVisible();
+    await expect(confirmPassword).toBeVisible();
+    await expect(submitPassword).toBeVisible();
+    await expectLocatorInsideViewport(
+      currentPassword,
+      viewport,
+      `${viewport.name}: contraseña actual`,
+    );
+    await expectLocatorInsideViewport(
+      newPassword,
+      viewport,
+      `${viewport.name}: nueva contraseña`,
+    );
+    await expectLocatorInsideViewport(
+      confirmPassword,
+      viewport,
+      `${viewport.name}: confirmar contraseña`,
+    );
+    await expectLocatorInsideViewport(
+      submitPassword,
+      viewport,
+      `${viewport.name}: actualizar contraseña`,
+    );
+    await expectNoGlobalDashboardScroll(
+      page,
+      `${viewport.name}: cambiar contraseña`,
+    );
 
     await expect(async () => {
       await editor.getByRole("tab", { name: "Datos", exact: true }).click();
@@ -192,46 +295,7 @@ for (const viewport of VIEWPORTS) {
     await expect(fields).toBeVisible();
     await expectNoProfileInternalScroll(page, `${viewport.name}: datos tab`);
 
-    const shellMetrics = await page.evaluate(() => {
-      const main = document.querySelector<HTMLElement>("main.dashboard-main");
-      return {
-        html: {
-          scrollWidth: document.documentElement.scrollWidth,
-          clientWidth: document.documentElement.clientWidth,
-          scrollHeight: document.documentElement.scrollHeight,
-          clientHeight: document.documentElement.clientHeight,
-        },
-        body: {
-          scrollWidth: document.body.scrollWidth,
-          clientWidth: document.body.clientWidth,
-          scrollHeight: document.body.scrollHeight,
-          clientHeight: document.body.clientHeight,
-        },
-        main: main
-          ? {
-              scrollHeight: main.scrollHeight,
-              clientHeight: main.clientHeight,
-            }
-          : null,
-      };
-    });
-
-    expect(shellMetrics.html.scrollWidth).toBeLessThanOrEqual(
-      shellMetrics.html.clientWidth + TOLERANCE,
-    );
-    expect(shellMetrics.body.scrollWidth).toBeLessThanOrEqual(
-      shellMetrics.body.clientWidth + TOLERANCE,
-    );
-    expect(shellMetrics.html.scrollHeight).toBeLessThanOrEqual(
-      shellMetrics.html.clientHeight + TOLERANCE,
-    );
-    expect(shellMetrics.body.scrollHeight).toBeLessThanOrEqual(
-      shellMetrics.body.clientHeight + TOLERANCE,
-    );
-    expect(shellMetrics.main).not.toBeNull();
-    expect(shellMetrics.main!.scrollHeight).toBeLessThanOrEqual(
-      shellMetrics.main!.clientHeight + TOLERANCE,
-    );
+    await expectNoGlobalDashboardScroll(page, `${viewport.name}: datos tab`);
 
     await editor.getByRole("tab", { name: "Contacto", exact: true }).click();
     await expectNoProfileInternalScroll(page, `${viewport.name}: contacto tab`);
