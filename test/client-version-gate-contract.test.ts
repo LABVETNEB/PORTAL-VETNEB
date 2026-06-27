@@ -204,6 +204,18 @@ test("client-version-gate hook esta instalado globalmente antes del registro de 
 // solo para los 3 grupos de auth; el resto de los plugins cae a sus
 // defaults reales pero nunca se invocan) y pegan con app.inject() igual que
 // un cliente real.
+//
+// El boot ocurre en un subproceso (spawnSync) para poder armar
+// CLIENT_MIN_VERSION en ENV, que env.ts congela en import. Para que el
+// subproceso NO pueda colgar el runner en CI Linux:
+//   - se stubean los factories de health/service para que /health y
+//     /api/health no disparen probes reales de DB/storage/red (la causa del
+//     hang: checkStorageHealth hace un fetch saliente a la URL de Supabase);
+//   - el child cierra la app en finally e imprime JSON compacto y luego
+//     llama process.exit() tras vaciar stdout, terminando de forma
+//     deterministica sin depender de que el event loop se drene;
+//   - el padre usa spawnSync con timeout explicito + killSignal, y si el
+//     child se cuelga lo mata y falla con stdout/stderr utiles.
 type RuntimeScenario = {
   method: string;
   path: string;
@@ -236,7 +248,12 @@ function runGateRuntimeScenarios(
   const script = [
     'const { createFastifyApp } = await import("./server/fastify-app.ts");',
     "console.log = () => {};",
-    "const app = await createFastifyApp({",
+    "const run = async () => {",
+    "  const app = await createFastifyApp({",
+    // Health/service stub: /health y /api/health no deben tocar DB/storage/red
+    // reales (el probe de storage es un fetch saliente que cuelga en CI).
+    '    getNativeHealthCheckResponse: async () => ({ statusCode: 200, payload: { success: true, status: "ok" } }),',
+    '    getServiceInfoPayload: () => ({ success: true, service: "portal-vetneb-api", environment: "test" }),',
     "  clinicAuthRoutes: {",
     "    createActiveSession: async () => {},",
     "    deleteActiveSession: async () => {},",
@@ -277,22 +294,35 @@ function runGateRuntimeScenarios(
     '    generateSessionToken: () => "particular-session-token",',
     '    hashSessionToken: (token) => "hash:" + token,',
     "  },",
-    "});",
-    "const results = [];",
-    `const scenarios = ${JSON.stringify(scenarios)};`,
-    "for (const scenario of scenarios) {",
-    "  const response = await app.inject({",
-    "    method: scenario.method,",
-    "    url: scenario.path,",
-    "    headers: scenario.headers ?? {},",
-    "    payload: scenario.payload,",
     "  });",
-    "  let body = null;",
-    "  try { body = JSON.parse(response.body); } catch {}",
-    "  results.push({ statusCode: response.statusCode, body });",
-    "}",
-    "await app.close();",
-    "process.stdout.write(JSON.stringify(results));",
+    "  const results = [];",
+    `  const scenarios = ${JSON.stringify(scenarios)};`,
+    "  try {",
+    "    for (const scenario of scenarios) {",
+    "      const response = await app.inject({",
+    "        method: scenario.method,",
+    "        url: scenario.path,",
+    "        headers: scenario.headers ?? {},",
+    "        payload: scenario.payload,",
+    "      });",
+    "      let body = null;",
+    "      try { body = JSON.parse(response.body); } catch {}",
+    "      results.push({ statusCode: response.statusCode, body });",
+    "    }",
+    "  } finally {",
+    "    await app.close();",
+    "  }",
+    "  return results;",
+    "};",
+    "run().then(",
+    "  (results) => {",
+    "    process.stdout.write(JSON.stringify(results), () => process.exit(0));",
+    "  },",
+    "  (error) => {",
+    "    process.stderr.write(String((error && error.stack) || error));",
+    "    process.exit(1);",
+    "  },",
+    ");",
   ].join("\n");
 
   const result = spawnSync(
@@ -308,10 +338,37 @@ function runGateRuntimeScenarios(
       cwd: resolve(process.cwd()),
       env,
       encoding: "utf8",
+      // Timeout defensivo: si el child se cuelga (handle/socket abierto en CI
+      // Linux), spawnSync lo mata con killSignal en vez de colgar el runner.
+      timeout: 120000,
+      killSignal: "SIGKILL",
+      maxBuffer: 16 * 1024 * 1024,
     },
   );
 
-  assert.equal(result.status, 0, result.stderr);
+  if (result.error) {
+    throw new Error(
+      `version-gate runtime child no termino limpio: ${
+        result.error.message ?? String(result.error)
+      } (signal=${result.signal ?? "null"} status=${result.status ?? "null"})\n` +
+        `stdout=${result.stdout ?? ""}\nstderr=${result.stderr ?? ""}`,
+    );
+  }
+
+  if (result.signal) {
+    throw new Error(
+      `version-gate runtime child terminado por signal ${result.signal} (posible timeout)\n` +
+        `stdout=${result.stdout ?? ""}\nstderr=${result.stderr ?? ""}`,
+    );
+  }
+
+  assert.equal(
+    result.status,
+    0,
+    `version-gate runtime child status ${result.status}\nstdout=${
+      result.stdout ?? ""
+    }\nstderr=${result.stderr ?? ""}`,
+  );
 
   return JSON.parse(result.stdout) as RuntimeScenarioResult[];
 }
