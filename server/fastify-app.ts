@@ -65,6 +65,10 @@ import {
   type AdminSystemSchemaHealthNativeRoutesOptions,
 } from "./routes/admin-system-schema-health.fastify.ts";
 import {
+  appVersionNativeRoutes,
+  type AppVersionNativeRoutesOptions,
+} from "./routes/app-version.fastify.ts";
+import {
   clinicAuthNativeRoutes,
   type AuthNativeRoutesOptions,
 } from "./routes/auth.fastify.ts";
@@ -297,6 +301,7 @@ function addApiErrorRequestIdToJsonPayload(
 export type CreateFastifyAppOptions = {
   getNativeHealthCheckResponse?: HealthCheckFactory;
   getServiceInfoPayload?: ServiceInfoFactory;
+  appVersionRoutes?: AppVersionNativeRoutesOptions;
   adminAuditRoutes?: AdminAuditNativeRoutesOptions;
   adminAuthRoutes?: AdminAuthNativeRoutesOptions;
   adminClinicsRoutes?: AdminClinicsNativeRoutesOptions;
@@ -423,6 +428,11 @@ export async function createFastifyApp(
 
   app.get("/health", nativeHealthHandler);
   app.get("/api/health", nativeHealthHandler);
+
+  await app.register(appVersionNativeRoutes, {
+    prefix: "/api/app-version",
+    ...(options.appVersionRoutes ?? {}),
+  });
 
   await app.register(adminAuditNativeRoutes, {
     prefix: "/api/admin/audit-log",
