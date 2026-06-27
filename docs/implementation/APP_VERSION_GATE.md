@@ -109,6 +109,63 @@ desde `RootLayout` vía `AppVersionGate`:
   **"Actualizar ahora"**. No se permite continuar login/dashboard mientras
   esta señal esté activa.
 
+## Versión técnica vs. versión comercial (UI)
+
+`appVersion` y `clientMinVersion` son **técnicos**: en Render suelen ser un
+commit SHA (`RENDER_GIT_COMMIT`) y existen solo para que backend/frontend
+comparen igualdad exacta o tests/diagnóstico los citen. **Nunca** deben
+renderizarse tal cual en pantalla, y tampoco el sentinel interno
+`CLIENT_APP_VERSION_FALLBACK` (`"missing-client-version"`) que usa el
+frontend cuando `NEXT_PUBLIC_APP_VERSION` no está configurado en el build.
+
+Para usuario final existe una versión **comercial** separada,
+`displayVersion`/`toSafeDisplayVersion`:
+
+- Backend (`server/routes/app-version.fastify.ts`) calcula
+  `displayVersion` a partir de `process.env.npm_package_version` (el mismo
+  mecanismo que ya usa `admin-system-health.fastify.ts` para el chequeo de
+  salud), formateado como `Portal VETNEB v<version>` — hoy
+  `Portal VETNEB v2.1.0` porque la raíz del repo está en `2.1.0`. Si el
+  `major` de `package.json` pasa a `3.x`, este mismo código produce
+  `Portal VETNEB v3.x.x` automáticamente, sin tocar el formateo.
+- Frontend (`frontend/src/lib/app-version.ts`) expone
+  `toSafeDisplayVersion(raw)`, que normaliza cualquier valor técnico a una
+  etiqueta segura:
+  - sentinel `missing-client-version`, vacío o no reconocible → `"anterior
+    / no detectada"`;
+  - SHA de commit (hex largo) → `"anterior / no detectada"` (nunca se
+    imprime el hash);
+  - semver puntuado (`"2.1.0"`) → `"Portal VETNEB v2.1.0"`;
+  - valor ya formateado (`"Portal VETNEB v…"`) → se devuelve sin cambios.
+- `AppVersionGate.tsx` usa `toSafeDisplayVersion` tanto para la "Versión
+  instalada" (cliente, `CLIENT_APP_VERSION`) como para la "Versión
+  vigente" (backend, `displayVersion ?? appVersion`). Ningún componente de
+  UI debe interpolar `CLIENT_APP_VERSION` o `snapshot.appVersion` crudos.
+
+## Recuperación al tocar "Actualizar ahora"
+
+Antes, el botón solo llamaba `registration.update()` + `reload()`. Si el
+service worker viejo seguía controlando la pestaña, el reload podía volver
+a servir el mismo shell desactualizado y el cartel reaparecía sin
+resolver nada. Ahora `handleUpdateNow` en `AppVersionGate.tsx` hace, en
+orden:
+
+1. `unregisterServiceWorkers()`: desregistra (no solo actualiza) todos los
+   `ServiceWorkerRegistration` de este origen.
+2. `clearPortalCaches()`: borra únicamente las Cache Storage con prefijo
+   `portal-vetneb-` (las que usa `frontend/public/sw.js`).
+3. `clearAppVersionLocalState()`: borra únicamente claves de
+   `localStorage` con prefijo `vetneb:app-version:`, si existieran. Nunca
+   toca otras claves (tema, último módulo de dashboard, etc.).
+4. `navigateToFreshAppShell()`: navega con `window.location.replace(...)`
+   a `"/"` con un parámetro `?vetnebUpdate=<timestamp>` como cache-buster,
+   sin dejar la pantalla de bloqueo en el historial.
+
+Si el aviso persiste después de esto, la UI muestra una nota secundaria
+fija (no es un link, es texto plano: el frontend no usa `<a>`/`next/link`)
+indicando cerrar la app, eliminar el acceso directo instalado y abrir
+`https://vetneb.com.ar` desde el navegador.
+
 ## Exclusiones explícitas de este cambio
 
 - Sin cambios de base de datos ni migraciones.
@@ -125,3 +182,13 @@ desde `RootLayout` vía `AppVersionGate`:
 3. Si el problema persiste, borrar caché del sitio/navegador.
 4. Desinstalar y reinstalar la PWA.
 5. Volver a validar el login.
+
+## Checklist de soporte móvil (cartel "Actualización requerida")
+
+1. Tocar **"Actualizar ahora"** (desregistra el service worker, limpia
+   cachés/claves locales propias y navega con cache-buster).
+2. Si el cartel vuelve a aparecer, cerrar la app por completo.
+3. Borrar el acceso directo/PWA instalado en el dispositivo.
+4. Abrir `https://vetneb.com.ar` desde el navegador (no desde el acceso
+   directo viejo).
+5. Reinstalar el acceso directo/PWA si corresponde.
