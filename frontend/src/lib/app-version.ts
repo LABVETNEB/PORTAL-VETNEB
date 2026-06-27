@@ -1,5 +1,5 @@
 export const CLIENT_APP_VERSION =
-  process.env.NEXT_PUBLIC_APP_VERSION?.trim() || "development";
+  process.env.NEXT_PUBLIC_APP_VERSION?.trim() || "missing-client-version";
 
 export type AppVersionSnapshot = {
   success: true;
@@ -26,11 +26,7 @@ export async function getAppVersionSnapshot(): Promise<AppVersionSnapshot> {
 }
 
 export function isClientVersionOutdated(snapshot: AppVersionSnapshot): boolean {
-  if (!snapshot.forceUpdate) {
-    return false;
-  }
-
-  if (!snapshot.appVersion || CLIENT_APP_VERSION === "development") {
+  if (!snapshot.forceUpdate || !snapshot.appVersion) {
     return false;
   }
 
