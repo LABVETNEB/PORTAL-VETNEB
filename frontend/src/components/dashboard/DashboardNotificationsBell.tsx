@@ -263,6 +263,7 @@ export function DashboardNotificationsBell({
         );
       } catch {
         setErrorMessage("No se pudo marcar la notificación como leída.");
+        return;
       } finally {
         setUpdatingNotificationId(null);
       }
@@ -296,7 +297,7 @@ export function DashboardNotificationsBell({
         ),
       );
     } catch {
-      setErrorMessage("No se pudieron cargar las notificaciones.");
+      setErrorMessage("No se pudieron marcar las notificaciones como leídas.");
     } finally {
       setIsMarkingAllAsRead(false);
     }

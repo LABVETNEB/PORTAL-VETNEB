@@ -95,6 +95,9 @@ const envSchema = z.object({
     z.string().min(1).optional(),
   ),
   CONTACT_TO: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  APP_VERSION: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  RENDER_GIT_COMMIT: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  CLIENT_MIN_VERSION: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
 });
 
 const rawEnv = envSchema.parse(process.env);
@@ -145,6 +148,9 @@ const gmailApiEnabled = Boolean(
     rawEnv.GMAIL_API_FROM,
 );
 
+const appVersion =
+  rawEnv.APP_VERSION ?? rawEnv.RENDER_GIT_COMMIT ?? "development";
+
 export const ENV = {
   nodeEnv,
   isDevelopment: nodeEnv === "development",
@@ -153,6 +159,8 @@ export const ENV = {
   port,
   databaseUrl,
   databaseMaxConnections,
+  appVersion,
+  clientMinVersion: rawEnv.CLIENT_MIN_VERSION ?? appVersion,
   supabaseUrl: rawEnv.SUPABASE_URL,
   supabaseAnonKey: rawEnv.SUPABASE_ANON_KEY,
   supabaseServiceRoleKey: rawEnv.SUPABASE_SERVICE_ROLE_KEY,

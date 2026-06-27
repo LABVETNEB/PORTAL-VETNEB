@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { Viewport } from "next";
 import "./globals.css";
 
+import { AppVersionGate } from "@/components/app-version/AppVersionGate";
 import { PwaServiceWorkerRegistrar } from "@/components/pwa/PwaServiceWorkerRegistrar";
 import { baseMetadata, getOrganizationJsonLd } from "@/lib/seo";
 import { SITE_THEME_COLOR } from "@/lib/seo";
@@ -39,6 +40,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-background antialiased">
         <PwaServiceWorkerRegistrar />
+        <AppVersionGate />
         {children}
       </body>
     </html>

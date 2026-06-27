@@ -4,7 +4,7 @@
  * APIs autenticadas, respuestas con cookies ni HTML privado.
  */
 
-const SW_VERSION = "2026-05-23-pwa-global-v1";
+const SW_VERSION = "2026-06-26-app-version-gate-v1";
 const PRECACHE = `portal-vetneb-precache-${SW_VERSION}`;
 const RUNTIME = `portal-vetneb-runtime-${SW_VERSION}`;
 const OFFLINE_URL = "/offline";
@@ -128,6 +128,12 @@ self.addEventListener("activate", (event) => {
       )
       .then(() => self.clients.claim()),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "VETNEB_SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("fetch", (event) => {

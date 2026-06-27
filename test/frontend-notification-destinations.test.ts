@@ -27,21 +27,27 @@ test("buildNotificationDestination uses ROUTES and exposes a pure destination he
 
   assert.ok(source.includes('import { ROUTES } from "./routes";'));
   assert.ok(source.includes("export function buildNotificationDestination("));
-  assert.ok(source.includes("notification.type.toLowerCase().includes(\"report\")"));
+  assert.ok(source.includes("function isTrackingNotification("));
+  assert.ok(source.includes("function isReportNotification("));
   assert.equal(source.includes("window."), false);
   assert.equal(source.includes("router."), false);
 });
 
-test("buildNotificationDestination admin routes report and token notifications to admin tokens", () => {
+test("buildNotificationDestination admin routes tracking/report notifications to report upload workflow", () => {
   const source = read(DESTINATIONS_PATH);
   const adminCase = sectionBetween(source, 'case "admin":', 'case "clinic":');
 
+  assert.ok(adminCase.includes("isTrackingNotification(notification)"));
   assert.ok(adminCase.includes("notification.reportId"));
-  assert.ok(adminCase.includes("notification.particularTokenId"));
-  assert.ok(adminCase.includes("isReportNotification(notification)"));
   assert.ok(
     adminCase.includes(
-      "`${ROUTES.dashboardAdmin}?module=admin-particular-tokens`",
+      "`${ROUTES.dashboardAdmin}?module=admin-report-upload${",
+    ),
+  );
+  assert.ok(adminCase.includes("`#report-${notification.reportId}`"));
+  assert.ok(
+    adminCase.includes(
+      "`${ROUTES.dashboardAdmin}?module=admin-particular-tokens#admin-particular-token-${notification.particularTokenId}`",
     ),
   );
   assert.ok(
@@ -67,6 +73,11 @@ test("buildNotificationDestination clinic routes report ids and token ids to anc
   assert.ok(
     clinicCase.includes(
       "`${ROUTES.dashboard}#clinic-particular-token-${notification.particularTokenId}`",
+    ),
+  );
+  assert.ok(
+    clinicCase.includes(
+      "if (isTrackingNotification(notification) || isReportNotification(notification))",
     ),
   );
   assert.ok(clinicCase.includes("return ROUTES.dashboardInformes;"));
@@ -101,16 +112,11 @@ test("admin notification destinations use the ?module= contract with valid modul
   );
   const adminCase = sectionBetween(source, 'case "admin":', 'case "clinic":');
 
-  assert.equal(
-    /#admin-/.test(adminCase),
-    false,
-    "admin notification destinations must not use legacy #admin- anchors",
-  );
-
   const adminModuleIds = [...adminCase.matchAll(/\?module=([a-z-]+)/g)].map(
     (match) => match[1],
   );
 
+  assert.ok(adminModuleIds.includes("admin-report-upload"));
   assert.ok(adminModuleIds.includes("admin-particular-tokens"));
   assert.ok(adminModuleIds.includes("audit-log"));
 
