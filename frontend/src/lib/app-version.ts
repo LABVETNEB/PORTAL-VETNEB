@@ -1,3 +1,5 @@
+export const CLIENT_VERSION_HEADER = "x-vetneb-client-version";
+
 export const CLIENT_APP_VERSION =
   process.env.NEXT_PUBLIC_APP_VERSION?.trim() || "missing-client-version";
 

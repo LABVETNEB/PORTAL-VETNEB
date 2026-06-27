@@ -161,6 +161,7 @@ export const ENV = {
   databaseMaxConnections,
   appVersion,
   clientMinVersion: rawEnv.CLIENT_MIN_VERSION ?? appVersion,
+  clientVersionGateEnforced: Boolean(rawEnv.CLIENT_MIN_VERSION),
   supabaseUrl: rawEnv.SUPABASE_URL,
   supabaseAnonKey: rawEnv.SUPABASE_ANON_KEY,
   supabaseServiceRoleKey: rawEnv.SUPABASE_SERVICE_ROLE_KEY,

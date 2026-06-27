@@ -145,6 +145,7 @@ import {
   type LogisticsSlaNativeRoutesOptions,
 } from "./routes/logistics-sla.fastify.ts";
 import { requireTrustedOriginForFastify } from "./middlewares/trusted-origin.ts";
+import { requireMinimumClientVersionForFastify } from "./middlewares/version-gate.ts";
 import { applySensitiveApiNoStoreHeaders } from "./lib/sensitive-response-cache.ts";
 import { applyApiSecurityHeaders } from "./lib/api-response-security.ts";
 import {
@@ -353,6 +354,7 @@ export async function createFastifyApp(
   });
 
   app.addHook("onRequest", requireTrustedOriginForFastify);
+  app.addHook("onRequest", requireMinimumClientVersionForFastify);
 
   app.addHook(
     "onSend",

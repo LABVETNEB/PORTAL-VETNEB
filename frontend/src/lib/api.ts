@@ -52,6 +52,10 @@ import {
 } from "@/lib/api-error";
 import { ApiResponseError } from "@/lib/api-error";
 import { publishAdminAccessErrorStatus } from "@/lib/admin-access-error";
+import { CLIENT_APP_VERSION, CLIENT_VERSION_HEADER } from "@/lib/app-version";
+import { publishClientVersionUnsupported } from "@/lib/client-version-error";
+
+const CLIENT_VERSION_UNSUPPORTED_CODE = "CLIENT_VERSION_UNSUPPORTED";
 
 const LOCAL_DEVELOPMENT_API_BASE_URL = "http://localhost:3000";
 const SAME_ORIGIN_API_BASE_URL = "";
@@ -236,6 +240,10 @@ async function apiFetch<T>(
     headers.set("Content-Type", "application/json");
   }
 
+  if (!headers.has(CLIENT_VERSION_HEADER)) {
+    headers.set(CLIENT_VERSION_HEADER, CLIENT_APP_VERSION);
+  }
+
   let res: Response;
 
   try {
@@ -271,6 +279,9 @@ async function apiFetch<T>(
     const body = (await res.json().catch(() => ({}))) as {
       error?: unknown;
       message?: unknown;
+      code?: unknown;
+      minimumClientVersion?: unknown;
+      clientVersion?: unknown;
       retryAfterSeconds?: unknown;
       retryAfter?: unknown;
     };
@@ -280,6 +291,20 @@ async function apiFetch<T>(
         : typeof body.message === "string" && body.message.trim()
           ? body.message
           : null;
+
+    if (
+      res.status === 426 &&
+      body.code === CLIENT_VERSION_UNSUPPORTED_CODE
+    ) {
+      publishClientVersionUnsupported({
+        minimumClientVersion:
+          typeof body.minimumClientVersion === "string"
+            ? body.minimumClientVersion
+            : "",
+        clientVersion:
+          typeof body.clientVersion === "string" ? body.clientVersion : "",
+      });
+    }
 
     if (res.status === 429) {
       const retryAfterSeconds = readRetryAfterSeconds(res.headers, body);
