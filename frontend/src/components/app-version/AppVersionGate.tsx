@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import {
   CLIENT_APP_VERSION,
@@ -8,6 +8,11 @@ import {
   isClientVersionOutdated,
   type AppVersionSnapshot,
 } from "@/lib/app-version";
+import {
+  getClientVersionUnsupportedServerSnapshot,
+  getClientVersionUnsupportedSnapshot,
+  subscribeClientVersionUnsupported,
+} from "@/lib/client-version-error";
 
 const VERSION_CHECK_INTERVAL_MS = 60_000;
 
@@ -46,6 +51,11 @@ export function AppVersionGate() {
   const [isUpdateRequired, setIsUpdateRequired] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
   const [checkFailed, setCheckFailed] = useState(false);
+  const clientVersionUnsupported = useSyncExternalStore(
+    subscribeClientVersionUnsupported,
+    getClientVersionUnsupportedSnapshot,
+    getClientVersionUnsupportedServerSnapshot,
+  );
 
   const evaluateSnapshot = useCallback((snapshot: AppVersionSnapshot) => {
     setLatestVersion(snapshot.appVersion);
@@ -90,6 +100,44 @@ export function AppVersionGate() {
     } finally {
       window.location.reload();
     }
+  }
+
+  if (clientVersionUnsupported) {
+    return (
+      <div
+        className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-vetneb-navy/82 px-4 py-6 backdrop-blur-sm"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="client-version-unsupported-title"
+        aria-describedby="client-version-unsupported-description"
+        data-app-version-gate="true"
+        data-client-version-unsupported="true"
+      >
+        <div className="w-full max-w-lg rounded-2xl border border-vetneb-line/80 bg-card p-6 shadow-2xl">
+          <h2
+            id="client-version-unsupported-title"
+            className="text-2xl font-semibold text-vetneb-ink"
+          >
+            Actualización requerida
+          </h2>
+          <p
+            id="client-version-unsupported-description"
+            className="mt-3 text-sm leading-6 text-muted-foreground"
+          >
+            Estás usando una versión anterior de VETNEB. Para proteger tu
+            sesión y evitar errores, actualizá o reinstalá la app.
+          </p>
+          <button
+            type="button"
+            className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-vetneb-teal px-4 py-3 text-sm font-semibold text-vetneb-navy transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70"
+            onClick={() => void handleUpdateNow()}
+            disabled={isReloading}
+          >
+            {isReloading ? "Actualizando..." : "Actualizar ahora"}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!isUpdateRequired) {

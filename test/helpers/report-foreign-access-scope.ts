@@ -9,6 +9,9 @@ const SHARED_BACKEND_SCOPE_EXCEPTIONS = new Set([
   "server/routes/reports-status.fastify.ts",
   "server/routes/reports.fastify.ts",
   "server/routes/study-tracking.fastify.ts",
+  "server/fastify-app.ts",
+  "server/lib/env.ts",
+  "server/middlewares/version-gate.ts",
 ]);
 
 export function isSharedBackendScopeException(file: string): boolean {
