@@ -12,6 +12,7 @@ const SHARED_BACKEND_SCOPE_EXCEPTIONS = new Set([
   "server/fastify-app.ts",
   "server/lib/env.ts",
   "server/middlewares/version-gate.ts",
+  "server/routes/app-version.fastify.ts",
 ]);
 
 export function isSharedBackendScopeException(file: string): boolean {

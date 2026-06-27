@@ -166,6 +166,10 @@ const UI_PREFERENCE_FILES: Array<{ path: string; keyMarkers: string[] }> = [
       "ADMIN_LAST_MODULE_STORAGE_KEY",
     ],
   },
+  {
+    path: "frontend/src/lib/app-version.ts",
+    keyMarkers: ["APP_VERSION_LOCAL_STORAGE_PREFIX"],
+  },
 ];
 
 function matchUiPreferenceFile(
