@@ -33,7 +33,12 @@ async function updateServiceWorkers() {
   }
 
   const registrations = await navigator.serviceWorker.getRegistrations();
-  await Promise.all(registrations.map((registration) => registration.update()));
+  await Promise.all(
+    registrations.map(async (registration) => {
+      await registration.update();
+      registration.waiting?.postMessage({ type: "VETNEB_SKIP_WAITING" });
+    }),
+  );
 }
 
 export function AppVersionGate() {
