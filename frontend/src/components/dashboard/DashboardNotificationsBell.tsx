@@ -262,9 +262,7 @@ export function DashboardNotificationsBell({
           ),
         );
       } catch {
-        setErrorMessage(
-          "No se pudo marcar la notificación como leída. No se abrió el destino para evitar un falso leído.",
-        );
+        setErrorMessage("No se pudo marcar la notificación como leída.");
         return;
       } finally {
         setUpdatingNotificationId(null);

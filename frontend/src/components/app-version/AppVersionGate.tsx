@@ -76,17 +76,8 @@ export function AppVersionGate() {
       void checkVersion();
     }, VERSION_CHECK_INTERVAL_MS);
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void checkVersion();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
     return () => {
       window.clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [checkVersion]);
 

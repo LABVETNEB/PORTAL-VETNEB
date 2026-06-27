@@ -8,8 +8,8 @@ Esta implementación corrige el contrato auditado de comunicación entre roles s
 - Las solicitudes/resoluciones de tinción especial desde workflow administrativo ahora producen notificación interna cuando existe seguimiento vinculado.
 - Los destinos de notificación ya no enrutan genéricamente todo a tokens; los eventos de seguimiento, informes y tinción van al módulo administrativo de informes.
 - La campana de notificaciones ya no navega si falla la mutación de marcar como leída, evitando falsos leídos y navegación con estado inconsistente.
-- Los controles públicos externos usan semántica nativa de enlace para WhatsApp, mailto, tel y URLs externas.
-- Se agregaron pruebas de contrato para bloquear regresiones en navegación, destinos, semántica externa y side-effects de workflow.
+- Los controles públicos externos (`PublicExternalControl`) mantienen la forma segura `button` + `window.open(href, target, "noopener,noreferrer")` / `window.location.assign` para WhatsApp, mailto, tel y URLs externas, preservando el contrato de hardening de navegación pública (`NEXT_LINK_IMPORTS=0`, `ANCHOR_HITS=0`, `IFRAME_HITS=1`): no se introduce `<a>` ni `next/link`.
+- Se agregaron pruebas de contrato para bloquear regresiones en navegación, destinos contextuales del bell y side-effects de workflow.
 
 ## Criterio de seguridad
 

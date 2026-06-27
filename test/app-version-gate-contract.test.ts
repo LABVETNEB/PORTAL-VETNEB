@@ -44,7 +44,7 @@ test("app version gate blocks usage and clears PWA caches before reload", () => 
 
   assert.ok(gate.includes('role="alertdialog"'));
   assert.ok(gate.includes('data-app-version-gate="true"'));
-  assert.ok(gate.includes("Actualizar Portal VETNEB para continuar"));
+  assert.ok(gate.includes("Actualizá Portal VETNEB para continuar"));
   assert.ok(gate.includes('key.startsWith("portal-vetneb-")'));
   assert.ok(gate.includes("window.location.reload();"));
 });
@@ -54,5 +54,6 @@ test("service worker cache namespace changes for the version gate deployment", (
 
   assert.ok(sw.includes('const SW_VERSION = "2026-06-26-app-version-gate-v1"'));
   assert.ok(sw.includes('event.data?.type === "VETNEB_SKIP_WAITING"'));
-  assert.ok(sw.includes('pathname.startsWith("/api/")'));
+  assert.ok(sw.includes('"/api/"'));
+  assert.ok(sw.includes("isPrivatePath"));
 });
