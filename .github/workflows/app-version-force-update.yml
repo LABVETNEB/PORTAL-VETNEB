@@ -57,7 +57,10 @@ jobs:
   force-update:
     name: Rotate contract token and redeploy
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Headroom para el smoke con polling de DOS endpoints (backend + frontend,
+    # 20 × 15s cada uno) más los 45s de arranque, sin que el job sea cancelado a
+    # mitad del rollout (un timeout-kill ocultaría el ::error:: limpio del smoke).
+    timeout-minutes: 30
 
     env:
       # Inputs vía env (evita inyección de shell por interpolación directa de ${{ }}).
@@ -224,32 +227,63 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 7.a Esperar a que el BACKEND publique el token (rollout terminó).
-          attempts=20
-          delay=15
-          live=false
-          for i in $(seq 1 "${attempts}"); do
-            body="$(curl -fsS -H "Accept: application/json" "${BACKEND_URL}/api/app-version" || true)"
-            appv="$(printf '%s' "${body}" | jq -r '.appVersion // empty' 2>/dev/null || true)"
-            minv="$(printf '%s' "${body}" | jq -r '.clientMinVersion // empty' 2>/dev/null || true)"
-            if [ "${appv}" = "${CONTRACT_TOKEN}" ] && [ "${minv}" = "${CONTRACT_TOKEN}" ]; then
-              live=true
-              echo "Backend publica el token esperado (intento ${i}/${attempts})."
-              break
-            fi
-            echo "Esperando rollout backend... intento ${i}/${attempts} (appVersion=${appv:-none})"
-            sleep "${delay}"
-          done
-          if [ "${live}" != "true" ]; then
-            echo "::error::El backend /api/app-version no expone el contract_token tras esperar el rollout."
+          # Polling robusto compartido para /api/app-version (backend y frontend).
+          # Durante el rollout el endpoint puede devolver body vacío, HTML,
+          # 404/502/503, redirect o respuesta transitoria: se tolera y se
+          # reintenta hasta agotar los intentos. Solo se parsea con jq si el
+          # body es JSON válido. No imprime secretos ni cookies (este endpoint
+          # no los expone; igual el preview se trunca y va en una sola línea).
+          ATTEMPTS=20
+          DELAY=15
+
+          wait_for_app_version() {
+            local label="$1" url="$2"
+            local i resp status body appv minv preview
+
+            for i in $(seq 1 "${ATTEMPTS}"); do
+              # Sin -f: necesitamos el status real sin abortar en 4xx/5xx. El
+              # código HTTP se anexa al final, precedido por newline, para
+              # separarlo del body. -L tolera redirects; -m acota el cuelgue.
+              resp="$(curl -sS -L -m 15 -H "Accept: application/json" \
+                -w $'\n%{http_code}' "${url}" || true)"
+              status="${resp##*$'\n'}"
+              body="${resp%$'\n'*}"
+              [ -n "${status}" ] || status="000"
+
+              appv=""
+              minv=""
+              if printf '%s' "${body}" | jq -e . >/dev/null 2>&1; then
+                appv="$(printf '%s' "${body}" | jq -r '.appVersion // empty' 2>/dev/null || true)"
+                minv="$(printf '%s' "${body}" | jq -r '.clientMinVersion // empty' 2>/dev/null || true)"
+                echo "[${label}] intento ${i}/${ATTEMPTS}: HTTP ${status} appVersion=${appv:-none} minVersion=${minv:-none}"
+              else
+                # Body no-JSON (vacío/HTML/error): preview corto, en una línea.
+                preview="$(printf '%s' "${body}" | tr '\r\n\t' '   ' | cut -c1-120 || true)"
+                echo "[${label}] intento ${i}/${ATTEMPTS}: HTTP ${status} body no-JSON (${#body}B) preview=\"${preview}\""
+              fi
+
+              if [ "${appv}" = "${CONTRACT_TOKEN}" ] && [ "${minv}" = "${CONTRACT_TOKEN}" ]; then
+                echo "[${label}] token publicado y consistente (intento ${i}/${ATTEMPTS})."
+                return 0
+              fi
+
+              if [ "${i}" -lt "${ATTEMPTS}" ]; then
+                sleep "${DELAY}"
+              fi
+            done
+
+            echo "::error::[${label}] ${url} no expuso el contract_token tras ${ATTEMPTS} intentos."
+            return 1
+          }
+
+          # 7.a Backend: esperar a que publique el token (rollout terminó).
+          if ! wait_for_app_version "backend" "${BACKEND_URL}/api/app-version"; then
             exit 1
           fi
 
-          # 7.b Frontend (proxy same-origin) también debe exponer el token.
-          fbody="$(curl -fsS -H "Accept: application/json" "${FRONTEND_URL}/api/app-version" || true)"
-          fappv="$(printf '%s' "${fbody}" | jq -r '.appVersion // empty' 2>/dev/null || true)"
-          if [ "${fappv}" != "${CONTRACT_TOKEN}" ]; then
-            echo "::error::Frontend ${FRONTEND_URL}/api/app-version no expone el contract_token (appVersion=${fappv:-none})."
+          # 7.b Frontend (proxy same-origin): mismo polling robusto, sin asumir
+          #      que responde JSON al primer intento durante el rollout.
+          if ! wait_for_app_version "frontend" "${FRONTEND_URL}/api/app-version"; then
             exit 1
           fi
           echo "Ambos /api/app-version exponen el token esperado."

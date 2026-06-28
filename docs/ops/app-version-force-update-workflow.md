@@ -119,6 +119,28 @@ El workflow **falla** si: sin versión no da `426`; versión vieja no da `426`;
 versión válida no da `401`; o `/api/app-version` no expone el token en frontend o
 backend.
 
+> **El smoke puede tardar durante el rollout.** Tanto `/api/app-version` del
+> backend como el del frontend se consultan con **polling** (mismo presupuesto
+> 20 × 15s para cada uno) que **tolera** body vacío, HTML, `404/502/503`,
+> redirects o respuestas transitorias mientras los servicios suben, y solo
+> falla tras agotar todos los intentos. Falsos negativos anteriores se debían a
+> que el **frontend** se consultaba **una sola vez** (sin polling) y cortaba
+> apenas el proxy devolvía algo que no era el token todavía.
+>
+> **Si el smoke falla**, antes de cualquier rollback confirmar a mano que el
+> rollout realmente quedó mal:
+>
+> ```powershell
+> curl.exe -s https://api.vetneb.com.ar/api/app-version
+> curl.exe -s https://vetneb.com.ar/api/app-version
+> curl.exe -s -o NUL -w "%{http_code}`n" https://api.vetneb.com.ar/api/auth/me
+> curl.exe -s -o NUL -w "%{http_code}`n" -H "X-VETNEB-Client-Version: <token>" https://api.vetneb.com.ar/api/auth/me
+> ```
+>
+> Si `appVersion`/`clientMinVersion` ya muestran el token y el gate responde
+> `426`/`401` correctamente, el smoke fue un **falso negativo** (cold start
+> lento): re-correr el workflow, **no** hacer rollback.
+
 > El valor horneado de `NEXT_PUBLIC_APP_VERSION` no se puede leer directamente por
 > HTTP; el smoke valida el token a través de `/api/app-version` (backend + proxy)
 > y del comportamiento del gate. Para confirmar el bundle nuevo en un cliente
@@ -155,9 +177,11 @@ El endpoint de variable individual y los deploy hooks están **confirmados**
   redeploy por su cuenta que se sume al del deploy hook. Render serializa los
   deploys por servicio (es seguro), pero puede generar un build adicional.
 - **Smoke con timing heurístico.** Tras los deploys espera 45s y luego hace
-  polling (20 intentos × 15s ≈ 5 min). Un cold start muy lento puede exceder esa
-  ventana y marcar el smoke en rojo aunque el deploy termine después: re-correr
-  el workflow (ampliar el polling queda para más adelante).
+  polling de **backend y frontend** `/api/app-version` (20 intentos × 15s ≈
+  5 min cada uno) tolerando respuestas transitorias del rollout. Un cold start
+  muy lento puede exceder esa ventana y marcar el smoke en rojo aunque el deploy
+  termine después: verificar a mano (ver *Smoke esperado*) y re-correr el
+  workflow — es un falso negativo, no un motivo de rollback.
 - **El deploy hook despliega el estado de la rama conectada**, no necesariamente
   un SHA arbitrario: asegurar el estado de la rama antes de correr el workflow.
 
