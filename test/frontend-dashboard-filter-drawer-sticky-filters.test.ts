@@ -9,7 +9,7 @@ const FILTER_DRAWER_PATH = "frontend/src/components/dashboard/FilterDrawer.tsx";
 const STICKY_FILTER_BAR_PATH =
   "frontend/src/components/dashboard/StickyFilterBar.tsx";
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
-const DOC_PATH = "docs/pr-6-dashboard-filter-drawer-sticky-filters.md";
+const DOC_PATH = "docs/pr-history/pr-6-dashboard-filter-drawer-sticky-filters.md";
 const PUBLIC_SEO_SCOPE_EXCEPTION = "frontend/src/lib/seo.ts";
 
 function read(relativePath: string): string {

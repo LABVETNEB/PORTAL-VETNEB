@@ -87,7 +87,7 @@ No inventar scripts.
 
 ## Entrega markdown obligatoria
 
-Toda implementación debe entregar un archivo markdown en docs/implementation, docs/audit o IMPLEMENTATION_NOTES según el patrón existente.
+Toda implementación debe entregar un archivo markdown en docs/implementation o docs/audit según el patrón existente.
 
 Debe incluir:
 

@@ -238,9 +238,9 @@ Toda implementación debe crear markdown de entrega en:
 
 - docs/implementation,
 - docs/audit,
-- IMPLEMENTATION_NOTES,
 
-siguiendo el patrón existente del repositorio.
+siguiendo el patrón existente del repositorio. (`IMPLEMENTATION_NOTES/` se consolidó dentro de
+`docs/implementation/` por PR-CLEAN2, 2026-06-28; no recrear esa carpeta.)
 
 Debe incluir:
 

@@ -229,7 +229,7 @@ test("readiness script rejects unexpected health fields without echoing values",
 
 test("production readiness documentation lists env names without assignments", () => {
   const documentation = read(
-    "IMPLEMENTATION_NOTES/IMPLEMENTATION_PRODUCTION_OBSERVABILITY_READINESS.md",
+    "docs/implementation/IMPLEMENTATION_PRODUCTION_OBSERVABILITY_READINESS.md",
   );
   const requiredNames = [
     "ADMIN_COOKIE_NAME",

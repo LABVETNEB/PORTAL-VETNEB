@@ -547,3 +547,29 @@ git diff --check
 
 > Los comandos de validación los ejecuta Nico manualmente. Esta auditoría **no** ejecuta
 > `git add/commit/push`, `gh pr create/merge` ni ningún comando con `exit`.
+
+---
+
+## Nota de seguimiento (ejecución real, PR-CLEAN2, 2026-06-28)
+
+Esta auditoría (§9 P2 / §10 PR-O6) había diferido el `move-only` de `docs/audits/`,
+`IMPLEMENTATION_NOTES/`, `docs/implementation-history/` y los `pr-*.md` sueltos de la raíz de
+`docs/` **hasta que existieran el índice de auditorías y el mapa de fuente-de-verdad**
+(condición de dependencia explícita en §9/§10: "solo tras tener índice + mapa estables").
+
+Esa condición ya se cumplió en PRs posteriores: `docs/audit/README.md` (PR-O1),
+`docs/SOURCES_OF_TRUTH.md` (PR-O2/PR-SOT1) y `docs/HISTORICAL_DOCUMENTATION.md` (PR-O3) existen
+y están vigentes. `docs/audit/final-repo-cleanup-engineering-audit.md` (§14, PR-CLEAN2) tomó esto
+como base y ejecutó el move-only diferido:
+
+- `docs/audits/` (10 archivos) → unificado dentro de `docs/audit/`.
+- `IMPLEMENTATION_NOTES/` (raíz, 34 archivos) y `docs/implementation-history/` (13 archivos) →
+  consolidados dentro de `docs/implementation/`.
+- ~30 `pr-*.md`/`prN-*.md` sueltos de la raíz de `docs/` → recolectados en `docs/pr-history/`.
+
+Los 3 tests de contrato que leían rutas exactas (`test/frontend-dashboard-filter-drawer-sticky-filters.test.ts`,
+`test/global-e2e-production-readiness-contract.test.ts`, `test/production-readiness.test.ts`) se
+actualizaron en el mismo PR, siguiendo el precedente de
+`docs/implementation/chore-docs-organize-audit-implementation-notes.md`. Las tablas de inventario
+de §3/§4/§8 de este documento describen el estado **anterior** a PR-CLEAN2 (2026-06-23); para la
+ubicación física vigente, ver `docs/HISTORICAL_DOCUMENTATION.md` y `docs/SOURCES_OF_TRUTH.md`.
