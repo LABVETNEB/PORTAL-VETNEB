@@ -36,6 +36,44 @@ function parseDatabaseMaxConnections(value: string | undefined): number {
 
   return Math.min(Math.max(Math.trunc(parsed), 1), 10);
 }
+
+// URL pública canónica del portal para los links de email (token particular).
+// Concepto distinto de CORS_ORIGIN (allowlist de seguridad). Normaliza al origen
+// (sin trailing slash, sin path) y valida el esquema: https en producción;
+// http://localhost o http://127.0.0.1 solo se admite en development/test.
+// Devuelve undefined si no está configurada (el consumidor cae al fallback CORS).
+export function resolvePublicSiteUrl(
+  rawValue: string | undefined,
+  env: "development" | "test" | "production",
+): string | undefined {
+  if (!rawValue) {
+    return undefined;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(rawValue);
+  } catch {
+    throw new Error(
+      "PUBLIC_SITE_URL debe ser una URL absoluta válida (ej: https://vetneb.com.ar)",
+    );
+  }
+
+  const isHttps = parsed.protocol === "https:";
+  const isLocalHttp =
+    parsed.protocol === "http:" &&
+    (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1");
+
+  const allowed = env === "production" ? isHttps : isHttps || isLocalHttp;
+
+  if (!allowed) {
+    throw new Error(
+      "PUBLIC_SITE_URL debe usar https (http://localhost solo se admite en development/test)",
+    );
+  }
+
+  return parsed.origin;
+}
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).optional(),
   PORT: z.coerce.number().int().positive().optional(),
@@ -59,6 +97,7 @@ const envSchema = z.object({
     z.string().min(1).optional(),
   ),
   CORS_ORIGIN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  PUBLIC_SITE_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   TRUST_PROXY: z.coerce.number().int().min(0).max(10).optional(),
   OWNER_OPEN_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   LAB_UPLOAD_USERNAMES: z.preprocess(
@@ -133,6 +172,8 @@ const corsOrigins =
     ? configuredCorsOrigins
     : Array.from(new Set([...configuredCorsOrigins, ...LOCAL_CORS_ORIGINS]));
 
+const publicSiteUrl = resolvePublicSiteUrl(rawEnv.PUBLIC_SITE_URL, nodeEnv);
+
 const smtpEnabled = Boolean(
   rawEnv.SMTP_HOST &&
     rawEnv.SMTP_PORT &&
@@ -171,6 +212,7 @@ export const ENV = {
   particularCookieName:
     rawEnv.PARTICULAR_COOKIE_NAME ?? "particular_session_id",
   corsOrigins,
+  publicSiteUrl,
   trustProxy: rawEnv.TRUST_PROXY ?? 1,
   cookieSecure: nodeEnv === "production",
   cookieSameSite: (nodeEnv === "production" ? "none" : "lax") as

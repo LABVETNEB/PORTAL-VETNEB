@@ -633,7 +633,17 @@ function buildVetnebEmailHtml(input: { title: string; body: string }): string {
 </html>`;
 }
 
-function resolveParticularPortalUrl(corsOrigins: string[]): string | null {
+function resolveParticularPortalUrl(
+  publicSiteUrl: string | undefined,
+  corsOrigins: string[],
+): string | null {
+  // URL pública canónica explícita (PUBLIC_SITE_URL) tiene prioridad. Se normaliza
+  // el trailing slash de forma defensiva para no duplicar la barra del path.
+  if (publicSiteUrl) {
+    return `${publicSiteUrl.replace(/\/+$/, "")}/particulares`;
+  }
+
+  // Fallback de compatibilidad: primer origen https del allowlist CORS.
   const httpsOrigin = corsOrigins.find((o) => /^https:\/\//.test(o));
   return httpsOrigin ? `${httpsOrigin}/particulares` : null;
 }
@@ -903,7 +913,7 @@ export async function sendParticularTokenEmail(input: {
     return { sent: false, reason: "no_recipients" as const };
   }
 
-  const portalUrl = resolveParticularPortalUrl(ENV.corsOrigins);
+  const portalUrl = resolveParticularPortalUrl(ENV.publicSiteUrl, ENV.corsOrigins);
 
   const delivery = await sendConfiguredEmailMessage({
     to: recipients,
