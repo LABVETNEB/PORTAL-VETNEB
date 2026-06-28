@@ -506,6 +506,18 @@ exige build+E2E). El resto está saludable.
   `frontend/.env.example`; marcar dominio productivo (`vetneb.com.ar`) vs staging.
 - **Validación:** `pnpm test -- production-env-contracts` y `public-staging-config-contract`; `pnpm typecheck`.
 - **Rollback:** revertir el PR (solo docs/comentarios; sin runtime).
+- **Nota de seguimiento (ejecución real, rama `clean/docs-env-domain-references`):**
+  este PR ejecuta el subconjunto de **referencias de dominio + nota conceptual de
+  `CORS_ORIGIN`**: (a) `frontend/README.md` usa ahora los dominios productivos
+  canónicos (`https://vetneb.com.ar` / `https://api.vetneb.com.ar`) como ejemplo y
+  marca staging Render (`*.onrender.com`) explícitamente; (b) `.env.example` documenta
+  que `CORS_ORIGIN` no es la URL pública canónica y anota el seguimiento a
+  `PUBLIC_SITE_URL`/`FRONTEND_URL` (PR-CLEAN2/3). **Diferido a un PR posterior** (no es
+  referencia de dominio): la reescritura de `docs/notes/todo.md` (P2-C) y los comentarios
+  de `APP_VERSION`/`CLIENT_MIN_VERSION`/`NEXT_PUBLIC_APP_VERSION` (P2-F). Las apariciones
+  `*-staging.onrender.com` en `docs/release-readiness.md`, `docs/staging-smoke-runbook.md`
+  y `test/*` se **mantienen**: son fixtures de contrato guardadas por
+  `public-staging-config-contract.test.ts` y `admin-docs-operational-contract.test.ts`.
 
 ### PR-CLEAN2 · reorganización documental (solo-docs)
 - **Alcance:** unificar `docs/audits/` → `docs/audit/`; mover `pr-*.md` sueltos a
