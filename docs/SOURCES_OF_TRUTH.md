@@ -36,18 +36,22 @@ Regla principal:
 | Dashboard mobile/admin density | `docs/audit/admin-mobile-density-closeout.md` | Closeouts y auditorías admin-mobile relacionadas | Cerrado | No re-auditar de cero salvo regresión visual nueva |
 | Seguridad / sesiones / superficie pública | `docs/security/*` | Tests `security-*`, `auth-*`, matrices RBAC/endpoints/CSP | Vigente estable | Usar para invariantes; PR-S1 debe ser auditoría enfocada antes de tocar auth/API |
 | Operación / production readiness | `docs/ops/*` | `docs/release/README.md`, `docs/release-readiness.md`, `docs/production-readiness-evidence.md` | Vigente | Usar para runbooks operativos; no mezclar con CI-only ni deploy changes |
-| Implementaciones recientes | `docs/implementation/*` | `IMPLEMENTATION_NOTES/*` | Referencia secundaria | Leer solo si el dominio lo exige; no usar como fuente primaria si hay closeout/auditoría vigente |
+| Implementaciones recientes | `docs/implementation/*` | Subconjunto histórico/secundario `IMPLEMENTATION_*` / `IMPLEMENTACION-PR-*` en el mismo árbol (ex `IMPLEMENTATION_NOTES/` + `docs/implementation-history/`, consolidados por PR-CLEAN2) | Referencia secundaria | Leer solo si el dominio lo exige; no usar como fuente primaria si hay closeout/auditoría vigente |
 
-## Disambiguación `docs/audit` vs `docs/audits`
+## Consolidación documental PR-CLEAN2 (2026-06-28)
+
+`docs/audits/` se unificó dentro de `docs/audit/`; `IMPLEMENTATION_NOTES/` (raíz del repo) y
+`docs/implementation-history/` se consolidaron dentro de `docs/implementation/`; los
+`pr-*.md`/`prN-*.md` sueltos en la raíz de `docs/` se recolectaron en `docs/pr-history/`. Las
+carpetas viejas ya no existen; el detalle archivo-por-archivo está en
+`docs/HISTORICAL_DOCUMENTATION.md` y en `docs/audit/final-repo-cleanup-engineering-audit.md` (§14).
 
 | Path | Uso correcto | Estado | Leer por defecto |
 | --- | --- | --- | --- |
-| `docs/audit/` | Auditorías activas, closeouts recientes y documentos docs-only vigentes | Mixto, con índice vigente en `docs/audit/README.md` | Sí, pero solo a través del índice |
-| `docs/audits/` | Auditorías y planes históricos antiguos, especialmente documentos mayúsculos o planes visuales previos | Histórico | No |
-| `docs/pr-history/` | Historial de PRs antiguos | Histórico | No |
-| `docs/implementation-history/` | Historial de implementaciones antiguas | Histórico | No |
-| `docs/pr-*`, `docs/fix-*` en raíz de `docs/` | Notas antiguas sueltas | Histórico / pendiente de clasificación | No |
-| `IMPLEMENTATION_NOTES/` | Notas de implementación sancionadas por organización previa | Secundario | No por defecto |
+| `docs/audit/` | Auditorías activas, closeouts recientes y documentos docs-only vigentes; incluye (desde PR-CLEAN2) los `AUDIT_*`/`DASHBOARD_*_PLAN` históricos ex-`docs/audits/` | Mixto, con índice vigente en `docs/audit/README.md` | Sí, pero solo a través del índice |
+| `docs/pr-history/` | Historial de PRs antiguos; desde PR-CLEAN2 incluye los `pr-*.md`/`prN-*.md` ex-sueltos en la raíz de `docs/` | Histórico | No |
+| `docs/implementation/` | Notas de implementación vigentes por dominio; desde PR-CLEAN2 también contiene los `IMPLEMENTACION-PR-*` ex-`docs/implementation-history/` y los `IMPLEMENTATION_*`/kebab-case ex-`IMPLEMENTATION_NOTES/` | Mixto (vigente + histórico/secundario por archivo) | Solo la fuente vigente del dominio |
+| `docs/fix-*` en raíz de `docs/` | Notas antiguas sueltas (no PR docs; fuera de alcance de PR-CLEAN2) | Histórico / pendiente de clasificación | No |
 
 ## Reglas de lectura para futuras auditorías
 

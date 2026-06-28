@@ -526,6 +526,38 @@ exige build+E2E). El resto está saludable.
 - **Validación:** `git grep` de cada ruta movida (asegurar que ningún test/guard la
   referencie); `pnpm test`; `pnpm --dir frontend lint`.
 - **Rollback:** revertir (git conserva historia).
+- **Nota de seguimiento (ejecución real, rama `clean/docs-structure-consolidation`, 2026-06-28):**
+  (a) `docs/audits/` (10 `AUDIT_*`/`DASHBOARD_*_PLAN`) se unificó dentro de `docs/audit/` —sin
+  colisión de nombres—. (b) `IMPLEMENTATION_NOTES/` (raíz, 34 archivos) y
+  `docs/implementation-history/` (13 `IMPLEMENTACION-PR-*.md`) se consolidaron dentro de
+  `docs/implementation/` (86 archivos resultantes, sin colisión). (c) Los ~30
+  `pr-*.md`/`prN-*.md` sueltos de la raíz de `docs/` (`pr-1`…`pr-10`, `pr-815`…`pr-826`,
+  `pr0`…`pr5b`) se recolectaron en `docs/pr-history/`. Las 3 carpetas origen quedaron vacías y se
+  eliminaron del árbol (git no rastrea directorios vacíos). (d) 3 tests de contrato leían rutas
+  exactas movidas y se actualizaron en el mismo PR, siguiendo el precedente de
+  `docs/implementation/chore-docs-organize-audit-implementation-notes.md`:
+  `test/frontend-dashboard-filter-drawer-sticky-filters.test.ts` (`DOC_PATH`),
+  `test/global-e2e-production-readiness-contract.test.ts` (`prDocPath`),
+  `test/production-readiness.test.ts` (ruta de
+  `IMPLEMENTATION_PRODUCTION_OBSERVABILITY_READINESS.md`). Esos 3 + los 2 tests nombrados por la
+  misión (`test/admin-docs-operational-contract.test.ts`,
+  `test/public-staging-config-contract.test.ts`, sin referencias a rutas movidas) pasan en verde
+  (20/20). (e) Se corrigió 1 link Markdown relativo roto
+  (`docs/implementation/IMPLEMENTATION_EXTREME_VISUAL_FIXES.md` → `../audit/...`) y 3
+  referencias operativas **vivas** que nombraban `IMPLEMENTATION_NOTES` como destino de entrega
+  futura (`AGENTS.md`, `docs/protocol/vetneb-ai-working-protocol.md`,
+  `.cursor/rules/vetneb-global-protocol.mdc`) — ahora apuntan solo a `docs/implementation`/`docs/audit`.
+  Prosa/backtick que narra hechos históricos de PRs ya cerrados (ej. menciones de
+  `docs/audits/…`/`IMPLEMENTATION_NOTES/…` dentro de notas movidas, o en
+  `docs/audit/repository-operational-ordering-audit.md` §3/§4/§8 y
+  `docs/audit/global-e2e-extreme-production-audit.md:26`) se dejó intacta a propósito — no se
+  reescribe historia; ver nota de seguimiento agregada al final de
+  `repository-operational-ordering-audit.md`. `docs/HISTORICAL_DOCUMENTATION.md` y
+  `docs/SOURCES_OF_TRUTH.md` se actualizaron con las rutas nuevas. Validación ejecutada:
+  `pnpm typecheck` y `pnpm typecheck:test` verdes; `pnpm --dir frontend lint` verde; suite
+  `pnpm test` completa no se corrió (requiere Postgres local, igual que en la auditoría
+  original — ver §11/§15); los tests puntuales arriba sí se corrieron directamente vía
+  `node --experimental-strip-types --test`.
 
 ### PR-CLEAN3 · contrato de URL pública de email
 - **Alcance:** `PUBLIC_PORTAL_URL` opcional en `env.ts`; `resolveParticularPortalUrl`

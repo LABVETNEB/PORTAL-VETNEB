@@ -298,7 +298,8 @@ test("global e2e readiness keeps required local validation gates", () => {
 
 test("global e2e readiness docs keep audit matrix evidence and PR scope", () => {
   const auditDocPath = "docs/audit/global-e2e-extreme-production-audit.md";
-  const prDocPath = "docs/pr-826-global-e2e-extreme-production-readiness.md";
+  const prDocPath =
+    "docs/pr-history/pr-826-global-e2e-extreme-production-readiness.md";
 
   assert.equal(existsSync(resolve(process.cwd(), auditDocPath)), true);
   assert.equal(existsSync(resolve(process.cwd(), prDocPath)), true);

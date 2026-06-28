@@ -8,6 +8,10 @@ Este índice considera como vigentes únicamente las auditorías generadas en Wa
 
 Los documentos históricos previos dentro de `docs/audit/` se conservan como antecedentes, pero no forman parte del índice operativo vigente para la próxima implementación enterprise.
 
+> **PR-CLEAN2 (2026-06-28):** `docs/audits/` (plural, 10 archivos `AUDIT_*`/`DASHBOARD_*_PLAN`) se
+> unificó dentro de esta carpeta. Siguen siendo históricos (no entran al índice vigente de abajo);
+> ver clasificación archivo-por-archivo en `docs/HISTORICAL_DOCUMENTATION.md`.
+
 ## Auditorías vigentes
 
 | Orden | Documento | Propósito operativo | Estado |

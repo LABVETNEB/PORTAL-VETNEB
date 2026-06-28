@@ -352,7 +352,8 @@ Toda implementación debe crear o actualizar un documento en el patrón real cor
 
 - `docs/implementation/`
 - `docs/audit/`
-- `IMPLEMENTATION_NOTES`
+
+(`IMPLEMENTATION_NOTES/` se consolidó dentro de `docs/implementation/` por PR-CLEAN2, 2026-06-28.)
 
 Debe incluir:
 
