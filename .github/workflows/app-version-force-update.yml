@@ -1,0 +1,305 @@
+# App Version — Force Update (manual)
+#
+# Rota el "token de contrato de cliente" del version gate en Render y fuerza un
+# rebuild/redeploy para BLOQUEAR PWAs/apps viejas.
+#
+# Las 3 variables se mueven SIEMPRE juntas al mismo token:
+#   - frontend: NEXT_PUBLIC_APP_VERSION   (build-time -> requiere rebuild)
+#   - backend:  APP_VERSION               (runtime)
+#   - backend:  CLIENT_MIN_VERSION        (runtime; arma el gate 426)
+#
+# Con tokens tipo SHA la comparación del backend es IGUALDAD EXACTA: este
+# workflow es SOLO para force update. Un deploy normal NO debe rotar el token.
+# Ver: docs/audit/app-version-deploy-automation-audit.md
+#      docs/ops/app-version-force-update-workflow.md
+#
+# Diseño deliberado:
+#   - Solo workflow_dispatch (nunca push/PR/schedule). No toca CI existente.
+#   - Orden frontend -> backend (minimiza la ventana de bloqueo con igualdad SHA).
+#   - Env vars vía endpoint CONFIRMADO de variable individual de Render
+#     (PUT /v1/services/{serviceId}/env-vars/{envVarKey}, Bearer RENDER_API_KEY);
+#     actualiza una sola variable sin reemplazar la lista entera.
+#   - Deploys vía deploy hooks de Render: una URL única por servicio (Render
+#     Settings -> Deploy Hook), apta para guardar como GitHub Secret.
+#   - Nunca imprime secretos (API key, service IDs, deploy hooks) ni cookies.
+
+name: App Version Force Update
+
+run-name: "Force update app-version -> ${{ inputs.contract_token }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      contract_token:
+        description: "Token/SHA exacto para NEXT_PUBLIC_APP_VERSION, APP_VERSION y CLIENT_MIN_VERSION (sin espacios)."
+        required: true
+        type: string
+      confirm_force_update:
+        description: "Escribir exactamente FORCE_UPDATE_VETNEB para confirmar el bloqueo de versiones anteriores."
+        required: true
+        type: string
+      run_smoke:
+        description: "Ejecutar smoke productivo después del deploy."
+        required: true
+        default: true
+        type: boolean
+
+# Permisos mínimos: el workflow no usa el repo ni el GITHUB_TOKEN, solo llama APIs externas.
+permissions:
+  contents: read
+
+# Nunca permitir dos force updates en paralelo; no cancelar uno en curso.
+concurrency:
+  group: app-version-force-update
+  cancel-in-progress: false
+
+jobs:
+  force-update:
+    name: Rotate contract token and redeploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      # Inputs vía env (evita inyección de shell por interpolación directa de ${{ }}).
+      CONTRACT_TOKEN: ${{ inputs.contract_token }}
+      CONFIRM_FORCE_UPDATE: ${{ inputs.confirm_force_update }}
+      # Endpoints públicos productivos.
+      BACKEND_URL: "https://api.vetneb.com.ar"
+      FRONTEND_URL: "https://vetneb.com.ar"
+
+    steps:
+      # ----------------------------------------------------------------------
+      # 1) Validación dura ANTES de tocar nada en Render.
+      # ----------------------------------------------------------------------
+      - name: Validate confirmation and token
+        run: |
+          set -euo pipefail
+
+          # 1.a Confirmación textual exacta.
+          if [ "${CONFIRM_FORCE_UPDATE}" != "FORCE_UPDATE_VETNEB" ]; then
+            echo "::error::confirm_force_update no coincide con FORCE_UPDATE_VETNEB. Abortando sin cambios."
+            exit 1
+          fi
+
+          # 1.b Token no vacío.
+          if [ -z "${CONTRACT_TOKEN}" ]; then
+            echo "::error::contract_token vacío."
+            exit 1
+          fi
+
+          # 1.c Sin espacios / whitespace.
+          case "${CONTRACT_TOKEN}" in
+            *[[:space:]]*)
+              echo "::error::contract_token contiene espacios/whitespace."
+              exit 1
+              ;;
+          esac
+
+          # 1.d Largo razonable (7..100).
+          len=${#CONTRACT_TOKEN}
+          if [ "$len" -lt 7 ] || [ "$len" -gt 100 ]; then
+            echo "::error::contract_token con largo fuera de rango (7..100): $len."
+            exit 1
+          fi
+
+          # 1.e Charset seguro (alfanumérico . _ -): evita romper JSON/shell.
+          #     No bloquea por formato; solo asegura un token "limpio".
+          if ! printf '%s' "${CONTRACT_TOKEN}" | grep -Eq '^[A-Za-z0-9._-]+$'; then
+            echo "::error::contract_token tiene caracteres no permitidos (solo A-Z a-z 0-9 . _ -)."
+            exit 1
+          fi
+
+          # 1.f Aviso (no bloqueante) de formato reconocido.
+          if printf '%s' "${CONTRACT_TOKEN}" | grep -Eiq '^[0-9a-f]{40}$'; then
+            echo "Formato reconocido: SHA-40 hex."
+          elif printf '%s' "${CONTRACT_TOKEN}" | grep -Eiq '^v?[0-9]+(\.[0-9]+){1,3}$'; then
+            echo "Formato reconocido: semver comercial."
+          else
+            echo "::warning::contract_token no es SHA-40 ni semver; se acepta por ser token limpio sin espacios."
+          fi
+
+          echo "Token validado (len=$len). Procediendo con force update."
+          {
+            echo "### App Version — Force Update"
+            echo ""
+            echo "| Campo | Valor |"
+            echo "| --- | --- |"
+            echo "| contract_token | \`${CONTRACT_TOKEN}\` |"
+            echo "| run_smoke | \`${{ inputs.run_smoke }}\` |"
+            echo "| orden | frontend → backend |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ----------------------------------------------------------------------
+      # 2) Frontend: setear NEXT_PUBLIC_APP_VERSION (build-time).
+      # ----------------------------------------------------------------------
+      - name: Update frontend NEXT_PUBLIC_APP_VERSION
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ secrets.RENDER_FRONTEND_SERVICE_ID }}
+        run: |
+          set -euo pipefail
+          payload="$(jq -nc --arg v "${CONTRACT_TOKEN}" '{value:$v}')"
+          code="$(curl -s -o /dev/null -w '%{http_code}' \
+            -X PUT "https://api.render.com/v1/services/${SERVICE_ID}/env-vars/NEXT_PUBLIC_APP_VERSION" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d "${payload}")"
+          echo "PUT NEXT_PUBLIC_APP_VERSION en servicio frontend -> HTTP ${code}"
+          case "${code}" in
+            2*) ;;
+            *) echo "::error::No se pudo actualizar NEXT_PUBLIC_APP_VERSION (HTTP ${code})."; exit 1 ;;
+          esac
+
+      # ----------------------------------------------------------------------
+      # 3) Disparar deploy de frontend (rebuild que hornea el nuevo token).
+      # ----------------------------------------------------------------------
+      - name: Trigger frontend deploy
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK_URL }}
+        run: |
+          set -euo pipefail
+          code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${DEPLOY_HOOK_URL}")"
+          echo "Deploy hook frontend -> HTTP ${code}"
+          case "${code}" in
+            2*) ;;
+            *) echo "::error::No se pudo disparar el deploy de frontend (HTTP ${code})."; exit 1 ;;
+          esac
+
+      # ----------------------------------------------------------------------
+      # 4) Backend: setear APP_VERSION y CLIENT_MIN_VERSION (runtime).
+      # ----------------------------------------------------------------------
+      - name: Update backend APP_VERSION and CLIENT_MIN_VERSION
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: ${{ secrets.RENDER_BACKEND_SERVICE_ID }}
+        run: |
+          set -euo pipefail
+          payload="$(jq -nc --arg v "${CONTRACT_TOKEN}" '{value:$v}')"
+          for key in APP_VERSION CLIENT_MIN_VERSION; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' \
+              -X PUT "https://api.render.com/v1/services/${SERVICE_ID}/env-vars/${key}" \
+              -H "Authorization: Bearer ${RENDER_API_KEY}" \
+              -H "Content-Type: application/json" \
+              -H "Accept: application/json" \
+              -d "${payload}")"
+            echo "PUT ${key} en servicio backend -> HTTP ${code}"
+            case "${code}" in
+              2*) ;;
+              *) echo "::error::No se pudo actualizar ${key} (HTTP ${code})."; exit 1 ;;
+            esac
+          done
+
+      # ----------------------------------------------------------------------
+      # 5) Disparar deploy de backend.
+      # ----------------------------------------------------------------------
+      - name: Trigger backend deploy
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.RENDER_BACKEND_DEPLOY_HOOK_URL }}
+        run: |
+          set -euo pipefail
+          code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${DEPLOY_HOOK_URL}")"
+          echo "Deploy hook backend -> HTTP ${code}"
+          case "${code}" in
+            2*) ;;
+            *) echo "::error::No se pudo disparar el deploy de backend (HTTP ${code})."; exit 1 ;;
+          esac
+
+      # ----------------------------------------------------------------------
+      # 6) Dar tiempo a que los rollouts arranquen (el smoke además hace polling).
+      # ----------------------------------------------------------------------
+      - name: Allow rollout to start
+        run: |
+          set -euo pipefail
+          echo "Deploys disparados (frontend y backend). Esperando arranque del rollout..."
+          sleep 45
+
+      # ----------------------------------------------------------------------
+      # 7) Smoke productivo (opcional). Hace polling de /api/app-version hasta
+      #    que el token quede vivo, y luego valida el gate 426/401.
+      #    No requiere login real, no imprime cookies.
+      # ----------------------------------------------------------------------
+      - name: Smoke (version gate)
+        if: ${{ inputs.run_smoke }}
+        run: |
+          set -euo pipefail
+
+          # 7.a Esperar a que el BACKEND publique el token (rollout terminó).
+          attempts=20
+          delay=15
+          live=false
+          for i in $(seq 1 "${attempts}"); do
+            body="$(curl -fsS -H "Accept: application/json" "${BACKEND_URL}/api/app-version" || true)"
+            appv="$(printf '%s' "${body}" | jq -r '.appVersion // empty' 2>/dev/null || true)"
+            minv="$(printf '%s' "${body}" | jq -r '.clientMinVersion // empty' 2>/dev/null || true)"
+            if [ "${appv}" = "${CONTRACT_TOKEN}" ] && [ "${minv}" = "${CONTRACT_TOKEN}" ]; then
+              live=true
+              echo "Backend publica el token esperado (intento ${i}/${attempts})."
+              break
+            fi
+            echo "Esperando rollout backend... intento ${i}/${attempts} (appVersion=${appv:-none})"
+            sleep "${delay}"
+          done
+          if [ "${live}" != "true" ]; then
+            echo "::error::El backend /api/app-version no expone el contract_token tras esperar el rollout."
+            exit 1
+          fi
+
+          # 7.b Frontend (proxy same-origin) también debe exponer el token.
+          fbody="$(curl -fsS -H "Accept: application/json" "${FRONTEND_URL}/api/app-version" || true)"
+          fappv="$(printf '%s' "${fbody}" | jq -r '.appVersion // empty' 2>/dev/null || true)"
+          if [ "${fappv}" != "${CONTRACT_TOKEN}" ]; then
+            echo "::error::Frontend ${FRONTEND_URL}/api/app-version no expone el contract_token (appVersion=${fappv:-none})."
+            exit 1
+          fi
+          echo "Ambos /api/app-version exponen el token esperado."
+
+          # 7.c Gate: sin header -> 426.
+          c_nohdr="$(curl -s -o /dev/null -w '%{http_code}' "${BACKEND_URL}/api/auth/me")"
+          # 7.d Gate: versión vieja -> 426.
+          c_old="$(curl -s -o /dev/null -w '%{http_code}' -H "X-VETNEB-Client-Version: 0000000" "${BACKEND_URL}/api/auth/me")"
+          # 7.e Gate: versión válida -> 401 (pasa el gate, llega a auth).
+          c_valid="$(curl -s -o /dev/null -w '%{http_code}' -H "X-VETNEB-Client-Version: ${CONTRACT_TOKEN}" "${BACKEND_URL}/api/auth/me")"
+
+          echo "me sin header        -> HTTP ${c_nohdr} (esperado 426)"
+          echo "me versión vieja     -> HTTP ${c_old} (esperado 426)"
+          echo "me versión válida    -> HTTP ${c_valid} (esperado 401)"
+
+          fail=0
+          [ "${c_nohdr}" = "426" ] || { echo "::error::Sin versión no devolvió 426 (HTTP ${c_nohdr})."; fail=1; }
+          [ "${c_old}" = "426" ]   || { echo "::error::Versión vieja no devolvió 426 (HTTP ${c_old})."; fail=1; }
+          [ "${c_valid}" = "401" ] || { echo "::error::Versión válida no devolvió 401 (HTTP ${c_valid})."; fail=1; }
+
+          {
+            echo ""
+            echo "#### Smoke"
+            echo ""
+            echo "| Check | HTTP | Esperado |"
+            echo "| --- | --- | --- |"
+            echo "| backend /api/app-version token | live | match |"
+            echo "| frontend /api/app-version token | live | match |"
+            echo "| me sin header | ${c_nohdr} | 426 |"
+            echo "| me versión vieja | ${c_old} | 426 |"
+            echo "| me versión válida | ${c_valid} | 401 |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${fail}" -ne 0 ]; then
+            echo "::error::Smoke del version gate FALLÓ. Revisar rollout y, si bloqueó por error, aplicar el rollback de emergencia (vaciar CLIENT_MIN_VERSION)."
+            exit 1
+          fi
+          echo "Smoke OK."
+
+      # ----------------------------------------------------------------------
+      # 8) Nota final cuando se omite el smoke.
+      # ----------------------------------------------------------------------
+      - name: Skipped smoke note
+        if: ${{ !inputs.run_smoke }}
+        run: |
+          set -euo pipefail
+          echo "run_smoke=false: deploys disparados, sin validación automática."
+          {
+            echo ""
+            echo "#### Smoke"
+            echo ""
+            echo "_run_smoke=false: smoke omitido. Validar manualmente \`/api/app-version\` y el gate 426/401._"
+          } >> "$GITHUB_STEP_SUMMARY"
