@@ -47,7 +47,7 @@ El frontend corre en `http://localhost:3000` por defecto (o el puerto que config
 > Referencia local/LAN (development-only):
 > - Backend: `http://127.0.0.1:3000` o `http://<LAN-IP>:3000`
 > - Frontend: `http://localhost:3001` o `http://<LAN-IP>:3001`
-> - En staging/prod, `NEXT_PUBLIC_API_URL` debe apuntar explícitamente al backend público (`https://...onrender.com`) y no usar localhost/LAN.
+> - En producción, `NEXT_PUBLIC_API_URL` debe apuntar al backend público canónico (`https://api.vetneb.com.ar`); en staging Render usa `https://...onrender.com`. Nunca localhost/LAN.
 
 ## Variables de entorno
 
@@ -57,10 +57,15 @@ Copiar `frontend/.env.example` a `frontend/.env.local`:
 cp frontend/.env.example frontend/.env.local
 ```
 
-| Variable | Descripción | Default |
+| Variable | Descripción | Ejemplo (producción) |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | URL del backend Fastify público | `https://portal-vetneb-backend-staging.onrender.com` |
-| `NEXT_PUBLIC_SITE_URL` | URL pública del frontend | `https://portal-vetneb-frontend-staging.onrender.com` |
+| `NEXT_PUBLIC_API_URL` | URL del backend Fastify público | `https://api.vetneb.com.ar` |
+| `NEXT_PUBLIC_SITE_URL` | URL pública del frontend | `https://vetneb.com.ar` |
+
+> Dominios productivos vigentes: frontend `https://vetneb.com.ar`, backend
+> `https://api.vetneb.com.ar` (fuente de verdad: `frontend/.env.example`). En staging
+> Render los servicios usan `*.onrender.com`; ver `docs/staging-smoke-runbook.md` y
+> `docs/release-readiness.md`.
 
 ## Build de producción
 
