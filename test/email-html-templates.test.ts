@@ -26,6 +26,7 @@ type EnvSnapshot = {
   isProduction: boolean;
   contactTo: string[];
   corsOrigins: string[];
+  publicSiteUrl: string | undefined;
   smtp: typeof ENV.smtp;
   gmailApi: typeof ENV.gmailApi;
 };
@@ -35,6 +36,7 @@ function snapshotEnv(): EnvSnapshot {
     isProduction: ENV.isProduction,
     contactTo: [...ENV.contactTo],
     corsOrigins: [...ENV.corsOrigins],
+    publicSiteUrl: ENV.publicSiteUrl,
     smtp: { ...ENV.smtp },
     gmailApi: { ...ENV.gmailApi },
   };
@@ -44,6 +46,7 @@ function restoreEnv(snap: EnvSnapshot): void {
   (ENV as any).isProduction = snap.isProduction;
   (ENV as any).contactTo = snap.contactTo;
   (ENV as any).corsOrigins = snap.corsOrigins;
+  (ENV as any).publicSiteUrl = snap.publicSiteUrl;
   for (const k of Object.keys(snap.smtp) as (keyof typeof ENV.smtp)[]) {
     (ENV.smtp as any)[k] = snap.smtp[k];
   }
@@ -580,6 +583,195 @@ test("seguridad: token no aparece en ningun href del HTML particular", async () 
     html.includes(`/particulares/${token}`),
     false,
     "token no debe estar en path de href",
+  );
+});
+
+// ─── Contrato PUBLIC_SITE_URL: URL pública desacoplada de CORS_ORIGIN ─────────
+
+test("PUBLIC_SITE_URL definido: el link usa ese dominio y no el de CORS_ORIGIN", async () => {
+  const snap = snapshotEnv();
+  const originalCreateTransport = nodemailer.createTransport;
+  const sendMailCalls: Array<Record<string, unknown>> = [];
+
+  enableSmtp();
+  // Host único: el transporter se cachea por host/port/user (evita colisión entre tests).
+  (ENV.smtp as any).host = "smtp-psu-defined.test";
+  (ENV as any).publicSiteUrl = "https://vetneb.com.ar";
+  // CORS_ORIGIN apunta a un host distinto (staging onrender): NO debe ganar.
+  (ENV as any).corsOrigins = [
+    "https://portal-vetneb-frontend-staging.onrender.com",
+  ];
+
+  (nodemailer as any).createTransport = () => ({
+    sendMail: async (p: Record<string, unknown>) => {
+      sendMailCalls.push(p);
+      return { messageId: "psu-test" };
+    },
+  });
+
+  try {
+    await sendParticularTokenEmail({
+      to: "tutor@example.com",
+      token: "TOKEN-PSU",
+      tutorLastName: "Diaz",
+      petName: "Mia",
+    });
+  } finally {
+    (nodemailer as any).createTransport = originalCreateTransport;
+    restoreEnv(snap);
+  }
+
+  assert.equal(sendMailCalls.length, 1);
+  const html = String(sendMailCalls[0].html);
+  const text = String(sendMailCalls[0].text);
+
+  assert.ok(
+    html.includes('href="https://vetneb.com.ar/particulares"'),
+    "href debe usar PUBLIC_SITE_URL",
+  );
+  assert.ok(
+    text.includes("https://vetneb.com.ar/particulares"),
+    "text/plain debe usar PUBLIC_SITE_URL",
+  );
+  // Escenario D: el origen onrender de CORS no gana con PUBLIC_SITE_URL definido.
+  assert.equal(
+    html.includes("onrender.com"),
+    false,
+    "no debe usar el origen onrender de CORS_ORIGIN",
+  );
+});
+
+test("PUBLIC_SITE_URL con trailing slash: el link no duplica la barra", async () => {
+  const snap = snapshotEnv();
+  const originalCreateTransport = nodemailer.createTransport;
+  const sendMailCalls: Array<Record<string, unknown>> = [];
+
+  enableSmtp();
+  (ENV.smtp as any).host = "smtp-psu-slash.test";
+  (ENV as any).publicSiteUrl = "https://vetneb.com.ar/";
+  (ENV as any).corsOrigins = ["https://portal.vetneb.com"];
+
+  (nodemailer as any).createTransport = () => ({
+    sendMail: async (p: Record<string, unknown>) => {
+      sendMailCalls.push(p);
+      return { messageId: "psu-slash-test" };
+    },
+  });
+
+  try {
+    await sendParticularTokenEmail({
+      to: "tutor@example.com",
+      token: "TOKEN-SLASH",
+      tutorLastName: "Ruiz",
+      petName: "Toby",
+    });
+  } finally {
+    (nodemailer as any).createTransport = originalCreateTransport;
+    restoreEnv(snap);
+  }
+
+  assert.equal(sendMailCalls.length, 1);
+  const html = String(sendMailCalls[0].html);
+
+  assert.ok(
+    html.includes('href="https://vetneb.com.ar/particulares"'),
+    "href debe normalizar el trailing slash",
+  );
+  assert.equal(
+    html.includes("https://vetneb.com.ar//particulares"),
+    false,
+    "no debe duplicar la barra del path",
+  );
+});
+
+test("PUBLIC_SITE_URL ausente: el link cae al primer https de CORS_ORIGIN", async () => {
+  const snap = snapshotEnv();
+  const originalCreateTransport = nodemailer.createTransport;
+  const sendMailCalls: Array<Record<string, unknown>> = [];
+
+  enableSmtp();
+  (ENV.smtp as any).host = "smtp-psu-fallback.test";
+  (ENV as any).publicSiteUrl = undefined;
+  (ENV as any).corsOrigins = [
+    "http://localhost:3000",
+    "https://vetneb.com.ar",
+    "https://segundo.example.com",
+  ];
+
+  (nodemailer as any).createTransport = () => ({
+    sendMail: async (p: Record<string, unknown>) => {
+      sendMailCalls.push(p);
+      return { messageId: "fallback-test" };
+    },
+  });
+
+  try {
+    await sendParticularTokenEmail({
+      to: "tutor@example.com",
+      token: "TOKEN-FALLBACK",
+      tutorLastName: "Vega",
+      petName: "Kira",
+    });
+  } finally {
+    (nodemailer as any).createTransport = originalCreateTransport;
+    restoreEnv(snap);
+  }
+
+  assert.equal(sendMailCalls.length, 1);
+  const html = String(sendMailCalls[0].html);
+
+  assert.ok(
+    html.includes('href="https://vetneb.com.ar/particulares"'),
+    "fallback debe usar el primer origen https de CORS_ORIGIN",
+  );
+  assert.equal(
+    html.includes("segundo.example.com"),
+    false,
+    "no debe usar un origen https posterior",
+  );
+});
+
+test("seguridad: el envío con PUBLIC_SITE_URL no imprime el token en logs", async () => {
+  const snap = snapshotEnv();
+  const originalCreateTransport = nodemailer.createTransport;
+  const originalInfo = console.info;
+  const logged: string[] = [];
+
+  enableSmtp();
+  (ENV.smtp as any).host = "smtp-psu-logs.test";
+  (ENV as any).publicSiteUrl = "https://vetneb.com.ar";
+
+  (nodemailer as any).createTransport = () => ({
+    sendMail: async () => ({ messageId: "log-test" }),
+  });
+  console.info = (...args: unknown[]) => {
+    logged.push(
+      args
+        .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
+        .join(" "),
+    );
+  };
+
+  const token = "SECRET-LOG-TOKEN-123";
+
+  try {
+    await sendParticularTokenEmail({
+      to: "tutor@example.com",
+      token,
+      tutorLastName: "Soto",
+      petName: "Nina",
+    });
+  } finally {
+    console.info = originalInfo;
+    (nodemailer as any).createTransport = originalCreateTransport;
+    restoreEnv(snap);
+  }
+
+  const all = logged.join("\n");
+  assert.equal(all.includes(token), false, "el token no debe aparecer en logs");
+  assert.ok(
+    all.includes("particular_token sent"),
+    "debe loguear el envío sin exponer el token",
   );
 });
 

@@ -10,7 +10,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV, resolvePublicSiteUrl } = await import("../server/lib/env.ts");
 
 function readGmailApiEnvFromChild(overrides: Record<string, string>) {
   const env = {
@@ -175,6 +175,51 @@ test("ENV.gmailApi queda habilitado cuando las variables requeridas estan comple
     refreshToken: "google-refresh-token",
     from: "lab.vetneb@gmail.com",
   });
+});
+
+// PUBLIC_SITE_URL contract ──────────────────────────────────────────────────────
+
+test("resolvePublicSiteUrl devuelve undefined cuando no está configurada", () => {
+  assert.equal(resolvePublicSiteUrl(undefined, "production"), undefined);
+  assert.equal(resolvePublicSiteUrl("", "production"), undefined);
+});
+
+test("resolvePublicSiteUrl normaliza al origen y elimina el trailing slash", () => {
+  assert.equal(
+    resolvePublicSiteUrl("https://vetneb.com.ar/", "production"),
+    "https://vetneb.com.ar",
+  );
+  // origin normaliza host y descarta path/query sobrantes.
+  assert.equal(
+    resolvePublicSiteUrl("https://VETNEB.com.ar", "production"),
+    "https://vetneb.com.ar",
+  );
+});
+
+test("resolvePublicSiteUrl exige https en producción", () => {
+  assert.throws(
+    () => resolvePublicSiteUrl("http://vetneb.com.ar", "production"),
+    /https/,
+  );
+  assert.throws(
+    () => resolvePublicSiteUrl("http://localhost:3001", "production"),
+    /https/,
+  );
+});
+
+test("resolvePublicSiteUrl admite http://localhost solo en development/test", () => {
+  assert.equal(
+    resolvePublicSiteUrl("http://localhost:3001", "development"),
+    "http://localhost:3001",
+  );
+  assert.equal(
+    resolvePublicSiteUrl("http://127.0.0.1:3000/", "test"),
+    "http://127.0.0.1:3000",
+  );
+});
+
+test("resolvePublicSiteUrl hace fail-fast ante un valor inválido", () => {
+  assert.throws(() => resolvePublicSiteUrl("no-es-una-url", "production"), /URL/);
 });
 
 test("ENV exige CORS_ORIGIN explícito en producción", () => {

@@ -532,6 +532,22 @@ exige build+E2E). El resto está saludable.
   usa la var con **fallback** a `CORS_ORIGIN`; documentar en `.env.example`.
 - **Validación:** test de link con/sin la var; `pnpm test -- logger-and-email`; `pnpm typecheck`.
 - **Rollback:** quitar la var → fallback automático; sin cambio de contrato.
+- **Nota de seguimiento (ejecución real, rama `clean/email-public-site-url-contract`):**
+  implementado con el nombre canónico **`PUBLIC_SITE_URL`** (coherente con
+  `NEXT_PUBLIC_SITE_URL` del frontend), no `PUBLIC_PORTAL_URL`. (a) `server/lib/env.ts`
+  agrega `PUBLIC_SITE_URL` al schema y expone `ENV.publicSiteUrl`, resuelto por
+  `resolvePublicSiteUrl()`: normaliza al **origen** (sin trailing slash), exige `https`
+  en producción (admite `http://localhost`/`127.0.0.1` en development/test) y hace
+  **fail-fast** en el startup ante un valor inválido. (b) `server/lib/email.ts`:
+  `resolveParticularPortalUrl(ENV.publicSiteUrl, ENV.corsOrigins)` prioriza
+  `PUBLIC_SITE_URL` y mantiene el **fallback** al primer origen `https` de `CORS_ORIGIN`
+  (cero ruptura si Render aún no define la var). (c) `.env.example` documenta
+  `PUBLIC_SITE_URL=https://vetneb.com.ar` y la diferencia conceptual con `CORS_ORIGIN`.
+  (d) Tests: `test/email-html-templates.test.ts` cubre A (usa `PUBLIC_SITE_URL`),
+  B (trailing slash no duplica barra), C (fallback a CORS), D (onrender de CORS no gana)
+  y E (token no se imprime en logs); `test/env.test.ts` cubre `resolvePublicSiteUrl`
+  (normalización, https requerido, localhost en dev/test, fail-fast). **Acción manual
+  post-merge:** agregar `PUBLIC_SITE_URL=https://vetneb.com.ar` en el backend de Render.
 
 ### PR-CLEAN4 · (reservado) www/CORS topology
 - **Alcance (investigar):** decidir si `CORS_ORIGIN` incluye `www.vetneb.com.ar`
