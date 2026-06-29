@@ -63,7 +63,9 @@ La deuda activa real queda limitada a:
    fragmentada (`audit/` + `audits/`, notas de implementación en 3 lugares,
    ~31 `pr-*.md` sueltos en la raíz de `docs/`). *(P2.)*
 2. **P2-E · Logger/console observability**: logger mínimo y mezcla de
-   `console.*`/logger en backend. *(P2.)*
+   `console.*`/logger en backend. *(P2.)* **Cerrado documentalmente
+   (2026-06-29)** — ver detalle más abajo y
+   `docs/audit/backend-observability-logger-console-audit.md`.
 3. **P3 · Artefactos históricos/orfanados**: cerrado por
    `clean/remove-orphaned-historical-artifacts` (2026-06-29); se eliminaron
    `legacy/drizzle-old/`, `scripts/generate-pwa-icons.py` y
@@ -414,6 +416,20 @@ deploy roto ni auth rota en el estado actual.
   `recipients/messageId/transport`, nunca el token). Sí loguea emails (PII operacional).
 - **Acción:** **documentar** como deuda de observabilidad; opcional unificar a
   logger con niveles. No bloqueante para el cierre.
+- **Estado actualizado (2026-06-29):** **cerrado documentalmente** por la rama
+  `docs/observability-logger-console-audit` (docs-only, sin tocar runtime). Auditoría
+  completa en `docs/audit/backend-observability-logger-console-audit.md`: confirma
+  56 `console.*` / 9 `logInfo|logWarn|logError` (estos últimos sólo usados en
+  `server/lib/audit.ts`), clasificados en 4 familias — request access logging
+  sanitizado (20), email info logs con PII de `recipients` pero sin token (9),
+  errores ya sanitizados vía `getSafeErrorName`/`getSanitizedDbErrorDetails` (~17)
+  y un subgrupo nuevo de **riesgo moderado** (4 puntos: `middlewares/error-handler.ts:67`,
+  `fastify-app.ts:381`, `admin-pricing.fastify.ts:406,502`, `public-pricing.fastify.ts:125`)
+  que loguean el objeto `error` completo en vez de sólo `message`/`name`. No se
+  detectó fuga de secretos/tokens/contraseñas. Plan futuro (no ejecutado en esta
+  rama): unificar a `logInfo/logWarn/logError`, acotar el subgrupo de riesgo
+  moderado al patrón `errorName` ya usado en el resto del backend, y evaluar
+  redacción parcial de `recipients` en `email.ts`.
 
 #### P2-F · `APP_VERSION` / `CLIENT_MIN_VERSION` / `NEXT_PUBLIC_APP_VERSION` no documentadas en `.env.example`
 - **Tipo:** env / docs · **Riesgo:** Bajo.
