@@ -155,7 +155,24 @@ Resultado de `pnpm why`:
 
 ### PR-CLEAN7D · Radix por grupos
 
-**No mezclar con tooling.**
+**Estado:** ejecutado el 2026-06-29 en la rama
+`clean/frontend-radix-unused-core`, base HEAD `a4582e4`.
+
+Se elimino solo el grupo Radix clasificado como `SUSPECT unused`:
+`@radix-ui/react-avatar`, `@radix-ui/react-dropdown-menu`,
+`@radix-ui/react-label`, `@radix-ui/react-select` y
+`@radix-ui/react-tabs`.
+
+La remocion se aplico con
+`corepack pnpm --dir frontend remove @radix-ui/react-avatar @radix-ui/react-dropdown-menu @radix-ui/react-label @radix-ui/react-select @radix-ui/react-tabs`,
+regenerando `pnpm-lock.yaml`. `@radix-ui/react-toast` y
+`@radix-ui/react-tooltip` permanecen declarados como `DEFER keep`.
+
+No se mezclo con tooling ni se tocaron runtime frontend/backend, DB,
+migraciones, workflows, Render, secrets, otras dependencias ni
+`package.json` raiz.
+
+**Referencia historica previa:** no mezclar con tooling.
 
 Orden sugerido:
 
@@ -171,13 +188,13 @@ Orden sugerido:
 
 ## 6. Riesgo residual
 
-- Riesgo principal restante: `test/package-scripts-contract.test.ts` y guardrails
-  de scope siguen fijando Radix; cualquier eliminación futura de Radix debe
-  actualizar esos tests en el mismo PR.
+- Riesgo principal restante: `toast`/`tooltip` no estan vivos hoy, pero siguen
+  diferidos por roadmap funcional explicito; su adopcion o remocion debe ser PR
+  separado.
 - El riesgo de tooling ESLint se cerró en PR-CLEAN7C con lint antes/después y
   validaciones completas.
-- `toast`/`tooltip` no están vivos hoy, pero sí tienen roadmap funcional
-  explícito. Borrarlos sin decisión de producto puede crear churn.
+- El grupo Radix `SUSPECT unused` ya fue removido en PR-CLEAN7D; los tests de
+  contrato se ajustaron para exigir solo Radix activos o diferidos.
 
 ---
 
@@ -186,8 +203,8 @@ Orden sugerido:
 - Auditoría P2-B remanente actualizada post-PR-CLEAN7C.
 - Se eliminaron sólo `@eslint/eslintrc` y la dependencia directa
   `@next/eslint-plugin-next`.
-- `frontend/package.json` y `pnpm-lock.yaml` cambiaron sólo por esa remoción
-  vía pnpm.
+- PR-CLEAN7D elimino despues solo `avatar`, `dropdown-menu`, `label`, `select`
+  y `tabs`; `toast`/`tooltip` siguen preservados.
 - No se tocó runtime frontend/backend, DB, migraciones, workflows, Render ni
   secrets.
 - No commit, no push, no PR.

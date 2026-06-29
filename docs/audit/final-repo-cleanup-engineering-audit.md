@@ -1103,8 +1103,9 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
   (rama `clean/remove-dead-shared-module`); artefactos P3 (`legacy/drizzle-old/`,
   `generate-pwa-icons.py`, `FUSION_POR_COMANDO.sh`) pendientes.
 - [~] PR-CLEAN7 (deps sin uso): PR-CLEAN7A ejecutado; PR-CLEAN7B docs-only
-  completado; PR-CLEAN7C tooling ejecutado; queda decisión opcional PR-CLEAN7D
-  Radix por grupos, más E2E completa si se toca manifest/lock.
+  completado; PR-CLEAN7C tooling ejecutado; PR-CLEAN7D Radix `SUSPECT unused`
+  ejecutado para `avatar`, `dropdown-menu`, `label`, `select` y `tabs`.
+  `toast`/`tooltip` quedan diferidos por roadmap.
 - [ ] `.env.example` y `frontend/.env.example` documentan **todas** las vars usadas.
 - [ ] `docs/notes/todo.md` ya no contradice la arquitectura real.
 - [ ] Taxonomía `docs/` unificada (sin `audit`+`audits`, sin `pr-*.md` sueltos).
@@ -1199,3 +1200,45 @@ git grep -n 'from "../lib/cors-headers.ts"' -- server/routes
   `getAllowedOrigins`, `getAllowedOriginForCors` y `getRequestOrigin` desde
   `server/lib/cors-headers.ts`, conserva `applyCorsHeaders` local y mantiene el
   contrato GET/OPTIONS.
+
+---
+
+## Apéndice C — Cierre PR-CLEAN7D Radix unused (2026-06-29)
+
+**Base local:**
+
+```text
+git branch --show-current -> clean/frontend-radix-unused-core
+git log -1 --oneline      -> a4582e4 chore(frontend): remove redundant eslint tooling deps (#1177)
+git status --short        -> (vacio antes de editar)
+```
+
+**Decision aplicada:**
+
+- Remover solo `@radix-ui/react-avatar`,
+  `@radix-ui/react-dropdown-menu`, `@radix-ui/react-label`,
+  `@radix-ui/react-select` y `@radix-ui/react-tabs`.
+- Mantener `@radix-ui/react-toast` y `@radix-ui/react-tooltip` como
+  `DEFER keep`.
+- No tocar runtime frontend/backend, DB, migraciones, workflows, Render,
+  secrets, otras dependencias ni `package.json` raiz.
+
+**Evidencia previa:**
+
+```text
+git grep amplio -> solo manifest, lockfile, tests/helpers y documentacion.
+git grep imports reales from/require/import() para los cinco candidatos -> 0 resultados.
+corepack pnpm --dir frontend why <paquete> -> cada candidato era dependencia directa del frontend.
+```
+
+**Cambio aplicado:**
+
+```text
+corepack pnpm --dir frontend remove @radix-ui/react-avatar @radix-ui/react-dropdown-menu @radix-ui/react-label @radix-ui/react-select @radix-ui/react-tabs
+```
+
+`frontend/package.json` y `pnpm-lock.yaml` fueron actualizados por pnpm. Los
+contratos `test/package-scripts-contract.test.ts` y
+`test/helpers/clean7a-dependency-cleanup-scope.ts` se ajustaron solo para dejar
+de exigir/preservar el grupo removido y seguir preservando Radix activo o
+diferido (`dialog`, `separator`, `slot`, `toast`, `tooltip`).
