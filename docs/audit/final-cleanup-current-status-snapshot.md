@@ -42,6 +42,7 @@
 | P2-A `shared/` | Cerrado | #1173, eliminado `shared/` y `test/shared-const-and-errors.test.ts` |
 | P2-B frontend dependencies | Cerrado | #1175, #1176, #1177, #1178, #1179 |
 | P2-F env version vars | Cerrado | `APP_VERSION`/`CLIENT_MIN_VERSION` en `.env.example`; `NEXT_PUBLIC_APP_VERSION` en `frontend/.env.example` |
+| P2-C `docs/notes/todo.md` contradictorio | Cerrado | histórico tRPC/Google Sheets archivado en `docs/archive/legacy-trpc-sheets-todo.md`; logística vigente preservada |
 | Tooling `UNKNOWN` frontend | Cerrado | #1177 |
 | Radix PR-CLEAN7D | Cerrado | #1178 |
 
@@ -49,7 +50,6 @@
 
 | Id | Pendiente | Estado |
 | --- | --- | --- |
-| P2-C | `docs/notes/todo.md` contradictorio | Pendiente |
 | P2-D | Taxonomía documental fragmentada | Pendiente |
 | P2-E | Logger/console observability | Pendiente |
 | P3 | Artefactos históricos/orfanados (`legacy/drizzle-old/`, `scripts/generate-pwa-icons.py`, `scripts/maintenance/FUSION_POR_COMANDO.sh`) | Pendiente |
