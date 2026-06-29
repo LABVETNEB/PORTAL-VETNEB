@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { isClean7aAllowedDependencyChange } from "./helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
 
 const DASHBOARD_HOME_PATH = "frontend/src/app/dashboard/page.tsx";
@@ -185,6 +186,7 @@ test("PR-9 mobile polish scope avoids forbidden surfaces and dependencies", () =
     "server/routes/contact.fastify.ts",
   ];
   for (const file of changedFiles) {
+    if (isClean7aAllowedDependencyChange(file)) continue;
     if (isReportForeignAccessBackendFile(file)) continue;
     if (pr4ServerFiles.includes(file)) continue;
     // Exact shared public SEO exception: this PR intentionally updates

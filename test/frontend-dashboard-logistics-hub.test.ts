@@ -3,6 +3,10 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import {
+  assertClean7aDependencyCleanupScope,
+  isClean7aAllowedDependencyFile,
+} from "./helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
 
 const LOGISTICS_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
@@ -287,14 +291,18 @@ test("logistics hub changes stay inside frontend scope (no package or dep change
     "git",
     ["diff", "--name-only", "--", "package.json", "pnpm-lock.yaml"],
     { encoding: "utf8" },
-  ).trim();
+  )
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean);
 
   assertNoForbiddenSurfaceImports(commandCenterSource, "LogisticsCommandCenter");
   assertNoForbiddenSurfaceImports(stickyActionBarSource, "StickyActionBar");
-  assert.equal(
-    packageDiff.length,
-    0,
-    `package.json and pnpm-lock.yaml must not be modified: ${packageDiff}`,
+  assertClean7aDependencyCleanupScope();
+  assert.deepEqual(
+    packageDiff.filter((file) => !isClean7aAllowedDependencyFile(file)),
+    [],
+    `package.json and pnpm-lock.yaml must not be modified outside PR-CLEAN7A: ${packageDiff.join(", ")}`,
   );
 });
 
@@ -334,7 +342,7 @@ test("logistics hub changes do not touch backend, API routes, auth, middleware o
   for (const path of forbiddenPaths) {
     const matching = filteredChangedFiles
       .split("\n")
-      .filter((f) => f.includes(path));
+      .filter((f) => f.includes(path) && !isClean7aAllowedDependencyFile(f));
     assert.equal(
       matching.length,
       0,

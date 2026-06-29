@@ -114,9 +114,6 @@ test("frontend package keeps runtime dependency surface", () => {
   assert.ok(dependencies.next);
   assert.ok(dependencies.react);
   assert.ok(dependencies["react-dom"]);
-  assert.ok(dependencies["@tanstack/react-query"]);
-  assert.ok(dependencies["@tanstack/react-table"]);
-  assert.ok(dependencies["react-hook-form"]);
   assert.ok(dependencies.zod);
   assert.ok(dependencies["class-variance-authority"]);
   assert.ok(dependencies.clsx);
@@ -124,7 +121,7 @@ test("frontend package keeps runtime dependency surface", () => {
   assert.ok(dependencies["lucide-react"]);
 });
 
-test("frontend package keeps Radix UI and visualization dependency surface", () => {
+test("frontend package keeps Radix UI dependency surface", () => {
   const pkg = readPackage("frontend/package.json");
   const dependencies = pkg.dependencies ?? {};
 
@@ -138,8 +135,6 @@ test("frontend package keeps Radix UI and visualization dependency surface", () 
   assert.ok(dependencies["@radix-ui/react-tabs"]);
   assert.ok(dependencies["@radix-ui/react-toast"]);
   assert.ok(dependencies["@radix-ui/react-tooltip"]);
-  assert.ok(dependencies.echarts);
-  assert.ok(dependencies["echarts-for-react"]);
 });
 
 test("frontend package keeps development dependency surface", () => {

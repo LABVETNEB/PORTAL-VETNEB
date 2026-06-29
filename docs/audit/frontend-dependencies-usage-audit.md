@@ -275,3 +275,24 @@ adoptar `toast`/`tooltip`.
 - Candidatos documentados; no se removió ninguna dependencia.
 - `frontend/package.json` y `pnpm-lock.yaml` permanecen sin cambios.
 - No commit, no push, no PR.
+
+## 8. Nota final PR-CLEAN7A
+
+**Estado:** ejecutado el 2026-06-29 en la rama
+`clean/remove-unused-frontend-deps-core`, base HEAD `2140f28`.
+
+Se eliminó únicamente el grupo charts/table/query/forms clasificado como
+`SUSPECT unused`: `@tanstack/react-query`, `@tanstack/react-table`, `echarts`,
+`echarts-for-react` y `react-hook-form`. La remoción se aplicó con
+`corepack pnpm --dir frontend remove @tanstack/react-query @tanstack/react-table echarts echarts-for-react react-hook-form`,
+después de que `pnpm --dir frontend remove ...` fallara localmente por
+`ERR_PNPM_PUBLIC_HOIST_PATTERN_DIFF`.
+
+Cambios de alcance PR-CLEAN7A:
+
+- `frontend/package.json`: removidas sólo las 5 dependencias indicadas.
+- `pnpm-lock.yaml`: lockfile regenerado por pnpm.
+- `test/package-scripts-contract.test.ts`: removidas sólo las aserciones que
+  exigían esas 5 dependencias.
+- No se tocaron Radix, dependencias `UNKNOWN`, runtime frontend/backend, DB,
+  migraciones, workflows, Render ni secrets.
