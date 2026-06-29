@@ -875,6 +875,125 @@ export function AdminParticularTokensCard() {
     setErrorMessage(null);
   }
 
+  function renderAdvancedFilterForm(mobile = false) {
+    return (
+      <form
+        data-admin-filter-bar={mobile ? "advanced-mobile" : "advanced"}
+        className={
+          mobile
+            ? "grid grid-cols-2 items-end gap-2"
+            : "hidden shrink-0 grid-cols-2 items-end gap-1.5 rounded-lg border border-vetneb-line/70 bg-muted/15 px-2 py-1 md:grid md:grid-cols-4 lg:grid-cols-[1.05fr_1.25fr_0.8fr_1fr_0.8fr_0.85fr_0.85fr_auto_auto] lg:px-2"
+        }
+        onSubmit={applyAdvancedFilters}
+        aria-label={
+          mobile
+            ? "Filtros avanzados de tokens particulares mobile"
+            : "Filtros avanzados de tokens particulares"
+        }
+      >
+        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
+          Token
+          <Input
+            className="h-8 text-xs"
+            type="text"
+            placeholder="Últimos 4"
+            value={filterDraft.token}
+            onChange={(event) => updateFilterDraft("token", event.target.value)}
+          />
+        </label>
+        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
+          Clínica
+          <Input
+            className="h-8 text-xs"
+            type="text"
+            placeholder="Nombre o ID"
+            value={filterDraft.clinic}
+            onChange={(event) => updateFilterDraft("clinic", event.target.value)}
+          />
+        </label>
+        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
+          Informe
+          <Input
+            className="h-8 text-xs"
+            type="text"
+            placeholder="#ID"
+            value={filterDraft.reportId}
+            onChange={(event) => updateFilterDraft("reportId", event.target.value)}
+          />
+        </label>
+        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
+          Paciente / tutor
+          <Input
+            className="h-8 text-xs"
+            type="text"
+            placeholder="Texto visible"
+            value={filterDraft.patient}
+            onChange={(event) => updateFilterDraft("patient", event.target.value)}
+          />
+        </label>
+        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
+          Estado
+          <select
+            className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15"
+            value={filterDraft.status}
+            onChange={(event) =>
+              updateFilterDraft(
+                "status",
+                event.target.value as AdminParticularTokenFilterState["status"],
+              )
+            }
+          >
+            <option value="">Todos</option>
+            <option value="active">Activos</option>
+            <option value="inactive">Inactivos</option>
+          </select>
+        </label>
+        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
+          Desde
+          <Input
+            className="h-8 text-xs"
+            type="date"
+            value={filterDraft.from}
+            onChange={(event) => updateFilterDraft("from", event.target.value)}
+          />
+        </label>
+        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
+          Hasta
+          <Input
+            className="h-8 text-xs"
+            type="date"
+            value={filterDraft.to}
+            onChange={(event) => updateFilterDraft("to", event.target.value)}
+          />
+        </label>
+        <Button type="submit" size="sm" className="h-8 gap-1.5 px-2.5 text-xs">
+          <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+          Aplicar
+        </Button>
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {hasActiveFilters ? (
+            <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={clearAdvancedFilters}>
+              Limpiar
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 px-2 text-xs"
+            onClick={() => {
+              void loadTokens();
+              if (isMobileViewport) void loadMobileTokens();
+            }}
+            disabled={isLoadingTokens}
+          >
+            {isLoadingTokens ? "Actualizando…" : "Actualizar"}
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
   function openTokenDetail(token: AdminParticularTokenSummary) {
     setSelectedTokenId(token.id);
     setDetailTab("summary");
@@ -1182,97 +1301,13 @@ export function AdminParticularTokensCard() {
 
         </div>
 
-        <form
-          data-admin-filter-bar="advanced"
-          className="grid shrink-0 grid-cols-2 items-end gap-2 rounded-lg border border-vetneb-line/70 bg-muted/15 px-2.5 py-2 md:grid-cols-4 lg:grid-cols-[1.05fr_1.25fr_0.8fr_1fr_0.8fr_0.85fr_0.85fr_auto_auto] lg:px-3"
-          onSubmit={applyAdvancedFilters}
-          aria-label="Filtros avanzados de tokens particulares"
-        >
-          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
-            Token
-            <Input
-              className="h-8 text-xs"
-              type="text"
-              placeholder="Últimos 4"
-              value={filterDraft.token}
-              onChange={(event) => updateFilterDraft("token", event.target.value)}
-            />
-          </label>
-          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
-            Clínica
-            <Input
-              className="h-8 text-xs"
-              type="text"
-              placeholder="Nombre o ID"
-              value={filterDraft.clinic}
-              onChange={(event) => updateFilterDraft("clinic", event.target.value)}
-            />
-          </label>
-          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
-            Informe
-            <Input
-              className="h-8 text-xs"
-              type="text"
-              placeholder="#ID"
-              value={filterDraft.reportId}
-              onChange={(event) => updateFilterDraft("reportId", event.target.value)}
-            />
-          </label>
-          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
-            Paciente / tutor
-            <Input
-              className="h-8 text-xs"
-              type="text"
-              placeholder="Texto visible"
-              value={filterDraft.patient}
-              onChange={(event) => updateFilterDraft("patient", event.target.value)}
-            />
-          </label>
-          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
-            Estado
-            <select
-              className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15"
-              value={filterDraft.status}
-              onChange={(event) =>
-                updateFilterDraft(
-                  "status",
-                  event.target.value as AdminParticularTokenFilterState["status"],
-                )
-              }
-            >
-              <option value="">Todos</option>
-              <option value="active">Activo</option>
-              <option value="inactive">Inactivo</option>
-            </select>
-          </label>
-          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
-            Desde
-            <Input
-              className="h-8 text-xs"
-              type="date"
-              value={filterDraft.from}
-              onChange={(event) => updateFilterDraft("from", event.target.value)}
-            />
-          </label>
-          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
-            Hasta
-            <Input
-              className="h-8 text-xs"
-              type="date"
-              value={filterDraft.to}
-              onChange={(event) => updateFilterDraft("to", event.target.value)}
-            />
-          </label>
-          <Button type="submit" size="sm" className="h-8 gap-1.5 px-2.5 text-xs">
-            <Filter className="h-3.5 w-3.5" aria-hidden="true" />
-            Aplicar
-          </Button>
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            {hasActiveFilters ? (
-              <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={clearAdvancedFilters}>
-                Limpiar
-              </Button>
-            ) : null}
+        {renderAdvancedFilterForm()}
+
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-1 rounded-lg border border-vetneb-line/70 bg-muted/15 px-2.5 py-1 md:hidden">
+          <span className="text-xs text-muted-foreground">
+            {hasActiveFilters ? "Filtros activos" : "Todos los tokens"}
+          </span>
+          <div className="flex items-center gap-1">
             <Button
               type="button"
               variant="outline"
@@ -1286,8 +1321,20 @@ export function AdminParticularTokensCard() {
             >
               {isLoadingTokens ? "Actualizando…" : "Actualizar"}
             </Button>
+            <ModuleDialog
+              title="Filtrar tokens"
+              description="Los filtros se aplican sobre la página cargada."
+              trigger={
+                <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-2.5 text-xs">
+                  <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+                  Filtros
+                </Button>
+              }
+            >
+              {renderAdvancedFilterForm(true)}
+            </ModuleDialog>
           </div>
-        </form>
+        </div>
 
         {errorMessage ? (
           <p className="clinical-alert-error shrink-0 px-3 py-1.5 text-xs" role="alert">
@@ -1305,7 +1352,7 @@ export function AdminParticularTokensCard() {
           className="flex min-h-0 flex-1 flex-col"
         >
           <div className="dashboard-table-responsive hidden min-h-0 flex-1 md:block">
-            <Table className="table-fixed text-[0.8125rem] [&_th]:h-8 [&_th]:px-2.5 [&_td]:px-2.5">
+            <Table className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[20%]">Token / paciente</TableHead>
@@ -1329,10 +1376,7 @@ export function AdminParticularTokensCard() {
                       </p>
                     </TableCell>
                     <TableCell className="py-0.5">
-                      <p className="truncate">
-                        {resolveClinicName(clinicOptions, token.clinicId) ??
-                          `Clínica #${token.clinicId}`}
-                      </p>
+                      <p className="truncate">{`Clínica #${token.clinicId}`}</p>
                     </TableCell>
                     <TableCell className="py-0.5">
                       <Badge
@@ -1387,9 +1431,8 @@ export function AdminParticularTokensCard() {
                       ****{token.tokenLast4} · {token.petName}
                     </p>
                     <p className="truncate text-[0.6875rem] text-muted-foreground">
-                      {resolveClinicName(clinicOptions, token.clinicId) ??
-                        `Clínica #${token.clinicId}`}{" "}
-                      · {token.reportId ? `Informe #${token.reportId}` : "Sin informe"}
+                      {`Clínica #${token.clinicId}`} ·{" "}
+                      {token.reportId ? `Informe #${token.reportId}` : "Sin informe"}
                     </p>
                   </div>
                   <Badge

@@ -180,8 +180,10 @@ test("admin particular tokens exposes advanced filter bar for real table fields"
   const source = read(ADMIN_CARD_PATH);
   const auditFilter = read("frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx");
 
-  assert.ok(source.includes('data-admin-filter-bar="advanced"'));
-  assert.ok(source.includes('aria-label="Filtros avanzados de tokens particulares"'));
+  assert.ok(source.includes('data-admin-filter-bar={mobile ? "advanced-mobile" : "advanced"}'));
+  assert.ok(source.includes('"Filtros avanzados de tokens particulares"'));
+  assert.ok(source.includes("Filtros avanzados de tokens particulares mobile"));
+  assert.ok(source.includes("Todos los tokens"));
   assert.ok(source.includes("type AdminParticularTokenFilterState = {"));
   assert.ok(source.includes("token: string;"));
   assert.ok(source.includes("clinic: string;"));
@@ -546,7 +548,7 @@ test("admin token card shows selected linked report preview and download actions
   assert.equal(card.includes("storagePath"), false);
 });
 
-test("admin token card renders clinic name in list and selected detail with fallback", () => {
+test("admin token card filters by resolved clinic name while rows keep stable clinic id fallback", () => {
   const card = read(ADMIN_CARD_PATH);
 
   assert.ok(card.includes("hasResolvedName: boolean;"));
@@ -559,6 +561,8 @@ test("admin token card renders clinic name in list and selected detail with fall
   assert.ok(card.includes("`Clínica: ${clinicName} (#${clinicId})`"));
   assert.ok(card.includes("`Clínica #${clinicId}`"));
   assert.ok(card.includes("resolveClinicName(clinicOptions, token.clinicId) ??"));
+  assert.ok(card.includes('<p className="truncate">{`Clínica #${token.clinicId}`}</p>'));
+  assert.ok(card.includes("{`Clínica #${token.clinicId}`} ·"));
   assert.ok(card.includes("description={formatTokenTitle(clinicOptions, selectedToken)}"));
   assert.ok(card.includes("{formatTokenClinicLink(clinicOptions, selectedToken.clinicId)}"));
 });

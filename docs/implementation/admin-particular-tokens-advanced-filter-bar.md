@@ -86,6 +86,3 @@ y revisar desktop, notebook, tablet, Android e iOS sin overflow horizontal y con
 ## Estado final
 
 Implementación lista para validaciones y revisión manual. Sin commit, sin push, sin PR y sin stage.
-
-
-
