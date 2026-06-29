@@ -226,6 +226,24 @@ deploy roto ni auth rota en el estado actual.
   (`HttpError`, `BadRequestError`…) tampoco se usa en runtime; tiene además un BOM inicial.
 - **Acción:** **eliminar `shared/` + su test** en un PR (**PR-CLEAN6**), tras
   confirmar build/typecheck. Riesgo bajo: nada productivo lo referencia.
+- **Snapshot de auditoría dedicada (2026-06-29, rama `audit/shared-module-usage`,
+  HEAD `f9d1876`):** inventario detallado en
+  [`docs/audit/shared-module-usage-audit.md`](shared-module-usage-audit.md).
+  Confirma **DEAD** con grep reproducible y refina el hallazgo:
+  - `git grep -n "from ['\"]../shared"` → **solo** `test/shared-const-and-errors.test.ts:12,19`.
+  - `shared/types.ts` está **doblemente muerto**: cero importadores, ni siquiera el
+    test (este solo importa `const.ts` y `_core/errors.ts`).
+  - `COOKIE_NAME` (`"app_session_id"`) **no** es fuente de verdad: `frontend/src/proxy.ts:3`
+    hardcodea el literal sin importar `shared/`. La única aserción no-tautológica del
+    test (paridad de cookie) compara dos literales duplicados.
+  - Sin alias `@shared` en ningún `tsconfig`/bundler; `tsconfig.json` (root) `include`
+    **no** lista `shared/**` (entra al typecheck solo vía el grafo del test, `typecheck:test`).
+  - Falsos positivos descartados: `from "./admin-audit-shared"` (archivo propio del
+    frontend, no el módulo) y `"shared/"` en 6 `test/frontend-dashboard-*.test.ts`
+    (scope guards de prefijo, no imports; eliminar el directorio no los rompe).
+  - Recomendación reafirmada: ejecutar **PR-CLEAN6** sin cambio de alcance; opción de
+    relocalizar el guard de paridad de cookie (bajo valor). Auditoría docs-only: no se
+    tocó runtime; no commit/push/PR.
 
 #### P2-B · Dependencias de frontend sin uso
 - **Tipo:** dependencias / performance-surface · **Riesgo:** Medio (verificar build/E2E).
