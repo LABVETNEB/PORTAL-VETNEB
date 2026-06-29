@@ -144,7 +144,6 @@ test("frontend package keeps development dependency surface", () => {
   assert.ok(devDependencies.typescript);
   assert.ok(devDependencies.eslint);
   assert.ok(devDependencies["eslint-config-next"]);
-  assert.ok(devDependencies["@eslint/eslintrc"]);
   assert.ok(devDependencies["@playwright/test"]);
   assert.ok(devDependencies["@types/node"]);
   assert.ok(devDependencies["@types/react"]);

@@ -26,7 +26,7 @@ const RADIX_DEPENDENCIES_LEFT_UNTOUCHED = [
   "@radix-ui/react-tooltip",
 ] as const;
 
-const UNKNOWN_DEV_DEPENDENCIES_LEFT_UNTOUCHED = [
+const CLEAN7C_REMOVED_DEV_DEPENDENCIES = [
   "@eslint/eslintrc",
   "@next/eslint-plugin-next",
 ] as const;
@@ -92,10 +92,11 @@ export function assertClean7aDependencyCleanupScope(): void {
     );
   }
 
-  for (const dependency of UNKNOWN_DEV_DEPENDENCIES_LEFT_UNTOUCHED) {
-    assert.ok(
+  for (const dependency of CLEAN7C_REMOVED_DEV_DEPENDENCIES) {
+    assert.equal(
       devDependencies[dependency],
-      `PR-CLEAN7A must not remove UNKNOWN tooling dependency ${dependency}`,
+      undefined,
+      `PR-CLEAN7C must remove only the approved ESLint tooling dependency ${dependency}`,
     );
   }
 

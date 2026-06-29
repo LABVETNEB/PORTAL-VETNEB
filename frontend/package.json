@@ -41,8 +41,6 @@
     "zod": "^4"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.5",
-    "@next/eslint-plugin-next": "16.2.7",
     "@playwright/test": "^1.61.0",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/node": "^25.9.1",
