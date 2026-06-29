@@ -58,8 +58,18 @@ test("logistics field visit API validates contracts and pagination before callin
 });
 
 test("logistics field visit API keeps unsafe methods behind trusted-origin checks", () => {
-  assert.match(routeSource, /const UNSAFE_METHODS = new Set\(\["POST", "PUT", "PATCH", "DELETE"\]\)/);
-  assert.match(routeSource, /function enforceTrustedOrigin/);
+  assert.match(routeSource, /from "\.\.\/lib\/cors-headers\.ts";/);
+  assert.match(routeSource, /UNSAFE_METHODS,/);
+  assert.match(routeSource, /enforceTrustedOrigin,/);
+  assert.match(routeSource, /getAllowedOriginForCors,/);
+  assert.match(routeSource, /getAllowedOrigins,/);
+  assert.match(routeSource, /getRequestOrigin,/);
+  assert.match(routeSource, /function applyCorsHeaders/);
+  assert.doesNotMatch(routeSource, /const UNSAFE_METHODS = new Set\(\["POST", "PUT", "PATCH", "DELETE"\]\)/);
+  assert.doesNotMatch(routeSource, /function getAllowedOrigins/);
+  assert.doesNotMatch(routeSource, /function normalizeOrigin/);
+  assert.doesNotMatch(routeSource, /function getRequestOrigin/);
+  assert.doesNotMatch(routeSource, /function enforceTrustedOrigin/);
   assert.match(routeSource, /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)/);
   assert.match(routeSource, /Origen no permitido/);
 });

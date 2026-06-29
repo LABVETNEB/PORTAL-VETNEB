@@ -27,6 +27,12 @@ const authRouteFiles = [
   "server/routes/particular-auth.fastify.ts",
 ] as const;
 
+const logisticsRouteFiles = [
+  "server/routes/logistics-field-visits.fastify.ts",
+  "server/routes/logistics-route-events.fastify.ts",
+  "server/routes/logistics-route-plans.fastify.ts",
+] as const;
+
 const clinicSessionCookieRouteFiles = [
   "server/routes/auth.fastify.ts",
   "server/routes/clinic-audit.fastify.ts",
@@ -246,6 +252,53 @@ test("origin/CORS bloquea métodos inseguros con Origin no permitido y no usa wi
     assertContains(source, "  getAllowedOrigins,", file);
     assertContains(source, "  getRequestOrigin,", file);
     assertContains(source, "function applyCorsHeaders(", file);
+    assertNotContains(
+      source,
+      'const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);',
+      file,
+    );
+    assertNotContains(
+      source,
+      "function getAllowedOrigins(): string[]",
+      file,
+    );
+    assertNotContains(
+      source,
+      "function normalizeOrigin(value: string): string | null",
+      file,
+    );
+    assertNotContains(
+      source,
+      "function getRequestOrigin(request: FastifyRequest): string | null",
+      file,
+    );
+    assertNotContains(source, "function enforceTrustedOrigin(", file);
+    assertContains(source, 'error: "Origen no permitido"', file);
+    assertContains(source, 'reply.header("vary", "Origin")', file);
+    assertContains(source, 'reply.header("access-control-allow-origin", allowedOrigin)', file);
+    assertContains(source, 'reply.header("access-control-allow-credentials", "true")', file);
+    assertNotContains(source, 'access-control-allow-origin", "*"', file);
+  }
+
+  for (const file of logisticsRouteFiles) {
+    const source = read(file);
+
+    assertContains(
+      source,
+      'from "../lib/cors-headers.ts";',
+      file,
+    );
+    assertContains(source, "  UNSAFE_METHODS,", file);
+    assertContains(source, "  enforceTrustedOrigin,", file);
+    assertContains(source, "  getAllowedOriginForCors,", file);
+    assertContains(source, "  getAllowedOrigins,", file);
+    assertContains(source, "  getRequestOrigin,", file);
+    assertContains(source, "function applyCorsHeaders(", file);
+    assertContains(
+      source,
+      "UNSAFE_METHODS.has(request.method.toUpperCase())",
+      file,
+    );
     assertNotContains(
       source,
       'const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);',
