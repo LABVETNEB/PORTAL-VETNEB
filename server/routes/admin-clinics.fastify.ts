@@ -7,6 +7,12 @@ import type {
 import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
+  getAllowedOrigins,
+  getAllowedOriginForCors,
+  getRequestOrigin,
+  enforceTrustedOrigin,
+} from "../lib/cors-headers.ts";
+import {
   authenticateFastifyAdmin,
   type FastifyAuthenticatedAdmin,
 } from "../lib/fastify-admin-auth.ts";
@@ -19,8 +25,6 @@ import type {
   AdminClinicUpdateInput,
 } from "../db-admin-clinics.ts";
 import type { ClinicUserRole } from "../../drizzle/schema.ts";
-
-const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 type AdminSessionRecord = {
   id?: number;
@@ -67,10 +71,6 @@ type AdminClinicDeleteBody = {
 type AdminClinicParams = {
   clinicId: string;
 };
-
-function getAllowedOrigins() {
-  return ENV.corsOrigins.map((origin) => origin.trim().toLowerCase());
-}
 
 export type AdminClinicsNativeRoutesOptions = {
   deleteAdminSession?: (tokenHash: string) => Promise<void>;
@@ -209,54 +209,6 @@ function parseClinicUserRole(value: unknown): ClinicUserRole | null {
   return null;
 }
 
-function normalizeOrigin(value: string): string | null {
-  try {
-    return new URL(value).origin.trim().toLowerCase();
-  } catch {
-    return null;
-  }
-}
-
-function getOriginHeader(request: FastifyRequest): string {
-  return typeof request.headers.origin === "string"
-    ? request.headers.origin.trim()
-    : "";
-}
-
-function getAllowedOriginForCors(
-  request: FastifyRequest,
-  allowedOrigins: ReadonlySet<string>,
-): string | null {
-  const rawOrigin = getOriginHeader(request);
-
-  if (!rawOrigin) {
-    return null;
-  }
-
-  const normalizedOrigin = normalizeOrigin(rawOrigin);
-
-  if (!normalizedOrigin || !allowedOrigins.has(normalizedOrigin)) {
-    return null;
-  }
-
-  return rawOrigin;
-}
-
-function getRequestOrigin(request: FastifyRequest): string | null {
-  const originHeader = getOriginHeader(request);
-
-  if (originHeader) {
-    return normalizeOrigin(originHeader);
-  }
-
-  const refererHeader =
-    typeof request.headers.referer === "string"
-      ? request.headers.referer.trim()
-      : "";
-
-  return refererHeader ? normalizeOrigin(refererHeader) : null;
-}
-
 function applyCorsHeaders(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -271,29 +223,6 @@ function applyCorsHeaders(
   reply.header("vary", "Origin");
   reply.header("access-control-allow-origin", allowedOrigin);
   reply.header("access-control-allow-credentials", "true");
-}
-
-function enforceTrustedOrigin(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  allowedOrigins: ReadonlySet<string>,
-) {
-  if (!UNSAFE_METHODS.has(request.method.toUpperCase())) {
-    return true;
-  }
-
-  const requestOrigin = getRequestOrigin(request);
-
-  if (!requestOrigin || allowedOrigins.has(requestOrigin)) {
-    return true;
-  }
-
-  reply.code(403).send({
-    success: false,
-    error: "Origen no permitido",
-  });
-
-  return false;
 }
 
 function parseRequiredString(input: {
