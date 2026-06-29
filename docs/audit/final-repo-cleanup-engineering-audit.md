@@ -11,6 +11,12 @@
 > después de PR #1164, #1165, #1166, #1167, #1168, #1169 y #1170. Modo
 > docs-only; no se tocó runtime backend/frontend, DB,
 > migraciones, dependencias, lockfiles, workflows, Render ni secretos.
+>
+> **Normalización de estado:** 2026-06-29 · rama
+> `docs/final-cleanup-status-normalization`, HEAD
+> `b143cbe docs(audit): close frontend dependencies cleanup (#1179)`. Este corte
+> separa deuda activa de bloques ya cerrados: P1-B cerrado por #1162, P2-A por
+> #1173 y P2-B por #1175-#1179.
 
 ---
 
@@ -36,34 +42,40 @@ compartido. Quedan documentados como remanentes no pendientes
 cambiar `OPTIONS`, status codes, bodies, headers ni semántica
 `Origin`/`Referer`.
 
-La deuda activa restante sigue enfocada en ordenamiento y documentación:
+La deuda activa restante ya no incluye P1-B, P2-A ni P2-B. Esos bloques quedan
+cerrados en este corte:
 
-1. **Acoplamiento de la URL pública de email al `CORS_ORIGIN`**
-   (`resolveParticularPortalUrl`): la URL del portal en mails de token sale del
-   primer origen `https` del allowlist CORS, conflando dos conceptos distintos. *(P1.)*
-2. **Módulo `shared/` muerto** (3 archivos) consumido solo por su propio test. *(P2.)*
-3. **Dependencias de frontend P2-B**: bloque cerrado documentalmente post
-   PR-CLEAN7A/#1175, PR-CLEAN7B/#1176, PR-CLEAN7C/#1177 y PR-CLEAN7D/#1178.
-   Se removieron las dependencias sin uso confirmadas y el tooling `UNKNOWN`;
-   `@radix-ui/react-toast` y `@radix-ui/react-tooltip` quedan diferidas
-   intencionalmente por roadmap/UI. Ver
-   [`frontend-dependencies-cleanup-closeout.md`](frontend-dependencies-cleanup-closeout.md),
-   [`frontend-dependencies-usage-audit.md`](frontend-dependencies-usage-audit.md)
-   y
-   [`frontend-radix-tooling-dependencies-audit.md`](frontend-radix-tooling-dependencies-audit.md).
-   *(P2 cerrado con deuda diferida documentada.)*
-4. **Deuda documental de organización**: ~233 docs con taxonomía fragmentada
-   (`audit/` + `audits/`, notas de implementación en 3 lugares, ~31 `pr-*.md`
-   sueltos en la raíz de `docs/`) y al menos un doc **contradictorio**
-   (`docs/notes/todo.md` describe tRPC + Google Sheets, que ya no existen). *(P2.)*
-5. **Artefactos históricos/orfanados**: `legacy/drizzle-old/`,
-   `scripts/generate-pwa-icons.py`, `scripts/maintenance/FUSION_POR_COMANDO.sh`. *(P3.)*
-6. **Gaps menores de documentación de env vars** (`APP_VERSION`,
+- **P1-B email public URL:** cerrado por #1162
+  (`fix(email): use explicit public site url for portal links`), usando
+  `PUBLIC_SITE_URL` como fuente explícita con fallback conservador al
+  comportamiento previo.
+- **P2-A `shared/`:** cerrado por #1173; se eliminó el módulo muerto y su test.
+- **P2-B dependencias frontend:** cerrado por #1175-#1179. PR-CLEAN7A removió
+  dependencias core sin uso, PR-CLEAN7C cerró tooling `UNKNOWN`, PR-CLEAN7D/#1178
+  removió Radix `SUSPECT unused` y #1179 dejó el cierre documental. Ver
+  [`frontend-dependencies-cleanup-closeout.md`](frontend-dependencies-cleanup-closeout.md).
+  `@radix-ui/react-toast` y `@radix-ui/react-tooltip` quedan diferidas
+  intencionalmente por roadmap/UI; no son deuda activa accidental.
+
+La deuda activa real queda limitada a:
+
+1. **P2-C · `docs/notes/todo.md` contradictorio**: describe tRPC + Google
+   Sheets, que ya no corresponden a la arquitectura real. *(P2.)*
+2. **P2-D · Taxonomía documental fragmentada**: ~233 docs con taxonomía
+   fragmentada (`audit/` + `audits/`, notas de implementación en 3 lugares,
+   ~31 `pr-*.md` sueltos en la raíz de `docs/`). *(P2.)*
+3. **P2-E · Logger/console observability**: logger mínimo y mezcla de
+   `console.*`/logger en backend. *(P2.)*
+4. **P2-F · Gaps menores de documentación de env vars** (`APP_VERSION`,
    `CLIENT_MIN_VERSION`, `NEXT_PUBLIC_APP_VERSION` usados pero no listados en
-   `.env.example`). *(P2/P3.)*
+   `.env.example`). *(P2.)*
+5. **P3 · Artefactos históricos/orfanados**: `legacy/drizzle-old/`,
+   `scripts/generate-pwa-icons.py`, `scripts/maintenance/FUSION_POR_COMANDO.sh`. *(P3.)*
+6. **P3-G · Backend CI `paths-ignore` opcional** para evitar runs pesados en PRs
+   estrictamente docs-only/frontend, previa verificación de tests de contrato.
 
-Todas las eliminaciones se proponen como **PRs chicos, con prueba y rollback**.
-Ninguna se ejecuta en esta auditoría.
+Las eliminaciones o cambios restantes se proponen como **PRs chicos, con prueba
+y rollback**. Ninguna se ejecuta en esta normalización docs-only.
 
 > **Nota de alcance vs. brief:** el brief esperaba workflows de *Dependabot* y
 > *Supabase Preview*. **No existen** en el repo: solo hay 3 workflows
@@ -194,6 +206,12 @@ deploy roto ni auth rota en el estado actual.
 
 #### P1-B · URL pública de email acoplada a `CORS_ORIGIN`
 - **Tipo:** architecture / email / env · **Riesgo de cambio:** Medio.
+- **Estado actualizado (2026-06-29):** **cerrado por #1162**
+  (`fix(email): use explicit public site url for portal links`). La deuda activa
+  ya no es el acoplamiento email/CORS: el backend usa URL pública explícita
+  (`PUBLIC_SITE_URL`) y conserva fallback al primer origen `https` de
+  `CORS_ORIGIN` solo como compatibilidad. Este bloque se conserva como evidencia
+  histórica de la causa raíz y del contrato de rollback.
 - **Evidencia:** `server/lib/email.ts:636-639`
   ```ts
   function resolveParticularPortalUrl(corsOrigins: string[]): string | null {
@@ -214,14 +232,22 @@ deploy roto ni auth rota en el estado actual.
     preview), los mails apuntarían a un host equivocado.
   - El allowlist de seguridad (qué orígenes pueden mutar) y la identidad pública
     del sitio son **conceptos distintos** que aquí quedan acoplados.
-- **Acción:** **documentar + proponer** variable explícita `PUBLIC_PORTAL_URL`
+- **Acción histórica:** **documentar + proponer** variable explícita `PUBLIC_PORTAL_URL`
   (o `FRONTEND_PUBLIC_URL`) con fallback al comportamiento actual para no romper.
-  PR dedicado **PR-CLEAN3** (no implementar ahora). Ver §9.
+  PR dedicado **PR-CLEAN3**; ejecutado luego por #1162 con `PUBLIC_SITE_URL`.
+  Ver §9.
+- **Acción actual:** **cerrado**. No listar P1-B como pendiente activo; cualquier
+  trabajo posterior es seguimiento operativo de configuración (`PUBLIC_SITE_URL`
+  en entorno productivo) o mantenimiento del fallback.
 
 ### P2 — Medio (mantenibilidad, DX, limpieza, observabilidad)
 
 #### P2-A · Módulo `shared/` muerto
 - **Tipo:** dead-code · **Riesgo:** Bajo.
+- **Estado actualizado (2026-06-29):** **cerrado por #1173**. La porción P2-A de
+  PR-CLEAN6 eliminó `shared/const.ts`, `shared/types.ts`,
+  `shared/_core/errors.ts` y `test/shared-const-and-errors.test.ts`. Este bloque
+  queda como trazabilidad histórica, no como deuda activa.
 - **Evidencia:** ningún archivo de `server/`, `frontend/`, `scripts/` ni
   `drizzle/` importa `shared/const`, `shared/types` ni `shared/_core/errors`
   (`git grep -nE "shared/(const|types|_core/errors)|@shared/" -- server frontend scripts drizzle` → 0 fuera de e2e). El **único** consumidor es
@@ -231,8 +257,12 @@ deploy roto ni auth rota en el estado actual.
   (`@deprecated`, alias de `FETCH_TIMEOUT_MS`) — residuo de la era axios (el
   frontend ya usa `fetch` en `frontend/src/lib/api.ts`). `shared/_core/errors.ts`
   (`HttpError`, `BadRequestError`…) tampoco se usa en runtime; tiene además un BOM inicial.
-- **Acción:** **eliminar `shared/` + su test** en un PR (**PR-CLEAN6**), tras
-  confirmar build/typecheck. Riesgo bajo: nada productivo lo referencia.
+- **Acción histórica:** **eliminar `shared/` + su test** en un PR
+  (**PR-CLEAN6**), tras confirmar build/typecheck. Riesgo bajo: nada productivo
+  lo referenciaba.
+- **Acción actual:** **cerrado**. Los artefactos P3 de PR-CLEAN6 siguen
+  pendientes, pero `shared/` y `AXIOS_TIMEOUT_MS` no deben seguir apareciendo
+  como pendientes.
 - **Snapshot de auditoría dedicada (2026-06-29, rama `audit/shared-module-usage`,
   HEAD `f9d1876`):** inventario detallado en
   [`docs/audit/shared-module-usage-audit.md`](shared-module-usage-audit.md).
@@ -264,8 +294,9 @@ deploy roto ni auth rota en el estado actual.
   `scripts/maintenance/FUSION_POR_COMANDO.sh`) **siguen pendientes**.
 
 #### P2-B · Dependencias de frontend sin uso
-- **Tipo:** dependencias / performance-surface · **Estado:** cerrado
-  documentalmente post-#1178; queda defer roadmap/UI para `toast`/`tooltip`.
+- **Tipo:** dependencias / performance-surface · **Estado actualizado
+  (2026-06-29):** **cerrado por #1175-#1179**. Queda defer roadmap/UI
+  intencional para `@radix-ui/react-toast` y `@radix-ui/react-tooltip`.
 - **Snapshot documental dedicado (2026-06-29, rama
   `audit/frontend-dependencies-usage`, HEAD `d958c63`):**
   [`docs/audit/frontend-dependencies-usage-audit.md`](frontend-dependencies-usage-audit.md).
@@ -293,12 +324,15 @@ deploy roto ni auth rota en el estado actual.
 - **Impacto:** no inflan el bundle servido (Next no las bundlea si no se importan)
   pero sí el `node_modules`, tiempo de install, superficie de `pnpm audit` y ruido
   de actualizaciones. `echarts` en especial es pesado.
-- **Acción:** no remover masivamente. Recomendar PRs chicos por grupo. Primer PR
+- **Acción histórica:** no remover masivamente. Recomendar PRs chicos por grupo. Primer PR
   sugerido: **PR-CLEAN7A** para `@tanstack/react-query`,
   `@tanstack/react-table`, `echarts`, `echarts-for-react` y
   `react-hook-form`, dejando Radix no usados para un PR posterior porque existen
   docs/roadmap que proponen adoptar `toast`/`tooltip`. **No tocar
   `package.json`/lock en esta auditoría.**
+- **Acción actual:** **cerrado**. No recomendar PR-CLEAN7D como pendiente: #1178
+  ya removió `avatar`, `dropdown-menu`, `label`, `select` y `tabs`. `toast` y
+  `tooltip` quedan `DEFER keep` por roadmap/UI, no como cleanup accidental.
 - **Estado PR-CLEAN7A:** **EJECUTADO** (2026-06-29, rama
   `clean/remove-unused-frontend-deps-core`, base HEAD `2140f28`). Se removieron
   sólo `@tanstack/react-query`, `@tanstack/react-table`, `echarts`,
@@ -390,7 +424,7 @@ deploy roto ni auth rota en el estado actual.
 | P3-B | `scripts/generate-pwa-icons.py` orfanado | 0 referencias (`git grep generate-pwa-icons`); skill VETNEB prohíbe Python | eliminar — **PR-CLEAN6** |
 | P3-C | `scripts/maintenance/FUSION_POR_COMANDO.sh` orfanado | 0 referencias; opera sobre `portal-vetneb-main.zip`/`…-dev-eficiencia.zip` (fusión histórica de repos) | eliminar — **PR-CLEAN6** |
 | P3-D | `trusted-origin.ts` conserva helper/fallback propio | Middleware global fuera de `server/routes`; mantiene contrato de protección global y no fue tocado por #1164–#1170 | mantener como remanente intencional salvo PR dedicado |
-| P3-E | `AXIOS_TIMEOUT_MS` (`@deprecated`) | `shared/const.ts:5-6`; solo usado por su test | eliminar con P2-A — **PR-CLEAN6** |
+| P3-E | `AXIOS_TIMEOUT_MS` (`@deprecated`) | residuo histórico de `shared/const.ts`; eliminado junto con P2-A por #1173 | cerrado |
 | P3-F | Split `zod` v3 (backend `^3.25.76`) vs v4 (frontend `^4`) | `package.json` vs `frontend/package.json` | documentar (intencional: paquetes separados); revisar a futuro |
 | P3-G | `backend-ci.yml` sin `paths:` → corre en PRs de solo-docs/frontend | `.github/workflows/backend-ci.yml:3-16` | evaluar `paths-ignore` (ver §10) |
 | P3-H | Residual CORS local resuelto en `logistics-sla.fastify.ts` | Cerrado por #1170 / `clean/backend-cors-helper-logistics-sla`: la ruta GET-only importa `getAllowedOrigins`, `getAllowedOriginForCors` y `getRequestOrigin` desde `server/lib/cors-headers.ts`; `applyCorsHeaders` queda local | cerrado |
@@ -403,10 +437,10 @@ deploy roto ni auth rota en el estado actual.
 
 | # | Path | Tipo | Evidencia de no-uso | PR |
 | --- | --- | --- | --- | --- |
-| 1 | `shared/const.ts` | dead-code | solo `test/shared-const-and-errors.test.ts` | PR-CLEAN6 |
-| 2 | `shared/types.ts` | dead-code | idem; re-export sin consumidores | PR-CLEAN6 |
-| 3 | `shared/_core/errors.ts` | dead-code | idem; `HttpError` no usado en runtime | PR-CLEAN6 |
-| 4 | `test/shared-const-and-errors.test.ts` | tests | testea módulo muerto (tautológico) | PR-CLEAN6 |
+| 1 | `shared/const.ts` | dead-code | eliminado por #1173 junto con P2-A | cerrado |
+| 2 | `shared/types.ts` | dead-code | eliminado por #1173 junto con P2-A | cerrado |
+| 3 | `shared/_core/errors.ts` | dead-code | eliminado por #1173 junto con P2-A | cerrado |
+| 4 | `test/shared-const-and-errors.test.ts` | tests | eliminado por #1173 junto con P2-A | cerrado |
 | 5 | `legacy/drizzle-old/` (3 archivos) | cleanup | README lo marca "archaeology only" | PR-CLEAN6 |
 | 6 | `scripts/generate-pwa-icons.py` | cleanup | 0 refs; Python prohibido por skill | PR-CLEAN6 |
 | 7 | `scripts/maintenance/FUSION_POR_COMANDO.sh` | cleanup | 0 refs; artefacto de fusión histórica | PR-CLEAN6 |
@@ -414,7 +448,7 @@ deploy roto ni auth rota en el estado actual.
 | 9 | `@tanstack/react-table` (dep frontend) | dependencias | removida por PR-CLEAN7A (#1175) | cerrado |
 | 10 | `echarts` + `echarts-for-react` (deps) | dependencias | removidas por PR-CLEAN7A (#1175) | cerrado |
 | 11 | `react-hook-form` (dep frontend) | dependencias | removida por PR-CLEAN7A (#1175) | cerrado |
-| 12 | Radix remanente no importado | dependencias | `avatar`, `dropdown-menu`, `label`, `select`, `tabs` `SUSPECT unused`; `toast`/`tooltip` `DEFER keep` por roadmap | PR-CLEAN7D |
+| 12 | Radix remanente no importado | dependencias | `avatar`, `dropdown-menu`, `label`, `select`, `tabs` removidos por PR-CLEAN7D/#1178; `toast`/`tooltip` `DEFER keep` por roadmap | cerrado |
 | 13 | `docs/notes/todo.md` (parte tRPC/Sheets) | docs | contradice arquitectura real | PR-CLEAN1 |
 
 ---
@@ -424,15 +458,15 @@ deploy roto ni auth rota en el estado actual.
 | Archivo / objetivo | Evidencia | Severidad | Riesgo | Acción | PR |
 | --- | --- | --- | --- | --- | --- |
 | ~30 rutas `server/routes/*.fastify.ts` (helpers CORS) | Resuelto por fases #1164–#1168, cierre documental #1169 y residual `logistics-sla` resuelto por #1170; helper compartido en `server/lib/cors-headers.ts`; quedan `applyCorsHeaders` local y la única excepción conocida de ruta `public-professionals` | P1 cerrado | Medio | mantener cierre documental; cualquier ajuste futuro debe preservar contrato exacto | PR-CLEAN5 / PR-CORS1–3C + #1169/#1170 |
-| `server/lib/email.ts:636-639,906` | URL portal derivada de `CORS_ORIGIN.find(https)` | P1 | Medio | introducir env explícita (documentar) | PR-CLEAN3 |
+| `server/lib/email.ts:636-639,906` | URL portal derivaba de `CORS_ORIGIN.find(https)`; cerrado por #1162 con `PUBLIC_SITE_URL` explícita y fallback conservador | P1 cerrado | Medio | mantener contrato documentado; seguimiento operativo de env si aplica | #1162 / PR-CLEAN3 |
 | `server/middlewares/trusted-origin.ts` | helper/fallback propio del middleware global | P3 | Bajo | mantener salvo PR dedicado | — |
 | `server/routes/logistics-sla.fastify.ts` | ya no contiene copias locales de helpers CORS compartibles; #1170 lo migró a imports desde `server/lib/cors-headers.ts` | P3 cerrado | Bajo | mantener imports compartidos y `applyCorsHeaders` local | — |
-| `shared/const.ts` · `shared/types.ts` · `shared/_core/errors.ts` | solo consumidos por su test | P2 | Bajo | eliminar módulo + test | PR-CLEAN6 |
-| `shared/const.ts:5-6` `AXIOS_TIMEOUT_MS` | `@deprecated`, sin uso runtime | P3 | Bajo | eliminar | PR-CLEAN6 |
+| `shared/const.ts` · `shared/types.ts` · `shared/_core/errors.ts` | solo consumidos por su test; eliminados por #1173 | P2 cerrado | Bajo | cerrado; no listar como pendiente | #1173 / PR-CLEAN6 parcial |
+| `shared/const.ts:5-6` `AXIOS_TIMEOUT_MS` | `@deprecated`, sin uso runtime; eliminado con `shared/` por #1173 | P3 cerrado | Bajo | cerrado | #1173 |
 | `legacy/drizzle-old/*` | "archaeology only" (su README) | P3 | Bajo | archivar/eliminar | PR-CLEAN6 |
 | `scripts/generate-pwa-icons.py` | 0 refs; Python prohibido | P3 | Bajo | eliminar | PR-CLEAN6 |
 | `scripts/maintenance/FUSION_POR_COMANDO.sh` | 0 refs; fusión histórica | P3 | Bajo | eliminar | PR-CLEAN6 |
-| `frontend/package.json` (Radix remanente) | Tooling ESLint cerrado por PR-CLEAN7C; Radix tiene 0 imports reales, con `toast`/`tooltip` en roadmap | P2 | Medio | decidir PR-CLEAN7D | PR-CLEAN7 |
+| `frontend/package.json` (Radix remanente) | Tooling ESLint cerrado por PR-CLEAN7C; Radix `avatar`, `dropdown-menu`, `label`, `select`, `tabs` cerrado por PR-CLEAN7D/#1178; `toast`/`tooltip` quedan `DEFER keep` por roadmap | P2 cerrado | Medio | cerrado; no recomendar PR-CLEAN7D como pendiente | #1178 / #1179 |
 | `docs/notes/todo.md` | tRPC/Google Sheets inexistentes | P2 | Bajo | archivar/reescribir | PR-CLEAN1 |
 | `docs/audit/` + `docs/audits/` | taxonomía duplicada | P2 | Bajo | unificar | PR-CLEAN2 |
 | `IMPLEMENTATION_NOTES/` (raíz, 34) | notas en 3 ubicaciones | P2 | Bajo | consolidar bajo `docs/` | PR-CLEAN2 |
@@ -453,7 +487,7 @@ deploy roto ni auth rota en el estado actual.
 | `scripts/db/*.mjs`, `scripts/smoke/*`, `scripts/ops/verify-production-readiness.mjs` | Herramientas operativas reales (referenciadas en runbooks y `package.json`). Verificar caso por caso antes de tocar. |
 | `app-version-force-update.yml` y sus URLs `vetneb.com.ar` | Workflow recién endurecido (#1158/#1159); URLs canónicas correctas. No modificar. |
 | `docs/audit/backend-api-global-incident-p0.md` y auditorías previas | Histórico útil (contexto de decisiones). Archivar, no borrar. |
-| `shared/_core/errors.ts` **si** se decide reutilizarlo | Alternativa a eliminar: **adoptarlo** en rutas en vez de borrar. Decisión de PR-CLEAN6. |
+| `shared/_core/errors.ts` | Alternativa histórica descartada: se eliminó junto con `shared/` por #1173; no reintroducir sin PR dedicado y justificación nueva. |
 
 ---
 
@@ -515,7 +549,7 @@ SMTP_*, GMAIL_API_*, CONTACT_TO, APP_VERSION, RENDER_GIT_COMMIT, CLIENT_MIN_VERS
 | `RENDER_GIT_COMMIT` | sí (fallback de `appVersion`) | **no** | inyectada por Render; aceptable no documentar |
 | `NEXT_PUBLIC_APP_VERSION` | sí (`frontend/src/lib/app-version.ts:8`) | **no** (en `frontend/.env.example`) | build-time, set en Render; documentar |
 | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL` | sí | sí | consistentes (`api.vetneb.com.ar` / `vetneb.com.ar`) |
-| `CORS_ORIGIN` | sí | sí (`https://vetneb.com.ar`) | **doble uso**: allowlist CORS **y** fuente de URL de email (ver §9) |
+| `CORS_ORIGIN` | sí | sí (`https://vetneb.com.ar`) | allowlist CORS; el doble uso como fuente primaria de URL de email fue cerrado por #1162 con `PUBLIC_SITE_URL` (ver §9) |
 
 **Consistencia del trío del version gate** (coherente con la memoria del
 proyecto): `NEXT_PUBLIC_APP_VERSION` (frontend, build-time), `APP_VERSION` y
@@ -524,18 +558,19 @@ contrato; comparación por **igualdad exacta**. Documentación operativa correct
 `docs/ops/app-version-force-update-workflow.md` y
 `docs/audit/app-version-deploy-automation-audit.md`.
 
-**Riesgo `CORS_ORIGIN` como URL pública:** confirmado (ver §9). El brief sugiere
-evaluar `PUBLIC_SITE_URL`/`FRONTEND_URL` explícita: **recomendado**, como
-`PUBLIC_PORTAL_URL` con fallback al comportamiento actual.
+**Riesgo `CORS_ORIGIN` como URL pública:** cerrado por #1162 (ver §9). El
+seguimiento operativo es mantener `PUBLIC_SITE_URL=https://vetneb.com.ar` en el
+backend productivo y conservar `CORS_ORIGIN` como allowlist, no como identidad
+pública primaria.
 
 **`www` no contemplado:** `.env.example` documenta solo el apex
 (`https://vetneb.com.ar`). Si usuarios entran por `www.vetneb.com.ar`, el
 preflight cross-origin podría fallar (ya señalado en
 `docs/audit/backend-api-global-incident-p0.md`). **Investigar** según hosts reales.
 
-**Acción env:** **PR-CLEAN1** agrega comentarios documentando `APP_VERSION`,
+**Acción env pendiente:** **PR-CLEAN1** agrega comentarios documentando `APP_VERSION`,
 `CLIENT_MIN_VERSION`, `NEXT_PUBLIC_APP_VERSION` en los `.env.example` (sin valores
-secretos). El contrato de URL pública va en **PR-CLEAN3**.
+secretos). El contrato de URL pública ya fue cerrado por #1162 / PR-CLEAN3.
 
 ---
 
@@ -545,18 +580,21 @@ secretos). El contrato de URL pública va en **PR-CLEAN3**.
 - **Función clave:** `resolveParticularPortalUrl(corsOrigins)` (`:636-639`),
   invocada en `sendParticularTokenMail` (`:906`) para el CTA
   `${httpsOrigin}/particulares` del mail de token particular.
-- **Dependencia actual:** la URL pública del portal **depende de `CORS_ORIGIN`**
-  (primer origen `https`). No hay variable dedicada.
-- **Estado hoy:** correcto, porque `CORS_ORIGIN=https://vetneb.com.ar` (1 origen).
-  CTA → `https://vetneb.com.ar/particulares`.
-- **Riesgos:**
+- **Dependencia original:** la URL pública del portal **dependía de
+  `CORS_ORIGIN`** (primer origen `https`). No había variable dedicada.
+- **Estado actual:** **cerrado por #1162**. La URL pública se resuelve desde
+  `PUBLIC_SITE_URL` y se conserva fallback a `CORS_ORIGIN` para no romper
+  despliegues sin la variable configurada. CTA canónico:
+  `https://vetneb.com.ar/particulares`.
+- **Riesgos originales cerrados:**
   1. Agregar orígenes a `CORS_ORIGIN` (p.ej. `www`) y/o reordenarlos cambia los
      links de email sin que nadie lo note (`.find()` toma el primero).
   2. Acoplamiento conceptual: allowlist de seguridad ≠ identidad pública.
   3. Riesgo de links viejos: si `CORS_ORIGIN` apuntara a un host no canónico, los
      mails enviarían a ese host. (No hay onrender en runtime hoy, pero el patrón lo permite.)
 - **Mitigante:** no hay fuga de token en logs (`email.ts:923`).
-- **Propuesta de PR futuro (PR-CLEAN3, NO implementar):**
+- **Propuesta histórica de PR futuro (PR-CLEAN3, ya ejecutada por #1162 con
+  `PUBLIC_SITE_URL`):**
   1. Agregar `PUBLIC_PORTAL_URL` (o `FRONTEND_PUBLIC_URL`) a `server/lib/env.ts`
      (opcional, `z.string().url().optional()`).
   2. `resolveParticularPortalUrl` usa `ENV.publicPortalUrl ?? <primer https de corsOrigins>`
@@ -602,8 +640,8 @@ serían altas nuevas (fuera de alcance de limpieza).
 - **`.skip`:** 4 skips **condicionales en runtime** (no hard-disable):
   `test/logger-and-email.test.ts:368`, `test/trusted-origin-edge.test.ts:92,119`,
   `test/trusted-origin.test.ts:146`. Aceptables (guardas de entorno).
-- **Test tautológico:** `test/shared-const-and-errors.test.ts` valida un módulo
-  muerto (`shared/`). Eliminar junto con el módulo (PR-CLEAN6).
+- **Test tautológico:** `test/shared-const-and-errors.test.ts` validaba un módulo
+  muerto (`shared/`) y fue eliminado por #1173 junto con P2-A.
 - **Fixtures `onrender`:** intencionales (ver §6). **No** consolidar a la ligera:
   varios tests dependen de `CORS_ORIGIN=…staging.onrender.com` como origen válido.
 - **Allowlists:** `test/production-env-contracts.test.ts` y
@@ -647,16 +685,18 @@ exige build+E2E). El resto está saludable.
   (`public-professionals`, `trusted-origin`) debe tratarse como
   cambio dedicado y preservar contrato exacto. Mitigación: helper con **igual
   semántica byte a byte** + correr tests CORS/trusted-origin por familia.
-- **Email URL (P1-B/PR-CLEAN3):** cambiar la fuente de la URL puede romper links
-  productivos. Mitigación: **fallback al comportamiento actual** + test de ambos caminos.
+- **Email URL (P1-B/PR-CLEAN3):** riesgo histórico cerrado por #1162; la
+  mitigación aplicada fue **fallback al comportamiento actual** + test de ambos
+  caminos.
 - **Mover docs (PR-CLEAN2):** algunos tests de contrato **leen rutas de archivos**.
   Mitigación: `git grep -n "<ruta-doc>"` antes de mover; ajustar guardas en el mismo PR
   (precedente del proyecto: tests de scope alineados in-PR).
-- **Quitar deps (PR-CLEAN7):** un import dinámico o transitivo podría escaparse al
-  grep. Mitigación: build + E2E + `pnpm --dir frontend lint` verdes; quitar de a
-  una familia si hay duda.
-- **Eliminar `shared/` (PR-CLEAN6):** bajo riesgo, pero confirmar que ningún
-  `tsconfig`/bundler lo referencia (ya verificado: no hay alias).
+- **Quitar deps (PR-CLEAN7):** riesgo histórico ya cerrado por fases #1175-#1179.
+  `toast`/`tooltip` no entran a cleanup accidental: quedan diferidos por
+  roadmap/UI.
+- **Eliminar `shared/` (PR-CLEAN6):** riesgo histórico ya cerrado por #1173.
+  Cualquier reintroducción de constantes/errores compartidos debe ser PR nuevo,
+  explícito y con consumidores reales.
 - **`.env.example`:** cambiarlo puede tocar `production-env-contracts.test.ts` /
   `public-staging-config-contract.test.ts`. Mitigación: correr esos tests en el PR.
 - **`next-env.d.ts`:** si un PR corre E2E, el dev server regenera `next-env.d.ts` a
@@ -732,6 +772,7 @@ exige build+E2E). El resto está saludable.
 ### PR-CLEAN3 · contrato de URL pública de email
 - **Alcance:** `PUBLIC_PORTAL_URL` opcional en `env.ts`; `resolveParticularPortalUrl`
   usa la var con **fallback** a `CORS_ORIGIN`; documentar en `.env.example`.
+- **Estado:** **cerrado por #1162** con el nombre canónico `PUBLIC_SITE_URL`.
 - **Validación:** test de link con/sin la var; `pnpm test -- logger-and-email`; `pnpm typecheck`.
 - **Rollback:** quitar la var → fallback automático; sin cambio de contrato.
 - **Nota de seguimiento (ejecución real, rama `clean/email-public-site-url-contract`):**
@@ -1023,10 +1064,10 @@ exige build+E2E). El resto está saludable.
     contrato GET-only.
 
 ### PR-CLEAN6 · dead-code & artefactos
-- **Alcance:** eliminar `shared/` + `test/shared-const-and-errors.test.ts`;
+- **Alcance histórico:** eliminar `shared/` + `test/shared-const-and-errors.test.ts`;
   `legacy/drizzle-old/`; `scripts/generate-pwa-icons.py`;
   `scripts/maintenance/FUSION_POR_COMANDO.sh`.
-- **Estado parcial:** la porción `shared/` (P2-A) está **EJECUTADA**
+- **Estado actual:** la porción `shared/` (P2-A) está **CERRADA por #1173**
   (2026-06-29, rama `clean/remove-dead-shared-module`): eliminado `shared/` +
   su test. Los artefactos P3 (`legacy/drizzle-old/`, `generate-pwa-icons.py`,
   `FUSION_POR_COMANDO.sh`) **siguen pendientes**.
@@ -1035,7 +1076,7 @@ exige build+E2E). El resto está saludable.
 - **Rollback:** revertir (historia preservada en git).
 
 ### PR-CLEAN7 · dependencias frontend sin uso
-- **Estado documental:** **bloque P2-B cerrado post-PR-CLEAN7D/#1178**. Cierre
+- **Estado documental:** **bloque P2-B cerrado por #1175-#1179**. Cierre
   dedicado en
   [`docs/audit/frontend-dependencies-cleanup-closeout.md`](frontend-dependencies-cleanup-closeout.md).
   Auditorías base:
@@ -1098,7 +1139,7 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
 ## 16. Criterios de rollback (transversal)
 
 - Cada PR es **revertible con `git revert`** (cambios acotados a una causa).
-- **PR-CLEAN3 (email):** rollback lógico = quitar `PUBLIC_PORTAL_URL` → fallback a
+- **PR-CLEAN3 (email):** rollback lógico = quitar `PUBLIC_SITE_URL` → fallback a
   `CORS_ORIGIN` (sin redeploy de código si solo se borra la var en Render).
 - **PR-CLEAN5 (CORS):** ya dividido en fases #1164–#1168, cierre documental
   #1169 y residual `logistics-sla` resuelto por #1170; si aparece una regresión de origen,
@@ -1114,16 +1155,18 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
 
 - [ ] PR-CLEAN1 (docs/env comments) mergeado, contratos de env verdes.
 - [ ] PR-CLEAN2 (reorg docs) mergeado, `git grep` de rutas movidas sin huérfanos.
-- [ ] PR-CLEAN3 (email URL contract) mergeado, links de email verificados en staging.
+- [x] PR-CLEAN3 / P1-B (email URL contract) cerrado por #1162; `PUBLIC_SITE_URL`
+  separa URL pública de `CORS_ORIGIN` con fallback conservador.
 - [ ] PR-CLEAN4 (www/CORS) decidido y documentado (o cerrado como N/A).
 - [x] PR-CLEAN5 / P1-A CORS cerrado por la secuencia #1164–#1170; excepción
   única `public-professionals` documentada y residual `logistics-sla` resuelto.
-- [~] PR-CLEAN6 (dead-code/artefactos): porción `shared/` (P2-A) ejecutada
-  (rama `clean/remove-dead-shared-module`); artefactos P3 (`legacy/drizzle-old/`,
+- [~] PR-CLEAN6 (dead-code/artefactos): porción `shared/` (P2-A) cerrada por
+  #1173; artefactos P3 (`legacy/drizzle-old/`,
   `generate-pwa-icons.py`, `FUSION_POR_COMANDO.sh`) pendientes.
-- [x] PR-CLEAN7 / P2-B (deps sin uso): PR-CLEAN7A ejecutado; PR-CLEAN7B docs-only
-  completado; PR-CLEAN7C tooling ejecutado; PR-CLEAN7D Radix `SUSPECT unused`
-  ejecutado para `avatar`, `dropdown-menu`, `label`, `select` y `tabs`.
+- [x] PR-CLEAN7 / P2-B (deps sin uso): cerrado por #1175-#1179. PR-CLEAN7A
+  ejecutado; PR-CLEAN7B docs-only completado; PR-CLEAN7C tooling ejecutado;
+  PR-CLEAN7D Radix `SUSPECT unused` ejecutado para `avatar`, `dropdown-menu`,
+  `label`, `select` y `tabs`.
   `toast`/`tooltip` quedan diferidos por roadmap y el cierre docs-only queda en
   `docs/audit/frontend-dependencies-cleanup-closeout.md`.
 - [ ] `.env.example` y `frontend/.env.example` documentan **todas** las vars usadas.
