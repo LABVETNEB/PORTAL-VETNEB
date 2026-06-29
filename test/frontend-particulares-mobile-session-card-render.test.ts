@@ -312,7 +312,7 @@ test("mobile-safe feature markers stay out of Navbar, Footer and backend surface
     }
   }
 
-  for (const directory of ["server", "drizzle", "shared"]) {
+  for (const directory of ["server", "drizzle"]) {
     for (const absolutePath of listFiles(directory)) {
       const source = readFileSync(absolutePath, "utf8");
       for (const marker of forbiddenMarkers) {
@@ -571,7 +571,7 @@ test("flat-stack markers stay out of Navbar, Footer and backend surfaces", () =>
     }
   }
 
-  for (const directory of ["server", "drizzle", "shared"]) {
+  for (const directory of ["server", "drizzle"]) {
     for (const absolutePath of listFiles(directory)) {
       const source = readFileSync(absolutePath, "utf8");
       for (const marker of forbiddenMarkers) {

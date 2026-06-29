@@ -216,3 +216,35 @@ Esta auditoría **no** ejecuta la eliminación: recomienda el PR, no lo aplica.
   lockfiles, workflows, Render ni secretos.
 - Cambios de esta auditoría: **solo documentación** (`docs/audit/`).
 - No commit · No push · No PR.
+
+---
+
+## 11. Nota final de eliminación (PR-CLEAN6 — porción `shared/`)
+
+> **Fecha:** 2026-06-29 · **Rama:** `clean/remove-dead-shared-module` ·
+> **Base HEAD:** `1af20d2 docs(audit): audit shared module usage (#1172)`.
+
+**Ejecutado.** La porción P2-A de PR-CLEAN6 (eliminación del módulo `shared/`
+muerto) se aplicó tal cual recomendaba esta auditoría, sin cambio de alcance:
+
+- **Eliminados:** `shared/const.ts`, `shared/_core/errors.ts`, `shared/types.ts`
+  (directorio `shared/` completo) y `test/shared-const-and-errors.test.ts`.
+- **Reconfirmación pre-delete:** `git grep` de imports (`from "../shared"`),
+  alias (`@shared`) y símbolos (`HttpError`, `*_ERR_MSG`, `*_TIMEOUT_MS`,
+  `ONE_YEAR_MS`, constructores de error) sin ningún consumidor real fuera del
+  test eliminado. Las coincidencias de `COOKIE_NAME` corresponden al env var de
+  backend (`server/lib/env.ts`), independiente del literal de `shared/const.ts`.
+- **No se tocó** `frontend/src/proxy.ts` (mantiene el literal hardcodeado
+  `"app_session_id"`); **no** se creó abstracción de cookie; **no** se adoptó
+  `HttpError`.
+- **Guard de paridad de cookie:** se descartó por bajo valor (comparaba dos
+  literales duplicados, no una fuente de verdad importada). Los scope guards de
+  dashboard (`test/frontend-dashboard-*.test.ts`) que listan `"shared/"` como
+  prefijo bloqueado **no** se ven afectados (asertan ausencia en un diff de
+  frontend; este PR es scope raíz/test).
+- **No se tocaron** `package.json`, lockfiles, tsconfig, `pnpm-workspace.yaml`
+  ni CI (no fue necesario: `shared/` no era paquete del workspace ni estaba en
+  `include`).
+- **Pendiente fuera de esta ejecución:** los artefactos P3 de PR-CLEAN6
+  (`legacy/drizzle-old/`, `scripts/generate-pwa-icons.py`,
+  `scripts/maintenance/FUSION_POR_COMANDO.sh`) **no** entraron en este PR.

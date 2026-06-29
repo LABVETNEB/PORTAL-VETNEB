@@ -244,6 +244,17 @@ deploy roto ni auth rota en el estado actual.
   - Recomendación reafirmada: ejecutar **PR-CLEAN6** sin cambio de alcance; opción de
     relocalizar el guard de paridad de cookie (bajo valor). Auditoría docs-only: no se
     tocó runtime; no commit/push/PR.
+- **Estado: EJECUTADO** (2026-06-29, rama `clean/remove-dead-shared-module`, base
+  HEAD `1af20d2`). Se eliminó el directorio `shared/` completo (`const.ts`,
+  `_core/errors.ts`, `types.ts`) + `test/shared-const-and-errors.test.ts` como la
+  porción P2-A de PR-CLEAN6, sin cambio de alcance. No se tocó `frontend/src/proxy.ts`,
+  no se creó abstracción de cookie, no se adoptó `HttpError`; el guard de paridad de
+  cookie se descartó por bajo valor. No se tocaron `package.json`/lockfiles/tsconfig/
+  workspace/CI (innecesario: `shared/` no era paquete del workspace ni estaba en
+  `include`). Nota de cierre en
+  [`docs/audit/shared-module-usage-audit.md`](shared-module-usage-audit.md) §11. Los
+  artefactos P3 de PR-CLEAN6 (`legacy/drizzle-old/`, `scripts/generate-pwa-icons.py`,
+  `scripts/maintenance/FUSION_POR_COMANDO.sh`) **siguen pendientes**.
 
 #### P2-B · Dependencias de frontend sin uso
 - **Tipo:** dependencias / performance-surface · **Riesgo:** Medio (verificar build/E2E).
@@ -941,6 +952,10 @@ exige build+E2E). El resto está saludable.
 - **Alcance:** eliminar `shared/` + `test/shared-const-and-errors.test.ts`;
   `legacy/drizzle-old/`; `scripts/generate-pwa-icons.py`;
   `scripts/maintenance/FUSION_POR_COMANDO.sh`.
+- **Estado parcial:** la porción `shared/` (P2-A) está **EJECUTADA**
+  (2026-06-29, rama `clean/remove-dead-shared-module`): eliminado `shared/` +
+  su test. Los artefactos P3 (`legacy/drizzle-old/`, `generate-pwa-icons.py`,
+  `FUSION_POR_COMANDO.sh`) **siguen pendientes**.
 - **Validación:** `pnpm typecheck`; `pnpm typecheck:test`; `pnpm test`; `pnpm build`;
   `pnpm --dir frontend build`.
 - **Rollback:** revertir (historia preservada en git).
@@ -1010,7 +1025,9 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
 - [ ] PR-CLEAN4 (www/CORS) decidido y documentado (o cerrado como N/A).
 - [x] PR-CLEAN5 / P1-A CORS cerrado por la secuencia #1164–#1170; excepción
   única `public-professionals` documentada y residual `logistics-sla` resuelto.
-- [ ] PR-CLEAN6 (dead-code/artefactos) mergeado, build backend+frontend verde.
+- [~] PR-CLEAN6 (dead-code/artefactos): porción `shared/` (P2-A) ejecutada
+  (rama `clean/remove-dead-shared-module`); artefactos P3 (`legacy/drizzle-old/`,
+  `generate-pwa-icons.py`, `FUSION_POR_COMANDO.sh`) pendientes.
 - [ ] PR-CLEAN7 (deps sin uso) mergeado, E2E verde.
 - [ ] `.env.example` y `frontend/.env.example` documentan **todas** las vars usadas.
 - [ ] `docs/notes/todo.md` ya no contradice la arquitectura real.
