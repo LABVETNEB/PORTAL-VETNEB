@@ -595,6 +595,55 @@ exige build+E2E). El resto está saludable.
   `contact-route.test.ts`, `trusted-origin*.test.ts`, `public-*`); `pnpm build`.
 - **Rollback:** revertir el PR (cambio mecánico, sin cambio de semántica).
 - **Sugerencia:** dividir en 2-3 sub-PRs por familia (admin / particular / public+logistics) si el diff es grande.
+- **Nota de seguimiento (ejecución real — PR-CORS1, rama `clean/backend-cors-helper-consolidation`, 2026-06-28):**
+  se ejecutó la **fase 1** de la consolidación (la sugerencia de sub-PR por familia se adoptó: este PR migra la **familia admin**).
+  - **Helper creado:** `server/lib/cors-headers.ts` exporta `UNSAFE_METHODS`, `getAllowedOrigins`,
+    `normalizeOrigin`, `getOriginHeader`, `getAllowedOriginForCors`, `getRequestOrigin` y
+    `enforceTrustedOrigin`, copiados **verbatim** de la variante dominante (mismo contrato:
+    misma allowlist `ENV.corsOrigins`, mismos status/headers, mismo `"Origen no permitido"`).
+  - **`applyCorsHeaders` NO se consolidó** (corrección a la lista del alcance original): su cuerpo
+    **varía por ruta** en `access-control-expose-headers` (rate-limit / `Retry-After`), por lo que
+    se mantiene **local** en cada archivo. Consolidarlo exigiría parametrizar y cambiar firmas/call-sites.
+  - **Rutas migradas (14, familia admin):** `admin-audit`, `admin-clinics`, `admin-failed-login-alerts`,
+    `admin-particular-tokens`, `admin-pricing`, `admin-report-access-tokens`, `admin-report-workflow`,
+    `admin-reports`, `admin-sessions`, `admin-study-tracking`, `admin-system-health`,
+    `admin-system-maintenance`, `admin-system-schema-health`, `admin-users-roles`. Se reemplazaron
+    las definiciones locales por `import … from "../lib/cors-headers.ts"` y se eliminó el `const UNSAFE_METHODS`
+    local (sólo lo usaba `enforceTrustedOrigin`). Net ≈ **−1.180 líneas** (1.262 borradas / 80 nuevas).
+  - **Hallazgo que acota el alcance (no estaba en la auditoría original):** `enforceTrustedOrigin` tiene
+    **dos clases de comportamiento** ante método inseguro **sin Origin ni Referer**: *allow-null* (lo
+    permite; el hook global `requireTrustedOriginForFastify` cubre el cookie-forgery) vs *block-null*
+    (responde 403). **Toda la familia admin es uniformemente *allow-null***, por lo que el canónico
+    *allow-null* preserva el comportamiento exacto. Las rutas *block-null* (`particular-study-tracking`,
+    `study-tracking`) **quedan fuera** para no alterar su contrato. `getAllowedOrigins` canónico conserva
+    el fallback dev (inalcanzable, P3-D); `admin-clinics` tenía una variante simplificada sin fallback,
+    **equivalente** porque `ENV.corsOrigins` nunca está vacío (`env.ts:166-173`).
+  - **Sin cambios en tests de contrato existentes:** la fase 1 evita deliberadamente los archivos cuyos
+    tests fijan **definiciones** (no call-sites): el trío auth (`security-production-invariants.test.ts`
+    fija `function normalizeOrigin/getRequestOrigin/enforceTrustedOrigin`) y el trío logística
+    (`logistics-*-api.test.ts` fija `function enforceTrustedOrigin`, además de uso *inline* de `UNSAFE_METHODS`).
+    `api-production-session-contract.test.ts` fija `function applyCorsHeaders` en 10 rutas — satisfecho
+    porque `applyCorsHeaders` se mantiene local. El resto de la suite sólo fija **call-sites**
+    (`enforceTrustedOrigin(request, reply, allowedOrigins)`), preservados intactos.
+  - **Test nuevo:** `test/cors-headers-shared-helper.test.ts` (10 casos: normalización, allowlist,
+    Origin>Referer, `enforceTrustedOrigin` allow-null + 403, `getAllowedOrigins`=`ENV.corsOrigins`, `UNSAFE_METHODS`).
+  - **Validación ejecutada (verde):** `pnpm typecheck`, `pnpm typecheck:test`,
+    `node --experimental-strip-types --test test/security-trusted-origin-cors-boundaries.test.ts` (4/4) y
+    además `security-production-invariants` (11), `api-production-session-contract` (4),
+    `security-csrf-mutating-route-coverage` (17), `security-audit-logging-phase-boundaries` (9),
+    `security-boundary-suite-completeness` (6), `security-mutation-permission-surface` (5),
+    `clinic-management-route-policy` (3), `trusted-origin-router-policy` (2), `reports-suite-completeness` (7),
+    `report-write-surface-ownership` (5), los **14** `admin-*` route tests (138) y el helper nuevo (10). La
+    suite completa `pnpm test`/`pnpm build` no se corrió (requiere Postgres, igual que la auditoría original — §11/§15).
+  - **Pendiente → PR-CORS2:** migrar la familia **clínica/particular/público no fijada por definiciones**
+    (`contact`, `clinic-public-profile`, `particular-tokens`, `report-access-tokens`, `reports-status`,
+    `reports`, `public-report-access`, `admin-auth` queda en el grupo auth) manteniendo `applyCorsHeaders` local.
+  - **Pendiente → PR-CORS3 (requiere tocar tests de contrato en el mismo PR):** trío **auth**
+    (`auth`/`admin-auth`/`particular-auth`) y trío **logística** + rutas **block-null**; implica actualizar
+    `security-production-invariants.test.ts`, `logistics-*-api.test.ts` y la guardia `function applyCorsHeaders`
+    de `api-production-session-contract.test.ts` para verificar el `import` + uso en vez de la definición local.
+    `public-professionals.fastify.ts` **no** entra en la consolidación: su CORS es distinto (responde 403,
+    mensaje `"Origin no permitido"`, expone rate-limit headers).
 
 ### PR-CLEAN6 · dead-code & artefactos
 - **Alcance:** eliminar `shared/` + `test/shared-const-and-errors.test.ts`;
