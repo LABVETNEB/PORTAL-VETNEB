@@ -42,14 +42,16 @@ La deuda activa restante sigue enfocada en ordenamiento y documentación:
    (`resolveParticularPortalUrl`): la URL del portal en mails de token sale del
    primer origen `https` del allowlist CORS, conflando dos conceptos distintos. *(P1.)*
 2. **Módulo `shared/` muerto** (3 archivos) consumido solo por su propio test. *(P2.)*
-3. **Dependencias de frontend aparentemente sin uso**: auditoría documental
-   dedicada confirma como `SUSPECT unused` el grupo original
-   (`@tanstack/react-query`, `@tanstack/react-table`, `echarts`,
-   `echarts-for-react`, `react-hook-form`, `@radix-ui/react-tooltip`) y amplía
-   la señal a Radix no importados (`avatar`, `dropdown-menu`, `label`, `select`,
-   `tabs`, `toast`). Ver
-   [`frontend-dependencies-usage-audit.md`](frontend-dependencies-usage-audit.md).
-   *(P2.)*
+3. **Dependencias de frontend P2-B**: bloque cerrado documentalmente post
+   PR-CLEAN7A/#1175, PR-CLEAN7B/#1176, PR-CLEAN7C/#1177 y PR-CLEAN7D/#1178.
+   Se removieron las dependencias sin uso confirmadas y el tooling `UNKNOWN`;
+   `@radix-ui/react-toast` y `@radix-ui/react-tooltip` quedan diferidas
+   intencionalmente por roadmap/UI. Ver
+   [`frontend-dependencies-cleanup-closeout.md`](frontend-dependencies-cleanup-closeout.md),
+   [`frontend-dependencies-usage-audit.md`](frontend-dependencies-usage-audit.md)
+   y
+   [`frontend-radix-tooling-dependencies-audit.md`](frontend-radix-tooling-dependencies-audit.md).
+   *(P2 cerrado con deuda diferida documentada.)*
 4. **Deuda documental de organización**: ~233 docs con taxonomía fragmentada
    (`audit/` + `audits/`, notas de implementación en 3 lugares, ~31 `pr-*.md`
    sueltos en la raíz de `docs/`) y al menos un doc **contradictorio**
@@ -262,7 +264,8 @@ deploy roto ni auth rota en el estado actual.
   `scripts/maintenance/FUSION_POR_COMANDO.sh`) **siguen pendientes**.
 
 #### P2-B · Dependencias de frontend sin uso
-- **Tipo:** dependencias / performance-surface · **Riesgo:** Medio (verificar build/E2E).
+- **Tipo:** dependencias / performance-surface · **Estado:** cerrado
+  documentalmente post-#1178; queda defer roadmap/UI para `toast`/`tooltip`.
 - **Snapshot documental dedicado (2026-06-29, rama
   `audit/frontend-dependencies-usage`, HEAD `d958c63`):**
   [`docs/audit/frontend-dependencies-usage-audit.md`](frontend-dependencies-usage-audit.md).
@@ -330,6 +333,19 @@ deploy roto ni auth rota en el estado actual.
   `test/helpers/clean7a-dependency-cleanup-scope.ts`. No se tocó Radix, runtime
   frontend/backend, DB, migraciones, workflows, Render, secrets ni
   `package.json` raíz.
+- **Estado PR-CLEAN7D / Radix unused:** **EJECUTADO** (2026-06-29, rama
+  `clean/frontend-radix-unused-core`, mergeado como #1178; HEAD esperado post
+  merge `327253e`). Se removieron sólo `@radix-ui/react-avatar`,
+  `@radix-ui/react-dropdown-menu`, `@radix-ui/react-label`,
+  `@radix-ui/react-select` y `@radix-ui/react-tabs`. Permanecen
+  `@radix-ui/react-toast` y `@radix-ui/react-tooltip` como `DEFER keep` por
+  roadmap/estandarización UI.
+- **Cierre P2-B (2026-06-29):** **CERRADO DOCUMENTALMENTE** en
+  [`docs/audit/frontend-dependencies-cleanup-closeout.md`](frontend-dependencies-cleanup-closeout.md).
+  El bloque quedó cerrado por #1175, #1176, #1177 y #1178; el tooling `UNKNOWN`
+  quedó resuelto; no hubo cambios runtime/API/backend/DB/workflows en este
+  closeout docs-only; no se tocaron `frontend/package.json`, `pnpm-lock.yaml`,
+  `package.json` raíz ni runtime.
 
 #### P2-C · `docs/notes/todo.md` contradictorio con la arquitectura actual
 - **Tipo:** docs · **Riesgo:** Bajo.
@@ -1019,10 +1035,13 @@ exige build+E2E). El resto está saludable.
 - **Rollback:** revertir (historia preservada en git).
 
 ### PR-CLEAN7 · dependencias frontend sin uso
-- **Estado documental:** auditoría dedicada completada en
-  [`docs/audit/frontend-dependencies-usage-audit.md`](frontend-dependencies-usage-audit.md).
-  PR-CLEAN7A ya eliminó el primer grupo probado; Radix no usados y tooling
-  `UNKNOWN` permanecen pendientes.
+- **Estado documental:** **bloque P2-B cerrado post-PR-CLEAN7D/#1178**. Cierre
+  dedicado en
+  [`docs/audit/frontend-dependencies-cleanup-closeout.md`](frontend-dependencies-cleanup-closeout.md).
+  Auditorías base:
+  [`frontend-dependencies-usage-audit.md`](frontend-dependencies-usage-audit.md)
+  y
+  [`frontend-radix-tooling-dependencies-audit.md`](frontend-radix-tooling-dependencies-audit.md).
 - **Alcance recomendado por fases:**
   - **PR-CLEAN7A (EJECUTADO 2026-06-29):** remover `@tanstack/react-query`,
     `@tanstack/react-table`, `echarts`, `echarts-for-react` y
@@ -1034,7 +1053,7 @@ exige build+E2E). El resto está saludable.
   - **PR-CLEAN7C (EJECUTADO 2026-06-29):** remover tooling ESLint directo
     `@eslint/eslintrc` y dependencia directa `@next/eslint-plugin-next`, con
     lint antes/después y validaciones completas.
-  - **PR-CLEAN7D opcional:** tratar Radix por grupos. Candidatos
+  - **PR-CLEAN7D (EJECUTADO 2026-06-29, #1178):** remover Radix
     `SUSPECT unused`: `avatar`, `dropdown-menu`, `label`, `select`, `tabs`.
     Mantener `toast`/`tooltip` como `DEFER keep` mientras siga vigente el
     roadmap de dashboard premium; si se descarta, eliminarlos en PR separado.
@@ -1102,10 +1121,11 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
 - [~] PR-CLEAN6 (dead-code/artefactos): porción `shared/` (P2-A) ejecutada
   (rama `clean/remove-dead-shared-module`); artefactos P3 (`legacy/drizzle-old/`,
   `generate-pwa-icons.py`, `FUSION_POR_COMANDO.sh`) pendientes.
-- [~] PR-CLEAN7 (deps sin uso): PR-CLEAN7A ejecutado; PR-CLEAN7B docs-only
+- [x] PR-CLEAN7 / P2-B (deps sin uso): PR-CLEAN7A ejecutado; PR-CLEAN7B docs-only
   completado; PR-CLEAN7C tooling ejecutado; PR-CLEAN7D Radix `SUSPECT unused`
   ejecutado para `avatar`, `dropdown-menu`, `label`, `select` y `tabs`.
-  `toast`/`tooltip` quedan diferidos por roadmap.
+  `toast`/`tooltip` quedan diferidos por roadmap y el cierre docs-only queda en
+  `docs/audit/frontend-dependencies-cleanup-closeout.md`.
 - [ ] `.env.example` y `frontend/.env.example` documentan **todas** las vars usadas.
 - [ ] `docs/notes/todo.md` ya no contradice la arquitectura real.
 - [ ] Taxonomía `docs/` unificada (sin `audit`+`audits`, sin `pr-*.md` sueltos).

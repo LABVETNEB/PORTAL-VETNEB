@@ -295,6 +295,10 @@ Recomendación post-PR-CLEAN7A:
 - `frontend/package.json` y `pnpm-lock.yaml` permanecen sin cambios.
 - No commit, no push, no PR.
 
+> **Actualización de cierre P2-B (2026-06-29):** el bloque completo quedó
+> cerrado documentalmente post-PR-CLEAN7D/#1178. Ver
+> [`frontend-dependencies-cleanup-closeout.md`](frontend-dependencies-cleanup-closeout.md).
+
 ## 8. Nota final PR-CLEAN7A
 
 **Estado:** ejecutado el 2026-06-29 en la rama
@@ -390,3 +394,28 @@ Cambios de alcance PR-CLEAN7D:
 - `@radix-ui/react-toast` y `@radix-ui/react-tooltip` permanecen declarados.
 - No se toco runtime frontend/backend, DB, migraciones, workflows, Render,
   secrets, `package.json` raiz ni otras dependencias.
+
+## 12. Cierre P2-B post-PR-CLEAN7D
+
+**Estado:** cerrado documentalmente el 2026-06-29 sobre la base
+`327253e chore(frontend): remove unused radix core deps (#1178)`.
+
+El bloque P2-B queda cerrado por:
+
+- PR-CLEAN7A/#1175: removió `@tanstack/react-query`,
+  `@tanstack/react-table`, `echarts`, `echarts-for-react` y
+  `react-hook-form`.
+- PR-CLEAN7B/#1176: auditó docs-only el remanente Radix/tooling.
+- PR-CLEAN7C/#1177: removió `@eslint/eslintrc` y la dependencia directa
+  `@next/eslint-plugin-next`; el tooling `UNKNOWN` queda resuelto.
+- PR-CLEAN7D/#1178: removió `@radix-ui/react-avatar`,
+  `@radix-ui/react-dropdown-menu`, `@radix-ui/react-label`,
+  `@radix-ui/react-select` y `@radix-ui/react-tabs`.
+
+`@radix-ui/react-toast` y `@radix-ui/react-tooltip` quedan diferidos
+intencionalmente como roadmap/UI. Este cierre no toca `frontend/package.json`,
+`pnpm-lock.yaml`, runtime frontend/backend, API, DB, migraciones, workflows,
+Render ni secrets.
+
+Documento de cierre:
+[`docs/audit/frontend-dependencies-cleanup-closeout.md`](frontend-dependencies-cleanup-closeout.md).
