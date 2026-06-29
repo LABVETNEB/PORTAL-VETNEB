@@ -42,9 +42,14 @@ La deuda activa restante sigue enfocada en ordenamiento y documentación:
    (`resolveParticularPortalUrl`): la URL del portal en mails de token sale del
    primer origen `https` del allowlist CORS, conflando dos conceptos distintos. *(P1.)*
 2. **Módulo `shared/` muerto** (3 archivos) consumido solo por su propio test. *(P2.)*
-3. **6 dependencias de frontend sin uso** (`@tanstack/react-query`,
-   `@tanstack/react-table`, `echarts`, `echarts-for-react`, `react-hook-form`,
-   `@radix-ui/react-tooltip`). *(P2.)*
+3. **Dependencias de frontend aparentemente sin uso**: auditoría documental
+   dedicada confirma como `SUSPECT unused` el grupo original
+   (`@tanstack/react-query`, `@tanstack/react-table`, `echarts`,
+   `echarts-for-react`, `react-hook-form`, `@radix-ui/react-tooltip`) y amplía
+   la señal a Radix no importados (`avatar`, `dropdown-menu`, `label`, `select`,
+   `tabs`, `toast`). Ver
+   [`frontend-dependencies-usage-audit.md`](frontend-dependencies-usage-audit.md).
+   *(P2.)*
 4. **Deuda documental de organización**: ~233 docs con taxonomía fragmentada
    (`audit/` + `audits/`, notas de implementación en 3 lugares, ~31 `pr-*.md`
    sueltos en la raíz de `docs/`) y al menos un doc **contradictorio**
@@ -258,20 +263,38 @@ deploy roto ni auth rota en el estado actual.
 
 #### P2-B · Dependencias de frontend sin uso
 - **Tipo:** dependencias / performance-surface · **Riesgo:** Medio (verificar build/E2E).
-- **Evidencia** (`git grep` por nombre literal en `frontend/src`, `frontend/e2e`, configs → 0 refs):
-  | Paquete | Refs en código |
-  | --- | --- |
-  | `@tanstack/react-query` | 0 (sin `QueryClient/useQuery/useMutation`) |
-  | `@tanstack/react-table` | 0 (sin `useReactTable`) |
-  | `echarts` | 0 |
-  | `echarts-for-react` | 0 |
-  | `react-hook-form` | 0 (formularios usan `useState`/`onSubmit`; 26 componentes) |
-  | `@radix-ui/react-tooltip` | 0 (sin `Tooltip`) |
+- **Snapshot documental dedicado (2026-06-29, rama
+  `audit/frontend-dependencies-usage`, HEAD `d958c63`):**
+  [`docs/audit/frontend-dependencies-usage-audit.md`](frontend-dependencies-usage-audit.md).
+  Inventario completo de `frontend/package.json`: 25 `dependencies` y 12
+  `devDependencies`, con búsquedas reproducibles en `frontend/src`,
+  `frontend/e2e`, `test`, `scripts`, configs y `docs` como referencia.
+- **Evidencia principal:** el grupo original sigue sin imports runtime/config:
+  `@tanstack/react-query`, `@tanstack/react-table`, `echarts`,
+  `echarts-for-react`, `react-hook-form`, `@radix-ui/react-tooltip`.
+  La auditoría amplía el set `SUSPECT unused` a Radix declarados pero no
+  importados: `@radix-ui/react-avatar`,
+  `@radix-ui/react-dropdown-menu`, `@radix-ui/react-label`,
+  `@radix-ui/react-select`, `@radix-ui/react-tabs`,
+  `@radix-ui/react-toast`.
+- **Falsos positivos descartados:** `gsap` sí está vivo por imports dinámicos en
+  `frontend/src/components/public/PublicScrollReveal.tsx`; `@radix-ui/react-dialog`,
+  `@radix-ui/react-separator` y `@radix-ui/react-slot` sí tienen imports runtime;
+  Tailwind/PostCSS/Next/React/Playwright/TypeScript son tooling o runtime vivo.
+- **Riesgo de eliminación:** `test/package-scripts-contract.test.ts` fija varias
+  dependencias como contrato de manifest; cualquier PR de eliminación debe
+  actualizar ese test junto con `frontend/package.json` y `pnpm-lock.yaml`.
+  `@eslint/eslintrc` y la dependencia directa `@next/eslint-plugin-next` quedan
+  como `UNKNOWN needs manual verification`, no como eliminación de runtime.
 - **Impacto:** no inflan el bundle servido (Next no las bundlea si no se importan)
   pero sí el `node_modules`, tiempo de install, superficie de `pnpm audit` y ruido
   de actualizaciones. `echarts` en especial es pesado.
-- **Acción:** **investigar y remover** vía PR con build + E2E + lint verdes
-  (**PR-CLEAN7**). **No tocar `package.json`/lock en esta auditoría.**
+- **Acción:** no remover masivamente. Recomendar PRs chicos por grupo. Primer PR
+  sugerido: **PR-CLEAN7A** para `@tanstack/react-query`,
+  `@tanstack/react-table`, `echarts`, `echarts-for-react` y
+  `react-hook-form`, dejando Radix no usados para un PR posterior porque existen
+  docs/roadmap que proponen adoptar `toast`/`tooltip`. **No tocar
+  `package.json`/lock en esta auditoría.**
 
 #### P2-C · `docs/notes/todo.md` contradictorio con la arquitectura actual
 - **Tipo:** docs · **Riesgo:** Bajo.
@@ -961,9 +984,20 @@ exige build+E2E). El resto está saludable.
 - **Rollback:** revertir (historia preservada en git).
 
 ### PR-CLEAN7 · dependencias frontend sin uso
-- **Alcance:** remover `@tanstack/react-query`, `@tanstack/react-table`, `echarts`,
-  `echarts-for-react`, `react-hook-form`, `@radix-ui/react-tooltip` de
-  `frontend/package.json` (regenerar lock).
+- **Estado documental:** auditoría dedicada completada en
+  [`docs/audit/frontend-dependencies-usage-audit.md`](frontend-dependencies-usage-audit.md).
+  No se eliminó ninguna dependencia.
+- **Alcance recomendado por fases:**
+  - **PR-CLEAN7A:** remover `@tanstack/react-query`,
+    `@tanstack/react-table`, `echarts`, `echarts-for-react` y
+    `react-hook-form`; actualizar `test/package-scripts-contract.test.ts`;
+    regenerar lock.
+  - **PR-CLEAN7B:** decidir/remover Radix declarados sin import
+    (`avatar`, `dropdown-menu`, `label`, `select`, `tabs`, `toast`, `tooltip`)
+    o adoptarlos explícitamente si siguen en roadmap.
+  - **PR-CLEAN7C opcional:** revisar tooling ESLint (`@eslint/eslintrc` y
+    dependencia directa `@next/eslint-plugin-next`) sólo si `lint` confirma que
+    son prescindibles.
 - **Validación:** `pnpm install`; `pnpm --dir frontend lint`; `pnpm --dir frontend typecheck`;
   `pnpm --dir frontend build`; E2E (`e2e:smoke`,`e2e:admin-mobile`,`e2e:visual-contract`,`e2e:public-clinic`).
 - **Rollback:** revertir el PR (restaura deps + lock).
