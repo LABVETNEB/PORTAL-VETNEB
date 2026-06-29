@@ -303,6 +303,19 @@ deploy roto ni auth rota en el estado actual.
   `test/package-scripts-contract.test.ts` dejó de exigir esas 5 dependencias.
   No se tocaron Radix, dependencias `UNKNOWN`, runtime frontend/backend, DB,
   migraciones, workflows, Render ni secrets.
+- **Estado PR-CLEAN7B / remanente P2-B:** **AUDITORÍA DOCS-ONLY COMPLETADA**
+  (2026-06-29, rama `audit/frontend-dependencies-radix-tooling`, HEAD
+  `1ac86d0`). Ver
+  [`docs/audit/frontend-radix-tooling-dependencies-audit.md`](frontend-radix-tooling-dependencies-audit.md).
+  Resultado: 0 imports reales `from`/`require`/`import()` para los 9 paquetes
+  auditados. `@radix-ui/react-avatar`, `@radix-ui/react-dropdown-menu`,
+  `@radix-ui/react-label`, `@radix-ui/react-select` y
+  `@radix-ui/react-tabs` quedan `SUSPECT unused`; `@radix-ui/react-toast` y
+  `@radix-ui/react-tooltip` quedan `DEFER keep` por roadmap explícito de
+  dashboard premium; `@eslint/eslintrc` y la dependencia directa
+  `@next/eslint-plugin-next` quedan `UNKNOWN keep` para PR tooling dedicado.
+  No se tocaron `frontend/package.json`, `pnpm-lock.yaml`, runtime
+  frontend/backend, DB, migraciones, workflows, Render ni secrets.
 
 #### P2-C · `docs/notes/todo.md` contradictorio con la arquitectura actual
 - **Tipo:** docs · **Riesgo:** Bajo.
@@ -367,11 +380,11 @@ deploy roto ni auth rota en el estado actual.
 | 5 | `legacy/drizzle-old/` (3 archivos) | cleanup | README lo marca "archaeology only" | PR-CLEAN6 |
 | 6 | `scripts/generate-pwa-icons.py` | cleanup | 0 refs; Python prohibido por skill | PR-CLEAN6 |
 | 7 | `scripts/maintenance/FUSION_POR_COMANDO.sh` | cleanup | 0 refs; artefacto de fusión histórica | PR-CLEAN6 |
-| 8 | `@tanstack/react-query` (dep frontend) | dependencias | 0 refs en `frontend/` | PR-CLEAN7 |
-| 9 | `@tanstack/react-table` (dep frontend) | dependencias | 0 refs | PR-CLEAN7 |
-| 10 | `echarts` + `echarts-for-react` (deps) | dependencias | 0 refs | PR-CLEAN7 |
-| 11 | `react-hook-form` (dep frontend) | dependencias | 0 refs | PR-CLEAN7 |
-| 12 | `@radix-ui/react-tooltip` (dep frontend) | dependencias | 0 refs | PR-CLEAN7 |
+| 8 | `@tanstack/react-query` (dep frontend) | dependencias | removida por PR-CLEAN7A (#1175) | cerrado |
+| 9 | `@tanstack/react-table` (dep frontend) | dependencias | removida por PR-CLEAN7A (#1175) | cerrado |
+| 10 | `echarts` + `echarts-for-react` (deps) | dependencias | removidas por PR-CLEAN7A (#1175) | cerrado |
+| 11 | `react-hook-form` (dep frontend) | dependencias | removida por PR-CLEAN7A (#1175) | cerrado |
+| 12 | Radix remanente no importado | dependencias | `avatar`, `dropdown-menu`, `label`, `select`, `tabs` `SUSPECT unused`; `toast`/`tooltip` `DEFER keep` por roadmap | PR-CLEAN7D |
 | 13 | `docs/notes/todo.md` (parte tRPC/Sheets) | docs | contradice arquitectura real | PR-CLEAN1 |
 
 ---
@@ -389,7 +402,7 @@ deploy roto ni auth rota en el estado actual.
 | `legacy/drizzle-old/*` | "archaeology only" (su README) | P3 | Bajo | archivar/eliminar | PR-CLEAN6 |
 | `scripts/generate-pwa-icons.py` | 0 refs; Python prohibido | P3 | Bajo | eliminar | PR-CLEAN6 |
 | `scripts/maintenance/FUSION_POR_COMANDO.sh` | 0 refs; fusión histórica | P3 | Bajo | eliminar | PR-CLEAN6 |
-| `frontend/package.json` (6 deps) | 0 refs (ver §4 #8-12) | P2 | Medio | investigar+remover | PR-CLEAN7 |
+| `frontend/package.json` (Radix/tooling remanente) | 0 imports reales para los 9 paquetes auditados; `toast`/`tooltip` tienen roadmap, tooling queda `UNKNOWN` | P2 | Medio | docs cerrados; decidir PR-CLEAN7C/7D | PR-CLEAN7 |
 | `docs/notes/todo.md` | tRPC/Google Sheets inexistentes | P2 | Bajo | archivar/reescribir | PR-CLEAN1 |
 | `docs/audit/` + `docs/audits/` | taxonomía duplicada | P2 | Bajo | unificar | PR-CLEAN2 |
 | `IMPLEMENTATION_NOTES/` (raíz, 34) | notas en 3 ubicaciones | P2 | Bajo | consolidar bajo `docs/` | PR-CLEAN2 |
@@ -582,7 +595,7 @@ serían altas nuevas (fuera de alcance de limpieza).
 | Tema | Estado | Acción |
 | --- | --- | --- |
 | Code splitting frontend | `gsap`/`ScrollTrigger` lazy (`PublicScrollReveal.tsx:112-114`); `next/dynamic` en `AdminClinicsManagementCard`, `ParticularesContent` | OK |
-| Deps pesadas sin uso | `echarts`/`echarts-for-react`/`react-query`/`react-table`/`react-hook-form` con 0 refs | remover (PR-CLEAN7) |
+| Deps pesadas sin uso | `echarts`/`echarts-for-react`/`react-query`/`react-table`/`react-hook-form` con 0 refs | cerrado por PR-CLEAN7A (#1175) |
 | `no-store` en privados | hook global `applySensitiveApiNoStoreHeaders` (`fastify-app.ts:362`) sobre `/api/*` excepto `/api/public/*` | OK |
 | Cold start backend | build esbuild bundle ESM; `host 0.0.0.0`/`PORT` correctos (no auditado a fondo aquí) | sin hallazgo |
 | Logging | 56 `console.*` en server; sin redacción estructurada | observabilidad (P2-E) |
@@ -1001,12 +1014,17 @@ exige build+E2E). El resto está saludable.
     `@tanstack/react-table`, `echarts`, `echarts-for-react` y
     `react-hook-form`; actualizar `test/package-scripts-contract.test.ts`;
     regenerar lock.
-  - **PR-CLEAN7B:** decidir/remover Radix declarados sin import
-    (`avatar`, `dropdown-menu`, `label`, `select`, `tabs`, `toast`, `tooltip`)
-    o adoptarlos explícitamente si siguen en roadmap.
+  - **PR-CLEAN7B (AUDITORÍA DOCS-ONLY COMPLETADA 2026-06-29):** auditar
+    remanente Radix/tooling sin tocar manifests, lockfile ni runtime. Documento:
+    [`frontend-radix-tooling-dependencies-audit.md`](frontend-radix-tooling-dependencies-audit.md).
   - **PR-CLEAN7C opcional:** revisar tooling ESLint (`@eslint/eslintrc` y
     dependencia directa `@next/eslint-plugin-next`) sólo si `lint` confirma que
-    son prescindibles.
+    son prescindibles. Mantener como `UNKNOWN keep` si hay fallo o duda de
+    resolución.
+  - **PR-CLEAN7D opcional:** tratar Radix por grupos. Candidatos
+    `SUSPECT unused`: `avatar`, `dropdown-menu`, `label`, `select`, `tabs`.
+    Mantener `toast`/`tooltip` como `DEFER keep` mientras siga vigente el
+    roadmap de dashboard premium; si se descarta, eliminarlos en PR separado.
 - **Validación:** `pnpm install`; `pnpm --dir frontend lint`; `pnpm --dir frontend typecheck`;
   `pnpm --dir frontend build`; E2E (`e2e:smoke`,`e2e:admin-mobile`,`e2e:visual-contract`,`e2e:public-clinic`).
 - **Rollback:** revertir el PR (restaura deps + lock).
@@ -1071,8 +1089,9 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
 - [~] PR-CLEAN6 (dead-code/artefactos): porción `shared/` (P2-A) ejecutada
   (rama `clean/remove-dead-shared-module`); artefactos P3 (`legacy/drizzle-old/`,
   `generate-pwa-icons.py`, `FUSION_POR_COMANDO.sh`) pendientes.
-- [~] PR-CLEAN7 (deps sin uso): PR-CLEAN7A ejecutado; Radix no usados,
-  tooling `UNKNOWN` y E2E completa siguen pendientes.
+- [~] PR-CLEAN7 (deps sin uso): PR-CLEAN7A ejecutado; PR-CLEAN7B docs-only
+  completado; quedan decisiones opcionales PR-CLEAN7C tooling y PR-CLEAN7D
+  Radix por grupos, más E2E completa si se toca manifest/lock.
 - [ ] `.env.example` y `frontend/.env.example` documentan **todas** las vars usadas.
 - [ ] `docs/notes/todo.md` ya no contradice la arquitectura real.
 - [ ] Taxonomía `docs/` unificada (sin `audit`+`audits`, sin `pr-*.md` sueltos).

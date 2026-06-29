@@ -62,7 +62,7 @@ Lectura aplicada:
 
 | Paquete | Clasificación | Evidencia principal | Nota |
 | --- | --- | --- | --- |
-| `@radix-ui/react-avatar` | SUSPECT unused | Solo `frontend/package.json` y `test/package-scripts-contract.test.ts` | Sin import directo ni componente local `Avatar`. |
+| `@radix-ui/react-avatar` | SUSPECT unused | Solo `frontend/package.json` y `test/package-scripts-contract.test.ts` | Sin import directo ni componente local `Avatar`; confirmado post-PR-CLEAN7A. |
 | `@radix-ui/react-dialog` | LIVE runtime | `frontend/src/app/dashboard/admin/ClinicEditDrawer.tsx:4`; `frontend/src/components/dashboard/ModuleDialog.tsx:4` | Usado para drawer/dialog. |
 | `@radix-ui/react-dropdown-menu` | SUSPECT unused | Solo manifest/test de manifest; docs históricas | Sin import directo. |
 | `@radix-ui/react-label` | SUSPECT unused | Solo manifest/test de manifest | Sin import directo. |
@@ -70,8 +70,8 @@ Lectura aplicada:
 | `@radix-ui/react-separator` | LIVE runtime | `frontend/src/components/ui/separator.tsx:4` | Primitiva UI usada. |
 | `@radix-ui/react-slot` | LIVE runtime | `frontend/src/components/ui/button.tsx:2` | Primitiva `Button asChild`. |
 | `@radix-ui/react-tabs` | SUSPECT unused | Solo manifest/test de manifest | El dashboard usa `ModuleTabs` propio, no Radix Tabs. |
-| `@radix-ui/react-toast` | SUSPECT unused | Solo manifest/test de manifest; docs proponen adoptarlo | No hay provider/componente toast runtime. |
-| `@radix-ui/react-tooltip` | SUSPECT unused | Solo manifest/test de manifest; docs proponen adoptarlo | Confirma y amplía el P2-B rector. |
+| `@radix-ui/react-toast` | DEFER keep por roadmap/estandarización UI | Solo manifest/test de manifest; docs proponen adoptarlo | No hay provider/componente toast runtime, pero hay roadmap explícito en `docs/audit-premium-dashboard-interaction-value.md`. |
+| `@radix-ui/react-tooltip` | DEFER keep por roadmap/estandarización UI | Solo manifest/test de manifest; docs proponen adoptarlo | No hay provider/componente tooltip runtime, pero hay roadmap explícito en `docs/audit-premium-dashboard-interaction-value.md`. |
 | `@tanstack/react-query` | SUSPECT unused | Solo manifest/test de manifest y docs históricas | Sin `QueryClient`, `useQuery`, `useMutation` ni imports. |
 | `@tanstack/react-table` | SUSPECT unused | Tests verifican que no se importe; manifest/test de manifest | Sin `useReactTable`; guardrails lo prohíben en layout/públicas. |
 | `class-variance-authority` | LIVE runtime | `frontend/src/components/ui/badge.tsx:2`; `frontend/src/components/ui/button.tsx:3` | Usado por variantes UI. |
@@ -92,8 +92,8 @@ Lectura aplicada:
 
 | Paquete | Clasificación | Evidencia principal | Nota |
 | --- | --- | --- | --- |
-| `@eslint/eslintrc` | UNKNOWN needs manual verification | `pnpm --dir frontend why` muestra dependencia directa solamente | No hay import directo en `eslint.config.mjs`; validar con PR dedicado si se quiere remover. |
-| `@next/eslint-plugin-next` | UNKNOWN needs manual verification | Directa `16.2.7` y transitiva `16.2.9` vía `eslint-config-next` | Posible duplicado/version skew; no tocar sin lint verde. |
+| `@eslint/eslintrc` | UNKNOWN keep | `corepack pnpm --dir frontend why` muestra dependencia directa solamente | No hay import directo en `eslint.config.mjs`; validar con PR tooling dedicado si se quiere remover. |
+| `@next/eslint-plugin-next` | UNKNOWN keep | Directa `16.2.7` y transitiva `16.2.9` vía `eslint-config-next` | Posible duplicado/version skew; no tocar sin lint verde. |
 | `@playwright/test` | LIVE tests | 70+ imports en `frontend/e2e/*.spec.ts`; `frontend/playwright.config.ts:1` | Tooling E2E activo. |
 | `@tailwindcss/postcss` | LIVE build/config/tooling | `frontend/postcss.config.mjs:4` | Plugin PostCSS de Tailwind 4. |
 | `@types/node` | LIVE build/config/tooling | TS/config usa APIs Node en configs (`createRequire`, `process`) | Tipos necesarios para configs y e2e. |
@@ -250,7 +250,13 @@ Antes de moverlo/removerlo hay que revisar si debe vivir en root, frontend o amb
 
 ## 6. Recomendación concreta para el siguiente PR
 
-Siguiente PR recomendado: **PR-CLEAN7A · frontend deps pesadas sin uso**.
+> **Actualización 2026-06-29:** PR-CLEAN7A ya fue ejecutado y mergeado como
+> `1ac86d0 chore(frontend): remove unused core dependencies (#1175)`. El
+> remanente P2-B queda auditado en
+> [`frontend-radix-tooling-dependencies-audit.md`](frontend-radix-tooling-dependencies-audit.md).
+
+Siguiente PR recomendado originalmente: **PR-CLEAN7A · frontend deps pesadas sin
+uso**.
 
 Alcance propuesto:
 
@@ -266,6 +272,18 @@ Motivo: es el grupo más claro, con evidencia reiterada en auditorías previas,
 guardrails explícitos de no-import para `echarts`/`react-table` y bajo riesgo de
 UX inmediato. Radix conviene tratarlo después porque hay documentos que proponen
 adoptar `toast`/`tooltip`.
+
+Recomendación post-PR-CLEAN7A:
+
+- **PR-CLEAN7B:** docs-only audit del remanente Radix/tooling; no tocar
+  manifests ni runtime.
+- **PR-CLEAN7C:** tooling ESLint únicamente (`@eslint/eslintrc` y directa
+  `@next/eslint-plugin-next`), si Nico autoriza cambio de dependencias y con
+  `pnpm --dir frontend lint` antes/después.
+- **PR-CLEAN7D:** Radix por grupos. Candidatos `SUSPECT unused`:
+  `avatar`, `dropdown-menu`, `label`, `select`, `tabs`. Mantener
+  `toast`/`tooltip` como `DEFER keep` mientras siga vigente el roadmap de
+  dashboard premium.
 
 ---
 
@@ -296,3 +314,23 @@ Cambios de alcance PR-CLEAN7A:
   exigían esas 5 dependencias.
 - No se tocaron Radix, dependencias `UNKNOWN`, runtime frontend/backend, DB,
   migraciones, workflows, Render ni secrets.
+
+## 9. Nota final PR-CLEAN7B
+
+**Estado:** auditoría docs-only completada el 2026-06-29 en la rama
+`audit/frontend-dependencies-radix-tooling`, base HEAD `1ac86d0`.
+
+Documento dedicado:
+[`docs/audit/frontend-radix-tooling-dependencies-audit.md`](frontend-radix-tooling-dependencies-audit.md).
+
+Clasificación remanente:
+
+- `SUSPECT unused`: `@radix-ui/react-avatar`,
+  `@radix-ui/react-dropdown-menu`, `@radix-ui/react-label`,
+  `@radix-ui/react-select`, `@radix-ui/react-tabs`.
+- `DEFER keep por roadmap/estandarización UI`: `@radix-ui/react-toast`,
+  `@radix-ui/react-tooltip`.
+- `UNKNOWN keep`: `@eslint/eslintrc`, `@next/eslint-plugin-next`.
+
+No se modificaron `frontend/package.json`, `pnpm-lock.yaml`, runtime
+frontend/backend, DB, migraciones, workflows, Render ni secrets.
