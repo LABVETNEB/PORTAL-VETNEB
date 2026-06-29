@@ -311,7 +311,7 @@ test("particularStudyTrackingNativeRoutes responde 404 genérico en PATCH /notif
   }
 });
 
-test("particularStudyTrackingNativeRoutes expone PATCH /notifications/read-all scoped por token", async () => {
+test("particularStudyTrackingNativeRoutes expone PATCH /notifications/read-all con Origin permitido", async () => {
   const markAllCalls: Array<Record<string, unknown>> = [];
   const app = await createTestApp({
     markAllStudyTrackingNotificationsReadScoped: async (
@@ -343,7 +343,7 @@ test("particularStudyTrackingNativeRoutes expone PATCH /notifications/read-all s
   }
 });
 
-test("particularStudyTrackingNativeRoutes bloquea PATCH /notifications/read-all sin origin confiable", async () => {
+test("particularStudyTrackingNativeRoutes bloquea PATCH /notifications/read-all sin Origin ni Referer", async () => {
   const app = await createTestApp();
 
   try {
@@ -356,6 +356,38 @@ test("particularStudyTrackingNativeRoutes bloquea PATCH /notifications/read-all 
     });
 
     assert.equal(response.statusCode, 403);
+    assert.deepEqual(JSON.parse(response.body), {
+      success: false,
+      error: "Origen no permitido",
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test("particularStudyTrackingNativeRoutes bloquea PATCH /notifications/read-all con Origin no permitido", async () => {
+  const markAllCalls: Array<Record<string, unknown>> = [];
+  const app = await createTestApp({
+    markAllStudyTrackingNotificationsReadScoped: async (
+      params: Record<string, unknown>,
+    ) => {
+      markAllCalls.push(params);
+      return { updatedCount: 3 };
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/particular/study-tracking/notifications/read-all",
+      headers: {
+        origin: "https://evil.example",
+        cookie: `${ENV.particularCookieName}=particular-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(markAllCalls, []);
     assert.deepEqual(JSON.parse(response.body), {
       success: false,
       error: "Origen no permitido",

@@ -771,6 +771,45 @@ exige build+E2E). El resto está saludable.
     (`particular-study-tracking`, `study-tracking`) con variante/wrapper dedicado que preserve el bloqueo
     de métodos inseguros sin `Origin` ni `Referer`. `public-professionals.fastify.ts` sigue fuera porque su
     CORS y mensaje son distintos.
+- **Nota de seguimiento (ejecución real — PR-CORS3C, rama `clean/backend-cors-helper-block-null-routes`, 2026-06-29):**
+  se ejecutó la subfase **block-null** de PR-CORS3, limitada a las dos rutas que bloquean métodos inseguros
+  sin `Origin` ni `Referer`. El helper `server/lib/cors-headers.ts` ahora exporta
+  `enforceTrustedOriginRequired`, variante explícita *block-null* que reutiliza `UNSAFE_METHODS` y
+  `getRequestOrigin`, preserva métodos seguros y responde 403 con `{ success: false, error: "Origen no permitido" }`
+  cuando el origen falta o no pertenece a la allowlist. La variante *allow-null* `enforceTrustedOrigin` no se
+  modificó.
+  - **Rutas migradas (2):** `server/routes/particular-study-tracking.fastify.ts` y
+    `server/routes/study-tracking.fastify.ts`. Ambas reemplazan las definiciones locales de
+    `getAllowedOrigins`, `normalizeOrigin`, `getOriginHeader`, `getAllowedOriginForCors`, `getRequestOrigin`,
+    `enforceTrustedOrigin` y el `const UNSAFE_METHODS` local por imports desde `../lib/cors-headers.ts`. Para
+    conservar call-sites y guardas existentes, importan `enforceTrustedOriginRequired as enforceTrustedOrigin`.
+  - **`applyCorsHeaders` se mantiene local** en ambas rutas, con el mismo cuerpo y los mismos headers
+    (`vary`, `access-control-allow-origin`, `access-control-allow-credentials`).
+  - **Contrato preservado:** métodos inseguros sin `Origin` ni `Referer` siguen devolviendo 403,
+    `Origin` permitido no falla por origen, `Origin` no permitido devuelve 403, el mensaje exacto sigue siendo
+    `"Origen no permitido"`, y los preflight `OPTIONS` conservan sus allow-methods por ruta.
+  - **Tests actualizados:** `test/cors-headers-shared-helper.test.ts` cubre la variante *block-null*;
+    `test/security-production-invariants.test.ts` exige import/uso del helper compartido y ausencia de copias
+    CORS locales en las dos rutas; `test/study-tracking.fastify.test.ts` y
+    `test/particular-study-tracking.fastify.test.ts` fijan los casos runtime de `Origin` permitido, faltante y
+    no permitido.
+  - **Fuera de alcance respetado:** no se tocó `public-professionals.fastify.ts`, frontend runtime, DB,
+    migraciones, dependencias, lockfiles, workflows, Render ni secrets.
+  - **Validación ejecutada:** `pnpm typecheck` y `pnpm typecheck:test` directos fallaron antes de ejecutar
+    scripts por `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`; los equivalentes `corepack pnpm typecheck` y
+    `corepack pnpm typecheck:test` pasaron. Pasaron también helper CORS (14/14),
+    `security-trusted-origin-cors-boundaries` (4/4), `security-production-invariants` (11/11), las dos rutas
+    migradas (11/11 y 12/12), contratos CSRF/mutación/management, suite study-tracking, runtime timing,
+    `fastify-app`, seguridad cross-auth/sesiones/ownership/audit y report/status/access-token específicos
+    ejecutados. `corepack pnpm build`, `corepack pnpm security:public-surface`,
+    `corepack pnpm --dir frontend lint`, `corepack pnpm --dir frontend build` y un segundo
+    `corepack pnpm --dir frontend typecheck` pasaron; el primer frontend typecheck falló por
+    `.next/types/routes.js` faltante antes del build y pasó luego de regenerar `.next`. `corepack pnpm test`
+    completo fue ejecutado: 2890/2898 pasaron y 8 fallaron por guardas históricas de PRs frontend que
+    inspeccionan `git diff` y prohíben cambios backend (`server/lib/cors-headers.ts` y rutas backend), no por
+    regresión CORS/study-tracking.
+  - **Recomendación restante:** mantener `public-professionals.fastify.ts` fuera de esta consolidación salvo PR
+    dedicado, porque conserva contrato CORS y mensaje propio (`"Origin no permitido"`).
 
 ### PR-CLEAN6 · dead-code & artefactos
 - **Alcance:** eliminar `shared/` + `test/shared-const-and-errors.test.ts`;
