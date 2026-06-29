@@ -7,9 +7,9 @@
 > **Skill aplicada:** `vetneb-production-web-optimization-engineer`.
 > **Fecha:** 2026-06-28 · **Autor:** auditoría asistida (read-only).
 >
-> **Actualización documental:** 2026-06-29 · cierre del bloque P1-A CORS
-> después de PR #1164, #1165, #1166, #1167 y #1168. Modo
-> docs/tests-contract only; no se tocó runtime backend/frontend, DB,
+> **Actualización documental:** 2026-06-29 · snapshot final del bloque P1-A CORS
+> después de PR #1164, #1165, #1166, #1167, #1168, #1169 y #1170. Modo
+> docs-only; no se tocó runtime backend/frontend, DB,
 > migraciones, dependencias, lockfiles, workflows, Render ni secretos.
 
 ---
@@ -23,17 +23,18 @@ arquitectura productiva (Fastify + Supabase/Drizzle, Next.js App Router, proxy
 same-origin a `api.vetneb.com.ar`) es coherente y los invariantes de seguridad
 (sesiones por rol, `no-store` en privados, tokens no logueados) se respetan.
 
-El trabajo de cierre **no requiere correcciones de P0**. Tras los PRs
-#1164–#1168, el bloque **P1-A CORS** queda cerrado documentalmente como
+El trabajo de cierre **no requiere correcciones de P0**. Tras la secuencia
+#1164–#1170, el bloque **P1-A CORS** queda cerrado documentalmente como
 duplicación masiva resuelta por fases: el contrato común vive en
 `server/lib/cors-headers.ts` y las familias migradas importan el helper
-compartido. Quedan documentados como remanentes intencionales
-`applyCorsHeaders` local por headers específicos, el middleware global
-`trusted-origin` y la excepción `public-professionals.fastify.ts`. La
-actualización dedicada `clean/backend-cors-helper-logistics-sla` resolvió el
-residual GET-only de `logistics-sla.fastify.ts` importando los helpers
-compartidos compatibles, sin cambiar `OPTIONS`, status codes, bodies, headers ni
-semántica `Origin`/`Referer`.
+compartido. Quedan documentados como remanentes no pendientes
+`applyCorsHeaders` local por headers específicos y el middleware global
+`trusted-origin`; la única excepción conocida de ruta con contrato distinto es
+`public-professionals.fastify.ts`. La actualización #1170
+(`clean/backend-cors-helper-logistics-sla`) resolvió el residual GET-only de
+`logistics-sla.fastify.ts` importando los helpers compartidos compatibles, sin
+cambiar `OPTIONS`, status codes, bodies, headers ni semántica
+`Origin`/`Referer`.
 
 La deuda activa restante sigue enfocada en ordenamiento y documentación:
 
@@ -118,7 +119,8 @@ deploy roto ni auth rota en el estado actual.
 #### P1-A · Duplicación masiva de boilerplate CORS por ruta
 - **Tipo:** architecture / dead-code-adyacente · **Riesgo de cambio:** Medio.
 - **Estado actualizado (2026-06-29):** **resuelto por fases** para las familias
-  incluidas en PR #1164, #1165, #1166, #1167 y #1168. El helper compartido
+  incluidas en PR #1164, #1165, #1166, #1167 y #1168, con el residual
+  `logistics-sla` resuelto por #1170. El helper compartido
   `server/lib/cors-headers.ts` centraliza `UNSAFE_METHODS`, `getAllowedOrigins`,
   `normalizeOrigin`, `getOriginHeader`, `getAllowedOriginForCors`,
   `getRequestOrigin`, `enforceTrustedOrigin` y
@@ -144,8 +146,12 @@ deploy roto ni auth rota en el estado actual.
     `route-plans`).
   - **#1168 / PR-CORS3C:** study tracking block-null con
     `enforceTrustedOriginRequired`.
-- **Inventario actualizado tras `clean/backend-cors-helper-logistics-sla`
-  (`git grep`, 2026-06-29):**
+  - **#1169:** cierre documental post-#1168; inventarió `logistics-sla` como
+    residual GET-only.
+  - **#1170:** migración de `server/routes/logistics-sla.fastify.ts` al helper
+    compartido, sin tocar `server/lib/cors-headers.ts` ni
+    `server/routes/public-professionals.fastify.ts`.
+- **Inventario actualizado tras #1170 (`git grep`, 2026-06-29):**
   - `normalizeOrigin` aparece en `server/lib/cors-headers.ts`,
     `server/routes/public-professionals.fastify.ts`.
   - `getAllowedOrigins` aparece en `server/lib/cors-headers.ts`,
@@ -163,19 +169,21 @@ deploy roto ni auth rota en el estado actual.
 - **Remanentes intencionales:** `applyCorsHeaders` se mantiene local en 31 rutas
   porque los `access-control-expose-headers` varían por endpoint; el middleware
   global `server/middlewares/trusted-origin.ts` conserva su contrato propio;
-  `server/routes/public-professionals.fastify.ts` queda fuera por decisión
-  explícita: mensaje `"Origin no permitido"`, comportamiento CORS propio y
-  headers/rate-limit propios.
+  la única excepción conocida de ruta con contrato distinto es
+  `server/routes/public-professionals.fastify.ts`, fuera por decisión explícita:
+  mensaje `"Origin no permitido"`, comportamiento CORS propio y
+  headers/rate-limit propios. No debe entrar al helper general sin PR dedicado
+  de contrato.
 - **Residual `logistics-sla` resuelto (2026-06-29):**
   `server/routes/logistics-sla.fastify.ts` es una ruta GET-only
   (`GET,OPTIONS`) y no usaba control de trusted-origin para mutaciones. La
-  migración dedicada reemplazó sus copias locales de `getAllowedOrigins`,
+  migración #1170 reemplazó sus copias locales de `getAllowedOrigins`,
   `normalizeOrigin`, `getOriginHeader`, `getAllowedOriginForCors` y
   `getRequestOrigin` por imports desde `server/lib/cors-headers.ts`. Se mantuvo
   `applyCorsHeaders` local y no se introdujo `enforceTrustedOrigin`.
-- **Acción:** **cerrado documentalmente** como P1-A por fases #1164–#1168,
-  manteniendo `public-professionals` como excepción intencional y
-  `logistics-sla` como residual resuelto por PR dedicado posterior.
+- **Acción:** **cerrado documentalmente** como P1-A por la secuencia
+  #1164–#1170, manteniendo `public-professionals` como única excepción conocida
+  de ruta y `logistics-sla` como residual ya resuelto por #1170.
 
 #### P1-B · URL pública de email acoplada a `CORS_ORIGIN`
 - **Tipo:** architecture / email / env · **Riesgo de cambio:** Medio.
@@ -278,11 +286,11 @@ deploy roto ni auth rota en el estado actual.
 | P3-A | `legacy/drizzle-old/` (3 archivos) fuera de la cadena de migración | `legacy/drizzle-old/README.md` lo declara "archaeology only" | archivar/eliminar (historia en git) — **PR-CLEAN6** |
 | P3-B | `scripts/generate-pwa-icons.py` orfanado | 0 referencias (`git grep generate-pwa-icons`); skill VETNEB prohíbe Python | eliminar — **PR-CLEAN6** |
 | P3-C | `scripts/maintenance/FUSION_POR_COMANDO.sh` orfanado | 0 referencias; opera sobre `portal-vetneb-main.zip`/`…-dev-eficiencia.zip` (fusión histórica de repos) | eliminar — **PR-CLEAN6** |
-| P3-D | `trusted-origin.ts` conserva helper/fallback propio | Middleware global fuera de `server/routes`; mantiene contrato de protección global y no fue tocado por #1164–#1168 | mantener como remanente intencional salvo PR dedicado |
+| P3-D | `trusted-origin.ts` conserva helper/fallback propio | Middleware global fuera de `server/routes`; mantiene contrato de protección global y no fue tocado por #1164–#1170 | mantener como remanente intencional salvo PR dedicado |
 | P3-E | `AXIOS_TIMEOUT_MS` (`@deprecated`) | `shared/const.ts:5-6`; solo usado por su test | eliminar con P2-A — **PR-CLEAN6** |
 | P3-F | Split `zod` v3 (backend `^3.25.76`) vs v4 (frontend `^4`) | `package.json` vs `frontend/package.json` | documentar (intencional: paquetes separados); revisar a futuro |
 | P3-G | `backend-ci.yml` sin `paths:` → corre en PRs de solo-docs/frontend | `.github/workflows/backend-ci.yml:3-16` | evaluar `paths-ignore` (ver §10) |
-| P3-H | Residual CORS local en `logistics-sla.fastify.ts` | Resuelto por `clean/backend-cors-helper-logistics-sla`: la ruta GET-only importa `getAllowedOrigins`, `getAllowedOriginForCors` y `getRequestOrigin` desde `server/lib/cors-headers.ts`; `applyCorsHeaders` queda local | cerrado |
+| P3-H | Residual CORS local resuelto en `logistics-sla.fastify.ts` | Cerrado por #1170 / `clean/backend-cors-helper-logistics-sla`: la ruta GET-only importa `getAllowedOrigins`, `getAllowedOriginForCors` y `getRequestOrigin` desde `server/lib/cors-headers.ts`; `applyCorsHeaders` queda local | cerrado |
 
 ---
 
@@ -312,10 +320,10 @@ deploy roto ni auth rota en el estado actual.
 
 | Archivo / objetivo | Evidencia | Severidad | Riesgo | Acción | PR |
 | --- | --- | --- | --- | --- | --- |
-| ~30 rutas `server/routes/*.fastify.ts` (helpers CORS) | Resuelto por fases #1164–#1168 y residual `logistics-sla` resuelto por PR dedicado; helper compartido en `server/lib/cors-headers.ts`; quedan `applyCorsHeaders` local y excepción `public-professionals` | P1 cerrado | Medio | mantener cierre documental; cualquier ajuste futuro debe preservar contrato exacto | PR-CLEAN5 / PR-CORS1–3C + `clean/backend-cors-helper-logistics-sla` |
+| ~30 rutas `server/routes/*.fastify.ts` (helpers CORS) | Resuelto por fases #1164–#1168, cierre documental #1169 y residual `logistics-sla` resuelto por #1170; helper compartido en `server/lib/cors-headers.ts`; quedan `applyCorsHeaders` local y la única excepción conocida de ruta `public-professionals` | P1 cerrado | Medio | mantener cierre documental; cualquier ajuste futuro debe preservar contrato exacto | PR-CLEAN5 / PR-CORS1–3C + #1169/#1170 |
 | `server/lib/email.ts:636-639,906` | URL portal derivada de `CORS_ORIGIN.find(https)` | P1 | Medio | introducir env explícita (documentar) | PR-CLEAN3 |
 | `server/middlewares/trusted-origin.ts` | helper/fallback propio del middleware global | P3 | Bajo | mantener salvo PR dedicado | — |
-| `server/routes/logistics-sla.fastify.ts` | copia local GET-only de helpers CORS tras #1168, resuelta en `clean/backend-cors-helper-logistics-sla` | P3 cerrado | Bajo | mantener imports compartidos y `applyCorsHeaders` local | — |
+| `server/routes/logistics-sla.fastify.ts` | ya no contiene copias locales de helpers CORS compartibles; #1170 lo migró a imports desde `server/lib/cors-headers.ts` | P3 cerrado | Bajo | mantener imports compartidos y `applyCorsHeaders` local | — |
 | `shared/const.ts` · `shared/types.ts` · `shared/_core/errors.ts` | solo consumidos por su test | P2 | Bajo | eliminar módulo + test | PR-CLEAN6 |
 | `shared/const.ts:5-6` `AXIOS_TIMEOUT_MS` | `@deprecated`, sin uso runtime | P3 | Bajo | eliminar | PR-CLEAN6 |
 | `legacy/drizzle-old/*` | "archaeology only" (su README) | P3 | Bajo | archivar/eliminar | PR-CLEAN6 |
@@ -532,7 +540,7 @@ exige build+E2E). El resto está saludable.
 
 - **CORS (P1-A):** seguridad sensible. El bloque de duplicación masiva ya fue
   consolidado por fases #1164–#1168 y el residual `logistics-sla` fue resuelto
-  por PR dedicado; cualquier PR futuro sobre remanentes
+  por #1170; cualquier PR futuro sobre remanentes
   (`public-professionals`, `trusted-origin`) debe tratarse como
   cambio dedicado y preservar contrato exacto. Mitigación: helper con **igual
   semántica byte a byte** + correr tests CORS/trusted-origin por familia.
@@ -659,7 +667,8 @@ exige build+E2E). El resto está saludable.
 - **Exclusiones preservadas:** `public-professionals.fastify.ts` conserva
   contrato/mensaje/headers propios; `trusted-origin.ts` conserva contrato global.
   `logistics-sla.fastify.ts` quedaba como residual GET-only inventariado en este
-  corte histórico y fue resuelto luego por `clean/backend-cors-helper-logistics-sla`.
+  corte histórico y fue resuelto luego por #1170
+  (`clean/backend-cors-helper-logistics-sla`).
 - **Nota de seguimiento (ejecución real — PR-CORS1, rama `clean/backend-cors-helper-consolidation`, 2026-06-28):**
   se ejecutó la **fase 1** de la consolidación (la sugerencia de sub-PR por familia se adoptó: este PR migra la **familia admin**).
   - **Helper creado:** `server/lib/cors-headers.ts` exporta `UNSAFE_METHODS`, `getAllowedOrigins`,
@@ -965,8 +974,8 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
 - Cada PR es **revertible con `git revert`** (cambios acotados a una causa).
 - **PR-CLEAN3 (email):** rollback lógico = quitar `PUBLIC_PORTAL_URL` → fallback a
   `CORS_ORIGIN` (sin redeploy de código si solo se borra la var en Render).
-- **PR-CLEAN5 (CORS):** ya dividido en fases #1164–#1168, con residual
-  `logistics-sla` resuelto por PR dedicado; si aparece una regresión de origen,
+- **PR-CLEAN5 (CORS):** ya dividido en fases #1164–#1168, cierre documental
+  #1169 y residual `logistics-sla` resuelto por #1170; si aparece una regresión de origen,
   revertir la fase responsable. Cualquier ajuste futuro de
   `public-professionals` o `trusted-origin` debe ser PR dedicado.
 - **PR-CLEAN7 (deps):** restaurar `frontend/package.json` + lock y `pnpm install`.
@@ -981,8 +990,8 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
 - [ ] PR-CLEAN2 (reorg docs) mergeado, `git grep` de rutas movidas sin huérfanos.
 - [ ] PR-CLEAN3 (email URL contract) mergeado, links de email verificados en staging.
 - [ ] PR-CLEAN4 (www/CORS) decidido y documentado (o cerrado como N/A).
-- [x] PR-CLEAN5 / P1-A CORS cerrado por fases #1164–#1168; excepción
-  `public-professionals` documentada y residual `logistics-sla` resuelto.
+- [x] PR-CLEAN5 / P1-A CORS cerrado por la secuencia #1164–#1170; excepción
+  única `public-professionals` documentada y residual `logistics-sla` resuelto.
 - [ ] PR-CLEAN6 (dead-code/artefactos) mergeado, build backend+frontend verde.
 - [ ] PR-CLEAN7 (deps sin uso) mergeado, E2E verde.
 - [ ] `.env.example` y `frontend/.env.example` documentan **todas** las vars usadas.
@@ -1019,13 +1028,13 @@ costo/entorno; el typecheck de ambos paquetes pasó y CI de `main` cubre el rest
 
 ---
 
-## Apéndice B — Evidencia de cierre P1-A CORS (2026-06-29)
+## Apéndice B — Evidencia de cierre P1-A CORS post-#1170 (2026-06-29)
 
 **Base local del cierre documental:**
 
 ```text
-git branch --show-current -> docs/close-cors-cleanup-audit
-git log -1 --oneline      -> 5342e9a refactor(cors): share block-null helper in study tracking routes (#1168)
+git branch --show-current -> docs/post-cors-cleanup-snapshot
+git log -1 --oneline      -> 6663246 refactor(cors): share helper in logistics sla route (#1170)
 git status --short        -> (vacío antes de editar este documento)
 ```
 
@@ -1043,25 +1052,38 @@ git grep -n "function getAllowedOrigins\|const getAllowedOrigins" -- server/rout
 git grep -n "function getRequestOrigin\|const getRequestOrigin" -- server/routes server/lib
 -> server/lib/cors-headers.ts:80
 
+git grep -n "function getAllowedOriginForCors\|const getAllowedOriginForCors" -- server/routes server/lib
+-> server/lib/cors-headers.ts:61
+
 git grep -n "function enforceTrustedOrigin\|const enforceTrustedOrigin" -- server/routes server/lib
 -> server/lib/cors-headers.ts:99
 -> server/lib/cors-headers.ts:122
 
-git grep -n "Access-Control-Allow-Origin" -- server/routes server/lib
--> sin resultados (los headers se emiten como "access-control-allow-origin")
+git grep -n "function applyCorsHeaders\|const applyCorsHeaders" -- server/routes server/lib
+-> 31 definiciones locales en rutas, incluida server/routes/logistics-sla.fastify.ts:129
+   y server/routes/public-professionals.fastify.ts:203; 0 definiciones en server/lib.
 
 git grep -n "Origen no permitido\|Origin no permitido" -- server/routes server/lib
--> "Origen no permitido": helper compartido + call-sites de rutas con contrato preservado
--> "Origin no permitido": sólo server/routes/public-professionals.fastify.ts:219
+-> "Origen no permitido": helper compartido + call-sites de rutas con contrato preservado,
+   incluida server/routes/logistics-sla.fastify.ts:606.
+-> "Origin no permitido": sólo server/routes/public-professionals.fastify.ts:219.
+
+git grep -n 'from "../lib/cors-headers.ts"' -- server/routes
+-> 30 rutas importan el helper compartido, incluida server/routes/logistics-sla.fastify.ts:27.
+-> server/routes/public-professionals.fastify.ts no importa el helper por contrato distinto.
 ```
 
 **Lectura del inventario:**
 
 - La duplicación principal migrada por #1164–#1168 fue removida de las familias
   admin, públicas/particulares seguras, auth, logística real y study-tracking.
+- #1169 documentó el cierre post-#1168 y #1170 resolvió el residual
+  `logistics-sla.fastify.ts`.
 - Los remanentes esperados son el helper compartido, `applyCorsHeaders` local por
-  headers específicos, el middleware global `trusted-origin` y
-  `public-professionals.fastify.ts` como excepción intencional.
+  headers específicos y el middleware global `trusted-origin`.
+- `public-professionals.fastify.ts` queda como única excepción conocida de ruta
+  por contrato distinto: mensaje `"Origin no permitido"`, headers/comportamiento
+  propios y exclusión del helper general salvo PR dedicado de contrato.
 - `logistics-sla.fastify.ts` ya no redefine helpers CORS compartibles: importa
   `getAllowedOrigins`, `getAllowedOriginForCors` y `getRequestOrigin` desde
   `server/lib/cors-headers.ts`, conserva `applyCorsHeaders` local y mantiene el
