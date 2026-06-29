@@ -3,6 +3,10 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import {
+  assertClean7aDependencyCleanupScope,
+  isClean7aAllowedDependencyFile,
+} from "./helpers/clean7a-dependency-cleanup-scope.ts";
 
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const ADMIN_COMMAND_CENTER_PATH =
@@ -188,7 +192,10 @@ test("dashboard admin command center changes stay inside frontend scope", () => 
     "git",
     ["diff", "--name-only", "--", "package.json", "pnpm-lock.yaml"],
     { encoding: "utf8" },
-  ).trim();
+  )
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean);
 
   assertNoForbiddenSurfaceImports(stickyActionBarSource, "StickyActionBar");
   assertNoForbiddenSurfaceImports(commandCenterSource, "AdminCommandCenter");
@@ -196,5 +203,6 @@ test("dashboard admin command center changes stay inside frontend scope", () => 
   assert.equal(commandCenterSource.includes("app/api"), false);
   assert.equal(stickyActionBarSource.toLowerCase().includes("middleware"), false);
   assert.equal(commandCenterSource.toLowerCase().includes("middleware"), false);
-  assert.equal(packageDiff, "");
+  assertClean7aDependencyCleanupScope();
+  assert.deepEqual(packageDiff.filter((file) => !isClean7aAllowedDependencyFile(file)), []);
 });

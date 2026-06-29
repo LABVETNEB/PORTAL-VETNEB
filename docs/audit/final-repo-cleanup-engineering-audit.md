@@ -295,6 +295,14 @@ deploy roto ni auth rota en el estado actual.
   `react-hook-form`, dejando Radix no usados para un PR posterior porque existen
   docs/roadmap que proponen adoptar `toast`/`tooltip`. **No tocar
   `package.json`/lock en esta auditoría.**
+- **Estado PR-CLEAN7A:** **EJECUTADO** (2026-06-29, rama
+  `clean/remove-unused-frontend-deps-core`, base HEAD `2140f28`). Se removieron
+  sólo `@tanstack/react-query`, `@tanstack/react-table`, `echarts`,
+  `echarts-for-react` y `react-hook-form` de `frontend/package.json` con
+  `corepack pnpm --dir frontend remove ...`, regenerando `pnpm-lock.yaml`.
+  `test/package-scripts-contract.test.ts` dejó de exigir esas 5 dependencias.
+  No se tocaron Radix, dependencias `UNKNOWN`, runtime frontend/backend, DB,
+  migraciones, workflows, Render ni secrets.
 
 #### P2-C · `docs/notes/todo.md` contradictorio con la arquitectura actual
 - **Tipo:** docs · **Riesgo:** Bajo.
@@ -986,9 +994,10 @@ exige build+E2E). El resto está saludable.
 ### PR-CLEAN7 · dependencias frontend sin uso
 - **Estado documental:** auditoría dedicada completada en
   [`docs/audit/frontend-dependencies-usage-audit.md`](frontend-dependencies-usage-audit.md).
-  No se eliminó ninguna dependencia.
+  PR-CLEAN7A ya eliminó el primer grupo probado; Radix no usados y tooling
+  `UNKNOWN` permanecen pendientes.
 - **Alcance recomendado por fases:**
-  - **PR-CLEAN7A:** remover `@tanstack/react-query`,
+  - **PR-CLEAN7A (EJECUTADO 2026-06-29):** remover `@tanstack/react-query`,
     `@tanstack/react-table`, `echarts`, `echarts-for-react` y
     `react-hook-form`; actualizar `test/package-scripts-contract.test.ts`;
     regenerar lock.
@@ -1062,7 +1071,8 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
 - [~] PR-CLEAN6 (dead-code/artefactos): porción `shared/` (P2-A) ejecutada
   (rama `clean/remove-dead-shared-module`); artefactos P3 (`legacy/drizzle-old/`,
   `generate-pwa-icons.py`, `FUSION_POR_COMANDO.sh`) pendientes.
-- [ ] PR-CLEAN7 (deps sin uso) mergeado, E2E verde.
+- [~] PR-CLEAN7 (deps sin uso): PR-CLEAN7A ejecutado; Radix no usados,
+  tooling `UNKNOWN` y E2E completa siguen pendientes.
 - [ ] `.env.example` y `frontend/.env.example` documentan **todas** las vars usadas.
 - [ ] `docs/notes/todo.md` ya no contradice la arquitectura real.
 - [ ] Taxonomía `docs/` unificada (sin `audit`+`audits`, sin `pr-*.md` sueltos).

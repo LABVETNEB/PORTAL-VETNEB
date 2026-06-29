@@ -3,6 +3,10 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import {
+  assertClean7aDependencyCleanupScope,
+  isClean7aAllowedDependencyFile,
+} from "./helpers/clean7a-dependency-cleanup-scope.ts";
 
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
 const MASTER_DETAIL_WORKSPACE_PATH =
@@ -191,7 +195,10 @@ test("dashboard informes master-detail scope avoids forbidden navigation and dep
     "git",
     ["diff", "--name-only", "--", "package.json", "pnpm-lock.yaml"],
     { encoding: "utf8" },
-  ).trim();
+  )
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean);
 
   assertNoForbiddenSurfaceImports(masterDetailSource, "MasterDetailWorkspace");
   assertNoForbiddenSurfaceImports(timelineSource, "StudyTimeline");
@@ -204,5 +211,6 @@ test("dashboard informes master-detail scope avoids forbidden navigation and dep
   assert.equal(masterDetailSource.includes("<a"), false);
   assert.equal(timelineSource.includes("<a"), false);
   assert.equal(stickyActionBarSource.includes("<a"), false);
-  assert.equal(packageDiff, "");
+  assertClean7aDependencyCleanupScope();
+  assert.deepEqual(packageDiff.filter((file) => !isClean7aAllowedDependencyFile(file)), []);
 });
