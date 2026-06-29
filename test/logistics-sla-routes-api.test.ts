@@ -26,6 +26,24 @@ test("logistics SLA API exposes read-only policy, instance, overdue and summary 
   assert.match(routeSource, /GET,OPTIONS/);
 });
 
+test("logistics SLA API reuses shared CORS helpers without adding mutating-origin enforcement", () => {
+  assert.match(routeSource, /from "\.\.\/lib\/cors-headers\.ts";/);
+  assert.match(routeSource, /  getAllowedOriginForCors,/);
+  assert.match(routeSource, /  getAllowedOrigins,/);
+  assert.match(routeSource, /  getRequestOrigin,/);
+  assert.match(routeSource, /function applyCorsHeaders\(/);
+  assert.match(routeSource, /reply\.header\("access-control-allow-methods", "GET,OPTIONS"\)/);
+
+  assert.doesNotMatch(routeSource, /function getAllowedOrigins/);
+  assert.doesNotMatch(routeSource, /function normalizeOrigin/);
+  assert.doesNotMatch(routeSource, /function getOriginHeader/);
+  assert.doesNotMatch(routeSource, /function getAllowedOriginForCors/);
+  assert.doesNotMatch(routeSource, /function getRequestOrigin/);
+  assert.doesNotMatch(routeSource, /function enforceTrustedOrigin/);
+  assert.doesNotMatch(routeSource, /enforceTrustedOrigin\(/);
+  assert.doesNotMatch(routeSource, /UNSAFE_METHODS/);
+});
+
 test("logistics SLA API wires DB helpers through injectable deps", () => {
   assert.match(routeSource, /listActiveClinicSlaPolicies\?:/);
   assert.match(routeSource, /listClinicSlaInstances\?:/);
