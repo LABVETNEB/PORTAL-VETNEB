@@ -695,6 +695,42 @@ exige build+E2E). El resto está saludable.
     **definiciones** (`security-production-invariants.test.ts`, `logistics-*-api.test.ts`) para verificar el
     `import` en vez de la definición local. `public-professionals.fastify.ts` permanece fuera (CORS y mensaje
     distintos).
+- **Nota de seguimiento (ejecución real — PR-CORS3A, rama `clean/backend-cors-helper-auth-routes`, 2026-06-29):**
+  se ejecutó la subfase **auth** de PR-CORS3, separada de logística y de rutas *block-null* para mantener el
+  diff chico y el contrato exacto. El helper `server/lib/cors-headers.ts` **no se modificó**: ya exportaba
+  `UNSAFE_METHODS`, `normalizeOrigin`, `getAllowedOrigins`, `getOriginHeader`, `getAllowedOriginForCors`,
+  `getRequestOrigin` y `enforceTrustedOrigin`.
+  - **Rutas migradas (3):** `server/routes/auth.fastify.ts`,
+    `server/routes/admin-auth.fastify.ts` y `server/routes/particular-auth.fastify.ts`.
+    Las tres reemplazan las definiciones locales de `getAllowedOrigins`, `normalizeOrigin`,
+    `getOriginHeader`, `getAllowedOriginForCors`, `getRequestOrigin`, `enforceTrustedOrigin` y el
+    `const UNSAFE_METHODS` local por imports desde `../lib/cors-headers.ts`.
+  - **`applyCorsHeaders` se mantiene local** en las tres rutas, con el mismo cuerpo y los mismos headers
+    (`vary`, `access-control-allow-origin`, `access-control-allow-credentials` y
+    `LOGIN_RATE_LIMIT_EXPOSED_HEADERS`). La guardia de `api-production-session-contract.test.ts` que fija
+    `function applyCorsHeaders` sigue vigente y pasa sin cambios.
+  - **Contrato preservado:** misma variante *allow-null* para métodos inseguros sin `Origin`/`Referer`,
+    mismo bloqueo 403 con `{ success: false, error: "Origen no permitido" }`, mismo preflight
+    `GET,POST,OPTIONS`, mismo reflejo de `Origin` permitido y sin wildcard con credenciales.
+  - **Tests actualizados:** `test/security-production-invariants.test.ts` dejó de exigir definiciones locales
+    en el trío auth y ahora verifica que el contrato vive en `server/lib/cors-headers.ts`, que las rutas
+    importan `enforceTrustedOrigin`, `getAllowedOriginForCors`, `getAllowedOrigins` y `getRequestOrigin`, y
+    que no reintroducen las copias locales. `applyCorsHeaders` continúa exigido localmente.
+  - **Fuera de alcance respetado:** no se tocaron logística (`logistics-*`), rutas *block-null*
+    (`particular-study-tracking`, `study-tracking`), `public-professionals.fastify.ts`, frontend runtime, DB,
+    migraciones, dependencias, lockfiles, workflows, Render ni secrets.
+  - **Validación ejecutada:** `pnpm typecheck`, `pnpm typecheck:test`, helper CORS (10/10),
+    `security-trusted-origin-cors-boundaries` (4/4), `security-production-invariants` (11/11),
+    `api-production-session-contract` (4/4), `global-auth-boundary-contract` (5/5), bloque auth específico
+    encontrado por grep (167/167), `pnpm build`, `pnpm security:public-surface`,
+    `pnpm --dir frontend lint`, `pnpm --dir frontend typecheck` y `pnpm --dir frontend build` verdes.
+    `pnpm test` completo fue ejecutado: 2885/2893 pasaron y 8 fallaron por guardas históricas de PRs frontend
+    que inspeccionan el `git diff` y prohíben cambios backend (`server/routes/admin-auth.fastify.ts`,
+    `server/routes/auth.fastify.ts`), no por regresión CORS/auth.
+  - **Pendiente → PR-CORS3B recomendado:** abordar logística y *block-null* por separado. Para logística,
+    actualizar primero `logistics-*-api.test.ts` para verificar import/uso del helper compartido. Para
+    `particular-study-tracking` y `study-tracking`, preservar explícitamente el contrato *block-null* con una
+    variante o wrapper dedicado; no reutilizar el helper *allow-null* sin adaptar contrato.
 
 ### PR-CLEAN6 · dead-code & artefactos
 - **Alcance:** eliminar `shared/` + `test/shared-const-and-errors.test.ts`;
