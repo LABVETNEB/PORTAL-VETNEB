@@ -64,8 +64,10 @@ La deuda activa real queda limitada a:
    ~31 `pr-*.md` sueltos en la raíz de `docs/`). *(P2.)*
 2. **P2-E · Logger/console observability**: logger mínimo y mezcla de
    `console.*`/logger en backend. *(P2.)*
-3. **P3 · Artefactos históricos/orfanados**: `legacy/drizzle-old/`,
-   `scripts/generate-pwa-icons.py`, `scripts/maintenance/FUSION_POR_COMANDO.sh`. *(P3.)*
+3. **P3 · Artefactos históricos/orfanados**: cerrado por
+   `clean/remove-orphaned-historical-artifacts` (2026-06-29); se eliminaron
+   `legacy/drizzle-old/`, `scripts/generate-pwa-icons.py` y
+   `scripts/maintenance/FUSION_POR_COMANDO.sh`. *(P3, cerrado.)*
 4. **P3-G · Backend CI `paths-ignore` opcional** para evitar runs pesados en PRs
    estrictamente docs-only/frontend, previa verificación de tests de contrato.
 
@@ -286,7 +288,8 @@ deploy roto ni auth rota en el estado actual.
   `include`). Nota de cierre en
   [`docs/audit/shared-module-usage-audit.md`](shared-module-usage-audit.md) §11. Los
   artefactos P3 de PR-CLEAN6 (`legacy/drizzle-old/`, `scripts/generate-pwa-icons.py`,
-  `scripts/maintenance/FUSION_POR_COMANDO.sh`) **siguen pendientes**.
+  `scripts/maintenance/FUSION_POR_COMANDO.sh`) fueron eliminados luego por
+  `clean/remove-orphaned-historical-artifacts` (2026-06-29).
 
 #### P2-B · Dependencias de frontend sin uso
 - **Tipo:** dependencias / performance-surface · **Estado actualizado
@@ -426,9 +429,9 @@ deploy roto ni auth rota en el estado actual.
 
 | Id | Hallazgo | Evidencia | Acción |
 | --- | --- | --- | --- |
-| P3-A | `legacy/drizzle-old/` (3 archivos) fuera de la cadena de migración | `legacy/drizzle-old/README.md` lo declara "archaeology only" | archivar/eliminar (historia en git) — **PR-CLEAN6** |
-| P3-B | `scripts/generate-pwa-icons.py` orfanado | 0 referencias (`git grep generate-pwa-icons`); skill VETNEB prohíbe Python | eliminar — **PR-CLEAN6** |
-| P3-C | `scripts/maintenance/FUSION_POR_COMANDO.sh` orfanado | 0 referencias; opera sobre `portal-vetneb-main.zip`/`…-dev-eficiencia.zip` (fusión histórica de repos) | eliminar — **PR-CLEAN6** |
+| P3-A | `legacy/drizzle-old/` (3 archivos) fuera de la cadena de migración | `legacy/drizzle-old/README.md` lo declara "archaeology only" | **eliminado** — `clean/remove-orphaned-historical-artifacts` (2026-06-29) |
+| P3-B | `scripts/generate-pwa-icons.py` orfanado | 0 referencias (`git grep generate-pwa-icons`); skill VETNEB prohíbe Python | **eliminado** — `clean/remove-orphaned-historical-artifacts` (2026-06-29) |
+| P3-C | `scripts/maintenance/FUSION_POR_COMANDO.sh` orfanado | 0 referencias; opera sobre `portal-vetneb-main.zip`/`…-dev-eficiencia.zip` (fusión histórica de repos) | **eliminado** — `clean/remove-orphaned-historical-artifacts` (2026-06-29) |
 | P3-D | `trusted-origin.ts` conserva helper/fallback propio | Middleware global fuera de `server/routes`; mantiene contrato de protección global y no fue tocado por #1164–#1170 | mantener como remanente intencional salvo PR dedicado |
 | P3-E | `AXIOS_TIMEOUT_MS` (`@deprecated`) | residuo histórico de `shared/const.ts`; eliminado junto con P2-A por #1173 | cerrado |
 | P3-F | Split `zod` v3 (backend `^3.25.76`) vs v4 (frontend `^4`) | `package.json` vs `frontend/package.json` | documentar (intencional: paquetes separados); revisar a futuro |
@@ -447,9 +450,9 @@ deploy roto ni auth rota en el estado actual.
 | 2 | `shared/types.ts` | dead-code | eliminado por #1173 junto con P2-A | cerrado |
 | 3 | `shared/_core/errors.ts` | dead-code | eliminado por #1173 junto con P2-A | cerrado |
 | 4 | `test/shared-const-and-errors.test.ts` | tests | eliminado por #1173 junto con P2-A | cerrado |
-| 5 | `legacy/drizzle-old/` (3 archivos) | cleanup | README lo marca "archaeology only" | PR-CLEAN6 |
-| 6 | `scripts/generate-pwa-icons.py` | cleanup | 0 refs; Python prohibido por skill | PR-CLEAN6 |
-| 7 | `scripts/maintenance/FUSION_POR_COMANDO.sh` | cleanup | 0 refs; artefacto de fusión histórica | PR-CLEAN6 |
+| 5 | `legacy/drizzle-old/` (3 archivos) | cleanup | eliminado por `clean/remove-orphaned-historical-artifacts` | cerrado |
+| 6 | `scripts/generate-pwa-icons.py` | cleanup | eliminado por `clean/remove-orphaned-historical-artifacts` | cerrado |
+| 7 | `scripts/maintenance/FUSION_POR_COMANDO.sh` | cleanup | eliminado por `clean/remove-orphaned-historical-artifacts` | cerrado |
 | 8 | `@tanstack/react-query` (dep frontend) | dependencias | removida por PR-CLEAN7A (#1175) | cerrado |
 | 9 | `@tanstack/react-table` (dep frontend) | dependencias | removida por PR-CLEAN7A (#1175) | cerrado |
 | 10 | `echarts` + `echarts-for-react` (deps) | dependencias | removidas por PR-CLEAN7A (#1175) | cerrado |
@@ -469,9 +472,9 @@ deploy roto ni auth rota en el estado actual.
 | `server/routes/logistics-sla.fastify.ts` | ya no contiene copias locales de helpers CORS compartibles; #1170 lo migró a imports desde `server/lib/cors-headers.ts` | P3 cerrado | Bajo | mantener imports compartidos y `applyCorsHeaders` local | — |
 | `shared/const.ts` · `shared/types.ts` · `shared/_core/errors.ts` | solo consumidos por su test; eliminados por #1173 | P2 cerrado | Bajo | cerrado; no listar como pendiente | #1173 / PR-CLEAN6 parcial |
 | `shared/const.ts:5-6` `AXIOS_TIMEOUT_MS` | `@deprecated`, sin uso runtime; eliminado con `shared/` por #1173 | P3 cerrado | Bajo | cerrado | #1173 |
-| `legacy/drizzle-old/*` | "archaeology only" (su README) | P3 | Bajo | archivar/eliminar | PR-CLEAN6 |
-| `scripts/generate-pwa-icons.py` | 0 refs; Python prohibido | P3 | Bajo | eliminar | PR-CLEAN6 |
-| `scripts/maintenance/FUSION_POR_COMANDO.sh` | 0 refs; fusión histórica | P3 | Bajo | eliminar | PR-CLEAN6 |
+| `legacy/drizzle-old/*` | "archaeology only" (su README); eliminado | P3 cerrado | Bajo | cerrado | `clean/remove-orphaned-historical-artifacts` |
+| `scripts/generate-pwa-icons.py` | 0 refs; Python prohibido; eliminado | P3 cerrado | Bajo | cerrado | `clean/remove-orphaned-historical-artifacts` |
+| `scripts/maintenance/FUSION_POR_COMANDO.sh` | 0 refs; fusión histórica; eliminado | P3 cerrado | Bajo | cerrado | `clean/remove-orphaned-historical-artifacts` |
 | `frontend/package.json` (Radix remanente) | Tooling ESLint cerrado por PR-CLEAN7C; Radix `avatar`, `dropdown-menu`, `label`, `select`, `tabs` cerrado por PR-CLEAN7D/#1178; `toast`/`tooltip` quedan `DEFER keep` por roadmap | P2 cerrado | Medio | cerrado; no recomendar PR-CLEAN7D como pendiente | #1178 / #1179 |
 | `docs/notes/todo.md` | tRPC/Google Sheets inexistentes | P2 cerrado | Bajo | cerrado; archivado en `docs/archive/legacy-trpc-sheets-todo.md` | PR-CLEAN1 |
 | `docs/audit/` + `docs/audits/` | taxonomía duplicada | P2 | Bajo | unificar | PR-CLEAN2 |
@@ -1094,7 +1097,12 @@ exige build+E2E). El resto está saludable.
 - **Estado actual:** la porción `shared/` (P2-A) está **CERRADA por #1173**
   (2026-06-29, rama `clean/remove-dead-shared-module`): eliminado `shared/` +
   su test. Los artefactos P3 (`legacy/drizzle-old/`, `generate-pwa-icons.py`,
-  `FUSION_POR_COMANDO.sh`) **siguen pendientes**.
+  `FUSION_POR_COMANDO.sh`) quedaron **CERRADOS** por
+  `clean/remove-orphaned-historical-artifacts` (2026-06-29): se revalidaron 0
+  referencias operativas (`git grep`) y se eliminaron los 3 artefactos sin
+  tocar `drizzle/migrations/`, `drizzle/meta/`, runtime, dependencias,
+  lockfiles, DB, workflows, Render ni secretos. Detalle en
+  [`docs/implementation/remove-orphaned-historical-artifacts.md`](../implementation/remove-orphaned-historical-artifacts.md).
 - **Validación:** `pnpm typecheck`; `pnpm typecheck:test`; `pnpm test`; `pnpm build`;
   `pnpm --dir frontend build`.
 - **Rollback:** revertir (historia preservada en git).
@@ -1186,9 +1194,10 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
 - [ ] PR-CLEAN4 (www/CORS) decidido y documentado (o cerrado como N/A).
 - [x] PR-CLEAN5 / P1-A CORS cerrado por la secuencia #1164–#1170; excepción
   única `public-professionals` documentada y residual `logistics-sla` resuelto.
-- [~] PR-CLEAN6 (dead-code/artefactos): porción `shared/` (P2-A) cerrada por
+- [x] PR-CLEAN6 (dead-code/artefactos): porción `shared/` (P2-A) cerrada por
   #1173; artefactos P3 (`legacy/drizzle-old/`,
-  `generate-pwa-icons.py`, `FUSION_POR_COMANDO.sh`) pendientes.
+  `generate-pwa-icons.py`, `FUSION_POR_COMANDO.sh`) cerrados por
+  `clean/remove-orphaned-historical-artifacts` (2026-06-29).
 - [x] PR-CLEAN7 / P2-B (deps sin uso): cerrado por #1175-#1179. PR-CLEAN7A
   ejecutado; PR-CLEAN7B docs-only completado; PR-CLEAN7C tooling ejecutado;
   PR-CLEAN7D Radix `SUSPECT unused` ejecutado para `avatar`, `dropdown-menu`,
