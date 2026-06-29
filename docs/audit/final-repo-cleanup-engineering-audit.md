@@ -59,16 +59,14 @@ cerrados en este corte:
 
 La deuda activa real queda limitada a:
 
-1. **P2-C · `docs/notes/todo.md` contradictorio**: describe tRPC + Google
-   Sheets, que ya no corresponden a la arquitectura real. *(P2.)*
-2. **P2-D · Taxonomía documental fragmentada**: ~233 docs con taxonomía
+1. **P2-D · Taxonomía documental fragmentada**: ~233 docs con taxonomía
    fragmentada (`audit/` + `audits/`, notas de implementación en 3 lugares,
    ~31 `pr-*.md` sueltos en la raíz de `docs/`). *(P2.)*
-3. **P2-E · Logger/console observability**: logger mínimo y mezcla de
+2. **P2-E · Logger/console observability**: logger mínimo y mezcla de
    `console.*`/logger en backend. *(P2.)*
-4. **P3 · Artefactos históricos/orfanados**: `legacy/drizzle-old/`,
+3. **P3 · Artefactos históricos/orfanados**: `legacy/drizzle-old/`,
    `scripts/generate-pwa-icons.py`, `scripts/maintenance/FUSION_POR_COMANDO.sh`. *(P3.)*
-5. **P3-G · Backend CI `paths-ignore` opcional** para evitar runs pesados en PRs
+4. **P3-G · Backend CI `paths-ignore` opcional** para evitar runs pesados en PRs
    estrictamente docs-only/frontend, previa verificación de tests de contrato.
 
 Las eliminaciones o cambios restantes se proponen como **PRs chicos, con prueba
@@ -380,13 +378,17 @@ deploy roto ni auth rota en el estado actual.
 
 #### P2-C · `docs/notes/todo.md` contradictorio con la arquitectura actual
 - **Tipo:** docs · **Riesgo:** Bajo.
-- **Evidencia:** el archivo describe "procedimientos **tRPC**", "Sincronización con
+- **Evidencia:** el archivo describía "procedimientos **tRPC**", "Sincronización con
   **Google Sheets API**", `CONTROL_CLINICAS`, `REGISTRO_INFORMES`, carga Excel/CSV
   y `SESIONES_ACTIVAS` — una arquitectura que **no corresponde** al sistema real
   (Fastify REST + Supabase/Postgres + Drizzle). La sección de logística al final sí
   es vigente.
-- **Acción:** **archivar o reescribir** (separar la parte de logística vigente del
-  TODO histórico tRPC/Sheets). **PR-CLEAN1**.
+- **Acción:** **CERRADO DOCUMENTALMENTE.** El histórico tRPC/Sheets se archivó en
+  [`docs/archive/legacy-trpc-sheets-todo.md`](../archive/legacy-trpc-sheets-todo.md);
+  `docs/notes/todo.md` quedó solo con la sección de logística vigente y una nota
+  que referencia el archivo y `docs/SOURCES_OF_TRUTH.md`. Detalle en
+  [`docs/implementation/legacy-todo-note-cleanup.md`](../implementation/legacy-todo-note-cleanup.md).
+  Docs-only, sin cambios en runtime/dependencias/DB. **PR-CLEAN1**.
 
 #### P2-D · Taxonomía documental fragmentada
 - **Tipo:** docs · **Riesgo:** Bajo.
@@ -453,7 +455,7 @@ deploy roto ni auth rota en el estado actual.
 | 10 | `echarts` + `echarts-for-react` (deps) | dependencias | removidas por PR-CLEAN7A (#1175) | cerrado |
 | 11 | `react-hook-form` (dep frontend) | dependencias | removida por PR-CLEAN7A (#1175) | cerrado |
 | 12 | Radix remanente no importado | dependencias | `avatar`, `dropdown-menu`, `label`, `select`, `tabs` removidos por PR-CLEAN7D/#1178; `toast`/`tooltip` `DEFER keep` por roadmap | cerrado |
-| 13 | `docs/notes/todo.md` (parte tRPC/Sheets) | docs | contradice arquitectura real | PR-CLEAN1 |
+| 13 | `docs/notes/todo.md` (parte tRPC/Sheets) | docs | archivada en `docs/archive/legacy-trpc-sheets-todo.md` | cerrado |
 
 ---
 
@@ -471,7 +473,7 @@ deploy roto ni auth rota en el estado actual.
 | `scripts/generate-pwa-icons.py` | 0 refs; Python prohibido | P3 | Bajo | eliminar | PR-CLEAN6 |
 | `scripts/maintenance/FUSION_POR_COMANDO.sh` | 0 refs; fusión histórica | P3 | Bajo | eliminar | PR-CLEAN6 |
 | `frontend/package.json` (Radix remanente) | Tooling ESLint cerrado por PR-CLEAN7C; Radix `avatar`, `dropdown-menu`, `label`, `select`, `tabs` cerrado por PR-CLEAN7D/#1178; `toast`/`tooltip` quedan `DEFER keep` por roadmap | P2 cerrado | Medio | cerrado; no recomendar PR-CLEAN7D como pendiente | #1178 / #1179 |
-| `docs/notes/todo.md` | tRPC/Google Sheets inexistentes | P2 | Bajo | archivar/reescribir | PR-CLEAN1 |
+| `docs/notes/todo.md` | tRPC/Google Sheets inexistentes | P2 cerrado | Bajo | cerrado; archivado en `docs/archive/legacy-trpc-sheets-todo.md` | PR-CLEAN1 |
 | `docs/audit/` + `docs/audits/` | taxonomía duplicada | P2 | Bajo | unificar | PR-CLEAN2 |
 | `IMPLEMENTATION_NOTES/` (raíz, 34) | notas en 3 ubicaciones | P2 | Bajo | consolidar bajo `docs/` | PR-CLEAN2 |
 | ~31 `docs/pr-*.md` sueltos | deberían ir en `pr-history/` | P2 | Bajo | mover | PR-CLEAN2 |
@@ -509,8 +511,10 @@ deploy roto ni auth rota en el estado actual.
 - **Histórico útil (archivar, no borrar):** `docs/audit/*` y `docs/audits/*` de
   bloques cerrados (admin-mobile density, dashboard redesign, backend incident
   P0), `docs/pr-history/*`, `docs/implementation-history/*`, `IMPLEMENTATION_NOTES/*`.
-- **Obsoleto / contradictorio:** `docs/notes/todo.md` (tRPC + Google Sheets;
-  contradice Fastify/Supabase). Revisar `docs/notes/PENDIENTE_NORMALIZACION_CLINICS.md`.
+- **Obsoleto / contradictorio (cerrado):** `docs/notes/todo.md` (tRPC + Google
+  Sheets; contradecía Fastify/Supabase) — histórico archivado en
+  `docs/archive/legacy-trpc-sheets-todo.md`. Revisar
+  `docs/notes/PENDIENTE_NORMALIZACION_CLINICS.md`.
 - **Candidato a reorganizar:** ~31 `pr-*.md` sueltos en raíz de `docs/`;
   duplicidad `audit/` vs `audits/`; notas de implementación en 3 árboles.
 
@@ -740,6 +744,14 @@ exige build+E2E). El resto está saludable.
   `NEXT_PUBLIC_APP_VERSION` en `frontend/.env.example`, usando sólo placeholders
   no secretos. No se tocaron `docs/notes/todo.md`, runtime, dependencias,
   lockfiles, DB, migraciones, workflows, Render ni lógica del version gate.
+- **Nota de seguimiento P2-C (ejecución real, rama
+  `docs/cleanup-legacy-todo-note`, 2026-06-29):** el histórico tRPC/Google Sheets
+  de `docs/notes/todo.md` se movió a
+  `docs/archive/legacy-trpc-sheets-todo.md`; `docs/notes/todo.md` quedó con la
+  sección de logística vigente y una nota que apunta al archivo y a
+  `docs/SOURCES_OF_TRUTH.md`. Detalle en
+  `docs/implementation/legacy-todo-note-cleanup.md`. Docs-only, sin tocar
+  runtime, dependencias, lockfiles, DB, migraciones ni workflows.
 
 ### PR-CLEAN2 · reorganización documental (solo-docs)
 - **Alcance:** unificar `docs/audits/` → `docs/audit/`; mover `pr-*.md` sueltos a
@@ -1165,8 +1177,9 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
 
 ## 17. Checklist final de cierre de proyecto
 
-- [~] PR-CLEAN1 (docs/env comments): P2-F cerrado por
-  `docs/env-version-vars-contract`; P2-C `docs/notes/todo.md` sigue pendiente.
+- [x] PR-CLEAN1 (docs/env comments): P2-F cerrado por
+  `docs/env-version-vars-contract`; P2-C `docs/notes/todo.md` cerrado, histórico
+  archivado en `docs/archive/legacy-trpc-sheets-todo.md`.
 - [ ] PR-CLEAN2 (reorg docs) mergeado, `git grep` de rutas movidas sin huérfanos.
 - [x] PR-CLEAN3 / P1-B (email URL contract) cerrado por #1162; `PUBLIC_SITE_URL`
   separa URL pública de `CORS_ORIGIN` con fallback conservador.
@@ -1184,7 +1197,7 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
   `docs/audit/frontend-dependencies-cleanup-closeout.md`.
 - [x] `.env.example` y `frontend/.env.example` documentan las vars del version
   gate (`APP_VERSION`, `CLIENT_MIN_VERSION`, `NEXT_PUBLIC_APP_VERSION`).
-- [ ] `docs/notes/todo.md` ya no contradice la arquitectura real.
+- [x] `docs/notes/todo.md` ya no contradice la arquitectura real.
 - [ ] Taxonomía `docs/` unificada (sin `audit`+`audits`, sin `pr-*.md` sueltos).
 - [ ] `main` limpio, CI verde (backend + frontend), 0 PRs abiertos.
 - [ ] `pnpm typecheck` + `pnpm --dir frontend typecheck` verdes (hoy: ✅).
