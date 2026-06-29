@@ -731,6 +731,46 @@ exige build+E2E). El resto está saludable.
     actualizar primero `logistics-*-api.test.ts` para verificar import/uso del helper compartido. Para
     `particular-study-tracking` y `study-tracking`, preservar explícitamente el contrato *block-null* con una
     variante o wrapper dedicado; no reutilizar el helper *allow-null* sin adaptar contrato.
+- **Nota de seguimiento (ejecución real — PR-CORS3B, rama `clean/backend-cors-helper-logistics-routes`, 2026-06-29):**
+  se ejecutó la subfase **logística** de PR-CORS3, separada de rutas *block-null* y de
+  `public-professionals.fastify.ts` para preservar contratos distintos. El helper
+  `server/lib/cors-headers.ts` **no se modificó**: ya exportaba `UNSAFE_METHODS`, `normalizeOrigin`,
+  `getAllowedOrigins`, `getOriginHeader`, `getAllowedOriginForCors`, `getRequestOrigin` y
+  `enforceTrustedOrigin`.
+  - **Rutas migradas (3):** `server/routes/logistics-field-visits.fastify.ts`,
+    `server/routes/logistics-route-events.fastify.ts` y `server/routes/logistics-route-plans.fastify.ts`.
+    Las tres reemplazan las definiciones locales de `getAllowedOrigins`, `normalizeOrigin`,
+    `getOriginHeader`, `getAllowedOriginForCors`, `getRequestOrigin`, `enforceTrustedOrigin` y el
+    `const UNSAFE_METHODS` local por imports desde `../lib/cors-headers.ts`. A diferencia del trío auth,
+    logística conserva uso directo de `UNSAFE_METHODS` para guardias RBAC de métodos inseguros, por lo que
+    también importa ese símbolo desde el helper compartido.
+  - **`applyCorsHeaders` se mantiene local** en las tres rutas, con el mismo cuerpo y los mismos headers
+    (`vary`, `access-control-allow-origin`, `access-control-allow-credentials`). No se parametrizó ni se
+    consolidó en este PR.
+  - **Contrato preservado:** misma variante *allow-null* para métodos inseguros sin `Origin`/`Referer`,
+    mismo bloqueo 403 con `{ success: false, error: "Origen no permitido" }`, mismo comportamiento
+    `Origin`/`Referer`, mismos preflight por ruta (`field-visits`: `GET,POST,PUT,PATCH,OPTIONS`;
+    `route-events`: `GET,POST,OPTIONS`; `route-plans`: `GET,POST,PATCH,OPTIONS`) y sin wildcard con
+    credenciales.
+  - **Tests actualizados:** `test/logistics-field-visits-api.test.ts`,
+    `test/logistics-route-events-api.test.ts`, `test/logistics-route-plans-api.test.ts` y
+    `test/security-production-invariants.test.ts` dejaron de exigir definiciones locales y ahora verifican
+    import/uso del helper compartido, `applyCorsHeaders` local y ausencia de copias CORS.
+  - **Fuera de alcance respetado:** no se tocaron `particular-study-tracking`, `study-tracking`,
+    `public-professionals.fastify.ts`, frontend runtime, DB, migraciones, dependencias, lockfiles,
+    workflows, Render ni secrets.
+  - **Validación ejecutada:** `corepack pnpm typecheck`, `corepack pnpm typecheck:test`, helper CORS
+    (10/10), `security-trusted-origin-cors-boundaries` (4/4), `security-production-invariants` (11/11),
+    los tres contratos logísticos migrados (17/17, 11/11, 23/23), todo `test/logistics-*.test.ts`
+    encontrado por grep (219/219), `corepack pnpm build`, `corepack pnpm security:public-surface`,
+    `corepack pnpm --dir frontend lint`, `corepack pnpm --dir frontend typecheck` y
+    `corepack pnpm --dir frontend build` verdes. `corepack pnpm test` completo fue ejecutado:
+    2885/2893 pasaron y 8 fallaron por guardas históricas de PRs frontend que inspeccionan `git diff` y
+    prohíben cambios backend (`server/routes/logistics-*.fastify.ts`), no por regresión CORS/logística.
+  - **Pendiente → PR-CORS3C recomendado:** abordar sólo rutas *block-null*
+    (`particular-study-tracking`, `study-tracking`) con variante/wrapper dedicado que preserve el bloqueo
+    de métodos inseguros sin `Origin` ni `Referer`. `public-professionals.fastify.ts` sigue fuera porque su
+    CORS y mensaje son distintos.
 
 ### PR-CLEAN6 · dead-code & artefactos
 - **Alcance:** eliminar `shared/` + `test/shared-const-and-errors.test.ts`;
