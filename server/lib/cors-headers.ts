@@ -10,6 +10,10 @@ import { ENV } from "./env.ts";
  * previas: misma allowlist (`ENV.corsOrigins`), misma normalización de origen,
  * mismos status/headers y mismo mensaje `"Origen no permitido"`.
  *
+ * `enforceTrustedOrigin` conserva el contrato allow-null. Las rutas que deben
+ * bloquear métodos inseguros sin Origin/Referer usan
+ * `enforceTrustedOriginRequired`.
+ *
  * `applyCorsHeaders` NO se consolida aquí a propósito: cada ruta expone un set
  * distinto de `access-control-expose-headers` (rate-limit, Retry-After, etc.),
  * por lo que se mantiene local en cada archivo.
@@ -104,6 +108,29 @@ export function enforceTrustedOrigin(
   const requestOrigin = getRequestOrigin(request);
 
   if (!requestOrigin || allowedOrigins.has(requestOrigin)) {
+    return true;
+  }
+
+  reply.code(403).send({
+    success: false,
+    error: "Origen no permitido",
+  });
+
+  return false;
+}
+
+export function enforceTrustedOriginRequired(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  allowedOrigins: ReadonlySet<string>,
+): boolean {
+  if (!UNSAFE_METHODS.has(request.method.toUpperCase())) {
+    return true;
+  }
+
+  const requestOrigin = getRequestOrigin(request);
+
+  if (requestOrigin && allowedOrigins.has(requestOrigin)) {
     return true;
   }
 

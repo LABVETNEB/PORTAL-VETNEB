@@ -307,7 +307,7 @@ test("studyTrackingNativeRoutes responde 404 genérico en PATCH /notifications/:
   }
 });
 
-test("studyTrackingNativeRoutes expone PATCH /notifications/read-all clinic-scoped", async () => {
+test("studyTrackingNativeRoutes expone PATCH /notifications/read-all con Origin permitido", async () => {
   const markAllCalls: Array<Record<string, unknown>> = [];
   const app = await createTestApp({
     markAllStudyTrackingNotificationsReadScoped: async (
@@ -339,7 +339,7 @@ test("studyTrackingNativeRoutes expone PATCH /notifications/read-all clinic-scop
   }
 });
 
-test("studyTrackingNativeRoutes bloquea PATCH /notifications/read-all sin origin confiable", async () => {
+test("studyTrackingNativeRoutes bloquea PATCH /notifications/read-all sin Origin ni Referer", async () => {
   const app = await createTestApp();
 
   try {

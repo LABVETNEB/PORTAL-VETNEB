@@ -20,6 +20,7 @@ const {
   getAllowedOriginForCors,
   getRequestOrigin,
   enforceTrustedOrigin,
+  enforceTrustedOriginRequired,
 } = await import("../server/lib/cors-headers.ts");
 
 // ---------------------------------------------------------------------------
@@ -174,6 +175,75 @@ test("enforceTrustedOrigin bloquea método inseguro con Origin externo: 403 'Ori
 
   const result = enforceTrustedOrigin(
     fakeRequest({ origin: "https://evil.example" }, "POST"),
+    reply,
+    allowed,
+  );
+
+  assert.equal(result, false);
+  assert.equal(state.statusCode, 403);
+  assert.deepEqual(state.body, {
+    success: false,
+    error: "Origen no permitido",
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enforceTrustedOriginRequired (variante block-null: sin Origin/Referer en
+// método inseguro → 403 para rutas con sesión cookie que lo requieren localmente)
+// ---------------------------------------------------------------------------
+
+test("enforceTrustedOriginRequired permite métodos seguros sin tocar la respuesta", () => {
+  const allowed = new Set(["https://vetneb.com.ar"]);
+  const { reply, state } = fakeReply();
+
+  const result = enforceTrustedOriginRequired(
+    fakeRequest({ origin: "https://evil.example" }, "GET"),
+    reply,
+    allowed,
+  );
+
+  assert.equal(result, true);
+  assert.equal(state.statusCode, null);
+});
+
+test("enforceTrustedOriginRequired permite método inseguro con Origin de la allowlist", () => {
+  const allowed = new Set(["https://vetneb.com.ar"]);
+  const { reply, state } = fakeReply();
+
+  const result = enforceTrustedOriginRequired(
+    fakeRequest({ origin: "https://vetneb.com.ar" }, "PATCH"),
+    reply,
+    allowed,
+  );
+
+  assert.equal(result, true);
+  assert.equal(state.statusCode, null);
+});
+
+test("enforceTrustedOriginRequired bloquea método inseguro sin Origin ni Referer: 403 'Origen no permitido'", () => {
+  const allowed = new Set(["https://vetneb.com.ar"]);
+  const { reply, state } = fakeReply();
+
+  const result = enforceTrustedOriginRequired(
+    fakeRequest({}, "PATCH"),
+    reply,
+    allowed,
+  );
+
+  assert.equal(result, false);
+  assert.equal(state.statusCode, 403);
+  assert.deepEqual(state.body, {
+    success: false,
+    error: "Origen no permitido",
+  });
+});
+
+test("enforceTrustedOriginRequired bloquea método inseguro con Origin externo: 403 'Origen no permitido'", () => {
+  const allowed = new Set(["https://vetneb.com.ar"]);
+  const { reply, state } = fakeReply();
+
+  const result = enforceTrustedOriginRequired(
+    fakeRequest({ origin: "https://evil.example" }, "PATCH"),
     reply,
     allowed,
   );
