@@ -57,28 +57,35 @@ cerrados en este corte:
   `@radix-ui/react-toast` y `@radix-ui/react-tooltip` quedan diferidas
   intencionalmente por roadmap/UI; no son deuda activa accidental.
 
-La deuda activa real queda limitada a:
+**Estado final de hallazgos (2026-06-29, post-#1186): sin P0, sin P1 activo,
+sin P2 activo pendiente de cleanup final y sin P3 activo pendiente de cleanup
+final.** Los cuatro bloques que esta auditoría rastreaba como deuda real ya
+quedaron cerrados, documentalmente o por ejecución:
 
-1. **P2-D · Taxonomía documental fragmentada**: **auditado y planificado, no
-   pendiente de ejecución** (2026-06-29) — el move-only ya fue ejecutado por
-   `#1163` (2026-06-28); la duplicación `audit/`+`audits/`, las 3 ubicaciones
-   de notas de implementación y los `pr-*.md` sueltos **ya no existen en
-   disco**. Ver auditoría de fase 0
+1. **P2-D · Taxonomía documental fragmentada**: **cerrado**. El move-only ya
+   fue ejecutado por `#1163` (2026-06-28); la duplicación `audit/`+`audits/`,
+   las 3 ubicaciones de notas de implementación y los `pr-*.md` sueltos **ya
+   no existen en disco**. Re-verificado por `#1186` (auditoría de fase 0). Ver
    [`documentation-taxonomy-fragmentation-audit.md`](documentation-taxonomy-fragmentation-audit.md).
-   *(P2, auditado.)*
+   *(P2, cerrado, no activo.)*
 2. **P2-E · Logger/console observability**: logger mínimo y mezcla de
-   `console.*`/logger en backend. *(P2.)* **Cerrado documentalmente
-   (2026-06-29)** — ver detalle más abajo y
+   `console.*`/logger en backend. *(P2.)* **Cerrado documentalmente por
+   `#1185` (2026-06-29)** — queda como **deuda moderada documentada y no
+   bloqueante** (no como deuda activa de cleanup), con plan futuro opcional.
+   Ver detalle más abajo y
    `docs/audit/backend-observability-logger-console-audit.md`.
-3. **P3 · Artefactos históricos/orfanados**: cerrado por
-   `clean/remove-orphaned-historical-artifacts` (2026-06-29); se eliminaron
+3. **P3 · Artefactos históricos/orfanados**: **cerrado** por `#1183`
+   (`clean/remove-orphaned-historical-artifacts`, 2026-06-29); se eliminaron
    `legacy/drizzle-old/`, `scripts/generate-pwa-icons.py` y
-   `scripts/maintenance/FUSION_POR_COMANDO.sh`. *(P3, cerrado.)*
-4. **P3-G · Backend CI `paths-ignore` opcional** para evitar runs pesados en PRs
-   estrictamente docs-only/frontend, previa verificación de tests de contrato.
+   `scripts/maintenance/FUSION_POR_COMANDO.sh`. *(P3, cerrado, no activo.)*
+4. **P3-G · Backend CI `paths-ignore` opcional**: **cerrado** por `#1184`
+   (`paths-ignore: ['docs/**', '**/*.md']` en el trigger `pull_request` de
+   `backend-ci.yml`) para evitar runs pesados en PRs estrictamente
+   docs-only/frontend. *(P3, cerrado, no activo.)*
 
-Las eliminaciones o cambios restantes se proponen como **PRs chicos, con prueba
-y rollback**. Ninguna se ejecuta en esta normalización docs-only.
+No quedan eliminaciones ni cambios pendientes de ejecución dentro del alcance
+de esta auditoría. Cierre final documentado en
+[`final-repo-cleanup-closeout.md`](final-repo-cleanup-closeout.md).
 
 > **Nota de alcance vs. brief:** el brief esperaba workflows de *Dependabot* y
 > *Supabase Preview*. **No existen** en el repo: solo hay 3 workflows
@@ -515,7 +522,7 @@ deploy roto ni auth rota en el estado actual.
 | `IMPLEMENTATION_NOTES/` (raíz, 34) | consolidado por #1163; ya no existe | P2 cerrado | Bajo | cerrado | #1163 / PR-CLEAN2 |
 | ~31 `docs/pr-*.md` sueltos | movidos a `pr-history/` por #1163; 0 sueltos hoy | P2 cerrado | Bajo | cerrado | #1163 / PR-CLEAN2 |
 | `.env.example` / `frontend/.env.example` | `APP_VERSION`, `CLIENT_MIN_VERSION` y `NEXT_PUBLIC_APP_VERSION` documentadas con token no secreto | P2 cerrado | Bajo | cerrado docs-only | P2-F |
-| `server/lib/logger.ts` + 56 `console.*` | logger mínimo, mezcla cruda | P2 | Bajo | documentar/unificar (opcional) | — |
+| `server/lib/logger.ts` + 56 `console.*` | logger mínimo, mezcla cruda; cerrado documentalmente por `#1185` | P2 cerrado documentalmente | Bajo | deuda moderada documentada, no bloqueante; unificar a futuro (opcional) | #1185 |
 
 ---
 
@@ -1230,16 +1237,20 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
 - [x] PR-CLEAN1 (docs/env comments): P2-F cerrado por
   `docs/env-version-vars-contract`; P2-C `docs/notes/todo.md` cerrado, histórico
   archivado en `docs/archive/legacy-trpc-sheets-todo.md`.
-- [ ] PR-CLEAN2 (reorg docs) mergeado, `git grep` de rutas movidas sin huérfanos.
+- [x] PR-CLEAN2 (reorg docs) mergeado por `#1163`; `git grep` de rutas movidas
+  sin huérfanos (re-verificado por `#1186`).
 - [x] PR-CLEAN3 / P1-B (email URL contract) cerrado por #1162; `PUBLIC_SITE_URL`
   separa URL pública de `CORS_ORIGIN` con fallback conservador.
-- [ ] PR-CLEAN4 (www/CORS) decidido y documentado (o cerrado como N/A).
+- [ ] PR-CLEAN4 (www/CORS) — **fuera del alcance P1-P3 de este cierre; no es
+  deuda activa del cleanup final.** Queda diferido como investigación futura
+  de topología (decidir si `CORS_ORIGIN` debe incluir `www.vetneb.com.ar`);
+  no bloquea el cierre documental ni implica deuda técnica accidental.
 - [x] PR-CLEAN5 / P1-A CORS cerrado por la secuencia #1164–#1170; excepción
   única `public-professionals` documentada y residual `logistics-sla` resuelto.
 - [x] PR-CLEAN6 (dead-code/artefactos): porción `shared/` (P2-A) cerrada por
   #1173; artefactos P3 (`legacy/drizzle-old/`,
-  `generate-pwa-icons.py`, `FUSION_POR_COMANDO.sh`) cerrados por
-  `clean/remove-orphaned-historical-artifacts` (2026-06-29).
+  `generate-pwa-icons.py`, `FUSION_POR_COMANDO.sh`) cerrados por #1183
+  (`clean/remove-orphaned-historical-artifacts`, 2026-06-29).
 - [x] PR-CLEAN7 / P2-B (deps sin uso): cerrado por #1175-#1179. PR-CLEAN7A
   ejecutado; PR-CLEAN7B docs-only completado; PR-CLEAN7C tooling ejecutado;
   PR-CLEAN7D Radix `SUSPECT unused` ejecutado para `avatar`, `dropdown-menu`,
@@ -1249,10 +1260,19 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
 - [x] `.env.example` y `frontend/.env.example` documentan las vars del version
   gate (`APP_VERSION`, `CLIENT_MIN_VERSION`, `NEXT_PUBLIC_APP_VERSION`).
 - [x] `docs/notes/todo.md` ya no contradice la arquitectura real.
-- [ ] Taxonomía `docs/` unificada (sin `audit`+`audits`, sin `pr-*.md` sueltos).
-- [ ] `main` limpio, CI verde (backend + frontend), 0 PRs abiertos.
-- [ ] `pnpm typecheck` + `pnpm --dir frontend typecheck` verdes (hoy: ✅).
-- [ ] Documento de cierre/changelog actualizado.
+- [x] Taxonomía `docs/` unificada (sin `audit`+`audits`, sin `pr-*.md`
+  sueltos) — cerrado por #1163, re-verificado por #1186.
+- [x] P2-E logger/observability cerrado documentalmente por #1185 como deuda
+  moderada no bloqueante.
+- [x] P3-G `backend-ci.yml` `paths-ignore` cerrado por #1184.
+- [ ] `main` limpio, CI verde (backend + frontend), 0 PRs abiertos — **estado
+  esperado post-merge de este PR de cierre**; verificado en este corte:
+  working tree limpio y 0 PRs abiertos en `docs/final-repo-cleanup-closeout`
+  (HEAD `40f4524`); CI se reconfirma al mergear.
+- [x] `pnpm typecheck` + `pnpm --dir frontend typecheck` verdes (re-verificado
+  en este cierre, ver validaciones).
+- [x] Documento de cierre/changelog actualizado:
+  [`final-repo-cleanup-closeout.md`](final-repo-cleanup-closeout.md).
 
 ---
 
