@@ -51,12 +51,12 @@
 | Id | Pendiente | Estado |
 | --- | --- | --- |
 | P2-D | Taxonomía documental fragmentada | Pendiente |
-| P2-E | Logger/console observability | Pendiente |
 
 ## Bloques cerrados (actualización 2026-06-29)
 
 | Bloque | Estado actual | Evidencia |
 | --- | --- | --- |
+| P2-E Logger/console observability | Cerrado documentalmente | `docs/observability-logger-console-audit`; auditoría completa en `docs/audit/backend-observability-logger-console-audit.md` (56 `console.*`, 9 `logInfo/logWarn/logError`, sin fuga de secretos; deuda no bloqueante con plan futuro) |
 | P3 artefactos históricos/orfanados | Cerrado | `clean/remove-orphaned-historical-artifacts`; eliminados `legacy/drizzle-old/`, `scripts/generate-pwa-icons.py`, `scripts/maintenance/FUSION_POR_COMANDO.sh` tras revalidar 0 referencias operativas |
 | P3-G `backend-ci.yml` `paths-ignore` opcional | Cerrado | `ci/backend-paths-ignore-docs-only`; `paths-ignore: ['docs/**', '**/*.md']` agregado sólo al trigger `pull_request` de `.github/workflows/backend-ci.yml`; `push` y `frontend-ci.yml` sin cambios; ver `docs/implementation/backend-ci-paths-ignore-docs-only.md` |
 
