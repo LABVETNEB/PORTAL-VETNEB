@@ -85,3 +85,17 @@ Estas dependencias no se clasifican como deuda activa accidental en este corte.
 - Scope docs-only respetado.
 - P2-F cerrado sin secretos, sin lógica y sin cambios de runtime.
 - Sin commit, push ni PR.
+
+## Cierre de auditoría final (actualización 2026-06-29 · `docs/final-repo-cleanup-closeout`)
+
+- **Sin P0.** **Sin P1 activo.** **Sin P2 activo pendiente de cleanup final.**
+  **Sin P3 activo pendiente de cleanup final.**
+- P2-D (taxonomía documental) y P3/P3-G (artefactos históricos y CI
+  `paths-ignore`) confirmados cerrados por #1163, #1183 y #1184
+  respectivamente; re-verificados sin deuda activa por #1186.
+- P2-E (logger/observability) queda como **deuda moderada documentada y no
+  bloqueante** (cerrado documentalmente por #1185), no como bloqueo de cierre.
+- `public-professionals` CORS sigue como **excepción contractual** explícita
+  (contrato/mensaje propios), no como deuda activa general del bloque P1-A.
+- Documento de cierre final:
+  [`final-repo-cleanup-closeout.md`](final-repo-cleanup-closeout.md).
