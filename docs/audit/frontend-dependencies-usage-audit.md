@@ -92,8 +92,8 @@ Lectura aplicada:
 
 | Paquete | Clasificación | Evidencia principal | Nota |
 | --- | --- | --- | --- |
-| `@eslint/eslintrc` | UNKNOWN keep | `corepack pnpm --dir frontend why` muestra dependencia directa solamente | No hay import directo en `eslint.config.mjs`; validar con PR tooling dedicado si se quiere remover. |
-| `@next/eslint-plugin-next` | UNKNOWN keep | Directa `16.2.7` y transitiva `16.2.9` vía `eslint-config-next` | Posible duplicado/version skew; no tocar sin lint verde. |
+| `@eslint/eslintrc` | REMOVED en PR-CLEAN7C | `corepack pnpm --dir frontend why` mostraba dependencia directa solamente | Sin `FlatCompat` ni import directo en `eslint.config.mjs`; lint pasó antes/después de remover. |
+| `@next/eslint-plugin-next` | REMOVED directo en PR-CLEAN7C | Directa `16.2.7` y transitiva `16.2.9` vía `eslint-config-next` | La directa era redundante; permanece la transitiva de `eslint-config-next`. |
 | `@playwright/test` | LIVE tests | 70+ imports en `frontend/e2e/*.spec.ts`; `frontend/playwright.config.ts:1` | Tooling E2E activo. |
 | `@tailwindcss/postcss` | LIVE build/config/tooling | `frontend/postcss.config.mjs:4` | Plugin PostCSS de Tailwind 4. |
 | `@types/node` | LIVE build/config/tooling | TS/config usa APIs Node en configs (`createRequire`, `process`) | Tipos necesarios para configs y e2e. |
@@ -224,9 +224,10 @@ pnpm --dir frontend why @next/eslint-plugin-next
 -> directa 16.2.7 y transitiva 16.2.9 por eslint-config-next
 ```
 
-Interpretación: ambos son candidatos de auditoría de tooling, no de eliminación
-junto con runtime deps. `@next/eslint-plugin-next` muestra posible duplicado,
-pero remover la directa puede depender de cómo resuelva ESLint/Next el plugin.
+Interpretación post-PR-CLEAN7C: ambos candidatos de tooling fueron eliminados
+de forma acotada tras validar `lint`. `@eslint/eslintrc` no era necesario por
+`FlatCompat`; `@next/eslint-plugin-next` directo era redundante porque
+`eslint-config-next@16.2.9` conserva su dependencia transitiva.
 
 ---
 
@@ -240,7 +241,7 @@ eliminación.
 | --- | --- | --- | --- |
 | Charts/table/query/forms | `@tanstack/react-query`, `@tanstack/react-table`, `echarts`, `echarts-for-react`, `react-hook-form` | Medio: cambio en manifest/lock y test de contrato; `echarts` pesado pero no importado | `pnpm install`; `pnpm --dir frontend lint`; `pnpm --dir frontend typecheck`; `pnpm --dir frontend build`; E2E frontend relevante |
 | Radix no usados | `@radix-ui/react-avatar`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-label`, `@radix-ui/react-select`, `@radix-ui/react-tabs`, `@radix-ui/react-toast`, `@radix-ui/react-tooltip` | Medio-bajo: posible roadmap UX pendiente; test de contrato debe actualizarse | Mismas validaciones + revisar docs/roadmap antes de borrar |
-| Tooling ESLint | `@eslint/eslintrc`, directa `@next/eslint-plugin-next` | Medio: puede romper `pnpm --dir frontend lint` por resolución de plugin/config | PR separado, sólo tooling; lint antes/después |
+| Tooling ESLint | `@eslint/eslintrc`, directa `@next/eslint-plugin-next` | Cerrado por PR-CLEAN7C | Removidos con pnpm; lint antes/después verde. |
 
 `zod` queda fuera de candidatos por ahora: está en el manifest frontend, pero el
 uso detectado está en tests raíz (`api-contract-smoke`, `production-env-contracts`).
@@ -278,8 +279,8 @@ Recomendación post-PR-CLEAN7A:
 - **PR-CLEAN7B:** docs-only audit del remanente Radix/tooling; no tocar
   manifests ni runtime.
 - **PR-CLEAN7C:** tooling ESLint únicamente (`@eslint/eslintrc` y directa
-  `@next/eslint-plugin-next`), si Nico autoriza cambio de dependencias y con
-  `pnpm --dir frontend lint` antes/después.
+  `@next/eslint-plugin-next`) ejecutado el 2026-06-29. Se removieron ambas
+  entradas directas de `frontend/package.json` y se regeneró `pnpm-lock.yaml`.
 - **PR-CLEAN7D:** Radix por grupos. Candidatos `SUSPECT unused`:
   `avatar`, `dropdown-menu`, `label`, `select`, `tabs`. Mantener
   `toast`/`tooltip` como `DEFER keep` mientras siga vigente el roadmap de
@@ -330,7 +331,36 @@ Clasificación remanente:
   `@radix-ui/react-select`, `@radix-ui/react-tabs`.
 - `DEFER keep por roadmap/estandarización UI`: `@radix-ui/react-toast`,
   `@radix-ui/react-tooltip`.
-- `UNKNOWN keep`: `@eslint/eslintrc`, `@next/eslint-plugin-next`.
+- `REMOVED en PR-CLEAN7C`: `@eslint/eslintrc`, dependencia directa
+  `@next/eslint-plugin-next`.
 
 No se modificaron `frontend/package.json`, `pnpm-lock.yaml`, runtime
 frontend/backend, DB, migraciones, workflows, Render ni secrets.
+
+## 10. Nota final PR-CLEAN7C
+
+**Estado:** ejecutado el 2026-06-29 en la rama
+`clean/frontend-eslint-tooling-deps`, base HEAD `7626865`.
+
+Se eliminaron únicamente las dependencias directas de tooling ESLint
+`@eslint/eslintrc` y `@next/eslint-plugin-next` con
+`corepack pnpm --dir frontend remove @eslint/eslintrc @next/eslint-plugin-next`.
+
+Decisiones:
+
+- `@eslint/eslintrc`: removido porque no hay `FlatCompat` en
+  `frontend/eslint.config.mjs`, no hay imports directos y `why` lo mostró como
+  dependencia directa solamente.
+- `@next/eslint-plugin-next`: removida la directa porque
+  `eslint-config-next@16.2.9` ya aporta `@next/eslint-plugin-next@16.2.9`
+  transitivamente.
+
+Cambios de alcance PR-CLEAN7C:
+
+- `frontend/package.json`: removidas sólo esas dos devDependencies directas.
+- `pnpm-lock.yaml`: lockfile regenerado por pnpm.
+- `test/package-scripts-contract.test.ts`: dejó de exigir `@eslint/eslintrc`.
+- `test/helpers/clean7a-dependency-cleanup-scope.ts`: actualizó el guard
+  histórico para aceptar que CLEAN7C removió las dos dependencias `UNKNOWN`.
+- No se tocó Radix, runtime frontend/backend, DB, migraciones, workflows,
+  Render, secrets ni `package.json` raíz.

@@ -284,8 +284,9 @@ deploy roto ni auth rota en el estado actual.
 - **Riesgo de eliminación:** `test/package-scripts-contract.test.ts` fija varias
   dependencias como contrato de manifest; cualquier PR de eliminación debe
   actualizar ese test junto con `frontend/package.json` y `pnpm-lock.yaml`.
-  `@eslint/eslintrc` y la dependencia directa `@next/eslint-plugin-next` quedan
-  como `UNKNOWN needs manual verification`, no como eliminación de runtime.
+  PR-CLEAN7C cerró el remanente tooling: `@eslint/eslintrc` y la dependencia
+  directa `@next/eslint-plugin-next` fueron eliminadas de forma acotada tras
+  validar `lint`; no eran eliminación de runtime.
 - **Impacto:** no inflan el bundle servido (Next no las bundlea si no se importan)
   pero sí el `node_modules`, tiempo de install, superficie de `pnpm audit` y ruido
   de actualizaciones. `echarts` en especial es pesado.
@@ -313,9 +314,22 @@ deploy roto ni auth rota en el estado actual.
   `@radix-ui/react-tabs` quedan `SUSPECT unused`; `@radix-ui/react-toast` y
   `@radix-ui/react-tooltip` quedan `DEFER keep` por roadmap explícito de
   dashboard premium; `@eslint/eslintrc` y la dependencia directa
-  `@next/eslint-plugin-next` quedan `UNKNOWN keep` para PR tooling dedicado.
+  `@next/eslint-plugin-next` fueron resueltas luego por PR-CLEAN7C.
   No se tocaron `frontend/package.json`, `pnpm-lock.yaml`, runtime
-  frontend/backend, DB, migraciones, workflows, Render ni secrets.
+  frontend/backend, DB, migraciones, workflows, Render ni secrets en PR-CLEAN7B.
+- **Estado PR-CLEAN7C / tooling ESLint:** **EJECUTADO** (2026-06-29, rama
+  `clean/frontend-eslint-tooling-deps`, base HEAD `7626865`). Se removieron sólo
+  `@eslint/eslintrc` y la dependencia directa `@next/eslint-plugin-next` de
+  `frontend/package.json` con
+  `corepack pnpm --dir frontend remove @eslint/eslintrc @next/eslint-plugin-next`,
+  regenerando `pnpm-lock.yaml`. La decisión se basó en que no existe uso de
+  `FlatCompat` ni import de `@eslint/eslintrc` en `frontend/eslint.config.mjs`,
+  y en que `eslint-config-next@16.2.9` ya trae transitivamente
+  `@next/eslint-plugin-next@16.2.9`. Se actualizó
+  `test/package-scripts-contract.test.ts` y el guard histórico
+  `test/helpers/clean7a-dependency-cleanup-scope.ts`. No se tocó Radix, runtime
+  frontend/backend, DB, migraciones, workflows, Render, secrets ni
+  `package.json` raíz.
 
 #### P2-C · `docs/notes/todo.md` contradictorio con la arquitectura actual
 - **Tipo:** docs · **Riesgo:** Bajo.
@@ -402,7 +416,7 @@ deploy roto ni auth rota en el estado actual.
 | `legacy/drizzle-old/*` | "archaeology only" (su README) | P3 | Bajo | archivar/eliminar | PR-CLEAN6 |
 | `scripts/generate-pwa-icons.py` | 0 refs; Python prohibido | P3 | Bajo | eliminar | PR-CLEAN6 |
 | `scripts/maintenance/FUSION_POR_COMANDO.sh` | 0 refs; fusión histórica | P3 | Bajo | eliminar | PR-CLEAN6 |
-| `frontend/package.json` (Radix/tooling remanente) | 0 imports reales para los 9 paquetes auditados; `toast`/`tooltip` tienen roadmap, tooling queda `UNKNOWN` | P2 | Medio | docs cerrados; decidir PR-CLEAN7C/7D | PR-CLEAN7 |
+| `frontend/package.json` (Radix remanente) | Tooling ESLint cerrado por PR-CLEAN7C; Radix tiene 0 imports reales, con `toast`/`tooltip` en roadmap | P2 | Medio | decidir PR-CLEAN7D | PR-CLEAN7 |
 | `docs/notes/todo.md` | tRPC/Google Sheets inexistentes | P2 | Bajo | archivar/reescribir | PR-CLEAN1 |
 | `docs/audit/` + `docs/audits/` | taxonomía duplicada | P2 | Bajo | unificar | PR-CLEAN2 |
 | `IMPLEMENTATION_NOTES/` (raíz, 34) | notas en 3 ubicaciones | P2 | Bajo | consolidar bajo `docs/` | PR-CLEAN2 |
@@ -1017,10 +1031,9 @@ exige build+E2E). El resto está saludable.
   - **PR-CLEAN7B (AUDITORÍA DOCS-ONLY COMPLETADA 2026-06-29):** auditar
     remanente Radix/tooling sin tocar manifests, lockfile ni runtime. Documento:
     [`frontend-radix-tooling-dependencies-audit.md`](frontend-radix-tooling-dependencies-audit.md).
-  - **PR-CLEAN7C opcional:** revisar tooling ESLint (`@eslint/eslintrc` y
-    dependencia directa `@next/eslint-plugin-next`) sólo si `lint` confirma que
-    son prescindibles. Mantener como `UNKNOWN keep` si hay fallo o duda de
-    resolución.
+  - **PR-CLEAN7C (EJECUTADO 2026-06-29):** remover tooling ESLint directo
+    `@eslint/eslintrc` y dependencia directa `@next/eslint-plugin-next`, con
+    lint antes/después y validaciones completas.
   - **PR-CLEAN7D opcional:** tratar Radix por grupos. Candidatos
     `SUSPECT unused`: `avatar`, `dropdown-menu`, `label`, `select`, `tabs`.
     Mantener `toast`/`tooltip` como `DEFER keep` mientras siga vigente el
@@ -1090,7 +1103,7 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
   (rama `clean/remove-dead-shared-module`); artefactos P3 (`legacy/drizzle-old/`,
   `generate-pwa-icons.py`, `FUSION_POR_COMANDO.sh`) pendientes.
 - [~] PR-CLEAN7 (deps sin uso): PR-CLEAN7A ejecutado; PR-CLEAN7B docs-only
-  completado; quedan decisiones opcionales PR-CLEAN7C tooling y PR-CLEAN7D
+  completado; PR-CLEAN7C tooling ejecutado; queda decisión opcional PR-CLEAN7D
   Radix por grupos, más E2E completa si se toca manifest/lock.
 - [ ] `.env.example` y `frontend/.env.example` documentan **todas** las vars usadas.
 - [ ] `docs/notes/todo.md` ya no contradice la arquitectura real.
