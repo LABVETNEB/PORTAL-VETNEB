@@ -59,9 +59,13 @@ cerrados en este corte:
 
 La deuda activa real queda limitada a:
 
-1. **P2-D · Taxonomía documental fragmentada**: ~233 docs con taxonomía
-   fragmentada (`audit/` + `audits/`, notas de implementación en 3 lugares,
-   ~31 `pr-*.md` sueltos en la raíz de `docs/`). *(P2.)*
+1. **P2-D · Taxonomía documental fragmentada**: **auditado y planificado, no
+   pendiente de ejecución** (2026-06-29) — el move-only ya fue ejecutado por
+   `#1163` (2026-06-28); la duplicación `audit/`+`audits/`, las 3 ubicaciones
+   de notas de implementación y los `pr-*.md` sueltos **ya no existen en
+   disco**. Ver auditoría de fase 0
+   [`documentation-taxonomy-fragmentation-audit.md`](documentation-taxonomy-fragmentation-audit.md).
+   *(P2, auditado.)*
 2. **P2-E · Logger/console observability**: logger mínimo y mezcla de
    `console.*`/logger en backend. *(P2.)* **Cerrado documentalmente
    (2026-06-29)** — ver detalle más abajo y
@@ -397,14 +401,28 @@ deploy roto ni auth rota en el estado actual.
 
 #### P2-D · Taxonomía documental fragmentada
 - **Tipo:** docs · **Riesgo:** Bajo.
-- **Evidencia:**
+- **Estado actualizado (2026-06-29):** **ejecutado por `#1163`
+  (2026-06-28, `docs: consolidate historical documentation structure`)**. El
+  move-only ya ocurrió: `docs/audits/`, `IMPLEMENTATION_NOTES/` (raíz) y
+  `docs/implementation-history/` **ya no existen**; `docs/pr-*.md` sueltos en
+  la raíz de `docs/` = 0. Lo que la sección de evidencia original describía
+  (duplicación `audit/`+`audits/`, 3 hogares de implementation notes, `pr-*.md`
+  sueltos) es **histórico**, no deuda activa. Auditoría de fase 0 (re-verificó
+  el estado en disco, `git grep` de referencias y tests de contrato) en
+  [`docs/audit/documentation-taxonomy-fragmentation-audit.md`](documentation-taxonomy-fragmentation-audit.md).
+- **Evidencia original (previa a #1163, conservada por trazabilidad):**
   - `docs/audit/` (62) **y** `docs/audits/` (10): dos taxonomías casi idénticas.
   - Notas de implementación en **3 lugares**: `docs/implementation/` (39),
     `docs/implementation-history/` (13) y `IMPLEMENTATION_NOTES/` en la raíz (34).
   - `docs/pr-history/` (32) **y** ~31 `pr-*.md` sueltos en la raíz de `docs/`
     (`pr-1…pr-10`, `pr-815…pr-826`, `pr0…pr5b`).
-- **Acción:** **consolidar** taxonomía (unificar `audit`/`audits`; mover notas a un
-  único árbol; recolectar `pr-*.md` en `pr-history/`). PR de solo-docs **PR-CLEAN2**.
+- **Acción histórica:** consolidar taxonomía (unificar `audit`/`audits`; mover
+  notas a un único árbol; recolectar `pr-*.md` en `pr-history/`). PR de
+  solo-docs **PR-CLEAN2**, ejecutado por `#1163`.
+- **Acción actual:** **cerrado**. No listar P2-D como pendiente de movimiento;
+  el único seguimiento posible es cosmético (índices ya existentes en
+  `docs/SOURCES_OF_TRUTH.md` / `docs/HISTORICAL_DOCUMENTATION.md` /
+  `docs/audit/README.md`).
 
 #### P2-E · Logger mínimo y mezcla `console.*` / logger
 - **Tipo:** observability · **Riesgo:** Bajo.
@@ -493,9 +511,9 @@ deploy roto ni auth rota en el estado actual.
 | `scripts/maintenance/FUSION_POR_COMANDO.sh` | 0 refs; fusión histórica; eliminado | P3 cerrado | Bajo | cerrado | `clean/remove-orphaned-historical-artifacts` |
 | `frontend/package.json` (Radix remanente) | Tooling ESLint cerrado por PR-CLEAN7C; Radix `avatar`, `dropdown-menu`, `label`, `select`, `tabs` cerrado por PR-CLEAN7D/#1178; `toast`/`tooltip` quedan `DEFER keep` por roadmap | P2 cerrado | Medio | cerrado; no recomendar PR-CLEAN7D como pendiente | #1178 / #1179 |
 | `docs/notes/todo.md` | tRPC/Google Sheets inexistentes | P2 cerrado | Bajo | cerrado; archivado en `docs/archive/legacy-trpc-sheets-todo.md` | PR-CLEAN1 |
-| `docs/audit/` + `docs/audits/` | taxonomía duplicada | P2 | Bajo | unificar | PR-CLEAN2 |
-| `IMPLEMENTATION_NOTES/` (raíz, 34) | notas en 3 ubicaciones | P2 | Bajo | consolidar bajo `docs/` | PR-CLEAN2 |
-| ~31 `docs/pr-*.md` sueltos | deberían ir en `pr-history/` | P2 | Bajo | mover | PR-CLEAN2 |
+| `docs/audit/` + `docs/audits/` | unificado por #1163; `docs/audits/` ya no existe | P2 cerrado | Bajo | cerrado | #1163 / PR-CLEAN2 |
+| `IMPLEMENTATION_NOTES/` (raíz, 34) | consolidado por #1163; ya no existe | P2 cerrado | Bajo | cerrado | #1163 / PR-CLEAN2 |
+| ~31 `docs/pr-*.md` sueltos | movidos a `pr-history/` por #1163; 0 sueltos hoy | P2 cerrado | Bajo | cerrado | #1163 / PR-CLEAN2 |
 | `.env.example` / `frontend/.env.example` | `APP_VERSION`, `CLIENT_MIN_VERSION` y `NEXT_PUBLIC_APP_VERSION` documentadas con token no secreto | P2 cerrado | Bajo | cerrado docs-only | P2-F |
 | `server/lib/logger.ts` + 56 `console.*` | logger mínimo, mezcla cruda | P2 | Bajo | documentar/unificar (opcional) | — |
 
