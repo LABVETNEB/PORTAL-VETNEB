@@ -200,11 +200,15 @@ Orden sugerido:
 
 ## 7. Estado final
 
-- Auditoría P2-B remanente actualizada post-PR-CLEAN7C.
-- Se eliminaron sólo `@eslint/eslintrc` y la dependencia directa
+- Auditoría P2-B remanente actualizada post-PR-CLEAN7D/#1178.
+- Se eliminaron en PR-CLEAN7C sólo `@eslint/eslintrc` y la dependencia directa
   `@next/eslint-plugin-next`.
 - PR-CLEAN7D elimino despues solo `avatar`, `dropdown-menu`, `label`, `select`
   y `tabs`; `toast`/`tooltip` siguen preservados.
+- El tooling `UNKNOWN` queda resuelto; no queda paquete remanente P2-B en esa
+  clasificación.
+- Cierre documental dedicado:
+  [`frontend-dependencies-cleanup-closeout.md`](frontend-dependencies-cleanup-closeout.md).
 - No se tocó runtime frontend/backend, DB, migraciones, workflows, Render ni
   secrets.
 - No commit, no push, no PR.
