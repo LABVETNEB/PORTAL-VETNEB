@@ -52,8 +52,13 @@
 | --- | --- | --- |
 | P2-D | Taxonomía documental fragmentada | Pendiente |
 | P2-E | Logger/console observability | Pendiente |
-| P3 | Artefactos históricos/orfanados (`legacy/drizzle-old/`, `scripts/generate-pwa-icons.py`, `scripts/maintenance/FUSION_POR_COMANDO.sh`) | Pendiente |
 | P3-G | `backend-ci.yml` `paths-ignore` opcional | Pendiente opcional |
+
+## Bloques cerrados (actualización 2026-06-29)
+
+| Bloque | Estado actual | Evidencia |
+| --- | --- | --- |
+| P3 artefactos históricos/orfanados | Cerrado | `clean/remove-orphaned-historical-artifacts`; eliminados `legacy/drizzle-old/`, `scripts/generate-pwa-icons.py`, `scripts/maintenance/FUSION_POR_COMANDO.sh` tras revalidar 0 referencias operativas |
 
 ## Dependencias diferidas
 
