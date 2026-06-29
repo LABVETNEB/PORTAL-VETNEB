@@ -1234,9 +1234,9 @@
   }
 
   .dashboard-workspace-header {
-    border-bottom: 1px solid hsl(var(--vetneb-line) / 0.68);
-    padding-bottom: 1rem;
-    margin-bottom: 1rem;
+    border-bottom: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
   }
 
   .dashboard-master-panel {

@@ -100,23 +100,25 @@ test("PR-2 globals.css reduced-motion disables dashboard-workspace-enter animati
 
 // ── Workspace header separator ────────────────────────────────────────────────
 
-test("PR-2 globals.css defines .dashboard-workspace-header with border separator", () => {
+test("PR-2 globals.css defines .dashboard-workspace-header without border separator", () => {
   const source = read(GLOBALS_CSS_PATH);
   assert.ok(
     source.includes(".dashboard-workspace-header {"),
     "globals.css must define .dashboard-workspace-header",
   );
+  const headerIdx = source.indexOf(".dashboard-workspace-header {");
+  const headerRule = source.slice(headerIdx, source.indexOf("}", headerIdx));
   assert.ok(
-    source.includes("border-bottom: 1px solid"),
-    ".dashboard-workspace-header must define a border-bottom separator",
+    headerRule.includes("border-bottom: 0;"),
+    ".dashboard-workspace-header must not render a border-bottom separator",
   );
   assert.ok(
-    source.includes("padding-bottom: 1rem;"),
-    ".dashboard-workspace-header must define padding-bottom",
+    headerRule.includes("padding-bottom: 0;"),
+    ".dashboard-workspace-header must not reserve padding-bottom",
   );
   assert.ok(
-    source.includes("margin-bottom: 1rem;"),
-    ".dashboard-workspace-header must define margin-bottom",
+    headerRule.includes("margin-bottom: 0;"),
+    ".dashboard-workspace-header must not reserve margin-bottom",
   );
 });
 
