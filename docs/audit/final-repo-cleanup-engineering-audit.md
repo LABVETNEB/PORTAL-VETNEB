@@ -435,7 +435,7 @@ deploy roto ni auth rota en el estado actual.
 | P3-D | `trusted-origin.ts` conserva helper/fallback propio | Middleware global fuera de `server/routes`; mantiene contrato de protección global y no fue tocado por #1164–#1170 | mantener como remanente intencional salvo PR dedicado |
 | P3-E | `AXIOS_TIMEOUT_MS` (`@deprecated`) | residuo histórico de `shared/const.ts`; eliminado junto con P2-A por #1173 | cerrado |
 | P3-F | Split `zod` v3 (backend `^3.25.76`) vs v4 (frontend `^4`) | `package.json` vs `frontend/package.json` | documentar (intencional: paquetes separados); revisar a futuro |
-| P3-G | `backend-ci.yml` sin `paths:` → corre en PRs de solo-docs/frontend | `.github/workflows/backend-ci.yml:3-16` | evaluar `paths-ignore` (ver §10) |
+| P3-G | `backend-ci.yml` sin `paths:` → corre en PRs de solo-docs/frontend | `.github/workflows/backend-ci.yml:3-16` | Cerrado: `paths-ignore` (`docs/**`, `**/*.md`) en `pull_request` (ver §10) |
 | P3-H | Residual CORS local resuelto en `logistics-sla.fastify.ts` | Cerrado por #1170 / `clean/backend-cors-helper-logistics-sla`: la ruta GET-only importa `getAllowedOrigins`, `getAllowedOriginForCors` y `getRequestOrigin` desde `server/lib/cors-headers.ts`; `applyCorsHeaders` queda local | cerrado |
 
 ---
@@ -623,16 +623,24 @@ de URL pública ya fue cerrado por #1162 / PR-CLEAN3.
 
 | Workflow | Estado | Observación |
 | --- | --- | --- |
-| `backend-ci.yml` | sólido | **Sin `paths:`** → corre full (postgres+migraciones+test+build, ~15 min) también en PRs de solo-docs o solo-frontend. `pnpm audit`/`pnpm audit --prod` pueden romper CI por advisories de devDeps. |
+| `backend-ci.yml` | sólido | `pull_request` tiene `paths-ignore: docs/**, **/*.md` (P3-G, cerrado) → no corre en PRs estrictamente docs-only; sigue corriendo full (postgres+migraciones+test+build, ~15 min) ante cambios en `server/**`, `test/**`, `package.json`, `pnpm-lock.yaml`, `.github/workflows/**`, `drizzle/**`, `scripts/**`, `.env.example` o cualquier archivo no-docs. `push` queda sin `paths-ignore` (sin cambio). `pnpm audit`/`pnpm audit --prod` pueden romper CI por advisories de devDeps. |
 | `frontend-ci.yml` | sólido | `paths:` correctos; E2E en 4 grupos; `concurrency` con cancel. |
 | `app-version-force-update.yml` | excelente | `workflow_dispatch` only, validación dura de input, sin imprimir secretos, orden frontend→backend, smoke con polling. **No tocar.** |
 
 **Triggers / duplicación:** `backend-ci` corre en `push` (a `main` y muchas ramas
 `feat/**,fix/**,…`) **y** `pull_request` a `main`. Un push a una rama con PR
 abierto dispara el workflow dos veces; `concurrency: cancel-in-progress` mitiga
-parcialmente. **Optimización (P3-G):** considerar `paths-ignore` en `backend-ci`
-para PRs de solo-docs (riesgo: algunos tests de contrato leen `.env.example`/docs;
-verificar antes con `git grep`).
+parcialmente. **Optimización (P3-G, cerrado):** se agregó `paths-ignore:
+['docs/**', '**/*.md']` sólo al trigger `pull_request` de `backend-ci.yml`. Se
+verificó con `git grep` que los tests de contrato que leen `.env.example`
+(`test/smoke-env-contract.test.ts`, `test/production-env-contracts.test.ts`,
+etc.) no dependen de archivos `docs/**`/`*.md`, y que GitHub Actions sólo omite
+el job cuando *todos* los archivos del diff caen dentro del `paths-ignore`
+(cualquier archivo en `server/**`, `test/**`, `package.json`,
+`pnpm-lock.yaml`, `.github/workflows/**`, `drizzle/**`, `scripts/**` o
+`.env.example` sigue disparando el job normalmente). El trigger `push` queda
+intacto. Ver
+[`docs/implementation/backend-ci-paths-ignore-docs-only.md`](../implementation/backend-ci-paths-ignore-docs-only.md).
 
 **Secretos requeridos** (force-update): `RENDER_API_KEY`,
 `RENDER_FRONTEND_SERVICE_ID`, `RENDER_BACKEND_SERVICE_ID`,
