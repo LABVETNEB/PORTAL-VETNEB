@@ -48,9 +48,13 @@
 
 ## Pendientes reales
 
-| Id | Pendiente | Estado |
+_(Ninguno relativo a P2-D: ver actualización 2026-06-29 más abajo.)_
+
+## Bloques cerrados (actualización 2026-06-29 · auditoría fase 0 P2-D)
+
+| Bloque | Estado actual | Evidencia |
 | --- | --- | --- |
-| P2-D | Taxonomía documental fragmentada | Pendiente |
+| P2-D | Taxonomía documental fragmentada — **cerrado**, ya ejecutado por `#1163` (2026-06-28) | `docs/audits/`, `IMPLEMENTATION_NOTES/` y `docs/implementation-history/` ya no existen en disco; `docs/pr-*.md` sueltos = 0. Auditoría de re-verificación en [`docs/audit/documentation-taxonomy-fragmentation-audit.md`](documentation-taxonomy-fragmentation-audit.md). El documento rector listaba P2-D como pendiente por desactualización, no porque el trabajo siguiera abierto. |
 
 ## Bloques cerrados (actualización 2026-06-29)
 
