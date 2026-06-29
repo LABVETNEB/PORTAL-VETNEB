@@ -44,6 +44,9 @@
   para permitir `frontend/package.json` y `pnpm-lock.yaml` únicamente cuando el
   diff corresponde al cleanup PR-CLEAN7A: las 5 dependencias aprobadas ausentes,
   Radix y dependencias `UNKNOWN` presentes, y `package.json` raíz sin cambios.
+- Ajuste post-CI PR #1175: el helper también acepta el caso de CI con diff de
+  manifests vacío, porque el commit ya está aplicado en el checkout del workflow;
+  mantiene las verificaciones de dependencias removidas/preservadas.
 
 ## Archivos modificados
 

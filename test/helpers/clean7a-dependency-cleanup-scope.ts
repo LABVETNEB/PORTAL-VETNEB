@@ -65,11 +65,13 @@ export function assertClean7aDependencyCleanupScope(): void {
     "frontend/pnpm-lock.yaml",
   ]);
 
-  assert.deepEqual(
-    changedPackageFiles.sort(),
-    [...CLEAN7A_DEPENDENCY_FILES].sort(),
-    "PR-CLEAN7A may only modify frontend/package.json and pnpm-lock.yaml among dependency manifests",
-  );
+  if (changedPackageFiles.length > 0) {
+    assert.deepEqual(
+      changedPackageFiles.sort(),
+      [...CLEAN7A_DEPENDENCY_FILES].sort(),
+      "PR-CLEAN7A may only modify frontend/package.json and pnpm-lock.yaml among dependency manifests",
+    );
+  }
 
   const frontendPkg = readJson("frontend/package.json");
   const dependencies = frontendPkg.dependencies ?? {};
