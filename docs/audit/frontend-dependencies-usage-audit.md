@@ -364,3 +364,29 @@ Cambios de alcance PR-CLEAN7C:
   histórico para aceptar que CLEAN7C removió las dos dependencias `UNKNOWN`.
 - No se tocó Radix, runtime frontend/backend, DB, migraciones, workflows,
   Render, secrets ni `package.json` raíz.
+
+## 11. Nota final PR-CLEAN7D
+
+**Estado:** ejecutado el 2026-06-29 en la rama
+`clean/frontend-radix-unused-core`, base HEAD `a4582e4`.
+
+Se elimino unicamente el grupo Radix clasificado como `SUSPECT unused`:
+`@radix-ui/react-avatar`, `@radix-ui/react-dropdown-menu`,
+`@radix-ui/react-label`, `@radix-ui/react-select` y
+`@radix-ui/react-tabs`.
+
+La remocion se aplico con
+`corepack pnpm --dir frontend remove @radix-ui/react-avatar @radix-ui/react-dropdown-menu @radix-ui/react-label @radix-ui/react-select @radix-ui/react-tabs`.
+`pnpm-lock.yaml` quedo regenerado por pnpm.
+
+Cambios de alcance PR-CLEAN7D:
+
+- `frontend/package.json`: removidas solo esas cinco dependencias directas.
+- `pnpm-lock.yaml`: lockfile regenerado por pnpm.
+- `test/package-scripts-contract.test.ts`: dejo de exigir esas cinco
+  dependencias y conserva Radix activos/diferidos.
+- `test/helpers/clean7a-dependency-cleanup-scope.ts`: fija la ausencia del
+  grupo CLEAN7D y preserva `dialog`, `separator`, `slot`, `toast` y `tooltip`.
+- `@radix-ui/react-toast` y `@radix-ui/react-tooltip` permanecen declarados.
+- No se toco runtime frontend/backend, DB, migraciones, workflows, Render,
+  secrets, `package.json` raiz ni otras dependencias.

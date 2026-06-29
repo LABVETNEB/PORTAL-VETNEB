@@ -16,12 +16,18 @@ const CLEAN7A_REMOVED_DEPENDENCIES = [
   "react-hook-form",
 ] as const;
 
-const RADIX_DEPENDENCIES_LEFT_UNTOUCHED = [
+const CLEAN7D_REMOVED_RADIX_DEPENDENCIES = [
   "@radix-ui/react-avatar",
   "@radix-ui/react-dropdown-menu",
   "@radix-ui/react-label",
   "@radix-ui/react-select",
   "@radix-ui/react-tabs",
+] as const;
+
+const RADIX_DEPENDENCIES_LEFT_UNTOUCHED = [
+  "@radix-ui/react-dialog",
+  "@radix-ui/react-separator",
+  "@radix-ui/react-slot",
   "@radix-ui/react-toast",
   "@radix-ui/react-tooltip",
 ] as const;
@@ -85,10 +91,18 @@ export function assertClean7aDependencyCleanupScope(): void {
     );
   }
 
+  for (const dependency of CLEAN7D_REMOVED_RADIX_DEPENDENCIES) {
+    assert.equal(
+      dependencies[dependency],
+      undefined,
+      `PR-CLEAN7D must remove only the approved unused Radix dependency ${dependency}`,
+    );
+  }
+
   for (const dependency of RADIX_DEPENDENCIES_LEFT_UNTOUCHED) {
     assert.ok(
       dependencies[dependency],
-      `PR-CLEAN7A must not remove Radix dependency ${dependency}`,
+      `PR-CLEAN7D must preserve active or deferred Radix dependency ${dependency}`,
     );
   }
 

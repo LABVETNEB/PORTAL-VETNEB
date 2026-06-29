@@ -121,18 +121,13 @@ test("frontend package keeps runtime dependency surface", () => {
   assert.ok(dependencies["lucide-react"]);
 });
 
-test("frontend package keeps Radix UI dependency surface", () => {
+test("frontend package keeps active Radix UI dependency surface", () => {
   const pkg = readPackage("frontend/package.json");
   const dependencies = pkg.dependencies ?? {};
 
-  assert.ok(dependencies["@radix-ui/react-avatar"]);
   assert.ok(dependencies["@radix-ui/react-dialog"]);
-  assert.ok(dependencies["@radix-ui/react-dropdown-menu"]);
-  assert.ok(dependencies["@radix-ui/react-label"]);
-  assert.ok(dependencies["@radix-ui/react-select"]);
   assert.ok(dependencies["@radix-ui/react-separator"]);
   assert.ok(dependencies["@radix-ui/react-slot"]);
-  assert.ok(dependencies["@radix-ui/react-tabs"]);
   assert.ok(dependencies["@radix-ui/react-toast"]);
   assert.ok(dependencies["@radix-ui/react-tooltip"]);
 });
