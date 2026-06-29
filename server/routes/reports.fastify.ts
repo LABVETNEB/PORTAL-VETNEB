@@ -8,6 +8,11 @@ import type {
 import type { Report, ReportStatus } from "../../drizzle/schema.ts";
 import { ENV } from "../lib/env.ts";
 import {
+  getAllowedOrigins,
+  getAllowedOriginForCors,
+  getRequestOrigin,
+} from "../lib/cors-headers.ts";
+import {
   getReadClinicScope,
   normalizeSearchText,
   parseOffset,
@@ -216,81 +221,6 @@ async function resolveDeps(
       options.createSignedReportDownloadUrl ??
       defaultDeps!.createSignedReportDownloadUrl,
   };
-}
-
-function getAllowedOrigins(): string[] {
-  const configuredOrigins = ENV.corsOrigins.map((origin) =>
-    origin.trim().toLowerCase(),
-  );
-
-  if (configuredOrigins.length > 0) {
-    return configuredOrigins;
-  }
-
-  if (ENV.isDevelopment) {
-    return [
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-      "http://localhost:3001",
-      "http://127.0.0.1:3001",
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-    ];
-  }
-
-  return [];
-}
-
-function normalizeOrigin(value: string): string | null {
-  try {
-    return new URL(value).origin.trim().toLowerCase();
-  } catch {
-    return null;
-  }
-}
-
-function getOriginHeader(request: FastifyRequest) {
-  return typeof request.headers.origin === "string"
-    ? request.headers.origin.trim()
-    : "";
-}
-
-function getAllowedOriginForCors(
-  request: FastifyRequest,
-  allowedOrigins: ReadonlySet<string>,
-) {
-  const rawOrigin = getOriginHeader(request);
-
-  if (!rawOrigin) {
-    return null;
-  }
-
-  const normalizedOrigin = normalizeOrigin(rawOrigin);
-
-  if (!normalizedOrigin || !allowedOrigins.has(normalizedOrigin)) {
-    return null;
-  }
-
-  return rawOrigin;
-}
-
-function getRequestOrigin(request: FastifyRequest): string | null {
-  const originHeader = getOriginHeader(request);
-
-  if (originHeader) {
-    return normalizeOrigin(originHeader);
-  }
-
-  const refererHeader =
-    typeof request.headers.referer === "string"
-      ? request.headers.referer.trim()
-      : "";
-
-  if (refererHeader) {
-    return normalizeOrigin(refererHeader);
-  }
-
-  return null;
 }
 
 function applyCorsHeaders(

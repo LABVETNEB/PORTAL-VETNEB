@@ -644,6 +644,57 @@ exige build+E2E). El resto está saludable.
     de `api-production-session-contract.test.ts` para verificar el `import` + uso en vez de la definición local.
     `public-professionals.fastify.ts` **no** entra en la consolidación: su CORS es distinto (responde 403,
     mensaje `"Origin no permitido"`, expone rate-limit headers).
+- **Nota de seguimiento (ejecución real — PR-CORS2, rama `clean/backend-cors-helper-route-family-2`, 2026-06-28):**
+  se ejecutó la **fase 2** de la consolidación sobre la **segunda familia segura** identificada por PR-CORS1
+  (rutas *allow-null* y *header-only* cuyo contrato **no** está fijado por tests de definición). El helper
+  `server/lib/cors-headers.ts` **no se modificó** (ya exportaba los 7 símbolos); sólo se reemplazaron las
+  definiciones locales por `import … from "../lib/cors-headers.ts"` y se eliminó el `const UNSAFE_METHODS`
+  local donde quedaba sin uso. `applyCorsHeaders` se mantiene **local** en las 7 rutas (sus
+  `access-control-expose-headers` varían: `contact` incluye `Retry-After`; `report-access-tokens` y
+  `public-report-access` exponen rate-limit sin `Retry-After`; `clinic-public-profile`, `particular-tokens`,
+  `reports-status` y `reports` no exponen headers extra).
+  - **Rutas migradas (7):**
+    - **Allow-null con `enforceTrustedOrigin` (5):** `contact`, `clinic-public-profile`, `particular-tokens`,
+      `report-access-tokens`, `reports-status`. Importan `enforceTrustedOrigin` + `getAllowedOrigins` +
+      `getAllowedOriginForCors` (+ `getRequestOrigin` salvo `clinic-public-profile`, ver abajo) y se borró el
+      `const UNSAFE_METHODS` local (sólo lo usaba `enforceTrustedOrigin`). Las dos formas locales del cuerpo
+      (`!o || allowed.has(o)` en `contact`; `if(!o) …; if(allowed.has(o)) …` en las otras 4) son **equivalentes**
+      al canónico *allow-null* — comportamiento exacto preservado.
+    - **GET-only sin `enforceTrustedOrigin` (1):** `reports`. Importa `getAllowedOrigins` +
+      `getAllowedOriginForCors` + `getRequestOrigin` (este último se usa *inline* en el `optionsHandler`).
+    - **Header-only (1):** `public-report-access`. No tiene `getRequestOrigin` ni `enforceTrustedOrigin` ni
+      `"Origen no permitido"`; importa sólo `getAllowedOrigins` + `getAllowedOriginForCors`.
+  - **Matiz de imports (verificado por uso real, no por nombre):** `clinic-public-profile` **no** importa
+    `getRequestOrigin` porque su única referencia vivía dentro del `enforceTrustedOrigin` local (ahora
+    importado); el resto sí lo usa en su `optionsHandler` de preflight. `normalizeOrigin`/`getOriginHeader`
+    quedan en **0** referencias directas en las 7 rutas (sólo se invocan dentro del helper compartido).
+  - **`import { ENV }` sin uso en `contact` y `public-report-access`:** tras migrar, `ENV` sólo lo usaba el
+    `getAllowedOrigins` local. Se **deja el import** para replicar exactamente el patrón de PR-CORS1 (las 14
+    rutas admin migradas también conservan el `import { ENV }` sin uso; `tsconfig.json` no activa
+    `noUnusedLocals`, por lo que `typecheck` lo tolera). Candidato menor a limpieza futura, fuera de alcance.
+  - **Sin cambios en tests de contrato:** ningún test fija las **definiciones** de estas 7 rutas; el resto de
+    la suite sólo fija **call-sites** (`enforceTrustedOrigin(request, reply, allowedOrigins)`) y
+    `function applyCorsHeaders` (satisfecho porque sigue local). No se añadieron ni modificaron tests.
+  - **Diff:** net **−605 líneas** (38 nuevas / 643 borradas) en 7 archivos; sin tocar frontend, DB,
+    migraciones, dependencias, lockfiles, workflows ni env.
+  - **Validación ejecutada (verde):** `pnpm typecheck`, `pnpm typecheck:test`,
+    `node --experimental-strip-types --test test/cors-headers-shared-helper.test.ts` (10/10) y
+    `…/security-trusted-origin-cors-boundaries.test.ts` (4/4); además los tests dedicados por ruta
+    (`contact-route`, `contact-rate-limit`, `clinic-public-profile.fastify`, `particular-tokens.fastify`,
+    `report-access-tokens.fastify`, `reports-status.fastify`, `reports.fastify`, `public-report-access.fastify`,
+    `public-report-access-rate-limit`) y los contratos acoplados (`trusted-origin-router-policy`,
+    `security-csrf-mutating-route-coverage`, `security-critical-route-surface-registry`,
+    `security-boundary-suite-completeness`, `reports-suite-completeness`, los `*-runtime-timing-contract` y
+    `*-session-last-access-contract` de las rutas migradas, `report-management-route-policy`,
+    `clinic-management-route-policy`, `report-write-surface-ownership`, `global-auth-boundary-contract`,
+    `backend-api-no-store-cache-contract`, `fastify-app`). Total ejecutado: typecheck ×2 + **≈205** casos en
+    verde, fail 0. `pnpm test`/`pnpm build` completos no se corrieron (requieren Postgres — §11/§15).
+  - **Pendiente → PR-CORS3 (sin cambios respecto a PR-CORS1):** trío **auth**
+    (`auth`/`admin-auth`/`particular-auth`) y trío **logística** + rutas **block-null**
+    (`particular-study-tracking`, `study-tracking`); requiere actualizar en el mismo PR los tests que fijan
+    **definiciones** (`security-production-invariants.test.ts`, `logistics-*-api.test.ts`) para verificar el
+    `import` en vez de la definición local. `public-professionals.fastify.ts` permanece fuera (CORS y mensaje
+    distintos).
 
 ### PR-CLEAN6 · dead-code & artefactos
 - **Alcance:** eliminar `shared/` + `test/shared-const-and-errors.test.ts`;

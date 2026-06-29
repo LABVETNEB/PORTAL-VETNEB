@@ -8,6 +8,12 @@ import type { Report, ReportAccessToken } from "../../drizzle/schema.ts";
 import { AUDIT_EVENTS } from "../lib/audit.ts";
 import { ENV } from "../lib/env.ts";
 import {
+  enforceTrustedOrigin,
+  getAllowedOrigins,
+  getAllowedOriginForCors,
+  getRequestOrigin,
+} from "../lib/cors-headers.ts";
+import {
   REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_ERROR_MESSAGE,
   REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_MAX_ATTEMPTS,
   REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_WINDOW_MS,
@@ -145,7 +151,6 @@ export type ReportAccessTokensNativeRoutesOptions = {
 };
 
 const REQUEST_TIMER_KEY = "__reportAccessTokensRequestTimer";
-const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 type ReportAccessTokensFastifyRequest = FastifyRequest & {
   [REQUEST_TIMER_KEY]?: RuntimeTimer;
@@ -208,81 +213,6 @@ async function loadDefaultDeps(): Promise<NativeReportAccessTokensDeps> {
   return defaultDepsPromise!;
 }
 
-function getAllowedOrigins(): string[] {
-  const configuredOrigins = ENV.corsOrigins.map((origin) =>
-    origin.trim().toLowerCase(),
-  );
-
-  if (configuredOrigins.length > 0) {
-    return configuredOrigins;
-  }
-
-  if (ENV.isDevelopment) {
-    return [
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-      "http://localhost:3001",
-      "http://127.0.0.1:3001",
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-    ];
-  }
-
-  return [];
-}
-
-function normalizeOrigin(value: string): string | null {
-  try {
-    return new URL(value).origin.trim().toLowerCase();
-  } catch {
-    return null;
-  }
-}
-
-function getOriginHeader(request: FastifyRequest) {
-  return typeof request.headers.origin === "string"
-    ? request.headers.origin.trim()
-    : "";
-}
-
-function getAllowedOriginForCors(
-  request: FastifyRequest,
-  allowedOrigins: ReadonlySet<string>,
-) {
-  const rawOrigin = getOriginHeader(request);
-
-  if (!rawOrigin) {
-    return null;
-  }
-
-  const normalizedOrigin = normalizeOrigin(rawOrigin);
-
-  if (!normalizedOrigin || !allowedOrigins.has(normalizedOrigin)) {
-    return null;
-  }
-
-  return rawOrigin;
-}
-
-function getRequestOrigin(request: FastifyRequest): string | null {
-  const originHeader = getOriginHeader(request);
-
-  if (originHeader) {
-    return normalizeOrigin(originHeader);
-  }
-
-  const refererHeader =
-    typeof request.headers.referer === "string"
-      ? request.headers.referer.trim()
-      : "";
-
-  if (refererHeader) {
-    return normalizeOrigin(refererHeader);
-  }
-
-  return null;
-}
-
 function applyCorsHeaders(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -301,33 +231,6 @@ function applyCorsHeaders(
     "access-control-expose-headers",
     "RateLimit-Policy, RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset",
   );
-}
-
-function enforceTrustedOrigin(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  allowedOrigins: ReadonlySet<string>,
-) {
-  if (!UNSAFE_METHODS.has(request.method.toUpperCase())) {
-    return true;
-  }
-
-  const requestOrigin = getRequestOrigin(request);
-
-  if (!requestOrigin) {
-    return true;
-  }
-
-  if (allowedOrigins.has(requestOrigin)) {
-    return true;
-  }
-
-  reply.code(403).send({
-    success: false,
-    error: "Origen no permitido",
-  });
-
-  return false;
 }
 
 function parseCookies(cookieHeader: string | undefined) {
