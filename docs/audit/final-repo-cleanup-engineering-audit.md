@@ -66,12 +66,9 @@ La deuda activa real queda limitada a:
    ~31 `pr-*.md` sueltos en la raíz de `docs/`). *(P2.)*
 3. **P2-E · Logger/console observability**: logger mínimo y mezcla de
    `console.*`/logger en backend. *(P2.)*
-4. **P2-F · Gaps menores de documentación de env vars** (`APP_VERSION`,
-   `CLIENT_MIN_VERSION`, `NEXT_PUBLIC_APP_VERSION` usados pero no listados en
-   `.env.example`). *(P2.)*
-5. **P3 · Artefactos históricos/orfanados**: `legacy/drizzle-old/`,
+4. **P3 · Artefactos históricos/orfanados**: `legacy/drizzle-old/`,
    `scripts/generate-pwa-icons.py`, `scripts/maintenance/FUSION_POR_COMANDO.sh`. *(P3.)*
-6. **P3-G · Backend CI `paths-ignore` opcional** para evitar runs pesados en PRs
+5. **P3-G · Backend CI `paths-ignore` opcional** para evitar runs pesados en PRs
    estrictamente docs-only/frontend, previa verificación de tests de contrato.
 
 Las eliminaciones o cambios restantes se proponen como **PRs chicos, con prueba
@@ -414,7 +411,14 @@ deploy roto ni auth rota en el estado actual.
   logger con niveles. No bloqueante para el cierre.
 
 #### P2-F · `APP_VERSION` / `CLIENT_MIN_VERSION` / `NEXT_PUBLIC_APP_VERSION` no documentadas en `.env.example`
-- **Tipo:** env / docs · **Riesgo:** Bajo. Ver §8.
+- **Tipo:** env / docs · **Riesgo:** Bajo.
+- **Estado actualizado (2026-06-29):** **cerrado** por la rama
+  `docs/env-version-vars-contract`. `.env.example` documenta `APP_VERSION` y
+  `CLIENT_MIN_VERSION`; `frontend/.env.example` documenta
+  `NEXT_PUBLIC_APP_VERSION`. El cambio fue docs/env-example comments only: no
+  se tocó runtime frontend/backend, lógica del version gate, `CORS_ORIGIN`,
+  URLs públicas, secretos, dependencias, lockfile, DB, migraciones, workflows ni
+  Render. Ver [`docs/implementation/env-version-vars-docs.md`](../implementation/env-version-vars-docs.md).
 
 ### P3 — Bajo (cosmético / archaeology / nice-to-have)
 
@@ -471,7 +475,7 @@ deploy roto ni auth rota en el estado actual.
 | `docs/audit/` + `docs/audits/` | taxonomía duplicada | P2 | Bajo | unificar | PR-CLEAN2 |
 | `IMPLEMENTATION_NOTES/` (raíz, 34) | notas en 3 ubicaciones | P2 | Bajo | consolidar bajo `docs/` | PR-CLEAN2 |
 | ~31 `docs/pr-*.md` sueltos | deberían ir en `pr-history/` | P2 | Bajo | mover | PR-CLEAN2 |
-| `.env.example` / `frontend/.env.example` | faltan `APP_VERSION`,`CLIENT_MIN_VERSION`,`NEXT_PUBLIC_APP_VERSION` | P2/P3 | Bajo | documentar (comentario) | PR-CLEAN1 |
+| `.env.example` / `frontend/.env.example` | `APP_VERSION`, `CLIENT_MIN_VERSION` y `NEXT_PUBLIC_APP_VERSION` documentadas con token no secreto | P2 cerrado | Bajo | cerrado docs-only | P2-F |
 | `server/lib/logger.ts` + 56 `console.*` | logger mínimo, mezcla cruda | P2 | Bajo | documentar/unificar (opcional) | — |
 
 ---
@@ -544,10 +548,10 @@ SMTP_*, GMAIL_API_*, CONTACT_TO, APP_VERSION, RENDER_GIT_COMMIT, CLIENT_MIN_VERS
 
 | Variable | Usada | En `.env.example` | Observación |
 | --- | --- | --- | --- |
-| `APP_VERSION` | sí (`env.ts:98,152`) | **no** | gestionada por force-update workflow; documentar como comentario |
-| `CLIENT_MIN_VERSION` | sí (`env.ts:100,163-164`) | **no** | arma el gate 426; borrarla apaga el gate (ver memoria) — documentar |
+| `APP_VERSION` | sí (`env.ts:98,152`) | **sí** | documentada en `.env.example` como token no secreto del version gate |
+| `CLIENT_MIN_VERSION` | sí (`env.ts:100,163-164`) | **sí** | documentada en `.env.example`; arma el gate 426 y vaciarla/no configurarla lo desarma |
 | `RENDER_GIT_COMMIT` | sí (fallback de `appVersion`) | **no** | inyectada por Render; aceptable no documentar |
-| `NEXT_PUBLIC_APP_VERSION` | sí (`frontend/src/lib/app-version.ts:8`) | **no** (en `frontend/.env.example`) | build-time, set en Render; documentar |
+| `NEXT_PUBLIC_APP_VERSION` | sí (`frontend/src/lib/app-version.ts:8`) | **sí** (en `frontend/.env.example`) | build-time; debe moverse con `APP_VERSION`/`CLIENT_MIN_VERSION` y requiere rebuild |
 | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL` | sí | sí | consistentes (`api.vetneb.com.ar` / `vetneb.com.ar`) |
 | `CORS_ORIGIN` | sí | sí (`https://vetneb.com.ar`) | allowlist CORS; el doble uso como fuente primaria de URL de email fue cerrado por #1162 con `PUBLIC_SITE_URL` (ver §9) |
 
@@ -568,9 +572,11 @@ pública primaria.
 preflight cross-origin podría fallar (ya señalado en
 `docs/audit/backend-api-global-incident-p0.md`). **Investigar** según hosts reales.
 
-**Acción env pendiente:** **PR-CLEAN1** agrega comentarios documentando `APP_VERSION`,
-`CLIENT_MIN_VERSION`, `NEXT_PUBLIC_APP_VERSION` en los `.env.example` (sin valores
-secretos). El contrato de URL pública ya fue cerrado por #1162 / PR-CLEAN3.
+**Acción env P2-F cerrada (2026-06-29):** `.env.example` documenta
+`APP_VERSION` y `CLIENT_MIN_VERSION`; `frontend/.env.example` documenta
+`NEXT_PUBLIC_APP_VERSION`. Se usó placeholder no secreto (`<version-token>`) y
+no se modificaron URLs, `CORS_ORIGIN`, lógica del gate ni runtime. El contrato
+de URL pública ya fue cerrado por #1162 / PR-CLEAN3.
 
 ---
 
@@ -728,6 +734,12 @@ exige build+E2E). El resto está saludable.
   `*-staging.onrender.com` en `docs/release-readiness.md`, `docs/staging-smoke-runbook.md`
   y `test/*` se **mantienen**: son fixtures de contrato guardadas por
   `public-staging-config-contract.test.ts` y `admin-docs-operational-contract.test.ts`.
+- **Nota de seguimiento P2-F (ejecución real, rama
+  `docs/env-version-vars-contract`, 2026-06-29):** se documentaron
+  `APP_VERSION` y `CLIENT_MIN_VERSION` en `.env.example`, y
+  `NEXT_PUBLIC_APP_VERSION` en `frontend/.env.example`, usando sólo placeholders
+  no secretos. No se tocaron `docs/notes/todo.md`, runtime, dependencias,
+  lockfiles, DB, migraciones, workflows, Render ni lógica del version gate.
 
 ### PR-CLEAN2 · reorganización documental (solo-docs)
 - **Alcance:** unificar `docs/audits/` → `docs/audit/`; mover `pr-*.md` sueltos a
@@ -1153,7 +1165,8 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
 
 ## 17. Checklist final de cierre de proyecto
 
-- [ ] PR-CLEAN1 (docs/env comments) mergeado, contratos de env verdes.
+- [~] PR-CLEAN1 (docs/env comments): P2-F cerrado por
+  `docs/env-version-vars-contract`; P2-C `docs/notes/todo.md` sigue pendiente.
 - [ ] PR-CLEAN2 (reorg docs) mergeado, `git grep` de rutas movidas sin huérfanos.
 - [x] PR-CLEAN3 / P1-B (email URL contract) cerrado por #1162; `PUBLIC_SITE_URL`
   separa URL pública de `CORS_ORIGIN` con fallback conservador.
@@ -1169,7 +1182,8 @@ git grep -n "<simbolo-o-paquete>" -- frontend/src frontend/e2e server shared
   `label`, `select` y `tabs`.
   `toast`/`tooltip` quedan diferidos por roadmap y el cierre docs-only queda en
   `docs/audit/frontend-dependencies-cleanup-closeout.md`.
-- [ ] `.env.example` y `frontend/.env.example` documentan **todas** las vars usadas.
+- [x] `.env.example` y `frontend/.env.example` documentan las vars del version
+  gate (`APP_VERSION`, `CLIENT_MIN_VERSION`, `NEXT_PUBLIC_APP_VERSION`).
 - [ ] `docs/notes/todo.md` ya no contradice la arquitectura real.
 - [ ] Taxonomía `docs/` unificada (sin `audit`+`audits`, sin `pr-*.md` sueltos).
 - [ ] `main` limpio, CI verde (backend + frontend), 0 PRs abiertos.
