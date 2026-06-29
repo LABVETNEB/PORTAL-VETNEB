@@ -46,9 +46,11 @@ test("admin tokens toolbar is mobile-safe and wraps actions", () => {
   const source = read(TOKENS_CARD_PATH);
 
   assert.ok(source.includes('data-admin-particulars-toolbar="true"'));
+  assert.ok(source.includes('data-admin-filter-bar="advanced"'));
   assert.ok(source.includes('data-admin-particulars-mobile-list="true"'));
-  assert.ok(source.includes("flex min-w-0 flex-wrap items-center gap-1.5"));
-  assert.ok(source.includes('className="h-8 w-28 text-xs md:w-36"'));
+  assert.ok(source.includes("grid shrink-0 grid-cols-2 items-end gap-2"));
+  assert.ok(source.includes("lg:grid-cols-[1.05fr_1.25fr_0.8fr_1fr_0.8fr_0.85fr_0.85fr_auto_auto]"));
+  assert.ok(source.includes('aria-label="Filtros avanzados de tokens particulares"'));
 });
 
 test("admin tokens replaces row cards and inline detail with a dense table and dialogs", () => {

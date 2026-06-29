@@ -176,6 +176,72 @@ test("admin particular token clinic selector matches by available locality contr
   assert.equal(testMatch(clinic, "rosario"), false);
 });
 
+test("admin particular tokens exposes advanced filter bar for real table fields", () => {
+  const source = read(ADMIN_CARD_PATH);
+  const auditFilter = read("frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx");
+
+  assert.ok(source.includes('data-admin-filter-bar="advanced"'));
+  assert.ok(source.includes('aria-label="Filtros avanzados de tokens particulares"'));
+  assert.ok(source.includes("type AdminParticularTokenFilterState = {"));
+  assert.ok(source.includes("token: string;"));
+  assert.ok(source.includes("clinic: string;"));
+  assert.ok(source.includes("reportId: string;"));
+  assert.ok(source.includes("patient: string;"));
+  assert.ok(source.includes('status: "" | "active" | "inactive";'));
+  assert.ok(source.includes("from: string;"));
+  assert.ok(source.includes("to: string;"));
+  assert.ok(source.includes(">Token"));
+  assert.ok(source.includes(">Clínica"));
+  assert.ok(source.includes(">Informe"));
+  assert.ok(source.includes(">Paciente / tutor"));
+  assert.ok(source.includes(">Estado"));
+  assert.ok(source.includes("Desde"));
+  assert.ok(source.includes("Hasta"));
+  assert.ok(source.includes("Aplicar"));
+  assert.ok(source.includes("Limpiar"));
+  assert.ok(source.includes("filteredTokens.map((token) => ("));
+  assert.ok(source.includes("filteredMobileTokens.map((token) => ("));
+  assert.equal(source.includes("Email del particular") && source.includes('name="filterEmail"'), false);
+  assert.ok(auditFilter.includes('aria-label={mobile ? "Filtros de auditoría mobile" : "Filtros de auditoría"}'));
+  assert.ok(auditFilter.includes("Desde"));
+  assert.ok(auditFilter.includes("Hasta"));
+  assert.ok(auditFilter.includes("Aplicar"));
+});
+
+test("admin particular tokens filters apply to visible token table fields", () => {
+  const source = read(ADMIN_CARD_PATH);
+  const filterBlock = sectionBetween(
+    source,
+    "function matchesAdminParticularTokenFilters(",
+    "function toIsoDateFromInput(",
+  );
+  const applyBlock = sectionBetween(
+    source,
+    "function applyAdvancedFilters(",
+    "function clearAdvancedFilters()",
+  );
+  const clearBlock = sectionBetween(
+    source,
+    "function clearAdvancedFilters()",
+    "function openTokenDetail(",
+  );
+
+  assert.ok(filterBlock.includes("token.tokenLast4"));
+  assert.ok(filterBlock.includes("resolveClinicName(clinicOptions, token.clinicId)"));
+  assert.ok(filterBlock.includes("token.clinicId"));
+  assert.ok(filterBlock.includes("token.reportId ? String(token.reportId) : \"Sin vínculo\""));
+  assert.ok(filterBlock.includes("token.petName"));
+  assert.ok(filterBlock.includes("token.tutorLastName"));
+  assert.ok(filterBlock.includes('token.isActive ? "active" : "inactive"'));
+  assert.ok(filterBlock.includes("matchesCreatedAtRange(token, filters.from, filters.to)"));
+  assert.ok(source.includes("const createdAt = toDateInputValue(token.createdAt);"));
+  assert.ok(applyBlock.includes("setAppliedFilters({"));
+  assert.ok(applyBlock.includes("setPage(0);"));
+  assert.ok(applyBlock.includes("setMobilePage(0);"));
+  assert.ok(clearBlock.includes("setFilterDraft(INITIAL_FILTER_STATE);"));
+  assert.ok(clearBlock.includes("setAppliedFilters(INITIAL_FILTER_STATE);"));
+});
+
 test("admin particular token generator keeps programmed fields", () => {
   const source = read(ADMIN_CARD_PATH);
 

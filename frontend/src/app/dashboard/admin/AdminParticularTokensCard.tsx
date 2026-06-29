@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
+import { Filter } from "lucide-react";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +61,16 @@ type GeneratedTokenDetails = {
   tutorLastName: string;
 };
 
+type AdminParticularTokenFilterState = {
+  token: string;
+  clinic: string;
+  reportId: string;
+  patient: string;
+  status: "" | "active" | "inactive";
+  from: string;
+  to: string;
+};
+
 const CREATE_STEP_ORDER = ["clinic", "patient", "sample"] as const;
 type CreateStep = (typeof CREATE_STEP_ORDER)[number];
 type DetailTab = "summary" | "tracking";
@@ -91,6 +102,16 @@ const INITIAL_FORM_STATE: AdminParticularTokenFormState = {
   detailsLesion: "",
   extractionDate: "",
   shippingDate: "",
+};
+
+const INITIAL_FILTER_STATE: AdminParticularTokenFilterState = {
+  token: "",
+  clinic: "",
+  reportId: "",
+  patient: "",
+  status: "",
+  from: "",
+  to: "",
 };
 
 const REQUIRED_FIELD_LABELS: Array<{
@@ -236,6 +257,54 @@ function toDateInputValue(value: string | null | undefined): string {
   return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
 }
 
+function matchesFilterText(
+  source: string | number | null | undefined,
+  query: string,
+) {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return true;
+
+  return normalizeSearchText(source ?? "").includes(normalizedQuery);
+}
+
+function isFilterStateEmpty(filters: AdminParticularTokenFilterState) {
+  return Object.values(filters).every((value) => !value.trim());
+}
+
+function matchesCreatedAtRange(
+  token: AdminParticularTokenSummary,
+  from: string,
+  to: string,
+) {
+  const createdAt = toDateInputValue(token.createdAt);
+  if (from && createdAt < from) return false;
+  if (to && createdAt > to) return false;
+  return true;
+}
+
+function matchesAdminParticularTokenFilters(
+  token: AdminParticularTokenSummary,
+  filters: AdminParticularTokenFilterState,
+  clinicOptions: ClinicOption[],
+) {
+  const clinicName =
+    resolveClinicName(clinicOptions, token.clinicId) ?? `Clínica #${token.clinicId}`;
+  const reportQuery = filters.reportId.replace(/^#/, "");
+  const reportValue = token.reportId ? String(token.reportId) : "Sin vínculo";
+  const statusValue = token.isActive ? "active" : "inactive";
+
+  return (
+    matchesFilterText(token.tokenLast4, filters.token) &&
+    (matchesFilterText(clinicName, filters.clinic) ||
+      matchesFilterText(token.clinicId, filters.clinic)) &&
+    matchesFilterText(reportValue, reportQuery) &&
+    (matchesFilterText(token.petName, filters.patient) ||
+      matchesFilterText(token.tutorLastName, filters.patient)) &&
+    (!filters.status || filters.status === statusValue) &&
+    matchesCreatedAtRange(token, filters.from, filters.to)
+  );
+}
+
 function toIsoDateFromInput(value: string): string {
   return `${value}T00:00:00.000Z`;
 }
@@ -368,8 +437,10 @@ export function AdminParticularTokensCard() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [detailTab, setDetailTab] = useState<DetailTab>("summary");
   const [page, setPage] = useState(0);
-  const [clinicFilterDraft, setClinicFilterDraft] = useState("");
-  const [appliedClinicId, setAppliedClinicId] = useState<number | null>(null);
+  const [filterDraft, setFilterDraft] =
+    useState<AdminParticularTokenFilterState>(INITIAL_FILTER_STATE);
+  const [appliedFilters, setAppliedFilters] =
+    useState<AdminParticularTokenFilterState>(INITIAL_FILTER_STATE);
   const [formState, setFormState] =
     useState<AdminParticularTokenFormState>(INITIAL_FORM_STATE);
   const [clinicSearch, setClinicSearch] = useState("");
@@ -464,23 +535,31 @@ export function AdminParticularTokensCard() {
   const isSelectedTrackingUpdating = selectedTrackingCase
     ? Boolean(updatingTrackingCaseIds[selectedTrackingCase.id])
     : false;
-  const activeTokensCount = tokens.filter((token) => token.isActive).length;
-  const linkedReportsCount = tokens.filter((token) => token.hasLinkedReport).length;
-  const rangeStart = tokens.length ? page * PAGE_SIZE + 1 : 0;
-  const rangeEnd = page * PAGE_SIZE + tokens.length;
+  const hasActiveFilters = !isFilterStateEmpty(appliedFilters);
+  const filteredTokens = tokens.filter((token) =>
+    matchesAdminParticularTokenFilters(token, appliedFilters, clinicOptions),
+  );
+  const filteredMobileTokens = mobileTokens.filter((token) =>
+    matchesAdminParticularTokenFilters(token, appliedFilters, clinicOptions),
+  );
+  const activeTokensCount = filteredTokens.filter((token) => token.isActive).length;
+  const linkedReportsCount = filteredTokens.filter(
+    (token) => token.hasLinkedReport,
+  ).length;
+  const rangeStart = filteredTokens.length ? page * PAGE_SIZE + 1 : 0;
+  const rangeEnd = page * PAGE_SIZE + filteredTokens.length;
   const canGoNext = tokens.length === PAGE_SIZE;
   const canGoNextMobile = mobileTokens.length === MOBILE_PAGE_SIZE;
   const createStepIndex = getCreateStepIndex(createStep);
   const isLastCreateStep = createStep === "sample";
 
   const loadTokens = useCallback(
-    async (nextPage = page, nextClinicId = appliedClinicId) => {
+    async (nextPage = page) => {
       setIsLoadingTokens(true);
       setErrorMessage(null);
 
       try {
         const snapshot = await getAdminParticularTokens({
-          ...(nextClinicId ? { clinicId: nextClinicId } : {}),
           limit: PAGE_SIZE,
           offset: nextPage * PAGE_SIZE,
         });
@@ -502,16 +581,15 @@ export function AdminParticularTokensCard() {
         setIsLoadingTokens(false);
       }
     },
-    [appliedClinicId, page],
+    [page],
   );
 
   const loadMobileTokens = useCallback(
-    async (nextPage = mobilePage, nextClinicId = appliedClinicId) => {
+    async (nextPage = mobilePage) => {
       setIsLoadingMobileTokens(true);
 
       try {
         const snapshot = await getAdminParticularTokens({
-          ...(nextClinicId ? { clinicId: nextClinicId } : {}),
           limit: MOBILE_PAGE_SIZE,
           offset: nextPage * MOBILE_PAGE_SIZE,
         });
@@ -522,7 +600,7 @@ export function AdminParticularTokensCard() {
         setIsLoadingMobileTokens(false);
       }
     },
-    [appliedClinicId, mobilePage],
+    [mobilePage],
   );
 
   useEffect(() => {
@@ -549,14 +627,10 @@ export function AdminParticularTokensCard() {
     void loadMobileTokens();
   }, [isMobileViewport, loadMobileTokens]);
 
-  // The clinic catalogue is needed by the creation flow (any viewport) and,
-  // on mobile only, by the operational list's clinic-name filter/display
-  // (mobile's "buscar por nombre de clínica" requirement). Desktop keeps the
-  // original lazy-on-dialog-open behavior untouched.
+  // The clinic catalogue resolves visible names in the list and powers the
+  // advanced clinic filter without changing the tokens API contract.
   useEffect(() => {
-    if ((!isMobileViewport && !isCreateDialogOpen) || clinicOptions.length > 0) {
-      return;
-    }
+    if (clinicOptions.length > 0) return;
 
     let cancelled = false;
     async function loadClinicOptions() {
@@ -610,7 +684,7 @@ export function AdminParticularTokensCard() {
     return () => {
       cancelled = true;
     };
-  }, [clinicOptions.length, isCreateDialogOpen, isMobileViewport]);
+  }, [clinicOptions.length]);
 
   // No batch endpoint exists for tracking. Load exactly one case when the
   // operator opens a token, cache it, and never issue one request per table row.
@@ -769,49 +843,33 @@ export function AdminParticularTokensCard() {
     setStatusMessage(null);
   }
 
-  function applyClinicFilter(event: FormEvent<HTMLFormElement>) {
+  function updateFilterDraft<K extends keyof AdminParticularTokenFilterState>(
+    field: K,
+    value: AdminParticularTokenFilterState[K],
+  ) {
+    setFilterDraft((current) => ({ ...current, [field]: value }));
+    setErrorMessage(null);
+  }
+
+  function applyAdvancedFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalized = clinicFilterDraft.trim();
-    if (!normalized) {
-      setAppliedClinicId(null);
-      setPage(0);
-      setMobilePage(0);
-      return;
-    }
-
-    if (isLoadingClinics) {
-      setErrorMessage("Cargando clínicas registradas, intente nuevamente en un momento.");
-      return;
-    }
-
-    const matches = clinicOptions.filter((option) =>
-      matchClinicOption(option, normalized),
-    );
-    const exactMatch = matches.find(
-      (option) =>
-        normalizeSearchText(option.name) === normalizeSearchText(normalized),
-    );
-    const resolvedClinic = exactMatch ?? (matches.length === 1 ? matches[0] : undefined);
-
-    if (!resolvedClinic) {
-      setErrorMessage(
-        matches.length > 1
-          ? `Hay ${matches.length} clínicas que coinciden con "${normalized}". Sea más específico.`
-          : `No se encontró una clínica con el nombre "${normalized}".`,
-      );
-      return;
-    }
-
-    setAppliedClinicId(resolvedClinic.id);
-    setClinicFilterDraft(resolvedClinic.name);
+    setAppliedFilters({
+      token: filterDraft.token.trim(),
+      clinic: filterDraft.clinic.trim(),
+      reportId: filterDraft.reportId.trim(),
+      patient: filterDraft.patient.trim(),
+      status: filterDraft.status,
+      from: filterDraft.from,
+      to: filterDraft.to,
+    });
     setPage(0);
     setMobilePage(0);
     setErrorMessage(null);
   }
 
-  function clearClinicFilter() {
-    setClinicFilterDraft("");
-    setAppliedClinicId(null);
+  function clearAdvancedFilters() {
+    setFilterDraft(INITIAL_FILTER_STATE);
+    setAppliedFilters(INITIAL_FILTER_STATE);
     setPage(0);
     setMobilePage(0);
     setErrorMessage(null);
@@ -874,8 +932,8 @@ export function AdminParticularTokensCard() {
       resetForm();
       setPage(0);
       setMobilePage(0);
-      await loadTokens(0, appliedClinicId);
-      if (isMobileViewport) await loadMobileTokens(0, appliedClinicId);
+      await loadTokens(0);
+      if (isMobileViewport) await loadMobileTokens(0);
       setIsCreateDialogOpen(false);
     } catch (error) {
       setErrorMessage(
@@ -914,8 +972,8 @@ export function AdminParticularTokensCard() {
         delete next[token.id];
         return next;
       });
-      await loadTokens(page, appliedClinicId);
-      if (isMobileViewport) await loadMobileTokens(mobilePage, appliedClinicId);
+      await loadTokens(page);
+      if (isMobileViewport) await loadMobileTokens(mobilePage);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -1073,7 +1131,7 @@ export function AdminParticularTokensCard() {
           </div>
           <div className="flex min-h-10 items-center divide-x divide-vetneb-line/70 rounded-lg border border-vetneb-line/75 bg-vetneb-surface-muted/45 md:min-h-8">
             {[
-              ["En página", tokens.length],
+              ["En página", filteredTokens.length],
               ["Activos", activeTokensCount],
               ["Con informe", linkedReportsCount],
               ["Página", page + 1],
@@ -1122,24 +1180,96 @@ export function AdminParticularTokensCard() {
             </Button>
           </div>
 
-          <form
-            className="flex min-w-0 flex-wrap items-center gap-1.5"
-            onSubmit={applyClinicFilter}
-            aria-label="Filtrar tokens por clínica"
-          >
+        </div>
+
+        <form
+          data-admin-filter-bar="advanced"
+          className="grid shrink-0 grid-cols-2 items-end gap-2 rounded-lg border border-vetneb-line/70 bg-muted/15 px-2.5 py-2 md:grid-cols-4 lg:grid-cols-[1.05fr_1.25fr_0.8fr_1fr_0.8fr_0.85fr_0.85fr_auto_auto] lg:px-3"
+          onSubmit={applyAdvancedFilters}
+          aria-label="Filtros avanzados de tokens particulares"
+        >
+          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
+            Token
             <Input
-              className="h-8 w-28 text-xs md:w-36"
+              className="h-8 text-xs"
               type="text"
-              placeholder="Nombre de clínica"
-              aria-label="Nombre de clínica"
-              value={clinicFilterDraft}
-              onChange={(event) => setClinicFilterDraft(event.target.value)}
+              placeholder="Últimos 4"
+              value={filterDraft.token}
+              onChange={(event) => updateFilterDraft("token", event.target.value)}
             />
-            <Button type="submit" variant="outline" size="sm" className="md:h-8 md:px-2 md:text-xs">
-              Filtrar
-            </Button>
-            {appliedClinicId ? (
-              <Button type="button" variant="ghost" size="sm" className="md:h-8 md:px-2 md:text-xs" onClick={clearClinicFilter}>
+          </label>
+          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
+            Clínica
+            <Input
+              className="h-8 text-xs"
+              type="text"
+              placeholder="Nombre o ID"
+              value={filterDraft.clinic}
+              onChange={(event) => updateFilterDraft("clinic", event.target.value)}
+            />
+          </label>
+          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
+            Informe
+            <Input
+              className="h-8 text-xs"
+              type="text"
+              placeholder="#ID"
+              value={filterDraft.reportId}
+              onChange={(event) => updateFilterDraft("reportId", event.target.value)}
+            />
+          </label>
+          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
+            Paciente / tutor
+            <Input
+              className="h-8 text-xs"
+              type="text"
+              placeholder="Texto visible"
+              value={filterDraft.patient}
+              onChange={(event) => updateFilterDraft("patient", event.target.value)}
+            />
+          </label>
+          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
+            Estado
+            <select
+              className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15"
+              value={filterDraft.status}
+              onChange={(event) =>
+                updateFilterDraft(
+                  "status",
+                  event.target.value as AdminParticularTokenFilterState["status"],
+                )
+              }
+            >
+              <option value="">Todos</option>
+              <option value="active">Activo</option>
+              <option value="inactive">Inactivo</option>
+            </select>
+          </label>
+          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
+            Desde
+            <Input
+              className="h-8 text-xs"
+              type="date"
+              value={filterDraft.from}
+              onChange={(event) => updateFilterDraft("from", event.target.value)}
+            />
+          </label>
+          <label className="grid min-w-0 gap-1 text-[11px] font-medium text-muted-foreground">
+            Hasta
+            <Input
+              className="h-8 text-xs"
+              type="date"
+              value={filterDraft.to}
+              onChange={(event) => updateFilterDraft("to", event.target.value)}
+            />
+          </label>
+          <Button type="submit" size="sm" className="h-8 gap-1.5 px-2.5 text-xs">
+            <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+            Aplicar
+          </Button>
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            {hasActiveFilters ? (
+              <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={clearAdvancedFilters}>
                 Limpiar
               </Button>
             ) : null}
@@ -1147,7 +1277,7 @@ export function AdminParticularTokensCard() {
               type="button"
               variant="outline"
               size="sm"
-              className="md:h-8 md:px-2 md:text-xs"
+              className="h-8 px-2 text-xs"
               onClick={() => {
                 void loadTokens();
                 if (isMobileViewport) void loadMobileTokens();
@@ -1156,8 +1286,8 @@ export function AdminParticularTokensCard() {
             >
               {isLoadingTokens ? "Actualizando…" : "Actualizar"}
             </Button>
-          </form>
-        </div>
+          </div>
+        </form>
 
         {errorMessage ? (
           <p className="clinical-alert-error shrink-0 px-3 py-1.5 text-xs" role="alert">
@@ -1188,7 +1318,7 @@ export function AdminParticularTokensCard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tokens.map((token) => (
+                {filteredTokens.map((token) => (
                   <TableRow key={token.id}>
                     <TableCell className="py-0.5">
                       <p className="truncate font-mono text-xs font-semibold text-vetneb-ink">
@@ -1246,7 +1376,7 @@ export function AdminParticularTokensCard() {
               data-admin-particulars-mobile-list="true"
               className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75"
             >
-              {mobileTokens.map((token) => (
+              {filteredMobileTokens.map((token) => (
                 <div
                   key={token.id}
                   className="flex min-h-9 items-center gap-2 px-2.5 py-1"
@@ -1281,17 +1411,17 @@ export function AdminParticularTokensCard() {
               ))}
             </div>
 
-            {!mobileTokens.length && isMobileViewport ? (
+            {!filteredMobileTokens.length && isMobileViewport ? (
               <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
                 {isLoadingMobileTokens
                   ? "Cargando tokens particulares…"
-                  : appliedClinicId
-                    ? `No hay tokens para la clínica #${appliedClinicId}.`
+                  : hasActiveFilters
+                    ? "No hay tokens que coincidan con los filtros aplicados."
                     : "No hay tokens particulares administrados."}
               </p>
             ) : null}
 
-            {mobileTokens.length ? (
+            {filteredMobileTokens.length ? (
               <div
                 className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
                 data-admin-mobile-core-pager="true"
@@ -1327,19 +1457,19 @@ export function AdminParticularTokensCard() {
             ) : null}
           </div>
 
-          {!tokens.length ? (
+          {!filteredTokens.length ? (
             <p className="surface-empty hidden min-h-20 flex-1 items-center justify-center text-xs md:flex">
               {isLoadingTokens
                 ? "Cargando tokens particulares…"
-                : appliedClinicId
-                  ? `No hay tokens para la clínica #${appliedClinicId}.`
+                : hasActiveFilters
+                  ? "No hay tokens que coincidan con los filtros aplicados."
                   : "No hay tokens particulares administrados."}
             </p>
           ) : null}
 
           <div className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:flex md:min-h-8 md:pt-1">
             <span>
-              {tokens.length ? `${rangeStart}–${rangeEnd}` : "0 resultados"} · 9 por página
+              {filteredTokens.length ? `${rangeStart}–${rangeEnd}` : "0 resultados"} · 9 por página
             </span>
             <div className="flex items-center gap-1.5">
               <Button
