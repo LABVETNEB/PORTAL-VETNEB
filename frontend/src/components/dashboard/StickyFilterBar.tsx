@@ -67,7 +67,7 @@ export function StickyFilterBar({
           <div
             role="group"
             aria-label="Acciones de filtros"
-            className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end [&_button]:focus-visible:ring-2 [&_button]:focus-visible:ring-ring/85"
+            className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end [&_button]:min-h-10 [&_button]:focus-visible:ring-2 [&_button]:focus-visible:ring-ring/85 md:[&_button]:min-h-9"
           >
             {drawer}
             {actions}

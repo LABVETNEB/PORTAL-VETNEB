@@ -3,8 +3,16 @@
 import { useState, type FormEvent } from "react";
 import type { Report } from "@/types";
 import { ClipboardList, ExternalLink, Filter } from "lucide-react";
+import {
+  dashboardFilterActionClassName,
+  dashboardFilterControlClassName,
+  FilterBar,
+  FilterField,
+  type FilterBarDensity,
+} from "@/components/dashboard/FilterBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
@@ -185,21 +193,18 @@ export function ClinicInformesWorkspaceSummary({
   );
 
   function renderAdvancedFilterForm(mobile = false) {
-    const inputClassName = mobile ? "h-8 text-xs" : "h-7 text-xs";
-    const selectClassName =
-      "h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15";
-    const compactSelectClassName =
-      "h-7 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15";
-    const labelClassName =
-      "grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground";
+    const density: FilterBarDensity = mobile ? "comfortable" : "compact";
+    const controlClassName = dashboardFilterControlClassName(density);
+    const buttonClassName = dashboardFilterActionClassName(density);
 
     return (
-      <form
+      <FilterBar
         data-clinic-report-filter-bar={mobile ? "advanced-mobile" : "advanced"}
+        density={density}
         className={
           mobile
-            ? "grid grid-cols-2 items-end gap-2"
-            : "hidden shrink-0 grid-cols-2 items-end gap-1.5 rounded-lg border border-vetneb-line/70 bg-muted/15 px-2 py-1 md:grid md:grid-cols-4 lg:grid-cols-[0.82fr_1.1fr_0.85fr_1fr_1fr_0.85fr_0.85fr_auto_auto]"
+            ? "grid grid-cols-2 gap-2"
+            : "hidden shrink-0 md:grid md:grid-cols-4 lg:grid-cols-[0.82fr_1.1fr_0.85fr_1fr_1fr_0.85fr_0.85fr_auto_auto]"
         }
         onSubmit={applyAdvancedFilters}
         aria-label={
@@ -208,30 +213,27 @@ export function ClinicInformesWorkspaceSummary({
             : "Filtros avanzados de informes clínica"
         }
       >
-        <label className={labelClassName}>
-          Informe
+        <FilterField label="Informe" density={density}>
           <Input
-            className={inputClassName}
+            className={controlClassName}
             type="text"
             placeholder="#ID"
             value={filterDraft.report}
             onChange={(event) => updateFilterDraft("report", event.target.value)}
           />
-        </label>
-        <label className={labelClassName}>
-          Paciente
+        </FilterField>
+        <FilterField label="Paciente" density={density}>
           <Input
-            className={inputClassName}
+            className={controlClassName}
             type="text"
             placeholder="Texto visible"
             value={filterDraft.patient}
             onChange={(event) => updateFilterDraft("patient", event.target.value)}
           />
-        </label>
-        <label className={labelClassName}>
-          Estado
-          <select
-            className={mobile ? selectClassName : compactSelectClassName}
+        </FilterField>
+        <FilterField label="Estado" density={density}>
+          <Select
+            className={controlClassName}
             value={filterDraft.status}
             onChange={(event) =>
               updateFilterDraft(
@@ -245,51 +247,43 @@ export function ClinicInformesWorkspaceSummary({
                 {option.label}
               </option>
             ))}
-          </select>
-        </label>
-        <label className={labelClassName}>
-          Estudio
+          </Select>
+        </FilterField>
+        <FilterField label="Estudio" density={density}>
           <Input
-            className={inputClassName}
+            className={controlClassName}
             type="text"
             placeholder="Tipo visible"
             value={filterDraft.study}
             onChange={(event) => updateFilterDraft("study", event.target.value)}
           />
-        </label>
-        <label className={labelClassName}>
-          Archivo
+        </FilterField>
+        <FilterField label="Archivo" density={density}>
           <Input
-            className={inputClassName}
+            className={controlClassName}
             type="text"
             placeholder="Nombre"
             value={filterDraft.file}
             onChange={(event) => updateFilterDraft("file", event.target.value)}
           />
-        </label>
-        <label className={labelClassName}>
-          Desde
+        </FilterField>
+        <FilterField label="Desde" density={density}>
           <Input
-            className={inputClassName}
+            className={controlClassName}
             type="date"
             value={filterDraft.from}
             onChange={(event) => updateFilterDraft("from", event.target.value)}
           />
-        </label>
-        <label className={labelClassName}>
-          Hasta
+        </FilterField>
+        <FilterField label="Hasta" density={density}>
           <Input
-            className={inputClassName}
+            className={controlClassName}
             type="date"
             value={filterDraft.to}
             onChange={(event) => updateFilterDraft("to", event.target.value)}
           />
-        </label>
-        <Button
-          type="submit"
-          size="sm"
-          className={mobile ? "h-8 gap-1.5 px-2.5 text-xs" : "h-7 gap-1 px-2 text-xs"}
-        >
+        </FilterField>
+        <Button type="submit" size="sm" className={buttonClassName}>
           <Filter className="h-3.5 w-3.5" aria-hidden="true" />
           Aplicar
         </Button>
@@ -297,12 +291,12 @@ export function ClinicInformesWorkspaceSummary({
           type="button"
           variant="ghost"
           size="sm"
-          className={mobile ? "h-8 px-2 text-xs" : "h-7 px-2 text-xs"}
+          className={buttonClassName}
           onClick={clearAdvancedFilters}
         >
           Limpiar
         </Button>
-      </form>
+      </FilterBar>
     );
   }
 

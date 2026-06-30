@@ -98,7 +98,10 @@ test("dashboard informes renders profile-layout clinic reports surface without t
 test("dashboard informes renders compact inline filters and profile-layout list/detail columns", () => {
   const source = read(INFORMES_PAGE_PATH);
 
-  assert.ok(source.includes('<form'));
+  assert.ok(source.includes('import {\n  dashboardFilterActionClassName,'));
+  assert.ok(source.includes("FilterBar,"));
+  assert.ok(source.includes("FilterField,"));
+  assert.ok(source.includes("<FilterBar"));
   assert.ok(source.includes('method="get"'));
   assert.ok(source.includes('placeholder="Buscar por paciente o tipo de estudio..."'));
   assert.ok(source.includes('name="query"'));
@@ -107,7 +110,8 @@ test("dashboard informes renders compact inline filters and profile-layout list/
   assert.ok(source.includes('name="status"'));
   assert.ok(source.includes("defaultValue={status}"));
   assert.ok(source.includes('aria-label="Filtrar por estado"'));
-  assert.ok(source.includes("<Button type=\"submit\" size=\"sm\">"));
+  assert.ok(source.includes('<FilterField label="Estado">'));
+  assert.ok(source.includes('<Button type="submit" size="sm" className={dashboardFilterActionClassName()}>'));
   assert.ok(source.includes("Filtrar"));
   assert.ok(source.includes('href="/dashboard/informes"'));
   assert.ok(source.includes("Limpiar"));

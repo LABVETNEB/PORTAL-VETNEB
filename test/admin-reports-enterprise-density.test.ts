@@ -92,9 +92,14 @@ test("Admin Informes expone barra avanzada para los campos visibles reales", () 
   assert.ok(card.includes('"Filtros avanzados de informes"'));
   assert.ok(card.includes("Filtros avanzados de informes mobile"));
   assert.ok(card.includes("Filtrar informes"));
-  assert.ok(card.includes('labelTextClassName = mobile ? "" : "sr-only";'));
-  assert.ok(card.includes('const inputClassName = mobile ? "h-8 text-xs" : "h-7 text-xs";'));
-  assert.ok(card.includes("const compactFilterSelectClassName ="));
+  assert.ok(card.includes('import {\n  dashboardFilterActionClassName,'));
+  assert.ok(card.includes("FilterBar,"));
+  assert.ok(card.includes("FilterField,"));
+  assert.ok(card.includes('const density: FilterBarDensity = mobile ? "comfortable" : "compact";'));
+  assert.ok(card.includes("const controlClassName = dashboardFilterControlClassName(density);"));
+  assert.ok(card.includes("const buttonClassName = dashboardFilterActionClassName(density);"));
+  assert.ok(card.includes("<FilterBar"));
+  assert.ok(card.includes('<FilterField label="Estado" density={density} labelHidden={!mobile}>'));
   assert.ok(card.includes("md:min-h-7"));
   assert.ok(card.includes("[&_th]:h-7"));
   assert.ok(card.includes("type AdminReportsFilterState = {"));

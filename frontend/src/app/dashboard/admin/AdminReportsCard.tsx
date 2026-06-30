@@ -10,11 +10,19 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+import {
+  dashboardFilterActionClassName,
+  dashboardFilterControlClassName,
+  FilterBar,
+  FilterField,
+  type FilterBarDensity,
+} from "@/components/dashboard/FilterBar";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -68,11 +76,6 @@ const INITIAL_FILTER_STATE: AdminReportsFilterState = {
   from: "",
   to: "",
 };
-
-const filterSelectClassName =
-  "h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15";
-const compactFilterSelectClassName =
-  "h-7 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15";
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -394,25 +397,18 @@ export function AdminReportsCard() {
   }
 
   function renderAdvancedFilterForm(mobile = false) {
-    const labelClassName = mobile
-      ? "grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground"
-      : "grid min-w-0 gap-0 text-[11px] font-medium text-muted-foreground";
-    const labelTextClassName = mobile ? "" : "sr-only";
-    const inputClassName = mobile ? "h-8 text-xs" : "h-7 text-xs";
-    const selectClassName = mobile
-      ? filterSelectClassName
-      : compactFilterSelectClassName;
-    const buttonClassName = mobile
-      ? "h-8 gap-1.5 px-2.5 text-xs"
-      : "h-7 gap-1 px-2 text-xs";
+    const density: FilterBarDensity = mobile ? "comfortable" : "compact";
+    const controlClassName = dashboardFilterControlClassName(density);
+    const buttonClassName = dashboardFilterActionClassName(density);
 
     return (
-      <form
+      <FilterBar
         data-admin-report-upload-filter-bar={mobile ? "advanced-mobile" : "advanced"}
+        density={density}
         className={
           mobile
-            ? "grid grid-cols-2 items-end gap-2"
-            : "hidden shrink-0 grid-cols-2 items-end gap-1 rounded-md border border-vetneb-line/70 bg-muted/15 px-1.5 py-0.5 md:grid md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-[0.8fr_1fr_0.95fr_0.95fr_0.9fr_0.9fr_0.85fr_0.85fr_auto_auto] xl:px-1.5"
+            ? "grid grid-cols-2 gap-2"
+            : "hidden shrink-0 md:grid md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-[0.8fr_1fr_0.95fr_0.95fr_0.9fr_0.9fr_0.85fr_0.85fr_auto_auto] xl:px-1.5"
         }
         onSubmit={applyAdvancedFilters}
         aria-label={
@@ -421,40 +417,36 @@ export function AdminReportsCard() {
             : "Filtros avanzados de informes"
         }
       >
-        <label className={labelClassName}>
-          <span className={labelTextClassName}>Informe</span>
+        <FilterField label="Informe" density={density} labelHidden={!mobile}>
           <Input
-            className={inputClassName}
+            className={controlClassName}
             type="text"
             placeholder="#ID"
             value={filterDraft.report}
             onChange={(event) => updateFilterDraft("report", event.target.value)}
           />
-        </label>
-        <label className={labelClassName}>
-          <span className={labelTextClassName}>Clínica</span>
+        </FilterField>
+        <FilterField label="Clínica" density={density} labelHidden={!mobile}>
           <Input
-            className={inputClassName}
+            className={controlClassName}
             type="text"
             placeholder="Nombre o ID"
             value={filterDraft.clinic}
             onChange={(event) => updateFilterDraft("clinic", event.target.value)}
           />
-        </label>
-        <label className={labelClassName}>
-          <span className={labelTextClassName}>Paciente</span>
+        </FilterField>
+        <FilterField label="Paciente" density={density} labelHidden={!mobile}>
           <Input
-            className={inputClassName}
+            className={controlClassName}
             type="text"
             placeholder="Texto visible"
             value={filterDraft.patient}
             onChange={(event) => updateFilterDraft("patient", event.target.value)}
           />
-        </label>
-        <label className={labelClassName}>
-          <span className={labelTextClassName}>Estado</span>
-          <select
-            className={selectClassName}
+        </FilterField>
+        <FilterField label="Estado" density={density} labelHidden={!mobile}>
+          <Select
+            className={controlClassName}
             value={filterDraft.status}
             onChange={(event) =>
               updateFilterDraft(
@@ -469,46 +461,42 @@ export function AdminReportsCard() {
                 {option.label}
               </option>
             ))}
-          </select>
-        </label>
-        <label className={labelClassName}>
-          <span className={labelTextClassName}>Estudio</span>
+          </Select>
+        </FilterField>
+        <FilterField label="Estudio" density={density} labelHidden={!mobile}>
           <Input
-            className={inputClassName}
+            className={controlClassName}
             type="text"
             placeholder="Tipo visible"
             value={filterDraft.study}
             onChange={(event) => updateFilterDraft("study", event.target.value)}
           />
-        </label>
-        <label className={labelClassName}>
-          <span className={labelTextClassName}>Archivo</span>
+        </FilterField>
+        <FilterField label="Archivo" density={density} labelHidden={!mobile}>
           <Input
-            className={inputClassName}
+            className={controlClassName}
             type="text"
             placeholder="Nombre"
             value={filterDraft.file}
             onChange={(event) => updateFilterDraft("file", event.target.value)}
           />
-        </label>
-        <label className={labelClassName}>
-          <span className={labelTextClassName}>Desde</span>
+        </FilterField>
+        <FilterField label="Desde" density={density} labelHidden={!mobile}>
           <Input
-            className={inputClassName}
+            className={controlClassName}
             type="date"
             value={filterDraft.from}
             onChange={(event) => updateFilterDraft("from", event.target.value)}
           />
-        </label>
-        <label className={labelClassName}>
-          <span className={labelTextClassName}>Hasta</span>
+        </FilterField>
+        <FilterField label="Hasta" density={density} labelHidden={!mobile}>
           <Input
-            className={inputClassName}
+            className={controlClassName}
             type="date"
             value={filterDraft.to}
             onChange={(event) => updateFilterDraft("to", event.target.value)}
           />
-        </label>
+        </FilterField>
         <Button type="submit" size="sm" className={buttonClassName}>
           <Filter className="h-3.5 w-3.5" aria-hidden="true" />
           Aplicar
@@ -517,12 +505,12 @@ export function AdminReportsCard() {
           type="button"
           variant="ghost"
           size="sm"
-          className={mobile ? "h-8 px-2 text-xs" : "h-7 px-2 text-xs"}
+          className={buttonClassName}
           onClick={clearAdvancedFilters}
         >
           Limpiar
         </Button>
-      </form>
+      </FilterBar>
     );
   }
 

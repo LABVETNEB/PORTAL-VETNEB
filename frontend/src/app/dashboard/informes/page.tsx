@@ -5,6 +5,12 @@ import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader"
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorState } from "@/components/dashboard/ErrorState";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
+import {
+  dashboardFilterActionClassName,
+  dashboardFilterControlClassName,
+  FilterBar,
+  FilterField,
+} from "@/components/dashboard/FilterBar";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
@@ -17,6 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   StudyTimeline,
   type StudyTimelineStep,
@@ -337,64 +344,61 @@ export default async function InformesPage({
           </CardHeader>
 
           <CardContent className="flex min-h-0 flex-1 flex-col gap-4 pt-4">
-            <form
+            <FilterBar
               method="get"
               role="search"
               aria-label="Filtros compactos de informes"
-              className="shrink-0 rounded-xl border border-vetneb-line/75 bg-card/78 p-3 shadow-[0_8px_28px_rgba(15,45,62,0.04)]"
+              className="shrink-0 lg:grid-cols-[1.4fr_0.8fr_1fr_auto]"
             >
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_0.8fr_1fr_auto] lg:items-end">
-                <label className="block">
-                  <span className="field-label">Buscar</span>
-                  <Input
-                    name="query"
-                    defaultValue={query}
-                    placeholder="Buscar por paciente o tipo de estudio..."
-                    aria-label="Buscar informes"
-                  />
-                </label>
+              <FilterField label="Buscar">
+                <Input
+                  name="query"
+                  defaultValue={query}
+                  className={dashboardFilterControlClassName()}
+                  placeholder="Buscar por paciente o tipo de estudio..."
+                  aria-label="Buscar informes"
+                />
+              </FilterField>
 
-                <label className="block">
-                  <span className="field-label">Estado</span>
-                  <select
-                    name="status"
-                    defaultValue={status}
-                    className="field-select"
-                    aria-label="Filtrar por estado"
-                  >
-                    {statusOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              <FilterField label="Estado">
+                <Select
+                  name="status"
+                  defaultValue={status}
+                  className={dashboardFilterControlClassName()}
+                  aria-label="Filtrar por estado"
+                >
+                  {statusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </FilterField>
 
-                <label className="block">
-                  <span className="field-label">Tipo de estudio</span>
-                  <Input
-                    name="studyType"
-                    defaultValue={studyType}
-                    placeholder="Filtrar por tipo de estudio..."
-                    aria-label="Filtrar por tipo de estudio"
-                  />
-                </label>
+              <FilterField label="Tipo de estudio">
+                <Input
+                  name="studyType"
+                  defaultValue={studyType}
+                  className={dashboardFilterControlClassName()}
+                  placeholder="Filtrar por tipo de estudio..."
+                  aria-label="Filtrar por tipo de estudio"
+                />
+              </FilterField>
 
-                <div className="flex flex-wrap gap-2">
-                  <Button type="submit" size="sm">
-                    Filtrar
-                  </Button>
-                  <PublicRouteControl
-                    href="/dashboard/informes"
-                    replace
-                    variant="bare"
-                    className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-sm font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70"
-                  >
-                    Limpiar
-                  </PublicRouteControl>
-                </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" size="sm" className={dashboardFilterActionClassName()}>
+                  Filtrar
+                </Button>
+                <PublicRouteControl
+                  href="/dashboard/informes"
+                  replace
+                  variant="bare"
+                  className={`${dashboardFilterActionClassName()} inline-flex items-center justify-center rounded-md border border-input bg-card/95 font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70`}
+                >
+                  Limpiar
+                </PublicRouteControl>
               </div>
-            </form>
+            </FilterBar>
 
             {reportsLoadError || reports.length === 0 ? (
               <div className="flex min-h-0 flex-1 flex-col">
