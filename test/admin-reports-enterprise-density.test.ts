@@ -20,6 +20,16 @@ function read(relativePath: string) {
   );
 }
 
+function sectionBetween(source: string, start: string, end: string): string {
+  const startIndex = source.indexOf(start);
+  assert.notEqual(startIndex, -1, `Missing start marker: ${start}`);
+
+  const endIndex = source.indexOf(end, startIndex + start.length);
+  assert.notEqual(endIndex, -1, `Missing end marker: ${end}`);
+
+  return source.slice(startIndex, endIndex);
+}
+
 test("Admin Informes preserva el identificador real y monta la consola dedicada", () => {
   const page = read(PAGE_PATH);
   const controller = read(CONTROLLER_PATH);
@@ -71,6 +81,106 @@ test("Admin Informes presenta tabla y lista mobile densas con detalle en diálog
 
   assert.equal(card.includes("detalle inline"), false);
   assert.equal(card.includes("dropzone"), false);
+});
+
+test("Admin Informes expone barra avanzada para los campos visibles reales", () => {
+  const card = read(CARD_PATH);
+  const auditFilter = read("frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx");
+  const tokensCard = read("frontend/src/app/dashboard/admin/AdminParticularTokensCard.tsx");
+
+  assert.ok(card.includes('data-admin-report-upload-filter-bar={mobile ? "advanced-mobile" : "advanced"}'));
+  assert.ok(card.includes('"Filtros avanzados de informes"'));
+  assert.ok(card.includes("Filtros avanzados de informes mobile"));
+  assert.ok(card.includes("Filtrar informes"));
+  assert.ok(card.includes('labelTextClassName = mobile ? "" : "sr-only";'));
+  assert.ok(card.includes('const inputClassName = mobile ? "h-8 text-xs" : "h-7 text-xs";'));
+  assert.ok(card.includes("const compactFilterSelectClassName ="));
+  assert.ok(card.includes("md:min-h-7"));
+  assert.ok(card.includes("[&_th]:h-7"));
+  assert.ok(card.includes("type AdminReportsFilterState = {"));
+  assert.ok(card.includes("report: string;"));
+  assert.ok(card.includes("clinic: string;"));
+  assert.ok(card.includes("patient: string;"));
+  assert.ok(card.includes('status: "" | AdminReportWorkflowStage;'));
+  assert.ok(card.includes("study: string;"));
+  assert.ok(card.includes("file: string;"));
+  assert.ok(card.includes("from: string;"));
+  assert.ok(card.includes("to: string;"));
+
+  for (const label of [
+    "Informe",
+    "Clínica",
+    "Paciente",
+    "Estado",
+    "Estudio",
+    "Archivo",
+    "Desde",
+    "Hasta",
+    "Aplicar",
+    "Limpiar",
+  ]) {
+    assert.ok(card.includes(label), `falta filtro visible: ${label}`);
+  }
+
+  assert.equal(card.includes("Responsable"), false);
+  assert.equal(card.includes("Tutor"), false);
+  assert.ok(auditFilter.includes("Desde"));
+  assert.ok(tokensCard.includes('data-admin-filter-bar={mobile ? "advanced-mobile" : "advanced"}'));
+});
+
+test("Admin Informes filtra sobre datos cargados sin cambiar contrato API", () => {
+  const card = read(CARD_PATH);
+  const filterBlock = sectionBetween(
+    card,
+    "function matchesAdminReportFilters(",
+    "export function AdminReportsCard()",
+  );
+  const applyBlock = sectionBetween(
+    card,
+    "function applyAdvancedFilters(",
+    "function clearAdvancedFilters()",
+  );
+  const clearBlock = sectionBetween(
+    card,
+    "function clearAdvancedFilters()",
+    "function renderAdvancedFilterForm(",
+  );
+  const apiBlock = sectionBetween(
+    card,
+    "const loadReports = useCallback(async (nextPage: number) => {",
+    "const loadMobileReports = useCallback(async (nextPage: number) => {",
+  );
+
+  assert.ok(filterBlock.includes("const reportDisplay = `Informe #${report.id}`;"));
+  assert.ok(filterBlock.includes("const clinicDisplay = report.clinicName || `Clínica #${report.clinicId}`;"));
+  assert.ok(filterBlock.includes('const patientDisplay = report.patientName || "Paciente sin registrar";'));
+  assert.ok(filterBlock.includes("const studyDisplay = studyLabel(report.studyType);"));
+  assert.ok(filterBlock.includes('const fileDisplay = report.fileName || "Sin archivo";'));
+  assert.ok(filterBlock.includes("report.workflowStage === filters.status"));
+  assert.ok(filterBlock.includes("matchesReportDateRange(report, filters.from, filters.to)"));
+  assert.ok(card.includes("return report.uploadDate ?? report.createdAt;"));
+  assert.ok(card.includes("const filteredReports = reports.filter((report) =>"));
+  assert.ok(card.includes("const filteredMobileReports = mobileReports.filter((report) =>"));
+  assert.ok(card.includes("{filteredReports.map((report) => ("));
+  assert.ok(card.includes("{filteredMobileReports.map((report) => ("));
+
+  assert.ok(applyBlock.includes("setAppliedFilters({"));
+  assert.ok(applyBlock.includes("report: filterDraft.report.trim(),"));
+  assert.ok(applyBlock.includes("clinic: filterDraft.clinic.trim(),"));
+  assert.ok(applyBlock.includes("patient: filterDraft.patient.trim(),"));
+  assert.ok(applyBlock.includes("status: filterDraft.status,"));
+  assert.ok(applyBlock.includes("study: filterDraft.study.trim(),"));
+  assert.ok(applyBlock.includes("file: filterDraft.file.trim(),"));
+  assert.ok(applyBlock.includes("from: filterDraft.from,"));
+  assert.ok(applyBlock.includes("to: filterDraft.to,"));
+  assert.ok(applyBlock.includes("setPage(0);"));
+  assert.ok(applyBlock.includes("setMobilePage(0);"));
+  assert.ok(clearBlock.includes("setFilterDraft(INITIAL_FILTER_STATE);"));
+  assert.ok(clearBlock.includes("setAppliedFilters(INITIAL_FILTER_STATE);"));
+  assert.ok(apiBlock.includes("limit: PAGE_SIZE"));
+  assert.ok(apiBlock.includes("offset: nextPage * PAGE_SIZE"));
+  assert.equal(apiBlock.includes("search:"), false);
+  assert.equal(apiBlock.includes("filters:"), false);
 });
 
 test("Admin Informes respeta los límites de densidad y no introduce scroll regional", () => {

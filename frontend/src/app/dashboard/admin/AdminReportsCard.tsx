@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  Filter,
   FilePlus2,
   Loader2,
   RefreshCw,
@@ -13,6 +14,7 @@ import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -45,6 +47,33 @@ const STUDY_LABELS: Record<string, string> = {
   hemoparasitos: "Hemoparásitos",
 };
 
+type AdminReportsFilterState = {
+  report: string;
+  clinic: string;
+  patient: string;
+  status: "" | AdminReportWorkflowStage;
+  study: string;
+  file: string;
+  from: string;
+  to: string;
+};
+
+const INITIAL_FILTER_STATE: AdminReportsFilterState = {
+  report: "",
+  clinic: "",
+  patient: "",
+  status: "",
+  study: "",
+  file: "",
+  from: "",
+  to: "",
+};
+
+const filterSelectClassName =
+  "h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15";
+const compactFilterSelectClassName =
+  "h-7 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15";
+
 function formatDate(value: string | null) {
   if (!value) return "—";
   const date = new Date(value);
@@ -61,6 +90,77 @@ function studyLabel(value: string | null) {
   return STUDY_LABELS[value] ?? value;
 }
 
+function normalizeSearchText(value: string | number | null | undefined): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
+function toDateInputValue(value: string | null | undefined): string {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().substring(0, 10);
+}
+
+function matchesFilterText(
+  source: string | number | null | undefined,
+  query: string,
+) {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return true;
+
+  const searchable = normalizeSearchText(source);
+  return normalizedQuery
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((token) => searchable.includes(token));
+}
+
+function isFilterStateEmpty(filters: AdminReportsFilterState) {
+  return Object.values(filters).every((value) => !value.trim());
+}
+
+function getReportPrimaryDate(report: AdminReportWorkflowItem) {
+  return report.uploadDate ?? report.createdAt;
+}
+
+function matchesReportDateRange(
+  report: AdminReportWorkflowItem,
+  from: string,
+  to: string,
+) {
+  const primaryDate = toDateInputValue(getReportPrimaryDate(report));
+  if (!primaryDate) return !from && !to;
+  if (from && primaryDate < from) return false;
+  if (to && primaryDate > to) return false;
+  return true;
+}
+
+function matchesAdminReportFilters(
+  report: AdminReportWorkflowItem,
+  filters: AdminReportsFilterState,
+) {
+  const reportDisplay = `Informe #${report.id}`;
+  const clinicDisplay = report.clinicName || `Clínica #${report.clinicId}`;
+  const patientDisplay = report.patientName || "Paciente sin registrar";
+  const studyDisplay = studyLabel(report.studyType);
+  const fileDisplay = report.fileName || "Sin archivo";
+
+  return (
+    matchesFilterText(reportDisplay, filters.report) &&
+    (matchesFilterText(clinicDisplay, filters.clinic) ||
+      matchesFilterText(report.clinicId, filters.clinic)) &&
+    matchesFilterText(patientDisplay, filters.patient) &&
+    (!filters.status || report.workflowStage === filters.status) &&
+    (matchesFilterText(studyDisplay, filters.study) ||
+      matchesFilterText(report.studyType, filters.study)) &&
+    matchesFilterText(fileDisplay, filters.file) &&
+    matchesReportDateRange(report, filters.from, filters.to)
+  );
+}
+
 export function AdminReportsCard() {
   const [reports, setReports] = useState<AdminReportWorkflowItem[]>([]);
   const [page, setPage] = useState(0);
@@ -69,6 +169,10 @@ export function AdminReportsCard() {
   const [busyReportId, setBusyReportId] = useState<number | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [filterDraft, setFilterDraft] =
+    useState<AdminReportsFilterState>(INITIAL_FILTER_STATE);
+  const [appliedFilters, setAppliedFilters] =
+    useState<AdminReportsFilterState>(INITIAL_FILTER_STATE);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -92,14 +196,21 @@ export function AdminReportsCard() {
     [mobileReports, reports, selectedReportId],
   );
 
-  const deliveredCount = reports.filter(
+  const hasActiveFilters = !isFilterStateEmpty(appliedFilters);
+  const filteredReports = reports.filter((report) =>
+    matchesAdminReportFilters(report, appliedFilters),
+  );
+  const filteredMobileReports = mobileReports.filter((report) =>
+    matchesAdminReportFilters(report, appliedFilters),
+  );
+  const deliveredCount = filteredReports.filter(
     (report) => report.workflowStage === "delivered",
   ).length;
-  const specialStainCount = reports.filter(
+  const specialStainCount = filteredReports.filter(
     (report) => report.specialStainRequested,
   ).length;
-  const rangeStart = reports.length ? page * PAGE_SIZE + 1 : 0;
-  const rangeEnd = page * PAGE_SIZE + reports.length;
+  const rangeStart = filteredReports.length ? page * PAGE_SIZE + 1 : 0;
+  const rangeEnd = page * PAGE_SIZE + filteredReports.length;
 
   const loadReports = useCallback(async (nextPage: number) => {
     setIsLoading(true);
@@ -249,12 +360,178 @@ export function AdminReportsCard() {
     }
   }
 
+  function updateFilterDraft<K extends keyof AdminReportsFilterState>(
+    field: K,
+    value: AdminReportsFilterState[K],
+  ) {
+    setFilterDraft((current) => ({ ...current, [field]: value }));
+    setErrorMessage(null);
+  }
+
+  function applyAdvancedFilters(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAppliedFilters({
+      report: filterDraft.report.trim(),
+      clinic: filterDraft.clinic.trim(),
+      patient: filterDraft.patient.trim(),
+      status: filterDraft.status,
+      study: filterDraft.study.trim(),
+      file: filterDraft.file.trim(),
+      from: filterDraft.from,
+      to: filterDraft.to,
+    });
+    setPage(0);
+    setMobilePage(0);
+    setErrorMessage(null);
+  }
+
+  function clearAdvancedFilters() {
+    setFilterDraft(INITIAL_FILTER_STATE);
+    setAppliedFilters(INITIAL_FILTER_STATE);
+    setPage(0);
+    setMobilePage(0);
+    setErrorMessage(null);
+  }
+
+  function renderAdvancedFilterForm(mobile = false) {
+    const labelClassName = mobile
+      ? "grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground"
+      : "grid min-w-0 gap-0 text-[11px] font-medium text-muted-foreground";
+    const labelTextClassName = mobile ? "" : "sr-only";
+    const inputClassName = mobile ? "h-8 text-xs" : "h-7 text-xs";
+    const selectClassName = mobile
+      ? filterSelectClassName
+      : compactFilterSelectClassName;
+    const buttonClassName = mobile
+      ? "h-8 gap-1.5 px-2.5 text-xs"
+      : "h-7 gap-1 px-2 text-xs";
+
+    return (
+      <form
+        data-admin-report-upload-filter-bar={mobile ? "advanced-mobile" : "advanced"}
+        className={
+          mobile
+            ? "grid grid-cols-2 items-end gap-2"
+            : "hidden shrink-0 grid-cols-2 items-end gap-1 rounded-md border border-vetneb-line/70 bg-muted/15 px-1.5 py-0.5 md:grid md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-[0.8fr_1fr_0.95fr_0.95fr_0.9fr_0.9fr_0.85fr_0.85fr_auto_auto] xl:px-1.5"
+        }
+        onSubmit={applyAdvancedFilters}
+        aria-label={
+          mobile
+            ? "Filtros avanzados de informes mobile"
+            : "Filtros avanzados de informes"
+        }
+      >
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Informe</span>
+          <Input
+            className={inputClassName}
+            type="text"
+            placeholder="#ID"
+            value={filterDraft.report}
+            onChange={(event) => updateFilterDraft("report", event.target.value)}
+          />
+        </label>
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Clínica</span>
+          <Input
+            className={inputClassName}
+            type="text"
+            placeholder="Nombre o ID"
+            value={filterDraft.clinic}
+            onChange={(event) => updateFilterDraft("clinic", event.target.value)}
+          />
+        </label>
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Paciente</span>
+          <Input
+            className={inputClassName}
+            type="text"
+            placeholder="Texto visible"
+            value={filterDraft.patient}
+            onChange={(event) => updateFilterDraft("patient", event.target.value)}
+          />
+        </label>
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Estado</span>
+          <select
+            className={selectClassName}
+            value={filterDraft.status}
+            onChange={(event) =>
+              updateFilterDraft(
+                "status",
+                event.target.value as AdminReportsFilterState["status"],
+              )
+            }
+          >
+            <option value="">Todos</option>
+            {ADMIN_REPORT_STAGE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Estudio</span>
+          <Input
+            className={inputClassName}
+            type="text"
+            placeholder="Tipo visible"
+            value={filterDraft.study}
+            onChange={(event) => updateFilterDraft("study", event.target.value)}
+          />
+        </label>
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Archivo</span>
+          <Input
+            className={inputClassName}
+            type="text"
+            placeholder="Nombre"
+            value={filterDraft.file}
+            onChange={(event) => updateFilterDraft("file", event.target.value)}
+          />
+        </label>
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Desde</span>
+          <Input
+            className={inputClassName}
+            type="date"
+            value={filterDraft.from}
+            onChange={(event) => updateFilterDraft("from", event.target.value)}
+          />
+        </label>
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Hasta</span>
+          <Input
+            className={inputClassName}
+            type="date"
+            value={filterDraft.to}
+            onChange={(event) => updateFilterDraft("to", event.target.value)}
+          />
+        </label>
+        <Button type="submit" size="sm" className={buttonClassName}>
+          <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+          Aplicar
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={mobile ? "h-8 px-2 text-xs" : "h-7 px-2 text-xs"}
+          onClick={clearAdvancedFilters}
+        >
+          Limpiar
+        </Button>
+      </form>
+    );
+  }
+
   return (
     <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden shadow-none">
-      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:py-2">
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:py-1">
         <div className="min-w-0">
           <CardTitle className="text-xl leading-tight md:text-base">Informes</CardTitle>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-0 text-xs text-muted-foreground">
             Cola administrativa, trazabilidad y documentos en una sola vista.
           </p>
         </div>
@@ -286,11 +563,14 @@ export function AdminReportsCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3 pt-2 md:gap-1.5 md:pb-2 md:pt-1.5">
-        <div className="flex min-h-8 flex-wrap items-center justify-between gap-2 rounded-md border border-vetneb-line/65 bg-vetneb-surface-raised/45 px-2.5 text-xs text-muted-foreground">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3 pt-2 md:gap-1 md:pb-1 md:pt-1">
+        <div
+          data-admin-reports-toolbar="true"
+          className="flex min-h-8 shrink-0 items-center justify-between gap-2 rounded-md border border-vetneb-line/65 bg-vetneb-surface-raised/45 px-2.5 text-xs text-muted-foreground md:min-h-7"
+        >
+          <div className="hidden flex-wrap items-center gap-x-3 gap-y-1 md:flex">
             <span>
-              <strong className="font-semibold text-vetneb-ink">{reports.length}</strong> en página
+              <strong className="font-semibold text-vetneb-ink">{filteredReports.length}</strong> en página
             </span>
             <span>
               <strong className="font-semibold text-vetneb-ink">{deliveredCount}</strong> entregados
@@ -299,8 +579,32 @@ export function AdminReportsCard() {
               <strong className="font-semibold text-vetneb-ink">{specialStainCount}</strong> con tinción
             </span>
           </div>
-          <span className="tabular-nums">Página {page + 1}</span>
+          <span className="min-w-0 flex-1 truncate md:hidden">
+            {hasActiveFilters
+              ? `${filteredMobileReports.length} filtrados`
+              : `${mobileReports.length} en página`}
+          </span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="hidden tabular-nums md:inline">
+              {hasActiveFilters ? "Filtros activos" : `Página ${page + 1}`}
+            </span>
+            <div className="md:hidden">
+              <ModuleDialog
+                title="Filtrar informes"
+                trigger={
+                  <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-2 text-xs">
+                    <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+                    Filtros
+                  </Button>
+                }
+              >
+                {renderAdvancedFilterForm(true)}
+              </ModuleDialog>
+            </div>
+          </div>
         </div>
+
+        {renderAdvancedFilterForm()}
 
         {errorMessage ? (
           <p className="clinical-alert-error shrink-0 px-3 py-1.5 text-xs" role="alert">
@@ -318,8 +622,8 @@ export function AdminReportsCard() {
           className="flex min-h-0 flex-1 flex-col"
         >
           <div className="dashboard-table-responsive hidden min-h-0 flex-1 md:block">
-            {reports.length ? (
-              <Table className="table-fixed text-[0.8125rem] [&_th]:h-8 [&_th]:px-2.5 [&_td]:px-2.5">
+            {filteredReports.length ? (
+              <Table className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[20%]">Caso / paciente</TableHead>
@@ -332,7 +636,7 @@ export function AdminReportsCard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reports.map((report) => (
+                  {filteredReports.map((report) => (
                     <TableRow key={report.id}>
                       <TableCell className="py-0.5">
                         <p className="truncate font-medium text-vetneb-ink">
@@ -383,7 +687,11 @@ export function AdminReportsCard() {
               </Table>
             ) : (
               <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
-                {isLoading ? "Cargando informes…" : "No hay informes en esta página."}
+                {isLoading
+                  ? "Cargando informes…"
+                  : hasActiveFilters
+                    ? "No hay informes que coincidan con los filtros aplicados."
+                    : "No hay informes en esta página."}
               </p>
             )}
           </div>
@@ -392,13 +700,13 @@ export function AdminReportsCard() {
             className="flex min-h-0 flex-1 flex-col gap-2 md:hidden"
             data-admin-mobile-core-module="reports"
           >
-            {mobileReports.length ? (
+            {filteredMobileReports.length ? (
               <>
                 <div
                   className="divide-y divide-vetneb-line/60 overflow-hidden rounded-md border border-vetneb-line/75"
                   data-admin-reports-mobile-list="true"
                 >
-                  {mobileReports.map((report) => (
+                  {filteredMobileReports.map((report) => (
                     <div
                       key={report.id}
                       className="flex min-h-9 items-center gap-2 px-2.5 py-0.5"
@@ -425,49 +733,55 @@ export function AdminReportsCard() {
                     </div>
                   ))}
                 </div>
-
-                <div
-                  className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
-                  data-admin-mobile-core-pager="true"
-                >
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-2.5 text-xs"
-                    disabled={mobilePage === 0 || isMobileLoading}
-                    onClick={() => setMobilePage((current) => Math.max(0, current - 1))}
-                    aria-label="Página anterior"
-                  >
-                    Anterior
-                  </Button>
-                  <span className="min-w-12 text-center">Pág. {mobilePage + 1}</span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-2.5 text-xs"
-                    disabled={!mobileHasMore || isMobileLoading}
-                    onClick={() => setMobilePage((current) => current + 1)}
-                    aria-label="Página siguiente"
-                  >
-                    Siguiente
-                  </Button>
-                </div>
               </>
             ) : isMobileViewport ? (
               <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
-                {isMobileLoading ? "Cargando informes…" : "No hay informes en esta página."}
+                {isMobileLoading
+                  ? "Cargando informes…"
+                  : hasActiveFilters
+                    ? "No hay informes que coincidan con los filtros aplicados."
+                    : "No hay informes en esta página."}
               </p>
+            ) : null}
+
+            {mobileReports.length ? (
+              <div
+                className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
+                data-admin-mobile-core-pager="true"
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-2.5 text-xs"
+                  disabled={mobilePage === 0 || isMobileLoading}
+                  onClick={() => setMobilePage((current) => Math.max(0, current - 1))}
+                  aria-label="Página anterior"
+                >
+                  Anterior
+                </Button>
+                <span className="min-w-12 text-center">Pág. {mobilePage + 1}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-2.5 text-xs"
+                  disabled={!mobileHasMore || isMobileLoading}
+                  onClick={() => setMobilePage((current) => current + 1)}
+                  aria-label="Página siguiente"
+                >
+                  Siguiente
+                </Button>
+              </div>
             ) : null}
           </div>
 
           <nav
-            className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:flex md:min-h-8 md:pt-1"
+            className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-0.5 md:flex md:min-h-7 md:pt-0.5"
             aria-label="Paginación de informes admin"
           >
             <span>
-              {reports.length ? `${rangeStart}–${rangeEnd}` : "0 resultados"} · {PAGE_SIZE} por página
+              {filteredReports.length ? `${rangeStart}–${rangeEnd}` : "0 resultados"} · {PAGE_SIZE} por página
             </span>
             <div className="flex items-center gap-1.5">
               <Button
