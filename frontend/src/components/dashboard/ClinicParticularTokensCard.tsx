@@ -17,6 +17,14 @@ import { Select } from "@/components/ui/select";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
+import {
+  ParticularTokensEmptyPanel,
+  ParticularTokensMetricStrip,
+  ParticularTokensPanel,
+  ParticularTokensPanelBody,
+  ParticularTokensPanelFooter,
+  ParticularTokensPanelHeader,
+} from "@/components/dashboard/ParticularTokensCardPrimitives";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import {
   createClinicParticularToken,
@@ -747,25 +755,17 @@ export function ClinicParticularTokensCard() {
             </div>
 
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-              <div
-                className="grid grid-cols-3 divide-x divide-vetneb-line/70 rounded-md border border-vetneb-line/75 bg-vetneb-surface-muted/45 text-center"
+              <ParticularTokensMetricStrip
+                metrics={[
+                  { label: "Tokens", value: tokens.length },
+                  { label: "Activos", value: activeTokensCount },
+                  { label: "Informes", value: linkedReportsCount },
+                ]}
+                className="grid grid-cols-3 rounded-md"
+                itemClassName="min-w-[4.25rem] px-2 py-1"
+                valueClassName="text-sm"
                 aria-label="Métricas de tokens particulares"
-              >
-                {[
-                  ["Tokens", tokens.length],
-                  ["Activos", activeTokensCount],
-                  ["Informes", linkedReportsCount],
-                ].map(([label, value]) => (
-                  <div key={label} className="min-w-[4.25rem] px-2 py-1">
-                    <p className="text-[0.6875rem] text-muted-foreground">
-                      {label}
-                    </p>
-                    <p className="text-sm font-semibold leading-tight text-vetneb-ink">
-                      {value}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              />
 
               <ModuleDialog
                 open={isFilterDialogOpen}
@@ -828,11 +828,10 @@ export function ClinicParticularTokensCard() {
         >
           {tokens.length ? (
             <div className="flex min-h-0 flex-1 flex-col">
-              <div
+              <ParticularTokensPanel
                 data-clinic-access-list-panel="true"
-                className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/82"
               >
-                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-vetneb-line/70 px-3 py-2">
+                <ParticularTokensPanelHeader>
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-vetneb-ink">
                       Últimos tokens de la clínica
@@ -852,11 +851,10 @@ export function ClinicParticularTokensCard() {
                   <Badge variant="outline" className="shrink-0">
                     Pág. {pagedTokens.page + 1}
                   </Badge>
-                </div>
+                </ParticularTokensPanelHeader>
 
-                <div
+                <ParticularTokensPanelBody
                   data-clinic-access-list-body="true"
-                  className="flex min-h-0 flex-1 flex-col overflow-hidden"
                 >
                   {filteredTokens.length ? (
                     <>
@@ -988,11 +986,10 @@ export function ClinicParticularTokensCard() {
                     aria-hidden="true"
                     data-clinic-access-future-slots="true"
                   />
-                </div>
+                </ParticularTokensPanelBody>
 
-                <div
+                <ParticularTokensPanelFooter
                   data-clinic-access-pagination-footer="true"
-                  className="flex min-h-10 shrink-0 items-center justify-end border-t border-vetneb-line/65 px-3 py-2 text-xs text-muted-foreground"
                 >
                   <div
                     data-clinic-access-pagination-controls="true"
@@ -1033,11 +1030,11 @@ export function ClinicParticularTokensCard() {
                       Siguiente
                     </Button>
                   </div>
-                </div>
-              </div>
+                </ParticularTokensPanelFooter>
+              </ParticularTokensPanel>
             </div>
           ) : (
-            <div className="flex min-h-0 flex-1 rounded-lg border border-vetneb-line/75 bg-card/82 p-3">
+            <ParticularTokensEmptyPanel>
               <EmptyState
                 title={
                   isLoadingTokens
@@ -1052,7 +1049,7 @@ export function ClinicParticularTokensCard() {
                 size="sm"
                 className="w-full"
               />
-            </div>
+            </ParticularTokensEmptyPanel>
           )}
         </section>
       </ModuleSurface>

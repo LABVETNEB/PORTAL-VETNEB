@@ -11,6 +11,10 @@ import {
   type FilterBarDensity,
 } from "@/components/dashboard/FilterBar";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
+import {
+  ParticularTokensMetricStrip,
+  ParticularTokensMobileList,
+} from "@/components/dashboard/ParticularTokensCardPrimitives";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1254,21 +1258,17 @@ export function AdminParticularTokensCard() {
               Accesos sensibles, trazabilidad bajo demanda y acciones controladas.
             </p>
           </div>
-          <div className="flex min-h-10 items-center divide-x divide-vetneb-line/70 rounded-lg border border-vetneb-line/75 bg-vetneb-surface-muted/45 md:min-h-8">
-            {[
-              ["En página", filteredTokens.length],
-              ["Activos", activeTokensCount],
-              ["Con informe", linkedReportsCount],
-              ["Página", page + 1],
-            ].map(([label, value]) => (
-              <div key={label} className="min-w-[4.5rem] px-3 py-1 text-center md:px-2 md:py-0.5">
-                <p className="text-[0.6875rem] text-muted-foreground">{label}</p>
-                <p className="text-xl font-semibold leading-5 text-vetneb-ink md:text-base md:leading-4">
-                  {value}
-                </p>
-              </div>
-            ))}
-          </div>
+          <ParticularTokensMetricStrip
+            metrics={[
+              { label: "En página", value: filteredTokens.length },
+              { label: "Activos", value: activeTokensCount },
+              { label: "Con informe", value: linkedReportsCount },
+              { label: "Página", value: page + 1 },
+            ]}
+            className="flex min-h-10 items-center rounded-lg md:min-h-8"
+            itemClassName="min-w-[4.5rem] px-3 py-1 text-center md:px-2 md:py-0.5"
+            valueClassName="text-xl leading-5 md:text-base md:leading-4"
+          />
         </div>
       </CardHeader>
 
@@ -1434,9 +1434,8 @@ export function AdminParticularTokensCard() {
             className="flex h-full min-h-0 flex-1 flex-col gap-1.5 md:hidden"
             data-admin-mobile-core-module="tokens"
           >
-            <div
+            <ParticularTokensMobileList
               data-admin-particulars-mobile-list="true"
-              className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75"
             >
               {filteredMobileTokens.map((token) => (
                 <div
@@ -1470,7 +1469,7 @@ export function AdminParticularTokensCard() {
                   </Button>
                 </div>
               ))}
-            </div>
+            </ParticularTokensMobileList>
 
             {!filteredMobileTokens.length && isMobileViewport ? (
               <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
