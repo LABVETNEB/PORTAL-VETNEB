@@ -26,6 +26,7 @@ const DASHBOARD_ADMIN_AUDIT_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
 const DASHBOARD_ADMIN_AUDIT_TABLE_PATH =
   "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
+const BADGE_PATH = "frontend/src/components/ui/badge.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -105,6 +106,13 @@ test("globals css keeps visual tokens and shared frontend surface utilities", ()
       "--sidebar-foreground: 195 45% 93%;",
       "--sidebar-accent: 205 48% 22%;",
       "--sidebar-ring: 181 65% 43%;",
+      "--clinical-primary-gradient:",
+      "--clinical-primary-gradient-hover:",
+      "--clinical-shadow-sm:",
+      "--clinical-shadow-md:",
+      "--clinical-shadow-lg:",
+      "--clinical-shadow-lg-hover:",
+      "--clinical-focus-ring:",
       ".dashboard-main",
       ".surface-note-info",
       ".surface-empty",
@@ -123,9 +131,42 @@ test("globals css keeps visual tokens and shared frontend surface utilities", ()
       /\.surface-note-info\s*\{[\s\S]*@apply[\s\S]*rounded-lg[\s\S]*border-vetneb-cyan\/30[\s\S]*bg-vetneb-cyan\/10[\s\S]*\}/,
       /\.surface-empty\s*\{[\s\S]*@apply[\s\S]*border-dashed[\s\S]*bg-vetneb-surface-muted\/70[\s\S]*\}/,
       /\.field-select\s*\{[\s\S]*@apply[\s\S]*h-10[\s\S]*rounded-lg[\s\S]*focus-visible:ring-2[\s\S]*\}/,
+      /\.clinical-primary-gradient\s*\{[\s\S]*background-image:\s*var\(--clinical-primary-gradient\);[\s\S]*\}/,
+      /\.clinical-primary-gradient-hover:hover\s*\{[\s\S]*background-image:\s*var\(--clinical-primary-gradient-hover\);[\s\S]*\}/,
+      /:root\[data-theme="dark-gray"\]\s*\{[\s\S]*--clinical-primary-gradient:[\s\S]*--clinical-primary-gradient-hover:[\s\S]*--clinical-shadow-lg-hover:[\s\S]*\}/,
     ],
     "globals.css utility contracts",
   );
+
+  const rootGradient = source.match(
+    /--clinical-primary-gradient:\s*([^;]+);/,
+  )?.[1];
+  const hoverGradient = source.match(
+    /--clinical-primary-gradient-hover:\s*([^;]+);/,
+  )?.[1];
+
+  assert.ok(rootGradient, "globals.css must define clinical primary gradient");
+  assert.ok(
+    hoverGradient,
+    "globals.css must define clinical primary hover gradient",
+  );
+  assert.notEqual(
+    hoverGradient,
+    rootGradient,
+    "clinical primary hover gradient must not be a no-op",
+  );
+});
+
+test("badge primitive uses focus-visible keyboard rings", () => {
+  const source = read(BADGE_PATH);
+
+  assert.ok(
+    source.includes(
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2",
+    ),
+  );
+  assert.equal(source.includes(" focus:outline-none"), false);
+  assert.equal(source.includes(" focus:ring-2"), false);
 });
 
 test("globals css scopes text selection prevention to chrome while preserving selectable content", () => {
