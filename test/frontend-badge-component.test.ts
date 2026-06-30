@@ -26,7 +26,9 @@ test("badge component defines stable base classes", () => {
   const source = read(BADGE_PATH);
 
   assert.ok(source.includes("inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold"));
-  assert.ok(source.includes("tracking-[0.01em] transition-colors focus:outline-none focus:ring-2 focus:ring-ring/85 focus:ring-offset-2"));
+  assert.ok(source.includes("tracking-[0.01em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"));
+  assert.equal(source.includes(" focus:outline-none"), false);
+  assert.equal(source.includes(" focus:ring-2"), false);
 });
 
 test("badge component defines expected variants and default", () => {
