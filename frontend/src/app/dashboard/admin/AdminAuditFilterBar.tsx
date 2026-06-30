@@ -1,9 +1,18 @@
 "use client";
 
 import { Filter } from "lucide-react";
+import {
+  dashboardFilterActionClassName,
+  dashboardFilterControlClassName,
+  FilterBar,
+  FilterField,
+  type FilterBarDensity,
+} from "@/components/dashboard/FilterBar";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 export type AdminAuditFilterValues = {
   event: string;
@@ -30,9 +39,6 @@ type FilterFormProps = AdminAuditFilterBarProps & {
   mobile?: boolean;
 };
 
-const controlClassName =
-  "h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15";
-
 function FilterForm({
   values,
   eventOptions,
@@ -40,60 +46,55 @@ function FilterForm({
   hasActiveFilters,
   mobile = false,
 }: FilterFormProps) {
-  const labelClassName = mobile
-    ? "grid gap-1 text-[11px] font-medium text-muted-foreground"
-    : "grid min-w-24 flex-1 gap-1 text-[11px] font-medium text-muted-foreground";
+  const density: FilterBarDensity = mobile ? "comfortable" : "compact";
+  const controlClassName = dashboardFilterControlClassName(density);
 
   return (
-    <form
+    <FilterBar
       action="/dashboard/admin"
       method="get"
       aria-label={mobile ? "Filtros de auditoría mobile" : "Filtros de auditoría"}
+      density={density}
       className={
         mobile
           ? "grid grid-cols-2 gap-2"
-          : "mx-3 hidden flex-wrap items-end gap-2 rounded-lg border border-vetneb-line/70 bg-muted/15 px-3 py-2 md:flex sm:mx-4"
+          : "mx-3 hidden sm:mx-4 md:grid md:grid-cols-4 lg:grid-cols-[minmax(11rem,1.4fr)_minmax(8rem,1fr)_minmax(8rem,1fr)_minmax(8rem,1fr)_minmax(7rem,0.8fr)_minmax(7rem,0.8fr)_auto_auto]"
       }
     >
       <input type="hidden" name="module" value="audit-log" />
 
-      <label className={`${labelClassName} ${mobile ? "col-span-2" : "min-w-44 flex-[1.4]"}`}>
-        Evento
-        <select name="event" defaultValue={values.event} className={controlClassName}>
+      <FilterField label="Evento" density={density} className={mobile ? "col-span-2" : ""}>
+        <Select name="event" defaultValue={values.event} className={controlClassName}>
           <option value="">Todos</option>
           {eventOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </FilterField>
 
-      <label className={`${labelClassName} ${mobile ? "col-span-2" : "min-w-32"}`}>
-        Actor
-        <select name="actorType" defaultValue={values.actorType} className={controlClassName}>
+      <FilterField label="Actor" density={density} className={mobile ? "col-span-2" : ""}>
+        <Select name="actorType" defaultValue={values.actorType} className={controlClassName}>
           <option value="">Todos</option>
           {actorTypeOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </FilterField>
 
-      <label className={`${labelClassName} ${mobile ? "" : "min-w-32"}`}>
-        Desde
-        <input type="date" name="from" defaultValue={values.from} className={controlClassName} />
-      </label>
+      <FilterField label="Desde" density={density}>
+        <Input type="date" name="from" defaultValue={values.from} className={controlClassName} />
+      </FilterField>
 
-      <label className={`${labelClassName} ${mobile ? "" : "min-w-32"}`}>
-        Hasta
-        <input type="date" name="to" defaultValue={values.to} className={controlClassName} />
-      </label>
+      <FilterField label="Hasta" density={density}>
+        <Input type="date" name="to" defaultValue={values.to} className={controlClassName} />
+      </FilterField>
 
-      <label className={labelClassName}>
-        Clínica ID
-        <input
+      <FilterField label="Clínica ID" density={density}>
+        <Input
           type="number"
           name="clinicId"
           min="1"
@@ -101,11 +102,10 @@ function FilterForm({
           defaultValue={values.clinicId}
           className={controlClassName}
         />
-      </label>
+      </FilterField>
 
-      <label className={labelClassName}>
-        Informe ID
-        <input
+      <FilterField label="Informe ID" density={density}>
+        <Input
           type="number"
           name="reportId"
           min="1"
@@ -113,27 +113,24 @@ function FilterForm({
           defaultValue={values.reportId}
           className={controlClassName}
         />
-      </label>
+      </FilterField>
 
-      <button
-        type="submit"
-        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-vetneb-navy px-3 text-xs font-semibold text-white transition hover:bg-vetneb-navy/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
-      >
+      <Button type="submit" size="sm" className={dashboardFilterActionClassName(density)}>
         <Filter className="h-3.5 w-3.5" aria-hidden="true" />
         Aplicar
-      </button>
+      </Button>
 
       {hasActiveFilters ? (
         <PublicRouteControl
           href="/dashboard/admin?module=audit-log"
           replace
           variant="bare"
-          className="inline-flex h-8 items-center justify-center rounded-md px-2 text-xs font-semibold text-vetneb-navy hover:bg-muted"
+          className={`${dashboardFilterActionClassName(density)} inline-flex items-center justify-center rounded-md font-semibold text-vetneb-navy hover:bg-muted`}
         >
           Limpiar
         </PublicRouteControl>
       ) : null}
-    </form>
+    </FilterBar>
   );
 }
 
@@ -149,7 +146,7 @@ export function AdminAuditFilterBar(props: AdminAuditFilterBarProps) {
           title="Filtrar auditoría"
           description="Los filtros se aplican sobre el registro completo."
           trigger={
-            <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-2.5 text-xs">
+            <Button type="button" variant="outline" size="sm" className="h-10 min-h-10 gap-1.5 px-2.5 text-xs">
               <Filter className="h-3.5 w-3.5" aria-hidden="true" />
               Filtros
             </Button>

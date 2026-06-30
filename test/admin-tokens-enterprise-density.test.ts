@@ -48,7 +48,12 @@ test("admin tokens toolbar is mobile-safe and wraps actions", () => {
   assert.ok(source.includes('data-admin-particulars-toolbar="true"'));
   assert.ok(source.includes('data-admin-filter-bar={mobile ? "advanced-mobile" : "advanced"}'));
   assert.ok(source.includes('data-admin-particulars-mobile-list="true"'));
-  assert.ok(source.includes("hidden shrink-0 grid-cols-2 items-end gap-1.5"));
+  assert.ok(source.includes("FilterBar,"));
+  assert.ok(source.includes("FilterField,"));
+  assert.ok(source.includes('const density: FilterBarDensity = mobile ? "comfortable" : "compact";'));
+  assert.ok(source.includes("hidden shrink-0 md:grid md:grid-cols-4"));
+  assert.ok(source.includes("dashboardFilterControlClassName(density)"));
+  assert.ok(source.includes("dashboardFilterActionClassName(density)"));
   assert.ok(source.includes("Filtros avanzados de tokens particulares mobile"));
   assert.ok(source.includes("Todos los tokens"));
   assert.ok(source.includes("lg:grid-cols-[1.05fr_1.25fr_0.8fr_1fr_0.8fr_0.85fr_0.85fr_auto_auto]"));

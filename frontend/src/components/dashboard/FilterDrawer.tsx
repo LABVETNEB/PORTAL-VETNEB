@@ -104,7 +104,7 @@ export function FilterDrawer({
         aria-controls={panelId}
         aria-label={`${triggerLabel}. ${activeCountLabel}`}
         onClick={() => setOpen(true)}
-        className="w-full focus-visible:ring-2 focus-visible:ring-ring/85 sm:w-auto"
+        className="h-10 min-h-10 w-full focus-visible:ring-2 focus-visible:ring-ring/85 sm:w-auto"
       >
         <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
         <span>{triggerLabel}</span>
@@ -154,7 +154,7 @@ export function FilterDrawer({
                 size="sm"
                 aria-label="Cerrar panel de filtros"
                 onClick={closePanel}
-                className="shrink-0 focus-visible:ring-2 focus-visible:ring-ring/85"
+                className="h-10 min-h-10 shrink-0 focus-visible:ring-2 focus-visible:ring-ring/85"
               >
                 <X className="h-4 w-4" aria-hidden="true" />
                 <span>Cerrar</span>

@@ -3,12 +3,20 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { Filter } from "lucide-react";
+import {
+  dashboardFilterActionClassName,
+  dashboardFilterControlClassName,
+  FilterBar,
+  FilterField,
+  type FilterBarDensity,
+} from "@/components/dashboard/FilterBar";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -876,13 +884,18 @@ export function AdminParticularTokensCard() {
   }
 
   function renderAdvancedFilterForm(mobile = false) {
+    const density: FilterBarDensity = mobile ? "comfortable" : "compact";
+    const controlClassName = dashboardFilterControlClassName(density);
+    const buttonClassName = dashboardFilterActionClassName(density);
+
     return (
-      <form
+      <FilterBar
         data-admin-filter-bar={mobile ? "advanced-mobile" : "advanced"}
+        density={density}
         className={
           mobile
-            ? "grid grid-cols-2 items-end gap-2"
-            : "hidden shrink-0 grid-cols-2 items-end gap-1.5 rounded-lg border border-vetneb-line/70 bg-muted/15 px-2 py-1 md:grid md:grid-cols-4 lg:grid-cols-[1.05fr_1.25fr_0.8fr_1fr_0.8fr_0.85fr_0.85fr_auto_auto] lg:px-2"
+            ? "grid grid-cols-2 gap-2"
+            : "hidden shrink-0 md:grid md:grid-cols-4 lg:grid-cols-[1.05fr_1.25fr_0.8fr_1fr_0.8fr_0.85fr_0.85fr_auto_auto] lg:px-2"
         }
         onSubmit={applyAdvancedFilters}
         aria-label={
@@ -891,50 +904,45 @@ export function AdminParticularTokensCard() {
             : "Filtros avanzados de tokens particulares"
         }
       >
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Token
+        <FilterField label="Token" density={density}>
           <Input
-            className="h-8 text-xs"
+            className={controlClassName}
             type="text"
             placeholder="Últimos 4"
             value={filterDraft.token}
             onChange={(event) => updateFilterDraft("token", event.target.value)}
           />
-        </label>
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Clínica
+        </FilterField>
+        <FilterField label="Clínica" density={density}>
           <Input
-            className="h-8 text-xs"
+            className={controlClassName}
             type="text"
             placeholder="Nombre o ID"
             value={filterDraft.clinic}
             onChange={(event) => updateFilterDraft("clinic", event.target.value)}
           />
-        </label>
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Informe
+        </FilterField>
+        <FilterField label="Informe" density={density}>
           <Input
-            className="h-8 text-xs"
+            className={controlClassName}
             type="text"
             placeholder="#ID"
             value={filterDraft.reportId}
             onChange={(event) => updateFilterDraft("reportId", event.target.value)}
           />
-        </label>
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Paciente / tutor
+        </FilterField>
+        <FilterField label="Paciente / tutor" density={density}>
           <Input
-            className="h-8 text-xs"
+            className={controlClassName}
             type="text"
             placeholder="Texto visible"
             value={filterDraft.patient}
             onChange={(event) => updateFilterDraft("patient", event.target.value)}
           />
-        </label>
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Estado
-          <select
-            className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15"
+        </FilterField>
+        <FilterField label="Estado" density={density}>
+          <Select
+            className={controlClassName}
             value={filterDraft.status}
             onChange={(event) =>
               updateFilterDraft(
@@ -946,33 +954,31 @@ export function AdminParticularTokensCard() {
             <option value="">Todos</option>
             <option value="active">Activos</option>
             <option value="inactive">Inactivos</option>
-          </select>
-        </label>
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Desde
+          </Select>
+        </FilterField>
+        <FilterField label="Desde" density={density}>
           <Input
-            className="h-8 text-xs"
+            className={controlClassName}
             type="date"
             value={filterDraft.from}
             onChange={(event) => updateFilterDraft("from", event.target.value)}
           />
-        </label>
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Hasta
+        </FilterField>
+        <FilterField label="Hasta" density={density}>
           <Input
-            className="h-8 text-xs"
+            className={controlClassName}
             type="date"
             value={filterDraft.to}
             onChange={(event) => updateFilterDraft("to", event.target.value)}
           />
-        </label>
-        <Button type="submit" size="sm" className="h-8 gap-1.5 px-2.5 text-xs">
+        </FilterField>
+        <Button type="submit" size="sm" className={buttonClassName}>
           <Filter className="h-3.5 w-3.5" aria-hidden="true" />
           Aplicar
         </Button>
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           {hasActiveFilters ? (
-            <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={clearAdvancedFilters}>
+            <Button type="button" variant="ghost" size="sm" className={buttonClassName} onClick={clearAdvancedFilters}>
               Limpiar
             </Button>
           ) : null}
@@ -980,7 +986,7 @@ export function AdminParticularTokensCard() {
             type="button"
             variant="outline"
             size="sm"
-            className="h-8 px-2 text-xs"
+            className={buttonClassName}
             onClick={() => {
               void loadTokens();
               if (isMobileViewport) void loadMobileTokens();
@@ -990,7 +996,7 @@ export function AdminParticularTokensCard() {
             {isLoadingTokens ? "Actualizando…" : "Actualizar"}
           </Button>
         </div>
-      </form>
+      </FilterBar>
     );
   }
 
@@ -1309,14 +1315,14 @@ export function AdminParticularTokensCard() {
             <label className="min-w-0 flex-1">
               <span className="sr-only">Nombre de clínica</span>
               <Input
-                className="h-8 min-w-0 text-xs"
+                className="h-10 min-w-0 text-xs"
                 type="text"
                 placeholder="Clínica"
                 value={filterDraft.clinic}
                 onChange={(event) => updateFilterDraft("clinic", event.target.value)}
               />
             </label>
-            <Button type="submit" variant="outline" size="sm" className="h-8 px-2 text-xs">
+            <Button type="submit" variant="outline" size="sm" className="h-10 min-h-10 px-2 text-xs">
               Filtrar
             </Button>
             {hasActiveFilters ? (
@@ -1324,7 +1330,7 @@ export function AdminParticularTokensCard() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 text-xs"
+                className="h-10 min-h-10 px-2 text-xs"
                 onClick={clearAdvancedFilters}
               >
                 Limpiar
@@ -1334,7 +1340,7 @@ export function AdminParticularTokensCard() {
               type="button"
               variant="outline"
               size="sm"
-              className="h-[34px] px-2 text-xs"
+              className="h-10 min-h-10 px-2 text-xs"
               onClick={() => {
                 void loadTokens();
                 if (isMobileViewport) void loadMobileTokens();

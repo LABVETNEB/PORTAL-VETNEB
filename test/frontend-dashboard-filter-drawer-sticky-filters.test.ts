@@ -9,8 +9,9 @@ import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-acces
 const FILTER_DRAWER_PATH = "frontend/src/components/dashboard/FilterDrawer.tsx";
 const STICKY_FILTER_BAR_PATH =
   "frontend/src/components/dashboard/StickyFilterBar.tsx";
+const FILTER_BAR_PATH = "frontend/src/components/dashboard/FilterBar.tsx";
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
-const DOC_PATH = "docs/pr-history/pr-6-dashboard-filter-drawer-sticky-filters.md";
+const DOC_PATH = "docs/audit/pr-vis-6-implementation.md";
 const PUBLIC_SEO_SCOPE_EXCEPTION = "frontend/src/lib/seo.ts";
 
 function read(relativePath: string): string {
@@ -78,6 +79,8 @@ test("FilterDrawer exposes reusable client drawer contract without forbidden sur
   assert.ok(source.includes("<span>Cerrar</span>"));
   assert.ok(source.includes("footer ?"));
   assert.ok(source.includes("focus-visible:ring-2"));
+  assert.ok(source.includes("h-10 min-h-10 w-full"));
+  assert.ok(source.includes("h-10 min-h-10 shrink-0"));
   assert.ok(source.includes("h-dvh w-full max-w-md"));
   assertNoForbiddenSurfaceImports(source, "FilterDrawer");
   assert.equal(source.includes('from "next/link"'), false);
@@ -115,6 +118,7 @@ test("StickyFilterBar renders sticky active-filter summary and action slots", ()
   assert.ok(source.includes("{drawer}"));
   assert.ok(source.includes("{actions}"));
   assert.ok(source.includes("focus-visible:ring-2"));
+  assert.ok(source.includes("[&_button]:min-h-10"));
   assertNoForbiddenSurfaceImports(source, "StickyFilterBar");
   assert.equal(source.includes('"use client"'), false);
   assert.equal(source.includes('from "next/link"'), false);
@@ -132,13 +136,15 @@ test("dashboard informes uses compact inline filters without drawer sticky overl
   assert.equal(source.includes("<StickyFilterBar"), false);
   assert.equal(source.includes("<FilterDrawer"), false);
   assert.equal(source.includes('triggerLabel="Filtrar informes"'), false);
-  assert.ok(source.includes('<form'));
+  assert.ok(source.includes("<FilterBar"));
+  assert.ok(source.includes("<FilterField"));
+  assert.ok(source.includes("dashboardFilterControlClassName()"));
   assert.ok(source.includes('method="get"'));
   assert.ok(source.includes('name="query"'));
   assert.ok(source.includes("defaultValue={query}"));
   assert.ok(source.includes('name="status"'));
   assert.ok(source.includes("defaultValue={status}"));
-  assert.ok(source.includes("<Button type=\"submit\" size=\"sm\">"));
+  assert.ok(source.includes('<Button type="submit" size="sm" className={dashboardFilterActionClassName()}>'));
   assert.ok(source.includes("Filtrar"));
   assert.ok(source.includes('href="/dashboard/informes"'));
   assert.ok(source.includes("Limpiar"));
@@ -156,6 +162,24 @@ test("dashboard informes uses compact inline filters without drawer sticky overl
   assert.equal(source.includes('from "next/link"'), false);
   assert.equal(source.includes("<Link"), false);
   assert.equal(source.includes("<a"), false);
+});
+
+test("PR-VIS-6 FilterBar exposes shared dashboard filter field contract", () => {
+  const source = read(FILTER_BAR_PATH);
+
+  assert.ok(source.includes('export type FilterBarDensity = "comfortable" | "compact";'));
+  assert.ok(source.includes("export type FilterBarProps = FormHTMLAttributes<HTMLFormElement>"));
+  assert.ok(source.includes("export type FilterFieldProps = LabelHTMLAttributes<HTMLLabelElement>"));
+  assert.ok(source.includes('data-dashboard-filter-bar="true"'));
+  assert.ok(source.includes("data-dashboard-filter-density={density}"));
+  assert.ok(source.includes("dashboardFilterControlClassName("));
+  assert.ok(source.includes('density === "compact" ? "h-10 md:h-8" : "h-10"'));
+  assert.ok(source.includes("dashboardFilterActionClassName("));
+  assert.ok(source.includes("h-10 min-h-10"));
+  assert.ok(source.includes("FilterField"));
+  assert.ok(source.includes("labelHidden"));
+  assert.ok(source.includes('from "@/components/ui/label";'));
+  assertNoForbiddenSurfaceImports(source, "FilterBar");
 });
 
 test("PR-6 scope leaves backend auth API middleware SEO and dependencies untouched", () => {
@@ -205,18 +229,18 @@ test("PR-6 scope leaves backend auth API middleware SEO and dependencies untouch
   }
 });
 
-test("PR-6 documentation records decisions validations and residual risk", () => {
+test("PR-VIS-6 documentation records decisions validations and residual risk", () => {
   const source = read(DOC_PATH);
 
-  assert.ok(source.includes("# PR-6"));
-  assert.ok(source.includes("## Resumen"));
+  assert.ok(source.includes("# PR-VIS-6 implementation report"));
+  assert.ok(source.includes("## Scope exacto detectado"));
+  assert.ok(source.includes("## Criterio de razonamiento usado"));
   assert.ok(source.includes("## Archivos modificados"));
-  assert.ok(source.includes("## Componentes creados"));
-  assert.ok(source.includes("## Decisiones tecnicas"));
-  assert.ok(source.includes("## Filtros y query params"));
-  assert.ok(source.includes("## Validaciones"));
+  assert.ok(source.includes("## Tokens/contratos visuales usados"));
+  assert.ok(source.includes("## Componentes/primitivas usadas"));
+  assert.ok(source.includes("## Validaciones ejecutadas"));
   assert.ok(source.includes("## Riesgos residuales"));
-  assert.ok(source.includes("## Confirmacion de scope"));
+  assert.ok(source.includes("FilterBar"));
   assert.ok(source.includes("FilterDrawer"));
   assert.ok(source.includes("StickyFilterBar"));
   assert.ok(source.includes("/dashboard/informes"));

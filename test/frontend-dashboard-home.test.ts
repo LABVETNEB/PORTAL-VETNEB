@@ -182,7 +182,7 @@ test("clinic informes summary exposes advanced filters over visible report field
   const filterForm = sectionBetween(
     source,
     "data-clinic-report-filter-bar",
-    "</form>",
+    "</FilterBar>",
   );
 
   assert.ok(source.includes("type ClinicReportsFilterState = {"));
@@ -198,6 +198,10 @@ test("clinic informes summary exposes advanced filters over visible report field
   assert.ok(source.includes("const filteredReports = recentReports.filter((report) =>"));
   assert.ok(source.includes("usePagedRows(filteredReports, REPORTS_PAGE_SIZE)"));
   assert.ok(source.includes('data-clinic-report-filter-bar={mobile ? "advanced-mobile" : "advanced"}'));
+  assert.ok(source.includes("FilterBar,"));
+  assert.ok(source.includes("FilterField,"));
+  assert.ok(source.includes("dashboardFilterControlClassName(density)"));
+  assert.ok(source.includes("dashboardFilterActionClassName(density)"));
   assert.ok(source.includes('title="Filtrar informes"'));
   assert.ok(source.includes("Sin informes para los filtros aplicados"));
 
