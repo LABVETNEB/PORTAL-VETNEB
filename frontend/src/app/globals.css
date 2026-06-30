@@ -68,11 +68,56 @@
 @layer base {
   * {
     @apply border-border;
-    -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="tablist"],
+  nav,
+  .dashboard-nav-interactive,
+  .dashboard-btn-interactive,
+  .dashboard-module-tab,
+  .dashboard-compact-pager,
+  .public-cta-primary,
+  .public-cta-secondary,
+  .public-cta-outline,
+  .public-cta-on-hero,
+  .public-hero-action-tile,
+  [data-dashboard-topbar-polish="true"],
+  [data-dashboard-horizontal-nav-shell="true"],
+  [data-dashboard-module-back-button="true"],
+  [data-admin-mobile-bottom-nav="true"],
+  [data-admin-mobile-kebab-menu="true"],
+  [data-admin-mobile-module-menu="true"],
+  [data-admin-mobile-hub-pager="true"],
+  [data-clinic-mobile-bottom-nav="true"] {
+    -webkit-touch-callout: none;
     -webkit-user-select: none;
     -ms-user-select: none;
     user-select: none;
+  }
+
+  main,
+  article,
+  table,
+  th,
+  td,
+  code,
+  pre,
+  .public-copy,
+  .public-copy-tight,
+  .public-copy-card,
+  .dashboard-surface,
+  .dashboard-list-row,
+  .surface-soft,
+  .surface-empty,
+  .surface-note-info {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
   }
 
   input,

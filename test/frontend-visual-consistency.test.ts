@@ -128,16 +128,24 @@ test("globals css keeps visual tokens and shared frontend surface utilities", ()
   );
 });
 
-test("globals css disables text selection and native callouts globally while preserving editable controls", () => {
+test("globals css scopes text selection prevention to chrome while preserving selectable content", () => {
   const source = read(GLOBALS_CSS_PATH);
 
   assert.match(
     source,
-    /\*\s*\{[\s\S]*-webkit-touch-callout:\s*none;[\s\S]*-webkit-tap-highlight-color:\s*transparent;[\s\S]*\}/,
+    /\*\s*\{[\s\S]*@apply\s+border-border;[\s\S]*-webkit-tap-highlight-color:\s*transparent;[\s\S]*\}/,
+  );
+  assert.doesNotMatch(
+    source,
+    /\*\s*\{[^}]*-webkit-user-select:\s*none;[^}]*-ms-user-select:\s*none;[^}]*user-select:\s*none;[^}]*\}/,
   );
   assert.match(
     source,
-    /\*\s*\{[\s\S]*-webkit-user-select:\s*none;[\s\S]*-ms-user-select:\s*none;[\s\S]*user-select:\s*none;[\s\S]*\}/,
+    /button,\s*\n\s*\[role="button"\],[\s\S]*nav,[\s\S]*\.dashboard-nav-interactive,[\s\S]*\.public-cta-primary,[\s\S]*\[data-dashboard-topbar-polish="true"\][\s\S]*\{[\s\S]*-webkit-touch-callout:\s*none;[\s\S]*-webkit-user-select:\s*none;[\s\S]*-ms-user-select:\s*none;[\s\S]*user-select:\s*none;[\s\S]*\}/,
+  );
+  assert.match(
+    source,
+    /main,\s*\n\s*article,[\s\S]*table,[\s\S]*\.public-copy,[\s\S]*\.dashboard-surface,[\s\S]*\.surface-empty[\s\S]*\{[\s\S]*-webkit-touch-callout:\s*default;[\s\S]*-webkit-user-select:\s*text;[\s\S]*-ms-user-select:\s*text;[\s\S]*user-select:\s*text;[\s\S]*\}/,
   );
   assert.match(
     source,
