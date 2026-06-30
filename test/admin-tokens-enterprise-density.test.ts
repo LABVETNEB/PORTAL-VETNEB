@@ -46,9 +46,13 @@ test("admin tokens toolbar is mobile-safe and wraps actions", () => {
   const source = read(TOKENS_CARD_PATH);
 
   assert.ok(source.includes('data-admin-particulars-toolbar="true"'));
+  assert.ok(source.includes('data-admin-filter-bar={mobile ? "advanced-mobile" : "advanced"}'));
   assert.ok(source.includes('data-admin-particulars-mobile-list="true"'));
-  assert.ok(source.includes("flex min-w-0 flex-wrap items-center gap-1.5"));
-  assert.ok(source.includes('className="h-8 w-28 text-xs md:w-36"'));
+  assert.ok(source.includes("hidden shrink-0 grid-cols-2 items-end gap-1.5"));
+  assert.ok(source.includes("Filtros avanzados de tokens particulares mobile"));
+  assert.ok(source.includes("Todos los tokens"));
+  assert.ok(source.includes("lg:grid-cols-[1.05fr_1.25fr_0.8fr_1fr_0.8fr_0.85fr_0.85fr_auto_auto]"));
+  assert.ok(source.includes('"Filtros avanzados de tokens particulares"'));
 });
 
 test("admin tokens replaces row cards and inline detail with a dense table and dialogs", () => {
@@ -56,7 +60,7 @@ test("admin tokens replaces row cards and inline detail with a dense table and d
 
   assert.ok(source.includes('aria-label="Tabla de tokens particulares"'));
   assert.ok(source.includes("<Table"));
-  assert.ok(source.includes("[&_th]:h-8"));
+  assert.ok(source.includes("[&_th]:h-7"));
   assert.ok(source.includes('className="py-0.5"'));
   assert.ok(source.includes('className="h-7 px-2 text-xs"'));
   assert.ok(source.includes("<ModuleDialog"));
