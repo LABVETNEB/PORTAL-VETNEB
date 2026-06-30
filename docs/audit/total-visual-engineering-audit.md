@@ -1,17 +1,23 @@
 # Total Visual Engineering Audit
 
 > Auditoría visual total de nivel ingeniería senior/extremo sobre Portal VETNEB.
-> Documento **exclusivamente diagnóstico**: no implementa cambios visuales, no toca
+> Documento **diagnóstico + rector operacional** (no implementa cambios): no toca
 > código productivo, backend, dependencias, lockfiles, CI ni tests. No genera commit/push/PR.
 >
-> - **Fecha**: 2026-06-30
-> - **Rama base**: `main`
-> - **HEAD**: `f235b61 feat(clinic): add informes and tokens advanced filters (#1191)`
-> - **Working tree**: limpio · **PRs abiertos**: 0
-> - **Skill aplicada**: `frontend-design` (plugin oficial Anthropic) como rúbrica de calidad visual,
->   complementada con metodología de auditoría de ingeniería (WCAG 2.2, Core Web Vitals, matriz responsive).
-> - **Estándar relacionado vigente**: este documento NO reemplaza las 4 auditorías Wave 0 del
->   `docs/audit/README.md`; las **complementa** con una capa estrictamente visual/frontend.
+> - **Fecha (diagnóstico)**: 2026-06-30
+> - **Rama base**: `main` · **HEAD del diagnóstico**: `f235b61 feat(clinic): add informes and tokens advanced filters (#1191)`.
+> - **Publicado como**: PR #1192 (`8f6b1a2 docs(audit): add total visual engineering audit`).
+> - **Upgrade operativo (este cambio)**: rama `docs/upgrade-total-visual-engineering-audit` sobre `main` `8e9fe3e (#1193)`.
+>   Eleva el documento a estándar **rector / operacional** (tablero, modelo de evidencia, plan de PRs ejecutable, matrices de
+>   autorización/trazabilidad/riesgo, gates, contrato de agentes, prompts y política de mantenimiento) **sin re-derivar ni
+>   cambiar hallazgos**. Conteo estable: **2 P0 · 8 P1 · 10 P2 · 6 P3 = 26**.
+> - **Working tree**: limpio salvo **este propio documento** (modificado para el upgrade operativo) · **PRs abiertos**: 0.
+> - **Skills aplicadas**: 8/9 disponibles con nombre exacto (`vetneb-*`; detalle y aporte en §3). `frontend-design` (plugin
+>   Anthropic) **no está instalada en esta sesión** → se aplica su rúbrica de calidad visual ya **codificada en el diagnóstico
+>   original** (que sí leyó su `SKILL.md`), complementada con WCAG 2.2, Core Web Vitals y matriz responsive. Sustitución documentada en §3.
+> - **Documentos hermanos vigentes**: `total-software-engineering-audit.md` (#1193, ingeniería de software dura) —
+>   **complementario; no se contradice ni se re-deriva** (lo visual/CSS es soberanía de este documento). Este documento tampoco
+>   reemplaza las 4 auditorías Wave 0 del `docs/audit/README.md`; aporta la **capa estrictamente visual/frontend**.
 
 ---
 
@@ -57,6 +63,53 @@ infraestructura que garantice que lo visual no se rompe ni se degrada**. Hoy el 
 de inspección manual en un solo navegador. Para alcanzar el estándar extremo hay que (a) tokenizar y
 documentar el sistema, (b) unificar componentes fragmentados, y (c) blindar el pipeline con regresión
 visual + cross-browser + a11y automatizado. Ninguno requiere rediseñar; todos son PRs chicos y seguros.
+
+| | |
+| --- | --- |
+| **Hallazgos** | **2 P0 · 8 P1 · 10 P2 · 6 P3 = 26 total** |
+| **Baseline** | Verde (las 7 validaciones obligatorias pasan; ver salida final) |
+| **Veredicto** | Premium *profesional* hoy; "excelencia visual extrema" requiere blindaje de pipeline (regresión + cross-browser + a11y) |
+
+### 1.1 Executive Value Add — Qué significa esto para VETNEB
+
+**Lectura ejecutiva en una frase:** el producto **se ve bien y es coherente hoy**; el trabajo pendiente es **tokenizar,
+unificar y blindar**, **no rediseñar**. Ningún hallazgo rompe la apariencia en runtime (no verificable estáticamente); los dos
+P0 son **de proceso/infraestructura**.
+
+- **Riesgo de marca / producto.** Divergencia visual (badge off-token, dual-theme muerto, filtros bespoke, gradiente
+  hardcodeado) **consolida drift de marca**; público tutor/staff usan **iPhone** y nada corre en WebKit/iOS (VIS-P0-001) → brecha de confianza.
+- **Riesgo técnico.** `globals.css` 3.262 líneas + cards 1.9k LOC elevan el costo de cambio; **sin regresión visual (VIS-P0-002) no se sabe qué se rompe**.
+- **Riesgo de accesibilidad.** Contraste tinte/tinte sin medir (axe ausente), `user-select:none` global y touch 32px: invariantes productivos sin red automatizada.
+- **Qué se puede resolver sin autorización (frontend/docs en scope):** lote 0 — PR-VIS-0/1/2/3/4/5 (§16.2).
+- **Qué requiere autorización explícita (⚠) / qué NO hacer todavía:** ver Authorization Matrix (§29) y Do Not Do (§38) —
+  en síntesis: deps/CI/catálogo y no rediseñar ni activar regresión+cross-browser+Storybook en un solo PR.
+
+**Conclusión ejecutiva (4 certezas):** (1) base visual **sólida y por encima del promedio**; (2) **sin P0 de apariencia rota**
+detectable estáticamente; (3) el mayor riesgo es la **falta de garantías de ingeniería visual** (regresión + cross-browser +
+a11y), no la estética; (4) ruta correcta: **incremental, por PRs chicos, reversibles y trazables**.
+
+### 1.2 Executive Control Panel
+
+Decisión en 60 segundos: estado por dimensión, riesgo vivo, siguiente acción concreta y si hace falta autorización.
+Estado: ✅ ok · ⚠️ gap accionable · ⛔ gap con autorización fuerte. (Detalle: §6–§9, §24, §29.)
+
+| Dimensión | Estado | Riesgo actual | Siguiente acción (PR) | Autorización |
+| --- | --- | --- | --- | --- |
+| Design system governance | ⚠️ | DS implícito; badge off-token, dark dual, sin token de elevación | PR-VIS-1 → PR-VIS-2 → PR-VIS-3 | frontend (no) |
+| Visual regression | ⛔ | 0 baselines → drift silencioso en `globals.css` 3.262 LOC | PR-VIS-9 | ⚠ CI (baselines) |
+| Cross-browser rendering | ⛔ | Chromium-only; WebKit/iOS/Firefox sin verificar | PR-VIS-10 | ⚠ CI (proyectos) |
+| Responsive / no-scroll | ✅/⚠️ | Contrato fuerte y testeado; extremos 320/1536/1920 sin cubrir | PR-VIS-9 (viewports) | frontend/⚠ CI |
+| Accessibility / WCAG visual | ⚠️ | Contraste sin axe; `user-select` global; touch 32px | PR-VIS-4 → PR-VIS-8 | frontend → ⚠ dep |
+| Frontend styling architecture | ⚠️ | `globals.css` monolítico; cards 1.9k LOC; duplicación admin/clínica | PR-VIS-0 (freeze) → PR-VIS-7 | docs → frontend |
+| Dashboard / data visualization | ⚠️ | Filtros y badges no unificados; `chart-*` sin viz real | PR-VIS-6 | frontend |
+| Typography / readability | ✅/⚠️ | Inter genérica; escala tipográfica ad-hoc | PR futuro (escala/marca) | frontend/marca |
+| Color / contrast | ⚠️ | Off-token `violet/slate`; contraste no medido | PR-VIS-2 → PR-VIS-8 | frontend → ⚠ dep |
+| Motion / microinteractions | ✅/⚠️ | reduced-motion cubierto; perspective imperceptible | PR-VIS-11 | frontend |
+| Core Web Vitals / visual perf | ⚠️ | Sin medición CWV; cards client pesados | PR-VIS-11 | ⚠ tooling/CI |
+| Production visual QA | ⚠️ | Sin QA visual autenticado ni matriz de estados extremos | Fase 5 / PR-VIS-9 | frontend/⚠ |
+
+**Acción inmediata sin autorización:** **PR-VIS-0** (este documento). **Mayor valor/menor riesgo después:**
+PR-VIS-1 → PR-VIS-2 → PR-VIS-4 → PR-VIS-3 → PR-VIS-5 (lote 0, §16.2).
 
 ---
 
@@ -110,15 +163,30 @@ visual + cross-browser + a11y automatizado. Ninguno requiere rediseñar; todos s
 
 ## 3. Methodology
 
-- **Skill usada**: `frontend-design` (Anthropic plugin oficial; `SKILL.md` leído completo).
-  Es una skill de **creación** de interfaces premium (tipografía distintiva, color cohesivo con CSS
-  vars, motion de alto impacto, composición espacial, anti-"AI slop"). Se aplica como **rúbrica de
-  calidad** ("¿a qué se parece la excelencia visual?") para juzgar lo existente. No existe en el entorno
-  una skill `frontend-design-review` ni una skill de review/auditoría visual con metodología propia, por
-  lo que la skill de creación se complementa con:
-  - **WCAG 2.2** (Perceivable/Operable/Understandable/Robust) para accesibilidad.
-  - **Core Web Vitals** (LCP/CLS/INP) para performance visual.
-  - **Matriz responsive** por breakpoints y heurísticas de Nielsen para UX/IA.
+### 3.0 Skills leídas y aplicadas (upgrade operativo 2026-06-30)
+
+El upgrade se realizó leyendo y aplicando las skills VETNEB solicitadas. **8/9 existen con el nombre exacto** (`anthropic-skills:vetneb-*`); `frontend-design` **no está instalada en esta sesión** → ver sustitución abajo.
+
+| Skill | Aporte a este upgrade | Estado |
+| --- | --- | --- |
+| `frontend-design` | Rúbrica de excelencia visual (jerarquía, color, tipografía, motion, anti-AI-slop) | **No instalada** → sustituida (ver nota) |
+| `vetneb-staff-senior-full-stack-engineer` | Criterio Staff, PRs chicos, separación admin/clínica/particular/público, "no simular éxito" | Aplicada |
+| `vetneb-production-web-optimization-engineer` | CWV, perf visual, layout shift, bundle, anti-patrones de producción, P0–P3 | Aplicada |
+| `vetneb-web-end-to-end-global` | E2E, regresión visual, matriz responsive, no-scroll, definición de "operativo" | Aplicada |
+| `vetneb-lanzamiento-mantenimiento` | Readiness, release gates, rollback, mantenimiento, post-merge | Aplicada |
+| `vetneb-pwa-end-to-end` | Mobile/PWA, viewport/safe-area iOS, política de cache (no privados) | Aplicada |
+| `vetneb-briefing-planificacion-diseno-desarrollo-pruebas` | Estructura de briefs/PR plan, acceptance criteria, anti-deriva, trazabilidad | Aplicada |
+| `vetneb-protocolos-comunicacion` | Formato rector, gobernanza documental, comunicación técnica | Aplicada |
+| `vetneb-security-production-invariants` | Accesibilidad como invariante productivo; CSP/headers cuando impactan rendering | Aplicada |
+
+**Sustitución documentada (`frontend-design`):** la skill de creación de UI premium **no figura en la lista de skills de esta
+sesión**. Su rúbrica de calidad visual (tipografía distintiva, color cohesivo, motion, composición, anti-"AI slop") **ya está
+codificada en el diagnóstico original** (§1–§18), que sí leyó su `SKILL.md`. Como este upgrade es **operativo/docs-only** (no
+re-juzga la estética ni cambia hallazgos), la sustitución no degrada el resultado: el criterio visual se conserva del
+diagnóstico y se complementa con WCAG 2.2 (a11y), Core Web Vitals (LCP/CLS/INP) y matriz responsive/heurísticas de Nielsen. No
+existe en el entorno una skill de review/auditoría visual con metodología propia; los criterios Staff/perf/E2E de las `vetneb-*`
+cubren la dimensión de ingeniería visual.
+
 - **Herramientas**: lectura de código (Read/Grep/Glob), análisis estático de patrones (conteo de
   hardcodes, divergencias de clase, LOC por archivo), revisión de specs Playwright y documentación.
 - **Criterios de severidad**: P0 (bloqueante de uso/acceso/navegación/confianza/CI) · P1 (alto impacto
@@ -565,40 +633,118 @@ estables, un solo entorno de baseline.
 
 ## 16. Recommended PR Plan
 
-> Orden por dependencia y riesgo. Ninguno es un mega-PR. Cada uno mergeable y reversible.
+> Orden por dependencia/riesgo; ninguno es mega-PR; cada uno mergeable y reversible. Scope/tests/acceptance/rollback por PR en **§16.1** (este listado = índice de títulos).
 
-1. **PR-VIS-0 · docs(audit): total visual engineering audit** — *este documento*.
-   - Scope: sólo `docs/audit/total-visual-engineering-audit.md` (+ línea en `docs/audit/README.md` si se
-     decide indexar). Tests: ninguno nuevo. Riesgo: nulo. Validación: `git diff --check`.
-2. **PR-VIS-1 · chore(theme): remove dead `.dark`/`darkMode:class`** (VIS-P1-003 parte 1).
-   - Archivos: `tailwind.config.ts`, `globals.css` (bloque `.dark`). Tests: `theme-mode.spec`. Riesgo:
-     bajo (verificar 0 `dark:`). Validación: typecheck+lint+build+e2e theme.
+1. **PR-VIS-0 · docs(audit): cerrar esta auditoría rectora** — *este documento* (+ índice en `docs/audit/README.md` si se decide).
+2. **PR-VIS-1 · chore(theme): remove dead `.dark`/`darkMode:class`** (VIS-P1-003 f1).
 3. **PR-VIS-2 · fix(admin): tokenize report status badge** (VIS-P1-004).
-   - Archivos: `AdminReportStatusBadge.tsx` (→ tokens marca o reuso de `StatusBadge`). Tests: snapshot/
-     visual del módulo admin-reports. Riesgo: bajo.
 4. **PR-VIS-3 · feat(ds): elevation + gradient + focus-ring tokens** (VIS-P2-001/002, VIS-P3-001/002).
-   - Archivos: `globals.css` (definición de tokens), corrección hover no-op, focus de `badge`. Reemplazo
-     gradual luego. Riesgo: bajo-medio.
 5. **PR-VIS-4 · a11y(global): scope `user-select` to app chrome** (VIS-P1-008).
-   - Archivos: `globals.css` base. Tests: manual + regla. Riesgo: bajo.
-6. **PR-VIS-5 · feat(ui): `select`/`textarea`/`label` primitives** (VIS-P1-006 parte 1).
-   - Archivos: `components/ui/*` nuevos. Sin migrar call-sites aún. Riesgo: bajo.
-7. **PR-VIS-6 · refactor(dashboard): unify FilterBar/FilterField** (VIS-P1-005).
-   - Migrar `AdminAuditFilterBar` + selects inline al patrón único + `<Button>`. Riesgo: medio (por módulo,
-     uno por PR si hace falta).
+6. **PR-VIS-5 · feat(ui): `select`/`textarea`/`label` primitives** (VIS-P1-006 f1).
+7. **PR-VIS-6 · refactor(dashboard): unify FilterBar/FilterField** (VIS-P1-005, VIS-P2-003).
 8. **PR-VIS-7 · refactor(dashboard): extract shared token-card primitives** (VIS-P1-002).
-   - Extraer lógica común admin/clínica. Dividir en sub-PRs por primitiva. Riesgo: medio (cubrir con tests).
-9. **PR-VIS-8 · test(e2e): axe-core a11y on key routes** (VIS-P1-007).
-   - Añadir `@axe-core/playwright` (dependencia dev — requiere autorización explícita). Riesgo: bajo.
-10. **PR-VIS-9 · test(e2e): visual regression baselines** (VIS-P0-002, §14).
-    - `toHaveScreenshot` + job CI. Riesgo: medio (flake) → empezar por públicas.
-11. **PR-VIS-10 · test(e2e): webkit + firefox projects** (VIS-P0-001).
-    - Proyectos Playwright + subset crítico. Riesgo: bajo-medio.
-12. **PR-VIS-11 · perf: Lighthouse/CWV baseline + perspective decision** (VIS-P2-009/007).
-    - Medición + decisión sobre perspective scroll. Riesgo: bajo.
+9. **PR-VIS-8 · test(e2e): axe-core a11y on key routes** (VIS-P1-007) — ⚠ dep.
+10. **PR-VIS-9 · test(e2e): visual regression baselines** (VIS-P0-002, §14) — ⚠ CI.
+11. **PR-VIS-10 · test(e2e): webkit + firefox projects** (VIS-P0-001) — ⚠ CI.
+12. **PR-VIS-11 · perf: Lighthouse/CWV baseline + perspective decision** (VIS-P2-009/007) — ⚠ tooling.
 
-> Nota: PRs 8, 9, 10 introducen dependencias dev / cambios de CI → requieren autorización explícita por
-> el contrato de scope (no tocar deps/lockfile/workflows sin acuerdo). Pueden quedar como propuesta.
+> Nota: PR-VIS-8/9/10/11 introducen deps dev / cambios de CI → requieren autorización explícita (no tocar deps/lockfile/workflows sin acuerdo); pueden quedar como propuesta.
+
+### 16.1 PR Execution Matrix (scope · autorización · tests · acceptance · rollback)
+
+| PR | Hallazgos | Scope | Autorización | Tests obligatorios | Acceptance Criteria | Rollback |
+| --- | --- | --- | --- | --- | --- | --- |
+| PR-VIS-0 | (este doc) | docs-only | No | `git diff --check`; diff solo `docs/**` | Doc rector mergeado; **0 cambios de código**; conteo 26 estable | Revertir el doc |
+| PR-VIS-1 | P1-003 (f1) | frontend (theme) | frontend | `theme-mode.spec` + typecheck/lint/build | `0` usos `dark:`; tema único intacto; **sin cambio visual percibido** | Revert `tailwind.config.ts` + bloque `.dark` |
+| PR-VIS-2 | P1-004 | frontend (admin) | frontend | E2E admin-reports + visual del módulo | Badge sobre tokens marca/`StatusBadge`; **0 colores crudos** en el componente | Revert del componente |
+| PR-VIS-3 | P2-001/002, P3-001/002 | frontend (defs `globals`) | frontend | typecheck/build + `theme-mode.spec` | Tokens elevación/gradiente/focus definidos; hover no-op corregido; `badge` `focus-visible` | Revert de las defs |
+| PR-VIS-4 | P1-008 | frontend (`globals` base) | frontend | E2E no-scroll + check de regla; manual de selección | `user-select` permitido en contenido/informe; restringido al chrome | Revert de la regla |
+| PR-VIS-5 | P1-006 (f1) | frontend (`ui/*`) | frontend | typecheck/build (sin migrar call-sites) | `ui/select|textarea|label` creados y accesibles; **sin cambio en pantallas** | Borrar las primitivas |
+| PR-VIS-6 | P1-005, P2-003 | frontend (dashboard) | frontend | E2E no-scroll + filtros por módulo | `FilterBar/FilterField` único + `<Button>` + focus `ring-ring/85`; touch ≥40px mobile | Revert por módulo |
+| PR-VIS-7 | P1-002 | frontend (refactor) | frontend | E2E tokens admin+clínica | Primitivas compartidas extraídas; **sin cambio visual**; cards reducen LOC | Revert del split (mecánico) |
+| PR-VIS-8 | P1-007 | test+deps | ⚠ dep (axe) | `@axe-core/playwright` en rutas clave | axe verde; contraste <4.5:1 corregido o registrado | Quitar dep + spec |
+| PR-VIS-9 | P0-002, P2-005/010 | test+CI | ⚠ CI (baselines) | `toHaveScreenshot` + job separado | Baselines estables (públicas primero); diff>threshold bloquea P0/P1 | Borrar baselines + job |
+| PR-VIS-10 | P0-001 | test+CI | ⚠ CI (proyectos) | E2E `webkit`+`firefox` subset crítico | Smoke crítico verde en WebKit + Firefox | Revert projects Playwright + CI |
+| PR-VIS-11 | P2-009/007 | perf+CI | ⚠ tooling CWV | Lighthouse/unlighthouse baseline | Baseline LCP/CLS/INP; decisión de perspective registrada | Quitar tooling/medición |
+
+### 16.2 Dependencias y secuenciación entre PRs
+
+- **Lote 0 (frontend/docs, sin deps/CI — primero; alto retorno, reversible):** PR-VIS-0 → PR-VIS-1 → PR-VIS-2 → PR-VIS-4 → PR-VIS-3 → PR-VIS-5.
+- **Lote 1 (componentes/refactor frontend; depende de tokens/primitivas):** PR-VIS-6 → PR-VIS-7.
+- **Lote 2 (blindaje del pipeline; ⚠ deps/CI; *una herramienta por PR*):** PR-VIS-8 → PR-VIS-9 → PR-VIS-10 → PR-VIS-11.
+- **Precedencias duras:** PR-VIS-0 antes de todo; tokens (PR-VIS-3)+primitivas (PR-VIS-5) antes de unificar (PR-VIS-6/7);
+  regresión visual estable (PR-VIS-9) antes de cambios globales amplios de CSS; axe/contrast (PR-VIS-8) antes de color global;
+  cross-browser (PR-VIS-10) antes de "production visual ready"; catálogo/Storybook (P3-003) después de las primitivas mínimas.
+
+### 16.3 First 5 PR — Implementation Briefs
+
+Briefs ejecutables estilo ticket senior, en el orden recomendado (lote 0 primero). **Listos para copiar como prompt futuro.**
+Todos respetan el protocolo VETNEB (cambio mínimo; sin tocar fuera de scope; Git manual lo hace Nico; sin commit/push/PR).
+
+#### Brief 1 — PR-VIS-0 · docs(audit): cerrar esta auditoría rectora *(docs-only)*
+- **Contexto.** Esta auditoría visual debe quedar como documento rector operacional (tablero, matrices, gates, contrato de agentes).
+- **Problema.** Sin la capa operativa, los PRs visuales se eligen y ejecutan con ambigüedad.
+- **Objetivo.** Mergear este documento elevado; opcional: 1 línea de índice en `docs/audit/README.md` si se decide indexar.
+- **Archivos probables.** `docs/audit/total-visual-engineering-audit.md` (+ opcional `docs/audit/README.md`).
+- **Cambios permitidos.** Sólo documentación.
+- **Cambios prohibidos.** Tocar frontend, backend, tests, deps, CI, DB. **0 cambios de código.**
+- **Tests esperados.** Ninguno nuevo; validar que el árbol sólo cambió `docs/**`.
+- **Riesgos.** Nulo.
+- **Criterio de Done.** Doc mergeado; `git diff --name-only` = sólo `docs/**`; conteo 26 estable.
+- **Comandos de validación.** `git diff --check` · `git diff --name-only`.
+- **Nota para Codex/Claude.** No "arreglar de paso" ningún CSS. Sólo documentación.
+
+#### Brief 2 — PR-VIS-1 · chore(theme): eliminar dark-mode muerto o documentar theme único *(frontend)*
+- **Contexto.** Conviven `.dark` + `darkMode:"class"` (código muerto, `0` usos de `dark:`) y el dark real `:root[data-theme="dark-gray"]` con overrides substring.
+- **Problema.** VIS-P1-003: dos mecanismos de tema; riesgo de aplicar fixes en el path equivocado.
+- **Objetivo.** Eliminar `.dark` + `darkMode:"class"` muertos **o**, si se prefiere theme único, documentar la decisión y dejar un solo mecanismo (`[data-theme]`).
+- **Archivos probables.** `frontend/tailwind.config.ts`, `frontend/src/app/globals.css` (bloque `.dark`).
+- **Cambios permitidos.** Quitar el wiring muerto; no tocar el dark real `[data-theme]`.
+- **Cambios prohibidos.** Cambiar la apariencia clara; introducir `dark:`; tocar otros bloques de `globals.css`.
+- **Tests esperados.** `theme-mode.spec` verde; verificar por grep que `0` `dark:` quedan.
+- **Riesgos.** Bajo (confirmar que `.dark` es realmente muerto en runtime antes de borrar).
+- **Criterio de Done.** Un único mecanismo de tema; `theme-mode.spec` + typecheck/lint/build verdes; sin cambio visual percibido.
+- **Comandos de validación.** `pnpm --dir frontend typecheck` · `lint` · `build` · `pnpm --dir frontend e2e` (theme).
+- **Nota para Codex/Claude.** Si hay duda de que `.dark` sea muerto, **detenerse y documentar**, no borrar a ciegas.
+
+#### Brief 3 — PR-VIS-2 · fix(admin): tokenizar el status badge off-token *(frontend)*
+- **Contexto.** `AdminReportStatusBadge` usa `slate/sky/violet/emerald/amber` crudos (`violet` no existe en el sistema).
+- **Problema.** VIS-P1-004: la pantalla admin-reports se ve off-brand; dos lenguajes de color de estado.
+- **Objetivo.** Reescribir el badge sobre tokens de marca (`vetneb-*`) o reusar `StatusBadge`, conservando estados y semántica.
+- **Archivos probables.** `frontend/src/app/dashboard/admin/AdminReportStatusBadge.tsx` (o ruta equivalente).
+- **Cambios permitidos.** Mapear colores a tokens; opcional añadir icono/forma (no sólo color, WCAG 1.4.1).
+- **Cambios prohibidos.** Cambiar la taxonomía de estados; tocar otros componentes.
+- **Tests esperados.** E2E del módulo admin-reports; snapshot/visual del badge.
+- **Riesgos.** Bajo.
+- **Criterio de Done.** `0` colores crudos Tailwind en el componente; estados con tono de marca; E2E verde.
+- **Comandos de validación.** `pnpm --dir frontend typecheck` · `lint` · `build` · E2E admin.
+- **Nota para Codex/Claude.** Una sola fuente de verdad de estado: preferir reuso de `StatusBadge` antes de reimplementar.
+
+#### Brief 4 — PR-VIS-3 · feat(ds): tokens de elevación + gradiente + focus-ring *(frontend)*
+- **Contexto.** `rgba(15,45,62,α)` hardcodeado ×65; gradiente hex repetido ×4; focus mixto (`ring/85` vs `ring-vetneb-teal/15`); `badge` usa `focus:` y un hover no-op.
+- **Problema.** VIS-P2-001/002 + VIS-P3-001/002: sin escala de elevación, gradiente sin token, foco inconsistente.
+- **Objetivo.** Definir `--shadow-1..4`/`--gradient-clinical-primary`/token de focus **en su definición** (reemplazo gradual luego); corregir hover no-op y `badge` a `focus-visible`.
+- **Archivos probables.** `frontend/src/app/globals.css` (definición de tokens + corrección hover), `frontend/src/components/ui/badge.tsx`.
+- **Cambios permitidos.** Añadir tokens; corregir hover y focus de `badge`.
+- **Cambios prohibidos.** Migrar masivamente los 65 call-sites en este PR; tocar la apariencia más allá del hover no-op.
+- **Tests esperados.** typecheck/build + `theme-mode.spec`.
+- **Riesgos.** Bajo-medio (orden de cascada/layers).
+- **Criterio de Done.** Tokens definidos y usados en su origen; hover real o removido; `badge` con `focus-visible`.
+- **Comandos de validación.** `pnpm --dir frontend typecheck` · `lint` · `build`.
+- **Nota para Codex/Claude.** No reemplazar todos los `rgba(...)` aún; sólo definir tokens y corregir lo no-op.
+
+#### Brief 5 — PR-VIS-4 · a11y(global): acotar `user-select:none` al chrome del App Shell *(frontend)*
+- **Contexto.** `* { user-select:none }` global con re-enable sólo en inputs/contenteditable.
+- **Problema.** VIS-P1-008: tutor/clínica no puede seleccionar/copiar texto de informe, IDs ni nombres.
+- **Objetivo.** Limitar `user-select:none` al chrome (nav/botones/topbar) y **permitir selección** en contenido público e informes.
+- **Archivos probables.** `frontend/src/app/globals.css` (regla base) — recordar mantener el orden ante los bloques de dashboard (memoria de scope tests).
+- **Cambios permitidos.** Reacotar el selector; permitir selección en contenido.
+- **Cambios prohibidos.** Romper contratos no-scroll; reordenar bloques que rompan los tests de scope legacy.
+- **Tests esperados.** E2E no-scroll vigente; verificación manual de copia en informe/IDs.
+- **Riesgos.** Bajo (cuidar orden de reglas vs bloques dashboard; ver memoria de scope tests).
+- **Criterio de Done.** Selección habilitada en contenido/informe; chrome sin selección; no-scroll intacto.
+- **Comandos de validación.** `pnpm --dir frontend typecheck` · `lint` · `build` · E2E no-scroll.
+- **Nota para Codex/Claude.** Confirmar que la nueva regla queda **antes** de los bloques de dashboard en `globals.css`.
 
 ---
 
@@ -636,12 +782,9 @@ estables, un solo entorno de baseline.
 3. **Unificación de componentes**: filtros y primitivas de form/dialog; extracción de la duplicación
    admin/clínica (PR-VIS-6/7), en sub-PRs.
 
-**Qué NO hacer:**
-- **No** rediseñar el dashboard ni las públicas "de una": el contrato no-scroll y la semántica actual son
-  activos; romperlos cuesta más de lo que rinde.
-- **No** mover masivamente el `globals.css` antes de Fase 0/1 (riesgo de cascada).
-- **No** introducir dependencias visuales (Percy/Chromatic/Storybook/axe) sin autorización de scope.
-- **No** seguir agregando bloques `feature:start/end` al CSS global ni cards > 1k LOC: congelar ese patrón.
+**Qué NO hacer:** no rediseñar dashboard/públicas "de una" (el no-scroll y la semántica son activos); no mover masivamente
+`globals.css` antes de Fase 0/1; no introducir dependencias visuales (Percy/Chromatic/Storybook/axe) sin autorización; no seguir
+agregando bloques `feature:start/end` ni cards > 1k LOC. Lista completa en §38.
 
 **Riesgo de no hacerlo.** Cada cambio visual seguirá siendo una apuesta sin red (Chromium-only, sin
 baselines), la deuda del CSS monolítico y los cards de 1.9k LOC crecerá, y la divergencia de marca
@@ -650,6 +793,548 @@ vez de acercarlo, justo cuando la base actual ya está cerca.
 
 **Ruta recomendada.** Fase 0 (este doc) → Fase 1 (tokens) → Fase 4 (blindaje CI) → Fase 2/3
 (componentes) → Fase 5 (QA productivo). Iterativo, por PRs chicos, sin congelar el desarrollo.
+
+### 18.1 Veredicto ejecutable directo
+
+- **Primer PR (hoy, docs-only, sin autorización extra):** **PR-VIS-0** — cerrar esta auditoría rectora.
+- **Segundo PR (frontend, sin deps/CI):** **PR-VIS-1** — eliminar dark-mode muerto o documentar theme único.
+- **Tercero/cuarto/quinto (frontend, lote 0):** **PR-VIS-2** (badge token) → **PR-VIS-4** (`user-select`) → **PR-VIS-3** (tokens elevación/gradiente/focus).
+- **Antes de declarar "excelencia visual extrema" deben cerrarse:** Gate 1 (baseline verde, ✔), Gate 6 (regresión visual, PR-VIS-9),
+  Gate 4 (cross-browser WebKit/Firefox, PR-VIS-10) y Gate 5 (a11y/WCAG con axe, PR-VIS-8). Sin esto, "se ve bien" depende de un solo navegador y de inspección manual.
+- **Requiere autorización explícita (no avanzar sin ella):** deps (`@axe-core/playwright`, Lighthouse/unlighthouse), CI (baselines de
+  regresión visual, proyectos cross-browser), catálogo (Storybook/Percy/Chromatic/Loki), cambios de tokens globales con impacto amplio.
+- **Mayor valor con menor riesgo (orden de retorno):** PR-VIS-0 → PR-VIS-1 → PR-VIS-2 → PR-VIS-4 → PR-VIS-3 → PR-VIS-5, antes de invertir en el blindaje con autorización (lote 2).
+
+---
+
+## 19. Evidence Confidence Model
+
+Grado de evidencia: **Alta** = código/config/grep en el repo · **Media** = patrón o ausencia de artefacto (matizable con runtime) ·
+**Baja** = requiere render real (WebKit/iOS), device, lector de pantalla o métricas productivas (aquí sólo se infiere).
+
+| Categoría | Método de evidencia | Confianza | Brecha pendiente |
+| --- | --- | --- | --- |
+| CSS global monolítico (P1-001) | `wc -l globals.css`=3.262; ≈25 fences `feature:start/end` | **Alta** (repo) | Mapa exacto de utilities por dominio |
+| Sin regresión visual (P0-002) | `0` PNG baseline; `0` `toHaveScreenshot` (grep) | **Alta** | — |
+| Cross-browser real (P0-001) | `playwright.config.ts` único `project: chromium` | Alta (config) / **Baja** (render WebKit/iOS) | Ejecutar WebKit/Firefox/iOS |
+| Contraste renderizado (P1-007, color) | Cálculo estático tinte/tinte; sin axe/Lighthouse | **Media/Baja** | axe + Lighthouse + render real |
+| Core Web Vitals reales (P2-009) | Patrones de código (`priority`/preload/`fill`) | **Baja** | Lighthouse/CWV productivo |
+| Dark-mode dual muerto (P1-003) | `0` usos `dark:` (grep); `.dark` + `[data-theme]` coexisten | Alta (repo) / **Media** (runtime) | Confirmar `.dark` muerto en runtime |
+| Badge off-token (P1-004) | `AdminReportStatusBadge.tsx:7-27` slate/sky/violet | **Alta** | — |
+| Sombras hardcodeadas (P2-001) | `rgba(15,45,62,α)`×65 en 21 archivos | **Alta** | — |
+| `user-select` global (P1-008) | `globals.css:98-105` `*{user-select:none}` | Alta (regla) / **Media** (UX real) | Verificar copia real en informe/IDs |
+| Filtros no unificados (P1-005) | 3 patrones en archivos citados (§Aud.3/5) | **Alta** | — |
+| Componentes gigantes (P1-002) | `wc -l` 1.894 / 1.604 | Alta (LOC) / **Media** (complejidad) | Complejidad ciclomática no medida |
+| Faltan primitivas (P1-006) | inventario `ui/*` + 43 raw `select/textarea/role=dialog` | **Alta** | — |
+| Touch targets (P2-003) | `h-8`=32px ×84 | Alta (clase) / **Media** (device) | Medición en device real |
+| Perspective imperceptible (P2-007) | memoria `project_pr24_perspective_audit` | **Media** | Percepción real / e2e umbral `rotateX` |
+
+---
+
+## 20. Finding Evidence Ledger
+
+Resumen para validar rápido cada P0/P1/P2. *Tipo:* `código` (lógica/regla), `config`, `ausencia` (grep/falta de artefacto), `LOC` (tamaño).
+
+| ID | Evidencia principal | Tipo | Confianza | Validación adicional recomendada |
+| --- | --- | --- | --- | --- |
+| VIS-P0-001 | `playwright.config.ts` 1 project `chromium`; 37 `backdrop-filter`/7 `dvh`/14 `safe-area` | config+código | Alta (repo) | Render real WebKit/Firefox/iOS |
+| VIS-P0-002 | `0` baselines PNG; `0` `toHaveScreenshot` | ausencia | Alta | Generar baseline y medir flake |
+| VIS-P1-001 | `globals.css` 3.262 LOC; fences feature | LOC+código | Alta | Mapear utilities por dominio |
+| VIS-P1-002 | `AdminParticularTokensCard`(1.894)+`ClinicParticularTokensCard`(1.604) | LOC | Alta/Media | Diff de lógica compartida |
+| VIS-P1-003 | `globals.css:66-94` `.dark` + `darkMode:class`; `0` `dark:` | código+ausencia | Alta/Media | Confirmar muerto en runtime |
+| VIS-P1-004 | `AdminReportStatusBadge.tsx:7-27` | código | Alta | — |
+| VIS-P1-005 | `AdminAuditFilterBar`/`StickyFilterBar`/selects inline | código | Alta | — |
+| VIS-P1-006 | `ui/*` sin select/textarea/label/dialog; 43 raw en 21 archivos | ausencia | Alta | — |
+| VIS-P1-007 | Sin axe/jest-axe; badge tinte/tinte | ausencia | Alta (ausencia) / Media (contraste) | axe + cálculo de contraste por estado |
+| VIS-P1-008 | `globals.css:98-105` | código | Alta | Verificación manual de copia |
+| VIS-P2-001 | `rgba(15,45,62,α)`×65 | código | Alta | — |
+| VIS-P2-002 | `globals.css:170-175,190,271` hex ×4; hover==base | código | Alta | — |
+| VIS-P2-003 | `h-8`×84; filtros mobile | código | Alta/Media | Medición en device |
+| VIS-P2-004 | `Navbar.tsx` `xl:hidden`/`xl:flex` | código | Alta | — |
+| VIS-P2-005 | `e2e/*` viewports sin 320/1536/1920 | ausencia | Alta | — |
+| VIS-P2-006 | `globals.css` `--font-*`=Inter | config | Alta | Decisión de marca |
+| VIS-P2-007 | memoria PR-24 | código | Media | e2e con umbral `rotateX` |
+| VIS-P2-008 | `utils.ts` vs `AdminReportStatusBadge.tsx` | código | Alta | Documentar mapping canónico |
+| VIS-P2-009 | Sin Lighthouse/CWV en CI/scripts | ausencia | Alta (repo) / Baja (real) | Medir Lighthouse/CWV |
+| VIS-P2-010 | Dashboards sin matriz de estados extremos | ausencia | Alta | Fixtures de estrés |
+
+---
+
+## 21. Risk × Effort × Reversibility Matrix
+
+Impacto (Alto/Medio/Bajo) · Esfuerzo (S/M/L/XL) · Reversibilidad (Alta/Media/Baja) · Riesgo impl. (Bajo/Medio/Alto) · "Orden" = secuencia ejecutiva (alineada con §16.2).
+
+| ID | Sev | Impacto | Esfuerzo | Reversibilidad | Riesgo impl. | Orden |
+| --- | --- | --- | --- | --- | --- | --- |
+| VIS-P1-003 | P1 | Medio | M | Alta | Bajo-Medio | 1 |
+| VIS-P1-004 | P1 | Medio | S | Alta | Bajo | 2 |
+| VIS-P1-008 | P1 | Medio | S | Alta | Bajo | 3 |
+| VIS-P2-001 | P2 | Medio | M | Alta | Bajo | 4 |
+| VIS-P2-002 | P2 | Bajo | S | Alta | Bajo | 4 |
+| VIS-P3-001 | P3 | Bajo | XS | Alta | Nulo | 4 |
+| VIS-P3-002 | P3 | Bajo | XS | Alta | Bajo | 4 |
+| VIS-P1-006 | P1 | Medio | M-L | Alta | Medio | 5 |
+| VIS-P1-005 | P1 | Medio | M | Alta | Medio | 6 |
+| VIS-P1-002 | P1 | Medio | L | Alta (split puro) | Medio | 7 |
+| VIS-P1-007 | P1 | Alto | M | Alta | Bajo | 8 |
+| VIS-P0-002 | P0 | Alto | M-L | Alta | Medio (flake) | 9 |
+| VIS-P0-001 | P0 | Alto | M | Alta | Bajo-Medio | 10 |
+| VIS-P2-009 | P2 | Medio | M | Alta | Bajo | 11 |
+| VIS-P2-007 | P2 | Bajo | S-M | Alta | Bajo | 11 |
+| VIS-P1-001 | P1 | Medio | XL (fases) | Media | Medio | f0 (freeze) / diferido |
+| VIS-P2-003 | P2 | Medio | S-M | Alta | Bajo | con PR-VIS-6 |
+| VIS-P2-005 | P2 | Bajo | S | Alta | Bajo | con PR-VIS-9 |
+| VIS-P2-010 | P2 | Medio | M | Alta | Bajo | con PR-VIS-9 |
+| VIS-P2-004 | P2 | Bajo | S | Alta | Bajo | PR futuro |
+| VIS-P2-006 | P2 | Bajo | S-M | Alta | Bajo (marca) | PR futuro |
+| VIS-P2-008 | P2 | Bajo | S | Alta | Bajo | PR futuro (docs) |
+| VIS-P3-003/004/005/006 | P3 | Bajo | S | Alta | Bajo | cleanup PRs |
+
+**Justificación del orden:** primero alta reversibilidad/bajo riesgo que reduce drift de marca (1–4); luego primitivas y
+unificación (5–7); después **blindaje del pipeline** (8–10) que destraba iterar sin miedo; por último medición/perf (11) y el
+refactor estructural del CSS monolítico (f0 + diferido), que es XL y de reversibilidad media.
+
+---
+
+## 22. Traceability Matrix
+
+Trazabilidad hallazgo → riesgo → PR → validación → estado (todos **Abierto** en este baseline). Cubre P0, P1 y P2.
+
+| Hallazgo | Riesgo | PR recomendado | Test / validación | Estado |
+| --- | --- | --- | --- | --- |
+| VIS-P0-001 | Sin verificación WebKit/iOS/Firefox | PR-VIS-10 | E2E webkit+firefox subset | Abierto |
+| VIS-P0-002 | Drift visual silencioso en `globals.css` | PR-VIS-9 | `toHaveScreenshot` + job CI | Abierto |
+| VIS-P1-001 | CSS monolítico, alta superficie de regresión | PR-VIS-0 (freeze/contrato) → extracción diferida | `git diff --check`; revisión de layers | Abierto |
+| VIS-P1-002 | Drift admin/clínica por duplicación | PR-VIS-7 | E2E tokens admin+clínica | Abierto |
+| VIS-P1-003 | Tema dual, fixes en path equivocado | PR-VIS-1 | `theme-mode.spec` | Abierto |
+| VIS-P1-004 | Pantalla off-brand; dos lenguajes de estado | PR-VIS-2 | E2E/visual admin-reports | Abierto |
+| VIS-P1-005 | Inconsistencia visual/foco de filtros | PR-VIS-6 | E2E no-scroll + filtros | Abierto |
+| VIS-P1-006 | Selects nativos divergen cross-browser | PR-VIS-5 | typecheck/build primitivas | Abierto |
+| VIS-P1-007 | Riesgo WCAG 1.4.3 oculto | PR-VIS-8 | `@axe-core/playwright` | Abierto |
+| VIS-P1-008 | No se puede copiar contenido/informe | PR-VIS-4 | E2E no-scroll + manual | Abierto |
+| VIS-P2-001 | Sin escala de elevación; drift | PR-VIS-3 | typecheck/build | Abierto |
+| VIS-P2-002 | Drift de marca; hover no-op | PR-VIS-3 | typecheck/build | Abierto |
+| VIS-P2-003 | Ergonomía táctil mobile | PR-VIS-6 (variante mobile) | medición geométrica E2E | Abierto |
+| VIS-P2-004 | Nav colapsada en tablet | PR futuro (nav `lg`) | smoke 768/1024 | Abierto |
+| VIS-P2-005 | Extremos responsive no cubiertos | PR-VIS-9 (viewports) | smoke 320/768/1024/1536/1920 | Abierto |
+| VIS-P2-006 | Diferenciación de marca limitada | PR futuro (marca) | revisión de marca | Abierto |
+| VIS-P2-007 | Costo de motion sin payoff | PR-VIS-11 | e2e umbral `rotateX` | Abierto |
+| VIS-P2-008 | Modelo mental de estado dividido | PR futuro (docs mapping) | revisión de mapping | Abierto |
+| VIS-P2-009 | Sin baseline de performance visual | PR-VIS-11 | Lighthouse/CWV | Abierto |
+| VIS-P2-010 | Regresiones en bordes no detectadas | PR-VIS-9 (fixtures estrés) | capturas en regresión | Abierto |
+
+---
+
+## 23. Security / Accessibility Visual Control Matrix
+
+Accesibilidad tratada como **invariante productivo** (skill `vetneb-security-production-invariants`). Estado: ✅ ok · ◐ parcial · ✘ gap.
+
+| Control | Estado actual | Evidencia | Gap | Severidad | PR recomendado |
+| --- | --- | --- | --- | --- | --- |
+| Focus visible | ◐ | `:focus-visible` global; `badge` usa `focus:` | Ring inconsistente | P3 | PR-VIS-3 |
+| Keyboard navigation | ✅ | `ModuleTabs`/`ModuleDialog` roles+flechas+trap | — | — | (mantener) |
+| Labels / nombres | ◐ | aria en públicas; filtros abreviados | Sin ayuda contextual | P3 | PR-VIS-6 |
+| Icon-only buttons | ◐ | varios botones de acción | Sin label garantizado | P2 | PR-VIS-6 |
+| Dialogs / drawers | ◐ | `ModuleDialog` (Radix) + hand-rolled | `UploadReportModal` manual | P1 | PR-VIS-5/6 |
+| Contrast (1.4.3) | ✘ | badges tinte/tinte; `text-amber-700/800` | Sin axe; <4.5:1 sin verificar | P1 | PR-VIS-8 |
+| Reduced motion | ✅ | `@media prefers-reduced-motion` ×4 | — | — | (mantener) |
+| Readable text size | ◐ | `text-[11px]` labels filtro | Al límite de legibilidad | P3 | PR futuro (escala) |
+| Touch targets (2.5.5/2.5.8) | ✘ | `h-8`=32px mobile | <44px | P2 | PR-VIS-6 |
+| Safe-area iOS | ◐ | 14× `safe-area-inset` | Sin verificación en iOS real | P1 (cross-browser) | PR-VIS-10 |
+| Scroll locking / no-scroll | ✅ | App Shell `overflow-hidden` + specs | Verificado por geometría, no apariencia | P0 (regresión) | PR-VIS-9 |
+| Error/empty/loading states | ✅ | primitivas `EmptyState/ErrorState/LoadingState` | Feedback copy/upload ad-hoc | P2 | PR-VIS-7 |
+| Semantic headings | ✅ | headings ordenados + `aria-labelledby` | — | — | (mantener) |
+| Text selection (1.4.x) | ✘ | `user-select:none` global | No se copia contenido | P1 | PR-VIS-4 |
+
+---
+
+## 24. Production Visual Readiness Gates
+
+Gates para declarar "excelencia visual extrema" certificable. Estado: ✔ pasado · ◐ parcial · ✘ no.
+
+| Gate | Estado | Evidencia | Bloqueantes | PRs necesarios |
+| --- | --- | --- | --- | --- |
+| **Gate 1 — Repo green baseline** | ✔ | 7 validaciones verdes; `git diff --check` limpio | — | — (mantener) |
+| **Gate 2 — Visual governance** | ✘ | DS implícito; badge off-token; dark dual; sin tokens elevación | P1-003/004, P2-001/002 | PR-VIS-1/2/3 (+ freeze P1-001) |
+| **Gate 3 — Responsive / no-scroll verified** | ◐ | Contrato fuerte; extremos 320/1536/1920 sin cubrir | P2-005 | PR-VIS-9 (viewports) |
+| **Gate 4 — Cross-browser verified** | ✘ | Chromium-only; WebKit/Firefox/iOS sin correr | P0-001 | PR-VIS-10 |
+| **Gate 5 — Accessibility / WCAG verified** | ✘ | Sin axe; contraste/touch/`user-select` | P1-007/008, P2-003 | PR-VIS-4 → PR-VIS-8 |
+| **Gate 6 — Visual regression baseline** | ✘ | `0` baselines; `0` `toHaveScreenshot` | P0-002 | PR-VIS-9 |
+| **Gate 7 — Performance / CWV measured** | ✘ | Sin Lighthouse/CWV | P2-009 | PR-VIS-11 |
+| **Gate 8 — Production visual QA completed** | ✘ | Sin QA autenticado ni estados extremos | P2-010 + cross-browser | Fase 5 + PR-VIS-9/10 |
+
+**Camino crítico a "extremo":** Gate 1 (✔) → Gate 2 (PR-VIS-1/2/3) → Gate 6 (PR-VIS-9) → Gate 4 (PR-VIS-10) → Gate 5 (PR-VIS-8) → Gate 7/8 (CWV + QA productivo).
+
+---
+
+## 25. Decision Framework — cómo elegir el próximo PR visual
+
+Reglas en orden de prioridad. Si dos PRs compiten, gana el de **mayor confianza × menor riesgo × mayor reversibilidad**.
+
+1. Primero P0/P1 de **alta confianza y bajo riesgo** (lote 0, §16.2).
+2. No cambiar diseño masivamente **sin regresión visual mínima** (PR-VIS-9 antes de cambios globales amplios).
+3. No introducir Storybook/Percy/Chromatic/Loki sin **autorización explícita**.
+4. No mezclar **refactor visual** con **rediseño**.
+5. No tocar dashboard **no-scroll** sin E2E específico.
+6. No activar reglas CI visuales sin **baseline estable**.
+7. No tocar **colores globales** sin contrast audit (PR-VIS-8 antes).
+8. No cambiar **CSS global amplio** sin screenshots/control de regresión.
+9. No cambiar filtros/cards/tablas sin tests de **responsive/no-scroll**.
+
+| Situación | Decisión recomendada | Motivo |
+| --- | --- | --- |
+| Hay tiempo para 1 PR de bajo riesgo | PR-VIS-0 (docs) → PR-VIS-1 | Máx. valor, 0 riesgo, reversible |
+| "Mejorar la marca ya" | PR-VIS-2 (badge token) antes que rediseño | Drift se cierra barato y reversible |
+| "Blindar lo visual" | PR-VIS-9 (regresión) antes de tocar `globals.css` | Sin baseline no hay red |
+| "Excelencia extrema" | No declararla sin Gate 4 (WebKit/iOS) | "Se ve bien" en Chromium ≠ en Safari |
+| Van a refactorizar un card gigante | Split puro, sin cambio visual | Aísla riesgo, rollback mecánico |
+| Aparece dep/CI nuevo en un PR | Separar y pedir autorización | Protocolo VETNEB / scope |
+| PR toca color global | Exigir contrast audit (axe) antes | Sin medición no hay Done |
+| PR toca dashboard | Exigir E2E no-scroll | Contrato no-scroll es activo |
+
+---
+
+## 26. Risk Acceptance Register
+
+Estado recomendado mientras no se cierra: Mitigado · Aceptado temporal · Pendiente evidencia · Bloqueado por acceso externo.
+
+| Riesgo | Sev | Estado recomendado | Revisión | Condición para cerrar |
+| --- | --- | --- | --- | --- |
+| Playwright solo Chromium (P0-001) | P0 | Aceptado temporal | Antes de "cross-browser ready" | PR-VIS-10 (WebKit+Firefox) + pase iOS real |
+| Sin regresión visual (P0-002) | P0 | Aceptado temporal | Antes de cambios globales de CSS | PR-VIS-9 con baseline estable + threshold |
+| CSS global monolítico (P1-001) | P1 | Aceptado temporal (freeze append-only) | Por cada PR de estilos | Contrato DS + extracción gradual por fases |
+| Componentes visuales gigantes (P1-002) | P1 | Aceptado temporal | Por card tocado | Extracción de primitivas sin cambio visual |
+| Filtros no unificados (P1-005) | P1 | Aceptado temporal | Próximo PR dashboard | `FilterBar`/`FilterField` único |
+| Dark-mode muerto (P1-003) | P1 | Mitigable ya | Inmediato | PR-VIS-1 (eliminar o documentar theme único) |
+| Badges off-token (P1-004) | P1 | Mitigable ya | Inmediato | PR-VIS-2 (tokens marca) |
+| Primitivas UI faltantes (P1-006) | P1 | Aceptado temporal | Próximo PR DS | `ui/select|textarea|label` + estandarizar diálogos |
+| `user-select` global (P1-008) | P1 | Mitigable ya | Inmediato | PR-VIS-4 (scoping al chrome) |
+| Contraste no automatizado (P1-007) | P1 | Pendiente evidencia | Antes de cambios de color | PR-VIS-8 (axe) + corrección <4.5:1 |
+| Sombras hardcodeadas (P2-001) | P2 | Aceptado temporal | Con PR-VIS-3 | Escala `--shadow-*` tokenizada |
+| Sin Storybook/catálogo visual (P3-003) | P3 | Aceptado temporal | Tras primitivas mínimas | Doc DS o Storybook (⚠ autorización) |
+
+---
+
+## 27. PR Dependency Graph
+
+Dependencias **duras** (bloqueantes) y **blandas** (recomendadas); secuencia en §16.2.
+
+| PR | Depende de | Bloquea | Tipo | Motivo |
+| --- | --- | --- | --- | --- |
+| PR-VIS-0 | — | toda ejecución | Dura | El doc rector define scope/orden |
+| PR-VIS-1 | — | — | — | Independiente, alto valor temprano |
+| PR-VIS-2 | — | — | — | Independiente, alto valor temprano |
+| PR-VIS-3 | — | PR-VIS-6 (focus), PR-VIS-7 | Blanda | Tokens antes de unificar componentes |
+| PR-VIS-4 | — | — | — | Independiente (a11y global) |
+| PR-VIS-5 | — | PR-VIS-6 | Blanda | Primitivas antes de migrar filtros/forms |
+| PR-VIS-6 | PR-VIS-3, PR-VIS-5 | — | Blanda | FilterBar usa tokens/primitivas |
+| PR-VIS-7 | PR-VIS-5 (blanda) | — | Blanda | Extracción sobre base de primitivas |
+| PR-VIS-8 | — | cambios de color globales | Dura | Contrast audit antes de tocar color |
+| PR-VIS-9 | — | cambios globales de CSS; Gate 6 | Dura | Baseline antes de cambios amplios |
+| PR-VIS-10 | — | "production visual ready"; Gate 4 | Dura | Sin esto no se declara cross-browser |
+| PR-VIS-11 | — | Gate 7 | Blanda | Medición CWV + decisión perspective |
+
+---
+
+## 28. Validation Command Matrix
+
+Comandos por tipo de PR visual (Terminal 1, PowerShell). **Si Next modifica `frontend/next-env.d.ts`:** `git restore --staged
+frontend/next-env.d.ts 2>$null; git restore frontend/next-env.d.ts` y repetir `pnpm test` (memoria `feedback_next_env_regeneration`).
+
+| Tipo de PR | Comandos mínimos | Adicionales | Cuándo aplica |
+| --- | --- | --- | --- |
+| Docs-only | `git diff --check` · `git diff --name-only` (solo `docs/**`) | — | Sólo `docs/**` |
+| CSS / global style | `pnpm --dir frontend typecheck` · `lint` · `build` | borrar `frontend/.next` antes de re-E2E (memoria cache stale) | `globals.css` |
+| Component primitive | `pnpm --dir frontend typecheck` · `lint` · `build` | E2E afectado | `components/ui/*` |
+| Dashboard module | typecheck · lint · build · **E2E no-scroll** del módulo | parity mobile | `app/dashboard/**` |
+| Public page | typecheck · lint · build · `pnpm security:public-surface` | smoke público | `app/(public)/**` |
+| Responsive / no-scroll | E2E no-scroll + geometría por viewport | 320/768/1024/1536/1920 | layout/filtros/cards |
+| Accessibility / WCAG | E2E a11y + `@axe-core/playwright` (⚠ dep) | keyboard spec | foco/contraste/labels |
+| Visual regression | `toHaveScreenshot` (⚠ CI) + job separado | subir diffs como artefacto | baselines |
+| Cross-browser | E2E projects `webkit`/`firefox` (⚠ CI) | iOS real (externo) | render divergente |
+| Performance / CWV | Lighthouse/unlighthouse (⚠ tooling) | EXPLAIN bundle | perf visual |
+| Design system / token | typecheck · build + grep de hardcodes residuales | regresión visual | tokens/`globals` defs |
+| CI / dependency | `pnpm install --frozen-lockfile` · suite afectada (⚠ autorización) | `pnpm audit` | workflows / `package.json` |
+
+**Gate global previo a cualquier merge:** `git diff --check` · `pnpm test` · `pnpm --dir frontend typecheck` ·
+`pnpm --dir frontend lint` · `pnpm --dir frontend build` · `pnpm build` · `pnpm security:public-surface`.
+
+---
+
+## 29. Authorization Matrix
+
+| Cambio | Autorización | Motivo | Ejemplo |
+| --- | --- | --- | --- |
+| docs-only | No | Sin impacto runtime | Esta auditoría |
+| tests-only (E2E geometría) | No | No toca producción | Sumar viewports a smoke |
+| CSS global (en scope) | No (frontend) | Sin contrato/seguridad | Scoping `user-select` |
+| design tokens | No (frontend) | Definición local | `--shadow-*`/gradiente |
+| component primitives | No (frontend) | UI base | `ui/select|textarea|label` |
+| dashboard modules | No (frontend) + E2E no-scroll | Contrato no-scroll | Unificar FilterBar |
+| public pages | No (frontend) + `security:public-surface` | Superficie pública | Ajuste de hero/nav |
+| a11y tooling | Sí (⚠ dep) | Dependencia dev | `@axe-core/playwright` |
+| visual regression baselines | Sí (⚠ CI) | Política de baseline + job | `toHaveScreenshot` |
+| cross-browser CI | Sí (⚠ CI) | Tiempo CI + matriz | projects `webkit`/`firefox` |
+| new dev dependencies | Sí (⚠ deps) | Supply-chain / lockfile | axe, Lighthouse |
+| Storybook/Percy/Chromatic/Loki | Sí (⚠⚠) | Servicio/herramienta nueva | Catálogo visual |
+| production visual QA | Sí (⚠) | Acceso autenticado real | Capturas prod dashboard |
+| Core Web Vitals tooling | Sí (⚠) | Tooling/CI | Lighthouse CI |
+
+---
+
+## 30. Owner / Reviewer Matrix
+
+Roles técnicos (no personas). En proyecto solo-owner, "reviewer" = checklist + self-review disciplinado, o segundo par cuando exista.
+
+| Área | Owner | Reviewer | Motivo |
+| --- | --- | --- | --- |
+| Design tokens / DS | Design system reviewer | Staff frontend | Coherencia de marca |
+| Theming / dark-mode | Staff frontend | Design system reviewer | Un solo mecanismo |
+| Filtros / dashboard | Staff frontend | QA/E2E reviewer | Contrato no-scroll |
+| Componentes compartidos | Staff frontend | Staff full-stack | Impacto admin+clínica+public |
+| Accesibilidad / WCAG | Accessibility reviewer | Staff frontend | Invariante productivo |
+| Regresión visual / E2E | QA/E2E reviewer | Staff frontend | Baseline y flake |
+| Cross-browser | QA/E2E reviewer | Performance reviewer | Render divergente |
+| Performance / CWV | Performance reviewer | Staff frontend | Layout shift / bundle |
+| Públicas / SEO visual | Staff frontend | Product owner | Marca + LCP |
+| Release / readiness | Operations reviewer | Product owner | Go/no-go visual |
+
+---
+
+## 31. Done Evidence Requirements
+
+| Tipo de cambio | Evidencia mínima en PR | Opcional | No aceptable |
+| --- | --- | --- | --- |
+| Dashboard visual | Antes/después + **E2E no-scroll** + checks mobile | trace/video | "Se ve lindo" sin E2E |
+| Token / design-system | Mapa de tokens + sin hardcodes nuevos (grep) + typecheck/build | regresión visual | Nuevos `rgba(...)`/hex crudos |
+| Accessibility | Foco + labels + teclado + axe (si aplica) | lector de pantalla | Solo color para estado |
+| Visual regression | Baseline + threshold + matriz + sin flakiness | diffs como artefacto | Screenshot manual como sustituto |
+| Cross-browser | Report Chromium/WebKit/Firefox | iOS real | "Cross-browser" solo en Chromium |
+| Public page | typecheck/lint/build + `security:public-surface` | smoke público | `next-env.d.ts` modificado sin restaurar |
+| Docs-only | `git diff --name-only` = solo `docs/**` | — | Tocó código "de paso" |
+| Refactor (card gigante) | Diff del split + E2E sin cambio de comportamiento | — | Mezcla refactor + cambio visual |
+
+---
+
+## 32. Failure Mode Analysis
+
+| Hallazgo | Cómo falla en producción | Señal temprana | Prevención | Detección | Recuperación |
+| --- | --- | --- | --- | --- | --- |
+| Sin regresión visual (P0-002) | Edición de `globals.css` regresa una pantalla | Reportes de "se ve raro" | Baselines + threshold | `toHaveScreenshot` | Revertir el PR; regenerar baseline |
+| Chromium-only (P0-001) | `backdrop-filter`/`dvh`/select rompen en Safari/iOS | Quejas desde iPhone | E2E WebKit + pase iOS | E2E cross-browser | Fix WebKit-aware; fallback |
+| CSS global monolítico (P1-001) | Cambio en un fence rompe cascada de otro | Estilos cruzados tras merge | Freeze + `@layer` + contrato | Regresión visual | Revertir; aislar por layer |
+| Tokens sin baseline (P2-001/002) | Cambio de elevación/gradiente drift global | Sombras/bordes inconsistentes | Tokens + regresión visual | Diff visual | Revertir defs |
+| Filtros/dashboard sin no-scroll (P1-005) | Filtro rompe el single-viewport | Scroll inesperado en cockpit | E2E no-scroll por módulo | Specs geometría | Revertir; re-anclar `min-h-0` |
+| Contraste no automatizado (P1-007) | Texto ilegible en estado tinte/tinte | Reportes de legibilidad | axe + contrast audit | axe en CI | Ajustar tokens a ≥4.5:1 |
+| Motion sin reduced-motion | Animación molesta/insegura | Mareo/CLS | `prefers-reduced-motion` | Spec reduced-motion | Desactivar animación |
+| Componentes gigantes (P1-002) | Regresión por cambio en card 1.9k LOC | PRs lentos, miedo a tocar | Split + primitivas | E2E tokens | Revert del PR |
+| `user-select` global (P1-008) | Tutor no copia ID/informe → fricción | Soporte: "no puedo copiar" | Scoping al chrome | Manual + regla | Revertir regla |
+
+---
+
+## 33. Engineering Visual Scorecard
+
+Escala 0–5 cualitativa basada en hallazgos (sin precisión falsa): 0=ausente, 3=funcional, 5=extremo.
+
+| Dimensión | Actual | Objetivo | Brecha | PRs que suben score |
+| --- | --- | --- | --- | --- |
+| Visual quality | 4 | 5 | Filtros/badges/afordancia | PR-VIS-2/6 |
+| Design system governance | 3 | 5 | Tokens, badge, theme dual | PR-VIS-1/2/3 |
+| Component consistency | 3 | 5 | 3 patrones filtro/badge; duplicación | PR-VIS-5/6/7 |
+| Responsive / no-scroll | 4 | 5 | Extremos sin cubrir | PR-VIS-9 |
+| Cross-browser | 1.5 | 5 | Chromium-only | PR-VIS-10 |
+| Accessibility / WCAG | 3 | 5 | Contraste/touch/`user-select` | PR-VIS-4/8 |
+| Visual regression | 1 | 5 | 0 baselines | PR-VIS-9 |
+| Typography | 3.5 | 5 | Inter genérica; escala ad-hoc | PR futuro (escala/marca) |
+| Color / contrast | 3 | 5 | Off-token; sin medición | PR-VIS-2/8 |
+| Motion | 3.5 | 5 | Perspective imperceptible | PR-VIS-11 |
+| Frontend styling architecture | 2.5 | 5 | `globals.css` 3.262 LOC; cards 1.9k | PR-VIS-0/3/7 |
+| Dashboard / data visualization | 3.5 | 5 | Filtros/badges; sin viz real | PR-VIS-6 |
+| Visual performance | 2.5 | 5 | Sin CWV; cards client pesados | PR-VIS-11 |
+| Production visual QA | 2 | 5 | Sin QA autenticado/estados extremos | Fase 5 + PR-VIS-9/10 |
+| Documentation (DS) | 2 | 5 | Sin catálogo/contrato DS | PR-VIS-0 + Storybook (⚠) |
+
+**Promedio actual ≈ 2.9/5 (Profesional alto / borde Senior).** Salto a ≈3.8 con lote 0 + PR-VIS-6/7; "extremo" exige PR-VIS-8/9/10 (a11y + regresión + cross-browser).
+
+---
+
+## 34. Measurable Improvement Targets
+
+Metas medibles; los baselines no medidos se declaran como tales (no se inventan).
+
+| Área | Métrica objetivo | Baseline conocido | Cómo medir | PR habilitador |
+| --- | --- | --- | --- | --- |
+| Regresión visual | Baseline mínimo en rutas críticas | **0 baselines** | `toHaveScreenshot` | PR-VIS-9 |
+| Cross-browser | Chromium + WebKit + Firefox | **Chromium-only** | projects Playwright | PR-VIS-10 |
+| Accessibility | axe sin violaciones críticas en rutas clave | **sin axe** | `@axe-core/playwright` | PR-VIS-8 |
+| Contraste | ≥4.5:1 por estado | **sin medición** | contrast checks/axe | PR-VIS-8 |
+| CSS global | Reducir/encapsular por fases o congelar append-only | **3.262 líneas** | `wc -l` + mapa de layers | PR-VIS-0 (freeze) → diferido |
+| Component duplication | Cards de token con primitivas compartidas | **1.894 + 1.604 LOC** | `wc -l` post-split | PR-VIS-7 |
+| Hardcodes de elevación | 0 `rgba(...)` literales nuevos | **65 ocurrencias** | grep en CI/local | PR-VIS-3 |
+| Off-token palette | 0 colores crudos en dashboard | **slate/sky/violet en 1 pantalla** | grep + review | PR-VIS-2 |
+| Touch targets | ≥44px en controles mobile densos | **32px (`h-8`)** | medición geométrica E2E | PR-VIS-6 |
+| Core Web Vitals | Baseline LCP/CLS/INP público + dashboard demo | **sin datos** | Lighthouse/CWV | PR-VIS-11 |
+| Cobertura responsive | 320/768/1024/1536/1920 en smoke | **sin estos viewports** | E2E smoke | PR-VIS-9 |
+
+---
+
+## 35. No-Go Criteria (bloquean merge)
+
+| No-Go | Aplica a | Motivo | Cómo detectarlo |
+| --- | --- | --- | --- |
+| PR visual toca CSS global sin E2E/responsive | CSS/global | Regresión silenciosa | ¿Hay E2E no-scroll/responsive en el PR? |
+| PR dashboard rompe no-scroll | dashboard | Contrato roto | E2E no-scroll falla |
+| PR cambia tokens globales sin contrast audit | tokens/color | Riesgo WCAG | ¿Hay axe/contrast check? |
+| PR agrega dev dependency sin autorización | deps | Supply-chain / lockfile | Diff de `package.json`/lock |
+| PR agrega visual baselines sin política de actualización | regresión visual | Baselines obsoletos | ¿Hay regla de regenerar baseline? |
+| PR activa CI visual sin baseline estable | CI visual | Flake/falsos positivos | ¿Baseline estable previo? |
+| PR cambia componentes compartidos sin revisar admin+clínica+public | componentes | Drift cruzado | ¿Se revisaron las 3 superficies? |
+| PR deja `next-env.d.ts` modificado | frontend build | Ruido/regresión | `git status -- frontend/next-env.d.ts` |
+| PR mezcla refactor visual con funcionalidad | refactor | Rollback difícil | Revisar diff por scope |
+| PR introduce regresión visual + cross-browser + Storybook juntos | tooling | Riesgo acumulado | ¿Más de una herramienta nueva? |
+
+---
+
+## 36. Acceptance Criteria por Severidad
+
+**P0 / P1 — cada hallazgo debe:**
+- tener un **PR específico** (no agruparse con otro P1);
+- incluir **evidencia visual o técnica** + **test/validación** que demuestre el cierre;
+- definir **rollback** explícito;
+- tener **owner/reviewer** asignado (§30);
+- ser **trazable** (aparecer en §22).
+
+**P2 — cada hallazgo:**
+- **puede agruparse** por área (p.ej. a11y/responsive) si reduce ruido;
+- requiere **validación** (E2E, axe, build o verificación manual documentada);
+- **no debe crear deuda nueva** ni romper contratos no-scroll.
+
+**P3 — cada hallazgo:**
+- se cierra en **cleanup/polish PRs** agrupados;
+- **no debe bloquear** entregas críticas ni gates de producción.
+
+---
+
+## 37. Open Questions / Requires External Visual Access
+
+Preguntas que **no** pueden cerrarse desde el repo: requieren render real, device, lector de pantalla o métricas productivas.
+
+| Pregunta | Por qué importa | Cómo verificar | Riesgo si no se verifica |
+| --- | --- | --- | --- |
+| **iOS Safari real** | `backdrop-filter`/`dvh`/select divergen; público iPhone | Device iOS o BrowserStack | Roturas no vistas en el principal navegador del público |
+| **Android Chrome real** | Touch/teclado/safe-area | Device Android | Ergonomía mobile no verificada |
+| **Firefox** | `-webkit-` no aplica; render de forms | E2E `firefox` | Divergencia de formularios |
+| **Edge** | Chromium-based pero perfiles distintos | E2E/manual | Bajo, pero no verificado |
+| **Dashboards autenticados en prod** | Datos reales, latencia, sesión | Acceso autenticado real | QA visual productivo ausente |
+| **Datos largos reales** | Nombres largos, N filas | Fixtures de estrés + prod | Overflow/no-scroll roto en bordes |
+| **Red lenta** | Skeleton/LCP/CLS percibidos | Throttling/Lighthouse | Percepción de performance no validada |
+| **Lighthouse / CWV** | LCP/CLS/INP reales | Lighthouse CI/unlighthouse | Optimizar a ciegas |
+| **Screenshots de producción** | Verdad visual vs local | Captura autenticada | Drift prod vs local no detectado |
+| **Lector de pantalla** | VoiceOver/NVDA/TalkBack | Pase manual con AT | A11y robusta no garantizada |
+| **Dispositivos reales** | Notch/safe-area/densidad | Matriz de devices | Bordes mobile no cubiertos |
+
+---
+
+## 38. Do Not Do — Anti-patrones visuales a evitar
+
+- **No** rediseñar todo (dashboard/públicas) "de una".
+- **No** mover masivamente `globals.css` antes de Fase 0/1 (riesgo de cascada).
+- **No** cambiar tokens globales sin baseline de regresión + contrast audit.
+- **No** introducir regresión visual + cross-browser + Storybook en un solo PR.
+- **No** resolver el design system con una mega-abstracción.
+- **No** romper contratos no-scroll por mejora estética.
+- **No** mezclar cambios visuales y funcionales en el mismo PR.
+- **No** usar screenshots manuales como sustituto de regression testing.
+- **No** declarar excelencia visual sin WebKit/iOS.
+- **No** usar "se ve lindo" como criterio de aceptación.
+- **No** introducir `next/link`/`<a>` (navegación vía `PublicRouteControl`, memoria de hardening).
+- **No** seguir agregando bloques `feature:start/end` al CSS global ni cards > 1k LOC: congelar ese patrón.
+
+---
+
+## 39. Codex/Claude Execution Contract
+
+Para que un agente ejecute PRs visuales futuros con bajo riesgo, leyendo **este** documento como fuente.
+**Cómo operar.** (1) Leer §1.2 (Control Panel) y §16 (PR plan). (2) Elegir **un** PR (el primero no cerrado del lote vigente;
+ante duda, **PR-VIS-0**, luego lote 0). (3) Limitar el scope a los archivos del PR (§16.1); nada "de paso". (4) Aplicar §28
+(validaciones del tipo) y §31 (evidencia). (5) Respetar §29 (autorización): si el PR la requiere y no está dada en el mismo
+mensaje → **detenerse y pedirla** (listar archivos + riesgo). (6) Respetar §35 (No-Go) y §38 (Do Not Do). (7) Si Next modifica
+`next-env.d.ts`, restaurarlo y repetir `pnpm test`. (8) **No** `git add/commit/push` ni `gh pr` (lo hace Nico).
+
+**Salida obligatoria del agente:**
+1. Hallazgo/PR elegido (ID). 2. Scope (incluido/excluido). 3. Archivos esperados. 4. Riesgos. 5. Tests. 6. Validaciones
+ejecutadas + resultado real (ejecutado/pasó · ejecutado/falló · no ejecutado · script no disponible). 7. Confirmación de
+restricciones respetadas. 8. Comandos manuales pendientes para Nico, **sin** ejecutarlos.
+
+**Desviaciones:** si hay que salir de scope, detenerse, documentar motivo + archivos + riesgo y esperar autorización. No simular éxito ni ocultar fallos.
+
+---
+
+## 40. PR Prompt Templates (copiar / pegar)
+
+**A — Docs/test-only visual (sin autorización):**
+```
+Repo: C:\PORTAL-VETNEB | Rama base: main (crear rama docs/* o test/*)
+PR: <ID, p.ej. PR-VIS-0> | Objetivo: <1 línea>
+Scope: SOLO docs/** y/o frontend/e2e/** (geometría). Excluido: frontend/src, backend, deps, CI.
+Restricciones: protocolo VETNEB; no commit/push/PR; no tocar producción.
+Validación: git diff --check ; git diff --name-only ; (si E2E) pnpm --dir frontend e2e:<capa>.
+Si Next cambia next-env.d.ts: restaurarlo y repetir pnpm test.
+Salida: resumen + archivos + validaciones reales + restricciones respetadas.
+```
+
+**B — Frontend visual implementation (cambio mínimo):**
+```
+Repo: C:\PORTAL-VETNEB | Rama base: main (crear rama feat/*|fix/*|refactor/*)
+PR: <ID, p.ej. PR-VIS-2> | Objetivo: <causa raíz visual, 1 línea>
+Scope exacto: <archivos>. Fuera de scope: <lista>. Sin rediseño; sin romper no-scroll.
+Restricciones: sin deps/CI nuevos; protocolo VETNEB; no commit/push.
+Tests: <E2E no-scroll/visual/a11y según tipo>.
+Validación: pnpm --dir frontend typecheck ; lint ; build ; (público) pnpm security:public-surface.
+Si Next cambia next-env.d.ts: restaurarlo y repetir pnpm test.
+Salida: diff lógico + riesgos + validaciones reales + pendientes manuales.
+```
+
+**C — Tooling/CI/dependency visual con autorización (⚠):**
+```
+Repo: C:\PORTAL-VETNEB | Rama base: main
+PR: <ID, p.ej. PR-VIS-9/10> | Objetivo: <1 línea> | AUTORIZACIÓN: <explícita aquí>
+Scope: <playwright.config / workflow / package.json>. Una sola herramienta por PR.
+Obligatorio: política de baseline/threshold (regresión) o matriz (cross-browser) + plan de rollback.
+Restricciones: no exponer secretos; no commit/push/PR; baseline estable antes de activar gate.
+Validación: §28 según tipo + gate global.
+Salida: cambios + rollback + validaciones reales + riesgo residual.
+```
+
+---
+
+## 41. Audit Maintenance Policy
+
+- **Cuándo actualizar:** ante un evento invalidante (abajo) o al cerrar un PR del plan (marcar §22 "Cerrado", re-score §33, ajustar §34).
+- **Eventos que la invalidan (revisar el área afectada):** cambios en CSS globales; nuevos dashboards; cambios de design tokens;
+  cambios E2E/Playwright; nuevas dependencias visuales; cambios CI visuales; incidentes visuales en producción; cambios de marca;
+  cambios mobile/PWA; cambios de performance visual.
+- **Cómo cerrar un hallazgo:** PR mergeado con evidencia (§31) → estado "Cerrado" en §22 → nota en gap analysis (§10) → re-score (§33).
+- **Cómo agregar un hallazgo:** ID estable siguiente (`VIS-Px-NNN`) + fila en §7/§8/§9 + §20 + §22; no romper la numeración existente.
+- **Evitar drift:** este documento es la fuente del plan visual; los hallazgos cerrados se **marcan, no se borran** (trazabilidad).
+  Conciliar con `docs/SOURCES_OF_TRUTH.md` y no contradecir `total-software-engineering-audit.md`.
+- **Qué evidencia queda en el PR:** antes/después, E2E/axe/regresión según tipo (§31).
+- **Quién la revisa:** Staff frontend + reviewer del área (§30); auditable por un tercero vía §19/§20/§37.
+
+---
+
+## 42. Internal Consistency Check
+
+Verificación interna al cerrar este upgrade (auditable por un tercero):
+- **Cada P1 tiene PR:** ✔ (001→PR-VIS-0 freeze+diferido · 002→PR-VIS-7 · 003→PR-VIS-1 · 004→PR-VIS-2 · 005→PR-VIS-6 · 006→PR-VIS-5 · 007→PR-VIS-8 · 008→PR-VIS-4). Ver §22.
+- **Cada P2 tiene PR o justificación:** ✔ (001→PR-VIS-3 · 002→PR-VIS-3 · 003→PR-VIS-6 · 004→PR futuro nav `lg` · 005→PR-VIS-9 · 006→PR futuro marca · 007→PR-VIS-11 · 008→PR futuro docs mapping · 009→PR-VIS-11 · 010→PR-VIS-9).
+- **Cada P0 tiene PR:** ✔ (001→PR-VIS-10 · 002→PR-VIS-9).
+- **Autorizaciones marcadas:** ✔ coherentes entre §1.2, §16.1, §28 y §29 (⚠ deps/CI/tooling).
+- **Primer PR inequívoco:** ✔ **PR-VIS-0** (§1.2, §16.3, §18.1) — único docs-only de máximo valor, sin autorización.
+- **Conteo estable:** ✔ 2 P0 · 8 P1 · 10 P2 · 6 P3 = 26 (sin cambios respecto del diagnóstico original).
+- **Estado del árbol expresado con precisión:** ✔ el front-matter aclara "limpio salvo este propio documento (modificado para el upgrade)".
+- **Documento ya existente:** ✔ no se afirma "sin archivos nuevos"; PR-VIS-0 es edición del archivo existente (no creación).
+- **Sin contradicciones** con `total-software-engineering-audit.md`: ✔ lo visual/CSS queda como soberanía de este documento; el software audit lo cita como complementario (#1192).
 
 ---
 
