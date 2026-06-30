@@ -17,6 +17,16 @@ function read(relativePath: string): string {
   );
 }
 
+function sectionBetween(source: string, start: string, end: string): string {
+  const startIndex = source.indexOf(start);
+  assert.notEqual(startIndex, -1, `Missing start marker: ${start}`);
+
+  const endIndex = source.indexOf(end, startIndex + start.length);
+  assert.notEqual(endIndex, -1, `Missing end marker: ${end}`);
+
+  return source.slice(startIndex, endIndex);
+}
+
 test("dashboard home defines non-indexable clinic metadata and imports live dependencies", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
@@ -165,6 +175,45 @@ test("clinic informes summary uses table/list row actions with controlled detail
   assert.equal(source.includes("Volver a la lista"), false);
   assert.equal(source.includes('xl:grid-cols-[0.85fr_1.15fr]'), false);
   assert.equal(source.includes("space-y-4"), false);
+});
+
+test("clinic informes summary exposes advanced filters over visible report fields", () => {
+  const source = read(CLINIC_INFORMES_SUMMARY_PATH);
+  const filterForm = sectionBetween(
+    source,
+    "data-clinic-report-filter-bar",
+    "</form>",
+  );
+
+  assert.ok(source.includes("type ClinicReportsFilterState = {"));
+  assert.ok(source.includes("report: string;"));
+  assert.ok(source.includes("patient: string;"));
+  assert.ok(source.includes('status: "" | Report["status"];'));
+  assert.ok(source.includes("study: string;"));
+  assert.ok(source.includes("file: string;"));
+  assert.ok(source.includes("from: string;"));
+  assert.ok(source.includes("to: string;"));
+  assert.ok(source.includes("matchesClinicReportFilters(report, appliedFilters)"));
+  assert.ok(source.includes("matchesUploadDateRange(report, filters.from, filters.to)"));
+  assert.ok(source.includes("const filteredReports = recentReports.filter((report) =>"));
+  assert.ok(source.includes("usePagedRows(filteredReports, REPORTS_PAGE_SIZE)"));
+  assert.ok(source.includes('data-clinic-report-filter-bar={mobile ? "advanced-mobile" : "advanced"}'));
+  assert.ok(source.includes('title="Filtrar informes"'));
+  assert.ok(source.includes("Sin informes para los filtros aplicados"));
+
+  for (const label of [
+    "Informe",
+    "Paciente",
+    "Estado",
+    "Estudio",
+    "Archivo",
+    "Desde",
+    "Hasta",
+    "Aplicar",
+    "Limpiar",
+  ]) {
+    assert.ok(filterForm.includes(label), `missing ${label} filter control`);
+  }
 });
 
 test("clinic logistica summary keeps its existing inline master-detail layer", () => {

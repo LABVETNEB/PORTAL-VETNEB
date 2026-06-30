@@ -82,7 +82,7 @@ test("clinic tokens uses table/list row actions with dialog detail and step dial
   const source = read(CLINIC_TOKENS_CARD_PATH);
 
   assert.ok(source.includes("const TOKENS_PAGE_SIZE = 4;"));
-  assert.ok(source.includes("usePagedRows(tokens, TOKENS_PAGE_SIZE)"));
+  assert.ok(source.includes("usePagedRows(filteredTokens, TOKENS_PAGE_SIZE)"));
   assert.ok(source.includes("selectedTokenId"));
   assert.ok(source.includes("ModuleSurface"));
   assert.ok(source.includes('data-clinic-access-table="true"'));
@@ -119,6 +119,45 @@ test("clinic tokens uses table/list row actions with dialog detail and step dial
   assert.ok(source.includes('title="Generar token particular"'));
   assert.ok(source.includes('title="Token generado"'));
   assert.equal(source.includes("overflow-y-auto"), false);
+});
+
+test("clinic tokens exposes advanced filters over visible token fields", () => {
+  const source = read(CLINIC_TOKENS_CARD_PATH);
+  const filterForm = sectionBetween(
+    source,
+    "data-clinic-access-filter-bar",
+    "</form>",
+  );
+
+  assert.ok(source.includes("type ClinicParticularTokenFilterState = {"));
+  assert.ok(source.includes("token: string;"));
+  assert.ok(source.includes("reportId: string;"));
+  assert.ok(source.includes("patient: string;"));
+  assert.ok(source.includes('status: "" | "active" | "inactive";'));
+  assert.ok(source.includes("from: string;"));
+  assert.ok(source.includes("to: string;"));
+  assert.ok(source.includes("matchesClinicParticularTokenFilters(token, appliedFilters)"));
+  assert.ok(source.includes("getTokenVisibleDate(token)"));
+  assert.ok(source.includes("token.lastLoginAt ?? token.createdAt"));
+  assert.ok(source.includes("matchesTokenVisibleDateRange(token, filters.from, filters.to)"));
+  assert.ok(source.includes("const filteredTokens = tokens.filter((token) =>"));
+  assert.ok(source.includes("usePagedRows(filteredTokens, TOKENS_PAGE_SIZE)"));
+  assert.ok(source.includes('data-clinic-access-filter-bar={mobile ? "advanced-mobile" : "advanced"}'));
+  assert.ok(source.includes('title="Filtrar tokens"'));
+  assert.ok(source.includes("Sin tokens para los filtros aplicados"));
+
+  for (const label of [
+    "Token",
+    "Informe",
+    "Paciente / tutor",
+    "Estado",
+    "Desde",
+    "Hasta",
+    "Aplicar",
+    "Limpiar",
+  ]) {
+    assert.ok(filterForm.includes(label), `missing ${label} filter control`);
+  }
 });
 
 test("clinic token generation requires all programmed data fields", () => {

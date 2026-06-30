@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
+import { Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,15 @@ type GeneratedTokenDetails = {
   tutorLastName: string;
 };
 
+type ClinicParticularTokenFilterState = {
+  token: string;
+  reportId: string;
+  patient: string;
+  status: "" | "active" | "inactive";
+  from: string;
+  to: string;
+};
+
 /** Maximum tokens visible per page in the master list (rest via footer pager). */
 const TOKENS_PAGE_SIZE = 4;
 
@@ -66,6 +76,15 @@ const INITIAL_FORM_STATE: ClinicParticularTokenFormState = {
   detailsLesion: "",
   extractionDate: "",
   shippingDate: "",
+};
+
+const INITIAL_FILTER_STATE: ClinicParticularTokenFilterState = {
+  token: "",
+  reportId: "",
+  patient: "",
+  status: "",
+  from: "",
+  to: "",
 };
 
 const REQUIRED_FIELD_LABELS: Array<{
@@ -121,6 +140,76 @@ const PET_SPECIES_OPTIONS = [
   { value: "Caprinos", label: "Caprinos" },
   { value: "Aves", label: "Aves" },
 ];
+
+function normalizeSearchText(value: string | number | null | undefined): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
+function matchesFilterText(
+  source: string | number | null | undefined,
+  query: string,
+) {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return true;
+
+  const searchable = normalizeSearchText(source);
+  return normalizedQuery
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((token) => searchable.includes(token));
+}
+
+function toDateInputValue(value: string | null | undefined): string {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+}
+
+function isTokenFilterStateEmpty(filters: ClinicParticularTokenFilterState) {
+  return Object.values(filters).every((value) => !value.trim());
+}
+
+function getTokenVisibleDate(token: ClinicParticularTokenSummary): string {
+  return token.lastLoginAt ?? token.createdAt;
+}
+
+function matchesTokenVisibleDateRange(
+  token: ClinicParticularTokenSummary,
+  from: string,
+  to: string,
+) {
+  const visibleDate = toDateInputValue(getTokenVisibleDate(token));
+  if (from && visibleDate < from) return false;
+  if (to && visibleDate > to) return false;
+  return true;
+}
+
+function matchesClinicParticularTokenFilters(
+  token: ClinicParticularTokenSummary,
+  filters: ClinicParticularTokenFilterState,
+) {
+  const reportQuery = filters.reportId.replace(/^#/, "");
+  const reportValue =
+    token.hasLinkedReport && token.reportId
+      ? String(token.reportId)
+      : token.hasLinkedReport
+        ? "Con informe"
+        : "Sin informe";
+  const statusValue = token.isActive ? "active" : "inactive";
+
+  return (
+    matchesFilterText(token.tokenLast4, filters.token) &&
+    matchesFilterText(reportValue, reportQuery) &&
+    (matchesFilterText(token.petName, filters.patient) ||
+      matchesFilterText(token.tutorLastName, filters.patient)) &&
+    (!filters.status || filters.status === statusValue) &&
+    matchesTokenVisibleDateRange(token, filters.from, filters.to)
+  );
+}
 
 function toIsoDate(value: string): string {
   return `${value}T00:00:00.000Z`;
@@ -230,6 +319,11 @@ export function ClinicParticularTokensCard() {
     useState<ClinicParticularTokenFormState>(INITIAL_FORM_STATE);
   const [tokens, setTokens] = useState<ClinicParticularTokenSummary[]>([]);
   const [selectedTokenId, setSelectedTokenId] = useState<number | null>(null);
+  const [filterDraft, setFilterDraft] =
+    useState<ClinicParticularTokenFilterState>(INITIAL_FILTER_STATE);
+  const [appliedFilters, setAppliedFilters] =
+    useState<ClinicParticularTokenFilterState>(INITIAL_FILTER_STATE);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [trackingCasesByTokenId, setTrackingCasesByTokenId] = useState<
     Record<number, ClinicStudyTrackingCaseSummary>
   >({});
@@ -250,7 +344,10 @@ export function ClinicParticularTokensCard() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const pagedTokens = usePagedRows(tokens, TOKENS_PAGE_SIZE);
+  const filteredTokens = tokens.filter((token) =>
+    matchesClinicParticularTokenFilters(token, appliedFilters),
+  );
+  const pagedTokens = usePagedRows(filteredTokens, TOKENS_PAGE_SIZE);
   const selectedToken =
     selectedTokenId === null
       ? null
@@ -259,10 +356,11 @@ export function ClinicParticularTokensCard() {
     ? trackingCasesByTokenId[selectedToken.id]
     : undefined;
 
-  const activeTokensCount = tokens.filter((token) => token.isActive).length;
-  const linkedReportsCount = tokens.filter((token) => token.hasLinkedReport).length;
+  const activeTokensCount = filteredTokens.filter((token) => token.isActive).length;
+  const linkedReportsCount = filteredTokens.filter((token) => token.hasLinkedReport).length;
   const createStepIndex = getCreateStepIndex(createStep);
   const isLastCreateStep = createStep === "sample";
+  const hasActiveFilters = !isTokenFilterStateEmpty(appliedFilters);
 
   async function loadTokens() {
     setIsLoadingTokens(true);
@@ -337,6 +435,38 @@ export function ClinicParticularTokensCard() {
     setFormState((current) => ({ ...current, [field]: value }));
     setErrorMessage(null);
     setStatusMessage(null);
+  }
+
+  function updateFilterDraft<K extends keyof ClinicParticularTokenFilterState>(
+    field: K,
+    value: ClinicParticularTokenFilterState[K],
+  ) {
+    setFilterDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  function applyAdvancedFilters(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAppliedFilters({
+      token: filterDraft.token.trim(),
+      reportId: filterDraft.reportId.trim(),
+      patient: filterDraft.patient.trim(),
+      status: filterDraft.status,
+      from: filterDraft.from,
+      to: filterDraft.to,
+    });
+    pagedTokens.setPage(0);
+    setSelectedTokenId(null);
+    setErrorMessage(null);
+    setIsFilterDialogOpen(false);
+  }
+
+  function clearAdvancedFilters() {
+    setFilterDraft(INITIAL_FILTER_STATE);
+    setAppliedFilters(INITIAL_FILTER_STATE);
+    pagedTokens.setPage(0);
+    setSelectedTokenId(null);
+    setErrorMessage(null);
+    setIsFilterDialogOpen(false);
   }
 
   function handleCreateDialogOpenChange(open: boolean) {
@@ -489,6 +619,112 @@ export function ClinicParticularTokensCard() {
     }
   }
 
+  function renderAdvancedFilterForm(mobile = false) {
+    return (
+      <form
+        data-clinic-access-filter-bar={mobile ? "advanced-mobile" : "advanced"}
+        className={
+          mobile
+            ? "grid grid-cols-2 items-end gap-2"
+            : "mb-2 hidden shrink-0 grid-cols-2 items-end gap-1.5 rounded-lg border border-vetneb-line/70 bg-muted/15 px-2 py-1 md:grid md:grid-cols-4 lg:grid-cols-[0.9fr_0.85fr_1.15fr_0.85fr_0.85fr_0.85fr_auto_auto]"
+        }
+        onSubmit={applyAdvancedFilters}
+        aria-label={
+          mobile
+            ? "Filtros avanzados de tokens clínica mobile"
+            : "Filtros avanzados de tokens clínica"
+        }
+      >
+        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
+          Token
+          <Input
+            className={mobile ? "h-8 text-xs" : "h-7 text-xs"}
+            type="text"
+            placeholder="Últimos 4"
+            value={filterDraft.token}
+            onChange={(event) => updateFilterDraft("token", event.target.value)}
+          />
+        </label>
+        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
+          Informe
+          <Input
+            className={mobile ? "h-8 text-xs" : "h-7 text-xs"}
+            type="text"
+            placeholder="#ID"
+            value={filterDraft.reportId}
+            onChange={(event) => updateFilterDraft("reportId", event.target.value)}
+          />
+        </label>
+        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
+          Paciente / tutor
+          <Input
+            className={mobile ? "h-8 text-xs" : "h-7 text-xs"}
+            type="text"
+            placeholder="Texto visible"
+            value={filterDraft.patient}
+            onChange={(event) => updateFilterDraft("patient", event.target.value)}
+          />
+        </label>
+        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
+          Estado
+          <select
+            className={
+              mobile
+                ? "h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15"
+                : "h-7 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15"
+            }
+            value={filterDraft.status}
+            onChange={(event) =>
+              updateFilterDraft(
+                "status",
+                event.target.value as ClinicParticularTokenFilterState["status"],
+              )
+            }
+          >
+            <option value="">Todos</option>
+            <option value="active">Activos</option>
+            <option value="inactive">Inactivos</option>
+          </select>
+        </label>
+        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
+          Desde
+          <Input
+            className={mobile ? "h-8 text-xs" : "h-7 text-xs"}
+            type="date"
+            value={filterDraft.from}
+            onChange={(event) => updateFilterDraft("from", event.target.value)}
+          />
+        </label>
+        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
+          Hasta
+          <Input
+            className={mobile ? "h-8 text-xs" : "h-7 text-xs"}
+            type="date"
+            value={filterDraft.to}
+            onChange={(event) => updateFilterDraft("to", event.target.value)}
+          />
+        </label>
+        <Button
+          type="submit"
+          size="sm"
+          className={mobile ? "h-8 gap-1.5 px-2.5 text-xs" : "h-7 gap-1 px-2 text-xs"}
+        >
+          <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+          Aplicar
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={mobile ? "h-8 px-2 text-xs" : "h-7 px-2 text-xs"}
+          onClick={clearAdvancedFilters}
+        >
+          Limpiar
+        </Button>
+      </form>
+    );
+  }
+
   return (
     <section
       id="clinic-particular-tokens"
@@ -532,6 +768,26 @@ export function ClinicParticularTokensCard() {
                 ))}
               </div>
 
+              <ModuleDialog
+                open={isFilterDialogOpen}
+                onOpenChange={setIsFilterDialogOpen}
+                title="Filtrar tokens"
+                description="Los filtros se aplican sobre los tokens cargados en la workspace."
+                trigger={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 px-2.5 text-xs md:hidden"
+                  >
+                    <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+                    {hasActiveFilters ? "Filtros activos" : "Filtros"}
+                  </Button>
+                }
+              >
+                {renderAdvancedFilterForm(true)}
+              </ModuleDialog>
+
               <Button
                 type="button"
                 variant="outline"
@@ -564,6 +820,8 @@ export function ClinicParticularTokensCard() {
             {statusMessage}
           </p>
         ) : null}
+
+        {tokens.length ? renderAdvancedFilterForm() : null}
 
         <section
           aria-label="Tokens particulares de la clínica"
@@ -601,58 +859,107 @@ export function ClinicParticularTokensCard() {
                   data-clinic-access-list-body="true"
                   className="flex min-h-0 flex-1 flex-col overflow-hidden"
                 >
-                  <div
-                    data-clinic-access-table="true"
-                    className="hidden min-h-0 shrink-0 overflow-hidden md:block"
-                  >
-                    <table className="w-full table-fixed text-[0.8125rem]">
-                      <thead className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground">
-                        <tr>
-                          <th className="w-[32%] px-3 py-2 text-left">Token / Paciente</th>
-                          <th className="w-[13%] px-3 py-2 text-left">Estado</th>
-                          <th className="w-[15%] px-3 py-2 text-left">Informe</th>
-                          <th className="w-[24%] px-3 py-2 text-left">
-                            Último acceso o creado
-                          </th>
-                          <th className="w-[16%] px-3 py-2 text-right">Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-vetneb-line/60">
-                        {pagedTokens.pageItems.map((token) => (
-                          <tr
-                            key={token.id}
-                            data-clinic-access-table-row="true"
-                            className="hover:bg-vetneb-cyan/8"
-                          >
-                            <td className="px-3 py-1.5">
-                              <p className="truncate font-mono text-xs font-semibold text-vetneb-ink">
-                                ****{token.tokenLast4}
-                              </p>
-                              <p className="truncate text-[0.6875rem] text-muted-foreground">
-                                {token.petName} · {token.tutorLastName}
-                              </p>
-                            </td>
-                            <td className="px-3 py-1.5">
-                              <Badge
-                                variant={token.isActive ? "default" : "outline"}
-                                className="h-5 px-1.5 text-[0.6875rem]"
+                  {filteredTokens.length ? (
+                    <>
+                      <div
+                        data-clinic-access-table="true"
+                        className="hidden min-h-0 shrink-0 overflow-hidden md:block"
+                      >
+                        <table className="w-full table-fixed text-[0.8125rem]">
+                          <thead className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground">
+                            <tr>
+                              <th className="w-[32%] px-3 py-2 text-left">Token / Paciente</th>
+                              <th className="w-[13%] px-3 py-2 text-left">Estado</th>
+                              <th className="w-[15%] px-3 py-2 text-left">Informe</th>
+                              <th className="w-[24%] px-3 py-2 text-left">
+                                Último acceso o creado
+                              </th>
+                              <th className="w-[16%] px-3 py-2 text-right">Acción</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-vetneb-line/60">
+                            {pagedTokens.pageItems.map((token) => (
+                              <tr
+                                key={token.id}
+                                data-clinic-access-table-row="true"
+                                className="hover:bg-vetneb-cyan/8"
                               >
-                                {token.isActive ? "Activo" : "Inactivo"}
-                              </Badge>
-                            </td>
-                            <td className="px-3 py-1.5 text-xs text-muted-foreground">
-                              {token.hasLinkedReport && token.reportId
-                                ? `#${token.reportId}`
-                                : token.hasLinkedReport
-                                  ? "Con informe"
-                                  : "Sin informe"}
-                            </td>
-                            <td className="px-3 py-1.5 text-xs text-muted-foreground">
-                              {token.lastLoginAt
-                                ? `Acceso ${formatDate(token.lastLoginAt)}`
-                                : `Creado ${formatDate(token.createdAt)}`}
-                            </td>
-                            <td className="px-3 py-1.5 text-right">
+                                <td className="px-3 py-1.5">
+                                  <p className="truncate font-mono text-xs font-semibold text-vetneb-ink">
+                                    ****{token.tokenLast4}
+                                  </p>
+                                  <p className="truncate text-[0.6875rem] text-muted-foreground">
+                                    {token.petName} · {token.tutorLastName}
+                                  </p>
+                                </td>
+                                <td className="px-3 py-1.5">
+                                  <Badge
+                                    variant={token.isActive ? "default" : "outline"}
+                                    className="h-5 px-1.5 text-[0.6875rem]"
+                                  >
+                                    {token.isActive ? "Activo" : "Inactivo"}
+                                  </Badge>
+                                </td>
+                                <td className="px-3 py-1.5 text-xs text-muted-foreground">
+                                  {token.hasLinkedReport && token.reportId
+                                    ? `#${token.reportId}`
+                                    : token.hasLinkedReport
+                                      ? "Con informe"
+                                      : "Sin informe"}
+                                </td>
+                                <td className="px-3 py-1.5 text-xs text-muted-foreground">
+                                  {token.lastLoginAt
+                                    ? `Acceso ${formatDate(token.lastLoginAt)}`
+                                    : `Creado ${formatDate(token.createdAt)}`}
+                                </td>
+                                <td className="px-3 py-1.5 text-right">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => openTokenDetail(token.id)}
+                                  >
+                                    Ver detalle
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div
+                        data-clinic-access-mobile-list="true"
+                        className="flex min-h-0 shrink-0 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
+                      >
+                        {pagedTokens.pageItems.map((token) => {
+                          const trackingCase = trackingCasesByTokenId[token.id];
+
+                          return (
+                            <div
+                              key={token.id}
+                              id={`clinic-particular-token-${token.id}`}
+                              data-clinic-access-mobile-row="true"
+                              className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5"
+                            >
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-semibold text-vetneb-ink">
+                                  ****{token.tokenLast4} · {token.petName}
+                                </p>
+                                <p className="truncate text-[0.6875rem] text-muted-foreground">
+                                  {token.isActive ? "Activo" : "Inactivo"} ·{" "}
+                                  {token.hasLinkedReport ? "Informe" : "Sin informe"} ·{" "}
+                                  {token.lastLoginAt
+                                    ? formatDate(token.lastLoginAt)
+                                    : formatDate(token.createdAt)}
+                                </p>
+                                <p className="truncate text-[0.6875rem] text-muted-foreground">
+                                  {trackingCase
+                                    ? getTrackingStageLabel(trackingCase.currentStage)
+                                    : token.tutorLastName}
+                                </p>
+                              </div>
                               <Button
                                 type="button"
                                 variant="outline"
@@ -662,57 +969,21 @@ export function ClinicParticularTokensCard() {
                               >
                                 Ver detalle
                               </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div
-                    data-clinic-access-mobile-list="true"
-                    className="flex min-h-0 shrink-0 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
-                  >
-                    {pagedTokens.pageItems.map((token) => {
-                      const trackingCase = trackingCasesByTokenId[token.id];
-
-                      return (
-                        <div
-                          key={token.id}
-                          id={`clinic-particular-token-${token.id}`}
-                          data-clinic-access-mobile-row="true"
-                          className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-semibold text-vetneb-ink">
-                              ****{token.tokenLast4} · {token.petName}
-                            </p>
-                            <p className="truncate text-[0.6875rem] text-muted-foreground">
-                              {token.isActive ? "Activo" : "Inactivo"} ·{" "}
-                              {token.hasLinkedReport ? "Informe" : "Sin informe"} ·{" "}
-                              {token.lastLoginAt
-                                ? formatDate(token.lastLoginAt)
-                                : formatDate(token.createdAt)}
-                            </p>
-                            <p className="truncate text-[0.6875rem] text-muted-foreground">
-                              {trackingCase
-                                ? getTrackingStageLabel(trackingCase.currentStage)
-                                : token.tutorLastName}
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => openTokenDetail(token.id)}
-                          >
-                            Ver detalle
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex min-h-0 flex-1 p-3">
+                      <EmptyState
+                        title="Sin tokens para los filtros aplicados"
+                        description="No hay tokens particulares que coincidan con los campos visibles seleccionados."
+                        size="sm"
+                        className="w-full"
+                      />
+                    </div>
+                  )}
 
                   <div
                     aria-hidden="true"

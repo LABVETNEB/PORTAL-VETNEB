@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import type { Report } from "@/types";
-import { ClipboardList, ExternalLink } from "lucide-react";
+import { ClipboardList, ExternalLink, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
@@ -22,6 +23,37 @@ type Props = {
 
 const REPORTS_PAGE_SIZE = 3;
 
+type ClinicReportsFilterState = {
+  report: string;
+  patient: string;
+  status: "" | Report["status"];
+  study: string;
+  file: string;
+  from: string;
+  to: string;
+};
+
+const INITIAL_REPORTS_FILTER_STATE: ClinicReportsFilterState = {
+  report: "",
+  patient: "",
+  status: "",
+  study: "",
+  file: "",
+  from: "",
+  to: "",
+};
+
+const REPORT_STATUS_FILTER_OPTIONS: Array<{
+  value: ClinicReportsFilterState["status"];
+  label: string;
+}> = [
+  { value: "", label: "Todos" },
+  { value: "uploaded", label: "Subido" },
+  { value: "processing", label: "Procesando" },
+  { value: "ready", label: "Listo" },
+  { value: "delivered", label: "Entregado" },
+];
+
 function formatReportFile(report: Report): string {
   if (report.fileName) {
     return report.fileName;
@@ -30,16 +62,115 @@ function formatReportFile(report: Report): string {
   return report.hasFile ? "Con archivo" : "Sin archivo";
 }
 
+function normalizeSearchText(value: string | number | null | undefined): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
+function matchesFilterText(
+  source: string | number | null | undefined,
+  query: string,
+) {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return true;
+
+  const searchable = normalizeSearchText(source);
+  return normalizedQuery
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((token) => searchable.includes(token));
+}
+
+function toDateInputValue(value: string | null | undefined): string {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+}
+
+function matchesUploadDateRange(report: Report, from: string, to: string) {
+  const uploadDate = toDateInputValue(report.uploadDate);
+  if (!uploadDate) return !from && !to;
+  if (from && uploadDate < from) return false;
+  if (to && uploadDate > to) return false;
+  return true;
+}
+
+function isReportsFilterStateEmpty(filters: ClinicReportsFilterState) {
+  return Object.values(filters).every((value) => !value.trim());
+}
+
+function matchesClinicReportFilters(
+  report: Report,
+  filters: ClinicReportsFilterState,
+) {
+  const reportDisplay = `Informe #${report.id}`;
+  const patientDisplay = report.patientName ?? "Sin nombre";
+  const studyDisplay = report.studyType ?? "Tipo sin registrar";
+  const fileDisplay = formatReportFile(report);
+
+  return (
+    matchesFilterText(reportDisplay, filters.report) &&
+    matchesFilterText(patientDisplay, filters.patient) &&
+    (!filters.status || report.status === filters.status) &&
+    matchesFilterText(studyDisplay, filters.study) &&
+    matchesFilterText(fileDisplay, filters.file) &&
+    matchesUploadDateRange(report, filters.from, filters.to)
+  );
+}
+
 export function ClinicInformesWorkspaceSummary({
   recentReports,
   reportsLoadError,
 }: Props) {
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
-  const pagedReports = usePagedRows(recentReports, REPORTS_PAGE_SIZE);
+  const [filterDraft, setFilterDraft] =
+    useState<ClinicReportsFilterState>(INITIAL_REPORTS_FILTER_STATE);
+  const [appliedFilters, setAppliedFilters] =
+    useState<ClinicReportsFilterState>(INITIAL_REPORTS_FILTER_STATE);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+  const filteredReports = recentReports.filter((report) =>
+    matchesClinicReportFilters(report, appliedFilters),
+  );
+  const pagedReports = usePagedRows(filteredReports, REPORTS_PAGE_SIZE);
   const selectedReport =
     selectedReportId === null
       ? null
       : (recentReports.find((report) => report.id === selectedReportId) ?? null);
+  const hasActiveFilters = !isReportsFilterStateEmpty(appliedFilters);
+
+  function updateFilterDraft<K extends keyof ClinicReportsFilterState>(
+    field: K,
+    value: ClinicReportsFilterState[K],
+  ) {
+    setFilterDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  function applyAdvancedFilters(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAppliedFilters({
+      report: filterDraft.report.trim(),
+      patient: filterDraft.patient.trim(),
+      status: filterDraft.status,
+      study: filterDraft.study.trim(),
+      file: filterDraft.file.trim(),
+      from: filterDraft.from,
+      to: filterDraft.to,
+    });
+    pagedReports.setPage(0);
+    setSelectedReportId(null);
+    setIsFilterDialogOpen(false);
+  }
+
+  function clearAdvancedFilters() {
+    setFilterDraft(INITIAL_REPORTS_FILTER_STATE);
+    setAppliedFilters(INITIAL_REPORTS_FILTER_STATE);
+    pagedReports.setPage(0);
+    setSelectedReportId(null);
+    setIsFilterDialogOpen(false);
+  }
 
   const fullModuleLink = (
     <PublicRouteControl
@@ -52,6 +183,128 @@ export function ClinicInformesWorkspaceSummary({
       Abrir módulo completo
     </PublicRouteControl>
   );
+
+  function renderAdvancedFilterForm(mobile = false) {
+    const inputClassName = mobile ? "h-8 text-xs" : "h-7 text-xs";
+    const selectClassName =
+      "h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15";
+    const compactSelectClassName =
+      "h-7 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15";
+    const labelClassName =
+      "grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground";
+
+    return (
+      <form
+        data-clinic-report-filter-bar={mobile ? "advanced-mobile" : "advanced"}
+        className={
+          mobile
+            ? "grid grid-cols-2 items-end gap-2"
+            : "hidden shrink-0 grid-cols-2 items-end gap-1.5 rounded-lg border border-vetneb-line/70 bg-muted/15 px-2 py-1 md:grid md:grid-cols-4 lg:grid-cols-[0.82fr_1.1fr_0.85fr_1fr_1fr_0.85fr_0.85fr_auto_auto]"
+        }
+        onSubmit={applyAdvancedFilters}
+        aria-label={
+          mobile
+            ? "Filtros avanzados de informes clínica mobile"
+            : "Filtros avanzados de informes clínica"
+        }
+      >
+        <label className={labelClassName}>
+          Informe
+          <Input
+            className={inputClassName}
+            type="text"
+            placeholder="#ID"
+            value={filterDraft.report}
+            onChange={(event) => updateFilterDraft("report", event.target.value)}
+          />
+        </label>
+        <label className={labelClassName}>
+          Paciente
+          <Input
+            className={inputClassName}
+            type="text"
+            placeholder="Texto visible"
+            value={filterDraft.patient}
+            onChange={(event) => updateFilterDraft("patient", event.target.value)}
+          />
+        </label>
+        <label className={labelClassName}>
+          Estado
+          <select
+            className={mobile ? selectClassName : compactSelectClassName}
+            value={filterDraft.status}
+            onChange={(event) =>
+              updateFilterDraft(
+                "status",
+                event.target.value as ClinicReportsFilterState["status"],
+              )
+            }
+          >
+            {REPORT_STATUS_FILTER_OPTIONS.map((option) => (
+              <option key={option.value || "all"} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={labelClassName}>
+          Estudio
+          <Input
+            className={inputClassName}
+            type="text"
+            placeholder="Tipo visible"
+            value={filterDraft.study}
+            onChange={(event) => updateFilterDraft("study", event.target.value)}
+          />
+        </label>
+        <label className={labelClassName}>
+          Archivo
+          <Input
+            className={inputClassName}
+            type="text"
+            placeholder="Nombre"
+            value={filterDraft.file}
+            onChange={(event) => updateFilterDraft("file", event.target.value)}
+          />
+        </label>
+        <label className={labelClassName}>
+          Desde
+          <Input
+            className={inputClassName}
+            type="date"
+            value={filterDraft.from}
+            onChange={(event) => updateFilterDraft("from", event.target.value)}
+          />
+        </label>
+        <label className={labelClassName}>
+          Hasta
+          <Input
+            className={inputClassName}
+            type="date"
+            value={filterDraft.to}
+            onChange={(event) => updateFilterDraft("to", event.target.value)}
+          />
+        </label>
+        <Button
+          type="submit"
+          size="sm"
+          className={mobile ? "h-8 gap-1.5 px-2.5 text-xs" : "h-7 gap-1 px-2 text-xs"}
+        >
+          <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+          Aplicar
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={mobile ? "h-8 px-2 text-xs" : "h-7 px-2 text-xs"}
+          onClick={clearAdvancedFilters}
+        >
+          Limpiar
+        </Button>
+      </form>
+    );
+  }
 
   return (
     <ModuleSurface
@@ -66,10 +319,33 @@ export function ClinicInformesWorkspaceSummary({
               Últimos estudios cargados. Para acceso completo use el módulo de informes.
             </p>
           </div>
-          {fullModuleLink}
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+            <ModuleDialog
+              open={isFilterDialogOpen}
+              onOpenChange={setIsFilterDialogOpen}
+              title="Filtrar informes"
+              description="Los filtros se aplican sobre los informes recientes cargados en la workspace."
+              trigger={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 gap-1.5 px-2.5 text-xs md:hidden"
+                >
+                  <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+                  {hasActiveFilters ? "Filtros activos" : "Filtros"}
+                </Button>
+              }
+            >
+              {renderAdvancedFilterForm(true)}
+            </ModuleDialog>
+            {fullModuleLink}
+          </div>
         </div>
       }
     >
+      {!reportsLoadError ? renderAdvancedFilterForm() : null}
+
       {reportsLoadError ? (
         <div
           role="alert"
@@ -83,51 +359,95 @@ export function ClinicInformesWorkspaceSummary({
           data-clinic-reports-list-panel="true"
           className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/82"
         >
-          <div
-            data-clinic-reports-table="true"
-            className="hidden min-h-0 flex-1 overflow-hidden md:block"
-          >
-            <table className="w-full table-fixed text-[0.8125rem]">
-              <thead className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground">
-                <tr>
-                  <th className="w-[26%] px-3 py-2 text-left">Caso / Paciente</th>
-                  <th className="w-[17%] px-3 py-2 text-left">Estudio</th>
-                  <th className="w-[15%] px-3 py-2 text-left">Estado</th>
-                  <th className="w-[14%] px-3 py-2 text-left">Fecha</th>
-                  <th className="w-[18%] px-3 py-2 text-left">Archivo / Informe</th>
-                  <th className="w-[10%] px-3 py-2 text-right">Acción</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-vetneb-line/60">
+          {filteredReports.length ? (
+            <>
+              <div
+                data-clinic-reports-table="true"
+                className="hidden min-h-0 flex-1 overflow-hidden md:block"
+              >
+                <table className="w-full table-fixed text-[0.8125rem]">
+                  <thead className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground">
+                    <tr>
+                      <th className="w-[26%] px-3 py-2 text-left">Caso / Paciente</th>
+                      <th className="w-[17%] px-3 py-2 text-left">Estudio</th>
+                      <th className="w-[15%] px-3 py-2 text-left">Estado</th>
+                      <th className="w-[14%] px-3 py-2 text-left">Fecha</th>
+                      <th className="w-[18%] px-3 py-2 text-left">Archivo / Informe</th>
+                      <th className="w-[10%] px-3 py-2 text-right">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-vetneb-line/60">
+                    {pagedReports.pageItems.map((report) => (
+                      <tr
+                        key={report.id}
+                        data-clinic-reports-table-row="true"
+                        className="hover:bg-vetneb-cyan/8"
+                      >
+                        <td className="px-3 py-1.5">
+                          <p className="truncate font-semibold text-vetneb-ink">
+                            {report.patientName ?? "Sin nombre"}
+                          </p>
+                          <p className="font-mono text-[0.6875rem] text-muted-foreground">
+                            Informe #{report.id}
+                          </p>
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <span className="block truncate">
+                            {report.studyType ?? "Tipo sin registrar"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <StatusBadge status={report.status} size="sm" />
+                        </td>
+                        <td className="px-3 py-1.5 text-xs text-muted-foreground">
+                          {formatDate(report.uploadDate)}
+                        </td>
+                        <td className="px-3 py-1.5 text-xs text-muted-foreground">
+                          <span className="block truncate">
+                            {formatReportFile(report)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-1.5 text-right">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => setSelectedReportId(report.id)}
+                          >
+                            Ver
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div
+                data-clinic-reports-mobile-list="true"
+                className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
+              >
                 {pagedReports.pageItems.map((report) => (
-                  <tr
+                  <div
                     key={report.id}
-                    data-clinic-reports-table-row="true"
-                    className="hover:bg-vetneb-cyan/8"
+                    data-clinic-reports-mobile-row="true"
+                    className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5"
                   >
-                    <td className="px-3 py-1.5">
-                      <p className="truncate font-semibold text-vetneb-ink">
-                        {report.patientName ?? "Sin nombre"}
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold text-vetneb-ink">
+                        #{report.id} · {report.patientName ?? "Sin nombre"}
                       </p>
-                      <p className="font-mono text-[0.6875rem] text-muted-foreground">
-                        Informe #{report.id}
+                      <p className="truncate text-[0.6875rem] text-muted-foreground">
+                        {report.studyType ?? "Tipo sin registrar"} ·{" "}
+                        {formatDate(report.uploadDate)}
                       </p>
-                    </td>
-                    <td className="px-3 py-1.5">
-                      <span className="block truncate">
-                        {report.studyType ?? "Tipo sin registrar"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-1.5">
+                      <p className="truncate text-[0.6875rem] text-muted-foreground">
+                        {formatReportFile(report)}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
                       <StatusBadge status={report.status} size="sm" />
-                    </td>
-                    <td className="px-3 py-1.5 text-xs text-muted-foreground">
-                      {formatDate(report.uploadDate)}
-                    </td>
-                    <td className="px-3 py-1.5 text-xs text-muted-foreground">
-                      <span className="block truncate">{formatReportFile(report)}</span>
-                    </td>
-                    <td className="px-3 py-1.5 text-right">
                       <Button
                         type="button"
                         variant="outline"
@@ -137,50 +457,22 @@ export function ClinicInformesWorkspaceSummary({
                       >
                         Ver
                       </Button>
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div
-            data-clinic-reports-mobile-list="true"
-            className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
-          >
-            {pagedReports.pageItems.map((report) => (
-              <div
-                key={report.id}
-                data-clinic-reports-mobile-row="true"
-                className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-semibold text-vetneb-ink">
-                    #{report.id} · {report.patientName ?? "Sin nombre"}
-                  </p>
-                  <p className="truncate text-[0.6875rem] text-muted-foreground">
-                    {report.studyType ?? "Tipo sin registrar"} ·{" "}
-                    {formatDate(report.uploadDate)}
-                  </p>
-                  <p className="truncate text-[0.6875rem] text-muted-foreground">
-                    {formatReportFile(report)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <StatusBadge status={report.status} size="sm" />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => setSelectedReportId(report.id)}
-                  >
-                    Ver
-                  </Button>
-                </div>
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <div className="flex min-h-0 flex-1 p-3">
+              <EmptyState
+                title="Sin informes para los filtros aplicados"
+                description="No hay informes recientes que coincidan con los campos visibles seleccionados."
+                icon={ClipboardList}
+                size="sm"
+                className="w-full"
+              />
+            </div>
+          )}
 
           <div
             data-clinic-reports-pagination-footer="true"
