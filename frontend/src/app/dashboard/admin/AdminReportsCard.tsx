@@ -71,6 +71,8 @@ const INITIAL_FILTER_STATE: AdminReportsFilterState = {
 
 const filterSelectClassName =
   "h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15";
+const compactFilterSelectClassName =
+  "h-7 w-full rounded-md border border-input bg-background px-2 text-xs text-vetneb-ink outline-none focus:border-vetneb-teal focus:ring-2 focus:ring-vetneb-teal/15";
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -392,13 +394,25 @@ export function AdminReportsCard() {
   }
 
   function renderAdvancedFilterForm(mobile = false) {
+    const labelClassName = mobile
+      ? "grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground"
+      : "grid min-w-0 gap-0 text-[11px] font-medium text-muted-foreground";
+    const labelTextClassName = mobile ? "" : "sr-only";
+    const inputClassName = mobile ? "h-8 text-xs" : "h-7 text-xs";
+    const selectClassName = mobile
+      ? filterSelectClassName
+      : compactFilterSelectClassName;
+    const buttonClassName = mobile
+      ? "h-8 gap-1.5 px-2.5 text-xs"
+      : "h-7 gap-1 px-2 text-xs";
+
     return (
       <form
         data-admin-report-upload-filter-bar={mobile ? "advanced-mobile" : "advanced"}
         className={
           mobile
             ? "grid grid-cols-2 items-end gap-2"
-            : "hidden shrink-0 grid-cols-2 items-end gap-1.5 rounded-lg border border-vetneb-line/70 bg-muted/15 px-2 py-1 md:grid md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-[0.8fr_1fr_0.95fr_0.95fr_0.9fr_0.9fr_0.85fr_0.85fr_auto_auto] xl:px-2"
+            : "hidden shrink-0 grid-cols-2 items-end gap-1 rounded-md border border-vetneb-line/70 bg-muted/15 px-1.5 py-0.5 md:grid md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-[0.8fr_1fr_0.95fr_0.95fr_0.9fr_0.9fr_0.85fr_0.85fr_auto_auto] xl:px-1.5"
         }
         onSubmit={applyAdvancedFilters}
         aria-label={
@@ -407,40 +421,40 @@ export function AdminReportsCard() {
             : "Filtros avanzados de informes"
         }
       >
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Informe
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Informe</span>
           <Input
-            className="h-8 text-xs"
+            className={inputClassName}
             type="text"
             placeholder="#ID"
             value={filterDraft.report}
             onChange={(event) => updateFilterDraft("report", event.target.value)}
           />
         </label>
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Clínica
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Clínica</span>
           <Input
-            className="h-8 text-xs"
+            className={inputClassName}
             type="text"
             placeholder="Nombre o ID"
             value={filterDraft.clinic}
             onChange={(event) => updateFilterDraft("clinic", event.target.value)}
           />
         </label>
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Paciente
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Paciente</span>
           <Input
-            className="h-8 text-xs"
+            className={inputClassName}
             type="text"
             placeholder="Texto visible"
             value={filterDraft.patient}
             onChange={(event) => updateFilterDraft("patient", event.target.value)}
           />
         </label>
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Estado
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Estado</span>
           <select
-            className={filterSelectClassName}
+            className={selectClassName}
             value={filterDraft.status}
             onChange={(event) =>
               updateFilterDraft(
@@ -457,45 +471,45 @@ export function AdminReportsCard() {
             ))}
           </select>
         </label>
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Estudio
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Estudio</span>
           <Input
-            className="h-8 text-xs"
+            className={inputClassName}
             type="text"
             placeholder="Tipo visible"
             value={filterDraft.study}
             onChange={(event) => updateFilterDraft("study", event.target.value)}
           />
         </label>
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Archivo
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Archivo</span>
           <Input
-            className="h-8 text-xs"
+            className={inputClassName}
             type="text"
             placeholder="Nombre"
             value={filterDraft.file}
             onChange={(event) => updateFilterDraft("file", event.target.value)}
           />
         </label>
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Desde
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Desde</span>
           <Input
-            className="h-8 text-xs"
+            className={inputClassName}
             type="date"
             value={filterDraft.from}
             onChange={(event) => updateFilterDraft("from", event.target.value)}
           />
         </label>
-        <label className="grid min-w-0 gap-0.5 text-[11px] font-medium text-muted-foreground">
-          Hasta
+        <label className={labelClassName}>
+          <span className={labelTextClassName}>Hasta</span>
           <Input
-            className="h-8 text-xs"
+            className={inputClassName}
             type="date"
             value={filterDraft.to}
             onChange={(event) => updateFilterDraft("to", event.target.value)}
           />
         </label>
-        <Button type="submit" size="sm" className="h-8 gap-1.5 px-2.5 text-xs">
+        <Button type="submit" size="sm" className={buttonClassName}>
           <Filter className="h-3.5 w-3.5" aria-hidden="true" />
           Aplicar
         </Button>
@@ -503,7 +517,7 @@ export function AdminReportsCard() {
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 px-2 text-xs"
+          className={mobile ? "h-8 px-2 text-xs" : "h-7 px-2 text-xs"}
           onClick={clearAdvancedFilters}
         >
           Limpiar
@@ -514,10 +528,10 @@ export function AdminReportsCard() {
 
   return (
     <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden shadow-none">
-      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:py-2">
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-4 py-3 md:py-1">
         <div className="min-w-0">
           <CardTitle className="text-xl leading-tight md:text-base">Informes</CardTitle>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-0 text-xs text-muted-foreground">
             Cola administrativa, trazabilidad y documentos en una sola vista.
           </p>
         </div>
@@ -549,10 +563,10 @@ export function AdminReportsCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3 pt-2 md:gap-1.5 md:pb-2 md:pt-1.5">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3 pt-2 md:gap-1 md:pb-1 md:pt-1">
         <div
           data-admin-reports-toolbar="true"
-          className="flex min-h-8 shrink-0 items-center justify-between gap-2 rounded-md border border-vetneb-line/65 bg-vetneb-surface-raised/45 px-2.5 text-xs text-muted-foreground"
+          className="flex min-h-8 shrink-0 items-center justify-between gap-2 rounded-md border border-vetneb-line/65 bg-vetneb-surface-raised/45 px-2.5 text-xs text-muted-foreground md:min-h-7"
         >
           <div className="hidden flex-wrap items-center gap-x-3 gap-y-1 md:flex">
             <span>
@@ -609,7 +623,7 @@ export function AdminReportsCard() {
         >
           <div className="dashboard-table-responsive hidden min-h-0 flex-1 md:block">
             {filteredReports.length ? (
-              <Table className="table-fixed text-[0.8125rem] [&_th]:h-8 [&_th]:px-2.5 [&_td]:px-2.5">
+              <Table className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[20%]">Caso / paciente</TableHead>
@@ -763,7 +777,7 @@ export function AdminReportsCard() {
           </div>
 
           <nav
-            className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:flex md:min-h-8 md:pt-1"
+            className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-0.5 md:flex md:min-h-7 md:pt-0.5"
             aria-label="Paginación de informes admin"
           >
             <span>
