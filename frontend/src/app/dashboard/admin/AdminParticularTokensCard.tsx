@@ -1299,20 +1299,42 @@ export function AdminParticularTokensCard() {
             </Button>
           </div>
 
-        </div>
-
-        {renderAdvancedFilterForm()}
-
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-1 rounded-lg border border-vetneb-line/70 bg-muted/15 px-2.5 py-1 md:hidden">
-          <span className="text-xs text-muted-foreground">
-            {hasActiveFilters ? "Filtros activos" : "Todos los tokens"}
-          </span>
-          <div className="flex items-center gap-1">
+          <form
+            className="flex w-full min-w-0 items-center gap-1 md:hidden"
+            onSubmit={applyAdvancedFilters}
+          >
+            <span className="sr-only">
+              {hasActiveFilters ? "Filtros activos" : "Todos los tokens"}
+            </span>
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">Nombre de clínica</span>
+              <Input
+                className="h-8 min-w-0 text-xs"
+                type="text"
+                placeholder="Clínica"
+                value={filterDraft.clinic}
+                onChange={(event) => updateFilterDraft("clinic", event.target.value)}
+              />
+            </label>
+            <Button type="submit" variant="outline" size="sm" className="h-8 px-2 text-xs">
+              Filtrar
+            </Button>
+            {hasActiveFilters ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs"
+                onClick={clearAdvancedFilters}
+              >
+                Limpiar
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="h-8 px-2 text-xs"
+              className="h-[34px] px-2 text-xs"
               onClick={() => {
                 void loadTokens();
                 if (isMobileViewport) void loadMobileTokens();
@@ -1321,20 +1343,10 @@ export function AdminParticularTokensCard() {
             >
               {isLoadingTokens ? "Actualizando…" : "Actualizar"}
             </Button>
-            <ModuleDialog
-              title="Filtrar tokens"
-              description="Los filtros se aplican sobre la página cargada."
-              trigger={
-                <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-2.5 text-xs">
-                  <Filter className="h-3.5 w-3.5" aria-hidden="true" />
-                  Filtros
-                </Button>
-              }
-            >
-              {renderAdvancedFilterForm(true)}
-            </ModuleDialog>
-          </div>
+          </form>
         </div>
+
+        {renderAdvancedFilterForm()}
 
         {errorMessage ? (
           <p className="clinical-alert-error shrink-0 px-3 py-1.5 text-xs" role="alert">
@@ -1431,7 +1443,7 @@ export function AdminParticularTokensCard() {
                       ****{token.tokenLast4} · {token.petName}
                     </p>
                     <p className="truncate text-[0.6875rem] text-muted-foreground">
-                      {`Clínica #${token.clinicId}`} ·{" "}
+                      {resolveClinicName(clinicOptions, token.clinicId) ?? `Clínica #${token.clinicId}`} ·{" "}
                       {token.reportId ? `Informe #${token.reportId}` : "Sin informe"}
                     </p>
                   </div>

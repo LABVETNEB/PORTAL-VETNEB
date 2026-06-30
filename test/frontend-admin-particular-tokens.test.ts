@@ -548,7 +548,7 @@ test("admin token card shows selected linked report preview and download actions
   assert.equal(card.includes("storagePath"), false);
 });
 
-test("admin token card filters by resolved clinic name while rows keep stable clinic id fallback", () => {
+test("admin token card filters by resolved clinic name while desktop rows keep stable clinic id fallback", () => {
   const card = read(ADMIN_CARD_PATH);
 
   assert.ok(card.includes("hasResolvedName: boolean;"));
@@ -562,7 +562,7 @@ test("admin token card filters by resolved clinic name while rows keep stable cl
   assert.ok(card.includes("`Clínica #${clinicId}`"));
   assert.ok(card.includes("resolveClinicName(clinicOptions, token.clinicId) ??"));
   assert.ok(card.includes('<p className="truncate">{`Clínica #${token.clinicId}`}</p>'));
-  assert.ok(card.includes("{`Clínica #${token.clinicId}`} ·"));
+  assert.ok(card.includes("{resolveClinicName(clinicOptions, token.clinicId) ?? `Clínica #${token.clinicId}`} ·"));
   assert.ok(card.includes("description={formatTokenTitle(clinicOptions, selectedToken)}"));
   assert.ok(card.includes("{formatTokenClinicLink(clinicOptions, selectedToken.clinicId)}"));
 });
