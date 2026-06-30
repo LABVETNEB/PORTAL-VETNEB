@@ -14,6 +14,17 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
 
 ## Auditorías vigentes
 
+## Documentos rectores recientes
+
+| Documento | Propósito operativo | Estado |
+| --- | --- | --- |
+| [total-visual-engineering-audit.md](./total-visual-engineering-audit.md) | Rector visual/frontend: tokens, CSS, primitivas UI, dashboards, no-scroll y PR-VIS-*. Mantiene conteo visual 26. | Vigente |
+| [total-software-engineering-audit.md](./total-software-engineering-audit.md) | Rector de ingeniería dura: backend, DB, seguridad, CI, testing, observabilidad y PRs ENG/SEC/OBS/LINT/COV. Mantiene conteo ENG 26. | Vigente |
+| [total-engineering-roadmap.md](./total-engineering-roadmap.md) | Orquestador de secuencia, dependencias, fases, gates y trazabilidad VIS + ENG. | Vigente |
+| [design-system-contract.md](./design-system-contract.md) | Contrato operativo docs-only de gobernanza del design system para PR-VIS-0 / Fase 0 / VIS-P1-001. No es auditoría nueva. | Vigente |
+
+## Auditorías Wave 0 vigentes
+
 | Orden | Documento | Propósito operativo | Estado |
 | --- | --- | --- | --- |
 | 1 | [repository-operational-ordering-audit.md](./repository-operational-ordering-audit.md) | Ordenamiento operacional del repositorio, flujo de trabajo, PRs, ramas, validación y disciplina de ejecución. | Vigente |

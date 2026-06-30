@@ -18,6 +18,10 @@ Regla principal:
 | Dominio | Fuente de verdad vigente | Complementos permitidos | Estado | Regla |
 | --- | --- | --- | --- | --- |
 | Índice de auditorías activas | `docs/audit/README.md` | Las 4 auditorías Wave 0 enlazadas desde ese índice | Vigente | Punto de entrada documental de auditorías activas |
+| Visual/frontend total | `docs/audit/total-visual-engineering-audit.md` | `docs/audit/design-system-contract.md`, `docs/audit/total-engineering-roadmap.md` | Vigente | Gobierna visual/frontend, tokens, CSS, primitivas, dashboards, no-scroll y PR-VIS-* |
+| Ingeniería dura total | `docs/audit/total-software-engineering-audit.md` | `docs/audit/total-engineering-roadmap.md` | Vigente | Gobierna backend, DB, seguridad, CI, testing, observabilidad y PRs ENG/SEC/OBS/LINT/COV |
+| Roadmap integrado total | `docs/audit/total-engineering-roadmap.md` | `docs/audit/total-visual-engineering-audit.md`, `docs/audit/total-software-engineering-audit.md` | Vigente | Orquesta secuencia, dependencias, fases, gates y trazabilidad VIS + ENG |
+| Gobernanza del design system | `docs/audit/design-system-contract.md` | `docs/audit/total-visual-engineering-audit.md`, `docs/audit/total-engineering-roadmap.md` | Vigente | Contrato operativo docs-only de PR-VIS-0 / Fase 0 / VIS-P1-001; no reemplaza auditorías rectoras |
 | Orden operacional del repositorio | `docs/audit/repository-operational-ordering-audit.md` | Este archivo | Vigente | Define orden de PRs docs-only y separación de scopes |
 | Readiness enterprise de ingeniería | `docs/audit/vetneb-enterprise-engineering-readiness-audit.md` | `docs/audit/vetneb-supreme-system-level-alignment-plan.md` | Vigente | Usar para gaps enterprise, testing, observabilidad, performance y arquitectura |
 | Readiness multinacional extrema | `docs/audit/vetneb-extreme-multinational-enterprise-readiness-audit.md` | `docs/audit/vetneb-supreme-system-level-alignment-plan.md` | Vigente | Usar para P0/P1 de gobernanza, seguridad, SRE, datos y confianza ejecutiva |
