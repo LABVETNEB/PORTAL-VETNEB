@@ -6,23 +6,23 @@ const STATUS_META: Record<
 > = {
   sample_received: {
     label: "Muestra recibida",
-    className: "border-slate-300 bg-slate-50 text-slate-700",
+    className: "border-vetneb-line bg-vetneb-surface-muted/80 text-vetneb-ink/78",
   },
   processing: {
     label: "Procesamiento",
-    className: "border-sky-200 bg-sky-50 text-sky-800",
+    className: "border-vetneb-cyan/35 bg-vetneb-cyan/12 text-vetneb-navy",
   },
   evaluation: {
     label: "Evaluación",
-    className: "border-amber-200 bg-amber-50 text-amber-800",
+    className: "border-vetneb-amber/35 bg-vetneb-amber/10 text-vetneb-amber",
   },
   report_development: {
     label: "Desarrollo",
-    className: "border-violet-200 bg-violet-50 text-violet-800",
+    className: "border-vetneb-navy/25 bg-vetneb-navy/8 text-vetneb-navy",
   },
   delivered: {
     label: "Entregado",
-    className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    className: "border-vetneb-teal/35 bg-vetneb-teal/12 text-vetneb-teal",
   },
 };
 
