@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useLayoutEffect, useState, useTransition, type Ref } from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,18 @@ import {
 } from "@/components/ui/card";
 import { CompactPager } from "@/components/dashboard/CompactPager";
 import { usePagedRows } from "@/components/dashboard/usePagedRows";
+import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
 import { getAdminMaintenancePurgeDryRun } from "@/lib/api";
 import type {
   MaintenancePurgeCandidateGroup,
   MaintenancePurgeDryRunSnapshot,
 } from "@/types";
+
+const CANDIDATES_FALLBACK_ROWS = 4;
+const CANDIDATE_ROW_HEIGHT_FALLBACK_PX = 76;
+// Matches the space-y-2 gap between candidate rows so the adaptive measurement
+// accounts for the full per-row footprint, not just the row's own height.
+const CANDIDATE_ROW_GAP_PX = 8;
 
 function formatGeneratedAt(value: string) {
   const date = new Date(value);
@@ -44,11 +51,13 @@ function formatSupportLabel(candidate: MaintenancePurgeCandidateGroup) {
 
 function MaintenanceCandidateRow({
   candidate,
+  ref,
 }: {
   candidate: MaintenancePurgeCandidateGroup;
+  ref?: Ref<HTMLDivElement>;
 }) {
   return (
-    <div className="clinical-muted-band rounded-lg px-3 py-3">
+    <div ref={ref} className="clinical-muted-band rounded-lg px-3 py-3">
       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="text-sm font-semibold text-vetneb-ink">
@@ -87,7 +96,41 @@ export function AdminMaintenanceDryRunCard() {
     useState<MaintenancePurgeDryRunSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const pagedCandidates = usePagedRows(snapshot?.candidates ?? [], 4);
+  const [candidatesListNode, setCandidatesListNode] =
+    useState<HTMLDivElement | null>(null);
+  const [firstCandidateRowNode, setFirstCandidateRowNode] =
+    useState<HTMLDivElement | null>(null);
+  const [rowHeightPx, setRowHeightPx] = useState(
+    CANDIDATE_ROW_HEIGHT_FALLBACK_PX,
+  );
+
+  useLayoutEffect(() => {
+    if (!firstCandidateRowNode) {
+      return;
+    }
+
+    const measureRowHeight = () => {
+      const height = firstCandidateRowNode.getBoundingClientRect().height;
+
+      if (height > 0) {
+        setRowHeightPx(height + CANDIDATE_ROW_GAP_PX);
+      }
+    };
+
+    const observer = new ResizeObserver(measureRowHeight);
+    observer.observe(firstCandidateRowNode);
+    measureRowHeight();
+
+    return () => observer.disconnect();
+  }, [firstCandidateRowNode]);
+
+  const { rowsPerPage } = useAdaptiveRowsPerPage({
+    containerNode: candidatesListNode,
+    fallbackRows: CANDIDATES_FALLBACK_ROWS,
+    rowHeightPx,
+  });
+
+  const pagedCandidates = usePagedRows(snapshot?.candidates ?? [], rowsPerPage);
 
   function handleAnalyze() {
     setError(null);
@@ -177,11 +220,16 @@ export function AdminMaintenanceDryRunCard() {
               ) : null}
             </div>
 
-            <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
-              {pagedCandidates.pageItems.map((candidate) => (
+            <div
+              ref={setCandidatesListNode}
+              data-admin-maintenance-candidates-list="true"
+              className="min-h-0 flex-1 space-y-2 overflow-hidden"
+            >
+              {pagedCandidates.pageItems.map((candidate, index) => (
                 <MaintenanceCandidateRow
                   key={candidate.category}
                   candidate={candidate}
+                  ref={index === 0 ? setFirstCandidateRowNode : undefined}
                 />
               ))}
             </div>
