@@ -17,10 +17,25 @@ test("admin sessions card is client-side and imports required dependencies", () 
   const source = read(ADMIN_SESSIONS_CARD_PATH);
 
   assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes('import { useEffect, useMemo, useState, useTransition } from "react";'));
+  for (const hook of [
+    "useEffect",
+    "useLayoutEffect",
+    "useMemo",
+    "useRef",
+    "useState",
+    "useTransition",
+  ]) {
+    assert.ok(source.includes(hook), `missing react hook import: ${hook}`);
+  }
+  assert.ok(source.includes('from "react";'));
   assert.ok(source.includes('import { Badge } from "@/components/ui/badge";'));
   assert.ok(source.includes('import { Button } from "@/components/ui/button";'));
   assert.ok(source.includes('import { getAdminSessions, revokeAdminSession } from "@/lib/api";'));
+  assert.ok(
+    source.includes(
+      'import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";',
+    ),
+  );
   assert.ok(source.includes('import { formatDateTime } from "@/lib/utils";'));
 });
 
@@ -31,7 +46,8 @@ test("admin sessions card keeps typed session contracts", () => {
   assert.ok(source.includes("AdminSessionSummary"));
   assert.ok(source.includes("AdminSessionType"));
   assert.ok(source.includes("AdminSessionsSnapshot"));
-  assert.ok(source.includes("const PAGE_SIZE = 8;"));
+  assert.ok(source.includes("const SESSIONS_FALLBACK_ROWS = 8;"));
+  assert.ok(source.includes("const SESSIONS_SUPERSET_CAP = 32;"));
 });
 
 test("admin sessions card keeps formatters and badge variants", () => {
@@ -68,9 +84,10 @@ test("admin sessions card builds explicit query from selected filters", () => {
   assert.ok(source.includes("const query = useMemo("));
   assert.ok(source.includes('...(sessionType !== "all" ? { sessionType } : {})'));
   assert.ok(source.includes('...(status !== "all" ? { status } : {})'));
-  assert.ok(source.includes("limit: PAGE_SIZE"));
+  assert.ok(source.includes("limit: effectiveLimit"));
+  assert.equal(source.includes("limit: PAGE_SIZE"), false);
   assert.ok(source.includes("offset"));
-  assert.ok(source.includes("[offset, sessionType, status]"));
+  assert.ok(source.includes("[effectiveLimit, offset, sessionType, status]"));
 });
 
 test("admin sessions card loads sessions and handles load errors", () => {
@@ -128,7 +145,7 @@ test("admin sessions card renders safe description filters and table columns", (
 test("admin sessions card renders rows actions empty state and pagination", () => {
   const source = read(ADMIN_SESSIONS_CARD_PATH);
 
-  assert.ok(source.includes("sessions.map((session) => {"));
+  assert.ok(source.includes("sessions.map((session, index) => {"));
   assert.ok(source.includes("formatSessionType(session.sessionType)"));
   assert.ok(source.includes("formatActorType(session.actorType)"));
   assert.ok(source.includes("SessionStatusBadge"));

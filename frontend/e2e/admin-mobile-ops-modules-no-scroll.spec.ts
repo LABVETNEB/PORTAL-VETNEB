@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
   ADMIN_MOBILE_VIEWPORTS,
@@ -10,7 +10,9 @@ import {
   suppressNextDevIndicator,
 } from "./helpers/admin-mobile-contracts";
 
-const MOCK_SESSIONS = Array.from({ length: 13 }, (_, index) => ({
+// PR-SRV-1: sessions is adaptive (measured cardinality, superset cap 32). The
+// fixture stays larger than any effective mobile limit so page 2 always exists.
+const MOCK_SESSIONS = Array.from({ length: 40 }, (_, index) => ({
   sessionType: (["admin", "clinic", "particular"] as const)[index % 3],
   sessionId: 8100 + index,
   actorType: (["admin_user", "clinic_user", "particular_token"] as const)[
@@ -56,8 +58,9 @@ type OpsModule = {
   pagerName: RegExp;
   primaryActionName: RegExp;
   // Viewport-safe page-size ceiling for this module's mobile list; differs
-  // per module (audit and sessions moved to 10/page, users stays at its
-  // existing density).
+  // per module. Audit stays at 10/page and users at its existing density;
+  // sessions is adaptive (measured cardinality) so its ceiling is the superset
+  // cap 32 — the real guarantee is that every rendered item fits the viewport.
   maxItemsPerPage: number;
 };
 
@@ -74,7 +77,8 @@ const OPS_MODULES: OpsModule[] = [
     moduleId: "admin-sessions",
     pagerName: /paginación de sesiones/i,
     primaryActionName: /actualizar/i,
-    maxItemsPerPage: 10,
+    // Adaptive: superset cap 32; per-item viewport fit is asserted below.
+    maxItemsPerPage: 32,
   },
   {
     key: "users",
@@ -156,6 +160,132 @@ async function openModuleFromMobileNavigation(page: Page, module: OpsModule) {
   ).toBeVisible({ timeout: 15_000 });
 }
 
+// Sessions is server-side adaptive: a ResizeObserver-driven re-fetch can remount
+// rows between a `count()` read and a later `nth(index)` resolution, so the
+// live-locator pattern (count + nth) races the adaptive fetch. Instead, take an
+// atomic DOM snapshot of every rendered item (geometry included) in a single
+// `evaluateAll`, and only trust it once two consecutive snapshots are identical.
+type ItemBoxSnapshot = {
+  index: number;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  right: number;
+  bottom: number;
+  visible: boolean;
+};
+
+function sessionSnapshotSignature(snapshot: ItemBoxSnapshot[]): string {
+  return snapshot
+    .map((item) =>
+      [
+        item.index,
+        item.text,
+        Math.round(item.x),
+        Math.round(item.y),
+        Math.round(item.width),
+        Math.round(item.height),
+        Math.round(item.right),
+        Math.round(item.bottom),
+      ].join(":"),
+    )
+    .join("|");
+}
+
+async function readSessionItemSnapshot(
+  moduleRoot: Locator,
+): Promise<ItemBoxSnapshot[]> {
+  return moduleRoot
+    .locator('[data-admin-mobile-ops-item="true"]')
+    .evaluateAll((elements) =>
+      elements.map((element, index) => {
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        const text = (element.textContent ?? "").replace(/\s+/g, " ").trim();
+
+        return {
+          index,
+          text,
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+          right: rect.right,
+          bottom: rect.bottom,
+          visible:
+            rect.width > 0 &&
+            rect.height > 0 &&
+            style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            style.opacity !== "0",
+        };
+      }),
+    );
+}
+
+async function expectStableSessionItemSnapshot(
+  moduleRoot: Locator,
+  maxItems: number,
+): Promise<ItemBoxSnapshot[]> {
+  let previousSignature = "";
+  let stableSnapshot: ItemBoxSnapshot[] = [];
+
+  await expect
+    .poll(
+      async () => {
+        const snapshot = await readSessionItemSnapshot(moduleRoot);
+        const valid =
+          snapshot.length > 0 &&
+          snapshot.length <= maxItems &&
+          snapshot.every((item) => item.visible);
+
+        if (!valid) {
+          previousSignature = "";
+          stableSnapshot = [];
+          return "__invalid__";
+        }
+
+        const signature = sessionSnapshotSignature(snapshot);
+
+        if (signature === previousSignature) {
+          stableSnapshot = snapshot;
+          return "__stable__";
+        }
+
+        previousSignature = signature;
+        stableSnapshot = [];
+        return "__changing__";
+      },
+      {
+        timeout: 15_000,
+        intervals: [100, 150, 250, 500, 750],
+      },
+    )
+    .toBe("__stable__");
+
+  return stableSnapshot;
+}
+
+function expectItemBoxInsideViewport(
+  item: ItemBoxSnapshot,
+  viewport: { width: number; height: number },
+  label: string,
+) {
+  const tolerance = 2;
+
+  expect(item.visible, `${label}: visible`).toBe(true);
+  expect(item.x, `${label}: left`).toBeGreaterThanOrEqual(-tolerance);
+  expect(item.y, `${label}: top`).toBeGreaterThanOrEqual(-tolerance);
+  expect(item.right, `${label}: right`).toBeLessThanOrEqual(
+    viewport.width + tolerance,
+  );
+  expect(item.bottom, `${label}: bottom`).toBeLessThanOrEqual(
+    viewport.height + tolerance,
+  );
+}
+
 for (const moduleSpec of OPS_MODULES) {
   for (const viewport of ADMIN_MOBILE_VIEWPORTS) {
     test(`Admin mobile ops ${moduleSpec.key} is absolute no-scroll at ${viewport.name}`, async ({
@@ -175,17 +305,38 @@ for (const moduleSpec of OPS_MODULES) {
       await expect(moduleRoot).toBeVisible({ timeout: 15_000 });
 
       const items = moduleRoot.locator('[data-admin-mobile-ops-item="true"]');
-      await expect(items.first()).toBeVisible({ timeout: 15_000 });
-      const itemCount = await items.count();
-      expect(itemCount).toBeGreaterThan(0);
-      expect(itemCount).toBeLessThanOrEqual(moduleSpec.maxItemsPerPage);
 
-      for (let index = 0; index < itemCount; index += 1) {
-        await expectInsideViewport(
-          items.nth(index),
-          viewport,
-          `${viewport.name} ${moduleSpec.key} item ${index + 1}`,
+      if (moduleSpec.key === "sessions") {
+        // Adaptive server-side list: validate an atomic, stabilized snapshot so
+        // the per-item viewport checks never race a re-fetch/remount.
+        const itemSnapshots = await expectStableSessionItemSnapshot(
+          moduleRoot,
+          moduleSpec.maxItemsPerPage,
         );
+
+        expect(itemSnapshots.length).toBeGreaterThan(0);
+        expect(itemSnapshots.length).toBeLessThanOrEqual(moduleSpec.maxItemsPerPage);
+
+        for (const item of itemSnapshots) {
+          expectItemBoxInsideViewport(
+            item,
+            viewport,
+            `${viewport.name} sessions item ${item.index + 1}`,
+          );
+        }
+      } else {
+        await expect(items.first()).toBeVisible({ timeout: 15_000 });
+        const itemCount = await items.count();
+        expect(itemCount).toBeGreaterThan(0);
+        expect(itemCount).toBeLessThanOrEqual(moduleSpec.maxItemsPerPage);
+
+        for (let index = 0; index < itemCount; index += 1) {
+          await expectInsideViewport(
+            items.nth(index),
+            viewport,
+            `${viewport.name} ${moduleSpec.key} item ${index + 1}`,
+          );
+        }
       }
 
       const pager = moduleRoot.getByRole("navigation", { name: moduleSpec.pagerName });
@@ -300,8 +451,16 @@ test("Admin mobile sessions Tipo/Estado selects render their full option text un
     ).toBeGreaterThanOrEqual(metrics.minTextHeight);
   }
 
-  const itemCount = await moduleRoot
-    .locator('[data-admin-mobile-ops-item="true"]')
-    .count();
-  expect(itemCount, "sessions: 10 per mobile page").toBeLessThanOrEqual(10);
+  // PR-SRV-1: sessions is adaptive; wait for a stabilized snapshot instead of a
+  // raw count (which CI can read as 0 mid fetch+measurement). Ceiling is the
+  // superset cap, not 10.
+  const itemSnapshots = await expectStableSessionItemSnapshot(moduleRoot, 32);
+  expect(
+    itemSnapshots.length,
+    "sessions: within adaptive superset cap",
+  ).toBeGreaterThan(0);
+  expect(
+    itemSnapshots.length,
+    "sessions: within adaptive superset cap",
+  ).toBeLessThanOrEqual(32);
 });

@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getAdminSessions, revokeAdminSession } from "@/lib/api";
+import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
 import { formatDateTime } from "@/lib/utils";
 import type {
   AdminSessionStatus,
@@ -21,11 +29,33 @@ import type {
   AdminSessionType,
   AdminSessionsSnapshot,
 } from "@/types";
-import { AdminMobileSessionsModule } from "./AdminMobileSessionsModule";
+import { AdminMobileOpsPager } from "./AdminMobileOpsPager";
 
-// Eight rows preserve the 1366×768 no-scroll contract because the workspace also
-// renders the credential-change control above this card.
-const PAGE_SIZE = 8;
+// Server pagination is now sized by the measured rows container (Zero-Scroll
+// adaptive contract). PAGE_SIZE survives only as the pre-measurement fallback.
+const SESSIONS_FALLBACK_ROWS = 8;
+// Hybrid cap: the effective `limit` never exceeds this superset ceiling even on
+// very tall viewports; recompute of offset always clamps against it.
+const SESSIONS_SUPERSET_CAP = 32;
+// Fixed header row height of the desktop table (`[&_th]:h-8`), discounted from
+// the measured region so the row math never counts the header as a data row.
+const SESSIONS_TABLE_HEADER_PX = 32;
+// Fallback item height used until a real row is measured.
+const SESSIONS_ROW_HEIGHT_FALLBACK_PX = 36;
+
+type Measurement = {
+  containerNode: HTMLElement | null;
+  rowHeightPx: number;
+  headerHeightPx: number;
+};
+
+function measurementsEqual(a: Measurement, b: Measurement) {
+  return (
+    a.containerNode === b.containerNode &&
+    a.rowHeightPx === b.rowHeightPx &&
+    a.headerHeightPx === b.headerHeightPx
+  );
+}
 
 function formatOptionalDate(value: string | null) {
   return value ? formatDateTime(value) : "—";
@@ -96,7 +126,6 @@ function SessionStatusBadge({ status }: SessionStatusBadgeProps) {
 }
 
 export function AdminSessionsReadOnlyCard() {
-  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const [snapshot, setSnapshot] = useState<AdminSessionsSnapshot | null>(null);
   const [sessionType, setSessionType] = useState<AdminSessionType | "all">(
     "all",
@@ -109,25 +138,128 @@ export function AdminSessionsReadOnlyCard() {
   );
   const [isPending, startTransition] = useTransition();
 
+  // One collapsed runtime feeds both presentations, so the visible container
+  // (desktop table region or mobile list region) drives a single cardinality.
+  const [desktopBodyNode, setDesktopBodyNode] = useState<HTMLElement | null>(
+    null,
+  );
+  const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
+  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
+  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
+  const [measurement, setMeasurement] = useState<Measurement>({
+    containerNode: null,
+    rowHeightPx: SESSIONS_ROW_HEIGHT_FALLBACK_PX,
+    headerHeightPx: 0,
+  });
+
+  const latestRequestRef = useRef(0);
+  const snapshotRef = useRef<AdminSessionsSnapshot | null>(null);
+
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
+
+  useLayoutEffect(() => {
+    const nodes = [
+      desktopBodyNode,
+      mobileBodyNode,
+      desktopRowNode,
+      mobileRowNode,
+    ].filter((node): node is HTMLElement => node !== null);
+    if (nodes.length === 0) {
+      return;
+    }
+
+    let frame: number | null = null;
+
+    const recompute = () => {
+      frame = null;
+
+      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
+      if (mobileHeight > 0 && mobileBodyNode) {
+        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: mobileBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : SESSIONS_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: 0,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+        return;
+      }
+
+      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
+      if (desktopHeight > 0 && desktopBodyNode) {
+        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: desktopBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : SESSIONS_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: SESSIONS_TABLE_HEADER_PX,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+      }
+    };
+
+    const scheduleRecompute = () => {
+      if (frame === null) {
+        frame = requestAnimationFrame(recompute);
+      }
+    };
+
+    const observer = new ResizeObserver(scheduleRecompute);
+    nodes.forEach((node) => observer.observe(node));
+    scheduleRecompute();
+
+    return () => {
+      observer.disconnect();
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
+
+  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
+    containerNode: measurement.containerNode,
+    fallbackItems: SESSIONS_FALLBACK_ROWS,
+    itemHeightPx: measurement.rowHeightPx,
+    headerHeightPx: measurement.headerHeightPx,
+    minItems: 1,
+    maxItems: SESSIONS_SUPERSET_CAP,
+  });
+
+  // Effective server page size: at least the measured rows, capped at the
+  // superset ceiling. The hook already clamps to [1, SESSIONS_SUPERSET_CAP].
+  const effectiveLimit = rowsPerPage;
+
   const query = useMemo(
     () => ({
       ...(sessionType !== "all" ? { sessionType } : {}),
       ...(status !== "all" ? { status } : {}),
-      limit: PAGE_SIZE,
+      limit: effectiveLimit,
       offset,
     }),
-    [offset, sessionType, status],
+    [effectiveLimit, offset, sessionType, status],
   );
 
   function loadSessions() {
     setError(null);
 
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
+
     startTransition(() => {
       void (async () => {
         try {
           const result = await getAdminSessions(query);
+          if (requestId !== latestRequestRef.current) return;
           setSnapshot(result);
         } catch (err) {
+          if (requestId !== latestRequestRef.current) return;
           setError(
             err instanceof Error
               ? err.message
@@ -153,11 +285,16 @@ export function AdminSessionsReadOnlyCard() {
     setError(null);
     setRevokingSessionKey(sessionKey);
 
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
+
     try {
       await revokeAdminSession(session.sessionType, session.sessionId);
       const refreshed = await getAdminSessions(query);
+      if (requestId !== latestRequestRef.current) return;
       setSnapshot(refreshed);
     } catch (err) {
+      if (requestId !== latestRequestRef.current) return;
       setError(
         err instanceof Error
           ? err.message
@@ -168,28 +305,43 @@ export function AdminSessionsReadOnlyCard() {
     }
   }
 
+  // Recompute offset when the effective limit changes so the same first record
+  // stays visible; clamp against the known total.
+  const previousLimitRef = useRef(effectiveLimit);
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(min-width: 768px)");
-    const syncViewport = () => setIsDesktopViewport(mediaQuery.matches);
-    syncViewport();
-    mediaQuery.addEventListener("change", syncViewport);
-    return () => mediaQuery.removeEventListener("change", syncViewport);
-  }, []);
+    if (previousLimitRef.current === effectiveLimit) {
+      return;
+    }
+    previousLimitRef.current = effectiveLimit;
+
+    setOffset((currentOffset) => {
+      let nextOffset = Math.floor(currentOffset / effectiveLimit) * effectiveLimit;
+      const total = snapshotRef.current?.total;
+      if (typeof total === "number") {
+        const lastValidOffset = Math.max(
+          0,
+          (Math.ceil(total / effectiveLimit) - 1) * effectiveLimit,
+        );
+        nextOffset = Math.min(nextOffset, lastValidOffset);
+      }
+      nextOffset = Math.max(0, nextOffset);
+      return nextOffset === currentOffset ? currentOffset : nextOffset;
+    });
+  }, [effectiveLimit]);
 
   useEffect(() => {
-    if (!isDesktopViewport) return;
     loadSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDesktopViewport, query]);
+  }, [query]);
 
   const sessions = snapshot?.sessions ?? [];
   const hasPreviousPage = offset > 0;
   const hasNextPage = snapshot
     ? offset + snapshot.sessions.length < snapshot.total
     : false;
-  const page = Math.floor(offset / PAGE_SIZE) + 1;
+  const page = Math.floor(offset / effectiveLimit) + 1;
   const pageCount = snapshot
-    ? Math.max(1, Math.ceil(snapshot.total / PAGE_SIZE))
+    ? Math.max(1, Math.ceil(snapshot.total / effectiveLimit))
     : 1;
   const rangeStart = sessions.length ? offset + 1 : 0;
   const rangeEnd = offset + sessions.length;
@@ -200,10 +352,23 @@ export function AdminSessionsReadOnlyCard() {
   ).length;
   const disableActions = isPending || revokingSessionKey !== null;
 
+  function goToPreviousPage() {
+    setError(null);
+    setOffset(Math.max(offset - effectiveLimit, 0));
+  }
+
+  function goToNextPage() {
+    setError(null);
+    setOffset(offset + effectiveLimit);
+  }
+
   return (
     <>
-      <AdminMobileSessionsModule />
-      <Card className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none md:flex">
+      <Card
+        data-admin-sesiones-card="true"
+        data-admin-sesiones-page-size={effectiveLimit}
+        className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none md:flex"
+      >
       <CardHeader className="flex min-h-11 shrink-0 flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-3 py-1 sm:px-4">
         <div className="min-w-0">
           <CardTitle className="text-base">Sesiones activas y expiradas</CardTitle>
@@ -316,165 +481,112 @@ export function AdminSessionsReadOnlyCard() {
           </label>
 
           <span className="ml-auto hidden pb-2 text-[11px] text-muted-foreground md:inline">
-            {PAGE_SIZE} por página
+            {effectiveLimit} por página
           </span>
         </div>
 
-        <div className="min-h-0 flex-1 py-1">
+        <div
+          ref={setDesktopBodyNode}
+          data-admin-sesiones-list-body="true"
+          className="min-h-0 flex-1 py-1"
+        >
           {sessions.length ? (
-            <>
-              <div className="dashboard-table-responsive dashboard-fitted-table hidden px-3 md:block sm:px-4">
-                <Table
-                  className="table-fixed text-[13px] [&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold"
-                  aria-label="Tabla de sesiones administrativas"
-                >
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[14%]">Sesión</TableHead>
-                      <TableHead className="w-[14%]">Actor</TableHead>
-                      <TableHead className="w-[10%]">Estado</TableHead>
-                      <TableHead className="hidden w-[9.5rem] lg:table-cell">
-                        Creada
-                      </TableHead>
-                      <TableHead className="w-[9.5rem]">Último acceso</TableHead>
-                      <TableHead className="hidden w-[9.5rem] xl:table-cell">
-                        Expira
-                      </TableHead>
-                      <TableHead className="w-[8.5rem] text-right">Acción</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sessions.map((session) => {
-                      const sessionKey = getSessionKey(session);
-                      const isRevoking = revokingSessionKey === sessionKey;
-                      const isCurrentAdminSession =
-                        session.sessionType === "admin" &&
-                        typeof snapshot?.currentAdminSessionId === "number" &&
-                        session.sessionId === snapshot.currentAdminSessionId;
-
-                      return (
-                        <TableRow key={sessionKey}>
-                          <TableCell>
-                            <div className="flex items-center gap-1.5">
-                              <SessionTypeBadge sessionType={session.sessionType} />
-                              <span className="truncate font-mono text-[11px] text-muted-foreground">
-                                #{session.sessionId}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <p className="truncate text-xs text-vetneb-ink/88">
-                              {formatActorType(session.actorType)}
-                            </p>
-                            <p className="truncate font-mono text-[11px] text-muted-foreground">
-                              ID {session.actorId}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <SessionStatusBadge status={session.status} />
-                          </TableCell>
-                          <TableCell className="hidden truncate text-xs text-muted-foreground lg:table-cell">
-                            {formatOptionalDate(session.createdAt)}
-                          </TableCell>
-                          <TableCell className="truncate text-xs text-muted-foreground">
-                            {formatOptionalDate(session.lastAccess)}
-                          </TableCell>
-                          <TableCell className="hidden truncate text-xs text-muted-foreground xl:table-cell">
-                            {formatOptionalDate(session.expiresAt)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-2 text-xs"
-                              disabled={isRevoking || isCurrentAdminSession}
-                              aria-busy={isRevoking ? true : undefined}
-                              aria-label={
-                                isCurrentAdminSession
-                                  ? `Sesión ${formatSessionType(session.sessionType)} #${session.sessionId} actual, no se puede revocar`
-                                  : `Revocar sesión ${formatSessionType(session.sessionType)} #${session.sessionId}`
-                              }
-                              onClick={() => void handleRevokeSession(session)}
-                            >
-                              {isRevoking ? (
-                                <Loader2 className="animate-spin" aria-hidden="true" />
-                              ) : null}
-                              {isCurrentAdminSession
-                                ? "Sesión actual"
-                                : isRevoking
-                                  ? "Revocando..."
-                                  : "Revocar"}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div
-                className="divide-y divide-vetneb-line/70 border-y border-vetneb-line/70 md:hidden"
-                aria-label="Lista de sesiones"
+            <div className="dashboard-table-responsive dashboard-fitted-table px-3 sm:px-4">
+              <Table
+                className="table-fixed text-[13px] [&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold"
+                aria-label="Tabla de sesiones administrativas"
               >
-                {sessions.map((session) => {
-                  const sessionKey = getSessionKey(session);
-                  const isRevoking = revokingSessionKey === sessionKey;
-                  const isCurrentAdminSession =
-                    session.sessionType === "admin" &&
-                    typeof snapshot?.currentAdminSessionId === "number" &&
-                    session.sessionId === snapshot.currentAdminSessionId;
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[14%]">Sesión</TableHead>
+                    <TableHead className="w-[14%]">Actor</TableHead>
+                    <TableHead className="w-[10%]">Estado</TableHead>
+                    <TableHead className="hidden w-[9.5rem] lg:table-cell">
+                      Creada
+                    </TableHead>
+                    <TableHead className="w-[9.5rem]">Último acceso</TableHead>
+                    <TableHead className="hidden w-[9.5rem] xl:table-cell">
+                      Expira
+                    </TableHead>
+                    <TableHead className="w-[8.5rem] text-right">Acción</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sessions.map((session, index) => {
+                    const sessionKey = getSessionKey(session);
+                    const isRevoking = revokingSessionKey === sessionKey;
+                    const isCurrentAdminSession =
+                      session.sessionType === "admin" &&
+                      typeof snapshot?.currentAdminSessionId === "number" &&
+                      session.sessionId === snapshot.currentAdminSessionId;
 
-                  return (
-                    <div
-                      key={sessionKey}
-                      className="flex min-h-10 items-center gap-2 px-3 py-1"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <SessionTypeBadge sessionType={session.sessionType} />
-                          <SessionStatusBadge status={session.status} />
-                        </div>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {formatActorType(session.actorType)} · ID {session.actorId} ·
-                          Sesión #{session.sessionId}
-                        </p>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          Acceso {formatOptionalDate(session.lastAccess)} · Expira{" "}
-                          {formatOptionalDate(session.expiresAt)}
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 shrink-0 px-2 text-xs"
-                        disabled={isRevoking || isCurrentAdminSession}
-                        aria-busy={isRevoking ? true : undefined}
-                        aria-label={
-                          isCurrentAdminSession
-                            ? `Sesión ${formatSessionType(session.sessionType)} #${session.sessionId} actual, no se puede revocar`
-                            : `Revocar sesión ${formatSessionType(session.sessionType)} #${session.sessionId}`
-                        }
-                        onClick={() => void handleRevokeSession(session)}
+                    return (
+                      <TableRow
+                        key={sessionKey}
+                        ref={index === 0 ? setDesktopRowNode : undefined}
+                        data-admin-sesiones-row="true"
                       >
-                        {isCurrentAdminSession
-                          ? "Actual"
-                          : isRevoking
-                            ? "Revocando..."
-                            : "Revocar"}
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <SessionTypeBadge sessionType={session.sessionType} />
+                            <span className="truncate font-mono text-[11px] text-muted-foreground">
+                              #{session.sessionId}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <p className="truncate text-xs text-vetneb-ink/88">
+                            {formatActorType(session.actorType)}
+                          </p>
+                          <p className="truncate font-mono text-[11px] text-muted-foreground">
+                            ID {session.actorId}
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          <SessionStatusBadge status={session.status} />
+                        </TableCell>
+                        <TableCell className="hidden truncate text-xs text-muted-foreground lg:table-cell">
+                          {formatOptionalDate(session.createdAt)}
+                        </TableCell>
+                        <TableCell className="truncate text-xs text-muted-foreground">
+                          {formatOptionalDate(session.lastAccess)}
+                        </TableCell>
+                        <TableCell className="hidden truncate text-xs text-muted-foreground xl:table-cell">
+                          {formatOptionalDate(session.expiresAt)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            disabled={isRevoking || isCurrentAdminSession}
+                            aria-busy={isRevoking ? true : undefined}
+                            aria-label={
+                              isCurrentAdminSession
+                                ? `Sesión ${formatSessionType(session.sessionType)} #${session.sessionId} actual, no se puede revocar`
+                                : `Revocar sesión ${formatSessionType(session.sessionType)} #${session.sessionId}`
+                            }
+                            onClick={() => void handleRevokeSession(session)}
+                          >
+                            {isRevoking ? (
+                              <Loader2 className="animate-spin" aria-hidden="true" />
+                            ) : null}
+                            {isCurrentAdminSession
+                              ? "Sesión actual"
+                              : isRevoking
+                                ? "Revocando..."
+                                : "Revocar"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           ) : error ? (
-            <div
-              className="clinical-alert-error mx-3 sm:mx-4"
-              role="alert"
-            >
+            <div className="clinical-alert-error mx-3 sm:mx-4" role="alert">
               {error}
             </div>
           ) : (
@@ -487,6 +599,7 @@ export function AdminSessionsReadOnlyCard() {
         </div>
 
         <footer
+          data-admin-sesiones-pagination="true"
           className="dashboard-table-pagination min-h-9 shrink-0 border-t border-vetneb-line/70 px-3 py-1 text-xs text-muted-foreground sm:px-4"
           aria-label="Paginación de sesiones"
         >
@@ -503,10 +616,7 @@ export function AdminSessionsReadOnlyCard() {
               variant="outline"
               size="sm"
               disabled={!hasPreviousPage || disableActions}
-              onClick={() => {
-                setError(null);
-                setOffset(Math.max(offset - PAGE_SIZE, 0));
-              }}
+              onClick={goToPreviousPage}
               className="h-7 px-2 text-xs flex-1 sm:flex-none"
             >
               Anterior
@@ -523,10 +633,7 @@ export function AdminSessionsReadOnlyCard() {
               variant="outline"
               size="sm"
               disabled={!hasNextPage || disableActions}
-              onClick={() => {
-                setError(null);
-                setOffset(offset + PAGE_SIZE);
-              }}
+              onClick={goToNextPage}
               className="h-7 px-2 text-xs flex-1 sm:flex-none"
             >
               Siguiente
@@ -535,6 +642,163 @@ export function AdminSessionsReadOnlyCard() {
         </footer>
       </CardContent>
       </Card>
+
+      <section
+        data-admin-mobile-ops-module="sessions"
+        data-admin-sesiones-card="true"
+        data-admin-sesiones-page-size={effectiveLimit}
+        aria-label="Sesiones administrativas"
+        className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/80 bg-card md:hidden"
+      >
+        <header className="flex min-h-10 shrink-0 items-center justify-between gap-2 overflow-hidden border-b border-vetneb-line/70 px-2 py-1">
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold text-vetneb-ink">
+              {snapshot ? `${snapshot.total} sesiones` : "Sesiones"}
+            </p>
+            <p
+              className={`truncate text-[11px] ${error ? "text-destructive" : "text-muted-foreground"}`}
+              role={error ? "alert" : undefined}
+            >
+              {error ?? "Activas y expiradas"}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 shrink-0 px-2 text-xs"
+            onClick={loadSessions}
+            disabled={disableActions}
+            aria-busy={isPending ? true : undefined}
+          >
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            ) : null}
+            Actualizar
+          </Button>
+        </header>
+
+        <div className="grid min-h-12 shrink-0 grid-cols-2 gap-2 overflow-hidden border-b border-vetneb-line/70 bg-muted/15 px-2 py-1">
+          <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
+            Tipo
+            <select
+              className="field-select h-9 items-center px-2 py-1 text-xs leading-none"
+              value={sessionType}
+              disabled={disableActions}
+              onChange={(event) => {
+                setError(null);
+                setOffset(0);
+                setSessionType(event.target.value as AdminSessionType | "all");
+              }}
+            >
+              <option value="all">Todas</option>
+              <option value="admin">Admin</option>
+              <option value="clinic">Clínica</option>
+              <option value="particular">Particular</option>
+            </select>
+          </label>
+          <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
+            Estado
+            <select
+              className="field-select h-9 items-center px-2 py-1 text-xs leading-none"
+              value={status}
+              disabled={disableActions}
+              onChange={(event) => {
+                setError(null);
+                setOffset(0);
+                setStatus(event.target.value as AdminSessionStatus | "all");
+              }}
+            >
+              <option value="all">Todos</option>
+              <option value="active">Activas</option>
+              <option value="expired">Expiradas</option>
+            </select>
+          </label>
+        </div>
+
+        <div
+          ref={setMobileBodyNode}
+          data-admin-sesiones-list-body="true"
+          className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden"
+        >
+          {sessions.length ? (
+            sessions.map((session, index) => {
+              const sessionKey = getSessionKey(session);
+              const isRevoking = revokingSessionKey === sessionKey;
+              const isCurrentAdminSession =
+                session.sessionType === "admin" &&
+                session.sessionId === snapshot?.currentAdminSessionId;
+
+              return (
+                <article
+                  key={sessionKey}
+                  ref={index === 0 ? setMobileRowNode : undefined}
+                  data-admin-mobile-ops-item="true"
+                  data-admin-sesiones-row="true"
+                  className="flex min-h-9 items-center gap-2 overflow-hidden px-2 py-0.5"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <SessionTypeBadge sessionType={session.sessionType} />
+                      <SessionStatusBadge status={session.status} />
+                      <span className="min-w-0 truncate text-xs font-medium text-vetneb-ink">
+                        {formatActorType(session.actorType)} · #{session.sessionId}
+                      </span>
+                    </div>
+                    <p className="truncate text-[10px] text-muted-foreground">
+                      Acceso {formatOptionalDate(session.lastAccess)}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 shrink-0 px-2 text-xs"
+                    disabled={isRevoking || isCurrentAdminSession}
+                    aria-busy={isRevoking ? true : undefined}
+                    aria-label={
+                      isCurrentAdminSession
+                        ? `Sesión ${formatSessionType(session.sessionType)} #${session.sessionId} actual, no se puede revocar`
+                        : `Revocar sesión ${formatSessionType(session.sessionType)} #${session.sessionId}`
+                    }
+                    onClick={() => void handleRevokeSession(session)}
+                  >
+                    {isCurrentAdminSession
+                      ? "Actual"
+                      : isRevoking
+                        ? "Revocando..."
+                        : "Revocar"}
+                  </Button>
+                </article>
+              );
+            })
+          ) : (
+            <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
+              {error
+                ? "Error al cargar sesiones"
+                : isPending
+                  ? "Cargando sesiones..."
+                  : "Sin sesiones"}
+            </div>
+          )}
+        </div>
+
+        <AdminMobileOpsPager
+          ariaLabel="Paginación de sesiones"
+          page={page}
+          pageCount={pageCount}
+          rangeLabel={
+            sessions.length
+              ? `${rangeStart}–${rangeEnd} de ${snapshot?.total ?? 0}`
+              : "Sin sesiones"
+          }
+          previousDisabled={!hasPreviousPage}
+          nextDisabled={!hasNextPage}
+          disabled={disableActions}
+          onPrevious={goToPreviousPage}
+          onNext={goToNextPage}
+        />
+      </section>
     </>
   );
 }
