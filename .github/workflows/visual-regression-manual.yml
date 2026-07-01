@@ -1,0 +1,131 @@
+name: Visual Regression Manual
+
+run-name: "Visual regression ${{ inputs.suite }} (update_snapshots=${{ inputs.update_snapshots }})"
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Visual suite to run."
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - public
+          - authenticated
+          - stress
+      update_snapshots:
+        description: "Update visual snapshots in the ephemeral CI workspace."
+        required: true
+        default: false
+        type: boolean
+      upload_artifacts:
+        description: "Upload Playwright reports, test results and PNG evidence."
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-regression-manual-${{ github.ref }}-${{ inputs.suite }}
+  cancel-in-progress: false
+
+jobs:
+  visual-regression:
+    name: visual-regression-${{ inputs.suite }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      CI: true
+      VISUAL_SUITE: ${{ inputs.suite }}
+      UPDATE_SNAPSHOTS: ${{ inputs.update_snapshots }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Enable corepack
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack pnpm --version
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile --reporter=append-only
+
+      - name: Install Playwright Chromium
+        run: corepack pnpm --dir frontend exec playwright install --with-deps chromium
+
+      - name: Run selected visual regression suite
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${RUNNER_OS}" != "Linux" ]; then
+            echo "::error::Visual snapshots are versioned only for Chromium Linux."
+            exit 1
+          fi
+
+          case "${VISUAL_SUITE}" in
+            all)
+              specs=(
+                "e2e/visual-regression-public.spec.ts"
+                "e2e/visual-regression-authenticated.spec.ts"
+                "e2e/visual-regression-stress.spec.ts"
+              )
+              ;;
+            public)
+              specs=("e2e/visual-regression-public.spec.ts")
+              ;;
+            authenticated)
+              specs=("e2e/visual-regression-authenticated.spec.ts")
+              ;;
+            stress)
+              specs=("e2e/visual-regression-stress.spec.ts")
+              ;;
+            *)
+              echo "::error::Invalid suite: ${VISUAL_SUITE}"
+              exit 1
+              ;;
+          esac
+
+          cmd=(corepack pnpm --dir frontend exec playwright test "${specs[@]}" --project=chromium)
+
+          if [ "${UPDATE_SNAPSHOTS}" = "true" ]; then
+            cmd+=(--update-snapshots)
+          fi
+
+          printf 'Running:'
+          printf ' %q' "${cmd[@]}"
+          printf '\n'
+
+          "${cmd[@]}"
+
+      - name: Upload Playwright artifacts
+        if: ${{ always() && inputs.upload_artifacts }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-regression-${{ inputs.suite }}-playwright-${{ github.run_attempt }}
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload snapshot PNGs
+        if: ${{ always() && inputs.upload_artifacts && (inputs.update_snapshots || failure()) }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-regression-${{ inputs.suite }}-snapshots-${{ github.run_attempt }}
+          path: frontend/e2e/**/*.png
+          if-no-files-found: ignore
+          retention-days: 14
