@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global inline/masked Master-Detail / no-scroll contract for BOTH dashboards.
@@ -247,6 +247,36 @@ async function readScrollContract(page: Page): Promise<ScrollContract> {
   });
 }
 
+// `useAdaptiveRowsPerPage` (PR-FIX-1) reacts to the measured container/row
+// instead of a fixed page size. Right after the list mounts it can briefly
+// compute a transient value from not-yet-updated sub-measurements before a
+// follow-up render settles on the real value, so a naive read can catch that
+// transient instead of the converged count. Wait until the count stops
+// changing for a few consecutive polls before trusting it.
+async function waitForSettledRowCount(
+  locator: Locator,
+  label: string,
+): Promise<number> {
+  let previousCount = -1;
+  let stableReads = 0;
+
+  await expect(async () => {
+    const currentCount = await locator.count();
+    if (currentCount === previousCount) {
+      stableReads += 1;
+    } else {
+      previousCount = currentCount;
+      stableReads = 0;
+    }
+    expect(
+      stableReads,
+      `${label}: adaptive row count must settle (currently ${currentCount})`,
+    ).toBeGreaterThanOrEqual(3);
+  }).toPass({ timeout: 8_000, intervals: [50] });
+
+  return previousCount;
+}
+
 function assertNoInternalScroll(metrics: ScrollContract, label: string) {
   expect(metrics.hasMain, `${label}: main.dashboard-main present`).toBe(true);
 
@@ -365,7 +395,20 @@ test("clinic Tokens desktop limits the list and opens detail dialog without shel
   await expect(workspace).toBeVisible({
     timeout: 12_000,
   });
-  await expect(card.locator('[data-clinic-access-table-row="true"]')).toHaveCount(4);
+  // `rowsPerPage` is adaptive (useAdaptiveRowsPerPage, PR-FIX-1), not a fixed
+  // literal -- assert a settled, bounded row count instead of TOKENS_PAGE_SIZE.
+  const desktopRowCount = await waitForSettledRowCount(
+    card.locator('[data-clinic-access-table-row="true"]'),
+    "desktop clinic Tokens initial list",
+  );
+  expect(
+    desktopRowCount,
+    "desktop clinic Tokens: adaptive row count must be positive",
+  ).toBeGreaterThan(0);
+  expect(
+    desktopRowCount,
+    "desktop clinic Tokens: adaptive row count must not exceed the mocked dataset",
+  ).toBeLessThanOrEqual(MOCK_TOKENS.length);
   await expect(
     card.locator('[data-clinic-access-pagination-footer="true"]'),
   ).toBeVisible();
@@ -379,7 +422,9 @@ test("clinic Tokens desktop limits the list and opens detail dialog without shel
   await expect(
     card.locator('[data-detail-state="selected"], .dashboard-inline-detail'),
   ).toHaveCount(0);
-  await expect(card.locator('[data-clinic-access-table-row="true"]')).toHaveCount(4);
+  await expect(
+    card.locator('[data-clinic-access-table-row="true"]'),
+  ).toHaveCount(desktopRowCount);
   const detailDialog = page.locator('[data-clinic-access-detail-dialog="true"]');
   await expect(detailDialog).toBeVisible();
   await expect(detailDialog).toContainText("Paciente 2 · Tutor 2");
@@ -404,8 +449,25 @@ test("clinic Tokens mobile keeps the list and opens the selected detail dialog",
   });
   await expect(card.locator('[data-clinic-access-mobile-row="true"]').first()).toBeVisible();
 
+  // `rowsPerPage` is adaptive (useAdaptiveRowsPerPage, PR-FIX-1), not a fixed
+  // literal -- assert a settled, bounded row count instead of TOKENS_PAGE_SIZE.
+  const mobileRowCount = await waitForSettledRowCount(
+    card.locator('[data-clinic-access-mobile-row="true"]'),
+    "mobile clinic Tokens initial list",
+  );
+  expect(
+    mobileRowCount,
+    "mobile clinic Tokens: adaptive row count must be positive",
+  ).toBeGreaterThan(0);
+  expect(
+    mobileRowCount,
+    "mobile clinic Tokens: adaptive row count must not exceed the mocked dataset",
+  ).toBeLessThanOrEqual(MOCK_TOKENS.length);
+
   await card.getByRole("button", { name: "Ver detalle", exact: true }).nth(1).click();
-  await expect(card.locator('[data-clinic-access-mobile-row="true"]')).toHaveCount(4);
+  await expect(
+    card.locator('[data-clinic-access-mobile-row="true"]'),
+  ).toHaveCount(mobileRowCount);
   await expect(
     card.locator('[data-detail-state="selected"], .dashboard-inline-detail'),
   ).toHaveCount(0);

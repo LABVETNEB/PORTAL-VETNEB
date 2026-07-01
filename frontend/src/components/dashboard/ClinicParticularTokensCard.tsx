@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useState } from "react";
 
 import { Filter } from "lucide-react";
 import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
@@ -70,7 +70,7 @@ type ClinicParticularTokenFilterState = {
 /** Fallback tokens visible per page, used until the list body can be measured. */
 const TOKENS_PAGE_SIZE = 4;
 
-/** Row height fallback (px) before the `--dash-row-h` probe resolves. */
+/** Row height fallback (px) before the first real row/card can be measured. */
 const TOKENS_ROW_HEIGHT_FALLBACK_PX = 44;
 
 const CREATE_TOKEN_STEP_ORDER = ["contact", "patient", "sample"] as const;
@@ -364,51 +364,76 @@ export function ClinicParticularTokensCard() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const panelBodyRef = useRef<HTMLDivElement | null>(null);
-  const rowHeightProbeRef = useRef<HTMLDivElement | null>(null);
-  const tableHeaderRef = useRef<HTMLTableSectionElement | null>(null);
+  // Callback-ref state (not `useRef`): these nodes sit behind the
+  // `tokens.length` conditional and only mount once `loadTokens()` resolves,
+  // on a render after this component's first commit. A `useRef` object's
+  // identity never changes, so an effect depending on it would never re-run
+  // once the node actually mounts; `useState` re-renders (and therefore
+  // re-runs dependent effects) exactly when the node appears.
+  const [panelBodyNode, setPanelBodyNode] = useState<HTMLDivElement | null>(null);
+  const [firstDesktopRowNode, setFirstDesktopRowNode] =
+    useState<HTMLTableRowElement | null>(null);
+  const [firstMobileRowNode, setFirstMobileRowNode] =
+    useState<HTMLDivElement | null>(null);
+  const [tableHeaderNode, setTableHeaderNode] =
+    useState<HTMLTableSectionElement | null>(null);
   const [rowHeightPx, setRowHeightPx] = useState(TOKENS_ROW_HEIGHT_FALLBACK_PX);
   const [tableHeaderHeightPx, setTableHeaderHeightPx] = useState(0);
 
+  // Desktop table rows and mobile cards render at different real heights
+  // (the mobile card can wrap tutor/patient text across multiple lines), so
+  // a single synthetic probe underestimates one of the two layouts. Measure
+  // the first row of each list directly instead: exactly one is visible at
+  // a time (the other's ancestor is `display: none` via the `md:` classes,
+  // which collapses it to a zero-height rect), so the max of the two is
+  // always the real height of whichever layout is currently on screen —
+  // without deciding by a hardcoded breakpoint.
   useLayoutEffect(() => {
-    const probe = rowHeightProbeRef.current;
-    if (!probe) {
+    if (!firstDesktopRowNode && !firstMobileRowNode) {
       return;
     }
 
     const measureRowHeight = () => {
-      const height = probe.getBoundingClientRect().height;
+      const desktopHeight =
+        firstDesktopRowNode?.getBoundingClientRect().height ?? 0;
+      const mobileHeight =
+        firstMobileRowNode?.getBoundingClientRect().height ?? 0;
+      const height = Math.max(desktopHeight, mobileHeight);
       if (height > 0) {
         setRowHeightPx(height);
       }
     };
 
     const observer = new ResizeObserver(measureRowHeight);
-    observer.observe(probe);
+    if (firstDesktopRowNode) {
+      observer.observe(firstDesktopRowNode);
+    }
+    if (firstMobileRowNode) {
+      observer.observe(firstMobileRowNode);
+    }
     measureRowHeight();
 
     return () => observer.disconnect();
-  }, []);
+  }, [firstDesktopRowNode, firstMobileRowNode]);
 
   useLayoutEffect(() => {
-    const header = tableHeaderRef.current;
-    if (!header) {
+    if (!tableHeaderNode) {
       return;
     }
 
     const measureHeaderHeight = () => {
-      setTableHeaderHeightPx(header.getBoundingClientRect().height);
+      setTableHeaderHeightPx(tableHeaderNode.getBoundingClientRect().height);
     };
 
     const observer = new ResizeObserver(measureHeaderHeight);
-    observer.observe(header);
+    observer.observe(tableHeaderNode);
     measureHeaderHeight();
 
     return () => observer.disconnect();
-  }, []);
+  }, [tableHeaderNode]);
 
   const { rowsPerPage } = useAdaptiveRowsPerPage({
-    containerRef: panelBodyRef,
+    containerNode: panelBodyNode,
     fallbackRows: TOKENS_PAGE_SIZE,
     rowHeightPx,
     headerHeightPx: tableHeaderHeightPx,
@@ -908,16 +933,10 @@ export function ClinicParticularTokensCard() {
                 </ParticularTokensPanelHeader>
 
                 <ParticularTokensPanelBody
-                  ref={panelBodyRef}
+                  ref={setPanelBodyNode}
                   data-clinic-access-list-body="true"
                   className="relative"
                 >
-                  <div
-                    aria-hidden="true"
-                    ref={rowHeightProbeRef}
-                    className="pointer-events-none absolute -z-10 w-px opacity-0"
-                    style={{ height: "var(--dash-row-h)" }}
-                  />
                   {filteredTokens.length ? (
                     <>
                       <div
@@ -926,7 +945,7 @@ export function ClinicParticularTokensCard() {
                       >
                         <table className="w-full table-fixed text-[0.8125rem]">
                           <thead
-                            ref={tableHeaderRef}
+                            ref={setTableHeaderNode}
                             className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground"
                           >
                             <tr>
@@ -940,9 +959,10 @@ export function ClinicParticularTokensCard() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-vetneb-line/60">
-                            {pagedTokens.pageItems.map((token) => (
+                            {pagedTokens.pageItems.map((token, index) => (
                               <tr
                                 key={token.id}
+                                ref={index === 0 ? setFirstDesktopRowNode : undefined}
                                 data-clinic-access-table-row="true"
                                 className="hover:bg-vetneb-cyan/8"
                               >
@@ -995,13 +1015,14 @@ export function ClinicParticularTokensCard() {
                         data-clinic-access-mobile-list="true"
                         className="flex min-h-0 shrink-0 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
                       >
-                        {pagedTokens.pageItems.map((token) => {
+                        {pagedTokens.pageItems.map((token, index) => {
                           const trackingCase = trackingCasesByTokenId[token.id];
 
                           return (
                             <div
                               key={token.id}
                               id={`clinic-particular-token-${token.id}`}
+                              ref={index === 0 ? setFirstMobileRowNode : undefined}
                               data-clinic-access-mobile-row="true"
                               className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5"
                             >
