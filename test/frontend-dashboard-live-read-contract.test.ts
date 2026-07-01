@@ -52,7 +52,11 @@ test("frontend dashboard page uses API client wrappers", () => {
   assertIncludes(source, "let reportsLoadError = false;", dashboardPage);
   assertIncludes(source, "let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];", dashboardPage);
   assertIncludes(source, "let visitsLoadError = false;", dashboardPage);
-  assertIncludes(source, "getReports(requestOptions, undefined, {", dashboardPage);
+  assertIncludes(
+    source,
+    "getReports(requestOptions, { limit: 3, offset: 0 }, {",
+    dashboardPage,
+  );
   assertIncludes(source, "getLogisticsFieldVisits(requestOptions, {", dashboardPage);
   assertIncludes(source, "throwOnError: true,", dashboardPage);
 });

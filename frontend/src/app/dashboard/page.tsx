@@ -77,7 +77,7 @@ export default async function DashboardPage({
   await Promise.all([
     (async () => {
       try {
-        reports = await getReports(requestOptions, undefined, {
+        reports = await getReports(requestOptions, { limit: 3, offset: 0 }, {
           throwOnError: true,
         });
       } catch (error) {
