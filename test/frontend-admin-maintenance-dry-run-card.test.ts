@@ -17,11 +17,20 @@ test("admin maintenance dry-run card is client-side and imports required depende
   const source = read(ADMIN_MAINTENANCE_CARD_PATH);
 
   assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes('import { useState, useTransition } from "react";'));
+  assert.ok(
+    source.includes(
+      'import { useLayoutEffect, useState, useTransition, type Ref } from "react";',
+    ),
+  );
   assert.ok(source.includes('import { Badge } from "@/components/ui/badge";'));
   assert.ok(source.includes('import { Button } from "@/components/ui/button";'));
   assert.ok(source.includes('import { CompactPager } from "@/components/dashboard/CompactPager";'));
   assert.ok(source.includes('import { usePagedRows } from "@/components/dashboard/usePagedRows";'));
+  assert.ok(
+    source.includes(
+      'import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";',
+    ),
+  );
   assert.ok(source.includes('import { getAdminMaintenancePurgeDryRun } from "@/lib/api";'));
   assert.ok(source.includes("MaintenancePurgeCandidateGroup"));
   assert.ok(source.includes("MaintenancePurgeDryRunSnapshot"));
@@ -53,6 +62,8 @@ test("admin maintenance dry-run card renders candidate rows safely", () => {
 
   assert.ok(source.includes("function MaintenanceCandidateRow({"));
   assert.ok(source.includes("candidate: MaintenancePurgeCandidateGroup;"));
+  assert.ok(source.includes("ref?: Ref<HTMLDivElement>;"));
+  assert.ok(source.includes('<div ref={ref} className="clinical-muted-band rounded-lg px-3 py-3">'));
   assert.ok(source.includes("{candidate.label}"));
   assert.ok(source.includes("{candidate.category}"));
   assert.ok(source.includes("<Badge variant={getCandidateVariant(candidate)}>"));
@@ -72,7 +83,31 @@ test("admin maintenance dry-run card keeps state and transition handling", () =>
   assert.ok(source.includes("useState<MaintenancePurgeDryRunSnapshot | null>(null);"));
   assert.ok(source.includes("const [error, setError] = useState<string | null>(null);"));
   assert.ok(source.includes("const [isPending, startTransition] = useTransition();"));
-  assert.ok(source.includes("usePagedRows(snapshot?.candidates ?? [], 4)"));
+  assert.ok(
+    source.includes("usePagedRows(snapshot?.candidates ?? [], rowsPerPage)"),
+  );
+});
+
+test("admin maintenance dry-run card derives rowsPerPage from a measured container", () => {
+  const source = read(ADMIN_MAINTENANCE_CARD_PATH);
+
+  assert.ok(source.includes("const CANDIDATES_FALLBACK_ROWS = 4;"));
+  assert.ok(source.includes("const { rowsPerPage } = useAdaptiveRowsPerPage({"));
+  assert.ok(source.includes("containerNode: candidatesListNode,"));
+  assert.ok(source.includes("fallbackRows: CANDIDATES_FALLBACK_ROWS,"));
+  assert.ok(source.includes("rowHeightPx,"));
+  assert.ok(
+    source.includes(
+      'data-admin-maintenance-candidates-list="true"',
+    ),
+  );
+  assert.ok(
+    source.includes(
+      "ref={index === 0 ? setFirstCandidateRowNode : undefined}",
+    ),
+  );
+  assert.equal(source.includes("matchMedia"), false);
+  assert.equal(source.includes("overflow-y-auto"), false);
 });
 
 test("admin maintenance dry-run card calls dry-run API without destructive action", () => {
@@ -129,7 +164,9 @@ test("admin maintenance dry-run card renders dry-run totals and audit context", 
 test("admin maintenance dry-run card renders candidate list from snapshot", () => {
   const source = read(ADMIN_MAINTENANCE_CARD_PATH);
 
-  assert.ok(source.includes("pagedCandidates.pageItems.map((candidate) => ("));
+  assert.ok(
+    source.includes("pagedCandidates.pageItems.map((candidate, index) => ("),
+  );
   assert.ok(source.includes("<MaintenanceCandidateRow"));
   assert.ok(source.includes("key={candidate.category}"));
   assert.ok(source.includes("candidate={candidate}"));
