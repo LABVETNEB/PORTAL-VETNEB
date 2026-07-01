@@ -2138,6 +2138,7 @@
     /* Hub + lists density. */
     --dash-cockpit-gap: clamp(0.5rem, 0.3rem + 0.6vh, 1.15rem);
     --dash-list-pad-y: clamp(0.4rem, 0.3rem + 0.25vh, 0.65rem);
+    --dash-row-h: clamp(2.5rem, 2.2rem + 0.5vh, 3rem);
 
     /* Secondary text size used only by the compact tiers. */
     --dash-secondary-font: 0.75rem;
@@ -2153,6 +2154,7 @@
       --dash-card-pad: clamp(0.6rem, 0.45rem + 0.4vw, 0.9rem);
       --dash-panel-min: clamp(5rem, 0.5rem + 16vh, 13rem);
       --dash-cockpit-gap: clamp(0.5rem, 0.3rem + 0.5vh, 0.9rem);
+      --dash-row-h: clamp(2.35rem, 2.1rem + 0.4vh, 2.75rem);
     }
   }
 
@@ -2166,6 +2168,7 @@
       --dash-panel-min: clamp(4.5rem, 0.5rem + 14vh, 11rem);
       --dash-tab-h: clamp(1.85rem, 1.6rem + 0.5vh, 2.1rem);
       --dash-list-pad-y: clamp(0.35rem, 0.25rem + 0.2vh, 0.55rem);
+      --dash-row-h: clamp(2.2rem, 2rem + 0.35vh, 2.5rem);
     }
   }
 
@@ -2180,6 +2183,7 @@
       --dash-panel-min: 4rem;
       --dash-cockpit-gap: 0.45rem;
       --dash-secondary-font: 0.7rem;
+      --dash-row-h: 2.1rem;
     }
   }
 

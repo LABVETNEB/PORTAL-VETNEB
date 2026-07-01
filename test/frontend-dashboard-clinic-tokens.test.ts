@@ -82,7 +82,10 @@ test("clinic tokens uses table/list row actions with dialog detail and step dial
   const source = read(CLINIC_TOKENS_CARD_PATH);
 
   assert.ok(source.includes("const TOKENS_PAGE_SIZE = 4;"));
-  assert.ok(source.includes("usePagedRows(filteredTokens, TOKENS_PAGE_SIZE)"));
+  assert.ok(source.includes("useAdaptiveRowsPerPage"));
+  assert.ok(source.includes("fallbackRows: TOKENS_PAGE_SIZE"));
+  assert.equal(source.includes("usePagedRows(filteredTokens, TOKENS_PAGE_SIZE)"), false);
+  assert.ok(source.includes("usePagedRows(filteredTokens, rowsPerPage)"));
   assert.ok(source.includes("selectedTokenId"));
   assert.ok(source.includes("ModuleSurface"));
   assert.ok(source.includes('data-clinic-access-table="true"'));
@@ -141,7 +144,7 @@ test("clinic tokens exposes advanced filters over visible token fields", () => {
   assert.ok(source.includes("token.lastLoginAt ?? token.createdAt"));
   assert.ok(source.includes("matchesTokenVisibleDateRange(token, filters.from, filters.to)"));
   assert.ok(source.includes("const filteredTokens = tokens.filter((token) =>"));
-  assert.ok(source.includes("usePagedRows(filteredTokens, TOKENS_PAGE_SIZE)"));
+  assert.ok(source.includes("usePagedRows(filteredTokens, rowsPerPage)"));
   assert.ok(source.includes('data-clinic-access-filter-bar={mobile ? "advanced-mobile" : "advanced"}'));
   assert.ok(source.includes('title="Filtrar tokens"'));
   assert.ok(source.includes("Sin tokens para los filtros aplicados"));
