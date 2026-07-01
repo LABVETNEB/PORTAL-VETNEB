@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useLayoutEffect, useState, type FormEvent } from "react";
 import type { Report } from "@/types";
 import { ClipboardList, ExternalLink, Filter } from "lucide-react";
+import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
 import {
   dashboardFilterActionClassName,
   dashboardFilterControlClassName,
@@ -30,6 +31,7 @@ type Props = {
 };
 
 const REPORTS_PAGE_SIZE = 3;
+const REPORTS_ROW_HEIGHT_FALLBACK_PX = 44;
 
 type ClinicReportsFilterState = {
   report: string;
@@ -139,10 +141,73 @@ export function ClinicInformesWorkspaceSummary({
   const [appliedFilters, setAppliedFilters] =
     useState<ClinicReportsFilterState>(INITIAL_REPORTS_FILTER_STATE);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+  const [reportsListBodyNode, setReportsListBodyNode] =
+    useState<HTMLDivElement | null>(null);
+  const [firstDesktopRowNode, setFirstDesktopRowNode] =
+    useState<HTMLTableRowElement | null>(null);
+  const [firstMobileRowNode, setFirstMobileRowNode] =
+    useState<HTMLDivElement | null>(null);
+  const [tableHeaderNode, setTableHeaderNode] =
+    useState<HTMLTableSectionElement | null>(null);
+  const [rowHeightPx, setRowHeightPx] = useState(REPORTS_ROW_HEIGHT_FALLBACK_PX);
+  const [tableHeaderHeightPx, setTableHeaderHeightPx] = useState(0);
+
+  useLayoutEffect(() => {
+    if (!firstDesktopRowNode && !firstMobileRowNode) {
+      return;
+    }
+
+    const measureRowHeight = () => {
+      const desktopHeight =
+        firstDesktopRowNode?.getBoundingClientRect().height ?? 0;
+      const mobileHeight =
+        firstMobileRowNode?.getBoundingClientRect().height ?? 0;
+      const height = Math.max(desktopHeight, mobileHeight);
+
+      if (height > 0) {
+        setRowHeightPx(height);
+      }
+    };
+
+    const observer = new ResizeObserver(measureRowHeight);
+    if (firstDesktopRowNode) {
+      observer.observe(firstDesktopRowNode);
+    }
+    if (firstMobileRowNode) {
+      observer.observe(firstMobileRowNode);
+    }
+    measureRowHeight();
+
+    return () => observer.disconnect();
+  }, [firstDesktopRowNode, firstMobileRowNode]);
+
+  useLayoutEffect(() => {
+    if (!tableHeaderNode) {
+      return;
+    }
+
+    const measureHeaderHeight = () => {
+      setTableHeaderHeightPx(tableHeaderNode.getBoundingClientRect().height);
+    };
+
+    const observer = new ResizeObserver(measureHeaderHeight);
+    observer.observe(tableHeaderNode);
+    measureHeaderHeight();
+
+    return () => observer.disconnect();
+  }, [tableHeaderNode]);
+
+  const { rowsPerPage } = useAdaptiveRowsPerPage({
+    containerNode: reportsListBodyNode,
+    fallbackRows: REPORTS_PAGE_SIZE,
+    rowHeightPx,
+    headerHeightPx: tableHeaderHeightPx,
+  });
+
   const filteredReports = recentReports.filter((report) =>
     matchesClinicReportFilters(report, appliedFilters),
   );
-  const pagedReports = usePagedRows(filteredReports, REPORTS_PAGE_SIZE);
+  const pagedReports = usePagedRows(filteredReports, rowsPerPage);
   const selectedReport =
     selectedReportId === null
       ? null
@@ -353,120 +418,135 @@ export function ClinicInformesWorkspaceSummary({
           data-clinic-reports-list-panel="true"
           className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/82"
         >
-          {filteredReports.length ? (
-            <>
-              <div
-                data-clinic-reports-table="true"
-                className="hidden min-h-0 flex-1 overflow-hidden md:block"
-              >
-                <table className="w-full table-fixed text-[0.8125rem]">
-                  <thead className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground">
-                    <tr>
-                      <th className="w-[26%] px-3 py-2 text-left">Caso / Paciente</th>
-                      <th className="w-[17%] px-3 py-2 text-left">Estudio</th>
-                      <th className="w-[15%] px-3 py-2 text-left">Estado</th>
-                      <th className="w-[14%] px-3 py-2 text-left">Fecha</th>
-                      <th className="w-[18%] px-3 py-2 text-left">Archivo / Informe</th>
-                      <th className="w-[10%] px-3 py-2 text-right">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-vetneb-line/60">
-                    {pagedReports.pageItems.map((report) => (
-                      <tr
-                        key={report.id}
-                        data-clinic-reports-table-row="true"
-                        className="hover:bg-vetneb-cyan/8"
-                      >
-                        <td className="px-3 py-1.5">
-                          <p className="truncate font-semibold text-vetneb-ink">
-                            {report.patientName ?? "Sin nombre"}
-                          </p>
-                          <p className="font-mono text-[0.6875rem] text-muted-foreground">
-                            Informe #{report.id}
-                          </p>
-                        </td>
-                        <td className="px-3 py-1.5">
-                          <span className="block truncate">
-                            {report.studyType ?? "Tipo sin registrar"}
-                          </span>
-                        </td>
-                        <td className="px-3 py-1.5">
-                          <StatusBadge status={report.status} size="sm" />
-                        </td>
-                        <td className="px-3 py-1.5 text-xs text-muted-foreground">
-                          {formatDate(report.uploadDate)}
-                        </td>
-                        <td className="px-3 py-1.5 text-xs text-muted-foreground">
-                          <span className="block truncate">
-                            {formatReportFile(report)}
-                          </span>
-                        </td>
-                        <td className="px-3 py-1.5 text-right">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => setSelectedReportId(report.id)}
-                          >
-                            Ver
-                          </Button>
-                        </td>
+          <div
+            ref={setReportsListBodyNode}
+            data-clinic-reports-list-body="true"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            {filteredReports.length ? (
+              <>
+                <div
+                  data-clinic-reports-table="true"
+                  className="hidden min-h-0 flex-1 overflow-hidden md:block"
+                >
+                  <table className="w-full table-fixed text-[0.8125rem]">
+                    <thead
+                      ref={setTableHeaderNode}
+                      className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground"
+                    >
+                      <tr>
+                        <th className="w-[26%] px-3 py-2 text-left">
+                          Caso / Paciente
+                        </th>
+                        <th className="w-[17%] px-3 py-2 text-left">Estudio</th>
+                        <th className="w-[15%] px-3 py-2 text-left">Estado</th>
+                        <th className="w-[14%] px-3 py-2 text-left">Fecha</th>
+                        <th className="w-[18%] px-3 py-2 text-left">
+                          Archivo / Informe
+                        </th>
+                        <th className="w-[10%] px-3 py-2 text-right">Acción</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-vetneb-line/60">
+                      {pagedReports.pageItems.map((report, index) => (
+                        <tr
+                          key={report.id}
+                          ref={index === 0 ? setFirstDesktopRowNode : undefined}
+                          data-clinic-reports-table-row="true"
+                          className="hover:bg-vetneb-cyan/8"
+                        >
+                          <td className="px-3 py-1.5">
+                            <p className="truncate font-semibold text-vetneb-ink">
+                              {report.patientName ?? "Sin nombre"}
+                            </p>
+                            <p className="font-mono text-[0.6875rem] text-muted-foreground">
+                              Informe #{report.id}
+                            </p>
+                          </td>
+                          <td className="px-3 py-1.5">
+                            <span className="block truncate">
+                              {report.studyType ?? "Tipo sin registrar"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-1.5">
+                            <StatusBadge status={report.status} size="sm" />
+                          </td>
+                          <td className="px-3 py-1.5 text-xs text-muted-foreground">
+                            {formatDate(report.uploadDate)}
+                          </td>
+                          <td className="px-3 py-1.5 text-xs text-muted-foreground">
+                            <span className="block truncate">
+                              {formatReportFile(report)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-1.5 text-right">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => setSelectedReportId(report.id)}
+                            >
+                              Ver
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-              <div
-                data-clinic-reports-mobile-list="true"
-                className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
-              >
-                {pagedReports.pageItems.map((report) => (
-                  <div
-                    key={report.id}
-                    data-clinic-reports-mobile-row="true"
-                    className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold text-vetneb-ink">
-                        #{report.id} · {report.patientName ?? "Sin nombre"}
-                      </p>
-                      <p className="truncate text-[0.6875rem] text-muted-foreground">
-                        {report.studyType ?? "Tipo sin registrar"} ·{" "}
-                        {formatDate(report.uploadDate)}
-                      </p>
-                      <p className="truncate text-[0.6875rem] text-muted-foreground">
-                        {formatReportFile(report)}
-                      </p>
+                <div
+                  data-clinic-reports-mobile-list="true"
+                  className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
+                >
+                  {pagedReports.pageItems.map((report, index) => (
+                    <div
+                      key={report.id}
+                      ref={index === 0 ? setFirstMobileRowNode : undefined}
+                      data-clinic-reports-mobile-row="true"
+                      className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-semibold text-vetneb-ink">
+                          #{report.id} · {report.patientName ?? "Sin nombre"}
+                        </p>
+                        <p className="truncate text-[0.6875rem] text-muted-foreground">
+                          {report.studyType ?? "Tipo sin registrar"} ·{" "}
+                          {formatDate(report.uploadDate)}
+                        </p>
+                        <p className="truncate text-[0.6875rem] text-muted-foreground">
+                          {formatReportFile(report)}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <StatusBadge status={report.status} size="sm" />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => setSelectedReportId(report.id)}
+                        >
+                          Ver
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <StatusBadge status={report.status} size="sm" />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => setSelectedReportId(report.id)}
-                      >
-                        Ver
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex min-h-0 flex-1 p-3">
+                <EmptyState
+                  title="Sin informes para los filtros aplicados"
+                  description="No hay informes recientes que coincidan con los campos visibles seleccionados."
+                  icon={ClipboardList}
+                  size="sm"
+                  className="w-full"
+                />
               </div>
-            </>
-          ) : (
-            <div className="flex min-h-0 flex-1 p-3">
-              <EmptyState
-                title="Sin informes para los filtros aplicados"
-                description="No hay informes recientes que coincidan con los campos visibles seleccionados."
-                icon={ClipboardList}
-                size="sm"
-                className="w-full"
-              />
-            </div>
-          )}
+            )}
+          </div>
 
           <div
             data-clinic-reports-pagination-footer="true"
