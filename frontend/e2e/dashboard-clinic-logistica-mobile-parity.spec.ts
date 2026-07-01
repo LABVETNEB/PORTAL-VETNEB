@@ -22,8 +22,12 @@ type LayoutContract = {
   mainScrollHeight: number;
   mainClientHeight: number;
   listClientHeight: number;
+  listScrollHeight: number;
+  listOverflowY: string;
+  moduleScrollContainers: Array<{ tag: string; overflowY: string }>;
   hasMain: boolean;
   hasList: boolean;
+  hasInlineScroll: boolean;
 };
 
 async function setClinicSession(page: Page) {
@@ -58,7 +62,23 @@ async function readLayoutContract(page: Page): Promise<LayoutContract> {
     const html = document.documentElement;
     const body = document.body;
     const main = document.querySelector<HTMLElement>("main.dashboard-main");
-    const list = document.querySelector<HTMLElement>(".dashboard-inline-scroll");
+    const card = document.querySelector<HTMLElement>(
+      '[aria-label="Visitas de campo recientes de la clínica"]',
+    );
+    const list = document.querySelector<HTMLElement>(
+      '[data-clinic-logistics-list-body="true"]',
+    );
+    const moduleScrollContainers = card
+      ? [card, ...Array.from(card.querySelectorAll<HTMLElement>("*"))].flatMap(
+          (element) => {
+            const style = window.getComputedStyle(element);
+            return ["auto", "scroll"].includes(style.overflowY)
+              ? [{ tag: element.tagName, overflowY: style.overflowY }]
+              : [];
+          },
+        )
+      : [];
+    const listStyle = list ? window.getComputedStyle(list) : null;
 
     return {
       htmlScrollWidth: html.scrollWidth,
@@ -72,8 +92,14 @@ async function readLayoutContract(page: Page): Promise<LayoutContract> {
       mainScrollHeight: main?.scrollHeight ?? 0,
       mainClientHeight: main?.clientHeight ?? 0,
       listClientHeight: list?.clientHeight ?? 0,
+      listScrollHeight: list?.scrollHeight ?? 0,
+      listOverflowY: listStyle?.overflowY ?? "missing",
+      moduleScrollContainers,
       hasMain: main !== null,
       hasList: list !== null,
+      hasInlineScroll: card
+        ? card.querySelector(".dashboard-inline-scroll") !== null
+        : false,
     };
   });
 }
@@ -99,11 +125,27 @@ function assertNoGlobalOverflow(metrics: LayoutContract, label: string) {
   expect(metrics.mainScrollHeight, `${label}: dashboard shell scroll`).toBeLessThanOrEqual(
     metrics.mainClientHeight + TOLERANCE,
   );
-  expect(metrics.hasList, `${label}: inline list present`).toBe(true);
+  expect(metrics.hasList, `${label}: compact list present`).toBe(true);
+  expect(
+    metrics.hasInlineScroll,
+    `${label}: logistica card must not use .dashboard-inline-scroll`,
+  ).toBe(false);
   expect(
     metrics.listClientHeight,
-    `${label}: inline list must keep an operable height`,
+    `${label}: visit list must keep an operable height`,
   ).toBeGreaterThanOrEqual(44);
+  expect(
+    metrics.listScrollHeight,
+    `${label}: visit list must not clip hidden overflow`,
+  ).toBeLessThanOrEqual(metrics.listClientHeight + TOLERANCE);
+  expect(
+    ["auto", "scroll"],
+    `${label}: visit list must not expose vertical scroll`,
+  ).not.toContain(metrics.listOverflowY);
+  expect(
+    metrics.moduleScrollContainers,
+    `${label}: logistica module must not contain internal scroll containers`,
+  ).toEqual([]);
 }
 
 async function expectHorizontallyUnclipped(
@@ -136,8 +178,8 @@ for (const viewport of MOBILE_VIEWPORTS) {
     const card = workspace.locator(
       '[aria-label="Visitas de campo recientes de la clínica"]',
     );
-    const inlineList = card.locator(".dashboard-inline-scroll");
-    const visitRows = inlineList.locator('button[aria-pressed]');
+    const listPanel = card.locator('[data-clinic-logistics-list-panel="true"]');
+    const visitRows = card.locator('[data-clinic-logistics-row="true"]');
     const fullModuleButton = card.getByRole("button", {
       name: "Abrir módulo completo de logística",
       exact: true,
@@ -147,6 +189,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       await expect(workspace).toBeVisible();
       await expect(card).toBeVisible();
       await expectClinicMobileBottomNav(page, viewport.name);
+      await expect(listPanel).toBeVisible();
       await expect(visitRows).toHaveCount(3);
 
       for (let index = 0; index < 3; index += 1) {
@@ -158,6 +201,10 @@ for (const viewport of MOBILE_VIEWPORTS) {
     }).toPass({ timeout: 12_000 });
 
     await expect(card.locator("table")).toHaveCount(0);
+    await expect(card.locator(".dashboard-inline-scroll")).toHaveCount(0);
+    await expect(
+      card.locator('[data-detail-state="selected"], .dashboard-inline-detail'),
+    ).toHaveCount(0);
     await expectHorizontallyUnclipped(
       fullModuleButton,
       viewport.width,
@@ -177,19 +224,23 @@ for (const viewport of MOBILE_VIEWPORTS) {
       assertNoGlobalOverflow(metrics, `${viewport.name}: initial layout`);
     }).toPass({ timeout: 10_000 });
 
-    const secondVisit = visitRows.nth(1);
-    await secondVisit.click();
+    await visitRows.nth(1).click();
 
     await expect(async () => {
-      await expect(secondVisit).toHaveAttribute("aria-expanded", "true");
+      await expect(visitRows).toHaveCount(3);
+      await expect(visitRows.nth(1)).toBeVisible();
+      await expect(
+        card.locator('[data-detail-state="selected"], .dashboard-inline-detail'),
+      ).toHaveCount(0);
 
-      const inlineDetail = card.locator('[data-detail-state="selected"]');
-      await expect(inlineDetail).toHaveCount(1);
-      await expect(inlineDetail).toBeVisible();
-      await expect(inlineDetail).toContainText(LONG_VISIT_ADDRESS);
+      const detailDialog = page.locator(
+        '[data-clinic-logistics-detail-dialog="true"]',
+      );
+      await expect(detailDialog).toBeVisible();
+      await expect(detailDialog).toContainText(LONG_VISIT_ADDRESS);
 
       const metrics = await readLayoutContract(page);
-      assertNoGlobalOverflow(metrics, `${viewport.name}: expanded inline detail`);
+      assertNoGlobalOverflow(metrics, `${viewport.name}: modal detail`);
     }).toPass({ timeout: 10_000 });
   });
 }

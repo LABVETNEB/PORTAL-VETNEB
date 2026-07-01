@@ -230,21 +230,21 @@ test("clinic informes summary exposes advanced filters over visible report field
   }
 });
 
-test("clinic logistica summary keeps its existing inline master-detail layer", () => {
+test("clinic logistica summary uses compact list with controlled detail dialog", () => {
   const source = read(CLINIC_LOGISTICA_SUMMARY_PATH);
 
   assert.ok(source.includes('"use client";'));
   assert.ok(source.includes("ModuleSurface"));
+  assert.ok(source.includes("ModuleDialog"));
   assert.ok(source.includes("useState"));
-  assert.ok(source.includes("dashboard-inline-list"));
-  assert.ok(source.includes("dashboard-inline-scroll"));
-  assert.ok(source.includes("dashboard-inline-detail"));
-  assert.ok(source.includes("aria-expanded={isSelected}"));
-  assert.ok(source.includes('data-detail-state="selected"'));
-  assert.equal(source.includes("isMobileDetailOpen"), false);
-  assert.equal(source.includes("Volver a la lista"), false);
-  assert.equal(source.includes('xl:grid-cols-[0.85fr_1.15fr]'), false);
-  assert.equal(source.includes("space-y-4"), false);
+  assert.ok(source.includes('data-clinic-logistics-list-panel="true"'));
+  assert.ok(source.includes('data-clinic-logistics-list-body="true"'));
+  assert.ok(source.includes('data-clinic-logistics-row="true"'));
+  assert.ok(source.includes('data-clinic-logistics-detail-dialog="true"'));
+  assert.equal(source.includes("dashboard-inline-scroll"), false);
+  assert.equal(source.includes("dashboard-inline-detail"), false);
+  assert.equal(source.includes("aria-expanded={isSelected}"), false);
+  assert.equal(source.includes('data-detail-state="selected"'), false);
 });
 
 test("dashboard home keeps status badge and date formatting in clinic command center", () => {
