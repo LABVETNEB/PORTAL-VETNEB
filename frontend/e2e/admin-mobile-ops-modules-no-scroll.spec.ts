@@ -25,7 +25,9 @@ const MOCK_SESSIONS = Array.from({ length: 40 }, (_, index) => ({
   status: index % 4 === 0 ? ("expired" as const) : ("active" as const),
 }));
 
-const MOCK_USERS = Array.from({ length: 9 }, (_, index) => {
+// PR-SRV-2: users is adaptive (measured cardinality, superset cap 36). The
+// fixture stays larger than any effective mobile limit so page 2 always exists.
+const MOCK_USERS = Array.from({ length: 40 }, (_, index) => {
   if (index === 0) {
     return {
       userType: "admin" as const,
@@ -58,9 +60,9 @@ type OpsModule = {
   pagerName: RegExp;
   primaryActionName: RegExp;
   // Viewport-safe page-size ceiling for this module's mobile list; differs
-  // per module. Audit stays at 10/page and users at its existing density;
-  // sessions is adaptive (measured cardinality) so its ceiling is the superset
-  // cap 32 — the real guarantee is that every rendered item fits the viewport.
+  // per module. Audit stays at 10/page; sessions and users are adaptive
+  // (measured cardinality) so their ceiling is the superset cap (32 / 36) —
+  // the real guarantee is that every rendered item fits the viewport.
   maxItemsPerPage: number;
 };
 
@@ -85,7 +87,8 @@ const OPS_MODULES: OpsModule[] = [
     moduleId: "admin-users-roles",
     pagerName: /paginación de usuarios/i,
     primaryActionName: /actualizar/i,
-    maxItemsPerPage: 4,
+    // Adaptive: superset cap 36; per-item viewport fit is asserted below.
+    maxItemsPerPage: 36,
   },
 ];
 
@@ -126,7 +129,7 @@ async function mockOpsApis(page: Page) {
       total: MOCK_USERS.length,
       limit,
       offset,
-      totals: { adminUsers: 1, clinicUsers: 8 },
+      totals: { adminUsers: 1, clinicUsers: 39 },
     });
   });
 }
@@ -306,7 +309,7 @@ for (const moduleSpec of OPS_MODULES) {
 
       const items = moduleRoot.locator('[data-admin-mobile-ops-item="true"]');
 
-      if (moduleSpec.key === "sessions") {
+      if (moduleSpec.key === "sessions" || moduleSpec.key === "users") {
         // Adaptive server-side list: validate an atomic, stabilized snapshot so
         // the per-item viewport checks never race a re-fetch/remount.
         const itemSnapshots = await expectStableSessionItemSnapshot(
@@ -321,7 +324,7 @@ for (const moduleSpec of OPS_MODULES) {
           expectItemBoxInsideViewport(
             item,
             viewport,
-            `${viewport.name} sessions item ${item.index + 1}`,
+            `${viewport.name} ${moduleSpec.key} item ${item.index + 1}`,
           );
         }
       } else {

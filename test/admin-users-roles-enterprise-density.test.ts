@@ -32,14 +32,18 @@ test("PR-7A preserves the real admin-users-roles navigation surface", () => {
   assert.ok(nav.includes("?module=admin-users-roles"));
 });
 
-test("PR-7A uses viewport-safe server pagination with nine rows", () => {
+test("PR-7A uses viewport-safe adaptive server pagination with a nine-row fallback", () => {
   const card = read(CARD_PATH);
   const api = read(API_PATH);
 
-  assert.ok(card.includes("const PAGE_SIZE = 9;"));
-  assert.ok(card.includes("limit: PAGE_SIZE"));
+  assert.ok(card.includes("const USERS_ROLES_FALLBACK_ROWS = 9;"));
+  assert.ok(card.includes("const USERS_ROLES_SUPERSET_CAP = 36;"));
+  assert.ok(card.includes("limit: effectiveLimit"));
+  assert.equal(card.includes("limit: PAGE_SIZE"), false);
+  assert.ok(card.includes("useAdaptiveItemsPerPage"));
   assert.ok(card.includes("offset"));
   assert.ok(card.includes("getAdminUsersRoles(query)"));
+  assert.ok(card.includes("offset + snapshot.users.length < snapshot.total"));
   assert.equal(card.includes("slice("), false);
   assert.equal(card.includes("PAGE_SIZE_OPTIONS"), false);
   assert.ok(api.includes('query.set("limit", String(params.limit))'));
@@ -58,9 +62,12 @@ test("PR-7A renders a compact desktop table and prioritized mobile list", () => 
     "[&_td]:py-0.5",
     "[&_th]:h-8",
     "text-[13px]",
-    "md:block",
+    "md:flex",
     "md:hidden",
     'aria-label="Paginación de usuarios y roles"',
+    'ariaLabel="Paginación de usuarios"',
+    'data-admin-mobile-ops-module="users"',
+    'data-admin-mobile-ops-item="true"',
   ]) {
     assert.ok(card.includes(marker), `missing compact marker: ${marker}`);
   }
