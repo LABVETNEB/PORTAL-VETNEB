@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ComponentPropsWithRef, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -87,7 +87,7 @@ export function ParticularTokensPanelHeader({
 export function ParticularTokensPanelBody({
   className,
   ...props
-}: ComponentPropsWithoutRef<"div">) {
+}: ComponentPropsWithRef<"div">) {
   return (
     <div
       className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", className)}

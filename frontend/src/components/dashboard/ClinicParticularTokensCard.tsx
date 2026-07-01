@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Filter } from "lucide-react";
+import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
 import {
   dashboardFilterActionClassName,
   dashboardFilterControlClassName,
@@ -66,8 +67,11 @@ type ClinicParticularTokenFilterState = {
   to: string;
 };
 
-/** Maximum tokens visible per page in the master list (rest via footer pager). */
+/** Fallback tokens visible per page, used until the list body can be measured. */
 const TOKENS_PAGE_SIZE = 4;
+
+/** Row height fallback (px) before the `--dash-row-h` probe resolves. */
+const TOKENS_ROW_HEIGHT_FALLBACK_PX = 44;
 
 const CREATE_TOKEN_STEP_ORDER = ["contact", "patient", "sample"] as const;
 type CreateTokenStep = (typeof CREATE_TOKEN_STEP_ORDER)[number];
@@ -360,10 +364,60 @@ export function ClinicParticularTokensCard() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const panelBodyRef = useRef<HTMLDivElement | null>(null);
+  const rowHeightProbeRef = useRef<HTMLDivElement | null>(null);
+  const tableHeaderRef = useRef<HTMLTableSectionElement | null>(null);
+  const [rowHeightPx, setRowHeightPx] = useState(TOKENS_ROW_HEIGHT_FALLBACK_PX);
+  const [tableHeaderHeightPx, setTableHeaderHeightPx] = useState(0);
+
+  useLayoutEffect(() => {
+    const probe = rowHeightProbeRef.current;
+    if (!probe) {
+      return;
+    }
+
+    const measureRowHeight = () => {
+      const height = probe.getBoundingClientRect().height;
+      if (height > 0) {
+        setRowHeightPx(height);
+      }
+    };
+
+    const observer = new ResizeObserver(measureRowHeight);
+    observer.observe(probe);
+    measureRowHeight();
+
+    return () => observer.disconnect();
+  }, []);
+
+  useLayoutEffect(() => {
+    const header = tableHeaderRef.current;
+    if (!header) {
+      return;
+    }
+
+    const measureHeaderHeight = () => {
+      setTableHeaderHeightPx(header.getBoundingClientRect().height);
+    };
+
+    const observer = new ResizeObserver(measureHeaderHeight);
+    observer.observe(header);
+    measureHeaderHeight();
+
+    return () => observer.disconnect();
+  }, []);
+
+  const { rowsPerPage } = useAdaptiveRowsPerPage({
+    containerRef: panelBodyRef,
+    fallbackRows: TOKENS_PAGE_SIZE,
+    rowHeightPx,
+    headerHeightPx: tableHeaderHeightPx,
+  });
+
   const filteredTokens = tokens.filter((token) =>
     matchesClinicParticularTokenFilters(token, appliedFilters),
   );
-  const pagedTokens = usePagedRows(filteredTokens, TOKENS_PAGE_SIZE);
+  const pagedTokens = usePagedRows(filteredTokens, rowsPerPage);
   const selectedToken =
     selectedTokenId === null
       ? null
@@ -854,8 +908,16 @@ export function ClinicParticularTokensCard() {
                 </ParticularTokensPanelHeader>
 
                 <ParticularTokensPanelBody
+                  ref={panelBodyRef}
                   data-clinic-access-list-body="true"
+                  className="relative"
                 >
+                  <div
+                    aria-hidden="true"
+                    ref={rowHeightProbeRef}
+                    className="pointer-events-none absolute -z-10 w-px opacity-0"
+                    style={{ height: "var(--dash-row-h)" }}
+                  />
                   {filteredTokens.length ? (
                     <>
                       <div
@@ -863,7 +925,10 @@ export function ClinicParticularTokensCard() {
                         className="hidden min-h-0 shrink-0 overflow-hidden md:block"
                       >
                         <table className="w-full table-fixed text-[0.8125rem]">
-                          <thead className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground">
+                          <thead
+                            ref={tableHeaderRef}
+                            className="border-b border-vetneb-line/65 bg-vetneb-surface-muted/65 text-xs font-semibold uppercase text-muted-foreground"
+                          >
                             <tr>
                               <th className="w-[32%] px-3 py-2 text-left">Token / Paciente</th>
                               <th className="w-[13%] px-3 py-2 text-left">Estado</th>
