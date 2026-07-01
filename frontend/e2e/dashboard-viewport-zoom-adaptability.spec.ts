@@ -19,6 +19,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 type Page = import("@playwright/test").Page;
+type Locator = import("@playwright/test").Locator;
 
 const TOLERANCE = 2;
 
@@ -56,6 +57,8 @@ type SurfaceCase = {
   ready: string;
   /** Whether the clinic Tokens API must be mocked for this surface. */
   mockTokens?: boolean;
+  /** Existing debt documented by the baseline; do not make PR-QA-GLOBAL-0 a migration gate. */
+  allowMeasuredInternalScroll?: boolean;
 };
 
 const CORE_SURFACES: SurfaceCase[] = [
@@ -64,6 +67,7 @@ const CORE_SURFACES: SurfaceCase[] = [
     surface: "clinic",
     path: "/dashboard",
     ready: "main.dashboard-main",
+    allowMeasuredInternalScroll: true,
   },
   {
     label: "clinic Informes (in-shell master-detail)",
@@ -130,7 +134,7 @@ const FULL_PAGE_DEEPLINKS: SurfaceCase[] = [
   },
 ];
 
-const MOCK_TOKENS = Array.from({ length: 6 }, (_, index) => {
+const MOCK_TOKENS = Array.from({ length: 10 }, (_, index) => {
   const id = index + 1;
   return {
     id,
@@ -176,6 +180,21 @@ async function mockClinicTokens(page: Page) {
   );
 }
 
+async function mockParticularLoggedOut(page: Page) {
+  await page.route(
+    (url) => url.pathname === "/api/particular/auth/me",
+    async (route) =>
+      route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: false,
+          error: "Particular no autenticado",
+        }),
+      }),
+  );
+}
+
 async function applySession(page: Page, surface: Surface) {
   await page.context().addCookies([
     {
@@ -197,6 +216,40 @@ type ScrollContract = {
   hasMain: boolean;
   navVisible: boolean;
   topbarVisible: boolean;
+};
+
+type InternalScrollContract = {
+  selector: string | null;
+  overflowY: number;
+};
+
+type TokensRegionContract = {
+  bodyPresent: boolean;
+  bodyClientHeight: number;
+  bodyScrollHeight: number;
+  bodyOverflowY: string;
+  footerPresent: boolean;
+  footerTop: number;
+  visibleRowCount: number;
+  maxRowHeight: number;
+  lastRowBottom: number;
+  rowsInsideBody: boolean;
+};
+
+type PublicParticularContract = {
+  htmlScrollWidth: number;
+  htmlClientWidth: number;
+  bodyScrollWidth: number;
+  bodyClientWidth: number;
+  primaryPresent: boolean;
+  primaryTop: number;
+  primaryBottom: number;
+  primaryHeight: number;
+  viewportHeight: number;
+  primaryOverflowY: number;
+  tokenInputPresent: boolean;
+  submitPresent: boolean;
+  nextStepPresent: boolean;
 };
 
 async function readScrollContract(page: Page): Promise<ScrollContract> {
@@ -226,6 +279,239 @@ async function readScrollContract(page: Page): Promise<ScrollContract> {
       topbarVisible: isVisible(topbar),
     };
   });
+}
+
+async function readWorstInternalVerticalScroll(
+  page: Page,
+): Promise<InternalScrollContract> {
+  return page.evaluate(() => {
+    const main = document.querySelector("main.dashboard-main");
+    const worst = {
+      selector: null as string | null,
+      overflowY: 0,
+    };
+
+    const describeElement = (element: HTMLElement) => {
+      const className =
+        typeof element.className === "string"
+          ? element.className.split(/\s+/).filter(Boolean).slice(0, 3).join(".")
+          : "";
+      return `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ""}${
+        className ? `.${className}` : ""
+      }`;
+    };
+
+    main?.querySelectorAll<HTMLElement>("*").forEach((element) => {
+      const style = window.getComputedStyle(element);
+      if (style.overflowY !== "auto" && style.overflowY !== "scroll") {
+        return;
+      }
+
+      const overflowY = element.scrollHeight - element.clientHeight;
+      if (overflowY > worst.overflowY) {
+        worst.selector = describeElement(element);
+        worst.overflowY = overflowY;
+      }
+    });
+
+    return worst;
+  });
+}
+
+function assertNoMeasuredInternalVerticalScroll(
+  metrics: InternalScrollContract,
+  label: string,
+) {
+  expect(
+    metrics.overflowY,
+    `${label}: internal vertical scroll on ${metrics.selector ?? "none"}`,
+  ).toBeLessThanOrEqual(TOLERANCE);
+}
+
+async function readVisibleCount(page: Page, selector: string): Promise<number> {
+  return page.locator(selector).evaluateAll((elements) =>
+    elements.filter((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    }).length,
+  );
+}
+
+async function waitForSettledVisibleCount(
+  page: Page,
+  selector: string,
+  label: string,
+): Promise<number> {
+  let previousCount = -1;
+  let stableReads = 0;
+
+  await expect(async () => {
+    const currentCount = await readVisibleCount(page, selector);
+    if (currentCount === previousCount) {
+      stableReads += 1;
+    } else {
+      previousCount = currentCount;
+      stableReads = 0;
+    }
+
+    expect(
+      stableReads,
+      `${label}: visible count must settle (currently ${currentCount})`,
+    ).toBeGreaterThanOrEqual(3);
+  }).toPass({ timeout: 8_000, intervals: [50] });
+
+  return previousCount;
+}
+
+async function readTokensRegionContract(page: Page): Promise<TokensRegionContract> {
+  return page.evaluate(() => {
+    const tolerance = 2;
+    const body = document.querySelector<HTMLElement>(
+      '[data-clinic-access-list-body="true"]',
+    );
+    const footer = document.querySelector<HTMLElement>(
+      '[data-clinic-access-pagination-footer="true"]',
+    );
+    const rows = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        [
+          '[data-clinic-access-table-row="true"]',
+          '[data-clinic-access-mobile-row="true"]',
+        ].join(","),
+      ),
+    )
+      .map((row) => row.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0);
+
+    const bodyRect = body?.getBoundingClientRect();
+    const footerRect = footer?.getBoundingClientRect();
+    const maxRowHeight = rows.reduce(
+      (maxHeight, rect) => Math.max(maxHeight, rect.height),
+      0,
+    );
+    const lastRow = rows.at(-1);
+
+    return {
+      bodyPresent: body !== null,
+      bodyClientHeight: body?.clientHeight ?? 0,
+      bodyScrollHeight: body?.scrollHeight ?? 0,
+      bodyOverflowY: body ? window.getComputedStyle(body).overflowY : "missing",
+      footerPresent: footer !== null && Boolean(footerRect?.width && footerRect.height),
+      footerTop: footerRect?.top ?? 0,
+      visibleRowCount: rows.length,
+      maxRowHeight,
+      lastRowBottom: lastRow?.bottom ?? 0,
+      rowsInsideBody:
+        Boolean(bodyRect) &&
+        rows.every(
+          (rect) =>
+            rect.top >= bodyRect!.top - tolerance &&
+            rect.bottom <= bodyRect!.bottom + tolerance,
+        ),
+    };
+  });
+}
+
+function assertTokensRegionContract(
+  metrics: TokensRegionContract,
+  label: string,
+) {
+  expect(metrics.bodyPresent, `${label}: tokens list body present`).toBe(true);
+  expect(metrics.footerPresent, `${label}: tokens pager/footer visible`).toBe(true);
+  expect(metrics.visibleRowCount, `${label}: visible token rows/cards`).toBeGreaterThan(0);
+  expect(
+    metrics.visibleRowCount,
+    `${label}: visible rows/cards bounded by fixture dataset`,
+  ).toBeLessThanOrEqual(MOCK_TOKENS.length);
+  expect(
+    metrics.bodyScrollHeight,
+    `${label}: tokens body must not clip hidden overflow`,
+  ).toBeLessThanOrEqual(metrics.bodyClientHeight + TOLERANCE);
+  expect(
+    ["auto", "scroll"],
+    `${label}: tokens body must not expose vertical scroll`,
+  ).not.toContain(metrics.bodyOverflowY);
+  expect(metrics.rowsInsideBody, `${label}: token rows/cards inside body`).toBe(true);
+
+  if (metrics.visibleRowCount < MOCK_TOKENS.length) {
+    const gap = metrics.footerTop - metrics.lastRowBottom;
+    expect(gap, `${label}: list-to-footer gap must not overlap`).toBeGreaterThanOrEqual(
+      -TOLERANCE,
+    );
+    expect(gap, `${label}: list-to-footer gap controlled`).toBeLessThanOrEqual(
+      Math.max(metrics.maxRowHeight + 24, 72),
+    );
+  }
+}
+
+async function expectInsideViewport(locator: Locator, label: string) {
+  await expect(locator, `${label}: visible`).toBeVisible();
+  await expect(locator, `${label}: inside viewport`).toBeInViewport();
+}
+
+async function readPublicParticularContract(
+  page: Page,
+): Promise<PublicParticularContract> {
+  return page.evaluate(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const primary = document.querySelector<HTMLElement>(
+      '[data-particulares-primary-action="true"]',
+    );
+    const tokenInput = document.querySelector<HTMLElement>("#particular-token");
+    const submit = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "Ingresar",
+    );
+    const nextStep = document.querySelector<HTMLElement>(
+      '[data-particulares-next-step-zone="true"]',
+    );
+    const primaryRect = primary?.getBoundingClientRect();
+
+    return {
+      htmlScrollWidth: html.scrollWidth,
+      htmlClientWidth: html.clientWidth,
+      bodyScrollWidth: body.scrollWidth,
+      bodyClientWidth: body.clientWidth,
+      primaryPresent: primary !== null,
+      primaryTop: primaryRect?.top ?? 0,
+      primaryBottom: primaryRect?.bottom ?? 0,
+      primaryHeight: primaryRect?.height ?? 0,
+      viewportHeight: window.innerHeight,
+      primaryOverflowY: primary ? primary.scrollHeight - primary.clientHeight : 0,
+      tokenInputPresent: tokenInput !== null && tokenInput.getBoundingClientRect().height > 0,
+      submitPresent: submit !== undefined && submit.getBoundingClientRect().height > 0,
+      nextStepPresent: nextStep !== null && nextStep.getBoundingClientRect().height > 0,
+    };
+  });
+}
+
+function assertPublicParticularContract(
+  metrics: PublicParticularContract,
+  label: string,
+) {
+  expect(
+    metrics.htmlScrollWidth,
+    `${label}: documentElement horizontal overflow`,
+  ).toBeLessThanOrEqual(metrics.htmlClientWidth + TOLERANCE);
+  expect(
+    metrics.bodyScrollWidth,
+    `${label}: body horizontal overflow`,
+  ).toBeLessThanOrEqual(metrics.bodyClientWidth + TOLERANCE);
+  expect(metrics.primaryPresent, `${label}: token gate panel present`).toBe(true);
+  expect(metrics.tokenInputPresent, `${label}: token input present`).toBe(true);
+  expect(metrics.submitPresent, `${label}: submit action present`).toBe(true);
+  expect(metrics.nextStepPresent, `${label}: next step state present`).toBe(true);
+  expect(
+    metrics.primaryOverflowY,
+    `${label}: token gate panel internal vertical overflow`,
+  ).toBeLessThanOrEqual(TOLERANCE);
+  expect(metrics.primaryTop, `${label}: token gate top inside viewport`).toBeGreaterThanOrEqual(
+    -TOLERANCE,
+  );
+  expect(
+    metrics.primaryBottom,
+    `${label}: token gate bottom stays within controlled first-viewport fold`,
+  ).toBeLessThanOrEqual(metrics.viewportHeight + 48);
 }
 
 function assertAdaptiveNoScroll(
@@ -288,6 +574,13 @@ for (const viewport of ALL_VIEWPORTS) {
             `${viewport.name} ${surface.label}`,
             viewport.width,
           );
+          if (!surface.allowMeasuredInternalScroll) {
+            const internalScroll = await readWorstInternalVerticalScroll(page);
+            assertNoMeasuredInternalVerticalScroll(
+              internalScroll,
+              `${viewport.name} ${surface.label}`,
+            );
+          }
         }).toPass({ timeout: 10_000 });
       });
     }
@@ -307,6 +600,11 @@ for (const viewport of DEMANDING_VIEWPORTS) {
             metrics,
             `${viewport.name} ${surface.label}`,
             viewport.width,
+          );
+          const internalScroll = await readWorstInternalVerticalScroll(page);
+          assertNoMeasuredInternalVerticalScroll(
+            internalScroll,
+            `${viewport.name} ${surface.label}`,
           );
         }).toPass({ timeout: 10_000 });
       });
@@ -328,9 +626,81 @@ for (const viewport of DESKTOP_ZOOM_VIEWPORTS) {
             `${viewport.name} ${surface.label}`,
             viewport.width,
           );
+          const internalScroll = await readWorstInternalVerticalScroll(page);
+          assertNoMeasuredInternalVerticalScroll(
+            internalScroll,
+            `${viewport.name} ${surface.label}`,
+          );
         }).toPass({ timeout: 10_000 });
       });
     }
+  });
+}
+
+test("clinic Tokens adaptive rows baseline changes density without internal scroll", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await gotoSurface(page, {
+    label: "clinic Tokens particulares",
+    surface: "clinic",
+    path: "/dashboard?module=tokens",
+    ready: '[data-dashboard-module-workspace="tokens"]',
+    mockTokens: true,
+  });
+
+  const rowSelector = [
+    '[data-clinic-access-table-row="true"]',
+    '[data-clinic-access-mobile-row="true"]',
+  ].join(",");
+  const tallCount = await waitForSettledVisibleCount(
+    page,
+    rowSelector,
+    "clinic Tokens tall viewport",
+  );
+  await expect(async () => {
+    const metrics = await readTokensRegionContract(page);
+    assertTokensRegionContract(metrics, "clinic Tokens tall viewport");
+  }).toPass({ timeout: 10_000 });
+
+  await page.setViewportSize({ width: 1280, height: 700 });
+  const compactCount = await waitForSettledVisibleCount(
+    page,
+    rowSelector,
+    "clinic Tokens compact effective viewport",
+  );
+  await expect(async () => {
+    const metrics = await readTokensRegionContract(page);
+    assertTokensRegionContract(metrics, "clinic Tokens compact effective viewport");
+  }).toPass({ timeout: 10_000 });
+
+  expect(
+    compactCount,
+    `compact viewport (${compactCount}) must render fewer token rows/cards than tall viewport (${tallCount})`,
+  ).toBeLessThan(tallCount);
+});
+
+for (const viewport of DEMANDING_VIEWPORTS) {
+  test(`particular token gate baseline fits primary viewport at ${viewport.name}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await mockParticularLoggedOut(page);
+    await page.goto("/particulares");
+
+    await expectInsideViewport(
+      page.locator('[data-particulares-primary-action="true"]'),
+      `${viewport.name}: particular token gate panel`,
+    );
+    await expectInsideViewport(
+      page.locator("#particular-token"),
+      `${viewport.name}: particular token input`,
+    );
+
+    await expect(async () => {
+      const metrics = await readPublicParticularContract(page);
+      assertPublicParticularContract(metrics, `${viewport.name}: particulares`);
+    }).toPass({ timeout: 10_000 });
   });
 }
 
