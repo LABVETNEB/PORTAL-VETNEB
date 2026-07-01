@@ -249,6 +249,36 @@ async function expectFooterBottomRightAligned(
   ).toBeLessThanOrEqual(18);
 }
 
+// `useAdaptiveRowsPerPage` now actually reacts to the measured container
+// (PR-FIX-1). Right after the list mounts it can briefly compute a transient
+// value from not-yet-updated sub-measurements (row height / header height)
+// before a follow-up render settles on the real value, so a naive read can
+// catch that transient instead of the converged count. Wait until the count
+// stops changing for a few consecutive polls before trusting it.
+async function waitForSettledRowCount(
+  locator: Locator,
+  label: string,
+): Promise<number> {
+  let previousCount = -1;
+  let stableReads = 0;
+
+  await expect(async () => {
+    const currentCount = await locator.count();
+    if (currentCount === previousCount) {
+      stableReads += 1;
+    } else {
+      previousCount = currentCount;
+      stableReads = 0;
+    }
+    expect(
+      stableReads,
+      `${label}: adaptive row count must settle (currently ${currentCount})`,
+    ).toBeGreaterThanOrEqual(3);
+  }).toPass({ timeout: 8_000, intervals: [50] });
+
+  return previousCount;
+}
+
 for (const viewport of MOBILE_VIEWPORTS) {
   test(`clinic Tokens mobile parity at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -297,14 +327,6 @@ for (const viewport of MOBILE_VIEWPORTS) {
       await expect(workspace).toBeVisible();
       await expect(card).toBeVisible();
       await expectClinicMobileBottomNav(page, viewport.name);
-      await expect(tokenRows).toHaveCount(4);
-      await expect(detailButtons).toHaveCount(4);
-
-      for (let index = 0; index < 4; index += 1) {
-        await expect(tokenRows.nth(index)).toBeVisible();
-        await expect(detailButtons.nth(index)).toBeVisible();
-      }
-
       await expect(refreshButton).toBeVisible();
       await expect(refreshButton).toBeEnabled();
       await expect(createButton).toBeVisible();
@@ -312,14 +334,45 @@ for (const viewport of MOBILE_VIEWPORTS) {
       await expect(pager).toBeVisible();
       await expect(previousButton).toBeVisible();
       await expect(nextButton).toBeVisible();
-      await expect(nextButton).toBeEnabled();
-      await expect(pager.getByText("Página 1 / 2")).toBeVisible();
-      await expect(card.getByText(/1[\u2013-]4 de \d+ tokens/)).toHaveCount(0);
+      await expect(card.getByText(/1[–-]4 de \d+ tokens/)).toHaveCount(0);
       await expect(futureSlots).toBeVisible();
       await expect(card.getByText("Usuarios y roles")).toHaveCount(0);
       await expect(card.getByText("Auditoría")).toHaveCount(0);
       await expect(card.getByText("Mantenimiento")).toHaveCount(0);
     }).toPass({ timeout: 12_000 });
+
+    // `rowsPerPage` is adaptive (useAdaptiveRowsPerPage), not the historical
+    // fixed TOKENS_PAGE_SIZE=4 -- assert the observable contract instead of a
+    // literal: a positive, settled row count bounded by the mocked dataset,
+    // wired consistently to the detail buttons and the pagination footer.
+    const rowCount = await waitForSettledRowCount(
+      tokenRows,
+      `${viewport.name}: initial list`,
+    );
+    expect(
+      rowCount,
+      `${viewport.name}: adaptive row count must be positive`,
+    ).toBeGreaterThan(0);
+    expect(
+      rowCount,
+      `${viewport.name}: adaptive row count must not exceed the mocked dataset`,
+    ).toBeLessThanOrEqual(MOCK_TOKENS.length);
+    await expect(detailButtons).toHaveCount(rowCount);
+
+    for (let index = 0; index < rowCount; index += 1) {
+      await expect(tokenRows.nth(index)).toBeVisible();
+      await expect(detailButtons.nth(index)).toBeVisible();
+    }
+
+    const expectedPageCount = Math.ceil(MOCK_TOKENS.length / rowCount);
+    await expect(
+      pager.getByText(`Página 1 / ${expectedPageCount}`),
+    ).toBeVisible();
+    if (expectedPageCount > 1) {
+      await expect(nextButton).toBeEnabled();
+    } else {
+      await expect(nextButton).toBeDisabled();
+    }
 
     await expectHorizontallyUnclipped(
       refreshButton,
@@ -374,7 +427,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await detailButtons.nth(1).click();
 
     await expect(async () => {
-      await expect(tokenRows).toHaveCount(4);
+      await expect(tokenRows).toHaveCount(rowCount);
       await expect(tokenRows.nth(0)).toBeVisible();
       await expect(tokenRows.nth(1)).toBeVisible();
       await expect(
