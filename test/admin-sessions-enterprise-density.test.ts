@@ -36,8 +36,11 @@ test("PR-7B uses viewport-safe server pagination with eight rows", () => {
   const card = read(CARD_PATH);
   const api = read(API_PATH);
 
-  assert.ok(card.includes("const PAGE_SIZE = 8;"));
-  assert.ok(card.includes("limit: PAGE_SIZE"));
+  assert.ok(card.includes("const SESSIONS_FALLBACK_ROWS = 8;"));
+  assert.ok(card.includes("const SESSIONS_SUPERSET_CAP = 32;"));
+  assert.ok(card.includes("limit: effectiveLimit"));
+  assert.equal(card.includes("limit: PAGE_SIZE"), false);
+  assert.ok(card.includes("useAdaptiveItemsPerPage"));
   assert.ok(card.includes("offset"));
   assert.ok(card.includes("getAdminSessions(query)"));
   assert.ok(card.includes("offset + snapshot.sessions.length < snapshot.total"));
@@ -60,7 +63,7 @@ test("PR-7B renders a compact desktop table and prioritized mobile list", () => 
     "[&_td]:h-9",
     "[&_th]:h-8",
     "text-[13px]",
-    "md:block",
+    "md:flex",
     "md:hidden",
     'aria-label="Paginación de sesiones"',
     "h-7 px-2 text-xs",
