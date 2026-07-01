@@ -17,15 +17,30 @@ test("admin users roles card is client-side and imports required dependencies", 
   const source = read(ADMIN_USERS_ROLES_CARD_PATH);
 
   assert.ok(source.includes('"use client";'));
-  assert.ok(source.includes('import { useEffect, useMemo, useState, useTransition } from "react";'));
+  for (const hook of [
+    "useEffect",
+    "useLayoutEffect",
+    "useMemo",
+    "useRef",
+    "useState",
+    "useTransition",
+  ]) {
+    assert.ok(source.includes(hook), `missing react hook import: ${hook}`);
+  }
+  assert.ok(source.includes('from "react";'));
   assert.ok(source.includes('import { Badge } from "@/components/ui/badge";'));
   assert.ok(source.includes('import { Button } from "@/components/ui/button";'));
   assert.ok(source.includes("changeAdminClinicUserRole"));
   assert.ok(source.includes("getAdminUsersRoles"));
+  assert.ok(
+    source.includes(
+      'import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";',
+    ),
+  );
   assert.ok(source.includes('import { formatDateTime } from "@/lib/utils";'));
 });
 
-test("admin users roles card keeps typed role contracts and pagination size", () => {
+test("admin users roles card keeps typed role contracts and adaptive pagination size", () => {
   const source = read(ADMIN_USERS_ROLES_CARD_PATH);
 
   assert.ok(source.includes("AdminRoleUserRole"));
@@ -33,7 +48,8 @@ test("admin users roles card keeps typed role contracts and pagination size", ()
   assert.ok(source.includes("AdminRoleUserType"));
   assert.ok(source.includes("AdminUsersRolesSnapshot"));
   assert.ok(source.includes("ClinicUserRole"));
-  assert.ok(source.includes("const PAGE_SIZE = 9;"));
+  assert.ok(source.includes("const USERS_ROLES_FALLBACK_ROWS = 9;"));
+  assert.ok(source.includes("const USERS_ROLES_SUPERSET_CAP = 36;"));
 });
 
 test("admin users roles card keeps user type role and clinic formatters", () => {
@@ -101,9 +117,12 @@ test("admin users roles card builds query and disables actions during mutations"
   assert.ok(source.includes("const query = useMemo("));
   assert.ok(source.includes('...(userType !== "all" ? { userType } : {})'));
   assert.ok(source.includes('...(role !== "all" ? { role } : {})'));
-  assert.ok(source.includes("limit: PAGE_SIZE"));
+  assert.ok(source.includes("limit: effectiveLimit"));
+  assert.equal(source.includes("limit: PAGE_SIZE"), false);
+  assert.ok(source.includes("useAdaptiveItemsPerPage"));
+  assert.ok(source.includes("const effectiveLimit = rowsPerPage;"));
   assert.ok(source.includes("offset"));
-  assert.ok(source.includes("[offset, role, userType]"));
+  assert.ok(source.includes("[effectiveLimit, offset, role, userType]"));
   assert.ok(source.includes("const isMutatingRole = changingUserKey !== null;"));
   assert.ok(source.includes("const disableUserActions = isPending || isMutatingRole;"));
 });
@@ -164,7 +183,7 @@ test("admin users roles card renders title counters filters and table columns", 
 test("admin users roles card renders rows editable clinic actions and admin non-editable state", () => {
   const source = read(ADMIN_USERS_ROLES_CARD_PATH);
 
-  assert.ok(source.includes("users.map((user) => {"));
+  assert.ok(source.includes("users.map((user, index) => {"));
   assert.ok(source.includes("const userKey = getUserKey(user);"));
   assert.ok(source.includes("const isChanging = changingUserKey === userKey;"));
   assert.ok(source.includes("const wasChanged = changedUserKey === userKey;"));

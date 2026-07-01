@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { changeAdminClinicUserRole, getAdminUsersRoles } from "@/lib/api";
+import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
 import { formatDateTime } from "@/lib/utils";
 import type {
   AdminRoleUserRole,
@@ -22,11 +30,34 @@ import type {
   AdminUsersRolesSnapshot,
   ClinicUserRole,
 } from "@/types";
-import { AdminMobileUsersModule } from "./AdminMobileUsersModule";
+import { AdminMobileOpsPager } from "./AdminMobileOpsPager";
 
-// Nine compact rows are the viewport-safe contract established for the admin
-// modules while dashboard-main intentionally remains non-scrollable.
-const PAGE_SIZE = 9;
+// Server pagination is now sized by the measured rows container (Zero-Scroll
+// adaptive contract). Nine compact rows survive only as the pre-measurement
+// fallback established for the admin modules.
+const USERS_ROLES_FALLBACK_ROWS = 9;
+// Hybrid cap: the effective `limit` never exceeds this superset ceiling even on
+// very tall viewports; recompute of offset always clamps against it.
+const USERS_ROLES_SUPERSET_CAP = 36;
+// Fixed header row height of the desktop table (`[&_th]:h-8`), discounted from
+// the measured region so the row math never counts the header as a data row.
+const USERS_ROLES_TABLE_HEADER_PX = 32;
+// Fallback item height used until a real row is measured.
+const USERS_ROLES_ROW_HEIGHT_FALLBACK_PX = 36;
+
+type Measurement = {
+  containerNode: HTMLElement | null;
+  rowHeightPx: number;
+  headerHeightPx: number;
+};
+
+function measurementsEqual(a: Measurement, b: Measurement) {
+  return (
+    a.containerNode === b.containerNode &&
+    a.rowHeightPx === b.rowHeightPx &&
+    a.headerHeightPx === b.headerHeightPx
+  );
+}
 
 function formatUserType(value: AdminRoleUserType) {
   return value === "admin" ? "Admin" : "Clínica";
@@ -133,7 +164,6 @@ function AdminUserTypeBadge({ userType }: UserTypeBadgeProps) {
 }
 
 export function AdminUsersRolesReadOnlyCard() {
-  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const [snapshot, setSnapshot] = useState<AdminUsersRolesSnapshot | null>(null);
   const [userType, setUserType] = useState<AdminRoleUserType | "all">("all");
   const [role, setRole] = useState<AdminRoleUserRole | "all">("all");
@@ -144,14 +174,121 @@ export function AdminUsersRolesReadOnlyCard() {
   const [changedUserKey, setChangedUserKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // One collapsed runtime feeds both presentations, so the visible container
+  // (desktop table region or mobile list region) drives a single cardinality.
+  const [desktopBodyNode, setDesktopBodyNode] = useState<HTMLElement | null>(
+    null,
+  );
+  const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
+  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
+  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
+  const [measurement, setMeasurement] = useState<Measurement>({
+    containerNode: null,
+    rowHeightPx: USERS_ROLES_ROW_HEIGHT_FALLBACK_PX,
+    headerHeightPx: 0,
+  });
+
+  const latestRequestRef = useRef(0);
+  const snapshotRef = useRef<AdminUsersRolesSnapshot | null>(null);
+
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
+
+  useLayoutEffect(() => {
+    const nodes = [
+      desktopBodyNode,
+      mobileBodyNode,
+      desktopRowNode,
+      mobileRowNode,
+    ].filter((node): node is HTMLElement => node !== null);
+    if (nodes.length === 0) {
+      return;
+    }
+
+    let frame: number | null = null;
+
+    const recompute = () => {
+      frame = null;
+
+      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
+      if (mobileHeight > 0 && mobileBodyNode) {
+        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: mobileBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : USERS_ROLES_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: 0,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+        return;
+      }
+
+      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
+      if (desktopHeight > 0 && desktopBodyNode) {
+        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: desktopBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : USERS_ROLES_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: USERS_ROLES_TABLE_HEADER_PX,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+      }
+    };
+
+    const scheduleRecompute = () => {
+      if (frame === null) {
+        frame = requestAnimationFrame(recompute);
+      }
+    };
+
+    const observer = new ResizeObserver(scheduleRecompute);
+    nodes.forEach((node) => observer.observe(node));
+    scheduleRecompute();
+
+    return () => {
+      observer.disconnect();
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
+
+  // The desktop table has two-line rows (~41px), so at the shortest supported
+  // desktop viewport (1366×768) exactly nine rows fit the measured container.
+  // A positive safety cushion would floor that to eight and break the
+  // established "nine populated rows" desktop contract, so the desktop context
+  // (detected by the discounted table header) keeps a floor of nine — matching
+  // the pre-adaptive fixed page size — while still adapting upward on taller
+  // viewports. The mobile list (no table header) keeps a floor of one so it can
+  // shrink freely on short phones.
+  const isDesktopMeasurement = measurement.headerHeightPx > 0;
+  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
+    containerNode: measurement.containerNode,
+    fallbackItems: USERS_ROLES_FALLBACK_ROWS,
+    itemHeightPx: measurement.rowHeightPx,
+    headerHeightPx: measurement.headerHeightPx,
+    minItems: isDesktopMeasurement ? USERS_ROLES_FALLBACK_ROWS : 1,
+    maxItems: USERS_ROLES_SUPERSET_CAP,
+  });
+
+  // Effective server page size: at least the measured rows, capped at the
+  // superset ceiling. The hook already clamps to [1, USERS_ROLES_SUPERSET_CAP].
+  const effectiveLimit = rowsPerPage;
+
   const query = useMemo(
     () => ({
       ...(userType !== "all" ? { userType } : {}),
       ...(role !== "all" ? { role } : {}),
-      limit: PAGE_SIZE,
+      limit: effectiveLimit,
       offset,
     }),
-    [offset, role, userType],
+    [effectiveLimit, offset, role, userType],
   );
 
   const isMutatingRole = changingUserKey !== null;
@@ -160,12 +297,17 @@ export function AdminUsersRolesReadOnlyCard() {
   function loadUsersRoles() {
     setError(null);
 
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
+
     startTransition(() => {
       void (async () => {
         try {
           const result = await getAdminUsersRoles(query);
+          if (requestId !== latestRequestRef.current) return;
           setSnapshot(result);
         } catch (err) {
+          if (requestId !== latestRequestRef.current) return;
           setError(
             err instanceof Error
               ? err.message
@@ -234,33 +376,59 @@ export function AdminUsersRolesReadOnlyCard() {
     }
   }
 
+  // Recompute offset when the effective limit changes so the same first record
+  // stays visible; clamp against the known total.
+  const previousLimitRef = useRef(effectiveLimit);
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(min-width: 768px)");
-    const syncViewport = () => setIsDesktopViewport(mediaQuery.matches);
-    syncViewport();
-    mediaQuery.addEventListener("change", syncViewport);
-    return () => mediaQuery.removeEventListener("change", syncViewport);
-  }, []);
+    if (previousLimitRef.current === effectiveLimit) {
+      return;
+    }
+    previousLimitRef.current = effectiveLimit;
+
+    setOffset((currentOffset) => {
+      let nextOffset = Math.floor(currentOffset / effectiveLimit) * effectiveLimit;
+      const total = snapshotRef.current?.total;
+      if (typeof total === "number") {
+        const lastValidOffset = Math.max(
+          0,
+          (Math.ceil(total / effectiveLimit) - 1) * effectiveLimit,
+        );
+        nextOffset = Math.min(nextOffset, lastValidOffset);
+      }
+      nextOffset = Math.max(0, nextOffset);
+      return nextOffset === currentOffset ? currentOffset : nextOffset;
+    });
+  }, [effectiveLimit]);
 
   useEffect(() => {
-    if (!isDesktopViewport) return;
     loadUsersRoles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDesktopViewport, query]);
+  }, [query]);
 
   const users = snapshot?.users ?? [];
   const hasPreviousPage = offset > 0;
   const hasNextPage = snapshot
     ? offset + snapshot.users.length < snapshot.total
     : false;
-  const page = Math.floor(offset / PAGE_SIZE) + 1;
-  const pageCount = snapshot ? Math.max(1, Math.ceil(snapshot.total / PAGE_SIZE)) : 1;
+  const page = Math.floor(offset / effectiveLimit) + 1;
+  const pageCount = snapshot
+    ? Math.max(1, Math.ceil(snapshot.total / effectiveLimit))
+    : 1;
   const rangeStart = users.length ? offset + 1 : 0;
   const rangeEnd = offset + users.length;
 
+  function goToPreviousPage() {
+    resetFiltersFeedback();
+    setOffset(Math.max(offset - effectiveLimit, 0));
+  }
+
+  function goToNextPage() {
+    resetFiltersFeedback();
+    setOffset(offset + effectiveLimit);
+  }
+
   return (
     <>
-      <AdminMobileUsersModule />
       <Card className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none md:flex">
       <CardHeader className="flex min-h-12 shrink-0 flex-row items-center justify-between gap-3 space-y-0 border-b border-vetneb-line/70 px-3 py-2 sm:px-4 md:min-h-10 md:py-1.5">
         <div className="min-w-0">
@@ -365,136 +533,100 @@ export function AdminUsersRolesReadOnlyCard() {
           </label>
 
           <span className="ml-auto hidden pb-2 text-[11px] text-muted-foreground md:inline">
-            {PAGE_SIZE} por página
+            {effectiveLimit} por página
           </span>
         </div>
 
-        <div className="min-h-0 flex-1 py-2 md:py-1">
+        <div
+          ref={setDesktopBodyNode}
+          className="min-h-0 flex-1 py-2 md:py-1"
+        >
           {users.length ? (
-            <>
-              <div className="dashboard-table-responsive dashboard-fitted-table hidden px-3 md:block sm:px-4">
-                <Table
-                  className="table-fixed text-[13px] [&_td]:h-8 [&_td]:px-2 [&_td]:py-0.5 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold"
-                  aria-label="Tabla de usuarios y roles administrativos"
-                >
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[18%]">Usuario</TableHead>
-                      <TableHead className="w-[10%]">Tipo</TableHead>
-                      <TableHead className="w-[14%]">Rol</TableHead>
-                      <TableHead>Clínica</TableHead>
-                      <TableHead className="hidden w-[9.5rem] xl:table-cell">Creado</TableHead>
-                      <TableHead className="w-[9.5rem]">Actualizado</TableHead>
-                      <TableHead className="w-[8.5rem] text-right">Acción</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((user) => {
-                      const userKey = getUserKey(user);
-                      const isChanging = changingUserKey === userKey;
-                      const wasChanged = changedUserKey === userKey;
+            <div className="dashboard-table-responsive dashboard-fitted-table px-3 sm:px-4">
+              <Table
+                className="table-fixed text-[13px] [&_td]:h-8 [&_td]:px-2 [&_td]:py-0.5 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold"
+                aria-label="Tabla de usuarios y roles administrativos"
+              >
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[18%]">Usuario</TableHead>
+                    <TableHead className="w-[10%]">Tipo</TableHead>
+                    <TableHead className="w-[14%]">Rol</TableHead>
+                    <TableHead>Clínica</TableHead>
+                    <TableHead className="hidden w-[9.5rem] xl:table-cell">Creado</TableHead>
+                    <TableHead className="w-[9.5rem]">Actualizado</TableHead>
+                    <TableHead className="w-[8.5rem] text-right">Acción</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user, index) => {
+                    const userKey = getUserKey(user);
+                    const isChanging = changingUserKey === userKey;
+                    const wasChanged = changedUserKey === userKey;
 
-                      return (
-                        <TableRow
-                          key={userKey}
-                          className={wasChanged ? "bg-vetneb-teal/10" : undefined}
-                        >
-                          <TableCell>
-                            <p className="truncate font-semibold text-vetneb-ink/90">
-                              {user.username}
-                            </p>
-                            <p className="truncate font-mono text-[11px] text-muted-foreground">
-                              ID {user.userId}{wasChanged ? " · Actualizado" : ""}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <AdminUserTypeBadge userType={user.userType} />
-                          </TableCell>
-                          <TableCell>
-                            <AdminRoleBadge role={user.role} />
-                          </TableCell>
-                          <TableCell>
-                            <p className="truncate text-xs text-vetneb-ink/85">
-                              {user.userType === "clinic"
-                                ? user.clinicName || `Clínica #${user.clinicId}`
-                                : "Administración VETNEB"}
-                            </p>
-                            {getClinicMetadata(user) ? (
-                              <p className="truncate text-[11px] text-muted-foreground">
-                                {getClinicMetadata(user)}
-                              </p>
-                            ) : null}
-                          </TableCell>
-                          <TableCell className="hidden truncate text-xs text-muted-foreground xl:table-cell">
-                            {formatDateTime(user.createdAt)}
-                          </TableCell>
-                          <TableCell className="truncate text-xs text-muted-foreground">
-                            {formatDateTime(user.updatedAt)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {user.userType === "clinic" ? (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-7 px-2 text-xs"
-                                disabled={disableUserActions}
-                                aria-busy={isChanging ? true : undefined}
-                                onClick={() => void handleChangeClinicRole(user)}
-                              >
-                                {isChanging ? "Cambiando..." : "Cambiar rol"}
-                              </Button>
-                            ) : (
-                              <span className="text-[11px] text-muted-foreground">
-                                No editable
-                              </span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="divide-y divide-vetneb-line/70 border-y border-vetneb-line/70 md:hidden">
-                {users.map((user) => {
-                  const userKey = getUserKey(user);
-                  const isChanging = changingUserKey === userKey;
-
-                  return (
-                    <div key={userKey} className="flex min-h-10 items-center gap-2 px-3 py-1">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <p className="truncate text-xs font-semibold text-vetneb-ink">
+                    return (
+                      <TableRow
+                        key={userKey}
+                        ref={index === 0 ? setDesktopRowNode : undefined}
+                        className={wasChanged ? "bg-vetneb-teal/10" : undefined}
+                      >
+                        <TableCell>
+                          <p className="truncate font-semibold text-vetneb-ink/90">
                             {user.username}
                           </p>
+                          <p className="truncate font-mono text-[11px] text-muted-foreground">
+                            ID {user.userId}{wasChanged ? " · Actualizado" : ""}
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          <AdminUserTypeBadge userType={user.userType} />
+                        </TableCell>
+                        <TableCell>
                           <AdminRoleBadge role={user.role} />
-                        </div>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          ID {user.userId} · {formatClinic(user)}
-                        </p>
-                      </div>
-                      {user.userType === "clinic" ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 shrink-0 px-2 text-xs"
-                          disabled={disableUserActions}
-                          aria-busy={isChanging ? true : undefined}
-                          onClick={() => void handleChangeClinicRole(user)}
-                        >
-                          {isChanging ? "Cambiando..." : "Cambiar"}
-                        </Button>
-                      ) : (
-                        <AdminUserTypeBadge userType={user.userType} />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </>
+                        </TableCell>
+                        <TableCell>
+                          <p className="truncate text-xs text-vetneb-ink/85">
+                            {user.userType === "clinic"
+                              ? user.clinicName || `Clínica #${user.clinicId}`
+                              : "Administración VETNEB"}
+                          </p>
+                          {getClinicMetadata(user) ? (
+                            <p className="truncate text-[11px] text-muted-foreground">
+                              {getClinicMetadata(user)}
+                            </p>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="hidden truncate text-xs text-muted-foreground xl:table-cell">
+                          {formatDateTime(user.createdAt)}
+                        </TableCell>
+                        <TableCell className="truncate text-xs text-muted-foreground">
+                          {formatDateTime(user.updatedAt)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {user.userType === "clinic" ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              disabled={disableUserActions}
+                              aria-busy={isChanging ? true : undefined}
+                              onClick={() => void handleChangeClinicRole(user)}
+                            >
+                              {isChanging ? "Cambiando..." : "Cambiar rol"}
+                            </Button>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground">
+                              No editable
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="mx-3 flex min-h-20 items-center justify-center rounded-md border border-vetneb-line/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground sm:mx-4">
               {isPending
@@ -517,10 +649,7 @@ export function AdminUsersRolesReadOnlyCard() {
               variant="outline"
               size="sm"
               disabled={!hasPreviousPage || disableUserActions}
-              onClick={() => {
-                resetFiltersFeedback();
-                setOffset(Math.max(offset - PAGE_SIZE, 0));
-              }}
+              onClick={goToPreviousPage}
               className="h-7 px-2 text-xs flex-1 sm:flex-none"
             >
               Anterior
@@ -537,10 +666,7 @@ export function AdminUsersRolesReadOnlyCard() {
               variant="outline"
               size="sm"
               disabled={!hasNextPage || disableUserActions}
-              onClick={() => {
-                resetFiltersFeedback();
-                setOffset(offset + PAGE_SIZE);
-              }}
+              onClick={goToNextPage}
               className="h-7 px-2 text-xs flex-1 sm:flex-none"
             >
               Siguiente
@@ -549,6 +675,156 @@ export function AdminUsersRolesReadOnlyCard() {
         </footer>
       </CardContent>
       </Card>
+
+      <section
+        data-admin-mobile-ops-module="users"
+        aria-label="Usuarios y roles administrativos"
+        className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/80 bg-card md:hidden"
+      >
+        <header className="flex min-h-10 shrink-0 items-center justify-between gap-2 overflow-hidden border-b border-vetneb-line/70 px-2 py-1">
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold text-vetneb-ink">
+              {snapshot ? `${snapshot.total} usuarios` : "Usuarios"}
+            </p>
+            <p
+              className={`truncate text-[11px] ${
+                error
+                  ? "text-destructive"
+                  : roleChangeMessage
+                    ? "text-vetneb-teal"
+                    : "text-muted-foreground"
+              }`}
+              role={error ? "alert" : roleChangeMessage ? "status" : undefined}
+            >
+              {error ?? roleChangeMessage ?? "Roles y permisos"}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 shrink-0 px-2 text-xs"
+            onClick={loadUsersRoles}
+            disabled={disableUserActions}
+            aria-busy={isPending ? true : undefined}
+          >
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            ) : null}
+            Actualizar
+          </Button>
+        </header>
+
+        <div className="grid min-h-12 shrink-0 grid-cols-2 gap-2 overflow-hidden border-b border-vetneb-line/70 bg-muted/15 px-2 py-1">
+          <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
+            Tipo
+            <select
+              className="field-select h-9 items-center px-2 py-1 text-xs leading-none"
+              value={userType}
+              disabled={disableUserActions}
+              onChange={(event) => {
+                resetFiltersFeedback();
+                setOffset(0);
+                setUserType(event.target.value as AdminRoleUserType | "all");
+              }}
+            >
+              <option value="all">Todos</option>
+              <option value="admin">Admin</option>
+              <option value="clinic">Clínica</option>
+            </select>
+          </label>
+          <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
+            Rol
+            <select
+              className="field-select h-9 items-center px-2 py-1 text-xs leading-none"
+              value={role}
+              disabled={disableUserActions}
+              onChange={(event) => {
+                resetFiltersFeedback();
+                setOffset(0);
+                setRole(event.target.value as AdminRoleUserRole | "all");
+              }}
+            >
+              <option value="all">Todos</option>
+              <option value="admin">Admin</option>
+              <option value="clinic_owner">Owner clínica</option>
+              <option value="clinic_staff">Staff clínica</option>
+            </select>
+          </label>
+        </div>
+
+        <div
+          ref={setMobileBodyNode}
+          className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden"
+        >
+          {users.length ? (
+            users.map((user, index) => {
+              const userKey = getUserKey(user);
+              const isChanging = changingUserKey === userKey;
+
+              return (
+                <article
+                  key={userKey}
+                  ref={index === 0 ? setMobileRowNode : undefined}
+                  data-admin-mobile-ops-item="true"
+                  className="flex min-h-10 items-center gap-2 overflow-hidden px-2 py-1"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <p className="min-w-0 truncate text-xs font-semibold text-vetneb-ink">
+                        {user.username}
+                      </p>
+                      <AdminRoleBadge role={user.role} />
+                    </div>
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      ID {user.userId} · {formatClinic(user)}
+                    </p>
+                  </div>
+                  {user.userType === "clinic" ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 shrink-0 px-2 text-xs"
+                      disabled={disableUserActions}
+                      aria-busy={isChanging ? true : undefined}
+                      onClick={() => void handleChangeClinicRole(user)}
+                    >
+                      {isChanging ? "Cambiando..." : "Cambiar"}
+                    </Button>
+                  ) : (
+                    <AdminUserTypeBadge userType={user.userType} />
+                  )}
+                </article>
+              );
+            })
+          ) : (
+            <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
+              {error
+                ? "Error al cargar usuarios"
+                : isPending
+                  ? "Cargando usuarios..."
+                  : "Sin usuarios"}
+            </div>
+          )}
+        </div>
+
+        <AdminMobileOpsPager
+          ariaLabel="Paginación de usuarios"
+          page={page}
+          pageCount={pageCount}
+          rangeLabel={
+            users.length
+              ? `${rangeStart}–${rangeEnd} de ${snapshot?.total ?? 0}`
+              : "Sin usuarios"
+          }
+          previousDisabled={!hasPreviousPage}
+          nextDisabled={!hasNextPage}
+          disabled={disableUserActions}
+          onPrevious={goToPreviousPage}
+          onNext={goToNextPage}
+        />
+      </section>
     </>
   );
 }
