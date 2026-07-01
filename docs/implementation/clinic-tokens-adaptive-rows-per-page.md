@@ -293,3 +293,26 @@ Revertir el/los commits de PR-FIX-1 restaura el estado de PR-PILOT-1: hook
 inactivo (`rowsPerPage` clavado en `TOKENS_PAGE_SIZE = 4`), sin efectos en
 backend, datos ni otros módulos. No requiere rollback de datos ni de
 configuración.
+
+## PR-CORE-1 — Adaptive items foundation
+
+`useAdaptiveRowsPerPage` pasa a apoyarse en la fundación global
+`useAdaptiveItemsPerPage`. El wrapper conserva el lenguaje semántico de filas
+para Clínica Tokens y mantiene los nombres públicos del contrato previo:
+`fallbackRows`, `rowHeightPx`, `headerHeightPx`, `minRows`, `maxRows` y
+`rowsPerPage`.
+
+El comportamiento observable de Clínica Tokens no cambia:
+
+- `ClinicParticularTokensCard` sigue importando y usando
+  `useAdaptiveRowsPerPage`.
+- `TOKENS_PAGE_SIZE` se preserva como `fallbackRows`.
+- `usePagedRows(filteredTokens, rowsPerPage)` se preserva.
+- Los fixes de activación por `containerNode` y medición mobile por fila/card
+  real se preservan.
+- No se migra ningún módulo adicional.
+
+PR-CORE-1 no toca UI, CSS, fetch, paginación visible, backend, auth, DB,
+dependencias, CI ni snapshots. Su único objetivo es extraer la lógica genérica
+para que próximos PRs puedan migrar otras familias del contrato adaptive sin
+copiar la implementación del piloto.

@@ -10,6 +10,10 @@ const CLINIC_DASHBOARD_SIDEBAR_PATH =
   "frontend/src/components/dashboard/ClinicDashboardSidebar.tsx";
 const CLINIC_TOKENS_CARD_PATH =
   "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx";
+const ADAPTIVE_ITEMS_HOOK_PATH =
+  "frontend/src/hooks/useAdaptiveItemsPerPage.ts";
+const ADAPTIVE_ROWS_HOOK_PATH =
+  "frontend/src/hooks/useAdaptiveRowsPerPage.ts";
 const API_PATH = "frontend/src/lib/api.ts";
 
 function read(relativePath: string): string {
@@ -86,6 +90,7 @@ test("clinic tokens uses table/list row actions with dialog detail and step dial
   assert.ok(source.includes("fallbackRows: TOKENS_PAGE_SIZE"));
   assert.equal(source.includes("usePagedRows(filteredTokens, TOKENS_PAGE_SIZE)"), false);
   assert.ok(source.includes("usePagedRows(filteredTokens, rowsPerPage)"));
+  assert.equal(source.includes("useAdaptiveItemsPerPage"), false);
   assert.ok(source.includes("selectedTokenId"));
   assert.ok(source.includes("ModuleSurface"));
   assert.ok(source.includes('data-clinic-access-table="true"'));
@@ -122,6 +127,43 @@ test("clinic tokens uses table/list row actions with dialog detail and step dial
   assert.ok(source.includes('title="Generar token particular"'));
   assert.ok(source.includes('title="Token generado"'));
   assert.equal(source.includes("overflow-y-auto"), false);
+});
+
+test("adaptive rows wrapper delegates to adaptive items foundation", () => {
+  assert.equal(
+    existsSync(resolve(process.cwd(), ADAPTIVE_ITEMS_HOOK_PATH)),
+    true,
+    "adaptive items hook must exist",
+  );
+  assert.equal(
+    existsSync(resolve(process.cwd(), ADAPTIVE_ROWS_HOOK_PATH)),
+    true,
+    "adaptive rows wrapper must exist",
+  );
+
+  const itemsHook = read(ADAPTIVE_ITEMS_HOOK_PATH);
+  const rowsHook = read(ADAPTIVE_ROWS_HOOK_PATH);
+
+  assert.ok(itemsHook.includes("export function useAdaptiveItemsPerPage"));
+  assert.ok(itemsHook.includes("containerNode: HTMLElement | null"));
+  assert.ok(itemsHook.includes("fallbackItems: number"));
+  assert.ok(itemsHook.includes("itemHeightPx: number"));
+  assert.ok(itemsHook.includes("ResizeObserver"));
+  assert.ok(itemsHook.includes("requestAnimationFrame"));
+  assert.equal(itemsHook.includes("matchMedia"), false);
+  assert.equal(itemsHook.includes("overflow-y-auto"), false);
+
+  assert.ok(rowsHook.includes('import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";'));
+  assert.ok(rowsHook.includes("type AdaptiveRowsPerPageOptions"));
+  assert.ok(rowsHook.includes("fallbackRows: number"));
+  assert.ok(rowsHook.includes("rowHeightPx: number"));
+  assert.ok(rowsHook.includes("const { itemsPerPage } = useAdaptiveItemsPerPage({"));
+  assert.ok(rowsHook.includes("fallbackItems: options.fallbackRows"));
+  assert.ok(rowsHook.includes("itemHeightPx: options.rowHeightPx"));
+  assert.ok(rowsHook.includes("minItems: options.minRows ?? 2"));
+  assert.ok(rowsHook.includes("return { rowsPerPage: itemsPerPage };"));
+  assert.equal(rowsHook.includes("matchMedia"), false);
+  assert.equal(rowsHook.includes("overflow-y-auto"), false);
 });
 
 test("clinic tokens exposes advanced filters over visible token fields", () => {
