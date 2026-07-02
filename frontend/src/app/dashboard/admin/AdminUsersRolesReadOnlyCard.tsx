@@ -42,8 +42,9 @@ const USERS_ROLES_SUPERSET_CAP = 36;
 // Fixed header row height of the desktop table (`[&_th]:h-8`), discounted from
 // the measured region so the row math never counts the header as a data row.
 const USERS_ROLES_TABLE_HEADER_PX = 32;
-// Fallback item height used until a real row is measured.
-const USERS_ROLES_ROW_HEIGHT_FALLBACK_PX = 36;
+// Fallback item height used until a real row is measured. Mobile rows use
+// `min-h-10`, so the pre-measurement limit must not overestimate capacity.
+const USERS_ROLES_ROW_HEIGHT_FALLBACK_PX = 40;
 
 type Measurement = {
   containerNode: HTMLElement | null;
