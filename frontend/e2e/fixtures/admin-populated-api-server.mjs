@@ -356,13 +356,24 @@ const REPORTS = Array.from({ length: 9 }, (_, index) => ({
   workflowUpdatedAt: "2026-06-18T11:00:00.000Z",
 }));
 
-const USERS = Array.from({ length: 9 }, (_, index) =>
+const ADMIN_USERS_TARGET_TOTAL = 5000;
+const ADMIN_USER_STATUSES = ["active", "inactive", "locked"];
+const ADMIN_USER_LOCALITIES = [
+  "CABA",
+  "Buenos Aires",
+  "Córdoba",
+  "Rosario",
+  "Mendoza",
+];
+
+const LEGACY_USERS = Array.from({ length: 9 }, (_, index) =>
   index === 0
     ? {
         userType: "admin",
         userId: 41,
         username: "admin_operaciones",
         role: "admin",
+        status: "active",
         clinicId: null,
         clinicName: null,
         createdAt: "2025-11-10T10:00:00.000Z",
@@ -373,6 +384,7 @@ const USERS = Array.from({ length: 9 }, (_, index) =>
         userId: 200 + index,
         username: `usuario_clinica_${String(index).padStart(2, "0")}`,
         role: index % 2 === 0 ? "clinic_owner" : "clinic_staff",
+        status: ADMIN_USER_STATUSES[(index - 1) % ADMIN_USER_STATUSES.length],
         clinicId: 11 + index,
         clinicName: `Clínica E2E ${String(index).padStart(2, "0")}`,
         clinicLocality: index % 2 === 0 ? "CABA" : "Buenos Aires",
@@ -380,6 +392,136 @@ const USERS = Array.from({ length: 9 }, (_, index) =>
         updatedAt: "2026-06-17T15:30:00.000Z",
       },
 );
+
+function createSyntheticAdminUser(index) {
+  const createdAt = isoDaysBefore("2026-06-18T10:00:00.000Z", index % 365, 10);
+  const updatedAt = isoDaysBefore("2026-06-18T15:30:00.000Z", index % 90, 15);
+
+  return {
+    userType: "admin",
+    userId: 10_000 + index,
+    username: `admin_fixture_${String(index).padStart(4, "0")}`,
+    role: "admin",
+    status: ADMIN_USER_STATUSES[index % ADMIN_USER_STATUSES.length],
+    clinicId: null,
+    clinicName: null,
+    createdAt,
+    updatedAt,
+  };
+}
+
+function createSyntheticClinicUser(index) {
+  const clinicId = 20_000 + index;
+  const createdAt = isoDaysBefore("2026-06-18T10:00:00.000Z", index % 365, 10);
+  const updatedAt = isoDaysBefore("2026-06-18T15:30:00.000Z", index % 90, 15);
+
+  return {
+    userType: "clinic",
+    userId: 30_000 + index,
+    username: `usuario_clinica_fixture_${String(index).padStart(4, "0")}`,
+    role: index % 2 === 0 ? "clinic_owner" : "clinic_staff",
+    status: ADMIN_USER_STATUSES[index % ADMIN_USER_STATUSES.length],
+    clinicId,
+    clinicName: `Clínica Fixture ${String(index).padStart(4, "0")}`,
+    clinicLocality: ADMIN_USER_LOCALITIES[index % ADMIN_USER_LOCALITIES.length],
+    createdAt,
+    updatedAt,
+  };
+}
+
+const SYNTHETIC_ADMIN_USERS = Array.from({ length: 249 }, (_, index) =>
+  createSyntheticAdminUser(index + 1),
+);
+
+const SYNTHETIC_CLINIC_USERS = Array.from(
+  {
+    length:
+      ADMIN_USERS_TARGET_TOTAL -
+      LEGACY_USERS.length -
+      SYNTHETIC_ADMIN_USERS.length,
+  },
+  (_, index) => createSyntheticClinicUser(index + 1),
+);
+
+const USERS = [
+  ...LEGACY_USERS,
+  ...SYNTHETIC_ADMIN_USERS,
+  ...SYNTHETIC_CLINIC_USERS,
+];
+
+function readAdminUsersPagination(url, total) {
+  const rawLimit = Number(url.searchParams.get("limit"));
+  const rawOffset = Number(url.searchParams.get("offset"));
+  const hasLimit = url.searchParams.has("limit");
+  const limit =
+    hasLimit && Number.isInteger(rawLimit) && rawLimit > 0
+      ? Math.min(rawLimit, 100)
+      : Math.min(total, 9);
+  const offset =
+    Number.isInteger(rawOffset) && rawOffset > 0 ? rawOffset : 0;
+
+  return { limit, offset };
+}
+
+function includesAdminUserText(value, query) {
+  return String(value ?? "").toLowerCase().includes(query);
+}
+
+// CAP-A1 (5000-user dataset) is opt-in via ?dataset=high-volume. Requests
+// without it — i.e. the real AdminUsersRolesReadOnlyCard component, whose
+// adaptive server-page-size can exceed 9 on tall viewports — keep resolving
+// against the 9-user LEGACY_USERS pool, preserving the pre-CAP-A1 no-scroll
+// contract (`expectNinePopulatedRows`) that relies on the dataset itself
+// capping the response at 9 rows regardless of the requested limit.
+function isHighVolumeAdminUsersRequest(url) {
+  return url.searchParams.get("dataset") === "high-volume";
+}
+
+function filterAdminUsers(url) {
+  const query = (
+    url.searchParams.get("query") ??
+    url.searchParams.get("search") ??
+    ""
+  )
+    .trim()
+    .toLowerCase();
+  const userType = url.searchParams.get("userType")?.trim() ?? "";
+  const role = url.searchParams.get("role")?.trim() ?? "";
+  const status = url.searchParams.get("status")?.trim() ?? "";
+  const pool = isHighVolumeAdminUsersRequest(url) ? USERS : LEGACY_USERS;
+
+  return pool.filter((user) => {
+    const matchesQuery =
+      !query ||
+      includesAdminUserText(user.userId, query) ||
+      includesAdminUserText(user.username, query) ||
+      includesAdminUserText(user.role, query) ||
+      includesAdminUserText(user.status, query) ||
+      includesAdminUserText(user.clinicId, query) ||
+      includesAdminUserText(user.clinicName, query) ||
+      includesAdminUserText(user.clinicLocality, query);
+    const matchesUserType = !userType || user.userType === userType;
+    const matchesRole = !role || user.role === role;
+    const matchesStatus = !status || user.status === status;
+
+    return matchesQuery && matchesUserType && matchesRole && matchesStatus;
+  });
+}
+
+function countAdminUsersByType(users) {
+  return users.reduce(
+    (totals, user) => {
+      if (user.userType === "admin") {
+        totals.adminUsers += 1;
+      } else {
+        totals.clinicUsers += 1;
+      }
+
+      return totals;
+    },
+    { adminUsers: 0, clinicUsers: 0 },
+  );
+}
 
 function sendJson(response, status, body) {
   response.writeHead(status, {
@@ -570,21 +712,19 @@ function handlePopulatedRequest(request, response, url) {
   }
 
   if (url.pathname === "/api/admin/users-roles") {
-    const limit = Number(url.searchParams.get("limit") ?? 9);
-    const offset = Number(url.searchParams.get("offset") ?? 0);
-    const userType = url.searchParams.get("userType");
-    const role = url.searchParams.get("role");
-    const filteredUsers = USERS.filter(
-      (user) => (!userType || user.userType === userType) && (!role || user.role === role),
-    );
+    const filteredUsers = filterAdminUsers(url);
+    const total = filteredUsers.length;
+    const { limit, offset } = readAdminUsersPagination(url, total);
+    const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
 
     sendJson(response, 200, {
       success: true,
       users: filteredUsers.slice(offset, offset + limit),
-      total: filteredUsers.length,
+      total,
+      totalPages,
       limit,
       offset,
-      totals: { adminUsers: 3, clinicUsers: 26 },
+      totals: countAdminUsersByType(filteredUsers),
       checkedBy: { adminUserId: 41, username: "admin_operaciones" },
     });
     return;
