@@ -286,6 +286,7 @@ export type AdminRoleUserSummary =
 export type AdminUsersRolesQuery = {
   userType?: AdminRoleUserType;
   role?: AdminRoleUserRole;
+  search?: string;
   limit?: number;
   offset?: number;
 };

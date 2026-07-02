@@ -1863,6 +1863,10 @@ export async function getAdminUsersRoles(
     query.set("role", params.role);
   }
 
+  if (params.search && params.search.trim()) {
+    query.set("search", params.search.trim());
+  }
+
   if (typeof params.limit === "number") {
     query.set("limit", String(params.limit));
   }

@@ -122,7 +122,7 @@ test("admin users roles card builds query and disables actions during mutations"
   assert.ok(source.includes("useAdaptiveItemsPerPage"));
   assert.ok(source.includes("const effectiveLimit = rowsPerPage;"));
   assert.ok(source.includes("offset"));
-  assert.ok(source.includes("[effectiveLimit, offset, role, userType]"));
+  assert.ok(source.includes("[debouncedSearch, effectiveLimit, offset, role, userType]"));
   assert.ok(source.includes("const isMutatingRole = changingUserKey !== null;"));
   assert.ok(source.includes("const disableUserActions = isPending || isMutatingRole;"));
 });

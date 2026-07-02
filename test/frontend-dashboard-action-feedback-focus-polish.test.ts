@@ -132,7 +132,7 @@ test("PR-4 AdminSchemaHealthStatusCard Reintentar button has aria-busy and spinn
 test("PR-4 AdminUsersRolesReadOnlyCard Actualizar button has aria-busy and spinner", () => {
   const source = read(ADMIN_USERS_ROLES_CARD_PATH);
   assert.ok(source.includes("aria-busy={isPending ? true : undefined}"));
-  assert.ok(source.includes('import { Loader2 } from "lucide-react";'));
+  assert.ok(source.includes('import { Loader2, Search } from "lucide-react";'));
   assert.ok(source.includes('"Actualizando..."'));
 });
 

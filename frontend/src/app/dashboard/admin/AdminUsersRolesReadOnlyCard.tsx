@@ -8,9 +8,10 @@ import {
   useState,
   useTransition,
 } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -168,6 +169,8 @@ export function AdminUsersRolesReadOnlyCard() {
   const [snapshot, setSnapshot] = useState<AdminUsersRolesSnapshot | null>(null);
   const [userType, setUserType] = useState<AdminRoleUserType | "all">("all");
   const [role, setRole] = useState<AdminRoleUserRole | "all">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [roleChangeMessage, setRoleChangeMessage] = useState<string | null>(null);
@@ -282,14 +285,34 @@ export function AdminUsersRolesReadOnlyCard() {
   // superset ceiling. The hook already clamps to [1, USERS_ROLES_SUPERSET_CAP].
   const effectiveLimit = rowsPerPage;
 
+  // 300ms debounce (matches the AdminClinicsManagementCard search pattern) so
+  // a fast typist doesn't fire one request per keystroke against 5000 rows.
+  // Skips the mount run: firing on mount would reset offset to 0 shortly after
+  // load and race a page-2 navigation that happens within the debounce window.
+  const isFirstSearchRender = useRef(true);
+  useEffect(() => {
+    if (isFirstSearchRender.current) {
+      isFirstSearchRender.current = false;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setOffset(0);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const query = useMemo(
     () => ({
       ...(userType !== "all" ? { userType } : {}),
       ...(role !== "all" ? { role } : {}),
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
       limit: effectiveLimit,
       offset,
     }),
-    [effectiveLimit, offset, role, userType],
+    [debouncedSearch, effectiveLimit, offset, role, userType],
   );
 
   const isMutatingRole = changingUserKey !== null;
@@ -496,6 +519,27 @@ export function AdminUsersRolesReadOnlyCard() {
           className="flex min-h-12 shrink-0 items-end gap-2 border-b border-vetneb-line/70 bg-muted/15 px-3 py-2 sm:px-4 md:min-h-10 md:py-1"
           aria-label="Filtros de usuarios y roles"
         >
+          <label className="grid min-w-0 flex-[2] gap-1 text-[11px] font-medium text-muted-foreground md:gap-0.5">
+            Buscar
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                className="h-8 pl-7 text-xs leading-none md:h-7"
+                placeholder="Buscar usuario o clínica"
+                value={searchQuery}
+                disabled={disableUserActions}
+                onChange={(event) => {
+                  resetFiltersFeedback();
+                  setSearchQuery(event.target.value);
+                }}
+                aria-label="Buscar usuario o clínica"
+              />
+            </div>
+          </label>
+
           <label className="grid min-w-0 flex-1 gap-1 text-[11px] font-medium text-muted-foreground sm:max-w-48 md:gap-0.5">
             Tipo usuario
             <select
@@ -715,6 +759,29 @@ export function AdminUsersRolesReadOnlyCard() {
             Actualizar
           </Button>
         </header>
+
+        <div className="shrink-0 border-b border-vetneb-line/70 bg-muted/15 px-2 py-1">
+          <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
+            Buscar
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                className="h-9 pl-7 text-xs leading-none"
+                placeholder="Buscar usuario o clínica"
+                value={searchQuery}
+                disabled={disableUserActions}
+                onChange={(event) => {
+                  resetFiltersFeedback();
+                  setSearchQuery(event.target.value);
+                }}
+                aria-label="Buscar usuario o clínica"
+              />
+            </div>
+          </label>
+        </div>
 
         <div className="grid min-h-12 shrink-0 grid-cols-2 gap-2 overflow-hidden border-b border-vetneb-line/70 bg-muted/15 px-2 py-1">
           <label className="grid min-w-0 gap-0.5 text-[10px] font-medium text-muted-foreground">
