@@ -65,7 +65,9 @@ const STATUS_MODULES: StatusModule[] = [
   },
 ];
 
-const MOCK_FAILED_LOGIN_ALERTS = Array.from({ length: 13 }, (_, index) => ({
+// 40 alerts so a second page exists for any adaptive fit (RF cap 25): the
+// failed-login list is now sized by the measured viewport, not a fixed 10.
+const MOCK_FAILED_LOGIN_ALERTS = Array.from({ length: 40 }, (_, index) => ({
   id: 6100 + index,
   surface: (["admin", "clinic", "particular"] as const)[index % 3],
   username: index % 4 === 0 ? null : `intento_${index}`,
@@ -74,8 +76,13 @@ const MOCK_FAILED_LOGIN_ALERTS = Array.from({ length: 13 }, (_, index) => ({
   )[index % 3],
   ipAddress: `203.0.113.${10 + index}`,
   userAgent: "Mozilla/5.0 (e2e-status-module)",
-  createdAt: `2026-06-${String(10 + index).padStart(2, "0")}T09:30:00.000Z`,
+  createdAt: `2026-06-${String((index % 28) + 1).padStart(2, "0")}T09:30:00.000Z`,
 }));
+
+// Pre-measurement fallback and re-fetch cap of the adaptive failed-login
+// contract (mirrors AdminFailedLoginAlertsReadOnlyCard).
+const FAILED_LOGIN_FALLBACK_ROWS = 5;
+const FAILED_LOGIN_LIMIT_CAP = 25;
 
 const STATUS_SNAPSHOT_PHASE =
   process.env.STATUS_SNAPSHOT_PHASE === "before" ? "before" : "after";
@@ -439,7 +446,7 @@ for (const moduleSpec of STATUS_MODULES) {
   });
 }
 
-test("Admin mobile Alertas chip shows 10 failed-login alerts per page", async ({
+test("Admin mobile Alertas chip paginates failed-login alerts by measured fit", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -455,12 +462,35 @@ test("Admin mobile Alertas chip shows 10 failed-login alerts per page", async ({
   const panel = moduleRoot.locator('[data-admin-mobile-status-panel="alertas"]');
   const items = panel.locator('[data-admin-mobile-status-item="true"]');
   await expect(items.first()).toBeVisible({ timeout: 10_000 });
-  await expect(items).toHaveCount(10);
 
+  // Cardinality is measured (Zero-Scroll adaptive), not a fixed 10. At
+  // 390x844 the measured fit is strictly above the pre-measurement fallback
+  // (the legacy fixed mobile page already fit 10 rows here), so waiting for
+  // the count to settle past the fallback pins the settled adaptive state and
+  // absorbs the measurement -> re-fetch transitions.
+  let settledCount = -1;
+  await expect(async () => {
+    const current = await items.count();
+    const stable = current === settledCount;
+    settledCount = current;
+    expect(current).toBeGreaterThan(FAILED_LOGIN_FALLBACK_ROWS);
+    expect(stable).toBe(true);
+  }).toPass({ timeout: 15_000, intervals: [400, 600, 800] });
+  expect(settledCount).toBeLessThanOrEqual(FAILED_LOGIN_LIMIT_CAP);
+
+  // Every rendered row fits the content band (no clipping under the pager).
+  await expectInsideContentBand(
+    page,
+    items.last(),
+    { name: "iphone-standard-390x844", width: 390, height: 844 },
+    "alertas last item",
+  );
+
+  // With 40 mocked alerts a second page always exists for any measured fit.
   const pager = panel.getByRole("navigation", { name: "Paginación de intentos fallidos" });
-  await expect(pager.getByText("Pág. 1 / 2")).toBeVisible();
+  await expect(pager.getByText(/Pág\. 1 \/ \d+/)).toBeVisible();
   await pager.getByRole("button", { name: "Siguiente" }).click();
 
-  await expect(items).toHaveCount(3);
-  await expect(pager.getByText("Pág. 2 / 2")).toBeVisible();
+  await expect(pager.getByText(/Pág\. 2 \/ \d+/)).toBeVisible();
+  await expect(items.first()).not.toContainText("#6100");
 });
