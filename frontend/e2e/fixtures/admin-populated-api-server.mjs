@@ -5,7 +5,21 @@ const PORT = 3107;
 const POPULATED_ADMIN_SESSION = "e2e_populated_admin_session";
 const POPULATED_CLINIC_SESSION = "e2e_populated_clinic_session";
 
-const CLINIC_REPORTS = [
+const CLINIC_REPORT_STATUSES = [
+  "uploaded",
+  "processing",
+  "ready",
+  "delivered",
+];
+const CLINIC_REPORT_STUDY_TYPES = [
+  "Histopatología",
+  "Citología",
+  "Inmunohistoquímica",
+  "Biopsia de piel",
+  "Necropsia",
+];
+
+const LEGACY_CLINIC_REPORTS = [
   {
     id: 8401,
     clinicId: 77,
@@ -44,6 +58,49 @@ const CLINIC_REPORTS = [
     createdAt: "2026-06-16T09:45:00.000Z",
     updatedAt: "2026-06-18T10:00:00.000Z",
   },
+];
+
+function isoDaysBefore(baseDate, daysBefore, hour) {
+  const date = new Date(baseDate);
+  date.setUTCDate(date.getUTCDate() - daysBefore);
+  date.setUTCHours(hour, 0, 0, 0);
+  return date.toISOString();
+}
+
+function createSyntheticClinicReport(index) {
+  const id = 8400 + index;
+  const status =
+    CLINIC_REPORT_STATUSES[(index - 1) % CLINIC_REPORT_STATUSES.length];
+  const studyType =
+    CLINIC_REPORT_STUDY_TYPES[
+      (index - 1) % CLINIC_REPORT_STUDY_TYPES.length
+    ];
+  const uploadDate = isoDaysBefore("2026-06-18T12:00:00.000Z", index - 1, 12);
+
+  return {
+    id,
+    clinicId: 77,
+    clinicName: "Clínica E2E Informes Mobile",
+    patientName: `Paciente E2E ${String(index).padStart(4, "0")}`,
+    studyType,
+    status,
+    currentStatus: status,
+    uploadDate,
+    fileName:
+      status === "uploaded" || status === "delivered"
+        ? `informe-${id}.pdf`
+        : null,
+    hasFile: status === "uploaded" || status === "delivered",
+    createdAt: uploadDate,
+    updatedAt: isoDaysBefore("2026-06-18T14:30:00.000Z", index - 1, 14),
+  };
+}
+
+const CLINIC_REPORTS = [
+  ...LEGACY_CLINIC_REPORTS,
+  ...Array.from({ length: 997 }, (_, index) =>
+    createSyntheticClinicReport(index + LEGACY_CLINIC_REPORTS.length + 1),
+  ),
 ];
 
 const CLINIC_FIELD_VISITS = [
@@ -332,6 +389,60 @@ function sendJson(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
+function readClinicReportsPagination(url, total) {
+  const rawLimit = Number(url.searchParams.get("limit"));
+  const rawOffset = Number(url.searchParams.get("offset"));
+  const hasLimit = url.searchParams.has("limit");
+  const limit =
+    hasLimit && Number.isInteger(rawLimit) && rawLimit > 0
+      ? Math.min(rawLimit, 100)
+      : total;
+  const offset =
+    Number.isInteger(rawOffset) && rawOffset > 0 ? rawOffset : 0;
+
+  return { limit, offset };
+}
+
+function paginateClinicReports(reports, url) {
+  const total = reports.length;
+  const { limit, offset } = readClinicReportsPagination(url, total);
+  const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
+
+  return {
+    reports: reports.slice(offset, offset + limit),
+    total,
+    totalPages,
+    limit,
+    offset,
+  };
+}
+
+function includesClinicReportText(value, query) {
+  return String(value ?? "").toLowerCase().includes(query);
+}
+
+function filterClinicReports(url) {
+  const query = url.searchParams.get("query")?.trim().toLowerCase() ?? "";
+  const status = url.searchParams.get("status")?.trim() ?? "";
+  const studyType =
+    url.searchParams.get("studyType")?.trim().toLowerCase() ?? "";
+
+  return CLINIC_REPORTS.filter((report) => {
+    const matchesQuery =
+      !query ||
+      includesClinicReportText(report.id, query) ||
+      includesClinicReportText(report.patientName, query) ||
+      includesClinicReportText(report.studyType, query) ||
+      includesClinicReportText(report.status, query) ||
+      includesClinicReportText(report.clinicName, query);
+    const matchesStatus = !status || report.status === status;
+    const matchesStudyType =
+      !studyType || includesClinicReportText(report.studyType, studyType);
+
+    return matchesQuery && matchesStatus && matchesStudyType;
+  });
+}
+
 function hasPopulatedAdminSession(request) {
   return (request.headers.cookie ?? "")
     .split(";")
@@ -491,7 +602,25 @@ const server = createServer((request, response) => {
   }
 
   if (hasPopulatedClinicSession(request) && url.pathname === "/api/reports") {
-    sendJson(response, 200, { reports: CLINIC_REPORTS });
+    const reports =
+      url.searchParams.has("query") ||
+      url.searchParams.has("status") ||
+      url.searchParams.has("studyType")
+        ? filterClinicReports(url)
+        : CLINIC_REPORTS;
+    sendJson(response, 200, paginateClinicReports(reports, url));
+    return;
+  }
+
+  if (
+    hasPopulatedClinicSession(request) &&
+    url.pathname === "/api/reports/search"
+  ) {
+    sendJson(
+      response,
+      200,
+      paginateClinicReports(filterClinicReports(url), url),
+    );
     return;
   }
 
