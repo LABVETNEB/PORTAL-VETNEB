@@ -554,8 +554,8 @@ export function AdminUsersRolesReadOnlyCard() {
                     <TableHead className="w-[10%]">Tipo</TableHead>
                     <TableHead className="w-[14%]">Rol</TableHead>
                     <TableHead>Clínica</TableHead>
-                    <TableHead className="hidden w-[9.5rem] xl:table-cell">Creado</TableHead>
-                    <TableHead className="w-[9.5rem]">Actualizado</TableHead>
+                    <TableHead className="hidden w-[10.5rem] xl:table-cell">Creado</TableHead>
+                    <TableHead className="w-[10.5rem]">Actualizado</TableHead>
                     <TableHead className="w-[8.5rem] text-right">Acción</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -597,10 +597,10 @@ export function AdminUsersRolesReadOnlyCard() {
                             </p>
                           ) : null}
                         </TableCell>
-                        <TableCell className="hidden truncate text-xs text-muted-foreground xl:table-cell">
+                        <TableCell className="hidden truncate text-xs tabular-nums text-muted-foreground xl:table-cell">
                           {formatDateTime(user.createdAt)}
                         </TableCell>
-                        <TableCell className="truncate text-xs text-muted-foreground">
+                        <TableCell className="truncate text-xs tabular-nums text-muted-foreground">
                           {formatDateTime(user.updatedAt)}
                         </TableCell>
                         <TableCell className="text-right">
