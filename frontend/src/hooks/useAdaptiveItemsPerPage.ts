@@ -123,7 +123,13 @@ export function useAdaptiveItemsPerPage({
 
     const observer = new ResizeObserver(scheduleMeasure);
     observer.observe(containerNode);
-    scheduleMeasure();
+    // The very first measurement runs synchronously (not through rAF) so it
+    // lands within this same layout-effect pass, before the browser paints.
+    // Deferring it to requestAnimationFrame left the fallback-sized first
+    // paint visible for one extra frame, then corrected on the next frame —
+    // the F3 settle. Later ResizeObserver-driven remeasures still go through
+    // scheduleMeasure to stay rAF-throttled against resize thrashing.
+    measure();
 
     return () => {
       observer.disconnect();
