@@ -172,6 +172,7 @@ export function AdminUsersRolesReadOnlyCard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [offset, setOffset] = useState(0);
+  const [jumpPageInput, setJumpPageInput] = useState("1");
   const [error, setError] = useState<string | null>(null);
   const [roleChangeMessage, setRoleChangeMessage] = useState<string | null>(null);
   const [changingUserKey, setChangingUserKey] = useState<string | null>(null);
@@ -451,6 +452,27 @@ export function AdminUsersRolesReadOnlyCard() {
     setOffset(offset + effectiveLimit);
   }
 
+  function goToPage(targetPage: number) {
+    const clampedPage = Math.min(Math.max(targetPage, 1), pageCount);
+    resetFiltersFeedback();
+    setOffset((clampedPage - 1) * effectiveLimit);
+  }
+
+  function handleJumpToPage() {
+    const parsedPage = Number.parseInt(jumpPageInput, 10);
+    if (!Number.isFinite(parsedPage)) {
+      setJumpPageInput(String(page));
+      return;
+    }
+    goToPage(parsedPage);
+  }
+
+  // Keep the jump input aligned with the current page whenever it changes
+  // externally (Anterior/Siguiente, filters, or a successful jump).
+  useEffect(() => {
+    setJumpPageInput(String(page));
+  }, [page]);
+
   return (
     <>
       <Card className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden shadow-none hover:shadow-none md:flex">
@@ -716,6 +738,33 @@ export function AdminUsersRolesReadOnlyCard() {
             >
               Siguiente
             </Button>
+            <div className="hidden items-center gap-1 md:flex">
+              <Input
+                type="number"
+                min={1}
+                max={pageCount}
+                value={jumpPageInput}
+                disabled={disableUserActions || pageCount <= 1}
+                onChange={(event) => setJumpPageInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    handleJumpToPage();
+                  }
+                }}
+                aria-label="Ir a la página"
+                className="h-7 w-14 px-1.5 text-xs leading-none"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={disableUserActions || pageCount <= 1}
+                onClick={handleJumpToPage}
+                className="h-7 px-2 text-xs"
+              >
+                Ir
+              </Button>
+            </div>
           </div>
         </footer>
       </CardContent>
