@@ -499,7 +499,7 @@ export function AdminUsersRolesReadOnlyCard() {
           <label className="grid min-w-0 flex-1 gap-1 text-[11px] font-medium text-muted-foreground sm:max-w-48 md:gap-0.5">
             Tipo usuario
             <select
-              className="field-select h-8 text-xs md:h-7"
+              className="field-select h-8 py-1 text-xs leading-none md:h-7"
               value={userType}
               disabled={disableUserActions}
               onChange={(event) => {
@@ -517,7 +517,7 @@ export function AdminUsersRolesReadOnlyCard() {
           <label className="grid min-w-0 flex-1 gap-1 text-[11px] font-medium text-muted-foreground sm:max-w-48 md:gap-0.5">
             Rol
             <select
-              className="field-select h-8 text-xs md:h-7"
+              className="field-select h-8 py-1 text-xs leading-none md:h-7"
               value={role}
               disabled={disableUserActions}
               onChange={(event) => {
