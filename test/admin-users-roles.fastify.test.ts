@@ -199,6 +199,142 @@ test("admin users roles devuelve usuarios sanitizados sin hashes ni auth ids", a
   }
 });
 
+test("admin users roles pasa search normalizado (trim) al snapshot", async () => {
+  const app = Fastify();
+  let receivedParams: AdminUsersRolesQuery | undefined;
+
+  await app.register(
+    adminUsersRolesNativeRoutes,
+    buildDeps({
+      getAdminUsersRolesSnapshot: async (
+        params: AdminUsersRolesQuery,
+      ): Promise<AdminUsersRolesSnapshot> => {
+        receivedParams = params;
+
+        return {
+          success: true,
+          users: [],
+          total: 0,
+          limit: params.limit ?? 50,
+          offset: params.offset ?? 0,
+          totals: {
+            adminUsers: 0,
+            clinicUsers: 0,
+          },
+        };
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: `/?search=${encodeURIComponent("  Clínica Demo  ")}`,
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(receivedParams?.search, "Clínica Demo");
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin users roles trata search vacío o sólo-espacios como ausente", async () => {
+  const app = Fastify();
+  let receivedParams: AdminUsersRolesQuery | undefined;
+
+  await app.register(
+    adminUsersRolesNativeRoutes,
+    buildDeps({
+      getAdminUsersRolesSnapshot: async (
+        params: AdminUsersRolesQuery,
+      ): Promise<AdminUsersRolesSnapshot> => {
+        receivedParams = params;
+
+        return {
+          success: true,
+          users: [],
+          total: 0,
+          limit: params.limit ?? 50,
+          offset: params.offset ?? 0,
+          totals: {
+            adminUsers: 0,
+            clinicUsers: 0,
+          },
+        };
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?search=%20%20%20",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(receivedParams?.search, undefined);
+    assert.ok(!("search" in (receivedParams ?? {})) || receivedParams?.search === undefined);
+  } finally {
+    await app.close();
+  }
+});
+
+test("admin users roles compone search con userType y role", async () => {
+  const app = Fastify();
+  let receivedParams: AdminUsersRolesQuery | undefined;
+
+  await app.register(
+    adminUsersRolesNativeRoutes,
+    buildDeps({
+      getAdminUsersRolesSnapshot: async (
+        params: AdminUsersRolesQuery,
+      ): Promise<AdminUsersRolesSnapshot> => {
+        receivedParams = params;
+
+        return {
+          success: true,
+          users: [],
+          total: 0,
+          limit: params.limit ?? 50,
+          offset: params.offset ?? 0,
+          totals: {
+            adminUsers: 0,
+            clinicUsers: 0,
+          },
+        };
+      },
+    }),
+  );
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/?search=demo&userType=clinic&role=clinic_owner&limit=10&offset=5",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(receivedParams, {
+      userType: "clinic",
+      role: "clinic_owner",
+      search: "demo",
+      limit: 10,
+      offset: 5,
+    });
+  } finally {
+    await app.close();
+  }
+});
+
 test("admin users roles rechaza filtros inválidos", async () => {
   const app = Fastify();
   let snapshotCalled = false;

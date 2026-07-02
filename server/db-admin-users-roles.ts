@@ -1,4 +1,4 @@
-import { and, asc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, ne, or, sql } from "drizzle-orm";
 
 import { db } from "./db.ts";
 import {
@@ -41,6 +41,7 @@ export type AdminUsersRolesQuery = {
   role?: AdminRoleUserRole;
   limit?: number;
   offset?: number;
+  search?: string;
 };
 
 export type AdminUsersRolesSnapshot = {
@@ -83,6 +84,12 @@ type ClinicUserRoleRow = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+function normalizeSearch(value: string | undefined): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim().slice(0, 100);
+  return trimmed || undefined;
+}
 
 function toIsoDate(value: Date) {
   return value.toISOString();
@@ -142,6 +149,7 @@ export async function getAdminUsersRolesSnapshot(
   params: AdminUsersRolesQuery = {},
 ): Promise<AdminUsersRolesSnapshot> {
   const { limit, offset } = normalizeListPagination(params);
+  const search = normalizeSearch(params.search);
 
   const includeAdmins =
     params.userType === undefined || params.userType === "admin";
@@ -150,10 +158,25 @@ export async function getAdminUsersRolesSnapshot(
   const shouldListAdmins =
     includeAdmins && (params.role === undefined || params.role === "admin");
   const shouldListClinicUsers = includeClinicUsers && params.role !== "admin";
+
+  const adminSearchWhere = search
+    ? ilike(adminUsers.username, `%${search}%`)
+    : undefined;
+
+  const clinicFilters = [];
+  if (params.role && params.role !== "admin") {
+    clinicFilters.push(eq(clinicUsers.role, params.role));
+  }
+  if (search) {
+    clinicFilters.push(
+      or(
+        ilike(clinicUsers.username, `%${search}%`),
+        ilike(clinics.name, `%${search}%`),
+      ),
+    );
+  }
   const clinicWhere =
-    params.role && params.role !== "admin"
-      ? eq(clinicUsers.role, params.role)
-      : undefined;
+    clinicFilters.length > 0 ? and(...clinicFilters) : undefined;
 
   const [adminCountRows, clinicCountRows] = await Promise.all([
     shouldListAdmins
@@ -162,6 +185,7 @@ export async function getAdminUsersRolesSnapshot(
             total: sql<number>`count(*)::int`,
           })
           .from(adminUsers)
+          .where(adminSearchWhere)
       : Promise.resolve([{ total: 0 }]),
     shouldListClinicUsers
       ? db
@@ -169,6 +193,7 @@ export async function getAdminUsersRolesSnapshot(
             total: sql<number>`count(*)::int`,
           })
           .from(clinicUsers)
+          .leftJoin(clinics, eq(clinics.id, clinicUsers.clinicId))
           .where(clinicWhere)
       : Promise.resolve([{ total: 0 }]),
   ]);
@@ -194,6 +219,7 @@ export async function getAdminUsersRolesSnapshot(
             updatedAt: adminUsers.updatedAt,
           })
           .from(adminUsers)
+          .where(adminSearchWhere)
           .orderBy(asc(adminUsers.username))
           .limit(adminLimit)
           .offset(adminOffset)
