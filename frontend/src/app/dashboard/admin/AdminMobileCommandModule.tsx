@@ -1,19 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { getAdminFailedLoginAlerts } from "@/lib/api";
-import { formatDateTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import type {
-  AdminFailedLoginAlertReason,
-  AdminFailedLoginAlertSurface,
-  AdminFailedLoginAlertsSnapshot,
-} from "@/types";
+import { AdminFailedLoginAlertsReadOnlyCard } from "./AdminFailedLoginAlertsReadOnlyCard";
 import { AdminMobileStatusModule } from "./AdminMobileStatusModule";
-import { AdminMobileOpsPager } from "./AdminMobileOpsPager";
 import { AdminOverviewQuickLinks } from "./AdminOverviewQuickLinks";
 
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
@@ -34,181 +24,6 @@ type AdminMobileCommandModuleProps = {
   hasSystemHealthFetchError: boolean;
   recentActivity: RecentAdminActivity | null;
 };
-
-const FAILED_LOGIN_PAGE_SIZE = 10;
-
-function formatSurface(value: AdminFailedLoginAlertSurface) {
-  if (value === "admin") return "Admin";
-  if (value === "clinic") return "Clínica";
-  return "Particular";
-}
-
-function formatReason(value: AdminFailedLoginAlertReason) {
-  if (value === "missing_credentials") return "Credenciales faltantes";
-  if (value === "invalid_credentials") return "Credenciales inválidas";
-  return "Bloqueo temporal";
-}
-
-function getSurfaceVariant(value: AdminFailedLoginAlertSurface): BadgeVariant {
-  if (value === "admin") return "default";
-  if (value === "clinic") return "secondary";
-  return "outline";
-}
-
-function getReasonVariant(value: AdminFailedLoginAlertReason): BadgeVariant {
-  if (value === "rate_limited" || value === "invalid_credentials") {
-    return "secondary";
-  }
-  return "outline";
-}
-
-// Compact, paginated mobile view of the failed-login alerts (the desktop
-// "Alertas" tab table). Fetches lazily — only mounted when the chip is active —
-// and only on mobile so the hidden desktop copy never triggers a network call.
-function AdminMobileFailedLoginSection() {
-  const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [snapshot, setSnapshot] = useState<AdminFailedLoginAlertsSnapshot | null>(
-    null,
-  );
-  const [offset, setOffset] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  const query = useMemo(
-    () => ({ limit: FAILED_LOGIN_PAGE_SIZE, offset }),
-    [offset],
-  );
-
-  function loadAlerts() {
-    if (!isMobileViewport) return;
-    setError(null);
-    startTransition(() => {
-      void (async () => {
-        try {
-          setSnapshot(await getAdminFailedLoginAlerts(query));
-        } catch (err) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "No se pudieron cargar los intentos fallidos.",
-          );
-        }
-      })();
-    });
-  }
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 767px)");
-    const syncViewport = () => setIsMobileViewport(mediaQuery.matches);
-    syncViewport();
-    mediaQuery.addEventListener("change", syncViewport);
-    return () => mediaQuery.removeEventListener("change", syncViewport);
-  }, []);
-
-  useEffect(() => {
-    if (!isMobileViewport) return;
-    loadAlerts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobileViewport, query]);
-
-  const alerts = snapshot?.failedLoginAlerts ?? [];
-  const total = snapshot?.total ?? 0;
-  const page = Math.floor(offset / FAILED_LOGIN_PAGE_SIZE) + 1;
-  const pageCount = snapshot
-    ? Math.max(1, Math.ceil(total / FAILED_LOGIN_PAGE_SIZE))
-    : 1;
-  const rangeStart = alerts.length ? offset + 1 : 0;
-  const rangeEnd = offset + alerts.length;
-  const hasNextPage = snapshot ? rangeEnd < total : false;
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between gap-2">
-        <p className="min-w-0 truncate text-xs font-semibold text-vetneb-ink">
-          {snapshot ? `${total} intentos fallidos` : "Intentos fallidos"}
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-7 shrink-0 px-2 text-xs"
-          onClick={loadAlerts}
-          disabled={isPending || !isMobileViewport}
-          aria-busy={isPending ? true : undefined}
-        >
-          {isPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-          ) : null}
-          Actualizar
-        </Button>
-      </div>
-
-      <div className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75">
-        {alerts.length ? (
-          alerts.map((alert) => (
-            <article
-              key={alert.id}
-              data-admin-mobile-status-item="true"
-              className="flex min-h-9 items-center gap-2 overflow-hidden px-2.5 py-0.5"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <Badge
-                    variant={getSurfaceVariant(alert.surface)}
-                    className="h-5 px-1.5 text-[10px]"
-                  >
-                    {formatSurface(alert.surface)}
-                  </Badge>
-                  <Badge
-                    variant={getReasonVariant(alert.reason)}
-                    className="h-5 px-1.5 text-[10px]"
-                  >
-                    {formatReason(alert.reason)}
-                  </Badge>
-                  <span className="min-w-0 truncate text-xs font-medium text-vetneb-ink">
-                    {alert.username && alert.username.trim()
-                      ? alert.username
-                      : "Sin usuario"}
-                  </span>
-                </div>
-                <p className="truncate text-[10px] text-muted-foreground">
-                  {alert.ipAddress ?? "IP —"} · {formatDateTime(alert.createdAt)}
-                </p>
-              </div>
-              <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                #{alert.id}
-              </span>
-            </article>
-          ))
-        ) : (
-          <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
-            {error
-              ? "No se pudieron cargar los intentos fallidos."
-              : isPending
-                ? "Cargando intentos fallidos..."
-                : "Sin intentos fallidos registrados."}
-          </div>
-        )}
-      </div>
-
-      <AdminMobileOpsPager
-        ariaLabel="Paginación de intentos fallidos"
-        page={page}
-        pageCount={pageCount}
-        rangeLabel={
-          alerts.length ? `${rangeStart}–${rangeEnd} de ${total}` : "Sin intentos"
-        }
-        previousDisabled={offset === 0}
-        nextDisabled={!hasNextPage}
-        disabled={isPending}
-        onPrevious={() =>
-          setOffset(Math.max(0, offset - FAILED_LOGIN_PAGE_SIZE))
-        }
-        onNext={() => setOffset(offset + FAILED_LOGIN_PAGE_SIZE)}
-      />
-    </div>
-  );
-}
 
 function MetricTile({
   label,
@@ -353,7 +168,13 @@ export function AdminMobileCommandModule({
         {
           id: "alertas",
           label: "Alertas",
-          content: <AdminMobileFailedLoginSection />,
+          // Collapsed duality: the failed-login alerts runtime (fetch, adaptive
+          // cardinality, offset, anti-race) lives in the read-only card, which
+          // renders its mobile presentation here. Mounted lazily — only when
+          // the chip is active — so the hidden desktop copy in ModuleTabs
+          // (active-panel-only) never double-fetches. `presentation` is a
+          // static per-mount signal, not a media-query/cardinality source.
+          content: <AdminFailedLoginAlertsReadOnlyCard presentation="mobile" />,
         },
       ]}
     />

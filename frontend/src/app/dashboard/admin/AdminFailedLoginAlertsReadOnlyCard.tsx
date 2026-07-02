@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { Loader2 } from "lucide-react";
 import { PublicExternalControl } from "@/components/public/PublicRouteControl";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +30,7 @@ import {
   buildAdminFailedLoginAlertsCsvUrl,
   getAdminFailedLoginAlerts,
 } from "@/lib/api";
+import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
 import { formatDateTime } from "@/lib/utils";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { LoadingState } from "@/components/dashboard/LoadingState";
@@ -31,8 +39,35 @@ import type {
   AdminFailedLoginAlertsSnapshot,
   AdminFailedLoginAlertSurface,
 } from "@/types";
+import { AdminMobileOpsPager } from "./AdminMobileOpsPager";
 
-const PAGE_SIZE = 5;
+// Server pagination is now sized by the measured rows container (Zero-Scroll
+// adaptive contract). The legacy PAGE_SIZE survives only as the
+// pre-measurement fallback.
+const FAILED_LOGIN_FALLBACK_ROWS = 5;
+// Re-fetch payload bound: `login_failed_attempts` only grows (no retention
+// job), so the strategy is debounced re-fetch with a derived limit, never an
+// unbounded superset. The effective `limit` never exceeds this cap.
+const FAILED_LOGIN_LIMIT_CAP = 25;
+// Default `TableHead` height (`h-11`), discounted from the measured desktop
+// region so the row math never counts the header as a data row.
+const FAILED_LOGIN_TABLE_HEADER_PX = 44;
+// Fallback item height used until a real row is measured.
+const FAILED_LOGIN_ROW_HEIGHT_FALLBACK_PX = 48;
+
+type Measurement = {
+  containerNode: HTMLElement | null;
+  rowHeightPx: number;
+  headerHeightPx: number;
+};
+
+function measurementsEqual(a: Measurement, b: Measurement) {
+  return (
+    a.containerNode === b.containerNode &&
+    a.rowHeightPx === b.rowHeightPx &&
+    a.headerHeightPx === b.headerHeightPx
+  );
+}
 
 function formatSurface(value: AdminFailedLoginAlertSurface) {
   if (value === "admin") return "Admin";
@@ -66,7 +101,20 @@ function formatNullable(value: string | null) {
   return value && value.trim() ? value : "—";
 }
 
-export function AdminFailedLoginAlertsReadOnlyCard() {
+type AdminFailedLoginAlertsReadOnlyCardProps = {
+  /**
+   * Static presentation signal per mount point (never a media query, never a
+   * cardinality source). The default renders the responsive pair (desktop
+   * Card + mobile section, CSS-switched). The Admin mobile command module
+   * mounts `"mobile"` so its no-scroll contract never sees the hidden desktop
+   * table wrapper (`dashboard-table-responsive`, overflow-x auto).
+   */
+  presentation?: "responsive" | "mobile";
+};
+
+export function AdminFailedLoginAlertsReadOnlyCard({
+  presentation = "responsive",
+}: AdminFailedLoginAlertsReadOnlyCardProps = {}) {
   const [snapshot, setSnapshot] =
     useState<AdminFailedLoginAlertsSnapshot | null>(null);
   const [surface, setSurface] = useState<
@@ -79,14 +127,112 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // One collapsed runtime feeds both presentations, so the visible container
+  // (desktop table region or mobile list region) drives a single cardinality.
+  const [desktopBodyNode, setDesktopBodyNode] = useState<HTMLElement | null>(
+    null,
+  );
+  const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
+  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
+  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
+  const [measurement, setMeasurement] = useState<Measurement>({
+    containerNode: null,
+    rowHeightPx: FAILED_LOGIN_ROW_HEIGHT_FALLBACK_PX,
+    headerHeightPx: 0,
+  });
+
+  const latestRequestRef = useRef(0);
+  const snapshotRef = useRef<AdminFailedLoginAlertsSnapshot | null>(null);
+
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
+
+  useLayoutEffect(() => {
+    const nodes = [
+      desktopBodyNode,
+      mobileBodyNode,
+      desktopRowNode,
+      mobileRowNode,
+    ].filter((node): node is HTMLElement => node !== null);
+    if (nodes.length === 0) {
+      return;
+    }
+
+    let frame: number | null = null;
+
+    const recompute = () => {
+      frame = null;
+
+      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
+      if (mobileHeight > 0 && mobileBodyNode) {
+        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: mobileBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : FAILED_LOGIN_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: 0,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+        return;
+      }
+
+      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
+      if (desktopHeight > 0 && desktopBodyNode) {
+        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: desktopBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : FAILED_LOGIN_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: FAILED_LOGIN_TABLE_HEADER_PX,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+      }
+    };
+
+    const scheduleRecompute = () => {
+      if (frame === null) {
+        frame = requestAnimationFrame(recompute);
+      }
+    };
+
+    const observer = new ResizeObserver(scheduleRecompute);
+    nodes.forEach((node) => observer.observe(node));
+    scheduleRecompute();
+
+    return () => {
+      observer.disconnect();
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
+
+  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
+    containerNode: measurement.containerNode,
+    fallbackItems: FAILED_LOGIN_FALLBACK_ROWS,
+    itemHeightPx: measurement.rowHeightPx,
+    headerHeightPx: measurement.headerHeightPx,
+    minItems: 1,
+    maxItems: FAILED_LOGIN_LIMIT_CAP,
+  });
+
+  // Effective server page size: the measured rows, bounded by the re-fetch
+  // cap. The hook already clamps to [1, FAILED_LOGIN_LIMIT_CAP].
+  const effectiveLimit = rowsPerPage;
+
   const query = useMemo(
     () => ({
       ...(surface !== "all" ? { surface } : {}),
       ...(reason !== "all" ? { reason } : {}),
-      limit: PAGE_SIZE,
+      limit: effectiveLimit,
       offset,
     }),
-    [offset, reason, surface],
+    [effectiveLimit, offset, reason, surface],
   );
 
   const csvUrl = useMemo(
@@ -107,12 +253,17 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
   function loadFailedLoginAlerts() {
     setError(null);
 
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
+
     startTransition(() => {
       void (async () => {
         try {
           const result = await getAdminFailedLoginAlerts(query);
+          if (requestId !== latestRequestRef.current) return;
           setSnapshot(result);
         } catch (err) {
+          if (requestId !== latestRequestRef.current) return;
           setError(
             err instanceof Error
               ? err.message
@@ -123,18 +274,64 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
     });
   }
 
+  // Recompute offset when the effective limit changes so the same first record
+  // stays visible; clamp against the known total.
+  const previousLimitRef = useRef(effectiveLimit);
+  useEffect(() => {
+    if (previousLimitRef.current === effectiveLimit) {
+      return;
+    }
+    previousLimitRef.current = effectiveLimit;
+
+    setOffset((currentOffset) => {
+      let nextOffset = Math.floor(currentOffset / effectiveLimit) * effectiveLimit;
+      const total = snapshotRef.current?.total;
+      if (typeof total === "number") {
+        const lastValidOffset = Math.max(
+          0,
+          (Math.ceil(total / effectiveLimit) - 1) * effectiveLimit,
+        );
+        nextOffset = Math.min(nextOffset, lastValidOffset);
+      }
+      nextOffset = Math.max(0, nextOffset);
+      return nextOffset === currentOffset ? currentOffset : nextOffset;
+    });
+  }, [effectiveLimit]);
+
   useEffect(() => {
     loadFailedLoginAlerts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
+  const alerts = snapshot?.failedLoginAlerts ?? [];
   const hasPreviousPage = offset > 0;
   const hasNextPage = snapshot
     ? offset + snapshot.failedLoginAlerts.length < snapshot.total
     : false;
+  const page = Math.floor(offset / effectiveLimit) + 1;
+  const pageCount = snapshot
+    ? Math.max(1, Math.ceil(snapshot.total / effectiveLimit))
+    : 1;
+  const rangeStart = alerts.length ? offset + 1 : 0;
+  const rangeEnd = offset + alerts.length;
+
+  function goToPreviousPage() {
+    setOffset(Math.max(offset - effectiveLimit, 0));
+  }
+
+  function goToNextPage() {
+    setOffset(offset + effectiveLimit);
+  }
+
+  const showDesktopPresentation = presentation !== "mobile";
 
   return (
-    <Card id="failed-login-alerts" className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
+    <>
+      {showDesktopPresentation ? (
+      <Card
+        id="failed-login-alerts"
+        className="dashboard-surface hidden min-h-0 flex-1 flex-col overflow-hidden md:flex"
+      >
       <CardHeader className="flex flex-col gap-3 border-b border-vetneb-line/70 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <CardTitle className="text-base">
@@ -171,7 +368,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
       </CardHeader>
 
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
-        <div className="dashboard-filter-stats-grid">
+        <div className="dashboard-filter-stats-grid shrink-0">
           <div className="surface-soft">
             <p className="text-xs text-muted-foreground">Total filtrado</p>
             <p className="mt-1 text-2xl font-bold text-vetneb-ink">
@@ -220,7 +417,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           <div className="surface-soft">
             <p className="text-xs text-muted-foreground">Página</p>
             <p className="mt-1 text-sm font-semibold text-vetneb-ink">
-              {Math.floor(offset / PAGE_SIZE) + 1}
+              {page}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {snapshot
@@ -236,79 +433,84 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           </div>
         ) : null}
 
-        <div className="dashboard-table-responsive min-h-0 flex-1">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Superficie</TableHead>
-                <TableHead>Usuario</TableHead>
-                <TableHead>Motivo</TableHead>
-                <TableHead>IP</TableHead>
-                <TableHead>User agent</TableHead>
-                <TableHead>Fecha</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {snapshot?.failedLoginAlerts.length ? (
-                snapshot.failedLoginAlerts.map((alert) => (
-                  <TableRow key={alert.id}>
-                    <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
-                      #{alert.id}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getSurfaceVariant(alert.surface)}>
-                        {formatSurface(alert.surface)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-vetneb-ink/88">
-                      {formatNullable(alert.username)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getReasonVariant(alert.reason)}>
-                        {formatReason(alert.reason)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {formatNullable(alert.ipAddress)}
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
-                      {formatNullable(alert.userAgent)}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {formatDateTime(alert.createdAt)}
+        <div ref={setDesktopBodyNode} className="min-h-0 flex-1">
+          <div className="dashboard-table-responsive">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Superficie</TableHead>
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>Motivo</TableHead>
+                  <TableHead>IP</TableHead>
+                  <TableHead>User agent</TableHead>
+                  <TableHead>Fecha</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {snapshot?.failedLoginAlerts.length ? (
+                  snapshot.failedLoginAlerts.map((alert, index) => (
+                    <TableRow
+                      key={alert.id}
+                      ref={index === 0 ? setDesktopRowNode : undefined}
+                    >
+                      <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+                        #{alert.id}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getSurfaceVariant(alert.surface)}>
+                          {formatSurface(alert.surface)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-vetneb-ink/88">
+                        {formatNullable(alert.username)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getReasonVariant(alert.reason)}>
+                          {formatReason(alert.reason)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {formatNullable(alert.ipAddress)}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
+                        {formatNullable(alert.userAgent)}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {formatDateTime(alert.createdAt)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : isPending ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="p-3">
+                      <LoadingState
+                        variant="table"
+                        compact
+                        rows={3}
+                        className="border-0 bg-transparent shadow-none rounded-none"
+                      />
                     </TableCell>
                   </TableRow>
-                ))
-              ) : isPending ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="p-3">
-                    <LoadingState
-                      variant="table"
-                      compact
-                      rows={3}
-                      className="border-0 bg-transparent shadow-none rounded-none"
-                    />
-                  </TableCell>
-                </TableRow>
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="clinical-table-state">
-                    {error ? (
-                      "No se pudieron cargar los intentos fallidos."
-                    ) : (
-                      <EmptyState
-                        title="Sin intentos fallidos"
-                        description="No hay intentos fallidos para los filtros seleccionados."
-                        size="sm"
-                        className="border-0 bg-transparent"
-                      />
-                    )}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="clinical-table-state">
+                      {error ? (
+                        "No se pudieron cargar los intentos fallidos."
+                      ) : (
+                        <EmptyState
+                          title="Sin intentos fallidos"
+                          description="No hay intentos fallidos para los filtros seleccionados."
+                          size="sm"
+                          className="border-0 bg-transparent"
+                        />
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
 
         <div className="dashboard-table-pagination shrink-0">
@@ -317,7 +519,7 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
               type="button"
               variant="outline"
               disabled={!hasPreviousPage || isPending}
-              onClick={() => setOffset(Math.max(offset - PAGE_SIZE, 0))}
+              onClick={goToPreviousPage}
               className="flex-1 sm:flex-none"
             >
               Anterior
@@ -327,14 +529,14 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
               aria-live="polite"
               aria-atomic="true"
             >
-              Pág.&nbsp;{Math.floor(offset / PAGE_SIZE) + 1}
-              {snapshot ? ` / ${Math.max(1, Math.ceil(snapshot.total / PAGE_SIZE))}` : null}
+              Pág.&nbsp;{page}
+              {snapshot ? ` / ${pageCount}` : null}
             </span>
             <Button
               type="button"
               variant="outline"
               disabled={!hasNextPage || isPending}
-              onClick={() => setOffset(offset + PAGE_SIZE)}
+              onClick={goToNextPage}
               className="flex-1 sm:flex-none"
             >
               Siguiente
@@ -342,6 +544,101 @@ export function AdminFailedLoginAlertsReadOnlyCard() {
           </div>
         </div>
       </CardContent>
-    </Card>
+      </Card>
+      ) : null}
+
+      <section
+        aria-label="Intentos fallidos de login"
+        className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden md:hidden"
+      >
+        <div className="flex shrink-0 items-center justify-between gap-2">
+          <p className="min-w-0 truncate text-xs font-semibold text-vetneb-ink">
+            {snapshot ? `${snapshot.total} intentos fallidos` : "Intentos fallidos"}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 shrink-0 px-2 text-xs"
+            onClick={loadFailedLoginAlerts}
+            disabled={isPending}
+            aria-busy={isPending ? true : undefined}
+          >
+            {isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            ) : null}
+            Actualizar
+          </Button>
+        </div>
+
+        <div
+          ref={setMobileBodyNode}
+          className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75"
+        >
+          {alerts.length ? (
+            alerts.map((alert, index) => (
+              <article
+                key={alert.id}
+                ref={index === 0 ? setMobileRowNode : undefined}
+                data-admin-mobile-status-item="true"
+                className="flex min-h-9 items-center gap-2 overflow-hidden px-2.5 py-0.5"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <Badge
+                      variant={getSurfaceVariant(alert.surface)}
+                      className="h-5 px-1.5 text-[10px]"
+                    >
+                      {formatSurface(alert.surface)}
+                    </Badge>
+                    <Badge
+                      variant={getReasonVariant(alert.reason)}
+                      className="h-5 px-1.5 text-[10px]"
+                    >
+                      {formatReason(alert.reason)}
+                    </Badge>
+                    <span className="min-w-0 truncate text-xs font-medium text-vetneb-ink">
+                      {alert.username && alert.username.trim()
+                        ? alert.username
+                        : "Sin usuario"}
+                    </span>
+                  </div>
+                  <p className="truncate text-[10px] text-muted-foreground">
+                    {alert.ipAddress ?? "IP —"} · {formatDateTime(alert.createdAt)}
+                  </p>
+                </div>
+                <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                  #{alert.id}
+                </span>
+              </article>
+            ))
+          ) : (
+            <div className="flex h-full items-center justify-center px-4 text-center text-xs text-muted-foreground">
+              {error
+                ? "No se pudieron cargar los intentos fallidos."
+                : isPending
+                  ? "Cargando intentos fallidos..."
+                  : "Sin intentos fallidos registrados."}
+            </div>
+          )}
+        </div>
+
+        <AdminMobileOpsPager
+          ariaLabel="Paginación de intentos fallidos"
+          page={page}
+          pageCount={pageCount}
+          rangeLabel={
+            alerts.length
+              ? `${rangeStart}–${rangeEnd} de ${snapshot?.total ?? 0}`
+              : "Sin intentos"
+          }
+          previousDisabled={!hasPreviousPage}
+          nextDisabled={!hasNextPage}
+          disabled={isPending}
+          onPrevious={goToPreviousPage}
+          onNext={goToNextPage}
+        />
+      </section>
+    </>
   );
 }
