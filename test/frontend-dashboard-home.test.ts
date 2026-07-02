@@ -67,7 +67,7 @@ test("dashboard home reads stats reports and field visits through API helpers", 
   assert.ok(source.includes("let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];"));
   assert.ok(source.includes("let visitsLoadError = false;"));
   assert.ok(source.includes("await Promise.all(["));
-  assert.ok(source.includes("getReports(requestOptions, undefined, {"));
+  assert.ok(source.includes("getReports(requestOptions, { limit: 3, offset: 0 }, {"));
   assert.ok(source.includes("getLogisticsFieldVisits(requestOptions, {"));
   assert.ok(source.includes("throwOnError: true,"));
   assert.ok(source.includes("const recentReports = reports.slice(0, 3);"));
