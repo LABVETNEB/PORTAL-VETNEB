@@ -55,6 +55,7 @@ type AdminUsersRolesRequestQuery = {
   role?: string;
   limit?: string;
   offset?: string;
+  search?: string;
 };
 
 type AdminUsersRolesRoleChangeParams = {
@@ -297,6 +298,12 @@ function parseIntegerParam(
   return Math.min(Math.max(parsed, min), max);
 }
 
+function parseSearchParam(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
 function parsePositiveIntegerParam(value: string | undefined) {
   if (value === undefined || value.trim() === "") {
     return null;
@@ -318,6 +325,7 @@ function parseUsersRolesQuery(
   const role = parseRole(query.role);
   const limit = parseIntegerParam(query.limit, 50, 1, 100);
   const offset = parseIntegerParam(query.offset, 0, 0, 100_000);
+  const search = parseSearchParam(query.search);
 
   if (
     userType === null ||
@@ -331,6 +339,7 @@ function parseUsersRolesQuery(
   return {
     ...(userType ? { userType } : {}),
     ...(role ? { role } : {}),
+    ...(search ? { search } : {}),
     limit,
     offset,
   };
