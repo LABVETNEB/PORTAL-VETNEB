@@ -10,7 +10,9 @@ import {
   suppressNextDevIndicator,
 } from "./helpers/admin-mobile-contracts";
 
-const MOCK_CLINICS = Array.from({ length: 13 }, (_, index) => {
+// 40 clinics (R-02): guarantees a page 2 exists for any effectiveLimit <= 36
+// (HY superset cap), same margin used by Sessions/Users/Alerts.
+const MOCK_CLINICS = Array.from({ length: 40 }, (_, index) => {
   const id = index + 1;
   return {
     clinicId: id,
@@ -18,7 +20,7 @@ const MOCK_CLINICS = Array.from({ length: 13 }, (_, index) => {
     contactEmail: `clinica.core.${id}@example.test`,
     contactPhone: `+54 11 5555-${String(id).padStart(4, "0")}`,
     createdAt: "2026-06-01T10:00:00.000Z",
-    updatedAt: `2026-06-${String(id).padStart(2, "0")}T12:00:00.000Z`,
+    updatedAt: `2026-06-${String((id % 28) + 1).padStart(2, "0")}T12:00:00.000Z`,
     users: [
       {
         userId: 100 + id,
@@ -141,7 +143,9 @@ type ModuleSpec = {
 };
 
 const MODULES: ModuleSpec[] = [
-  { key: "clinics", moduleId: "admin-clinics", mock: mockAdminClinics, maxItemsPerPage: 10 },
+  // Clinics: R-02 raised the ceiling to the HY superset cap (36); the real
+  // guarantee is per-item viewport fit, not a fixed page size.
+  { key: "clinics", moduleId: "admin-clinics", mock: mockAdminClinics, maxItemsPerPage: 36 },
   { key: "reports", moduleId: "admin-report-upload", mock: mockAdminReportWorkflow, maxItemsPerPage: 10 },
   { key: "tokens", moduleId: "admin-particular-tokens", mock: mockAdminParticularTokens, maxItemsPerPage: 10 },
 ];

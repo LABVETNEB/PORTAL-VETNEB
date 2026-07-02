@@ -66,15 +66,17 @@ test("admin overview keeps the four compact operational panels", () => {
   assert.ok(linksSource.includes('module: "admin-clinics"'));
 });
 
-test("admin clinics console raises the server page size while respecting no-scroll", () => {
+test("admin clinics console derives the server page size from measurement while respecting no-scroll", () => {
   const source = read(CLINICS_CARD_PATH);
 
-  // Nine dense rows preserve a full-row margin in the minimum viewport.
-  assert.ok(source.includes("const PAGE_SIZE = 9;"));
-  // Mobile intentionally raised to 10 (PR2, admin-mobile-clinics-density):
-  // a compacted borderless name+email row keeps 10 rows viewport-safe.
-  assert.ok(source.includes("const MOBILE_PAGE_SIZE = 10;"));
-  assert.ok(source.includes("limit: effectivePageSize"));
+  // R-02: cardinality is measured (Zero-Scroll adaptive contract), not a
+  // matchMedia-driven fixed constant. CLINICS_FALLBACK_ROWS is only the
+  // pre-measurement fallback; CLINICS_SUPERSET_CAP is the HY ceiling.
+  assert.ok(source.includes("const CLINICS_FALLBACK_ROWS = 9;"));
+  assert.ok(source.includes("const CLINICS_SUPERSET_CAP = 36;"));
+  assert.equal(source.includes("const MOBILE_PAGE_SIZE"), false);
+  assert.equal(source.includes("effectivePageSize"), false);
+  assert.ok(source.includes("limit: effectiveLimit"));
   assert.ok(source.includes("snapshot?.total"));
 
   // No-scroll contract: the table body must NOT become an internal scroll region
