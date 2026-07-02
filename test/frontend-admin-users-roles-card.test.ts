@@ -203,6 +203,32 @@ test("admin users roles card renders rows editable clinic actions and admin non-
   assert.ok(source.includes("No editable"));
 });
 
+test("admin users roles card supports desktop jump-to-page navigation", () => {
+  const source = read(ADMIN_USERS_ROLES_CARD_PATH);
+
+  assert.ok(source.includes('const [jumpPageInput, setJumpPageInput] = useState("1");'));
+  assert.ok(source.includes("function goToPage(targetPage: number)"));
+  assert.ok(
+    source.includes(
+      "const clampedPage = Math.min(Math.max(targetPage, 1), pageCount);",
+    ),
+  );
+  assert.ok(source.includes("resetFiltersFeedback();"));
+  assert.ok(
+    source.includes("setOffset((clampedPage - 1) * effectiveLimit);"),
+  );
+  assert.ok(source.includes("function handleJumpToPage()"));
+  assert.ok(
+    source.includes("const parsedPage = Number.parseInt(jumpPageInput, 10);"),
+  );
+  assert.ok(source.includes("if (!Number.isFinite(parsedPage)) {"));
+  assert.ok(source.includes("setJumpPageInput(String(page));"));
+  assert.ok(source.includes('aria-label="Ir a la página"'));
+  assert.ok(source.includes('if (event.key === "Enter") {'));
+  assert.ok(source.includes("handleJumpToPage();"));
+  assert.ok(source.includes("disabled={disableUserActions || pageCount <= 1}"));
+});
+
 test("admin users roles card keeps empty state and pagination without sensitive-field notice", () => {
   const source = read(ADMIN_USERS_ROLES_CARD_PATH);
   const removedUsersRolesEndpoint = "GET " + "/api/admin/users-roles";
