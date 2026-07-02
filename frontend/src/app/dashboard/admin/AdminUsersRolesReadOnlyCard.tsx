@@ -794,7 +794,9 @@ export function AdminUsersRolesReadOnlyCard() {
                       {isChanging ? "Cambiando..." : "Cambiar"}
                     </Button>
                   ) : (
-                    <AdminUserTypeBadge userType={user.userType} />
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      No editable
+                    </span>
                   )}
                 </article>
               );
