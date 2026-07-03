@@ -322,7 +322,7 @@ export function InformesReportsList({
               </p>
             </div>
 
-            <div ref={setBodyNode} className="dashboard-inline-scroll p-4">
+            <div ref={setBodyNode} className="flex min-h-0 flex-1 overflow-hidden p-3 sm:p-4">
               {loadError ? (
                 <div role="alert">
                   <ErrorState
