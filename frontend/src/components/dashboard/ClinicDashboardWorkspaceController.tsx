@@ -325,7 +325,7 @@ function ClinicDashboardCockpit({
                   Acceso operativo dentro del stage del dashboard.
                 </p>
               </div>
-              <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 p-2 sm:grid-cols-2">
+              <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 p-2">
                 {moduleItems.map((item) => {
                   const Icon = item.icon;
                   return (
@@ -334,7 +334,7 @@ function ClinicDashboardCockpit({
                       type="button"
                       data-clinic-cockpit-module-card={item.moduleId}
                       onClick={() => activateModule(item.moduleId)}
-                      className="dashboard-card-interactive flex min-h-12 min-w-0 items-center gap-2 rounded-lg border border-vetneb-line/70 bg-vetneb-surface-muted/55 px-3 py-2 text-left"
+                      className="dashboard-card-interactive flex min-h-11 min-w-0 items-center gap-2 rounded-lg border border-vetneb-line/70 bg-vetneb-surface-muted/55 px-3 py-2 text-left"
                     >
                       <span className="dashboard-cockpit-tile-icon h-8 w-8">
                         <Icon className="h-4 w-4" aria-hidden="true" />
@@ -355,7 +355,7 @@ function ClinicDashboardCockpit({
 
             <div
               data-clinic-cockpit-primary-actions="true"
-              className="surface-soft flex min-h-0 flex-col justify-center gap-2 overflow-hidden"
+              className="surface-soft hidden min-h-0 flex-col justify-center gap-2 overflow-hidden md:flex"
             >
               <p className="text-sm font-semibold text-vetneb-ink">
                 Acciones principales
@@ -366,7 +366,7 @@ function ClinicDashboardCockpit({
                     key={item.moduleId}
                     type="button"
                     onClick={() => activateModule(item.moduleId)}
-                    className="dashboard-btn-interactive flex min-h-9 items-center justify-between rounded-md border border-vetneb-line/70 bg-card/90 px-3 text-sm font-semibold text-vetneb-navy"
+                    className="dashboard-btn-interactive flex min-h-8 items-center justify-between rounded-md border border-vetneb-line/70 bg-card/90 px-3 text-sm font-semibold text-vetneb-navy"
                   >
                     <span>
                       {item.moduleId === "tokens"
