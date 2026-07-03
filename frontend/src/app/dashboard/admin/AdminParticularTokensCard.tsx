@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { Filter } from "lucide-react";
 import {
@@ -16,6 +23,7 @@ import {
   ParticularTokensMobileList,
 } from "@/components/dashboard/ParticularTokensCardPrimitives";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
+import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
 import {
   createAdminParticularToken,
   deleteAdminParticularToken,
@@ -93,11 +102,39 @@ const CREATE_STEP_LABELS: Record<CreateStep, string> = {
   sample: "Muestra",
 };
 
-// Nine rows are the viewport-safe limit established by PR-3 at 1366x768.
-// The API supports limit/offset but does not expose a total, so pagination uses
-// the returned page length to enable the next-page control.
-const PAGE_SIZE = 9;
-const MOBILE_PAGE_SIZE = 10;
+// Server pagination is now sized by the measured rows container (Zero-Scroll
+// adaptive contract, R-05/PR-SRV-0 module #5, R-04 confirmed no `total` on
+// this endpoint). Strategy is over-fetch-with-cap: fetch a superset once (cap
+// below), paginate it client-side with usePagedRows, and offer "Cargar más"
+// only when the last fetched batch filled the cap (heuristic there may be
+// more on the server). TOKENS_FALLBACK_ROWS survives only as the
+// pre-measurement fallback and desktop floor; MOBILE_PAGE_SIZE and the
+// matchMedia cardinality gate are gone — one measured runtime feeds both the
+// desktop table and the mobile list.
+const TOKENS_FALLBACK_ROWS = 9;
+// Over-fetch cap: a single superset fetch never asks the server for more than
+// this many rows. Per docs/implementation/server-adaptive-pagination-strategy.md
+// §8 ("Tokens admin | 9 (sin total) | 30 + 'cargar más'").
+const TOKENS_SUPERSET_CAP = 30;
+// Fixed header row height of the desktop table (`[&_th]:h-7`), discounted from
+// the measured region so the row math never counts the header as a data row.
+const TOKENS_TABLE_HEADER_PX = 28;
+// Fallback item height used until a real row is measured.
+const TOKENS_ROW_HEIGHT_FALLBACK_PX = 36;
+
+type Measurement = {
+  containerNode: HTMLElement | null;
+  rowHeightPx: number;
+  headerHeightPx: number;
+};
+
+function measurementsEqual(a: Measurement, b: Measurement) {
+  return (
+    a.containerNode === b.containerNode &&
+    a.rowHeightPx === b.rowHeightPx &&
+    a.headerHeightPx === b.headerHeightPx
+  );
+}
 
 const INITIAL_FORM_STATE: AdminParticularTokenFormState = {
   clinicId: "",
@@ -448,7 +485,6 @@ export function AdminParticularTokensCard() {
   const [createStep, setCreateStep] = useState<CreateStep>("clinic");
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [detailTab, setDetailTab] = useState<DetailTab>("summary");
-  const [page, setPage] = useState(0);
   const [filterDraft, setFilterDraft] =
     useState<AdminParticularTokenFilterState>(INITIAL_FILTER_STATE);
   const [appliedFilters, setAppliedFilters] =
@@ -494,20 +530,109 @@ export function AdminParticularTokensCard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  // Start false so SSR and the client's first render agree. The media-query
-  // effect below promotes this to the real viewport value right after mount,
-  // which avoids a hydration mismatch on the mobile-only branches (the empty
-  // state and mobile list/pager). A mismatch would make React discard the
-  // server tree and regenerate it, leaving the toolbar's filter handlers
-  // briefly unbound and racing the no-scroll mobile contract.
-  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  // The server exposes no `total` for this endpoint (R-04): hasMoreFromServer
+  // is a page-full heuristic (last fetched batch length === the cap), driving
+  // the explicit "Cargar más" affordance instead of a real page count.
+  const [hasMoreFromServer, setHasMoreFromServer] = useState(false);
+  const [isLoadingMoreTokens, setIsLoadingMoreTokens] = useState(false);
+  const latestRequestRef = useRef(0);
 
-  // Mobile renders a smaller, independently paginated slice of the same
-  // server-side token list. Desktop keeps its own PAGE_SIZE=9 fetch untouched
-  // so the dense viewport-safe contract stays pinned.
-  const [mobileTokens, setMobileTokens] = useState<AdminParticularTokenSummary[]>([]);
-  const [mobilePage, setMobilePage] = useState(0);
-  const [isLoadingMobileTokens, setIsLoadingMobileTokens] = useState(false);
+  // One collapsed runtime feeds both presentations, so the visible container
+  // (desktop table region or mobile list region) drives a single cardinality.
+  // The old second fetch pipeline (MOBILE_PAGE_SIZE=10 gated by matchMedia) is
+  // gone: no more double fetch, no more divergent limit/offset.
+  const [desktopBodyNode, setDesktopBodyNode] = useState<HTMLElement | null>(
+    null,
+  );
+  const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
+  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
+  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
+  const [measurement, setMeasurement] = useState<Measurement>({
+    containerNode: null,
+    rowHeightPx: TOKENS_ROW_HEIGHT_FALLBACK_PX,
+    headerHeightPx: 0,
+  });
+
+  useLayoutEffect(() => {
+    const nodes = [
+      desktopBodyNode,
+      mobileBodyNode,
+      desktopRowNode,
+      mobileRowNode,
+    ].filter((node): node is HTMLElement => node !== null);
+    if (nodes.length === 0) {
+      return;
+    }
+
+    let frame: number | null = null;
+
+    const recompute = () => {
+      frame = null;
+
+      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
+      if (mobileHeight > 0 && mobileBodyNode) {
+        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: mobileBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : TOKENS_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: 0,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+        return;
+      }
+
+      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
+      if (desktopHeight > 0 && desktopBodyNode) {
+        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: desktopBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : TOKENS_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: TOKENS_TABLE_HEADER_PX,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+      }
+    };
+
+    const scheduleRecompute = () => {
+      if (frame === null) {
+        frame = requestAnimationFrame(recompute);
+      }
+    };
+
+    const observer = new ResizeObserver(scheduleRecompute);
+    nodes.forEach((node) => observer.observe(node));
+    scheduleRecompute();
+
+    return () => {
+      observer.disconnect();
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
+
+  // The desktop table is pinned to nine populated rows at the shortest
+  // supported desktop viewport (1366×768) by the App Shell contract
+  // (`expectNinePopulatedRows`). The desktop context (detected by the
+  // discounted table header) keeps a floor of nine — matching the
+  // pre-adaptive fixed page size — while still adapting upward on taller
+  // viewports. The mobile list (no table header) keeps a floor of one so it
+  // can shrink freely on short phones. Same exception as Reports/Users-Roles.
+  const isDesktopMeasurement = measurement.headerHeightPx > 0;
+  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
+    containerNode: measurement.containerNode,
+    fallbackItems: TOKENS_FALLBACK_ROWS,
+    itemHeightPx: measurement.rowHeightPx,
+    headerHeightPx: measurement.headerHeightPx,
+    minItems: isDesktopMeasurement ? TOKENS_FALLBACK_ROWS : 1,
+    maxItems: TOKENS_SUPERSET_CAP,
+  });
 
   const selectedClinic = clinicOptions.find(
     (option) => String(option.id) === formState.clinicId,
@@ -523,9 +648,7 @@ export function AdminParticularTokensCard() {
   const selectedToken =
     selectedTokenId === null
       ? null
-      : (tokens.find((token) => token.id === selectedTokenId) ??
-        mobileTokens.find((token) => token.id === selectedTokenId) ??
-        null);
+      : (tokens.find((token) => token.id === selectedTokenId) ?? null);
   const selectedTrackingCase = selectedToken
     ? trackingCasesByTokenId[selectedToken.id]
     : null;
@@ -551,93 +674,85 @@ export function AdminParticularTokensCard() {
   const filteredTokens = tokens.filter((token) =>
     matchesAdminParticularTokenFilters(token, appliedFilters, clinicOptions),
   );
-  const filteredMobileTokens = mobileTokens.filter((token) =>
-    matchesAdminParticularTokenFilters(token, appliedFilters, clinicOptions),
-  );
-  const activeTokensCount = filteredTokens.filter((token) => token.isActive).length;
-  const linkedReportsCount = filteredTokens.filter(
+  const pagedTokens = usePagedRows(filteredTokens, rowsPerPage);
+  const visibleTokens = pagedTokens.pageItems;
+  const activeTokensCount = visibleTokens.filter((token) => token.isActive).length;
+  const linkedReportsCount = visibleTokens.filter(
     (token) => token.hasLinkedReport,
   ).length;
-  const rangeStart = filteredTokens.length ? page * PAGE_SIZE + 1 : 0;
-  const rangeEnd = page * PAGE_SIZE + filteredTokens.length;
-  const canGoNext = tokens.length === PAGE_SIZE;
-  const canGoNextMobile = mobileTokens.length === MOBILE_PAGE_SIZE;
   const createStepIndex = getCreateStepIndex(createStep);
   const isLastCreateStep = createStep === "sample";
 
-  const loadTokens = useCallback(
-    async (nextPage = page) => {
-      setIsLoadingTokens(true);
-      setErrorMessage(null);
+  // Single over-fetch of the superset (cap above); no `total` clamp is
+  // possible (endpoint exposes none — R-04), so pagination past this point is
+  // client-side (usePagedRows) and "Cargar más" only re-fetches when the
+  // admin reaches the edge of what is currently loaded.
+  const loadTokens = useCallback(async () => {
+    setIsLoadingTokens(true);
+    setErrorMessage(null);
+    const requestId = ++latestRequestRef.current;
 
-      try {
-        const snapshot = await getAdminParticularTokens({
-          limit: PAGE_SIZE,
-          offset: nextPage * PAGE_SIZE,
-        });
-        setTokens(snapshot.particularTokens);
-        setSelectedTokenId((current) =>
-          current && snapshot.particularTokens.some((token) => token.id === current)
-            ? current
-            : null,
-        );
-      } catch (error) {
-        setTokens([]);
-        setSelectedTokenId(null);
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "No se pudieron cargar los tokens particulares.",
-        );
-      } finally {
-        setIsLoadingTokens(false);
-      }
-    },
-    [page],
-  );
-
-  const loadMobileTokens = useCallback(
-    async (nextPage = mobilePage) => {
-      setIsLoadingMobileTokens(true);
-
-      try {
-        const snapshot = await getAdminParticularTokens({
-          limit: MOBILE_PAGE_SIZE,
-          offset: nextPage * MOBILE_PAGE_SIZE,
-        });
-        setMobileTokens(snapshot.particularTokens);
-      } catch {
-        setMobileTokens([]);
-      } finally {
-        setIsLoadingMobileTokens(false);
-      }
-    },
-    [mobilePage],
-  );
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 767px)");
-
-    const updateMobileViewport = () => {
-      setIsMobileViewport(mediaQuery.matches);
-    };
-
-    updateMobileViewport();
-    mediaQuery.addEventListener("change", updateMobileViewport);
-
-    return () => {
-      mediaQuery.removeEventListener("change", updateMobileViewport);
-    };
+    try {
+      const snapshot = await getAdminParticularTokens({
+        limit: TOKENS_SUPERSET_CAP,
+        offset: 0,
+      });
+      if (requestId !== latestRequestRef.current) return;
+      setTokens(snapshot.particularTokens);
+      setHasMoreFromServer(
+        snapshot.particularTokens.length === TOKENS_SUPERSET_CAP,
+      );
+      setSelectedTokenId((current) =>
+        current && snapshot.particularTokens.some((token) => token.id === current)
+          ? current
+          : null,
+      );
+    } catch (error) {
+      if (requestId !== latestRequestRef.current) return;
+      setTokens([]);
+      setHasMoreFromServer(false);
+      setSelectedTokenId(null);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudieron cargar los tokens particulares.",
+      );
+    } finally {
+      if (requestId === latestRequestRef.current) setIsLoadingTokens(false);
+    }
   }, []);
+
+  const loadMoreTokens = useCallback(async () => {
+    if (isLoadingMoreTokens || !hasMoreFromServer) return;
+    setIsLoadingMoreTokens(true);
+    setErrorMessage(null);
+    const requestId = ++latestRequestRef.current;
+
+    try {
+      const snapshot = await getAdminParticularTokens({
+        limit: TOKENS_SUPERSET_CAP,
+        offset: tokens.length,
+      });
+      if (requestId !== latestRequestRef.current) return;
+      setTokens((current) => [...current, ...snapshot.particularTokens]);
+      setHasMoreFromServer(
+        snapshot.particularTokens.length === TOKENS_SUPERSET_CAP,
+      );
+    } catch (error) {
+      if (requestId !== latestRequestRef.current) return;
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudieron cargar más tokens particulares.",
+      );
+    } finally {
+      if (requestId === latestRequestRef.current) setIsLoadingMoreTokens(false);
+    }
+  }, [isLoadingMoreTokens, hasMoreFromServer, tokens.length]);
 
   useEffect(() => {
     void loadTokens();
   }, [loadTokens]);
-
-  useEffect(() => {
-    if (!isMobileViewport) return;
-    void loadMobileTokens();
-  }, [isMobileViewport, loadMobileTokens]);
 
   // The clinic catalogue resolves visible names in the list and powers the
   // advanced clinic filter without changing the tokens API contract.
@@ -874,16 +989,14 @@ export function AdminParticularTokensCard() {
       from: filterDraft.from,
       to: filterDraft.to,
     });
-    setPage(0);
-    setMobilePage(0);
+    pagedTokens.setPage(0);
     setErrorMessage(null);
   }
 
   function clearAdvancedFilters() {
     setFilterDraft(INITIAL_FILTER_STATE);
     setAppliedFilters(INITIAL_FILTER_STATE);
-    setPage(0);
-    setMobilePage(0);
+    pagedTokens.setPage(0);
     setErrorMessage(null);
   }
 
@@ -991,10 +1104,7 @@ export function AdminParticularTokensCard() {
             variant="outline"
             size="sm"
             className={buttonClassName}
-            onClick={() => {
-              void loadTokens();
-              if (isMobileViewport) void loadMobileTokens();
-            }}
+            onClick={() => void loadTokens()}
             disabled={isLoadingTokens}
           >
             {isLoadingTokens ? "Actualizando…" : "Actualizar"}
@@ -1059,10 +1169,8 @@ export function AdminParticularTokensCard() {
       setCopyErrorMessage(null);
       setStatusMessage(response.message);
       resetForm();
-      setPage(0);
-      setMobilePage(0);
-      await loadTokens(0);
-      if (isMobileViewport) await loadMobileTokens(0);
+      pagedTokens.setPage(0);
+      await loadTokens();
       setIsCreateDialogOpen(false);
     } catch (error) {
       setErrorMessage(
@@ -1101,8 +1209,7 @@ export function AdminParticularTokensCard() {
         delete next[token.id];
         return next;
       });
-      await loadTokens(page);
-      if (isMobileViewport) await loadMobileTokens(mobilePage);
+      await loadTokens();
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -1260,10 +1367,10 @@ export function AdminParticularTokensCard() {
           </div>
           <ParticularTokensMetricStrip
             metrics={[
-              { label: "En página", value: filteredTokens.length },
+              { label: "En página", value: visibleTokens.length },
               { label: "Activos", value: activeTokensCount },
               { label: "Con informe", value: linkedReportsCount },
-              { label: "Página", value: page + 1 },
+              { label: "Página", value: pagedTokens.page + 1 },
             ]}
             className="flex min-h-10 items-center rounded-lg md:min-h-8"
             itemClassName="min-w-[4.5rem] px-3 py-1 text-center md:px-2 md:py-0.5"
@@ -1341,10 +1448,7 @@ export function AdminParticularTokensCard() {
               variant="outline"
               size="sm"
               className="h-10 min-h-10 px-2 text-xs"
-              onClick={() => {
-                void loadTokens();
-                if (isMobileViewport) void loadMobileTokens();
-              }}
+              onClick={() => void loadTokens()}
               disabled={isLoadingTokens}
             >
               {isLoadingTokens ? "Actualizando…" : "Actualizar"}
@@ -1369,7 +1473,10 @@ export function AdminParticularTokensCard() {
           aria-label="Tabla de tokens particulares"
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="dashboard-table-responsive hidden min-h-0 flex-1 md:block">
+          <div
+            ref={setDesktopBodyNode}
+            className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
+          >
             <Table className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
               <TableHeader>
                 <TableRow>
@@ -1383,8 +1490,11 @@ export function AdminParticularTokensCard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTokens.map((token) => (
-                  <TableRow key={token.id}>
+                {visibleTokens.map((token, index) => (
+                  <TableRow
+                    key={token.id}
+                    ref={index === 0 ? setDesktopRowNode : undefined}
+                  >
                     <TableCell className="py-0.5">
                       <p className="truncate font-mono text-xs font-semibold text-vetneb-ink">
                         ****{token.tokenLast4}
@@ -1435,11 +1545,13 @@ export function AdminParticularTokensCard() {
             data-admin-mobile-core-module="tokens"
           >
             <ParticularTokensMobileList
+              ref={setMobileBodyNode}
               data-admin-particulars-mobile-list="true"
             >
-              {filteredMobileTokens.map((token) => (
+              {visibleTokens.map((token, index) => (
                 <div
                   key={token.id}
+                  ref={index === 0 ? setMobileRowNode : undefined}
                   className="flex min-h-9 items-center gap-2 px-2.5 py-1"
                   data-admin-mobile-core-item="true"
                 >
@@ -1471,9 +1583,9 @@ export function AdminParticularTokensCard() {
               ))}
             </ParticularTokensMobileList>
 
-            {!filteredMobileTokens.length && isMobileViewport ? (
+            {!filteredTokens.length ? (
               <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
-                {isLoadingMobileTokens
+                {isLoadingTokens
                   ? "Cargando tokens particulares…"
                   : hasActiveFilters
                     ? "No hay tokens que coincidan con los filtros aplicados."
@@ -1481,7 +1593,7 @@ export function AdminParticularTokensCard() {
               </p>
             ) : null}
 
-            {filteredMobileTokens.length ? (
+            {filteredTokens.length ? (
               <div
                 className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
                 data-admin-mobile-core-pager="true"
@@ -1491,28 +1603,41 @@ export function AdminParticularTokensCard() {
                   variant="outline"
                   size="sm"
                   className="h-9 px-2.5 text-xs"
-                  disabled={mobilePage === 0 || isLoadingMobileTokens}
+                  disabled={!pagedTokens.hasPrev || isLoadingTokens}
                   onClick={() => {
                     setIsDetailDialogOpen(false);
-                    setMobilePage((current) => Math.max(0, current - 1));
+                    pagedTokens.goPrev();
                   }}
                 >
                   Anterior
                 </Button>
-                <span className="min-w-12 text-center">Pág. {mobilePage + 1}</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 px-2.5 text-xs"
-                  disabled={!canGoNextMobile || isLoadingMobileTokens}
-                  onClick={() => {
-                    setIsDetailDialogOpen(false);
-                    setMobilePage((current) => current + 1);
-                  }}
-                >
-                  Siguiente
-                </Button>
+                <span className="min-w-12 text-center">Pág. {pagedTokens.page + 1}</span>
+                {!pagedTokens.hasNext && hasMoreFromServer ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-2.5 text-xs"
+                    disabled={isLoadingMoreTokens}
+                    onClick={() => void loadMoreTokens()}
+                  >
+                    {isLoadingMoreTokens ? "Cargando…" : "Cargar más"}
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-2.5 text-xs"
+                    disabled={!pagedTokens.hasNext || isLoadingTokens}
+                    onClick={() => {
+                      setIsDetailDialogOpen(false);
+                      pagedTokens.goNext();
+                    }}
+                  >
+                    Siguiente
+                  </Button>
+                )}
               </div>
             ) : null}
           </div>
@@ -1529,7 +1654,10 @@ export function AdminParticularTokensCard() {
 
           <div className="mt-2 hidden min-h-10 shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/65 px-1 pt-2 text-xs text-muted-foreground md:mt-1 md:flex md:min-h-8 md:pt-1">
             <span>
-              {filteredTokens.length ? `${rangeStart}–${rangeEnd}` : "0 resultados"} · 9 por página
+              {filteredTokens.length
+                ? `${pagedTokens.rangeStart}–${pagedTokens.rangeEnd}`
+                : "0 resultados"}{" "}
+              · {rowsPerPage} por página
             </span>
             <div className="flex items-center gap-1.5">
               <Button
@@ -1537,28 +1665,41 @@ export function AdminParticularTokensCard() {
                 variant="outline"
                 size="sm"
                 className="md:h-8 md:px-2 md:text-xs"
-                disabled={page === 0 || isLoadingTokens}
+                disabled={!pagedTokens.hasPrev || isLoadingTokens}
                 onClick={() => {
                   setIsDetailDialogOpen(false);
-                  setPage((current) => Math.max(0, current - 1));
+                  pagedTokens.goPrev();
                 }}
               >
                 Anterior
               </Button>
-              <span className="min-w-16 text-center">Página {page + 1}</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="md:h-8 md:px-2 md:text-xs"
-                disabled={!canGoNext || isLoadingTokens}
-                onClick={() => {
-                  setIsDetailDialogOpen(false);
-                  setPage((current) => current + 1);
-                }}
-              >
-                Siguiente
-              </Button>
+              <span className="min-w-16 text-center">Página {pagedTokens.page + 1}</span>
+              {!pagedTokens.hasNext && hasMoreFromServer ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="md:h-8 md:px-2 md:text-xs"
+                  disabled={isLoadingMoreTokens}
+                  onClick={() => void loadMoreTokens()}
+                >
+                  {isLoadingMoreTokens ? "Cargando…" : "Cargar más"}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="md:h-8 md:px-2 md:text-xs"
+                  disabled={!pagedTokens.hasNext || isLoadingTokens}
+                  onClick={() => {
+                    setIsDetailDialogOpen(false);
+                    pagedTokens.goNext();
+                  }}
+                >
+                  Siguiente
+                </Button>
+              )}
             </div>
           </div>
         </section>

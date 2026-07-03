@@ -203,8 +203,8 @@ test("admin particular tokens exposes advanced filter bar for real table fields"
   assert.ok(source.includes("dashboardFilterActionClassName(density)"));
   assert.ok(source.includes("Aplicar"));
   assert.ok(source.includes("Limpiar"));
-  assert.ok(source.includes("filteredTokens.map((token) => ("));
-  assert.ok(source.includes("filteredMobileTokens.map((token) => ("));
+  assert.ok(source.includes("visibleTokens.map((token, index) => ("));
+  assert.equal(source.includes("filteredMobileTokens"), false);
   assert.equal(source.includes("Email del particular") && source.includes('name="filterEmail"'), false);
   assert.ok(auditFilter.includes('aria-label={mobile ? "Filtros de auditoría mobile" : "Filtros de auditoría"}'));
   assert.ok(auditFilter.includes("Desde"));
@@ -240,10 +240,10 @@ test("admin particular tokens filters apply to visible token table fields", () =
   assert.ok(filterBlock.includes("matchesCreatedAtRange(token, filters.from, filters.to)"));
   assert.ok(source.includes("const createdAt = toDateInputValue(token.createdAt);"));
   assert.ok(applyBlock.includes("setAppliedFilters({"));
-  assert.ok(applyBlock.includes("setPage(0);"));
-  assert.ok(applyBlock.includes("setMobilePage(0);"));
+  assert.ok(applyBlock.includes("pagedTokens.setPage(0);"));
   assert.ok(clearBlock.includes("setFilterDraft(INITIAL_FILTER_STATE);"));
   assert.ok(clearBlock.includes("setAppliedFilters(INITIAL_FILTER_STATE);"));
+  assert.ok(clearBlock.includes("pagedTokens.setPage(0);"));
 });
 
 test("admin particular token generator keeps programmed fields", () => {

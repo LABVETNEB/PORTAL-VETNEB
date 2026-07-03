@@ -28,18 +28,48 @@ const FORBIDDEN_OVERSIZED = [
   "h-16",
 ];
 
-test("admin tokens uses viewport-safe server pagination with nine rows", () => {
+// R-05 (admin-particular-tokens-server-adaptive-pagination): the endpoint
+// exposes no `total` (R-04 confirmed), so the strategy is over-fetch with a
+// cap (30) paginated client-side (usePagedRows), plus an explicit "Cargar
+// más" affordance gated by the last fetched batch filling the cap
+// (hasMoreFromServer). TOKENS_FALLBACK_ROWS survives only as the
+// pre-measurement fallback/desktop floor; MOBILE_PAGE_SIZE and the
+// matchMedia cardinality gate are gone (single collapsed runtime).
+test("admin tokens uses viewport-safe server pagination adaptive by viewport (OF cap 30 + cargar más)", () => {
   const source = read(TOKENS_CARD_PATH);
 
-  assert.ok(source.includes("const PAGE_SIZE = 9;"));
-  assert.ok(source.includes("limit: PAGE_SIZE"));
-  assert.ok(source.includes("offset: nextPage * PAGE_SIZE"));
-  assert.ok(source.includes("const canGoNext = tokens.length === PAGE_SIZE;"));
+  assert.ok(source.includes("const TOKENS_FALLBACK_ROWS = 9;"));
+  assert.ok(source.includes("const TOKENS_SUPERSET_CAP = 30;"));
+  assert.ok(source.includes("useAdaptiveItemsPerPage"));
+  assert.ok(source.includes("usePagedRows"));
+  assert.ok(source.includes("hasMoreFromServer"));
+  assert.equal(source.includes("const PAGE_SIZE = 9;"), false);
+  assert.equal(source.includes("const MOBILE_PAGE_SIZE"), false);
+  assert.equal(source.includes("window.matchMedia"), false);
+  assert.equal(source.includes("isMobileViewport"), false);
+  assert.equal(source.includes("loadMobileTokens"), false);
+  assert.equal(source.includes("const canGoNext = tokens.length === PAGE_SIZE;"), false);
   assert.ok(source.includes("Anterior"));
   assert.ok(source.includes("Siguiente"));
+  assert.ok(source.includes("Cargar más"));
   assert.equal(source.includes("limit: 8, offset: 0"), false);
   assert.equal(source.includes("PAGE_SIZE_OPTIONS"), false);
   assert.equal(source.includes("25/50/100"), false);
+});
+
+test("admin tokens recomputa pagina localmente y descarta respuestas viejas (anti-race)", () => {
+  const source = read(TOKENS_CARD_PATH);
+
+  assert.ok(source.includes("const latestRequestRef = useRef(0);"));
+  assert.ok(source.includes("const requestId = ++latestRequestRef.current;"));
+  assert.ok(source.includes("if (requestId !== latestRequestRef.current) return;"));
+
+  // Desktop keeps the nine-row floor (App Shell contract), mobile floors at one.
+  assert.ok(
+    source.includes(
+      "minItems: isDesktopMeasurement ? TOKENS_FALLBACK_ROWS : 1,",
+    ),
+  );
 });
 
 test("admin tokens toolbar is mobile-safe and wraps actions", () => {

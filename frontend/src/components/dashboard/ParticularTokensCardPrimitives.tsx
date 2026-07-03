@@ -1,4 +1,8 @@
-import type { ComponentPropsWithoutRef, ComponentPropsWithRef, ReactNode } from "react";
+import type {
+  ComponentPropsWithoutRef,
+  ComponentPropsWithRef,
+  ReactNode,
+} from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -114,7 +118,7 @@ export function ParticularTokensPanelFooter({
 export function ParticularTokensMobileList({
   className,
   ...props
-}: ComponentPropsWithoutRef<"div">) {
+}: ComponentPropsWithRef<"div">) {
   return (
     <div
       className={cn(

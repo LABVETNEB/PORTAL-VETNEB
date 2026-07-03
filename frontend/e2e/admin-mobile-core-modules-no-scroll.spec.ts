@@ -53,7 +53,11 @@ const MOCK_REPORTS = Array.from({ length: 40 }, (_, index) => {
   };
 });
 
-const MOCK_TOKENS = Array.from({ length: 13 }, (_, index) => ({
+// R-05: tokens pages are now measured (OF cap 30) instead of a fixed mobile
+// limit of 10, so the fixture must have enough rows to fill the tallest
+// measured page and still leave a populated page 2 (same reasoning as the
+// R-02 clinics bump 13 → 40 and R-03 reports bump 13 → 40).
+const MOCK_TOKENS = Array.from({ length: 40 }, (_, index) => ({
   id: 9300 + index,
   clinicId: 30 + index,
   reportId: index % 3 === 0 ? 7400 + index : null,
@@ -150,7 +154,9 @@ const MODULES: ModuleSpec[] = [
   // guarantee is per-item viewport fit, not a fixed page size.
   { key: "clinics", moduleId: "admin-clinics", mock: mockAdminClinics, maxItemsPerPage: 36 },
   { key: "reports", moduleId: "admin-report-upload", mock: mockAdminReportWorkflow, maxItemsPerPage: 36 },
-  { key: "tokens", moduleId: "admin-particular-tokens", mock: mockAdminParticularTokens, maxItemsPerPage: 10 },
+  // R-05 raised the ceiling to the OF superset cap (30); the real guarantee
+  // is per-item viewport fit, not a fixed page size.
+  { key: "tokens", moduleId: "admin-particular-tokens", mock: mockAdminParticularTokens, maxItemsPerPage: 30 },
 ];
 
 for (const moduleSpec of MODULES) {
