@@ -20,6 +20,7 @@ test("dashboard logistica metricas defines non-indexable metadata and dependenci
   assert.ok(source.includes('title: "Métricas de logística — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
+  assert.ok(source.includes('import { PublicRouteControl } from "@/components/public/PublicRouteControl";'));
   assert.ok(source.includes('import { Badge } from "@/components/ui/badge";'));
   assert.ok(source.includes('import { getRoutePlanMetrics, getRoutePlans } from "@/lib/api";'));
 });
@@ -34,12 +35,30 @@ test("dashboard logistica metricas forwards cookies and disables cache for live 
   assert.ok(source.includes("const requestOptions = await getLogisticsRequestOptions();"));
 });
 
-test("dashboard logistica metricas reads route plans and plan metrics", () => {
+test("dashboard logistica metricas sends explicit limit/offset with a metrics-specific fan-out cap (R-14)", () => {
+  const source = read(METRICAS_PAGE_PATH);
+
+  assert.ok(source.includes("const METRICAS_DEFAULT_LIMIT = 12;"));
+  assert.ok(source.includes("const METRICAS_MAX_LIMIT = 24;"));
+  assert.ok(source.includes("function normalizeOffset(value: string | string[] | undefined): number {"));
+  assert.ok(source.includes("function normalizeLimit(value: string | string[] | undefined): number {"));
+  assert.ok(source.includes("searchParams?: Promise<MetricasPageSearchParams>;"));
+  assert.ok(
+    source.includes(
+      "getRoutePlans(requestOptions, { throwOnError: true }, {\n      limit,\n      offset,\n    });",
+    ),
+  );
+  // Metrics fan-out must never inherit the rutas/visitas backend default (50).
+  assert.equal(source.includes("RUTAS_DEFAULT_LIMIT"), false);
+  assert.equal(source.includes("= 50;"), false);
+});
+
+test("dashboard logistica metricas reads route plans and plan metrics scoped to the visible page", () => {
   const source = read(METRICAS_PAGE_PATH);
 
   assert.ok(source.includes("let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];"));
   assert.ok(source.includes("let routePlansLoadError = false;"));
-  assert.ok(source.includes("routePlans = await getRoutePlans(requestOptions, {"));
+  assert.ok(source.includes("routePlans = await getRoutePlans("));
   assert.ok(source.includes("throwOnError: true,"));
   assert.ok(source.includes("let routeMetrics: Awaited<ReturnType<typeof getRoutePlanMetrics>> = [];"));
   assert.ok(source.includes("await Promise.all("));
@@ -47,6 +66,33 @@ test("dashboard logistica metricas reads route plans and plan metrics", () => {
   assert.ok(source.includes("routePlans.map((plan) =>"));
   assert.ok(source.includes("getRoutePlanMetrics(plan.id, requestOptions, {"));
   assert.ok(source.includes(").flat();"));
+});
+
+test("dashboard logistica metricas computes canGoNext/canGoPrevious without a backend total (R-14)", () => {
+  const source = read(METRICAS_PAGE_PATH);
+
+  assert.ok(source.includes("const canGoPrevious = !routePlansLoadError && offset > 0;"));
+  assert.ok(source.includes("const canGoNext = !routePlansLoadError && routePlans.length === limit;"));
+  assert.equal(source.includes("pageCount"), false);
+  assert.equal(source.includes("matchMedia"), false);
+  assert.equal(source.includes("ResizeObserver"), false);
+});
+
+test("dashboard logistica metricas renders a pager and page-scope disclosure (R-14)", () => {
+  const source = read(METRICAS_PAGE_PATH);
+
+  assert.ok(source.includes('aria-label="Paginación de métricas de ruta"'));
+  assert.ok(source.includes('aria-label="Página anterior"'));
+  assert.ok(source.includes('aria-label="Página siguiente"'));
+  assert.ok(source.includes("disabled={!canGoPrevious}"));
+  assert.ok(source.includes("disabled={!canGoNext}"));
+  assert.ok(source.includes("Mostrando {routeMetrics.length} métricas de ruta · página {currentPage}"));
+  assert.ok(
+    source.includes(
+      "Métricas calculadas sobre la página visible (máximo {limit} planes),",
+    ),
+  );
+  assert.ok(source.includes("no sobre el total general de rutas."));
 });
 
 test("dashboard logistica metricas computes aggregate operational metrics", () => {
