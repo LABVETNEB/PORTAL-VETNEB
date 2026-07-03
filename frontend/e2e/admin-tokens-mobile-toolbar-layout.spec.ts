@@ -9,7 +9,11 @@ const MOBILE_VIEWPORTS = [
   { name: "iphone-pro-max-430x932", width: 430, height: 932 },
 ] as const;
 
-const MOCK_TOKENS = Array.from({ length: 11 }, (_, index) => ({
+// R-05 (admin-particular-tokens-server-adaptive-pagination): the mobile page
+// size is now measured (OF cap 30) instead of a fixed limit of 10, so the
+// fixture must have enough rows to fill the tallest measured page and still
+// leave a populated page 2 (same reasoning as the R-02/R-03 bumps to 40).
+const MOCK_TOKENS = Array.from({ length: 40 }, (_, index) => ({
   id: 9101 + index,
   clinicId: 12 + index,
   reportId: index % 3 === 0 ? 7301 + index : null,
@@ -219,10 +223,23 @@ for (const viewport of MOBILE_VIEWPORTS) {
     ).toBeHidden();
 
     const items = workspace.locator('[data-admin-mobile-core-item="true"]');
-    await expect(
-      items,
-      `${viewport.name}: ten tokens visible per mobile page`,
-    ).toHaveCount(10);
+    // R-05: the mobile page size is measured (OF cap 30), not a fixed 10, so
+    // the fallback-sized first paint can settle to a different count once the
+    // real row is measured. Wait for two consecutive equal reads before
+    // trusting it, same pattern as Clinics/Reports.
+    let settledCount: number | null = null;
+    await expect(async () => {
+      const current = await items.count();
+      expect(current, `${viewport.name}: tokens mobile item count settles`).toBeGreaterThan(0);
+      if (settledCount !== current) {
+        settledCount = current;
+        throw new Error(`count not yet stable: ${current}`);
+      }
+    }).toPass({ intervals: [200, 300, 400, 600, 800], timeout: 6_000 });
+    expect(
+      settledCount,
+      `${viewport.name}: tokens mobile page size must remain viewport-safe`,
+    ).toBeLessThanOrEqual(30);
 
     await expect(
       items.first(),
@@ -338,14 +355,26 @@ for (const viewport of MOBILE_VIEWPORTS) {
     const items = page.locator(
       '[data-admin-mobile-core-module="tokens"] [data-admin-mobile-core-item="true"]',
     );
-    await expect(items).toHaveCount(10);
+    // R-05: the mobile page size is measured (OF cap 30), not a fixed 10.
+    // MOCK_TOKENS (40 rows) guarantees the first page is entirely full for any
+    // measured page size up to the cap; wait for the settle before reading it.
+    let settledCount: number | null = null;
+    await expect(async () => {
+      const current = await items.count();
+      expect(current, `${viewport.name}: full-page item count settles`).toBeGreaterThan(0);
+      if (settledCount !== current) {
+        settledCount = current;
+        throw new Error(`count not yet stable: ${current}`);
+      }
+    }).toPass({ intervals: [200, 300, 400, 600, 800], timeout: 6_000 });
+    expect(settledCount, `${viewport.name}: full page size stays within cap`).toBeLessThanOrEqual(30);
 
     await assertPagerAnchoredToModuleBottom(
       page,
-      `${viewport.name}: full page (10 tokens)`,
+      `${viewport.name}: full page (${settledCount} tokens)`,
     );
-    await assertPagerHasNoRangeText(page, `${viewport.name}: full page (10 tokens)`);
-    await assertPagerControlsCentered(page, `${viewport.name}: full page (10 tokens)`);
+    await assertPagerHasNoRangeText(page, `${viewport.name}: full page (${settledCount} tokens)`);
+    await assertPagerControlsCentered(page, `${viewport.name}: full page (${settledCount} tokens)`);
   });
 
   test(`admin tokens mobile pager stays bottom-anchored with a short dataset — ${viewport.name}`, async ({
@@ -364,7 +393,19 @@ for (const viewport of MOBILE_VIEWPORTS) {
     const items = page.locator(
       '[data-admin-mobile-core-module="tokens"] [data-admin-mobile-core-item="true"]',
     );
-    await expect(items).toHaveCount(6);
+    // R-05: the measured page size could in principle be smaller than the
+    // 6-row dataset on an unusually cramped viewport; settle first, then only
+    // assert it never exceeds the dataset itself.
+    let settledCount: number | null = null;
+    await expect(async () => {
+      const current = await items.count();
+      expect(current, `${viewport.name}: short-dataset item count settles`).toBeGreaterThan(0);
+      if (settledCount !== current) {
+        settledCount = current;
+        throw new Error(`count not yet stable: ${current}`);
+      }
+    }).toPass({ intervals: [200, 300, 400, 600, 800], timeout: 6_000 });
+    expect(settledCount, `${viewport.name}: short dataset never exceeds fetched rows`).toBeLessThanOrEqual(6);
 
     await assertPagerHasNoRangeText(page, `${viewport.name}: short dataset (6 tokens)`);
     await assertPagerControlsCentered(page, `${viewport.name}: short dataset (6 tokens)`);
