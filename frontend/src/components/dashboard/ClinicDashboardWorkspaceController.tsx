@@ -355,7 +355,7 @@ function ClinicDashboardCockpit({
 
             <div
               data-clinic-cockpit-primary-actions="true"
-              className="surface-soft hidden min-h-0 flex-col justify-center gap-2 overflow-hidden md:flex"
+              className="surface-soft hidden min-h-0 flex-col justify-center gap-2 overflow-hidden lg:flex"
             >
               <p className="text-sm font-semibold text-vetneb-ink">
                 Acciones principales
