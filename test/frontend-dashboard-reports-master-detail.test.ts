@@ -9,6 +9,10 @@ import {
 } from "./helpers/clean7a-dependency-cleanup-scope.ts";
 
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
+const INFORMES_LIST_PATH =
+  "frontend/src/app/dashboard/informes/InformesReportsList.tsx";
+const INFORMES_ACTIONS_PATH =
+  "frontend/src/app/dashboard/informes/informes.actions.ts";
 const MASTER_DETAIL_WORKSPACE_PATH =
   "frontend/src/components/dashboard/MasterDetailWorkspace.tsx";
 const STUDY_TIMELINE_PATH =
@@ -113,29 +117,32 @@ test("StudyTimeline supports ordered visual states without business calculations
 });
 
 test("dashboard informes composes profile-layout list, selected report detail, timeline, and actions", () => {
-  const source = read(INFORMES_PAGE_PATH);
+  const pageSource = read(INFORMES_PAGE_PATH);
+  const listSource = read(INFORMES_LIST_PATH);
 
-  assert.ok(source.includes("<DashboardPageHeader"));
-  assert.equal(source.includes("<StickyActionBar"), false);
-  assert.equal(source.includes("<MasterDetailWorkspace"), false);
-  assert.ok(source.includes("Lista de informes"));
-  assert.ok(source.includes("Detalle del informe"));
-  assert.ok(source.includes("<StudyTimeline steps={selectedReportTimelineSteps} />"));
-  assert.ok(source.includes("buildStudyTimelineSteps(selectedReport)"));
-  assert.ok(source.includes("const selectedReport ="));
-  assert.ok(source.includes("selectedReportId === null"));
-  assert.ok(source.includes("? (reports[0] ?? null)"));
-  assert.ok(source.includes(": (reports.find((report) => report.id === selectedReportId) ?? null)"));
-  assert.ok(source.includes('id="reports-master-list"'));
-  assert.ok(source.includes('id="report-detail"'));
-  assert.ok(source.includes("Línea de tiempo del estudio"));
-  assert.ok(source.includes("Pasos derivados del estado y fechas ya disponibles."));
-  assert.ok(source.includes("reportId={selectedReport.id}"));
-  assert.ok(source.includes("hasFile={selectedReport.hasFile}"));
+  assert.ok(pageSource.includes("<DashboardPageHeader"));
+  assert.equal(pageSource.includes("<StickyActionBar"), false);
+  assert.equal(pageSource.includes("<MasterDetailWorkspace"), false);
+  assert.equal(listSource.includes("<StickyActionBar"), false);
+  assert.equal(listSource.includes("<MasterDetailWorkspace"), false);
+  assert.ok(listSource.includes("Lista de informes"));
+  assert.ok(listSource.includes("Detalle del informe"));
+  assert.ok(listSource.includes("<StudyTimeline steps={selectedReportTimelineSteps} />"));
+  assert.ok(listSource.includes("buildStudyTimelineSteps(selectedReport)"));
+  assert.ok(listSource.includes("const selectedReport ="));
+  assert.ok(listSource.includes("selectedReportId === null"));
+  assert.ok(listSource.includes("? (reports[0] ?? null)"));
+  assert.ok(listSource.includes(": (reports.find((report) => report.id === selectedReportId) ?? null)"));
+  assert.ok(listSource.includes('id="reports-master-list"'));
+  assert.ok(listSource.includes('id="report-detail"'));
+  assert.ok(listSource.includes("Línea de tiempo del estudio"));
+  assert.ok(listSource.includes("Pasos derivados del estado y fechas ya disponibles."));
+  assert.ok(listSource.includes("reportId={selectedReport.id}"));
+  assert.ok(listSource.includes("hasFile={selectedReport.hasFile}"));
 });
 
 test("dashboard informes derives timeline steps from existing report fields only", () => {
-  const source = read(INFORMES_PAGE_PATH);
+  const source = read(INFORMES_LIST_PATH);
 
   assert.ok(source.includes("function buildStudyTimelineSteps(report: Report): StudyTimelineStep[]"));
   assert.ok(source.includes("const currentStatus = report.currentStatus ?? report.status;"));
@@ -152,33 +159,38 @@ test("dashboard informes derives timeline steps from existing report fields only
 });
 
 test("dashboard informes server-side pagination controls and compact summary", () => {
-  const source = read(INFORMES_PAGE_PATH);
+  const source = read(INFORMES_LIST_PATH);
+  const constantsSource = read(
+    "frontend/src/app/dashboard/informes/informes.constants.ts",
+  );
 
-  assert.ok(source.includes("reportsTotalPages > 1"));
+  // R-07: pager stays visible at all times (no `> 1` gate), matching the
+  // server-adaptive contract already proven on Admin Audit/Reports (R-03/R-06).
+  assert.equal(source.includes("reportsTotalPages > 1"), false);
   assert.ok(source.includes('aria-label="Paginación de informes"'));
   assert.ok(source.includes('aria-label="Página anterior"'));
   assert.ok(source.includes('aria-label="Página siguiente"'));
   assert.ok(source.includes("Página {page} de {reportsTotalPages}"));
-  assert.ok(source.includes("{reportsTotal > 0 ? `${pageStart}-${pageEnd}` : \"0\"}"));
-  assert.ok(source.includes("const REPORTS_PAGE_SIZE = 6"));
-  assert.ok(source.includes("page: page - 1"));
-  assert.ok(source.includes("page: page + 1"));
+  assert.ok(source.includes("{totalCount > 0 ? `${pageStart}-${pageEnd}` : \"0\"}"));
+  assert.ok(constantsSource.includes("export const INFORMES_FALLBACK_ROWS = 6"));
+  assert.ok(source.includes("goToPreviousPage"));
+  assert.ok(source.includes("goToNextPage"));
   assert.ok(source.includes("disabled={page <= 1}"));
   assert.ok(source.includes("disabled={page >= reportsTotalPages}"));
 });
 
-test("dashboard informes pagination does not use client-side filter", () => {
-  const source = read(INFORMES_PAGE_PATH);
+test("dashboard informes pagination is server-adaptive and does not use client-side array filtering", () => {
+  const source = read(INFORMES_LIST_PATH);
 
-  assert.ok(source.includes("page,"));
-  assert.ok(source.includes("pageSize: REPORTS_PAGE_SIZE,"));
-  assert.ok(source.includes("const offset = (page - 1) * REPORTS_PAGE_SIZE"));
+  assert.ok(source.includes("useAdaptiveItemsPerPage"));
+  assert.ok(source.includes("effectiveLimit = rowsPerPage"));
+  assert.ok(source.includes("getInformesPage("));
   assert.equal(source.includes("reports.slice("), false);
   assert.equal(source.includes("reports.filter("), false);
 });
 
 test("dashboard informes reportId null selects first report by default without silent fallback", () => {
-  const source = read(INFORMES_PAGE_PATH);
+  const source = read(INFORMES_LIST_PATH);
 
   assert.ok(source.includes("selectedReportId === null"));
   assert.ok(source.includes("? (reports[0] ?? null)"));
@@ -188,6 +200,8 @@ test("dashboard informes reportId null selects first report by default without s
 
 test("dashboard informes master-detail scope avoids forbidden navigation and dependency changes", () => {
   const informesSource = read(INFORMES_PAGE_PATH);
+  const informesListSource = read(INFORMES_LIST_PATH);
+  const informesActionsSource = read(INFORMES_ACTIONS_PATH);
   const masterDetailSource = read(MASTER_DETAIL_WORKSPACE_PATH);
   const timelineSource = read(STUDY_TIMELINE_PATH);
   const stickyActionBarSource = read(STICKY_ACTION_BAR_PATH);
@@ -200,14 +214,18 @@ test("dashboard informes master-detail scope avoids forbidden navigation and dep
     .split(/\r?\n/)
     .filter(Boolean);
 
+  assertNoForbiddenSurfaceImports(informesListSource, "InformesReportsList");
+  assertNoForbiddenSurfaceImports(informesActionsSource, "informes.actions");
   assertNoForbiddenSurfaceImports(masterDetailSource, "MasterDetailWorkspace");
   assertNoForbiddenSurfaceImports(timelineSource, "StudyTimeline");
   assertNoForbiddenSurfaceImports(stickyActionBarSource, "StickyActionBar");
   assert.equal(informesSource.includes('from "next/link"'), false);
+  assert.equal(informesListSource.includes('from "next/link"'), false);
   assert.equal(masterDetailSource.includes('from "next/link"'), false);
   assert.equal(timelineSource.includes('from "next/link"'), false);
   assert.equal(stickyActionBarSource.includes('from "next/link"'), false);
   assert.equal(informesSource.includes("<a"), false);
+  assert.equal(informesListSource.includes("<a"), false);
   assert.equal(masterDetailSource.includes("<a"), false);
   assert.equal(timelineSource.includes("<a"), false);
   assert.equal(stickyActionBarSource.includes("<a"), false);

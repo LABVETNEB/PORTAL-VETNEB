@@ -9,6 +9,8 @@ import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-acces
 const DASHBOARD_HOME_PATH = "frontend/src/app/dashboard/page.tsx";
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
+const INFORMES_LIST_PATH =
+  "frontend/src/app/dashboard/informes/InformesReportsList.tsx";
 const LOGISTICA_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
 const STICKY_ACTION_BAR_PATH =
   "frontend/src/components/dashboard/StickyActionBar.tsx";
@@ -121,12 +123,14 @@ test("dashboard pages do not use mobile bottom spacers as layout compensation", 
   const dashboardSource = read(DASHBOARD_HOME_PATH);
   const adminSource = read(ADMIN_PAGE_PATH);
   const informesSource = read(INFORMES_PAGE_PATH);
+  const informesListSource = read(INFORMES_LIST_PATH);
   const logisticaSource = read(LOGISTICA_PAGE_PATH);
 
   // PR5: dashboard/admin use hubs; PR1012 makes informes profile-layout without StickyActionBar.
   assert.equal(informesSource.includes("<StickyActionBar"), false);
-  assert.ok(informesSource.includes("Lista de informes"));
-  assert.ok(informesSource.includes("Detalle del informe"));
+  assert.equal(informesListSource.includes("<StickyActionBar"), false);
+  assert.ok(informesListSource.includes("Lista de informes"));
+  assert.ok(informesListSource.includes("Detalle del informe"));
 
   assert.ok(logisticaSource.includes("<StickyActionBar"), "logistica uses StickyActionBar");
   assert.equal(

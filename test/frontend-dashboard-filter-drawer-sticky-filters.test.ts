@@ -156,12 +156,16 @@ test("dashboard informes uses compact inline filters without drawer sticky overl
   assert.ok(source.includes(": await getReportsPaginated("));
   assert.ok(source.includes("requestOptions,"));
   assert.equal(source.includes("<MasterDetailWorkspace"), false);
-  assert.ok(source.includes("<StudyTimeline steps={selectedReportTimelineSteps} />"));
   assert.equal(source.includes("<StickyActionBar"), false);
-  assert.ok(source.includes("<ReportFileActions"));
   assert.equal(source.includes('from "next/link"'), false);
   assert.equal(source.includes("<Link"), false);
   assert.equal(source.includes("<a"), false);
+
+  const listSource = read(
+    "frontend/src/app/dashboard/informes/InformesReportsList.tsx",
+  );
+  assert.ok(listSource.includes("<StudyTimeline steps={selectedReportTimelineSteps} />"));
+  assert.ok(listSource.includes("<ReportFileActions"));
 });
 
 test("PR-VIS-6 FilterBar exposes shared dashboard filter field contract", () => {
