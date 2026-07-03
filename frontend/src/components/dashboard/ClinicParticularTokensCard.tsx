@@ -73,6 +73,23 @@ const TOKENS_PAGE_SIZE = 4;
 /** Row height fallback (px) before the first real row/card can be measured. */
 const TOKENS_ROW_HEIGHT_FALLBACK_PX = 44;
 
+// C6 (docs/audit/final-global-vetneb-50-60-pr-roadmap.md §4.3): rowsPerPage is
+// measured adaptively (up to 50 on tall viewports) but the fetch used to stay
+// fixed at a cap of ten, so the list could show fewer rows than the layout
+// measured space for. The fetch now over-fetches a superset sized off
+// rowsPerPage itself, capped so a very tall viewport can't ask for unbounded
+// rows.
+const TOKENS_FETCH_PAGE_MULTIPLIER = 3;
+const TOKENS_FETCH_LIMIT_FALLBACK = 12;
+const TOKENS_FETCH_LIMIT_MAX = 36;
+
+function resolveTokensFetchLimit(rowsPerPage: number): number {
+  return Math.min(
+    TOKENS_FETCH_LIMIT_MAX,
+    Math.max(TOKENS_FETCH_LIMIT_FALLBACK, rowsPerPage * TOKENS_FETCH_PAGE_MULTIPLIER),
+  );
+}
+
 const CREATE_TOKEN_STEP_ORDER = ["contact", "patient", "sample"] as const;
 type CreateTokenStep = (typeof CREATE_TOKEN_STEP_ORDER)[number];
 
@@ -438,6 +455,7 @@ export function ClinicParticularTokensCard() {
     rowHeightPx,
     headerHeightPx: tableHeaderHeightPx,
   });
+  const effectiveFetchLimit = resolveTokensFetchLimit(rowsPerPage);
 
   const filteredTokens = tokens.filter((token) =>
     matchesClinicParticularTokenFilters(token, appliedFilters),
@@ -457,13 +475,13 @@ export function ClinicParticularTokensCard() {
   const isLastCreateStep = createStep === "sample";
   const hasActiveFilters = !isTokenFilterStateEmpty(appliedFilters);
 
-  async function loadTokens() {
+  async function loadTokens(limit: number) {
     setIsLoadingTokens(true);
     setTrackingLoadError(null);
     setErrorMessage(null);
 
     try {
-      const snapshot = await getClinicParticularTokens({ limit: 10, offset: 0 });
+      const snapshot = await getClinicParticularTokens({ limit, offset: 0 });
       const nextTokens = snapshot.particularTokens;
       setTokens(nextTokens);
       setSelectedTokenId((current) =>
@@ -519,9 +537,13 @@ export function ClinicParticularTokensCard() {
     }
   }
 
+  // effectiveFetchLimit only changes when rowsPerPage crosses a multiplier/cap
+  // boundary, so this effect reloads on mount and again whenever the adaptive
+  // measurement implies a materially different superset — never on every
+  // rowsPerPage tick, which is what keeps this from looping.
   useEffect(() => {
-    void loadTokens();
-  }, []);
+    void loadTokens(effectiveFetchLimit);
+  }, [effectiveFetchLimit]);
 
   function updateField(
     field: keyof ClinicParticularTokenFormState,
@@ -701,7 +723,7 @@ export function ClinicParticularTokensCard() {
       setCopyErrorMessage(null);
       setStatusMessage(response.message);
       resetForm();
-      await loadTokens();
+      await loadTokens(effectiveFetchLimit);
       setIsCreateDialogOpen(false);
     } catch (error) {
       setErrorMessage(
@@ -870,7 +892,7 @@ export function ClinicParticularTokensCard() {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => void loadTokens()}
+                onClick={() => void loadTokens(effectiveFetchLimit)}
                 disabled={isLoadingTokens}
               >
                 {isLoadingTokens ? "Actualizando..." : "Actualizar"}

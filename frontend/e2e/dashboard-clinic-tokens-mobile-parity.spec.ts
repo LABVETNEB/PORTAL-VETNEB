@@ -99,7 +99,23 @@ async function mockClinicTokens(page: Page) {
       }
 
       const url = new URL(request.url());
-      expect(url.searchParams.get("limit")).toBe("10");
+      const limit = Number(url.searchParams.get("limit"));
+      // R-16 (C6): the fetch limit is now derived from the adaptive
+      // rowsPerPage superset (clamp(rowsPerPage * 3, 12, 36)), not a fixed
+      // literal -- assert the observable contract (a valid superset bound),
+      // not a specific number.
+      expect(
+        Number.isInteger(limit),
+        "limit must be sent as an integer",
+      ).toBe(true);
+      expect(
+        limit,
+        "limit must respect the fetch superset fallback",
+      ).toBeGreaterThanOrEqual(12);
+      expect(
+        limit,
+        "limit must respect the fetch superset cap",
+      ).toBeLessThanOrEqual(36);
       expect(url.searchParams.get("offset")).toBe("0");
 
       await route.fulfill({
@@ -109,7 +125,7 @@ async function mockClinicTokens(page: Page) {
           success: true,
           count: MOCK_TOKENS.length,
           particularTokens: MOCK_TOKENS,
-          pagination: { limit: 10, offset: 0 },
+          pagination: { limit, offset: 0 },
         }),
       });
     },
