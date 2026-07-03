@@ -1,6 +1,14 @@
 "use client";
 
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -38,16 +46,43 @@ import {
   type AdminReportWorkflowItem,
   type AdminReportWorkflowStage,
 } from "@/lib/api";
+import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
 import {
   ADMIN_REPORT_STAGE_OPTIONS,
   AdminReportStatusBadge,
 } from "./AdminReportStatusBadge";
 import { AdminReportsUploadPanel } from "./AdminReportsUploadPanel";
 
-// PR-3 established nine dense rows as the safe 1366x768 limit while the App
-// Shell intentionally has no vertical scroll region.
-const PAGE_SIZE = 9;
-const MOBILE_PAGE_SIZE = 10;
+// Server pagination is now sized by the measured rows container (Zero-Scroll
+// adaptive contract, R-03/PR-SRV-0 module #4). PR-3 established nine dense rows
+// as the safe 1366x768 desktop limit; that constant survives only as the
+// pre-measurement fallback and as the desktop floor. A media query no longer
+// decides cardinality, and the mobile/desktop `limit`/`offset` divergence
+// (PAGE_SIZE=9 vs MOBILE_PAGE_SIZE=10, two independent fetch pipelines) is
+// collapsed into a single measured runtime.
+const REPORTS_FALLBACK_ROWS = 9;
+// Hybrid cap: the effective `limit` never exceeds this superset ceiling even on
+// very tall viewports; recompute of offset always clamps against it.
+const REPORTS_SUPERSET_CAP = 36;
+// Fixed header row height of the desktop table (`[&_th]:h-7`), discounted from
+// the measured region so the row math never counts the header as a data row.
+const REPORTS_TABLE_HEADER_PX = 28;
+// Fallback item height used until a real row is measured.
+const REPORTS_ROW_HEIGHT_FALLBACK_PX = 36;
+
+type Measurement = {
+  containerNode: HTMLElement | null;
+  rowHeightPx: number;
+  headerHeightPx: number;
+};
+
+function measurementsEqual(a: Measurement, b: Measurement) {
+  return (
+    a.containerNode === b.containerNode &&
+    a.rowHeightPx === b.rowHeightPx &&
+    a.headerHeightPx === b.headerHeightPx
+  );
+}
 
 const STUDY_LABELS: Record<string, string> = {
   histopatologia: "Histopatología",
@@ -166,7 +201,7 @@ function matchesAdminReportFilters(
 
 export function AdminReportsCard() {
   const [reports, setReports] = useState<AdminReportWorkflowItem[]>([]);
-  const [page, setPage] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [busyReportId, setBusyReportId] = useState<number | null>(null);
@@ -179,31 +214,118 @@ export function AdminReportsCard() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // Mobile renders a smaller, independently paginated slice of the same
-  // server-side workflow queue. Desktop keeps its own PAGE_SIZE=9 fetch
-  // untouched so the dense viewport-safe contract stays pinned.
-  const [mobileReports, setMobileReports] = useState<AdminReportWorkflowItem[]>([]);
-  const [mobilePage, setMobilePage] = useState(0);
-  const [mobileHasMore, setMobileHasMore] = useState(false);
-  const [isMobileLoading, setIsMobileLoading] = useState(true);
-  // Start false so SSR and the client's first render agree. The media-query
-  // effect below promotes this to the real viewport value right after mount,
-  // which avoids a hydration mismatch on the mobile-only branches.
-  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  // One collapsed runtime feeds both presentations, so the visible container
+  // (desktop table region or mobile list region) drives a single cardinality.
+  // The old second `mobileReports` fetch pipeline (MOBILE_PAGE_SIZE=10 gated by
+  // matchMedia) is gone: no more double fetch, no more divergent limit/offset.
+  const [desktopBodyNode, setDesktopBodyNode] = useState<HTMLElement | null>(
+    null,
+  );
+  const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
+  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
+  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
+  const [measurement, setMeasurement] = useState<Measurement>({
+    containerNode: null,
+    rowHeightPx: REPORTS_ROW_HEIGHT_FALLBACK_PX,
+    headerHeightPx: 0,
+  });
+
+  const latestRequestRef = useRef(0);
+
+  useLayoutEffect(() => {
+    const nodes = [
+      desktopBodyNode,
+      mobileBodyNode,
+      desktopRowNode,
+      mobileRowNode,
+    ].filter((node): node is HTMLElement => node !== null);
+    if (nodes.length === 0) {
+      return;
+    }
+
+    let frame: number | null = null;
+
+    const recompute = () => {
+      frame = null;
+
+      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
+      if (mobileHeight > 0 && mobileBodyNode) {
+        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: mobileBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : REPORTS_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: 0,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+        return;
+      }
+
+      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
+      if (desktopHeight > 0 && desktopBodyNode) {
+        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: desktopBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : REPORTS_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: REPORTS_TABLE_HEADER_PX,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+      }
+    };
+
+    const scheduleRecompute = () => {
+      if (frame === null) {
+        frame = requestAnimationFrame(recompute);
+      }
+    };
+
+    const observer = new ResizeObserver(scheduleRecompute);
+    nodes.forEach((node) => observer.observe(node));
+    scheduleRecompute();
+
+    return () => {
+      observer.disconnect();
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
+
+  // The desktop table is pinned to nine populated rows at the shortest
+  // supported desktop viewport (1366×768) by the App Shell contract
+  // (`expectNinePopulatedRows`). A positive safety cushion could floor the
+  // measured fit to eight and break that contract, so the desktop context
+  // (detected by the discounted table header) keeps a floor of nine — matching
+  // the pre-adaptive fixed page size — while still adapting upward on taller
+  // viewports. The mobile list (no table header) keeps a floor of one so it can
+  // shrink freely on short phones. Same exception documented for Users/Roles
+  // (SRV-2); Clínicas (R-02) has no such contract and uses a floor of one.
+  const isDesktopMeasurement = measurement.headerHeightPx > 0;
+  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
+    containerNode: measurement.containerNode,
+    fallbackItems: REPORTS_FALLBACK_ROWS,
+    itemHeightPx: measurement.rowHeightPx,
+    headerHeightPx: measurement.headerHeightPx,
+    minItems: isDesktopMeasurement ? REPORTS_FALLBACK_ROWS : 1,
+    maxItems: REPORTS_SUPERSET_CAP,
+  });
+
+  // Effective server page size: at least the measured rows, capped at the
+  // superset ceiling. The hook already clamps to [minItems, REPORTS_SUPERSET_CAP].
+  const effectiveLimit = rowsPerPage;
 
   const selectedReport = useMemo(
-    () =>
-      reports.find((report) => report.id === selectedReportId) ??
-      mobileReports.find((report) => report.id === selectedReportId) ??
-      null,
-    [mobileReports, reports, selectedReportId],
+    () => reports.find((report) => report.id === selectedReportId) ?? null,
+    [reports, selectedReportId],
   );
 
   const hasActiveFilters = !isFilterStateEmpty(appliedFilters);
   const filteredReports = reports.filter((report) =>
-    matchesAdminReportFilters(report, appliedFilters),
-  );
-  const filteredMobileReports = mobileReports.filter((report) =>
     matchesAdminReportFilters(report, appliedFilters),
   );
   const deliveredCount = filteredReports.filter(
@@ -212,24 +334,40 @@ export function AdminReportsCard() {
   const specialStainCount = filteredReports.filter(
     (report) => report.specialStainRequested,
   ).length;
-  const rangeStart = filteredReports.length ? page * PAGE_SIZE + 1 : 0;
-  const rangeEnd = page * PAGE_SIZE + filteredReports.length;
+  // The report-workflow endpoint exposes no `total`, only `hasMore` per full
+  // page (PR-SRV-0 §6 rule 2): offset is clamped to ≥ 0 and next-page is driven
+  // by `hasMore`; there is no pageCount / jump-to-last.
+  const page = Math.floor(offset / effectiveLimit) + 1;
+  const hasPrev = offset > 0;
+  const hasNext = hasMore;
+  const rangeStart = filteredReports.length ? offset + 1 : 0;
+  const rangeEnd = offset + filteredReports.length;
 
-  const loadReports = useCallback(async (nextPage: number) => {
+  const query = useMemo(
+    () => ({ limit: effectiveLimit, offset }),
+    [effectiveLimit, offset],
+  );
+
+  const loadReports = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(null);
 
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
+
     try {
       const snapshot = await getAdminReportWorkflow({
-        limit: PAGE_SIZE,
-        offset: nextPage * PAGE_SIZE,
+        limit: query.limit,
+        offset: query.offset,
       });
+      if (requestId !== latestRequestRef.current) return;
       setReports(snapshot.reports);
       setHasMore(snapshot.pagination.hasMore);
       setSelectedReportId((current) =>
         snapshot.reports.some((report) => report.id === current) ? current : null,
       );
     } catch (error) {
+      if (requestId !== latestRequestRef.current) return;
       setReports([]);
       setHasMore(false);
       setSelectedReportId(null);
@@ -239,57 +377,38 @@ export function AdminReportsCard() {
           : "No se pudo cargar la cola de informes.",
       );
     } finally {
-      setIsLoading(false);
+      if (requestId === latestRequestRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, []);
+  }, [query]);
 
-  const loadMobileReports = useCallback(async (nextPage: number) => {
-    setIsMobileLoading(true);
-
-    try {
-      const snapshot = await getAdminReportWorkflow({
-        limit: MOBILE_PAGE_SIZE,
-        offset: nextPage * MOBILE_PAGE_SIZE,
-      });
-      setMobileReports(snapshot.reports);
-      setMobileHasMore(snapshot.pagination.hasMore);
-    } catch {
-      setMobileReports([]);
-      setMobileHasMore(false);
-    } finally {
-      setIsMobileLoading(false);
+  // Recompute offset when the effective limit changes so the same first record
+  // stays visible (PR-SRV-0 §6). No `total` clamp is possible here (endpoint
+  // exposes none), so only the `offset ≥ 0` floor applies; `hasMore` still
+  // gates the next page.
+  const previousLimitRef = useRef(effectiveLimit);
+  useEffect(() => {
+    if (previousLimitRef.current === effectiveLimit) {
+      return;
     }
-  }, []);
+    previousLimitRef.current = effectiveLimit;
+
+    setOffset((currentOffset) => {
+      const nextOffset = Math.max(
+        0,
+        Math.floor(currentOffset / effectiveLimit) * effectiveLimit,
+      );
+      return nextOffset === currentOffset ? currentOffset : nextOffset;
+    });
+  }, [effectiveLimit]);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 767px)");
-
-    const updateMobileViewport = () => {
-      setIsMobileViewport(mediaQuery.matches);
-    };
-
-    updateMobileViewport();
-    mediaQuery.addEventListener("change", updateMobileViewport);
-
-    return () => {
-      mediaQuery.removeEventListener("change", updateMobileViewport);
-    };
-  }, []);
-
-  useEffect(() => {
-    void loadReports(page);
-  }, [loadReports, page]);
-
-  useEffect(() => {
-    if (!isMobileViewport) return;
-    void loadMobileReports(mobilePage);
-  }, [isMobileViewport, loadMobileReports, mobilePage]);
+    void loadReports();
+  }, [loadReports]);
 
   function replaceReport(updated: AdminReportWorkflowItem) {
     setReports((current) =>
-      current.map((report) => (report.id === updated.id ? updated : report)),
-    );
-    setMobileReports((current) =>
       current.map((report) => (report.id === updated.id ? updated : report)),
     );
   }
@@ -349,17 +468,14 @@ export function AdminReportsCard() {
   async function handleUploaded(message: string) {
     setStatusMessage(message);
     setErrorMessage(null);
-    if (page === 0) {
-      await loadReports(0);
+    // Jump back to the first page after an upload. If offset is already 0,
+    // `query` won't change on its own, so reload directly; otherwise the offset
+    // change flows into `query` and the load effect reloads once (no double
+    // fetch).
+    if (offset === 0) {
+      await loadReports();
     } else {
-      setPage(0);
-    }
-    if (isMobileViewport) {
-      if (mobilePage === 0) {
-        await loadMobileReports(0);
-      } else {
-        setMobilePage(0);
-      }
+      setOffset(0);
     }
   }
 
@@ -383,17 +499,27 @@ export function AdminReportsCard() {
       from: filterDraft.from,
       to: filterDraft.to,
     });
-    setPage(0);
-    setMobilePage(0);
+    // Applying a filter resets the page to the first record (PR-SRV-0 §6.3);
+    // a cardinality change (resize/zoom) never touches the filters.
+    setOffset(0);
     setErrorMessage(null);
   }
 
   function clearAdvancedFilters() {
     setFilterDraft(INITIAL_FILTER_STATE);
     setAppliedFilters(INITIAL_FILTER_STATE);
-    setPage(0);
-    setMobilePage(0);
+    setOffset(0);
     setErrorMessage(null);
+  }
+
+  function goToPreviousPage() {
+    setErrorMessage(null);
+    setOffset(Math.max(offset - effectiveLimit, 0));
+  }
+
+  function goToNextPage() {
+    setErrorMessage(null);
+    setOffset(offset + effectiveLimit);
   }
 
   function renderAdvancedFilterForm(mobile = false) {
@@ -529,7 +655,7 @@ export function AdminReportsCard() {
             variant="outline"
             size="sm"
             className="h-8 px-2.5 text-xs md:h-7 md:px-2"
-            onClick={() => void loadReports(page)}
+            onClick={() => void loadReports()}
             disabled={isLoading || busyReportId !== null}
           >
             {isLoading ? (
@@ -569,12 +695,12 @@ export function AdminReportsCard() {
           </div>
           <span className="min-w-0 flex-1 truncate md:hidden">
             {hasActiveFilters
-              ? `${filteredMobileReports.length} filtrados`
-              : `${mobileReports.length} en página`}
+              ? `${filteredReports.length} filtrados`
+              : `${filteredReports.length} en página`}
           </span>
           <div className="flex shrink-0 items-center gap-1.5">
             <span className="hidden tabular-nums md:inline">
-              {hasActiveFilters ? "Filtros activos" : `Página ${page + 1}`}
+              {hasActiveFilters ? "Filtros activos" : `Página ${page}`}
             </span>
             <div className="md:hidden">
               <ModuleDialog
@@ -609,7 +735,10 @@ export function AdminReportsCard() {
           aria-label="Cola administrativa de informes"
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="dashboard-table-responsive hidden min-h-0 flex-1 md:block">
+          <div
+            ref={setDesktopBodyNode}
+            className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
+          >
             {filteredReports.length ? (
               <Table className="table-fixed text-xs [&_th]:h-7 [&_th]:px-2 [&_td]:px-2">
                 <TableHeader>
@@ -624,8 +753,11 @@ export function AdminReportsCard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredReports.map((report) => (
-                    <TableRow key={report.id}>
+                  {filteredReports.map((report, index) => (
+                    <TableRow
+                      key={report.id}
+                      ref={index === 0 ? setDesktopRowNode : undefined}
+                    >
                       <TableCell className="py-0.5">
                         <p className="truncate font-medium text-vetneb-ink">
                           {report.patientName || "Paciente sin registrar"}
@@ -688,51 +820,51 @@ export function AdminReportsCard() {
             className="flex min-h-0 flex-1 flex-col gap-2 md:hidden"
             data-admin-mobile-core-module="reports"
           >
-            {filteredMobileReports.length ? (
-              <>
-                <div
-                  className="divide-y divide-vetneb-line/60 overflow-hidden rounded-md border border-vetneb-line/75"
-                  data-admin-reports-mobile-list="true"
-                >
-                  {filteredMobileReports.map((report) => (
-                    <div
-                      key={report.id}
-                      className="flex min-h-9 items-center gap-2 px-2.5 py-0.5"
-                      data-admin-mobile-core-item="true"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-semibold">
-                          #{report.id} · {report.patientName || "Sin paciente"}
-                        </p>
-                        <p className="truncate text-[0.6875rem] text-muted-foreground">
-                          {report.clinicName || `Clínica #${report.clinicId}`} · {studyLabel(report.studyType)}
-                        </p>
-                      </div>
-                      <AdminReportStatusBadge stage={report.workflowStage} />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => setSelectedReportId(report.id)}
-                      >
-                        Ver
-                      </Button>
+            <div
+              ref={setMobileBodyNode}
+              className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-md border border-vetneb-line/75"
+              data-admin-reports-mobile-list="true"
+            >
+              {filteredReports.length ? (
+                filteredReports.map((report, index) => (
+                  <div
+                    key={report.id}
+                    ref={index === 0 ? setMobileRowNode : undefined}
+                    className="flex min-h-9 items-center gap-2 px-2.5 py-0.5"
+                    data-admin-mobile-core-item="true"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold">
+                        #{report.id} · {report.patientName || "Sin paciente"}
+                      </p>
+                      <p className="truncate text-[0.6875rem] text-muted-foreground">
+                        {report.clinicName || `Clínica #${report.clinicId}`} · {studyLabel(report.studyType)}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </>
-            ) : isMobileViewport ? (
-              <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
-                {isMobileLoading
-                  ? "Cargando informes…"
-                  : hasActiveFilters
-                    ? "No hay informes que coincidan con los filtros aplicados."
-                    : "No hay informes en esta página."}
-              </p>
-            ) : null}
+                    <AdminReportStatusBadge stage={report.workflowStage} />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setSelectedReportId(report.id)}
+                    >
+                      Ver
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <p className="surface-empty flex min-h-20 flex-1 items-center justify-center text-xs">
+                  {isLoading
+                    ? "Cargando informes…"
+                    : hasActiveFilters
+                      ? "No hay informes que coincidan con los filtros aplicados."
+                      : "No hay informes en esta página."}
+                </p>
+              )}
+            </div>
 
-            {mobileReports.length ? (
+            {filteredReports.length || hasPrev ? (
               <div
                 className="flex shrink-0 items-center justify-center gap-1.5 border-t border-vetneb-line/65 pt-1.5 text-xs text-muted-foreground"
                 data-admin-mobile-core-pager="true"
@@ -742,20 +874,20 @@ export function AdminReportsCard() {
                   variant="outline"
                   size="sm"
                   className="h-9 px-2.5 text-xs"
-                  disabled={mobilePage === 0 || isMobileLoading}
-                  onClick={() => setMobilePage((current) => Math.max(0, current - 1))}
+                  disabled={!hasPrev || isLoading}
+                  onClick={goToPreviousPage}
                   aria-label="Página anterior"
                 >
                   Anterior
                 </Button>
-                <span className="min-w-12 text-center">Pág. {mobilePage + 1}</span>
+                <span className="min-w-12 text-center">Pág. {page}</span>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="h-9 px-2.5 text-xs"
-                  disabled={!mobileHasMore || isMobileLoading}
-                  onClick={() => setMobilePage((current) => current + 1)}
+                  disabled={!hasNext || isLoading}
+                  onClick={goToNextPage}
                   aria-label="Página siguiente"
                 >
                   Siguiente
@@ -769,7 +901,7 @@ export function AdminReportsCard() {
             aria-label="Paginación de informes admin"
           >
             <span>
-              {filteredReports.length ? `${rangeStart}–${rangeEnd}` : "0 resultados"} · {PAGE_SIZE} por página
+              {filteredReports.length ? `${rangeStart}–${rangeEnd}` : "0 resultados"} · {effectiveLimit} por página
             </span>
             <div className="flex items-center gap-1.5">
               <Button
@@ -777,20 +909,20 @@ export function AdminReportsCard() {
                 variant="outline"
                 size="sm"
                 className="h-8 w-8 p-0 md:h-7 md:w-7"
-                disabled={page === 0 || isLoading}
-                onClick={() => setPage((current) => Math.max(0, current - 1))}
+                disabled={!hasPrev || isLoading}
+                onClick={goToPreviousPage}
                 aria-label="Página anterior"
               >
                 <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
-              <span className="min-w-16 text-center">Página {page + 1}</span>
+              <span className="min-w-16 text-center">Página {page}</span>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="h-8 w-8 p-0 md:h-7 md:w-7"
-                disabled={!hasMore || isLoading}
-                onClick={() => setPage((current) => current + 1)}
+                disabled={!hasNext || isLoading}
+                onClick={goToNextPage}
                 aria-label="Página siguiente"
               >
                 <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
