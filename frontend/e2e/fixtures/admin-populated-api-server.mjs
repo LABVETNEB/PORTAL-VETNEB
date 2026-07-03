@@ -145,7 +145,14 @@ const CLINIC_FIELD_VISITS = [
   },
 ];
 
-const AUDIT_EVENTS = [
+// PR-R06: audit is RF debounced (high-volume, no over-fetch superset), so the
+// mobile adaptive list can request a limit up to ADMIN_AUDIT_LIMIT_CAP (32).
+// The base 11 hand-authored entries are cycled to reach the fixture's
+// declared unfiltered total (47) so any adaptive offset/limit within that
+// range slices real rows instead of running off the end of the array.
+const AUDIT_EVENTS_TOTAL = 47;
+
+const AUDIT_EVENTS_BASE = [
   {
     event: "auth.admin.login.succeeded",
     action: "Inicio de sesión administrativo",
@@ -284,7 +291,9 @@ const AUDIT_EVENTS = [
     reportId: 7309,
     metadata: { previousStatus: "pending", newStatus: "delivered" },
   },
-].map((entry, index) => ({
+];
+
+const AUDIT_EVENTS = Array.from({ length: AUDIT_EVENTS_TOTAL }, (_, index) => ({
   id: 9900 - index,
   action: null,
   entity: null,
@@ -305,7 +314,7 @@ const AUDIT_EVENTS = [
   userAgent: null,
   metadata: null,
   createdAt: new Date(Date.UTC(2026, 5, 18, 14 - index, 30)).toISOString(),
-  ...entry,
+  ...AUDIT_EVENTS_BASE[index % AUDIT_EVENTS_BASE.length],
 }));
 
 const TOKENS = Array.from({ length: 9 }, (_, index) => ({
@@ -610,7 +619,7 @@ function auditSnapshot(url) {
     ? 6
     : event === "study_tracking.notification.created"
       ? 4
-      : 47;
+      : AUDIT_EVENTS_TOTAL;
 
   return {
     success: true,

@@ -5,18 +5,19 @@ import test from "node:test";
 
 const ADMIN_PAGE = "frontend/src/app/dashboard/admin/page.tsx";
 const AUDIT_SHARED = "frontend/src/app/dashboard/admin/admin-audit-shared.ts";
+const AUDIT_ACTIONS = "frontend/src/app/dashboard/admin/admin-audit.actions.ts";
 const AUDIT_CARD = "frontend/src/app/dashboard/admin/AdminAuditCard.tsx";
+const AUDIT_MOBILE = "frontend/src/app/dashboard/admin/AdminMobileAuditModule.tsx";
 const AUDIT_TABLE = "frontend/src/app/dashboard/admin/AdminAuditDenseTable.tsx";
 const AUDIT_FILTER = "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx";
 const AUDIT_DETAIL = "frontend/src/app/dashboard/admin/AdminAuditDetailDialog.tsx";
-const API_CLIENT = "frontend/src/lib/api.ts";
 const GLOBALS_CSS = "frontend/src/app/globals.css";
 
 function read(path: string) {
   return readFileSync(resolve(process.cwd(), path), "utf8").replace(/\r\n/g, "\n");
 }
 
-test("PR-6 preserves the real audit-log navigation surface", () => {
+test("R-06 preserves the real audit-log navigation surface", () => {
   const page = read(ADMIN_PAGE);
   const card = read(AUDIT_CARD);
 
@@ -29,26 +30,44 @@ test("PR-6 preserves the real audit-log navigation surface", () => {
   assert.ok(card.includes("dashboard-surface"));
 });
 
-test("PR-6 uses viewport-safe server pagination and existing filters", () => {
-  const page = read(ADMIN_PAGE);
+test("R-06 uses RF debounced viewport-adaptive pagination and existing filters", () => {
   const card = read(AUDIT_CARD);
   const filter = read(AUDIT_FILTER);
-  const api = read(API_CLIENT);
 
-  assert.ok(card.includes("export const ADMIN_AUDIT_PAGE_SIZE = 9;"));
-  assert.ok(page.includes("limit: ADMIN_AUDIT_PAGE_SIZE"));
-  assert.ok(page.includes("offset: (auditPage - 1) * ADMIN_AUDIT_PAGE_SIZE"));
-  assert.ok(page.includes("snapshot: await getAuditEntries(query, options, { throwOnError: true })"));
-  assert.ok(api.includes("function buildAdminAuditQueryString"));
-  assert.ok(api.includes('["clinicId", "reportId", "limit", "offset"]'));
-  assert.ok(api.includes('query.set(key, String(value))'));
+  assert.ok(card.includes('"use client"'));
+  assert.ok(card.includes("export const ADMIN_AUDIT_FALLBACK_ROWS = 9;"));
+  assert.ok(card.includes("export const ADMIN_AUDIT_LIMIT_CAP = 32;"));
+  assert.ok(card.includes("useAdaptiveItemsPerPage"));
+  assert.ok(card.includes("effectiveLimit = rowsPerPage"));
+  assert.ok(card.includes("getAdminAuditPage(query)"));
+  assert.ok(card.includes("latestRequestRef"));
+  assert.ok(card.includes("previousLimitRef"));
+  assert.equal(card.includes("window.matchMedia"), false);
+  assert.equal(card.includes("MOBILE_PAGE_SIZE"), false);
+  assert.equal(card.includes("PublicRouteControl"), false);
+  assert.equal(card.includes("buildAuditPageHref"), false);
   for (const name of ["event", "actorType", "from", "to", "clinicId", "reportId"]) {
     assert.ok(filter.includes(`name="${name}"`), `missing ${name} filter`);
   }
   assert.equal(card.includes("PAGE_SIZE_OPTIONS"), false);
 });
 
-test("PR-6 audit surfaces keep enterprise density tokens", () => {
+test("R-06 collapses AdminMobileAuditModule into a single shared-data pipeline", () => {
+  const mobile = read(AUDIT_MOBILE);
+  const card = read(AUDIT_CARD);
+
+  assert.equal(mobile.includes("getAdminMobileAuditPage"), false);
+  assert.equal(mobile.includes("useState<AdminMobileAuditPage>"), false);
+  assert.equal(mobile.includes("useTransition"), false);
+  assert.ok(mobile.includes("rows: AdminAuditRow[]"));
+  assert.ok(mobile.includes("onPrevious"));
+  assert.ok(mobile.includes("onNext"));
+  assert.ok(card.includes("<AdminMobileAuditModule"));
+  assert.ok(card.includes("bodyRef={setMobileBodyNode}"));
+  assert.ok(card.includes("desktopBodyRef={setDesktopBodyNode}"));
+});
+
+test("R-06 audit surfaces keep enterprise density tokens", () => {
   const sources = [AUDIT_CARD, AUDIT_TABLE, AUDIT_FILTER, AUDIT_DETAIL].map(read);
   const combined = sources.join("\n");
 
@@ -73,14 +92,14 @@ test("PR-6 audit surfaces keep enterprise density tokens", () => {
   assert.ok(combined.includes("[&_th]:h-8"));
 });
 
-test("PR-6 uses controlled detail without raw sensitive audit fields", () => {
-  const page = read(ADMIN_PAGE);
+test("R-06 uses controlled detail without raw sensitive audit fields", () => {
   const auditShared = read(AUDIT_SHARED);
+  const actions = read(AUDIT_ACTIONS);
   const detail = read(AUDIT_DETAIL);
   const table = read(AUDIT_TABLE);
-  const rowStart = page.indexOf("const auditRows: AdminAuditRow[]");
-  const rowEnd = page.indexOf("const latestAuditEntry", rowStart);
-  const rowProjection = page.slice(rowStart, rowEnd);
+  const rowStart = actions.indexOf("function buildAuditRow(");
+  const rowEnd = actions.indexOf("\n}", rowStart);
+  const rowProjection = actions.slice(rowStart, rowEnd);
 
   assert.ok(table.includes("<AdminAuditDetailDialog row={row} />"));
   assert.ok(detail.includes("<ModuleDialog"));
@@ -91,6 +110,7 @@ test("PR-6 uses controlled detail without raw sensitive audit fields", () => {
   assert.equal(rowProjection.includes("userAgent"), false);
   assert.equal(rowProjection.includes("requestId"), false);
   assert.equal(rowProjection.includes("metadata:"), false);
+  assert.ok(actions.includes('"use server"'));
   assert.ok(auditShared.includes('return "Dato estructurado omitido";'));
   assert.ok(auditShared.includes('"password"'));
   assert.ok(auditShared.includes('"token"'));
@@ -99,8 +119,8 @@ test("PR-6 uses controlled detail without raw sensitive audit fields", () => {
   assert.ok(auditShared.includes('"session"'));
 });
 
-test("PR-6 does not introduce logging, public fetches, or regional scroll", () => {
-  const sources = [AUDIT_CARD, AUDIT_TABLE, AUDIT_FILTER, AUDIT_DETAIL];
+test("R-06 does not introduce logging, public fetches, or regional scroll", () => {
+  const sources = [AUDIT_CARD, AUDIT_MOBILE, AUDIT_TABLE, AUDIT_FILTER, AUDIT_DETAIL];
   const combined = sources.map(read).join("\n");
   const css = read(GLOBALS_CSS);
   const mainStart = css.indexOf("  .dashboard-main {");

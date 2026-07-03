@@ -27,77 +27,78 @@ type AdminAuditDenseTableProps = {
   rows: AdminAuditRow[];
   loadError: boolean;
   hasActiveFilters: boolean;
+  // Measurement hooks for the Zero-Scroll adaptive contract (viewport-safe
+  // server pagination). The desktop body wraps the table region measured to
+  // derive `effectiveLimit`; the first row is measured for real row height.
+  desktopBodyRef?: (node: HTMLElement | null) => void;
+  desktopRowRef?: (node: HTMLElement | null) => void;
 };
 
 export function AdminAuditDenseTable({
   rows,
   loadError,
   hasActiveFilters,
+  desktopBodyRef,
+  desktopRowRef,
 }: AdminAuditDenseTableProps) {
   const emptyMessage = hasActiveFilters
     ? "No hay eventos para los filtros seleccionados."
     : "No hay eventos de auditoría disponibles.";
 
-  if (loadError) {
-    return (
-      <div className="mx-3 flex min-h-24 items-center justify-center rounded-lg border border-vetneb-line/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground sm:mx-4" role="alert">
-        No se pudieron cargar los eventos. Reintentá la consulta.
-      </div>
-    );
-  }
-
-  if (!rows.length) {
-    return (
-      <div className="mx-3 flex min-h-24 items-center justify-center rounded-lg border border-vetneb-line/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground sm:mx-4">
-        {emptyMessage}
-      </div>
-    );
-  }
-
   return (
     <>
-      <div className="dashboard-fitted-table hidden px-3 md:block sm:px-4">
-        <Table className="table-fixed text-[13px] [&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[9.5rem]">Fecha</TableHead>
-              <TableHead className="w-[10rem]">Actor</TableHead>
-              <TableHead className="w-[12rem]">Acción</TableHead>
-              <TableHead className="hidden w-[10rem] lg:table-cell">Entidad</TableHead>
-              <TableHead className="hidden xl:table-cell">Detalle</TableHead>
-              <TableHead className="w-[4.5rem] text-right">Acción</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="truncate text-xs text-muted-foreground">
-                  {row.date}
-                </TableCell>
-                <TableCell className="truncate font-medium text-vetneb-ink">
-                  {row.actor}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant={row.eventVariant}
-                    className="h-5 max-w-full truncate px-1.5 text-[11px] font-medium"
-                  >
-                    {row.eventLabel}
-                  </Badge>
-                </TableCell>
-                <TableCell className="hidden truncate text-xs text-muted-foreground lg:table-cell">
-                  {row.entity}
-                </TableCell>
-                <TableCell className="hidden truncate text-xs text-muted-foreground xl:table-cell">
-                  {row.detail}
-                </TableCell>
-                <TableCell className="text-right">
-                  <AdminAuditDetailDialog row={row} />
-                </TableCell>
+      <div ref={desktopBodyRef} className="dashboard-fitted-table hidden px-3 md:block sm:px-4">
+        {loadError ? (
+          <div className="mx-0 flex min-h-24 items-center justify-center rounded-lg border border-vetneb-line/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground" role="alert">
+            No se pudieron cargar los eventos. Reintentá la consulta.
+          </div>
+        ) : !rows.length ? (
+          <div className="mx-0 flex min-h-24 items-center justify-center rounded-lg border border-vetneb-line/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground">
+            {emptyMessage}
+          </div>
+        ) : (
+          <Table className="table-fixed text-[13px] [&_td]:h-9 [&_td]:px-2 [&_td]:py-1 [&_th]:h-8 [&_th]:px-2 [&_th]:text-xs [&_th]:font-semibold">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[9.5rem]">Fecha</TableHead>
+                <TableHead className="w-[10rem]">Actor</TableHead>
+                <TableHead className="w-[12rem]">Acción</TableHead>
+                <TableHead className="hidden w-[10rem] lg:table-cell">Entidad</TableHead>
+                <TableHead className="hidden xl:table-cell">Detalle</TableHead>
+                <TableHead className="w-[4.5rem] text-right">Acción</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row, index) => (
+                <TableRow key={row.id} ref={index === 0 ? desktopRowRef : undefined}>
+                  <TableCell className="truncate text-xs text-muted-foreground">
+                    {row.date}
+                  </TableCell>
+                  <TableCell className="truncate font-medium text-vetneb-ink">
+                    {row.actor}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={row.eventVariant}
+                      className="h-5 max-w-full truncate px-1.5 text-[11px] font-medium"
+                    >
+                      {row.eventLabel}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="hidden truncate text-xs text-muted-foreground lg:table-cell">
+                    {row.entity}
+                  </TableCell>
+                  <TableCell className="hidden truncate text-xs text-muted-foreground xl:table-cell">
+                    {row.detail}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <AdminAuditDetailDialog row={row} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
       <div className="divide-y divide-vetneb-line/70 border-y border-vetneb-line/70 md:hidden">

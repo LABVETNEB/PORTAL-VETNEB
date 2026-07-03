@@ -140,6 +140,7 @@ test("dashboard admin forwards cookies and performs no-store admin reads", () =>
 test("dashboard admin keeps URL-backed server audit filters", () => {
   const source = read(ADMIN_PAGE_PATH);
   const filterSource = read(ADMIN_AUDIT_FILTER_PATH);
+  const cardSource = read(ADMIN_AUDIT_CARD_PATH);
 
   assert.ok(source.includes("type AdminPageSearchParams = {"));
   assert.ok(source.includes("event?: string;"));
@@ -148,11 +149,13 @@ test("dashboard admin keeps URL-backed server audit filters", () => {
   assert.ok(source.includes("to?: string;"));
   assert.ok(source.includes("clinicId?: string;"));
   assert.ok(source.includes("reportId?: string;"));
-  assert.ok(source.includes("auditPage?: string;"));
+  assert.equal(source.includes("auditPage?: string;"), false);
   assert.ok(source.includes("function normalizeAuditFilter(value: string | string[] | undefined)"));
-  assert.ok(source.includes("const auditQuery: AdminAuditQuery = {"));
-  assert.ok(source.includes("limit: ADMIN_AUDIT_PAGE_SIZE"));
-  assert.ok(source.includes("offset: (auditPage - 1) * ADMIN_AUDIT_PAGE_SIZE"));
+  // R-06: pagination (offset/limit) moved client-side into AdminAuditCard
+  // (RF debounced, viewport-adaptive); page.tsx only resolves filters now.
+  assert.equal(source.includes("const auditQuery: AdminAuditQuery = {"), false);
+  assert.equal(source.includes("ADMIN_AUDIT_PAGE_SIZE"), false);
+  assert.ok(cardSource.includes("limit: effectiveLimit"));
   assert.ok(filterSource.includes('action="/dashboard/admin"'));
   assert.ok(filterSource.includes('name="event"'));
   assert.ok(filterSource.includes('name="actorType"'));
@@ -305,12 +308,18 @@ test("dashboard admin renders role-change summary and dense audit table", () => 
 
 test("dashboard admin distinguishes audit log load failures from empty states", () => {
   const source = read(ADMIN_PAGE_PATH);
+  const actionsSource = read(
+    "frontend/src/app/dashboard/admin/admin-audit.actions.ts",
+  );
   const tableSource = read(ADMIN_AUDIT_TABLE_PATH);
 
-  // Server-side: page.tsx shapes safe rows and forwards the load-error flag.
-  assert.ok(source.includes("loadError={auditEntriesLoadError}"));
-  assert.ok(source.includes("getAuditMetadataSummary(entry)"));
-  assert.ok(source.includes("formatAuditDate(entry.createdAt)"));
+  // R-06: rows/load-error now come from the shared server action
+  // (`getAdminAuditPage`), called client-side by `AdminAuditCard` — page.tsx
+  // no longer shapes the paginated list itself.
+  assert.ok(actionsSource.includes("loadError: false,"));
+  assert.ok(actionsSource.includes("loadError: true"));
+  assert.ok(actionsSource.includes("getAuditMetadataSummary(entry)"));
+  assert.ok(actionsSource.includes("formatAuditDate(entry.createdAt)"));
   assert.equal(source.includes("fetch("), false);
 
   // Client table distinguishes load failures from empty states.

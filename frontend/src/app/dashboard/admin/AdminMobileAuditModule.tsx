@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { AdminAuditDetailDialog } from "./AdminAuditDetailDialog";
 import {
@@ -8,9 +7,7 @@ import {
   type AdminAuditFilterValues,
 } from "./AdminAuditFilterBar";
 import { AdminMobileOpsPager } from "./AdminMobileOpsPager";
-import { getAdminMobileAuditPage, type AdminMobileAuditPage } from "./admin-audit-mobile.actions";
-
-const MOBILE_PAGE_SIZE = 10;
+import type { AdminAuditRow } from "./AdminAuditDenseTable";
 
 type FilterOption = {
   value: string;
@@ -24,9 +21,19 @@ type AdminMobileAuditModuleProps = {
   globalTotal: number;
   roleChangesTotal: number;
   notificationsTotal: number;
+  // Single source of truth (`AdminAuditCard`): this module only renders the
+  // rows/pager state it receives, it never fetches on its own.
+  rows: AdminAuditRow[];
+  totalCount: number;
+  loadError: boolean;
+  isPending: boolean;
+  offset: number;
+  effectiveLimit: number;
+  onPrevious: () => void;
+  onNext: () => void;
+  bodyRef: (node: HTMLElement | null) => void;
+  rowRef: (node: HTMLElement | null) => void;
 };
-
-const EMPTY_PAGE: AdminMobileAuditPage = { rows: [], total: 0, loadError: false };
 
 export function AdminMobileAuditModule({
   filters,
@@ -35,41 +42,25 @@ export function AdminMobileAuditModule({
   globalTotal,
   roleChangesTotal,
   notificationsTotal,
+  rows,
+  totalCount,
+  loadError,
+  isPending,
+  offset,
+  effectiveLimit,
+  onPrevious,
+  onNext,
+  bodyRef,
+  rowRef,
 }: AdminMobileAuditModuleProps) {
-  const [offset, setOffset] = useState(0);
-  const [page, setPage] = useState<AdminMobileAuditPage>(EMPTY_PAGE);
-  const [isPending, startTransition] = useTransition();
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
-  function loadPage(nextOffset: number) {
-    startTransition(() => {
-      void (async () => {
-        const result = await getAdminMobileAuditPage({
-          ...(filters.event ? { event: filters.event } : {}),
-          ...(filters.actorType ? { actorType: filters.actorType } : {}),
-          ...(filters.from ? { from: `${filters.from}T00:00:00.000Z` } : {}),
-          ...(filters.to ? { to: `${filters.to}T23:59:59.999Z` } : {}),
-          ...(filters.clinicId ? { clinicId: Number(filters.clinicId) } : {}),
-          ...(filters.reportId ? { reportId: Number(filters.reportId) } : {}),
-          limit: MOBILE_PAGE_SIZE,
-          offset: nextOffset,
-        });
-        setPage(result);
-        setOffset(nextOffset);
-      })();
-    });
-  }
-
-  useEffect(() => {
-    loadPage(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]);
-
-  const pageCount = Math.max(1, Math.ceil(page.total / MOBILE_PAGE_SIZE));
-  const currentPage = Math.floor(offset / MOBILE_PAGE_SIZE) + 1;
-  const rangeStart = page.rows.length ? offset + 1 : 0;
-  const rangeEnd = offset + page.rows.length;
-  const hasNext = rangeEnd < page.total;
+  const pageCount = Math.max(1, Math.ceil(totalCount / effectiveLimit));
+  const currentPage = Math.min(Math.floor(offset / effectiveLimit) + 1, pageCount);
+  const rangeStart = rows.length ? offset + 1 : 0;
+  const rangeEnd = offset + rows.length;
+  const hasPrevious = offset > 0;
+  const hasNext = rangeEnd < totalCount;
 
   return (
     <section
@@ -99,15 +90,16 @@ export function AdminMobileAuditModule({
         hasActiveFilters={hasActiveFilters}
       />
 
-      <div className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden">
-        {page.loadError ? (
+      <div ref={bodyRef} className="min-h-0 flex-1 divide-y divide-vetneb-line/70 overflow-hidden">
+        {loadError ? (
           <div className="flex h-full items-center justify-center px-4 text-center text-xs text-destructive" role="alert">
             No se pudieron cargar los eventos.
           </div>
-        ) : page.rows.length ? (
-          page.rows.map((row) => (
+        ) : rows.length ? (
+          rows.map((row, index) => (
             <article
               key={row.id}
+              ref={index === 0 ? rowRef : undefined}
               data-admin-mobile-ops-item="true"
               className="flex min-h-9 items-center gap-2 overflow-hidden px-2 py-0.5"
             >
@@ -145,12 +137,12 @@ export function AdminMobileAuditModule({
         ariaLabel="Paginación de auditoría"
         page={currentPage}
         pageCount={pageCount}
-        rangeLabel={page.rows.length ? `${rangeStart}–${rangeEnd} de ${page.total}` : "Sin eventos"}
-        previousDisabled={offset === 0 || isPending}
+        rangeLabel={rows.length ? `${rangeStart}–${rangeEnd} de ${totalCount}` : "Sin eventos"}
+        previousDisabled={!hasPrevious || isPending}
         nextDisabled={!hasNext || isPending}
-        disabled={page.loadError}
-        onPrevious={() => loadPage(Math.max(0, offset - MOBILE_PAGE_SIZE))}
-        onNext={() => loadPage(offset + MOBILE_PAGE_SIZE)}
+        disabled={loadError}
+        onPrevious={onPrevious}
+        onNext={onNext}
       />
     </section>
   );

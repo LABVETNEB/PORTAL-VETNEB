@@ -33,13 +33,11 @@ import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { Button } from "@/components/ui/button";
 import {
   AdminAuditCard,
-  ADMIN_AUDIT_PAGE_SIZE,
+  ADMIN_AUDIT_FALLBACK_ROWS,
 } from "./AdminAuditCard";
-import type { AdminAuditRow } from "./AdminAuditDenseTable";
 import {
   getAdminSystemHealth,
   getAuditEntries,
-  type AdminAuditEntry,
   type AdminAuditQuery,
   type AdminAuditSnapshot,
 } from "@/lib/api";
@@ -49,11 +47,8 @@ import { formatDateTime } from "@/lib/utils";
 import {
   EVENT_LABELS,
   ACTOR_LABELS,
-  getEventVariant,
-  getAuditMetadataSummary,
   formatAuditDate,
   getAuditActor,
-  getAuditEntity,
 } from "./admin-audit-shared";
 
 export const metadata: Metadata = {
@@ -213,7 +208,6 @@ type AdminPageSearchParams = {
   to?: string;
   clinicId?: string;
   reportId?: string;
-  auditPage?: string;
 };
 
 function normalizeAuditFilter(value: string | string[] | undefined) {
@@ -231,18 +225,13 @@ function normalizeAuditId(value: string | string[] | undefined) {
   return /^[1-9]\d*$/.test(normalized) ? normalized : "";
 }
 
-function parseAuditPage(value: string | string[] | undefined) {
-  const normalized = Number.parseInt(normalizeAuditFilter(value), 10);
-  return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : 1;
-}
-
 function createEmptyAuditSnapshot(query: AdminAuditQuery): AdminAuditSnapshot {
   return {
     success: true,
     count: 0,
     items: [],
     pagination: {
-      limit: query.limit ?? ADMIN_AUDIT_PAGE_SIZE,
+      limit: query.limit ?? ADMIN_AUDIT_FALLBACK_ROWS,
       offset: query.offset ?? 0,
       total: 0,
     },
@@ -312,7 +301,6 @@ export default async function AdminPage({
   const selectedAuditTo = normalizeAuditDate(resolvedSearchParams.to);
   const selectedAuditClinicId = normalizeAuditId(resolvedSearchParams.clinicId);
   const selectedAuditReportId = normalizeAuditId(resolvedSearchParams.reportId);
-  const auditPage = parseAuditPage(resolvedSearchParams.auditPage);
   const auditFilters = {
     event: selectedAuditEvent,
     actorType: selectedActorType,
@@ -321,27 +309,15 @@ export default async function AdminPage({
     clinicId: selectedAuditClinicId,
     reportId: selectedAuditReportId,
   };
-  const auditQuery: AdminAuditQuery = {
-    ...(selectedAuditEvent ? { event: selectedAuditEvent } : {}),
-    ...(selectedActorType ? { actorType: selectedActorType } : {}),
-    ...(selectedAuditFrom ? { from: `${selectedAuditFrom}T00:00:00.000Z` } : {}),
-    ...(selectedAuditTo ? { to: `${selectedAuditTo}T23:59:59.999Z` } : {}),
-    ...(selectedAuditClinicId ? { clinicId: Number(selectedAuditClinicId) } : {}),
-    ...(selectedAuditReportId ? { reportId: Number(selectedAuditReportId) } : {}),
-    limit: ADMIN_AUDIT_PAGE_SIZE,
-    offset: (auditPage - 1) * ADMIN_AUDIT_PAGE_SIZE,
-  };
   const requestOptions = await getAdminRequestOptions();
   const [
-    auditRead,
     auditOverviewRead,
     roleChangeRead,
     notificationRead,
     systemHealthRead,
   ] = await Promise.all([
-    loadAdminAuditSnapshot(auditQuery, requestOptions),
     loadAdminAuditSnapshot(
-      { limit: ADMIN_AUDIT_PAGE_SIZE, offset: 0 },
+      { limit: ADMIN_AUDIT_FALLBACK_ROWS, offset: 0 },
       requestOptions,
     ),
     loadAdminAuditSnapshot(
@@ -354,16 +330,13 @@ export default async function AdminPage({
     ),
     loadAdminSystemHealth(requestOptions),
   ]);
-  const auditSnapshot = auditRead.snapshot;
-  const auditEntriesLoadError = auditRead.loadError;
   const auditOverviewSnapshot = auditOverviewRead.snapshot;
   const roleChangeSnapshot = roleChangeRead.snapshot;
   const notificationSnapshot = notificationRead.snapshot;
   const systemHealth = systemHealthRead.snapshot;
   const initialAccessErrorStatus =
     initialModule === "audit-log"
-      ? auditRead.accessErrorStatus ??
-        auditOverviewRead.accessErrorStatus ??
+      ? auditOverviewRead.accessErrorStatus ??
         roleChangeRead.accessErrorStatus ??
         notificationRead.accessErrorStatus
       : initialModule === "admin-health"
@@ -394,19 +367,6 @@ export default async function AdminPage({
     label,
   }));
 
-  // Only safe, display-ready values cross the server/client boundary. Network,
-  // session and raw metadata fields stay on the server.
-  const auditRows: AdminAuditRow[] = auditSnapshot.items.map((entry) => ({
-    id: entry.id,
-    eventCode: entry.event,
-    eventLabel: EVENT_LABELS[entry.event] ?? entry.event,
-    eventVariant: getEventVariant(entry.event),
-    actor: getAuditActor(entry),
-    action: entry.action ?? EVENT_LABELS[entry.event] ?? entry.event,
-    entity: getAuditEntity(entry),
-    detail: getAuditMetadataSummary(entry),
-    date: formatAuditDate(entry.createdAt),
-  }));
   const latestAuditEntry = auditOverviewSnapshot.items[0];
   const recentAdminActivity = latestAuditEntry
     ? {
@@ -760,10 +720,6 @@ export default async function AdminPage({
   // ── Auditoría workspace ─────────────────────────────────────────────────────
   const auditLogWorkspaceSlot = (
     <AdminAuditCard
-      rows={auditRows}
-      totalCount={auditSnapshot.pagination.total}
-      page={auditPage}
-      loadError={auditEntriesLoadError}
       filters={auditFilters}
       eventOptions={auditEventOptions}
       actorTypeOptions={actorTypeOptions}
