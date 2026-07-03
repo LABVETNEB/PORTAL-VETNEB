@@ -145,6 +145,45 @@ const CLINIC_FIELD_VISITS = [
   },
 ];
 
+// R-13: only served when the request carries an explicit limit/offset
+// querystring (the adaptive rutas/page.tsx contract always sends both), so
+// the pre-existing unconditional-2-arg call sites (getDashboardStats,
+// dashboard/logistica hub, metricas) keep hitting the unhandled path below
+// and preserve the "no route-plans fixture" invariant already asserted by
+// dashboard-clinic-module-state-parity.spec.ts.
+const CLINIC_ROUTE_PLANS = [
+  {
+    id: 8601,
+    name: "Ruta Zona Norte",
+    status: "released",
+    plannedDate: "2026-06-21T09:00:00.000Z",
+    totalStops: 8,
+    completedStops: 3,
+    createdAt: "2026-06-17T10:00:00.000Z",
+    updatedAt: "2026-06-19T11:00:00.000Z",
+  },
+  {
+    id: 8602,
+    name: "Ruta Zona Sur",
+    status: "in_progress",
+    plannedDate: "2026-06-20T08:30:00.000Z",
+    totalStops: 5,
+    completedStops: 2,
+    createdAt: "2026-06-16T09:00:00.000Z",
+    updatedAt: "2026-06-19T14:20:00.000Z",
+  },
+  {
+    id: 8603,
+    name: "Ruta Zona Oeste",
+    status: "completed",
+    plannedDate: "2026-06-18T07:45:00.000Z",
+    totalStops: 10,
+    completedStops: 10,
+    createdAt: "2026-06-15T08:00:00.000Z",
+    updatedAt: "2026-06-18T13:30:00.000Z",
+  },
+];
+
 // PR-R06: audit is RF debounced (high-volume, no over-fetch superset), so the
 // mobile adaptive list can request a limit up to ADMIN_AUDIT_LIMIT_CAP (32).
 // The base 11 hand-authored entries are cycled to reach the fixture's
@@ -778,6 +817,15 @@ const server = createServer((request, response) => {
     url.pathname === "/api/logistics/field-visits"
   ) {
     sendJson(response, 200, { visits: CLINIC_FIELD_VISITS });
+    return;
+  }
+
+  if (
+    hasPopulatedClinicSession(request) &&
+    url.pathname === "/api/logistics/route-plans" &&
+    (url.searchParams.has("limit") && url.searchParams.has("offset"))
+  ) {
+    sendJson(response, 200, { routePlans: CLINIC_ROUTE_PLANS });
     return;
   }
 

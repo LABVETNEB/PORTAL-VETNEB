@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -24,6 +25,42 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Backend default/max (server/routes/logistics-route-plans.fastify.ts:
+// parsePositiveInt(request.query.limit, 50, 100)). The endpoint exposes no
+// total record count, so pagination relies on the page-full heuristic below
+// instead of a computed page count.
+const RUTAS_DEFAULT_LIMIT = 50;
+const RUTAS_MAX_LIMIT = 100;
+
+type RutasPageSearchParams = {
+  offset?: string | string[];
+  limit?: string | string[];
+};
+
+function normalizeSearchParamValue(
+  value: string | string[] | undefined,
+): string {
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+}
+
+function normalizeOffset(value: string | string[] | undefined): number {
+  const parsed = Number(normalizeSearchParamValue(value));
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function normalizeLimit(value: string | string[] | undefined): number {
+  const parsed = Number(normalizeSearchParamValue(value));
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return RUTAS_DEFAULT_LIMIT;
+  }
+
+  return Math.min(parsed, RUTAS_MAX_LIMIT);
+}
+
+function buildRutasHref(offset: number, limit: number): string {
+  return `/dashboard/logistica/rutas?offset=${offset}&limit=${limit}`;
+}
+
 async function getLogisticsRequestOptions(): Promise<RequestInit> {
   const cookieHeader = (await cookies()).toString();
 
@@ -33,18 +70,37 @@ async function getLogisticsRequestOptions(): Promise<RequestInit> {
   };
 }
 
-export default async function RutasPage() {
+export default async function RutasPage({
+  searchParams,
+}: {
+  searchParams?: Promise<RutasPageSearchParams>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const offset = normalizeOffset(resolvedSearchParams.offset);
+  const limit = normalizeLimit(resolvedSearchParams.limit);
+
   let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];
   let routePlansLoadError = false;
 
   try {
-    routePlans = await getRoutePlans(await getLogisticsRequestOptions(), {
-      throwOnError: true,
-    });
+    routePlans = await getRoutePlans(
+      await getLogisticsRequestOptions(),
+      { throwOnError: true },
+      { limit, offset },
+    );
   } catch (error) {
     redirectToLoginOnUnauthorized(error);
     routePlansLoadError = true;
   }
+
+  // No `total` is exposed by the endpoint: page-full is the only signal
+  // available, so `canGoNext` may false-positive on an exact-multiple last
+  // page — documented tradeoff, not a bug (docs/audit/clinic-logistics-full-routes-adaptive-contract-audit.md).
+  const canGoPrevious = !routePlansLoadError && offset > 0;
+  const canGoNext = !routePlansLoadError && routePlans.length === limit;
+  const currentPage = Math.floor(offset / limit) + 1;
+  const previousHref = buildRutasHref(Math.max(0, offset - limit), limit);
+  const nextHref = buildRutasHref(offset + limit, limit);
 
   return (
     <>
@@ -74,12 +130,19 @@ export default async function RutasPage() {
             );
           })}
         </div>
+        <p className="text-xs text-muted-foreground">
+          Conteos calculados sobre la página visible, no sobre el total general de planes de ruta.
+        </p>
 
         <Card className="dashboard-surface">
           <CardHeader>
             <CardTitle className="text-base">
               Planes de ruta ({routePlans.length})
             </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Mostrando {routePlans.length} planes de ruta · página {currentPage}
+              {canGoNext ? " · puede haber más planes de ruta disponibles" : ""}
+            </p>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -164,6 +227,32 @@ export default async function RutasPage() {
               </TableBody>
             </Table>
           </CardContent>
+          <nav
+            aria-label="Paginación de planes de ruta"
+            className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/70 px-4 py-3"
+          >
+            <PublicRouteControl
+              href={previousHref}
+              variant="bare"
+              disabled={!canGoPrevious}
+              aria-label="Página anterior"
+              className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Anterior
+            </PublicRouteControl>
+            <span className="dashboard-pagination-context">
+              Página {currentPage}
+            </span>
+            <PublicRouteControl
+              href={nextHref}
+              variant="bare"
+              disabled={!canGoNext}
+              aria-label="Página siguiente"
+              className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Siguiente
+            </PublicRouteControl>
+          </nav>
         </Card>
       </main>
     </>

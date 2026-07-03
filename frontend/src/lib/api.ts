@@ -1430,16 +1430,33 @@ export async function getLogisticsFieldVisits(
   }
 }
 
+type LogisticsRoutePlansParams = {
+  limit?: number;
+  offset?: number;
+};
+
 export async function getRoutePlans(
   options?: RequestInit,
   readOptions: LogisticsReadOptions = {},
+  params?: LogisticsRoutePlansParams,
 ): Promise<RoutePlan[]> {
   try {
-    const res = await apiFetch<{ plans: RoutePlan[] }>(
-      "/api/logistics/route-plans",
+    const path = "/api/logistics/route-plans";
+    const query = new URLSearchParams();
+
+    if (params?.limit !== undefined) {
+      query.set("limit", String(params.limit));
+    }
+    if (params?.offset !== undefined) {
+      query.set("offset", String(params.offset));
+    }
+
+    const qs = query.toString();
+    const res = await apiFetch<{ routePlans: RoutePlan[] }>(
+      qs ? `${path}?${qs}` : path,
       options,
     );
-    return res.plans ?? [];
+    return res.routePlans ?? [];
   } catch (error) {
     warnApiFallback("getRoutePlans", error);
     if (readOptions.throwOnError) {
