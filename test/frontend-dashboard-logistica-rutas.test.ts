@@ -33,8 +33,42 @@ test("dashboard logistica rutas forwards cookies and disables cache for live rea
   assert.ok(source.includes("headers: cookieHeader ? { Cookie: cookieHeader } : {},"));
   assert.ok(source.includes("let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];"));
   assert.ok(source.includes("let routePlansLoadError = false;"));
-  assert.ok(source.includes("routePlans = await getRoutePlans(await getLogisticsRequestOptions(), {"));
-  assert.ok(source.includes("throwOnError: true,"));
+  assert.ok(source.includes("routePlans = await getRoutePlans("));
+  assert.ok(source.includes("await getLogisticsRequestOptions(),"));
+  assert.ok(source.includes("{ throwOnError: true },"));
+});
+
+test("dashboard logistica rutas sends explicit limit/offset instead of truncating silently (R-13)", () => {
+  const source = read(RUTAS_PAGE_PATH);
+
+  assert.ok(source.includes("{ limit, offset },"));
+  assert.ok(source.includes("const RUTAS_DEFAULT_LIMIT = 50;"));
+  assert.ok(source.includes("const RUTAS_MAX_LIMIT = 100;"));
+  assert.ok(source.includes("function normalizeOffset(value: string | string[] | undefined): number {"));
+  assert.ok(source.includes("function normalizeLimit(value: string | string[] | undefined): number {"));
+  assert.ok(source.includes("searchParams?: Promise<RutasPageSearchParams>;"));
+});
+
+test("dashboard logistica rutas computes canGoNext/canGoPrevious without a backend total (R-13)", () => {
+  const source = read(RUTAS_PAGE_PATH);
+
+  assert.ok(source.includes("const canGoPrevious = !routePlansLoadError && offset > 0;"));
+  assert.ok(source.includes("const canGoNext = !routePlansLoadError && routePlans.length === limit;"));
+  assert.equal(source.includes("pageCount"), false);
+  assert.equal(source.includes("matchMedia"), false);
+  assert.equal(source.includes("ResizeObserver"), false);
+});
+
+test("dashboard logistica rutas renders a pager and page-scope disclosure (R-13)", () => {
+  const source = read(RUTAS_PAGE_PATH);
+
+  assert.ok(source.includes('aria-label="Paginación de planes de ruta"'));
+  assert.ok(source.includes('aria-label="Página anterior"'));
+  assert.ok(source.includes('aria-label="Página siguiente"'));
+  assert.ok(source.includes("disabled={!canGoPrevious}"));
+  assert.ok(source.includes("disabled={!canGoNext}"));
+  assert.ok(source.includes("Mostrando {routePlans.length} planes de ruta · página {currentPage}"));
+  assert.ok(source.includes("Conteos calculados sobre la página visible, no sobre el total general de planes de ruta."));
 });
 
 test("dashboard logistica rutas renders topbar without technical source copy", () => {
