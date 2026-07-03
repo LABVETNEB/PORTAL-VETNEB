@@ -17,8 +17,6 @@ const STICKY_ACTION_BAR_PATH =
 const STICKY_FILTER_BAR_PATH =
   "frontend/src/components/dashboard/StickyFilterBar.tsx";
 const FILTER_DRAWER_PATH = "frontend/src/components/dashboard/FilterDrawer.tsx";
-const MASTER_DETAIL_WORKSPACE_PATH =
-  "frontend/src/components/dashboard/MasterDetailWorkspace.tsx";
 const ADMIN_SECTION_TABS_PATH =
   "frontend/src/app/dashboard/admin/AdminSectionTabs.tsx";
 const PUBLIC_SEO_SCOPE_EXCEPTION = "frontend/src/lib/seo.ts";
@@ -102,20 +100,14 @@ test("PR-9 FilterDrawer fits mobile viewport and keeps scrollable content", () =
   assertNoForbiddenSurfaceImports(source, "FilterDrawer");
 });
 
-test("PR-9 MasterDetailWorkspace and AdminSectionTabs avoid horizontal page overflow", () => {
-  const workspaceSource = read(MASTER_DETAIL_WORKSPACE_PATH);
+test("PR-9 AdminSectionTabs avoid horizontal page overflow", () => {
   const tabsSource = read(ADMIN_SECTION_TABS_PATH);
 
-  assert.ok(workspaceSource.includes("grid min-w-0 grid-cols-1"));
-  assert.ok(workspaceSource.includes("overflow-x-hidden"));
-  assert.ok(workspaceSource.includes("max-w-full min-w-0"));
-  assert.ok(workspaceSource.includes("scroll-mt-28"));
   assert.ok(tabsSource.includes("max-w-full min-w-0 space-y-4 overflow-x-hidden"));
   assert.ok(tabsSource.includes("overflow-x-auto overscroll-x-contain"));
   assert.ok(tabsSource.includes("whitespace-nowrap"));
   assert.ok(tabsSource.includes('role="tablist"'));
   assert.ok(tabsSource.includes("focus-visible:ring-2"));
-  assertNoForbiddenSurfaceImports(workspaceSource, "MasterDetailWorkspace");
   assertNoForbiddenSurfaceImports(tabsSource, "AdminSectionTabs");
 });
 

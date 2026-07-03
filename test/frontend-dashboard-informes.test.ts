@@ -30,7 +30,6 @@ test("dashboard informes defines non-indexable metadata and clinic read dependen
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
   assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
-  assert.equal(source.includes('import { MasterDetailWorkspace } from "@/components/dashboard/MasterDetailWorkspace";'), false);
   assert.ok(source.includes('import { StatusBadge } from "@/components/dashboard/StatusBadge";'));
   assert.equal(source.includes('} from "@/components/dashboard/StickyActionBar";'), false);
   assert.ok(listSource.includes('} from "@/components/dashboard/StudyTimeline";'));
@@ -117,7 +116,6 @@ test("dashboard informes renders profile-layout clinic reports surface without t
   assert.ok(source.includes('notifications="clinic"'));
   assert.ok(source.includes("<DashboardPageHeader"));
   assert.equal(source.includes("<StickyActionBar"), false);
-  assert.equal(source.includes("<MasterDetailWorkspace"), false);
   assert.ok(listSource.includes("Lista de informes"));
   assert.ok(listSource.includes("Detalle del informe"));
   assert.ok(listSource.includes("<StudyTimeline"));
