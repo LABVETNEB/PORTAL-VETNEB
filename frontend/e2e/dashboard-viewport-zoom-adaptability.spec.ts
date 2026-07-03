@@ -57,8 +57,6 @@ type SurfaceCase = {
   ready: string;
   /** Whether the clinic Tokens API must be mocked for this surface. */
   mockTokens?: boolean;
-  /** Existing debt documented by the baseline; do not make PR-QA-GLOBAL-0 a migration gate. */
-  allowMeasuredInternalScroll?: boolean;
 };
 
 const CORE_SURFACES: SurfaceCase[] = [
@@ -67,7 +65,6 @@ const CORE_SURFACES: SurfaceCase[] = [
     surface: "clinic",
     path: "/dashboard",
     ready: "main.dashboard-main",
-    allowMeasuredInternalScroll: true,
   },
   {
     label: "clinic Informes (in-shell master-detail)",
@@ -574,13 +571,11 @@ for (const viewport of ALL_VIEWPORTS) {
             `${viewport.name} ${surface.label}`,
             viewport.width,
           );
-          if (!surface.allowMeasuredInternalScroll) {
-            const internalScroll = await readWorstInternalVerticalScroll(page);
-            assertNoMeasuredInternalVerticalScroll(
-              internalScroll,
-              `${viewport.name} ${surface.label}`,
-            );
-          }
+          const internalScroll = await readWorstInternalVerticalScroll(page);
+          assertNoMeasuredInternalVerticalScroll(
+            internalScroll,
+            `${viewport.name} ${surface.label}`,
+          );
         }).toPass({ timeout: 10_000 });
       });
     }
