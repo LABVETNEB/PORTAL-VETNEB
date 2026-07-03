@@ -63,22 +63,54 @@ Todo el cambio queda contenido en
    `stretch` del grid (muy por encima del piso), así que el cambio solo
    tiene efecto donde el piso realmente limitaba (tablet), cerrando
    exactamente los 12px medidos (3 filas × 4px).
-3. **Panel "Acciones principales" oculto por debajo de `md` (768px)** — este
+3. **Panel "Acciones principales" oculto por debajo de `lg` (1024px)** — este
    panel es una lista de botones que duplica exactamente la navegación de
    las tiles de "Módulos clínicos" (mismo `activateModule(moduleId)`) y, en
-   mobile, la de `ClinicMobileBottomNav` (que ya se muestra solo `md:hidden`,
-   es decir, por debajo de 768px). Ocultarlo en ese mismo rango
-   (`hidden md:flex`) elimina la duplicación de navegación y libera el
-   espacio que el panel de módulos necesitaba en mobile, sin remover
-   ninguna funcionalidad única. En tablet (≥768px, sin bottom-nav) el panel
-   se mantiene visible.
+   mobile, la de `ClinicMobileBottomNav` (que se muestra solo `md:hidden`,
+   es decir, por debajo de 768px). Ocultarlo con `hidden lg:flex` elimina la
+   duplicación de navegación y libera el espacio que el panel de módulos
+   necesita tanto en mobile como en tablet. Solo a partir de `lg` (1024px),
+   cuando el cockpit pasa a dos columnas (`lg:grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)]`,
+   línea 315), el panel vuelve a mostrarse junto a las tiles.
 4. **Piso de altura de los botones de "Acciones principales" reducido** —
-   `min-h-9` (36px) → `min-h-8` (32px), cerrando el recorte silencioso
-   preexistente detectado en tablet (11px → ≤1px, dentro de la tolerancia
-   de 2px del contrato).
+   `min-h-9` (36px) → `min-h-8` (32px). Sin efecto visual en `lg`+ (el alto
+   real lo define el `stretch` del grid, muy por encima del piso); se
+   mantiene por consistencia con el piso reducido de las tiles y porque
+   cerraba un recorte silencioso preexistente en escritorio angosto.
 
 Ningún cambio toca `globals.css`, copy, ni las rutas full-page de
 Informes/Logística (R-11+).
+
+### Iteración 2 — corrección post-CI (commit `430f0c1`)
+
+La primera iteración de este fix (commit `69e25f3`) usaba `hidden md:flex`
+(el panel de acciones reaparecía a partir de 768px, es decir, ya visible en
+tablet-768x1024, apilado bajo "Módulos clínicos" en el layout de una sola
+columna). Localmente esa versión medía 0px de overflow en los 7 viewports,
+pero **Frontend CI falló** en el mismo caso con:
+
+```
+adaptive app shell — tablet-768x1024 › clinic hub (cockpit) fits without global scroll
+internal vertical scroll on div.dashboard-inline-list.rounded-lg.border
+Expected <= 2
+Received 8
+```
+
+El ajuste `min-h-12 → min-h-11` en las tiles cerraba el déficit de forma
+exacta (0px de margen) cuando el panel de acciones seguía compitiendo por
+el mismo espacio en tablet; esa medición al límite resultó sensible a
+diferencias sub-píxel de renderizado de fuentes entre el entorno local y el
+runner de CI, produciendo el `Received 8` intermitente.
+
+La corrección (`md:flex` → `lg:flex`) elimina la causa del ajuste al límite
+en vez de afinarlo más: en tablet (768–1023px) el panel de acciones ya no
+compite por espacio en absoluto (no se renderiza), así que "Módulos
+clínicos" dispone de toda la fila sin depender de un cálculo de píxeles
+exacto. Verificado con diagnóstico directo (no solo pass/fail): el
+`overflowY` medido en `div.dashboard-inline-list` es **0px** con
+`selector: null` (ningún elemento de la pila activa la promoción
+`overflow-y: auto`) en los 7 viewports de `ALL_VIEWPORTS`, con margen real,
+no un ajuste al límite.
 
 ## Assertion e2e activada
 
@@ -97,29 +129,46 @@ En `e2e/dashboard-viewport-zoom-adaptability.spec.ts`:
 
 ## Validaciones
 
-Todas ejecutadas en el árbol de trabajo tras el fix:
+Todas ejecutadas en el árbol de trabajo con el fix corregido (`lg:flex`,
+commit `430f0c1`):
 
-- `pnpm test` → 2951 tests backend, 0 fallos (tras revertir la regeneración
-  de `frontend/next-env.d.ts` tras cada corrida de e2e/dev server).
+- `git status --short --untracked-files=all` → limpio antes y después de
+  cada corrida (una vez restaurado `next-env.d.ts`).
+- `git diff --check` → sin conflictos ni whitespace issues.
+- `pnpm --dir frontend exec playwright test
+  e2e/dashboard-viewport-zoom-adaptability.spec.ts --project=chromium
+  --grep "clinic hub"` → 7/7 passed (los 7 viewports de `ALL_VIEWPORTS`,
+  incluidos tablet-768x1024 y mobile-390x844), con `overflowY: 0` y
+  `selector: null` verificado por diagnóstico directo (no solo pass/fail).
+- `git restore frontend/next-env.d.ts` → revertida la regeneración del dev
+  server de Playwright antes de correr `pnpm test`.
+- `pnpm test` → 2951 tests backend, 0 fallos.
 - `pnpm typecheck:test` → sin errores.
 - `pnpm typecheck` → sin errores.
 - `pnpm --dir frontend lint` → sin errores.
 - `pnpm --dir frontend build` → build de producción exitoso (Next.js 16,
   Turbopack), rutas de `/dashboard` y afines siguen dinámicas (`ƒ`) como
   antes.
-- `pnpm --dir frontend exec playwright test
-  e2e/dashboard-viewport-zoom-adaptability.spec.ts --project=chromium
-  --grep "clinic hub"` → 7/7 passed (los 7 viewports de `ALL_VIEWPORTS`,
-  incluidos tablet y mobile).
+- `git restore frontend/next-env.d.ts` + `git status --short
+  --untracked-files=all` → árbol de trabajo limpio al final, sin
+  `next-env.d.ts` modificado.
+
+Adicionalmente, para descartar regresión en la surface completa y en los
+specs que pinnean la estructura del cockpit:
+
 - `pnpm --dir frontend exec playwright test
   e2e/dashboard-viewport-zoom-adaptability.spec.ts --project=chromium`
   (spec completo) → 60/60 passed, sin regresión en admin, tokens,
   full-page deep-links, ni particulares.
 - `pnpm --dir frontend exec playwright test
-  e2e/dashboard-card-navigation-shell.spec.ts --project=chromium` → 67/67
-  passed (incluye los tests que pinnean `data-clinic-cockpit-primary-actions`
-  visible con 5 botones nombrados, ejecutados en el viewport desktop por
-  defecto de Playwright donde el panel sigue visible).
+  e2e/dashboard-card-navigation-shell.spec.ts --project=chromium` → 66/67
+  passed; el único fallo (`admin hub renders Administración card`, surface
+  Admin, fuera de scope de este PR) es un flake confirmado — pasa en
+  aislamiento (`--grep` sobre ese único test, 1/1 passed). No relacionado
+  con el cambio de `md:flex` a `lg:flex` en Clínica. Los tests que pinnean
+  `data-clinic-cockpit-primary-actions` visible con 5 botones nombrados
+  (ejecutados en el viewport desktop 1280×720 por defecto de Playwright,
+  ≥1024px) siguen pasando sin cambios.
 - `pnpm --dir frontend exec playwright test
   e2e/dashboard-clinic-controller-workspace-parity.spec.ts --project=chromium`
   → 27/27 passed (incluye "hub exposes operational cockpit sections and
@@ -128,17 +177,24 @@ Todas ejecutadas en el árbol de trabajo tras el fix:
 
 ### Medición antes/después (`div.dashboard-inline-list` — panel de módulos)
 
-| Viewport | Antes (scroll medido) | Después (scroll medido) |
-| --- | --- | --- |
-| tablet-768x1024 | 12px | 0px |
-| mobile-390x844 | 238px | 0px |
+Medido con `readWorstInternalVerticalScroll` (recorre `main` buscando el
+peor `overflow-y: auto|scroll` medido, no solo pass/fail):
+
+| Viewport | Antes de R-10 | Iteración 1 (`md:flex`, CI) | Iteración 2 (`lg:flex`, actual) |
+| --- | --- | --- | --- |
+| tablet-768x1024 | 12px | 8px (CI, `Received 8` — ajuste al límite sensible a render) | **0px**, `selector: null` |
+| mobile-390x844 | 238px | 0px (local) | **0px**, `selector: null` |
+
+Todos los demás viewports de `ALL_VIEWPORTS` (desktop, zoom-eff, laptop):
+**0px**, `selector: null` en las tres iteraciones.
 
 ### Medición antes/después (`data-clinic-cockpit-primary-actions` — recorte silencioso, no medido por el gate pero relevante para "no clipping")
 
-| Viewport | Antes (`scrollHeight - clientHeight`) | Después |
+| Viewport | Antes de R-10 | Después (`lg:flex`) |
 | --- | --- | --- |
-| tablet-768x1024 | 11px (recorte silencioso) | ≤1px (dentro de tolerancia) |
-| mobile-390x844 | ~60px (recorte silencioso) | 0px (panel oculto, redundante con bottom-nav) |
+| tablet-768x1024 | 11px (recorte silencioso) | N/A — panel no se renderiza (`hidden` hasta `lg`), no compite por espacio ni se recorta |
+| mobile-390x844 | ~60px (recorte silencioso) | N/A — panel no se renderiza, redundante con `ClinicMobileBottomNav` |
+| desktop / laptop / zoom-eff (≥1024px) | sin recorte | sin recorte (0px, panel visible en layout de 2 columnas) |
 
 ## Confirmación sin globals.css
 
