@@ -108,9 +108,9 @@ const CREATE_STEP_LABELS: Record<CreateStep, string> = {
 // below), paginate it client-side with usePagedRows, and offer "Cargar más"
 // only when the last fetched batch filled the cap (heuristic there may be
 // more on the server). TOKENS_FALLBACK_ROWS survives only as the
-// pre-measurement fallback and desktop floor; MOBILE_PAGE_SIZE and the
-// matchMedia cardinality gate are gone — one measured runtime feeds both the
-// desktop table and the mobile list.
+// pre-measurement fallback and desktop floor; the old fixed mobile row count
+// and the media-query cardinality gate are gone — one measured runtime feeds
+// both the desktop table and the mobile list.
 const TOKENS_FALLBACK_ROWS = 9;
 // Over-fetch cap: a single superset fetch never asks the server for more than
 // this many rows. Per docs/implementation/server-adaptive-pagination-strategy.md
@@ -539,8 +539,8 @@ export function AdminParticularTokensCard() {
 
   // One collapsed runtime feeds both presentations, so the visible container
   // (desktop table region or mobile list region) drives a single cardinality.
-  // The old second fetch pipeline (MOBILE_PAGE_SIZE=10 gated by matchMedia) is
-  // gone: no more double fetch, no more divergent limit/offset.
+  // The old second fetch pipeline (a fixed mobile row count gated by a media
+  // query) is gone: no more double fetch, no more divergent limit/offset.
   const [desktopBodyNode, setDesktopBodyNode] = useState<HTMLElement | null>(
     null,
   );

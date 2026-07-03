@@ -58,8 +58,8 @@ import { AdminReportsUploadPanel } from "./AdminReportsUploadPanel";
 // as the safe 1366x768 desktop limit; that constant survives only as the
 // pre-measurement fallback and as the desktop floor. A media query no longer
 // decides cardinality, and the mobile/desktop `limit`/`offset` divergence
-// (PAGE_SIZE=9 vs MOBILE_PAGE_SIZE=10, two independent fetch pipelines) is
-// collapsed into a single measured runtime.
+// (nine desktop rows vs a fixed ten-row mobile page, two independent fetch
+// pipelines) is collapsed into a single measured runtime.
 const REPORTS_FALLBACK_ROWS = 9;
 // Hybrid cap: the effective `limit` never exceeds this superset ceiling even on
 // very tall viewports; recompute of offset always clamps against it.
@@ -216,8 +216,9 @@ export function AdminReportsCard() {
 
   // One collapsed runtime feeds both presentations, so the visible container
   // (desktop table region or mobile list region) drives a single cardinality.
-  // The old second `mobileReports` fetch pipeline (MOBILE_PAGE_SIZE=10 gated by
-  // matchMedia) is gone: no more double fetch, no more divergent limit/offset.
+  // The old second `mobileReports` fetch pipeline (a fixed ten-row mobile page
+  // gated by a media query) is gone: no more double fetch, no more divergent
+  // limit/offset.
   const [desktopBodyNode, setDesktopBodyNode] = useState<HTMLElement | null>(
     null,
   );
