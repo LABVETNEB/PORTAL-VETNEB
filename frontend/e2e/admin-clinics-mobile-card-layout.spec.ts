@@ -9,7 +9,9 @@ const MOBILE_VIEWPORTS = [
   { name: "iphone-pro-max-430x932", width: 430, height: 932 },
 ] as const;
 
-const MOCK_CLINICS = Array.from({ length: 13 }, (_, index) => {
+// 40 clinics (R-02): guarantees a page 2 exists for any effectiveLimit <= 36
+// (HY superset cap), same margin used by Sessions/Users/Alerts.
+const MOCK_CLINICS = Array.from({ length: 40 }, (_, index) => {
   const id = index + 1;
 
   return {
@@ -18,7 +20,7 @@ const MOCK_CLINICS = Array.from({ length: 13 }, (_, index) => {
     contactEmail: `clinica.mobile.${id}@example.test`,
     contactPhone: `+54 11 5555-${String(id).padStart(4, "0")}`,
     createdAt: "2026-06-01T10:00:00.000Z",
-    updatedAt: `2026-06-${String(id).padStart(2, "0")}T12:00:00.000Z`,
+    updatedAt: `2026-06-${String((id % 28) + 1).padStart(2, "0")}T12:00:00.000Z`,
     users: [
       {
         userId: 100 + id,
@@ -190,19 +192,26 @@ async function readMobileClinicsContract(
   }, TOLERANCE);
 }
 
+// R-02: the mobile page size is derived from the measured list container (HY
+// cap 36), not a fixed constant, so the contract asserts bounds and internal
+// consistency instead of an exact count.
 function assertMobileClinicsContract(
   contract: MobileClinicsContract,
   label: string,
 ) {
   expect(
     contract.visibleMobileCards,
-    `${label}: mobile page size must show exactly 10 clinics`,
-  ).toBe(10);
+    `${label}: mobile page must show at least one clinic`,
+  ).toBeGreaterThan(0);
+  expect(
+    contract.visibleMobileCards,
+    `${label}: mobile page size must stay within the HY superset cap (36)`,
+  ).toBeLessThanOrEqual(36);
   expect(contract.visibleDesktopTables, `${label}: desktop table hidden on mobile`).toBe(0);
   expect(
     contract.cardsShowingEmail,
     `${label}: every card must show the clinic email`,
-  ).toBe(10);
+  ).toBe(contract.visibleMobileCards);
   expect(
     contract.secondaryDetailLineCount,
     `${label}: secondary details (user/updated date) must not render on the card body`,
@@ -273,7 +282,9 @@ for (const viewport of MOBILE_VIEWPORTS) {
   });
 }
 
-test("admin clinics mobile pagination advances through 10-record pages", async ({
+// R-02: the mobile page size is measured (HY cap 36), not a fixed 10, so the
+// page count is derived from the settled first-page count instead of assumed.
+test("admin clinics mobile pagination advances through adaptive pages", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -287,16 +298,41 @@ test("admin clinics mobile pagination advances through 10-record pages", async (
 
   const list = page.locator("[data-admin-clinics-mobile-list='true']");
   await expect(list).toBeVisible();
-  await expect(list.getByText("Clínica Mobile 1", { exact: true })).toBeVisible();
-  await expect(list.getByText("Clínica Mobile 10", { exact: true })).toBeVisible();
-  await expect(list.getByText("Clínica Mobile 11", { exact: true })).toHaveCount(0);
 
+  const cards = page.locator("[data-admin-clinic-mobile-card='true']");
+  await expect(cards.first()).toBeVisible({ timeout: 15_000 });
+
+  // The first fetch can use the pre-measurement fallback before the real row
+  // is measured and a follow-up fetch settles the final count (documented
+  // measurement<->fetch settle risk, same as Sessions/Users/Alerts). Wait for
+  // two consecutive equal reads before trusting the count.
+  let settledCount: number | null = null;
+  await expect(async () => {
+    const current = await cards.count();
+    expect(current, "clinics mobile item count settles").toBeGreaterThan(0);
+    if (settledCount !== current) {
+      settledCount = current;
+      throw new Error(`count not yet stable: ${current}`);
+    }
+  }).toPass({ intervals: [200, 300, 400, 600, 800], timeout: 6_000 });
+
+  const firstPageCount = settledCount!;
+  const firstPageLabels = await cards.allTextContents();
+  expect(firstPageLabels.length).toBe(firstPageCount);
+  expect(firstPageCount).toBeLessThanOrEqual(36);
+
+  const pageCount = Math.max(1, Math.ceil(MOCK_CLINICS.length / firstPageCount));
   const pager = page.locator("[data-admin-mobile-core-pager='true']");
-  await expect(pager.getByText("Pág. 1 / 2")).toBeVisible();
+  await expect(pager.getByText(`Pág. 1 / ${pageCount}`)).toBeVisible();
+
   await pager.getByRole("button", { name: "Página siguiente" }).click();
 
-  await expect(list.getByText("Clínica Mobile 11", { exact: true })).toBeVisible();
-  await expect(list.getByText("Clínica Mobile 13", { exact: true })).toBeVisible();
+  await expect
+    .poll(async () => (await cards.allTextContents()).join("|"), {
+      message: "clinics mobile page changes after pagination",
+    })
+    .not.toBe(firstPageLabels.join("|"));
+
   await expect(list.getByText("Clínica Mobile 1", { exact: true })).toHaveCount(0);
-  await expect(pager.getByText("Pág. 2 / 2")).toBeVisible();
+  await expect(pager.getByText(`Pág. 2 / ${pageCount}`)).toBeVisible();
 });

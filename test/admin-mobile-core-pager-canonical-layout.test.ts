@@ -157,18 +157,16 @@ test("admin core pagers preserve accessible labels, data hooks and the no-scroll
   }
 });
 
-// Clinics intentionally raised its mobile page size from 3 to 10 (PR2,
-// admin-mobile-clinics-density): 10 clinics per mobile page, compacted to a
-// borderless name+email row so the list stays viewport-safe/no-scroll. The
-// fetch call and desktop PAGE_SIZE are untouched — only the mobile page-size
-// constant and row density changed.
-test("admin clinics mobile pager: page size intentionally raised to 10, fetch/desktop untouched", () => {
+// R-02 (admin-clinics-management-server-adaptive-pagination): the mobile page
+// size is no longer a fixed constant — it is derived from the measured list
+// container (HY cap 36), same runtime that feeds the desktop table. The fetch
+// call is untouched; only the cardinality source changed from matchMedia to
+// measurement.
+test("admin clinics mobile pager: page size is measured (HY cap 36), fetch untouched", () => {
   const clinicsSource = read(CLINICS_CARD_PATH);
-  assert.ok(clinicsSource.includes("const PAGE_SIZE = 9;"));
-  assert.ok(
-    clinicsSource.includes("const MOBILE_PAGE_SIZE = 10;"),
-    "clinics mobile page size must be 10 (intentional density change, PR2)",
-  );
+  assert.ok(clinicsSource.includes("const CLINICS_FALLBACK_ROWS = 9;"));
+  assert.ok(clinicsSource.includes("const CLINICS_SUPERSET_CAP = 36;"));
+  assert.equal(clinicsSource.includes("const MOBILE_PAGE_SIZE"), false);
   assert.ok(clinicsSource.includes("getAdminClinics("));
 });
 

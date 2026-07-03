@@ -1,6 +1,14 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import dynamic from "next/dynamic";
 import { ChevronLeft, ChevronRight, Eye, EyeOff, Loader2, Pencil, Plus, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +36,7 @@ import {
   updateAdminClinic,
   updateAdminClinicUserCredentials,
 } from "@/lib/api";
+import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
 import { formatDateTime } from "@/lib/utils";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { LoadingState } from "@/components/dashboard/LoadingState";
@@ -47,13 +56,32 @@ const ClinicEditDrawer = dynamic(
   { ssr: false },
 );
 
-// Enterprise density without breaking the App Shell no-scroll contract: denser
-// rows/header let a full page fit the 1366×768 minimum viewport, so the server
-// page size is raised from 5 to a conservative value that leaves one dense-row
-// margin in the 1366×768 viewport without internal scroll. True 25/50/100 needs
-// the no-scroll contract relaxation (audit §3) and is deferred.
-const PAGE_SIZE = 9;
-const MOBILE_PAGE_SIZE = 10;
+// Server pagination is now sized by the measured rows container (Zero-Scroll
+// adaptive contract, R-02/PR-SRV-0). The legacy PAGE_SIZE survives only as the
+// pre-measurement fallback; a media query no longer decides cardinality.
+const CLINICS_FALLBACK_ROWS = 9;
+// Hybrid cap: the effective `limit` never exceeds this superset ceiling even on
+// very tall viewports; recompute of offset always clamps against it.
+const CLINICS_SUPERSET_CAP = 36;
+// Fixed header row height of the desktop table (`[&_th]:h-9`), discounted from
+// the measured region so the row math never counts the header as a data row.
+const CLINICS_TABLE_HEADER_PX = 36;
+// Fallback item height used until a real row is measured.
+const CLINICS_ROW_HEIGHT_FALLBACK_PX = 36;
+
+type Measurement = {
+  containerNode: HTMLElement | null;
+  rowHeightPx: number;
+  headerHeightPx: number;
+};
+
+function measurementsEqual(a: Measurement, b: Measurement) {
+  return (
+    a.containerNode === b.containerNode &&
+    a.rowHeightPx === b.rowHeightPx &&
+    a.headerHeightPx === b.headerHeightPx
+  );
+}
 
 type CreateClinicForm = {
   clinicName: string;
@@ -108,7 +136,8 @@ function formatAdminClinicsError(error: unknown, fallback: string) {
 export function AdminClinicsManagementCard() {
   const [snapshot, setSnapshot] = useState<AdminClinicsSnapshot | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentOffset, setCurrentOffset] = useState(0);
+  const [submittedSearch, setSubmittedSearch] = useState("");
+  const [offset, setOffset] = useState(0);
   const [createForm, setCreateForm] = useState<CreateClinicForm>(getInitialCreateForm);
   const [editingClinic, setEditingClinic] = useState<AdminClinicManagementSummary | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -117,48 +146,157 @@ export function AdminClinicsManagementCard() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  // Start false so SSR and the client's first render agree. The media-query
-  // effect below promotes this to the real viewport value right after mount,
-  // which avoids a hydration mismatch on the mobile-only branches.
-  const [isMobileViewport, setIsMobileViewport] = useState(false);
-  // Gates the initial fetch below until the viewport is known, so the first
-  // load uses the resolved effectivePageSize instead of the SSR-safe default.
-  const [isViewportResolved, setIsViewportResolved] = useState(false);
+
+  // One collapsed runtime feeds both presentations, so the visible container
+  // (desktop table region or mobile list region) drives a single cardinality.
+  const [desktopBodyNode, setDesktopBodyNode] = useState<HTMLElement | null>(
+    null,
+  );
+  const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
+  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
+  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
+  const [measurement, setMeasurement] = useState<Measurement>({
+    containerNode: null,
+    rowHeightPx: CLINICS_ROW_HEIGHT_FALLBACK_PX,
+    headerHeightPx: 0,
+  });
+
+  const latestRequestRef = useRef(0);
+  const snapshotRef = useRef<AdminClinicsSnapshot | null>(null);
+
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
+
+  useLayoutEffect(() => {
+    const nodes = [
+      desktopBodyNode,
+      mobileBodyNode,
+      desktopRowNode,
+      mobileRowNode,
+    ].filter((node): node is HTMLElement => node !== null);
+    if (nodes.length === 0) {
+      return;
+    }
+
+    let frame: number | null = null;
+
+    const recompute = () => {
+      frame = null;
+
+      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
+      if (mobileHeight > 0 && mobileBodyNode) {
+        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: mobileBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : CLINICS_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: 0,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+        return;
+      }
+
+      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
+      if (desktopHeight > 0 && desktopBodyNode) {
+        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: desktopBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : CLINICS_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: CLINICS_TABLE_HEADER_PX,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+      }
+    };
+
+    const scheduleRecompute = () => {
+      if (frame === null) {
+        frame = requestAnimationFrame(recompute);
+      }
+    };
+
+    const observer = new ResizeObserver(scheduleRecompute);
+    nodes.forEach((node) => observer.observe(node));
+    scheduleRecompute();
+
+    return () => {
+      observer.disconnect();
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
+
+  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
+    containerNode: measurement.containerNode,
+    fallbackItems: CLINICS_FALLBACK_ROWS,
+    itemHeightPx: measurement.rowHeightPx,
+    headerHeightPx: measurement.headerHeightPx,
+    minItems: 1,
+    maxItems: CLINICS_SUPERSET_CAP,
+  });
+
+  // Effective server page size: at least the measured rows, capped at the
+  // superset ceiling. The hook already clamps to [1, CLINICS_SUPERSET_CAP].
+  const effectiveLimit = rowsPerPage;
 
   const rows = useMemo(() => getClinicUserRows(snapshot), [snapshot]);
 
-  const effectivePageSize = isMobileViewport ? MOBILE_PAGE_SIZE : PAGE_SIZE;
   const totalClinics = snapshot?.total ?? 0;
-  const pageStart = totalClinics > 0 ? currentOffset + 1 : 0;
-  const pageEnd = Math.min(currentOffset + effectivePageSize, totalClinics);
-  const hasPrev = currentOffset > 0;
-  const hasNext = currentOffset + effectivePageSize < totalClinics;
-  const page = Math.floor(currentOffset / effectivePageSize) + 1;
-  const pageCount = Math.max(1, Math.ceil(totalClinics / effectivePageSize));
+  const pageStart = totalClinics > 0 ? offset + 1 : 0;
+  const pageEnd = Math.min(offset + effectiveLimit, totalClinics);
+  const hasPrev = offset > 0;
+  const hasNext = offset + effectiveLimit < totalClinics;
+  const page = Math.floor(offset / effectiveLimit) + 1;
+  const pageCount = Math.max(1, Math.ceil(totalClinics / effectiveLimit));
   const isBusy = isPending || activeActionKey !== null;
 
-  function loadClinics(offset = currentOffset, search = searchQuery) {
+  const query = useMemo(
+    () => ({
+      limit: effectiveLimit,
+      offset,
+      ...(submittedSearch ? { search: submittedSearch } : {}),
+    }),
+    [effectiveLimit, offset, submittedSearch],
+  );
+
+  function loadClinics() {
     setError(null);
+
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
 
     startTransition(() => {
       void (async () => {
         try {
-          const trimmedSearch = search.trim();
-          setSnapshot(
-            await getAdminClinics({
-              limit: effectivePageSize,
-              offset,
-              ...(trimmedSearch ? { search: trimmedSearch } : {}),
-            }),
-          );
-          setCurrentOffset(offset);
+          const result = await getAdminClinics(query);
+          if (requestId !== latestRequestRef.current) return;
+          setSnapshot(result);
         } catch (err) {
+          if (requestId !== latestRequestRef.current) return;
           setError(
             formatAdminClinicsError(err, "No se pudieron cargar las clínicas."),
           );
         }
       })();
     });
+  }
+
+  // Jumps back to the first page after a mutation that can change result
+  // ordering (create). If offset is already 0, `query` won't change on its
+  // own, so a manual reload is needed; otherwise the offset change below
+  // flows into `query` and the effect below reloads once.
+  function resetToFirstPageAndReload() {
+    if (offset === 0) {
+      loadClinics();
+    } else {
+      setOffset(0);
+    }
   }
 
   function updateCreateField<K extends keyof CreateClinicForm>(
@@ -197,7 +335,7 @@ export function AdminClinicsManagementCard() {
       );
       setIsCreatePasswordVisible(false);
       setIsCreateOpen(false);
-      loadClinics(0);
+      resetToFirstPageAndReload();
     } catch (err) {
       setError(formatAdminClinicsError(err, "No se pudo crear la clínica."));
     } finally {
@@ -236,42 +374,62 @@ export function AdminClinicsManagementCard() {
     loadClinics();
   }
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 767px)");
-
-    const updateMobileViewport = () => {
-      setIsMobileViewport(mediaQuery.matches);
-      setIsViewportResolved(true);
-    };
-
-    updateMobileViewport();
-    mediaQuery.addEventListener("change", updateMobileViewport);
-
-    return () => {
-      mediaQuery.removeEventListener("change", updateMobileViewport);
-    };
-  }, []);
-
-  const isFirstRender = useRef(true);
+  // Search is server-side and debounced; a cardinality change (resize/zoom)
+  // never touches the search state, so it never resets the offset here.
+  const isFirstSearchRender = useRef(true);
 
   useEffect(() => {
-    // Wait for the viewport to resolve so the first fetch below uses the
-    // settled effectivePageSize, not the SSR-safe desktop default.
-    if (!isViewportResolved) return;
-
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      loadClinics(0, searchQuery);
+    if (isFirstSearchRender.current) {
+      isFirstSearchRender.current = false;
       return;
     }
 
     const timer = setTimeout(() => {
-      loadClinics(0, searchQuery);
+      setOffset(0);
+      setSubmittedSearch(searchQuery.trim());
     }, 300);
 
     return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Recompute offset when the effective limit changes so the same first
+  // record stays visible; clamp against the known total (PR-SRV-0 §6).
+  const previousLimitRef = useRef(effectiveLimit);
+  useEffect(() => {
+    if (previousLimitRef.current === effectiveLimit) {
+      return;
+    }
+    previousLimitRef.current = effectiveLimit;
+
+    setOffset((currentOffset) => {
+      let nextOffset = Math.floor(currentOffset / effectiveLimit) * effectiveLimit;
+      const total = snapshotRef.current?.total;
+      if (typeof total === "number") {
+        const lastValidOffset = Math.max(
+          0,
+          (Math.ceil(total / effectiveLimit) - 1) * effectiveLimit,
+        );
+        nextOffset = Math.min(nextOffset, lastValidOffset);
+      }
+      nextOffset = Math.max(0, nextOffset);
+      return nextOffset === currentOffset ? currentOffset : nextOffset;
+    });
+  }, [effectiveLimit]);
+
+  useEffect(() => {
+    loadClinics();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isViewportResolved, searchQuery, effectivePageSize]);
+  }, [query]);
+
+  function goToPreviousPage() {
+    setError(null);
+    setOffset(Math.max(offset - effectiveLimit, 0));
+  }
+
+  function goToNextPage() {
+    setError(null);
+    setOffset(offset + effectiveLimit);
+  }
 
   return (
     <Card id="admin-clinics" className="dashboard-surface flex min-h-0 flex-1 flex-col">
@@ -464,7 +622,7 @@ export function AdminClinicsManagementCard() {
                 size="sm"
                 variant="outline"
                 className="h-8 w-8 p-0"
-                onClick={() => loadClinics(currentOffset - effectivePageSize)}
+                onClick={goToPreviousPage}
                 disabled={isBusy || !hasPrev}
                 aria-label="Página anterior"
               >
@@ -475,7 +633,7 @@ export function AdminClinicsManagementCard() {
                 size="sm"
                 variant="outline"
                 className="h-8 w-8 p-0"
-                onClick={() => loadClinics(currentOffset + effectivePageSize)}
+                onClick={goToNextPage}
                 disabled={isBusy || !hasNext}
                 aria-label="Página siguiente"
               >
@@ -485,7 +643,10 @@ export function AdminClinicsManagementCard() {
           ) : null}
         </div>
 
-        <div className="dashboard-table-responsive hidden md:block">
+        <div
+          ref={setDesktopBodyNode}
+          className="dashboard-table-responsive hidden md:block"
+        >
           <Table className="text-[0.8125rem] [&_th]:h-9 [&_th]:px-3 [&_td]:px-3">
             <TableHeader>
               <TableRow>
@@ -498,9 +659,10 @@ export function AdminClinicsManagementCard() {
             </TableHeader>
             <TableBody>
               {rows.length ? (
-                rows.map(({ clinic, user, extraUsers }) => (
+                rows.map(({ clinic, user, extraUsers }, index) => (
                   <TableRow
                     key={`${clinic.clinicId}-${user?.userId ?? "empty"}`}
+                    ref={index === 0 ? setDesktopRowNode : undefined}
                   >
                     <TableCell className="py-1">
                       <span className="flex items-center gap-1.5">
@@ -615,13 +777,15 @@ export function AdminClinicsManagementCard() {
           </div>
 
           <div
+            ref={setMobileBodyNode}
             className="min-h-0 flex-1 divide-y divide-vetneb-line/60 overflow-hidden rounded-lg border border-vetneb-line/75"
             data-admin-clinics-mobile-list="true"
           >
           {rows.length ? (
-            rows.map(({ clinic, user, extraUsers }) => (
+            rows.map(({ clinic, user, extraUsers }, index) => (
               <article
                 key={`mobile-${clinic.clinicId}-${user?.userId ?? "empty"}`}
+                ref={index === 0 ? setMobileRowNode : undefined}
                 className="flex min-h-9 items-center justify-between gap-2 px-2.5 py-0.5"
                 data-admin-clinic-mobile-card="true"
                 data-admin-mobile-core-item="true"
@@ -687,7 +851,7 @@ export function AdminClinicsManagementCard() {
                 size="sm"
                 variant="outline"
                 className="h-9 px-2.5 text-xs"
-                onClick={() => loadClinics(currentOffset - effectivePageSize)}
+                onClick={goToPreviousPage}
                 disabled={isBusy || !hasPrev}
                 aria-label="Página anterior"
               >
@@ -701,7 +865,7 @@ export function AdminClinicsManagementCard() {
                 size="sm"
                 variant="outline"
                 className="h-9 px-2.5 text-xs"
-                onClick={() => loadClinics(currentOffset + effectivePageSize)}
+                onClick={goToNextPage}
                 disabled={isBusy || !hasNext}
                 aria-label="Página siguiente"
               >

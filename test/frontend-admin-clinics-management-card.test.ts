@@ -165,13 +165,27 @@ test("admin clinics management card renders server-side pagination controls usin
 
   assert.ok(source.includes('aria-label="Página anterior"'));
   assert.ok(source.includes('aria-label="Página siguiente"'));
-  assert.ok(source.includes("currentOffset"));
-  assert.ok(source.includes("setCurrentOffset"));
+  assert.ok(source.includes("offset"));
+  assert.ok(source.includes("setOffset"));
   assert.ok(source.includes("totalClinics"));
   assert.ok(source.includes("hasPrev"));
   assert.ok(source.includes("hasNext"));
   assert.ok(source.includes("snapshot?.total"));
-  assert.ok(source.includes("PAGE_SIZE"));
+  assert.ok(source.includes("CLINICS_FALLBACK_ROWS"));
+});
+
+test("admin clinics management card derives cardinality from measurement, not matchMedia", () => {
+  const source = read(ADMIN_CLINICS_CARD_PATH);
+
+  assert.ok(source.includes("useAdaptiveItemsPerPage"));
+  assert.ok(source.includes("effectiveLimit"));
+  assert.ok(source.includes("CLINICS_SUPERSET_CAP = 36"));
+  assert.ok(source.includes("ResizeObserver"));
+  assert.ok(source.includes("latestRequestRef"));
+  assert.equal(source.includes("matchMedia"), false);
+  assert.equal(source.includes("MOBILE_PAGE_SIZE"), false);
+  assert.equal(source.includes("effectivePageSize"), false);
+  assert.equal(source.includes("isMobileViewport"), false);
 });
 
 test("admin clinics management card shows no-results state when search finds no matches", () => {
@@ -184,9 +198,10 @@ test("admin clinics management card shows no-results state when search finds no 
 test("admin clinics management card resets to page 0 when search changes", () => {
   const source = read(ADMIN_CLINICS_CARD_PATH);
 
-  // useEffect depends on searchQuery and calls loadClinics with offset 0
-  assert.ok(source.includes("searchQuery, effectivePageSize]"));
-  assert.ok(source.includes("loadClinics(0"));
+  // Debounced search effect resets offset to 0 before the query re-fetches.
+  assert.ok(source.includes("}, [searchQuery]);"));
+  assert.ok(source.includes("setOffset(0);"));
+  assert.ok(source.includes("setSubmittedSearch(searchQuery.trim());"));
 });
 
 test("admin clinics management card does not double-filter rows client-side", () => {
@@ -225,12 +240,8 @@ test("admin clinics management card renders mobile cards while preserving deskto
   const source = read(ADMIN_CLINICS_CARD_PATH);
 
   assert.ok(
-    source.includes("const MOBILE_PAGE_SIZE = 10;"),
-    "mobile page size intentionally raised to 10 (PR2); the compacted borderless name+email row keeps the list viewport-safe",
-  );
-  assert.ok(
-    source.includes("effectivePageSize"),
-    "admin clinics must use responsive page size",
+    source.includes("data-admin-mobile-core-module=\"clinics\""),
+    "single collapsed runtime keeps the mobile core module landmark",
   );
   assert.ok(
     source.includes('data-admin-clinics-mobile-list="true"'),
@@ -241,6 +252,14 @@ test("admin clinics management card renders mobile cards while preserving deskto
     "mobile clinic cards must exist",
   );
   assert.ok(
+    source.includes('data-admin-mobile-core-item="true"'),
+    "mobile clinic cards must keep the core item landmark",
+  );
+  assert.ok(
+    source.includes('data-admin-mobile-core-pager="true"'),
+    "mobile pager must keep the core pager landmark",
+  );
+  assert.ok(
     source.includes('dashboard-table-responsive hidden md:block'),
     "desktop table must be hidden on mobile and preserved from md upward",
   );
@@ -248,4 +267,14 @@ test("admin clinics management card renders mobile cards while preserving deskto
     source.includes('aria-label={`Editar clínica ${clinic.clinicName}`}'),
     "mobile edit action must keep the accessible clinic-specific label",
   );
+});
+
+test("admin clinics management card keeps a single runtime — no separate mobile module", () => {
+  const source = read(ADMIN_CLINICS_CARD_PATH);
+
+  // Unlike Sessions/Users, Clinics never had a standalone AdminMobileClinicsModule;
+  // the desktop/mobile duality already lived inside this single component, so
+  // R-02 collapses cardinality here without introducing a compat shim.
+  assert.ok(source.includes("export function AdminClinicsManagementCard()"));
+  assert.equal(source.includes("AdminMobileClinicsModule"), false);
 });
