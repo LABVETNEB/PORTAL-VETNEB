@@ -425,6 +425,26 @@ async function auditModuleItems(
     timeout: 15_000,
   });
 
+  // Adaptive server-side lists (audit/sessions/users) can re-fetch once the
+  // real row height settles, changing the rendered item count after the
+  // first paint. Wait for two consecutive stable reads before asserting
+  // geometry, so this never races that re-fetch/remount.
+  await expect
+    .poll(async () => items.count(), { timeout: 15_000 })
+    .toBeGreaterThan(0);
+  let previousCount = -1;
+  await expect
+    .poll(
+      async () => {
+        const count = await items.count();
+        const stable = count === previousCount;
+        previousCount = count;
+        return stable;
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+
   const itemCount = await items.count();
   expect(itemCount, `${viewport.name} ${moduleScreen.key}: populated item count`).toBeGreaterThan(0);
   for (let index = 0; index < itemCount; index += 1) {

@@ -35,6 +35,12 @@ test("frontend admin page does not read audit mock data directly", () => {
 
 test("frontend admin page uses audit API client wrapper", () => {
   const source = read(adminPage);
+  // R-06: the paginated audit list now fetches client-side via the shared
+  // server action (`getAdminAuditPage`, RF debounced); page.tsx keeps only
+  // the small overview/role-change/notification reads through `getAuditEntries`.
+  const actionsSource = read(
+    "frontend/src/app/dashboard/admin/admin-audit.actions.ts",
+  );
 
   assertIncludes(source, 'from "@/lib/api"', adminPage);
   assertIncludes(source, "getAuditEntries", adminPage);
@@ -42,7 +48,7 @@ test("frontend admin page uses audit API client wrapper", () => {
   assertIncludes(source, "snapshot: await getAuditEntries(query, options, { throwOnError: true })", adminPage);
   assertIncludes(source, "{ throwOnError: true }", adminPage);
   assertIncludes(source, "loadError: true,", adminPage);
-  assertIncludes(source, "auditSnapshot.items.map", adminPage);
+  assertIncludes(actionsSource, "snapshot.items.map(buildAuditRow)", "admin-audit.actions.ts");
 });
 
 test("frontend admin page forces dynamic server reads with forwarded cookies", () => {

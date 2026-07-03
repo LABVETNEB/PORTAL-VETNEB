@@ -325,10 +325,10 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
       {
         path: "test/admin-audit-enterprise-density.test.ts",
         markers: [
-          "PR-6 preserves the real audit-log navigation surface",
-          "PR-6 uses viewport-safe server pagination",
-          "PR-6 uses controlled detail",
-          "PR-6 does not introduce logging",
+          "R-06 preserves the real audit-log navigation surface",
+          "R-06 uses RF debounced viewport-adaptive pagination",
+          "R-06 uses controlled detail",
+          "R-06 does not introduce logging",
         ],
       },
       {

@@ -59,10 +59,10 @@ type OpsModule = {
   moduleId: "audit-log" | "admin-sessions" | "admin-users-roles";
   pagerName: RegExp;
   primaryActionName: RegExp;
-  // Viewport-safe page-size ceiling for this module's mobile list; differs
-  // per module. Audit stays at 10/page; sessions and users are adaptive
-  // (measured cardinality) so their ceiling is the superset cap (32 / 36) —
-  // the real guarantee is that every rendered item fits the viewport.
+  // Viewport-safe page-size ceiling for this module's mobile list. All three
+  // modules are adaptive (measured cardinality) so the ceiling is each
+  // module's RF/OF cap (audit 32, sessions 32, users 36) — the real
+  // guarantee is that every rendered item fits the viewport.
   maxItemsPerPage: number;
 };
 
@@ -72,7 +72,8 @@ const OPS_MODULES: OpsModule[] = [
     moduleId: "audit-log",
     pagerName: /paginación de auditoría/i,
     primaryActionName: /filtros/i,
-    maxItemsPerPage: 10,
+    // PR-R06: audit is RF debounced (high-volume); superset cap 32.
+    maxItemsPerPage: 32,
   },
   {
     key: "sessions",
@@ -309,7 +310,11 @@ for (const moduleSpec of OPS_MODULES) {
 
       const items = moduleRoot.locator('[data-admin-mobile-ops-item="true"]');
 
-      if (moduleSpec.key === "sessions" || moduleSpec.key === "users") {
+      if (
+        moduleSpec.key === "sessions" ||
+        moduleSpec.key === "users" ||
+        moduleSpec.key === "audit"
+      ) {
         // Adaptive server-side list: validate an atomic, stabilized snapshot so
         // the per-item viewport checks never race a re-fetch/remount.
         const itemSnapshots = await expectStableSessionItemSnapshot(

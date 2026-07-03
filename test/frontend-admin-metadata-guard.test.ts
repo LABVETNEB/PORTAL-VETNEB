@@ -106,13 +106,16 @@ test("frontend admin role-change metadata summary only reads approved fields", (
   }
 });
 test("frontend admin audit table keeps detail column wired to safe metadata summary", () => {
-  const source = read(adminPage);
   const sharedSource = read(adminAuditShared);
   const tableSource = read(adminAuditTable);
+  const actionsSource = read(
+    "frontend/src/app/dashboard/admin/admin-audit.actions.ts",
+  );
 
-  // The detail value is pre-sanitized server-side by shared audit helpers, and
-  // page.tsx keeps wiring the safe display string into the table.
-  assertIncludes(source, "getAuditMetadataSummary(entry)", adminPage);
+  // R-06: the detail value is pre-sanitized server-side by the shared
+  // server action (`admin-audit.actions.ts`, single source for desktop and
+  // mobile), and the table keeps wiring the safe display string.
+  assertIncludes(actionsSource, "getAuditMetadataSummary(entry)", "admin-audit.actions.ts");
   assertIncludes(sharedSource, "function getAuditMetadataSummary", adminAuditShared);
   assert.match(
     sharedSource,

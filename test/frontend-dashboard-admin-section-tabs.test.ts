@@ -135,12 +135,14 @@ test("dashboard admin tabs preserve existing admin cards and audit filter contra
     "<AdminSessionsReadOnlyCard />",
     "<AdminUsersRolesReadOnlyCard />",
     "<AdminAuditCard",
-    "const auditQuery: AdminAuditQuery = {",
-    "limit: ADMIN_AUDIT_PAGE_SIZE",
-    "offset: (auditPage - 1) * ADMIN_AUDIT_PAGE_SIZE",
   ]) {
     assert.ok(source.includes(marker), `admin page must keep ${marker}`);
   }
+
+  // R-06: pagination (offset/limit) moved client-side into AdminAuditCard
+  // (RF debounced, viewport-adaptive); page.tsx no longer owns audit offset.
+  assert.equal(source.includes("const auditQuery: AdminAuditQuery = {"), false);
+  assert.equal(source.includes("ADMIN_AUDIT_PAGE_SIZE"), false);
 
   assert.equal(source.includes('from "next/link"'), false);
   assert.equal(source.includes("<Link"), false);

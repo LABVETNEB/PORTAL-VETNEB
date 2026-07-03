@@ -1,13 +1,53 @@
+"use client";
+
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { AdminAuditDenseTable, type AdminAuditRow } from "./AdminAuditDenseTable";
 import {
   AdminAuditFilterBar,
   type AdminAuditFilterValues,
 } from "./AdminAuditFilterBar";
 import { AdminMobileAuditModule } from "./AdminMobileAuditModule";
+import { getAdminAuditPage } from "./admin-audit.actions";
+import { useAdaptiveItemsPerPage } from "@/hooks/useAdaptiveItemsPerPage";
 
-export const ADMIN_AUDIT_PAGE_SIZE = 9;
+// Server pagination is now sized by the measured rows container (Zero-Scroll
+// adaptive contract). The legacy fixed page size survives only as the
+// pre-measurement fallback and, on desktop, as the App Shell's pinned floor
+// (`expectNinePopulatedRows`, SRV-2 pattern — see docs/implementation/
+// admin-users-roles-server-adaptive-pagination.md and
+// admin-reports-workflow-server-adaptive-pagination.md).
+export const ADMIN_AUDIT_FALLBACK_ROWS = 9;
+// Audit is the high-volume surface of PR-SRV-0 (no retention job on
+// `audit_log`), so the strategy is RF debounced: a derived `limit` re-fetch,
+// never an unbounded over-fetch superset. The effective `limit` never exceeds
+// this cap, protecting the payload.
+export const ADMIN_AUDIT_LIMIT_CAP = 32;
+// `[&_th]:h-8` on the desktop table.
+const ADMIN_AUDIT_TABLE_HEADER_PX = 32;
+// `[&_td]:h-9` on the desktop table / mobile item min-height fallback.
+const ADMIN_AUDIT_ROW_HEIGHT_FALLBACK_PX = 36;
+
+type Measurement = {
+  containerNode: HTMLElement | null;
+  rowHeightPx: number;
+  headerHeightPx: number;
+};
+
+function measurementsEqual(a: Measurement, b: Measurement) {
+  return (
+    a.containerNode === b.containerNode &&
+    a.rowHeightPx === b.rowHeightPx &&
+    a.headerHeightPx === b.headerHeightPx
+  );
+}
 
 type AuditSummary = {
   total: number;
@@ -20,10 +60,6 @@ type FilterOption = {
 };
 
 type AdminAuditCardProps = {
-  rows: AdminAuditRow[];
-  totalCount: number;
-  page: number;
-  loadError: boolean;
   filters: AdminAuditFilterValues;
   eventOptions: FilterOption[];
   actorTypeOptions: FilterOption[];
@@ -32,22 +68,7 @@ type AdminAuditCardProps = {
   notifications: AuditSummary;
 };
 
-function buildAuditPageHref(filters: AdminAuditFilterValues, page: number) {
-  const query = new URLSearchParams({ module: "audit-log" });
-
-  for (const [key, value] of Object.entries(filters)) {
-    if (value) query.set(key, value);
-  }
-
-  if (page > 1) query.set("auditPage", String(page));
-  return `/dashboard/admin?${query.toString()}`;
-}
-
 export function AdminAuditCard({
-  rows,
-  totalCount,
-  page,
-  loadError,
   filters,
   eventOptions,
   actorTypeOptions,
@@ -56,9 +77,189 @@ export function AdminAuditCard({
   notifications,
 }: AdminAuditCardProps) {
   const hasActiveFilters = Object.values(filters).some(Boolean);
-  const pageCount = Math.max(1, Math.ceil(totalCount / ADMIN_AUDIT_PAGE_SIZE));
-  const rangeStart = totalCount === 0 ? 0 : (page - 1) * ADMIN_AUDIT_PAGE_SIZE + 1;
-  const rangeEnd = Math.min(page * ADMIN_AUDIT_PAGE_SIZE, totalCount);
+
+  const [rows, setRows] = useState<AdminAuditRow[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [loadError, setLoadError] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  // One collapsed runtime feeds both presentations (desktop table + mobile
+  // list), so the visible container drives a single cardinality and a single
+  // fetch — no second pipeline (`AdminMobileAuditModule` no longer fetches).
+  const [desktopBodyNode, setDesktopBodyNode] = useState<HTMLElement | null>(null);
+  const [mobileBodyNode, setMobileBodyNode] = useState<HTMLElement | null>(null);
+  const [desktopRowNode, setDesktopRowNode] = useState<HTMLElement | null>(null);
+  const [mobileRowNode, setMobileRowNode] = useState<HTMLElement | null>(null);
+  const [measurement, setMeasurement] = useState<Measurement>({
+    containerNode: null,
+    rowHeightPx: ADMIN_AUDIT_ROW_HEIGHT_FALLBACK_PX,
+    headerHeightPx: 0,
+  });
+
+  const latestRequestRef = useRef(0);
+  const totalRef = useRef(0);
+
+  useEffect(() => {
+    totalRef.current = totalCount;
+  }, [totalCount]);
+
+  useLayoutEffect(() => {
+    const nodes = [
+      desktopBodyNode,
+      mobileBodyNode,
+      desktopRowNode,
+      mobileRowNode,
+    ].filter((node): node is HTMLElement => node !== null);
+    if (nodes.length === 0) {
+      return;
+    }
+
+    let frame: number | null = null;
+
+    const recompute = () => {
+      frame = null;
+
+      const mobileHeight = mobileBodyNode?.getBoundingClientRect().height ?? 0;
+      if (mobileHeight > 0 && mobileBodyNode) {
+        const rowHeight = mobileRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: mobileBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : ADMIN_AUDIT_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: 0,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+        return;
+      }
+
+      const desktopHeight = desktopBodyNode?.getBoundingClientRect().height ?? 0;
+      if (desktopHeight > 0 && desktopBodyNode) {
+        const rowHeight = desktopRowNode?.getBoundingClientRect().height ?? 0;
+        setMeasurement((previous) => {
+          const next: Measurement = {
+            containerNode: desktopBodyNode,
+            rowHeightPx:
+              rowHeight > 0 ? rowHeight : ADMIN_AUDIT_ROW_HEIGHT_FALLBACK_PX,
+            headerHeightPx: ADMIN_AUDIT_TABLE_HEADER_PX,
+          };
+          return measurementsEqual(previous, next) ? previous : next;
+        });
+      }
+    };
+
+    const scheduleRecompute = () => {
+      if (frame === null) {
+        frame = requestAnimationFrame(recompute);
+      }
+    };
+
+    const observer = new ResizeObserver(scheduleRecompute);
+    nodes.forEach((node) => observer.observe(node));
+    scheduleRecompute();
+
+    return () => {
+      observer.disconnect();
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
+
+  // Desktop is pinned by the App Shell contract (`expectNinePopulatedRows`,
+  // `dashboard-real-app-shell-no-scroll-contract.spec.ts`, 1440x900 /
+  // 1366x768): a positive safety gap could round the fit down to eight, so
+  // the desktop context — detected by the discounted header — keeps a floor
+  // of `ADMIN_AUDIT_FALLBACK_ROWS`. The mobile list keeps floor 1 to shrink
+  // on short phones (same trade-off as Reports/Users-Roles, SRV-2).
+  const isDesktopMeasurement = measurement.headerHeightPx > 0;
+  const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
+    containerNode: measurement.containerNode,
+    fallbackItems: ADMIN_AUDIT_FALLBACK_ROWS,
+    itemHeightPx: measurement.rowHeightPx,
+    headerHeightPx: measurement.headerHeightPx,
+    minItems: isDesktopMeasurement ? ADMIN_AUDIT_FALLBACK_ROWS : 1,
+    maxItems: ADMIN_AUDIT_LIMIT_CAP,
+  });
+
+  // Effective server page size: the measured rows, bounded by the RF cap.
+  const effectiveLimit = rowsPerPage;
+
+  const query = useMemo(
+    () => ({
+      ...(filters.event ? { event: filters.event } : {}),
+      ...(filters.actorType ? { actorType: filters.actorType } : {}),
+      ...(filters.from ? { from: `${filters.from}T00:00:00.000Z` } : {}),
+      ...(filters.to ? { to: `${filters.to}T23:59:59.999Z` } : {}),
+      ...(filters.clinicId ? { clinicId: Number(filters.clinicId) } : {}),
+      ...(filters.reportId ? { reportId: Number(filters.reportId) } : {}),
+      limit: effectiveLimit,
+      offset,
+    }),
+    [effectiveLimit, offset, filters],
+  );
+
+  function loadAuditPage() {
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
+
+    startTransition(() => {
+      void (async () => {
+        const result = await getAdminAuditPage(query);
+        if (requestId !== latestRequestRef.current) return;
+        setRows(result.rows);
+        setTotalCount(result.total);
+        setLoadError(result.loadError);
+      })();
+    });
+  }
+
+  // Recompute offset when the effective limit changes so the same first
+  // record stays visible; clamp against the known total (PR-SRV-0 §6, rule 1
+  // — audit-log exposes `total`, unlike Reports).
+  const previousLimitRef = useRef(effectiveLimit);
+  useEffect(() => {
+    if (previousLimitRef.current === effectiveLimit) {
+      return;
+    }
+    previousLimitRef.current = effectiveLimit;
+
+    setOffset((currentOffset) => {
+      let nextOffset = Math.floor(currentOffset / effectiveLimit) * effectiveLimit;
+      const total = totalRef.current;
+      if (total > 0) {
+        const lastValidOffset = Math.max(
+          0,
+          (Math.ceil(total / effectiveLimit) - 1) * effectiveLimit,
+        );
+        nextOffset = Math.min(nextOffset, lastValidOffset);
+      }
+      nextOffset = Math.max(0, nextOffset);
+      return nextOffset === currentOffset ? currentOffset : nextOffset;
+    });
+  }, [effectiveLimit]);
+
+  useEffect(() => {
+    loadAuditPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  const pageCount = Math.max(1, Math.ceil(totalCount / effectiveLimit));
+  const page = Math.min(Math.floor(offset / effectiveLimit) + 1, pageCount);
+  const rangeStart = totalCount === 0 ? 0 : offset + 1;
+  const rangeEnd = Math.min(offset + rows.length, totalCount);
+  const hasPreviousPage = offset > 0;
+  const hasNextPage = offset + rows.length < totalCount;
+
+  function goToPreviousPage() {
+    setOffset(Math.max(0, offset - effectiveLimit));
+  }
+
+  function goToNextPage() {
+    setOffset(offset + effectiveLimit);
+  }
 
   return (
     <div id="audit-log" className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -69,6 +270,16 @@ export function AdminAuditCard({
         globalTotal={globalTotal}
         roleChangesTotal={roleChanges.total}
         notificationsTotal={notifications.total}
+        rows={rows}
+        totalCount={totalCount}
+        loadError={loadError}
+        isPending={isPending}
+        offset={offset}
+        effectiveLimit={effectiveLimit}
+        onPrevious={goToPreviousPage}
+        onNext={goToNextPage}
+        bodyRef={setMobileBodyNode}
+        rowRef={setMobileRowNode}
       />
 
       <section
@@ -122,6 +333,8 @@ export function AdminAuditCard({
           rows={rows}
           loadError={loadError}
           hasActiveFilters={hasActiveFilters}
+          desktopBodyRef={setDesktopBodyNode}
+          desktopRowRef={setDesktopRowNode}
         />
       </div>
 
@@ -130,27 +343,25 @@ export function AdminAuditCard({
           {totalCount === 0 ? "Sin eventos" : `${rangeStart}–${rangeEnd} de ${totalCount}`}
         </span>
         <div className="flex items-center gap-2">
-          <span>Pág. {Math.min(page, pageCount)} / {pageCount}</span>
-          <PublicRouteControl
-            href={buildAuditPageHref(filters, Math.max(1, page - 1))}
-            replace
-            variant="bare"
-            disabled={loadError || page <= 1}
+          <span>Pág. {page} / {pageCount}</span>
+          <button
+            type="button"
+            onClick={goToPreviousPage}
+            disabled={loadError || !hasPreviousPage || isPending}
             aria-label="Página anterior"
             className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-input bg-card hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
           >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          </PublicRouteControl>
-          <PublicRouteControl
-            href={buildAuditPageHref(filters, page + 1)}
-            replace
-            variant="bare"
-            disabled={loadError || page >= pageCount}
+          </button>
+          <button
+            type="button"
+            onClick={goToNextPage}
+            disabled={loadError || !hasNextPage || isPending}
             aria-label="Página siguiente"
             className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-input bg-card hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
           >
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </PublicRouteControl>
+          </button>
         </div>
       </footer>
       </section>
