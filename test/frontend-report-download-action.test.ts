@@ -6,6 +6,8 @@ import test from "node:test";
 const REPORT_ACTIONS_PATH =
   "frontend/src/components/dashboard/ReportDownloadButton.tsx";
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
+const INFORMES_LIST_PATH =
+  "frontend/src/app/dashboard/informes/InformesReportsList.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -45,16 +47,17 @@ test("frontend report actions handles unavailable loading and error states", () 
 });
 
 test("frontend informes page uses selected report file actions", () => {
-  const source = read(INFORMES_PAGE_PATH);
+  const pageSource = read(INFORMES_PAGE_PATH);
+  const listSource = read(INFORMES_LIST_PATH);
 
+  assert.equal(pageSource.includes("<button"), false);
   assert.ok(
-    source.includes(
+    listSource.includes(
       'import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";',
     ),
   );
-  assert.ok(source.includes("<ReportFileActions"));
-  assert.ok(source.includes("reportId={selectedReport.id}"));
-  assert.ok(source.includes("hasFile={selectedReport.hasFile}"));
-  assert.equal(source.includes("storagePath"), false);
-  assert.equal(source.includes("<button"), false);
+  assert.ok(listSource.includes("<ReportFileActions"));
+  assert.ok(listSource.includes("reportId={selectedReport.id}"));
+  assert.ok(listSource.includes("hasFile={selectedReport.hasFile}"));
+  assert.equal(listSource.includes("storagePath"), false);
 });

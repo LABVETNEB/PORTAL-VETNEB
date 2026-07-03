@@ -6,6 +6,8 @@ import test from "node:test";
 const DASHBOARD_PAGE_PATH = "frontend/src/app/dashboard/page.tsx";
 const CLINIC_COMMAND_CENTER_PATH = "frontend/src/app/dashboard/ClinicCommandCenter.tsx";
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
+const INFORMES_LIST_PATH =
+  "frontend/src/app/dashboard/informes/InformesReportsList.tsx";
 const LOGISTICA_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
 const LOGISTICS_COMMAND_CENTER_PATH =
   "frontend/src/app/dashboard/logistica/LogisticsCommandCenter.tsx";
@@ -48,15 +50,17 @@ test("dashboard overview clinic command center distinguishes recent list load fa
 });
 
 test("dashboard informes page shows empty state when reports are unavailable", () => {
-  const source = read(INFORMES_PAGE_PATH);
+  const pageSource = read(INFORMES_PAGE_PATH);
+  const listSource = read(INFORMES_LIST_PATH);
 
-  assert.ok(source.includes("reportsLoadError ?"));
-  assert.ok(source.includes("reports.length > 0 ?"));
-  assert.ok(source.includes("No se pudieron cargar los informes. Intente nuevamente."));
-  assert.ok(source.includes('role="alert"'));
-  assert.ok(source.includes("No hay informes disponibles."));
-  assert.ok(source.includes("<EmptyState"));
-  assert.ok(source.includes("reports.map((report)"));
+  assert.ok(pageSource.includes("reportsLoadError = true;"));
+  assert.ok(listSource.includes("loadError ?"));
+  assert.ok(listSource.includes("reports.length > 0 ?"));
+  assert.ok(listSource.includes("No se pudieron cargar los informes. Intente nuevamente."));
+  assert.ok(listSource.includes('role="alert"'));
+  assert.ok(listSource.includes("No hay informes disponibles."));
+  assert.ok(listSource.includes("<EmptyState"));
+  assert.ok(listSource.includes("reports.map((report"));
 });
 
 test("dashboard logistics page distinguishes overview load failures from empty states", () => {

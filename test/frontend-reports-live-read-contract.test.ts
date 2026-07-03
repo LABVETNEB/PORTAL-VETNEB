@@ -23,6 +23,7 @@ function assertNotIncludes(
 }
 
 const reportsPage = "frontend/src/app/dashboard/informes/page.tsx";
+const reportsList = "frontend/src/app/dashboard/informes/InformesReportsList.tsx";
 const frontendApiClient = "frontend/src/lib/api.ts";
 
 test("frontend reports page does not read mock data directly", () => {
@@ -36,6 +37,7 @@ test("frontend reports page does not read mock data directly", () => {
 
 test("frontend reports page uses reports API client wrapper", () => {
   const source = read(reportsPage);
+  const listSource = read(reportsList);
 
   assertIncludes(source, 'from "@/lib/api"', reportsPage);
   assertIncludes(source, "getReports", reportsPage);
@@ -45,27 +47,28 @@ test("frontend reports page uses reports API client wrapper", () => {
   assertIncludes(source, "? await searchReportsPaginated(", reportsPage);
   assertIncludes(source, ": await getReportsPaginated(", reportsPage);
   assertIncludes(source, "{ throwOnError: true }", reportsPage);
-  assertIncludes(source, "reports.map", reportsPage);
-  assertIncludes(source, "reports.length", reportsPage);
   assertIncludes(source, "const reports = pagedResult.reports", reportsPage);
-  assertIncludes(source, "reportsTotal", reportsPage);
-  assertIncludes(source, "reportsTotalPages", reportsPage);
+  assertIncludes(listSource, "reports.map", reportsList);
+  assertIncludes(listSource, "reports.length", reportsList);
+  assertIncludes(listSource, "totalCount", reportsList);
+  assertIncludes(listSource, "reportsTotalPages", reportsList);
 });
 
 test("frontend reports page surfaces fetch failures separately from empty data", () => {
   const source = read(reportsPage);
+  const listSource = read(reportsList);
 
   assertIncludes(source, "let reportsLoadError = false;", reportsPage);
   assertIncludes(source, "try {", reportsPage);
   assertIncludes(source, "reportsLoadError = true;", reportsPage);
-  assertIncludes(source, "reportsLoadError ?", reportsPage);
+  assertIncludes(listSource, "loadError ?", reportsList);
   assertIncludes(
-    source,
+    listSource,
     "No se pudieron cargar los informes. Intente nuevamente.",
-    reportsPage,
+    reportsList,
   );
-  assertIncludes(source, 'role="alert"', reportsPage);
-  assertIncludes(source, "No hay informes disponibles.", reportsPage);
+  assertIncludes(listSource, 'role="alert"', reportsList);
+  assertIncludes(listSource, "No hay informes disponibles.", reportsList);
 });
 
 test("frontend reports page forces dynamic server reads with forwarded cookies", () => {

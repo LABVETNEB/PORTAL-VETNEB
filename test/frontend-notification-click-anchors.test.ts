@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 
-const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
+const INFORMES_LIST_PATH =
+  "frontend/src/app/dashboard/informes/InformesReportsList.tsx";
 const CLINIC_TOKENS_CARD_PATH =
   "frontend/src/components/dashboard/ClinicParticularTokensCard.tsx";
 const PARTICULARES_CONTENT_PATH =
@@ -20,14 +21,14 @@ function read(relativePath: string): string {
 }
 
 test("notification click targets render stable clinic, particular, and admin anchors", () => {
-  const informesPage = read(INFORMES_PAGE_PATH);
+  const informesList = read(INFORMES_LIST_PATH);
   const clinicTokensCard = read(CLINIC_TOKENS_CARD_PATH);
   const particularesContent = read(PARTICULARES_CONTENT_PATH);
   const adminPage = read(ADMIN_PAGE_PATH);
   const adminAuditCard = read(ADMIN_AUDIT_CARD_PATH);
 
   assert.ok(
-    informesPage.includes("id={`report-${report.id}`}"),
+    informesList.includes("id={`report-${report.id}`}"),
     "clinic informes rows must expose report-{id} anchors",
   );
   assert.ok(

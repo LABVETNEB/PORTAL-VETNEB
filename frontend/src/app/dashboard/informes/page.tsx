@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 
 import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
-import { EmptyState } from "@/components/dashboard/EmptyState";
-import { ErrorState } from "@/components/dashboard/ErrorState";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
 import {
   dashboardFilterActionClassName,
@@ -12,9 +10,7 @@ import {
   FilterField,
 } from "@/components/dashboard/FilterBar";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
-import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,30 +21,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
-  StudyTimeline,
-  type StudyTimelineStep,
-} from "@/components/dashboard/StudyTimeline";
-import {
   getReportsPaginated,
   searchReportsPaginated,
   type PaginatedReports,
 } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
-import {
-  cn,
-  getReportStatusLabel,
-  getReportStatusVariant,
-  formatDate,
-} from "@/lib/utils";
+import { getReportStatusLabel } from "@/lib/utils";
 import { ROUTES } from "@/lib/routes";
-import type { Report, ReportStatus } from "@/types";
+import { InformesReportsList } from "./InformesReportsList";
+import { INFORMES_FALLBACK_ROWS } from "./informes.constants";
 
 export const metadata: Metadata = {
   title: "Informes — Portal VETNEB",
   robots: { index: false, follow: false },
 };
-
-const REPORTS_PAGE_SIZE = 6;
 
 const statusOptions = [
   { value: "", label: "Todos los estados" },
@@ -63,7 +49,6 @@ type InformesPageSearchParams = {
   status?: string | string[];
   studyType?: string | string[];
   reportId?: string | string[];
-  page?: string | string[];
 };
 
 function normalizeSearchParamValue(value: string | string[] | undefined) {
@@ -86,112 +71,6 @@ function normalizeReportIdFilter(value: string) {
   const reportId = Number(value);
 
   return Number.isInteger(reportId) && reportId > 0 ? reportId : null;
-}
-
-function normalizePageParam(value: string): number {
-  const n = Number(value);
-
-  return Number.isInteger(n) && n > 0 ? n : 1;
-}
-
-function buildInformesHref(input: {
-  query?: string;
-  status?: string;
-  studyType?: string;
-  reportId?: number | null;
-  page?: number;
-}) {
-  const params = new URLSearchParams();
-
-  if (input.query) {
-    params.set("query", input.query);
-  }
-
-  if (input.status) {
-    params.set("status", input.status);
-  }
-
-  if (input.studyType) {
-    params.set("studyType", input.studyType);
-  }
-
-  if (input.reportId) {
-    params.set("reportId", String(input.reportId));
-  }
-
-  if (input.page && input.page > 1) {
-    params.set("page", String(input.page));
-  }
-
-  const qs = params.toString();
-
-  return `/dashboard/informes${qs ? `?${qs}` : ""}`;
-}
-
-function getReportTitle(report: Report) {
-  return report.patientName
-    ? `${report.patientName} · Informe #${report.id}`
-    : `Informe #${report.id}`;
-}
-
-const REPORT_STATUS_ORDER = {
-  uploaded: 0,
-  processing: 1,
-  ready: 2,
-  delivered: 3,
-} satisfies Record<ReportStatus, number>;
-
-function getTimelineStepStatus(
-  currentStatus: ReportStatus,
-  stepStatus: ReportStatus,
-): StudyTimelineStep["status"] {
-  if (currentStatus === stepStatus) {
-    return stepStatus === "delivered" ? "completed" : "current";
-  }
-
-  return REPORT_STATUS_ORDER[currentStatus] > REPORT_STATUS_ORDER[stepStatus]
-    ? "completed"
-    : "pending";
-}
-
-function buildStudyTimelineSteps(report: Report): StudyTimelineStep[] {
-  const currentStatus = report.currentStatus ?? report.status;
-  const uploadedDate = report.uploadDate ?? report.createdAt;
-  const updatedDate = report.updatedAt;
-
-  return [
-    {
-      id: "uploaded",
-      label: "Carga recibida",
-      date: uploadedDate ? formatDate(uploadedDate) : null,
-      description: "Fecha registrada para el informe en el portal.",
-      status: "completed",
-    },
-    {
-      id: "processing",
-      label: "Procesamiento",
-      date: currentStatus === "processing" ? formatDate(updatedDate) : null,
-      description: "Estado operativo informado por el registro del informe.",
-      status: getTimelineStepStatus(currentStatus, "processing"),
-    },
-    {
-      id: "ready",
-      label: "Informe disponible",
-      date:
-        currentStatus === "ready" || currentStatus === "delivered"
-          ? formatDate(updatedDate)
-          : null,
-      description: "El archivo queda disponible cuando el estado real lo indique.",
-      status: getTimelineStepStatus(currentStatus, "ready"),
-    },
-    {
-      id: "delivered",
-      label: "Entrega",
-      date: currentStatus === "delivered" ? formatDate(updatedDate) : null,
-      description: "Cierre del circuito visible para la clínica.",
-      status: getTimelineStepStatus(currentStatus, "delivered"),
-    },
-  ];
 }
 
 async function getReportsRequestOptions(): Promise<RequestInit> {
@@ -217,14 +96,17 @@ export default async function InformesPage({
   const selectedReportId = normalizeReportIdFilter(
     normalizeSearchParamValue(resolvedSearchParams.reportId),
   );
-  const page = normalizePageParam(normalizeSearchParamValue(resolvedSearchParams.page));
   const requestOptions = await getReportsRequestOptions();
 
+  // The measured viewport pageSize is only known client-side, so the initial
+  // server render uses `INFORMES_FALLBACK_ROWS` as the pre-measurement
+  // baseline; `InformesReportsList` re-derives and re-fetches the real page
+  // size (RF debounced pattern, same contract as R-06 `AdminAuditCard`).
   let pagedResult: PaginatedReports = {
     reports: [],
     total: 0,
-    page,
-    pageSize: REPORTS_PAGE_SIZE,
+    page: 1,
+    pageSize: INFORMES_FALLBACK_ROWS,
     totalPages: 0,
   };
   let reportsLoadError = false;
@@ -236,8 +118,8 @@ export default async function InformesPage({
             query,
             status: status || undefined,
             studyType: studyType || undefined,
-            page,
-            pageSize: REPORTS_PAGE_SIZE,
+            page: 1,
+            pageSize: INFORMES_FALLBACK_ROWS,
           },
           requestOptions,
           { throwOnError: true },
@@ -246,8 +128,8 @@ export default async function InformesPage({
           requestOptions,
           {
             status: status || undefined,
-            page,
-            pageSize: REPORTS_PAGE_SIZE,
+            page: 1,
+            pageSize: INFORMES_FALLBACK_ROWS,
           },
           { throwOnError: true },
         );
@@ -257,22 +139,11 @@ export default async function InformesPage({
   }
 
   const reports = pagedResult.reports;
-  const reportsTotal = pagedResult.total;
-  const reportsTotalPages = pagedResult.totalPages;
-  const offset = (page - 1) * REPORTS_PAGE_SIZE;
-  const pageStart = reportsTotal > 0 ? offset + 1 : 0;
-  const pageEnd = Math.min(offset + reports.length, reportsTotal);
 
   const selectedReport =
     selectedReportId === null
       ? (reports[0] ?? null)
       : (reports.find((report) => report.id === selectedReportId) ?? null);
-
-  const selectedReportTimelineSteps = selectedReport
-    ? buildStudyTimelineSteps(selectedReport)
-    : [];
-
-  const hasActiveFilters = Boolean(query || status || studyType);
 
   return (
     <>
@@ -314,31 +185,6 @@ export default async function InformesPage({
                 <p className="mt-1 text-sm text-muted-foreground">
                   Seleccione un informe de la lista para abrir el detalle operativo.
                 </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 xl:min-w-[34rem]">
-                <div className="surface-soft px-3 py-2">
-                  <p className="text-xs text-muted-foreground">Total</p>
-                  <p className="mt-0.5 font-semibold text-vetneb-ink">{reportsTotal}</p>
-                </div>
-                <div className="surface-soft px-3 py-2">
-                  <p className="text-xs text-muted-foreground">Mostrando</p>
-                  <p className="mt-0.5 font-semibold text-vetneb-ink">
-                    {reportsTotal > 0 ? `${pageStart}-${pageEnd}` : "0"}
-                  </p>
-                </div>
-                <div className="surface-soft px-3 py-2">
-                  <p className="text-xs text-muted-foreground">Página</p>
-                  <p className="mt-0.5 font-semibold text-vetneb-ink">
-                    {Math.max(page, 1)} / {Math.max(reportsTotalPages, 1)}
-                  </p>
-                </div>
-                <div className="surface-soft px-3 py-2">
-                  <p className="text-xs text-muted-foreground">Filtros</p>
-                  <p className="mt-0.5 font-semibold text-vetneb-ink">
-                    {hasActiveFilters ? "Activos" : "Sin filtros"}
-                  </p>
-                </div>
               </div>
             </div>
           </CardHeader>
@@ -400,281 +246,15 @@ export default async function InformesPage({
               </div>
             </FilterBar>
 
-            {reportsLoadError || reports.length === 0 ? (
-              <div className="flex min-h-0 flex-1 flex-col">
-                <section
-                  id="reports-master-list"
-                  aria-labelledby="reports-list-heading"
-                  className="dashboard-master-panel dashboard-inline-list flex-1 rounded-xl border border-vetneb-line/75 bg-card/82"
-                >
-                  <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-3">
-                    <h2
-                      id="reports-list-heading"
-                      className="dashboard-section-heading"
-                    >
-                      Lista de informes
-                    </h2>
-                    <p className="dashboard-section-description">
-                      Click en un informe para ver detalles y acciones.
-                    </p>
-                  </div>
-
-                  <div className="dashboard-inline-scroll p-4">
-                    {reportsLoadError ? (
-                      <div role="alert">
-                        <ErrorState
-                          title="No se pudieron cargar los informes"
-                          message="No se pudieron cargar los informes. Intente nuevamente."
-                        />
-                      </div>
-                    ) : (
-                      <EmptyState
-                        title="No hay informes disponibles."
-                        description="Cuando haya informes para los filtros actuales, aparecerán en esta lista."
-                      />
-                    )}
-                  </div>
-                </section>
-              </div>
-            ) : null}
-
-            {!reportsLoadError && reports.length > 0 ? (
-              <div className="flex min-h-0 flex-1 flex-col">
-                <section
-                  id="reports-master-list"
-                  aria-labelledby="reports-list-heading"
-                  className="dashboard-master-panel dashboard-inline-list flex-1 rounded-xl border border-vetneb-line/75 bg-card/82"
-                >
-                  <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-3">
-                    <h2
-                      id="reports-list-heading"
-                      className="dashboard-section-heading"
-                    >
-                      Lista de informes
-                    </h2>
-                    <p className="dashboard-section-description">
-                      Click en un informe para ver el detalle desplegado dentro del propio informe.
-                    </p>
-                  </div>
-
-                  <div className="dashboard-inline-scroll divide-y divide-vetneb-line/60">
-                    {reports.map((report) => {
-                      const isSelected = selectedReport?.id === report.id;
-
-                      return (
-                        <div key={report.id} className="min-w-0">
-                          <PublicRouteControl
-                            id={`report-${report.id}`}
-                            href={buildInformesHref({
-                              query,
-                              status,
-                              studyType,
-                              reportId: report.id,
-                              page,
-                            })}
-                            replace
-                            prefetch={false}
-                            variant="bare"
-                            aria-current={isSelected ? "true" : undefined}
-                            aria-expanded={isSelected}
-                            aria-label={
-                              isSelected
-                                ? `Informe seleccionado: ${getReportTitle(report)}`
-                                : `Seleccionar informe: ${getReportTitle(report)}`
-                            }
-                            className={cn(
-                              "block w-full px-4 py-3 text-left transition-colors hover:bg-vetneb-cyan/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-inset",
-                              isSelected && "bg-vetneb-cyan/12",
-                            )}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                                  Informe #{report.id}
-                                </p>
-                                <p className="mt-1 truncate text-sm font-semibold text-vetneb-ink">
-                                  {report.patientName ?? "Paciente sin nombre"}
-                                </p>
-                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                  {report.studyType ?? "Tipo sin registrar"} ·{" "}
-                                  {formatDate(report.uploadDate)}
-                                </p>
-                              </div>
-                              <Badge
-                                variant={getReportStatusVariant(report.status)}
-                                className="shrink-0"
-                              >
-                                {getReportStatusLabel(report.status)}
-                              </Badge>
-                            </div>
-                          </PublicRouteControl>
-
-                          {isSelected && selectedReport ? (
-                            <div
-                              id="report-detail"
-                              aria-labelledby="report-detail-heading"
-                              data-detail-state="selected"
-                              className="dashboard-inline-detail border-t border-vetneb-line/60 bg-vetneb-surface-muted/40"
-                            >
-                              <div className="space-y-4 p-4">
-                                <div className="flex flex-col gap-3 border-b border-vetneb-line/70 pb-4 lg:flex-row lg:items-start lg:justify-between">
-                                  <div className="min-w-0">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                                      Detalle del informe
-                                    </p>
-                                    <h2
-                                      id="report-detail-heading"
-                                      className="mt-1 text-xl font-semibold text-vetneb-ink"
-                                    >
-                                      {getReportTitle(selectedReport)}
-                                    </h2>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                      Clínica{" "}
-                                      {selectedReport.clinicName ??
-                                        `#${selectedReport.clinicId}`}
-                                    </p>
-                                  </div>
-                                  <StatusBadge
-                                    status={selectedReport.status}
-                                    label={getReportStatusLabel(selectedReport.status)}
-                                  />
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                  <div className="surface-soft">
-                                    <p className="text-xs text-muted-foreground">Paciente</p>
-                                    <p className="mt-1 font-semibold text-vetneb-ink">
-                                      {selectedReport.patientName ?? "—"}
-                                    </p>
-                                  </div>
-                                  <div className="surface-soft">
-                                    <p className="text-xs text-muted-foreground">
-                                      Tipo de estudio
-                                    </p>
-                                    <p className="mt-1 font-semibold text-vetneb-ink">
-                                      {selectedReport.studyType ?? "—"}
-                                    </p>
-                                  </div>
-                                  <div className="surface-soft">
-                                    <p className="text-xs text-muted-foreground">Fecha</p>
-                                    <p className="mt-1 font-semibold text-vetneb-ink">
-                                      {formatDate(selectedReport.uploadDate)}
-                                    </p>
-                                  </div>
-                                  <div className="surface-soft">
-                                    <p className="text-xs text-muted-foreground">Creado</p>
-                                    <p className="mt-1 font-semibold text-vetneb-ink">
-                                      {formatDate(selectedReport.createdAt)}
-                                    </p>
-                                  </div>
-                                  <div className="surface-soft">
-                                    <p className="text-xs text-muted-foreground">
-                                      Actualizado
-                                    </p>
-                                    <p className="mt-1 font-semibold text-vetneb-ink">
-                                      {formatDate(selectedReport.updatedAt)}
-                                    </p>
-                                  </div>
-                                  <div className="surface-soft">
-                                    <p className="text-xs text-muted-foreground">Archivo</p>
-                                    <p className="mt-1 font-semibold text-vetneb-ink">
-                                      {selectedReport.fileName ??
-                                        (selectedReport.hasFile ? "Disponible" : "—")}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <section className="space-y-3" aria-labelledby="report-actions-heading">
-                                  <div>
-                                    <h3
-                                      id="report-actions-heading"
-                                      className="text-base font-semibold text-vetneb-ink"
-                                    >
-                                      Acciones
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                      Visualización y descarga del archivo disponible.
-                                    </p>
-                                  </div>
-                                  <ReportFileActions
-                                    reportId={selectedReport.id}
-                                    hasFile={selectedReport.hasFile}
-                                    align="start"
-                                  />
-                                </section>
-
-                                <section
-                                  className="space-y-3"
-                                  aria-labelledby="study-timeline-heading"
-                                >
-                                  <div>
-                                    <h3
-                                      id="study-timeline-heading"
-                                      className="text-base font-semibold text-vetneb-ink"
-                                    >
-                                      Línea de tiempo del estudio
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                      Pasos derivados del estado y fechas ya disponibles.
-                                    </p>
-                                  </div>
-                                  <StudyTimeline steps={selectedReportTimelineSteps} />
-                                </section>
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {reportsTotalPages > 1 ? (
-                    <nav
-                      aria-label="Paginación de informes"
-                      className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/70 px-4 py-3"
-                    >
-                      <PublicRouteControl
-                        href={buildInformesHref({
-                          query,
-                          status,
-                          studyType,
-                          page: page - 1,
-                        })}
-                        replace
-                        prefetch={false}
-                        variant="bare"
-                        disabled={page <= 1}
-                        aria-label="Página anterior"
-                        aria-disabled={page <= 1 ? "true" : undefined}
-                        className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Anterior
-                      </PublicRouteControl>
-                      <span className="dashboard-pagination-context">
-                        Página {page} de {reportsTotalPages}
-                      </span>
-                      <PublicRouteControl
-                        href={buildInformesHref({
-                          query,
-                          status,
-                          studyType,
-                          page: page + 1,
-                        })}
-                        replace
-                        prefetch={false}
-                        variant="bare"
-                        disabled={page >= reportsTotalPages}
-                        aria-label="Página siguiente"
-                        aria-disabled={page >= reportsTotalPages ? "true" : undefined}
-                        className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Siguiente
-                      </PublicRouteControl>
-                    </nav>
-                  ) : null}
-                </section>
-              </div>
-            ) : null}
+            <InformesReportsList
+              filters={{ query, status, studyType }}
+              initialReports={reports}
+              initialTotal={pagedResult.total}
+              initialPage={pagedResult.page}
+              initialPageSize={pagedResult.pageSize}
+              initialLoadError={reportsLoadError}
+              initialSelectedReportId={selectedReportId}
+            />
           </CardContent>
         </Card>
       </main>
