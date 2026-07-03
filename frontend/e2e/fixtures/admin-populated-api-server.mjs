@@ -184,6 +184,41 @@ const CLINIC_ROUTE_PLANS = [
   },
 ];
 
+// R-14 exception: additive-only, keyed by CLINIC_ROUTE_PLANS id. Serves
+// GET /api/logistics/route-plans/:id/metrics so metricas/page.tsx (which now
+// requests limit/offset and therefore matches the route-plans handler above)
+// can resolve its per-page-visible-plan metrics fan-out end to end. Does not
+// touch the route-plans or field-visits handlers or their gating.
+const CLINIC_ROUTE_METRICS_BY_PLAN_ID = {
+  8601: {
+    routePlanId: 8601,
+    totalStops: 8,
+    completedStops: 3,
+    skippedStops: 1,
+    noShowStops: 0,
+    complianceRate: 90,
+    averageDurationMinutes: 42,
+  },
+  8602: {
+    routePlanId: 8602,
+    totalStops: 5,
+    completedStops: 2,
+    skippedStops: 1,
+    noShowStops: 1,
+    complianceRate: 65,
+    averageDurationMinutes: 55,
+  },
+  8603: {
+    routePlanId: 8603,
+    totalStops: 10,
+    completedStops: 10,
+    skippedStops: 0,
+    noShowStops: 0,
+    complianceRate: 100,
+    averageDurationMinutes: null,
+  },
+};
+
 // PR-R06: audit is RF debounced (high-volume, no over-fetch superset), so the
 // mobile adaptive list can request a limit up to ADMIN_AUDIT_LIMIT_CAP (32).
 // The base 11 hand-authored entries are cycled to reach the fixture's
@@ -826,6 +861,20 @@ const server = createServer((request, response) => {
     (url.searchParams.has("limit") && url.searchParams.has("offset"))
   ) {
     sendJson(response, 200, { routePlans: CLINIC_ROUTE_PLANS });
+    return;
+  }
+
+  const routePlanMetricsMatch = url.pathname.match(
+    /^\/api\/logistics\/route-plans\/(\d+)\/metrics$/,
+  );
+  if (hasPopulatedClinicSession(request) && routePlanMetricsMatch) {
+    const planId = Number(routePlanMetricsMatch[1]);
+    const metrics = CLINIC_ROUTE_METRICS_BY_PLAN_ID[planId];
+    if (metrics) {
+      sendJson(response, 200, { metrics });
+    } else {
+      sendJson(response, 404, { error: "route plan metrics not found" });
+    }
     return;
   }
 

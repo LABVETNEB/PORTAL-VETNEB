@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
+import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import {
   Card,
   CardContent,
@@ -17,6 +18,43 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// getRoutePlanMetrics issues 1 backend request per visible route plan.
+// Unlike rutas/visitas, this page must NOT inherit the backend route-plans
+// default (50): that would fan out up to 50 parallel metrics requests per
+// page load. These metrics-specific limits cap that fan-out independently
+// of the backend route-plans default/max (parsePositiveInt(..., 50, 100)).
+const METRICAS_DEFAULT_LIMIT = 12;
+const METRICAS_MAX_LIMIT = 24;
+
+type MetricasPageSearchParams = {
+  offset?: string | string[];
+  limit?: string | string[];
+};
+
+function normalizeSearchParamValue(
+  value: string | string[] | undefined,
+): string {
+  return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+}
+
+function normalizeOffset(value: string | string[] | undefined): number {
+  const parsed = Number(normalizeSearchParamValue(value));
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function normalizeLimit(value: string | string[] | undefined): number {
+  const parsed = Number(normalizeSearchParamValue(value));
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return METRICAS_DEFAULT_LIMIT;
+  }
+
+  return Math.min(parsed, METRICAS_MAX_LIMIT);
+}
+
+function buildMetricasHref(offset: number, limit: number): string {
+  return `/dashboard/logistica/metricas?offset=${offset}&limit=${limit}`;
+}
+
 async function getLogisticsRequestOptions(): Promise<RequestInit> {
   const cookieHeader = (await cookies()).toString();
 
@@ -26,7 +64,15 @@ async function getLogisticsRequestOptions(): Promise<RequestInit> {
   };
 }
 
-export default async function MetricasPage() {
+export default async function MetricasPage({
+  searchParams,
+}: {
+  searchParams?: Promise<MetricasPageSearchParams>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const offset = normalizeOffset(resolvedSearchParams.offset);
+  const limit = normalizeLimit(resolvedSearchParams.limit);
+
   const requestOptions = await getLogisticsRequestOptions();
   let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];
   let routePlansLoadError = false;
@@ -34,8 +80,9 @@ export default async function MetricasPage() {
   let routeMetricsLoadError = false;
 
   try {
-    routePlans = await getRoutePlans(requestOptions, {
-      throwOnError: true,
+    routePlans = await getRoutePlans(requestOptions, { throwOnError: true }, {
+      limit,
+      offset,
     });
   } catch (error) {
     redirectToLoginOnUnauthorized(error);
@@ -58,6 +105,16 @@ export default async function MetricasPage() {
       routeMetricsLoadError = true;
     }
   }
+
+  // No `total` is exposed by the route-plans endpoint: page-full is the
+  // only signal available, so `canGoNext` may false-positive on an
+  // exact-multiple last page — same documented tradeoff as rutas/visitas
+  // (docs/audit/clinic-logistics-full-routes-adaptive-contract-audit.md).
+  const canGoPrevious = !routePlansLoadError && offset > 0;
+  const canGoNext = !routePlansLoadError && routePlans.length === limit;
+  const currentPage = Math.floor(offset / limit) + 1;
+  const previousHref = buildMetricasHref(Math.max(0, offset - limit), limit);
+  const nextHref = buildMetricasHref(offset + limit, limit);
 
   const totalStops = routeMetrics.reduce(
     (sum, metric) => sum + metric.totalStops,
@@ -147,6 +204,10 @@ export default async function MetricasPage() {
             </CardContent>
           </Card>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Métricas calculadas sobre la página visible (máximo {limit} planes),
+          no sobre el total general de rutas.
+        </p>
 
         <Card className="dashboard-surface">
           <CardHeader>
@@ -154,6 +215,10 @@ export default async function MetricasPage() {
             <CardDescription>
               Detalle de cumplimiento por cada plan ejecutado
             </CardDescription>
+            <p className="text-sm text-muted-foreground">
+              Mostrando {routeMetrics.length} métricas de ruta · página {currentPage}
+              {canGoNext ? " · puede haber más planes de ruta disponibles" : ""}
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             {routePlansLoadError ? (
@@ -234,6 +299,32 @@ export default async function MetricasPage() {
               </div>
             )}
           </CardContent>
+          <nav
+            aria-label="Paginación de métricas de ruta"
+            className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/70 px-4 py-3"
+          >
+            <PublicRouteControl
+              href={previousHref}
+              variant="bare"
+              disabled={!canGoPrevious}
+              aria-label="Página anterior"
+              className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Anterior
+            </PublicRouteControl>
+            <span className="dashboard-pagination-context">
+              Página {currentPage}
+            </span>
+            <PublicRouteControl
+              href={nextHref}
+              variant="bare"
+              disabled={!canGoNext}
+              aria-label="Página siguiente"
+              className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Siguiente
+            </PublicRouteControl>
+          </nav>
         </Card>
       </main>
     </>
