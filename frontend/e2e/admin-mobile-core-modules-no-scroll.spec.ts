@@ -198,7 +198,30 @@ for (const moduleSpec of MODULES) {
         items.first(),
         `${viewport.name}: ${moduleSpec.key} first item visible`,
       ).toBeVisible({ timeout: 15_000 });
-      const itemCount = await items.count();
+
+      // R-02: clinics derives its page size from the measured list container
+      // (adaptive, HY cap 36), so the first paint can render the fallback
+      // count and a follow-up fetch re-renders with the settled fit. Reading
+      // count() once mid-settle made .nth(i) chase items from a superseded
+      // render (CI failure: "item 10/13/15 not found"). Wait for two
+      // consecutive equal counts before iterating; harmless for the fixed-size
+      // modules (reports/tokens), whose count is stable immediately.
+      let settledCount = -1;
+      await expect(async () => {
+        const current = await items.count();
+        expect(
+          current,
+          `${viewport.name}: ${moduleSpec.key} has visible items`,
+        ).toBeGreaterThan(0);
+        if (settledCount !== current) {
+          settledCount = current;
+          throw new Error(
+            `${moduleSpec.key} item count not yet stable: ${current}`,
+          );
+        }
+      }).toPass({ intervals: [250, 350, 500, 750, 1_000], timeout: 10_000 });
+
+      const itemCount = settledCount;
       expect(itemCount, `${viewport.name}: ${moduleSpec.key} has visible items`).toBeGreaterThan(0);
       expect(
         itemCount,

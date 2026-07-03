@@ -229,6 +229,32 @@ PNPM 10.8.1 (coincide con `packageManager`).
 `frontend/next-env.d.ts` fue regenerado por Next/Playwright durante los e2e y se
 restauró (`git checkout --`) antes del diff review, por estar fuera de scope.
 
+## Fix post-CI: conteo asentado en `admin-mobile-core-modules-no-scroll`
+
+CI (`validate-frontend` → `pnpm --dir frontend e2e:admin-mobile`) reportó los tres
+viewports de `Admin mobile core module "clinics" is no-scroll` en rojo: el spec esperaba
+`clinics item 10/13/15` (`.nth(9)/.nth(12)/.nth(14)`) que ya no existían.
+
+**Causa raíz:** el spec leía `items.count()` **una sola vez** inmediatamente después de
+que el primer ítem fuera visible, sin esperar el asentamiento medición↔fetch propio del
+contrato adaptativo (riesgo ya documentado arriba): el primer paint usa el fallback, el
+re-fetch con el fit medido re-renderiza la lista, y en CI Linux el conteo transitorio
+capturado quedaba obsoleto cuando el loop llegaba a `.nth(count - 1)`. No es un bug de
+renderizado del componente — es el spec iterando sobre un conteo de un render superado.
+
+**Fix (sólo e2e, acotado al loop compartido):** antes de iterar, se espera un conteo
+**asentado** (dos lecturas consecutivas iguales vía `expect(...).toPass`, mismo patrón
+que ya usaba `admin-clinics-mobile-card-layout.spec.ts`). Las aserciones del contrato
+adaptativo quedan: `renderedCount > 0`, `renderedCount ≤ maxItemsPerPage` (36 para
+Clínicas), cada ítem renderizado dentro del viewport, pager visible/operable y
+navegación a página 2 verificada por cambio de contenido. Sin conteos fijos por
+dispositivo. La espera es inofensiva para `reports`/`tokens` (tamaño fijo 10, conteo
+estable de inmediato): sus expectativas no cambiaron.
+
+**No relacionado:** el fallo local de `theme-mode.spec.ts`
+(`meta[name="theme-color"]` resuelto a 2 elementos / `removeChild`) es ajeno a R-02;
+queda registrado como flake/deuda separada, no se tocó en este PR.
+
 ## Riesgos residuales
 
 - **Flake medición↔fetch (P2):** el primer paint puede usar el fallback (9) antes de
