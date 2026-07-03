@@ -33,7 +33,10 @@ const MOCK_CLINICS = Array.from({ length: 40 }, (_, index) => {
 });
 
 const REPORT_STAGES = ["sample_received", "processing", "delivered"] as const;
-const MOCK_REPORTS = Array.from({ length: 13 }, (_, index) => {
+// R-03: reports pages are now measured (HY cap 36) instead of a fixed 10, so
+// the fixture must have enough rows to fill the tallest measured page and still
+// leave a populated page 2 (same reasoning as the R-02 clinics bump 13 → 40).
+const MOCK_REPORTS = Array.from({ length: 40 }, (_, index) => {
   const id = 7400 + index;
   return {
     id,
@@ -146,7 +149,7 @@ const MODULES: ModuleSpec[] = [
   // Clinics: R-02 raised the ceiling to the HY superset cap (36); the real
   // guarantee is per-item viewport fit, not a fixed page size.
   { key: "clinics", moduleId: "admin-clinics", mock: mockAdminClinics, maxItemsPerPage: 36 },
-  { key: "reports", moduleId: "admin-report-upload", mock: mockAdminReportWorkflow, maxItemsPerPage: 10 },
+  { key: "reports", moduleId: "admin-report-upload", mock: mockAdminReportWorkflow, maxItemsPerPage: 36 },
   { key: "tokens", moduleId: "admin-particular-tokens", mock: mockAdminParticularTokens, maxItemsPerPage: 10 },
 ];
 
@@ -313,7 +316,7 @@ test("Admin mobile core modules reachable from bottom nav and Más menu", async 
   ).toBeVisible({ timeout: 15_000 });
 });
 
-test("Admin mobile reports pagination advances through 10-record pages with pager anchored at the bottom", async ({
+test("Admin mobile reports pagination advances through measured pages with pager anchored at the bottom", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -327,9 +330,26 @@ test("Admin mobile reports pagination advances through 10-record pages with page
 
   const list = page.locator("[data-admin-reports-mobile-list='true']");
   await expect(list).toBeVisible();
+  // R-03: the page size is measured (HY cap 36), not a fixed 10. The first
+  // record is always on page 1; assert the adaptive contract instead of a
+  // hard-coded per-page count.
+  const items = list.locator("[data-admin-mobile-core-item='true']");
+  await expect(items.first()).toBeVisible();
   await expect(list.getByText("#7400 ", { exact: false })).toBeVisible();
-  await expect(list.getByText("#7409 ", { exact: false })).toBeVisible();
-  await expect(list.getByText("#7410 ", { exact: false })).toHaveCount(0);
+
+  // Wait for the measurement↔fetch settle (two consecutive equal counts)
+  // before reading the page-1 contents, same pattern as the no-scroll loop.
+  let settledCount = -1;
+  await expect(async () => {
+    const current = await items.count();
+    expect(current).toBeGreaterThan(0);
+    if (settledCount !== current) {
+      settledCount = current;
+      throw new Error(`reports item count not yet stable: ${current}`);
+    }
+  }).toPass({ intervals: [250, 350, 500, 750, 1_000], timeout: 10_000 });
+  expect(settledCount).toBeGreaterThan(0);
+  expect(settledCount).toBeLessThanOrEqual(36);
 
   const pager = page.locator("[data-admin-mobile-core-pager='true']");
   await expect(pager.getByText("Pág. 1")).toBeVisible();
@@ -342,9 +362,12 @@ test("Admin mobile reports pagination advances through 10-record pages with page
   expect(bottomNavBox).not.toBeNull();
   expect(pagerBox!.y + pagerBox!.height).toBeLessThanOrEqual(bottomNavBox!.y + 2);
 
+  const firstPageLabels = (await items.allTextContents()).join("|");
   await pager.getByRole("button", { name: "Página siguiente" }).click();
-  await expect(list.getByText("#7410 ", { exact: false })).toBeVisible();
-  await expect(list.getByText("#7412 ", { exact: false })).toBeVisible();
+  // Page 2 shows different records; the first record (#7400) is no longer here.
+  await expect
+    .poll(async () => (await items.allTextContents()).join("|"))
+    .not.toBe(firstPageLabels);
   await expect(list.getByText("#7400 ", { exact: false })).toHaveCount(0);
   await expect(pager.getByText("Pág. 2")).toBeVisible();
 });

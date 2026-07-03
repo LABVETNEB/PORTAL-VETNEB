@@ -46,18 +46,53 @@ test("Admin Informes preserva el identificador real y monta la consola dedicada"
   );
 });
 
-test("Admin Informes usa paginación server-side viewport-safe de nueve filas", () => {
+test("Admin Informes usa paginación server-side adaptativa por viewport (HY cap 36)", () => {
   const card = read(CARD_PATH);
 
-  assert.ok(card.includes("const PAGE_SIZE = 9;"));
+  // R-03: cardinality is measured, not fixed. The legacy PAGE_SIZE=9 survives
+  // only as the fallback/desktop floor, renamed; MOBILE_PAGE_SIZE and the
+  // matchMedia second pipeline are gone (single collapsed runtime).
+  assert.ok(card.includes("const REPORTS_FALLBACK_ROWS = 9;"));
+  assert.ok(card.includes("const REPORTS_SUPERSET_CAP = 36;"));
+  assert.ok(card.includes("useAdaptiveItemsPerPage"));
+  assert.ok(card.includes("const effectiveLimit = rowsPerPage;"));
+  assert.equal(card.includes("const PAGE_SIZE = 9;"), false);
+  assert.equal(card.includes("const MOBILE_PAGE_SIZE"), false);
+  assert.equal(card.includes("window.matchMedia"), false);
+  assert.equal(card.includes("isMobileViewport"), false);
+  assert.equal(card.includes("loadMobileReports"), false);
+
   assert.ok(card.includes("getAdminReportWorkflow({"));
-  assert.ok(card.includes("limit: PAGE_SIZE"));
-  assert.ok(card.includes("offset: nextPage * PAGE_SIZE"));
+  assert.ok(card.includes("limit: query.limit"));
+  assert.ok(card.includes("offset: query.offset"));
   assert.ok(card.includes("snapshot.pagination.hasMore"));
   assert.equal(card.includes("slice("), false);
   assert.ok(card.includes('aria-label="Paginación de informes admin"'));
   assert.ok(card.includes("Página anterior"));
   assert.ok(card.includes("Página siguiente"));
+});
+
+test("Admin Informes recomputa offset y descarta respuestas viejas (anti-race)", () => {
+  const card = read(CARD_PATH);
+
+  // Request-id guard: a stale response whose id is no longer current is dropped.
+  assert.ok(card.includes("const latestRequestRef = useRef(0);"));
+  assert.ok(card.includes("const requestId = latestRequestRef.current + 1;"));
+  assert.ok(card.includes("if (requestId !== latestRequestRef.current) return;"));
+
+  // Offset recompute keeps the same first visible record when the limit
+  // changes; no `total` clamp is possible (endpoint exposes none).
+  assert.ok(card.includes("const previousLimitRef = useRef(effectiveLimit);"));
+  assert.ok(
+    card.includes("Math.floor(currentOffset / effectiveLimit) * effectiveLimit"),
+  );
+
+  // Desktop keeps the nine-row floor (App Shell contract), mobile floors at one.
+  assert.ok(
+    card.includes(
+      "minItems: isDesktopMeasurement ? REPORTS_FALLBACK_ROWS : 1,",
+    ),
+  );
 });
 
 test("Admin Informes presenta tabla y lista mobile densas con detalle en diálogo", () => {
@@ -152,8 +187,8 @@ test("Admin Informes filtra sobre datos cargados sin cambiar contrato API", () =
   );
   const apiBlock = sectionBetween(
     card,
-    "const loadReports = useCallback(async (nextPage: number) => {",
-    "const loadMobileReports = useCallback(async (nextPage: number) => {",
+    "const loadReports = useCallback(async () => {",
+    "// Recompute offset when the effective limit changes",
   );
 
   assert.ok(filterBlock.includes("const reportDisplay = `Informe #${report.id}`;"));
@@ -165,9 +200,9 @@ test("Admin Informes filtra sobre datos cargados sin cambiar contrato API", () =
   assert.ok(filterBlock.includes("matchesReportDateRange(report, filters.from, filters.to)"));
   assert.ok(card.includes("return report.uploadDate ?? report.createdAt;"));
   assert.ok(card.includes("const filteredReports = reports.filter((report) =>"));
-  assert.ok(card.includes("const filteredMobileReports = mobileReports.filter((report) =>"));
-  assert.ok(card.includes("{filteredReports.map((report) => ("));
-  assert.ok(card.includes("{filteredMobileReports.map((report) => ("));
+  // Single collapsed runtime: no second mobile-only filtered list.
+  assert.equal(card.includes("filteredMobileReports"), false);
+  assert.ok(card.includes("{filteredReports.map((report, index) => ("));
 
   assert.ok(applyBlock.includes("setAppliedFilters({"));
   assert.ok(applyBlock.includes("report: filterDraft.report.trim(),"));
@@ -178,12 +213,16 @@ test("Admin Informes filtra sobre datos cargados sin cambiar contrato API", () =
   assert.ok(applyBlock.includes("file: filterDraft.file.trim(),"));
   assert.ok(applyBlock.includes("from: filterDraft.from,"));
   assert.ok(applyBlock.includes("to: filterDraft.to,"));
-  assert.ok(applyBlock.includes("setPage(0);"));
-  assert.ok(applyBlock.includes("setMobilePage(0);"));
+  // Applying/clearing a filter resets to the first record (offset 0).
+  assert.ok(applyBlock.includes("setOffset(0);"));
+  assert.equal(applyBlock.includes("setMobilePage(0);"), false);
   assert.ok(clearBlock.includes("setFilterDraft(INITIAL_FILTER_STATE);"));
   assert.ok(clearBlock.includes("setAppliedFilters(INITIAL_FILTER_STATE);"));
-  assert.ok(apiBlock.includes("limit: PAGE_SIZE"));
-  assert.ok(apiBlock.includes("offset: nextPage * PAGE_SIZE"));
+  assert.ok(clearBlock.includes("setOffset(0);"));
+  // The fetch stays limit/offset only — filters remain client-side (no new
+  // server contract, no backend change).
+  assert.ok(apiBlock.includes("limit: query.limit"));
+  assert.ok(apiBlock.includes("offset: query.offset"));
   assert.equal(apiBlock.includes("search:"), false);
   assert.equal(apiBlock.includes("filters:"), false);
 });

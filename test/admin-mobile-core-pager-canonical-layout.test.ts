@@ -90,7 +90,7 @@ test("admin reports mobile pager matches the canonical Tokens pager layout", () 
   assert.ok(pager.includes("Anterior"), "reports mobile pager must render Anterior text");
   assert.ok(pager.includes("Siguiente"), "reports mobile pager must render Siguiente text");
   assert.ok(
-    pager.includes("Pág. {mobilePage + 1}"),
+    pager.includes("Pág. {page}"),
     "reports mobile pager must render Pág. X (no fabricated total; the report-workflow API has no count)",
   );
   assert.equal(
@@ -170,16 +170,19 @@ test("admin clinics mobile pager: page size is measured (HY cap 36), fetch untou
   assert.ok(clinicsSource.includes("getAdminClinics("));
 });
 
-// Reports intentionally raised its mobile page size from 3 to 10 (PR5,
- // admin-mobile-reports-density): 10 reports per mobile page, compacted and
- // anchored to the bottom pager while desktop PAGE_SIZE and fetch semantics
- // stay untouched.
-test("admin reports mobile pager: page size intentionally raised to 10, fetch/desktop untouched", () => {
+// R-03 (admin-reports-workflow-server-adaptive-pagination): the mobile page
+// size is no longer a fixed constant — it is derived from the measured list
+// container (HY cap 36), the same collapsed runtime that feeds the desktop
+// table. The old MOBILE_PAGE_SIZE=10 second fetch pipeline (gated by
+// matchMedia) is gone; the fetch stays limit/offset only.
+test("admin reports mobile page size is measured (HY cap 36), single fetch pipeline", () => {
   const reportsSource = read(REPORTS_CARD_PATH);
-  assert.ok(reportsSource.includes("const PAGE_SIZE = 9;"));
-  assert.ok(
-    reportsSource.includes("const MOBILE_PAGE_SIZE = 10;"),
-    "reports mobile page size must be 10 (intentional density change, PR5)",
-  );
+  assert.ok(reportsSource.includes("const REPORTS_FALLBACK_ROWS = 9;"));
+  assert.ok(reportsSource.includes("const REPORTS_SUPERSET_CAP = 36;"));
+  assert.equal(reportsSource.includes("const PAGE_SIZE = 9;"), false);
+  assert.equal(reportsSource.includes("const MOBILE_PAGE_SIZE"), false);
+  assert.equal(reportsSource.includes("window.matchMedia"), false);
+  assert.equal(reportsSource.includes("loadMobileReports"), false);
+  assert.ok(reportsSource.includes("useAdaptiveItemsPerPage"));
   assert.ok(reportsSource.includes("getAdminReportWorkflow({"));
 });
