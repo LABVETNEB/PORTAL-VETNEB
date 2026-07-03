@@ -1393,13 +1393,30 @@ type LogisticsReadOptions = {
   throwOnError?: boolean;
 };
 
+type LogisticsFieldVisitsParams = {
+  limit?: number;
+  offset?: number;
+};
+
 export async function getLogisticsFieldVisits(
   options?: RequestInit,
   readOptions: LogisticsReadOptions = {},
+  params?: LogisticsFieldVisitsParams,
 ): Promise<FieldVisit[]> {
   try {
+    const path = "/api/logistics/field-visits";
+    const query = new URLSearchParams();
+
+    if (params?.limit !== undefined) {
+      query.set("limit", String(params.limit));
+    }
+    if (params?.offset !== undefined) {
+      query.set("offset", String(params.offset));
+    }
+
+    const qs = query.toString();
     const res = await apiFetch<{ visits: FieldVisit[] }>(
-      "/api/logistics/field-visits",
+      qs ? `${path}?${qs}` : path,
       options,
     );
     return res.visits ?? [];

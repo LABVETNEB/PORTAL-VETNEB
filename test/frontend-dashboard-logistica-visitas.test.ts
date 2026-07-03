@@ -36,6 +36,39 @@ test("dashboard logistica visitas forwards cookies and disables cache for live r
   assert.ok(source.includes("{ throwOnError: true },"));
 });
 
+test("dashboard logistica visitas sends explicit limit/offset instead of truncating silently (R-12)", () => {
+  const source = read(VISITAS_PAGE_PATH);
+
+  assert.ok(source.includes("{ limit, offset },"));
+  assert.ok(source.includes("const VISITAS_DEFAULT_LIMIT = 50;"));
+  assert.ok(source.includes("const VISITAS_MAX_LIMIT = 100;"));
+  assert.ok(source.includes("function normalizeOffset(value: string | string[] | undefined): number {"));
+  assert.ok(source.includes("function normalizeLimit(value: string | string[] | undefined): number {"));
+  assert.ok(source.includes("searchParams?: Promise<VisitasPageSearchParams>;"));
+});
+
+test("dashboard logistica visitas computes canGoNext/canGoPrevious without a backend total (R-12)", () => {
+  const source = read(VISITAS_PAGE_PATH);
+
+  assert.ok(source.includes("const canGoPrevious = !visitsLoadError && offset > 0;"));
+  assert.ok(source.includes("const canGoNext = !visitsLoadError && visits.length === limit;"));
+  assert.equal(source.includes("pageCount"), false);
+  assert.equal(source.includes("matchMedia"), false);
+  assert.equal(source.includes("ResizeObserver"), false);
+});
+
+test("dashboard logistica visitas renders a pager and page-scope disclosure (R-12)", () => {
+  const source = read(VISITAS_PAGE_PATH);
+
+  assert.ok(source.includes('aria-label="Paginación de visitas"'));
+  assert.ok(source.includes('aria-label="Página anterior"'));
+  assert.ok(source.includes('aria-label="Página siguiente"'));
+  assert.ok(source.includes("disabled={!canGoPrevious}"));
+  assert.ok(source.includes("disabled={!canGoNext}"));
+  assert.ok(source.includes("Mostrando {visits.length} visitas · página {currentPage}"));
+  assert.ok(source.includes("Conteos calculados sobre la página visible, no sobre el total general de visitas."));
+});
+
 test("dashboard logistica visitas renders topbar without technical source copy", () => {
   const source = read(VISITAS_PAGE_PATH);
   const removedSourcePrefix = "Lectura conectada " + "a";
