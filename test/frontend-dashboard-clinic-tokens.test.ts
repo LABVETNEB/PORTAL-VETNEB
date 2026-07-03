@@ -405,13 +405,13 @@ test("clinic token generation keeps generated token block list refresh and reset
   assert.ok(source.includes("Cerrar token visible"));
   assert.ok(source.includes("disabled={!isGeneratedTokenConfirmed}"));
   assert.ok(source.includes("Últimos tokens de la clínica"));
-  assert.ok(source.includes('onClick={() => void loadTokens()}'));
+  assert.ok(source.includes('onClick={() => void loadTokens(effectiveFetchLimit)}'));
   assert.ok(source.includes("setFormState(INITIAL_FORM_STATE);"));
   assertOrdered(submitSuccess, [
     "setGeneratedToken(response.token);",
     "setStatusMessage(response.message);",
     "resetForm();",
-    "await loadTokens();",
+    "await loadTokens(effectiveFetchLimit);",
   ]);
 });
 
@@ -453,6 +453,50 @@ test("frontend api exposes clinic-scoped particular token helpers", () => {
   assert.ok(source.includes('"/api/particular-tokens"'));
   assert.ok(source.includes("`/api/particular-tokens${qs ? `?${qs}` : \"\"}`"));
   assert.ok(source.includes("`/api/particular-tokens/${tokenId}/report`"));
+});
+
+test("clinic tokens fetch limit derives from the adaptive rowsPerPage superset (C6)", () => {
+  const source = read(CLINIC_TOKENS_CARD_PATH);
+  const loadTokensFn = sectionBetween(
+    source,
+    "async function loadTokens(limit: number) {",
+    "\n  }\n",
+  );
+
+  // C6 regression guard: the fetch must never hardcode the old fixed cap again.
+  assert.equal(source.includes("limit: 10"), false);
+  assert.equal(source.includes("getClinicParticularTokens({ limit: 10"), false);
+
+  assert.ok(source.includes("const TOKENS_FETCH_PAGE_MULTIPLIER = 3;"));
+  assert.ok(source.includes("const TOKENS_FETCH_LIMIT_FALLBACK = 12;"));
+  assert.ok(source.includes("const TOKENS_FETCH_LIMIT_MAX = 36;"));
+  assert.ok(source.includes("function resolveTokensFetchLimit(rowsPerPage: number): number {"));
+  assert.ok(source.includes("TOKENS_FETCH_LIMIT_MAX,"));
+  assert.ok(
+    source.includes(
+      "Math.max(TOKENS_FETCH_LIMIT_FALLBACK, rowsPerPage * TOKENS_FETCH_PAGE_MULTIPLIER)",
+    ),
+  );
+
+  assert.ok(source.includes("const effectiveFetchLimit = resolveTokensFetchLimit(rowsPerPage);"));
+  assert.ok(loadTokensFn.includes("getClinicParticularTokens({ limit, offset: 0 })"));
+  assert.ok(source.includes("void loadTokens(effectiveFetchLimit);"));
+  assert.ok(source.includes("await loadTokens(effectiveFetchLimit);"));
+  assert.ok(source.includes("onClick={() => void loadTokens(effectiveFetchLimit)}"));
+  assert.equal(source.includes("void loadTokens();"), false);
+  assert.equal(source.includes("await loadTokens();"), false);
+
+  // Anti-loop guard: the reload effect keys off the derived limit, not rowsPerPage
+  // itself, so it only re-fires when the superset actually changes.
+  assert.ok(source.includes("}, [effectiveFetchLimit]);"));
+  assert.equal(source.includes("}, [rowsPerPage]);"), false);
+
+  // Visible cardinality must keep using the measured rowsPerPage, never the
+  // over-fetched superset.
+  assert.ok(source.includes("usePagedRows(filteredTokens, rowsPerPage)"));
+  assert.equal(source.includes("usePagedRows(filteredTokens, effectiveFetchLimit)"), false);
+
+  assert.equal(source.includes("matchMedia"), false);
 });
 
 test("clinic token card muestra seguimiento y alerta de tinción especial desde study-tracking", () => {
