@@ -13,8 +13,6 @@ const STICKY_FILTER_BAR_PATH =
   "frontend/src/components/dashboard/StickyFilterBar.tsx";
 const STICKY_ACTION_BAR_PATH =
   "frontend/src/components/dashboard/StickyActionBar.tsx";
-const MASTER_DETAIL_WORKSPACE_PATH =
-  "frontend/src/components/dashboard/MasterDetailWorkspace.tsx";
 const STUDY_TIMELINE_PATH =
   "frontend/src/components/dashboard/StudyTimeline.tsx";
 const DASHBOARD_SIDEBAR_FRAME_PATH =
@@ -114,26 +112,15 @@ test("PR-8 StickyFilterBar and StickyActionBar provide named regions and action 
   assertNoForbiddenSurfaceImports(actionBarSource, "StickyActionBar");
 });
 
-test("PR-8 MasterDetailWorkspace and StudyTimeline expose named panels and textual states", () => {
-  const workspaceSource = read(MASTER_DETAIL_WORKSPACE_PATH);
+test("PR-8 StudyTimeline expose named panels and textual states", () => {
   const timelineSource = read(STUDY_TIMELINE_PATH);
 
-  assert.ok(workspaceSource.includes("workspaceLabel?: string;"));
-  assert.ok(workspaceSource.includes("masterLabel?: string;"));
-  assert.ok(workspaceSource.includes("detailLabel?: string;"));
-  assert.ok(workspaceSource.includes("aria-label={workspaceLabel}"));
-  assert.ok(workspaceSource.includes("aria-label={masterLabel}"));
-  assert.ok(workspaceSource.includes("aria-label={detailLabel}"));
-  assert.ok(workspaceSource.includes('data-detail-state={hasSelection ? "selected" : "empty"}'));
-  assert.ok(workspaceSource.includes('aria-live="polite"'));
-  assert.ok(workspaceSource.includes("Sin detalle seleccionado"));
   assert.ok(timelineSource.includes("<ol"));
   assert.ok(timelineSource.includes("ariaLabel?: string;"));
   assert.ok(timelineSource.includes("aria-label={ariaLabel}"));
   assert.ok(timelineSource.includes('aria-current={step.status === "current" ? "step" : undefined}'));
   assert.ok(timelineSource.includes("Estado: ${config.label}"));
   assert.ok(timelineSource.includes('{step.date ?? "Pendiente"}'));
-  assertNoForbiddenSurfaceImports(workspaceSource, "MasterDetailWorkspace");
   assertNoForbiddenSurfaceImports(timelineSource, "StudyTimeline");
 });
 

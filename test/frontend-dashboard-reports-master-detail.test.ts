@@ -13,8 +13,6 @@ const INFORMES_LIST_PATH =
   "frontend/src/app/dashboard/informes/InformesReportsList.tsx";
 const INFORMES_ACTIONS_PATH =
   "frontend/src/app/dashboard/informes/informes.actions.ts";
-const MASTER_DETAIL_WORKSPACE_PATH =
-  "frontend/src/components/dashboard/MasterDetailWorkspace.tsx";
 const STUDY_TIMELINE_PATH =
   "frontend/src/components/dashboard/StudyTimeline.tsx";
 const STICKY_ACTION_BAR_PATH =
@@ -51,35 +49,6 @@ function assertNoForbiddenSurfaceImports(source: string, context: string): void 
     }
   }
 }
-
-test("MasterDetailWorkspace keeps reusable two-panel layout contract", () => {
-  const source = read(MASTER_DETAIL_WORKSPACE_PATH);
-
-  assert.ok(source.includes("export type MasterDetailWorkspaceProps = {"));
-  assert.ok(source.includes("master: ReactNode;"));
-  assert.ok(source.includes("detail: ReactNode;"));
-  assert.ok(source.includes("emptyDetail?: ReactNode;"));
-  assert.ok(source.includes("selectedId?: string | null;"));
-  assert.ok(source.includes("workspaceLabel?: string;"));
-  assert.ok(source.includes("masterLabel?: string;"));
-  assert.ok(source.includes("detailLabel?: string;"));
-  assert.ok(source.includes("className?: string;"));
-  assert.ok(source.includes('workspaceLabel = "Workspace maestro detalle"'));
-  assert.ok(source.includes('masterLabel = "Panel maestro"'));
-  assert.ok(source.includes('detailLabel = "Panel de detalle"'));
-  assert.ok(source.includes("aria-label={workspaceLabel}"));
-  assert.ok(source.includes("aria-label={masterLabel}"));
-  assert.ok(source.includes("aria-label={detailLabel}"));
-  assert.ok(source.includes('data-detail-state={hasSelection ? "selected" : "empty"}'));
-  assert.ok(source.includes('aria-live="polite"'));
-  assert.ok(source.includes("Sin detalle seleccionado"));
-  assert.ok(source.includes("xl:grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)]"));
-  assert.ok(source.includes("overflow-x-hidden"));
-  assert.ok(source.includes("xl:max-h-[calc(100vh-13rem)]"));
-  assert.ok(source.includes("xl:overflow-y-auto"));
-  assert.ok(source.includes("data-selected-id={selectedId ?? undefined}"));
-  assert.equal(source.includes("fetch("), false);
-});
 
 test("StudyTimeline supports ordered visual states without business calculations", () => {
   const source = read(STUDY_TIMELINE_PATH);
@@ -122,9 +91,7 @@ test("dashboard informes composes profile-layout list, selected report detail, t
 
   assert.ok(pageSource.includes("<DashboardPageHeader"));
   assert.equal(pageSource.includes("<StickyActionBar"), false);
-  assert.equal(pageSource.includes("<MasterDetailWorkspace"), false);
   assert.equal(listSource.includes("<StickyActionBar"), false);
-  assert.equal(listSource.includes("<MasterDetailWorkspace"), false);
   assert.ok(listSource.includes("Lista de informes"));
   assert.ok(listSource.includes("Detalle del informe"));
   assert.ok(listSource.includes("<StudyTimeline steps={selectedReportTimelineSteps} />"));
@@ -202,7 +169,6 @@ test("dashboard informes master-detail scope avoids forbidden navigation and dep
   const informesSource = read(INFORMES_PAGE_PATH);
   const informesListSource = read(INFORMES_LIST_PATH);
   const informesActionsSource = read(INFORMES_ACTIONS_PATH);
-  const masterDetailSource = read(MASTER_DETAIL_WORKSPACE_PATH);
   const timelineSource = read(STUDY_TIMELINE_PATH);
   const stickyActionBarSource = read(STICKY_ACTION_BAR_PATH);
   const packageDiff = execFileSync(
@@ -216,17 +182,14 @@ test("dashboard informes master-detail scope avoids forbidden navigation and dep
 
   assertNoForbiddenSurfaceImports(informesListSource, "InformesReportsList");
   assertNoForbiddenSurfaceImports(informesActionsSource, "informes.actions");
-  assertNoForbiddenSurfaceImports(masterDetailSource, "MasterDetailWorkspace");
   assertNoForbiddenSurfaceImports(timelineSource, "StudyTimeline");
   assertNoForbiddenSurfaceImports(stickyActionBarSource, "StickyActionBar");
   assert.equal(informesSource.includes('from "next/link"'), false);
   assert.equal(informesListSource.includes('from "next/link"'), false);
-  assert.equal(masterDetailSource.includes('from "next/link"'), false);
   assert.equal(timelineSource.includes('from "next/link"'), false);
   assert.equal(stickyActionBarSource.includes('from "next/link"'), false);
   assert.equal(informesSource.includes("<a"), false);
   assert.equal(informesListSource.includes("<a"), false);
-  assert.equal(masterDetailSource.includes("<a"), false);
   assert.equal(timelineSource.includes("<a"), false);
   assert.equal(stickyActionBarSource.includes("<a"), false);
   assertClean7aDependencyCleanupScope();

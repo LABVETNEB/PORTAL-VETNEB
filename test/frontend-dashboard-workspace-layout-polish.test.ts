@@ -13,8 +13,6 @@ import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-acces
 const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 const WORKSPACE_PATH =
   "frontend/src/components/dashboard/DashboardModuleWorkspace.tsx";
-const MASTER_DETAIL_PATH =
-  "frontend/src/components/dashboard/MasterDetailWorkspace.tsx";
 const FILTER_DRAWER_PATH =
   "frontend/src/components/dashboard/FilterDrawer.tsx";
 const SIDEBAR_FRAME_PATH =
@@ -228,53 +226,6 @@ test("PR-2 DashboardModuleWorkspace keeps focus-visible ring on Volver button", 
   assert.ok(
     source.includes("focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"),
     "DashboardModuleWorkspace Volver button must keep focus-visible ring",
-  );
-});
-
-// ── Component: MasterDetailWorkspace ─────────────────────────────────────────
-
-test("PR-2 MasterDetailWorkspace master panel uses dashboard-master-panel class", () => {
-  const source = read(MASTER_DETAIL_PATH);
-  assert.ok(
-    source.includes("dashboard-master-panel"),
-    "MasterDetailWorkspace master panel must use dashboard-master-panel class",
-  );
-});
-
-test("PR-2 MasterDetailWorkspace detail panel uses dashboard-detail-panel class", () => {
-  const source = read(MASTER_DETAIL_PATH);
-  assert.ok(
-    source.includes("dashboard-detail-panel"),
-    "MasterDetailWorkspace detail panel must use dashboard-detail-panel class",
-  );
-});
-
-test("PR-2 MasterDetailWorkspace does not use shadow-sm on panels", () => {
-  const source = read(MASTER_DETAIL_PATH);
-  assert.equal(
-    source.includes("shadow-sm"),
-    false,
-    "MasterDetailWorkspace panels must not use shadow-sm; use dashboard-*-panel classes instead",
-  );
-});
-
-test("PR-2 MasterDetailWorkspace keeps data-detail-state attribute for selection tracking", () => {
-  const source = read(MASTER_DETAIL_PATH);
-  assert.ok(
-    source.includes('data-detail-state={hasSelection ? "selected" : "empty"}'),
-    "MasterDetailWorkspace must keep data-detail-state attribute",
-  );
-});
-
-test("PR-2 MasterDetailWorkspace keeps overflow-hidden and rounded-lg on panels", () => {
-  const source = read(MASTER_DETAIL_PATH);
-  assert.ok(
-    source.includes("overflow-hidden rounded-lg border dashboard-master-panel"),
-    "MasterDetailWorkspace master panel must keep overflow-hidden rounded-lg border",
-  );
-  assert.ok(
-    source.includes("overflow-hidden rounded-lg border dashboard-detail-panel"),
-    "MasterDetailWorkspace detail panel must keep overflow-hidden rounded-lg border",
   );
 });
 

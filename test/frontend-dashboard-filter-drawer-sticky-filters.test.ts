@@ -155,7 +155,6 @@ test("dashboard informes uses compact inline filters without drawer sticky overl
   assert.ok(source.includes("studyType: studyType || undefined,"));
   assert.ok(source.includes(": await getReportsPaginated("));
   assert.ok(source.includes("requestOptions,"));
-  assert.equal(source.includes("<MasterDetailWorkspace"), false);
   assert.equal(source.includes("<StickyActionBar"), false);
   assert.equal(source.includes('from "next/link"'), false);
   assert.equal(source.includes("<Link"), false);
