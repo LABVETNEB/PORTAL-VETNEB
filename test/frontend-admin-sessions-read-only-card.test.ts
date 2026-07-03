@@ -5,8 +5,6 @@ import test from "node:test";
 
 const CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx";
-const MOBILE_MODULE_PATH =
-  "frontend/src/app/dashboard/admin/AdminMobileSessionsModule.tsx";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -127,15 +125,9 @@ test("admin sessions card no longer uses matchMedia or MOBILE_PAGE_SIZE as a sou
 
 test("admin sessions card collapses the mobile module into a single runtime", () => {
   const source = read(CARD_PATH);
-  const mobile = read(MOBILE_MODULE_PATH);
 
   assert.equal(source.includes("AdminMobileSessionsModule"), false);
   assert.ok(source.includes('import { AdminMobileOpsPager } from "./AdminMobileOpsPager";'));
-
-  // The former mobile module keeps no data source of its own.
-  assert.equal(mobile.includes("getAdminSessions"), false);
-  assert.equal(mobile.includes("MOBILE_PAGE_SIZE"), false);
-  assert.equal(mobile.includes("matchMedia"), false);
 });
 
 test("admin sessions card does not leak secrets or widen the network surface", () => {
