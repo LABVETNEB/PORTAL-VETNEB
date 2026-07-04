@@ -181,3 +181,14 @@ Cambio 100 % frontend/tests, sin migraciones ni datos:
    cookies); `?module=` y last-module no cambiaron.
 3. Los baselines del workflow visual manual vuelven a coincidir con el estado
    pre-cambio automáticamente al revertir.
+
+## Fix admin mobile hub tile stability
+
+- Falla corregida: el tile `admin-particular-tokens` del Admin mobile hub podia desmontarse durante la accion nativa de click en Playwright bajo carga.
+- Causa raíz: el tile ejecutaba `card.onClick` directamente; esa accion activa el modulo y reemplaza la rama Hub por el workspace durante el mismo click, dejando al locator con un nodo desmontado antes de completar la accion.
+- Superficie: `AdminMobileLauncherTile`, exclusivamente launcher mobile del hub admin.
+- Viewport: mobile Admin, con foco en `iphone-pro-max-430x932`; validado tambien en `360x740` y `390x844`.
+- Test afectado: `frontend/e2e/admin-mobile-module-layer-isolation.spec.ts`, caso `admin mobile modules keep isolated paint layers`.
+- Solución: diferir la activacion del modulo hasta el siguiente frame/macrotask del navegador, manteniendo el boton montado durante el click y preservando data attributes, labels, rutas, modulo `admin-particular-tokens`, contrato premium y no-scroll.
+- Validaciones: `pnpm test`; `pnpm typecheck`; `pnpm build`; `pnpm security:public-surface`; `pnpm --dir frontend lint`; `pnpm --dir frontend typecheck`; `pnpm --dir frontend build`; `pnpm --dir frontend e2e:visual-contract`; test aislado y suite admin mobile relacionada.
+- Riesgo: bajo; introduce solo una demora visual imperceptible de un frame para la activacion desde tiles mobile del hub admin. No toca backend, API, auth, DB, dependencias, lockfiles, CI ni tests.

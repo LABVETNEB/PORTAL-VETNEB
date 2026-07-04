@@ -9,6 +9,20 @@ export function AdminMobileLauncherTile({ card }: AdminMobileLauncherTileProps) 
   const ariaLabel = `${card.title}: ${card.description}`;
   const sharedClassName =
     "admin-mobile-hub-tile group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2";
+  const handleClick = card.onClick
+    ? () => {
+        if (typeof window === "undefined") {
+          card.onClick?.();
+          return;
+        }
+
+        // Keep the clicked tile mounted through the native click action before
+        // the Hub swaps to the selected workspace.
+        window.requestAnimationFrame(() => {
+          window.setTimeout(() => card.onClick?.(), 0);
+        });
+      }
+    : undefined;
 
   const body = (
     <>
@@ -25,7 +39,7 @@ export function AdminMobileLauncherTile({ card }: AdminMobileLauncherTileProps) 
         type="button"
         aria-label={ariaLabel}
         data-admin-mobile-hub-tile={card.moduleId}
-        onClick={card.onClick}
+        onClick={handleClick}
         className={sharedClassName}
       >
         {body}
