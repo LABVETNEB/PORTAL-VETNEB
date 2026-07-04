@@ -396,7 +396,12 @@ test.describe("clinic tokens module state parity (client-driven, CL-GAP-6)", () 
     // every load (success or failure), so a successful retry leaves no stale
     // failure banner from the first attempt next to the freshly loaded token.
     await expect(errorBanner).toHaveCount(0);
-    const recoveredTokenRow = card.locator("#clinic-particular-token-9201");
+    // The `clinic-particular-token-*` id lives on the mobile row (md:hidden
+    // since #1145), so at the desktop viewport the visible row is the table
+    // variant tagged with data-clinic-access-table-row.
+    const recoveredTokenRow = card
+      .locator('[data-clinic-access-table-row="true"]')
+      .filter({ hasText: "****4401" });
     await expect(recoveredTokenRow).toBeVisible();
     await expect(recoveredTokenRow).toContainText("Mora");
   });
@@ -445,7 +450,11 @@ test.describe("clinic perfil → perfil público module state parity (client-dri
 
     await expect(editor.getByText("Cargando perfil público...")).toBeVisible();
 
-    await expect(editor.getByText("Borrador privado")).toBeVisible({ timeout: 4_000 });
+    // Since #1144 the publication label renders twice (header badge + Estado
+    // tile), so pin to one match to avoid a strict-mode violation.
+    await expect(editor.getByText("Borrador privado").first()).toBeVisible({
+      timeout: 4_000,
+    });
   });
 
   test("error: failed profile load shows an alert with in-app retry control", async ({
