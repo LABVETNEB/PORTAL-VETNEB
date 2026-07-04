@@ -9,7 +9,6 @@ export function AdminMobileLauncherTile({ card }: AdminMobileLauncherTileProps) 
   const ariaLabel = `${card.title}: ${card.description}`;
   const sharedClassName =
     "admin-mobile-hub-tile group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2";
-
   const body = (
     <>
       <span className="admin-mobile-hub-tile-icon">

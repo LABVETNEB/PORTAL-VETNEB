@@ -145,12 +145,12 @@ const CLINIC_FIELD_VISITS = [
   },
 ];
 
-// R-13: only served when the request carries an explicit limit/offset
-// querystring (the adaptive rutas/page.tsx contract always sends both), so
-// the pre-existing unconditional-2-arg call sites (getDashboardStats,
-// dashboard/logistica hub, metricas) keep hitting the unhandled path below
-// and preserve the "no route-plans fixture" invariant already asserted by
-// dashboard-clinic-module-state-parity.spec.ts.
+// R-13 (updated for the premium hub redesign): served for every populated
+// clinic session request, with or without limit/offset. The unconditional
+// call sites (getDashboardStats, dashboard/logistica hub) now resolve, so the
+// clinic hub/command center exercise their HEALTHY state under this fixture;
+// dashboard-clinic-module-state-parity.spec.ts asserts that healthy path and
+// the default (non-populated) session keeps covering the degraded states.
 const CLINIC_ROUTE_PLANS = [
   {
     id: 8601,
@@ -857,8 +857,7 @@ const server = createServer((request, response) => {
 
   if (
     hasPopulatedClinicSession(request) &&
-    url.pathname === "/api/logistics/route-plans" &&
-    (url.searchParams.has("limit") && url.searchParams.has("offset"))
+    url.pathname === "/api/logistics/route-plans"
   ) {
     sendJson(response, 200, { routePlans: CLINIC_ROUTE_PLANS });
     return;

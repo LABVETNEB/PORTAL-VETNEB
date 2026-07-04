@@ -124,8 +124,9 @@ export default async function DashboardPage({
             activeVisits={activeVisits}
             pageHeader={
               <DashboardPageHeader
-                title="Dashboard Clínica"
-                description="Seleccione un módulo para acceder a sus funciones."
+                title="Resumen operativo"
+                description="Estado del día, señales y accesos a los módulos de la clínica."
+                className="clinic-hub-page-header"
               />
             }
             workspaces={{
