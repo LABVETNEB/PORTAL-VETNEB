@@ -479,16 +479,50 @@ export function ClinicDashboardWorkspaceController({
     initialModule ?? null,
   );
   const hasRestoredLastModule = useRef(false);
+  // Latest sync navigation intention (cockpit tile, primary action, bottom-nav
+  // signal, hub reset). The stage swaps optimistically before the router
+  // commits the matching URL; this ref lets the URL-sync effect tell that
+  // commit apart from a stale, superseded one.
+  const pendingNavigationIntent = useRef<{ target: ClinicModule | null } | null>(
+    null,
+  );
+  // Two-commit activation buffer: a cockpit tile/action click only RECORDS the
+  // module here; the promotion effect below applies it one commit later.
+  const [pendingActivation, setPendingActivation] = useState<ClinicModule | null>(
+    null,
+  );
   const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
     useState(false);
 
   useEffect(() => {
+    const nextModule = parseModuleFromUrl(searchParams.get("module"));
+
+    // A sync activation swaps the stage before its URL commit. Under load the
+    // SUPERSEDED previous navigation can still commit after that optimistic
+    // swap (the router action queue drains in dispatch order), and blindly
+    // applying it here would yank the cockpit away mid-interaction (same class
+    // of race as the admin hub tile detach seen in CI). Consume the intent on
+    // the first commit that follows it: a mismatching commit is the stale
+    // navigation and must not override the optimistic state; the matching
+    // commit (or a same-URL collapse, where state and URL already agree)
+    // re-converges URL and state. One-shot consumption keeps external
+    // navigations (back/forward, deep links) working: they are never skipped
+    // more than once, and only inside the sub-second optimistic window.
+    const intent = pendingNavigationIntent.current;
+    if (intent) {
+      pendingNavigationIntent.current = null;
+      if (nextModule !== intent.target) {
+        return;
+      }
+    }
+
     setActiveModule(parseModuleFromUrl(searchParams.get("module")));
   }, [searchParams]);
 
   useEffect(
     () =>
       subscribeClinicHubReset(() => {
+        pendingNavigationIntent.current = { target: null };
         setActiveModule(null);
         setHasManuallyReturnedToHub(true);
       }),
@@ -500,6 +534,7 @@ export function ClinicDashboardWorkspaceController({
       subscribeClinicModuleActivate((moduleId) => {
         const parsed = parseModuleFromUrl(moduleId);
         if (!parsed) return;
+        pendingNavigationIntent.current = { target: parsed };
         setHasManuallyReturnedToHub(false);
         setActiveModule(parsed);
       }),
@@ -524,15 +559,29 @@ export function ClinicDashboardWorkspaceController({
     });
   }, [searchParams, hasManuallyReturnedToHub, router]);
 
-  const activateModule = useCallback(
-    (moduleId: ClinicModule) => {
-      setActiveModule(moduleId);
-      router.push(`${ROUTES.dashboard}?module=${moduleId}`, { scroll: false });
-    },
-    [router],
-  );
+  // React flushes discrete-event state synchronously, so promoting the module
+  // directly inside the tile's onClick unmounts the cockpit WITHIN the native
+  // click lifecycle. Locally the input sequence usually wins that race; on a
+  // slow CI runner the stretched frame timing lets the unmount land mid-action
+  // and Playwright sees the clicked tile "detached from the DOM". Recording
+  // the intention in the click's own commit and promoting it from this effect
+  // (the NEXT commit) keeps the clicked tile mounted through the whole click
+  // deterministically — commit ordering, not timers.
+  useEffect(() => {
+    if (!pendingActivation) return;
+    const moduleId = pendingActivation;
+    setPendingActivation(null);
+    pendingNavigationIntent.current = { target: moduleId };
+    setActiveModule(moduleId);
+    router.push(`${ROUTES.dashboard}?module=${moduleId}`, { scroll: false });
+  }, [pendingActivation, router]);
+
+  const activateModule = useCallback((moduleId: ClinicModule) => {
+    setPendingActivation(moduleId);
+  }, []);
 
   const backToHub = useCallback(() => {
+    pendingNavigationIntent.current = { target: null };
     setActiveModule(null);
     setHasManuallyReturnedToHub(true);
     router.replace(ROUTES.dashboard, { scroll: false });

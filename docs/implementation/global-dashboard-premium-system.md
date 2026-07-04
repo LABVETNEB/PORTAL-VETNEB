@@ -192,3 +192,46 @@ Cambio 100 % frontend/tests, sin migraciones ni datos:
 - Solución: diferir la activacion del modulo hasta el siguiente frame/macrotask del navegador, manteniendo el boton montado durante el click y preservando data attributes, labels, rutas, modulo `admin-particular-tokens`, contrato premium y no-scroll.
 - Validaciones: `pnpm test`; `pnpm typecheck`; `pnpm build`; `pnpm security:public-surface`; `pnpm --dir frontend lint`; `pnpm --dir frontend typecheck`; `pnpm --dir frontend build`; `pnpm --dir frontend e2e:visual-contract`; test aislado y suite admin mobile relacionada.
 - Riesgo: bajo; introduce solo una demora visual imperceptible de un frame para la activacion desde tiles mobile del hub admin. No toca backend, API, auth, DB, dependencias, lockfiles, CI ni tests.
+
+## CI follow-up: deterministic hub activation (reemplaza el fix anterior)
+
+- CI volvió a fallar con el mismo detach: el diferimiento rAF/`setTimeout(0)` era
+  timing-based y sólo corría la ventana de carrera; en el runner lento la ventana
+  corrida seguía cruzándose con la acción nativa de click.
+- Solución final estructural en `AdminDashboardWorkspaceController.tsx` y,
+  por scope gate validado, en `ClinicDashboardWorkspaceController.tsx`:
+  1. **Activación en dos commits** — el `onClick` del tile sólo registra la
+     intención (`pendingActivation`); un efecto la promueve en el commit
+     siguiente (`setActiveModule` + `router.push`). El tile queda montado,
+     estable y attached durante todo el ciclo del click, por orden de commits
+     de React (determinista, sin timers).
+  2. **Guard de intención de navegación** (`pendingNavigationIntent`) — el
+     efecto de sincronización con `searchParams` consume la intención en el
+     primer commit posterior y descarta un commit que no coincida (navegación
+     superada) en vez de aplicarlo ciegamente sobre el estado optimista.
+  3. Revert del diferimiento rAF/`setTimeout` en `AdminMobileLauncherTile.tsx`
+     (vuelve a `onClick={card.onClick}` directo).
+- Scope gate Clínica: el controller clínico tenía la misma activación síncrona
+  (`setActiveModule` + `router.push`) desde acciones del cockpit, por lo que se
+  incluyó sólo por paridad estructural del patrón determinístico de navegación.
+  No agrega módulos, no cambia rutas, no cambia contratos data-*, no cambia
+  permisos y conserva `?module=`, deep links, back/forward, bottom-nav y hub
+  reset. `ClinicDashboardWorkspaceController.tsx` queda explícitamente dentro
+  del set esperado para el commit manual de este PR.
+- Sin cambios visuales, de navegación observable, de contratos data-* ni de
+  tests.
+- Validación clínica específica del scope gate: `pnpm playwright test
+  e2e/dashboard-card-navigation-shell.spec.ts
+  e2e/dashboard-clinic-controller-workspace-parity.spec.ts
+  e2e/dashboard-clinic-mobile-nav-stage-parity.spec.ts --project=chromium`
+  (99/99).
+- Revalidación completa del scope gate (2026-07-04):
+  `pnpm typecheck`, `pnpm build`, `pnpm security:public-surface`,
+  `pnpm --dir frontend lint`, `pnpm --dir frontend typecheck`,
+  `pnpm --dir frontend build` y `pnpm --dir frontend e2e:visual-contract`
+  pasaron. `pnpm test` quedó rojo por copias locales bajo
+  `.claude/worktrees/*/test/public-professionals-*`, fuera del alcance de este
+  PR; no se eliminaron worktrees ni se modificaron tests.
+- Detalle completo, diagnóstico instrumentado y matriz de validación en
+  `docs/audit/fix-admin-mobile-hub-tile-stability.md` (sección
+  "CI follow-up: deterministic hub activation").
