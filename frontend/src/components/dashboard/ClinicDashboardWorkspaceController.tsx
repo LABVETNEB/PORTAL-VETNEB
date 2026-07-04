@@ -3,11 +3,17 @@
 import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  Activity,
   Building2,
+  ChevronRight,
+  Clock3,
   FileText,
   KeyRound,
   LayoutDashboard,
+  Map,
   Route,
+  TriangleAlert,
+  Truck,
 } from "lucide-react";
 import { DashboardModuleWorkspace } from "./DashboardModuleWorkspace";
 import { ROUTES } from "@/lib/routes";
@@ -211,175 +217,241 @@ function ClinicDashboardCockpit({
       data-dashboard-module-hub="true"
       data-clinic-cockpit="true"
       aria-label="Cockpit operativo de clínica"
-      className="clinic-cockpit-hub dashboard-module-surface rounded-xl border border-vetneb-line/75 bg-card/92 p-3 shadow-[0_16px_42px_rgba(15,45,62,0.08)] sm:p-4"
+      className="clinic-cockpit-hub"
     >
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-        <div
-          data-clinic-cockpit-status="true"
-          className="surface-soft flex min-h-0 flex-col justify-between gap-3 overflow-hidden"
-        >
+      <header
+        data-clinic-cockpit-status="true"
+        className="dashboard-hub-band"
+      >
+        <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
           <div className="min-w-0">
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-vetneb-navy/80">
+            <p className="text-[0.66rem] font-semibold uppercase tracking-[0.14em] text-vetneb-navy/80">
               Estado operativo clínica
             </p>
-            <h2 className="mt-1 text-xl font-semibold leading-tight text-vetneb-ink">
-              {hasAnyError ? "Operación con señales degradadas" : "Operación al día"}
-            </h2>
-            <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">
+            <div className="mt-0.5 flex min-w-0 items-center gap-2">
+              <span
+                className="dashboard-status-dot"
+                data-tone={hasAnyError ? "warn" : "ok"}
+                aria-hidden="true"
+              />
+              <h2 className="truncate text-lg font-semibold leading-tight text-vetneb-ink sm:text-xl">
+                {hasAnyError ? "Operación con señales degradadas" : "Operación al día"}
+              </h2>
+            </div>
+            <p className="mt-1 line-clamp-1 text-xs text-muted-foreground sm:text-sm">
               {hasAnyError
                 ? "Revise métricas, informes o visitas antes de continuar la agenda diagnóstica."
                 : "Informes y logística están sincronizados para continuar la operación."}
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div className="dashboard-kpi-pill" data-tone="critical">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-wide">
-                Pendientes
-              </p>
-              <p className="mt-1 text-xl font-bold leading-none">
-                {statsLoadError ? "—" : pendingReports}
-              </p>
+          <div
+            className="clinic-hub-kpis lg:w-[34rem] lg:shrink-0"
+            role="group"
+            aria-label="Indicadores operativos de clínica"
+          >
+            <div className="dashboard-kpi-chip" data-tone="critical">
+              <span className="dashboard-kpi-chip-icon">
+                <Clock3 className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="dashboard-kpi-chip-label">Pendientes</span>
+                <span className="dashboard-kpi-chip-value">
+                  {statsLoadError ? "—" : pendingReports}
+                </span>
+              </span>
             </div>
-            <div className="dashboard-kpi-pill" data-tone="focus">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-wide">
-                Visitas
-              </p>
-              <p className="mt-1 text-xl font-bold leading-none">
-                {statsLoadError ? "—" : activeVisits}
-              </p>
+            <div className="dashboard-kpi-chip" data-tone="focus">
+              <span className="dashboard-kpi-chip-icon">
+                <Route className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="dashboard-kpi-chip-label">Visitas</span>
+                <span className="dashboard-kpi-chip-value">
+                  {statsLoadError ? "—" : activeVisits}
+                </span>
+              </span>
+            </div>
+            <div className="dashboard-kpi-chip hidden sm:flex" data-tone="neutral">
+              <span className="dashboard-kpi-chip-icon">
+                <FileText className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="dashboard-kpi-chip-label">Informes</span>
+                <span className="dashboard-kpi-chip-value">
+                  {statsLoadError || !stats ? "—" : stats.totalReports}
+                </span>
+              </span>
+            </div>
+            <div className="dashboard-kpi-chip hidden sm:flex" data-tone="neutral">
+              <span className="dashboard-kpi-chip-icon">
+                <Map className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="dashboard-kpi-chip-label">Rutas</span>
+                <span className="dashboard-kpi-chip-value">
+                  {statsLoadError || !stats ? "—" : stats.activePlans}
+                </span>
+              </span>
             </div>
           </div>
         </div>
+      </header>
 
-        <div className="grid min-h-0 grid-cols-1 gap-3 lg:grid-rows-[auto_1fr]">
-          <div className="grid min-h-0 grid-cols-1 gap-3 sm:grid-cols-3">
-            <div
-              data-clinic-cockpit-attention="true"
-              className="surface-soft min-h-0 overflow-hidden"
-            >
-              <p className="text-sm font-semibold text-vetneb-ink">
+      <div className="clinic-hub-body">
+        <div className="clinic-hub-modules">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="dashboard-section-heading">Módulos clínicos</h3>
+              <p className="dashboard-section-description hidden line-clamp-1 sm:block">
+                Acceso operativo dentro del stage del dashboard.
+              </p>
+            </div>
+            <span className="clinic-hub-count-badge">
+              {moduleItems.length} módulos
+            </span>
+          </div>
+
+          <div data-clinic-cockpit-modules="true" className="clinic-hub-tile-grid">
+            {moduleItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.moduleId}
+                  type="button"
+                  data-clinic-cockpit-module-card={item.moduleId}
+                  onClick={() => activateModule(item.moduleId)}
+                  className="clinic-hub-tile dashboard-card-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+                >
+                  <span className="clinic-hub-tile-icon">
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-vetneb-ink">
+                      {item.label}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {item.detail}
+                    </span>
+                  </span>
+                  <ChevronRight
+                    className="clinic-hub-tile-chevron h-4 w-4"
+                    aria-hidden="true"
+                  />
+                </button>
+              );
+            })}
+          </div>
+
+          <div
+            data-clinic-cockpit-primary-actions="true"
+            className="clinic-hub-actions"
+            aria-label="Acciones principales"
+          >
+            {moduleItems.map((item) => (
+              <button
+                key={item.moduleId}
+                type="button"
+                onClick={() => activateModule(item.moduleId)}
+                className="clinic-hub-action dashboard-btn-interactive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+              >
+                <span>
+                  {item.moduleId === "tokens"
+                    ? "Generar o abrir tokens"
+                    : `Abrir ${item.label.toLowerCase()}`}
+                </span>
+                <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <aside className="clinic-hub-signals" aria-label="Señales operativas">
+          <section
+            data-clinic-cockpit-attention="true"
+            data-tone={attentionItems.length ? "warn" : "ok"}
+            className="clinic-hub-signal"
+          >
+            <div className="flex min-w-0 items-center gap-1.5">
+              <TriangleAlert
+                className="clinic-hub-signal-icon h-3.5 w-3.5"
+                aria-hidden="true"
+              />
+              <p className="truncate text-[0.8rem] font-semibold text-vetneb-ink">
                 Atención requerida
               </p>
-              {attentionItems.length ? (
-                <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
-                  {attentionItems.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Sin pendientes operativos detectados.
-                </p>
-              )}
             </div>
+            {attentionItems.length ? (
+              <ul className="min-w-0 space-y-0.5 text-xs text-muted-foreground">
+                {attentionItems.slice(0, 3).map((item) => (
+                  <li key={item} className="truncate">
+                    {item}
+                  </li>
+                ))}
+                {attentionItems.length > 3 ? (
+                  <li className="truncate font-semibold text-foreground/75">
+                    +{attentionItems.length - 3} señal(es) adicionales en módulos.
+                  </li>
+                ) : null}
+              </ul>
+            ) : (
+              <p className="line-clamp-1 text-xs text-muted-foreground">
+                Sin pendientes operativos detectados.
+              </p>
+            )}
+          </section>
 
-            <div
-              data-clinic-cockpit-continuity="true"
-              className="surface-soft min-h-0 overflow-hidden"
-            >
-              <p className="text-sm font-semibold text-vetneb-ink">
+          <section
+            data-clinic-cockpit-continuity="true"
+            data-tone="teal"
+            className="clinic-hub-signal"
+          >
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Truck
+                className="clinic-hub-signal-icon h-3.5 w-3.5"
+                aria-hidden="true"
+              />
+              <p className="truncate text-[0.8rem] font-semibold text-vetneb-ink">
                 Continuidad logística
               </p>
-              <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
-                {visitsLoadError
-                  ? "No se pudo confirmar la continuidad logística reciente."
-                  : activeVisits > 0
-                    ? "Hay visitas activas para sostener seguimiento de campo."
-                    : "Sin visitas activas registradas en la lectura actual."}
-              </p>
             </div>
+            <p className="line-clamp-1 text-xs text-muted-foreground md:line-clamp-2">
+              {visitsLoadError
+                ? "No se pudo confirmar la continuidad logística reciente."
+                : activeVisits > 0
+                  ? "Hay visitas activas para sostener seguimiento de campo."
+                  : "Sin visitas activas registradas en la lectura actual."}
+            </p>
+          </section>
 
-            <div
-              data-clinic-cockpit-activity="true"
-              className="surface-soft min-h-0 overflow-hidden"
-            >
-              <p className="text-sm font-semibold text-vetneb-ink">
+          <section
+            data-clinic-cockpit-activity="true"
+            data-tone="cyan"
+            className="clinic-hub-signal"
+          >
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Activity
+                className="clinic-hub-signal-icon h-3.5 w-3.5"
+                aria-hidden="true"
+              />
+              <p className="truncate text-[0.8rem] font-semibold text-vetneb-ink">
                 Actividad reciente
               </p>
-              {latestActivity ? (
-                <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
-                  <span className="font-semibold text-foreground/85">
-                    {latestActivity.title}
-                  </span>{" "}
-                  · {latestActivity.detail}
-                </p>
-              ) : (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Sin actividad reciente disponible.
-                </p>
-              )}
             </div>
-          </div>
-
-          <div className="grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)]">
-            <div
-              data-clinic-cockpit-modules="true"
-              className="dashboard-inline-list rounded-lg border border-vetneb-line/75 bg-card/82"
-            >
-              <div className="shrink-0 border-b border-vetneb-line/70 px-3 py-2">
-                <h3 className="text-sm font-semibold text-vetneb-ink">
-                  Módulos clínicos
-                </h3>
-                <p className="dashboard-section-description line-clamp-1">
-                  Acceso operativo dentro del stage del dashboard.
-                </p>
-              </div>
-              <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 p-2">
-                {moduleItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.moduleId}
-                      type="button"
-                      data-clinic-cockpit-module-card={item.moduleId}
-                      onClick={() => activateModule(item.moduleId)}
-                      className="dashboard-card-interactive flex min-h-11 min-w-0 items-center gap-2 rounded-lg border border-vetneb-line/70 bg-vetneb-surface-muted/55 px-3 py-2 text-left"
-                    >
-                      <span className="dashboard-cockpit-tile-icon h-8 w-8">
-                        <Icon className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-vetneb-ink">
-                          {item.label}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {item.detail}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div
-              data-clinic-cockpit-primary-actions="true"
-              className="surface-soft hidden min-h-0 flex-col justify-center gap-2 overflow-hidden lg:flex"
-            >
-              <p className="text-sm font-semibold text-vetneb-ink">
-                Acciones principales
+            {latestActivity ? (
+              <p className="line-clamp-1 text-xs text-muted-foreground md:line-clamp-2">
+                <span className="font-semibold text-foreground/85">
+                  {latestActivity.title}
+                </span>{" "}
+                · {latestActivity.detail}
               </p>
-              <div className="grid grid-cols-1 gap-2">
-                {moduleItems.map((item) => (
-                  <button
-                    key={item.moduleId}
-                    type="button"
-                    onClick={() => activateModule(item.moduleId)}
-                    className="dashboard-btn-interactive flex min-h-8 items-center justify-between rounded-md border border-vetneb-line/70 bg-card/90 px-3 text-sm font-semibold text-vetneb-navy"
-                  >
-                    <span>
-                      {item.moduleId === "tokens"
-                        ? "Generar o abrir tokens"
-                        : `Abrir ${item.label.toLowerCase()}`}
-                    </span>
-                    <span aria-hidden="true">&gt;</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+            ) : (
+              <p className="line-clamp-1 text-xs text-muted-foreground">
+                Sin actividad reciente disponible.
+              </p>
+            )}
+          </section>
+        </aside>
       </div>
       <span className="sr-only">
         {stats ? "Métricas disponibles" : "Métricas no disponibles"}

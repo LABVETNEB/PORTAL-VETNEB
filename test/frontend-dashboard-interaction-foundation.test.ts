@@ -136,12 +136,22 @@ test("PR-1 globals.css defines .dashboard-disabled-state", () => {
 
 // ── Reduced-motion override for interaction classes ──────────────────────────
 
-test("PR-1 globals.css reduced-motion overrides dashboard-card-interactive transition", () => {
-  const source = read(GLOBALS_CSS_PATH);
-  const rmIndex = source.lastIndexOf("@media (prefers-reduced-motion: reduce)");
-  assert.ok(rmIndex >= 0, "globals.css must have at least one prefers-reduced-motion block");
+function interactionFoundationSection(source: string): string {
+  // Scoped to the section's own delimiters so later additive sections (e.g.
+  // dashboard-premium-grammar) may declare their own reduced-motion blocks
+  // without breaking this contract (precedent #958: align guards in-PR).
+  const start = source.indexOf("dashboard-interaction-foundation:start");
+  const end = source.indexOf("dashboard-interaction-foundation:end");
+  assert.ok(start >= 0 && end > start, "interaction-foundation section must exist");
+  return source.slice(start, end);
+}
 
-  const rmSection = source.slice(rmIndex);
+test("PR-1 globals.css reduced-motion overrides dashboard-card-interactive transition", () => {
+  const section = interactionFoundationSection(read(GLOBALS_CSS_PATH));
+  const rmIndex = section.indexOf("@media (prefers-reduced-motion: reduce)");
+  assert.ok(rmIndex >= 0, "interaction-foundation must have a prefers-reduced-motion block");
+
+  const rmSection = section.slice(rmIndex);
   assert.ok(
     rmSection.includes(".dashboard-card-interactive,"),
     "reduced-motion block must include .dashboard-card-interactive",
@@ -157,9 +167,9 @@ test("PR-1 globals.css reduced-motion overrides dashboard-card-interactive trans
 });
 
 test("PR-1 globals.css reduced-motion removes active transform from interaction classes", () => {
-  const source = read(GLOBALS_CSS_PATH);
-  const rmIndex = source.lastIndexOf("@media (prefers-reduced-motion: reduce)");
-  const rmSection = source.slice(rmIndex);
+  const section = interactionFoundationSection(read(GLOBALS_CSS_PATH));
+  const rmIndex = section.indexOf("@media (prefers-reduced-motion: reduce)");
+  const rmSection = section.slice(rmIndex);
   assert.ok(
     rmSection.includes(".dashboard-card-interactive:active,"),
     "reduced-motion must override .dashboard-card-interactive:active transform",

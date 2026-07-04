@@ -190,7 +190,7 @@ test.describe("clinic operaciones/informes/logistica SSR module state parity (CL
     await expect(card.getByText("Sin visitas recientes")).toHaveCount(0);
   });
 
-  test("populated session: stats still errors (no route-plans fixture) even though reports/visits succeed", async ({
+  test("populated session: stats resolve through route-plans and the operativo state is reachable", async ({
     page,
   }) => {
     await setPopulatedClinicSession(page);
@@ -199,12 +199,12 @@ test.describe("clinic operaciones/informes/logistica SSR module state parity (CL
     const commandCenter = page.locator('[data-clinic-command-center="true"]');
     await expect(commandCenter).toBeVisible({ timeout: 8_000 });
 
-    // Unconditional: /api/logistics/route-plans has no handler in the e2e
-    // fixture server regardless of clinic session, so getDashboardStats()
-    // always rejects and statsLoadError is always true here.
+    // The e2e fixture serves /api/logistics/route-plans for the populated
+    // clinic session even without pagination params, so getDashboardStats()
+    // resolves and the healthy KPI path renders (no degraded alert).
     await expect(
       commandCenter.getByRole("alert").filter({ hasText: "métricas operativas" }),
-    ).toBeVisible();
+    ).toHaveCount(0);
 
     await commandCenter.getByRole("tab", { name: "Recientes" }).click();
     await expect(
@@ -216,12 +216,12 @@ test.describe("clinic operaciones/informes/logistica SSR module state parity (CL
     await expect(commandCenter.getByText("Mora", { exact: true })).toBeVisible();
 
     await commandCenter.getByRole("tab", { name: "Estado" }).click();
-    // hasAnyError = statsLoadError || reportsLoadError || visitsLoadError: stays
-    // true (statsLoadError alone), so the "Operativo" copy is never reachable
-    // through this fixture even when reports/visits are fully populated.
+    // hasAnyError = statsLoadError || reportsLoadError || visitsLoadError: all
+    // three reads succeed under the populated fixture, so the "Operativo" copy
+    // (previously unreachable) is the asserted healthy state.
     await expect(
       commandCenter.locator('[data-clinic-command-continuity="true"]'),
-    ).toContainText("Estado degradado");
+    ).toContainText("Operativo");
   });
 
   test("390x844: SSR load-error states for operaciones/informes/logistica still fit without overflow or main scroll", async ({

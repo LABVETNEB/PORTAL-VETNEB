@@ -3302,3 +3302,520 @@
   }
 }
 /* clinic-admin-structure-parity:end */
+/* dashboard-premium-grammar:start */
+@layer components {
+  /*
+    Premium visual grammar shared by BOTH dashboards
+    (visual/global-dashboard-premium-system).
+
+    Additive layer: no pinned class contract above is redefined. Provides
+    (1) per-module accent tokens, (2) the clinic cockpit composition primitives
+    (status band / KPI chips / signal cards / module tiles / quick actions)
+    with a dedicated composition per device class, and (3) per-module icon
+    accents for the admin hub launcher so both dashboards read as one system.
+  */
+  .dashboard-app-shell {
+    --dash-accent-operaciones: 207 72% 30%;
+    --dash-accent-informes: 196 78% 34%;
+    --dash-accent-logistica: 177 64% 28%;
+    --dash-accent-perfil: 205 42% 38%;
+    --dash-accent-tokens: 36 74% 38%;
+    --dash-accent-critical: 36 78% 42%;
+    --dash-accent-neutral: 205 26% 52%;
+    --dash-accent: var(--dash-accent-operaciones);
+  }
+
+  /* ── Status dot: single operational state signal ─────────────────────────── */
+  .dashboard-status-dot {
+    display: inline-flex;
+    height: 0.55rem;
+    width: 0.55rem;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    background: hsl(var(--vetneb-teal));
+    box-shadow: 0 0 0 3px hsl(var(--vetneb-teal) / 0.16);
+  }
+
+  .dashboard-status-dot[data-tone="warn"] {
+    background: hsl(var(--vetneb-amber));
+    box-shadow: 0 0 0 3px hsl(var(--vetneb-amber) / 0.18);
+  }
+
+  /* ── KPI chip: icon + label + tabular value with tone accent ─────────────── */
+  .dashboard-kpi-chip {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1px solid hsl(var(--vetneb-line) / 0.85);
+    border-inline-start: 3px solid hsl(var(--dash-accent) / 0.8);
+    border-radius: 0.65rem;
+    background:
+      linear-gradient(135deg, hsl(var(--card) / 0.97), hsl(var(--vetneb-surface-muted) / 0.8));
+    box-shadow:
+      inset 0 1px 0 hsl(var(--card) / 0.92),
+      0 8px 22px rgba(15, 45, 62, 0.07);
+    padding: 0.45rem 0.65rem;
+  }
+
+  .dashboard-kpi-chip[data-tone="critical"] {
+    --dash-accent: var(--dash-accent-critical);
+  }
+
+  .dashboard-kpi-chip[data-tone="focus"] {
+    --dash-accent: var(--dash-accent-logistica);
+  }
+
+  .dashboard-kpi-chip[data-tone="neutral"] {
+    --dash-accent: var(--dash-accent-neutral);
+  }
+
+  .dashboard-kpi-chip-icon {
+    display: inline-flex;
+    height: 1.7rem;
+    width: 1.7rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    border: 1px solid hsl(var(--dash-accent) / 0.24);
+    color: hsl(var(--dash-accent));
+    background: hsl(var(--dash-accent) / 0.12);
+  }
+
+  .dashboard-kpi-chip-label {
+    display: block;
+    font-size: 0.58rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1.15;
+    color: hsl(var(--muted-foreground));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dashboard-kpi-chip-value {
+    display: block;
+    font-size: 1.08rem;
+    font-weight: 750;
+    line-height: 1.1;
+    color: hsl(var(--vetneb-ink));
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Hub status band: institutional gradient header with accent rule ─────── */
+  .dashboard-hub-band {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.7rem;
+    border: 1px solid hsl(var(--vetneb-line) / 0.8);
+    border-radius: 0.9rem;
+    background:
+      linear-gradient(140deg, hsl(var(--card) / 0.98) 0%, hsl(var(--vetneb-surface-raised) / 0.95) 55%, hsl(var(--vetneb-cyan) / 0.08) 100%);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--card) / 0.94),
+      0 14px 36px rgba(15, 45, 62, 0.08);
+    padding: 0.75rem 0.9rem;
+  }
+
+  .dashboard-hub-band::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 3px;
+    background:
+      linear-gradient(90deg, hsl(var(--vetneb-navy)), hsl(var(--vetneb-teal)) 55%, hsl(var(--vetneb-cyan)));
+    opacity: 0.85;
+  }
+
+  /* ── Signal card: compact reading with tone hairline + icon ──────────────── */
+  .clinic-hub-signal {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    gap: 0.3rem;
+    border: 1px solid hsl(var(--vetneb-line) / 0.75);
+    border-radius: 0.75rem;
+    background:
+      linear-gradient(135deg, hsl(var(--card) / 0.95), hsl(var(--vetneb-surface-muted) / 0.72));
+    box-shadow: inset 0 1px 0 hsl(var(--card) / 0.9);
+    padding: 0.55rem 0.7rem;
+  }
+
+  .clinic-hub-signal::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 2px;
+    background: hsl(var(--dash-accent) / 0.6);
+  }
+
+  .clinic-hub-signal[data-tone="warn"] {
+    --dash-accent: var(--dash-accent-critical);
+  }
+
+  .clinic-hub-signal[data-tone="ok"],
+  .clinic-hub-signal[data-tone="teal"] {
+    --dash-accent: var(--dash-accent-logistica);
+  }
+
+  .clinic-hub-signal[data-tone="cyan"] {
+    --dash-accent: var(--dash-accent-informes);
+  }
+
+  .clinic-hub-signal-icon {
+    flex-shrink: 0;
+    color: hsl(var(--dash-accent));
+  }
+
+  /* ── Modules panel + icon-left tiles (no dead vertical space) ────────────── */
+  .clinic-hub-modules {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    gap: 0.6rem;
+    border: 1px solid hsl(var(--vetneb-line) / 0.78);
+    border-radius: 0.9rem;
+    background:
+      linear-gradient(150deg, hsl(var(--card) / 0.97), hsl(var(--vetneb-surface-raised) / 0.9));
+    box-shadow:
+      inset 0 1px 0 hsl(var(--card) / 0.92),
+      0 14px 36px rgba(15, 45, 62, 0.07);
+    padding: 0.7rem 0.8rem;
+  }
+
+  .clinic-hub-count-badge {
+    flex-shrink: 0;
+    border: 1px solid hsl(var(--vetneb-line) / 0.7);
+    border-radius: 9999px;
+    background: hsl(var(--vetneb-surface-muted) / 0.6);
+    padding: 0.1rem 0.6rem;
+    font-size: 0.66rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: hsl(var(--muted-foreground));
+    white-space: nowrap;
+  }
+
+  .clinic-hub-tile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    min-height: 0;
+  }
+
+  .clinic-hub-tile {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.6rem;
+    border: 1px solid hsl(var(--vetneb-line) / 0.8);
+    border-radius: 0.7rem;
+    background:
+      linear-gradient(140deg, hsl(var(--card) / 0.98), hsl(var(--vetneb-surface-raised) / 0.94));
+    box-shadow:
+      inset 0 1px 0 hsl(var(--card) / 0.9),
+      0 8px 20px rgba(15, 45, 62, 0.06);
+    padding: 0.5rem 0.6rem;
+    min-height: 3rem;
+    text-align: left;
+  }
+
+  .clinic-hub-tile:hover {
+    border-color: hsl(var(--dash-accent) / 0.5);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--card) / 0.94),
+      0 14px 30px rgba(15, 45, 62, 0.11);
+  }
+
+  .clinic-hub-tile-icon {
+    display: inline-flex;
+    height: 2rem;
+    width: 2rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.6rem;
+    color: #fff;
+    background:
+      linear-gradient(135deg, hsl(var(--dash-accent)), hsl(var(--dash-accent) / 0.72));
+    box-shadow: 0 6px 14px hsl(var(--dash-accent) / 0.32);
+  }
+
+  .clinic-hub-tile-chevron {
+    flex-shrink: 0;
+    color: hsl(var(--muted-foreground));
+    transition:
+      transform var(--motion-fast) var(--ease-out-soft),
+      color var(--motion-fast) var(--ease-out-soft);
+  }
+
+  .clinic-hub-tile:hover .clinic-hub-tile-chevron {
+    transform: translateX(2px);
+    color: hsl(var(--dash-accent));
+  }
+
+  .clinic-hub-tile[data-clinic-cockpit-module-card="operaciones"] {
+    --dash-accent: var(--dash-accent-operaciones);
+  }
+
+  .clinic-hub-tile[data-clinic-cockpit-module-card="informes"] {
+    --dash-accent: var(--dash-accent-informes);
+  }
+
+  .clinic-hub-tile[data-clinic-cockpit-module-card="logistica"] {
+    --dash-accent: var(--dash-accent-logistica);
+  }
+
+  .clinic-hub-tile[data-clinic-cockpit-module-card="perfil"] {
+    --dash-accent: var(--dash-accent-perfil);
+  }
+
+  .clinic-hub-tile[data-clinic-cockpit-module-card="tokens"] {
+    --dash-accent: var(--dash-accent-tokens);
+  }
+
+  /* ── Quick actions strip: verb-first accesses under the module grid ──────── */
+  .clinic-hub-actions {
+    display: none;
+  }
+
+  .clinic-hub-action {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.1rem;
+    border: 1px solid hsl(var(--vetneb-line) / 0.8);
+    border-radius: 0.55rem;
+    background: hsl(var(--card) / 0.92);
+    padding-inline: 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 650;
+    color: hsl(var(--vetneb-navy));
+    white-space: nowrap;
+  }
+
+  .clinic-hub-action:hover {
+    border-color: hsl(var(--vetneb-teal) / 0.5);
+    background: hsl(var(--accent) / 0.6);
+  }
+
+  /* ── Hub composition per device class ────────────────────────────────────── */
+  .clinic-cockpit-hub {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--dash-gap, 0.6rem);
+    flex: 0 1 auto;
+    max-height: 100%;
+  }
+
+  .clinic-hub-kpis {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .clinic-hub-body {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    gap: var(--dash-gap, 0.6rem);
+  }
+
+  .clinic-hub-signals {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  /* Mobile ≥390px alto: same logic, extra breathing handled by --dash tokens. */
+
+  @media (min-width: 640px) {
+    .clinic-hub-kpis {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  /* Tablet portrait: console composition — signals share a row, actions show. */
+  @media (min-width: 768px) {
+    .clinic-hub-signals {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .clinic-hub-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      border-top: 1px dashed hsl(var(--vetneb-line) / 0.7);
+      padding-top: 0.55rem;
+      margin-top: auto;
+    }
+  }
+
+  /* Desktop: two-zone command grid — modules own the width, signals rail. */
+  @media (min-width: 1024px) {
+    .clinic-hub-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+      align-items: stretch;
+      gap: var(--dash-gap, 0.75rem);
+    }
+
+    .clinic-hub-signals {
+      grid-template-columns: minmax(0, 1fr);
+      grid-auto-rows: minmax(0, 1fr);
+    }
+
+    .clinic-hub-band {
+      padding: 0.9rem 1.1rem;
+    }
+
+    .clinic-hub-modules {
+      padding: 0.8rem 0.9rem;
+    }
+
+    .clinic-hub-tile {
+      min-height: 3.4rem;
+      padding: 0.6rem 0.7rem;
+    }
+  }
+
+  @media (min-width: 1440px) {
+    .clinic-hub-tile-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  /* Wide desktop: bound and center the hub stage so cards never balloon. */
+  @media (min-width: 1600px) {
+    [data-vetneb-app-shell-surface="clinic"]
+      [data-clinic-dashboard-stage="true"]:has([data-clinic-cockpit="true"]) {
+      width: 100%;
+      max-width: 100rem;
+      margin-inline: auto;
+    }
+  }
+
+  /* ── Admin hub launcher: same accent language per module ─────────────────── */
+  [data-dashboard-module-card="admin"] .dashboard-cockpit-tile-icon,
+  [data-dashboard-module-card="audit-log"] .dashboard-cockpit-tile-icon {
+    background:
+      linear-gradient(135deg, hsl(var(--dash-accent-operaciones)), hsl(var(--dash-accent-operaciones) / 0.72));
+    box-shadow: 0 6px 14px hsl(var(--dash-accent-operaciones) / 0.3);
+  }
+
+  [data-dashboard-module-card="admin-clinics"] .dashboard-cockpit-tile-icon,
+  [data-dashboard-module-card="admin-users-roles"] .dashboard-cockpit-tile-icon,
+  [data-dashboard-module-card="admin-health"] .dashboard-cockpit-tile-icon {
+    background:
+      linear-gradient(135deg, hsl(var(--dash-accent-logistica)), hsl(var(--dash-accent-logistica) / 0.72));
+    box-shadow: 0 6px 14px hsl(var(--dash-accent-logistica) / 0.3);
+  }
+
+  [data-dashboard-module-card="admin-report-upload"] .dashboard-cockpit-tile-icon {
+    background:
+      linear-gradient(135deg, hsl(var(--dash-accent-informes)), hsl(var(--dash-accent-informes) / 0.72));
+    box-shadow: 0 6px 14px hsl(var(--dash-accent-informes) / 0.3);
+  }
+
+  [data-dashboard-module-card="admin-particular-tokens"] .dashboard-cockpit-tile-icon,
+  [data-dashboard-module-card="admin-pricing"] .dashboard-cockpit-tile-icon {
+    background:
+      linear-gradient(135deg, hsl(var(--dash-accent-tokens)), hsl(var(--dash-accent-tokens) / 0.72));
+    box-shadow: 0 6px 14px hsl(var(--dash-accent-tokens) / 0.3);
+  }
+
+  [data-dashboard-module-card="admin-sessions"] .dashboard-cockpit-tile-icon,
+  [data-dashboard-module-card="admin-maintenance"] .dashboard-cockpit-tile-icon {
+    background:
+      linear-gradient(135deg, hsl(var(--dash-accent-perfil)), hsl(var(--dash-accent-perfil) / 0.72));
+    box-shadow: 0 6px 14px hsl(var(--dash-accent-perfil) / 0.3);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .clinic-hub-tile-chevron,
+    .clinic-hub-tile:hover .clinic-hub-tile-chevron {
+      transition: none;
+      transform: none;
+    }
+  }
+}
+
+/* Clinic mobile: compact premium densities for the redesigned hub. */
+@media (max-width: 767px) {
+  [data-vetneb-app-shell-surface="clinic"] .clinic-cockpit-hub {
+    gap: 0.45rem;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] .clinic-hub-page-header {
+    gap: 0.3rem;
+    padding-bottom: 0.4rem;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] .clinic-hub-page-header h1 {
+    font-size: 1rem;
+    line-height: 1.2;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] .dashboard-hub-band {
+    gap: 0.45rem;
+    padding: 0.55rem 0.65rem;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] .dashboard-kpi-chip {
+    padding: 0.38rem 0.55rem;
+    gap: 0.45rem;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] .dashboard-kpi-chip-value {
+    font-size: 1rem;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] .clinic-hub-modules {
+    gap: 0.45rem;
+    padding: 0.55rem 0.6rem;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] .clinic-hub-tile {
+    min-height: 2.75rem;
+    padding: 0.42rem 0.55rem;
+    gap: 0.45rem;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] .clinic-hub-tile-icon {
+    height: 1.7rem;
+    width: 1.7rem;
+  }
+
+  /* The chevron affordance is redundant under touch; reclaiming its width keeps
+     module titles unclipped at 360px. */
+  [data-vetneb-app-shell-surface="clinic"] .clinic-hub-tile-chevron {
+    display: none;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] .clinic-hub-signal {
+    padding: 0.42rem 0.55rem;
+    gap: 0.2rem;
+  }
+}
+/* dashboard-premium-grammar:end */

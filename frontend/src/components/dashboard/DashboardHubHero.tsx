@@ -87,7 +87,7 @@ export function DashboardHubHero({
         {description}
       </p>
 
-      <div className="relative mt-3 grid min-h-0 grid-cols-2 gap-2 sm:mt-4 sm:flex sm:flex-1 sm:flex-col sm:justify-center sm:gap-2.5">
+      <div className="relative mt-3 grid min-h-0 grid-cols-2 gap-2 sm:mt-4 sm:flex sm:flex-col sm:justify-start sm:gap-2.5">
         {metrics.map((metric) => (
           <div
             key={metric.label}
@@ -112,7 +112,7 @@ export function DashboardHubHero({
         <button
           type="button"
           onClick={onPrimaryAction}
-          className="dashboard-btn-interactive relative mt-3 inline-flex min-h-[2.35rem] items-center justify-center gap-1.5 rounded-md bg-white/95 px-3 text-xs font-semibold text-vetneb-navy shadow-[0_10px_26px_rgba(8,35,50,0.24)] hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/85 focus-visible:ring-offset-2 focus-visible:ring-offset-vetneb-navy sm:mt-4 sm:min-h-[2.6rem] sm:px-4 sm:text-sm"
+          className="dashboard-btn-interactive relative mt-3 inline-flex min-h-[2.35rem] items-center justify-center gap-1.5 rounded-md bg-white/95 px-3 text-xs font-semibold text-vetneb-navy shadow-[0_10px_26px_rgba(8,35,50,0.24)] hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/85 focus-visible:ring-offset-2 focus-visible:ring-offset-vetneb-navy sm:mt-auto sm:min-h-[2.6rem] sm:px-4 sm:text-sm"
         >
           <span>{primaryActionLabel}</span>
           <ChevronRight className="h-4 w-4" aria-hidden="true" />

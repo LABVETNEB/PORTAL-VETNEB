@@ -87,7 +87,7 @@ export function DashboardModuleHub({
             const cardBody = (
               <>
                 <div className="flex items-start justify-between gap-2">
-                  <span className="dashboard-cockpit-tile-icon rounded-lg bg-gradient-to-br from-vetneb-teal/15 to-vetneb-cyan/20">
+                  <span className="dashboard-cockpit-tile-icon rounded-lg">
                     <card.icon className="h-4 w-4" aria-hidden="true" />
                   </span>
                   {card.badge != null ? (
@@ -98,11 +98,16 @@ export function DashboardModuleHub({
                   {card.title}
                 </p>
                 <div className="min-h-0 flex-1 overflow-hidden">
-                  {showDescription ? (
-                    <p className="hidden text-xs leading-relaxed text-muted-foreground sm:line-clamp-2">
-                      {card.description}
-                    </p>
-                  ) : null}
+                  <p
+                    className={cn(
+                      "hidden text-xs leading-relaxed text-muted-foreground",
+                      // Dense launchers surface descriptions only where the 10-tile
+                      // grid has vertical headroom (>=1440px keeps 1366x768 no-scroll).
+                      showDescription ? "sm:line-clamp-2" : "min-[1440px]:line-clamp-2",
+                    )}
+                  >
+                    {card.description}
+                  </p>
                 </div>
                 <div className="flex min-w-0 items-center gap-1 pt-0.5 text-xs font-semibold text-vetneb-teal">
                   <span className="truncate">{card.actionLabel ?? "Abrir"}</span>
