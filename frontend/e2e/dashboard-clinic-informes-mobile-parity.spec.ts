@@ -3,6 +3,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 const TOLERANCE = 2;
 const LONG_PATIENT_NAME =
   "Paciente con nombre clínico extraordinariamente extenso para validar el detalle mobile";
+const MIN_ADAPTIVE_REPORT_ROWS = 3;
+const CLINIC_REPORTS_SUMMARY_SUPERSET_LIMIT = 24;
 
 const MOBILE_VIEWPORTS = [
   { name: "android-small-360x740", width: 360, height: 740 },
@@ -155,6 +157,67 @@ async function expectHorizontallyUnclipped(
   );
 }
 
+async function assertAdaptiveMobileReportRows({
+  mobileList,
+  reportRows,
+  viewButtons,
+  label,
+}: {
+  mobileList: Locator;
+  reportRows: Locator;
+  viewButtons: Locator;
+  label: string;
+}) {
+  let rowCount = 0;
+
+  await expect(async () => {
+    const currentRowCount = await reportRows.count();
+    const currentButtonCount = await viewButtons.count();
+
+    expect(
+      currentRowCount,
+      `${label}: renders at least the legacy minimum while adapting upward`,
+    ).toBeGreaterThanOrEqual(MIN_ADAPTIVE_REPORT_ROWS);
+    expect(
+      currentRowCount,
+      `${label}: visible rows stay within the fetched dashboard superset`,
+    ).toBeLessThanOrEqual(CLINIC_REPORTS_SUMMARY_SUPERSET_LIMIT);
+    expect(
+      currentButtonCount,
+      `${label}: each visible row keeps one Ver action`,
+    ).toBe(currentRowCount);
+
+    const visibleCapacity = await mobileList.evaluate(
+      (list, tolerance) => {
+        const firstRow = list.querySelector<HTMLElement>(
+          '[data-clinic-reports-mobile-row="true"]',
+        );
+        const rowHeight = firstRow?.getBoundingClientRect().height ?? 0;
+
+        if (rowHeight <= 0) {
+          return 0;
+        }
+
+        return Math.floor((list.clientHeight + tolerance) / rowHeight);
+      },
+      TOLERANCE,
+    );
+
+    expect(
+      visibleCapacity,
+      `${label}: adaptive list exposes measurable row capacity`,
+    ).toBeGreaterThanOrEqual(MIN_ADAPTIVE_REPORT_ROWS);
+    expect(
+      currentRowCount,
+      `${label}: row count is bounded by the visible adaptive page`,
+    ).toBeLessThanOrEqual(visibleCapacity);
+
+    rowCount = currentRowCount;
+  }).toPass({ timeout: 12_000 });
+
+  return rowCount;
+}
+
 for (const viewport of MOBILE_VIEWPORTS) {
   test(`clinic Informes populated mobile parity at ${viewport.name}`, async ({
     page,
@@ -183,17 +246,17 @@ for (const viewport of MOBILE_VIEWPORTS) {
       await expect(card).toBeVisible();
       await expectClinicMobileBottomNav(page, viewport.name);
       await expect(mobileList).toBeVisible();
-      await expect(reportRows).toHaveCount(3);
-      await expect(viewButtons).toHaveCount(3);
-
-      for (let index = 0; index < 3; index += 1) {
-        await expect(reportRows.nth(index)).toBeVisible();
-        await expect(viewButtons.nth(index)).toBeVisible();
-      }
 
       await expect(fullModuleButton).toBeVisible();
       await expect(fullModuleButton).toBeEnabled();
     }).toPass({ timeout: 12_000 });
+
+    const adaptiveReportRowCount = await assertAdaptiveMobileReportRows({
+      mobileList,
+      reportRows,
+      viewButtons,
+      label: `${viewport.name}: settled layout`,
+    });
 
     await expect(card.locator('[data-clinic-reports-table="true"]')).toBeHidden();
     await expect(
@@ -205,7 +268,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       `${viewport.name}: full Informes CTA`,
     );
 
-    for (let index = 0; index < 3; index += 1) {
+    for (let index = 0; index < adaptiveReportRowCount; index += 1) {
       await expectHorizontallyUnclipped(
         reportRows.nth(index),
         viewport.width,
@@ -221,7 +284,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await viewButtons.nth(1).click();
 
     await expect(async () => {
-      await expect(reportRows).toHaveCount(3);
+      await expect(reportRows).toHaveCount(adaptiveReportRowCount);
       await expect(reportRows.nth(1)).toBeVisible();
       await expect(
         card.locator('[data-detail-state="selected"], .dashboard-inline-detail'),
