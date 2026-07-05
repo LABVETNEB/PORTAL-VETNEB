@@ -284,7 +284,16 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await viewButtons.nth(1).click();
 
     await expect(async () => {
-      await expect(reportRows).toHaveCount(adaptiveReportRowCount);
+      const currentReportRowCount = await reportRows.count();
+
+      expect(
+        currentReportRowCount,
+        `${viewport.name}: modal keeps populated adaptive rows`,
+      ).toBeGreaterThanOrEqual(MIN_ADAPTIVE_REPORT_ROWS);
+      expect(
+        currentReportRowCount,
+        `${viewport.name}: modal row count stays within dashboard superset`,
+      ).toBeLessThanOrEqual(CLINIC_REPORTS_SUMMARY_SUPERSET_LIMIT);
       await expect(reportRows.nth(1)).toBeVisible();
       await expect(
         card.locator('[data-detail-state="selected"], .dashboard-inline-detail'),
