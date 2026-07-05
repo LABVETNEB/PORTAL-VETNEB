@@ -31,10 +31,10 @@ type PopulatedAdminModule =
 
 const ROUTES: RouteCase[] = [
   {
-    label: "clinic hub",
+    label: "clinic default (bare /dashboard → operaciones, no hub)",
     surface: "clinic",
     path: "/dashboard",
-    ready: '[data-dashboard-module-hub="true"]',
+    ready: '[data-dashboard-module-workspace="operaciones"]',
   },
   {
     label: "clinic operaciones",

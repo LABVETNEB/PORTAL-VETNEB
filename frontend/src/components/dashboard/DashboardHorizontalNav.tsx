@@ -159,6 +159,15 @@ function DashboardHorizontalNavInner() {
 }
 
 export function DashboardHorizontalNav() {
+  const pathname = usePathname() ?? "";
+  // The clinic MAIN dashboard (`/dashboard`) uses the shared
+  // `DashboardModuleRail` as its single, device-agnostic module pager, so the
+  // top tab bar is suppressed there to avoid a second, differently-styled
+  // navigation. Admin and the clinic secondary routes keep the top bar.
+  if (resolveSurface(pathname) === "clinic" && pathname === ROUTES.dashboard) {
+    return null;
+  }
+
   return (
     <nav
       role="navigation"

@@ -35,11 +35,18 @@ test("dashboard home defines non-indexable clinic metadata and imports live depe
   assert.ok(source.includes('title: "Dashboard Clínica — Portal VETNEB"'));
   assert.ok(source.includes("robots: { index: false, follow: false },"));
   assert.ok(source.includes('import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";'));
-  assert.ok(source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'));
+  // No home/hub: the clinic dashboard no longer imports the landing
+  // DashboardPageHeader band; it opens straight into the workspace controller.
+  assert.equal(
+    source.includes('import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";'),
+    false,
+  );
   assert.ok(
     source.includes('ClinicDashboardWorkspaceController') &&
       source.includes('@/components/dashboard/ClinicDashboardWorkspaceController'),
   );
+  // The default operational module is resolved on the server render.
+  assert.ok(source.includes('DEFAULT_CLINIC_MODULE'));
   assert.ok(source.includes('import { ClinicCommandCenter } from "./ClinicCommandCenter";'));
   assert.ok(source.includes('import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";'));
 });
@@ -80,15 +87,20 @@ test("dashboard home reads stats reports and field visits through API helpers", 
   assert.ok(source.includes("recentVisits={recentVisits.slice(0, 3)}"));
 });
 
-test("dashboard home renders module hub structure with header, cards, and clinic sections", () => {
+test("dashboard home opens the unified module workspace (no hub header/cards)", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
   assert.ok(source.includes('title="Dashboard Clínica"'));
   assert.ok(source.includes('subtitle="Portal operativo clínica"'));
   assert.ok(source.includes('notifications="clinic"'));
-  assert.ok(source.includes('<DashboardPageHeader'));
-  // PR5B: hub cards and DashboardModuleHub are inside ClinicDashboardWorkspaceController.
+  // No home/hub: no landing page-header band and no "Módulos clínicos" grid.
+  assert.equal(source.includes('<DashboardPageHeader'), false);
+  assert.equal(source.includes('Módulos clínicos'), false);
+  assert.equal(source.includes('Resumen operativo'), false);
+  // The unified workspace controller mounts directly and receives every module
+  // slot (operaciones/informes/logística/perfil/tokens) it can activate.
   assert.ok(source.includes('<ClinicDashboardWorkspaceController'));
+  assert.ok(source.includes('initialModule={initialModule}'));
   assert.ok(source.includes('<ClinicCommandCenter'));
   assert.ok(source.includes('stats={stats}'));
   assert.ok(source.includes('statsLoadError={statsLoadError}'));
@@ -96,6 +108,8 @@ test("dashboard home renders module hub structure with header, cards, and clinic
   assert.ok(source.includes('recentVisits={recentVisits}'));
   assert.ok(source.includes('reportsLoadError={reportsLoadError}'));
   assert.ok(source.includes('visitsLoadError={visitsLoadError}'));
+  assert.ok(source.includes('<ClinicInformesWorkspaceSummary'));
+  assert.ok(source.includes('<ClinicLogisticaWorkspaceSummary'));
   assert.ok(source.includes('<ClinicPublicProfileCard />'));
   assert.ok(source.includes('<ClinicParticularTokensCard />'));
   assert.equal(
@@ -104,27 +118,24 @@ test("dashboard home renders module hub structure with header, cards, and clinic
   );
 });
 
-test("dashboard home page layout order: header before workspace controller before command center", () => {
+test("dashboard home page layout order: main before workspace controller before module slots", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
   const mainIndex = source.indexOf('<main className="dashboard-main">');
-  const pageHeaderIndex = source.indexOf('<DashboardPageHeader');
-  // PR5B: DashboardModuleHub is managed by ClinicDashboardWorkspaceController.
   const workspaceControllerIndex = source.indexOf('<ClinicDashboardWorkspaceController');
   const commandCenterIndex = source.indexOf('<ClinicCommandCenter');
   const clinicPublicIndex = source.indexOf('<ClinicPublicProfileCard />');
 
   assert.ok(mainIndex >= 0);
-  assert.ok(pageHeaderIndex >= 0);
   assert.ok(workspaceControllerIndex >= 0);
   assert.ok(commandCenterIndex >= 0);
   assert.ok(clinicPublicIndex >= 0);
+  // No home/hub: the controller mounts right inside <main>, and the module
+  // slots (operaciones command center, then profile) follow it. There is no
+  // intermediate DashboardPageHeader band.
+  assert.equal(source.includes('<DashboardPageHeader'), false);
   assert.ok(mainIndex < workspaceControllerIndex);
-  // App Shell: the page header is now passed as a prop to the controller and
-  // rendered hub-only (to reclaim height in modules), so it appears after the
-  // controller opening tag but before the workspace slot contents.
-  assert.ok(workspaceControllerIndex < pageHeaderIndex);
-  assert.ok(pageHeaderIndex < commandCenterIndex);
+  assert.ok(workspaceControllerIndex < commandCenterIndex);
   assert.ok(commandCenterIndex < clinicPublicIndex);
 });
 

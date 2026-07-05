@@ -23,10 +23,10 @@ type ShellRouteCase = {
 
 const SHELL_ROUTES: ShellRouteCase[] = [
   {
-    label: "clinic hub",
+    label: "clinic operaciones (default)",
     surface: "clinic",
     path: "/dashboard",
-    ready: '[data-dashboard-module-hub="true"]',
+    ready: '[data-dashboard-module-rail="true"]',
   },
   {
     label: "clinic tokens",
@@ -95,11 +95,13 @@ type ShellNavContract = {
   horizontalNavVisible: boolean;
   adminBottomNavVisible: boolean;
   clinicBottomNavVisible: boolean;
+  clinicModuleRailVisible: boolean;
   clippedTopbarControls: ShellNavMetric[];
   undersizedShellControls: ShellNavMetric[];
   activeHorizontalNavItemVisible: boolean;
   activeAdminBottomNavItemVisible: boolean;
   activeClinicBottomNavItemVisible: boolean;
+  activeClinicModuleRailItemVisible: boolean;
 };
 
 async function readShellNavContract(page: Page): Promise<ShellNavContract> {
@@ -162,6 +164,9 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
     const clinicBottomNav = document.querySelector(
       "[data-clinic-mobile-bottom-nav='true']",
     );
+    const clinicModuleRail = document.querySelector(
+      "[data-dashboard-module-rail='true']",
+    );
 
     const topbarControls = Array.from(
       document.querySelectorAll(
@@ -171,7 +176,7 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
 
     const shellControls = Array.from(
       document.querySelectorAll(
-        "header[aria-label='Barra superior del dashboard'] a, header[aria-label='Barra superior del dashboard'] button, [data-admin-mobile-bottom-nav='true'] button, [data-clinic-mobile-bottom-nav='true'] a, [data-clinic-mobile-bottom-nav='true'] button",
+        "header[aria-label='Barra superior del dashboard'] a, header[aria-label='Barra superior del dashboard'] button, [data-admin-mobile-bottom-nav='true'] button, [data-clinic-mobile-bottom-nav='true'] a, [data-clinic-mobile-bottom-nav='true'] button, [data-dashboard-module-rail='true'] a, [data-dashboard-module-rail='true'] button",
       ),
     ).filter(isVisible);
 
@@ -203,6 +208,9 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
     );
     const activeClinicBottomNavItem = document.querySelector(
       "[data-clinic-mobile-bottom-nav='true'] [aria-current='page']",
+    );
+    const activeClinicModuleRailItem = document.querySelector(
+      "[data-dashboard-module-rail='true'] [aria-current='page']",
     );
 
     let activeHorizontalNavItemVisible = false;
@@ -238,6 +246,17 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
         rect.bottom <= viewportHeight + tolerance;
     }
 
+    let activeClinicModuleRailItemVisible = false;
+    if (activeClinicModuleRailItem) {
+      const rect = (activeClinicModuleRailItem as HTMLElement).getBoundingClientRect();
+      activeClinicModuleRailItemVisible =
+        isVisible(activeClinicModuleRailItem) &&
+        rect.left >= -tolerance &&
+        rect.right <= viewportWidth + tolerance &&
+        rect.top >= -tolerance &&
+        rect.bottom <= viewportHeight + tolerance;
+    }
+
     return {
       htmlScrollWidth: html.scrollWidth,
       htmlClientWidth: html.clientWidth,
@@ -247,11 +266,13 @@ async function readShellNavContract(page: Page): Promise<ShellNavContract> {
       horizontalNavVisible: nav ? isVisible(nav) : false,
       adminBottomNavVisible: adminBottomNav ? isVisible(adminBottomNav) : false,
       clinicBottomNavVisible: clinicBottomNav ? isVisible(clinicBottomNav) : false,
+      clinicModuleRailVisible: clinicModuleRail ? isVisible(clinicModuleRail) : false,
       clippedTopbarControls,
       undersizedShellControls,
       activeHorizontalNavItemVisible,
       activeAdminBottomNavItemVisible,
       activeClinicBottomNavItemVisible,
+      activeClinicModuleRailItemVisible,
     };
   }, TOLERANCE);
 }
@@ -275,15 +296,25 @@ function assertShellNavContract(
       `${label}: active admin bottom nav item visible`,
     ).toBe(true);
   } else {
+    // Unified navigation: the clinic main dashboard uses the single shared
+    // DashboardModuleRail on every device — no legacy horizontal tabs and no
+    // separate mobile bottom bar.
     expect(
       contract.horizontalNavVisible,
       `${label}: clinic horizontal nav hidden on mobile`,
     ).toBe(false);
     expect(contract.adminBottomNavVisible, `${label}: admin bottom nav absent`).toBe(false);
-    expect(contract.clinicBottomNavVisible, `${label}: clinic bottom nav visible`).toBe(true);
     expect(
-      contract.activeClinicBottomNavItemVisible,
-      `${label}: active clinic bottom nav item visible`,
+      contract.clinicBottomNavVisible,
+      `${label}: legacy clinic bottom nav absent (replaced by the module rail)`,
+    ).toBe(false);
+    expect(
+      contract.clinicModuleRailVisible,
+      `${label}: shared clinic module rail visible`,
+    ).toBe(true);
+    expect(
+      contract.activeClinicModuleRailItemVisible,
+      `${label}: active clinic module rail item visible`,
     ).toBe(true);
   }
 

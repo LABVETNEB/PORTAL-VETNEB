@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   Building2,
   FileText,
@@ -51,6 +52,7 @@ function parseClinicModuleFromLocation(): ClinicModule | null {
 }
 
 export function ClinicMobileBottomNav() {
+  const pathname = usePathname() ?? "";
   const [activeModule, setActiveModule] = useState<ClinicModule | null>(null);
 
   useEffect(() => {
@@ -88,6 +90,13 @@ export function ClinicMobileBottomNav() {
     setActiveModule(null);
     requestClinicHubReset();
   }, []);
+
+  // The clinic MAIN dashboard renders the shared `DashboardModuleRail` as its
+  // single module navigation, so the mobile bottom bar is suppressed there.
+  // Secondary clinic routes (informes/logística full pages) keep it.
+  if (pathname === ROUTES.dashboard) {
+    return null;
+  }
 
   return (
     <nav

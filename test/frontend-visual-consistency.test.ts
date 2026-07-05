@@ -458,13 +458,19 @@ test("dashboard home keeps visual dashboard states and card spacing conventions"
     source,
     [
       '<main className="dashboard-main">',
-      "<DashboardPageHeader",
+      // No home/hub: the clinic dashboard opens straight into the unified
+      // module workspace controller (no landing DashboardPageHeader band).
       "<ClinicDashboardWorkspaceController",
       "<ClinicCommandCenter",
       "<ClinicPublicProfileCard />",
       "<ClinicParticularTokensCard />",
     ],
     "dashboard home shell",
+  );
+  assert.equal(
+    source.includes("<DashboardPageHeader"),
+    false,
+    "clinic dashboard must not render a home-style page header band",
   );
 
   assertContainsAll(

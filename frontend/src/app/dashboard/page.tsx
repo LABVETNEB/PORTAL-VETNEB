@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { DashboardTopbar } from "@/components/dashboard/DashboardTopbar";
-import { DashboardPageHeader } from "@/components/dashboard/DashboardPageHeader";
-import { ClinicDashboardWorkspaceController } from "@/components/dashboard/ClinicDashboardWorkspaceController";
+import {
+  ClinicDashboardWorkspaceController,
+  DEFAULT_CLINIC_MODULE,
+} from "@/components/dashboard/ClinicDashboardWorkspaceController";
 import type { ClinicModule } from "@/components/dashboard/ClinicDashboardWorkspaceController";
 import { ClinicMobileModuleFrame } from "@/components/dashboard/ClinicMobileModuleFrame";
 import { ClinicCommandCenter } from "./ClinicCommandCenter";
@@ -57,7 +59,10 @@ export default async function DashboardPage({
   searchParams?: Promise<PageSearchParams>;
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
-  const initialModule = parseClinicModule(resolvedSearchParams.module);
+  // No hub/home: an absent or invalid module resolves to the operational
+  // default so the server render already opens the operations workspace.
+  const initialModule =
+    parseClinicModule(resolvedSearchParams.module) ?? DEFAULT_CLINIC_MODULE;
 
   const requestOptions = await getDashboardRequestOptions();
   let stats: Awaited<ReturnType<typeof getDashboardStats>> | null = null;
@@ -104,9 +109,6 @@ export default async function DashboardPage({
   const recentReports = reports.slice(0, 24);
   const recentVisits = visits.slice(0, 24);
 
-  const pendingReports = stats?.pendingReports ?? 0;
-  const activeVisits = stats?.activeVisits ?? 0;
-
   return (
     <>
       <DashboardTopbar
@@ -118,21 +120,6 @@ export default async function DashboardPage({
         <Suspense>
           <ClinicDashboardWorkspaceController
             initialModule={initialModule}
-            stats={stats}
-            statsLoadError={statsLoadError}
-            recentReports={recentReports}
-            reportsLoadError={reportsLoadError}
-            recentVisits={recentVisits}
-            visitsLoadError={visitsLoadError}
-            pendingReports={pendingReports}
-            activeVisits={activeVisits}
-            pageHeader={
-              <DashboardPageHeader
-                title="Resumen operativo"
-                description="Estado del día, señales y accesos a los módulos de la clínica."
-                className="clinic-hub-page-header"
-              />
-            }
             workspaces={{
               operaciones: (
                 <ClinicMobileModuleFrame moduleId="operaciones">

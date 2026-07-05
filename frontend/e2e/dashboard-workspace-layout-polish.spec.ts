@@ -245,12 +245,22 @@ function assertDashboardFrameFit(metrics: FrameFitMetrics, label: string) {
 }
 
 test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
-  test("clinic /dashboard loads module hub", async ({ page }) => {
+  test("clinic /dashboard opens the default operaciones workspace via the shared rail (no hub)", async ({
+    page,
+  }) => {
     await setClinicSession(page);
     await page.goto("/dashboard");
+    // No hub: the shared module rail and the default operaciones workspace load
+    // directly; the legacy module-hub markup must be absent.
+    await expect(
+      page.locator('[data-dashboard-module-rail="true"]'),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(
+      page.locator('[data-dashboard-module-workspace="operaciones"]'),
+    ).toBeVisible({ timeout: 8_000 });
     await expect(
       page.locator('[data-dashboard-module-hub="true"]'),
-    ).toBeVisible({ timeout: 8_000 });
+    ).toHaveCount(0);
   });
 
   test("clinic /dashboard?module=operaciones renders workspace with enter class", async ({
@@ -299,7 +309,24 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
     await expect(page.locator("#report-detail")).toHaveCount(0);
   });
 
-  test("workspace Volver button keeps dashboard-btn-interactive (PR-1 contract preserved)", async ({
+  test("admin workspace Volver button keeps dashboard-btn-interactive (PR-1 contract preserved)", async ({
+    page,
+  }) => {
+    // The clinic workspace no longer exposes a "Vista general" control — module
+    // navigation is owned by the shared rail. The admin hub still uses the back
+    // button, so the PR-1 interaction contract is asserted there.
+    await setAdminSession(page);
+    await page.goto("/dashboard/admin?module=admin-clinics");
+    const workspace = page.locator(
+      '[data-dashboard-module-workspace="admin-clinics"]',
+    );
+    await expect(workspace).toBeVisible({ timeout: 8_000 });
+    const volverBtn = workspace.locator('button[aria-label="Vista general"]');
+    await expect(volverBtn).toBeVisible();
+    await expect(volverBtn).toHaveClass(/dashboard-btn-interactive/);
+  });
+
+  test("clinic workspace no longer exposes a Vista general control (rail owns nav)", async ({
     page,
   }) => {
     await setClinicSession(page);
@@ -308,9 +335,9 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
       '[data-dashboard-module-workspace="operaciones"]',
     );
     await expect(workspace).toBeVisible({ timeout: 8_000 });
-    const volverBtn = workspace.locator('button[aria-label="Vista general"]');
-    await expect(volverBtn).toBeVisible();
-    await expect(volverBtn).toHaveClass(/dashboard-btn-interactive/);
+    await expect(
+      workspace.locator('button[aria-label="Vista general"]'),
+    ).toHaveCount(0);
   });
 
   test("reduced-motion: workspace still visible with prefers-reduced-motion: reduce", async ({
@@ -332,7 +359,7 @@ test.describe("dashboard workspace layout polish — smoke (PR-2)", () => {
     await setClinicSession(page);
     await page.goto("/dashboard");
     await expect(
-      page.locator('[data-dashboard-module-hub="true"]'),
+      page.locator('[data-dashboard-module-workspace="operaciones"]'),
     ).toBeVisible({ timeout: 8_000 });
     const overflow = await page.evaluate(
       () =>

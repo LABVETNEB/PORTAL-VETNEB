@@ -101,21 +101,31 @@ test("DashboardModuleHub renders the hero slot outside the module-card section",
 
 // ── Clinic controller wiring ─────────────────────────────────────────────────
 
-test("clinic controller renders a clinic cockpit with live operational metrics", () => {
+test("clinic controller opens directly into a module workspace with the shared rail (no hub)", () => {
   const source = read(CLINIC_CONTROLLER_PATH);
 
   assert.equal(source.includes('import { DashboardHubHero } from "./DashboardHubHero";'), false);
   assert.equal(source.includes('import { DashboardModuleHub } from "./DashboardModuleHub";'), false);
-  assert.ok(source.includes('data-clinic-cockpit="true"'));
-  assert.ok(source.includes('data-clinic-cockpit-status="true"'));
-  assert.ok(source.includes('data-clinic-cockpit-attention="true"'));
-  assert.ok(source.includes('data-clinic-cockpit-continuity="true"'));
-  assert.ok(source.includes('data-clinic-cockpit-activity="true"'));
-  assert.ok(source.includes('data-clinic-cockpit-modules="true"'));
-  assert.ok(source.includes('data-clinic-cockpit-primary-actions="true"'));
-  assert.ok(source.includes("{statsLoadError ? \"—\" : pendingReports}"));
-  assert.ok(source.includes("{statsLoadError ? \"—\" : activeVisits}"));
-  assert.ok(source.includes("onClick={() => activateModule(item.moduleId)}"));
+
+  // No home/hub: none of the clinic cockpit markup may remain.
+  assert.equal(source.includes('data-clinic-cockpit="true"'), false);
+  assert.equal(source.includes('data-clinic-cockpit-status="true"'), false);
+  assert.equal(source.includes('data-clinic-cockpit-attention="true"'), false);
+  assert.equal(source.includes('data-clinic-cockpit-continuity="true"'), false);
+  assert.equal(source.includes('data-clinic-cockpit-activity="true"'), false);
+  assert.equal(source.includes('data-clinic-cockpit-modules="true"'), false);
+  assert.equal(source.includes('data-clinic-cockpit-primary-actions="true"'), false);
+  assert.equal(source.includes('data-dashboard-module-hub'), false);
+  assert.equal(source.includes('Módulos clínicos'), false);
+
+  // The single shared navigation/pager is the DashboardModuleRail, and the
+  // controller always resolves to a real module (operational default).
+  assert.ok(source.includes('import { DashboardModuleRail } from "./DashboardModuleRail";'));
+  assert.ok(source.includes('<DashboardModuleRail activeModule={activeModule} />'));
+  assert.ok(source.includes('export const DEFAULT_CLINIC_MODULE: ClinicModule = "operaciones";'));
+  assert.ok(source.includes('initialModule ?? DEFAULT_CLINIC_MODULE'));
+
+  // The operational stage wrapper contract is preserved.
   assert.ok(source.includes('data-dashboard-module-stage="true"'));
   assert.ok(source.includes('data-clinic-dashboard-stage="true"'));
   assert.equal(source.includes('variant="admin"'), false);
