@@ -550,49 +550,56 @@ export function ClinicInformesWorkspaceSummary({
 
           <div
             data-clinic-reports-pagination-footer="true"
-            className="flex min-h-10 shrink-0 items-center justify-end border-t border-vetneb-line/65 px-3 py-2 text-xs text-muted-foreground"
+            className="flex shrink-0 items-center justify-center border-t border-vetneb-line/65 px-3 text-xs text-muted-foreground"
           >
-            <div
+            <nav
+              aria-label="Paginación de informes recientes"
+              data-dashboard-pager="true"
               data-clinic-reports-pagination-controls="true"
-              className="flex items-center justify-end gap-1.5"
+              className="dashboard-pager"
             >
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 px-2 text-xs"
-                disabled={!pagedReports.hasPrev}
-                onClick={() => {
-                  setSelectedReportId(null);
-                  pagedReports.goPrev();
-                }}
-                aria-label="Página anterior"
-              >
-                Anterior
-              </Button>
+              <span data-dashboard-pager-prev="true" className="inline-flex">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  disabled={!pagedReports.hasPrev}
+                  onClick={() => {
+                    setSelectedReportId(null);
+                    pagedReports.goPrev();
+                  }}
+                  aria-label="Página anterior"
+                >
+                  Anterior
+                </Button>
+              </span>
 
               <span
+                data-dashboard-pager-state="true"
                 data-clinic-reports-pagination-status="true"
                 className="min-w-16 text-center"
               >
-                Página {pagedReports.page + 1} / {pagedReports.pageCount}
+                Página {pagedReports.page + 1} de {pagedReports.pageCount}
               </span>
 
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 px-2 text-xs"
-                disabled={!pagedReports.hasNext}
-                onClick={() => {
-                  setSelectedReportId(null);
-                  pagedReports.goNext();
-                }}
-                aria-label="Página siguiente"
-              >
-                Siguiente
-              </Button>
-            </div>
+              <span data-dashboard-pager-next="true" className="inline-flex">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  disabled={!pagedReports.hasNext}
+                  onClick={() => {
+                    setSelectedReportId(null);
+                    pagedReports.goNext();
+                  }}
+                  aria-label="Página siguiente"
+                >
+                  Siguiente
+                </Button>
+              </span>
+            </nav>
           </div>
         </div>
       ) : (

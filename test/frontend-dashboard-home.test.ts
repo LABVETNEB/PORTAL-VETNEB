@@ -67,11 +67,17 @@ test("dashboard home reads stats reports and field visits through API helpers", 
   assert.ok(source.includes("let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];"));
   assert.ok(source.includes("let visitsLoadError = false;"));
   assert.ok(source.includes("await Promise.all(["));
-  assert.ok(source.includes("getReports(requestOptions, { limit: 3, offset: 0 }, {"));
+  // Zero-scroll adaptive density: the workspace summaries paginate a
+  // viewport-safe superset (24, matching INFORMES_LIMIT_CAP) client-side, so
+  // the fetch cap is no longer the fixed 3-row summary constant. The
+  // operaciones command center keeps its 3-row slices at the call site.
+  assert.ok(source.includes("getReports(requestOptions, { limit: 24, offset: 0 }, {"));
   assert.ok(source.includes("getLogisticsFieldVisits(requestOptions, {"));
   assert.ok(source.includes("throwOnError: true,"));
-  assert.ok(source.includes("const recentReports = reports.slice(0, 3);"));
-  assert.ok(source.includes("const recentVisits = visits.slice(0, 3);"));
+  assert.ok(source.includes("const recentReports = reports.slice(0, 24);"));
+  assert.ok(source.includes("const recentVisits = visits.slice(0, 24);"));
+  assert.ok(source.includes("recentReports={recentReports.slice(0, 3)}"));
+  assert.ok(source.includes("recentVisits={recentVisits.slice(0, 3)}"));
 });
 
 test("dashboard home renders module hub structure with header, cards, and clinic sections", () => {

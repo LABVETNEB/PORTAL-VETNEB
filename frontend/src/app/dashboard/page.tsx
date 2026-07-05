@@ -77,7 +77,11 @@ export default async function DashboardPage({
   await Promise.all([
     (async () => {
       try {
-        reports = await getReports(requestOptions, { limit: 3, offset: 0 }, {
+        // Viewport-safe superset: the informes/logistica workspace summaries
+        // paginate client-side with a measured adaptive page size, so the
+        // fetch cap must cover the largest desktop canvas (matches
+        // INFORMES_LIMIT_CAP), not the smallest mobile page.
+        reports = await getReports(requestOptions, { limit: 24, offset: 0 }, {
           throwOnError: true,
         });
       } catch (error) {
@@ -97,8 +101,8 @@ export default async function DashboardPage({
     })(),
   ]);
 
-  const recentReports = reports.slice(0, 3);
-  const recentVisits = visits.slice(0, 3);
+  const recentReports = reports.slice(0, 24);
+  const recentVisits = visits.slice(0, 24);
 
   const pendingReports = stats?.pendingReports ?? 0;
   const activeVisits = stats?.activeVisits ?? 0;
@@ -135,8 +139,8 @@ export default async function DashboardPage({
                   <ClinicCommandCenter
                     stats={stats}
                     statsLoadError={statsLoadError}
-                    recentReports={recentReports}
-                    recentVisits={recentVisits}
+                    recentReports={recentReports.slice(0, 3)}
+                    recentVisits={recentVisits.slice(0, 3)}
                     reportsLoadError={reportsLoadError}
                     visitsLoadError={visitsLoadError}
                   />

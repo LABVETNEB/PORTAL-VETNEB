@@ -19,6 +19,7 @@ import {
   getRoutePlanStatusVariant,
   formatDate,
 } from "@/lib/utils";
+import { LogisticsBoundedCanvas } from "../LogisticsBoundedCanvas";
 
 export const metadata: Metadata = {
   title: "Planes de ruta — Portal VETNEB",
@@ -78,6 +79,11 @@ export default async function RutasPage({
   const resolvedSearchParams = (await searchParams) ?? {};
   const offset = normalizeOffset(resolvedSearchParams.offset);
   const limit = normalizeLimit(resolvedSearchParams.limit);
+  // Adaptive default page size: when the URL carries no explicit limit, the
+  // bounded canvas recomputes it from the measured viewport (URL offset/limit
+  // stays the single pagination contract).
+  const hasExplicitLimit =
+    normalizeSearchParamValue(resolvedSearchParams.limit).trim() !== "";
 
   let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];
   let routePlansLoadError = false;
@@ -110,7 +116,10 @@ export default async function RutasPage({
         notifications="clinic"
       />
       <main className="dashboard-main">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div
+          className="grid grid-cols-2 gap-3 md:grid-cols-4"
+          data-dashboard-metric-strip="true"
+        >
           {(
             [
               { status: "draft", label: "Borradores" },
@@ -134,18 +143,81 @@ export default async function RutasPage({
           Conteos calculados sobre la página visible, no sobre el total general de planes de ruta.
         </p>
 
-        <Card className="dashboard-surface">
-          <CardHeader>
+        <Card className="dashboard-surface" data-dashboard-table-surface="true">
+          <CardHeader className="shrink-0">
             <CardTitle className="text-base">
               Planes de ruta ({routePlans.length})
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
+            <p
+              className="text-sm text-muted-foreground"
+              data-dashboard-chrome-secondary="true"
+            >
               Mostrando {routePlans.length} planes de ruta · página {currentPage}
               {canGoNext ? " · puede haber más planes de ruta disponibles" : ""}
             </p>
           </CardHeader>
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+            <LogisticsBoundedCanvas
+              canvas="rutas"
+              basePath="/dashboard/logistica/rutas"
+              hasExplicitLimit={hasExplicitLimit}
+              currentLimit={limit}
+              maxLimit={RUTAS_MAX_LIMIT}
+            >
+              {/* Mobile row variant (<= md): no horizontal table scroll. */}
+              <div
+                className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden md:hidden"
+                data-logistics-mobile-list="rutas"
+              >
+                {routePlansLoadError ? (
+                  <p role="alert" className="clinical-alert-warning m-3">
+                    No se pudieron cargar los planes de ruta. Intente nuevamente.
+                  </p>
+                ) : routePlans.length ? (
+                  routePlans.map((plan) => {
+                    const progress =
+                      plan.totalStops > 0
+                        ? Math.round(
+                            (plan.completedStops / plan.totalStops) * 100,
+                          )
+                        : 0;
+                    return (
+                      <div
+                        key={plan.id}
+                        data-logistics-mobile-row="ruta"
+                        className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-vetneb-ink">
+                            {plan.name}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {formatDate(plan.plannedDate)} ·{" "}
+                            {plan.completedStops}/{plan.totalStops} paradas
+                          </p>
+                          <p className="truncate text-[0.6875rem] text-muted-foreground">
+                            Progreso: {progress}%
+                          </p>
+                        </div>
+                        <Badge
+                          variant={getRoutePlanStatusVariant(plan.status)}
+                          className="shrink-0"
+                        >
+                          {getRoutePlanStatusLabel(plan.status)}
+                        </Badge>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="clinical-table-state m-3">
+                    No hay planes de ruta disponibles.
+                  </p>
+                )}
+              </div>
+
+              {/* Desktop table (>= md) with locked column geometry. */}
+              <div className="hidden min-h-0 flex-1 flex-col overflow-hidden md:flex">
+                <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>ID</TableHead>
@@ -225,33 +297,40 @@ export default async function RutasPage({
                   </TableRow>
                 )}
               </TableBody>
-            </Table>
+                </Table>
+              </div>
+            </LogisticsBoundedCanvas>
           </CardContent>
           <nav
             aria-label="Paginación de planes de ruta"
-            className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/70 px-4 py-3"
+            data-dashboard-pager="true"
+            className="dashboard-pager shrink-0 border-t border-vetneb-line/70"
           >
-            <PublicRouteControl
-              href={previousHref}
-              variant="bare"
-              disabled={!canGoPrevious}
-              aria-label="Página anterior"
-              className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Anterior
-            </PublicRouteControl>
-            <span className="dashboard-pagination-context">
+            <span data-dashboard-pager-prev="true" className="inline-flex">
+              <PublicRouteControl
+                href={previousHref}
+                variant="bare"
+                disabled={!canGoPrevious}
+                aria-label="Página anterior"
+                className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Anterior
+              </PublicRouteControl>
+            </span>
+            <span data-dashboard-pager-state="true" className="dashboard-pagination-context">
               Página {currentPage}
             </span>
-            <PublicRouteControl
-              href={nextHref}
-              variant="bare"
-              disabled={!canGoNext}
-              aria-label="Página siguiente"
-              className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Siguiente
-            </PublicRouteControl>
+            <span data-dashboard-pager-next="true" className="inline-flex">
+              <PublicRouteControl
+                href={nextHref}
+                variant="bare"
+                disabled={!canGoNext}
+                aria-label="Página siguiente"
+                className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Siguiente
+              </PublicRouteControl>
+            </span>
           </nav>
         </Card>
       </main>
