@@ -52,9 +52,11 @@ test("frontend dashboard page uses API client wrappers", () => {
   assertIncludes(source, "let reportsLoadError = false;", dashboardPage);
   assertIncludes(source, "let visits: Awaited<ReturnType<typeof getLogisticsFieldVisits>> = [];", dashboardPage);
   assertIncludes(source, "let visitsLoadError = false;", dashboardPage);
+  // Zero-scroll adaptive density: the workspace summaries paginate a
+  // viewport-safe superset (24, matching INFORMES_LIMIT_CAP) client-side.
   assertIncludes(
     source,
-    "getReports(requestOptions, { limit: 3, offset: 0 }, {",
+    "getReports(requestOptions, { limit: 24, offset: 0 }, {",
     dashboardPage,
   );
   assertIncludes(source, "getLogisticsFieldVisits(requestOptions, {", dashboardPage);

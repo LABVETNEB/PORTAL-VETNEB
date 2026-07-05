@@ -42,6 +42,7 @@ export function CompactPager({
     <div
       className={cn("dashboard-compact-pager", className)}
       data-dashboard-compact-pager="true"
+      data-dashboard-pager="compact"
     >
       <span aria-live="polite" aria-atomic="true">
         {total === 0
@@ -49,13 +50,17 @@ export function CompactPager({
           : `${rangeStart}–${rangeEnd} de ${total} ${itemLabel}`}
       </span>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">
+        <span
+          className="text-xs text-muted-foreground"
+          data-dashboard-pager-state="true"
+        >
           Pág. {page + 1} / {pageCount}
         </span>
         <button
           type="button"
           onClick={onPrev}
           disabled={disabled || !hasPrev}
+          data-dashboard-pager-prev="true"
           aria-label="Página anterior"
           className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-card/95 text-foreground dashboard-btn-interactive hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -65,6 +70,7 @@ export function CompactPager({
           type="button"
           onClick={onNext}
           disabled={disabled || !hasNext}
+          data-dashboard-pager-next="true"
           aria-label="Página siguiente"
           className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-card/95 text-foreground dashboard-btn-interactive hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >

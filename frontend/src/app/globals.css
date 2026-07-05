@@ -1004,6 +1004,303 @@
   }
   /* particular-mobile-flat-stack:end */
 
+  /* particular-authenticated-operational-viewport:start */
+  /*
+    Authenticated Particular session = fixed-viewport operational layout
+    (R-18 / zero-scroll Block G). ParticularesContent sets the root attribute
+    only while an authenticated particular session is active; without it the
+    public marketing page keeps its normal document flow untouched. Marketing
+    chrome (info column, FAQ, footer, next-steps band) leaves the operational
+    viewport; the session panel becomes the bounded canvas with compact
+    operational density. No overflow:auto/scroll is introduced anywhere —
+    the layout must genuinely fit (forbidden-overflow e2e contract).
+  */
+  html[data-particular-operational-viewport="true"],
+  html[data-particular-operational-viewport="true"] body {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  html[data-particular-operational-viewport="true"] body .min-h-screen {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  html[data-particular-operational-viewport="true"] main.public-page-canvas {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  html[data-particular-operational-viewport="true"] footer[role="contentinfo"],
+  html[data-particular-operational-viewport="true"]
+    section[aria-labelledby="footer-faq-heading"],
+  html[data-particular-operational-viewport="true"]
+    [data-particulares-next-step-zone="true"],
+  html[data-particular-operational-viewport="true"]
+    [data-particulares-hero="true"] > .order-2 {
+    display: none;
+  }
+
+  html[data-particular-operational-viewport="true"] .public-secondary-hero-surface {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding-block: clamp(0.35rem, 1.2vh, 0.9rem);
+  }
+
+  html[data-particular-operational-viewport="true"] [data-particulares-hero="true"] {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 46rem;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    [data-particular-session-panel="true"] {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    [data-particular-session-panel="true"]
+    > .border-0 {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    .particular-operational-header {
+    flex-shrink: 0;
+    min-height: 0;
+    padding: 0.55rem 0.75rem;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    .particular-operational-header
+    > div {
+    align-items: center;
+    min-width: 0;
+    gap: 0.5rem;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    .particular-operational-header
+    .h-11 {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.625rem;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    .particular-operational-header
+    h3 {
+    font-size: 0.98rem;
+    line-height: 1.18;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    .particular-operational-description {
+    display: none;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    .particular-operational-body {
+    min-height: 0;
+    overflow: hidden;
+    padding: 0.55rem 0.65rem;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    .particular-operational-summary {
+    display: none !important;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    [data-particular-mobile-flat-stack="true"] {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: auto;
+    align-content: start;
+    min-height: 0;
+    height: 100%;
+    max-width: 100%;
+    gap: 0.5rem;
+    overflow: hidden;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    [data-particular-mobile-flat-card] {
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.55rem 0.65rem;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    [data-particular-mobile-flat-card]
+    h3 {
+    font-size: 0.9rem;
+    line-height: 1.2;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    [data-particular-mobile-flat-card]
+    p {
+    display: -webkit-box;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    [data-particular-mobile-flat-card="tracking"]
+    > div {
+    margin-top: 0.35rem;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    [data-particular-mobile-flat-card="tracking"]
+    > div
+    > * + * {
+    margin-top: 0.25rem;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    [data-particular-mobile-flat-card="report"]
+    [data-particular-mobile-flat-actions="true"] {
+    margin-top: 0.5rem;
+    gap: 0.4rem;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    [data-particular-mobile-flat-actions="true"]
+    > *,
+  html[data-particular-operational-viewport="true"]
+    [data-particulares-report-actions="true"]
+    > * {
+    min-width: 0;
+    min-height: 2.25rem;
+    padding-inline: 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    [data-particular-logout-action="true"] {
+    min-width: 0;
+    min-height: 2.25rem;
+    flex-shrink: 0;
+    padding-block: 0.45rem;
+    padding-inline: 0.7rem;
+    font-size: 0.82rem;
+  }
+
+  /* Compact operational density inside the authenticated session panel. */
+  html[data-particular-operational-viewport="true"]
+    [data-particular-session-panel="true"]
+    .p-6 {
+    padding: 0.7rem 1rem;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    [data-particular-session-field="true"] {
+    padding: 0.35rem 0.6rem;
+  }
+
+  html[data-particular-operational-viewport="true"] #particular-study-tracking,
+  html[data-particular-operational-viewport="true"] #particular-report {
+    padding: 0.65rem 0.8rem;
+  }
+
+  html[data-particular-operational-viewport="true"]
+    [data-particular-session-summary="true"] {
+    padding: 0.65rem 0.8rem;
+  }
+
+  @media (min-width: 640px) {
+    html[data-particular-operational-viewport="true"]
+      [data-particulares-hero="true"] {
+      max-width: min(64rem, 100%);
+    }
+
+    html[data-particular-operational-viewport="true"]
+      .particular-operational-body {
+      padding: 0.75rem;
+    }
+
+    html[data-particular-operational-viewport="true"]
+      [data-particular-mobile-flat-stack="true"] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: minmax(0, 1fr) auto;
+      align-items: stretch;
+      gap: 0.75rem;
+    }
+
+    html[data-particular-operational-viewport="true"]
+      #particular-study-tracking,
+    html[data-particular-operational-viewport="true"]
+      #particular-report {
+      display: flex !important;
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    html[data-particular-operational-viewport="true"]
+      #particular-study-tracking
+      > div,
+    html[data-particular-operational-viewport="true"]
+      #particular-report
+      > div {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    html[data-particular-operational-viewport="true"]
+      #particular-study-tracking
+      p,
+    html[data-particular-operational-viewport="true"]
+      #particular-report
+      p {
+      display: -webkit-box;
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 1;
+    }
+
+    html[data-particular-operational-viewport="true"]
+      [data-particulares-report-actions="true"] {
+      margin-top: auto;
+      gap: 0.5rem;
+    }
+
+    html[data-particular-operational-viewport="true"]
+      [data-particular-logout-action="true"] {
+      grid-column: 1 / -1;
+      justify-self: stretch;
+      min-height: 2.35rem;
+    }
+  }
+  /* particular-authenticated-operational-viewport:end */
+
   .public-copy {
     line-height: 1.7;
     overflow-wrap: break-word;
@@ -3819,3 +4116,295 @@
   }
 }
 /* dashboard-premium-grammar:end */
+/* dashboard-zero-scroll-substrate:start */
+@layer components {
+  /*
+    Fixed-viewport substrate (zero-scroll implementation, Block A).
+
+    Additive token layer: codifies the height ledger the flex chain already
+    produces (shell h-dvh -> topbar -> main -> module canvas -> data canvas)
+    so every surface can derive its canvas from the viewport instead of from
+    content. No pinned class contract above is redefined inside this @layer;
+    behavior-capable overrides live in the unlayered section below.
+  */
+  .dashboard-app-shell {
+    /* Canonical boundary tokens */
+    --dash-viewport-h: 100dvh;
+    --dash-topbar-h: var(--dash-header-h);
+    --dash-horizontal-nav-h: 0px;
+    --dash-bottom-nav-h: 0px;
+    --dash-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --dash-module-header-h: clamp(2.25rem, 5vh, 3.25rem);
+    --dash-filter-h: var(--dash-control-h);
+    --dash-toolbar-h: clamp(2.25rem, 4.5vh, 3rem);
+    --dash-pagination-h: clamp(2.25rem, 4vh, 2.75rem);
+
+    /* Mathematical boundary allocation */
+    --dash-main-h: calc(
+      var(--dash-viewport-h)
+      - var(--dash-topbar-h)
+      - var(--dash-horizontal-nav-h)
+      - var(--dash-bottom-nav-h)
+      - var(--dash-safe-bottom)
+    );
+    --dash-module-canvas-h: calc(
+      var(--dash-main-h)
+      - var(--dash-module-header-h)
+      - var(--dash-filter-h)
+      - var(--dash-toolbar-h)
+      - var(--dash-pagination-h)
+      - (2 * var(--dash-pad-y))
+    );
+    --dash-data-canvas-h: calc(
+      var(--dash-module-canvas-h) - (2 * var(--dash-card-pad))
+    );
+  }
+
+  /* Mobile: the role bottom nav + safe area participate in the ledger. */
+  @media (max-width: 767px) {
+    .dashboard-app-shell {
+      --dash-bottom-nav-h: var(--admin-mobile-bottom-nav-h, 3.25rem);
+    }
+  }
+
+  /*
+    Shared centered pager grammar (Block C):
+    Anterior | Pagina X de Y | Siguiente.
+    Height is reserved through --dash-pagination-h so the pager can never be
+    pushed below its surface by growing content.
+  */
+  .dashboard-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: 100%;
+    height: var(--dash-pagination-h, 2.5rem);
+    min-height: var(--dash-pagination-h, 2.5rem);
+    max-height: var(--dash-pagination-h, 2.5rem);
+    padding-inline: 0.5rem;
+    overflow: hidden;
+  }
+
+  .dashboard-pager [data-dashboard-pager-state] {
+    text-align: center;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+    Bounded full-route data surface (Block E): the card owns its pagination
+    footer; header/caption rows stay auto, the data canvas takes the exact
+    remainder and the pager is always the last visible row.
+  */
+  [data-dashboard-table-surface="true"] {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  [data-dashboard-table-canvas] {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+}
+
+/*
+  Unlayered zero-scroll overrides (win over the flattened utility classes the
+  same way the admin-mobile blocks above do).
+*/
+
+/* The generic Table wrapper is overflow-auto by design; inside a bounded
+   zero-scroll canvas that would become a forbidden internal scroller, so the
+   canvas neutralizes it: rows are sized by the adaptive limit instead. */
+[data-dashboard-table-canvas] div:has(> table) {
+  overflow: hidden;
+  min-height: 0;
+  max-height: 100%;
+}
+
+/* Desktop column geometry locks (identifier left+truncate, dates 150-180px
+   tabular, badges 110-150px, no cell wrapping beyond 2 lines). */
+[data-dashboard-table-canvas] table {
+  width: 100%;
+}
+
+[data-dashboard-table-canvas] tbody td {
+  overflow-wrap: anywhere;
+}
+
+[data-dashboard-table-canvas="visitas"] th:nth-child(1) { width: 4.5rem; }
+[data-dashboard-table-canvas="visitas"] th:nth-child(4),
+[data-dashboard-table-canvas="visitas"] th:nth-child(5) { width: 10.5rem; }
+[data-dashboard-table-canvas="visitas"] th:nth-child(6) { width: 8.5rem; }
+[data-dashboard-table-canvas="visitas"] td:nth-child(4),
+[data-dashboard-table-canvas="visitas"] td:nth-child(5) {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+[data-dashboard-table-canvas="rutas"] th:nth-child(1) { width: 4.5rem; }
+[data-dashboard-table-canvas="rutas"] th:nth-child(3) { width: 10.5rem; }
+[data-dashboard-table-canvas="rutas"] th:nth-child(4) { width: 7rem; }
+[data-dashboard-table-canvas="rutas"] th:nth-child(6) { width: 8.5rem; }
+[data-dashboard-table-canvas="rutas"] td:nth-child(3) {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+[data-dashboard-table-canvas="metricas"] {
+  gap: 0.75rem;
+}
+
+@media (max-width: 767px) {
+  [data-logistics-mobile-row="visita"] {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  [data-logistics-mobile-row="visita"] > div {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  [data-logistics-mobile-row="visita"] p {
+    display: -webkit-box;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+}
+
+/* Métricas mobile blocks: the 2x4 stat grid inside each plan block compacts
+   to one 4-up line so a block stops consuming ~134px of a 740px viewport. */
+@media (max-width: 767px) {
+  [data-logistics-metric-block="true"] {
+    padding: 0.5rem 0.6rem;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  [data-logistics-metric-block="true"] > div {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  [data-logistics-metric-block="true"] h3 {
+    display: -webkit-box;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  [data-logistics-metric-block="true"] > .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  [data-logistics-metric-block="true"] > .grid p {
+    display: -webkit-box;
+    min-width: 0;
+    max-width: 100%;
+    font-size: 0.65rem;
+    line-height: 1.25;
+    white-space: normal;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    text-overflow: ellipsis;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+}
+
+/* Compact metric strip (Block E/H): on mobile the 2x2 metric-card stack
+   becomes a single 4-up strip so it stops pushing the table and pager out of
+   the viewport (measured offender at 360x740 / 375x667). */
+@media (max-width: 767px) {
+  [data-dashboard-metric-strip="true"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  [data-dashboard-metric-strip="true"] .dashboard-metric-card [class*="p-"],
+  [data-dashboard-metric-strip="true"] .dashboard-metric-card [class*="pt-"] {
+    padding: 0.45rem 0.5rem;
+  }
+
+  [data-dashboard-metric-strip="true"] .dashboard-metric-card p,
+  [data-dashboard-metric-strip="true"] .dashboard-metric-card h3 {
+    display: -webkit-box;
+    min-width: 0;
+    max-width: 100%;
+    font-size: 0.6rem;
+    line-height: 1.2;
+    margin-top: 0.1rem;
+    white-space: normal;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    text-overflow: ellipsis;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  [data-dashboard-metric-strip="true"] .dashboard-metric-card p:first-of-type {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-top: 0;
+  }
+}
+
+/* Centered pager migration for the pinned CompactPager consumers (admin
+   pricing / maintenance): cluster centered, height reserved. */
+.dashboard-app-shell .dashboard-compact-pager {
+  justify-content: center;
+  min-height: var(--dash-pagination-h, 2.5rem);
+}
+
+/* Module chrome compression (Block H): on mobile the module header + filter +
+   toolbar stack may consume at most ~22% of dashboard-main; secondary copy
+   collapses first, titles stay single-line. */
+@media (max-width: 767px) {
+  .dashboard-app-shell .dashboard-workspace-header {
+    row-gap: 0.4rem;
+  }
+
+  /* Secondary copy collapses to a single truncated line (stays visible for
+     accessibility/parity assertions); explicit duplicates are removed. */
+  .dashboard-app-shell .dashboard-section-description {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dashboard-app-shell [data-dashboard-chrome-secondary="true"] {
+    display: none;
+  }
+
+  .dashboard-app-shell .dashboard-section-heading {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+/* dashboard-zero-scroll-substrate:end */

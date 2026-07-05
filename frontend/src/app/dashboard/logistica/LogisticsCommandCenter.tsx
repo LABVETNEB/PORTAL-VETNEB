@@ -9,6 +9,7 @@ import {
   getRoutePlanStatusVariant,
   formatDate,
 } from "@/lib/utils";
+import { LogisticsRecentListCanvas } from "./LogisticsRecentListCanvas";
 
 export type LogisticsCommandCenterProps = {
   fieldVisits: FieldVisit[];
@@ -34,11 +35,11 @@ export function LogisticsCommandCenter({
 
   return (
     <section
-      className="space-y-5"
+      className="flex min-h-0 flex-1 flex-col gap-5"
       aria-labelledby="logistics-command-center-heading"
     >
       <section
-        className="surface-note-info"
+        className="surface-note-info shrink-0"
         aria-labelledby="logistics-operational-priority"
       >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -82,7 +83,7 @@ export function LogisticsCommandCenter({
         </div>
       </section>
 
-      <div>
+      <div className="shrink-0">
         <h2
           id="logistics-command-center-heading"
           className="dashboard-section-heading"
@@ -94,9 +95,9 @@ export function LogisticsCommandCenter({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="dashboard-surface">
-          <CardHeader className="flex flex-row items-start justify-between pb-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 min-h-0 flex-1 auto-rows-fr">
+        <Card className="dashboard-surface flex min-h-0 flex-col overflow-hidden">
+          <CardHeader className="flex shrink-0 flex-row items-start justify-between pb-3">
             <div>
               <CardTitle className="text-base">Visitas de campo</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -104,30 +105,32 @@ export function LogisticsCommandCenter({
               </p>
             </div>
           </CardHeader>
-          <CardContent className="space-y-1.5">
+          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {fieldVisitsLoadError ? (
               <p role="alert" className="clinical-alert-warning">
                 No se pudieron cargar las visitas de campo. Intente nuevamente.
               </p>
             ) : recentVisits.length ? (
-              recentVisits.map((visit) => (
-                <div key={visit.id} className="dashboard-list-row">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-vetneb-ink">
-                      {visit.clinicName ?? `Clínica #${visit.clinicId}`}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {visit.address ?? "Sin dirección"} ·{" "}
-                      {formatDate(visit.scheduledAt)}
-                    </p>
+              <LogisticsRecentListCanvas pagerAriaLabel="Paginación de visitas recientes">
+                {recentVisits.map((visit) => (
+                  <div key={visit.id} className="dashboard-list-row">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-vetneb-ink">
+                        {visit.clinicName ?? `Clínica #${visit.clinicId}`}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {visit.address ?? "Sin dirección"} ·{" "}
+                        {formatDate(visit.scheduledAt)}
+                      </p>
+                    </div>
+                    <StatusBadge
+                      status={visit.status}
+                      size="sm"
+                      className="ml-2 shrink-0"
+                    />
                   </div>
-                  <StatusBadge
-                    status={visit.status}
-                    size="sm"
-                    className="ml-2 shrink-0"
-                  />
-                </div>
-              ))
+                ))}
+              </LogisticsRecentListCanvas>
             ) : (
               <EmptyState
                 title="Sin visitas activas"
@@ -138,8 +141,8 @@ export function LogisticsCommandCenter({
           </CardContent>
         </Card>
 
-        <Card className="dashboard-surface">
-          <CardHeader className="flex flex-row items-start justify-between pb-3">
+        <Card className="dashboard-surface flex min-h-0 flex-col overflow-hidden">
+          <CardHeader className="flex shrink-0 flex-row items-start justify-between pb-3">
             <div>
               <CardTitle className="text-base">Planes de ruta</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -147,39 +150,41 @@ export function LogisticsCommandCenter({
               </p>
             </div>
           </CardHeader>
-          <CardContent className="space-y-1.5">
+          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {routePlansLoadError ? (
               <p role="alert" className="clinical-alert-warning">
                 No se pudieron cargar los planes de ruta. Intente nuevamente.
               </p>
             ) : recentPlans.length ? (
-              recentPlans.map((plan) => {
-                const progress =
-                  plan.totalStops > 0
-                    ? Math.round(
-                        (plan.completedStops / plan.totalStops) * 100,
-                      )
-                    : 0;
-                return (
-                  <div key={plan.id} className="dashboard-list-row">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-vetneb-ink">
-                        {plan.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {plan.completedStops}/{plan.totalStops} paradas ·{" "}
-                        {progress}% · {formatDate(plan.plannedDate)}
-                      </p>
+              <LogisticsRecentListCanvas pagerAriaLabel="Paginación de planes recientes">
+                {recentPlans.map((plan) => {
+                  const progress =
+                    plan.totalStops > 0
+                      ? Math.round(
+                          (plan.completedStops / plan.totalStops) * 100,
+                        )
+                      : 0;
+                  return (
+                    <div key={plan.id} className="dashboard-list-row">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-vetneb-ink">
+                          {plan.name}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {plan.completedStops}/{plan.totalStops} paradas ·{" "}
+                          {progress}% · {formatDate(plan.plannedDate)}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={getRoutePlanStatusVariant(plan.status)}
+                        className="ml-2 shrink-0"
+                      >
+                        {getRoutePlanStatusLabel(plan.status)}
+                      </Badge>
                     </div>
-                    <Badge
-                      variant={getRoutePlanStatusVariant(plan.status)}
-                      className="ml-2 shrink-0"
-                    >
-                      {getRoutePlanStatusLabel(plan.status)}
-                    </Badge>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </LogisticsRecentListCanvas>
             ) : (
               <EmptyState
                 title="Sin planes de ruta"

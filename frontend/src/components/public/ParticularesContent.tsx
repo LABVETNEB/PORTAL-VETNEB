@@ -383,6 +383,26 @@ export function ParticularesContent() {
     );
   }, []);
 
+  // Authenticated no-scroll contract (R-18): while a particular session is
+  // active, the public page becomes a fixed-viewport operational layout. The
+  // attribute scopes the CSS override block
+  // (particular-authenticated-operational-viewport in globals.css) and is
+  // removed on logout/expiry/unmount so the marketing page keeps its normal
+  // document flow.
+  useEffect(() => {
+    const root = document.documentElement;
+
+    if (session) {
+      root.setAttribute("data-particular-operational-viewport", "true");
+    } else {
+      root.removeAttribute("data-particular-operational-viewport");
+    }
+
+    return () => {
+      root.removeAttribute("data-particular-operational-viewport");
+    };
+  }, [session]);
+
   useEffect(() => {
     if (rateLimitCooldown <= 0) {
       return;
@@ -580,12 +600,22 @@ export function ParticularesContent() {
         </div>
 
         <PremiumPanel
-          className="order-1 overflow-hidden lg:order-2"
+          className={`order-1 overflow-hidden lg:order-2 ${
+            session ? "flex min-h-0 flex-col" : ""
+          }`}
           data-particular-session-panel={session ? "true" : undefined}
           data-particulares-primary-action="true"
         >
-          <Card className="border-0 bg-transparent shadow-none">
-            <CardHeader className="clinical-muted-band border-b">
+          <Card
+            className={
+              session
+                ? "flex h-full min-h-0 flex-col border-0 bg-transparent shadow-none"
+                : "border-0 bg-transparent shadow-none"
+            }
+          >
+            <CardHeader
+              className="particular-operational-header clinical-muted-band border-b"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <VisualIcon
@@ -594,10 +624,12 @@ export function ParticularesContent() {
                     className="h-11 w-11 rounded-xl"
                   />
                   <div>
-                    <CardTitle className="text-xl text-vetneb-ink">
+                    <CardTitle className="text-lg leading-tight text-vetneb-ink sm:text-xl">
                       {session ? "Sesión particular activa" : "Ingresar con token"}
                     </CardTitle>
-                    <CardDescription className="mt-1 leading-relaxed">
+                    <CardDescription
+                      className="particular-operational-description mt-1 leading-relaxed"
+                    >
                       {session
                         ? "Datos visibles del caso autenticado con seguimiento trazable del proceso diagnóstico."
                         : "Pegue el token recibido para consultar el estado del estudio y acceder al informe cuando esté disponible."}
@@ -612,7 +644,13 @@ export function ParticularesContent() {
               </div>
             </CardHeader>
 
-            <CardContent className="pt-6">
+            <CardContent
+              className={
+                session
+                  ? "particular-operational-body flex min-h-0 flex-1 flex-col p-3 sm:p-4"
+                  : "pt-6"
+              }
+            >
               {isCheckingSession ? (
                 <div
                   className="surface-empty p-4 text-sm"
@@ -624,14 +662,17 @@ export function ParticularesContent() {
                   Verificando sesión...
                 </div>
               ) : session ? (
-                <div className="space-y-5" data-particular-mobile-flat-stack="true">
+                <div
+                  className="grid min-h-0 max-w-full gap-2 overflow-hidden sm:gap-3"
+                  data-particular-mobile-flat-stack="true"
+                >
                   <div
-                    className="rounded-lg border border-vetneb-line bg-card p-3 sm:hidden"
+                    className="particular-operational-summary rounded-lg border border-vetneb-line bg-card p-2.5 sm:hidden"
                     data-particular-mobile-safe-summary="true"
                   >
-                    <dl className="grid grid-cols-1 gap-2 text-sm">
+                    <dl className="grid grid-cols-2 gap-1.5 text-sm">
                       <div
-                        className="rounded-md border border-vetneb-line bg-card px-3 py-2.5"
+                        className="rounded-md border border-vetneb-line bg-card px-2.5 py-1.5"
                         data-particular-mobile-safe-field="true"
                       >
                         <dt className="font-medium text-muted-foreground">
@@ -642,7 +683,7 @@ export function ParticularesContent() {
                         </dd>
                       </div>
                       <div
-                        className="rounded-md border border-vetneb-line bg-card px-3 py-2.5"
+                        className="rounded-md border border-vetneb-line bg-card px-2.5 py-1.5"
                         data-particular-mobile-safe-field="true"
                       >
                         <dt className="font-medium text-muted-foreground">
@@ -653,7 +694,7 @@ export function ParticularesContent() {
                         </dd>
                       </div>
                       <div
-                        className="rounded-md border border-vetneb-line bg-card px-3 py-2.5"
+                        className="rounded-md border border-vetneb-line bg-card px-2.5 py-1.5"
                         data-particular-mobile-safe-field="true"
                       >
                         <dt className="font-medium text-muted-foreground">Especie</dt>
@@ -662,7 +703,7 @@ export function ParticularesContent() {
                         </dd>
                       </div>
                       <div
-                        className="rounded-md border border-vetneb-line bg-card px-3 py-2.5"
+                        className="rounded-md border border-vetneb-line bg-card px-2.5 py-1.5"
                         data-particular-mobile-safe-field="true"
                       >
                         <dt className="font-medium text-muted-foreground">Raza</dt>
@@ -671,7 +712,7 @@ export function ParticularesContent() {
                         </dd>
                       </div>
                       <div
-                        className="rounded-md border border-vetneb-line bg-card px-3 py-2.5"
+                        className="rounded-md border border-vetneb-line bg-card px-2.5 py-1.5"
                         data-particular-mobile-safe-field="true"
                       >
                         <dt className="font-medium text-muted-foreground">
@@ -682,7 +723,7 @@ export function ParticularesContent() {
                         </dd>
                       </div>
                       <div
-                        className="rounded-md border border-vetneb-line bg-card px-3 py-2.5"
+                        className="rounded-md border border-vetneb-line bg-card px-2.5 py-1.5"
                         data-particular-mobile-safe-field="true"
                       >
                         <dt className="font-medium text-muted-foreground">
@@ -696,7 +737,7 @@ export function ParticularesContent() {
                   </div>
 
                   <div
-                    className="hidden clinical-muted-band rounded-lg p-4 sm:block"
+                    className="particular-operational-summary hidden clinical-muted-band rounded-lg p-4 sm:block"
                     data-particular-session-summary="true"
                   >
                     <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
@@ -772,26 +813,26 @@ export function ParticularesContent() {
                   {/* Mobile flat tracking — sin clinical-muted-band ni capas compuestas */}
                   <div
                     data-particular-mobile-flat-card="tracking"
-                    className="rounded-lg border border-vetneb-line bg-card p-4 sm:hidden"
+                    className="min-w-0 max-w-full overflow-hidden rounded-lg border border-vetneb-line bg-card p-3 sm:hidden"
                   >
-                    <h3 className="font-semibold text-vetneb-navy">
+                    <h3 className="min-w-0 max-w-full overflow-hidden font-semibold text-vetneb-navy [overflow-wrap:anywhere]">
                       Seguimiento del estudio
                     </h3>
                     {trackingCase ? (
                       <div className="mt-2 space-y-2">
-                        <p className="text-sm text-vetneb-ink">
+                        <p className="min-w-0 max-w-full overflow-hidden text-sm text-vetneb-ink [overflow-wrap:anywhere]">
                           Estado del estudio:{" "}
                           <span className="font-semibold">
                             {getTrackingStageLabel(trackingCase.currentStage)}
                           </span>
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">
                           Actualizado: {formatDate(trackingCase.updatedAt)}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">
                           Entrega en laboratorio: {formatDate(trackingCase.receptionAt)}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">
                           Estimación informe: {formatDate(trackingCase.estimatedDeliveryAt)}
                         </p>
                         {trackingCase.specialStainRequired ? (
@@ -831,27 +872,27 @@ export function ParticularesContent() {
 
                   {/* Desktop tracking — oculto en mobile, visible desde sm */}
                   <div
+                    className="hidden sm:block min-w-0 max-w-full overflow-hidden rounded-lg p-4 shadow-sm clinical-muted-band"
                     id="particular-study-tracking"
-                    className="hidden rounded-lg p-4 shadow-sm clinical-muted-band sm:block"
                   >
-                    <h3 className="font-semibold text-vetneb-navy">
+                    <h3 className="min-w-0 max-w-full overflow-hidden font-semibold text-vetneb-navy [overflow-wrap:anywhere]">
                       Seguimiento del estudio
                     </h3>
                     {trackingCase ? (
                       <div className="mt-2 space-y-2">
-                        <p className="text-sm text-vetneb-ink">
+                        <p className="min-w-0 max-w-full overflow-hidden text-sm text-vetneb-ink [overflow-wrap:anywhere]">
                           Estado del estudio:{" "}
                           <span className="font-semibold">
                             {getTrackingStageLabel(trackingCase.currentStage)}
                           </span>
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">
                           Actualizado: {formatDate(trackingCase.updatedAt)}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">
                           Entrega en laboratorio: {formatDate(trackingCase.receptionAt)}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">
                           Estimación informe: {formatDate(trackingCase.estimatedDeliveryAt)}
                         </p>
                         {trackingCase.specialStainRequired ? (
@@ -895,24 +936,24 @@ export function ParticularesContent() {
                       <div
                         data-particular-mobile-flat-card="report"
                         data-particulares-report-state="available"
-                        className="rounded-lg border border-vetneb-line bg-card p-4 sm:hidden"
+                        className="min-w-0 max-w-full overflow-hidden rounded-lg border border-vetneb-line bg-card p-3 sm:hidden"
                       >
-                        <div className="flex items-start gap-3">
+                        <div className="flex min-w-0 max-w-full items-start gap-3 overflow-hidden">
                           <FileText
                             className="mt-0.5 h-5 w-5 shrink-0 text-vetneb-navy"
                             aria-hidden="true"
                             strokeWidth={1.8}
                           />
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="font-semibold text-vetneb-navy">
+                          <div className="min-w-0 max-w-full overflow-hidden">
+                            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 overflow-hidden">
+                              <h3 className="min-w-0 max-w-full overflow-hidden font-semibold text-vetneb-navy [overflow-wrap:anywhere]">
                                 Informe vinculado
                               </h3>
                               <span className="inline-flex items-center rounded-full border border-vetneb-teal/40 bg-vetneb-teal/10 px-2 py-0.5 text-xs font-semibold text-vetneb-teal">
                                 Disponible
                               </span>
                             </div>
-                            <p className="mt-1 text-sm text-muted-foreground">
+                            <p className="mt-1 min-w-0 max-w-full overflow-hidden text-sm text-muted-foreground [overflow-wrap:anywhere]">
                               {session.report.studyType ?? "Estudio"} ·{" "}
                               {session.report.fileName ?? "Archivo disponible"}
                             </p>
@@ -922,7 +963,7 @@ export function ParticularesContent() {
                         <div
                           data-particular-mobile-flat-actions="true"
                           data-particulares-report-actions="true"
-                          className="mt-4 flex flex-col gap-3"
+                          className="mt-3 grid grid-cols-2 gap-2"
                         >
                           <Button
                             type="button"
@@ -948,26 +989,26 @@ export function ParticularesContent() {
 
                       {/* Desktop report — oculto en mobile, visible desde sm */}
                       <div
+                        className="hidden sm:block min-w-0 max-w-full overflow-hidden rounded-lg p-4 shadow-sm clinical-muted-band"
                         id="particular-report"
                         data-particulares-report-state="available"
-                        className="hidden rounded-lg p-4 shadow-sm clinical-muted-band sm:block"
                       >
-                        <div className="flex items-start gap-3">
+                        <div className="flex min-w-0 max-w-full items-start gap-3 overflow-hidden">
                           <VisualIcon
                             icon={FileText}
                             tone="blue"
                             className="h-10 w-10 shrink-0 rounded-xl"
                           />
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="font-semibold text-vetneb-navy">
+                          <div className="min-w-0 max-w-full overflow-hidden">
+                            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 overflow-hidden">
+                              <h3 className="min-w-0 max-w-full overflow-hidden font-semibold text-vetneb-navy [overflow-wrap:anywhere]">
                                 Informe vinculado
                               </h3>
                               <span className="inline-flex items-center rounded-full border border-vetneb-teal/40 bg-vetneb-teal/10 px-2 py-0.5 text-xs font-semibold text-vetneb-teal">
                                 Disponible
                               </span>
                             </div>
-                            <p className="mt-1 text-sm text-muted-foreground">
+                            <p className="mt-1 min-w-0 max-w-full overflow-hidden text-sm text-muted-foreground [overflow-wrap:anywhere]">
                               {session.report.studyType ?? "Estudio"} ·{" "}
                               {session.report.fileName ?? "Archivo disponible"}
                             </p>
@@ -1045,7 +1086,8 @@ export function ParticularesContent() {
                     type="button"
                     variant="outline"
                     onClick={handleLogout}
-                    className="public-cta-outline"
+                    className="public-cta-outline w-full justify-center"
+                    data-particular-logout-action="true"
                   >
                     <LogOut className="h-4 w-4" aria-hidden="true" />
                     Cerrar sesión particular

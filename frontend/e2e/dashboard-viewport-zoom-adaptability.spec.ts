@@ -249,6 +249,17 @@ type PublicParticularContract = {
   nextStepPresent: boolean;
 };
 
+type ViewportContainmentContract = {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+  width: number;
+  height: number;
+  viewportWidth: number;
+  viewportHeight: number;
+};
+
 async function readScrollContract(page: Page): Promise<ScrollContract> {
   return page.evaluate(() => {
     const html = document.documentElement;
@@ -444,6 +455,47 @@ function assertTokensRegionContract(
 async function expectInsideViewport(locator: Locator, label: string) {
   await expect(locator, `${label}: visible`).toBeVisible();
   await expect(locator, `${label}: inside viewport`).toBeInViewport();
+}
+
+async function readViewportContainmentContract(
+  locator: Locator,
+): Promise<ViewportContainmentContract> {
+  return locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+
+    return {
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      left: rect.left,
+      width: rect.width,
+      height: rect.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    };
+  });
+}
+
+function assertContainedInViewport(
+  metrics: ViewportContainmentContract,
+  label: string,
+) {
+  expect(metrics.width, `${label}: panel width`).toBeGreaterThan(0);
+  expect(metrics.height, `${label}: panel height`).toBeGreaterThan(0);
+  expect(metrics.top, `${label}: panel top in viewport`).toBeGreaterThanOrEqual(
+    -TOLERANCE,
+  );
+  expect(metrics.left, `${label}: panel left in viewport`).toBeGreaterThanOrEqual(
+    -TOLERANCE,
+  );
+  expect(
+    metrics.right,
+    `${label}: panel right in viewport`,
+  ).toBeLessThanOrEqual(metrics.viewportWidth + TOLERANCE);
+  expect(
+    metrics.bottom,
+    `${label}: panel bottom in viewport`,
+  ).toBeLessThanOrEqual(metrics.viewportHeight + TOLERANCE);
 }
 
 async function readPublicParticularContract(
@@ -702,7 +754,9 @@ for (const viewport of DEMANDING_VIEWPORTS) {
 // ── Adaptability proof ───────────────────────────────────────────────────────
 // The whole point: the same surface must get DENSER as the effective viewport
 // height shrinks (which is exactly what browser zoom produces). We measure real
-// computed values (clamp() resolves to px) at a tall vs a short viewport.
+// computed values (clamp() resolves to px) at a tall vs a short viewport. The
+// panel floor may also be removed entirely when zero-scroll density is achieved
+// without a min-height constraint.
 
 async function readMainPaddingBottom(page: Page): Promise<number> {
   return page.evaluate(() => {
@@ -732,7 +786,7 @@ test("clinic page padding compacts as the effective viewport height shrinks", as
     expect(shortPadding).toBeGreaterThan(0);
   }).toPass({ timeout: 5_000 });
 });
-test("master/detail panel floor compacts as the effective viewport height shrinks", async ({
+test("master/detail panel floor adapts or remains floorless as the effective viewport height shrinks", async ({
   page,
 }) => {
   await applySession(page, "clinic");
@@ -745,14 +799,44 @@ test("master/detail panel floor compacts as the effective viewport height shrink
   const readPanelMinHeight = () =>
     panel.evaluate((el) => parseFloat(window.getComputedStyle(el).minHeight));
 
+  await expect(async () => {
+    const tallMetrics = await readScrollContract(page);
+    assertAdaptiveNoScroll(
+      tallMetrics,
+      "tall master/detail floor adaptability",
+      1920,
+    );
+    const tallPanel = await readViewportContainmentContract(panel);
+    assertContainedInViewport(tallPanel, "tall master/detail floor adaptability");
+  }).toPass({ timeout: 10_000 });
+
   const tallMin = await readPanelMinHeight();
 
   await page.setViewportSize({ width: 1280, height: 700 });
+  await expect(panel).toBeVisible();
   await expect(async () => {
+    const compactMetrics = await readScrollContract(page);
+    assertAdaptiveNoScroll(
+      compactMetrics,
+      "compact master/detail floor adaptability",
+      1280,
+    );
+    const compactPanel = await readViewportContainmentContract(panel);
+    assertContainedInViewport(
+      compactPanel,
+      "compact master/detail floor adaptability",
+    );
+
     const shortMin = await readPanelMinHeight();
-    expect(
-      shortMin,
-      `compact panel min-height (${shortMin}px) < tall min-height (${tallMin}px)`,
-    ).toBeLessThan(tallMin);
+
+    if (tallMin > 0) {
+      expect(
+        shortMin,
+        `compact panel min-height (${shortMin}px) < tall min-height (${tallMin}px)`,
+      ).toBeLessThan(tallMin);
+    } else {
+      expect(tallMin, "tall panel min-height is floorless").toBe(0);
+      expect(shortMin, "compact panel min-height remains floorless").toBe(0);
+    }
   }).toPass({ timeout: 5_000 });
 });

@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { getRoutePlanMetrics, getRoutePlans } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
+import { LogisticsBoundedCanvas } from "../LogisticsBoundedCanvas";
 
 export const metadata: Metadata = {
   title: "Métricas de logística — Portal VETNEB",
@@ -72,6 +73,11 @@ export default async function MetricasPage({
   const resolvedSearchParams = (await searchParams) ?? {};
   const offset = normalizeOffset(resolvedSearchParams.offset);
   const limit = normalizeLimit(resolvedSearchParams.limit);
+  // Adaptive default page size: when the URL carries no explicit limit, the
+  // bounded canvas recomputes it from the measured viewport. For métricas
+  // this also caps the per-plan metrics fan-out to what is actually visible.
+  const hasExplicitLimit =
+    normalizeSearchParamValue(resolvedSearchParams.limit).trim() !== "";
 
   const requestOptions = await getLogisticsRequestOptions();
   let routePlans: Awaited<ReturnType<typeof getRoutePlans>> = [];
@@ -154,73 +160,88 @@ export default async function MetricasPage({
         notifications="clinic"
       />
       <main className="dashboard-main">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div
+          className="grid min-w-0 max-w-full grid-cols-2 gap-4 overflow-hidden md:grid-cols-4"
+          data-dashboard-metric-strip="true"
+        >
           <Card className="dashboard-metric-card p-0">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="min-w-0 max-w-full overflow-hidden pb-2">
+              <CardTitle className="min-w-0 max-w-full overflow-hidden text-sm font-medium text-muted-foreground [overflow-wrap:anywhere]">
                 Cumplimiento promedio
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-vetneb-ink">
+            <CardContent className="min-w-0 max-w-full overflow-hidden">
+              <p className="min-w-0 max-w-full overflow-hidden text-3xl font-bold text-vetneb-ink [overflow-wrap:anywhere]">
                 {avgCompliance}%
               </p>
             </CardContent>
           </Card>
           <Card className="dashboard-metric-card p-0">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="min-w-0 max-w-full overflow-hidden pb-2">
+              <CardTitle className="min-w-0 max-w-full overflow-hidden text-sm font-medium text-muted-foreground [overflow-wrap:anywhere]">
                 Paradas completadas
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-vetneb-ink">
+            <CardContent className="min-w-0 max-w-full overflow-hidden">
+              <p className="min-w-0 max-w-full overflow-hidden text-3xl font-bold text-vetneb-ink [overflow-wrap:anywhere]">
                 {completedStops}/{totalStops}
               </p>
             </CardContent>
           </Card>
           <Card className="dashboard-metric-card p-0">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="min-w-0 max-w-full overflow-hidden pb-2">
+              <CardTitle className="min-w-0 max-w-full overflow-hidden text-sm font-medium text-muted-foreground [overflow-wrap:anywhere]">
                 Duración promedio
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-vetneb-ink">
+            <CardContent className="min-w-0 max-w-full overflow-hidden">
+              <p className="min-w-0 max-w-full overflow-hidden text-3xl font-bold text-vetneb-ink [overflow-wrap:anywhere]">
                 {avgDuration !== null ? `${avgDuration} min` : "—"}
               </p>
             </CardContent>
           </Card>
           <Card className="dashboard-metric-card p-0">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="min-w-0 max-w-full overflow-hidden pb-2">
+              <CardTitle className="min-w-0 max-w-full overflow-hidden text-sm font-medium text-muted-foreground [overflow-wrap:anywhere]">
                 Planes analizados
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-vetneb-ink">
+            <CardContent className="min-w-0 max-w-full overflow-hidden">
+              <p className="min-w-0 max-w-full overflow-hidden text-3xl font-bold text-vetneb-ink [overflow-wrap:anywhere]">
                 {routeMetrics.length}
               </p>
             </CardContent>
           </Card>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">
           Métricas calculadas sobre la página visible (máximo {limit} planes),
           no sobre el total general de rutas.
         </p>
 
-        <Card className="dashboard-surface">
-          <CardHeader>
+        <Card className="dashboard-surface" data-dashboard-table-surface="true">
+          <CardHeader className="shrink-0">
             <CardTitle className="text-base">Métricas por plan de ruta</CardTitle>
-            <CardDescription>
+            <CardDescription data-dashboard-chrome-secondary="true">
               Detalle de cumplimiento por cada plan ejecutado
             </CardDescription>
-            <p className="text-sm text-muted-foreground">
+            <p
+              className="text-sm text-muted-foreground"
+              data-dashboard-chrome-secondary="true"
+            >
               Mostrando {routeMetrics.length} métricas de ruta · página {currentPage}
               {canGoNext ? " · puede haber más planes de ruta disponibles" : ""}
             </p>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <LogisticsBoundedCanvas
+              canvas="metricas"
+              basePath="/dashboard/logistica/metricas"
+              hasExplicitLimit={hasExplicitLimit}
+              currentLimit={limit}
+              maxLimit={METRICAS_MAX_LIMIT}
+              minLimit={1}
+              rowFallbackPx={168}
+            >
             {routePlansLoadError ? (
               <div role="alert" className="clinical-alert-warning">
                 No se pudieron cargar los planes de ruta para métricas. Intente nuevamente.
@@ -238,9 +259,10 @@ export default async function MetricasPage({
                   <div
                     key={metric.routePlanId}
                     className="surface-soft space-y-3"
+                    data-logistics-metric-block="true"
                   >
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-vetneb-ink">
+                    <div className="flex min-w-0 max-w-full items-center justify-between gap-2 overflow-hidden">
+                      <h3 className="min-w-0 max-w-full overflow-hidden text-sm font-semibold text-vetneb-ink [overflow-wrap:anywhere]">
                         {plan?.name ?? `Plan #${metric.routePlanId}`}
                       </h3>
                       <Badge
@@ -255,26 +277,26 @@ export default async function MetricasPage({
                         {metric.complianceRate}% cumplimiento
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Total paradas</p>
-                        <p className="font-semibold">{metric.totalStops}</p>
+                    <div className="grid min-w-0 max-w-full grid-cols-2 gap-3 overflow-hidden text-sm md:grid-cols-4">
+                      <div className="min-w-0 max-w-full overflow-hidden">
+                        <p className="min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">Total paradas</p>
+                        <p className="min-w-0 max-w-full overflow-hidden font-semibold [overflow-wrap:anywhere]">{metric.totalStops}</p>
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Completadas</p>
-                        <p className="font-semibold text-vetneb-teal">
+                      <div className="min-w-0 max-w-full overflow-hidden">
+                        <p className="min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">Completadas</p>
+                        <p className="min-w-0 max-w-full overflow-hidden font-semibold text-vetneb-teal [overflow-wrap:anywhere]">
                           {metric.completedStops}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Omitidas</p>
-                        <p className="font-semibold text-vetneb-amber">
+                      <div className="min-w-0 max-w-full overflow-hidden">
+                        <p className="min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">Omitidas</p>
+                        <p className="min-w-0 max-w-full overflow-hidden font-semibold text-vetneb-amber [overflow-wrap:anywhere]">
                           {metric.skippedStops}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Sin presencia</p>
-                        <p className="font-semibold text-destructive">
+                      <div className="min-w-0 max-w-full overflow-hidden">
+                        <p className="min-w-0 max-w-full overflow-hidden text-xs text-muted-foreground [overflow-wrap:anywhere]">Sin presencia</p>
+                        <p className="min-w-0 max-w-full overflow-hidden font-semibold text-destructive [overflow-wrap:anywhere]">
                           {metric.noShowStops}
                         </p>
                       </div>
@@ -298,32 +320,38 @@ export default async function MetricasPage({
                 No hay métricas de ruta disponibles.
               </div>
             )}
+            </LogisticsBoundedCanvas>
           </CardContent>
           <nav
             aria-label="Paginación de métricas de ruta"
-            className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/70 px-4 py-3"
+            data-dashboard-pager="true"
+            className="dashboard-pager shrink-0 border-t border-vetneb-line/70"
           >
-            <PublicRouteControl
-              href={previousHref}
-              variant="bare"
-              disabled={!canGoPrevious}
-              aria-label="Página anterior"
-              className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Anterior
-            </PublicRouteControl>
-            <span className="dashboard-pagination-context">
+            <span data-dashboard-pager-prev="true" className="inline-flex">
+              <PublicRouteControl
+                href={previousHref}
+                variant="bare"
+                disabled={!canGoPrevious}
+                aria-label="Página anterior"
+                className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Anterior
+              </PublicRouteControl>
+            </span>
+            <span data-dashboard-pager-state="true" className="dashboard-pagination-context">
               Página {currentPage}
             </span>
-            <PublicRouteControl
-              href={nextHref}
-              variant="bare"
-              disabled={!canGoNext}
-              aria-label="Página siguiente"
-              className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Siguiente
-            </PublicRouteControl>
+            <span data-dashboard-pager-next="true" className="inline-flex">
+              <PublicRouteControl
+                href={nextHref}
+                variant="bare"
+                disabled={!canGoNext}
+                aria-label="Página siguiente"
+                className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Siguiente
+              </PublicRouteControl>
+            </span>
           </nav>
         </Card>
       </main>

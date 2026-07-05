@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import type { FieldVisit } from "@/types";
 import { Route as RouteIcon, ExternalLink } from "lucide-react";
+import { useAdaptiveRowsPerPage } from "@/hooks/useAdaptiveRowsPerPage";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { DashboardPager } from "@/components/dashboard/DashboardPager";
 import { DashboardRefreshButton } from "@/components/dashboard/DashboardRefreshButton";
 import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ModuleSurface } from "@/components/dashboard/ModuleSurface";
+import { usePagedRows } from "@/components/dashboard/usePagedRows";
 import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { ROUTES } from "@/lib/routes";
 import { formatDate } from "@/lib/utils";
@@ -17,11 +20,50 @@ type Props = {
   visitsLoadError: boolean;
 };
 
+const VISITS_PAGE_SIZE = 3;
+const VISITS_ROW_HEIGHT_FALLBACK_PX = 44;
+
 export function ClinicLogisticaWorkspaceSummary({
   recentVisits,
   visitsLoadError,
 }: Props) {
   const [selectedVisitId, setSelectedVisitId] = useState<number | null>(null);
+  const [visitsListBodyNode, setVisitsListBodyNode] =
+    useState<HTMLDivElement | null>(null);
+  const [firstRowNode, setFirstRowNode] = useState<HTMLButtonElement | null>(
+    null,
+  );
+  const [rowHeightPx, setRowHeightPx] = useState(VISITS_ROW_HEIGHT_FALLBACK_PX);
+
+  useLayoutEffect(() => {
+    if (!firstRowNode) {
+      return;
+    }
+
+    const measureRowHeight = () => {
+      const height = firstRowNode.getBoundingClientRect().height;
+      if (height > 0) {
+        setRowHeightPx(height);
+      }
+    };
+
+    const observer = new ResizeObserver(measureRowHeight);
+    observer.observe(firstRowNode);
+    measureRowHeight();
+
+    return () => observer.disconnect();
+  }, [firstRowNode]);
+
+  // Adaptive density: the visible row count derives from the measured list
+  // canvas (390x844 fits fewer rows than 1440x900); the fixed page size is
+  // only the pre-measurement fallback.
+  const { rowsPerPage } = useAdaptiveRowsPerPage({
+    containerNode: visitsListBodyNode,
+    fallbackRows: VISITS_PAGE_SIZE,
+    rowHeightPx,
+  });
+
+  const pagedVisits = usePagedRows(recentVisits, rowsPerPage);
   const selectedVisit =
     selectedVisitId === null
       ? null
@@ -70,13 +112,15 @@ export function ClinicLogisticaWorkspaceSummary({
           className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-vetneb-line/75 bg-card/82"
         >
           <div
+            ref={setVisitsListBodyNode}
             data-clinic-logistics-list-body="true"
             className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
           >
-            {recentVisits.map((visit) => (
+            {pagedVisits.pageItems.map((visit, index) => (
               <button
                 key={visit.id}
                 type="button"
+                ref={index === 0 ? setFirstRowNode : undefined}
                 data-clinic-logistics-row="true"
                 onClick={() => setSelectedVisitId(visit.id)}
                 aria-haspopup="dialog"
@@ -96,6 +140,27 @@ export function ClinicLogisticaWorkspaceSummary({
                 <StatusBadge status={visit.status} size="sm" className="shrink-0" />
               </button>
             ))}
+          </div>
+
+          <div
+            data-clinic-logistics-pagination-footer="true"
+            className="flex shrink-0 items-center justify-center border-t border-vetneb-line/65 px-3 text-xs text-muted-foreground"
+          >
+            <DashboardPager
+              aria-label="Paginación de visitas recientes"
+              page={pagedVisits.page}
+              pageCount={pagedVisits.pageCount}
+              hasPrev={pagedVisits.hasPrev}
+              hasNext={pagedVisits.hasNext}
+              onPrev={() => {
+                setSelectedVisitId(null);
+                pagedVisits.goPrev();
+              }}
+              onNext={() => {
+                setSelectedVisitId(null);
+                pagedVisits.goNext();
+              }}
+            />
           </div>
         </div>
       ) : (

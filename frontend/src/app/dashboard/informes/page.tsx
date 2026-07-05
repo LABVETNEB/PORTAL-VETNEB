@@ -180,9 +180,12 @@ export default async function InformesPage({
         <Card className="dashboard-surface flex min-h-0 flex-1 flex-col overflow-hidden">
           <CardHeader className="shrink-0 border-b border-vetneb-line/70">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-              <div>
-                <CardTitle className="text-base">Informes disponibles</CardTitle>
-                <p className="mt-1 text-sm text-muted-foreground">
+              <div className="min-w-0">
+                <CardTitle className="truncate text-base">Informes disponibles</CardTitle>
+                <p
+                  className="mt-1 text-sm text-muted-foreground"
+                  data-dashboard-chrome-secondary="true"
+                >
                   Seleccione un informe de la lista para abrir el detalle operativo.
                 </p>
               </div>
@@ -194,7 +197,7 @@ export default async function InformesPage({
               method="get"
               role="search"
               aria-label="Filtros compactos de informes"
-              className="shrink-0 lg:grid-cols-[1.4fr_0.8fr_1fr_auto]"
+              className="shrink-0 grid-cols-2 lg:grid-cols-[1.4fr_0.8fr_1fr_auto]"
             >
               <FilterField label="Buscar">
                 <Input

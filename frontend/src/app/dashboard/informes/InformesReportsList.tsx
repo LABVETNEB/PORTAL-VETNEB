@@ -4,9 +4,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorState } from "@/components/dashboard/ErrorState";
+import { ModuleDialog } from "@/components/dashboard/ModuleDialog";
 import { ReportFileActions } from "@/components/dashboard/ReportDownloadButton";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   StudyTimeline,
   type StudyTimelineStep,
@@ -23,6 +25,17 @@ type Measurement = {
   containerNode: HTMLElement | null;
   rowHeightPx: number;
 };
+
+type ReportDetailSection = "resumen" | "archivos" | "timeline";
+
+const REPORT_DETAIL_SECTIONS: Array<{
+  id: ReportDetailSection;
+  label: string;
+}> = [
+  { id: "resumen", label: "Resumen" },
+  { id: "archivos", label: "Archivos" },
+  { id: "timeline", label: "Timeline" },
+];
 
 function measurementsEqual(a: Measurement, b: Measurement) {
   return a.containerNode === b.containerNode && a.rowHeightPx === b.rowHeightPx;
@@ -124,6 +137,9 @@ export function InformesReportsList({
   const [selectedReportId, setSelectedReportId] = useState<number | null>(
     initialSelectedReportId,
   );
+  const [detailSection, setDetailSection] =
+    useState<ReportDetailSection>("resumen");
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   const [bodyNode, setBodyNode] = useState<HTMLElement | null>(null);
   const [rowNode, setRowNode] = useState<HTMLElement | null>(null);
@@ -276,6 +292,180 @@ export function InformesReportsList({
     setOffset((current) => current + effectiveLimit);
   }
 
+  function selectReport(reportId: number) {
+    setSelectedReportId(reportId);
+    setDetailSection("resumen");
+  }
+
+  // Bounded detail canvas (desktop panel + mobile dialog body): compact
+  // header, segmented sections and a persistent action dock. No core
+  // scroller — every section fits its canvas; long values truncate.
+  function renderReportDetailCanvas({
+    actionDockSurface,
+    exposeActionDock,
+  }: {
+    actionDockSurface: "panel" | "dialog";
+    exposeActionDock: boolean;
+  }) {
+    if (!selectedReport) {
+      return null;
+    }
+
+    const report = selectedReport;
+
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-vetneb-line/70 pb-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+              Detalle del informe
+            </p>
+            <h2
+              id="report-detail-heading"
+              className="mt-0.5 truncate text-base font-semibold text-vetneb-ink"
+            >
+              {getReportTitle(report)}
+            </h2>
+            <p className="truncate text-xs text-muted-foreground">
+              Clínica {report.clinicName ?? `#${report.clinicId}`}
+            </p>
+          </div>
+          <StatusBadge
+            status={report.status}
+            label={getReportStatusLabel(report.status)}
+          />
+        </div>
+
+        <div
+          role="tablist"
+          aria-label="Secciones del detalle del informe"
+          data-informes-detail-sections="true"
+          className="dashboard-module-tablist shrink-0"
+        >
+          {REPORT_DETAIL_SECTIONS.map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              role="tab"
+              aria-selected={detailSection === section.id}
+              data-informes-detail-section-tab={section.id}
+              onClick={() => setDetailSection(section.id)}
+              className="dashboard-module-tab focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85"
+            >
+              {section.label}
+            </button>
+          ))}
+        </div>
+
+        <div
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          data-informes-detail-section-panel={detailSection}
+        >
+          {detailSection === "resumen" ? (
+            <dl className="grid min-h-0 grid-cols-2 content-start gap-2 overflow-hidden xl:grid-cols-3">
+              <div className="surface-soft min-w-0">
+                <dt className="text-xs text-muted-foreground">Paciente</dt>
+                <dd className="mt-1 truncate font-semibold text-vetneb-ink">
+                  {report.patientName ?? "—"}
+                </dd>
+              </div>
+              <div className="surface-soft min-w-0">
+                <dt className="text-xs text-muted-foreground">Tipo de estudio</dt>
+                <dd className="mt-1 truncate font-semibold text-vetneb-ink">
+                  {report.studyType ?? "—"}
+                </dd>
+              </div>
+              <div className="surface-soft min-w-0">
+                <dt className="text-xs text-muted-foreground">Fecha</dt>
+                <dd className="mt-1 truncate font-semibold text-vetneb-ink">
+                  {formatDate(report.uploadDate)}
+                </dd>
+              </div>
+              <div className="surface-soft min-w-0">
+                <dt className="text-xs text-muted-foreground">Creado</dt>
+                <dd className="mt-1 truncate font-semibold text-vetneb-ink">
+                  {formatDate(report.createdAt)}
+                </dd>
+              </div>
+              <div className="surface-soft min-w-0">
+                <dt className="text-xs text-muted-foreground">Actualizado</dt>
+                <dd className="mt-1 truncate font-semibold text-vetneb-ink">
+                  {formatDate(report.updatedAt)}
+                </dd>
+              </div>
+              <div className="surface-soft min-w-0">
+                <dt className="text-xs text-muted-foreground">Estado</dt>
+                <dd className="mt-1 truncate font-semibold text-vetneb-ink">
+                  {getReportStatusLabel(report.status)}
+                </dd>
+              </div>
+            </dl>
+          ) : null}
+
+          {detailSection === "archivos" ? (
+            <div className="surface-soft min-w-0">
+              <p className="text-xs text-muted-foreground">Archivo / Informe</p>
+              <p className="mt-1 truncate font-semibold text-vetneb-ink">
+                {report.fileName ?? (report.hasFile ? "Disponible" : "—")}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {report.hasFile
+                  ? "El documento está disponible en el dock de acciones."
+                  : "El informe aún no tiene archivo vinculado."}
+              </p>
+            </div>
+          ) : null}
+
+          {detailSection === "timeline" ? (
+            <section
+              className="flex min-h-0 flex-col gap-2 overflow-hidden"
+              aria-labelledby="study-timeline-heading"
+            >
+              <div className="shrink-0">
+                <h3
+                  id="study-timeline-heading"
+                  className="text-sm font-semibold text-vetneb-ink"
+                >
+                  Línea de tiempo del estudio
+                </h3>
+                <p className="truncate text-xs text-muted-foreground">
+                  Pasos derivados del estado y fechas ya disponibles.
+                </p>
+              </div>
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <StudyTimeline steps={selectedReportTimelineSteps} />
+              </div>
+            </section>
+          ) : null}
+        </div>
+
+        <section
+          className="shrink-0 border-t border-vetneb-line/70 pt-3"
+          aria-labelledby="report-actions-heading"
+          data-informes-detail-action-dock={exposeActionDock ? "true" : undefined}
+          data-informes-detail-action-dock-surface={actionDockSurface}
+        >
+          <h3
+            id="report-actions-heading"
+            className="text-sm font-semibold text-vetneb-ink"
+          >
+            Acciones
+          </h3>
+          <p className="truncate text-xs text-muted-foreground">
+            Visualización y descarga del archivo disponible.
+          </p>
+          <div className="mt-2">
+            <ReportFileActions
+              reportId={selectedReport.id}
+              hasFile={selectedReport.hasFile}
+              align="start"
+            />
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Hidden below `sm` so the fixed chrome (filters + summary) never
@@ -311,7 +501,7 @@ export function InformesReportsList({
           <section
             id="reports-master-list"
             aria-labelledby="reports-list-heading"
-            className="dashboard-master-panel dashboard-inline-list flex-1 rounded-xl border border-vetneb-line/75 bg-card/82"
+            className="dashboard-master-panel flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82"
           >
             <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-3">
               <h2 id="reports-list-heading" className="dashboard-section-heading">
@@ -342,34 +532,40 @@ export function InformesReportsList({
       ) : null}
 
       {!loadError && reports.length > 0 ? (
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]"
+          data-informes-master-detail-canvas="true"
+        >
           <section
             id="reports-master-list"
             aria-labelledby="reports-list-heading"
-            className="dashboard-master-panel dashboard-inline-list flex-1 rounded-xl border border-vetneb-line/75 bg-card/82"
+            className="dashboard-master-panel flex min-h-0 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-card/82"
           >
-            <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-3">
+            <div className="shrink-0 border-b border-vetneb-line/70 px-4 py-2.5">
               <h2 id="reports-list-heading" className="dashboard-section-heading">
                 Lista de informes
               </h2>
               <p className="dashboard-section-description">
-                Click en un informe para ver el detalle desplegado dentro del propio informe.
+                Click en un informe para abrir su detalle operativo.
               </p>
             </div>
 
-            <div ref={setBodyNode} className="dashboard-inline-scroll divide-y divide-vetneb-line/60">
+            <div
+              ref={setBodyNode}
+              data-informes-rows-canvas="true"
+              className="flex min-h-0 flex-1 flex-col divide-y divide-vetneb-line/60 overflow-hidden"
+            >
               {reports.map((report, index) => {
                 const isSelected = selectedReport?.id === report.id;
 
                 return (
-                  <div key={report.id} className="min-w-0">
+                  <div key={report.id} className="min-w-0 shrink-0">
                     <div ref={index === 0 ? setRowNode : undefined}>
                       <button
                         type="button"
                         id={`report-${report.id}`}
-                        onClick={() => setSelectedReportId(report.id)}
+                        onClick={() => selectReport(report.id)}
                         aria-current={isSelected ? "true" : undefined}
-                        aria-expanded={isSelected}
                         aria-label={
                           isSelected
                             ? `Informe seleccionado: ${getReportTitle(report)}`
@@ -399,136 +595,105 @@ export function InformesReportsList({
                         </div>
                       </button>
                     </div>
-
-                    {isSelected && selectedReport ? (
-                      <div
-                        id="report-detail"
-                        aria-labelledby="report-detail-heading"
-                        data-detail-state="selected"
-                        className="dashboard-inline-detail border-t border-vetneb-line/60 bg-vetneb-surface-muted/40"
-                      >
-                        <div className="space-y-4 p-4">
-                          <div className="flex flex-col gap-3 border-b border-vetneb-line/70 pb-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="min-w-0">
-                              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                                Detalle del informe
-                              </p>
-                              <h2 id="report-detail-heading" className="mt-1 text-xl font-semibold text-vetneb-ink">
-                                {getReportTitle(selectedReport)}
-                              </h2>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                Clínica {selectedReport.clinicName ?? `#${selectedReport.clinicId}`}
-                              </p>
-                            </div>
-                            <StatusBadge
-                              status={selectedReport.status}
-                              label={getReportStatusLabel(selectedReport.status)}
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                            <div className="surface-soft">
-                              <p className="text-xs text-muted-foreground">Paciente</p>
-                              <p className="mt-1 font-semibold text-vetneb-ink">
-                                {selectedReport.patientName ?? "—"}
-                              </p>
-                            </div>
-                            <div className="surface-soft">
-                              <p className="text-xs text-muted-foreground">Tipo de estudio</p>
-                              <p className="mt-1 font-semibold text-vetneb-ink">
-                                {selectedReport.studyType ?? "—"}
-                              </p>
-                            </div>
-                            <div className="surface-soft">
-                              <p className="text-xs text-muted-foreground">Fecha</p>
-                              <p className="mt-1 font-semibold text-vetneb-ink">
-                                {formatDate(selectedReport.uploadDate)}
-                              </p>
-                            </div>
-                            <div className="surface-soft">
-                              <p className="text-xs text-muted-foreground">Creado</p>
-                              <p className="mt-1 font-semibold text-vetneb-ink">
-                                {formatDate(selectedReport.createdAt)}
-                              </p>
-                            </div>
-                            <div className="surface-soft">
-                              <p className="text-xs text-muted-foreground">Actualizado</p>
-                              <p className="mt-1 font-semibold text-vetneb-ink">
-                                {formatDate(selectedReport.updatedAt)}
-                              </p>
-                            </div>
-                            <div className="surface-soft">
-                              <p className="text-xs text-muted-foreground">Archivo</p>
-                              <p className="mt-1 font-semibold text-vetneb-ink">
-                                {selectedReport.fileName ?? (selectedReport.hasFile ? "Disponible" : "—")}
-                              </p>
-                            </div>
-                          </div>
-
-                          <section className="space-y-3" aria-labelledby="report-actions-heading">
-                            <div>
-                              <h3 id="report-actions-heading" className="text-base font-semibold text-vetneb-ink">
-                                Acciones
-                              </h3>
-                              <p className="text-sm text-muted-foreground">
-                                Visualización y descarga del archivo disponible.
-                              </p>
-                            </div>
-                            <ReportFileActions
-                              reportId={selectedReport.id}
-                              hasFile={selectedReport.hasFile}
-                              align="start"
-                            />
-                          </section>
-
-                          <section className="space-y-3" aria-labelledby="study-timeline-heading">
-                            <div>
-                              <h3 id="study-timeline-heading" className="text-base font-semibold text-vetneb-ink">
-                                Línea de tiempo del estudio
-                              </h3>
-                              <p className="text-sm text-muted-foreground">
-                                Pasos derivados del estado y fechas ya disponibles.
-                              </p>
-                            </div>
-                            <StudyTimeline steps={selectedReportTimelineSteps} />
-                          </section>
-                        </div>
-                      </div>
-                    ) : null}
                   </div>
                 );
               })}
             </div>
 
+            {selectedReport ? (
+              <div
+                data-informes-selected-report-summary="true"
+                className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/60 px-3 py-2 lg:hidden"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-vetneb-ink">
+                    {getReportTitle(selectedReport)}
+                  </p>
+                  <p className="truncate text-[0.6875rem] text-muted-foreground">
+                    {selectedReport.studyType ?? "Tipo sin registrar"} ·{" "}
+                    {formatDate(selectedReport.uploadDate)}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 shrink-0 px-2 text-xs"
+                  onClick={() => setIsDetailDialogOpen(true)}
+                  aria-haspopup="dialog"
+                >
+                  Ver detalle
+                </Button>
+              </div>
+            ) : null}
+
             <nav
               aria-label="Paginación de informes"
-              className="flex shrink-0 items-center justify-between gap-2 border-t border-vetneb-line/70 px-4 py-3"
+              data-dashboard-pager="true"
+              className="dashboard-pager shrink-0 border-t border-vetneb-line/70"
             >
-              <button
-                type="button"
-                onClick={goToPreviousPage}
-                disabled={page <= 1}
-                aria-label="Página anterior"
-                aria-disabled={page <= 1 ? "true" : undefined}
-                className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Anterior
-              </button>
-              <span className="dashboard-pagination-context">
+              <span data-dashboard-pager-prev="true" className="inline-flex">
+                <button
+                  type="button"
+                  onClick={goToPreviousPage}
+                  disabled={page <= 1}
+                  aria-label="Página anterior"
+                  aria-disabled={page <= 1 ? "true" : undefined}
+                  className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Anterior
+                </button>
+              </span>
+              <span data-dashboard-pager-state="true" className="dashboard-pagination-context">
                 Página {page} de {reportsTotalPages}
               </span>
-              <button
-                type="button"
-                onClick={goToNextPage}
-                disabled={page >= reportsTotalPages}
-                aria-label="Página siguiente"
-                aria-disabled={page >= reportsTotalPages ? "true" : undefined}
-                className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Siguiente
-              </button>
+              <span data-dashboard-pager-next="true" className="inline-flex">
+                <button
+                  type="button"
+                  onClick={goToNextPage}
+                  disabled={page >= reportsTotalPages}
+                  aria-label="Página siguiente"
+                  aria-disabled={page >= reportsTotalPages ? "true" : undefined}
+                  className="dashboard-pagination-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-card/95 px-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:border-vetneb-teal/45 hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Siguiente
+                </button>
+              </span>
             </nav>
           </section>
+
+          {selectedReport ? (
+            <section
+              id="report-detail"
+              aria-labelledby="report-detail-heading"
+              data-detail-state="selected"
+              className="hidden min-h-0 flex-col overflow-hidden rounded-xl border border-vetneb-line/75 bg-vetneb-surface-muted/40 p-4 lg:flex"
+            >
+              {renderReportDetailCanvas({
+                actionDockSurface: "panel",
+                exposeActionDock: !isDetailDialogOpen,
+              })}
+            </section>
+          ) : null}
+
+          {selectedReport ? (
+            <ModuleDialog
+              open={isDetailDialogOpen}
+              onOpenChange={(open) => setIsDetailDialogOpen(open)}
+              title={getReportTitle(selectedReport)}
+              description="Detalle operativo del informe seleccionado."
+            >
+              <div
+                data-informes-detail-dialog="true"
+                className="flex min-h-0 flex-col overflow-hidden"
+              >
+                {renderReportDetailCanvas({
+                  actionDockSurface: "dialog",
+                  exposeActionDock: isDetailDialogOpen,
+                })}
+              </div>
+            </ModuleDialog>
+          ) : null}
         </div>
       ) : null}
     </>
