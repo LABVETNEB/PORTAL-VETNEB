@@ -61,10 +61,10 @@ type SurfaceCase = {
 
 const CORE_SURFACES: SurfaceCase[] = [
   {
-    label: "clinic hub (cockpit)",
+    label: "clinic operaciones (default, no hub)",
     surface: "clinic",
     path: "/dashboard",
-    ready: "main.dashboard-main",
+    ready: '[data-dashboard-module-workspace="operaciones"]',
   },
   {
     label: "clinic Informes (in-shell master-detail)",
@@ -265,7 +265,12 @@ async function readScrollContract(page: Page): Promise<ScrollContract> {
     const html = document.documentElement;
     const body = document.body;
     const main = document.querySelector("main.dashboard-main") as HTMLElement | null;
-    const nav = document.querySelector('[aria-label="Navegación principal"]');
+    // Primary dashboard navigation: the admin surface keeps the horizontal nav,
+    // while the clinic surface uses the single shared module rail. Either one
+    // satisfies the "primary navigation stays visible" contract.
+    const nav = document.querySelector(
+      '[aria-label="Navegación principal"], [data-dashboard-module-rail="true"]',
+    );
     const topbar = document.querySelector('[aria-label="Barra superior del dashboard"]');
 
     const isVisible = (el: Element | null) => {

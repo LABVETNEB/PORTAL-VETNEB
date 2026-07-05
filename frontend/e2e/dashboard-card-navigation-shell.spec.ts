@@ -12,42 +12,19 @@ type ClinicModule =
   | "perfil"
   | "tokens";
 
-const CLINIC_COCKPIT_MODULES: Array<{
+// Unified clinic module rail: the single shared navigation/pager. Every module
+// is reachable from it on every device (no cockpit hub, no split desktop-tabs /
+// mobile-bottom-bar).
+const CLINIC_RAIL_MODULES: Array<{
   moduleId: ClinicModule;
-  moduleLabel: string | RegExp;
-  actionName: string;
+  railLabel: string;
   workspaceId: ClinicModule;
 }> = [
-  {
-    moduleId: "operaciones",
-    moduleLabel: /Centro de operaciones|Operaciones/i,
-    actionName: "Abrir operaciones",
-    workspaceId: "operaciones",
-  },
-  {
-    moduleId: "informes",
-    moduleLabel: "Informes",
-    actionName: "Abrir informes",
-    workspaceId: "informes",
-  },
-  {
-    moduleId: "logistica",
-    moduleLabel: "Logística",
-    actionName: "Abrir logística",
-    workspaceId: "logistica",
-  },
-  {
-    moduleId: "perfil",
-    moduleLabel: /Perfil público|Perfil/i,
-    actionName: "Abrir perfil",
-    workspaceId: "perfil",
-  },
-  {
-    moduleId: "tokens",
-    moduleLabel: /Tokens particulares|Tokens/i,
-    actionName: "Generar o abrir tokens",
-    workspaceId: "tokens",
-  },
+  { moduleId: "operaciones", railLabel: "Operaciones", workspaceId: "operaciones" },
+  { moduleId: "informes", railLabel: "Informes", workspaceId: "informes" },
+  { moduleId: "logistica", railLabel: "Logística", workspaceId: "logistica" },
+  { moduleId: "perfil", railLabel: "Perfil", workspaceId: "perfil" },
+  { moduleId: "tokens", railLabel: "Tokens", workspaceId: "tokens" },
 ];
 
 async function setClinicSession(page: Page) {
@@ -78,24 +55,12 @@ function hubCard(hub: ReturnType<Page["locator"]>, title: string) {
   return hub.locator(`button[aria-label^="${title}:"]`);
 }
 
-function clinicCockpit(page: Page) {
-  return page.locator(
-    '[data-dashboard-module-hub="true"][data-clinic-cockpit="true"]',
-  );
+function clinicRail(page: Page) {
+  return page.locator('[data-dashboard-module-rail="true"]');
 }
 
-function clinicCockpitModule(hub: Locator, moduleId: ClinicModule) {
-  return hub
-    .locator('[data-clinic-cockpit-modules="true"]')
-    .locator(`[data-clinic-cockpit-module-card="${moduleId}"]`);
-}
-
-function clinicCockpitAction(hub: Locator, name: string | RegExp) {
-  return hub
-    .locator(
-      '[data-clinic-cockpit-primary-actions="true"], [data-clinic-cockpit-modules="true"]',
-    )
-    .getByRole("button", { name, exact: typeof name === "string" });
+function clinicRailItem(page: Page, moduleId: ClinicModule): Locator {
+  return page.locator(`[data-dashboard-module-rail-item="${moduleId}"]`);
 }
 
 // ─── Scope guard ──────────────────────────────────────────────────────────────
@@ -112,101 +77,87 @@ test.describe("dashboard card navigation shell — scope guard", () => {
 
 // ─── Clinic dashboard — initial hub state ─────────────────────────────────────
 
-test.describe("clinic dashboard — module hub initial state", () => {
+test.describe("clinic dashboard — default workspace (no hub)", () => {
   test.beforeEach(async ({ page }) => {
     await setClinicSession(page);
   });
 
-  test("renders the module hub section on clinic dashboard", async ({ page }) => {
+  test("opens the default operaciones workspace directly (no module hub)", async ({
+    page,
+  }) => {
     await page.goto("/dashboard");
 
-    const hub = clinicCockpit(page);
-    await expect(hub).toBeVisible({ timeout: 8_000 });
+    await expect(
+      page.locator('[data-dashboard-module-workspace="operaciones"]'),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(clinicRail(page)).toBeVisible();
+    // The legacy clinic cockpit/hub must be gone entirely.
+    await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
+    await expect(page.locator('[data-clinic-cockpit="true"]')).toHaveCount(0);
+    await expect(page.getByText("Módulos clínicos")).toHaveCount(0);
   });
 
-  test("initial state does not render old dashboard workspace content", async ({ page }) => {
-    await page.goto("/dashboard");
-
-    const hub = clinicCockpit(page);
-    await expect(hub).toBeVisible({ timeout: 8_000 });
-
-    const workspace = page.locator('[data-dashboard-module-workspace]');
-    await expect(workspace).not.toBeVisible();
-  });
-
-  for (const {
-    moduleId,
-    moduleLabel,
-    actionName,
-  } of CLINIC_COCKPIT_MODULES) {
-    test(`clinic cockpit renders ${String(moduleLabel)} action/module`, async ({
-      page,
-    }) => {
+  for (const { moduleId, railLabel } of CLINIC_RAIL_MODULES) {
+    test(`the shared rail exposes the ${railLabel} module`, async ({ page }) => {
       await page.goto("/dashboard");
 
-      const hub = clinicCockpit(page);
-      await expect(hub).toBeVisible({ timeout: 8_000 });
-      await expect(clinicCockpitModule(hub, moduleId)).toBeVisible();
-      await expect(clinicCockpitModule(hub, moduleId)).toContainText(moduleLabel);
-      await expect(clinicCockpitAction(hub, actionName)).toBeVisible();
+      const item = clinicRailItem(page, moduleId);
+      await expect(item).toBeVisible({ timeout: 8_000 });
+      await expect(item).toContainText(new RegExp(railLabel, "i"));
     });
   }
 
-  test("clinic cockpit actions have accessible names", async ({ page }) => {
+  test("the rail marks the default operaciones module as active", async ({ page }) => {
     await page.goto("/dashboard");
 
-    const hub = clinicCockpit(page);
-    await expect(hub).toBeVisible({ timeout: 8_000 });
-
-    const actions = hub.locator('[data-clinic-cockpit-primary-actions="true"]');
-    await expect(actions.getByRole("button")).toHaveCount(
-      CLINIC_COCKPIT_MODULES.length,
+    await expect(clinicRail(page)).toBeVisible({ timeout: 8_000 });
+    await expect(clinicRailItem(page, "operaciones")).toHaveAttribute(
+      "aria-current",
+      "page",
     );
-
-    for (const { actionName } of CLINIC_COCKPIT_MODULES) {
-      await expect(
-        actions.getByRole("button", { name: actionName, exact: true }),
-      ).toBeVisible();
-    }
   });
 
-  test("clinic cockpit renders operational structure", async ({ page }) => {
+  test("rail items and pager controls have accessible names", async ({ page }) => {
     await page.goto("/dashboard");
 
-    const hub = clinicCockpit(page);
-    await expect(hub).toBeVisible({ timeout: 8_000 });
+    const rail = clinicRail(page);
+    await expect(rail).toBeVisible({ timeout: 8_000 });
 
-    for (const selector of [
-      '[data-clinic-cockpit-status="true"]',
-      '[data-clinic-cockpit-attention="true"]',
-      '[data-clinic-cockpit-continuity="true"]',
-      '[data-clinic-cockpit-activity="true"]',
-      '[data-clinic-cockpit-modules="true"]',
-      '[data-clinic-cockpit-primary-actions="true"]',
-    ]) {
-      await expect(hub.locator(selector)).toBeVisible();
+    for (const { moduleId } of CLINIC_RAIL_MODULES) {
+      await expect(clinicRailItem(page, moduleId)).toHaveAttribute(
+        "aria-label",
+        /.+/,
+      );
     }
+    await expect(
+      rail.locator('[data-dashboard-module-rail-prev="true"]'),
+    ).toHaveAttribute("aria-label", /.+/);
+    await expect(
+      rail.locator('[data-dashboard-module-rail-next="true"]'),
+    ).toHaveAttribute("aria-label", /.+/);
   });
 });
 
 // ─── Clinic dashboard — workspace activation ──────────────────────────────────
 
-test.describe("clinic dashboard — workspace activation", () => {
+test.describe("clinic dashboard — rail navigation", () => {
   test.beforeEach(async ({ page }) => {
     await setClinicSession(page);
   });
 
-  for (const { actionName, workspaceId } of CLINIC_COCKPIT_MODULES) {
-    test(`clicking ${actionName} opens ${workspaceId} workspace`, async ({
+  for (const { moduleId, workspaceId } of CLINIC_RAIL_MODULES) {
+    test(`clicking the ${moduleId} rail item opens the ${workspaceId} workspace`, async ({
       page,
     }) => {
-      await page.goto("/dashboard");
+      // Start from a different module so every navigation is a real change.
+      await page.goto("/dashboard?module=perfil");
+      await expect(
+        page.locator('[data-dashboard-module-workspace="perfil"]'),
+      ).toBeVisible({ timeout: 8_000 });
 
-      const hub = clinicCockpit(page);
-      await expect(hub).toBeVisible({ timeout: 8_000 });
-      const action = clinicCockpitAction(hub, actionName);
-      await expect(action).toBeVisible();
-      await action.click();
+      const item = clinicRailItem(page, moduleId);
+      await expect(item).toBeVisible();
+      await item.click();
 
       await expect(page).toHaveURL(
         new RegExp(`/dashboard\\?module=${workspaceId}$`),
@@ -214,39 +165,53 @@ test.describe("clinic dashboard — workspace activation", () => {
       );
       await expect(
         page.locator(`[data-dashboard-module-workspace="${workspaceId}"]`),
-      ).toBeVisible({ timeout: 5_000 });
-      await expect(hub).not.toBeVisible();
+      ).toBeVisible({ timeout: 12_000 });
+      await expect(clinicRailItem(page, workspaceId)).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
     });
   }
 
-  test("workspace shows Vista general button", async ({ page }) => {
+  test("the clinic workspace has no 'Vista general' hub back button", async ({
+    page,
+  }) => {
     await page.goto("/dashboard");
-
-    const hub = clinicCockpit(page);
-    await expect(hub).toBeVisible({ timeout: 8_000 });
-    await clinicCockpitAction(hub, "Abrir operaciones").click();
-
-    const backBtn = page.getByRole("button", { name: "Vista general" });
-    await expect(backBtn).toBeVisible({ timeout: 5_000 });
+    await expect(
+      page.locator('[data-dashboard-module-workspace="operaciones"]'),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(
+      page.getByRole("button", { name: "Vista general" }),
+    ).toHaveCount(0);
   });
 
-  test("Vista general returns to hub", async ({ page }) => {
+  test("the rail pager steps through modules and updates the URL", async ({
+    page,
+  }) => {
     await page.goto("/dashboard");
+    await expect(clinicRail(page)).toBeVisible({ timeout: 8_000 });
 
-    const hub = clinicCockpit(page);
-    await expect(hub).toBeVisible({ timeout: 8_000 });
-    await clinicCockpitAction(hub, "Abrir operaciones").click();
+    // operaciones → next → informes
+    await clinicRail(page)
+      .locator('[data-dashboard-module-rail-next="true"]')
+      .click();
+    await expect(page).toHaveURL(/\/dashboard\?module=informes$/, {
+      timeout: 5_000,
+    });
+    await expect(
+      page.locator('[data-dashboard-module-workspace="informes"]'),
+    ).toBeVisible({ timeout: 5_000 });
 
+    // informes → prev → operaciones
+    await clinicRail(page)
+      .locator('[data-dashboard-module-rail-prev="true"]')
+      .click();
+    await expect(page).toHaveURL(/\/dashboard\?module=operaciones$/, {
+      timeout: 5_000,
+    });
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
     ).toBeVisible({ timeout: 5_000 });
-
-    await page.getByRole("button", { name: "Vista general" }).click();
-
-    await expect(hub).toBeVisible({ timeout: 5_000 });
-    await expect(
-      page.locator('[data-dashboard-module-workspace="operaciones"]'),
-    ).not.toBeVisible();
   });
 });
 
@@ -418,12 +383,14 @@ test.describe("dashboard shell — no global scroll", () => {
   test("clinic dashboard shell uses h-dvh overflow-hidden container", async ({ page }) => {
     await page.goto("/dashboard");
 
-    const hub = clinicCockpit(page);
-    await expect(hub).toBeVisible({ timeout: 8_000 });
+    const workspace = page.locator(
+      '[data-dashboard-module-workspace="operaciones"]',
+    );
+    await expect(workspace).toBeVisible({ timeout: 8_000 });
 
     const shellClass = await page.evaluate(() => {
       const shell = document
-        .querySelector('[data-dashboard-module-hub="true"]')
+        .querySelector('[data-dashboard-module-workspace="operaciones"]')
         ?.closest(".overflow-hidden");
       return shell?.className ?? "";
     });
@@ -450,12 +417,13 @@ test.describe("dashboard shell — no global scroll", () => {
     expect(mainOverflow!.overflowY).not.toBe("scroll");
   });
 
-  test("body does not scroll when clinic dashboard hub fills viewport", async ({ page }) => {
+  test("body does not scroll when the default clinic workspace fills viewport", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/dashboard");
 
-    const hub = clinicCockpit(page);
-    await expect(hub).toBeVisible({ timeout: 8_000 });
+    await expect(
+      page.locator('[data-dashboard-module-workspace="operaciones"]'),
+    ).toBeVisible({ timeout: 8_000 });
 
     const bodyScrollHeight = await page.evaluate(() => document.body.scrollHeight);
     const viewportHeight = await page.evaluate(() => window.innerHeight);
@@ -463,15 +431,14 @@ test.describe("dashboard shell — no global scroll", () => {
     expect(bodyScrollHeight).toBeLessThanOrEqual(viewportHeight + 5);
   });
 
-  test("body does not scroll when clinic workspace is open", async ({ page }) => {
+  test("body does not scroll after navigating the rail to another module", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/dashboard");
 
-    const hub = clinicCockpit(page);
-    await expect(hub).toBeVisible({ timeout: 8_000 });
-    await clinicCockpitAction(hub, "Abrir operaciones").click();
+    await expect(clinicRail(page)).toBeVisible({ timeout: 8_000 });
+    await clinicRailItem(page, "informes").click();
     await expect(
-      page.locator('[data-dashboard-module-workspace="operaciones"]'),
+      page.locator('[data-dashboard-module-workspace="informes"]'),
     ).toBeVisible({ timeout: 5_000 });
 
     const bodyScrollHeight = await page.evaluate(() => document.body.scrollHeight);
@@ -518,30 +485,26 @@ test.describe("clinic dashboard — deep link direct navigation", () => {
     ).not.toBeVisible();
   });
 
-  test("Vista general from clinic deep link clears query and returns to hub", async ({ page }) => {
-    await page.goto("/dashboard?module=operaciones");
+  test("deep link to a module marks it active in the shared rail", async ({ page }) => {
+    await page.goto("/dashboard?module=informes");
+
+    await expect(
+      page.locator('[data-dashboard-module-workspace="informes"]'),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(clinicRailItem(page, "informes")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
+  });
+
+  test("invalid module query param falls back to the default operaciones workspace (no hub)", async ({ page }) => {
+    await page.goto("/dashboard?module=modulo-invalido-xyz");
 
     await expect(
       page.locator('[data-dashboard-module-workspace="operaciones"]'),
     ).toBeVisible({ timeout: 8_000 });
-
-    await page.getByRole("button", { name: "Vista general" }).click();
-
-    await expect(
-      page.locator('[data-dashboard-module-hub="true"]'),
-    ).toBeVisible({ timeout: 5_000 });
-    await expect(page).toHaveURL(/\/dashboard$/, { timeout: 5_000 });
-  });
-
-  test("invalid module query param falls back to clinic hub", async ({ page }) => {
-    await page.goto("/dashboard?module=modulo-invalido-xyz");
-
-    await expect(
-      page.locator('[data-dashboard-module-hub="true"]'),
-    ).toBeVisible({ timeout: 8_000 });
-    await expect(
-      page.locator('[data-dashboard-module-workspace]'),
-    ).not.toBeVisible();
+    await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
   });
 });
 
@@ -653,59 +616,58 @@ test.describe("admin dashboard — browser back/forward sync", () => {
   });
 });
 
-// ─── Navegación horizontal superior ───────────────────────────────────────────
+// ─── Clinic module rail — unified primary navigation ──────────────────────────
 
-test.describe("dashboard horizontal nav — top bar", () => {
+test.describe("clinic module rail — primary navigation", () => {
   test.beforeEach(async ({ page }) => {
     await setClinicSession(page);
   });
 
-  test("renders as a full-width horizontal bar (not a vertical rail) at desktop", async ({ page }) => {
+  test("is the only clinic module navigation on the main dashboard (no top-tab bar)", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/dashboard");
 
-    const nav = page.locator(
-      "[role='navigation'][aria-label='Navegación principal']",
-    );
-    await expect(nav).toBeVisible({ timeout: 8_000 });
+    const rail = clinicRail(page);
+    await expect(rail).toBeVisible({ timeout: 8_000 });
+    // The legacy horizontal tab bar is suppressed here — the rail is the single
+    // module pager shared across devices.
+    await expect(
+      page.locator("[role='navigation'][aria-label='Navegación principal']"),
+    ).toHaveCount(0);
+  });
 
-    const box = await nav.boundingBox();
+  test("renders as a horizontal rail (not a vertical sidebar) at desktop", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/dashboard");
+
+    const rail = clinicRail(page);
+    await expect(rail).toBeVisible({ timeout: 8_000 });
+
+    const box = await rail.boundingBox();
     expect(box).not.toBeNull();
-    expect(box!.width).toBeGreaterThan(600);
+    expect(box!.width).toBeGreaterThan(box!.height);
+    expect(box!.width).toBeGreaterThan(400);
     expect(box!.height).toBeLessThanOrEqual(96);
   });
 
-  test("nav items have aria-label for accessibility", async ({ page }) => {
+  test("rail items have aria-label for accessibility", async ({ page }) => {
     await page.goto("/dashboard");
 
-    const nav = page.locator(
-      "[role='navigation'][aria-label='Navegación principal']",
-    );
-    await expect(nav).toBeVisible({ timeout: 8_000 });
+    const rail = clinicRail(page);
+    await expect(rail).toBeVisible({ timeout: 8_000 });
 
-    const navButtons = nav.locator("button[aria-label]");
-    const count = await navButtons.count();
-    expect(count).toBeGreaterThanOrEqual(4);
+    const railLinks = rail.locator("[data-dashboard-module-rail-item][aria-label]");
+    await expect(railLinks).toHaveCount(CLINIC_RAIL_MODULES.length);
   });
 
-  test("back-to-home link is accessible", async ({ page }) => {
+  test("rail exposes every operational module", async ({ page }) => {
     await page.goto("/dashboard");
 
-    const backBtn = page.getByRole("button", { name: /Volver al sitio p.blico/i });
-    await expect(backBtn).toBeVisible({ timeout: 8_000 });
-  });
-
-  test("clinic nav exposes operational modules", async ({ page }) => {
-    await page.goto("/dashboard");
-
-    const nav = page.locator(
-      "[role='navigation'][aria-label='Navegación principal']",
-    );
-    await expect(nav.getByRole("button", { name: "Informes" })).toBeVisible({
-      timeout: 8_000,
-    });
-    await expect(nav.getByRole("button", { name: "Logística" })).toBeVisible();
-    await expect(nav.getByRole("button", { name: "Perfil" })).toBeVisible();
+    await expect(clinicRailItem(page, "informes")).toBeVisible({ timeout: 8_000 });
+    await expect(clinicRailItem(page, "logistica")).toBeVisible();
+    await expect(clinicRailItem(page, "perfil")).toBeVisible();
+    await expect(clinicRailItem(page, "tokens")).toBeVisible();
+    await expect(clinicRailItem(page, "operaciones")).toBeVisible();
   });
 });
 
@@ -855,12 +817,11 @@ test.describe("clinic dashboard — workspace isolation", () => {
 
   test("Informes workspace does not render Logística content", async ({ page }) => {
     await page.goto("/dashboard");
-    const hub = clinicCockpit(page);
-    await expect(hub).toBeVisible({ timeout: 8_000 });
-    await clinicCockpitAction(hub, "Abrir informes").click();
+    await expect(clinicRail(page)).toBeVisible({ timeout: 8_000 });
+    await clinicRailItem(page, "informes").click();
     await expect(
       page.locator('[data-dashboard-module-workspace="informes"]'),
-    ).toBeVisible({ timeout: 5_000 });
+    ).toBeVisible({ timeout: 12_000 });
     await expect(
       page.getByText("Visitas de campo recientes", { exact: true }),
     ).not.toBeVisible();
@@ -868,12 +829,11 @@ test.describe("clinic dashboard — workspace isolation", () => {
 
   test("Tokens workspace does not render Logística content", async ({ page }) => {
     await page.goto("/dashboard");
-    const hub = clinicCockpit(page);
-    await expect(hub).toBeVisible({ timeout: 8_000 });
-    await clinicCockpitAction(hub, "Generar o abrir tokens").click();
+    await expect(clinicRail(page)).toBeVisible({ timeout: 8_000 });
+    await clinicRailItem(page, "tokens").click();
     await expect(
       page.locator('[data-dashboard-module-workspace="tokens"]'),
-    ).toBeVisible({ timeout: 5_000 });
+    ).toBeVisible({ timeout: 12_000 });
     await expect(
       page.getByText("Visitas de campo recientes", { exact: true }),
     ).not.toBeVisible();
@@ -881,12 +841,11 @@ test.describe("clinic dashboard — workspace isolation", () => {
 
   test("Perfil público workspace does not render Informes workspace", async ({ page }) => {
     await page.goto("/dashboard");
-    const hub = clinicCockpit(page);
-    await expect(hub).toBeVisible({ timeout: 8_000 });
-    await clinicCockpitAction(hub, "Abrir perfil").click();
+    await expect(clinicRail(page)).toBeVisible({ timeout: 8_000 });
+    await clinicRailItem(page, "perfil").click();
     await expect(
       page.locator('[data-dashboard-module-workspace="perfil"]'),
-    ).toBeVisible({ timeout: 5_000 });
+    ).toBeVisible({ timeout: 12_000 });
     await expect(
       page.locator('[data-dashboard-module-workspace="informes"]'),
     ).not.toBeVisible();

@@ -206,11 +206,13 @@ test("dashboard page imports and uses ClinicCommandCenter with full data prop se
   assert.ok(source.includes('visitsLoadError={visitsLoadError}'));
 });
 
-test("dashboard page uses DashboardPageHeader and workspace controller above ClinicCommandCenter", () => {
+test("dashboard page opens the workspace controller into ClinicCommandCenter without a home header", () => {
   const source = read(DASHBOARD_PAGE_PATH);
 
-  assert.ok(source.includes('<DashboardPageHeader'));
-  // PR5B: DashboardModuleHub and hub cards are inside ClinicDashboardWorkspaceController.
+  // No home/hub: the clinic dashboard mounts the unified workspace controller
+  // directly (which opens the default operations module) — there is no landing
+  // DashboardPageHeader band above it.
+  assert.equal(source.includes('<DashboardPageHeader'), false);
   assert.ok(source.includes('<ClinicDashboardWorkspaceController'));
   assert.ok(source.includes('<ClinicCommandCenter'));
   assert.equal(source.includes('import Link from "next/link"'), false);

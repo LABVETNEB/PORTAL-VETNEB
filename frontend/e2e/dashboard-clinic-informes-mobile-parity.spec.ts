@@ -41,21 +41,57 @@ async function setClinicSession(page: Page) {
   ]);
 }
 
-async function expectClinicMobileBottomNav(page: Page, label: string) {
-  const clinicNav = page.locator('[data-clinic-mobile-bottom-nav="true"]');
-  await expect(clinicNav, `${label}: clinic bottom nav visible`).toBeVisible();
+// Unified navigation contract: every clinic module (mobile + desktop) uses the
+// single shared DashboardModuleRail — there is no separate clinic mobile bottom
+// bar and no legacy horizontal tab shell on the main dashboard.
+async function expectClinicModuleRail(
+  page: Page,
+  label: string,
+  activeModule: "operaciones" | "informes" | "logistica" | "perfil" | "tokens",
+) {
+  const rail = page.locator('[data-dashboard-module-rail="true"]');
+  await expect(rail, `${label}: module rail visible`).toBeVisible();
   await expect(
-    clinicNav.locator('[data-clinic-mobile-bottom-nav-item="true"]'),
-    `${label}: clinic bottom nav item count`,
-  ).toHaveCount(6);
+    page.locator('[data-dashboard-pager="module"]'),
+    `${label}: shared module pager present`,
+  ).toBeVisible();
+
+  for (const moduleId of [
+    "operaciones",
+    "informes",
+    "logistica",
+    "perfil",
+    "tokens",
+  ] as const) {
+    await expect(
+      page.locator(`[data-dashboard-module-rail-item="${moduleId}"]`),
+      `${label}: rail exposes ${moduleId}`,
+    ).toHaveCount(1);
+  }
+
+  await expect(
+    page.locator(`[data-dashboard-module-rail-item="${activeModule}"]`),
+    `${label}: active module ${activeModule} marked current`,
+  ).toHaveAttribute("aria-current", "page");
+
+  await expect(
+    rail.locator('[data-dashboard-module-rail-prev="true"]'),
+    `${label}: rail prev control present`,
+  ).toHaveCount(1);
+  await expect(
+    rail.locator('[data-dashboard-module-rail-next="true"]'),
+    `${label}: rail next control present`,
+  ).toHaveCount(1);
+
+  // The removed device-specific navigations must not come back.
+  await expect(
+    page.locator('[data-clinic-mobile-bottom-nav="true"]'),
+    `${label}: legacy clinic bottom nav removed`,
+  ).toHaveCount(0);
   await expect(
     page.locator('[data-admin-mobile-bottom-nav="true"]'),
     `${label}: admin bottom nav absent`,
   ).toHaveCount(0);
-  await expect(
-    page.locator('[data-dashboard-horizontal-nav-shell="true"]'),
-    `${label}: horizontal nav hidden on clinic mobile`,
-  ).toBeHidden();
 }
 
 async function readLayoutContract(page: Page): Promise<LayoutContract> {
@@ -244,7 +280,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await expect(async () => {
       await expect(workspace).toBeVisible();
       await expect(card).toBeVisible();
-      await expectClinicMobileBottomNav(page, viewport.name);
+      await expectClinicModuleRail(page, viewport.name, "informes");
       await expect(mobileList).toBeVisible();
 
       await expect(fullModuleButton).toBeVisible();

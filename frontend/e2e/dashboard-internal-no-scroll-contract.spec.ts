@@ -46,10 +46,10 @@ type ShellCase = {
 
 const SHELLS: ShellCase[] = [
   {
-    label: "clinic dashboard shell",
+    label: "clinic dashboard shell (default operaciones, no hub)",
     surface: "clinic",
     path: "/dashboard",
-    ready: '[data-dashboard-module-hub="true"]',
+    ready: '[data-dashboard-module-workspace="operaciones"]',
   },
   {
     label: "clinic tokens module",

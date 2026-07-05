@@ -7,7 +7,12 @@ type DashboardModuleWorkspaceProps = {
   title: string;
   description?: string;
   moduleId: string;
-  onBack: () => void;
+  /**
+   * Optional "back to overview" control. The clinic workspace omits it — module
+   * navigation is owned by the shared `DashboardModuleRail` and there is no hub
+   * to return to. Admin still provides it to fold back into its module hub.
+   */
+  onBack?: () => void;
   children: ReactNode;
 };
 
@@ -26,16 +31,18 @@ export function DashboardModuleWorkspace({
     >
       <div className="dashboard-workspace-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="Vista general"
-            data-dashboard-module-back-button="true"
-            className="inline-flex min-h-[2.75rem] items-center gap-1.5 rounded-md px-2 text-[0.8125rem] font-medium text-muted-foreground dashboard-btn-interactive hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 shrink-0"
-          >
-            <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
-            <span>Vista general</span>
-          </button>
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Vista general"
+              data-dashboard-module-back-button="true"
+              className="inline-flex min-h-[2.75rem] items-center gap-1.5 rounded-md px-2 text-[0.8125rem] font-medium text-muted-foreground dashboard-btn-interactive hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2 shrink-0"
+            >
+              <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+              <span>Vista general</span>
+            </button>
+          ) : null}
           <div className="min-w-0">
             <h2 className="dashboard-section-heading truncate">{title}</h2>
             {description ? (
