@@ -23,7 +23,6 @@ import { AdminSessionsReadOnlyCard } from "./AdminSessionsReadOnlyCard";
 import { AdminUsersRolesReadOnlyCard } from "./AdminUsersRolesReadOnlyCard";
 import { PasswordChangePanel } from "@/components/dashboard/PasswordChangePanel";
 import { AdminDashboardWorkspaceController } from "./AdminDashboardWorkspaceController";
-import type { AdminModule } from "./AdminDashboardWorkspaceController";
 import { AdminMobileCommandModule } from "./AdminMobileCommandModule";
 import { AdminMobileHealthModule } from "./AdminMobileHealthModule";
 import { AdminMobilePricingModule } from "./AdminMobilePricingModule";
@@ -42,6 +41,7 @@ import {
   type AdminAuditSnapshot,
 } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
+import { parseAdminModule } from "@/features/dashboard/config";
 import { getAdminAccessErrorStatus } from "@/lib/api-error";
 import { formatDateTime } from "@/lib/utils";
 import {
@@ -55,35 +55,6 @@ export const metadata: Metadata = {
   title: "Administración — Portal VETNEB",
   robots: { index: false, follow: false },
 };
-
-const VALID_ADMIN_MODULES: AdminModule[] = [
-  "admin",
-  "admin-report-upload",
-  "admin-health",
-  "admin-clinics",
-  "admin-particular-tokens",
-  "admin-pricing",
-  "admin-sessions",
-  "admin-users-roles",
-  "audit-log",
-  "admin-maintenance",
-];
-
-const ADMIN_MODULE_ALIASES: Partial<Record<string, AdminModule>> = {
-  "admin-upload-report": "admin-report-upload",
-  maintenance: "admin-maintenance",
-};
-
-function parseAdminModule(value: string | undefined): AdminModule | null {
-  if (!value) return null;
-  const alias = ADMIN_MODULE_ALIASES[value];
-  if (alias) {
-    return alias;
-  }
-  return VALID_ADMIN_MODULES.includes(value as AdminModule)
-    ? (value as AdminModule)
-    : null;
-}
 
 function getServiceVariant(
   value: unknown,

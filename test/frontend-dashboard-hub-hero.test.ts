@@ -10,6 +10,8 @@ const CLINIC_CONTROLLER_PATH =
 const ADMIN_CONTROLLER_PATH =
   "frontend/src/app/dashboard/admin/AdminDashboardWorkspaceController.tsx";
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
+const CATALOG_PATH =
+  "frontend/src/features/dashboard/config/dashboardModules.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -122,7 +124,18 @@ test("clinic controller opens directly into a module workspace with the shared r
   // controller always resolves to a real module (operational default).
   assert.ok(source.includes('import { DashboardModuleRail } from "./DashboardModuleRail";'));
   assert.ok(source.includes('<DashboardModuleRail activeModule={activeModule} />'));
-  assert.ok(source.includes('export const DEFAULT_CLINIC_MODULE: ClinicModule = "operaciones";'));
+  // The operational default lives in the config catalog (single source of
+  // truth); the controller imports and re-exports it for compatibility and
+  // always resolves to it.
+  assert.ok(
+    source.includes('import type { ClinicModule } from "@/features/dashboard/config";'),
+  );
+  assert.ok(source.includes('export { DEFAULT_CLINIC_MODULE };'));
+  assert.ok(
+    read(CATALOG_PATH).includes(
+      'export const DEFAULT_CLINIC_MODULE: ClinicModule = "operaciones";',
+    ),
+  );
   assert.ok(source.includes('initialModule ?? DEFAULT_CLINIC_MODULE'));
 
   // The operational stage wrapper contract is preserved.

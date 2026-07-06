@@ -42,48 +42,11 @@ import {
   subscribeAdminModuleActivate,
 } from "@/lib/admin-hub-reset";
 import type { AdminAccessErrorStatus } from "@/lib/api-error";
+import { parseAdminModule } from "@/features/dashboard/config";
+import type { AdminModule } from "@/features/dashboard/config";
 import { AdminAccessErrorState } from "./AdminAccessErrorState";
 
-export type AdminModule =
-  | "admin"
-  | "admin-report-upload"
-  | "admin-health"
-  | "admin-clinics"
-  | "admin-particular-tokens"
-  | "admin-pricing"
-  | "admin-sessions"
-  | "admin-users-roles"
-  | "audit-log"
-  | "admin-maintenance";
-
-const ADMIN_MODULE_VALUES = [
-  "admin",
-  "admin-report-upload",
-  "admin-health",
-  "admin-clinics",
-  "admin-particular-tokens",
-  "admin-pricing",
-  "admin-sessions",
-  "admin-users-roles",
-  "audit-log",
-  "admin-maintenance",
-] as const;
-
-const ADMIN_MODULE_ALIASES: Partial<Record<string, AdminModule>> = {
-  "admin-upload-report": "admin-report-upload",
-  maintenance: "admin-maintenance",
-};
-
-function parseModuleFromUrl(value: string | null): AdminModule | null {
-  if (!value) return null;
-  const alias = ADMIN_MODULE_ALIASES[value];
-  if (alias) {
-    return alias;
-  }
-  return (ADMIN_MODULE_VALUES as readonly string[]).includes(value)
-    ? (value as AdminModule)
-    : null;
-}
+export type { AdminModule };
 
 type AdminWorkspaceSlots = {
   admin: ReactNode;
@@ -202,7 +165,7 @@ export function AdminDashboardWorkspaceController({
     useState(false);
 
   useEffect(() => {
-    const nextModule = parseModuleFromUrl(searchParams.get("module"));
+    const nextModule = parseAdminModule(searchParams.get("module"));
 
     if (previousUrlModule.current !== nextModule) {
       clearAdminAccessError();
@@ -228,7 +191,7 @@ export function AdminDashboardWorkspaceController({
       }
     }
 
-    setActiveModule(parseModuleFromUrl(searchParams.get("module")));
+    setActiveModule(parseAdminModule(searchParams.get("module")));
   }, [searchParams]);
 
   useEffect(() => () => clearAdminAccessError(), []);
@@ -256,7 +219,7 @@ export function AdminDashboardWorkspaceController({
   useEffect(
     () =>
       subscribeAdminModuleActivate((moduleId) => {
-        const parsed = parseModuleFromUrl(moduleId);
+        const parsed = parseAdminModule(moduleId);
         if (!parsed) return;
         clearAdminAccessError();
         pendingNavigationIntent.current = { target: parsed };
@@ -274,7 +237,7 @@ export function AdminDashboardWorkspaceController({
   useEffect(() => {
     if (hasRestoredLastModule.current || hasManuallyReturnedToHub) return;
     if (searchParams.get("module")) return;
-    const lastModule = parseModuleFromUrl(
+    const lastModule = parseAdminModule(
       readDashboardLastModule(ADMIN_LAST_MODULE_STORAGE_KEY),
     );
     if (!lastModule) return;

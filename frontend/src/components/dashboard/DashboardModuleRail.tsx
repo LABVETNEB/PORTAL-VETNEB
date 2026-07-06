@@ -14,6 +14,7 @@ import { PublicRouteControl } from "@/components/public/PublicRouteControl";
 import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { CLINIC_MODULE_NAV_LABELS } from "@/features/dashboard/config";
 import type { ClinicModule } from "./ClinicDashboardWorkspaceController";
 
 /**
@@ -42,38 +43,27 @@ type ClinicModuleRailItem = {
   icon: typeof LayoutDashboard;
 };
 
-export const CLINIC_MODULE_RAIL_ITEMS: ClinicModuleRailItem[] = [
-  {
-    moduleId: "operaciones",
-    label: "Operaciones",
-    shortLabel: "Ops",
-    icon: LayoutDashboard,
-  },
-  {
-    moduleId: "informes",
-    label: "Informes",
-    shortLabel: "Info",
-    icon: FileText,
-  },
-  {
-    moduleId: "logistica",
-    label: "Logística",
-    shortLabel: "Log",
-    icon: Route,
-  },
-  {
-    moduleId: "perfil",
-    label: "Perfil",
-    shortLabel: "Perfil",
-    icon: Building2,
-  },
-  {
-    moduleId: "tokens",
-    label: "Tokens",
-    shortLabel: "Tokens",
-    icon: KeyRound,
-  },
-];
+// Icons are React components, so they stay local; the id/label/shortLabel/order
+// come from the shared catalog (config/dashboardModules) so this rail and the
+// mobile bottom-nav never drift apart on module labels or ordering.
+const CLINIC_MODULE_RAIL_ICONS: Record<
+  ClinicModule,
+  ClinicModuleRailItem["icon"]
+> = {
+  operaciones: LayoutDashboard,
+  informes: FileText,
+  logistica: Route,
+  perfil: Building2,
+  tokens: KeyRound,
+};
+
+export const CLINIC_MODULE_RAIL_ITEMS: ClinicModuleRailItem[] =
+  CLINIC_MODULE_NAV_LABELS.map((item) => ({
+    moduleId: item.moduleId,
+    label: item.label,
+    shortLabel: item.shortLabel,
+    icon: CLINIC_MODULE_RAIL_ICONS[item.moduleId],
+  }));
 
 function moduleHref(moduleId: ClinicModule): string {
   return `${ROUTES.dashboard}?module=${moduleId}`;

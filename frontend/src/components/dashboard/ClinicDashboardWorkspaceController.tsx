@@ -14,35 +14,14 @@ import {
   subscribeClinicHubReset,
   subscribeClinicModuleActivate,
 } from "@/lib/clinic-hub-reset";
+import {
+  DEFAULT_CLINIC_MODULE,
+  parseClinicModule,
+} from "@/features/dashboard/config";
+import type { ClinicModule } from "@/features/dashboard/config";
 
-export type ClinicModule =
-  | "operaciones"
-  | "informes"
-  | "logistica"
-  | "perfil"
-  | "tokens";
-
-const CLINIC_MODULE_VALUES = [
-  "operaciones",
-  "informes",
-  "logistica",
-  "perfil",
-  "tokens",
-] as const;
-
-/**
- * Operational default. The clinic dashboard has NO module hub/home: `/dashboard`
- * resolves straight into this workspace, and any legacy "back to overview"
- * intent (hub reset) also lands here instead of a landing screen.
- */
-export const DEFAULT_CLINIC_MODULE: ClinicModule = "operaciones";
-
-function parseModuleFromUrl(value: string | null): ClinicModule | null {
-  if (!value) return null;
-  return (CLINIC_MODULE_VALUES as readonly string[]).includes(value)
-    ? (value as ClinicModule)
-    : null;
-}
+export type { ClinicModule };
+export { DEFAULT_CLINIC_MODULE };
 
 type ClinicWorkspaceSlots = {
   operaciones: ReactNode;
@@ -104,7 +83,7 @@ export function ClinicDashboardWorkspaceController({
   useEffect(() => {
     // No module in the URL means the operational default — never a hub.
     const nextModule =
-      parseModuleFromUrl(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE;
+      parseClinicModule(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE;
 
     // A sync activation swaps the stage before its URL commit. Under load the
     // SUPERSEDED previous navigation can still commit after that optimistic
@@ -129,7 +108,7 @@ export function ClinicDashboardWorkspaceController({
   useEffect(
     () =>
       subscribeClinicModuleActivate((moduleId) => {
-        const parsed = parseModuleFromUrl(moduleId);
+        const parsed = parseClinicModule(moduleId);
         if (!parsed) return;
         pendingNavigationIntent.current = { target: parsed };
         setHasManuallyReturnedToHub(false);
@@ -161,7 +140,7 @@ export function ClinicDashboardWorkspaceController({
   useEffect(() => {
     if (hasRestoredLastModule.current || hasManuallyReturnedToHub) return;
     if (searchParams.get("module")) return;
-    const lastModule = parseModuleFromUrl(
+    const lastModule = parseClinicModule(
       readDashboardLastModule(CLINIC_LAST_MODULE_STORAGE_KEY),
     );
     if (!lastModule) return;
