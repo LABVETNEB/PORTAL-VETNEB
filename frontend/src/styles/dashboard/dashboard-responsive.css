@@ -1,0 +1,297 @@
+/* dashboard-responsive.css
+ * Dashboard responsive/adaptive layer: touch ergonomics, keyboard a11y, viewport-zoom density tiers, inline master-detail.
+ * Extracted verbatim from src/app/globals.css (PR-CSS-1). No rule changes. */
+
+/* dashboard-responsive-touch-ergonomics:start */
+@layer components {
+  .dashboard-table-responsive {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+/* dashboard-responsive-touch-ergonomics:end */
+
+/* dashboard-accessibility-keyboard-hardening:start */
+@layer components {
+  /* Programmatic-focus containers (tabIndex=-1 dialogs/panels) must not show
+     a browser-default outline — interactive children still get focus-visible rings. */
+  .dashboard-focus-trap-container:focus {
+    outline: none;
+  }
+
+  /* Pagination controls: clearly signal disabled state beyond opacity */
+  [aria-disabled="true"].dashboard-pagination-btn,
+  button:disabled.dashboard-pagination-btn {
+    pointer-events: none;
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+/* dashboard-accessibility-keyboard-hardening:end */
+
+/* dashboard-viewport-zoom-adaptability:start */
+/*
+  Viewport-aware Adaptive App Shell — global density layer for BOTH dashboards
+  (Clínica + Administración).
+
+  PROBLEM: the fixed App Shell (`h-dvh overflow-hidden` + `main overflow-hidden`,
+  contract PR-A/#1014) pins the screen correctly, but every padding/gap/min-height
+  below it was authored in fixed `rem` units. The *effective viewport* shrinks as
+  browser zoom rises (a 1920×1080 panel at 150% behaves like ~1280×720 CSS px), so
+  at 100% zoom those fixed measures looked oversized/dense and the layout only felt
+  balanced when the user manually dropped Chrome to 50% (which inflates the
+  effective viewport). The shell adapted *position*, not *density*.
+
+  FIX: a density-token layer scoped to `.dashboard-app-shell`. Tokens are fluid via
+  `clamp()` keyed to width (`vw`) and to the effective viewport height (`vh`), then
+  step down through `@media (max-height/-width)` compact tiers. Because browser zoom
+  changes the CSS viewport height, the height media queries make the shell
+  auto-compact under zoom WITHOUT manual zoom, `zoom` CSS, or a global font-size
+  shrink. Tokens are applied through higher-specificity `.dashboard-app-shell …`
+  selectors, so the pinned `@apply`/className contracts are never edited and the
+  no-scroll contract is preserved — every reduction only helps content fit.
+*/
+@layer components {
+  .dashboard-app-shell {
+    /* Chrome (documented; already width-adaptive via the pinned sidebar rail /
+       2xl expand and the topbar min-h-[4.5rem] floor). */
+    --dash-header-h: 4.5rem;
+    --dash-sidebar-rail: 4.5rem;
+    --dash-sidebar-expanded: 15rem;
+
+    /* Page frame: outer padding + vertical rhythm between top-level sections. */
+    --dash-pad-x: clamp(0.75rem, 0.45rem + 1vw, 2rem);
+    --dash-pad-y: clamp(0.6rem, 0.4rem + 0.7vh, 1.5rem);
+    --dash-rhythm: clamp(0.6rem, 0.4rem + 0.7vh, 1.5rem);
+    --dash-frame-inset-inline: var(--dash-pad-x);
+    --dash-frame-inset-block-start: var(--dash-pad-y);
+    --dash-frame-inset-block-end: var(--dash-pad-x);
+
+    /* Panels / cards: gap between panels, internal card padding, master/detail
+       floor (replaces the rigid 18rem that forced 36rem in single-column). */
+    --dash-gap: clamp(0.55rem, 0.35rem + 0.55vh, 1rem);
+    --dash-card-pad: clamp(0.65rem, 0.45rem + 0.5vw, 1rem);
+    --dash-panel-min: clamp(6rem, 1rem + 18vh, 18rem);
+
+    /* Controls: compact filter/toolbar control + tab heights. */
+    --dash-control-h: clamp(2rem, 1.75rem + 0.6vh, 2.5rem);
+    --dash-tab-h: clamp(1.9rem, 1.6rem + 0.7vh, 2.25rem);
+
+    /* Hub + lists density. */
+    --dash-cockpit-gap: clamp(0.5rem, 0.3rem + 0.6vh, 1.15rem);
+    --dash-list-pad-y: clamp(0.4rem, 0.3rem + 0.25vh, 0.65rem);
+    --dash-row-h: clamp(2.5rem, 2.2rem + 0.5vh, 3rem);
+
+    /* Secondary text size used only by the compact tiers. */
+    --dash-secondary-font: 0.75rem;
+  }
+
+  /* Compact tier — effective height of a common laptop at 100% zoom
+     (1366×768 / 1280×720 / 1536×864 effective). */
+  @media (max-height: 860px) {
+    .dashboard-app-shell {
+      --dash-pad-y: clamp(0.5rem, 0.3rem + 0.5vh, 1rem);
+      --dash-rhythm: clamp(0.5rem, 0.3rem + 0.5vh, 0.95rem);
+      --dash-gap: clamp(0.5rem, 0.3rem + 0.45vh, 0.85rem);
+      --dash-card-pad: clamp(0.6rem, 0.45rem + 0.4vw, 0.9rem);
+      --dash-panel-min: clamp(5rem, 0.5rem + 16vh, 13rem);
+      --dash-cockpit-gap: clamp(0.5rem, 0.3rem + 0.5vh, 0.9rem);
+      --dash-row-h: clamp(2.35rem, 2.1rem + 0.4vh, 2.75rem);
+    }
+  }
+
+  /* Dense tier — small laptops / higher zoom. */
+  @media (max-height: 760px) {
+    .dashboard-app-shell {
+      --dash-header-h: 4rem;
+      --dash-pad-y: clamp(0.45rem, 0.3rem + 0.4vh, 0.8rem);
+      --dash-rhythm: clamp(0.45rem, 0.3rem + 0.4vh, 0.8rem);
+      --dash-gap: clamp(0.45rem, 0.3rem + 0.4vh, 0.75rem);
+      --dash-panel-min: clamp(4.5rem, 0.5rem + 14vh, 11rem);
+      --dash-tab-h: clamp(1.85rem, 1.6rem + 0.5vh, 2.1rem);
+      --dash-list-pad-y: clamp(0.35rem, 0.25rem + 0.2vh, 0.55rem);
+      --dash-row-h: clamp(2.2rem, 2rem + 0.35vh, 2.5rem);
+    }
+  }
+
+  /* Ultra-compact tier — strong zoom on a 1080p panel (~1280×720 effective). */
+  @media (max-height: 680px) {
+    .dashboard-app-shell {
+      --dash-header-h: 3.6rem;
+      --dash-pad-y: 0.4rem;
+      --dash-rhythm: 0.4rem;
+      --dash-gap: 0.4rem;
+      --dash-card-pad: 0.7rem;
+      --dash-panel-min: 4rem;
+      --dash-cockpit-gap: 0.45rem;
+      --dash-secondary-font: 0.7rem;
+      --dash-row-h: 2.1rem;
+    }
+  }
+
+  /* Narrow effective width (high zoom on common laptops) keeps page padding sane. */
+  @media (max-width: 1280px) {
+    .dashboard-app-shell {
+      --dash-pad-x: clamp(0.7rem, 0.4rem + 0.8vw, 1.5rem);
+    }
+  }
+
+  /* ── Apply tokens (higher specificity than the base utility rules) ───────── */
+  .dashboard-app-shell .dashboard-main {
+    padding-inline: var(--dash-frame-inset-inline);
+    padding-block-start: var(--dash-frame-inset-block-start);
+    padding-block-end: var(--dash-frame-inset-block-end);
+  }
+
+  .dashboard-app-shell .dashboard-main > :not([hidden]) ~ :not([hidden]) {
+    margin-block-start: var(--dash-rhythm);
+  }
+
+  /* The persistent module stage is now main's single flex child and owns the
+     hub page-header <-> content rhythm, so mirror the adaptive gap token here. */
+  .dashboard-app-shell
+    [data-dashboard-module-stage="true"]
+    > :not([hidden])
+    ~ :not([hidden]) {
+    margin-block-start: var(--dash-rhythm);
+  }
+
+  .dashboard-app-shell [data-dashboard-module-stage="true"] {
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 0;
+    max-width: 100%;
+    max-height: 100%;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .dashboard-app-shell .dashboard-cockpit {
+    gap: var(--dash-cockpit-gap);
+  }
+
+  .dashboard-app-shell .dashboard-module-surface,
+  .dashboard-app-shell .dashboard-module-tabs {
+    gap: var(--dash-gap);
+  }
+
+  .dashboard-app-shell .dashboard-module-tab {
+    min-height: var(--dash-tab-h);
+  }
+
+  .dashboard-app-shell .dashboard-master-panel,
+  .dashboard-app-shell .dashboard-detail-panel {
+    min-height: var(--dash-panel-min);
+  }
+
+  .dashboard-app-shell .dashboard-list-row {
+    padding-block: var(--dash-list-pad-y);
+  }
+
+  /* Compact-only chrome + secondary-text density. Targets the topbar via its
+     existing data hook (no className edit) and trims secondary descriptions
+     only — never a global font-size reduction. */
+  @media (max-height: 760px) {
+    .dashboard-app-shell [data-dashboard-topbar-polish="true"] {
+      min-height: var(--dash-header-h);
+      padding-block: 0.4rem;
+    }
+
+    .dashboard-app-shell .dashboard-section-description {
+      font-size: var(--dash-secondary-font);
+    }
+  }
+}
+/* dashboard-viewport-zoom-adaptability:end */
+
+/* dashboard-global-inline-adaptive:start */
+/*
+  Global inline master-detail + adaptive overflow guard for BOTH dashboards
+  (Administración + Clínica).
+
+  Builds on the no-scroll App Shell (PR-A/#1014) and the density layer
+  (#1017 / dashboard-viewport-zoom-adaptability). Goal: the detail opens INLINE
+  inside the selected list item (no rigid lateral panel) and every dashboard
+  surface adapts to the effective viewport/zoom without overlapping, without
+  horizontal overflow and without leaving the page. Reusable classes scoped to
+  `.dashboard-app-shell`; the pinned className/@apply contracts are not edited,
+  so the no-scroll contract is preserved — every rule only helps content fit.
+*/
+@layer components {
+  /* Inline master-detail list: the list is the only column; the selected item
+     expands its detail within the list flow. The list body is bounded and
+     internally scrollable so the expanded detail is always reachable while the
+     shell stays no-scroll (an inner scroll never grows `main`). */
+  .dashboard-inline-list {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .dashboard-inline-scroll {
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
+
+  /* Inline detail card: expands under the selected row, fluid to the available
+     width; long values wrap instead of forcing a horizontal scroll. */
+  .dashboard-inline-detail {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-wrap: break-word;
+  }
+
+  /* ── Global no-horizontal-overflow guard (both dashboards) ───────────────── */
+  /* Cards/surfaces shrink in flex/grid instead of forcing width; media and
+     tables never exceed their container. */
+  .dashboard-app-shell :is(.dashboard-surface, .surface-soft, .clinical-muted-band) {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dashboard-app-shell :is(img, svg, video, table, pre) {
+    max-width: 100%;
+  }
+
+  /* Opt-in wrapper: a wide table scrolls inside its own card, never the page. */
+  .dashboard-table-scroll {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  /* Data tables own the remaining card height. Their existing table wrapper
+     handles local overflow, so long audit values cannot grow over pagination. */
+  .dashboard-app-shell .dashboard-fitted-table {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .dashboard-app-shell .dashboard-fitted-table > div {
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .dashboard-app-shell .dashboard-compact-pager {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+
+  /* Chips compact with the effective viewport (browser zoom) so estados/etiquetas
+     never overflow their row. Scoped to dashboards only. */
+  @media (max-height: 760px), (max-width: 1280px) {
+    .dashboard-app-shell .clinical-pill {
+      font-size: var(--dash-secondary-font);
+    }
+  }
+}
+/* dashboard-global-inline-adaptive:end */
