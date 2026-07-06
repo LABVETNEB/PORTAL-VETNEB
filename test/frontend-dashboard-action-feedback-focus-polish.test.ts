@@ -5,9 +5,9 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { isClean7aAllowedDependencyChange } from "./helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
+import { readDashboardCssSource } from "./helpers/read-dashboard-css-source.ts";
 
 const BUTTON_PATH = "frontend/src/components/ui/button.tsx";
-const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 const ADMIN_CLINICS_CARD_PATH =
   "frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx";
 const ADMIN_FAILED_LOGINS_CARD_PATH =
@@ -62,7 +62,7 @@ test("PR-4 button base class keeps focus-visible and disabled contracts unchange
 // ── globals.css ──────────────────────────────────────────────────────────────
 
 test("PR-4 globals.css has dashboard-action-feedback-focus-polish section delimiters", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes("/* dashboard-action-feedback-focus-polish:start */"),
     "globals.css must have dashboard-action-feedback-focus-polish:start",
@@ -74,7 +74,7 @@ test("PR-4 globals.css has dashboard-action-feedback-focus-polish section delimi
 });
 
 test("PR-4 globals.css aria-busy button gets cursor-wait", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes('button[aria-busy="true"]'),
     "globals.css must target button[aria-busy=true]",
@@ -86,7 +86,7 @@ test("PR-4 globals.css aria-busy button gets cursor-wait", () => {
 });
 
 test("PR-4 globals.css defines dashboard-option-row for listbox focus", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes(".dashboard-option-row"),
     "globals.css must define .dashboard-option-row",

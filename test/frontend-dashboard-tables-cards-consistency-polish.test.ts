@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readDashboardCssSource } from "./helpers/read-dashboard-css-source.ts";
 
-const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 const SESSIONS_CARD_PATH = "frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx";
 const FAILED_LOGINS_CARD_PATH = "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx";
 const USERS_ROLES_CARD_PATH = "frontend/src/app/dashboard/admin/AdminUsersRolesReadOnlyCard.tsx";
@@ -19,7 +19,7 @@ function read(relativePath: string): string {
 // ── CSS section markers ──────────────────────────────────────────────────────
 
 test("PR-7 globals.css has dashboard-tables-cards-consistency-polish section markers", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes("/* dashboard-tables-cards-consistency-polish:start */"),
     "globals.css must have dashboard-tables-cards-consistency-polish:start comment",
@@ -33,7 +33,7 @@ test("PR-7 globals.css has dashboard-tables-cards-consistency-polish section mar
 // ── New CSS classes ──────────────────────────────────────────────────────────
 
 test("PR-7 globals.css defines .dashboard-table-pagination utility", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   const section = source.slice(
     source.indexOf("/* dashboard-tables-cards-consistency-polish:start */"),
     source.indexOf("/* dashboard-tables-cards-consistency-polish:end */") + 1,
@@ -49,7 +49,7 @@ test("PR-7 globals.css defines .dashboard-table-pagination utility", () => {
 });
 
 test("PR-7 globals.css defines .dashboard-table-pagination-controls utility", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   const section = source.slice(
     source.indexOf("/* dashboard-tables-cards-consistency-polish:start */"),
     source.indexOf("/* dashboard-tables-cards-consistency-polish:end */") + 1,
@@ -65,7 +65,7 @@ test("PR-7 globals.css defines .dashboard-table-pagination-controls utility", ()
 });
 
 test("PR-7 globals.css defines .dashboard-card-header-border utility", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   const section = source.slice(
     source.indexOf("/* dashboard-tables-cards-consistency-polish:start */"),
     source.indexOf("/* dashboard-tables-cards-consistency-polish:end */") + 1,
@@ -77,7 +77,7 @@ test("PR-7 globals.css defines .dashboard-card-header-border utility", () => {
 });
 
 test("PR-7 globals.css defines .dashboard-filter-stats-grid-5 variant", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   const section = source.slice(
     source.indexOf("/* dashboard-tables-cards-consistency-polish:start */"),
     source.indexOf("/* dashboard-tables-cards-consistency-polish:end */") + 1,

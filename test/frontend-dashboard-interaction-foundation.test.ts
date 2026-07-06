@@ -9,8 +9,8 @@ import {
   isClean7aAllowedDependencyFile,
 } from "./helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
+import { readDashboardCssSource } from "./helpers/read-dashboard-css-source.ts";
 
-const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 const DASHBOARD_MODULE_HUB_PATH =
   "frontend/src/components/dashboard/DashboardModuleHub.tsx";
 const DASHBOARD_MODULE_WORKSPACE_PATH =
@@ -29,7 +29,7 @@ function read(relativePath: string): string {
 // ── Motion tokens in globals.css ────────────────────────────────────────────
 
 test("PR-1 globals.css defines --motion-fast token", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes("--motion-fast: 120ms;"),
     "globals.css must define --motion-fast: 120ms",
@@ -37,7 +37,7 @@ test("PR-1 globals.css defines --motion-fast token", () => {
 });
 
 test("PR-1 globals.css defines --motion-base token", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes("--motion-base: 180ms;"),
     "globals.css must define --motion-base: 180ms",
@@ -45,7 +45,7 @@ test("PR-1 globals.css defines --motion-base token", () => {
 });
 
 test("PR-1 globals.css defines --motion-slow token", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes("--motion-slow: 280ms;"),
     "globals.css must define --motion-slow: 280ms",
@@ -53,7 +53,7 @@ test("PR-1 globals.css defines --motion-slow token", () => {
 });
 
 test("PR-1 globals.css defines --ease-out-soft token", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes("--ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);"),
     "globals.css must define --ease-out-soft easing",
@@ -63,7 +63,7 @@ test("PR-1 globals.css defines --ease-out-soft token", () => {
 // ── Interaction utility classes in globals.css ───────────────────────────────
 
 test("PR-1 globals.css defines .dashboard-card-interactive with motion tokens", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes(".dashboard-card-interactive {"),
     "globals.css must define .dashboard-card-interactive",
@@ -79,7 +79,7 @@ test("PR-1 globals.css defines .dashboard-card-interactive with motion tokens", 
 });
 
 test("PR-1 globals.css defines .dashboard-card-interactive active press state", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes(".dashboard-card-interactive:active {"),
     ".dashboard-card-interactive must define :active state",
@@ -91,7 +91,7 @@ test("PR-1 globals.css defines .dashboard-card-interactive active press state", 
 });
 
 test("PR-1 globals.css defines .dashboard-btn-interactive with motion tokens", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes(".dashboard-btn-interactive {"),
     "globals.css must define .dashboard-btn-interactive",
@@ -103,7 +103,7 @@ test("PR-1 globals.css defines .dashboard-btn-interactive with motion tokens", (
 });
 
 test("PR-1 globals.css defines .dashboard-btn-interactive active press state", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes(".dashboard-btn-interactive:active {"),
     ".dashboard-btn-interactive must define :active state",
@@ -115,7 +115,7 @@ test("PR-1 globals.css defines .dashboard-btn-interactive active press state", (
 });
 
 test("PR-1 globals.css defines .dashboard-row-interactive for future list rows", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes(".dashboard-row-interactive {"),
     "globals.css must define .dashboard-row-interactive",
@@ -123,7 +123,7 @@ test("PR-1 globals.css defines .dashboard-row-interactive for future list rows",
 });
 
 test("PR-1 globals.css defines .dashboard-disabled-state", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes(".dashboard-disabled-state {"),
     "globals.css must define .dashboard-disabled-state",
@@ -147,7 +147,7 @@ function interactionFoundationSection(source: string): string {
 }
 
 test("PR-1 globals.css reduced-motion overrides dashboard-card-interactive transition", () => {
-  const section = interactionFoundationSection(read(GLOBALS_CSS_PATH));
+  const section = interactionFoundationSection(readDashboardCssSource());
   const rmIndex = section.indexOf("@media (prefers-reduced-motion: reduce)");
   assert.ok(rmIndex >= 0, "interaction-foundation must have a prefers-reduced-motion block");
 
@@ -167,7 +167,7 @@ test("PR-1 globals.css reduced-motion overrides dashboard-card-interactive trans
 });
 
 test("PR-1 globals.css reduced-motion removes active transform from interaction classes", () => {
-  const section = interactionFoundationSection(read(GLOBALS_CSS_PATH));
+  const section = interactionFoundationSection(readDashboardCssSource());
   const rmIndex = section.indexOf("@media (prefers-reduced-motion: reduce)");
   const rmSection = section.slice(rmIndex);
   assert.ok(
@@ -185,7 +185,7 @@ test("PR-1 globals.css reduced-motion removes active transform from interaction 
 });
 
 test("PR-1 globals.css interaction-foundation section is delimited by comments", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes("/* dashboard-interaction-foundation:start */"),
     "globals.css must have dashboard-interaction-foundation:start comment",
