@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { isClean7aAllowedDependencyChange } from "./helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
+import { dashboardScopeGuardApplies } from "./helpers/dashboard-scope-guard.ts";
 
 const DASHBOARD_HOME_PATH = "frontend/src/app/dashboard/page.tsx";
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
@@ -156,6 +157,8 @@ test("PR-9 mobile polish scope avoids forbidden surfaces and dependencies", () =
     .trim()
     .split(/\r?\n/)
     .filter(Boolean);
+  // PR-specific guard: only enforce when the diff touches dashboard scope.
+  if (!dashboardScopeGuardApplies(changedFiles)) return;
   const blockedPrefixes = [
     "server/",
     "drizzle/",

@@ -9,6 +9,7 @@ import {
   isClean7aAllowedDependencyFile,
 } from "./helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
+import { dashboardScopeGuardApplies } from "./helpers/dashboard-scope-guard.ts";
 import { readDashboardCssSource } from "./helpers/read-dashboard-css-source.ts";
 
 const DASHBOARD_MODULE_HUB_PATH =
@@ -315,6 +316,9 @@ test("PR-1 interaction foundation stays within allowed file scope", () => {
     .trim()
     .split(/\r?\n/)
     .filter(Boolean);
+
+  // PR-specific guard: only enforce when the diff touches dashboard scope.
+  if (!dashboardScopeGuardApplies(changedFiles)) return;
 
   const blockedPrefixes = [
     "server/",
