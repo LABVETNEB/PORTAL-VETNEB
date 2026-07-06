@@ -33,9 +33,19 @@ import {
   type RoutePlanningVisit,
 } from "./lib/logistics/route-planning.ts";
 import { normalizeGenerateHeuristicFieldVisitIds } from "./features/logistics/domain/route-plan-field-visits.ts";
+import {
+  LOGISTICS_DEFAULT_LIMIT,
+  LOGISTICS_MAX_LIMIT,
+  normalizeLogisticsLimit,
+  normalizeLogisticsOffset,
+} from "./features/logistics/domain/pagination.ts";
 
-export const LOGISTICS_DEFAULT_LIMIT = 50;
-export const LOGISTICS_MAX_LIMIT = 100;
+export {
+  LOGISTICS_DEFAULT_LIMIT,
+  LOGISTICS_MAX_LIMIT,
+  normalizeLogisticsLimit,
+  normalizeLogisticsOffset,
+};
 
 export type FieldVisit = typeof fieldVisits.$inferSelect;
 export type NewFieldVisit = typeof fieldVisits.$inferInsert;
@@ -294,28 +304,6 @@ export type RoutePlanLifecycleTransitionResult =
       reason: "not_found" | "invalid_transition";
       currentStatus?: RoutePlanStatus;
     };
-
-export function normalizeLogisticsLimit(
-  value: number | null | undefined,
-  defaultLimit = LOGISTICS_DEFAULT_LIMIT,
-  maxLimit = LOGISTICS_MAX_LIMIT,
-): number {
-  if (!Number.isInteger(value) || value == null || value <= 0) {
-    return defaultLimit;
-  }
-
-  return Math.min(value, maxLimit);
-}
-
-export function normalizeLogisticsOffset(
-  value: number | null | undefined,
-): number {
-  if (!Number.isInteger(value) || value == null || value < 0) {
-    return 0;
-  }
-
-  return value;
-}
 
 export async function createFieldVisit(
   input: CreateFieldVisitInput,
