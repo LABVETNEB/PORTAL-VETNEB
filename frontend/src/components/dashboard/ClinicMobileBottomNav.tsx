@@ -23,25 +23,31 @@ import {
 } from "@/lib/dashboard-last-module";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { CLINIC_MODULE_NAV_LABELS } from "@/features/dashboard/config";
 import type { ClinicModule } from "./ClinicDashboardWorkspaceController";
+
+// Icons are React components, so they stay local; the id/label/shortLabel/order
+// come from the shared catalog (config/dashboardModules) so this bottom-nav and
+// the module rail never drift apart on module labels or ordering.
+const CLINIC_BOTTOM_NAV_ICONS: Record<ClinicModule, typeof Home> = {
+  operaciones: LayoutDashboard,
+  informes: FileText,
+  logistica: Route,
+  perfil: Building2,
+  tokens: KeyRound,
+};
 
 const CLINIC_DESTINATIONS: Array<{
   label: string;
   shortLabel: string;
   moduleId: ClinicModule;
   icon: typeof Home;
-}> = [
-  {
-    label: "Operaciones",
-    shortLabel: "Ops",
-    moduleId: "operaciones",
-    icon: LayoutDashboard,
-  },
-  { label: "Informes", shortLabel: "Info", moduleId: "informes", icon: FileText },
-  { label: "Logística", shortLabel: "Log", moduleId: "logistica", icon: Route },
-  { label: "Perfil", shortLabel: "Perfil", moduleId: "perfil", icon: Building2 },
-  { label: "Tokens", shortLabel: "Tokens", moduleId: "tokens", icon: KeyRound },
-];
+}> = CLINIC_MODULE_NAV_LABELS.map((item) => ({
+  label: item.label,
+  shortLabel: item.shortLabel,
+  moduleId: item.moduleId,
+  icon: CLINIC_BOTTOM_NAV_ICONS[item.moduleId],
+}));
 
 function parseClinicModuleFromLocation(): ClinicModule | null {
   if (typeof window === "undefined") return null;

@@ -14,6 +14,8 @@ const ADMIN_AUDIT_FILTER_PATH =
   "frontend/src/app/dashboard/admin/AdminAuditFilterBar.tsx";
 const ADMIN_AUDIT_SHARED_PATH =
   "frontend/src/app/dashboard/admin/admin-audit-shared.ts";
+const CATALOG_PATH =
+  "frontend/src/features/dashboard/config/dashboardModules.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -337,13 +339,23 @@ test("AdminDashboardWorkspaceController syncs module from URL with useSearchPara
 
   assert.ok(source.includes('useSearchParams'));
   assert.ok(source.includes('useEffect'));
-  assert.ok(source.includes('const ADMIN_MODULE_VALUES = ['));
-  assert.ok(source.includes('function parseModuleFromUrl(value: string | null): AdminModule | null'));
+  // The admin module list + alias-aware parse are the single source of truth in
+  // the config catalog; the controller consumes the shared parse helper instead
+  // of a locally re-declared ADMIN_MODULE_VALUES / parseModuleFromUrl.
+  assert.ok(
+    source.includes('import { parseAdminModule } from "@/features/dashboard/config";'),
+  );
   assert.ok(source.includes('searchParams.get("module")'));
-  assert.ok(source.includes('setActiveModule(parseModuleFromUrl(searchParams.get("module")));'));
+  assert.ok(
+    source.includes('setActiveModule(parseAdminModule(searchParams.get("module")));'),
+  );
   assert.ok(source.includes('[searchParams]'));
   assert.ok(source.includes('from "next/navigation"'));
   assert.ok(source.includes('useRouter, useSearchParams'));
+
+  const catalog = read(CATALOG_PATH);
+  assert.ok(catalog.includes('export const ADMIN_MODULE_IDS = ['));
+  assert.ok(catalog.includes('export function parseAdminModule('));
 });
 
 test("admin page wraps AdminDashboardWorkspaceController in Suspense for useSearchParams", () => {

@@ -13,6 +13,8 @@ const HORIZONTAL_NAV_PATH =
   "frontend/src/components/dashboard/DashboardHorizontalNav.tsx";
 const MOBILE_BOTTOM_NAV_PATH =
   "frontend/src/components/dashboard/ClinicMobileBottomNav.tsx";
+const CATALOG_PATH =
+  "frontend/src/features/dashboard/config/dashboardModules.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -46,11 +48,16 @@ test("/dashboard resolves to the operational default module (operaciones)", () =
   const page = read(PAGE_PATH);
   const controller = read(CONTROLLER_PATH);
 
+  // The operational default is the single source of truth in the config
+  // catalog; the controller imports and re-exports it (compat) and resolves to
+  // it, so `/dashboard` still opens straight into operaciones.
+  const catalog = read(CATALOG_PATH);
   assert.ok(
-    controller.includes(
+    catalog.includes(
       'export const DEFAULT_CLINIC_MODULE: ClinicModule = "operaciones";',
     ),
   );
+  assert.ok(controller.includes("export { DEFAULT_CLINIC_MODULE };"));
   // Server render already opens the default (no client-only flash to a hub).
   assert.ok(
     page.includes(
@@ -61,7 +68,7 @@ test("/dashboard resolves to the operational default module (operaciones)", () =
   assert.ok(controller.includes("initialModule ?? DEFAULT_CLINIC_MODULE"));
   assert.ok(
     controller.includes(
-      'parseModuleFromUrl(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE',
+      'parseClinicModule(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE',
     ),
   );
 });
@@ -74,6 +81,12 @@ test("clinic deep links (?module=) still drive the active module", () => {
 
   assert.ok(page.includes("parseClinicModule(resolvedSearchParams.module)"));
   assert.ok(controller.includes('searchParams.get("module")'));
+  // The canonical clinic module list is the single source of truth in the
+  // config catalog; the route + controller drive the active module through the
+  // shared `parseClinicModule` helper instead of a re-declared list.
+  const catalog = read(CATALOG_PATH);
+  assert.ok(catalog.includes("export const CLINIC_MODULE_IDS = ["));
+  assert.ok(catalog.includes("export function parseClinicModule("));
   for (const moduleId of [
     "operaciones",
     "informes",
@@ -82,8 +95,8 @@ test("clinic deep links (?module=) still drive the active module", () => {
     "tokens",
   ]) {
     assert.ok(
-      controller.includes(`"${moduleId}"`),
-      `controller must know module ${moduleId}`,
+      catalog.includes(`"${moduleId}"`),
+      `catalog must know module ${moduleId}`,
     );
   }
 });
@@ -122,7 +135,17 @@ test("DashboardModuleRail is the single shared module navigation/pager", () => {
   assert.equal(/from "next\/link"/.test(rail), false);
   assert.equal(/<a\s/.test(rail), false);
 
-  // Every clinic module is reachable from the single rail via ?module=.
+  // Every clinic module is reachable from the single rail via ?module=. The
+  // rail derives its items (id/label/shortLabel/order) from the shared config
+  // catalog and keeps only its local icon map, so the module list is declared
+  // once and can never drift from the mobile bottom-nav.
+  assert.ok(
+    rail.includes(
+      'import { CLINIC_MODULE_NAV_LABELS } from "@/features/dashboard/config";',
+    ),
+  );
+  assert.ok(rail.includes("CLINIC_MODULE_NAV_LABELS.map("));
+  const catalog = read(CATALOG_PATH);
   for (const moduleId of [
     "operaciones",
     "informes",
@@ -131,8 +154,8 @@ test("DashboardModuleRail is the single shared module navigation/pager", () => {
     "tokens",
   ]) {
     assert.ok(
-      rail.includes(`moduleId: "${moduleId}"`),
-      `rail must list module ${moduleId}`,
+      catalog.includes(`moduleId: "${moduleId}"`),
+      `catalog must list module ${moduleId}`,
     );
   }
 });

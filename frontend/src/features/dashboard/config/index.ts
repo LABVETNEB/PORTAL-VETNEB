@@ -9,8 +9,9 @@
  *
  * Boundary rule: no React imports — pure data/config only.
  *
- * Empty on purpose: PR-PRES-2 only draws the architecture boundary; the real
- * catalog exports land in a later PRES PR (see the plan in
- * docs/implementation/dashboard-presentation-boundaries.md).
+ * PR-PRES-3 lands the first real catalog: the per-role module registry
+ * (canonical ids/order, admin aliases, clinic default, pure parse helpers and
+ * the clinic navigation label table). See
+ * docs/implementation/dashboard-module-config-catalog.md.
  */
-export {};
+export * from "./dashboardModules";

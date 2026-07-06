@@ -6,7 +6,6 @@ import {
   ClinicDashboardWorkspaceController,
   DEFAULT_CLINIC_MODULE,
 } from "@/components/dashboard/ClinicDashboardWorkspaceController";
-import type { ClinicModule } from "@/components/dashboard/ClinicDashboardWorkspaceController";
 import { ClinicMobileModuleFrame } from "@/components/dashboard/ClinicMobileModuleFrame";
 import { ClinicCommandCenter } from "./ClinicCommandCenter";
 import { ClinicParticularTokensCard } from "@/components/dashboard/ClinicParticularTokensCard";
@@ -19,26 +18,12 @@ import {
   getReports,
 } from "@/lib/api";
 import { redirectToLoginOnUnauthorized } from "@/lib/dashboard-server-auth";
+import { parseClinicModule } from "@/features/dashboard/config";
 
 export const metadata: Metadata = {
   title: "Dashboard Clínica — Portal VETNEB",
   robots: { index: false, follow: false },
 };
-
-const VALID_CLINIC_MODULES: ClinicModule[] = [
-  "operaciones",
-  "informes",
-  "logistica",
-  "perfil",
-  "tokens",
-];
-
-function parseClinicModule(value: string | undefined): ClinicModule | null {
-  if (!value) return null;
-  return VALID_CLINIC_MODULES.includes(value as ClinicModule)
-    ? (value as ClinicModule)
-    : null;
-}
 
 async function getDashboardRequestOptions(): Promise<RequestInit> {
   const cookieHeader = (await cookies()).toString();
