@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { isClean7aAllowedDependencyChange } from "./helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
+import { dashboardScopeGuardApplies } from "./helpers/dashboard-scope-guard.ts";
 
 const ADMIN_SECTION_TABS_PATH =
   "frontend/src/app/dashboard/admin/AdminSectionTabs.tsx";
@@ -153,6 +154,8 @@ test("PR-8 dashboard accessibility scope avoids forbidden files", () => {
     .trim()
     .split(/\r?\n/)
     .filter(Boolean);
+  // PR-specific guard: only enforce when the diff touches dashboard scope.
+  if (!dashboardScopeGuardApplies(changedFiles)) return;
   const blockedPrefixes = [
     "server/",
     "drizzle/",

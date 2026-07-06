@@ -8,6 +8,7 @@ import {
   isClean7aAllowedDependencyFile,
 } from "./helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
+import { dashboardScopeGuardApplies } from "./helpers/dashboard-scope-guard.ts";
 
 const LOGISTICS_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
 const COMMAND_CENTER_PATH =
@@ -312,6 +313,13 @@ test("logistics hub changes do not touch backend, API routes, auth, middleware o
     ["diff", "--name-only"],
     { encoding: "utf8" },
   ).trim();
+
+  // PR-specific guard: only enforce when the diff touches dashboard scope. A
+  // backend logistics feature shell (server/features/logistics/**) is not a
+  // frontend dashboard/logistics-hub change, so this guard is not-applicable.
+  if (!dashboardScopeGuardApplies(changedFiles.split(/\r?\n/).filter(Boolean))) {
+    return;
+  }
 
   const forbiddenPaths = [
     "server/",

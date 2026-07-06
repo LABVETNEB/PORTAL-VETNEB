@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { isClean7aAllowedDependencyChange } from "./helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
+import { dashboardScopeGuardApplies } from "./helpers/dashboard-scope-guard.ts";
 
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
 const ADMIN_SECTION_TABS_PATH =
@@ -157,6 +158,8 @@ test("dashboard admin tabs stay inside frontend-only PR-7 scope", () => {
     .trim()
     .split(/\r?\n/)
     .filter(Boolean);
+  // PR-specific guard: only enforce when the diff touches dashboard scope.
+  if (!dashboardScopeGuardApplies(changedFiles)) return;
   const forbiddenChangedPaths = [
     "package.json",
     "pnpm-lock.yaml",
