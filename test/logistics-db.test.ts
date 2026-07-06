@@ -11,7 +11,7 @@ const dbLogisticsSource = readFileSync(
 test("logistics DB helpers wire bounded pagination defaults from the domain layer", () => {
   assert.match(
     dbLogisticsSource,
-    /from ["']\.\/features\/logistics\/domain\/pagination\.ts["']/,
+    /from ["']\.\/features\/logistics\/domain\/index\.ts["']/,
   );
   assert.match(dbLogisticsSource, /LOGISTICS_DEFAULT_LIMIT/);
   assert.match(dbLogisticsSource, /LOGISTICS_MAX_LIMIT/);

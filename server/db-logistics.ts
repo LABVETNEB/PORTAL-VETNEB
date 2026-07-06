@@ -32,13 +32,13 @@ import {
   type RoutePlanningPoint,
   type RoutePlanningVisit,
 } from "./lib/logistics/route-planning.ts";
-import { normalizeGenerateHeuristicFieldVisitIds } from "./features/logistics/domain/route-plan-field-visits.ts";
 import {
   LOGISTICS_DEFAULT_LIMIT,
   LOGISTICS_MAX_LIMIT,
+  normalizeGenerateHeuristicFieldVisitIds,
   normalizeLogisticsLimit,
   normalizeLogisticsOffset,
-} from "./features/logistics/domain/pagination.ts";
+} from "./features/logistics/domain/index.ts";
 
 export {
   LOGISTICS_DEFAULT_LIMIT,
