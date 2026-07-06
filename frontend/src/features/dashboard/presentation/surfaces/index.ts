@@ -9,7 +9,9 @@
  * Boundary rule: presentation does not import `@/lib/api` directly; surfaces
  * are pure presentation driven by props.
  *
- * Empty on purpose: PR-PRES-2 only draws the architecture boundary (see
- * docs/implementation/dashboard-presentation-boundaries.md).
+ * PR-PRES-5 lands the first real export: `StatusBadge`, exposed through the
+ * surfaces boundary as a pure re-export (implementation unchanged, still pinned
+ * at `@/components/dashboard/StatusBadge`). See
+ * docs/implementation/dashboard-surface-primitives.md.
  */
-export {};
+export * from "./DashboardStatusBadge";
