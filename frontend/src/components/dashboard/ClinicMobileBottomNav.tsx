@@ -24,6 +24,10 @@ import {
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { CLINIC_MODULE_NAV_LABELS } from "@/features/dashboard/config";
+import {
+  buildDashboardModuleHref,
+  readClinicModuleFromLocation,
+} from "@/features/dashboard/application";
 import type { ClinicModule } from "./ClinicDashboardWorkspaceController";
 
 // Icons are React components, so they stay local; the id/label/shortLabel/order
@@ -49,21 +53,13 @@ const CLINIC_DESTINATIONS: Array<{
   icon: CLINIC_BOTTOM_NAV_ICONS[item.moduleId],
 }));
 
-function parseClinicModuleFromLocation(): ClinicModule | null {
-  if (typeof window === "undefined") return null;
-  const value = new URLSearchParams(window.location.search).get("module");
-  return CLINIC_DESTINATIONS.some((item) => item.moduleId === value)
-    ? (value as ClinicModule)
-    : null;
-}
-
 export function ClinicMobileBottomNav() {
   const pathname = usePathname() ?? "";
   const [activeModule, setActiveModule] = useState<ClinicModule | null>(null);
 
   useEffect(() => {
     function syncModuleFromLocation() {
-      setActiveModule(parseClinicModuleFromLocation());
+      setActiveModule(readClinicModuleFromLocation());
     }
 
     syncModuleFromLocation();
@@ -133,7 +129,7 @@ export function ClinicMobileBottomNav() {
         return (
           <PublicRouteControl
             key={destination.moduleId}
-            href={`${ROUTES.dashboard}?module=${destination.moduleId}`}
+            href={buildDashboardModuleHref(ROUTES.dashboard, destination.moduleId)}
             prefetch={false}
             variant="bare"
             aria-label={destination.label}

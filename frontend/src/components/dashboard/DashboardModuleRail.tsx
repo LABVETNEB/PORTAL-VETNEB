@@ -15,6 +15,7 @@ import { requestClinicModuleActivate } from "@/lib/clinic-hub-reset";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { CLINIC_MODULE_NAV_LABELS } from "@/features/dashboard/config";
+import { buildDashboardModuleHref } from "@/features/dashboard/application";
 import type { ClinicModule } from "./ClinicDashboardWorkspaceController";
 
 /**
@@ -66,7 +67,7 @@ export const CLINIC_MODULE_RAIL_ITEMS: ClinicModuleRailItem[] =
   }));
 
 function moduleHref(moduleId: ClinicModule): string {
-  return `${ROUTES.dashboard}?module=${moduleId}`;
+  return buildDashboardModuleHref(ROUTES.dashboard, moduleId);
 }
 
 const pagerStepClassName =
