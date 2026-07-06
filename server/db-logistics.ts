@@ -32,6 +32,7 @@ import {
   type RoutePlanningPoint,
   type RoutePlanningVisit,
 } from "./lib/logistics/route-planning.ts";
+import { normalizeGenerateHeuristicFieldVisitIds } from "./features/logistics/domain/route-plan-field-visits.ts";
 
 export const LOGISTICS_DEFAULT_LIMIT = 50;
 export const LOGISTICS_MAX_LIMIT = 100;
@@ -847,22 +848,6 @@ export async function transitionClinicScopedRoutePlanStatus(
   });
 }
 
-
-function normalizeGenerateHeuristicFieldVisitIds(ids: number[]): number[] {
-  const result: number[] = [];
-  const seen = new Set<number>();
-
-  for (const id of ids) {
-    if (!Number.isInteger(id) || id <= 0 || seen.has(id)) {
-      continue;
-    }
-
-    seen.add(id);
-    result.push(id);
-  }
-
-  return result;
-}
 
 function toRoutePlanningPoint(
   location: VisitLocation | null | undefined,
