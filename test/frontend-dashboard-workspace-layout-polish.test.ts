@@ -9,8 +9,8 @@ import {
   isClean7aAllowedDependencyFile,
 } from "./helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
+import { readDashboardCssSource } from "./helpers/read-dashboard-css-source.ts";
 
-const GLOBALS_CSS_PATH = "frontend/src/app/globals.css";
 const WORKSPACE_PATH =
   "frontend/src/components/dashboard/DashboardModuleWorkspace.tsx";
 const FILTER_DRAWER_PATH =
@@ -33,7 +33,7 @@ function read(relativePath: string): string {
 // ── CSS section present ──────────────────────────────────────────────────────
 
 test("PR-2 globals.css has dashboard-workspace-layout-polish section markers", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes("/* dashboard-workspace-layout-polish:start */"),
     "globals.css must have dashboard-workspace-layout-polish:start comment",
@@ -47,7 +47,7 @@ test("PR-2 globals.css has dashboard-workspace-layout-polish section markers", (
 // ── Keyframe and enter animation ─────────────────────────────────────────────
 
 test("PR-2 globals.css defines @keyframes dashboard-workspace-enter", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes("@keyframes dashboard-workspace-enter {"),
     "globals.css must define @keyframes dashboard-workspace-enter",
@@ -63,7 +63,7 @@ test("PR-2 globals.css defines @keyframes dashboard-workspace-enter", () => {
 });
 
 test("PR-2 globals.css defines .dashboard-workspace-enter using motion tokens", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes(".dashboard-workspace-enter {"),
     "globals.css must define .dashboard-workspace-enter",
@@ -75,7 +75,7 @@ test("PR-2 globals.css defines .dashboard-workspace-enter using motion tokens", 
 });
 
 test("PR-2 globals.css reduced-motion disables dashboard-workspace-enter animation", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   const polishSection = source.slice(
     source.indexOf("/* dashboard-workspace-layout-polish:start */"),
     source.indexOf("/* dashboard-workspace-layout-polish:end */") + 1,
@@ -99,13 +99,23 @@ test("PR-2 globals.css reduced-motion disables dashboard-workspace-enter animati
 // ── Workspace header separator ────────────────────────────────────────────────
 
 test("PR-2 globals.css defines .dashboard-workspace-header without border separator", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
+  // Scope to this section's own delimiters: the base rule lives here, while
+  // admin-mobile declares a higher-specificity `.dashboard-workspace-header`
+  // override that can precede it in the composed dashboard CSS source.
+  const polishSection = source.slice(
+    source.indexOf("/* dashboard-workspace-layout-polish:start */"),
+    source.indexOf("/* dashboard-workspace-layout-polish:end */") + 1,
+  );
   assert.ok(
-    source.includes(".dashboard-workspace-header {"),
+    polishSection.includes(".dashboard-workspace-header {"),
     "globals.css must define .dashboard-workspace-header",
   );
-  const headerIdx = source.indexOf(".dashboard-workspace-header {");
-  const headerRule = source.slice(headerIdx, source.indexOf("}", headerIdx));
+  const headerIdx = polishSection.indexOf(".dashboard-workspace-header {");
+  const headerRule = polishSection.slice(
+    headerIdx,
+    polishSection.indexOf("}", headerIdx),
+  );
   assert.ok(
     headerRule.includes("border-bottom: 0;"),
     ".dashboard-workspace-header must not render a border-bottom separator",
@@ -123,7 +133,7 @@ test("PR-2 globals.css defines .dashboard-workspace-header without border separa
 // ── Master-detail panel polish ─────────────────────────────────────────────
 
 test("PR-2 globals.css defines .dashboard-master-panel", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes(".dashboard-master-panel {"),
     "globals.css must define .dashboard-master-panel",
@@ -131,7 +141,7 @@ test("PR-2 globals.css defines .dashboard-master-panel", () => {
 });
 
 test("PR-2 globals.css defines .dashboard-detail-panel", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes(".dashboard-detail-panel {"),
     "globals.css must define .dashboard-detail-panel",
@@ -139,7 +149,7 @@ test("PR-2 globals.css defines .dashboard-detail-panel", () => {
 });
 
 test("PR-2 globals.css defines .dashboard-detail-panel selected state", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes('.dashboard-detail-panel[data-detail-state="selected"]'),
     "globals.css must define .dashboard-detail-panel selected state",
@@ -149,7 +159,7 @@ test("PR-2 globals.css defines .dashboard-detail-panel selected state", () => {
 // ── Sidebar nav interactive ──────────────────────────────────────────────────
 
 test("PR-2 globals.css defines .dashboard-nav-interactive with motion tokens", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes(".dashboard-nav-interactive {"),
     "globals.css must define .dashboard-nav-interactive",
@@ -167,7 +177,7 @@ test("PR-2 globals.css defines .dashboard-nav-interactive with motion tokens", (
 // ── Filter drawer panel ──────────────────────────────────────────────────────
 
 test("PR-2 globals.css defines .dashboard-filter-panel with shadow", () => {
-  const source = read(GLOBALS_CSS_PATH);
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes(".dashboard-filter-panel {"),
     "globals.css must define .dashboard-filter-panel",

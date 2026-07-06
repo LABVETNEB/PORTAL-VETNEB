@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { readDashboardCssSource } from "./helpers/read-dashboard-css-source.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -28,7 +29,7 @@ test("admin table-heavy cards use dashboard-table-responsive wrapper", () => {
 });
 
 test("globals.css defines dashboard-table-responsive with overflow-x scroll", () => {
-  const source = read("frontend/src/app/globals.css");
+  const source = readDashboardCssSource();
   assert.ok(
     source.includes(".dashboard-table-responsive"),
     "globals.css must define .dashboard-table-responsive",

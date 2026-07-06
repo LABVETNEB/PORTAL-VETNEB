@@ -72,6 +72,28 @@ equivalente.
 Nota: `frontend` no define script `test`; su superficie de pruebas es Playwright
 (`e2e:*`).
 
+## Tests: fuente CSS compuesta
+
+Los tests root `frontend-dashboard-*` (y `admin-dashboard-responsive-touch`)
+inspeccionan el CSS del dashboard como texto plano. Como las reglas ya no viven
+solo en `globals.css` sino en los archivos importados, esos tests ahora leen una
+**fuente CSS compuesta**: `globals.css` + los archivos `@import` de
+`../styles/dashboard/*.css`, concatenados en orden de import.
+
+Helper compartido: `test/helpers/read-dashboard-css-source.ts` →
+`readDashboardCssSource()`. Lee `globals.css`, detecta los `@import` a
+`styles/dashboard/*.css`, resuelve las rutas reales y concatena. Los tests
+afectados usan esta función en vez de leer únicamente `globals.css`.
+
+Un test (`.dashboard-workspace-header` sin separador) se acotó además a los
+delimitadores de su propia sección: en la fuente compuesta, `admin-mobile`
+declara un override de mayor especificidad de `.dashboard-workspace-header` que
+puede precederlo textualmente. El acotado por sección (mismo patrón que el test
+de `prefers-reduced-motion` vecino) hace la aserción robusta al orden de
+concatenación. No cambia la cascada real (el override admin-mobile es
+`[data-vetneb-app-shell-surface="admin"] … .dashboard-workspace-header` dentro de
+un `@media`, distinta especificidad).
+
 ## Riesgos
 
 - Bajo. El refactor es un movimiento verbatim con orden de cascada preservado y
