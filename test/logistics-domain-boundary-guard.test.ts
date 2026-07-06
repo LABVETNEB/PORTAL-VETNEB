@@ -1,10 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, relative } from "node:path";
 
 const repoRoot = process.cwd();
 const domainDir = "server/features/logistics/domain";
+const domainIndexFile = `${domainDir}/index.ts`;
 
 function readText(relativePath: string) {
   return readFileSync(join(repoRoot, relativePath), "utf8");
@@ -37,6 +38,32 @@ function listImportSpecifiers(source: string) {
     ),
     (match) => match[1] ?? match[2] ?? match[3] ?? "",
   );
+}
+
+function toRepoRelativePath(path: string) {
+  return path.replaceAll("\\", "/");
+}
+
+function resolveRelativeTsSpecifier(file: string, specifier: string) {
+  const resolvedPath = toRepoRelativePath(
+    relative(repoRoot, join(repoRoot, dirname(file), specifier)),
+  );
+
+  if (resolvedPath.endsWith(".ts")) {
+    return resolvedPath;
+  }
+
+  const tsFilePath = `${resolvedPath}.ts`;
+  if (existsSync(join(repoRoot, tsFilePath))) {
+    return tsFilePath;
+  }
+
+  const indexFilePath = `${resolvedPath}/index.ts`;
+  if (existsSync(join(repoRoot, indexFilePath))) {
+    return indexFilePath;
+  }
+
+  return resolvedPath;
 }
 
 // Reglas de frontera de la capa domain segun ADR ARCH-2
@@ -141,6 +168,37 @@ test("Logistics domain solo importa dependencias relativas internas o el shared 
 
       if (!isRelativeImport && !isSharedKernelTypes) {
         violations.push(`${file}: import no permitido en domain puro ("${specifier}")`);
+      }
+    }
+  }
+
+  assert.deepEqual(violations, []);
+});
+
+test("Logistics runtime consumers import logistics domain through the public barrel", () => {
+  const violations: string[] = [];
+  const runtimeFiles = walkTsFiles("server").filter(
+    (file) => !file.startsWith(`${domainDir}/`),
+  );
+
+  for (const file of runtimeFiles) {
+    const content = readText(file);
+    const specifiers = listImportSpecifiers(content);
+
+    for (const specifier of specifiers) {
+      const resolvedSpecifier = specifier.startsWith(".")
+        ? resolveRelativeTsSpecifier(file, specifier)
+        : toRepoRelativePath(specifier);
+
+      const importsDomainInternalFile =
+        resolvedSpecifier.startsWith(`${domainDir}/`) &&
+        resolvedSpecifier.endsWith(".ts") &&
+        resolvedSpecifier !== domainIndexFile;
+
+      if (importsDomainInternalFile) {
+        violations.push(
+          `${file}: import directo a archivo interno de logistics/domain ("${specifier}" -> ${resolvedSpecifier})`,
+        );
       }
     }
   }
