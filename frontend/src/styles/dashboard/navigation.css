@@ -1,6 +1,7 @@
-/* dashboard-rail.css
- * Dashboard module navigation rail + master/detail workspace panels.
- * Extracted verbatim from src/app/globals.css (PR-CSS-1). No rule changes. */
+/* navigation.css — dashboard navigation & workspace layout polish
+ * Sidebar nav interaction, workspace enter animation/header, master-detail
+ * panels and the filter drawer panel. Composed via
+ * styles/dashboard/index.css; verbatim from PR-CSS-1, no behavior change. */
 
 /* dashboard-workspace-layout-polish:start */
 @keyframes dashboard-workspace-enter {

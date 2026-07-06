@@ -1,13 +1,7 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
 
-@import "../styles/dashboard/dashboard-shell.css";
-@import "../styles/dashboard/dashboard-admin-mobile.css";
-@import "../styles/dashboard/dashboard-clinic-mobile.css";
-@import "../styles/dashboard/dashboard-surfaces.css";
-@import "../styles/dashboard/dashboard-rail.css";
-@import "../styles/dashboard/dashboard-responsive.css";
-@import "../styles/dashboard/dashboard-zero-scroll.css";
+@import "../styles/dashboard/index.css";
 
 @font-face {
   font-family: "Inter";

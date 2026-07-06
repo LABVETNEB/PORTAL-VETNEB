@@ -1,6 +1,7 @@
-/* dashboard-zero-scroll.css
- * Dashboard zero-scroll substrate: fixed-viewport boundary ledger and column geometry locks.
- * Extracted verbatim from src/app/globals.css (PR-CSS-1). No rule changes. */
+/* zero-scroll.css — dashboard zero-scroll density substrate
+ * Adaptive density substrate + unlayered behavior-capable overrides that
+ * must win last in the dashboard cascade (imported last by index.css).
+ * Composed via styles/dashboard/index.css; verbatim from PR-CSS-1. */
 
 /* dashboard-zero-scroll-substrate:start */
 @layer components {

@@ -1,6 +1,9 @@
-/* dashboard-surfaces.css
- * Dashboard visual surfaces & premium grammar: auth visuals, interaction feedback, filters/tables density, hub/kpi/signal grammar.
- * Extracted verbatim from src/app/globals.css (PR-CSS-1). No rule changes. */
+/* surfaces.css — dashboard visual surfaces & premium grammar
+ * Auth/main visual surfaces plus the shared premium grammar (status dots,
+ * KPI chips, hub band, signal cards, module tiles, hub composition). The
+ * two verbatim PR-CSS-1 sections are colocated here by responsibility;
+ * their selector namespaces are disjoint from interactions/tables so the
+ * composed cascade is unchanged. Composed via styles/dashboard/index.css. */
 
 /* dashboard-auth-visual-system:start */
 @layer components {
@@ -84,108 +87,6 @@
 
 }
 /* dashboard-auth-visual-system:end */
-
-/* dashboard-interaction-foundation:start */
-@layer components {
-  .dashboard-card-interactive {
-    transition-property: border-color, box-shadow, transform;
-    transition-duration: var(--motion-base);
-    transition-timing-function: var(--ease-out-soft);
-  }
-
-  .dashboard-card-interactive:active {
-    transform: scale(0.99);
-  }
-
-  .dashboard-btn-interactive {
-    transition-property: background-color, border-color, box-shadow, color, transform;
-    transition-duration: var(--motion-fast);
-    transition-timing-function: var(--ease-out-soft);
-  }
-
-  .dashboard-btn-interactive:active {
-    transform: scale(0.98);
-  }
-
-  .dashboard-row-interactive {
-    transition-property: background-color, border-color;
-    transition-duration: var(--motion-fast);
-    transition-timing-function: var(--ease-out-soft);
-  }
-
-  .dashboard-disabled-state {
-    opacity: 0.45;
-    cursor: not-allowed;
-    pointer-events: none;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dashboard-card-interactive,
-    .dashboard-btn-interactive,
-    .dashboard-row-interactive {
-      transition: none;
-    }
-
-    .dashboard-card-interactive:active,
-    .dashboard-btn-interactive:active {
-      transform: none;
-    }
-  }
-}
-/* dashboard-interaction-foundation:end */
-
-/* dashboard-action-feedback-focus-polish:start */
-@layer components {
-  button[aria-busy="true"],
-  [role="button"][aria-busy="true"] {
-    cursor: wait;
-  }
-
-  button[aria-busy="true"]:disabled,
-  [role="button"][aria-busy="true"]:disabled {
-    opacity: 0.72;
-  }
-
-  .dashboard-option-row {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-55;
-  }
-}
-/* dashboard-action-feedback-focus-polish:end */
-
-/* dashboard-filters-forms-density-polish:start */
-@layer components {
-  .dashboard-filter-stats-grid {
-    @apply grid grid-cols-1 gap-3 md:grid-cols-4;
-  }
-
-  .dashboard-pagination-context {
-    @apply min-w-[4.5rem] text-center text-xs tabular-nums text-muted-foreground;
-  }
-}
-/* dashboard-filters-forms-density-polish:end */
-
-/* dashboard-tables-cards-consistency-polish:start */
-@layer components {
-  /* Unified pagination footer row — used by all dashboard table cards */
-  .dashboard-table-pagination {
-    @apply flex flex-col gap-2 md:flex-row md:items-center md:justify-between;
-  }
-
-  .dashboard-table-pagination-controls {
-    @apply flex items-center gap-2;
-  }
-
-  /* Consistent card header border divider — all admin/clinic/report dashboard cards */
-  .dashboard-card-header-border {
-    @apply border-b border-vetneb-line/70;
-  }
-
-  /* Stats grid 5-col variant for user/roles panel */
-  .dashboard-filter-stats-grid-5 {
-    @apply grid grid-cols-1 gap-3 md:grid-cols-5;
-  }
-}
-/* dashboard-tables-cards-consistency-polish:end */
 
 /* dashboard-premium-grammar:start */
 @layer components {

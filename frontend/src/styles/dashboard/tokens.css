@@ -1,0 +1,9 @@
+/* tokens.css — dashboard design tokens
+ * Reserved composition slot for dashboard-scoped design tokens, imported
+ * first by styles/dashboard/index.css so any tokens defined here are
+ * available to every later module.
+ *
+ * Global design tokens (HSL palette, motion/easing, radii) live in
+ * app/globals.css :root under @layer base. The dashboard runtime accent
+ * tokens (--dash-accent-*) stay colocated with their consumers in
+ * surfaces.css (premium grammar) to preserve that verbatim section. */
