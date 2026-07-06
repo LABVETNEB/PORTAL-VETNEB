@@ -1,6 +1,8 @@
-/* dashboard-responsive.css
- * Dashboard responsive/adaptive layer: touch ergonomics, keyboard a11y, viewport-zoom density tiers, inline master-detail.
- * Extracted verbatim from src/app/globals.css (PR-CSS-1). No rule changes. */
+/* responsive.css — dashboard responsive & adaptive layer
+ * Touch ergonomics, keyboard/accessibility hardening, viewport-zoom
+ * adaptability and global inline adaptive density (incl.
+ * .dashboard-table-responsive). Composed via styles/dashboard/index.css;
+ * verbatim from PR-CSS-1, no visual/behavioral change. */
 
 /* dashboard-responsive-touch-ergonomics:start */
 @layer components {

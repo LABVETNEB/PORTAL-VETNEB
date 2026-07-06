@@ -1,6 +1,6 @@
-/* dashboard-clinic-mobile.css
- * Clinic dashboard mobile structure parity (app-shell surface, cockpit hub, access/profile module frames).
- * Extracted verbatim from src/app/globals.css (PR-CSS-1). No rule changes. */
+/* mobile-clinic.css — clinic dashboard mobile parity
+ * Clinic mobile structure parity with the admin mobile app-shell. Composed
+ * via styles/dashboard/index.css; verbatim from PR-CSS-1, no behavior change. */
 
 /* clinic-admin-structure-parity:start */
 @layer components {

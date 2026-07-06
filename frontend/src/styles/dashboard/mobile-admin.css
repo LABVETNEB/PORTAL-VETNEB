@@ -1,6 +1,7 @@
-/* dashboard-admin-mobile.css
- * Admin dashboard mobile app-shell, hub launcher, module layers and per-family module safety.
- * Extracted verbatim from src/app/globals.css (PR-CSS-1). No rule changes. */
+/* mobile-admin.css — admin dashboard mobile app-shell
+ * Admin mobile module-layer isolation, app-shell, hub launcher and module
+ * densities. Composed via styles/dashboard/index.css; verbatim from
+ * PR-CSS-1, no visual/behavioral change. */
 
 /* admin-mobile-module-layer-isolation:start */
 [data-vetneb-app-shell-surface="admin"] [data-dashboard-module-workspace],

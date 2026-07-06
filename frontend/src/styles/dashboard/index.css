@@ -1,0 +1,18 @@
+/* index.css — dashboard CSS composition root
+ * Single entrypoint for all dashboard styling: app/globals.css imports ONLY
+ * this file for dashboard rules. Each module below owns one responsibility.
+ * Import order preserves the pre-composition-root cascade: module surfaces
+ * before navigation; responsive before zero-scroll (whose unlayered
+ * overrides must win last). Do not reorder without checking the cascade. */
+
+@import "./tokens.css";
+@import "./shell.css";
+@import "./layout.css";
+@import "./mobile-admin.css";
+@import "./mobile-clinic.css";
+@import "./surfaces.css";
+@import "./interactions.css";
+@import "./tables.css";
+@import "./navigation.css";
+@import "./responsive.css";
+@import "./zero-scroll.css";
