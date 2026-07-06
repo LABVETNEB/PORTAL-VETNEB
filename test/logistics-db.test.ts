@@ -8,13 +8,15 @@ const dbLogisticsSource = readFileSync(
   "utf8",
 );
 
-test("logistics DB helpers define bounded pagination defaults", () => {
-  assert.match(dbLogisticsSource, /export const LOGISTICS_DEFAULT_LIMIT = 50/);
-  assert.match(dbLogisticsSource, /export const LOGISTICS_MAX_LIMIT = 100/);
-  assert.match(dbLogisticsSource, /export function normalizeLogisticsLimit/);
-  assert.match(dbLogisticsSource, /export function normalizeLogisticsOffset/);
-  assert.match(dbLogisticsSource, /Math\.min\(value, maxLimit\)/);
-  assert.match(dbLogisticsSource, /return 0/);
+test("logistics DB helpers wire bounded pagination defaults from the domain layer", () => {
+  assert.match(
+    dbLogisticsSource,
+    /from ["']\.\/features\/logistics\/domain\/pagination\.ts["']/,
+  );
+  assert.match(dbLogisticsSource, /LOGISTICS_DEFAULT_LIMIT/);
+  assert.match(dbLogisticsSource, /LOGISTICS_MAX_LIMIT/);
+  assert.match(dbLogisticsSource, /normalizeLogisticsLimit/);
+  assert.match(dbLogisticsSource, /normalizeLogisticsOffset/);
 });
 
 test("logistics DB helpers expose tenant-scoped field visit operations", () => {
