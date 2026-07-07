@@ -174,6 +174,23 @@ enredado (varios multi-anclados) → dejarlo para el final del bloque de control
 > `readSource` de esos guards (sin mover tests). El **Grupo A (audit)** queda desbloqueado
 > para su move real (ver §8 corregido).
 
+> **[CORRECCIÓN — TEST-ARCH-15]** Para los **Grupos B (study-tracking)** y **D (reports/tokens)**,
+> **TEST-ARCH-15** hizo subdirectory-aware los 6 guards de security restantes que anclaban por
+> `readSource("test/…")` inline (`security-write-attribution-boundaries`,
+> `security-resource-ownership-boundaries`, `security-validation-cutoff-boundaries`,
+> `security-rate-limit-isolation-boundaries`, `security-audit-logging-phase-boundaries`,
+> `public-professionals-source-boundaries`), sin mover tests. Con eso:
+> - **Grupo B: DESBLOQUEADO** (anclas inline resueltas; registries `study-tracking-suite-completeness`
+>   y `security-critical-route-surface-registry` se manejan con la actualización estándar de `path:`
+>   en el mismo PR de move).
+> - **Grupo D: PARCIALMENTE DESBLOQUEADO** — el subconjunto tokens/auth queda libre, pero el
+>   **sub-trío `reports`/`admin-reports`/`reports-status` sigue bloqueado** por un ancla no
+>   anticipada: **`report-study-types-catalog.test.ts`** usa un **censo por lista hardcodeada**
+>   (`listSourceFiles("test").filter([...rutas].includes)` + `assert.deepEqual`), que **no** se
+>   repara con el patrón `readSource` subdirectory-aware. Requiere un **TEST-ARCH-15-b** que haga
+>   path-aware ese censo (o actualizar las 3 rutas en el PR de move). Detalle en
+>   `docs/implementation/test-arch-15-source-path-guards-bd-unlock.md`.
+
 ### 3.2. Detalle por archivo — grupo `unit/domain` **libre** (sin anchors) **[OBSERVADO]**
 
 Candidatos puros de dominio que **no** están en ningún registry → move + ajuste de

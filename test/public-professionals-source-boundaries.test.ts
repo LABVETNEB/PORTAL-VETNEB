@@ -1,10 +1,55 @@
 ﻿import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { basename, relative, resolve, sep } from "node:path";
+
+const SOURCE_ROOT = process.cwd();
+
+function listFilesRecursive(relativeDir: string): string[] {
+  const rootDir = resolve(SOURCE_ROOT, relativeDir);
+  if (!existsSync(rootDir)) {
+    return [];
+  }
+
+  const files: string[] = [];
+  const walk = (absoluteDir: string): void => {
+    for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
+      const absolute = resolve(absoluteDir, entry.name);
+      if (entry.isDirectory()) {
+        walk(absolute);
+      } else if (entry.isFile()) {
+        files.push(relative(SOURCE_ROOT, absolute).split(sep).join("/"));
+      }
+    }
+  };
+
+  walk(rootDir);
+  return files;
+}
+
+// Resolve a legacy test-root path to its current canonical location, tolerating tests
+// already migrated into enterprise subdirectories (TEST-ARCH-13/15). Prefers the exact
+// path; falls back to a unique basename match under the same top-level directory. Zero or
+// multiple matches return undefined so the caller fails explicitly (no silent match).
+function resolveExistingSourcePath(relativePath: string): string | undefined {
+  const normalized = relativePath.split(sep).join("/");
+  if (existsSync(resolve(SOURCE_ROOT, normalized))) {
+    return normalized;
+  }
+
+  const targetName = basename(normalized);
+  const topDir = normalized.split("/")[0];
+  const matches = listFilesRecursive(topDir).filter(
+    (candidate) => basename(candidate) === targetName,
+  );
+
+  return matches.length === 1 ? matches[0] : undefined;
+}
 
 function readSource(relativePath: string): string {
-  return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
+  const resolved = resolveExistingSourcePath(relativePath);
+  assert.ok(resolved, `source not found for ${relativePath}`);
+  return readFileSync(resolve(SOURCE_ROOT, resolved), "utf8").replace(
     /\r\n/g,
     "\n",
   );
