@@ -60,7 +60,7 @@ Tests:
 - `test/admin-study-tracking-session-last-access-contract.test.ts`
 - `test/audit-separated-surfaces.test.ts`
 - `test/audit-suite-completeness.test.ts`
-- `test/routes-session-last-access-contract.test.ts`
+- `test/unit/infrastructure/routes-session-last-access-contract.test.ts`
 - `test/security-boundary-suite-completeness.test.ts`
 - `test/security-critical-route-surface-registry.test.ts`
 - `test/security-cross-auth-surface-boundaries.test.ts`
@@ -93,7 +93,7 @@ node --experimental-strip-types --experimental-specifier-resolution=node --test 
 Resultado: OK.
 
 ```powershell
-node --experimental-strip-types --experimental-specifier-resolution=node --test test/admin-auth-session-last-access-contract.test.ts test/admin-particular-tokens-session-last-access-contract.test.ts test/admin-report-access-tokens-session-last-access-contract.test.ts test/admin-reports-session-last-access-contract.test.ts test/admin-study-tracking-session-last-access-contract.test.ts test/routes-session-last-access-contract.test.ts
+node --experimental-strip-types --experimental-specifier-resolution=node --test test/admin-auth-session-last-access-contract.test.ts test/admin-particular-tokens-session-last-access-contract.test.ts test/admin-report-access-tokens-session-last-access-contract.test.ts test/admin-reports-session-last-access-contract.test.ts test/admin-study-tracking-session-last-access-contract.test.ts test/unit/infrastructure/routes-session-last-access-contract.test.ts
 ```
 
 Resultado: OK.
