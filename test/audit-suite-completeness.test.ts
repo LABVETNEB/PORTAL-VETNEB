@@ -289,7 +289,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
       "Admin, clinic and particular audit route tests keep list, export, invalid filter and auth/session behavior explicit.",
     testFiles: [
       {
-        path: "test/admin-audit.fastify.test.ts",
+        path: "test/integration/adapters/controllers/admin-audit.fastify.test.ts",
         markers: ["adminAuditNativeRoutes", "export.csv", "filtros"],
       },
       {
@@ -332,7 +332,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         ],
       },
       {
-        path: "test/clinic-audit.fastify.test.ts",
+        path: "test/integration/adapters/controllers/clinic-audit.fastify.test.ts",
         markers: ["clinicAuditNativeRoutes", "export.csv", "ENV.cookieName"],
       },
       {
@@ -366,7 +366,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         ],
       },
       {
-        path: "test/particular-audit.fastify.test.ts",
+        path: "test/integration/adapters/controllers/particular-audit.fastify.test.ts",
         markers: ["particularAuditNativeRoutes", "export.csv", "particular"],
       },
       {
