@@ -322,7 +322,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/admin-study-tracking.fastify.test.ts",
+        path: "test/integration/adapters/controllers/admin-study-tracking.fastify.test.ts",
         markers: [
           "adminStudyTrackingNativeRoutes bloquea POST / con origin no permitido",
           "adminStudyTrackingNativeRoutes actualiza PATCH /:trackingCaseId y notifica tinción especial",
