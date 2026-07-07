@@ -139,20 +139,20 @@ test("DB exposes study types from catalog and not persisted free-text values", (
 test("critical report tests stop using free-text or abbreviated studyType", () => {
   const criticalTestFiles = listSourceFiles("test").filter((file) =>
     [
-      "test/admin-reports.fastify.test.ts",
-      "test/reports.fastify.test.ts",
+      "test/integration/adapters/controllers/admin-reports.fastify.test.ts",
+      "test/integration/adapters/controllers/reports.fastify.test.ts",
       "test/report-write-surface-ownership.test.ts",
-      "test/reports-status.fastify.test.ts",
+      "test/integration/adapters/controllers/reports-status.fastify.test.ts",
     ].includes(file),
   );
 
   assert.deepEqual(
     criticalTestFiles,
     [
-      "test/admin-reports.fastify.test.ts",
+      "test/integration/adapters/controllers/admin-reports.fastify.test.ts",
+      "test/integration/adapters/controllers/reports-status.fastify.test.ts",
+      "test/integration/adapters/controllers/reports.fastify.test.ts",
       "test/report-write-surface-ownership.test.ts",
-      "test/reports-status.fastify.test.ts",
-      "test/reports.fastify.test.ts",
     ],
   );
 

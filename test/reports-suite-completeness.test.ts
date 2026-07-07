@@ -34,7 +34,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         ],
       },
       {
-        path: "test/admin-reports.fastify.test.ts",
+        path: "test/integration/adapters/controllers/admin-reports.fastify.test.ts",
         markers: [
           "adminReportsNativeRoutes crea POST /upload",
           "requiere clinicId valido antes de storage",
@@ -65,7 +65,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       "Clinic reports stay read-only with list, search, study types, history, preview and download routes only.",
     testFiles: [
       {
-        path: "test/reports.fastify.test.ts",
+        path: "test/integration/adapters/controllers/reports.fastify.test.ts",
         markers: [
           "reportsNativeRoutes no registra POST /upload",
           "reportsNativeRoutes expone GET / con lista",
@@ -99,7 +99,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       "Report status mutation keeps trusted origin, clinic session, management permission, transition validation and audit logging.",
     testFiles: [
       {
-        path: "test/reports-status.fastify.test.ts",
+        path: "test/integration/adapters/controllers/reports-status.fastify.test.ts",
         markers: [
           "reportsStatusNativeRoutes actualiza PATCH /:reportId/status",
           "bloquea PATCH /:reportId/status sin management permission",
