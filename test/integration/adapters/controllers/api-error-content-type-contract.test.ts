@@ -11,15 +11,15 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const repoRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const repoRoot = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
 
-const { ENV } = await import("../server/lib/env.ts");
-const { createFastifyApp } = await import("../server/fastify-app.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
+const { createFastifyApp } = await import("../../../../server/fastify-app.ts");
 const { clearPublicPricingCache } = await import(
-  "../server/lib/public-pricing-cache.ts"
+  "../../../../server/lib/public-pricing-cache.ts"
 );
 const { assertBodyRequestIdMatchesHeader } = await import(
-  "./helpers/api-request-id-contract.ts"
+  "../../../helpers/api-request-id-contract.ts"
 );
 
 type ContractResponse = {
@@ -326,7 +326,7 @@ test("API error content-type contract no introduce dependencia frontend/UI", () 
     ...listImportSpecifiers(readSource("server/fastify-app.ts")),
     ...listImportSpecifiers(readSource("server/lib/api-request-id.ts")),
     ...listImportSpecifiers(
-      readSource("test/api-error-content-type-contract.test.ts"),
+      readSource("test/integration/adapters/controllers/api-error-content-type-contract.test.ts"),
     ),
   ];
   const forbiddenImports = importSpecifiers.filter((specifier) =>

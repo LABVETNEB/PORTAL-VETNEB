@@ -8,9 +8,9 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { createFastifyApp } = await import("../server/fastify-app.ts");
+const { createFastifyApp } = await import("../../../../server/fastify-app.ts");
 const { assertBodyRequestIdMatchesHeader } = await import(
-  "./helpers/api-request-id-contract.ts"
+  "../../../helpers/api-request-id-contract.ts"
 );
 
 function buildErrorWithStack(message: string, statusCode?: number) {

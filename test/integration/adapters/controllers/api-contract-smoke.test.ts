@@ -12,7 +12,7 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const {
   publicProfessionalsNativeRoutes,
-} = await import("../server/routes/public-professionals.fastify.ts");
+} = await import("../../../../server/routes/public-professionals.fastify.ts");
 
 const relevanceContract = z.object({
   rank: z.number(),
