@@ -11,9 +11,9 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 process.env.CORS_ORIGIN ??=
   "https://portal-vetneb-frontend-staging.onrender.com";
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
 const { adminSystemMaintenanceNativeRoutes } = await import(
-  "../server/routes/admin-system-maintenance.fastify.ts"
+  "../../../../server/routes/admin-system-maintenance.fastify.ts"
 );
 const STAGING_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 
