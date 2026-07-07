@@ -388,7 +388,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         ],
       },
       {
-        path: "test/logistics-audit-runtime.test.ts",
+        path: "test/integration/adapters/controllers/logistics-audit-runtime.test.ts",
         markers: [
           "logistics route plan lifecycle runtime writes audit metadata",
           "logistics route events runtime writes audit metadata",
