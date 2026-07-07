@@ -286,14 +286,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
     ],
     guardrailTests: [
       {
-        path: "test/auth.fastify.test.ts",
+        path: "test/integration/adapters/controllers/auth.fastify.test.ts",
         markers: [
           "clinicAuthNativeRoutes responde preflight OPTIONS permitido sin autenticar",
           "clinicAuthNativeRoutes bloquea preflight OPTIONS con origin no permitido",
         ],
       },
       {
-        path: "test/admin-auth.fastify.test.ts",
+        path: "test/integration/adapters/controllers/admin-auth.fastify.test.ts",
         markers: [
           "adminAuthNativeRoutes responde preflight OPTIONS permitido sin autenticar",
           "adminAuthNativeRoutes bloquea preflight OPTIONS con origin no permitido",

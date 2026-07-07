@@ -9,16 +9,16 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
-const { AUDIT_EVENTS } = await import("../server/lib/audit.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
+const { AUDIT_EVENTS } = await import("../../../../server/lib/audit.ts");
 const {
   LOGIN_RATE_LIMIT_CODE,
   LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
-} = await import("../server/lib/login-rate-limit.ts");
+} = await import("../../../../server/lib/login-rate-limit.ts");
 const {
   adminAuthNativeRoutes,
-} = await import("../server/routes/admin-auth.fastify.ts");
+} = await import("../../../../server/routes/admin-auth.fastify.ts");
 
 async function createTestApp(overrides: Record<string, unknown> = {}) {
   const app = Fastify();

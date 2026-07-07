@@ -626,11 +626,11 @@ test("security boundary guardrails remain connected to runtime anchors", () => {
 test("security boundary suite keeps required downstream runtime tests explicit", () => {
   const requiredRuntimeTests = [
     {
-      path: "test/auth.fastify.test.ts",
+      path: "test/integration/adapters/controllers/auth.fastify.test.ts",
       marker: "clinicAuthNativeRoutes bloquea login con origin no permitido",
     },
     {
-      path: "test/admin-auth.fastify.test.ts",
+      path: "test/integration/adapters/controllers/admin-auth.fastify.test.ts",
       marker: "adminAuthNativeRoutes aplica rate limit de login sobre intentos fallidos",
     },
     {
