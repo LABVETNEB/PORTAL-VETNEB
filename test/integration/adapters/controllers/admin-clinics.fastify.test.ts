@@ -10,19 +10,19 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 process.env.CORS_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
 const { adminClinicsNativeRoutes } = await import(
-  "../server/routes/admin-clinics.fastify.ts"
+  "../../../../server/routes/admin-clinics.fastify.ts"
 );
 
 type AdminClinicsNativeRoutesOptions = import(
-  "../server/routes/admin-clinics.fastify.ts"
+  "../../../../server/routes/admin-clinics.fastify.ts"
 ).AdminClinicsNativeRoutesOptions;
 type AdminClinicCreateResult = import(
-  "../server/db-admin-clinics.ts"
+  "../../../../server/db-admin-clinics.ts"
 ).AdminClinicCreateResult;
 type AdminClinicSummary = import(
-  "../server/db-admin-clinics.ts"
+  "../../../../server/db-admin-clinics.ts"
 ).AdminClinicSummary;
 
 const demoClinic: AdminClinicSummary = {
