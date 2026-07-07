@@ -8,7 +8,7 @@ import type {
   GenerateHeuristicRoutePlanResult,
   RoutePlan,
   RouteStop,
-} from "../server/db-logistics.ts";
+} from "../../../../server/db-logistics.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -17,9 +17,9 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
 const { logisticsRoutePlansNativeRoutes } = await import(
-  "../server/routes/logistics-route-plans.fastify.ts"
+  "../../../../server/routes/logistics-route-plans.fastify.ts"
 );
 
 const VALID_ORIGIN = "http://localhost:3000";
