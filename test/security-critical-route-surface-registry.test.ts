@@ -492,14 +492,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
     ],
     guardrailTests: [
       {
-        path: "test/public-professionals-route-surface-invariants.test.ts",
+        path: "test/integration/adapters/controllers/public-professionals-route-surface-invariants.test.ts",
         markers: [
           "router público de profesionales conserva solo endpoints GET search y detail",
           "superficie pública no acepta métodos mutantes en profesionales públicos",
         ],
       },
       {
-        path: "test/public-professionals-response-headers-invariants.test.ts",
+        path: "test/integration/adapters/controllers/public-professionals-response-headers-invariants.test.ts",
         markers: [
           "profesionales públicos responde JSON y sin cookies en search detail y errores públicos",
           "profesionales públicos expone CORS permitido solo en rutas reales con Origin permitido",
@@ -673,7 +673,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-validation-cutoff-boundaries.test.ts",
     "test/security-rate-limit-isolation-boundaries.test.ts",
     "test/supabase-storage-boundaries.test.ts",
-    "test/public-professionals-route-surface-invariants.test.ts",
+    "test/integration/adapters/controllers/public-professionals-route-surface-invariants.test.ts",
     "test/public-professionals-fixture-suite-completeness-invariants.test.ts",
     "test/backend-ci-workflow.test.ts",
     "test/package-scripts.test.ts",

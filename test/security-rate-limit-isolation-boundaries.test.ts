@@ -580,7 +580,7 @@ test("rate-limited responses are logged with the shared RATE_LIMITED marker only
   );
 
   for (const file of [
-    "test/public-professionals-logging-invariants.test.ts",
+    "test/integration/adapters/controllers/public-professionals-logging-invariants.test.ts",
     "test/request-logger.test.ts",
   ] as const) {
     const source = readSource(file);
@@ -591,7 +591,7 @@ test("rate-limited responses are logged with the shared RATE_LIMITED marker only
 test("runtime rate limit tests remain explicit for isolated public and mutation buckets", () => {
   const publicProfessionals = readSource("test/public-professionals.fastify.test.ts");
   const publicProfessionalsResponseHeaders = readSource(
-    "test/public-professionals-response-headers-invariants.test.ts",
+    "test/integration/adapters/controllers/public-professionals-response-headers-invariants.test.ts",
   );
   const publicReportAccess = readSource("test/public-report-access.fastify.test.ts");
   const reportAccessTokens = readSource("test/report-access-tokens.fastify.test.ts");

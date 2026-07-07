@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -10,13 +10,16 @@ function readSource(relativePath: string): string {
   );
 }
 
+const MOVED_PUBLIC_PROFESSIONALS_FIXTURE_IMPORT =
+  "../../../helpers/public-professionals-fixtures.ts";
+
 test("route surface tests usan fixtures compartidos sin stubs locales de profesionales públicos", () => {
   const source = readSource(
-    "test/public-professionals-route-surface-invariants.test.ts",
+    "test/integration/adapters/controllers/public-professionals-route-surface-invariants.test.ts",
   );
 
   assert.ok(
-    source.includes('from "./helpers/public-professionals-fixtures.ts"'),
+    source.includes(`from "${MOVED_PUBLIC_PROFESSIONALS_FIXTURE_IMPORT}"`),
     "route surface debe importar fixtures compartidos",
   );
 
@@ -46,16 +49,16 @@ test("route surface tests usan fixtures compartidos sin stubs locales de profesi
 
 test("tests recientes de profesionales públicos comparten el helper de fixtures", () => {
   const checkedFiles = [
-    "test/public-professionals-response-headers-invariants.test.ts",
-    "test/public-professionals-logging-invariants.test.ts",
-    "test/public-professionals-route-surface-invariants.test.ts",
+    "test/integration/adapters/controllers/public-professionals-response-headers-invariants.test.ts",
+    "test/integration/adapters/controllers/public-professionals-logging-invariants.test.ts",
+    "test/integration/adapters/controllers/public-professionals-route-surface-invariants.test.ts",
   ];
 
   for (const file of checkedFiles) {
     const source = readSource(file);
 
     assert.ok(
-      source.includes('from "./helpers/public-professionals-fixtures.ts"'),
+      source.includes(`from "${MOVED_PUBLIC_PROFESSIONALS_FIXTURE_IMPORT}"`),
       `${file} debe importar fixtures compartidos`,
     );
 
