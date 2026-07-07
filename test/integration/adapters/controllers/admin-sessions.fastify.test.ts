@@ -11,25 +11,25 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 process.env.CORS_ORIGIN ??=
   "https://portal-vetneb-frontend-staging.onrender.com";
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
 const { adminSessionsNativeRoutes } = await import(
-  "../server/routes/admin-sessions.fastify.ts"
+  "../../../../server/routes/admin-sessions.fastify.ts"
 );
 
 type AdminSessionsNativeRoutesOptions = import(
-  "../server/routes/admin-sessions.fastify.ts"
+  "../../../../server/routes/admin-sessions.fastify.ts"
 ).AdminSessionsNativeRoutesOptions;
 type AdminSessionsQuery = import(
-  "../server/db-admin-sessions.ts"
+  "../../../../server/db-admin-sessions.ts"
 ).AdminSessionsQuery;
 type AdminSessionsSnapshot = import(
-  "../server/db-admin-sessions.ts"
+  "../../../../server/db-admin-sessions.ts"
 ).AdminSessionsSnapshot;
 type AdminSessionSummary = import(
-  "../server/db-admin-sessions.ts"
+  "../../../../server/db-admin-sessions.ts"
 ).AdminSessionSummary;
 type AdminSessionRevocationResult = import(
-  "../server/db-admin-sessions.ts"
+  "../../../../server/db-admin-sessions.ts"
 ).AdminSessionRevocationResult;
 const STAGING_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 

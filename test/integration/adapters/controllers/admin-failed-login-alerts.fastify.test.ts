@@ -13,19 +13,19 @@ process.env.CORS_ORIGIN ??=
 
 const STAGING_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
 const { adminFailedLoginAlertsNativeRoutes } = await import(
-  "../server/routes/admin-failed-login-alerts.fastify.ts"
+  "../../../../server/routes/admin-failed-login-alerts.fastify.ts"
 );
 
 type AdminFailedLoginAlertsNativeRoutesOptions = import(
-  "../server/routes/admin-failed-login-alerts.fastify.ts"
+  "../../../../server/routes/admin-failed-login-alerts.fastify.ts"
 ).AdminFailedLoginAlertsNativeRoutesOptions;
 type AdminFailedLoginAlertsQuery = import(
-  "../server/db-admin-failed-login-alerts.ts"
+  "../../../../server/db-admin-failed-login-alerts.ts"
 ).AdminFailedLoginAlertsQuery;
 type AdminFailedLoginAlertsSnapshot = import(
-  "../server/db-admin-failed-login-alerts.ts"
+  "../../../../server/db-admin-failed-login-alerts.ts"
 ).AdminFailedLoginAlertsSnapshot;
 
 function buildDeps(
