@@ -202,7 +202,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         ],
       },
       {
-        path: "test/admin-report-access-tokens.fastify.test.ts",
+        path: "test/integration/adapters/controllers/admin-report-access-tokens.fastify.test.ts",
         markers: [
           "adminReportAccessTokensNativeRoutes crea POST /",
           "adminReportAccessTokensNativeRoutes revoca PATCH /:tokenId/revoke",
@@ -303,7 +303,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         ],
       },
       {
-        path: "test/admin-particular-tokens.fastify.test.ts",
+        path: "test/integration/adapters/controllers/admin-particular-tokens.fastify.test.ts",
         markers: [
           "adminParticularTokensNativeRoutes crea POST /",
           "adminParticularTokensNativeRoutes vincula PATCH /:tokenId/report",
