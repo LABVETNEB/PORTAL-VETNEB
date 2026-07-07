@@ -158,6 +158,22 @@ para diseñar lotes que actualicen **un solo registry** por PR:
 Grupos B y C son medianos (1–2 registries). Grupo D (reports/tokens) es el más
 enredado (varios multi-anclados) → dejarlo para el final del bloque de controllers.
 
+> **[CORRECCIÓN — TEST-ARCH-12/13]** Esta tabla **subcontabilizó** las anclas. Solo miró
+> `*-suite-completeness`/`*-registry`. Dos clases de ancla adicionales fueron omitidas y
+> confirmadas por evidencia en TEST-ARCH-12:
+> 1. **Censo `readdirSync("test")` no recursivo** en `audit-suite-completeness.test.ts`
+>    (y en `security-boundary-suite-completeness.test.ts`): mover un archivo audit-named
+>    fuera de `test/` raíz rompe el `deepEqual` de basenames y **no** se repara actualizando
+>    el `path:` del registry.
+> 2. **`readSource`/`readFileSync` del archivo de test** dentro de guards de security
+>    (`security-session-cookie-boundaries`, `security-response-disclosure-boundaries`,
+>    `security-access-lifecycle-boundaries`, y varios más): lanzan `ENOENT` al mover.
+>
+> Consecuencia: **ninguno** de los 19 controllers restantes era un move limpio "de 1 solo
+> registry". **TEST-ARCH-13** volvió recursivos ambos censos y subdirectory-aware los
+> `readSource` de esos guards (sin mover tests). El **Grupo A (audit)** queda desbloqueado
+> para su move real (ver §8 corregido).
+
 ### 3.2. Detalle por archivo — grupo `unit/domain` **libre** (sin anchors) **[OBSERVADO]**
 
 Candidatos puros de dominio que **no** están en ningún registry → move + ajuste de
@@ -269,21 +285,35 @@ mismo patrón + mismo eje):
 
 ## 8. Primer bulk PR recomendado **[PROPUESTO]**
 
-**TEST-ARCH-12 — controller bulk batch 6 (Grupo A: audit controllers).**
+> **[CORRECCIÓN — TEST-ARCH-12/13]** La recomendación original (abajo) asumía que el Grupo A
+> era un move de **1 solo registry** con solo 3 actualizaciones de `path:`. **Falso:** el
+> trío audit estaba doblemente anclado por el **censo `readdirSync` no recursivo** de
+> `audit-suite-completeness` (irreparable con `path:`) y por `readSource` en guards de
+> security. TEST-ARCH-12 documentó el bloqueo (0 moves); **TEST-ARCH-13** desbloqueó los
+> guards (censos recursivos + `readSource` subdirectory-aware). **Recomendación vigente
+> ahora:** **TEST-ARCH-14 — mover Grupo A (audit)** con el patrón corregido descrito abajo.
+
+**TEST-ARCH-14 (post-TEST-ARCH-13) — controller bulk Grupo A: audit controllers.**
 
 - **Categoría:** `integration/adapters/controllers`.
-- **Rama sugerida:** `test/enterprise-controller-batch-6-audit`.
-- **Archivos sugeridos (mover):**
+- **Rama sugerida:** `test/enterprise-controller-batch-audit`.
+- **Archivos (mover):**
   - `test/admin-audit.fastify.test.ts` → `test/integration/adapters/controllers/admin-audit.fastify.test.ts`
   - `test/clinic-audit.fastify.test.ts` → `test/integration/adapters/controllers/clinic-audit.fastify.test.ts`
   - `test/particular-audit.fastify.test.ts` → `test/integration/adapters/controllers/particular-audit.fastify.test.ts`
-- **Edición mínima obligatoria en el mismo PR:**
-  - ajustar el import relativo de profundidad (`../server` → `../../server`, patrón probado en batches 6–10);
-  - actualizar los 3 `path:` correspondientes en `test/audit-suite-completeness.test.ts` (único registry que los ancla).
+- **Edición mínima obligatoria en el mismo PR (patrón corregido):**
+  - ajustar el import relativo de profundidad (`../server` → `../../../../server`, patrón probado en batches 6–10);
+  - actualizar los 3 `path:` en `test/audit-suite-completeness.test.ts` a la ruta canónica
+    del subdirectorio (el **censo recursivo** ahora **exige** que el `path:` refleje la
+    ubicación real; el basename ya no basta);
+  - actualizar, si se desea trazabilidad, los hints legacy `readSource("test/clinic-audit…")`
+    / `readSource("test/particular-audit…")` en los guards de security a la nueva ruta
+    (opcional: el resolver subdirectory-aware de TEST-ARCH-13 los tolera aunque queden como
+    hint legacy).
 - **Tamaño de lote:** 3 (tope efectivo = tamaño del grupo de anchor común).
-- **Riesgo:** medio (1 registry, patrón `app.inject` ya probado, dominio homogéneo).
+- **Riesgo:** medio-bajo (guards ya recursivos; patrón `app.inject` probado; dominio homogéneo).
 - **Validaciones:** `pnpm validate:local` (`typecheck:test` + `test` + `build`),
-  `git diff --stat` para confirmar que solo se tocan 3 tests + 1 registry + el doc.
+  `git diff --stat` para confirmar el alcance.
 
 **Por qué este y no un "controller bulk" de 15:** §3.1 demuestra que los 19
 controllers restantes están anclados y que Grupo A es el único trío con **un solo
