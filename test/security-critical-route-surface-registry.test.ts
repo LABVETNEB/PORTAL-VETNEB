@@ -542,14 +542,14 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
     ],
     guardrailTests: [
       {
-        path: "test/backend-ci-workflow.test.ts",
+        path: "test/unit/infrastructure/backend-ci-workflow.test.ts",
         markers: [
           "Backend CI ejecuta todos los gates obligatorios en orden",
           "Backend CI mantiene Postgres efímero y migraciones antes de validaciones",
         ],
       },
       {
-        path: "test/package-scripts.test.ts",
+        path: "test/unit/infrastructure/package-scripts.test.ts",
         markers: [
           "package scripts expose required validation commands",
           "validate:local keeps local gates in required order",
@@ -675,8 +675,8 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/supabase-storage-boundaries.test.ts",
     "test/integration/adapters/controllers/public-professionals-route-surface-invariants.test.ts",
     "test/public-professionals-fixture-suite-completeness-invariants.test.ts",
-    "test/backend-ci-workflow.test.ts",
-    "test/package-scripts.test.ts",
+    "test/unit/infrastructure/backend-ci-workflow.test.ts",
+    "test/unit/infrastructure/package-scripts.test.ts",
   ]) {
     assert.equal(
       guardrailPaths.includes(requiredGuardrail),
