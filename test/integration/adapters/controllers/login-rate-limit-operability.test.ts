@@ -4,7 +4,7 @@ import Fastify from "fastify";
 import type {
   RateLimitEntry,
   RateLimitStore,
-} from "../server/lib/rate-limit-store.ts";
+} from "../../../../server/lib/rate-limit-store.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -18,16 +18,16 @@ const {
   buildMissingCredentialsLoginRateLimitKey,
   LOGIN_RATE_LIMIT_CODE,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
-} = await import("../server/lib/login-rate-limit.ts");
+} = await import("../../../../server/lib/login-rate-limit.ts");
 const {
   clinicAuthNativeRoutes,
-} = await import("../server/routes/auth.fastify.ts");
+} = await import("../../../../server/routes/auth.fastify.ts");
 const {
   adminAuthNativeRoutes,
-} = await import("../server/routes/admin-auth.fastify.ts");
+} = await import("../../../../server/routes/admin-auth.fastify.ts");
 const {
   particularAuthNativeRoutes,
-} = await import("../server/routes/particular-auth.fastify.ts");
+} = await import("../../../../server/routes/particular-auth.fastify.ts");
 const REQUIRED_429_HEADERS = [
   "retry-after",
   "ratelimit-policy",

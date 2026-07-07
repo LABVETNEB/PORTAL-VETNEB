@@ -19,19 +19,19 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const {
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
-} = await import("../server/lib/login-rate-limit.ts");
+} = await import("../../../../server/lib/login-rate-limit.ts");
 const {
   createMemoryRateLimitStore,
-} = await import("../server/lib/rate-limit-store.ts");
+} = await import("../../../../server/lib/rate-limit-store.ts");
 const {
   clinicAuthNativeRoutes,
-} = await import("../server/routes/auth.fastify.ts");
+} = await import("../../../../server/routes/auth.fastify.ts");
 const {
   adminAuthNativeRoutes,
-} = await import("../server/routes/admin-auth.fastify.ts");
+} = await import("../../../../server/routes/admin-auth.fastify.ts");
 const {
   particularAuthNativeRoutes,
-} = await import("../server/routes/particular-auth.fastify.ts");
+} = await import("../../../../server/routes/particular-auth.fastify.ts");
 
 const WINDOW_MS = 60_000;
 const MAX_ATTEMPTS = 3;
@@ -569,7 +569,7 @@ test("particular login exitoso resetea el rate limit", async () => {
 // ─── Store delete method ─────────────────────────────────────────────────────
 
 test("createMemoryRateLimitStore.delete elimina la entrada correctamente", async () => {
-  const { createMemoryRateLimitStore: mk, getOrCreateRateLimitEntry, incrementRateLimitEntry } = await import("../server/lib/rate-limit-store.ts");
+  const { createMemoryRateLimitStore: mk, getOrCreateRateLimitEntry, incrementRateLimitEntry } = await import("../../../../server/lib/rate-limit-store.ts");
 
   const store = mk();
   const now = Date.now();
@@ -595,7 +595,7 @@ test("createMemoryRateLimitStore.delete elimina la entrada correctamente", async
 });
 
 test("createMemoryRateLimitStore.delete de key inexistente no lanza error", async () => {
-  const { createMemoryRateLimitStore: mk } = await import("../server/lib/rate-limit-store.ts");
+  const { createMemoryRateLimitStore: mk } = await import("../../../../server/lib/rate-limit-store.ts");
   const store = mk();
 
   assert.doesNotReject(async () => {
