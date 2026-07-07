@@ -350,7 +350,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
   },
   {
     slug: "trusted-origin-cors",
-    path: "test/security-trusted-origin-cors-boundaries.test.ts",
+    path: "test/security/security-trusted-origin-cors-boundaries.test.ts",
     purpose:
       "Unsafe auth and mutation routes reject untrusted origins while trusted CORS avoids wildcard credentials.",
     protectedDimensions: [
@@ -646,7 +646,7 @@ test("security boundary suite keeps required downstream runtime tests explicit",
       marker: "reportsStatusNativeRoutes valida reportId y status invalidos",
     },
     {
-      path: "test/audit-export-boundaries.test.ts",
+      path: "test/security/audit-export-boundaries.test.ts",
       marker: "audit exports rechazan cookies de dominios cruzados antes de listar",
     },
     {

@@ -300,7 +300,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-trusted-origin-cors-boundaries.test.ts",
+        path: "test/security/security-trusted-origin-cors-boundaries.test.ts",
         markers: [
           "auth login y mutations bloquean Origin no permitido antes de tocar dependencias",
           "auth preflight OPTIONS solo expone CORS con origins confiables y sin wildcard credentials",
@@ -668,7 +668,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-access-lifecycle-boundaries.test.ts",
     "test/security-response-disclosure-boundaries.test.ts",
     "test/security-cross-tenant-idor-contract.test.ts",
-    "test/security-trusted-origin-cors-boundaries.test.ts",
+    "test/security/security-trusted-origin-cors-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",
     "test/security-validation-cutoff-boundaries.test.ts",
     "test/security-rate-limit-isolation-boundaries.test.ts",
