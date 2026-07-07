@@ -9,17 +9,17 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
-const { AUDIT_EVENTS } = await import("../server/lib/audit.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
+const { AUDIT_EVENTS } = await import("../../../../server/lib/audit.ts");
 const { adminReportWorkflowNativeRoutes } = await import(
-  "../server/routes/admin-report-workflow.fastify.ts"
+  "../../../../server/routes/admin-report-workflow.fastify.ts"
 );
 
 type AdminReportWorkflowNativeRoutesOptions = import(
-  "../server/routes/admin-report-workflow.fastify.ts"
+  "../../../../server/routes/admin-report-workflow.fastify.ts"
 ).AdminReportWorkflowNativeRoutesOptions;
 type AdminReportWorkflowItem = import(
-  "../server/db-report-workflow.ts"
+  "../../../../server/db-report-workflow.ts"
 ).AdminReportWorkflowItem;
 
 function createWorkflowItem(

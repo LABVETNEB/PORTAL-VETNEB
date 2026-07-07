@@ -10,9 +10,9 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 process.env.CORS_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
 const { adminSystemSchemaHealthNativeRoutes } = await import(
-  "../server/routes/admin-system-schema-health.fastify.ts"
+  "../../../../server/routes/admin-system-schema-health.fastify.ts"
 );
 
 const STAGING_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
