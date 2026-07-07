@@ -4,12 +4,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 
 const {
   SENSITIVE_API_CACHE_CONTROL,
   shouldApplySensitiveApiNoStore,
-} = await import("../server/lib/sensitive-response-cache.ts");
+} = await import("../../server/lib/sensitive-response-cache.ts");
 
 function readSource(relativePath: string): string {
   return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");

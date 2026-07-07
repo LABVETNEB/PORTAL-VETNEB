@@ -11,10 +11,10 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
-const { clinicAuthNativeRoutes } = await import("../server/routes/auth.fastify.ts");
-const { adminAuthNativeRoutes } = await import("../server/routes/admin-auth.fastify.ts");
-const { particularAuthNativeRoutes } = await import("../server/routes/particular-auth.fastify.ts");
+const { ENV } = await import("../../server/lib/env.ts");
+const { clinicAuthNativeRoutes } = await import("../../server/routes/auth.fastify.ts");
+const { adminAuthNativeRoutes } = await import("../../server/routes/admin-auth.fastify.ts");
+const { particularAuthNativeRoutes } = await import("../../server/routes/particular-auth.fastify.ts");
 
 type ClinicSessionRecord = {
   clinicUserId: number;
