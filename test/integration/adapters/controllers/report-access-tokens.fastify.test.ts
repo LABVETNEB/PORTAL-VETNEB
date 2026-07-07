@@ -9,14 +9,14 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { AUDIT_EVENTS } = await import("../server/lib/audit.ts");
-const { ENV } = await import("../server/lib/env.ts");
+const { AUDIT_EVENTS } = await import("../../../../server/lib/audit.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
 const {
   REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_ERROR_MESSAGE,
-} = await import("../server/lib/report-access-token-rate-limit.ts");
+} = await import("../../../../server/lib/report-access-token-rate-limit.ts");
 const {
   reportAccessTokensNativeRoutes,
-} = await import("../server/routes/report-access-tokens.fastify.ts");
+} = await import("../../../../server/routes/report-access-tokens.fastify.ts");
 
 function createReportFixture(overrides: Record<string, unknown> = {}) {
   return {

@@ -194,7 +194,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         ],
       },
       {
-        path: "test/report-access-tokens.fastify.test.ts",
+        path: "test/integration/adapters/controllers/report-access-tokens.fastify.test.ts",
         markers: [
           "reportAccessTokensNativeRoutes crea POST /",
           "reportAccessTokensNativeRoutes revoca PATCH /:tokenId/revoke",
@@ -247,7 +247,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       "Public report access validates raw token state before signing URLs, recording access and writing audit logs.",
     testFiles: [
       {
-        path: "test/public-report-access.fastify.test.ts",
+        path: "test/integration/adapters/controllers/public-report-access.fastify.test.ts",
         markers: [
           "publicReportAccessNativeRoutes responde acceso",
           "urls firmadas",
@@ -280,7 +280,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       "Particular token auth and token management keep linked report preview and download behavior explicit.",
     testFiles: [
       {
-        path: "test/particular-auth.fastify.test.ts",
+        path: "test/integration/adapters/controllers/particular-auth.fastify.test.ts",
         markers: [
           "particularAuthNativeRoutes expone preview-url",
           "particularAuthNativeRoutes expone download-url",
@@ -296,7 +296,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         ],
       },
       {
-        path: "test/particular-tokens.fastify.test.ts",
+        path: "test/integration/adapters/controllers/particular-tokens.fastify.test.ts",
         markers: [
           "particularTokensNativeRoutes crea POST /",
           "particularTokensNativeRoutes vincula PATCH /:tokenId/report",
