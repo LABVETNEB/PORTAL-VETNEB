@@ -11,15 +11,15 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const repoRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const repoRoot = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
 
-const { ENV } = await import("../server/lib/env.ts");
-const { createFastifyApp } = await import("../server/fastify-app.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
+const { createFastifyApp } = await import("../../../../server/fastify-app.ts");
 const { API_REQUEST_ID_HEADER_KEY } = await import(
-  "../server/lib/api-request-id.ts"
+  "../../../../server/lib/api-request-id.ts"
 );
 const { clearPublicPricingCache } = await import(
-  "../server/lib/public-pricing-cache.ts"
+  "../../../../server/lib/public-pricing-cache.ts"
 );
 const {
   assertApiErrorLogRequestId,
@@ -28,7 +28,7 @@ const {
   assertRequestIdHeader,
   parseJsonObject,
   serializeConsoleCalls,
-} = await import("./helpers/api-request-id-contract.ts");
+} = await import("../../../helpers/api-request-id-contract.ts");
 
 function readSource(relativePath: string) {
   return readFileSync(resolve(repoRoot, relativePath), "utf8");

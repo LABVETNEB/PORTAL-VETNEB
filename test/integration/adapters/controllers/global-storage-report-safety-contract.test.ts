@@ -12,14 +12,14 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 process.env.SUPABASE_STORAGE_BUCKET ??= "reports";
 
-const { ENV } = await import("../server/lib/env.ts");
-const { reportsNativeRoutes } = await import("../server/routes/reports.fastify.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
+const { reportsNativeRoutes } = await import("../../../../server/routes/reports.fastify.ts");
 const { publicReportAccessNativeRoutes } = await import(
-  "../server/routes/public-report-access.fastify.ts"
+  "../../../../server/routes/public-report-access.fastify.ts"
 );
-const { serializeSafeReport } = await import("../server/lib/reports.ts");
+const { serializeSafeReport } = await import("../../../../server/lib/reports.ts");
 const { createMemoryRateLimitStore } = await import(
-  "../server/lib/rate-limit-store.ts"
+  "../../../../server/lib/rate-limit-store.ts"
 );
 
 const RAW_PUBLIC_TOKEN =
@@ -266,7 +266,7 @@ test("storage report safety remains anchored in private bucket and TTL helpers",
 });
 
 test("global storage report guardrail source stays ascii only", () => {
-  const source = read("test/global-storage-report-safety-contract.test.ts");
+  const source = read("test/integration/adapters/controllers/global-storage-report-safety-contract.test.ts");
 
   for (let index = 0; index < source.length; index += 1) {
     assert.equal(

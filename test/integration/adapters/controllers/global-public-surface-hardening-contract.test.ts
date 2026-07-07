@@ -11,12 +11,12 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 process.env.CORS_ORIGIN ??= "http://localhost:3000";
 
-const { createFastifyApp } = await import("../server/fastify-app.ts");
+const { createFastifyApp } = await import("../../../../server/fastify-app.ts");
 const { clearPublicPricingCache } = await import(
-  "../server/lib/public-pricing-cache.ts"
+  "../../../../server/lib/public-pricing-cache.ts"
 );
 const { createMemoryRateLimitStore } = await import(
-  "../server/lib/rate-limit-store.ts"
+  "../../../../server/lib/rate-limit-store.ts"
 );
 
 const FORBIDDEN_PUBLIC_BODY_MARKERS = [
@@ -279,7 +279,7 @@ test("public surface hardening stays connected to frontend bundle auditor", () =
 });
 
 test("global public surface guardrail source stays ascii only", () => {
-  const source = read("test/global-public-surface-hardening-contract.test.ts");
+  const source = read("test/integration/adapters/controllers/global-public-surface-hardening-contract.test.ts");
 
   for (let index = 0; index < source.length; index += 1) {
     assert.equal(

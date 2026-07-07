@@ -11,12 +11,12 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const repoRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const repoRoot = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
 
-const { ENV } = await import("../server/lib/env.ts");
-const { createFastifyApp } = await import("../server/fastify-app.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
+const { createFastifyApp } = await import("../../../../server/fastify-app.ts");
 const { assertBodyRequestIdMatchesHeader } = await import(
-  "./helpers/api-request-id-contract.ts"
+  "../../../helpers/api-request-id-contract.ts"
 );
 
 const sensitiveHeaderValues = {
@@ -200,7 +200,7 @@ test("API error no-secrets contract no introduce dependencia frontend/UI", () =>
   const importSpecifiers = [
     ...listImportSpecifiers(readSource("server/fastify-app.ts")),
     ...listImportSpecifiers(
-      readSource("test/api-error-no-secrets-contract.test.ts"),
+      readSource("test/integration/adapters/controllers/api-error-no-secrets-contract.test.ts"),
     ),
   ];
   const forbiddenImports = importSpecifiers.filter((specifier) =>
