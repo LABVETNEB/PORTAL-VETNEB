@@ -10,7 +10,7 @@ import {
   type PersistentRateLimitMetadata,
   type PersistentRateLimitRecord,
   type RateLimitStore,
-} from "../server/lib/rate-limit-store.ts";
+} from "../../../server/lib/rate-limit-store.ts";
 
 type PersistentHarnessRow = PersistentRateLimitRecord & {
   createdAt: Date;
