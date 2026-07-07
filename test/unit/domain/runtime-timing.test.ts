@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   createRuntimeTimer,
   getMonotonicNowMs,
-} from "../server/lib/runtime-timing.ts";
+} from "../../../server/lib/runtime-timing.ts";
 
 test("getMonotonicNowMs returns a finite non-negative number", () => {
   const now = getMonotonicNowMs();
