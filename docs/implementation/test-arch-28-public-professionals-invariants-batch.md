@@ -78,7 +78,7 @@ No se uso Codex ni Claude.
 
 ## Validaciones
 
-Pendiente completar antes de commit:
+Completadas antes de commit:
 
 | Comando | Resultado |
 |---|---|
@@ -86,10 +86,10 @@ Pendiente completar antes de commit:
 | `git diff --stat` | OK. |
 | `git diff --name-only` | OK, limitado al lote public-professionals invariants, guards activos y reporte. |
 | `git status --short --untracked-files=all` | OK, solo cambios esperados antes de stage. |
-| `& 'C:\Program Files\nodejs\pnpm.cmd' typecheck:test` | Pendiente |
-| `& 'C:\Program Files\nodejs\pnpm.cmd' test` | Pendiente |
-| `& 'C:\Program Files\nodejs\pnpm.cmd' build` | Pendiente |
-| `& 'C:\Program Files\nodejs\pnpm.cmd' security:public-surface` | Pendiente |
+| `& 'C:\Program Files\nodejs\pnpm.cmd' typecheck:test` | OK. |
+| `& 'C:\Program Files\nodejs\pnpm.cmd' test` | OK: 2983 pass / 0 fail. |
+| `& 'C:\Program Files\nodejs\pnpm.cmd' build` | OK. |
+| `& 'C:\Program Files\nodejs\pnpm.cmd' security:public-surface` | PASS. |
 
 ## Recomendacion para siguiente lote
 
