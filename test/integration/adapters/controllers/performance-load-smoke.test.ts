@@ -13,7 +13,7 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const {
   publicProfessionalsNativeRoutes,
-} = await import("../server/routes/public-professionals.fastify.ts");
+} = await import("../../../../server/routes/public-professionals.fastify.ts");
 
 type TimedResult = {
   statusCode: number;
@@ -219,12 +219,12 @@ test("performance smoke mantiene detail publico estable bajo carga concurrente",
 
 test("public capacity budget guardrail covers bounded public surfaces", () => {
   const publicProfessionals = readFileSync(
-    new URL("../server/routes/public-professionals.fastify.ts", import.meta.url),
+    new URL("../../../../server/routes/public-professionals.fastify.ts", import.meta.url),
     "utf8",
   );
 
   const publicReportAccess = readFileSync(
-    new URL("../server/routes/public-report-access.fastify.ts", import.meta.url),
+    new URL("../../../../server/routes/public-report-access.fastify.ts", import.meta.url),
     "utf8",
   );
 
