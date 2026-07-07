@@ -11,10 +11,10 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../server/lib/env.ts");
 const {
   adminReportsNativeRoutes,
-} = await import("../server/routes/admin-reports.fastify.ts");
+} = await import("../../server/routes/admin-reports.fastify.ts");
 
 function readSource(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(

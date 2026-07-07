@@ -25,7 +25,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       "Admin report upload remains the only report write surface and persists admin attribution before returning signed URLs.",
     testFiles: [
       {
-        path: "test/report-write-surface-ownership.test.ts",
+        path: "test/security/report-write-surface-ownership.test.ts",
         markers: [
           "report write surface owner registry",
           "createdByAdminUserId",
