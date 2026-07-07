@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   SESSION_LAST_ACCESS_UPDATE_INTERVAL_MS,
   shouldRefreshSessionLastAccess,
-} from "../server/lib/session-last-access.ts";
+} from "../../../server/lib/session-last-access.ts";
 
 test("shouldRefreshSessionLastAccess refreshes missing last access timestamps", () => {
   assert.equal(shouldRefreshSessionLastAccess(null, Date.now()), true);
