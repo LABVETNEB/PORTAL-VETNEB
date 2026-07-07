@@ -57,12 +57,45 @@ function listSourceFiles(directory: string): string[] {
   return files.sort();
 }
 
-function isTopLevelPublicProfessionalsTest(file: string): boolean {
+function isAllowedPublicProfessionalsFixtureConsumerTest(file: string): boolean {
+  const isLegacyTopLevelPublicProfessionalsTest =
+    file.startsWith("test/public-professionals-") &&
+    file.endsWith(".test.ts") &&
+    !file.slice("test/".length).includes("/");
+
+  const isControllerPublicProfessionalsInvariant =
+    file.startsWith("test/integration/adapters/controllers/public-professionals-") &&
+    file.endsWith(".test.ts") &&
+    !file
+      .slice("test/integration/adapters/controllers/".length)
+      .includes("/");
+
   return (
+    isLegacyTopLevelPublicProfessionalsTest ||
+    isControllerPublicProfessionalsInvariant
+  );
+}
+
+function expectedPublicProfessionalsFixtureImport(file: string): string | null {
+  if (
     file.startsWith("test/public-professionals-") &&
     file.endsWith(".test.ts") &&
     !file.slice("test/".length).includes("/")
-  );
+  ) {
+    return "./helpers/public-professionals-fixtures.ts";
+  }
+
+  if (
+    file.startsWith("test/integration/adapters/controllers/public-professionals-") &&
+    file.endsWith(".test.ts") &&
+    !file
+      .slice("test/integration/adapters/controllers/".length)
+      .includes("/")
+  ) {
+    return "../../../helpers/public-professionals-fixtures.ts";
+  }
+
+  return null;
 }
 
 function referencesPublicProfessionalsFixtureHelper(source: string): boolean {
@@ -108,7 +141,7 @@ test("fixtures públicos de profesionales sólo se referencian desde helper can�
 
     if (
       referencesPublicProfessionalsFixtureHelper(source) &&
-      !isTopLevelPublicProfessionalsTest(file)
+      !isAllowedPublicProfessionalsFixtureConsumerTest(file)
     ) {
       offenders.push(file);
     }
@@ -117,7 +150,7 @@ test("fixtures públicos de profesionales sólo se referencian desde helper can�
   assert.deepEqual(
     offenders,
     [],
-    "fixtures públicos de profesionales deben quedar limitados a test/helpers y test/public-professionals-*.test.ts",
+    "fixtures públicos de profesionales deben quedar limitados a test/helpers, test/public-professionals-*.test.ts y test/integration/adapters/controllers/public-professionals-*.test.ts",
   );
 });
 
@@ -175,14 +208,15 @@ test("imports del helper de fixtures públicos usan path relativo canónico", ()
 
     const source = readSource(file);
     const imports = helperImports(source);
+    const expectedImportPath = expectedPublicProfessionalsFixtureImport(file);
 
     for (const importPath of imports) {
-      if (!isTopLevelPublicProfessionalsTest(file)) {
+      if (expectedImportPath === null) {
         offenders.push(`${file}: import fuera de scope`);
         continue;
       }
 
-      if (importPath !== "./helpers/public-professionals-fixtures.ts") {
+      if (importPath !== expectedImportPath) {
         offenders.push(`${file}: ${importPath}`);
       }
     }
@@ -191,7 +225,7 @@ test("imports del helper de fixtures públicos usan path relativo canónico", ()
   assert.deepEqual(
     offenders,
     [],
-    "los tests top-level deben importar fixtures públicos con ./helpers/public-professionals-fixtures.ts",
+    "los tests deben importar fixtures públicos con el path relativo canónico según su ubicación",
   );
 });
 

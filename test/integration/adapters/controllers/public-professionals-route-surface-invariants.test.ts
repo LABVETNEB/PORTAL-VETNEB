@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -6,7 +6,7 @@ import Fastify from "fastify";
 import {
   buildPublicProfessionalFixtureRow,
   buildPublicProfessionalsRouteFixtureStubs,
-} from "./helpers/public-professionals-fixtures.ts";
+} from "../../../helpers/public-professionals-fixtures.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -16,7 +16,7 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const { publicProfessionalsNativeRoutes } = await import(
-  "../server/routes/public-professionals.fastify.ts"
+  "../../../../server/routes/public-professionals.fastify.ts"
 );
 
 function readSource(relativePath: string): string {
