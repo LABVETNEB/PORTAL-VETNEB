@@ -337,7 +337,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/report-access-tokens.fastify.test.ts",
+        path: "test/integration/adapters/controllers/report-access-tokens.fastify.test.ts",
         markers: [
           "reportAccessTokensNativeRoutes responde preflight OPTIONS permitido sin autenticar",
           "reportAccessTokensNativeRoutes bloquea preflight OPTIONS con origin no permitido",

@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import Fastify from "fastify";
 
@@ -9,13 +9,13 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { AUDIT_EVENTS } = await import("../server/lib/audit.ts");
+const { AUDIT_EVENTS } = await import("../../../../server/lib/audit.ts");
 const {
   PUBLIC_REPORT_ACCESS_RATE_LIMIT_ERROR_MESSAGE,
-} = await import("../server/lib/public-report-access-rate-limit.ts");
+} = await import("../../../../server/lib/public-report-access-rate-limit.ts");
 const {
   publicReportAccessNativeRoutes,
-} = await import("../server/routes/public-report-access.fastify.ts");
+} = await import("../../../../server/routes/public-report-access.fastify.ts");
 
 function createReportFixture(overrides: Record<string, unknown> = {}) {
   return {

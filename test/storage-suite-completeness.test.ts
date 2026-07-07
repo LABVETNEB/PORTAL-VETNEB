@@ -217,7 +217,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
       "Public report access and public professionals tests keep signed URLs delegated without exposing raw storage paths.",
     testFiles: [
       {
-        path: "test/public-report-access.fastify.test.ts",
+        path: "test/integration/adapters/controllers/public-report-access.fastify.test.ts",
         markers: [
           "urls firmadas",
           "payload estable, urls firmadas y auditoria",
