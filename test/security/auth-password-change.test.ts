@@ -12,19 +12,19 @@ process.env.DATABASE_URL ??=
   "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
-const { AUDIT_EVENTS } = await import("../server/lib/audit.ts");
+const { ENV } = await import("../../server/lib/env.ts");
+const { AUDIT_EVENTS } = await import("../../server/lib/audit.ts");
 const { LOGIN_RATE_LIMIT_CODE } = await import(
-  "../server/lib/login-rate-limit.ts"
+  "../../server/lib/login-rate-limit.ts"
 );
 const { createMemoryRateLimitStore } = await import(
-  "../server/lib/rate-limit-store.ts"
+  "../../server/lib/rate-limit-store.ts"
 );
 const { adminAuthNativeRoutes } = await import(
-  "../server/routes/admin-auth.fastify.ts"
+  "../../server/routes/admin-auth.fastify.ts"
 );
 const { clinicAuthNativeRoutes } = await import(
-  "../server/routes/auth.fastify.ts"
+  "../../server/routes/auth.fastify.ts"
 );
 
 const ALLOWED_ORIGIN = "http://localhost:3000";

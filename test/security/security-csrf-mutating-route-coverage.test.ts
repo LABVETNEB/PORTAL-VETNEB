@@ -259,15 +259,15 @@ test("no existen endpoints webhook ni externos que requieran excepción CSRF cla
 // TEST 7 (integración): admin-sessions POST revoke — bloquea origen externo
 // ---------------------------------------------------------------------------
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../server/lib/env.ts");
 const { adminSessionsNativeRoutes } = await import(
-  "../server/routes/admin-sessions.fastify.ts"
+  "../../server/routes/admin-sessions.fastify.ts"
 );
 const { contactNativeRoutes } = await import(
-  "../server/routes/contact.fastify.ts"
+  "../../server/routes/contact.fastify.ts"
 );
 const { logisticsRoutePlansNativeRoutes } = await import(
-  "../server/routes/logistics-route-plans.fastify.ts"
+  "../../server/routes/logistics-route-plans.fastify.ts"
 );
 
 const ALLOWED_ORIGIN = "http://localhost:3000";
