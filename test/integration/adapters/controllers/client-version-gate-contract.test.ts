@@ -15,7 +15,7 @@ const {
   isClientVersionSupported,
   CLIENT_VERSION_HEADER,
   CLIENT_VERSION_UNSUPPORTED_CODE,
-} = await import("../server/middlewares/version-gate.ts");
+} = await import("../../../../server/middlewares/version-gate.ts");
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
