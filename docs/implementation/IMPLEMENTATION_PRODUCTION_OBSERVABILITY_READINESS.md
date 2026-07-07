@@ -39,7 +39,7 @@
 - `test/production-readiness.test.ts`
 - `test/helpers/report-foreign-access-scope.ts`
 - `.github/workflows/frontend-ci.yml`
-- `test/frontend-ci-workflow.test.ts`
+- `test/unit/infrastructure/frontend-ci-workflow.test.ts`
 - `IMPLEMENTATION_PRODUCTION_OBSERVABILITY_READINESS.md`
 
 ## Health checks
