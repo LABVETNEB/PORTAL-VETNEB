@@ -1,4 +1,4 @@
-import test from "node:test";
+﻿import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildPublicReportAccessPath,
@@ -8,7 +8,7 @@ import {
   isReportAccessTokenExpired,
   isReportAccessTokenRevoked,
   reportAccessTokenRawTokenSchema,
-} from "../server/lib/report-access-token.ts";
+} from "../../../server/lib/report-access-token.ts";
 
 test("reportAccessTokenRawTokenSchema acepta tokens hex de 64 caracteres", () => {
   const token = "a".repeat(64);
@@ -70,7 +70,7 @@ test("public report access solo permite ready y delivered", () => {
   assert.equal(canAccessReportPublicly("delivered"), true);
 });
 
-test("helpers de expiración y revocación funcionan correctamente", () => {
+test("helpers de expiraciÃ³n y revocaciÃ³n funcionan correctamente", () => {
   const now = new Date("2026-04-15T12:00:00.000Z");
 
   assert.equal(
@@ -85,7 +85,7 @@ test("helpers de expiración y revocación funcionan correctamente", () => {
   assert.equal(isReportAccessTokenRevoked(null), false);
 });
 
-test("buildPublicReportAccessPath construye la ruta pública esperada", () => {
+test("buildPublicReportAccessPath construye la ruta pÃºblica esperada", () => {
   const token = "b".repeat(64);
   assert.equal(
     buildPublicReportAccessPath(token),

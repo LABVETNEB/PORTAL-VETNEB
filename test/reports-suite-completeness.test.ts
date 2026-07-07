@@ -184,7 +184,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       "Clinic and admin report access tokens preserve creation, revoke, state, public path and lifecycle behavior.",
     testFiles: [
       {
-        path: "test/report-access-token.test.ts",
+        path: "test/unit/domain/report-access-token.test.ts",
         markers: [
           "reportAccessTokenRawTokenSchema",
           "clinicCreateReportAccessTokenSchema",
@@ -288,7 +288,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         ],
       },
       {
-        path: "test/particular-token.test.ts",
+        path: "test/unit/domain/particular-token.test.ts",
         markers: [
           "serializeParticularToken",
           "serializeParticularTokenDetail",

@@ -6,7 +6,7 @@ import {
   parseEntityId,
   parseOffset,
   parsePositiveInt,
-} from "../server/lib/report-access-token.ts";
+} from "../../../server/lib/report-access-token.ts";
 
 test("parsePositiveInt respeta fallback y límite máximo", () => {
   assert.equal(parsePositiveInt("25", 50, 100), 25);
