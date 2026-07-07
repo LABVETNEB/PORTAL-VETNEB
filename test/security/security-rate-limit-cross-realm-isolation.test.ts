@@ -12,16 +12,16 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 const {
   LOGIN_RATE_LIMIT_CODE,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
-} = await import("../server/lib/login-rate-limit.ts");
+} = await import("../../server/lib/login-rate-limit.ts");
 const {
   createMemoryRateLimitStore,
-} = await import("../server/lib/rate-limit-store.ts");
+} = await import("../../server/lib/rate-limit-store.ts");
 const {
   clinicAuthNativeRoutes,
-} = await import("../server/routes/auth.fastify.ts");
+} = await import("../../server/routes/auth.fastify.ts");
 const {
   particularAuthNativeRoutes,
-} = await import("../server/routes/particular-auth.fastify.ts");
+} = await import("../../server/routes/particular-auth.fastify.ts");
 
 const REMOTE_IP = "203.0.113.90";
 const WINDOW_MS = 60_000;
