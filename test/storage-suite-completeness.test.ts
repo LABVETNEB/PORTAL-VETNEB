@@ -165,7 +165,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
       "Admin report upload and clinic public profile avatar routes keep storage helpers injectable and ordered around persistence.",
     testFiles: [
       {
-        path: "test/admin-reports.fastify.test.ts",
+        path: "test/integration/adapters/controllers/admin-reports.fastify.test.ts",
         markers: [
           "adminReportsNativeRoutes crea POST /upload",
           "requiere clinicId valido antes de storage",
