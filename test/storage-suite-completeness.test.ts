@@ -173,7 +173,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
         ],
       },
       {
-        path: "test/clinic-public-profile.fastify.test.ts",
+        path: "test/integration/adapters/controllers/clinic-public-profile.fastify.test.ts",
         markers: [
           "clinicPublicProfileNativeRoutes actualiza POST /avatar",
           "reemplazo de avatar previo",
@@ -226,7 +226,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
         ],
       },
       {
-        path: "test/public-professionals.fastify.test.ts",
+        path: "test/integration/adapters/controllers/public-professionals.fastify.test.ts",
         markers: [
           "payload estable y helper",
           "createSignedStorageUrl",

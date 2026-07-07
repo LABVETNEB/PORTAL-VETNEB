@@ -9,10 +9,10 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
 const {
   clinicPublicProfileNativeRoutes,
-} = await import("../server/routes/clinic-public-profile.fastify.ts");
+} = await import("../../../../server/routes/clinic-public-profile.fastify.ts");
 
 function createClinic() {
   return {
