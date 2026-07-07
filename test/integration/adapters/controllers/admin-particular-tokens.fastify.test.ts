@@ -10,10 +10,10 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 process.env.CORS_ORIGIN ??= "http://localhost:3000";
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
 const {
   adminParticularTokensNativeRoutes,
-} = await import("../server/routes/admin-particular-tokens.fastify.ts");
+} = await import("../../../../server/routes/admin-particular-tokens.fastify.ts");
 
 function createClinicFixture(overrides: Record<string, unknown> = {}) {
   return {
