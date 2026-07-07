@@ -8,7 +8,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 
 const { CRITICAL_SCHEMA_COLUMNS, buildSchemaHealthSnapshotFromRows } =
-  await import("../server/lib/schema-health.ts");
+  await import("../../../server/lib/schema-health.ts");
 
 function allPresentRows() {
   const rows: Array<{
