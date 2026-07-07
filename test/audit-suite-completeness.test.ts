@@ -156,7 +156,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
       "Audit CSV exports preserve domain scoping, reject cross-domain cookies and enforce maximum export size.",
     testFiles: [
       {
-        path: "test/audit-export-boundaries.test.ts",
+        path: "test/security/audit-export-boundaries.test.ts",
         markers: [
           "admin audit export conserva alcance global",
           "clinic audit export fuerza clinicId",

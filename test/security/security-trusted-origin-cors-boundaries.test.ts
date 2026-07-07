@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -11,19 +11,19 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../server/lib/env.ts");
 const {
   adminAuthNativeRoutes,
-} = await import("../server/routes/admin-auth.fastify.ts");
+} = await import("../../server/routes/admin-auth.fastify.ts");
 const {
   clinicAuthNativeRoutes,
-} = await import("../server/routes/auth.fastify.ts");
+} = await import("../../server/routes/auth.fastify.ts");
 const {
   particularAuthNativeRoutes,
-} = await import("../server/routes/particular-auth.fastify.ts");
+} = await import("../../server/routes/particular-auth.fastify.ts");
 const {
   publicReportAccessNativeRoutes,
-} = await import("../server/routes/public-report-access.fastify.ts");
+} = await import("../../server/routes/public-report-access.fastify.ts");
 
 const ALLOWED_ORIGIN = "http://localhost:3000";
 const BLOCKED_ORIGIN = "https://evil.example";

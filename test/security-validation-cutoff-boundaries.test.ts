@@ -454,7 +454,7 @@ test("runtime validation tests remain explicit for cut-off behavior", () => {
   const reports = readSource("test/reports.fastify.test.ts");
   const adminReports = readSource("test/admin-reports.fastify.test.ts");
   const publicProfessionals = readSource("test/public-professionals.fastify.test.ts");
-  const auditExports = readSource("test/audit-export-boundaries.test.ts");
+  const auditExports = readSource("test/security/audit-export-boundaries.test.ts");
   const accessLifecycle = readSource("test/security-access-lifecycle-boundaries.test.ts");
   const responseDisclosure = readSource("test/security-response-disclosure-boundaries.test.ts");
 

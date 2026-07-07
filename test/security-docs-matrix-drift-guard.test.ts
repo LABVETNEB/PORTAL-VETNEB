@@ -37,7 +37,7 @@ const REQUIRED_GUARDRAIL_TESTS = [
   "test/security-response-disclosure-boundaries.test.ts",
   "test/security-session-cookie-boundaries.test.ts",
   "test/security-mutation-permission-surface.test.ts",
-  "test/security-trusted-origin-cors-boundaries.test.ts",
+  "test/security/security-trusted-origin-cors-boundaries.test.ts",
   "test/security-sensitive-log-redaction-boundaries.test.ts",
 ] as const;
 

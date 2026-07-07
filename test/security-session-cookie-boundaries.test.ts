@@ -392,7 +392,7 @@ test("runtime middleware and fastify tests remain explicit for cookie contracts"
 });
 
 test("cross-domain cookie rejection and legacy cookie protection stay covered", () => {
-  const auditExportTests = readSource("test/audit-export-boundaries.test.ts");
+  const auditExportTests = readSource("test/security/audit-export-boundaries.test.ts");
   const auditSeparatedTests = readSource("test/audit-separated-surfaces.test.ts");
   const crossAuthTests = readSource("test/security-cross-auth-surface-boundaries.test.ts");
   const clinicAuditTests = readSource("test/clinic-audit.fastify.test.ts");

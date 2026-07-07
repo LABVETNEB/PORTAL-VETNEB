@@ -197,7 +197,7 @@ test("runtime disclosure tests remain explicit for hidden resources and response
   const publicReportAccessTests = readSource("test/public-report-access.fastify.test.ts");
   const particularAuditTests = readSource("test/particular-audit.fastify.test.ts");
   const particularStudyTrackingTests = readSource("test/particular-study-tracking.fastify.test.ts");
-  const auditExportTests = readSource("test/audit-export-boundaries.test.ts");
+  const auditExportTests = readSource("test/security/audit-export-boundaries.test.ts");
 
   assertContains(reportsTests, "reportsNativeRoutes unifica informe ajeno e inexistente como 404 seguro", "reports hidden or missing runtime test");
 
