@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -57,8 +57,50 @@ const PARTICULAR_SESSION_FILES = [
   "server/routes/particular-study-tracking.fastify.ts",
 ] as const;
 
+function listFilesRecursive(relativeDir: string): string[] {
+  const rootDir = resolve(REPO_ROOT, relativeDir);
+  if (!existsSync(rootDir)) {
+    return [];
+  }
+
+  const files: string[] = [];
+  const walk = (absoluteDir: string): void => {
+    for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
+      const absolute = resolve(absoluteDir, entry.name);
+      if (entry.isDirectory()) {
+        walk(absolute);
+      } else if (entry.isFile()) {
+        files.push(relative(REPO_ROOT, absolute).split(sep).join("/"));
+      }
+    }
+  };
+
+  walk(rootDir);
+  return files;
+}
+
+// Resolve a legacy test-root path to its current canonical location, tolerating tests
+// already migrated into enterprise subdirectories (TEST-ARCH-13). Prefers the exact
+// path; falls back to a unique basename match under the same top-level directory.
+function resolveExistingSourcePath(relativePath: string): string | undefined {
+  const normalized = relativePath.split(sep).join("/");
+  if (existsSync(resolve(REPO_ROOT, normalized))) {
+    return normalized;
+  }
+
+  const targetName = basename(normalized);
+  const topDir = normalized.split("/")[0];
+  const matches = listFilesRecursive(topDir).filter(
+    (candidate) => basename(candidate) === targetName,
+  );
+
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
 function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");
+  const resolved = resolveExistingSourcePath(relativePath);
+  assert.ok(resolved, `source not found for ${relativePath}`);
+  return readFileSync(resolve(REPO_ROOT, resolved), "utf8");
 }
 
 function assertContains(source: string, marker: string, context: string) {

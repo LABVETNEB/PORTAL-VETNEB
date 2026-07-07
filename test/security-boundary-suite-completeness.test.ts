@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, resolve } from "node:path";
+import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -467,8 +467,50 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
   },
 ];
 
+function listFilesRecursive(relativeDir: string): string[] {
+  const rootDir = resolve(REPO_ROOT, relativeDir);
+  if (!existsSync(rootDir)) {
+    return [];
+  }
+
+  const files: string[] = [];
+  const walk = (absoluteDir: string): void => {
+    for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
+      const absolute = resolve(absoluteDir, entry.name);
+      if (entry.isDirectory()) {
+        walk(absolute);
+      } else if (entry.isFile()) {
+        files.push(relative(REPO_ROOT, absolute).split(sep).join("/"));
+      }
+    }
+  };
+
+  walk(rootDir);
+  return files;
+}
+
+// Resolve a legacy test-root path to its current canonical location, tolerating tests
+// already migrated into enterprise subdirectories (TEST-ARCH-13). Prefers the exact
+// path; falls back to a unique basename match under the same top-level directory.
+function resolveExistingSourcePath(relativePath: string): string | undefined {
+  const normalized = relativePath.split(sep).join("/");
+  if (existsSync(resolve(REPO_ROOT, normalized))) {
+    return normalized;
+  }
+
+  const targetName = basename(normalized);
+  const topDir = normalized.split("/")[0];
+  const matches = listFilesRecursive(topDir).filter(
+    (candidate) => basename(candidate) === targetName,
+  );
+
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
 function readSource(relativePath: string): string {
-  return readFileSync(resolve(REPO_ROOT, relativePath), "utf8")
+  const resolved = resolveExistingSourcePath(relativePath);
+  assert.ok(resolved, `source not found for ${relativePath}`);
+  return readFileSync(resolve(REPO_ROOT, resolved), "utf8")
     .replace(/^\uFEFF/, "")
     .replace(/\r\n/g, "\n");
 }
@@ -482,9 +524,8 @@ function uniqueValues(values: readonly string[]): string[] {
 }
 
 function assertFileExists(relativePath: string): void {
-  assert.equal(
-    existsSync(resolve(REPO_ROOT, relativePath)),
-    true,
+  assert.ok(
+    resolveExistingSourcePath(relativePath) !== undefined,
     `${relativePath} must exist`,
   );
 }
@@ -545,13 +586,15 @@ test("security boundary suite completeness registry keeps canonical order", () =
 });
 
 test("security boundary suite includes every security boundaries guardrail file", () => {
-  const actualFiles = readdirSync(resolve(REPO_ROOT, "test"))
-    .filter((fileName) => /^security-.*-boundaries\.test\.ts$/.test(fileName))
+  const actualFiles = listFilesRecursive("test")
+    .filter((relativePath) =>
+      /^security-.*-boundaries\.test\.ts$/.test(basename(relativePath)),
+    )
     .sort();
 
-  const expectedFiles = SECURITY_BOUNDARY_SUITE.map((guardrail) =>
-    basename(guardrail.path),
-  ).sort();
+  const expectedFiles = SECURITY_BOUNDARY_SUITE.map((guardrail) => guardrail.path)
+    .slice()
+    .sort();
 
   assert.deepEqual(actualFiles, expectedFiles);
 });

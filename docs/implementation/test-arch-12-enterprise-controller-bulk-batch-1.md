@@ -246,3 +246,14 @@ destino-único y tocan tests de security/architecture:
 Ver sección de resultados de comandos en el resumen de entrega. Como no cambió ningún test
 ni runtime, las validaciones confirman el **baseline verde intacto** y que el único cambio
 es este reporte untracked.
+
+## Resolución — TEST-ARCH-13
+
+La **Opción 1** de la recomendación fue ejecutada en
+[TEST-ARCH-13](test-arch-13-recursive-suite-census-and-source-path-guards.md): los censos
+`readdirSync("test")` de `audit-suite-completeness` y `security-boundary-suite-completeness`
+se volvieron **recursivos + canónicos**, y los `readSource`/`readFileSync` anclados a rutas
+de test-root en los guards de security se volvieron **subdirectory-aware** (resolver
+exact-first con fallback por basename único). **Sin mover tests.** Con eso, el **Grupo A
+(audit)** queda desbloqueado para su move real (renombrado a **TEST-ARCH-14** en el
+manifiesto §8 corregido).
