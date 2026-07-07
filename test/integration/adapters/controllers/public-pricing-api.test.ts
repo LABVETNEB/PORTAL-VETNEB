@@ -3,14 +3,14 @@ import test from "node:test";
 import Fastify from "fastify";
 
 const { publicPricingNativeRoutes } = await import(
-  "../server/routes/public-pricing.fastify.ts"
+  "../../../../server/routes/public-pricing.fastify.ts"
 );
 const { clearPublicPricingCache } = await import(
-  "../server/lib/public-pricing-cache.ts"
+  "../../../../server/lib/public-pricing-cache.ts"
 );
 
 type PublicPricingNativeRoutesOptions = import(
-  "../server/routes/public-pricing.fastify.ts"
+  "../../../../server/routes/public-pricing.fastify.ts"
 ).PublicPricingNativeRoutesOptions;
 
 function createPricingItem(overrides: Record<string, unknown> = {}) {

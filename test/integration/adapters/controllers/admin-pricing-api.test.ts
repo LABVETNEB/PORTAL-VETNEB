@@ -9,20 +9,20 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
 const { adminPricingNativeRoutes } = await import(
-  "../server/routes/admin-pricing.fastify.ts"
+  "../../../../server/routes/admin-pricing.fastify.ts"
 );
 const {
   clearPublicPricingCache,
   getCachedPublicPricingSnapshot,
   setCachedPublicPricingSnapshot,
-} = await import("../server/lib/public-pricing-cache.ts");
+} = await import("../../../../server/lib/public-pricing-cache.ts");
 
 type AdminPricingNativeRoutesOptions = import(
-  "../server/routes/admin-pricing.fastify.ts"
+  "../../../../server/routes/admin-pricing.fastify.ts"
 ).AdminPricingNativeRoutesOptions;
-type PricingItem = import("../server/db-pricing.ts").PricingItem;
+type PricingItem = import("../../../../server/db-pricing.ts").PricingItem;
 
 function createPricingItem(overrides: Record<string, unknown> = {}): PricingItem {
   return {
