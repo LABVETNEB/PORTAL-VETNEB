@@ -11,28 +11,28 @@ process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 process.env.CORS_ORIGIN ??=
   "https://portal-vetneb-frontend-staging.onrender.com";
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
 const { adminUsersRolesNativeRoutes } = await import(
-  "../server/routes/admin-users-roles.fastify.ts"
+  "../../../../server/routes/admin-users-roles.fastify.ts"
 );
 
 type AdminUsersRolesNativeRoutesOptions = import(
-  "../server/routes/admin-users-roles.fastify.ts"
+  "../../../../server/routes/admin-users-roles.fastify.ts"
 ).AdminUsersRolesNativeRoutesOptions;
 type AdminUsersRolesQuery = import(
-  "../server/db-admin-users-roles.ts"
+  "../../../../server/db-admin-users-roles.ts"
 ).AdminUsersRolesQuery;
 type AdminUsersRolesSnapshot = import(
-  "../server/db-admin-users-roles.ts"
+  "../../../../server/db-admin-users-roles.ts"
 ).AdminUsersRolesSnapshot;
 type AdminRoleUserSummary = import(
-  "../server/db-admin-users-roles.ts"
+  "../../../../server/db-admin-users-roles.ts"
 ).AdminRoleUserSummary;
 type AdminClinicUserRoleChangeResult = import(
-  "../server/db-admin-users-roles.ts"
+  "../../../../server/db-admin-users-roles.ts"
 ).AdminClinicUserRoleChangeResult;
 type AdminClinicUserCredentialsUpdateResult = import(
-  "../server/db-admin-clinics.ts"
+  "../../../../server/db-admin-clinics.ts"
 ).AdminClinicUserCredentialsUpdateResult;
 const STAGING_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 
