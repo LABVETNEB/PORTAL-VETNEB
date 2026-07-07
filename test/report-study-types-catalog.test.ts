@@ -141,7 +141,7 @@ test("critical report tests stop using free-text or abbreviated studyType", () =
     [
       "test/integration/adapters/controllers/admin-reports.fastify.test.ts",
       "test/integration/adapters/controllers/reports.fastify.test.ts",
-      "test/report-write-surface-ownership.test.ts",
+      "test/security/report-write-surface-ownership.test.ts",
       "test/integration/adapters/controllers/reports-status.fastify.test.ts",
     ].includes(file),
   );
@@ -152,7 +152,7 @@ test("critical report tests stop using free-text or abbreviated studyType", () =
       "test/integration/adapters/controllers/admin-reports.fastify.test.ts",
       "test/integration/adapters/controllers/reports-status.fastify.test.ts",
       "test/integration/adapters/controllers/reports.fastify.test.ts",
-      "test/report-write-surface-ownership.test.ts",
+      "test/security/report-write-surface-ownership.test.ts",
     ],
   );
 
