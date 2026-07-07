@@ -62,7 +62,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
       "Clinic study tracking routes keep authenticated clinic scope, management permission, links, notifications, email and audit writes.",
     testFiles: [
       {
-        path: "test/study-tracking.fastify.test.ts",
+        path: "test/integration/adapters/controllers/study-tracking.fastify.test.ts",
         markers: [
           "studyTrackingNativeRoutes",
           "createStudyTrackingCase",
@@ -100,7 +100,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
       "Admin study tracking routes keep global or clinic-scoped reads, create/update mutations, special stain notifications and admin audit attribution.",
     testFiles: [
       {
-        path: "test/admin-study-tracking.fastify.test.ts",
+        path: "test/integration/adapters/controllers/admin-study-tracking.fastify.test.ts",
         markers: [
           "adminStudyTrackingNativeRoutes",
           "createStudyTrackingCase",
@@ -140,7 +140,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
       "Particular study tracking keeps token-scoped reads and notification read acknowledgements using the particular session cookie without exposing write operations outside its own scope.",
     testFiles: [
       {
-        path: "test/particular-study-tracking.fastify.test.ts",
+        path: "test/integration/adapters/controllers/particular-study-tracking.fastify.test.ts",
         markers: [
           "particularStudyTrackingNativeRoutes",
           "getParticularStudyTrackingCase",

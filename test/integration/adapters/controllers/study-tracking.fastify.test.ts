@@ -9,15 +9,15 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
 const {
   studyTrackingNativeRoutes,
-} = await import("../server/routes/study-tracking.fastify.ts");
+} = await import("../../../../server/routes/study-tracking.fastify.ts");
 const {
   calculateEstimatedDeliveryAt,
   getBusinessDayWeight,
   isArgentinaNationalHoliday,
-} = await import("../server/lib/study-tracking.ts");
+} = await import("../../../../server/lib/study-tracking.ts");
 
 function createTrackingCaseFixture(overrides: Record<string, unknown> = {}) {
   return {
