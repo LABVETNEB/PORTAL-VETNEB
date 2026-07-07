@@ -9,24 +9,24 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
-const { AUDIT_EVENTS } = await import("../server/lib/audit.ts");
+const { ENV } = await import("../../../../server/lib/env.ts");
+const { AUDIT_EVENTS } = await import("../../../../server/lib/audit.ts");
 const {
   buildLoginRateLimitKey,
   LOGIN_RATE_LIMIT_CODE,
   LOGIN_RATE_LIMIT_EXPOSED_HEADERS,
   LOGIN_RATE_LIMIT_ERROR_MESSAGE,
-} = await import("../server/lib/login-rate-limit.ts");
+} = await import("../../../../server/lib/login-rate-limit.ts");
 const {
   createPersistentRateLimitStore,
   hashRateLimitKey,
-} = await import("../server/lib/rate-limit-store.ts");
+} = await import("../../../../server/lib/rate-limit-store.ts");
 const {
   getClinicPermissions,
-} = await import("../server/lib/permissions.ts");
+} = await import("../../../../server/lib/permissions.ts");
 const {
   clinicAuthNativeRoutes,
-} = await import("../server/routes/auth.fastify.ts");
+} = await import("../../../../server/routes/auth.fastify.ts");
 
 async function createTestApp(overrides: Record<string, unknown> = {}) {
   const app = Fastify();
@@ -1824,7 +1824,7 @@ test(
   "clinicAuthNativeRoutes clínica registrada con hash argon2 puede iniciar sesión",
   async () => {
     const { hashPassword, verifyPassword } = await import(
-      "../server/lib/auth-security.ts"
+      "../../../../server/lib/auth-security.ts"
     );
 
     const storedHash = await hashPassword("clave-inicial-segura");
@@ -1899,7 +1899,7 @@ test(
   "clinicAuthNativeRoutes password incorrecto rechaza clínica registrada",
   async () => {
     const { hashPassword, verifyPassword } = await import(
-      "../server/lib/auth-security.ts"
+      "../../../../server/lib/auth-security.ts"
     );
 
     const storedHash = await hashPassword("clave-correcta-123");
