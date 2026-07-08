@@ -2,14 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { timeWindows } from "../drizzle/schema.ts";
+import { timeWindows } from "../../../../drizzle/schema.ts";
 import {
   DEFAULT_TIME_WINDOW_TIMEZONE,
   TIME_WINDOW_TIMEZONE_MAX_LENGTH,
   assertValidTimeWindowRange,
   isValidTimeWindowRange,
   normalizeTimeWindowTimezone,
-} from "../server/lib/logistics/time-window.ts";
+} from "../../../../server/lib/logistics/time-window.ts";
 
 test("logistics schema exports time windows table", () => {
   assert.equal(typeof timeWindows, "object");

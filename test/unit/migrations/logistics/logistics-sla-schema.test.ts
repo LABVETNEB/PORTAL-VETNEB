@@ -8,7 +8,7 @@ import {
   SLA_TARGET_TYPES,
   slaInstances,
   slaPolicies,
-} from "../drizzle/schema.ts";
+} from "../../../../drizzle/schema.ts";
 
 function assertNormalizedUniqueValues(
   values: readonly string[],

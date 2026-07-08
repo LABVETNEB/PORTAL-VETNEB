@@ -6,7 +6,7 @@ import {
   ROUTE_EVENT_SOURCES,
   ROUTE_EVENT_TYPES,
   routeEvents,
-} from "../drizzle/schema.ts";
+} from "../../../../drizzle/schema.ts";
 
 function assertUniqueValues(values: readonly string[], label: string) {
   const unique = new Set(values);
