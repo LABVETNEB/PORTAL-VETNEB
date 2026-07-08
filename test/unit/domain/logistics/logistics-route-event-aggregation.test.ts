@@ -1,11 +1,11 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import {
   calculateDurationBetweenRouteEvents,
   getRouteEventBoundariesByRoutePlan,
   getRouteEventBoundariesByRouteStop,
   summarizeRouteEvents,
-} from "../server/lib/logistics/metrics.ts";
+} from "../../../../server/lib/logistics/metrics.ts";
 
 const events = [
   {

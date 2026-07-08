@@ -6,7 +6,7 @@ import {
   LOGISTICS_MAX_LIMIT,
   normalizeLogisticsLimit,
   normalizeLogisticsOffset,
-} from "../server/features/logistics/domain/pagination.ts";
+} from "../../../../server/features/logistics/domain/pagination.ts";
 
 test("LOGISTICS_DEFAULT_LIMIT and LOGISTICS_MAX_LIMIT keep their bounded values", () => {
   assert.equal(LOGISTICS_DEFAULT_LIMIT, 50);

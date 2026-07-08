@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { normalizeGenerateHeuristicFieldVisitIds } from "../server/features/logistics/domain/route-plan-field-visits.ts";
+import { normalizeGenerateHeuristicFieldVisitIds } from "../../../../server/features/logistics/domain/route-plan-field-visits.ts";
 
 test("normalizeGenerateHeuristicFieldVisitIds keeps unique positive integers in first-seen order", () => {
   assert.deepEqual(

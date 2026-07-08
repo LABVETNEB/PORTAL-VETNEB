@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -11,9 +11,9 @@ function readRepoFile(path: string): string {
 
 test("logistics metrics suite keeps required test files", () => {
   const requiredTestFiles = [
-    "test/logistics-metrics.test.ts",
-    "test/logistics-sla-compliance.test.ts",
-    "test/logistics-route-event-aggregation.test.ts",
+    "test/unit/domain/logistics/logistics-metrics.test.ts",
+    "test/unit/domain/logistics/logistics-sla-compliance.test.ts",
+    "test/unit/domain/logistics/logistics-route-event-aggregation.test.ts",
   ];
 
   for (const file of requiredTestFiles) {
@@ -22,7 +22,7 @@ test("logistics metrics suite keeps required test files", () => {
 });
 
 test("logistics metrics suite keeps route compliance coverage", () => {
-  const testFile = readRepoFile("test/logistics-metrics.test.ts");
+  const testFile = readRepoFile("test/unit/domain/logistics/logistics-metrics.test.ts");
 
   const requiredCoverage = [
     "calculateRouteDistanceCompliance",
@@ -38,7 +38,7 @@ test("logistics metrics suite keeps route compliance coverage", () => {
 });
 
 test("logistics metrics suite keeps SLA compliance coverage", () => {
-  const testFile = readRepoFile("test/logistics-sla-compliance.test.ts");
+  const testFile = readRepoFile("test/unit/domain/logistics/logistics-sla-compliance.test.ts");
 
   const requiredCoverage = [
     "classifySlaCompliance",
@@ -57,7 +57,7 @@ test("logistics metrics suite keeps SLA compliance coverage", () => {
 });
 
 test("logistics metrics suite keeps route event aggregation coverage", () => {
-  const testFile = readRepoFile("test/logistics-route-event-aggregation.test.ts");
+  const testFile = readRepoFile("test/unit/domain/logistics/logistics-route-event-aggregation.test.ts");
 
   const requiredCoverage = [
     "summarizeRouteEvents",
