@@ -8,11 +8,11 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../server/lib/env.ts");
 const {
   sendParticularTokenEmail,
   sendContactMessageEmail,
-} = await import("../server/lib/email.ts");
+} = await import("../../../server/lib/email.ts");
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -144,7 +144,7 @@ test("HTML builders escapan caracteres peligrosos en datos dinamicos", async () 
 test("Gmail API genera text/plain cuando la funcion no aporta html (sendSpecialStainRequiredEmail)", async () => {
   // sendSpecialStainRequiredEmail is NOT wired to an HTML builder — it still
   // sends text/plain only. This test confirms the no-html fallback path.
-  const { sendSpecialStainRequiredEmail } = await import("../server/lib/email.ts");
+  const { sendSpecialStainRequiredEmail } = await import("../../../server/lib/email.ts");
   const snap = snapshotEnv();
   const originalFetch = globalThis.fetch;
   let rawMessage = "";

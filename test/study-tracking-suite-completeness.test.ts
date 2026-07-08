@@ -181,7 +181,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
       "Special stain email coverage keeps recipient normalization, SMTP payload construction and send logging explicit.",
     testFiles: [
       {
-        path: "test/email-success.test.ts",
+        path: "test/unit/infrastructure/email-success.test.ts",
         markers: [
           "sendSpecialStainRequiredEmail",
           "nodemailer.createTransport",
@@ -191,7 +191,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
         ],
       },
       {
-        path: "test/logger-and-email.test.ts",
+        path: "test/unit/infrastructure/logger-and-email.test.ts",
         markers: [
           "sendSpecialStainRequiredEmail",
           "SMTP",

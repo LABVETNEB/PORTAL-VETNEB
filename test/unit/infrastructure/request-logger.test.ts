@@ -1,9 +1,9 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildRequestLogLine,
   sanitizeUrlForLogs,
-} from "../server/middlewares/request-logger.ts";
+} from "../../../server/middlewares/request-logger.ts";
 
 test("sanitizeUrlForLogs redacts public report access token in path", () => {
   const rawUrl = `/api/public/report-access/${"a".repeat(64)}?foo=bar`;

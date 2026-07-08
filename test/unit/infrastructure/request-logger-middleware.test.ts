@@ -1,9 +1,9 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildRequestLogLine,
   requestLogger,
-} from "../server/middlewares/request-logger.ts";
+} from "../../../server/middlewares/request-logger.ts";
 
 function createMockResponse(statusCode = 200) {
   const listeners = new Map<string, Array<() => void>>();

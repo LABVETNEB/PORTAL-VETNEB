@@ -581,7 +581,7 @@ test("rate-limited responses are logged with the shared RATE_LIMITED marker only
 
   for (const file of [
     "test/integration/adapters/controllers/public-professionals-logging-invariants.test.ts",
-    "test/request-logger.test.ts",
+    "test/unit/infrastructure/request-logger.test.ts",
   ] as const) {
     const source = readSource(file);
     assertContains(source, "RATE_LIMITED", `${file} runtime marker coverage`);
