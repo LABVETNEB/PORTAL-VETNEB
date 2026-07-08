@@ -11,7 +11,7 @@ import {
   getCachedRoutePlansSnapshot,
   setCachedRoutePlanMetricsSnapshot,
   setCachedRoutePlansSnapshot,
-} from "../server/lib/logistics-route-plans-cache.ts";
+} from "../../../../server/lib/logistics-route-plans-cache.ts";
 
 test("logistics route plans cache keeps snapshot for 5 minutes and expires afterwards", () => {
   clearRoutePlansCache();

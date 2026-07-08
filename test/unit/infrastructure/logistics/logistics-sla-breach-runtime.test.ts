@@ -6,10 +6,10 @@ import {
   markOverdueSlaBreaches,
   markOverdueSlaBreachesWithDb,
   type MarkOverdueSlaBreachesDeps,
-} from "../server/lib/logistics/sla-breach.ts";
+} from "../../../../server/lib/logistics/sla-breach.ts";
 
 const slaBreachSource = readFileSync(
-  new URL("../server/lib/logistics/sla-breach.ts", import.meta.url),
+  new URL("../../../../server/lib/logistics/sla-breach.ts", import.meta.url),
   "utf8",
 );
 
