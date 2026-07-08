@@ -1,9 +1,9 @@
-﻿import assert from "node:assert/strict";
+import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 function readRepoFile(path: string): string {
-  return readFileSync(new URL(`../${path}`, import.meta.url), "utf8").replace(
+  return readFileSync(new URL(`../../../${path}`, import.meta.url), "utf8").replace(
     /\r\n/g,
     "\n",
   );

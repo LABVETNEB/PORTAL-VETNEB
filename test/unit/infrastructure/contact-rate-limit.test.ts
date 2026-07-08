@@ -7,7 +7,7 @@ import {
   CONTACT_RATE_LIMIT_MAX_ATTEMPTS,
   CONTACT_RATE_LIMIT_WINDOW_MS,
   normalizeContactClientIdentifier,
-} from "../server/lib/contact-rate-limit.ts";
+} from "../../../server/lib/contact-rate-limit.ts";
 
 test("contact rate limit policy constants are stable", () => {
   assert.equal(CONTACT_RATE_LIMIT_WINDOW_MS, 10 * 60 * 1000);

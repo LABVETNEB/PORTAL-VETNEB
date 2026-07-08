@@ -1,11 +1,11 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import argon2 from "argon2";
 import {
   hashLegacyPassword,
   hashSessionToken,
   verifyPassword,
-} from "../server/lib/auth-security.ts";
+} from "../../../server/lib/auth-security.ts";
 
 test("hashLegacyPassword y hashSessionToken generan sha256 estable para string vacío", () => {
   const expected =

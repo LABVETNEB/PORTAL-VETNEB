@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
 const {
   API_NOSNIFF_HEADER_NAME,
@@ -12,14 +12,14 @@ const {
   API_REFERRER_POLICY_HEADER_NAME,
   API_REFERRER_POLICY_HEADER_VALUE,
   shouldApplyApiSecurityHeaders,
-} = await import("../server/lib/api-response-security.ts");
+} = await import("../../../server/lib/api-response-security.ts");
 const {
   API_REQUEST_ID_HEADER_KEY,
   API_REQUEST_ID_HEADER_NAME,
   API_REQUEST_ID_MAX_LENGTH,
   generateFastifyRequestId,
   isSafeRequestId,
-} = await import("../server/lib/api-request-id.ts");
+} = await import("../../../server/lib/api-request-id.ts");
 
 function readSource(relativePath: string): string {
   return readFileSync(resolve(REPO_ROOT, relativePath), "utf8");

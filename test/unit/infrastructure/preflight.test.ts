@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   isPoolExhaustedError,
   safeCleanupStep,
-} from "../server/preflight.ts";
+} from "../../../server/preflight.ts";
 
 // isPoolExhaustedError
 

@@ -11,7 +11,7 @@ process.env.DATABASE_URL ??=
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 process.env.CORS_ORIGIN ??= "https://vetneb.com.ar";
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../server/lib/env.ts");
 const {
   UNSAFE_METHODS,
   getAllowedOrigins,
@@ -21,7 +21,7 @@ const {
   getRequestOrigin,
   enforceTrustedOrigin,
   enforceTrustedOriginRequired,
-} = await import("../server/lib/cors-headers.ts");
+} = await import("../../../server/lib/cors-headers.ts");
 
 // ---------------------------------------------------------------------------
 // Fakes mínimos: las funciones sólo leen method/headers y, para
