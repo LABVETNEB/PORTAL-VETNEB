@@ -4,12 +4,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const { normalizeListPagination } = await import(
-  "../server/lib/list-pagination.ts"
+  "../../../server/lib/list-pagination.ts"
 );
 const {
   shouldApplySensitiveApiNoStore,
   SENSITIVE_API_CACHE_CONTROL,
-} = await import("../server/lib/sensitive-response-cache.ts");
+} = await import("../../../server/lib/sensitive-response-cache.ts");
 
 type HeavySurface = {
   file: string;
@@ -145,7 +145,7 @@ test("validation scripts keep production readiness gates explicit", () => {
 });
 
 test("global performance resilience guardrail source stays ascii only", () => {
-  const source = read("test/global-performance-resilience-contract.test.ts");
+  const source = read("test/unit/infrastructure/global-performance-resilience-contract.test.ts");
 
   for (let index = 0; index < source.length; index += 1) {
     assert.equal(
