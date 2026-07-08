@@ -3,10 +3,10 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
-import { isClean7aAllowedDependencyChange } from "./helpers/clean7a-dependency-cleanup-scope.ts";
-import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
-import { dashboardScopeGuardApplies } from "./helpers/dashboard-scope-guard.ts";
-import { readDashboardCssSource } from "./helpers/read-dashboard-css-source.ts";
+import { isClean7aAllowedDependencyChange } from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
+import { isReportForeignAccessBackendFile } from "../../../helpers/report-foreign-access-scope.ts";
+import { dashboardScopeGuardApplies } from "../../../helpers/dashboard-scope-guard.ts";
+import { readDashboardCssSource } from "../../../helpers/read-dashboard-css-source.ts";
 
 const BUTTON_PATH = "frontend/src/components/ui/button.tsx";
 const ADMIN_CLINICS_CARD_PATH =

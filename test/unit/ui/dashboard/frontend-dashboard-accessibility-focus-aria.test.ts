@@ -3,9 +3,9 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
-import { isClean7aAllowedDependencyChange } from "./helpers/clean7a-dependency-cleanup-scope.ts";
-import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
-import { dashboardScopeGuardApplies } from "./helpers/dashboard-scope-guard.ts";
+import { isClean7aAllowedDependencyChange } from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
+import { isReportForeignAccessBackendFile } from "../../../helpers/report-foreign-access-scope.ts";
+import { dashboardScopeGuardApplies } from "../../../helpers/dashboard-scope-guard.ts";
 
 const ADMIN_SECTION_TABS_PATH =
   "frontend/src/app/dashboard/admin/AdminSectionTabs.tsx";
