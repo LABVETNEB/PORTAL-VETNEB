@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const { normalizeListPagination } = await import(
-  "../server/lib/list-pagination.ts"
+  "../../../../server/lib/list-pagination.ts"
 );
 
 function readSource(path: string) {
