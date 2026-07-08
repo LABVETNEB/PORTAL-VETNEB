@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -10,7 +10,7 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const { createRequireAdminAuth } = await import(
-  "../server/middlewares/admin-auth.ts"
+  "../../../../server/middlewares/admin-auth.ts"
 );
 
 function readSource(relativePath: string): string {
