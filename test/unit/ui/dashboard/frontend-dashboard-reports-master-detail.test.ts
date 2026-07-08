@@ -6,7 +6,7 @@ import test from "node:test";
 import {
   assertClean7aDependencyCleanupScope,
   isClean7aAllowedDependencyFile,
-} from "./helpers/clean7a-dependency-cleanup-scope.ts";
+} from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
 
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
 const INFORMES_LIST_PATH =

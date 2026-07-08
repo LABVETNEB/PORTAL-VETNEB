@@ -6,7 +6,7 @@ import test from "node:test";
 import {
   ApiResponseError,
   isUnauthorizedApiError,
-} from "../frontend/src/lib/api-error.ts";
+} from "../../../../frontend/src/lib/api-error.ts";
 
 const SERVER_AUTH_PATH = "frontend/src/lib/dashboard-server-auth.ts";
 const PROXY_PATH = "frontend/src/proxy.ts";

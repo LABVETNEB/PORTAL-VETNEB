@@ -6,9 +6,9 @@ import test from "node:test";
 import {
   assertClean7aDependencyCleanupScope,
   isClean7aAllowedDependencyFile,
-} from "./helpers/clean7a-dependency-cleanup-scope.ts";
-import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
-import { dashboardScopeGuardApplies } from "./helpers/dashboard-scope-guard.ts";
+} from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
+import { isReportForeignAccessBackendFile } from "../../../helpers/report-foreign-access-scope.ts";
+import { dashboardScopeGuardApplies } from "../../../helpers/dashboard-scope-guard.ts";
 
 const LOGISTICS_PAGE_PATH = "frontend/src/app/dashboard/logistica/page.tsx";
 const COMMAND_CENTER_PATH =
