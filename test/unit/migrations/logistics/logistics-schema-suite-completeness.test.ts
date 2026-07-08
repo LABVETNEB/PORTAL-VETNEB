@@ -4,11 +4,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import * as schema from "../drizzle/schema.ts";
+import * as schema from "../../../../drizzle/schema.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, "..");
+const repoRoot = path.resolve(__dirname, "../../../..");
 
 const schemaPath = path.join(repoRoot, "drizzle", "schema.ts");
 const migrationsRoot = path.join(repoRoot, "drizzle");
