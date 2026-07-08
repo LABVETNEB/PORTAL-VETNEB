@@ -173,7 +173,7 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
     ],
     guardrailFiles: [
       {
-        path: "test/admin-heavy-list-pagination-contract.test.ts",
+        path: "test/unit/contracts/admin/admin-heavy-list-pagination-contract.test.ts",
         markers: ["normalizeListPagination clampa max limit y offset"],
       },
       {
@@ -347,3 +347,4 @@ test("global e2e readiness guardrail source stays ascii only", () => {
     );
   }
 });
+
