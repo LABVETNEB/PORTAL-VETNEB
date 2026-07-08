@@ -358,7 +358,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         markers: ["buildClinicAuditListFilters", "clinicId"],
       },
       {
-        path: "test/frontend-audit-no-mock-fallback.test.ts",
+        path: "test/unit/ui/frontend/frontend-audit-no-mock-fallback.test.ts",
         markers: [
           "frontend audit api client does not import audit mock dataset",
           "frontend audit api client uses real admin audit endpoint",
