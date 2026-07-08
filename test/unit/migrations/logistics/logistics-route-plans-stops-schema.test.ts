@@ -10,7 +10,7 @@ import {
   ROUTE_STOP_STATUSES,
   routePlans,
   routeStops,
-} from "../drizzle/schema.ts";
+} from "../../../../drizzle/schema.ts";
 
 function assertNormalizedUniqueValues(
   values: readonly string[],

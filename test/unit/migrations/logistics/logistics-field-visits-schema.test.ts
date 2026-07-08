@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -8,7 +8,7 @@ import {
   VISIT_LOCATION_GEO_QUALITIES,
   fieldVisits,
   visitLocations,
-} from "../drizzle/schema.ts";
+} from "../../../../drizzle/schema.ts";
 
 function assertNormalizedUniqueValues(
   values: readonly string[],
