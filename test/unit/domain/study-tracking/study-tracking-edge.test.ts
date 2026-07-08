@@ -6,7 +6,7 @@ import {
   applyStageTimestampDefaults,
   calculateEstimatedDeliveryAt,
   updateStudyTrackingSchema,
-} from "../server/lib/study-tracking.ts";
+} from "../../../../server/lib/study-tracking.ts";
 
 test("calculateEstimatedDeliveryAt rechaza labReceivedAt invalido", () => {
   assert.throws(

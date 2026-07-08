@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   STUDY_TRACKING_STAGES,
   clinicCreateStudyTrackingSchema,
-} from "../server/lib/study-tracking.ts";
+} from "../../../../server/lib/study-tracking.ts";
 
 test("STUDY_TRACKING_STAGES conserva el orden público esperado", () => {
   assert.deepEqual(STUDY_TRACKING_STAGES, [

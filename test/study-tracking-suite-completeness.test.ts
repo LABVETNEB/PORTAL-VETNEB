@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,7 +25,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
       "Study tracking domain helpers keep schemas, delivery rules, stage timestamps, notification rules and serializers explicit.",
     testFiles: [
       {
-        path: "test/study-tracking.test.ts",
+        path: "test/unit/domain/study-tracking/study-tracking.test.ts",
         markers: [
           "adminCreateStudyTrackingSchema",
           "updateStudyTrackingSchema",

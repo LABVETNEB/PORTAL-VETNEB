@@ -22,7 +22,7 @@ import {
   serializeStudyTrackingNotification,
   shouldCreateSpecialStainNotification,
   updateStudyTrackingSchema,
-} from "../server/lib/study-tracking.ts";
+} from "../../../../server/lib/study-tracking.ts";
 
 test("adminCreateStudyTrackingSchema normaliza booleanos, textos y fechas", () => {
   const parsed = adminCreateStudyTrackingSchema.safeParse({
