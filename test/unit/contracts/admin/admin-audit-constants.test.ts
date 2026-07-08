@@ -1,10 +1,10 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import {
   ADMIN_AUDIT_ACTOR_TYPES,
   ADMIN_AUDIT_EVENTS,
   AUDIT_LOG_CSV_HEADERS,
-} from "../server/lib/admin-audit.ts";
+} from "../../../../server/lib/admin-audit.ts";
 
 test("ADMIN_AUDIT_ACTOR_TYPES expone strings únicos y normalizados", () => {
   assert.equal(Array.isArray(ADMIN_AUDIT_ACTOR_TYPES), true);

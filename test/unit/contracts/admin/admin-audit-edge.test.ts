@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildAdminAuditCsv,
@@ -6,7 +6,7 @@ import {
   buildClinicAuditListFilters,
   normalizeAuditListMetadata,
   serializeAuditLogListItem,
-} from "../server/lib/admin-audit.ts";
+} from "../../../../server/lib/admin-audit.ts";
 
 test("buildAdminAuditListFilters acumula errores para filtros invalidos y limita paginacion maxima", () => {
   const { filters, errors } = buildAdminAuditListFilters({
