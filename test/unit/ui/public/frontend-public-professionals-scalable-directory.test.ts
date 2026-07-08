@@ -9,7 +9,7 @@ import {
   isVerifiedPublicProfessional,
   parsePublicProfessionalClinicId,
   summarizePublicProfessional,
-} from "../frontend/src/lib/public-professionals.ts";
+} from "../../../../frontend/src/lib/public-professionals.ts";
 
 const PROFESIONALES_SEARCH_CONTENT_PATH =
   "frontend/src/components/public/ProfesionalesSearchContent.tsx";
