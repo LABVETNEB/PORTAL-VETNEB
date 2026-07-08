@@ -293,7 +293,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         markers: ["adminAuditNativeRoutes", "export.csv", "filtros"],
       },
       {
-        path: "test/admin-audit-runtime-timing-contract.test.ts",
+        path: "test/unit/contracts/admin/admin-audit-runtime-timing-contract.test.ts",
         markers: [
           "admin audit request logging uses shared runtime timing helper",
           "createRuntimeTimer",
@@ -302,11 +302,11 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         ],
       },
       {
-        path: "test/admin-audit.test.ts",
+        path: "test/unit/contracts/admin/admin-audit.test.ts",
         markers: ["buildAdminAuditListFilters", "buildAdminAuditCsv"],
       },
       {
-        path: "test/admin-audit-constants.test.ts",
+        path: "test/unit/contracts/admin/admin-audit-constants.test.ts",
         markers: [
           "ADMIN_AUDIT_ACTOR_TYPES expone strings",
           "ADMIN_AUDIT_EVENTS expone eventos",
@@ -314,7 +314,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         ],
       },
       {
-        path: "test/admin-audit-edge.test.ts",
+        path: "test/unit/contracts/admin/admin-audit-edge.test.ts",
         markers: [
           "buildAdminAuditListFilters acumula errores",
           "normalizeAuditListMetadata rechaza roots",
@@ -323,7 +323,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         ],
       },
       {
-        path: "test/admin-audit-enterprise-density.test.ts",
+        path: "test/unit/ui/admin/admin-audit-enterprise-density.test.ts",
         markers: [
           "R-06 preserves the real audit-log navigation surface",
           "R-06 uses RF debounced viewport-adaptive pagination",
