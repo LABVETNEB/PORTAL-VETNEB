@@ -241,10 +241,10 @@ test("contact smtp failure logging keeps diagnostics allowlist and avoids secret
 });
 
 test("runtime tests remain explicit for redaction and secret-safe logging", () => {
-  const requestLoggerTests = readSource("test/request-logger.test.ts");
-  const requestLoggerEdgeTests = readSource("test/request-logger-edge.test.ts");
-  const requestLoggerMiddlewareTests = readSource("test/request-logger-middleware.test.ts");
-  const loggerAndEmailTests = readSource("test/logger-and-email.test.ts");
+  const requestLoggerTests = readSource("test/unit/infrastructure/request-logger.test.ts");
+  const requestLoggerEdgeTests = readSource("test/unit/infrastructure/request-logger-edge.test.ts");
+  const requestLoggerMiddlewareTests = readSource("test/unit/infrastructure/request-logger-middleware.test.ts");
+  const loggerAndEmailTests = readSource("test/unit/infrastructure/logger-and-email.test.ts");
   const productionInvariants = readSource("test/security-production-invariants.test.ts");
   const smokeEnvContract = readSource("test/unit/infrastructure/smoke-env-contract.test.ts");
 

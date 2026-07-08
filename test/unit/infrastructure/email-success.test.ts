@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import nodemailer from "nodemailer";
 
@@ -8,11 +8,11 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
+const { ENV } = await import("../../../server/lib/env.ts");
 const {
   sendParticularTokenEmail,
   sendSpecialStainRequiredEmail,
-} = await import("../server/lib/email.ts");
+} = await import("../../../server/lib/email.ts");
 
 test("sendParticularTokenEmail envia token particular con payload minimo", async () => {
   const originalInfo = console.info;

@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -8,7 +8,7 @@ import {
   logInfo,
   logWarn,
   serializeError,
-} from "../server/lib/logger.ts";
+} from "../../../server/lib/logger.ts";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
@@ -16,8 +16,8 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/postgres";
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
-const { ENV } = await import("../server/lib/env.ts");
-const { sendContactMessageEmail, sendSpecialStainRequiredEmail } = await import("../server/lib/email.ts");
+const { ENV } = await import("../../../server/lib/env.ts");
+const { sendContactMessageEmail, sendSpecialStainRequiredEmail } = await import("../../../server/lib/email.ts");
 
 test("logInfo agrega prefijo [INFO]", () => {
   const original = console.log;
