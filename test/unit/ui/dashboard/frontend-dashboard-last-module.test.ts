@@ -9,7 +9,7 @@ const {
   clearDashboardLastModules,
   readDashboardLastModule,
   writeDashboardLastModule,
-} = await import("../frontend/src/lib/dashboard-last-module.ts");
+} = await import("../../../../frontend/src/lib/dashboard-last-module.ts");
 
 const STORAGE_PATH = "frontend/src/lib/dashboard-last-module.ts";
 const AUTH_CONTEXT_PATH = "frontend/src/context/AuthContext.tsx";
