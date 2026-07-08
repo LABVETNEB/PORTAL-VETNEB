@@ -4,7 +4,7 @@ import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
 
 type FileAnchor = {
   path: string;
@@ -433,7 +433,7 @@ test("study tracking suite keeps particular surface token-scoped sin create/dele
 });
 
 test("study tracking suite completeness guardrail source stays ascii only", () => {
-  const source = readSource("test/study-tracking-suite-completeness.test.ts");
+  const source = readSource("test/unit/contracts/study-tracking/study-tracking-suite-completeness.test.ts");
   const replacementCharacter = String.fromCharCode(0xfffd);
 
   assert.equal(
