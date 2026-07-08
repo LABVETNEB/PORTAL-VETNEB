@@ -11,7 +11,7 @@ import {
   CSP_REPORT_TO_GROUP,
   CSP_REPORT_URI_PATH,
   resolveCanonicalReportingOrigin,
-} from "../frontend/src/lib/security/csp-policy.ts";
+} from "../../../../frontend/src/lib/security/csp-policy.ts";
 
 const EXPECTED_BASE_DIRECTIVES: readonly string[] = [
   "default-src 'self'",

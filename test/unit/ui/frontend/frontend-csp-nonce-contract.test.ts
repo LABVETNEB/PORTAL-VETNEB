@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   generateNonce,
   NONCE_PATTERN,
-} from "../frontend/src/lib/security/csp-nonce.ts";
+} from "../../../../frontend/src/lib/security/csp-nonce.ts";
 
 test("generateNonce returns a non-empty string", () => {
   const nonce = generateNonce();

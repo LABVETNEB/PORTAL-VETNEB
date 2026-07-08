@@ -8,7 +8,7 @@ import {
   buildReportOnlyCsp,
   CSP_REPORT_TO_GROUP,
   CSP_REPORT_URI_PATH,
-} from "../frontend/src/lib/security/csp-policy.ts";
+} from "../../../../frontend/src/lib/security/csp-policy.ts";
 
 const repoRoot = process.cwd();
 const nextConfigPath = join(repoRoot, "frontend", "next.config.ts");

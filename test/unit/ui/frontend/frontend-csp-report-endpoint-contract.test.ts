@@ -21,13 +21,13 @@ import {
   DELETE,
   OPTIONS,
   HEAD,
-} from "../frontend/src/app/api/security/csp-report/route.ts";
+} from "../../../../frontend/src/app/api/security/csp-report/route.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ROUTE_SOURCE_PATH = resolve(
   __dirname,
-  "../frontend/src/app/api/security/csp-report/route.ts",
+  "../../../../frontend/src/app/api/security/csp-report/route.ts",
 );
 const ROUTE_SOURCE = readFileSync(ROUTE_SOURCE_PATH, "utf8");
 
