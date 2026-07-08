@@ -336,7 +336,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         markers: ["clinicAuditNativeRoutes", "export.csv", "ENV.cookieName"],
       },
       {
-        path: "test/clinic-audit-runtime-timing-contract.test.ts",
+        path: "test/unit/contracts/clinic/clinic-audit-runtime-timing-contract.test.ts",
         markers: [
           "clinic audit request logging uses shared runtime timing helper",
           "createRuntimeTimer",
@@ -345,7 +345,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         ],
       },
       {
-        path: "test/clinic-audit-session-last-access-contract.test.ts",
+        path: "test/unit/contracts/clinic/clinic-audit-session-last-access-contract.test.ts",
         markers: [
           "clinic audit route uses shared session last access helper",
           "shouldRefreshSessionLastAccess",
@@ -354,7 +354,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         ],
       },
       {
-        path: "test/clinic-audit.test.ts",
+        path: "test/unit/contracts/clinic/clinic-audit.test.ts",
         markers: ["buildClinicAuditListFilters", "clinicId"],
       },
       {

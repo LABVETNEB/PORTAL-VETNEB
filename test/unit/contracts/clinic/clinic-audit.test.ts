@@ -1,6 +1,6 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
-import { buildClinicAuditListFilters } from "../server/lib/admin-audit.ts";
+import { buildClinicAuditListFilters } from "../../../../server/lib/admin-audit.ts";
 
 test("buildClinicAuditListFilters fuerza clinicId de sesion", () => {
   const { filters, errors } = buildClinicAuditListFilters(
