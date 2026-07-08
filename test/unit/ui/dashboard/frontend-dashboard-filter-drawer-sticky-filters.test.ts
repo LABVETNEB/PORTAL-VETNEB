@@ -3,9 +3,9 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
-import { isClean7aAllowedDependencyChange } from "./helpers/clean7a-dependency-cleanup-scope.ts";
-import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
-import { dashboardScopeGuardApplies } from "./helpers/dashboard-scope-guard.ts";
+import { isClean7aAllowedDependencyChange } from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
+import { isReportForeignAccessBackendFile } from "../../../helpers/report-foreign-access-scope.ts";
+import { dashboardScopeGuardApplies } from "../../../helpers/dashboard-scope-guard.ts";
 
 const FILTER_DRAWER_PATH = "frontend/src/components/dashboard/FilterDrawer.tsx";
 const STICKY_FILTER_BAR_PATH =

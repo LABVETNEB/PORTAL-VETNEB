@@ -7,10 +7,10 @@ import {
   assertClean7aDependencyCleanupScope,
   isClean7aAllowedDependencyChange,
   isClean7aAllowedDependencyFile,
-} from "./helpers/clean7a-dependency-cleanup-scope.ts";
-import { isReportForeignAccessBackendFile } from "./helpers/report-foreign-access-scope.ts";
-import { dashboardScopeGuardApplies } from "./helpers/dashboard-scope-guard.ts";
-import { readDashboardCssSource } from "./helpers/read-dashboard-css-source.ts";
+} from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
+import { isReportForeignAccessBackendFile } from "../../../helpers/report-foreign-access-scope.ts";
+import { dashboardScopeGuardApplies } from "../../../helpers/dashboard-scope-guard.ts";
+import { readDashboardCssSource } from "../../../helpers/read-dashboard-css-source.ts";
 
 const WORKSPACE_PATH =
   "frontend/src/components/dashboard/DashboardModuleWorkspace.tsx";
