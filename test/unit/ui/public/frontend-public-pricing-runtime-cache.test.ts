@@ -5,7 +5,7 @@ const {
   clearPublicPricingRuntimeCache,
   getCachedPublicPricingSnapshot,
   setCachedPublicPricingSnapshot,
-} = await import("../frontend/src/lib/public-pricing-cache.ts");
+} = await import("../../../../frontend/src/lib/public-pricing-cache.ts");
 
 function createSnapshot() {
   return {
