@@ -1,4 +1,4 @@
-import test from "node:test";
+﻿import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
@@ -11,9 +11,9 @@ import {
   parsePositiveInt,
   parseReportId,
   parseReportStatus,
-} from "../server/lib/reports.ts";
+} from "../../../../server/lib/reports.ts";
 
-test("reports helpers parsean enteros positivos con fallback y límite máximo", () => {
+test("reports helpers parsean enteros positivos con fallback y lÃ­mite mÃ¡ximo", () => {
   assert.equal(parsePositiveInt("25", 50, 100), 25);
   assert.equal(parsePositiveInt("500", 50, 100), 100);
   assert.equal(parsePositiveInt("0", 50, 100), 50);
@@ -54,7 +54,7 @@ test("reports helpers normalizan texto, notas y fechas opcionales", () => {
   assert.equal(parseOptionalDate("   "), undefined);
 });
 
-test("reports helpers calculan scope de lectura por clínica", () => {
+test("reports helpers calculan scope de lectura por clÃ­nica", () => {
   assert.deepEqual(getReadClinicScope(undefined, 3), {
     clinicId: 3,
     isForbidden: false,
