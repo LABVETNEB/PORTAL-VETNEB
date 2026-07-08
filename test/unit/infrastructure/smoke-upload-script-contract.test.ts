@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const SCRIPT_PATH = resolve(REPO_ROOT, "scripts/smoke/smoke-upload.mjs");
 
 function readSource(path: string): string {
@@ -126,7 +126,7 @@ test("smoke upload script avoids direct logging of sensitive env vars and cookie
 });
 
 test("smoke upload script contract source stays ascii only", () => {
-  const source = readSource(resolve(REPO_ROOT, "test/smoke-upload-script-contract.test.ts"));
+  const source = readSource(resolve(REPO_ROOT, "test/unit/infrastructure/smoke-upload-script-contract.test.ts"));
   const replacementCharacter = String.fromCharCode(0xfffd);
 
   assert.equal(

@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const SCRIPT_PATH = resolve(REPO_ROOT, "scripts/dev/smoke-staging.ps1");
 
 function readSource(path: string): string {
@@ -219,7 +219,7 @@ test("staging smoke script avoids direct printing of sensitive values", () => {
 });
 
 test("smoke staging script contract source stays ascii only", () => {
-  const source = readSource(resolve(REPO_ROOT, "test/smoke-staging-script-contract.test.ts"));
+  const source = readSource(resolve(REPO_ROOT, "test/unit/infrastructure/smoke-staging-script-contract.test.ts"));
   const replacementCharacter = String.fromCharCode(0xfffd);
 
   assert.equal(

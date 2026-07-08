@@ -14,7 +14,7 @@ process.env.DATABASE_URL ??=
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const { getHealthCheckResponse } = await import(
-  "../server/lib/http-runtime.ts"
+  "../../../server/lib/http-runtime.ts"
 );
 
 const readinessScript = resolve(

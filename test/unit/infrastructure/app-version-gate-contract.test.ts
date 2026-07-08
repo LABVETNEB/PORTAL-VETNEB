@@ -44,7 +44,7 @@ test("frontend compares compiled client version against backend version", () => 
 
 test("toSafeDisplayVersion never leaks the missing-client-version sentinel or raw commit hashes", async () => {
   const { toSafeDisplayVersion } = await import(
-    "../frontend/src/lib/app-version.ts"
+    "../../../frontend/src/lib/app-version.ts"
   );
 
   assert.equal(

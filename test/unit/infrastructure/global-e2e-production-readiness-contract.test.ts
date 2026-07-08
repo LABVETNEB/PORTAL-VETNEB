@@ -202,7 +202,7 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
     ],
     guardrailFiles: [
       {
-        path: "test/mobile-production-parity-invariants.test.ts",
+        path: "test/unit/infrastructure/mobile-production-parity-invariants.test.ts",
         markers: ["mobile"],
       },
       {
@@ -337,7 +337,7 @@ test("global e2e readiness docs keep audit matrix evidence and PR scope", () => 
 });
 
 test("global e2e readiness guardrail source stays ascii only", () => {
-  const source = read("test/global-e2e-production-readiness-contract.test.ts");
+  const source = read("test/unit/infrastructure/global-e2e-production-readiness-contract.test.ts");
 
   for (let index = 0; index < source.length; index += 1) {
     assert.equal(
