@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildAdminAuditCsv,
@@ -6,7 +6,7 @@ import {
   buildAdminAuditListFilters,
   normalizeAuditListMetadata,
   serializeAuditLogListItem,
-} from "../server/lib/admin-audit.ts";
+} from "../../../../server/lib/admin-audit.ts";
 
 test("buildAdminAuditListFilters parsea filtros validos", () => {
   const { filters, errors } = buildAdminAuditListFilters({
