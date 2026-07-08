@@ -6,7 +6,7 @@ import test from "node:test";
 import {
   ApiResponseError,
   getAdminAccessErrorState,
-} from "../frontend/src/lib/api-error.ts";
+} from "../../../../frontend/src/lib/api-error.ts";
 
 const API_PATH = "frontend/src/lib/api.ts";
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
