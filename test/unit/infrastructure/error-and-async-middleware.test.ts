@@ -1,7 +1,7 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
-import { errorHandler, notFoundHandler } from "../server/middlewares/error-handler.ts";
-import { asyncHandler } from "../server/utils/async-handler.ts";
+import { errorHandler, notFoundHandler } from "../../../server/middlewares/error-handler.ts";
+import { asyncHandler } from "../../../server/utils/async-handler.ts";
 
 function createMockResponse() {
   return {

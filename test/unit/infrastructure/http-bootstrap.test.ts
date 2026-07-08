@@ -1,10 +1,10 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
   bootstrapHttpServer,
   createGracefulShutdown,
-} from "../server/bootstrap.ts";
+} from "../../../server/bootstrap.ts";
 
 function createMockLogger() {
   const logs: unknown[][] = [];

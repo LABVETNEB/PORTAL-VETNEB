@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -40,4 +40,3 @@ test("reports clinic read-only no declara mutaciones y status valida origin ante
     /app\.patch<[\s\S]*?>\(\s*"\/:reportId\/status"[\s\S]*?enforceTrustedOrigin\(request, reply, allowedOrigins\)[\s\S]*?authenticateClinicUser/s,
   );
 });
-

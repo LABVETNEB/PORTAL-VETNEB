@@ -9,7 +9,7 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const { createRequireAuth } = await import(
-  "../server/middlewares/auth.ts"
+  "../../../server/middlewares/auth.ts"
 );
 
 function createMockResponse() {
@@ -490,7 +490,7 @@ test("requireAuth propaga errores inesperados a next", async () => {
 
 test("clinic auth route exposes injectable login rate limit store contract", async () => {
   const source = readFileSync(
-    new URL("../server/routes/auth.fastify.ts", import.meta.url),
+    new URL("../../../server/routes/auth.fastify.ts", import.meta.url),
     "utf8",
   );
 

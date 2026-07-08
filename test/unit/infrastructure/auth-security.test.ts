@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import {
   generateSessionToken,
@@ -6,7 +6,7 @@ import {
   hashPassword,
   hashSessionToken,
   verifyPassword,
-} from "../server/lib/auth-security.ts";
+} from "../../../server/lib/auth-security.ts";
 
 test("hashLegacyPassword genera sha256 hex estable", () => {
   assert.equal(
