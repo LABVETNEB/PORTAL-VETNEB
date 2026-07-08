@@ -48,7 +48,7 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
     ],
     guardrailFiles: [
       {
-        path: "test/frontend-public-devtools-exposure-contract.test.ts",
+        path: "test/unit/ui/public/frontend-public-devtools-exposure-contract.test.ts",
         markers: ["public devtools auditor script passes with no exposure findings"],
       },
       {
@@ -206,7 +206,7 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
         markers: ["mobile"],
       },
       {
-        path: "test/frontend-public-page-semantics.test.ts",
+        path: "test/unit/ui/public/frontend-public-page-semantics.test.ts",
         markers: [
           "home page keeps one clear h1 and institutional section hierarchy",
           "profesionales content keeps semantic search/result structure and map safety",
