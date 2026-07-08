@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
-import { readDashboardCssSource } from "./helpers/read-dashboard-css-source.ts";
+import { readDashboardCssSource } from "../../../helpers/read-dashboard-css-source.ts";
 
 const SESSIONS_CARD_PATH = "frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx";
 const FAILED_LOGINS_CARD_PATH = "frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx";
