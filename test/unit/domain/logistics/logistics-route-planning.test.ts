@@ -1,11 +1,11 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
   buildHeuristicRoutePlan,
   calculateHaversineKm,
   type RoutePlanningVisit,
-} from "../server/lib/logistics/route-planning.ts";
+} from "../../../../server/lib/logistics/route-planning.ts";
 
 const routeStart = new Date("2026-05-04T12:00:00.000Z");
 
@@ -194,4 +194,3 @@ test("buildHeuristicRoutePlan rejects invalid routeStart dates", () => {
     /routeStart must be a valid Date/,
   );
 });
-

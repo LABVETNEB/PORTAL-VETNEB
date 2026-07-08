@@ -7,7 +7,7 @@ import {
   calculateRouteStopComplianceMetrics,
   classifyTimeWindowCompliance,
   summarizeWindowCompliance,
-} from "../server/lib/logistics/metrics.ts";
+} from "../../../../server/lib/logistics/metrics.ts";
 
 test("calculateRouteDistanceCompliance returns planned vs actual distance metrics", () => {
   assert.deepEqual(

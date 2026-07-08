@@ -7,7 +7,7 @@ import {
   normalizeGenerateHeuristicFieldVisitIds,
   normalizeLogisticsLimit,
   normalizeLogisticsOffset,
-} from "../server/features/logistics/domain/index.ts";
+} from "../../../../server/features/logistics/domain/index.ts";
 
 test("logistics domain barrel re-exports the pagination helpers unchanged", () => {
   assert.equal(LOGISTICS_DEFAULT_LIMIT, 50);
