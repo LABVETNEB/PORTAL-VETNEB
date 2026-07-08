@@ -52,7 +52,7 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
         markers: ["public devtools auditor script passes with no exposure findings"],
       },
       {
-        path: "test/frontend-next-config-security-headers.test.ts",
+        path: "test/unit/ui/frontend/frontend-next-config-security-headers.test.ts",
         markers: ["X-Content-Type-Options", "Content-Security-Policy-Report-Only"],
       },
     ],

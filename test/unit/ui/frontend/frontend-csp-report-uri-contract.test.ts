@@ -16,11 +16,11 @@ import {
   buildReportOnlyCsp,
   CSP_REPORT_TO_GROUP,
   CSP_REPORT_URI_PATH,
-} from "../frontend/src/lib/security/csp-policy.ts";
+} from "../../../../frontend/src/lib/security/csp-policy.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const NEXT_CONFIG_PATH = resolve(__dirname, "../frontend/next.config.ts");
+const NEXT_CONFIG_PATH = resolve(__dirname, "../../../../frontend/next.config.ts");
 const NEXT_CONFIG_SOURCE = readFileSync(NEXT_CONFIG_PATH, "utf8");
 const BASELINE_CSP = buildReportOnlyCsp({ reportUri: CSP_REPORT_URI_PATH });
 
