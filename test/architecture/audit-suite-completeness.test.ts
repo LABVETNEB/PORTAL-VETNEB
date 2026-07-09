@@ -4,7 +4,7 @@ import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 
 type FileAnchor = {
   path: string;
@@ -25,7 +25,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
       "The core audit writer keeps payload normalization, request-path sanitization and write-failure isolation covered.",
     testFiles: [
       {
-        path: "test/audit-write.test.ts",
+        path: "test/unit/infrastructure/audit-write.test.ts",
         markers: [
           "writeAuditLog inserta payload",
           "writeAuditLog absorbe errores",
@@ -34,7 +34,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         ],
       },
       {
-        path: "test/audit.test.ts",
+        path: "test/unit/infrastructure/audit.test.ts",
         markers: [
           "AUDIT_EVENTS conserva los eventos",
           "normalizeAuditMetadata normaliza fechas",
@@ -62,7 +62,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
       "Shared audit helpers stay neutral while admin, clinic and particular facades preserve domain-specific imports.",
     testFiles: [
       {
-        path: "test/audit-helper-domain-boundaries.test.ts",
+        path: "test/unit/infrastructure/audit-helper-domain-boundaries.test.ts",
         markers: [
           "audit helper domain split",
           "audit-log core conserva helpers",
@@ -111,7 +111,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
       "Admin, clinic and particular audit routes remain mounted under separate prefixes with separate session cookies.",
     testFiles: [
       {
-        path: "test/audit-separated-surfaces.test.ts",
+        path: "test/architecture/audit-separated-surfaces.test.ts",
         markers: [
           "audit surfaces quedan montadas",
           "admin audit mantiene superficie global",
@@ -187,7 +187,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
       "Critical auth, report, token, upload, public access and study tracking flows keep explicit audit writes.",
     testFiles: [
       {
-        path: "test/audit-critical-flow-writes.test.ts",
+        path: "test/architecture/audit-critical-flow-writes.test.ts",
         markers: [
           "audit event registry conserva eventos",
           "auth login",
@@ -245,7 +245,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
       "Study tracking audit events and route writes stay integrated with the critical audit flow guardrails.",
     testFiles: [
       {
-        path: "test/audit-study-tracking-gaps.test.ts",
+        path: "test/architecture/audit-study-tracking-gaps.test.ts",
         markers: [
           "audit registry declara eventos dedicados",
           "STUDY_TRACKING_CASE_CREATED",
@@ -370,7 +370,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         markers: ["particularAuditNativeRoutes", "export.csv", "particular"],
       },
       {
-        path: "test/particular-audit-runtime-timing-contract.test.ts",
+        path: "test/unit/contracts/particular/particular-audit-runtime-timing-contract.test.ts",
         markers: [
           "particular audit request logging uses shared runtime timing helper",
           "createRuntimeTimer",
@@ -379,7 +379,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         ],
       },
       {
-        path: "test/particular-audit-session-last-access-contract.test.ts",
+        path: "test/unit/contracts/particular/particular-audit-session-last-access-contract.test.ts",
         markers: [
           "particular audit route uses shared session last access helper",
           "shouldRefreshSessionLastAccess",
@@ -432,7 +432,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
       "The audit suite completeness registry keeps every audit-named guardrail inventoried and runtime-connected.",
     testFiles: [
       {
-        path: "test/audit-suite-completeness.test.ts",
+        path: "test/architecture/audit-suite-completeness.test.ts",
         markers: [
           "audit suite completeness registry keeps canonical order",
           "audit suite includes every audit-named test file",
@@ -458,7 +458,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
       "Security audit phase guardrails stay tied to audit write isolation and critical durable mutation ordering.",
     testFiles: [
       {
-        path: "test/security-audit-logging-phase-boundaries.test.ts",
+        path: "test/security/security-audit-logging-phase-boundaries.test.ts",
         markers: [
           "audit logging phase matrix",
           "AUDIT_LOG_WRITE_ERROR",
@@ -650,7 +650,7 @@ test("audit suite keeps every audit route surface mounted in Fastify app", () =>
 });
 
 test("audit suite completeness guardrail source stays ascii only", () => {
-  const source = readSource("test/audit-suite-completeness.test.ts");
+  const source = readSource("test/architecture/audit-suite-completeness.test.ts");
   const replacementCharacter = String.fromCharCode(0xfffd);
 
   assert.equal(

@@ -171,7 +171,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-audit-logging-phase-boundaries.test.ts",
+        path: "test/security/security-audit-logging-phase-boundaries.test.ts",
         markers: [
           "audit logging phase matrix documents the protected contract",
           "writeAuditLog keeps audit storage failures isolated from business flow",
@@ -661,7 +661,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-cross-auth-surface-boundaries.test.ts",
     "test/security-boundary-suite-completeness.test.ts",
     "test/security-sensitive-log-redaction-boundaries.test.ts",
-    "test/security-audit-logging-phase-boundaries.test.ts",
+    "test/security/security-audit-logging-phase-boundaries.test.ts",
     "test/security-actor-relationship-boundaries.test.ts",
     "test/security-resource-ownership-boundaries.test.ts",
     "test/security-write-attribution-boundaries.test.ts",

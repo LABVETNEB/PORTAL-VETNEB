@@ -308,11 +308,11 @@ test("study tracking queda cubierto por guardrails de flujos criticos auditados"
   const { readFileSync } = await import("node:fs");
 
   const clinicSource = readFileSync(
-    new URL("../server/routes/study-tracking.fastify.ts", import.meta.url),
+    new URL("../../server/routes/study-tracking.fastify.ts", import.meta.url),
     "utf8",
   );
   const adminSource = readFileSync(
-    new URL("../server/routes/admin-study-tracking.fastify.ts", import.meta.url),
+    new URL("../../server/routes/admin-study-tracking.fastify.ts", import.meta.url),
     "utf8",
   );
 

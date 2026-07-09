@@ -380,7 +380,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
   },
   {
     slug: "audit-logging-phase",
-    path: "test/security-audit-logging-phase-boundaries.test.ts",
+    path: "test/security/security-audit-logging-phase-boundaries.test.ts",
     purpose:
       "Critical audit writes remain after durable mutations, before success responses and isolated from business failure.",
     protectedDimensions: [
