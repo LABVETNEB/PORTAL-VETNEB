@@ -4,15 +4,15 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const FIXTURE_ASSERTION_FILES = [
-  "test/public-professionals-fixtures-invariants.test.ts",
-  "test/public-professionals-fixture-isolation-invariants.test.ts",
-  "test/public-professionals-fixture-helper-boundaries-invariants.test.ts",
-  "test/public-professionals-fixture-file-scope-invariants.test.ts",
+  "test/architecture/public-professionals-fixtures-invariants.test.ts",
+  "test/architecture/public-professionals-fixture-isolation-invariants.test.ts",
+  "test/architecture/public-professionals-fixture-helper-boundaries-invariants.test.ts",
+  "test/architecture/public-professionals-fixture-file-scope-invariants.test.ts",
 ];
 
 const STRUCTURAL_FIXTURE_FILES = [
-  "test/public-professionals-fixtures-invariants.test.ts",
-  "test/public-professionals-fixture-isolation-invariants.test.ts",
+  "test/architecture/public-professionals-fixtures-invariants.test.ts",
+  "test/architecture/public-professionals-fixture-isolation-invariants.test.ts",
 ];
 
 function readSource(relativePath: string): string {
@@ -98,7 +98,7 @@ test("guardrails de fixtures públicos usan assert strict y evitan frameworks o 
 });
 
 test("fixtures públicos base mantienen contrato estructural con deepEqual explícito", () => {
-  const file = "test/public-professionals-fixtures-invariants.test.ts";
+  const file = "test/architecture/public-professionals-fixtures-invariants.test.ts";
   const source = readSource(file);
 
   assertIncludesAll(
@@ -126,7 +126,7 @@ test("fixtures públicos base mantienen contrato estructural con deepEqual expl�
 });
 
 test("fixture isolation combina identidad de objeto con igualdad estructural", () => {
-  const file = "test/public-professionals-fixture-isolation-invariants.test.ts";
+  const file = "test/architecture/public-professionals-fixture-isolation-invariants.test.ts";
   const source = readSource(file);
 
   assertIncludesAll(
@@ -196,7 +196,7 @@ test("fixture assertions evitan serialización textual para comparar contratos",
 });
 
 test("assertions de clone quality validan Date por identidad y valor ISO estable", () => {
-  const file = "test/public-professionals-fixture-isolation-invariants.test.ts";
+  const file = "test/architecture/public-professionals-fixture-isolation-invariants.test.ts";
   const source = readSource(file);
 
   assertIncludesAll(
@@ -217,7 +217,7 @@ test("assertions de clone quality validan Date por identidad y valor ISO estable
 test("guardrails de file scope y helper boundaries usan deepEqual para listas de offenders", () => {
   const expectedListAssertions = new Map<string, string[]>([
     [
-      "test/public-professionals-fixture-helper-boundaries-invariants.test.ts",
+      "test/architecture/public-professionals-fixture-helper-boundaries-invariants.test.ts",
       [
         "assert.deepEqual(extractTypeExports(source), [",
         "assert.deepEqual(extractValueExports(source), [",
@@ -225,7 +225,7 @@ test("guardrails de file scope y helper boundaries usan deepEqual para listas de
       ],
     ],
     [
-      "test/public-professionals-fixture-file-scope-invariants.test.ts",
+      "test/architecture/public-professionals-fixture-file-scope-invariants.test.ts",
       [
         "assert.deepEqual(\n    offenders,\n    [],",
         "assert.deepEqual(publicProfessionalHelperFiles, [",

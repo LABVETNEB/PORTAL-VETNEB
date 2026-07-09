@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildPublicProfessionalFixtureRow,
   buildPublicProfessionalsRouteFixtureStubs,
-} from "./helpers/public-professionals-fixtures.ts";
+} from "../helpers/public-professionals-fixtures.ts";
 
 test("public professionals fixture row mantiene defaults públicos determinísticos", () => {
   const row = buildPublicProfessionalFixtureRow();

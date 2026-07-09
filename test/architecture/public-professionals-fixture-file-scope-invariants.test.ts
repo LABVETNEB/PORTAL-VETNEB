@@ -59,9 +59,9 @@ function listSourceFiles(directory: string): string[] {
 
 function isAllowedPublicProfessionalsFixtureConsumerTest(file: string): boolean {
   const isLegacyTopLevelPublicProfessionalsTest =
-    file.startsWith("test/public-professionals-") &&
+    file.startsWith("test/architecture/public-professionals-") &&
     file.endsWith(".test.ts") &&
-    !file.slice("test/".length).includes("/");
+    !file.slice("test/architecture/".length).includes("/");
 
   const isControllerPublicProfessionalsInvariant =
     file.startsWith("test/integration/adapters/controllers/public-professionals-") &&
@@ -78,11 +78,11 @@ function isAllowedPublicProfessionalsFixtureConsumerTest(file: string): boolean 
 
 function expectedPublicProfessionalsFixtureImport(file: string): string | null {
   if (
-    file.startsWith("test/public-professionals-") &&
+    file.startsWith("test/architecture/public-professionals-") &&
     file.endsWith(".test.ts") &&
-    !file.slice("test/".length).includes("/")
+    !file.slice("test/architecture/".length).includes("/")
   ) {
-    return "./helpers/public-professionals-fixtures.ts";
+    return "../helpers/public-professionals-fixtures.ts";
   }
 
   if (
@@ -150,7 +150,7 @@ test("fixtures públicos de profesionales sólo se referencian desde helper can�
   assert.deepEqual(
     offenders,
     [],
-    "fixtures públicos de profesionales deben quedar limitados a test/helpers, test/public-professionals-*.test.ts y test/integration/adapters/controllers/public-professionals-*.test.ts",
+    "fixtures públicos de profesionales deben quedar limitados a test/helpers, test/architecture/public-professionals-*.test.ts y test/integration/adapters/controllers/public-professionals-*.test.ts",
   );
 });
 
@@ -232,7 +232,7 @@ test("imports del helper de fixtures públicos usan path relativo canónico", ()
 test("guardrails de fixtures públicos de profesionales permanecen agrupados por file scope", () => {
   const fixtureGuardrailFiles = listSourceFiles("test").filter(
     (file) =>
-      file.startsWith("test/public-professionals-") &&
+      file.startsWith("test/architecture/public-professionals-") &&
       file.includes("fixture") &&
       file.endsWith(".test.ts"),
   );
@@ -245,35 +245,35 @@ test("guardrails de fixtures públicos de profesionales permanecen agrupados por
   for (const file of fixtureGuardrailFiles) {
     assert.match(
       file,
-      /^test\/public-professionals-fixtures?-[a-z0-9-]+\.test\.ts$/,
-      `${file} debe mantener naming public-professionals-fixture(s)-*.test.ts`,
+      /^test\/architecture\/public-professionals-fixtures?-[a-z0-9-]+\.test\.ts$/,
+      `${file} debe mantener naming test/architecture/public-professionals-fixture(s)-*.test.ts`,
     );
   }
 
   assert.ok(
     fixtureGuardrailFiles.includes(
-      "test/public-professionals-fixtures-invariants.test.ts",
+      "test/architecture/public-professionals-fixtures-invariants.test.ts",
     ),
     "debe mantenerse el test base de invariantes de fixtures",
   );
 
   assert.ok(
     fixtureGuardrailFiles.includes(
-      "test/public-professionals-fixture-adoption-invariants.test.ts",
+      "test/architecture/public-professionals-fixture-adoption-invariants.test.ts",
     ),
     "debe mantenerse el test de adopción de fixtures compartidos",
   );
 
   assert.ok(
     fixtureGuardrailFiles.includes(
-      "test/public-professionals-fixture-isolation-invariants.test.ts",
+      "test/architecture/public-professionals-fixture-isolation-invariants.test.ts",
     ),
     "debe mantenerse el test de aislamiento de fixtures",
   );
 
   assert.ok(
     fixtureGuardrailFiles.includes(
-      "test/public-professionals-fixture-helper-boundaries-invariants.test.ts",
+      "test/architecture/public-professionals-fixture-helper-boundaries-invariants.test.ts",
     ),
     "debe mantenerse el test de boundaries del helper",
   );

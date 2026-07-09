@@ -506,7 +506,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/public-professionals-fixture-suite-completeness-invariants.test.ts",
+        path: "test/architecture/public-professionals-fixture-suite-completeness-invariants.test.ts",
         markers: [
           "fixture suite completeness conserva inventario esperado de guardrails",
           "fixture suite completeness coincide con el registry explícito",
@@ -674,7 +674,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-rate-limit-isolation-boundaries.test.ts",
     "test/unit/infrastructure/supabase-storage-boundaries.test.ts",
     "test/integration/adapters/controllers/public-professionals-route-surface-invariants.test.ts",
-    "test/public-professionals-fixture-suite-completeness-invariants.test.ts",
+    "test/architecture/public-professionals-fixture-suite-completeness-invariants.test.ts",
     "test/unit/infrastructure/backend-ci-workflow.test.ts",
     "test/unit/infrastructure/package-scripts.test.ts",
   ]) {

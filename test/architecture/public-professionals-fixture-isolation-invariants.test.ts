@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildPublicProfessionalFixtureRow,
   buildPublicProfessionalsRouteFixtureStubs,
-} from "./helpers/public-professionals-fixtures.ts";
+} from "../helpers/public-professionals-fixtures.ts";
 
 const DEFAULT_UPDATED_AT = "2026-04-29T20:00:00.000Z";
 
