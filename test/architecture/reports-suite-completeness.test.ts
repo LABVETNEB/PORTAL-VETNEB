@@ -344,7 +344,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       "Reports remain connected to security, audit and storage suite registries that protect ownership, lifecycle and signed URLs.",
     testFiles: [
       {
-        path: "test/security-resource-ownership-boundaries.test.ts",
+        path: "test/architecture/security/security-resource-ownership-boundaries.test.ts",
         markers: [
           "resource ownership matrix",
           "clinic-owned resources reject cross-clinic reports",
@@ -352,14 +352,14 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         ],
       },
       {
-        path: "test/security-access-lifecycle-boundaries.test.ts",
+        path: "test/architecture/security/security-access-lifecycle-boundaries.test.ts",
         markers: [
           "access lifecycle matrix",
           "public report access enforces token lifecycle",
         ],
       },
       {
-        path: "test/security-write-attribution-boundaries.test.ts",
+        path: "test/architecture/security/security-write-attribution-boundaries.test.ts",
         markers: [
           "write attribution matrix",
           "admin writes persist admin attribution",

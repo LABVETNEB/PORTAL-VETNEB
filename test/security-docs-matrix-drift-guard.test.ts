@@ -33,12 +33,12 @@ const REQUIRED_GUARDRAIL_TESTS = [
   "test/security-critical-route-surface-registry.test.ts",
   "test/security-boundary-suite-completeness.test.ts",
   "test/security-cross-tenant-idor-contract.test.ts",
-  "test/security-resource-ownership-boundaries.test.ts",
-  "test/security-response-disclosure-boundaries.test.ts",
+  "test/architecture/security/security-resource-ownership-boundaries.test.ts",
+  "test/architecture/security/security-response-disclosure-boundaries.test.ts",
   "test/security-session-cookie-boundaries.test.ts",
   "test/security-mutation-permission-surface.test.ts",
   "test/security/security-trusted-origin-cors-boundaries.test.ts",
-  "test/security-sensitive-log-redaction-boundaries.test.ts",
+  "test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts",
 ] as const;
 
 const CRITICAL_ENDPOINT_MARKERS = [
@@ -157,12 +157,12 @@ test("security docs matrix drift guard keeps cross-tenant runtime evidence tied 
   assertIncludes(crossTenantIdorContract, "runtimeEvidence", "ctidor registry");
     assertIncludes(
     crossTenantIdorContract,
-    "test/security-resource-ownership-boundaries.test.ts",
+    "test/architecture/security/security-resource-ownership-boundaries.test.ts",
     "ctidor registry",
   );
   assertIncludes(
     crossTenantIdorContract,
-    "test/security-response-disclosure-boundaries.test.ts",
+    "test/architecture/security/security-response-disclosure-boundaries.test.ts",
     "ctidor registry",
   );
 

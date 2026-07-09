@@ -4,7 +4,7 @@ import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
 const RESOURCE_OWNERSHIP_BOUNDARIES = {
   report: {

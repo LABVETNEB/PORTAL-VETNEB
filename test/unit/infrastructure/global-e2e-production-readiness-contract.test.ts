@@ -148,7 +148,7 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
         markers: ["Public report access and public professionals tests keep signed URLs delegated"],
       },
       {
-        path: "test/security-sensitive-log-redaction-boundaries.test.ts",
+        path: "test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts",
         markers: ["sensitive log redaction matrix documents protected boundaries"],
       },
     ],

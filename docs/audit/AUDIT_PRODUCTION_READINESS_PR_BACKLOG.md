@@ -144,7 +144,7 @@
 - **Objective:** Evaluar y, si es seguro, unificar el acceso a informe ajeno como 404 para reducir el oráculo de existencia (IDOR).
 - **Why:** `server/routes/reports.fastify.ts` distingue hoy **404 "Informe no encontrado"** (no existe) de **403 "No autorizado para consultar otra clinica"** (existe pero ajeno) — un oráculo de existencia. Afecta particular/clínica/admin.
 - **Scope:** Unificar a 404 donde el 403 revele existencia, sin romper flujos legítimos ni la atribución de auditoría.
-- **Files likely affected:** `server/routes/reports.fastify.ts`, `server/db-report-access.ts` (**`server/` bloqueado**), tests `test/security-cross-tenant-idor-contract.test.ts`, `test/security-resource-ownership-boundaries.test.ts`, `test/reports.fastify.test.ts`.
+- **Files likely affected:** `server/routes/reports.fastify.ts`, `server/db-report-access.ts` (**`server/` bloqueado**), tests `test/security-cross-tenant-idor-contract.test.ts`, `test/architecture/security/security-resource-ownership-boundaries.test.ts`, `test/reports.fastify.test.ts`.
 - **Tests:** IDOR: informe ajeno y inexistente devuelven el **mismo** 404; el dueño legítimo sigue 200; no leakage; auditoría intacta.
 - **Acceptance criteria:** Sin oráculo de existencia para terceros; sin regresión de acceso legítimo; contratos de seguridad actualizados de forma coherente (no relajados).
 - **Risk:** **Alto.** Es cambio de contrato de seguridad; los tests vigentes asEVERan el 403 actual. Requiere decisión deliberada y actualización coordinada de contratos (no "relajar").

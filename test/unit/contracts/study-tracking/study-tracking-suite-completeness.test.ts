@@ -244,7 +244,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
         ],
       },
       {
-        path: "test/security-resource-ownership-boundaries.test.ts",
+        path: "test/architecture/security/security-resource-ownership-boundaries.test.ts",
         markers: [
           "study-tracking.fastify.ts",
           "admin-study-tracking.fastify.ts",

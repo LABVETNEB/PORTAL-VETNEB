@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
 const SENSITIVE_LOG_REDACTION_BOUNDARIES = {
   requestLogs: {
@@ -276,7 +276,7 @@ test("signed url tests keep storage access delegated without public urls", () =>
 });
 
 test("sensitive log redaction guardrail source stays ascii only", () => {
-  const source = readSource("test/security-sensitive-log-redaction-boundaries.test.ts");
+  const source = readSource("test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts");
   const mojibakeLead = String.fromCharCode(0x00c3);
   const replacementCharacter = String.fromCharCode(0xfffd);
 

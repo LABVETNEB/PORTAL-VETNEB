@@ -23,7 +23,7 @@ type SecurityBoundaryGuardrail = {
 const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
   {
     slug: "actor-relationship",
-    path: "test/security-actor-relationship-boundaries.test.ts",
+    path: "test/architecture/security/security-actor-relationship-boundaries.test.ts",
     purpose:
       "Admin, clinic, particular and public-token actors remain explicit before sensitive reads or writes.",
     protectedDimensions: [
@@ -53,7 +53,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
   },
   {
     slug: "resource-ownership",
-    path: "test/security-resource-ownership-boundaries.test.ts",
+    path: "test/architecture/security/security-resource-ownership-boundaries.test.ts",
     purpose:
       "Reports, tokens, tracking cases and notifications preserve owner scope before exposing data.",
     protectedDimensions: [
@@ -83,7 +83,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
   },
   {
     slug: "write-attribution",
-    path: "test/security-write-attribution-boundaries.test.ts",
+    path: "test/architecture/security/security-write-attribution-boundaries.test.ts",
     purpose:
       "Every critical write keeps durable attribution and audit actor metadata aligned with the writer.",
     protectedDimensions: [
@@ -109,7 +109,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
   },
   {
     slug: "access-lifecycle",
-    path: "test/security-access-lifecycle-boundaries.test.ts",
+    path: "test/architecture/security/security-access-lifecycle-boundaries.test.ts",
     purpose:
       "Public tokens, revocation, expiration, session cleanup and inactive particular states keep lifecycle order.",
     protectedDimensions: [
@@ -135,7 +135,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
   },
   {
     slug: "response-disclosure",
-    path: "test/security-response-disclosure-boundaries.test.ts",
+    path: "test/architecture/security/security-response-disclosure-boundaries.test.ts",
     purpose:
       "Security responses preserve stable 401 403 404 409 and 429 semantics without scope leaks.",
     protectedDimensions: [
@@ -320,7 +320,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
   },
   {
     slug: "sensitive-log-redaction",
-    path: "test/security-sensitive-log-redaction-boundaries.test.ts",
+    path: "test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts",
     purpose:
       "Request logging, audit metadata, auth and token routes avoid raw sensitive values and keep redaction centralized.",
     protectedDimensions: [

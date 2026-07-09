@@ -44,7 +44,7 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     requiredTestEvidence: [
       "test/reports.fastify.test.ts",
-      "test/security-resource-ownership-boundaries.test.ts",
+      "test/architecture/security/security-resource-ownership-boundaries.test.ts",
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
@@ -66,7 +66,7 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     requiredTestEvidence: [
       "test/reports.fastify.test.ts",
-      "test/security-response-disclosure-boundaries.test.ts",
+      "test/architecture/security/security-response-disclosure-boundaries.test.ts",
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
@@ -88,7 +88,7 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     requiredTestEvidence: [
       "test/reports.fastify.test.ts",
-      "test/security-sensitive-log-redaction-boundaries.test.ts",
+      "test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts",
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
@@ -110,7 +110,7 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     requiredTestEvidence: [
       "test/report-access-tokens.fastify.test.ts",
-      "test/security-response-disclosure-boundaries.test.ts",
+      "test/architecture/security/security-response-disclosure-boundaries.test.ts",
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
@@ -132,7 +132,7 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     requiredTestEvidence: [
       "test/clinic-audit.fastify.test.ts",
-      "test/security-resource-ownership-boundaries.test.ts",
+      "test/architecture/security/security-resource-ownership-boundaries.test.ts",
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
@@ -176,7 +176,7 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     requiredTestEvidence: [
       "test/study-tracking.fastify.test.ts",
-      "test/security-resource-ownership-boundaries.test.ts",
+      "test/architecture/security/security-resource-ownership-boundaries.test.ts",
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
@@ -220,7 +220,7 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     requiredTestEvidence: [
       "test/particular-auth.fastify.test.ts",
-      "test/security-response-disclosure-boundaries.test.ts",
+      "test/architecture/security/security-response-disclosure-boundaries.test.ts",
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
@@ -242,7 +242,7 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     requiredTestEvidence: [
       "test/public-report-access.fastify.test.ts",
-      "test/security-response-disclosure-boundaries.test.ts",
+      "test/architecture/security/security-response-disclosure-boundaries.test.ts",
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
@@ -264,7 +264,7 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     requiredTestEvidence: [
       "test/admin-study-tracking.fastify.test.ts",
-      "test/security-resource-ownership-boundaries.test.ts",
+      "test/architecture/security/security-resource-ownership-boundaries.test.ts",
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
@@ -308,7 +308,7 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     requiredTestEvidence: [
       "test/reports.fastify.test.ts",
-      "test/security-resource-ownership-boundaries.test.ts",
+      "test/architecture/security/security-resource-ownership-boundaries.test.ts",
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
@@ -330,7 +330,7 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     requiredTestEvidence: [
       "test/study-tracking.fastify.test.ts",
-      "test/security-resource-ownership-boundaries.test.ts",
+      "test/architecture/security/security-resource-ownership-boundaries.test.ts",
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },

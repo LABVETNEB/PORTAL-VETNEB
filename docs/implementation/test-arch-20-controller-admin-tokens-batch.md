@@ -76,9 +76,9 @@ Se actualizaron los anchors exactos necesarios:
 Referencias legacy detectadas y no editadas por no ser anchors exactos necesarios
 para este move:
 
-- `test/security-access-lifecycle-boundaries.test.ts`
+- `test/architecture/security/security-access-lifecycle-boundaries.test.ts`
 - `test/security-rate-limit-isolation-boundaries.test.ts`
-- `test/security-write-attribution-boundaries.test.ts`
+- `test/architecture/security/security-write-attribution-boundaries.test.ts`
 - Documentacion historica bajo `docs/**`
 
 Los tres guards listados usan fallback recursivo por basename
