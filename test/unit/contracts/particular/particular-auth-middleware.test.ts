@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -8,7 +8,7 @@ process.env.DATABASE_URL ??= "postgresql://postgres:postgres@127.0.0.1:5432/post
 process.env.SUPABASE_DB_URL ??= process.env.DATABASE_URL;
 
 const { createRequireParticularAuth } = await import(
-  "../server/middlewares/particular-auth.ts"
+  "../../../../server/middlewares/particular-auth.ts"
 );
 
 function createMockResponse() {
