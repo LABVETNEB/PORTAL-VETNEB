@@ -146,7 +146,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       "Report study types remain canonical internal values and routes use the catalog parser instead of free text.",
     testFiles: [
       {
-        path: "test/report-study-types-catalog.test.ts",
+        path: "test/unit/contracts/reports/report-study-types-catalog.test.ts",
         markers: [
           "report study types have canonical internal catalog",
           "report study types block free-text",

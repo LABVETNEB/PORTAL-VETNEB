@@ -4,7 +4,7 @@ import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
 
 const CANONICAL_REPORT_STUDY_TYPES = [
   { value: "citologia", label: "Citolog\u00eda" },
