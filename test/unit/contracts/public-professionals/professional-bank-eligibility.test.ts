@@ -9,7 +9,7 @@ import {
   getProfessionalBankEligibilityWindow,
   isHistopathologyReport,
   isProfessionalBankEligible,
-} from "../server/lib/professional-bank-eligibility.ts";
+} from "../../../../server/lib/professional-bank-eligibility.ts";
 
 const NOW = new Date("2026-06-03T12:00:00.000Z");
 
