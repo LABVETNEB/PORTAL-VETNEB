@@ -4,13 +4,13 @@ import {
   getClinicPermissions,
   isClinicUserRole,
   normalizeClinicUserRole,
-} from "../server/lib/permissions.ts";
+} from "../../../../server/lib/permissions.ts";
 import {
   REPORT_STATUSES,
   canTransitionReportStatus,
   isReportStatus,
   normalizeReportStatus,
-} from "../server/lib/report-status.ts";
+} from "../../../../server/lib/report-status.ts";
 
 test("isClinicUserRole reconoce únicamente roles válidos", () => {
   assert.equal(isClinicUserRole("clinic_owner"), true);
