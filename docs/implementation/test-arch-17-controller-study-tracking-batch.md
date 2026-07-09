@@ -76,10 +76,10 @@ Se actualizaron los anchors exactos necesarios:
 Referencias legacy detectadas y no editadas por no ser anchors exactos necesarios
 para este move:
 
-- `test/security-access-lifecycle-boundaries.test.ts`
-- `test/security-resource-ownership-boundaries.test.ts`
-- `test/security-response-disclosure-boundaries.test.ts`
-- `test/security-write-attribution-boundaries.test.ts`
+- `test/architecture/security/security-access-lifecycle-boundaries.test.ts`
+- `test/architecture/security/security-resource-ownership-boundaries.test.ts`
+- `test/architecture/security/security-response-disclosure-boundaries.test.ts`
+- `test/architecture/security/security-write-attribution-boundaries.test.ts`
 - `test/security-cross-tenant-idor-contract.test.ts`
 
 Los cuatro primeros usan fallback recursivo por basename. El ultimo mantiene

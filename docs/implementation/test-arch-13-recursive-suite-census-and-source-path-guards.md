@@ -31,8 +31,8 @@ corrigiendo los dos mecanismos que TEST-ARCH-12 probó como bloqueantes:
   citadas como fuente de verdad.
 - `test/audit-suite-completeness.test.ts`, `test/security-boundary-suite-completeness.test.ts`,
   `test/security-session-cookie-boundaries.test.ts`,
-  `test/security-response-disclosure-boundaries.test.ts`,
-  `test/security-access-lifecycle-boundaries.test.ts`.
+  `test/architecture/security/security-response-disclosure-boundaries.test.ts`,
+  `test/architecture/security/security-access-lifecycle-boundaries.test.ts`.
 - Barrido de todos los `readdirSync(` en `test/**` para confirmar que **solo** esos dos
   archivos hacen censo no recursivo sobre la **raíz de test** (el resto apunta a
   `server/`, `frontend/`, `migrations/`, dirs de fixtures, o ya son walkers recursivos con
@@ -45,8 +45,8 @@ corrigiendo los dos mecanismos que TEST-ARCH-12 probó como bloqueantes:
 | `test/audit-suite-completeness.test.ts` | Censo → recursivo + canónico; `readSource`/`assertFileExists` subdirectory-aware; walker + resolver. |
 | `test/security-boundary-suite-completeness.test.ts` | Censo → recursivo + canónico; `readSource`/`assertFileExists` subdirectory-aware; walker + resolver. |
 | `test/security-session-cookie-boundaries.test.ts` | `readSource` subdirectory-aware; walker + resolver. |
-| `test/security-response-disclosure-boundaries.test.ts` | `readSource` subdirectory-aware; walker + resolver. |
-| `test/security-access-lifecycle-boundaries.test.ts` | `readSource` subdirectory-aware; walker + resolver. |
+| `test/architecture/security/security-response-disclosure-boundaries.test.ts` | `readSource` subdirectory-aware; walker + resolver. |
+| `test/architecture/security/security-access-lifecycle-boundaries.test.ts` | `readSource` subdirectory-aware; walker + resolver. |
 | `docs/implementation/test-suite-enterprise-migration-manifest.md` | Corrección §3.1 y §8 (anclas subcontabilizadas; Grupo A renombrado a TEST-ARCH-14). |
 | `docs/implementation/test-arch-12-enterprise-controller-bulk-batch-1.md` | Nota de resolución apuntando a TEST-ARCH-13. |
 

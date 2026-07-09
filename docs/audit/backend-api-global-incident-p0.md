@@ -338,7 +338,7 @@ Local:
 - Tests existentes relevantes:
   - `test/smoke-staging-script-contract.test.ts` cubre endpoints auth/clinic profile/tokens y flags de cookies.
   - `test/security-trusted-origin-cors-boundaries.test.ts` cubre origen confiable/CORS por superficies criticas.
-  - `test/security-sensitive-log-redaction-boundaries.test.ts` cubre no exposicion de secretos SMTP/tokens/cookies en logs.
+  - `test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts` cubre no exposicion de secretos SMTP/tokens/cookies en logs.
   - `test/supabase-storage-boundaries.test.ts` cubre storage privado/signed URLs.
 
 Productiva aportada por Nico:

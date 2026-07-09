@@ -4,7 +4,7 @@ import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
 const RESPONSE_DISCLOSURE_BOUNDARIES = {
   unauthenticated: {
@@ -223,7 +223,7 @@ test("runtime disclosure tests remain explicit for hidden resources and response
 });
 
 test("response disclosure guardrail avoids checking localized mojibake strings", () => {
-  const source = readSource("test/security-response-disclosure-boundaries.test.ts");
+  const source = readSource("test/architecture/security/security-response-disclosure-boundaries.test.ts");
   const mojibakeLead = String.fromCharCode(0x00c3);
   const replacementCharacter = String.fromCharCode(0xfffd);
 

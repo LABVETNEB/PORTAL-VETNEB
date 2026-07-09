@@ -31,7 +31,7 @@ La implementacion no debe mezclar este flujo con reset password ni con la gestio
   - `test/auth-security-rehash-policy.test.ts` fija opciones de Argon2/rehash.
   - `test/auth-cookie-persistence-contract.test.ts` fija cookies persistentes, logout Max-Age=0, y no localStorage/sessionStorage auth.
   - `test/security-session-cookie-boundaries.test.ts` fija separacion de cookies/sesiones por dominio de auth.
-  - `test/security-sensitive-log-redaction-boundaries.test.ts` fija no logging de password/session/token/hash en rutas auth.
+  - `test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts` fija no logging de password/session/token/hash en rutas auth.
   - `test/security-csrf-mutating-route-coverage.test.ts` registra rutas mutantes y exige trusted-origin.
   - `test/backend-api-no-store-cache-contract.test.ts` fija `cache-control: no-store` para API sensible.
   - `test/frontend-pwa-global-operational-contract.test.ts` fija que SW no cachee `/api/`, dashboard ni rutas privadas.

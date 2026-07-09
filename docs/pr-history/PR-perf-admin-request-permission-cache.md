@@ -65,7 +65,7 @@ Tests:
 - `test/security-critical-route-surface-registry.test.ts`
 - `test/security-cross-auth-surface-boundaries.test.ts`
 - `test/security-production-invariants.test.ts`
-- `test/security-response-disclosure-boundaries.test.ts`
+- `test/architecture/security/security-response-disclosure-boundaries.test.ts`
 - `test/security-session-cookie-boundaries.test.ts`
 
 Documentacion:
@@ -99,7 +99,7 @@ node --experimental-strip-types --experimental-specifier-resolution=node --test 
 Resultado: OK.
 
 ```powershell
-node --experimental-strip-types --experimental-specifier-resolution=node --test test/security-cross-auth-surface-boundaries.test.ts test/security-production-invariants.test.ts test/security-response-disclosure-boundaries.test.ts test/security-boundary-suite-completeness.test.ts test/security-critical-route-surface-registry.test.ts test/audit-suite-completeness.test.ts
+node --experimental-strip-types --experimental-specifier-resolution=node --test test/security-cross-auth-surface-boundaries.test.ts test/security-production-invariants.test.ts test/architecture/security/security-response-disclosure-boundaries.test.ts test/security-boundary-suite-completeness.test.ts test/security-critical-route-surface-registry.test.ts test/audit-suite-completeness.test.ts
 ```
 
 Resultado: OK.

@@ -65,8 +65,8 @@ Los **6** guards nombrados en el objetivo, exclusivamente su helper `readSource`
 
 | Archivo | Cambio |
 |---|---|
-| `test/security-write-attribution-boundaries.test.ts` | `readSource` subdirectory-aware; añadidos `listFilesRecursive` + `resolveExistingSourcePath`. |
-| `test/security-resource-ownership-boundaries.test.ts` | idem. |
+| `test/architecture/security/security-write-attribution-boundaries.test.ts` | `readSource` subdirectory-aware; añadidos `listFilesRecursive` + `resolveExistingSourcePath`. |
+| `test/architecture/security/security-resource-ownership-boundaries.test.ts` | idem. |
 | `test/security-validation-cutoff-boundaries.test.ts` | idem (se preserva el strip de BOM `﻿` + CRLF). |
 | `test/security-rate-limit-isolation-boundaries.test.ts` | idem (se preserva el strip de CRLF). |
 | `test/security-audit-logging-phase-boundaries.test.ts` | idem (se preserva el strip de CRLF). |

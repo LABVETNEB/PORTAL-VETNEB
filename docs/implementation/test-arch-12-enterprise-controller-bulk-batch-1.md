@@ -120,8 +120,8 @@ de **security**, que hacen `readFileSync`/`readSource` y lanzan `ENOENT` si el a
 mueve:
 
 - `test/security-session-cookie-boundaries.test.ts:356` → `readSource("test/clinic-audit.fastify.test.ts")`.
-- `test/security-response-disclosure-boundaries.test.ts:156` → `readSource("test/particular-audit.fastify.test.ts")`.
-- `test/security-access-lifecycle-boundaries.test.ts:173` → `readSource("test/particular-audit.fastify.test.ts")`.
+- `test/architecture/security/security-response-disclosure-boundaries.test.ts:156` → `readSource("test/particular-audit.fastify.test.ts")`.
+- `test/architecture/security/security-access-lifecycle-boundaries.test.ts:173` → `readSource("test/particular-audit.fastify.test.ts")`.
 - `test/security-cross-tenant-idor-contract.test.ts:134` → `"test/clinic-audit.fastify.test.ts"` (referencia de datos).
 
 Moverlos deja esos guards en rojo. Repararlos exige **editar tests de security**, algo que

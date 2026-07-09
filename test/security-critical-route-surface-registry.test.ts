@@ -163,7 +163,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-sensitive-log-redaction-boundaries.test.ts",
+        path: "test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts",
         markers: [
           "sensitive log redaction matrix documents protected boundaries",
           "request logger keeps token and query redaction centralized",
@@ -179,7 +179,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-actor-relationship-boundaries.test.ts",
+        path: "test/architecture/security/security-actor-relationship-boundaries.test.ts",
         markers: [
           "actor relationship matrix documents admin clinic and particular boundaries",
           "admin routes keep explicit clinic relationships before linking reports tokens or tracking",
@@ -187,7 +187,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-resource-ownership-boundaries.test.ts",
+        path: "test/architecture/security/security-resource-ownership-boundaries.test.ts",
         markers: [
           "resource ownership matrix documents protected owner keys",
           "clinic-owned resources reject cross-clinic reports tokens and tracking cases",
@@ -195,7 +195,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-write-attribution-boundaries.test.ts",
+        path: "test/architecture/security/security-write-attribution-boundaries.test.ts",
         markers: [
           "write attribution matrix documents admin clinic particular and public token actors",
           "admin writes persist admin attribution and audit through admin context",
@@ -203,7 +203,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-access-lifecycle-boundaries.test.ts",
+        path: "test/architecture/security/security-access-lifecycle-boundaries.test.ts",
         markers: [
           "access lifecycle matrix documents public token revoke session and rate-limit states",
           "public report access enforces token lifecycle before signed URLs and audit",
@@ -211,7 +211,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-response-disclosure-boundaries.test.ts",
+        path: "test/architecture/security/security-response-disclosure-boundaries.test.ts",
         markers: [
           "response disclosure matrix documents stable public error semantics",
           "public report access unifies unusable tokens as 404 and preserves 409 and 429",
@@ -660,13 +660,13 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-session-cookie-boundaries.test.ts",
     "test/security-cross-auth-surface-boundaries.test.ts",
     "test/security-boundary-suite-completeness.test.ts",
-    "test/security-sensitive-log-redaction-boundaries.test.ts",
+    "test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts",
     "test/security/security-audit-logging-phase-boundaries.test.ts",
-    "test/security-actor-relationship-boundaries.test.ts",
-    "test/security-resource-ownership-boundaries.test.ts",
-    "test/security-write-attribution-boundaries.test.ts",
-    "test/security-access-lifecycle-boundaries.test.ts",
-    "test/security-response-disclosure-boundaries.test.ts",
+    "test/architecture/security/security-actor-relationship-boundaries.test.ts",
+    "test/architecture/security/security-resource-ownership-boundaries.test.ts",
+    "test/architecture/security/security-write-attribution-boundaries.test.ts",
+    "test/architecture/security/security-access-lifecycle-boundaries.test.ts",
+    "test/architecture/security/security-response-disclosure-boundaries.test.ts",
     "test/security-cross-tenant-idor-contract.test.ts",
     "test/security/security-trusted-origin-cors-boundaries.test.ts",
     "test/security-mutation-permission-surface.test.ts",

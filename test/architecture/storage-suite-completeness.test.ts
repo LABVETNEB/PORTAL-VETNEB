@@ -275,7 +275,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
         ],
       },
       {
-        path: "test/security-sensitive-log-redaction-boundaries.test.ts",
+        path: "test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts",
         markers: [
           "signed url tests keep storage access delegated",
           "createSignedStorageUrl",
