@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import {
   adminCreateParticularTokenSchema,
@@ -6,7 +6,7 @@ import {
   serializeParticularToken,
   serializeParticularTokenDetail,
   updateParticularTokenReportSchema,
-} from "../server/lib/particular-token.ts";
+} from "../../../../server/lib/particular-token.ts";
 
 test("clinicCreateParticularTokenSchema acepta reportId positivo y detailsLesion al limite", () => {
   const parsed = clinicCreateParticularTokenSchema.safeParse({
