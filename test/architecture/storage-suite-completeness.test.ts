@@ -234,7 +234,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
         ],
       },
       {
-        path: "test/public-professionals-serialization-invariants.test.ts",
+        path: "test/unit/contracts/public-professionals/public-professionals-serialization-invariants.test.ts",
         markers: [
           "serializeProfessional firma avatarStoragePath",
           "sin exponer el path crudo",
