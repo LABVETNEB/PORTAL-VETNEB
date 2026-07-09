@@ -12,12 +12,16 @@ import { join } from "node:path";
 const PS_SCRIPT_PATH = join(
   import.meta.dirname ?? "",
   "..",
+  "..",
+  "..",
   "scripts",
   "dev",
   "reset-login-rate-limit.ps1",
 );
 const TS_SCRIPT_PATH = join(
   import.meta.dirname ?? "",
+  "..",
+  "..",
   "..",
   "scripts",
   "dev",
