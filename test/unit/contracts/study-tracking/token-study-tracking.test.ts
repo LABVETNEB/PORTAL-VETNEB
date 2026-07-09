@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import type { StudyTrackingCase } from "../drizzle/schema.ts";
-import { calculateEstimatedDeliveryAt } from "../server/lib/study-tracking.ts";
-import { ensureStudyTrackingCaseForToken } from "../server/lib/token-study-tracking.ts";
+import type { StudyTrackingCase } from "../../../../drizzle/schema.ts";
+import { calculateEstimatedDeliveryAt } from "../../../../server/lib/study-tracking.ts";
+import { ensureStudyTrackingCaseForToken } from "../../../../server/lib/token-study-tracking.ts";
 
 function createStudyTrackingCaseFixture(
   input: Omit<StudyTrackingCase, "id" | "createdAt" | "updatedAt">,
