@@ -42,7 +42,7 @@
     "drizzle-kit": "^0.31.10",
     "esbuild": "^0.28.1",
     "tsx": "^4.22.4",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "pnpm": {
     "overrides": {
