@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -13,7 +13,7 @@ const {
   ALLOWED_AVATAR_MIME_TYPES,
   uploadReport,
   uploadClinicAvatar,
-} = await import("../server/lib/supabase.ts");
+} = await import("../../../server/lib/supabase.ts");
 
 test("ALLOWED_MIME_TYPES conserva formatos de informe permitidos", () => {
   assert.deepEqual(ALLOWED_MIME_TYPES, [

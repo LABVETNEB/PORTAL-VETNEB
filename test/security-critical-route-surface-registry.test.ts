@@ -438,7 +438,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
     ],
     guardrailTests: [
       {
-        path: "test/supabase-storage-boundaries.test.ts",
+        path: "test/unit/infrastructure/supabase-storage-boundaries.test.ts",
         markers: [
           "storage boundaries mantienen bucket privado y no exponen public URLs",
           "storage boundaries generan signed URLs sólo con TTL configurado por ENV",
@@ -446,21 +446,21 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/supabase-upload-success.test.ts",
+        path: "test/unit/infrastructure/supabase-upload-success.test.ts",
         markers: [
           "uploadReport neutraliza path traversal y separadores de ruta en fileName",
           "uploadClinicAvatar neutraliza path traversal y separadores de ruta en fileName",
         ],
       },
       {
-        path: "test/supabase-signed-url.test.ts",
+        path: "test/unit/infrastructure/supabase-signed-url.test.ts",
         markers: [
           "createSignedStorageUrl devuelve signedUrl cuando storage responde correctamente",
           "createSignedReportDownloadUrl usa nombre de descarga explicito cuando se provee",
         ],
       },
       {
-        path: "test/supabase-recovery-edge.test.ts",
+        path: "test/unit/infrastructure/supabase-recovery-edge.test.ts",
         markers: [
           "ensureStorageBucketExists crea bucket cuando getBucket devuelve error",
           "createSignedStorageUrl usa fallback cuando data viene null sin error",
@@ -672,7 +672,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/security-mutation-permission-surface.test.ts",
     "test/security-validation-cutoff-boundaries.test.ts",
     "test/security-rate-limit-isolation-boundaries.test.ts",
-    "test/supabase-storage-boundaries.test.ts",
+    "test/unit/infrastructure/supabase-storage-boundaries.test.ts",
     "test/integration/adapters/controllers/public-professionals-route-surface-invariants.test.ts",
     "test/public-professionals-fixture-suite-completeness-invariants.test.ts",
     "test/unit/infrastructure/backend-ci-workflow.test.ts",

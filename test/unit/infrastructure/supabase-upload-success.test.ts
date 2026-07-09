@@ -12,7 +12,7 @@ const {
   uploadReport,
   uploadClinicAvatar,
   supabase,
-} = await import("../server/lib/supabase.ts");
+} = await import("../../../server/lib/supabase.ts");
 
 test("uploadReport sube archivo con path sanitizado y opciones esperadas", async () => {
   const originalFrom = supabase.storage.from;

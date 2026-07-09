@@ -115,7 +115,7 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
         markers: ["validation cut-off matrix documents the protected contract"],
       },
       {
-        path: "test/supabase-upload-success.test.ts",
+        path: "test/unit/infrastructure/supabase-upload-success.test.ts",
         markers: ["neutraliza path traversal"],
       },
     ],
@@ -144,7 +144,7 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
     ],
     guardrailFiles: [
       {
-        path: "test/storage-suite-completeness.test.ts",
+        path: "test/architecture/storage-suite-completeness.test.ts",
         markers: ["Public report access and public professionals tests keep signed URLs delegated"],
       },
       {
