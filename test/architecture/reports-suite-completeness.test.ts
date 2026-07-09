@@ -108,7 +108,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         ],
       },
       {
-        path: "test/permissions-and-report-status.test.ts",
+        path: "test/unit/contracts/reports/permissions-and-report-status.test.ts",
         markers: [
           "REPORT_STATUSES",
           "canTransitionReportStatus",
