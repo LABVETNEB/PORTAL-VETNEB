@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildLoginRateLimitHeaders,
@@ -17,7 +17,7 @@ import {
   LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
   LOGIN_RATE_LIMIT_WINDOW_MS,
   normalizeLoginRateLimitIdentifier,
-} from "../server/lib/login-rate-limit.ts";
+} from "../../../server/lib/login-rate-limit.ts";
 
 test("constantes de login rate limit son estables", () => {
   assert.equal(LOGIN_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000);
