@@ -261,8 +261,8 @@ test("runtime tests remain explicit for redaction and secret-safe logging", () =
 });
 
 test("signed url tests keep storage access delegated without public urls", () => {
-  const supabaseSignedUrlTests = readSource("test/supabase-signed-url.test.ts");
-  const supabaseStorageBoundariesTests = readSource("test/supabase-storage-boundaries.test.ts");
+  const supabaseSignedUrlTests = readSource("test/unit/infrastructure/supabase-signed-url.test.ts");
+  const supabaseStorageBoundariesTests = readSource("test/unit/infrastructure/supabase-storage-boundaries.test.ts");
 
   assertContains(supabaseSignedUrlTests, "createSignedStorageUrl", "signed storage url test");
   assertContains(supabaseSignedUrlTests, "createSignedReportDownloadUrl", "signed report download url test");

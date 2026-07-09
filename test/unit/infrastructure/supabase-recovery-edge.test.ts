@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
@@ -13,7 +13,7 @@ const {
   createSignedStorageUrl,
   createSignedReportDownloadUrl,
   supabase,
-} = await import("../server/lib/supabase.ts");
+} = await import("../../../server/lib/supabase.ts");
 
 test("ensureStorageBucketExists crea bucket cuando getBucket devuelve error", async () => {
   const originalGetBucket = supabase.storage.getBucket;

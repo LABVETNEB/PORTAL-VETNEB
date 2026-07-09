@@ -374,7 +374,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         ],
       },
       {
-        path: "test/storage-suite-completeness.test.ts",
+        path: "test/architecture/storage-suite-completeness.test.ts",
         markers: [
           "storage suite completeness registry keeps canonical order",
           "storage-route-consumers",

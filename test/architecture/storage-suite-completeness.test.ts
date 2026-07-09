@@ -4,7 +4,7 @@ import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 
 type FileAnchor = {
   path: string;
@@ -25,7 +25,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
       "The Supabase storage boundary guardrail keeps buckets private, public URLs blocked, TTLs ENV-driven and uploads private.",
     testFiles: [
       {
-        path: "test/supabase-storage-boundaries.test.ts",
+        path: "test/unit/infrastructure/supabase-storage-boundaries.test.ts",
         markers: [
           "storage boundaries mantienen bucket privado",
           "storage boundaries generan signed URLs",
@@ -54,7 +54,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
       "Report and avatar uploads keep stable allowlists and reject unsupported MIME types before touching storage.",
     testFiles: [
       {
-        path: "test/supabase.test.ts",
+        path: "test/unit/infrastructure/supabase.test.ts",
         markers: [
           "ALLOWED_MIME_TYPES conserva formatos",
           "ALLOWED_AVATAR_MIME_TYPES conserva formatos",
@@ -81,7 +81,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
       "Report and avatar upload helpers keep deterministic private paths, sanitized filenames and no accidental public URL returns.",
     testFiles: [
       {
-        path: "test/supabase-upload-success.test.ts",
+        path: "test/unit/infrastructure/supabase-upload-success.test.ts",
         markers: [
           "uploadReport sube archivo con path sanitizado",
           "uploadClinicAvatar sube avatar con path sanitizado",
@@ -112,7 +112,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
       "Preview, download and delete helpers keep signed URL generation delegated to private storage and remove exact paths only.",
     testFiles: [
       {
-        path: "test/supabase-signed-url.test.ts",
+        path: "test/unit/infrastructure/supabase-signed-url.test.ts",
         markers: [
           "createSignedStorageUrl devuelve signedUrl",
           "createSignedReportUrl delega",
@@ -140,7 +140,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
       "Bucket bootstrap and signed URL fallback paths remain explicit when storage returns missing data without explicit errors.",
     testFiles: [
       {
-        path: "test/supabase-recovery-edge.test.ts",
+        path: "test/unit/infrastructure/supabase-recovery-edge.test.ts",
         markers: [
           "ensureStorageBucketExists crea bucket",
           "createSignedStorageUrl usa fallback",
@@ -421,7 +421,7 @@ test("storage suite keeps public URL usage blocked in runtime storage helper", (
 });
 
 test("storage suite completeness guardrail source stays ascii only", () => {
-  const source = readSource("test/storage-suite-completeness.test.ts");
+  const source = readSource("test/architecture/storage-suite-completeness.test.ts");
   const replacementCharacter = String.fromCharCode(0xfffd);
 
   assert.equal(
