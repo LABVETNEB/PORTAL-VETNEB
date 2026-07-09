@@ -221,7 +221,7 @@ path: "test/reports.fastify.test.ts"
 path: "test/report-access-tokens.fastify.test.ts"
 
 // security-boundary-suite-completeness.test.ts
-path: "test/security-session-cookie-boundaries.test.ts"
+path: "test/architecture/security/security-session-cookie-boundaries.test.ts"
 ...
 
 // audit-suite-completeness.test.ts

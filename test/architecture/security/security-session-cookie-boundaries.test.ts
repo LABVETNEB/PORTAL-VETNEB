@@ -4,7 +4,7 @@ import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
 const SESSION_COOKIE_BOUNDARIES = {
   clinic: {
@@ -394,7 +394,7 @@ test("runtime middleware and fastify tests remain explicit for cookie contracts"
 test("cross-domain cookie rejection and legacy cookie protection stay covered", () => {
   const auditExportTests = readSource("test/security/audit-export-boundaries.test.ts");
   const auditSeparatedTests = readSource("test/audit-separated-surfaces.test.ts");
-  const crossAuthTests = readSource("test/security-cross-auth-surface-boundaries.test.ts");
+  const crossAuthTests = readSource("test/architecture/security/security-cross-auth-surface-boundaries.test.ts");
   const clinicAuditTests = readSource("test/clinic-audit.fastify.test.ts");
 
   assertContains(auditExportTests, "audit exports rechazan cookies de dominios cruzados antes de listar", "audit export cross-cookie runtime test");
@@ -417,7 +417,7 @@ test("cross-domain cookie rejection and legacy cookie protection stay covered", 
 });
 
 test("session cookie guardrail source stays ascii only", () => {
-  const source = readSource("test/security-session-cookie-boundaries.test.ts");
+  const source = readSource("test/architecture/security/security-session-cookie-boundaries.test.ts");
   const mojibakeLead = String.fromCharCode(0x00c3);
   const replacementCharacter = String.fromCharCode(0xfffd);
 

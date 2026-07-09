@@ -50,14 +50,14 @@
   - `getRequestOrigin`
   - `enforceTrustedOrigin`
 - `applyCorsHeaders` queda local y mantiene los mismos headers.
-- `test/security-production-invariants.test.ts` ahora verifica el helper compartido y exige que las rutas auth importen el helper en vez de redefinirlo.
+- `test/architecture/security/security-production-invariants.test.ts` ahora verifica el helper compartido y exige que las rutas auth importen el helper en vez de redefinirlo.
 
 ## Archivos modificados
 
 - `server/routes/auth.fastify.ts`
 - `server/routes/admin-auth.fastify.ts`
 - `server/routes/particular-auth.fastify.ts`
-- `test/security-production-invariants.test.ts`
+- `test/architecture/security/security-production-invariants.test.ts`
 - `docs/audit/final-repo-cleanup-engineering-audit.md`
 - `docs/implementation/backend-cors-helper-auth-routes.md`
 
@@ -67,7 +67,7 @@
 - `pnpm typecheck:test`: paso.
 - `node --experimental-strip-types --test test/cors-headers-shared-helper.test.ts`: paso, 10/10.
 - `node --experimental-strip-types --test test/security-trusted-origin-cors-boundaries.test.ts`: paso, 4/4.
-- `node --experimental-strip-types --test test/security-production-invariants.test.ts`: paso, 11/11.
+- `node --experimental-strip-types --test test/architecture/security/security-production-invariants.test.ts`: paso, 11/11.
 - `node --experimental-strip-types --test test/api-production-session-contract.test.ts`: paso, 4/4.
 - `node --experimental-strip-types --test test/global-auth-boundary-contract.test.ts`: paso, 5/5.
 - Bloque auth especifico encontrado por grep: paso, 167/167.

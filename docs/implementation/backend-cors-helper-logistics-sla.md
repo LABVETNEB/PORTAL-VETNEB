@@ -38,7 +38,7 @@
 - Tests relacionados encontrados: `test/logistics-sla-routes-api.test.ts`,
   `test/logistics-sla-routes-integration.fastify.test.ts`,
   `test/cors-headers-shared-helper.test.ts`,
-  `test/security-production-invariants.test.ts`,
+  `test/architecture/security/security-production-invariants.test.ts`,
   `test/security-trusted-origin-cors-boundaries.test.ts`,
   `test/global-auth-boundary-contract.test.ts` y
   `test/security-csrf-mutating-route-coverage.test.ts`.
@@ -59,14 +59,14 @@
 - `OPTIONS` mantiene `access-control-allow-methods: GET,OPTIONS`.
 - No se importo ni se uso `UNSAFE_METHODS`, `enforceTrustedOrigin` ni `enforceTrustedOriginRequired`.
 - `test/logistics-sla-routes-api.test.ts` ahora fija import/uso del helper compartido y ausencia de copias CORS locales.
-- `test/security-production-invariants.test.ts` incorpora `logistics-sla.fastify.ts` al contrato CORS compartido GET-only.
+- `test/architecture/security/security-production-invariants.test.ts` incorpora `logistics-sla.fastify.ts` al contrato CORS compartido GET-only.
 - `docs/audit/final-repo-cleanup-engineering-audit.md` marca el residual como resuelto.
 
 ## Archivos modificados
 
 - `server/routes/logistics-sla.fastify.ts`
 - `test/logistics-sla-routes-api.test.ts`
-- `test/security-production-invariants.test.ts`
+- `test/architecture/security/security-production-invariants.test.ts`
 - `docs/audit/final-repo-cleanup-engineering-audit.md`
 - `docs/implementation/backend-cors-helper-logistics-sla.md`
 
@@ -77,7 +77,7 @@
 - `corepack pnpm typecheck`: paso.
 - `corepack pnpm typecheck:test`: paso.
 - `node --experimental-strip-types --test test/cors-headers-shared-helper.test.ts`: paso, 14/14.
-- `node --experimental-strip-types --test test/security-production-invariants.test.ts`: paso, 11/11.
+- `node --experimental-strip-types --test test/architecture/security/security-production-invariants.test.ts`: paso, 11/11.
 - `node --experimental-strip-types --test test/security-trusted-origin-cors-boundaries.test.ts`: paso, 4/4.
 - `node --experimental-strip-types --test test/logistics-sla-routes-api.test.ts`: paso, 8/8.
 - `node --experimental-strip-types --test test/logistics-sla-routes-integration.fastify.test.ts`: paso, 16/16.

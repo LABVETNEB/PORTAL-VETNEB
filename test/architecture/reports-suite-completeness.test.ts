@@ -367,7 +367,7 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         ],
       },
       {
-        path: "test/security-validation-cutoff-boundaries.test.ts",
+        path: "test/architecture/security/security-validation-cutoff-boundaries.test.ts",
         markers: [
           "validation cut-off matrix",
           "admin report upload validates clinicId",

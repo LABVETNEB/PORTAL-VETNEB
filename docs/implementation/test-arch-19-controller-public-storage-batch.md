@@ -75,8 +75,8 @@ Referencias legacy detectadas y no editadas por no ser anchors exactos necesario
 para este move:
 
 - `test/public-professionals-source-boundaries.test.ts`
-- `test/security-rate-limit-isolation-boundaries.test.ts`
-- `test/security-validation-cutoff-boundaries.test.ts`
+- `test/architecture/security/security-rate-limit-isolation-boundaries.test.ts`
+- `test/architecture/security/security-validation-cutoff-boundaries.test.ts`
 - Documentacion historica bajo `docs/**`
 
 Los tres guards listados usan fallback recursivo por basename y TEST-ARCH-16 los

@@ -82,11 +82,11 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
     ],
     guardrailFiles: [
       {
-        path: "test/security-session-cookie-boundaries.test.ts",
+        path: "test/architecture/security/security-session-cookie-boundaries.test.ts",
         markers: ["session cookie boundary matrix documents separated auth domains"],
       },
       {
-        path: "test/security-cross-auth-surface-boundaries.test.ts",
+        path: "test/architecture/security/security-cross-auth-surface-boundaries.test.ts",
         markers: ["cross auth surface registry keeps every protected route family explicit"],
       },
     ],
@@ -111,7 +111,7 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
     ],
     guardrailFiles: [
       {
-        path: "test/security-validation-cutoff-boundaries.test.ts",
+        path: "test/architecture/security/security-validation-cutoff-boundaries.test.ts",
         markers: ["validation cut-off matrix documents the protected contract"],
       },
       {
@@ -177,7 +177,7 @@ const GLOBAL_SURFACES: readonly GlobalSurface[] = [
         markers: ["normalizeListPagination clampa max limit y offset"],
       },
       {
-        path: "test/security-rate-limit-isolation-boundaries.test.ts",
+        path: "test/architecture/security/security-rate-limit-isolation-boundaries.test.ts",
         markers: ["rate limit isolation matrix documents the protected contract"],
       },
     ],

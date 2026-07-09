@@ -34,7 +34,7 @@
 - `server/lib/cors-headers.ts` tenia `enforceTrustedOrigin` con contrato *allow-null*: metodos inseguros sin `Origin` ni `Referer` pasan.
 - `particular-study-tracking` y `study-tracking` tenian contrato *block-null*: metodos inseguros sin `Origin` ni `Referer` responden 403.
 - Los `git grep` obligatorios confirmaron copias locales en ambas rutas de `getAllowedOrigins`, `normalizeOrigin`, `getRequestOrigin`, `enforceTrustedOrigin`, `UNSAFE_METHODS`, `applyCorsHeaders` y `"Origen no permitido"`.
-- Tests relacionados encontrados: `test/cors-headers-shared-helper.test.ts`, `test/security-production-invariants.test.ts`, `test/study-tracking.fastify.test.ts`, `test/particular-study-tracking.fastify.test.ts`, `test/security-trusted-origin-cors-boundaries.test.ts`, `test/security-csrf-mutating-route-coverage.test.ts`, `test/security-mutation-permission-surface.test.ts`, `test/study-tracking-suite-completeness.test.ts` y contratos de sesion/audit/report-status/access-token.
+- Tests relacionados encontrados: `test/cors-headers-shared-helper.test.ts`, `test/architecture/security/security-production-invariants.test.ts`, `test/study-tracking.fastify.test.ts`, `test/particular-study-tracking.fastify.test.ts`, `test/security-trusted-origin-cors-boundaries.test.ts`, `test/security-csrf-mutating-route-coverage.test.ts`, `test/architecture/security/security-mutation-permission-surface.test.ts`, `test/study-tracking-suite-completeness.test.ts` y contratos de sesion/audit/report-status/access-token.
 - `public-professionals.fastify.ts` queda fuera porque usa contrato CORS y mensaje propio: `"Origin no permitido"`.
 
 ## Cambios
@@ -67,7 +67,7 @@
 - `server/routes/study-tracking.fastify.ts`
 - `test/cors-headers-shared-helper.test.ts`
 - `test/particular-study-tracking.fastify.test.ts`
-- `test/security-production-invariants.test.ts`
+- `test/architecture/security/security-production-invariants.test.ts`
 - `test/study-tracking.fastify.test.ts`
 - `docs/audit/final-repo-cleanup-engineering-audit.md`
 - `docs/implementation/backend-cors-helper-block-null-routes.md`
@@ -80,7 +80,7 @@
 - `corepack pnpm typecheck:test`: paso.
 - `node --experimental-strip-types --test test/cors-headers-shared-helper.test.ts`: paso, 14/14.
 - `node --experimental-strip-types --test test/security-trusted-origin-cors-boundaries.test.ts`: paso, 4/4.
-- `node --experimental-strip-types --test test/security-production-invariants.test.ts`: paso, 11/11.
+- `node --experimental-strip-types --test test/architecture/security/security-production-invariants.test.ts`: paso, 11/11.
 - `node --experimental-strip-types --test test/particular-study-tracking.fastify.test.ts`: paso, 12/12.
 - `node --experimental-strip-types --test test/study-tracking.fastify.test.ts`: paso, 11/11.
 - Contratos adicionales encontrados por grep: CSRF, mutacion/permisos, management, suite study-tracking, runtime timing, `fastify-app`, cross-auth/sesiones, ownership, response disclosure, audit/write attribution y report/status/access-token: pasaron.

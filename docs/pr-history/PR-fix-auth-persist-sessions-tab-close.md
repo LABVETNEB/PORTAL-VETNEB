@@ -40,7 +40,7 @@ No se encontró uso de `sessionStorage`, `localStorage`, `beforeunload`, `unload
 - `test/auth.fastify.test.ts`
 - `test/admin-auth.fastify.test.ts`
 - `test/particular-auth.fastify.test.ts`
-- `test/security-session-cookie-boundaries.test.ts`
+- `test/architecture/security/security-session-cookie-boundaries.test.ts`
 - `test/auth-cookie-persistence-contract.test.ts`
 
 ## Validación

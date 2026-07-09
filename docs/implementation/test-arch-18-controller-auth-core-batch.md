@@ -68,13 +68,13 @@ Se actualizaron los anchors exactos necesarios:
 
 | Archivo | Paths actualizados |
 |---|---|
-| `test/security-critical-route-surface-registry.test.ts` | `test/auth.fastify.test.ts` -> `test/integration/adapters/controllers/auth.fastify.test.ts`; `test/admin-auth.fastify.test.ts` -> `test/integration/adapters/controllers/admin-auth.fastify.test.ts` |
+| `test/architecture/security/security-critical-route-surface-registry.test.ts` | `test/auth.fastify.test.ts` -> `test/integration/adapters/controllers/auth.fastify.test.ts`; `test/admin-auth.fastify.test.ts` -> `test/integration/adapters/controllers/admin-auth.fastify.test.ts` |
 | `test/security-boundary-suite-completeness.test.ts` | `test/auth.fastify.test.ts` -> `test/integration/adapters/controllers/auth.fastify.test.ts`; `test/admin-auth.fastify.test.ts` -> `test/integration/adapters/controllers/admin-auth.fastify.test.ts` |
 
 Referencias legacy detectadas y no editadas por no ser anchors exactos
 necesarios para este move:
 
-- `test/security-session-cookie-boundaries.test.ts`
+- `test/architecture/security/security-session-cookie-boundaries.test.ts`
 - Documentacion historica bajo `docs/**`
 
 `security-session-cookie-boundaries` usa fallback recursivo por basename y

@@ -252,7 +252,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
         ],
       },
       {
-        path: "test/security-validation-cutoff-boundaries.test.ts",
+        path: "test/architecture/security/security-validation-cutoff-boundaries.test.ts",
         markers: [
           "study-tracking.fastify.ts",
           "clinic study tracking create validates body before linked lookups writes notifications and audit",

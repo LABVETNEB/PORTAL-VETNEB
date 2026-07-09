@@ -28,7 +28,7 @@ Reducir tests en `test/` root moviendo el cluster cohesivo de invariants/guardra
 ## Validacion esperada
 
 - Focales del cluster movido.
-- `test/security-critical-route-surface-registry.test.ts`.
+- `test/architecture/security/security-critical-route-surface-registry.test.ts`.
 - `pnpm typecheck:test`.
 - `pnpm test`.
 - `pnpm build`.

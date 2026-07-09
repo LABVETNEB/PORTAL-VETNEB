@@ -119,10 +119,10 @@ Los **archivos de test** (no solo las rutas runtime) se leen por ruta fija dentr
 de **security**, que hacen `readFileSync`/`readSource` y lanzan `ENOENT` si el archivo se
 mueve:
 
-- `test/security-session-cookie-boundaries.test.ts:356` → `readSource("test/clinic-audit.fastify.test.ts")`.
+- `test/architecture/security/security-session-cookie-boundaries.test.ts:356` → `readSource("test/clinic-audit.fastify.test.ts")`.
 - `test/architecture/security/security-response-disclosure-boundaries.test.ts:156` → `readSource("test/particular-audit.fastify.test.ts")`.
 - `test/architecture/security/security-access-lifecycle-boundaries.test.ts:173` → `readSource("test/particular-audit.fastify.test.ts")`.
-- `test/security-cross-tenant-idor-contract.test.ts:134` → `"test/clinic-audit.fastify.test.ts"` (referencia de datos).
+- `test/architecture/security/security-cross-tenant-idor-contract.test.ts:134` → `"test/clinic-audit.fastify.test.ts"` (referencia de datos).
 
 Moverlos deja esos guards en rojo. Repararlos exige **editar tests de security**, algo que
 el brief prohíbe ("No mover repository/e2e/security/architecture/unit/domain tests") y que

@@ -30,7 +30,7 @@ corrigiendo los dos mecanismos que TEST-ARCH-12 probó como bloqueantes:
 - `test/README.md`; reportes TEST-ARCH-6..10 (patrón de move probado); audit/convención
   citadas como fuente de verdad.
 - `test/audit-suite-completeness.test.ts`, `test/security-boundary-suite-completeness.test.ts`,
-  `test/security-session-cookie-boundaries.test.ts`,
+  `test/architecture/security/security-session-cookie-boundaries.test.ts`,
   `test/architecture/security/security-response-disclosure-boundaries.test.ts`,
   `test/architecture/security/security-access-lifecycle-boundaries.test.ts`.
 - Barrido de todos los `readdirSync(` en `test/**` para confirmar que **solo** esos dos
@@ -44,7 +44,7 @@ corrigiendo los dos mecanismos que TEST-ARCH-12 probó como bloqueantes:
 |---|---|
 | `test/audit-suite-completeness.test.ts` | Censo → recursivo + canónico; `readSource`/`assertFileExists` subdirectory-aware; walker + resolver. |
 | `test/security-boundary-suite-completeness.test.ts` | Censo → recursivo + canónico; `readSource`/`assertFileExists` subdirectory-aware; walker + resolver. |
-| `test/security-session-cookie-boundaries.test.ts` | `readSource` subdirectory-aware; walker + resolver. |
+| `test/architecture/security/security-session-cookie-boundaries.test.ts` | `readSource` subdirectory-aware; walker + resolver. |
 | `test/architecture/security/security-response-disclosure-boundaries.test.ts` | `readSource` subdirectory-aware; walker + resolver. |
 | `test/architecture/security/security-access-lifecycle-boundaries.test.ts` | `readSource` subdirectory-aware; walker + resolver. |
 | `docs/implementation/test-suite-enterprise-migration-manifest.md` | Corrección §3.1 y §8 (anclas subcontabilizadas; Grupo A renombrado a TEST-ARCH-14). |

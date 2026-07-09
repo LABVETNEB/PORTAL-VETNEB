@@ -150,7 +150,7 @@ Agrupación por prefijo dentro de `test/` (los grupos se solapan):
   (`test/frontend-dashboard-admin.test.ts:21`) y
   `fileURLToPath(new URL("../", import.meta.url))`
   (`test/audit-suite-completeness.test.ts:7`,
-  `test/security-cross-tenant-idor-contract.test.ts:7`).
+  `test/architecture/security/security-cross-tenant-idor-contract.test.ts:7`).
 
 ### 2.5. Fixtures / factories / mocks / helpers detectados **[OBSERVADO]**
 

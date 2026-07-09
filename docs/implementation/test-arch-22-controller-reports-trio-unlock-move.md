@@ -124,7 +124,7 @@ Se actualizaron paths exactos en:
 
 - `test/reports-suite-completeness.test.ts`
 - `test/storage-suite-completeness.test.ts`
-- `test/security-critical-route-surface-registry.test.ts`
+- `test/architecture/security/security-critical-route-surface-registry.test.ts`
 
 No se editaron guards secundarios que ya resuelven por basename/path-aware y no
 fallaron en validacion.
@@ -138,7 +138,7 @@ fallaron en validacion.
 - `test/report-study-types-catalog.test.ts`
 - `test/reports-suite-completeness.test.ts`
 - `test/storage-suite-completeness.test.ts`
-- `test/security-critical-route-surface-registry.test.ts`
+- `test/architecture/security/security-critical-route-surface-registry.test.ts`
 
 ## Validaciones
 

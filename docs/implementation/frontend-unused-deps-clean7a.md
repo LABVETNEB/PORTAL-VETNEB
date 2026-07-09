@@ -79,7 +79,7 @@
 - `corepack pnpm --dir frontend lint`: pasó.
 - `corepack pnpm --dir frontend typecheck`: pasó.
 - `corepack pnpm --dir frontend build`: pasó.
-- `node --experimental-strip-types --test test/security-production-invariants.test.ts`:
+- `node --experimental-strip-types --test test/architecture/security/security-production-invariants.test.ts`:
   pasó 11/11.
 
 ## Resultado

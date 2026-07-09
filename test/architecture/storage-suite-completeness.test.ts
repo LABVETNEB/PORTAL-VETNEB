@@ -266,7 +266,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
       "Security registries keep storage upload and signed URL coverage tied into the broader critical route surface.",
     testFiles: [
       {
-        path: "test/security-critical-route-surface-registry.test.ts",
+        path: "test/architecture/security/security-critical-route-surface-registry.test.ts",
         markers: [
           "storage-upload-signing-boundaries",
           "supabase-storage-boundaries.test.ts",

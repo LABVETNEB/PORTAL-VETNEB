@@ -4,7 +4,7 @@ import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
 const VALIDATION_CUTOFF_BOUNDARIES = {
   publicRawTokens: [
@@ -501,7 +501,7 @@ test("runtime validation tests remain explicit for cut-off behavior", () => {
 });
 
 test("validation cut-off guardrail source stays ascii only", () => {
-  const source = readSource("test/security-validation-cutoff-boundaries.test.ts");
+  const source = readSource("test/architecture/security/security-validation-cutoff-boundaries.test.ts");
   const replacementCharacter = String.fromCharCode(0xfffd);
 
   assertNotContains(source, replacementCharacter, "validation cut-off guardrail source");
