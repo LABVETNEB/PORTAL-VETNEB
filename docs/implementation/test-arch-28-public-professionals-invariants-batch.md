@@ -43,8 +43,8 @@ Se reubican bajo:
 
 Se actualizaron guards activos:
 
-- `test/public-professionals-fixture-adoption-invariants.test.ts`
-- `test/public-professionals-fixture-file-scope-invariants.test.ts`
+- `test/architecture/public-professionals-fixture-adoption-invariants.test.ts`
+- `test/architecture/public-professionals-fixture-file-scope-invariants.test.ts`
 - `test/security-critical-route-surface-registry.test.ts`
 - `test/security-rate-limit-isolation-boundaries.test.ts`
 

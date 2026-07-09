@@ -15,37 +15,37 @@ const IGNORED_DIRECTORIES = new Set([
 ]);
 
 const REQUIRED_FIXTURE_GUARDRAILS = [
-  "test/public-professionals-fixtures-invariants.test.ts",
-  "test/public-professionals-fixture-adoption-invariants.test.ts",
-  "test/public-professionals-fixture-isolation-invariants.test.ts",
-  "test/public-professionals-fixture-helper-boundaries-invariants.test.ts",
-  "test/public-professionals-fixture-file-scope-invariants.test.ts",
-  "test/public-professionals-fixture-assertions-quality-invariants.test.ts",
+  "test/architecture/public-professionals-fixtures-invariants.test.ts",
+  "test/architecture/public-professionals-fixture-adoption-invariants.test.ts",
+  "test/architecture/public-professionals-fixture-isolation-invariants.test.ts",
+  "test/architecture/public-professionals-fixture-helper-boundaries-invariants.test.ts",
+  "test/architecture/public-professionals-fixture-file-scope-invariants.test.ts",
+  "test/architecture/public-professionals-fixture-assertions-quality-invariants.test.ts",
 ];
 
 const REQUIRED_INTENT_TERMS = new Map<string, string[]>([
   [
-    "test/public-professionals-fixtures-invariants.test.ts",
+    "test/architecture/public-professionals-fixtures-invariants.test.ts",
     ["defaults", "overrides", "stubs"],
   ],
   [
-    "test/public-professionals-fixture-adoption-invariants.test.ts",
+    "test/architecture/public-professionals-fixture-adoption-invariants.test.ts",
     ["fixtures compartidos", "stubs locales", "helper"],
   ],
   [
-    "test/public-professionals-fixture-isolation-invariants.test.ts",
+    "test/architecture/public-professionals-fixture-isolation-invariants.test.ts",
     ["independientes", "clona", "clones"],
   ],
   [
-    "test/public-professionals-fixture-helper-boundaries-invariants.test.ts",
+    "test/architecture/public-professionals-fixture-helper-boundaries-invariants.test.ts",
     ["helper", "runtime", "db storage"],
   ],
   [
-    "test/public-professionals-fixture-file-scope-invariants.test.ts",
+    "test/architecture/public-professionals-fixture-file-scope-invariants.test.ts",
     ["file scope", "helper canonico", "factories locales"],
   ],
   [
-    "test/public-professionals-fixture-assertions-quality-invariants.test.ts",
+    "test/architecture/public-professionals-fixture-assertions-quality-invariants.test.ts",
     ["assertions", "deepEqual", "clone quality"],
   ],
 ]);
@@ -94,7 +94,7 @@ function listSourceFiles(directory: string): string[] {
 function listFixtureGuardrailFiles(): string[] {
   return listSourceFiles("test").filter(
     (file) =>
-      file.startsWith("test/public-professionals-fixture") &&
+      file.startsWith("test/architecture/public-professionals-fixture") &&
       file.endsWith(".test.ts"),
   );
 }
@@ -131,8 +131,8 @@ test("fixture guardrail files mantienen naming canónico y ordenado", () => {
   for (const file of fixtureGuardrailFiles) {
     assert.match(
       file,
-      /^test\/public-professionals-fixtures?-[a-z0-9]+(?:-[a-z0-9]+)*\.test\.ts$/,
-      `${file} debe usar naming public-professionals-fixture(s)-kebab-case.test.ts`,
+      /^test\/architecture\/public-professionals-fixtures?-[a-z0-9]+(?:-[a-z0-9]+)*\.test\.ts$/,
+      `${file} debe usar naming test/architecture/public-professionals-fixture(s)-kebab-case.test.ts`,
     );
 
     assert.equal(
@@ -273,7 +273,7 @@ test("naming consistency no permite nuevos guardrails fixture fuera del dominio 
       continue;
     }
 
-    if (!file.startsWith("test/public-professionals-fixture")) {
+    if (!file.startsWith("test/architecture/public-professionals-fixture")) {
       offenders.push(file);
     }
   }

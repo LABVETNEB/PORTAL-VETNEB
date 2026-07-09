@@ -15,7 +15,7 @@ type SuiteGuardrail = {
 const SUITE_GUARDRAILS: readonly SuiteGuardrail[] = [
   {
     slug: "adoption",
-    path: "test/public-professionals-fixture-adoption-invariants.test.ts",
+    path: "test/architecture/public-professionals-fixture-adoption-invariants.test.ts",
     category: "adoption",
     mustReference: [
       "fixtures compartidos",
@@ -25,13 +25,13 @@ const SUITE_GUARDRAILS: readonly SuiteGuardrail[] = [
   },
   {
     slug: "assertions-quality",
-    path: "test/public-professionals-fixture-assertions-quality-invariants.test.ts",
+    path: "test/architecture/public-professionals-fixture-assertions-quality-invariants.test.ts",
     category: "assertion-quality",
     mustReference: ["assert.deepEqual", "assert.notEqual", "node:assert/strict"],
   },
   {
     slug: "file-scope",
-    path: "test/public-professionals-fixture-file-scope-invariants.test.ts",
+    path: "test/architecture/public-professionals-fixture-file-scope-invariants.test.ts",
     category: "scope",
     mustReference: [
       "CANONICAL_FIXTURE_HELPER_PATH",
@@ -41,7 +41,7 @@ const SUITE_GUARDRAILS: readonly SuiteGuardrail[] = [
   },
   {
     slug: "helper-boundaries",
-    path: "test/public-professionals-fixture-helper-boundaries-invariants.test.ts",
+    path: "test/architecture/public-professionals-fixture-helper-boundaries-invariants.test.ts",
     category: "boundaries",
     mustReference: [
       "clonePublicProfessionalFixtureRow",
@@ -51,13 +51,13 @@ const SUITE_GUARDRAILS: readonly SuiteGuardrail[] = [
   },
   {
     slug: "isolation",
-    path: "test/public-professionals-fixture-isolation-invariants.test.ts",
+    path: "test/architecture/public-professionals-fixture-isolation-invariants.test.ts",
     category: "isolation",
     mustReference: ["DEFAULT_UPDATED_AT", "assert.notEqual", "assert.deepEqual"],
   },
   {
     slug: "naming-consistency",
-    path: "test/public-professionals-fixture-naming-consistency-invariants.test.ts",
+    path: "test/architecture/public-professionals-fixture-naming-consistency-invariants.test.ts",
     category: "naming",
     mustReference: [
       "REQUIRED_FIXTURE_GUARDRAILS",
@@ -67,7 +67,7 @@ const SUITE_GUARDRAILS: readonly SuiteGuardrail[] = [
   },
   {
     slug: "registry",
-    path: "test/public-professionals-fixture-registry-invariants.test.ts",
+    path: "test/architecture/public-professionals-fixture-registry-invariants.test.ts",
     category: "registry",
     mustReference: [
       "FIXTURE_GUARDRAIL_REGISTRY",
@@ -77,7 +77,7 @@ const SUITE_GUARDRAILS: readonly SuiteGuardrail[] = [
   },
   {
     slug: "suite-completeness",
-    path: "test/public-professionals-fixture-suite-completeness-invariants.test.ts",
+    path: "test/architecture/public-professionals-fixture-suite-completeness-invariants.test.ts",
     category: "suite-completeness",
     mustReference: [
       "SUITE_GUARDRAILS",
@@ -87,7 +87,7 @@ const SUITE_GUARDRAILS: readonly SuiteGuardrail[] = [
   },
   {
     slug: "base-fixtures",
-    path: "test/public-professionals-fixtures-invariants.test.ts",
+    path: "test/architecture/public-professionals-fixtures-invariants.test.ts",
     category: "base-fixtures",
     mustReference: [
       "buildPublicProfessionalFixtureRow",
@@ -153,7 +153,7 @@ test("fixture suite completeness conserva inventario esperado de guardrails", ()
 
 test("fixture suite completeness coincide con el registry explícito", () => {
   const registrySource = readSource(
-    "test/public-professionals-fixture-registry-invariants.test.ts",
+    "test/architecture/public-professionals-fixture-registry-invariants.test.ts",
   );
 
   const suiteSlugs = SUITE_GUARDRAILS.map((guardrail) => guardrail.slug);
@@ -212,22 +212,22 @@ test("fixture suite completeness verifica referencias internas mínimas por guar
 
 test("fixture suite completeness evita ciclos frágiles fuera del par registry-suite", () => {
   const suiteSource = readSource(
-    "test/public-professionals-fixture-suite-completeness-invariants.test.ts",
+    "test/architecture/public-professionals-fixture-suite-completeness-invariants.test.ts",
   );
   const registrySource = readSource(
-    "test/public-professionals-fixture-registry-invariants.test.ts",
+    "test/architecture/public-professionals-fixture-registry-invariants.test.ts",
   );
 
   assert.ok(
     suiteSource.includes(
-      "test/public-professionals-fixture-registry-invariants.test.ts",
+      "test/architecture/public-professionals-fixture-registry-invariants.test.ts",
     ),
     "suite completeness debe referenciar registry",
   );
 
   assert.ok(
     registrySource.includes(
-      "test/public-professionals-fixture-suite-completeness-invariants.test.ts",
+      "test/architecture/public-professionals-fixture-suite-completeness-invariants.test.ts",
     ),
     "registry debe declarar suite completeness",
   );
@@ -255,7 +255,7 @@ test("fixture suite completeness evita ciclos frágiles fuera del par registry-s
 
 test("fixture suite completeness permanece local a tests y sin dependencias reales", () => {
   const source = readSource(
-    "test/public-professionals-fixture-suite-completeness-invariants.test.ts",
+    "test/architecture/public-professionals-fixture-suite-completeness-invariants.test.ts",
   );
   const lines = source.split("\n");
   const importLines = lines.filter((line) => line.startsWith("import "));
