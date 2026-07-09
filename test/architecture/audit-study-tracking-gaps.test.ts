@@ -134,7 +134,7 @@ test("admin study tracking audita creación, actualización y notificación espe
 });
 
 test("study tracking queda integrado en flujos críticos auditados", () => {
-  const criticalSource = readSource("test/audit-critical-flow-writes.test.ts");
+  const criticalSource = readSource("test/architecture/audit-critical-flow-writes.test.ts");
 
   assertContainsAll(
     criticalSource,

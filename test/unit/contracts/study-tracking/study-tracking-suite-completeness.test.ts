@@ -1,4 +1,4 @@
-﻿import assert from "node:assert/strict";
+import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -226,7 +226,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
       "Study tracking remains connected to audit and security guardrails for ownership, validation cut-off and audit logging phase order.",
     testFiles: [
       {
-        path: "test/audit-study-tracking-gaps.test.ts",
+        path: "test/architecture/audit-study-tracking-gaps.test.ts",
         markers: [
           "STUDY_TRACKING_CASE_CREATED",
           "STUDY_TRACKING_CASE_UPDATED",
@@ -236,7 +236,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
         ],
       },
       {
-        path: "test/audit-critical-flow-writes.test.ts",
+        path: "test/architecture/audit-critical-flow-writes.test.ts",
         markers: [
           "STUDY_TRACKING_CASE_CREATED",
           "STUDY_TRACKING_NOTIFICATION_CREATED",
@@ -260,7 +260,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
         ],
       },
       {
-        path: "test/security-audit-logging-phase-boundaries.test.ts",
+        path: "test/security/security-audit-logging-phase-boundaries.test.ts",
         markers: [
           "server/routes/study-tracking.fastify.ts",
           "server/routes/admin-study-tracking.fastify.ts",
@@ -268,7 +268,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
         ],
       },
       {
-        path: "test/audit-suite-completeness.test.ts",
+        path: "test/architecture/audit-suite-completeness.test.ts",
         markers: [
           "audit-study-tracking-writes",
           "STUDY_TRACKING_CASE_CREATED",

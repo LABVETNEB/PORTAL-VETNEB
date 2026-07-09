@@ -6,7 +6,7 @@ import {
   buildPublicReportAccessTokenActor,
   normalizeAuditMetadata,
   resolveAuditActorFromRequest,
-} from "../server/lib/audit.ts";
+} from "../../../server/lib/audit.ts";
 
 test("AUDIT_EVENTS conserva los eventos públicos esperados", () => {
   assert.deepEqual(AUDIT_EVENTS, {

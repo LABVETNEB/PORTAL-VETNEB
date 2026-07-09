@@ -1,8 +1,8 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 
 const { AUDIT_EVENTS, createWriteAuditLog } = await import(
-  "../server/lib/audit.ts"
+  "../../../server/lib/audit.ts"
 );
 
 test("writeAuditLog inserta payload y registra éxito", async () => {
