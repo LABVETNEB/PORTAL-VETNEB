@@ -78,17 +78,17 @@ impacto.
 | `server/routes/particular-auth.fastify.ts` | Producción | `rateLimitKey` → `` `particular:${request.ip \|\| "unknown"}` `` |
 | `server/routes/admin-auth.fastify.ts` | Producción | `rateLimitKey` → `` `admin:${request.ip \|\| "unknown"}` `` |
 | `test/auth.fastify.test.ts` | Test | `hashRateLimitKey("203.0.113.50")` → `hashRateLimitKey("login:203.0.113.50")` (x2) |
-| `test/security-rate-limit-isolation-boundaries.test.ts` | Test | Reemplaza assertion de key genérica por mapa por realm |
+| `test/architecture/security/security-rate-limit-isolation-boundaries.test.ts` | Test | Reemplaza assertion de key genérica por mapa por realm |
 | `test/security-rate-limit-cross-realm-isolation.test.ts` | Test (nuevo) | 7 tests de regresión cross-realm |
 
 ### Nota de limpieza
 
-Los ficheros temporales `test/security-rate-limit-isolation-boundaries.test.ts.clean`
-y `test/security-rate-limit-isolation-boundaries.test.ts.tmp` deben eliminarse
+Los ficheros temporales `test/architecture/security/security-rate-limit-isolation-boundaries.test.ts.clean`
+y `test/architecture/security/security-rate-limit-isolation-boundaries.test.ts.tmp` deben eliminarse
 manualmente en Windows antes del commit:
 ```powershell
-Remove-Item test\security-rate-limit-isolation-boundaries.test.ts.clean
-Remove-Item test\security-rate-limit-isolation-boundaries.test.ts.tmp
+Remove-Item test\architecture\security\security-rate-limit-isolation-boundaries.test.ts.clean
+Remove-Item test\architecture\security\security-rate-limit-isolation-boundaries.test.ts.tmp
 ```
 
 ---
@@ -141,9 +141,9 @@ Fichero: `test/security-rate-limit-cross-realm-isolation.test.ts`
 
 | Validación | Resultado |
 |---|---|
-| `node --test test/security-rate-limit-isolation-boundaries.test.ts` | 9/9 pass |
+| `node --test test/architecture/security/security-rate-limit-isolation-boundaries.test.ts` | 9/9 pass |
 | `node --test test/login-rate-limit.test.ts test/rate-limit-store.test.ts` | 10/10 pass |
-| `node --test test/security-production-invariants.test.ts` | 11/11 pass |
+| `node --test test/architecture/security/security-production-invariants.test.ts` | 11/11 pass |
 | Tests estructurales combinados (30 tests) | 30/30 pass |
 | `git diff --check` | EXIT 0 (sin whitespace errors) |
 | `pnpm test` (requiere host Windows) | Pendiente ejecución manual por Nico |
@@ -188,7 +188,7 @@ Archivos modificados (5 M + 1 A):
   M server/routes/particular-auth.fastify.ts
   M server/routes/admin-auth.fastify.ts
   M test/auth.fastify.test.ts
-  M test/security-rate-limit-isolation-boundaries.test.ts
+  M test/architecture/security/security-rate-limit-isolation-boundaries.test.ts
   A test/security-rate-limit-cross-realm-isolation.test.ts
 
 Tests estructurales: 30/30 pass

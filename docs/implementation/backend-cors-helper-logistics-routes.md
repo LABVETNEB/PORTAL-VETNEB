@@ -37,7 +37,7 @@
 - Las tres rutas logisticas tenian definiciones locales compatibles *allow-null* de `getAllowedOrigins`, `normalizeOrigin`, `getRequestOrigin` y `enforceTrustedOrigin`.
 - Las tres rutas logisticas usan `UNSAFE_METHODS` tambien fuera de CORS para guardias RBAC de metodos inseguros, por lo que ese simbolo debe importarse desde el helper compartido.
 - `applyCorsHeaders` no se migro: queda local y conserva los mismos headers.
-- Los tests reales que fijaban definiciones locales eran `test/logistics-field-visits-api.test.ts`, `test/logistics-route-events-api.test.ts`, `test/logistics-route-plans-api.test.ts` y la guardia ampliada en `test/security-production-invariants.test.ts`.
+- Los tests reales que fijaban definiciones locales eran `test/logistics-field-visits-api.test.ts`, `test/logistics-route-events-api.test.ts`, `test/logistics-route-plans-api.test.ts` y la guardia ampliada en `test/architecture/security/security-production-invariants.test.ts`.
 - Los tests nombrados en el brief `test/logistics-api.test.ts`, `test/logistics-admin-api.test.ts` y `test/logistics-public-api.test.ts` no existen en el repo actual.
 
 ## Cambios
@@ -58,7 +58,7 @@
   - `enforceTrustedOrigin`
 - `applyCorsHeaders` queda local y mantiene `vary`, `access-control-allow-origin` y `access-control-allow-credentials`.
 - Los tres tests `logistics-*-api.test.ts` ahora verifican import/uso del helper compartido y ausencia de definiciones locales.
-- `test/security-production-invariants.test.ts` incorpora las rutas logisticas al contrato del helper compartido.
+- `test/architecture/security/security-production-invariants.test.ts` incorpora las rutas logisticas al contrato del helper compartido.
 
 ## Archivos modificados
 
@@ -68,7 +68,7 @@
 - `test/logistics-field-visits-api.test.ts`
 - `test/logistics-route-events-api.test.ts`
 - `test/logistics-route-plans-api.test.ts`
-- `test/security-production-invariants.test.ts`
+- `test/architecture/security/security-production-invariants.test.ts`
 - `docs/audit/final-repo-cleanup-engineering-audit.md`
 - `docs/implementation/backend-cors-helper-logistics-routes.md`
 
@@ -79,7 +79,7 @@
 - `corepack pnpm typecheck:test`: paso.
 - `node --experimental-strip-types --test test/cors-headers-shared-helper.test.ts`: paso, 10/10.
 - `node --experimental-strip-types --test test/security-trusted-origin-cors-boundaries.test.ts`: paso, 4/4.
-- `node --experimental-strip-types --test test/security-production-invariants.test.ts`: paso, 11/11.
+- `node --experimental-strip-types --test test/architecture/security/security-production-invariants.test.ts`: paso, 11/11.
 - `node --experimental-strip-types --test test/logistics-field-visits-api.test.ts`: paso, 17/17.
 - `node --experimental-strip-types --test test/logistics-route-events-api.test.ts`: paso, 11/11.
 - `node --experimental-strip-types --test test/logistics-route-plans-api.test.ts`: paso, 23/23.

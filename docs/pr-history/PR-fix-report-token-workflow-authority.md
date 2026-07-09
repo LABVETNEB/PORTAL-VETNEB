@@ -80,7 +80,7 @@
 - `test/frontend-report-upload-modal.test.ts`
 - `test/frontend-report-actions.test.ts`
 - `test/clinic-management-route-policy.test.ts`
-- `test/security-mutation-permission-surface.test.ts`
+- `test/architecture/security/security-mutation-permission-surface.test.ts`
 - `test/architecture/security/security-write-attribution-boundaries.test.ts`
 - `test/fastify-app.test.ts`
 - `test/report-write-surface-ownership.test.ts`

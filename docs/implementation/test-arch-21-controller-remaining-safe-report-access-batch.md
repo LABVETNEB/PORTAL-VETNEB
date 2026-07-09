@@ -52,7 +52,7 @@ Se actualizaron referencias exactas antiguas a los nuevos paths en:
 
 - `test/reports-suite-completeness.test.ts`
 - `test/storage-suite-completeness.test.ts`
-- `test/security-critical-route-surface-registry.test.ts`
+- `test/architecture/security/security-critical-route-surface-registry.test.ts`
 
 Los guards security clasificados como subdirectory-aware no se editaron salvo que tuvieran path exacto en los archivos anteriores.
 

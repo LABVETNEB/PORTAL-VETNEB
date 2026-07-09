@@ -58,7 +58,7 @@ Confirmaciones:
 
 | Candidato | Categoria evaluada | Decision | Razon |
 | --- | --- | --- | --- |
-| `test/security-session-cookie-boundaries.test.ts` | Security invariant | No elegido | Candidato claro, pero esta anclado por `global-e2e-production-readiness-contract`, `security-boundary-suite-completeness`, `security-critical-route-surface-registry`, `security-docs-matrix-drift-guard` y self-read. Moverlo exigia coordinar demasiados paths. |
+| `test/architecture/security/security-session-cookie-boundaries.test.ts` | Security invariant | No elegido | Candidato claro, pero esta anclado por `global-e2e-production-readiness-contract`, `security-boundary-suite-completeness`, `security-critical-route-surface-registry`, `security-docs-matrix-drift-guard` y self-read. Moverlo exigia coordinar demasiados paths. |
 | `test/security-boundary-suite-completeness.test.ts` | Security invariant / suite completeness | No elegido | Es un registry de completitud de seguridad y esta anclado por otros guards. Moverlo ampliaba el alcance. |
 | `test/api-error-no-stack-traces-contract.test.ts` | Security invariant | No elegido | Elegible, pero se priorizaron sesiones/cookies, cache privado y rate-limit cross-realm por alineacion directa con la prioridad del lote. |
 | `test/auth-session-boundaries.test.ts` | Security invariant | Elegido | Protege separacion de sesiones/cookies entre clinica, admin y particular con stubs locales y `app.inject`, sin servidor real ni DB/red. |

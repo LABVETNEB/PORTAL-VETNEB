@@ -19,7 +19,7 @@
 - `test/admin-users-roles.fastify.test.ts`
 - `test/admin-report-workflow.fastify.test.ts`
 - `test/admin-clinics-auth-contract.test.ts`
-- `test/security-session-cookie-boundaries.test.ts`
+- `test/architecture/security/security-session-cookie-boundaries.test.ts`
 - `docs/pr-history/PR-perf-admin-auth-session-user-join.md`
 
 ## Implementacion realizada

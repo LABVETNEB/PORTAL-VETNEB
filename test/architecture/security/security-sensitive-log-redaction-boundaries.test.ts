@@ -245,7 +245,7 @@ test("runtime tests remain explicit for redaction and secret-safe logging", () =
   const requestLoggerEdgeTests = readSource("test/unit/infrastructure/request-logger-edge.test.ts");
   const requestLoggerMiddlewareTests = readSource("test/unit/infrastructure/request-logger-middleware.test.ts");
   const loggerAndEmailTests = readSource("test/unit/infrastructure/logger-and-email.test.ts");
-  const productionInvariants = readSource("test/security-production-invariants.test.ts");
+  const productionInvariants = readSource("test/architecture/security/security-production-invariants.test.ts");
   const smokeEnvContract = readSource("test/unit/infrastructure/smoke-env-contract.test.ts");
 
   assertContains(requestLoggerTests, "REDACTED", "request logger unit redaction test");

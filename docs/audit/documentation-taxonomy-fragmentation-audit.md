@@ -138,7 +138,7 @@ test/security-docs-matrix-drift-guard.test.ts        → docs/security/security-
                                                           docs/security/ENDPOINT_PERMISSION_MATRIX.md,
                                                           docs/security/ENDPOINT_TEST_MATRIX.md,
                                                           docs/ops/CROSS_TENANT_SMOKE_EVIDENCE_RUNBOOK.md
-test/security-production-invariants.test.ts          → docs/security/csp-reporting-rollout.md
+test/architecture/security/security-production-invariants.test.ts          → docs/security/csp-reporting-rollout.md
 test/smoke-env-contract.test.ts                      → docs/smoke-local.md
 test/smoke-local-contract.test.ts                    → docs/smoke-local.md
 ```

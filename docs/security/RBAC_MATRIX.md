@@ -33,7 +33,7 @@
 
 | Actor | Recurso | Leer | Crear | Actualizar | Borrar/revocar | Scope obligatorio | Evidencia requerida | Estado produccion |
 |---|---|---|---|---|---|---|---|---|
-| Clinic user | reportes | Si (solo tenant propio) | No en `/api/reports` | No en `/api/reports` | No en `/api/reports` | `auth.clinicId` | `test/reports.fastify.test.ts`, `test/security-cross-tenant-idor-contract.test.ts`, smoke staging con 2 clinicas | Abierto - pendiente evidencia runtime/staging |
+| Clinic user | reportes | Si (solo tenant propio) | No en `/api/reports` | No en `/api/reports` | No en `/api/reports` | `auth.clinicId` | `test/reports.fastify.test.ts`, `test/architecture/security/security-cross-tenant-idor-contract.test.ts`, smoke staging con 2 clinicas | Abierto - pendiente evidencia runtime/staging |
 | Admin | uploads PDF | No por ruta clinic | Si (`/api/admin/reports/upload`) | No | No | sesion admin + validacion `clinicId` objetivo | `test/admin-reports.fastify.test.ts`, `test/smoke-upload-script-contract.test.ts`, smoke upload autenticado | Abierto - pendiente evidencia runtime/staging |
 | Clinic user / Particular token / Public report token | signed/download URLs | Si solo si recurso vinculado | No | No | No | `clinicId` o `particularTokenId` o `tokenHash` | `test/reports.fastify.test.ts`, `test/particular-auth.fastify.test.ts`, `test/public-report-access.fastify.test.ts`, logs sanitizados | Abierto - pendiente evidencia runtime/staging |
 | Clinic user / Admin | report access tokens | Si (scoped) | Si (scoped) | Parcial (revoke/link) | Si (revoke) | `auth.clinicId` o validacion admin de `clinicId` | `test/report-access-tokens.fastify.test.ts`, `test/admin-report-access-tokens.fastify.test.ts`, contrato CTIDOR | Abierto - pendiente evidencia runtime/staging |
@@ -44,7 +44,7 @@
 | Clinic user | avatar/logo storage | Si (via perfil firmado) | Si (`POST /avatar`) | Si (replace) | Si (`DELETE /avatar`) | prefijo storage por `clinicId` | `test/supabase-upload-success.test.ts`, `test/supabase-storage-boundaries.test.ts`, smoke avatar | Abierto - pendiente evidencia runtime/staging |
 | Admin | admin schema health | Si | No | No | No | sesion admin + trusted origin | `test/admin-system-schema-health.fastify.test.ts`, `test/smoke-staging-script-contract.test.ts` | Abierto - pendiente evidencia runtime/staging |
 | Public anonymous | contact form | No lectura de datos internos | Si (`POST /api/contact`) | No | No | origen permitido + payload valido | `test/contact.fastify.test.ts` (si aplica), smoke de contacto y health admin | Abierto - pendiente evidencia runtime/staging |
-| Todos los actores autenticados | auth/session | `GET /me` segun dominio | `POST /login` segun dominio | Renovacion implicita de sesion | `POST /logout` | cookie correcta por dominio (`app`, `admin`, `particular`) | `test/security-cross-auth-surface-boundaries.test.ts`, `test/security-session-cookie-boundaries.test.ts` | Abierto - pendiente evidencia runtime/staging |
+| Todos los actores autenticados | auth/session | `GET /me` segun dominio | `POST /login` segun dominio | Renovacion implicita de sesion | `POST /logout` | cookie correcta por dominio (`app`, `admin`, `particular`) | `test/architecture/security/security-cross-auth-surface-boundaries.test.ts`, `test/architecture/security/security-session-cookie-boundaries.test.ts` | Abierto - pendiente evidencia runtime/staging |
 
 ## 5. Gaps conocidos
 

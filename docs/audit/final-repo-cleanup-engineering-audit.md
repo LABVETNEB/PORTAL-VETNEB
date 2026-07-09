@@ -1006,7 +1006,7 @@ exige build+E2E). El resto está saludable.
   - **Contrato preservado:** misma variante *allow-null* para métodos inseguros sin `Origin`/`Referer`,
     mismo bloqueo 403 con `{ success: false, error: "Origen no permitido" }`, mismo preflight
     `GET,POST,OPTIONS`, mismo reflejo de `Origin` permitido y sin wildcard con credenciales.
-  - **Tests actualizados:** `test/security-production-invariants.test.ts` dejó de exigir definiciones locales
+  - **Tests actualizados:** `test/architecture/security/security-production-invariants.test.ts` dejó de exigir definiciones locales
     en el trío auth y ahora verifica que el contrato vive en `server/lib/cors-headers.ts`, que las rutas
     importan `enforceTrustedOrigin`, `getAllowedOriginForCors`, `getAllowedOrigins` y `getRequestOrigin`, y
     que no reintroducen las copias locales. `applyCorsHeaders` continúa exigido localmente.
@@ -1048,7 +1048,7 @@ exige build+E2E). El resto está saludable.
     credenciales.
   - **Tests actualizados:** `test/logistics-field-visits-api.test.ts`,
     `test/logistics-route-events-api.test.ts`, `test/logistics-route-plans-api.test.ts` y
-    `test/security-production-invariants.test.ts` dejaron de exigir definiciones locales y ahora verifican
+    `test/architecture/security/security-production-invariants.test.ts` dejaron de exigir definiciones locales y ahora verifican
     import/uso del helper compartido, `applyCorsHeaders` local y ausencia de copias CORS.
   - **Fuera de alcance respetado:** no se tocaron `particular-study-tracking`, `study-tracking`,
     `public-professionals.fastify.ts`, frontend runtime, DB, migraciones, dependencias, lockfiles,
@@ -1083,7 +1083,7 @@ exige build+E2E). El resto está saludable.
     `Origin` permitido no falla por origen, `Origin` no permitido devuelve 403, el mensaje exacto sigue siendo
     `"Origen no permitido"`, y los preflight `OPTIONS` conservan sus allow-methods por ruta.
   - **Tests actualizados:** `test/cors-headers-shared-helper.test.ts` cubre la variante *block-null*;
-    `test/security-production-invariants.test.ts` exige import/uso del helper compartido y ausencia de copias
+    `test/architecture/security/security-production-invariants.test.ts` exige import/uso del helper compartido y ausencia de copias
     CORS locales en las dos rutas; `test/study-tracking.fastify.test.ts` y
     `test/particular-study-tracking.fastify.test.ts` fijan los casos runtime de `Origin` permitido, faltante y
     no permitido.
@@ -1135,7 +1135,7 @@ exige build+E2E). El resto está saludable.
     `GET,OPTIONS`, bloqueo 403 de `OPTIONS` con origen no permitido y la misma
     semántica allow-null para ausencia de `Origin`/`Referer`.
   - **Tests actualizados:** `test/logistics-sla-routes-api.test.ts` y
-    `test/security-production-invariants.test.ts` verifican import/uso del
+    `test/architecture/security/security-production-invariants.test.ts` verifican import/uso del
     helper compartido, ausencia de copias CORS locales y preservación del
     contrato GET-only.
 

@@ -4,7 +4,7 @@ import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
 const RATE_LIMIT_ISOLATION_BOUNDARIES = {
   authLogin: [
@@ -598,7 +598,7 @@ test("runtime rate limit tests remain explicit for isolated public and mutation 
   const adminReportAccessTokens = readSource(
     "test/admin-report-access-tokens.fastify.test.ts",
   );
-  const productionInvariants = readSource("test/security-production-invariants.test.ts");
+  const productionInvariants = readSource("test/architecture/security/security-production-invariants.test.ts");
 
   assertMatches(
     publicProfessionals,
@@ -638,7 +638,7 @@ test("runtime rate limit tests remain explicit for isolated public and mutation 
 });
 
 test("rate limit isolation guardrail source stays ascii only", () => {
-  const source = readSource("test/security-rate-limit-isolation-boundaries.test.ts");
+  const source = readSource("test/architecture/security/security-rate-limit-isolation-boundaries.test.ts");
   const replacementCharacter = String.fromCharCode(0xfffd);
 
   assertNotContains(source, replacementCharacter, "rate limit guardrail source");

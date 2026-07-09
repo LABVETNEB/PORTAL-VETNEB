@@ -138,7 +138,7 @@ node --test test/mobile-production-parity-invariants.test.ts
 node --test test/progress-production-invariants.test.ts
 → pass 4/4  (invariantes #774 intactas)
 
-node --test test/security-production-invariants.test.ts
+node --test test/architecture/security/security-production-invariants.test.ts
 → pass 11/11
 
 node --test test/frontend-pwa-global-operational-contract.test.ts

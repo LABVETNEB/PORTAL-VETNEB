@@ -47,7 +47,7 @@
 ## Validación
 
 ```powershell
-node --experimental-strip-types --experimental-specifier-resolution=node --test test/security-critical-route-surface-registry.test.ts
+node --experimental-strip-types --experimental-specifier-resolution=node --test test/architecture/security/security-critical-route-surface-registry.test.ts
 node --experimental-strip-types --experimental-specifier-resolution=node --test test/admin-particular-tokens.fastify.test.ts
 node --experimental-strip-types --experimental-specifier-resolution=node --test test/frontend-admin-particular-tokens.test.ts
 pnpm test

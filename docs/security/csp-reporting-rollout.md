@@ -98,7 +98,7 @@ to all inline scripts and styles — a separate PR.
 | Smoke contract | `test/frontend-csp-report-uri-contract.test.ts` (tests 13–15) |
 | Builder contract | `test/frontend-csp-policy-builder-contract.test.ts` |
 | Payload contract | `test/frontend-csp-report-endpoint-contract.test.ts` |
-| Production path invariants | `test/security-production-invariants.test.ts` |
+| Production path invariants | `test/architecture/security/security-production-invariants.test.ts` |
 
 ## 8. Local validation
 

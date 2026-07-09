@@ -285,9 +285,9 @@ app.addHook(
 | Validación | Resultado |
 |------------|-----------|
 | `test/backend-api-no-store-cache-contract.test.ts` (9 tests) | ✅ 9/9 pass |
-| `test/security-production-invariants.test.ts` | ✅ pass |
+| `test/architecture/security/security-production-invariants.test.ts` | ✅ pass |
 | `test/auth-cookie-persistence-contract.test.ts` | ✅ pass |
-| `test/security-session-cookie-boundaries.test.ts` | ✅ pass |
+| `test/architecture/security/security-session-cookie-boundaries.test.ts` | ✅ pass |
 | `test/frontend-next-config-security-headers.test.ts` | ✅ pass |
 | `test/frontend-public-performance-contract.test.ts` | ✅ pass |
 | `test/frontend-route-registry.test.ts` | ✅ pass |

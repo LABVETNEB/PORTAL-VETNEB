@@ -30,13 +30,13 @@ const REQUIRED_SECURITY_DOCS = [
 ] as const;
 
 const REQUIRED_GUARDRAIL_TESTS = [
-  "test/security-critical-route-surface-registry.test.ts",
+  "test/architecture/security/security-critical-route-surface-registry.test.ts",
   "test/security-boundary-suite-completeness.test.ts",
-  "test/security-cross-tenant-idor-contract.test.ts",
+  "test/architecture/security/security-cross-tenant-idor-contract.test.ts",
   "test/architecture/security/security-resource-ownership-boundaries.test.ts",
   "test/architecture/security/security-response-disclosure-boundaries.test.ts",
-  "test/security-session-cookie-boundaries.test.ts",
-  "test/security-mutation-permission-surface.test.ts",
+  "test/architecture/security/security-session-cookie-boundaries.test.ts",
+  "test/architecture/security/security-mutation-permission-surface.test.ts",
   "test/security/security-trusted-origin-cors-boundaries.test.ts",
   "test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts",
 ] as const;
@@ -114,8 +114,8 @@ test("security docs matrix drift guard keeps runtime evidence and no-go anchors 
 
   assertIncludes(endpointTestMatrix, "Smoke runtime requerido", "endpoint test matrix");
   assertIncludes(endpointTestMatrix, "Guardrails base de inventario", "endpoint test matrix");
-  assertIncludes(endpointTestMatrix, "test/security-critical-route-surface-registry.test.ts", "endpoint test matrix");
-  assertIncludes(endpointTestMatrix, "test/security-cross-tenant-idor-contract.test.ts", "endpoint test matrix");
+  assertIncludes(endpointTestMatrix, "test/architecture/security/security-critical-route-surface-registry.test.ts", "endpoint test matrix");
+  assertIncludes(endpointTestMatrix, "test/architecture/security/security-cross-tenant-idor-contract.test.ts", "endpoint test matrix");
 
   assertIncludes(crossTenantRunbook, "CT-01", "cross tenant runbook");
   assertIncludes(crossTenantRunbook, "CT-16", "cross tenant runbook");
@@ -149,7 +149,7 @@ test("security docs matrix drift guard keeps referenced guardrail tests present"
 
 test("security docs matrix drift guard keeps cross-tenant runtime evidence tied to CTIDOR registry", () => {
   const crossTenantRunbook = read("docs/ops/CROSS_TENANT_SMOKE_EVIDENCE_RUNBOOK.md");
-  const crossTenantIdorContract = read("test/security-cross-tenant-idor-contract.test.ts");
+  const crossTenantIdorContract = read("test/architecture/security/security-cross-tenant-idor-contract.test.ts");
   const rlsMatrix = read("docs/security/rls-enforcement-matrix.md");
 
   assertIncludes(crossTenantIdorContract, "CROSS_TENANT_IDOR_CONTRACTS", "ctidor registry");

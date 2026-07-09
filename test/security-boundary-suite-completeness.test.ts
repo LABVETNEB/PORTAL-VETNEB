@@ -161,7 +161,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
   },
   {
     slug: "session-cookie",
-    path: "test/security-session-cookie-boundaries.test.ts",
+    path: "test/architecture/security/security-session-cookie-boundaries.test.ts",
     purpose:
       "Clinic, admin and particular session cookies stay separated across read, write, clear and legacy rejection flows.",
     protectedDimensions: [
@@ -239,7 +239,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
   },
   {
     slug: "cross-auth-surface",
-    path: "test/security-cross-auth-surface-boundaries.test.ts",
+    path: "test/architecture/security/security-cross-auth-surface-boundaries.test.ts",
     purpose:
       "Clinic, admin, particular and public token route families remain separated by accepted cookie domain.",
     protectedDimensions: [
@@ -406,7 +406,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
   },
   {
     slug: "rate-limit-isolation",
-    path: "test/security-rate-limit-isolation-boundaries.test.ts",
+    path: "test/architecture/security/security-rate-limit-isolation-boundaries.test.ts",
     purpose:
       "Auth, public read and protected mutation rate limits keep isolated buckets and cut off before protected work.",
     protectedDimensions: [
@@ -436,7 +436,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
   },
   {
     slug: "validation-cutoff",
-    path: "test/security-validation-cutoff-boundaries.test.ts",
+    path: "test/architecture/security/security-validation-cutoff-boundaries.test.ts",
     purpose:
       "Invalid tokens, params, bodies, uploads and audit filters return 400 before DB, storage, signing or audit work.",
     protectedDimensions: [
@@ -650,7 +650,7 @@ test("security boundary suite keeps required downstream runtime tests explicit",
       marker: "audit exports rechazan cookies de dominios cruzados antes de listar",
     },
     {
-      path: "test/security-production-invariants.test.ts",
+      path: "test/architecture/security/security-production-invariants.test.ts",
       marker: "errores internos se loguean, pero la respuesta 500 no expone detalles",
     },
   ] as const;

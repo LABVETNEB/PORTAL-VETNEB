@@ -293,7 +293,7 @@ test("critical ownership tests remain explicit and runtime-backed", () => {
 });
 
 test("resource ownership guardrail references cross-tenant IDOR contract registry", () => {
-  const crossTenantIdorContract = readSource("test/security-cross-tenant-idor-contract.test.ts");
+  const crossTenantIdorContract = readSource("test/architecture/security/security-cross-tenant-idor-contract.test.ts");
 
   assertContains(
     crossTenantIdorContract,

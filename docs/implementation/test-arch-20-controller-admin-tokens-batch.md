@@ -71,13 +71,13 @@ Se actualizaron los anchors exactos necesarios:
 | Archivo | Paths actualizados |
 |---|---|
 | `test/reports-suite-completeness.test.ts` | `test/admin-report-access-tokens.fastify.test.ts` -> `test/integration/adapters/controllers/admin-report-access-tokens.fastify.test.ts`; `test/admin-particular-tokens.fastify.test.ts` -> `test/integration/adapters/controllers/admin-particular-tokens.fastify.test.ts` |
-| `test/security-critical-route-surface-registry.test.ts` | `test/admin-particular-tokens.fastify.test.ts` -> `test/integration/adapters/controllers/admin-particular-tokens.fastify.test.ts`; `test/admin-report-access-tokens.fastify.test.ts` -> `test/integration/adapters/controllers/admin-report-access-tokens.fastify.test.ts` |
+| `test/architecture/security/security-critical-route-surface-registry.test.ts` | `test/admin-particular-tokens.fastify.test.ts` -> `test/integration/adapters/controllers/admin-particular-tokens.fastify.test.ts`; `test/admin-report-access-tokens.fastify.test.ts` -> `test/integration/adapters/controllers/admin-report-access-tokens.fastify.test.ts` |
 
 Referencias legacy detectadas y no editadas por no ser anchors exactos necesarios
 para este move:
 
 - `test/architecture/security/security-access-lifecycle-boundaries.test.ts`
-- `test/security-rate-limit-isolation-boundaries.test.ts`
+- `test/architecture/security/security-rate-limit-isolation-boundaries.test.ts`
 - `test/architecture/security/security-write-attribution-boundaries.test.ts`
 - Documentacion historica bajo `docs/**`
 

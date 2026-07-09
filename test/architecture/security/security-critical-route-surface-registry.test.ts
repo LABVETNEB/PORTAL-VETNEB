@@ -131,7 +131,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
     ],
     guardrailTests: [
       {
-        path: "test/security-production-invariants.test.ts",
+        path: "test/architecture/security/security-production-invariants.test.ts",
         markers: [
           "ENV mantiene cookies de sesión separadas y política productiva segura",
           "cada dominio de sesión lee y escribe únicamente su cookie correspondiente",
@@ -139,7 +139,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-session-cookie-boundaries.test.ts",
+        path: "test/architecture/security/security-session-cookie-boundaries.test.ts",
         markers: [
           "session cookie boundary matrix documents separated auth domains",
           "clinic admin and particular route surfaces read only their own cookie",
@@ -147,7 +147,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-cross-auth-surface-boundaries.test.ts",
+        path: "test/architecture/security/security-cross-auth-surface-boundaries.test.ts",
         markers: [
           "admin route surfaces accept only admin session cookies",
           "public token surfaces do not accept browser session cookies",
@@ -387,7 +387,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
     ],
     guardrailTests: [
       {
-        path: "test/security-mutation-permission-surface.test.ts",
+        path: "test/architecture/security/security-mutation-permission-surface.test.ts",
         markers: [
           "SENSITIVE_MUTATION_ROUTES",
           "mutation permission registry cubre rutas mutantes clinic-scoped sensibles",
@@ -395,7 +395,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-validation-cutoff-boundaries.test.ts",
+        path: "test/architecture/security/security-validation-cutoff-boundaries.test.ts",
         markers: [
           "validation cut-off matrix documents the protected contract",
           "public report access validates raw token before hash db signing and audit",
@@ -403,7 +403,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-rate-limit-isolation-boundaries.test.ts",
+        path: "test/architecture/security/security-rate-limit-isolation-boundaries.test.ts",
         markers: [
           "rate limit isolation matrix documents the protected contract",
           "auth login rate limits keep persistent stores with memory fallback per auth domain",
@@ -411,7 +411,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-cross-tenant-idor-contract.test.ts",
+        path: "test/architecture/security/security-cross-tenant-idor-contract.test.ts",
         markers: [
           "cross-tenant IDOR contract matrix has unique IDs",
           "cross-tenant IDOR matrix covers critical production attack surfaces",
@@ -656,9 +656,9 @@ test("critical route surface registry cubre todos los guardrails finales obligat
   );
 
   for (const requiredGuardrail of [
-    "test/security-production-invariants.test.ts",
-    "test/security-session-cookie-boundaries.test.ts",
-    "test/security-cross-auth-surface-boundaries.test.ts",
+    "test/architecture/security/security-production-invariants.test.ts",
+    "test/architecture/security/security-session-cookie-boundaries.test.ts",
+    "test/architecture/security/security-cross-auth-surface-boundaries.test.ts",
     "test/security-boundary-suite-completeness.test.ts",
     "test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts",
     "test/security/security-audit-logging-phase-boundaries.test.ts",
@@ -667,11 +667,11 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/architecture/security/security-write-attribution-boundaries.test.ts",
     "test/architecture/security/security-access-lifecycle-boundaries.test.ts",
     "test/architecture/security/security-response-disclosure-boundaries.test.ts",
-    "test/security-cross-tenant-idor-contract.test.ts",
+    "test/architecture/security/security-cross-tenant-idor-contract.test.ts",
     "test/security/security-trusted-origin-cors-boundaries.test.ts",
-    "test/security-mutation-permission-surface.test.ts",
-    "test/security-validation-cutoff-boundaries.test.ts",
-    "test/security-rate-limit-isolation-boundaries.test.ts",
+    "test/architecture/security/security-mutation-permission-surface.test.ts",
+    "test/architecture/security/security-validation-cutoff-boundaries.test.ts",
+    "test/architecture/security/security-rate-limit-isolation-boundaries.test.ts",
     "test/unit/infrastructure/supabase-storage-boundaries.test.ts",
     "test/integration/adapters/controllers/public-professionals-route-surface-invariants.test.ts",
     "test/architecture/public-professionals-fixture-suite-completeness-invariants.test.ts",
@@ -687,7 +687,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
 });
 
 test("critical route surface registry permanece test-only y sin artefactos temporales", () => {
-  const source = read("test/security-critical-route-surface-registry.test.ts");
+  const source = read("test/architecture/security/security-critical-route-surface-registry.test.ts");
 
   assert.equal(/^\s*export\s+/m.test(source), false);
   const forbiddenMarkers = [

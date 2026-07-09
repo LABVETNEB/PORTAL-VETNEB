@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
 type ExpectedFailure = {
   status: 403 | 404;
@@ -154,7 +154,7 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     requiredTestEvidence: [
       "test/reports-status.fastify.test.ts",
-      "test/security-mutation-permission-surface.test.ts",
+      "test/architecture/security/security-mutation-permission-surface.test.ts",
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
@@ -198,7 +198,7 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     requiredTestEvidence: [
       "test/particular-tokens.fastify.test.ts",
-      "test/security-mutation-permission-surface.test.ts",
+      "test/architecture/security/security-mutation-permission-surface.test.ts",
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
@@ -477,7 +477,7 @@ test("cross-tenant IDOR matrix covers critical production attack surfaces", () =
 });
 
 test("cross-tenant IDOR contract file does not contain dangerous inline secrets or real credentials", () => {
-  const source = readSource("test/security-cross-tenant-idor-contract.test.ts");
+  const source = readSource("test/architecture/security/security-cross-tenant-idor-contract.test.ts");
   const replacementCharacter = String.fromCharCode(0xfffd);
 
   assert.equal(

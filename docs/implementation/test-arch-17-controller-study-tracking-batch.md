@@ -71,7 +71,7 @@ Se actualizaron los anchors exactos necesarios:
 | Archivo | Paths actualizados |
 |---|---|
 | `test/study-tracking-suite-completeness.test.ts` | `test/study-tracking.fastify.test.ts` -> `test/integration/adapters/controllers/study-tracking.fastify.test.ts`; `test/admin-study-tracking.fastify.test.ts` -> `test/integration/adapters/controllers/admin-study-tracking.fastify.test.ts`; `test/particular-study-tracking.fastify.test.ts` -> `test/integration/adapters/controllers/particular-study-tracking.fastify.test.ts` |
-| `test/security-critical-route-surface-registry.test.ts` | `test/admin-study-tracking.fastify.test.ts` -> `test/integration/adapters/controllers/admin-study-tracking.fastify.test.ts` |
+| `test/architecture/security/security-critical-route-surface-registry.test.ts` | `test/admin-study-tracking.fastify.test.ts` -> `test/integration/adapters/controllers/admin-study-tracking.fastify.test.ts` |
 
 Referencias legacy detectadas y no editadas por no ser anchors exactos necesarios
 para este move:
@@ -80,7 +80,7 @@ para este move:
 - `test/architecture/security/security-resource-ownership-boundaries.test.ts`
 - `test/architecture/security/security-response-disclosure-boundaries.test.ts`
 - `test/architecture/security/security-write-attribution-boundaries.test.ts`
-- `test/security-cross-tenant-idor-contract.test.ts`
+- `test/architecture/security/security-cross-tenant-idor-contract.test.ts`
 
 Los cuatro primeros usan fallback recursivo por basename. El ultimo mantiene
 evidencia documental y TEST-ARCH-16 lo clasifico como `solo dato`.

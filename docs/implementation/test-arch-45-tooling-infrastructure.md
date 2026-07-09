@@ -6,7 +6,7 @@ Moved test/backend-ci-workflow.test.ts to test/unit/infrastructure/backend-ci-wo
 Moved test/frontend-ci-workflow.test.ts to test/unit/infrastructure/frontend-ci-workflow.test.ts.
 Moved test/package-scripts.test.ts to test/unit/infrastructure/package-scripts.test.ts.
 Kept test/package-scripts-contract.test.ts in the root test directory because it has broad historical documentation references.
-Updated hardcoded references in test/security-critical-route-surface-registry.test.ts and docs/implementation/IMPLEMENTATION_PRODUCTION_OBSERVABILITY_READINESS.md.
+Updated hardcoded references in test/architecture/security/security-critical-route-surface-registry.test.ts and docs/implementation/IMPLEMENTATION_PRODUCTION_OBSERVABILITY_READINESS.md.
 No import rewrites were required.
 
 Validation: pnpm typecheck:test; node --import tsx --test test\unit\infrastructure\backend-ci-workflow.test.ts test\unit\infrastructure\frontend-ci-workflow.test.ts test\unit\infrastructure\package-scripts.test.ts.
