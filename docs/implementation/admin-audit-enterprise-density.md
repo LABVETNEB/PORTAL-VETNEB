@@ -119,7 +119,7 @@ No se modificó backend ni se creó un contrato batch.
 - `test/frontend-dashboard-admin-section-tabs.test.ts`
 - `test/frontend-dashboard-hub-hero.test.ts`
 - `test/frontend-notification-click-anchors.test.ts`
-- `test/frontend-visual-consistency.test.ts`
+- `test/unit/ui/frontend/frontend-visual-consistency.test.ts`
 - `docs/implementation/admin-audit-enterprise-density.md`
 
 ## Tests y validaciones

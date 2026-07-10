@@ -111,7 +111,7 @@ flex natural con `overflow-y-auto`.
 | `frontend/src/components/dashboard/DashboardSidebarFrame.tsx` | Fix — h-dvh iOS Safari |
 | `test/mobile-production-parity-invariants.test.ts` | Test — 3 guardrails nuevos |
 | `test/frontend-dashboard-shell.test.ts` | Test — actualizado: `h-screen` → `h-dvh` (invariante legacy alineada) |
-| `test/frontend-visual-consistency.test.ts` | Test — actualizado: regex `h-screen` → `h-dvh` (contrato visual alineado) |
+| `test/unit/ui/frontend/frontend-visual-consistency.test.ts` | Test — actualizado: regex `h-screen` → `h-dvh` (contrato visual alineado) |
 
 ---
 
@@ -147,7 +147,7 @@ node --test test/frontend-pwa-global-operational-contract.test.ts
 node --test test/frontend-dashboard-shell.test.ts
 → pass 5/5  (legacy actualizado: h-screen → h-dvh)
 
-node --test test/frontend-visual-consistency.test.ts
+node --test test/unit/ui/frontend/frontend-visual-consistency.test.ts
 → pass 14/14  (legacy actualizado: regex h-screen → h-dvh)
 
 TOTAL: 45/45 pass — 0 fail

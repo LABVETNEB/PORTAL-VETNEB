@@ -21,7 +21,7 @@ como action tiles, un mock de informe 100 % ficticio y un mini timeline de etapa
 | `test/frontend-home-page-content.test.ts` | Contrato de contenido actualizado al nuevo hero |
 | `test/frontend-native-link-preview-contract.test.ts` | Contrato de CTAs actualizado al nuevo hero |
 | `test/frontend-public-button-contrast-contract.test.ts` | Contrato de CTA contrast actualizado |
-| `test/frontend-visual-consistency.test.ts` | Contrato de jerarquía visual actualizado |
+| `test/unit/ui/frontend/frontend-visual-consistency.test.ts` | Contrato de jerarquía visual actualizado |
 
 ---
 
@@ -129,7 +129,7 @@ anterior. Se actualizaron para reflejar PR-10 sin perder cobertura:
 ## Checklist de entrega (para Nico)
 
 - [ ] `git status` — confirmar archivos modificados
-- [ ] `git add frontend/src/app/page.tsx frontend/e2e/home-hero-evidence-first.spec.ts test/frontend-home-page-content.test.ts test/frontend-native-link-preview-contract.test.ts test/frontend-public-button-contrast-contract.test.ts test/frontend-visual-consistency.test.ts IMPLEMENTACION-PR-10-public-evidence-first-home-hero.md`
+- [ ] `git add frontend/src/app/page.tsx frontend/e2e/home-hero-evidence-first.spec.ts test/frontend-home-page-content.test.ts test/frontend-native-link-preview-contract.test.ts test/frontend-public-button-contrast-contract.test.ts test/unit/ui/frontend/frontend-visual-consistency.test.ts IMPLEMENTACION-PR-10-public-evidence-first-home-hero.md`
 - [ ] `git commit -m "feat(public): add evidence-first institutional home hero (#PR-10)"`
 - [ ] `git push -u origin feat/claude-public-evidence-first-home-hero`
 - [ ] `gh pr create`

@@ -46,7 +46,7 @@ Base: `578bb2e` (PR-11 mergeado a main)
 |---|---|
 | `frontend/src/app/page.tsx` | Añade imports `SpecimenJourneySection`, `cn`; const `specimenJourneyStages`; grid de servicios cambiado a bento `gap-5 lg:grid-cols-3`; detección de featured/wide por título; eyebrow en tarjeta destacada; sección Specimen Journey entre how-it-works y beneficios. |
 | `frontend/src/app/servicios/page.tsx` | Añade imports `SpecimenJourneySection`, iconos adicionales; const `specimenJourneyStages`; detección de featured por `service.id === "anatomopatologia"`; eyebrow en tarjeta destacada; columnas de features en dos columnas lg para tarjeta wide; sección Specimen Journey entre "Para tener en cuenta" y "Valores que guían". |
-| `test/frontend-visual-consistency.test.ts` | Actualiza regex de clase de grid de servicios de `/gap-6 lg:grid-cols-4/` a `/gap-5 lg:grid-cols-3/` — refleja el cambio intencional de PR-12. |
+| `test/unit/ui/frontend/frontend-visual-consistency.test.ts` | Actualiza regex de clase de grid de servicios de `/gap-6 lg:grid-cols-4/` a `/gap-5 lg:grid-cols-3/` — refleja el cambio intencional de PR-12. |
 
 **Estadísticas del commit:** 6 archivos, +604 líneas, −10 líneas.
 

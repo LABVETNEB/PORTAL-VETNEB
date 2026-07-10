@@ -40,7 +40,7 @@ detalle estable, server-side) **no** forma parte de este PR — queda para PR-3+
 | `frontend/src/components/dashboard/DashboardShellRouter.tsx` | editado | Deja de renderizar el sidebar; shell pasa a columna vertical de ancho completo |
 | `test/frontend-dashboard-horizontal-nav.test.ts` | **nuevo** | Contrato de la nav horizontal (módulos, `?module=`, superficie, a11y, no-rail) |
 | `test/frontend-dashboard-shell.test.ts` | editado | Reescrito el test del shell router (columna sin sidebar) |
-| `test/frontend-visual-consistency.test.ts` | editado | Actualizadas las clases exactas del topbar (dos bandas) |
+| `test/unit/ui/frontend/frontend-visual-consistency.test.ts` | editado | Actualizadas las clases exactas del topbar (dos bandas) |
 | `frontend/e2e/dashboard-card-navigation-shell.spec.ts` | editado | Bloque "sidebar compact rail" → navegación horizontal + `?module=` admin |
 
 **Componentes legacy conservados (no renderizados, pendientes de PR-11):**

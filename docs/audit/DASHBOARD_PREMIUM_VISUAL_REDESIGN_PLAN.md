@@ -78,7 +78,7 @@ Esto cambia el landing **antes de navegar a ningún módulo**, que es exactament
 - `test/frontend-dashboard-shell.test.ts`, `test/frontend-dashboard-private-shell-foundation.test.ts`
 - `test/frontend-dashboard-interaction-foundation.test.ts` (contratos de `DashboardModuleHub`)
 - `test/frontend-dashboard-last-module.test.ts` (lógica de controllers)
-- `test/frontend-visual-consistency.test.ts` (clases/grids existentes)
+- `test/unit/ui/frontend/frontend-visual-consistency.test.ts` (clases/grids existentes)
 - `test/frontend-dashboard-accessibility-focus-aria.test.ts`, `test/frontend-dashboard-workspace-layout-polish.test.ts`
 
 ### 2.5 Tests faltantes (a agregar)

@@ -17,7 +17,7 @@ Se preservan íntegramente todos los fetches, variables de error, lógica de aut
 | `test/frontend-dashboard-home.test.ts` | Modificado | Adapta tests al nuevo layout (strings que pasaron a ClinicCommandCenter) |
 | `test/frontend-dashboard-empty-states.test.ts` | Modificado | Redirige checks de empty/error states hacia ClinicCommandCenter |
 | `test/frontend-dashboard-live-read-contract.test.ts` | Modificado | Extrae check de error message de API wrappers a nuevo test de ClinicCommandCenter |
-| `test/frontend-visual-consistency.test.ts` | Modificado | Combina fuentes page.tsx + ClinicCommandCenter para checks visuales |
+| `test/unit/ui/frontend/frontend-visual-consistency.test.ts` | Modificado | Combina fuentes page.tsx + ClinicCommandCenter para checks visuales |
 
 ## Archivos creados
 

@@ -10,7 +10,7 @@ Pulido de densidad, legibilidad y consistencia premium de filtros, formularios y
 - Formulario de creación de clínicas: `AdminClinicsManagementCard`
 - Filtros del drawer clínica: `dashboard/informes/page.tsx`
 - CSS global compartido: `.field-select`, nuevas utilities de densidad
-- Test de contrato afectado: `test/frontend-visual-consistency.test.ts` (regex h-11→h-10)
+- Test de contrato afectado: `test/unit/ui/frontend/frontend-visual-consistency.test.ts` (regex h-11→h-10)
 
 ## 3. No-alcance
 
@@ -28,7 +28,7 @@ Pulido de densidad, legibilidad y consistencia premium de filtros, formularios y
 | Archivo | Tipo de cambio |
 |---------|---------------|
 | `frontend/src/app/globals.css` | `.field-select` h-11→h-10, hover, focus ring, nuevas CSS utilities |
-| `test/frontend-visual-consistency.test.ts` | Regex h-11→h-10 en contrato de `.field-select` |
+| `test/unit/ui/frontend/frontend-visual-consistency.test.ts` | Regex h-11→h-10 en contrato de `.field-select` |
 | `frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx` | form p-4, space-y-1.5, search icon centering, aria-describedby |
 | `frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx` | selects mt-1, pagination context span |
 | `frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx` | selects mt-1, pagination context span |
@@ -106,7 +106,7 @@ Todos los cambios son agnósticos de breakpoint. `.dashboard-filter-stats-grid` 
 
 | Test | Estado |
 |------|--------|
-| `test/frontend-visual-consistency.test.ts` | ✅ 18 pass (regex h-10 actualizado) |
+| `test/unit/ui/frontend/frontend-visual-consistency.test.ts` | ✅ 18 pass (regex h-10 actualizado) |
 | `test/frontend-dashboard-filter-drawer-sticky-filters.test.ts` | ✅ 5 pass (scope guard + contratos) |
 | `pnpm validate:local` completo | ✅ 2557/2557 pass |
 
@@ -148,7 +148,7 @@ Branch: feat/dashboard-filters-forms-density-polish
  M frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx
  M frontend/src/app/dashboard/informes/page.tsx
  M frontend/src/app/globals.css
- M test/frontend-visual-consistency.test.ts
+ M test/unit/ui/frontend/frontend-visual-consistency.test.ts
 7 files changed, +46 / -18
 ```
 
@@ -167,7 +167,7 @@ git diff --name-only
 **Terminal 1 — staging y commit:**
 ```powershell
 git add frontend/src/app/globals.css
-git add test/frontend-visual-consistency.test.ts
+git add test/unit/ui/frontend/frontend-visual-consistency.test.ts
 git add frontend/src/app/dashboard/admin/AdminClinicsManagementCard.tsx
 git add frontend/src/app/dashboard/admin/AdminSessionsReadOnlyCard.tsx
 git add frontend/src/app/dashboard/admin/AdminFailedLoginAlertsReadOnlyCard.tsx

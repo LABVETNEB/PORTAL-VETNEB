@@ -50,7 +50,7 @@ Esta deuda no se implementa en PR-3.
 - `frontend/src/app/dashboard/admin/page.tsx`
 - `test/admin-overview-clinics-enterprise-density.test.ts`
 - `test/frontend-dashboard-admin-command-center.test.ts`
-- `test/frontend-visual-consistency.test.ts`
+- `test/unit/ui/frontend/frontend-visual-consistency.test.ts`
 - `docs/implementation/admin-overview-clinics-enterprise-density.md`
 
 ## Tests y validaciones

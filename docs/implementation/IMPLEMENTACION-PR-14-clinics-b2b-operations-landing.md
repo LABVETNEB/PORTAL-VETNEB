@@ -17,7 +17,7 @@ Corrección de dirección de producto aplicada durante la implementación: se el
 - `frontend/e2e/public-report-preview.spec.ts` — Refactorizado: reemplazadas aserciones de contenido demo por aserciones negativas (no aparece DEMOSTRATIVO, DEMO-000, Paciente demostrativo). Preservadas aserciones de PRs anteriores
 - `test/frontend-public-report-preview.test.ts` — Actualizado: eliminados tests de import/sección de ReportPreviewCard en Home y Clinicas; añadidos tests que verifican ausencia + tests de contenido B2B de clinicas
 - `test/frontend-clinicas-page-content.test.ts` — Actualizada verificación del hero (nuevo copy) y nombre de variable de steps
-- `test/frontend-visual-consistency.test.ts` — Eliminado patrón de grid de dos columnas del hero (removido al quitar la columna derecha mock)
+- `test/unit/ui/frontend/frontend-visual-consistency.test.ts` — Eliminado patrón de grid de dos columnas del hero (removido al quitar la columna derecha mock)
 - `test/frontend-dashboard-accessibility-focus-aria.test.ts` — Removido `page.tsx` de blockedExactFiles (PR-14 modifica Home)
 - `test/frontend-dashboard-action-feedback-focus-polish.test.ts` — Ídem
 - `test/frontend-dashboard-admin-section-tabs.test.ts` — Ídem

@@ -8,7 +8,7 @@ Se reorganizo `/dashboard/admin` como un command center privado y conservador. L
 
 - `frontend/src/app/dashboard/admin/page.tsx`
 - `test/frontend-dashboard-admin.test.ts`
-- `test/frontend-visual-consistency.test.ts`
+- `test/unit/ui/frontend/frontend-visual-consistency.test.ts`
 
 ## Componentes creados
 
