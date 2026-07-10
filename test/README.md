@@ -1,107 +1,124 @@
 # VETNEB Enterprise Test Suite
 
-Punto de entrada operativo para la suite de tests de Portal VETNEB. Este README es
-un **índice**: dice dónde vive cada familia de tests y cómo decidir su ubicación en
-PRs futuros. **No es** la convención completa (ver Fuentes normativas) ni una
-segunda especificación.
+Índice operativo de la suite de tests de Portal VETNEB. La norma vinculante está en [`docs/implementation/test-suite-enterprise-organization-convention.md`](../docs/implementation/test-suite-enterprise-organization-convention.md).
 
-> **[OBSERVADO]** La migración física de tests raíz fue completada por el bloque
-> TEST-ARCH root migration.
-> **[OBSERVADO]** `test/*.test.ts` queda en **0**.
-> **[OBSERVADO]** Los tests antes ubicados en raíz ahora viven en carpetas
-> enterprise bajo `test/architecture/**` y `test/unit/**`.
+> **Estado consolidado:** la migración física de tests raíz fue completada. `test/*.test.ts` debe permanecer en **0**.
 
 ---
 
-## 1. Propósito
+## 1. Contrato operativo
 
-`test/` es el destino operativo de la suite enterprise. Los tests se organizan por
-tipo de contrato y por el colaborador de mayor peso de I/O, sin mezclar movimientos
-con cambios funcionales de runtime.
+- Todo test backend ejecutable vive bajo una carpeta canónica de `test/**`.
+- El runner `pnpm test` descubre recursivamente `test/**/*.test.ts`.
+- Los helpers no ejecutables viven en `test/helpers/**` y no usan el sufijo `*.test.ts`.
+- Playwright permanece físicamente en `frontend/e2e/**`.
+- Un movimiento actualiza imports, registries, censos, paths y docs en el mismo PR.
+- No se mezclan reorganizaciones con cambios de runtime.
 
-La raíz `test/*.test.ts` debe permanecer vacía. Cualquier test nuevo debe ubicarse
-directamente en una carpeta enterprise apropiada, o agregarse junto con una
-justificación explícita en el PR.
+---
 
-## 2. Fuentes normativas
+## 2. Fuentes documentales
 
-Este índice **resume**; la norma vinculante está en:
+1. [`docs/implementation/test-suite-enterprise-organization-convention.md`](../docs/implementation/test-suite-enterprise-organization-convention.md) — **fuente normativa vigente**.
+2. [`docs/audit/test-suite-enterprise-architecture-audit.md`](../docs/audit/test-suite-enterprise-architecture-audit.md) — diagnóstico y antecedentes.
+3. Documentos `docs/implementation/test-arch-*.md` — evidencia histórica de cada bloque de migración.
 
-- [`docs/audit/test-suite-enterprise-architecture-audit.md`](../docs/audit/test-suite-enterprise-architecture-audit.md) — diagnóstico y plan.
-- [`docs/implementation/test-suite-enterprise-organization-convention.md`](../docs/implementation/test-suite-enterprise-organization-convention.md) — convención oficial. **Fuente de verdad.**
+Ante una discrepancia, prevalece la convención oficial vigente.
 
-Ante cualquier discrepancia, mandan esos documentos, no este README.
+---
 
-## 3. Estructura objetivo adoptada
-
-La raíz `test/*.test.ts` queda vacía. Las carpetas enterprise se adoptan como ubicación canónica:
+## 3. Estructura canónica
 
 ```text
 test/
-|-- architecture/
-|   |-- database/
-|   `-- security/
-|-- unit/
-|   |-- domain/
-|   |-- infrastructure/
-|   `-- ui/
-|-- integration/
-|   |-- adapters/
-|   |   |-- controllers/
-|   |   `-- repositories/
-|   `-- external-services/
-|-- security/
-`-- helpers/
+├── architecture/
+│   ├── database/
+│   └── security/
+├── integration/
+│   ├── adapters/
+│   │   ├── controllers/
+│   │   └── repositories/
+│   └── external-services/
+├── security/
+├── unit/
+│   ├── contracts/
+│   ├── domain/
+│   ├── infrastructure/
+│   ├── migrations/
+│   └── ui/
+└── helpers/
 ```
 
-> **Nota [OBSERVADO]:** `test/e2e/` es conceptual. El e2e físico permanece en
-> `frontend/e2e` (tiene su propio `playwright.config.ts`, `webServer` y snapshots);
-> `flows/` y `features/` se adoptan como subcarpetas dentro de `frontend/e2e`
-> cuando corresponda.
+Las carpetas se subdividen por dominio cuando aporta ownership: `admin`, `clinic`, `dashboard`, `frontend`, `logistics`, `particular`, `pricing`, `public`, `public-professionals`, `reports`, `study-tracking`, entre otros.
 
-## 4. Cómo decidir dónde va un test
+### E2E
 
-| Categoría | Propósito | Dependencia permitida | Dependencia prohibida |
-|-----------|-----------|-----------------------|-----------------------|
-| `unit/domain` | Reglas puras (tokens, timing, permissions, pagination, serializers) | `node:assert`, módulo bajo test, `shared/**`, fakes en memoria | `fastify`, DB/red real, `fs` runtime, `git` |
-| `unit/use-cases` | Orquestación de casos de uso (application layer) | Dominio puro, fakes/stubs de puertos, `shared/**` | `app.inject()`, red, DB real |
-| `unit/ui/frontend` | Contratos estáticos de UI/frontend | Lectura de source, componentes, CSS, config frontend | Red, navegador real, snapshots frágiles |
-| `integration/adapters/controllers` | Rutas Fastify vía `app.inject()` (`*.fastify.test.ts`) | `fastify`, `createFastifyTestApp()`, stubs, `shared/**` | Red externa real, DB productiva, Playwright |
-| `integration/adapters/repositories` | Acceso a datos / `infrastructure` con fake de DB | Fakes de cliente de datos, `shared/**` | Postgres/Supabase reales, red |
-| `integration/external-services` | Adaptadores externos (Supabase, email, gmail) con fakes | Fakes/servidores locales, `shared/**` | Endpoints reales, credenciales reales |
-| `e2e/flows` | Flujo de usuario end-to-end (Playwright) | Page objects, `webServer` fake, fixtures e2e | Backend productivo, datos reales |
-| `e2e/features` | Contrato visual/interacción de una feature | Page objects, contratos, snapshots aprobados | Snapshots frágiles en el gate por defecto |
-| `helpers` | Setup y utilidades existentes compartidas | Helpers idempotentes, fakes y utilidades reutilizables | Estado global frágil, red real, secretos |
-| Architecture guard *(eje)* | Enforcea estructura leyendo FS/config, no comportamiento | Lectura de source/config, registries | Paths legacy de raíz, acoplamiento al árbol git como fuente única |
-| Security invariant *(eje)* | Fronteras de seguridad (sesiones, disclosure, CORS, IDOR, redaction) | Aserciones sobre respuestas/headers/cookies/logs/source | Secretos reales en fixtures, red externa |
-| Regression guard *(eje)* | Congela un contrato roto/sensible (timing, last-access, parity) | Aserciones sobre el contrato congelado | Fragilidad platform-locked injustificada |
+```text
+frontend/e2e/
+├── helpers/
+├── flows/       # opcional, para flujos multi-pantalla
+├── features/    # opcional, para contratos de una feature
+└── *.spec.ts
+```
 
-> **Desempate:** clasificar por el colaborador de mayor peso de I/O.
-> Orden: **E2E > External-service > Repository > Controller > Use-case > Domain**.
-> Los ejes (security / regression / architecture) se **etiquetan además** del tipo.
+No se duplica Playwright bajo `test/e2e`.
 
-## 5. Reglas rápidas para PRs futuros
+---
 
-- No agregar tests en raíz (`test/*.test.ts` debe seguir en 0).
-- Un grupo pequeño por PR (subdividir por dominio: admin / logistics / public / particular).
-- No mezclar movimientos con reescrituras funcionales: un move es solo rename/move.
-- No mover tests junto con cambios de runtime (`server/**`, `frontend/src/**`).
-- No tocar CI / deps / lockfiles salvo instrucción explícita.
-- Validar `pnpm test`, `pnpm build` y `pnpm security:public-surface` antes de mergear.
-- Actualizar registries de completitud y referencias documentales cuando un path canónico cambie.
-- Rollback lógico claro: `git restore`/revert devuelve los paths y referencias del PR.
+## 4. Dónde ubicar un test
+
+| Categoría | Uso canónico |
+|---|---|
+| `architecture/**` | Guards de estructura, filesystem, source, imports, configuración, registries y censos |
+| `architecture/database/**` | Contratos estructurales de persistencia y reconciliación |
+| `architecture/security/**` | Registries y fronteras estáticas/transversales de seguridad |
+| `unit/domain/**` | Reglas puras sin I/O: tokens, serializers, timing, permisos, paginación y agregaciones |
+| `unit/contracts/**` | Políticas y contratos aislados de rutas, middleware, sesiones y superficies por dominio |
+| `unit/infrastructure/**` | Tooling, config, logging, email aislado, scripts y middleware con fakes |
+| `unit/migrations/**` | Contratos estáticos de migraciones y schemas |
+| `unit/ui/**` | Contratos estáticos de frontend, componentes, CSS, layout, configuración y source |
+| `integration/adapters/controllers/**` | Fastify mediante `app.inject()` |
+| `integration/adapters/repositories/**` | Acceso a datos con clientes fake o memoria |
+| `integration/external-services/**` | Supabase, email, Gmail u otros proveedores mediante fakes |
+| `security/**` | Invariantes conductuales de seguridad que cruzan componentes |
+| `helpers/**` | Fixtures, factories, stubs, fakes, spies, setup y utilidades compartidas |
+| `frontend/e2e/**` | Navegador real, responsive, navegación, scroll, accesibilidad y visual/interacción |
+
+### Desempate
+
+Clasificar por el colaborador de mayor peso de I/O:
+
+**E2E > servicio externo > repository > controller > infraestructura/contrato > dominio.**
+
+Los ejes `security`, `architecture` y `regression` complementan la clasificación; no justifican dejar un archivo fuera de la estructura canónica.
+
+---
+
+## 5. Reglas rápidas para PRs
+
+- No agregar tests en `test/` raíz.
+- No duplicar un test para conservar un path legacy.
+- No mover tests junto con cambios en `server/**` o `frontend/src/**`.
+- No reescribir assertions en un PR de movimiento mecánico.
+- No tocar runner, CI, dependencias ni lockfiles sin autorización explícita.
+- Actualizar registries, suite-completeness, censos y referencias documentales cuando cambia un path.
+- Los censos deben ser recursivos y los registries deben usar rutas canónicas completas.
+- Validar búsqueda de referencias legacy antes de cerrar el PR.
+
+---
 
 ## 6. Guardrails VETNEB
 
-Invariantes que ningún PR de reorg puede violar:
-
 - No mezclar `admin_session_id` con `app_session_id`.
-- No exponer secrets, tokens, hashes, cookies ni signed URLs.
-- No usar fixtures con datos productivos reales (solo sintéticos/seguros).
+- No exponer secrets, tokens, hashes, cookies, signed URLs ni stack traces productivos.
 - No cachear dashboards privados ni APIs privadas.
-- No depender de red externa en unit tests (I/O solo con fakes en `integration/external-services`).
-- No depender de orden global de ejecución.
-- No snapshots visuales frágiles sin aprobación explícita (job manual, no el gate por defecto).
+- No usar fixtures con datos productivos reales.
+- No depender de producción, staging, credenciales reales o red externa.
+- No depender del orden global de ejecución.
+- No debilitar IDOR, tenant isolation, CORS, trusted-origin, rate limits ni redacción de logs.
+- No agregar snapshots visuales frágiles al gate general por defecto.
+
+---
 
 ## 7. Comandos mínimos
 
@@ -109,23 +126,26 @@ Invariantes que ningún PR de reorg puede violar:
 git diff --check
 git diff --stat
 git diff --name-only
+pnpm typecheck:test
 pnpm test
 pnpm build
 pnpm security:public-surface
 ```
 
-## 8. Estado post root migration
+Para cambios de frontend o E2E, agregar lint, typecheck, build y la suite Playwright focal correspondiente.
 
-El bloque TEST-ARCH root migration dejó el repositorio en este contrato:
+---
 
-- `test/*.test.ts`: 0 archivos.
-- Tests raíz históricos migrados:
-  - `test/architecture/security/global-auth-boundary-contract.test.ts`
-  - `test/unit/ui/frontend/frontend-visual-consistency.test.ts`
-  - `test/architecture/database/reconcile-public-profile-db-contract.test.ts`
-  - `test/architecture/security/security-boundary-suite-completeness.test.ts`
-  - `test/architecture/security/security-docs-matrix-drift-guard.test.ts`
-- Validaciones de cierre:
-  - `pnpm test`
-  - `pnpm build`
-  - `pnpm security:public-surface`
+## 8. Estado post-migración
+
+Contrato vigente:
+
+- `test/*.test.ts`: **0 archivos**.
+- `unit/contracts`, `unit/infrastructure`, `unit/migrations` y `unit/ui` son categorías oficiales.
+- `architecture/database` y `architecture/security` son subdivisiones oficiales.
+- `helpers` es la ubicación canónica del soporte compartido existente.
+- `frontend/e2e` es la ubicación física exclusiva de Playwright.
+- El glob recursivo de `pnpm test` cubre las carpetas backend sin scripts adicionales.
+- Los registries/censos no pueden depender de una raíz plana ni de basenames ambiguos.
+
+La deuda de diseño de algunos source-contracts, registries manuales o fixtures duplicadas se trata en PRs separados; no cambia esta taxonomía física.
