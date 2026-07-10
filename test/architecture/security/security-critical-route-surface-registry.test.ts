@@ -155,7 +155,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         ],
       },
       {
-        path: "test/security-boundary-suite-completeness.test.ts",
+        path: "test/architecture/security/security-boundary-suite-completeness.test.ts",
         markers: [
           "security boundary suite completeness registry keeps canonical order",
           "security boundary guardrails remain connected to runtime anchors",
@@ -659,7 +659,7 @@ test("critical route surface registry cubre todos los guardrails finales obligat
     "test/architecture/security/security-production-invariants.test.ts",
     "test/architecture/security/security-session-cookie-boundaries.test.ts",
     "test/architecture/security/security-cross-auth-surface-boundaries.test.ts",
-    "test/security-boundary-suite-completeness.test.ts",
+    "test/architecture/security/security-boundary-suite-completeness.test.ts",
     "test/architecture/security/security-sensitive-log-redaction-boundaries.test.ts",
     "test/security/security-audit-logging-phase-boundaries.test.ts",
     "test/architecture/security/security-actor-relationship-boundaries.test.ts",

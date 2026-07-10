@@ -31,7 +31,7 @@ const REQUIRED_SECURITY_DOCS = [
 
 const REQUIRED_GUARDRAIL_TESTS = [
   "test/architecture/security/security-critical-route-surface-registry.test.ts",
-  "test/security-boundary-suite-completeness.test.ts",
+  "test/architecture/security/security-boundary-suite-completeness.test.ts",
   "test/architecture/security/security-cross-tenant-idor-contract.test.ts",
   "test/architecture/security/security-resource-ownership-boundaries.test.ts",
   "test/architecture/security/security-response-disclosure-boundaries.test.ts",

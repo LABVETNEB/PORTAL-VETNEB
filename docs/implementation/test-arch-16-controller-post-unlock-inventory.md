@@ -65,7 +65,7 @@ Get-Content -LiteralPath 'docs\implementation\test-arch-14-enterprise-controller
 Get-Content -LiteralPath 'docs\implementation\test-arch-15-source-path-guards-bd-unlock.md'
 Select-String -LiteralPath <test/docs/scripts/package files> -SimpleMatch -Pattern 'test/<legacy-fastify-basename>'
 Select-String -LiteralPath 'test\report-study-types-catalog.test.ts' -Pattern 'admin-reports.fastify|reports.fastify|reports-status.fastify|critical report tests stop using free-text|listSourceFiles|deepEqual' -Context 2,2
-Select-String -LiteralPath 'test\study-tracking-suite-completeness.test.ts','test\reports-suite-completeness.test.ts','test\storage-suite-completeness.test.ts','test\architecture\security\security-critical-route-surface-registry.test.ts','test\security-boundary-suite-completeness.test.ts' -Pattern '<legacy fastify basenames>|assertFileExists|readSource|existsSync|path:' -Context 1,1
+Select-String -LiteralPath 'test\study-tracking-suite-completeness.test.ts','test\reports-suite-completeness.test.ts','test\storage-suite-completeness.test.ts','test\architecture\security\security-critical-route-surface-registry.test.ts','test\architecture\security\security-boundary-suite-completeness.test.ts' -Pattern '<legacy fastify basenames>|assertFileExists|readSource|existsSync|path:' -Context 1,1
 Get-ChildItem -LiteralPath 'test' -Recurse -File -Filter '*.test.ts' | ForEach-Object { Select-String -LiteralPath $_.FullName -Pattern '\.inject\(' }
 ```
 

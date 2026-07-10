@@ -24,7 +24,7 @@ staging/produccion.
 
 - `test/architecture/security/security-critical-route-surface-registry.test.ts` mantiene inventario de
   superficies criticas, rutas y guardrails obligatorios.
-- `test/security-boundary-suite-completeness.test.ts` protege cobertura minima
+- `test/architecture/security/security-boundary-suite-completeness.test.ts` protege cobertura minima
   del paquete security-*.
 - `test/architecture/security/security-cross-tenant-idor-contract.test.ts` fija contratos CTIDOR con
   estado `pending_runtime_staging_evidence`.
