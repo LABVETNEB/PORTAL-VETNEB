@@ -84,7 +84,7 @@ La accion aplicada en este PR es tests/docs only. Se agregaron guardrails global
   - G1-G6 registry tying runtime files, existing guardrails, docs and validation scripts.
 - `test/global-public-surface-hardening-contract.test.ts`
   - Runtime public API checks for headers, no session cookies, no public body leaks, public professionals storage path hiding and invalid report-token cut-off.
-- `test/global-auth-boundary-contract.test.ts`
+- `test/architecture/security/global-auth-boundary-contract.test.ts`
   - Route-family auth registry for admin, clinic, particular and public surfaces.
 - `test/global-storage-report-safety-contract.test.ts`
   - Runtime checks for safe report serialization, bounded report list with no eager signed URLs and public report access without `storagePath` or `tokenHash`.

@@ -40,7 +40,7 @@
   `test/cors-headers-shared-helper.test.ts`,
   `test/architecture/security/security-production-invariants.test.ts`,
   `test/security-trusted-origin-cors-boundaries.test.ts`,
-  `test/global-auth-boundary-contract.test.ts` y
+  `test/architecture/security/global-auth-boundary-contract.test.ts` y
   `test/security-csrf-mutating-route-coverage.test.ts`.
 
 ## Cambios
@@ -82,7 +82,7 @@
 - `node --experimental-strip-types --test test/logistics-sla-routes-api.test.ts`: paso, 8/8.
 - `node --experimental-strip-types --test test/logistics-sla-routes-integration.fastify.test.ts`: paso, 16/16.
 - `node --experimental-strip-types --test test/logistics-sla-schema.test.ts test/logistics-sla-compliance.test.ts test/logistics-sla-breach-runtime.test.ts test/logistics-metrics-suite-completeness.test.ts`: paso, 32/32.
-- `node --experimental-strip-types --test test/global-auth-boundary-contract.test.ts`: paso, 5/5.
+- `node --experimental-strip-types --test test/architecture/security/global-auth-boundary-contract.test.ts`: paso, 5/5.
 - `node --experimental-strip-types --test test/security-csrf-mutating-route-coverage.test.ts`: paso, 17/17.
 - `corepack pnpm build`: paso.
 - `corepack pnpm security:public-surface`: paso; conserva findings informativos server-only existentes en `frontend/src/proxy.ts`.
