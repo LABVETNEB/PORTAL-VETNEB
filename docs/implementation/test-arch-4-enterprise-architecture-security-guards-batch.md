@@ -49,7 +49,7 @@
 | `test/toolchain-contract.test.ts` | Architecture guard | Elegido | Valida pin de PNPM/Node y orden de setup del workflow backend como contrato de toolchain; lectura local de config, sin tocar CI. |
 | `test/package-scripts-contract.test.ts` | Architecture guard | No elegido | Candidato viable, pero se mantuvo el lote en 3 archivos y se prefirieron guards mas directamente alineados con arquitectura/runtime boundaries. |
 | `test/architecture/security/security-session-cookie-boundaries.test.ts` | Security invariant | No elegido | Candidato claro, pero su path esta anclado por registries/guards de seguridad; moverlo exigia actualizar varios paths coordinados. |
-| `test/security-boundary-suite-completeness.test.ts` | Security invariant / suite completeness | No elegido | Candidato claro, pero es un registry de completitud que ancla la suite security; moverlo ampliaba el alcance mas que los architecture guards seguros. |
+| `test/architecture/security/security-boundary-suite-completeness.test.ts` | Security invariant / suite completeness | No elegido | Candidato claro, pero es un registry de completitud que ancla la suite security; moverlo ampliaba el alcance mas que los architecture guards seguros. |
 
 ## Candidatos elegidos
 

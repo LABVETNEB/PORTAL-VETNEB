@@ -4,7 +4,7 @@ import { basename, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const REPO_ROOT = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
 type FileAnchor = {
   path: string;
@@ -662,7 +662,7 @@ test("security boundary suite keeps required downstream runtime tests explicit",
 });
 
 test("security boundary suite completeness guardrail source stays ascii only", () => {
-  const source = readSource("test/security-boundary-suite-completeness.test.ts");
+  const source = readSource("test/architecture/security/security-boundary-suite-completeness.test.ts");
   const replacementCharacter = String.fromCharCode(0xfffd);
 
   assert.equal(
