@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  globalTeardown: "./e2e/helpers/restore-next-env-hygiene.mjs",
   timeout: 30_000,
   expect: {
     timeout: 5_000,
