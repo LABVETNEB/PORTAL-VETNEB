@@ -70,7 +70,7 @@ El shell ya está acotado al viewport (`DashboardShellRouter` usa `h-dvh overflo
 
 ### Tests/guardrails relevantes (deben seguir verdes)
 
-- `test/frontend-visual-consistency.test.ts` — exige `.dashboard-main { @apply … space-y-6 … sm:px-6 … lg:px-8 … }`, className exacto de sidebar/topbar, presencia de `<main className="dashboard-main">`.
+- `test/unit/ui/frontend/frontend-visual-consistency.test.ts` — exige `.dashboard-main { @apply … space-y-6 … sm:px-6 … lg:px-8 … }`, className exacto de sidebar/topbar, presencia de `<main className="dashboard-main">`.
 - `test/frontend-dashboard-hub-hero.test.ts` — contratos de hero/hub (`data-dashboard-hub-hero`, `data-dashboard-hub-hero-slot`, `data-dashboard-module-hub`, `data-dashboard-module-card`, hero antes de la sección de tarjetas).
 - `test/frontend-dashboard-interaction-foundation.test.ts` — `dashboard-card-interactive`, `data-*`, focus ring en hub.
 - `test/frontend-dashboard-workspace-layout-polish.test.ts` — `dashboard-workspace-enter`, `dashboard-workspace-header`, `data-dashboard-module-workspace`, CSS markers; `h-dvh overflow-hidden` en shell.

@@ -11,7 +11,7 @@ Se convirtió `/dashboard/admin` en una consola con sub-secciones por tabs para 
 - `test/frontend-dashboard-admin.test.ts`
 - `test/frontend-dashboard-admin-command-center.test.ts`
 - `test/frontend-dashboard-admin-section-tabs.test.ts`
-- `test/frontend-visual-consistency.test.ts`
+- `test/unit/ui/frontend/frontend-visual-consistency.test.ts`
 - `docs/pr-7-dashboard-admin-tabs.md`
 
 ## Componentes creados
@@ -42,7 +42,7 @@ Se convirtió `/dashboard/admin` en una consola con sub-secciones por tabs para 
 - `pnpm --dir frontend lint`: OK.
 - `pnpm --dir frontend typecheck`: OK.
 - `pnpm --dir frontend build`: OK. Next generó cambios automáticos en `frontend/next-env.d.ts` y `frontend/tsconfig.json`; se revirtieron después de validar para respetar el scope estricto.
-- `git status --short`: OK. Modificados tracked: `frontend/src/app/dashboard/admin/page.tsx`, `test/frontend-dashboard-admin-command-center.test.ts`, `test/frontend-dashboard-admin.test.ts`, `test/frontend-visual-consistency.test.ts`. Nuevos untracked: este documento, `AdminSectionTabs.tsx`, `frontend-dashboard-admin-section-tabs.test.ts`.
+- `git status --short`: OK. Modificados tracked: `frontend/src/app/dashboard/admin/page.tsx`, `test/frontend-dashboard-admin-command-center.test.ts`, `test/frontend-dashboard-admin.test.ts`, `test/unit/ui/frontend/frontend-visual-consistency.test.ts`. Nuevos untracked: este documento, `AdminSectionTabs.tsx`, `frontend-dashboard-admin-section-tabs.test.ts`.
 - `git diff --name-only`: OK. Lista solo los cuatro archivos tracked modificados.
 - `git ls-files --others --exclude-standard`: OK. Lista `docs/pr-7-dashboard-admin-tabs.md`, `frontend/src/app/dashboard/admin/AdminSectionTabs.tsx`, `test/frontend-dashboard-admin-section-tabs.test.ts`.
 

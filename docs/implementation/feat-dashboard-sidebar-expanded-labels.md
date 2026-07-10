@@ -17,7 +17,7 @@ and on large desktops there is room to show labels without hurting the workspace
 Files changed:
 - `frontend/src/components/dashboard/DashboardSidebarFrame.tsx` (shared frame — responsive classes only)
 - `test/frontend-dashboard-shell.test.ts` (added a responsive-label contract test)
-- `test/frontend-visual-consistency.test.ts` (updated the two exact-class assertions whose strings changed)
+- `test/unit/ui/frontend/frontend-visual-consistency.test.ts` (updated the two exact-class assertions whose strings changed)
 
 Not modified (in scope but unnecessary):
 - `DashboardShellRouter.tsx` — it lays out the sidebar as `shrink-0` next to a `flex-1 min-w-0`

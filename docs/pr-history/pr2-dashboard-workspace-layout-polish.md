@@ -90,7 +90,7 @@ Aplicar los tokens de interacción existentes (`--motion-base`, `--motion-fast`,
 | `frontend/src/components/dashboard/FilterDrawer.tsx` | -1/+1: `shadow-lg` → `dashboard-filter-panel` |
 | `frontend/src/components/dashboard/MasterDetailWorkspace.tsx` | -2/+2: panel polish classes |
 | `frontend/src/components/dashboard/StickyActionBar.tsx` | -1/+1: añade `dashboard-btn-interactive` |
-| `test/frontend-visual-consistency.test.ts` | -1/+1: actualiza regex sidebar (`transition-colors` → `dashboard-nav-interactive`) |
+| `test/unit/ui/frontend/frontend-visual-consistency.test.ts` | -1/+1: actualiza regex sidebar (`transition-colors` → `dashboard-nav-interactive`) |
 | `test/frontend-dashboard-workspace-layout-polish.test.ts` | nuevo: 36 tests nativos PR-2 |
 | `frontend/e2e/dashboard-workspace-layout-polish.spec.ts` | nuevo: 7 smoke E2E PR-2 |
 | `docs/pr2-dashboard-workspace-layout-polish.md` | nuevo: este documento |
@@ -161,7 +161,7 @@ Aplicar los tokens de interacción existentes (`--motion-base`, `--motion-fast`,
 - `prefers-reduced-motion: reduce` — workspace sigue visible sin animación
 - No scroll global (≤5px overflow)
 
-### Actualizado: `test/frontend-visual-consistency.test.ts` (1 línea)
+### Actualizado: `test/unit/ui/frontend/frontend-visual-consistency.test.ts` (1 línea)
 
 - Regex del sidebar actualizada: `transition-colors` → `dashboard-nav-interactive` (refleja la mejora intencional de PR-2)
 

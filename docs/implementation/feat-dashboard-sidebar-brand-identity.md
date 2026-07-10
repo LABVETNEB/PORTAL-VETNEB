@@ -15,7 +15,7 @@ so the product identity was weak on large desktops and the premium-software perc
 Files changed:
 - `frontend/src/components/dashboard/DashboardSidebarFrame.tsx` (shared frame header — responsive markup/classes only)
 - `test/frontend-dashboard-shell.test.ts` (added a brand-identity contract test)
-- `test/frontend-visual-consistency.test.ts` (updated the header `<div>` exact-class assertion)
+- `test/unit/ui/frontend/frontend-visual-consistency.test.ts` (updated the header `<div>` exact-class assertion)
 
 Not modified:
 - `DashboardShellRouter.tsx` — layout already absorbs the expanded width (`shrink-0` sidebar next to

@@ -36,7 +36,7 @@ This PR keeps the scope limited to the primary visual-system contract and does n
 - `frontend/src/app/globals.css`
 - `frontend/src/components/ui/badge.tsx`
 - `test/frontend-badge-component.test.ts`
-- `test/frontend-visual-consistency.test.ts`
+- `test/unit/ui/frontend/frontend-visual-consistency.test.ts`
 - `docs/implementation/IMPLEMENTATION_PR_VIS_3_VISUAL_TOKENS.md`
 
 ## What Changed
@@ -69,7 +69,7 @@ Executed successfully on Windows / PowerShell:
 ```powershell
 pnpm install --frozen-lockfile
 node --experimental-strip-types --experimental-specifier-resolution=node --test test/frontend-badge-component.test.ts
-node --experimental-strip-types --experimental-specifier-resolution=node --test test/frontend-visual-consistency.test.ts
+node --experimental-strip-types --experimental-specifier-resolution=node --test test/unit/ui/frontend/frontend-visual-consistency.test.ts
 pnpm --dir frontend typecheck
 pnpm --dir frontend lint
 pnpm --dir frontend build

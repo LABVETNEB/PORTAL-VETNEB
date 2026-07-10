@@ -198,7 +198,7 @@ Verificación git final:
 - Tests source-level: `test/frontend-dashboard-home.test.ts`,
   `test/frontend-dashboard-hub-hero.test.ts`,
   `test/frontend-dashboard-clinic-command-center.test.ts`,
-  `test/frontend-visual-consistency.test.ts`.
+  `test/unit/ui/frontend/frontend-visual-consistency.test.ts`.
 - E2E (set visual-contract): `frontend/e2e/dashboard-card-navigation-shell.spec.ts`,
   `frontend/e2e/dashboard-mobile-shell-nav-contract.spec.ts`,
   `frontend/e2e/dashboard-viewport-zoom-adaptability.spec.ts`,

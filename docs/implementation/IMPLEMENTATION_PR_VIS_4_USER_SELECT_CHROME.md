@@ -48,14 +48,14 @@ La búsqueda confirmó usos productivos en `frontend/src/app/globals.css` y un u
 ## Archivos Modificados
 
 - `frontend/src/app/globals.css`
-- `test/frontend-visual-consistency.test.ts`
+- `test/unit/ui/frontend/frontend-visual-consistency.test.ts`
 - `docs/implementation/IMPLEMENTATION_PR_VIS_4_USER_SELECT_CHROME.md`
 
 ## Validaciones
 
 - `pnpm test`: no ejecutó tests; PNPM abortó antes por `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`.
 - `CI=true; pnpm install --frozen-lockfile`: no rehidrató dependencias; PNPM abortó por `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH` entre overrides actuales y lockfile.
-- `node --experimental-strip-types --experimental-specifier-resolution=node --test test/frontend-visual-consistency.test.ts`: PASS, 14/14.
+- `node --experimental-strip-types --experimental-specifier-resolution=node --test test/unit/ui/frontend/frontend-visual-consistency.test.ts`: PASS, 14/14.
 - `CI=true; pnpm --dir frontend typecheck`: no ejecutó TypeScript; PNPM abortó antes por `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.
 - `CI=true; pnpm --dir frontend lint`: no ejecutó ESLint; PNPM abortó antes por `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.
 - `CI=true; pnpm --dir frontend build`: no ejecutó Next build; PNPM abortó antes por `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.
@@ -64,7 +64,7 @@ La búsqueda confirmó usos productivos en `frontend/src/app/globals.css` y un u
 - `CI=true; pnpm --dir frontend exec playwright test e2e/admin-mobile-core-modules-no-scroll.spec.ts --grep "Admin mobile reports pagination" --project=chromium`: no ejecutó Playwright; PNPM abortó antes por `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.
 - Prueba estática PowerShell de contrato de selección: PASS para `universal_without_user_select_none`, `chrome_scoped_user_select_none`, `content_tables_reports_select_text` y `editable_controls_select_text`.
 - `git diff --check`: PASS; sólo warning de line endings CRLF futuro en `frontend/src/app/globals.css`.
-- `git diff --name-only`: `frontend/src/app/globals.css`, `test/frontend-visual-consistency.test.ts`.
+- `git diff --name-only`: `frontend/src/app/globals.css`, `test/unit/ui/frontend/frontend-visual-consistency.test.ts`.
 - `git status --short --untracked-files=all`: dos modificados y esta nota nueva.
 
 ## Prueba de Selección/Copia
@@ -85,5 +85,5 @@ Bajo. El cambio queda en CSS base y test de contrato, sin tocar no-scroll, layou
 ## Estado Final
 
 - `M frontend/src/app/globals.css`
-- `M test/frontend-visual-consistency.test.ts`
+- `M test/unit/ui/frontend/frontend-visual-consistency.test.ts`
 - `?? docs/implementation/IMPLEMENTATION_PR_VIS_4_USER_SELECT_CHROME.md`

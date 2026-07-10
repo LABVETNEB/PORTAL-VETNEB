@@ -47,7 +47,7 @@ Se actualizó `test/frontend-home-page-content.test.ts` para confirmar:
 ## Validaciones ejecutadas
 
 - `pnpm exec node --experimental-strip-types --experimental-specifier-resolution=node --test test/frontend-home-page-content.test.ts` - OK, 8 tests pasados.
-- `pnpm exec node --experimental-strip-types --experimental-specifier-resolution=node --test test/frontend-visual-consistency.test.ts` - OK, 14 tests pasados.
+- `pnpm exec node --experimental-strip-types --experimental-specifier-resolution=node --test test/unit/ui/frontend/frontend-visual-consistency.test.ts` - OK, 14 tests pasados.
 - `pnpm test` - OK, 2259 tests pasados y 1 skipped.
 - `pnpm build` - OK.
 - `pnpm security:public-surface` - OK, sin exposición pública de devtools. Mantiene 2 findings `server-only` existentes en `frontend/src/middleware.ts` para nombres de cookies de sesión.

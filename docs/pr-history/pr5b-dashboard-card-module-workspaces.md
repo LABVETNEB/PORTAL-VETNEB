@@ -85,7 +85,7 @@ Tests de unidad actualizados para reflejar que `DashboardModuleHub` y `adminCard
 - `test/frontend-dashboard-home.test.ts`
 - `test/frontend-dashboard-clinic-command-center.test.ts`
 - `test/frontend-dashboard-mobile-polish-bottom-actions.test.ts`
-- `test/frontend-visual-consistency.test.ts`
+- `test/unit/ui/frontend/frontend-visual-consistency.test.ts`
 
 ## Atributos de accesibilidad E2E
 
