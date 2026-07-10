@@ -64,7 +64,7 @@ Confirmaciones:
 | `test/auth-session-boundaries.test.ts` | Security invariant | Elegido | Protege separacion de sesiones/cookies entre clinica, admin y particular con stubs locales y `app.inject`, sin servidor real ni DB/red. |
 | `test/backend-api-no-store-cache-contract.test.ts` | Security invariant | Elegido | Protege `Cache-Control: no-store` para APIs privadas y confirma que rutas autenticadas delegan al hook global sin I/O externo. |
 | `test/security-csrf-mutating-route-coverage.test.ts` | Security invariant | No elegido | Elegible, pero tiene mayor superficie de imports y casos de integracion; se mantuvo el lote en candidatos mas chicos. |
-| `test/security-docs-matrix-drift-guard.test.ts` | Security/docs guard | No elegido | Es mas documental/registry-driven que invariante behavioral del lote. |
+| `test/architecture/security/security-docs-matrix-drift-guard.test.ts` | Security/docs guard | No elegido | Es mas documental/registry-driven que invariante behavioral del lote. |
 | `test/security-rate-limit-cross-realm-isolation.test.ts` | Security invariant / regression guard | Elegido | Protege aislamiento de rate limits entre realms y confirma que respuestas 429 no filtran password/hash/token/cookie/secret. |
 
 ## Candidatos elegidos

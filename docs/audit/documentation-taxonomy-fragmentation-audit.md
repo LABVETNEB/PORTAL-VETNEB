@@ -132,7 +132,7 @@ test/global-e2e-production-readiness-contract.test.ts → docs/audit/global-e2e-
 test/helpers/clean7a-dependency-cleanup-scope.ts     → docs/implementation/frontend-unused-deps-clean7a.md
 test/production-readiness.test.ts                    → docs/implementation/IMPLEMENTATION_PRODUCTION_OBSERVABILITY_READINESS.md
 test/public-staging-config-contract.test.ts          → docs/staging-smoke-runbook.md, docs/release-readiness.md
-test/security-docs-matrix-drift-guard.test.ts        → docs/security/security-sessions-tenant-rls-audit.md,
+test/architecture/security/security-docs-matrix-drift-guard.test.ts        → docs/security/security-sessions-tenant-rls-audit.md,
                                                           docs/security/rls-enforcement-matrix.md,
                                                           docs/security/RBAC_MATRIX.md,
                                                           docs/security/ENDPOINT_PERMISSION_MATRIX.md,
