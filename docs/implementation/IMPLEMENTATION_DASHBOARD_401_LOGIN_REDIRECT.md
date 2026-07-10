@@ -35,7 +35,7 @@
 - `test/frontend-extreme-speed-guardrails.test.ts`
 - `test/frontend-middleware.test.ts`
 - `test/frontend-next-config-security-headers.test.ts`
-- `test/global-auth-boundary-contract.test.ts`
+- `test/architecture/security/global-auth-boundary-contract.test.ts`
 - `frontend/e2e/dashboard-auth-redirect.spec.ts`
 
 ## Current behavior

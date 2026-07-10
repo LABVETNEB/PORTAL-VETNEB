@@ -179,7 +179,7 @@ test("trusted-origin hook stays global and precedes registered route surfaces", 
 });
 
 test("global auth boundary guardrail source stays ascii only", () => {
-  const source = read("test/global-auth-boundary-contract.test.ts");
+  const source = read("test/architecture/security/global-auth-boundary-contract.test.ts");
 
   for (let index = 0; index < source.length; index += 1) {
     assert.equal(

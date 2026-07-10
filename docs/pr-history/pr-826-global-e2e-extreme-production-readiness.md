@@ -37,7 +37,7 @@ Out of scope:
 
 - `test/global-e2e-production-readiness-contract.test.ts`
 - `test/global-public-surface-hardening-contract.test.ts`
-- `test/global-auth-boundary-contract.test.ts`
+- `test/architecture/security/global-auth-boundary-contract.test.ts`
 - `test/global-storage-report-safety-contract.test.ts`
 - `test/global-performance-resilience-contract.test.ts`
 - `docs/audit/global-e2e-extreme-production-audit.md`
@@ -61,7 +61,7 @@ Validates public API hardening:
 - public professionals does not expose private avatar storage paths
 - invalid public report access tokens reject before hashing, lookup, signing or audit
 
-### `test/global-auth-boundary-contract.test.ts`
+### `test/architecture/security/global-auth-boundary-contract.test.ts`
 
 Validates global auth boundaries:
 

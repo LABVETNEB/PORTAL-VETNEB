@@ -69,7 +69,7 @@
 - `node --experimental-strip-types --test test/security-trusted-origin-cors-boundaries.test.ts`: paso, 4/4.
 - `node --experimental-strip-types --test test/architecture/security/security-production-invariants.test.ts`: paso, 11/11.
 - `node --experimental-strip-types --test test/api-production-session-contract.test.ts`: paso, 4/4.
-- `node --experimental-strip-types --test test/global-auth-boundary-contract.test.ts`: paso, 5/5.
+- `node --experimental-strip-types --test test/architecture/security/global-auth-boundary-contract.test.ts`: paso, 5/5.
 - Bloque auth especifico encontrado por grep: paso, 167/167.
 - `pnpm build`: paso.
 - `pnpm security:public-surface`: paso.
