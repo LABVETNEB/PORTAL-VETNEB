@@ -1,1 +1,39 @@
-* @LABVETNEB
+# Enterprise domain CODEOWNERS model.
+#
+# Both verified repository collaborators are assigned to each protected
+# domain so that a pull request opened by either account can be reviewed
+# by the other without relying on self-approval.
+#
+# This is an incremental ownership control. It does not by itself close
+# ERM-OWN-001, ERM-CTRL-008 or ERM-CTRL-009. Closure still requires
+# effective code-owner review enforcement and representative path canaries.
+
+# Repository-wide fallback
+* @LABVETNEB @VETNEB
+
+# Repository governance and automation
+/.github/** @LABVETNEB @VETNEB
+
+# Documentation and governance sources
+/docs/** @LABVETNEB @VETNEB
+/AGENTS.md @LABVETNEB @VETNEB
+
+# Backend and API
+/server/** @VETNEB @LABVETNEB
+
+# Frontend and user interfaces
+/frontend/** @VETNEB @LABVETNEB
+
+# Database schema and migrations
+/drizzle/** @VETNEB @LABVETNEB
+
+# Test architecture
+/test/** @VETNEB @LABVETNEB
+
+# Repository scripts and operational tooling
+/scripts/** @VETNEB @LABVETNEB
+
+# Root package and dependency manifests
+/package.json @VETNEB @LABVETNEB
+/pnpm-lock.yaml @VETNEB @LABVETNEB
+/pnpm-workspace.yaml @VETNEB @LABVETNEB
