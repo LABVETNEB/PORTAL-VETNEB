@@ -27,6 +27,20 @@ Es una base docs-only. No modifica CODEOWNERS, CI, workflows, dependencias, back
 | `ownership-model.md` | Modelo documental de ownership por dominio |
 | `pr-readiness-review-checklist.md` | Checklist de preparación antes de abrir o revisar PRs |
 | `enterprise-control-register.md` | Registro operativo vivo de controles enterprise derivado del baseline y gap register aprobados |
+| `documentation-lifecycle-policy.md` | Política normativa de lifecycle documental |
+
+## Autoridad de lifecycle documental
+
+`documentation-lifecycle-policy.md` es la fuente normativa vigente para creación, promoción,
+revisión, reclasificación, supersession, cierre y conservación histórica de documentos.
+
+Complementa a `docs/SOURCES_OF_TRUTH.md`, que sigue siendo el mapa de lectura por dominio, y a
+`docs/HISTORICAL_DOCUMENTATION.md`, que sigue siendo la clasificación existente de documentación
+histórica, secundaria y superseded.
+
+El enforcement automático de esta política sigue pendiente. No se deben reclasificar, cerrar,
+reemplazar, mover ni retirar documentos silenciosamente; cualquier transición documental debe quedar
+declarada en el PR y reflejada en los índices correspondientes cuando aplique.
 
 ## Regla de uso
 
