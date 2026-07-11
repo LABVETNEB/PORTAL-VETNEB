@@ -1,0 +1,4 @@
+ERM CODEOWNERS frontend canary.
+Target ownership path: /frontend/**
+Expected automatic reviewer: VETNEB
+Temporary evidence only; this file must never be merged.
