@@ -146,4 +146,3 @@ Target state after merge of PR #1440:
 - `ERM-CTRL-009` remains `PARTIAL`;
 - `ERM-CTRL-005` remains `PARTIAL`;
 - post-merge administrative enforcement and canary validation remain separate follow-up actions.
-
