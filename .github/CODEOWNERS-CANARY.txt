@@ -1,0 +1,4 @@
+ERM CODEOWNERS enforcement canary.
+Target ownership path: /.github/**
+Expected automatic reviewer: VETNEB
+This file is temporary and must never be merged.
