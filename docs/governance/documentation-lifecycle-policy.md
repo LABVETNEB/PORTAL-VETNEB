@@ -87,6 +87,8 @@ Estos estados son estados documentales. No reemplazan los estados del enterprise
 Transiciones permitidas:
 
 - `PROPOSED` -> `ACTIVE`
+- `PROPOSED` -> `SECONDARY`
+- `PROPOSED` -> `HISTORICAL`
 - `PROPOSED` -> `CLOSED`
 - `ACTIVE` -> `SECONDARY`
 - `ACTIVE` -> `SUPERSEDED`
@@ -112,6 +114,10 @@ Queda prohibido:
 Todo documento nuevo de gobernanza y todo documento existente materialmente modificado o reclasificado debe declarar metadata normativa minima mediante una tabla Markdown visible o una seccion explicita equivalente.
 
 No se exige YAML frontmatter. Esta política no exige una migración masiva inmediata de los documentos existentes. La metadata normativa se aplica a documentos nuevos y a documentos existentes cuando sean materialmente modificados o reclasificados. Esta regla no exime de corregir contradicciones o referencias peligrosas detectadas, y no afirma ni sustituye enforcement automático.
+
+Como excepción de bootstrap documental, el PR que adopta inicialmente esta política puede modificar documentos preexistentes de tipo índice, mapa de Sources of Truth, enterprise control register o registro de gobernanza relacionado únicamente para publicar, enlazar, registrar, declarar la autoridad o mantener la trazabilidad de esta política, sin exigir en ese mismo PR el retrofit completo de metadata normativa sobre esos documentos. Esta excepción no permite conservar contradicciones detectadas, enlaces peligrosos o rotos, referencias normativas incorrectas, presentar documentos `HISTORICAL` o `SUPERSEDED` como fuentes vigentes, inventar evidencia ni afirmar enforcement automático.
+
+Después del merge del PR de adopción, la regla tiene aplicación prospectiva: un documento preexistente debe incorporar o actualizar la metadata cuando cambios materiales futuros afecten contenido normativo, `Lifecycle status`, `Authoritative source role`, `Document owner`, `Review cadence`, `Supersedes`, `Superseded by`, promoción, reclasificación, reemplazo, cierre o relación con una fuente vigente. Una actualización puramente referencial, de navegación o de índice no dispara por sí sola el retrofit completo, salvo que también cambie autoridad documental, lifecycle state, ownership, cadence, supersession, interpretación normativa o la fuente rectora del dominio.
 
 Metadata minima:
 
@@ -141,6 +147,10 @@ Un documento en propuesta debe:
 - permanecer sin autoridad normativa hasta su aprobacion y merge.
 
 Mientras un documento este propuesto, sus afirmaciones pueden orientar revision, pero no desplazan una fuente vigente ni autorizan cambios fuera de scope.
+
+Un documento nuevo aprobado únicamente como complemento puede transicionar directamente de `PROPOSED` a `SECONDARY`; un documento nuevo aprobado exclusivamente como evidencia o referencia histórica puede transicionar directamente de `PROPOSED` a `HISTORICAL`. Estos documentos no necesitan pasar artificialmente por `ACTIVE`. El documento `SECONDARY` debe identificar la fuente `ACTIVE` primaria o más autoritativa relacionada cuando exista; el documento `HISTORICAL` debe identificar la fuente vigente relacionada cuando exista y declarar que no posee autoridad normativa.
+
+Ambos casos deben mantener propósito, alcance, `Document owner`, `Domain`, `Lifecycle status`, `Authoritative source role`, metadata mínima, evidencia o referencia de aprobación, PR docs-only, enlaces relativos válidos y ausencia de contradicción con fuentes vigentes. La aprobación directa como `SECONDARY` o `HISTORICAL` no permite desplazar una fuente `ACTIVE`, evadir revisión, omitir owner o metadata ni usar documentos históricos como instrucciones vigentes.
 
 ## 10. Promoción a fuente vigente
 
