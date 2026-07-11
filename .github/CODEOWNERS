@@ -1,39 +1,40 @@
-# Enterprise domain CODEOWNERS model.
+# Single-maintainer CODEOWNERS map.
 #
-# Both verified repository collaborators are assigned to each protected
-# domain so that a pull request opened by either account can be reviewed
-# by the other without relying on self-approval.
+# LABVETNEB is the sole repository maintainer and effective repository owner.
+# CODEOWNERS documents path accountability; it does not require or simulate
+# independent human approval. Merge safety is enforced through protected pull
+# requests, required automated checks, administrator enforcement, linear history,
+# conversation resolution, and disabled force pushes and branch deletion.
 #
-# This is an incremental ownership control. It does not by itself close
-# ERM-OWN-001, ERM-CTRL-008 or ERM-CTRL-009. Closure still requires
-# effective code-owner review enforcement and representative path canaries.
+# This mapping does not close ERM-OWN-001, ERM-CTRL-008, or ERM-CTRL-009.
+# Independent specialist or domain ownership remains a future maturity step.
 
 # Repository-wide fallback
-* @LABVETNEB @VETNEB
+* @LABVETNEB
 
 # Repository governance and automation
-/.github/** @LABVETNEB @VETNEB
+/.github/** @LABVETNEB
 
 # Documentation and governance sources
-/docs/** @LABVETNEB @VETNEB
-/AGENTS.md @LABVETNEB @VETNEB
+/docs/** @LABVETNEB
+/AGENTS.md @LABVETNEB
 
 # Backend and API
-/server/** @VETNEB @LABVETNEB
+/server/** @LABVETNEB
 
 # Frontend and user interfaces
-/frontend/** @VETNEB @LABVETNEB
+/frontend/** @LABVETNEB
 
 # Database schema and migrations
-/drizzle/** @VETNEB @LABVETNEB
+/drizzle/** @LABVETNEB
 
 # Test architecture
-/test/** @VETNEB @LABVETNEB
+/test/** @LABVETNEB
 
 # Repository scripts and operational tooling
-/scripts/** @VETNEB @LABVETNEB
+/scripts/** @LABVETNEB
 
 # Root package and dependency manifests
-/package.json @VETNEB @LABVETNEB
-/pnpm-lock.yaml @VETNEB @LABVETNEB
-/pnpm-workspace.yaml @VETNEB @LABVETNEB
+/package.json @LABVETNEB
+/pnpm-lock.yaml @LABVETNEB
+/pnpm-workspace.yaml @LABVETNEB
