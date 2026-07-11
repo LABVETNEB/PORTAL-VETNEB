@@ -26,6 +26,7 @@ Es una base docs-only. No modifica CODEOWNERS, CI, workflows, dependencias, back
 | `rfc-change-control-template.md` | Plantilla para proponer cambios relevantes antes de implementarlos |
 | `ownership-model.md` | Modelo documental de ownership por dominio |
 | `pr-readiness-review-checklist.md` | Checklist de preparación antes de abrir o revisar PRs |
+| `enterprise-control-register.md` | Registro operativo vivo de controles enterprise derivado del baseline y gap register aprobados |
 
 ## Regla de uso
 
@@ -38,6 +39,13 @@ Antes de una implementación con riesgo técnico, operativo, de seguridad, datos
 5. Revisar ownership del dominio afectado.
 6. Completar checklist de PR readiness.
 7. Mantener el PR con un solo scope.
+
+## Enterprise control register
+
+`enterprise-control-register.md` mantiene el estado operativo vivo de los controles enterprise.
+Deriva del baseline y del gap register aprobados por PR #1436, pero no reemplaza esos snapshots
+históricos ni los reescribe. Cualquier cambio de estado exige evidencia verificable, owner,
+fecha de verificación y trazabilidad con los gaps relacionados cuando existan.
 
 ## Estado
 
