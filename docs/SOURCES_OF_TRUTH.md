@@ -26,6 +26,9 @@ Regla principal:
 | Readiness enterprise de ingeniería | `docs/audit/vetneb-enterprise-engineering-readiness-audit.md` | `docs/audit/vetneb-supreme-system-level-alignment-plan.md` | Vigente | Usar para gaps enterprise, testing, observabilidad, performance y arquitectura |
 | Readiness multinacional extrema | `docs/audit/vetneb-extreme-multinational-enterprise-readiness-audit.md` | `docs/audit/vetneb-supreme-system-level-alignment-plan.md` | Vigente | Usar para P0/P1 de gobernanza, seguridad, SRE, datos y confianza ejecutiva |
 | Alineación sistémica superior | `docs/audit/vetneb-supreme-system-level-alignment-plan.md` | Las otras 3 auditorías Wave 0 | Vigente | Usar para reconciliar prioridades, dependencias, waves y PR families |
+| Enterprise control register | `docs/governance/enterprise-control-register.md` | `docs/audit/enterprise-repository-maturity-baseline.md`, `docs/audit/enterprise-repository-gap-register.md` | Vigente operativo | Fuente de verdad operativa viva para conocer el estado actual de controles enterprise con evidencia |
+| Enterprise repository maturity baseline | `docs/audit/enterprise-repository-maturity-baseline.md` | `docs/governance/enterprise-control-register.md`, `docs/audit/enterprise-repository-gap-register.md` | Snapshot histórico aprobado | Baseline de auditoría aprobado por PR #1436; histórico verificable; no usar como estado operativo mutable |
+| Enterprise repository gap register | `docs/audit/enterprise-repository-gap-register.md` | `docs/governance/enterprise-control-register.md`, `docs/audit/enterprise-repository-maturity-baseline.md` | Snapshot histórico aprobado | Backlog priorizado derivado del snapshot; evidencia de hallazgos a fecha de auditoría; no reescribir para simular cierres posteriores |
 | Protocolo operativo de agentes | `AGENTS.md` | `docs/protocol/vetneb-ai-working-protocol.md`, `.cursor/rules/*` | Vigente | `AGENTS.md` manda; reglas derivadas no deben contradecirlo |
 | Gobernanza / ADR / RFC / ownership | `docs/governance/README.md` | `docs/governance/adr-template.md`, `docs/governance/rfc-change-control-template.md`, `docs/governance/ownership-model.md`, `docs/governance/pr-readiness-review-checklist.md` | Vigente | Usar antes de cambios estructurales, mixed-scope, ownership ambiguo o decisiones duraderas |
 | PR readiness / scope discipline | `docs/governance/pr-readiness-review-checklist.md` | `docs/governance/ownership-model.md`, `docs/qa/regression-strategy.md` | Vigente | Usar antes de crear PR, antes de push y antes de merge |
@@ -56,6 +59,20 @@ carpetas viejas ya no existen; el detalle archivo-por-archivo está en
 | `docs/pr-history/` | Historial de PRs antiguos; desde PR-CLEAN2 incluye los `pr-*.md`/`prN-*.md` ex-sueltos en la raíz de `docs/` | Histórico | No |
 | `docs/implementation/` | Notas de implementación vigentes por dominio; desde PR-CLEAN2 también contiene los `IMPLEMENTACION-PR-*` ex-`docs/implementation-history/` y los `IMPLEMENTATION_*`/kebab-case ex-`IMPLEMENTATION_NOTES/` | Mixto (vigente + histórico/secundario por archivo) | Solo la fuente vigente del dominio |
 | `docs/fix-*` en raíz de `docs/` | Notas antiguas sueltas (no PR docs; fuera de alcance de PR-CLEAN2) | Histórico / pendiente de clasificación | No |
+
+## Orden de lectura enterprise control
+
+Para controles enterprise, leer en este orden:
+
+1. `docs/SOURCES_OF_TRUTH.md`
+2. `docs/governance/enterprise-control-register.md`
+3. `docs/audit/enterprise-repository-maturity-baseline.md` y `docs/audit/enterprise-repository-gap-register.md` para trazabilidad histórica
+4. Evidencia específica del control, dominio o configuración
+
+El orden de lectura no reemplaza las fuentes rectoras existentes de frontend, backend, seguridad,
+datos, release u operación. El baseline es un snapshot de auditoría aprobado e histórico verificable;
+el gap register es un backlog priorizado derivado del snapshot; el control register es la fuente viva
+para el estado operativo vigente de controles enterprise.
 
 ## Reglas de lectura para futuras auditorías
 

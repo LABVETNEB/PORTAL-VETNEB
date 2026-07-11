@@ -23,6 +23,17 @@ Los documentos históricos previos dentro de `docs/audit/` se conservan como ant
 | [total-engineering-roadmap.md](./total-engineering-roadmap.md) | Orquestador de secuencia, dependencias, fases, gates y trazabilidad VIS + ENG. | Vigente |
 | [design-system-contract.md](./design-system-contract.md) | Contrato operativo docs-only de gobernanza del design system para PR-VIS-0 / Fase 0 / VIS-P1-001. No es auditoría nueva. | Vigente |
 
+## Snapshots enterprise aprobados
+
+| Documento | Propósito operativo | Estado |
+| --- | --- | --- |
+| [enterprise-repository-maturity-baseline.md](./enterprise-repository-maturity-baseline.md) | Baseline de madurez enterprise aprobado mediante PR #1436. Es snapshot histórico verificable de la auditoría del 2026-07-10. | Evidencia histórica vigente |
+| [enterprise-repository-gap-register.md](./enterprise-repository-gap-register.md) | Snapshot priorizado de brechas derivado del baseline, aprobado mediante PR #1436. No debe reescribirse para simular cierres posteriores. | Evidencia histórica vigente |
+
+El estado operativo vivo de estos controles se mantiene en
+[enterprise-control-register.md](../governance/enterprise-control-register.md). Estos snapshots
+no declaran obsoletas las auditorías Wave 0 vigentes ni reemplazan las fuentes rectoras por dominio.
+
 ## Auditorías Wave 0 vigentes
 
 | Orden | Documento | Propósito operativo | Estado |
