@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-// @ts-expect-error The Actions validator is an ESM JavaScript module intentionally imported by tests.
+// @ts-ignore -- The Actions validator is an ESM JavaScript module intentionally imported by tests.
 import {
   classifyPath,
   derivePrimaryCategories,
