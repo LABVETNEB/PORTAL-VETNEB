@@ -114,6 +114,29 @@ The fixture deliberately contains enough text to test exact category matching wh
   assert.ok(result.failures.some((failure) => failure.includes("match detected primary scopes exactly")));
 });
 
+test("template mixed-scope guidance comment is not accepted as justification", () => {
+  const result = evaluateScopeContract({
+    body: prBody(
+      [
+        "- [x] backend runtime",
+        "- [x] frontend runtime",
+        "- [x] mixed-scope exception (requires justification)",
+      ],
+      `## Mixed-Scope Justification
+<!-- Required only when the mixed-scope exception is checked. Explain why the domains cannot be delivered safely as independent PRs, the coupling boundary, and the rollback boundary. Delete this comment and write the justification. -->
+
+`,
+    ),
+    categories: ["backend", "frontend"],
+  });
+
+  assert.ok(
+    result.failures.some((failure) =>
+      failure.includes("substantive ## Mixed-Scope Justification"),
+    ),
+  );
+});
+
 test("declared single scope must match detected scope", () => {
   const result = evaluateScopeContract({
     body: prBody(["- [x] frontend runtime"]),
@@ -150,4 +173,19 @@ The fixture represents a repository path that has no standard runtime, workflow,
     categories: ["other"],
   });
   assert.deepEqual(withDetail.failures, []);
+});
+
+test("template other-scope guidance comment is not accepted as detail", () => {
+  const result = evaluateScopeContract({
+    body: prBody(
+      ["- [x] other"],
+      `## Other Scope Detail
+<!-- Required only when other is selected. Identify the paths and explain why no standard scope applies. Delete this comment and write the detail. -->
+
+`,
+    ),
+    categories: ["other"],
+  });
+
+  assert.ok(result.failures.some((failure) => failure.includes("Other Scope Detail")));
 });
