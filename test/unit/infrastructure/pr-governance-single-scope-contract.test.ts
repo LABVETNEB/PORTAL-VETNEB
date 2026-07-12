@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-// @ts-ignore -- The Actions validator is an ESM JavaScript module intentionally imported by tests.
 import {
   classifyPath,
   derivePrimaryCategories,
@@ -66,8 +65,8 @@ test("mixed backend and frontend scope fails without exception", () => {
     categories: ["backend", "frontend", "tests", "documentation"],
   });
 
-  assert.ok(result.failures.some((failure: string) => failure.includes("Multiple primary scopes")));
-  assert.ok(result.failures.some((failure: string) => failure.includes("Exactly one scope checkbox")));
+  assert.ok(result.failures.some((failure) => failure.includes("Multiple primary scopes")));
+  assert.ok(result.failures.some((failure) => failure.includes("Exactly one scope checkbox")));
 });
 
 test("mixed scope passes only with exact declaration and substantive justification", () => {
@@ -112,7 +111,7 @@ The fixture deliberately contains enough text to test exact category matching wh
     categories: ["backend", "frontend"],
   });
 
-  assert.ok(result.failures.some((failure: string) => failure.includes("match detected primary scopes exactly")));
+  assert.ok(result.failures.some((failure) => failure.includes("match detected primary scopes exactly")));
 });
 
 test("declared single scope must match detected scope", () => {
@@ -121,7 +120,7 @@ test("declared single scope must match detected scope", () => {
     categories: ["backend", "documentation"],
   });
 
-  assert.ok(result.failures.some((failure: string) => failure.includes("does not match detected scope")));
+  assert.ok(result.failures.some((failure) => failure.includes("does not match detected scope")));
 });
 
 test("docs-only scope passes", () => {
@@ -138,7 +137,7 @@ test("other category requires explicit detail", () => {
     body: prBody(["- [x] other"]),
     categories: ["other"],
   });
-  assert.ok(withoutDetail.failures.some((failure: string) => failure.includes("Other Scope Detail")));
+  assert.ok(withoutDetail.failures.some((failure) => failure.includes("Other Scope Detail")));
 
   const withDetail = evaluateScopeContract({
     body: prBody(
