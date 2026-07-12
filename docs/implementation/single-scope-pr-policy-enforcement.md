@@ -21,7 +21,7 @@ This delivery intentionally does **not** transition `ERM-CTRL-007` to `IMPLEMENT
 
 The governance implementation moves from a large inline Python block in `.github/workflows/pr-governance.yml` to:
 
-- `scripts/governance/validate-pr-governance.mjs`.
+- `scripts/governance/pr-governance-validator.mjs`.
 
 The workflow remains the required GitHub check launcher and keeps the exact job name:
 
