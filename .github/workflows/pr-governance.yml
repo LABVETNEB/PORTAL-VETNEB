@@ -31,4 +31,4 @@ jobs:
           node-version: 24
 
       - name: Validate pull request governance
-        run: node scripts/governance/validate-pr-governance.mjs
+        run: node scripts/governance/pr-governance-validator.mjs
