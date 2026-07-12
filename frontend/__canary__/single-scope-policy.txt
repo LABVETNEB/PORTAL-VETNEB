@@ -1,0 +1,4 @@
+INTENTIONAL GOVERNANCE CANARY
+
+This harmless text file exists only to classify the canary pull request as frontend scope.
+It must never be merged into main.
