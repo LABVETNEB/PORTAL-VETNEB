@@ -6,7 +6,7 @@ import {
   classifyPath,
   derivePrimaryCategories,
   evaluateScopeContract,
-} from "../../../scripts/governance/validate-pr-governance.mjs";
+} from "../../../scripts/governance/pr-governance-validator.mjs";
 
 function prBody(scopeLines: string[], extraSections = ""): string {
   return `## Summary
