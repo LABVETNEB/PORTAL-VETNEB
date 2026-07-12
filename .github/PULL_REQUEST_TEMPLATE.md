@@ -19,14 +19,10 @@ Select every affected **primary** scope. Documentation and tests that only suppo
 - [ ] mixed-scope exception (requires every affected primary scope above and a substantive justification below)
 
 ## Mixed-Scope Justification
-Required only when the mixed-scope exception is checked. Explain why the domains cannot be delivered safely as independent PRs, the coupling boundary, and the rollback boundary.
-
-Not applicable for a single-scope PR.
+<!-- Required only when the mixed-scope exception is checked. Explain why the domains cannot be delivered safely as independent PRs, the coupling boundary, and the rollback boundary. Delete this comment and write the justification. -->
 
 ## Other Scope Detail
-Required only when `other` is selected. Identify the paths and explain why no standard scope applies.
-
-Not applicable when `other` is not selected.
+<!-- Required only when `other` is selected. Identify the paths and explain why no standard scope applies. Delete this comment and write the detail. -->
 
 ## Validation
 - [ ] `pnpm typecheck`
