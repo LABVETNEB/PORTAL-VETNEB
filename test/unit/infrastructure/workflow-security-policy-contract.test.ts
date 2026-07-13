@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -64,8 +65,20 @@ const mutableActionReferences = [
   "uses: pnpm/action-setup@v4",
 ] as const;
 
+const canonicalWorkflowDigests = new Map<string, string>([
+  [".github/workflows/app-version-force-update.yml", "25c69fb58364b709395f0ee920560845a83941eeb86efdd759a69af5f880d701"],
+  [".github/workflows/backend-ci.yml", "1c46f2ef4291dd893ea3683a62d200d9d0623b5a896b68567fed497d76abf07f"],
+  [".github/workflows/frontend-ci.yml", "7567b16a6c3b518d0a7e710838f6b2b05c9aa7f8402d561b39f8888d4a7b0944"],
+  [".github/workflows/pr-governance.yml", "508d46915bb8f6b303a20eacdf31c47c6aa9e158e0041e7c240c0144b0313cac"],
+  [".github/workflows/visual-regression-manual.yml", "48d6f8c4c2c04a2cb744b410a6114ac3aa1fbe9b6097ac405d2a56bc43d2bb0a"],
+]);
+
 function readWorkflow(workflowPath: string): string {
   return readFileSync(resolve(process.cwd(), workflowPath), "utf8").replace(/\r\n/g, "\n");
+}
+
+function workflowDigest(source: string): string {
+  return createHash("sha256").update(source, "utf8").digest("hex");
 }
 
 function assertContains(source: string, expected: string, file: string): void {
@@ -111,6 +124,46 @@ test("repository tracks exactly the five canonical workflow files", () => {
     .sort();
 
   assert.deepEqual(actualWorkflowPaths, [...canonicalWorkflowPaths].sort());
+});
+
+test("canonical workflow security state is frozen until parser-backed enforcement", () => {
+  assert.deepEqual([...canonicalWorkflowDigests.keys()].sort(), [...canonicalWorkflowPaths].sort());
+
+  for (const workflowPath of canonicalWorkflowPaths) {
+    const expectedDigest = canonicalWorkflowDigests.get(workflowPath);
+    assert.ok(expectedDigest, `${workflowPath} must have a reviewed SHA-256 digest`);
+    assert.match(expectedDigest, /^[0-9a-f]{64}$/, `${workflowPath} must have a reviewed SHA-256 digest`);
+
+    const actualDigest = workflowDigest(readWorkflow(workflowPath));
+    assert.equal(
+      actualDigest,
+      expectedDigest,
+      `${workflowPath} changed; update the reviewed canonical digest only after explicit workflow-security review`,
+    );
+  }
+});
+
+test("workflow digest changes when bootstrap-denied workflow content is added", () => {
+  const baseline = `name: Fixture
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
+`;
+
+  assert.notEqual(
+    workflowDigest(baseline),
+    workflowDigest(`${baseline}      - uses: some/action@main\n`),
+  );
+  assert.notEqual(
+    workflowDigest(baseline),
+    workflowDigest(`${baseline}    permissions: write-all\n`),
+  );
 });
 
 test("canonical workflows declare top-level contents read permissions", () => {
