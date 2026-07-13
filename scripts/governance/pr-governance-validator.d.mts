@@ -21,4 +21,4 @@ export function derivePrimaryCategories(inputCategories: string[]): string[];
 
 export function evaluateScopeContract(input: ScopeContractInput): ScopeContractResult;
 
-export function main(): number;
+export function main(): Promise<number>;

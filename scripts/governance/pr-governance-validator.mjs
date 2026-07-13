@@ -13,6 +13,8 @@ const ROOT = resolve(process.cwd());
 const EVENT_NAME = process.env.GITHUB_EVENT_NAME ?? "";
 const EVENT_PATH = process.env.GITHUB_EVENT_PATH ?? "";
 const SUMMARY_PATH = process.env.GITHUB_STEP_SUMMARY ?? "";
+const WORKFLOW_SECURITY_BOOTSTRAP_DETAIL =
+  "Bootstrap pull_request compatibility path; parser-backed enforcement becomes mandatory after the pull_request_target workflow is merged.";
 
 export const CATEGORY_ORDER = [
   "backend",
@@ -93,6 +95,14 @@ function ensureCommit(sha) {
 
 function shortSha(sha) {
   return sha ? sha.slice(0, 12) : "(missing)";
+}
+
+function isPullRequestEvent() {
+  return EVENT_NAME === "pull_request" || EVENT_NAME === "pull_request_target";
+}
+
+function shouldRunWorkflowSecurity() {
+  return EVENT_NAME === "pull_request_target" || EVENT_NAME === "workflow_dispatch";
 }
 
 function normalizePath(value) {
@@ -278,10 +288,10 @@ function readEvent() {
 }
 
 function determineRange(event, fail, detail) {
-  if (EVENT_NAME === "pull_request") {
+  if (isPullRequestEvent()) {
     const baseSha = event.pull_request?.base?.sha?.trim?.() ?? "";
     const headSha = event.pull_request?.head?.sha?.trim?.() ?? "";
-    if (!baseSha || !headSha) fail("scope", "Cannot determine pull_request base/head SHA.");
+    if (!baseSha || !headSha) fail("scope", `Cannot determine ${EVENT_NAME} base/head SHA.`);
     if (baseSha && !ensureCommit(baseSha)) fail("scope", `Base SHA ${shortSha(baseSha)} is unavailable.`);
     if (headSha && !ensureCommit(headSha)) fail("scope", `Head SHA ${shortSha(headSha)} is unavailable.`);
     return [baseSha, headSha];
@@ -300,6 +310,41 @@ function determineRange(event, fail, detail) {
 
   fail("scope", `Unsupported event: ${EVENT_NAME || "(empty)"}.`);
   return ["", ""];
+}
+
+async function validateWorkflowSecurity({ pass, fail, detail, notApplicable }) {
+  if (EVENT_NAME === "pull_request") {
+    notApplicable("workflow security", WORKFLOW_SECURITY_BOOTSTRAP_DETAIL);
+    return `Workflow security N/A.\n${WORKFLOW_SECURITY_BOOTSTRAP_DETAIL}\n`;
+  }
+
+  if (!shouldRunWorkflowSecurity()) {
+    detail("workflow security", `Skipped for unsupported event: ${EVENT_NAME || "(empty)"}.`);
+    return "Workflow security NOT RUN.\n";
+  }
+
+  try {
+    const {
+      evaluateWorkflowSecurity,
+      renderWorkflowSecuritySummary,
+    } = await import("./workflow-security-validator.mjs");
+    const report = evaluateWorkflowSecurity({ rootDir: ROOT });
+    report.details.forEach((message) => detail("workflow security", message));
+    detail("workflow security", `Candidate workflows parsed: ${report.workflows.length}.`);
+
+    if (report.passed) {
+      pass("workflow security", "Parser-backed workflow security validation passed.");
+    } else {
+      report.failures.forEach((failure) => {
+        fail("workflow security", `${failure.workflow} ${failure.path}: ${failure.cause}`);
+      });
+    }
+
+    return renderWorkflowSecuritySummary(report);
+  } catch (error) {
+    fail("workflow security", `Workflow security validation crashed: ${error.message}`);
+    return "Workflow security validation crashed.\n";
+  }
 }
 
 function changedFiles(baseSha, headSha) {
@@ -465,7 +510,7 @@ function validateMarkdown(entries, pass, fail) {
   }
 }
 
-function writeSummary({ baseSha, headSha, entries, categories, results, details, failures, qualityImpact }) {
+function writeSummary({ baseSha, headSha, entries, categories, results, details, failures, qualityImpact, workflowSecuritySummary }) {
   if (!SUMMARY_PATH) return;
   const escape = (value) => String(value).replaceAll("|", "\\|").replaceAll("\n", " ");
   const rows = Object.keys(results).map(
@@ -505,18 +550,23 @@ function writeSummary({ baseSha, headSha, entries, categories, results, details,
       "",
       renderQualityGateImpactSummary(qualityImpact).trimEnd(),
       "",
+      "## Workflow security",
+      "",
+      workflowSecuritySummary.trimEnd(),
+      "",
     ].join("\n"),
     "utf8",
   );
 }
 
-export function main() {
+export async function main() {
   const failures = [];
   const results = {
     "diff integrity": "NOT RUN",
     "sensitive-file policy": "NOT RUN",
     "secret scan": "NOT RUN",
     Markdown: "NOT RUN",
+    "workflow security": "NOT RUN",
     "quality gate impact": "NOT RUN",
     metadata: "NOT RUN",
     scope: "NOT RUN",
@@ -532,11 +582,16 @@ export function main() {
     details[section].push(message);
   };
   const detail = (section, message) => details[section].push(message);
+  const notApplicable = (section, message) => {
+    if (results[section] !== "FAIL") results[section] = "N/A";
+    details[section].push(message);
+  };
 
   const event = readEvent();
   const [baseSha, headSha] = determineRange(event, fail, detail);
   let entries = [];
   let qualityImpact = null;
+  const workflowSecuritySummary = await validateWorkflowSecurity({ pass, fail, detail, notApplicable });
   const categories = new Map(CATEGORY_ORDER.map((category) => [category, []]));
 
   if (baseSha && headSha && ensureCommit(baseSha) && ensureCommit(headSha)) {
@@ -566,7 +621,7 @@ export function main() {
         fail("quality gate impact", `Quality gate impact validation crashed: ${error.message}`);
       }
 
-      if (EVENT_NAME === "pull_request") {
+      if (isPullRequestEvent()) {
         const body = event.pull_request?.body ?? "";
         const missing = REQUIRED_SECTIONS.filter((section) => !sectionPresent(body, section));
         if (!body.trim()) fail("metadata", "PR body is required and cannot be empty.");
@@ -588,7 +643,7 @@ export function main() {
     }
   }
 
-  writeSummary({ baseSha, headSha, entries, categories, results, details, failures, qualityImpact });
+  writeSummary({ baseSha, headSha, entries, categories, results, details, failures, qualityImpact, workflowSecuritySummary });
 
   if (failures.length > 0) {
     failures.forEach(({ section, message }) =>
@@ -605,5 +660,5 @@ export function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  process.exit(main());
+  process.exit(await main());
 }

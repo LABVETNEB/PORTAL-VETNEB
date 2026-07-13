@@ -44,6 +44,7 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
     ".github/workflows/pr-governance.yml",
     [
       "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
       "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e",
     ],
   ],
@@ -69,7 +70,7 @@ const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/app-version-force-update.yml", "25c69fb58364b709395f0ee920560845a83941eeb86efdd759a69af5f880d701"],
   [".github/workflows/backend-ci.yml", "1c46f2ef4291dd893ea3683a62d200d9d0623b5a896b68567fed497d76abf07f"],
   [".github/workflows/frontend-ci.yml", "7567b16a6c3b518d0a7e710838f6b2b05c9aa7f8402d561b39f8888d4a7b0944"],
-  [".github/workflows/pr-governance.yml", "508d46915bb8f6b303a20eacdf31c47c6aa9e158e0041e7c240c0144b0313cac"],
+  [".github/workflows/pr-governance.yml", "9c848f3ff4c7154e0054bb1959d32f337e8b5c181f61505c67ecde4c9069740e"],
   [".github/workflows/visual-regression-manual.yml", "48d6f8c4c2c04a2cb744b410a6114ac3aa1fbe9b6097ac405d2a56bc43d2bb0a"],
 ]);
 
@@ -170,6 +171,43 @@ test("canonical workflows declare top-level contents read permissions", () => {
   for (const workflowPath of canonicalWorkflowPaths) {
     assertContains(readWorkflow(workflowPath), "permissions:\n  contents: read", workflowPath);
   }
+});
+
+test("PR Governance workflow enforces trusted pull_request_target boundary", () => {
+  const workflowPath = ".github/workflows/pr-governance.yml";
+  const source = readWorkflow(workflowPath);
+
+  assertContains(source, "name: PR Governance", workflowPath);
+  assertContains(source, "  pull_request_target:\n    branches:\n      - main", workflowPath);
+  assertNotContains(source, "  pull_request:\n", workflowPath);
+  assertContains(source, "  workflow_dispatch:", workflowPath);
+  assertContains(source, "permissions:\n  contents: read", workflowPath);
+  assertContains(source, "  validate-pr-governance:\n    name: validate-pr-governance", workflowPath);
+
+  assertContains(source, "      - name: Checkout trusted governance code", workflowPath);
+  assertContains(source, "          ref: ${{ github.event.pull_request.base.sha || github.sha }}", workflowPath);
+  assertContains(source, "          path: trusted", workflowPath);
+  assertContains(source, "          persist-credentials: false", workflowPath);
+  assertContains(source, "          fetch-depth: 0", workflowPath);
+
+  assertContains(source, "      - name: Checkout candidate tree", workflowPath);
+  assertContains(
+    source,
+    "          ref: ${{ github.event_name == 'pull_request_target' && format('refs/pull/{0}/merge', github.event.pull_request.number) || github.sha }}",
+    workflowPath,
+  );
+  assertContains(source, "          path: candidate", workflowPath);
+
+  assertContains(source, "uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1", workflowPath);
+  assertContains(source, "run: pnpm --dir trusted install --frozen-lockfile --ignore-scripts", workflowPath);
+  assertContains(source, "working-directory: candidate", workflowPath);
+  assertContains(source, "run: node ../trusted/scripts/governance/pr-governance-validator.mjs", workflowPath);
+
+  assertNotContains(source, "pnpm --dir candidate", workflowPath);
+  assertNotContains(source, "run: node scripts/governance/pr-governance-validator.mjs", workflowPath);
+  assertNotContains(source, "secrets.", workflowPath);
+  assertNotContains(source, "contents: write", workflowPath);
+  assertNotContains(source, "write-all", workflowPath);
 });
 
 test("canonical workflows pin only allowlisted external action references", () => {
