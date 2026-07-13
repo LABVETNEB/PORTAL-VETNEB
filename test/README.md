@@ -134,6 +134,25 @@ pnpm security:public-surface
 
 Para cambios de frontend o E2E, agregar lint, typecheck, build y la suite Playwright focal correspondiente.
 
+<!-- quality-gate-taxonomy:start -->
+_Generated from `scripts/governance/quality-gate-impact-policy.mjs`. Do not edit this block manually._
+
+| Suite ID | Purpose | Gate | Package scope | Commands | Representative paths | Requirement |
+| --- | --- | --- | --- | --- | --- | --- |
+| `backend-build` | Backend production bundle check. | `backend-ci` (conditional, non-required) | `root` | `pnpm build` | `server/**`<br>`package.json` | `mandatory` |
+| `backend-test-typecheck` | TypeScript contract for the Node test suite. | `backend-ci` (conditional, non-required) | `root` | `pnpm typecheck:test` | `test/**/*.test.ts`<br>`test/tsconfig.json` | `mandatory` |
+| `backend-tests` | Recursive Node test suite for backend, architecture, security, contracts and static frontend source contracts. | `backend-ci` (conditional, non-required) | `root` | `pnpm test` | `test/**/*.test.ts` | `mandatory` |
+| `backend-typecheck` | TypeScript contract for backend runtime and shared test-facing types. | `backend-ci` (conditional, non-required) | `root` | `pnpm typecheck` | `server/**`<br>`test/**/*.test.ts`<br>`tsconfig.json` | `mandatory` |
+| `frontend-build` | Next.js production build contract. | `frontend-ci` (conditional, non-required) | `frontend` | `pnpm --dir frontend build` | `frontend/**`<br>`frontend/package.json` | `conditional` |
+| `frontend-e2e-admin-mobile` | Playwright mobile admin app-shell and module operability contracts. | `frontend-ci` (conditional, non-required) | `frontend` | `pnpm --dir frontend e2e:admin-mobile` | `frontend/e2e/admin-*.spec.ts`<br>`frontend/e2e/dashboard-*.spec.ts` | `conditional` |
+| `frontend-e2e-public-clinic` | Playwright public and clinic-facing route contracts. | `frontend-ci` (conditional, non-required) | `frontend` | `pnpm --dir frontend e2e:public-clinic` | `frontend/e2e/public-*.spec.ts`<br>`frontend/e2e/dashboard-clinic-*.spec.ts` | `conditional` |
+| `frontend-e2e-smoke` | Fast Playwright smoke for auth, public routes, hydration, theme and dashboard foundation. | `frontend-ci` (conditional, non-required) | `frontend` | `pnpm --dir frontend e2e:smoke` | `frontend/e2e/**`<br>`frontend/src/**` | `conditional` |
+| `frontend-e2e-visual-contract` | Playwright visual and layout contracts for dashboard shells and responsive behavior. | `frontend-ci` (conditional, non-required) | `frontend` | `pnpm --dir frontend e2e:visual-contract` | `frontend/e2e/dashboard-*.spec.ts` | `conditional` |
+| `frontend-lint` | ESLint contract for the Next.js frontend workspace. | `frontend-ci` (conditional, non-required) | `frontend` | `pnpm --dir frontend lint` | `frontend/**` | `conditional` |
+| `frontend-typecheck` | TypeScript contract for the Next.js frontend workspace. | `frontend-ci` (conditional, non-required) | `frontend` | `pnpm --dir frontend typecheck` | `frontend/**` | `conditional` |
+| `public-surface-audit` | Audit of the built public surface for unintended devtools exposure. | `frontend-ci` (conditional, non-required) | `root` | `pnpm security:public-surface` | `frontend/**`<br>`scripts/security/**` | `conditional` |
+<!-- quality-gate-taxonomy:end -->
+
 ---
 
 ## 8. Estado post-migración
