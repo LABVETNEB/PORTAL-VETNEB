@@ -70,7 +70,7 @@ const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/app-version-force-update.yml", "25c69fb58364b709395f0ee920560845a83941eeb86efdd759a69af5f880d701"],
   [".github/workflows/backend-ci.yml", "1c46f2ef4291dd893ea3683a62d200d9d0623b5a896b68567fed497d76abf07f"],
   [".github/workflows/frontend-ci.yml", "7567b16a6c3b518d0a7e710838f6b2b05c9aa7f8402d561b39f8888d4a7b0944"],
-  [".github/workflows/pr-governance.yml", "9c848f3ff4c7154e0054bb1959d32f337e8b5c181f61505c67ecde4c9069740e"],
+  [".github/workflows/pr-governance.yml", "40d46f3973744aa4df4d857e009dbc2582f6ed050724e34b93e0da9473a35285"],
   [".github/workflows/visual-regression-manual.yml", "48d6f8c4c2c04a2cb744b410a6114ac3aa1fbe9b6097ac405d2a56bc43d2bb0a"],
 ]);
 
@@ -173,13 +173,13 @@ test("canonical workflows declare top-level contents read permissions", () => {
   }
 });
 
-test("PR Governance workflow enforces trusted pull_request_target boundary", () => {
+test("PR Governance workflow enforces trusted dual-event transition boundary", () => {
   const workflowPath = ".github/workflows/pr-governance.yml";
   const source = readWorkflow(workflowPath);
 
   assertContains(source, "name: PR Governance", workflowPath);
+  assertContains(source, "  pull_request:\n    branches:\n      - main", workflowPath);
   assertContains(source, "  pull_request_target:\n    branches:\n      - main", workflowPath);
-  assertNotContains(source, "  pull_request:\n", workflowPath);
   assertContains(source, "  workflow_dispatch:", workflowPath);
   assertContains(source, "permissions:\n  contents: read", workflowPath);
   assertContains(source, "  validate-pr-governance:\n    name: validate-pr-governance", workflowPath);
@@ -193,7 +193,7 @@ test("PR Governance workflow enforces trusted pull_request_target boundary", () 
   assertContains(source, "      - name: Checkout candidate tree", workflowPath);
   assertContains(
     source,
-    "          ref: ${{ github.event_name == 'pull_request_target' && format('refs/pull/{0}/merge', github.event.pull_request.number) || github.sha }}",
+    "          ref: ${{ github.event.pull_request.number && format('refs/pull/{0}/merge', github.event.pull_request.number) || github.sha }}",
     workflowPath,
   );
   assertContains(source, "          path: candidate", workflowPath);

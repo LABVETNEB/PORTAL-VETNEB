@@ -5,7 +5,7 @@
 | Fecha | 2026-07-13 |
 | Rama | `ci/workflow-security-required-enforcement` |
 | Base | `main@d004bfb4035886535fe13a7f244ccb2dd60ec306` |
-| Dictamen | Implementacion conforme al scope con suite completa local fail 0 |
+| Dictamen | Fase transitoria #1459 conforme al scope; QGA-4B pendiente de cierre definitivo |
 
 ## Alcance auditado
 
@@ -13,7 +13,8 @@ Incluido:
 
 - workflow requerido `PR Governance / validate-pr-governance`;
 - trust boundary `trusted` / `candidate`;
-- bootstrap compatibility para la unica transicion desde `pull_request` legacy;
+- activacion dual transitoria `pull_request` + `pull_request_target`;
+- bootstrap compatibility para `pull_request`;
 - permisos read-only;
 - parser-backed enforcement obligatorio;
 - contratos de PR Governance y workflow security;
@@ -29,9 +30,22 @@ Excluido:
 
 ## Hallazgos
 
-### Evento requerido
+### Evento requerido transitorio
 
-`.github/workflows/pr-governance.yml` reemplaza `pull_request` por `pull_request_target` y conserva `workflow_dispatch`.
+`.github/workflows/pr-governance.yml` declara durante #1459:
+
+```yaml
+on:
+  pull_request:
+    branches:
+      - main
+  pull_request_target:
+    branches:
+      - main
+  workflow_dispatch:
+```
+
+`pull_request` existe unicamente para obtener el required check durante la transicion. `pull_request_target` queda instalado en `main` al fusionar #1459.
 
 Resultado: PASS.
 
@@ -66,9 +80,11 @@ Resultado: PASS.
 El checkout `candidate` usa merge ref para PRs:
 
 ```yaml
-ref: ${{ github.event_name == 'pull_request_target' && format('refs/pull/{0}/merge', github.event.pull_request.number) || github.sha }}
+ref: ${{ github.event.pull_request.number && format('refs/pull/{0}/merge', github.event.pull_request.number) || github.sha }}
 path: candidate
 ```
+
+`pull_request` y `pull_request_target` inspeccionan `refs/pull/<number>/merge`; `workflow_dispatch` usa `github.sha`.
 
 El candidate se usa como arbol estatico de inspeccion. No se instalan dependencias ahi y no se ejecutan scripts del candidate.
 
@@ -113,13 +129,13 @@ Resultado: PASS.
 
 ### Bootstrap pull_request
 
-El evento legacy `pull_request` conserva las validaciones existentes de governance, pero marca `workflow security` como `N/A` con el detalle deterministico:
+El evento `pull_request` transitorio conserva las validaciones existentes de governance, pero marca `workflow security` como `N/A` con el detalle deterministico:
 
 ```text
 Bootstrap pull_request compatibility path; parser-backed enforcement becomes mandatory after the pull_request_target workflow is merged.
 ```
 
-En ese camino no se carga `workflow-security-validator.mjs` ni `js-yaml`. Despues del merge, `.github/workflows/pr-governance.yml` ya no escucha `pull_request`, por lo que este camino queda inalcanzable en operacion normal.
+En ese camino no se carga `workflow-security-validator.mjs` ni `js-yaml`. El cierre definitivo de QGA-4B requiere una segunda PR que elimine `pull_request` despues de que `pull_request_target` ya exista en `main`.
 
 Resultado: PASS.
 
@@ -173,4 +189,4 @@ Resultado: PASS.
 
 ## Dictamen
 
-QGA-4B queda completado: el workflow security parser-backed queda convertido en enforcement obligatorio dentro del check requerido `PR Governance / validate-pr-governance`, con separacion explicita entre codigo confiable y arbol candidate.
+#1459 queda como fase transitoria segura: activa el required check con `pull_request`, instala `pull_request_target` en `main`, preserva la separacion `trusted`/`candidate` y mantiene QGA-N2 bloqueado. QGA-4B no queda cerrado hasta una segunda PR que elimine `pull_request`.
