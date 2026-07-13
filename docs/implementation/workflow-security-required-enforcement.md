@@ -28,6 +28,7 @@
 - Cargar dinamicamente el workflow security validator solo en `pull_request_target` y `workflow_dispatch`.
 - Integrar `evaluateWorkflowSecurity({ rootDir: ROOT })` dentro del check requerido para `pull_request_target` y `workflow_dispatch`.
 - Conservar compatibilidad bootstrap para `pull_request` durante esta PR transitoria.
+- Aislar la concurrencia por `github.event_name` para que `pull_request` y `pull_request_target` no se cancelen entre si.
 - Agregar `workflow security` a `results`, `details`, `failures` y GitHub Step Summary.
 - Validar siempre todos los workflows del candidate aunque la PR no toque `.github/workflows`.
 - Actualizar contratos de seguridad y PR Governance.
@@ -61,6 +62,7 @@
 
 - `PR Governance` ahora usa activacion dual transitoria con `pull_request`, `pull_request_target` y `workflow_dispatch`.
 - `pull_request` existe unicamente para obtener el required check durante la transicion #1459.
+- El concurrency group incluye `${{ github.event_name }}` y conserva `cancel-in-progress: true`, aislando los dos eventos PR de transicion.
 - El checkout `trusted` usa `${{ github.event.pull_request.base.sha || github.sha }}`.
 - El checkout `candidate` usa `${{ github.event.pull_request.number && format('refs/pull/{0}/merge', github.event.pull_request.number) || github.sha }}`.
 - `pull_request` y `pull_request_target` inspeccionan `refs/pull/<number>/merge`; `workflow_dispatch` inspecciona `github.sha`.

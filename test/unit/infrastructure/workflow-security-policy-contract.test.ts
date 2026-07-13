@@ -70,7 +70,7 @@ const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/app-version-force-update.yml", "25c69fb58364b709395f0ee920560845a83941eeb86efdd759a69af5f880d701"],
   [".github/workflows/backend-ci.yml", "1c46f2ef4291dd893ea3683a62d200d9d0623b5a896b68567fed497d76abf07f"],
   [".github/workflows/frontend-ci.yml", "7567b16a6c3b518d0a7e710838f6b2b05c9aa7f8402d561b39f8888d4a7b0944"],
-  [".github/workflows/pr-governance.yml", "40d46f3973744aa4df4d857e009dbc2582f6ed050724e34b93e0da9473a35285"],
+  [".github/workflows/pr-governance.yml", "d8c8c6327af818e2d5dfb61736e143bf8ffc4493ddbf7c74ecf358b9ac04d1aa"],
   [".github/workflows/visual-regression-manual.yml", "48d6f8c4c2c04a2cb744b410a6114ac3aa1fbe9b6097ac405d2a56bc43d2bb0a"],
 ]);
 
@@ -182,6 +182,18 @@ test("PR Governance workflow enforces trusted dual-event transition boundary", (
   assertContains(source, "  pull_request_target:\n    branches:\n      - main", workflowPath);
   assertContains(source, "  workflow_dispatch:", workflowPath);
   assertContains(source, "permissions:\n  contents: read", workflowPath);
+  assertContains(
+    source,
+    "  group: pr-governance-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref_name || github.run_id }}",
+    workflowPath,
+  );
+  assertContains(source, "  cancel-in-progress: true", workflowPath);
+  const transitionConcurrencyGroup = (eventName: string) =>
+    `pr-governance-PR Governance-${eventName}-1459`;
+  assert.notEqual(
+    transitionConcurrencyGroup("pull_request"),
+    transitionConcurrencyGroup("pull_request_target"),
+  );
   assertContains(source, "  validate-pr-governance:\n    name: validate-pr-governance", workflowPath);
 
   assertContains(source, "      - name: Checkout trusted governance code", workflowPath);

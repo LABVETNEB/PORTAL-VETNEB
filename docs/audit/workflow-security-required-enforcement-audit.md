@@ -14,6 +14,7 @@ Incluido:
 - workflow requerido `PR Governance / validate-pr-governance`;
 - trust boundary `trusted` / `candidate`;
 - activacion dual transitoria `pull_request` + `pull_request_target`;
+- aislamiento de concurrencia por evento para la transicion dual;
 - bootstrap compatibility para `pull_request`;
 - permisos read-only;
 - parser-backed enforcement obligatorio;
@@ -46,6 +47,19 @@ on:
 ```
 
 `pull_request` existe unicamente para obtener el required check durante la transicion. `pull_request_target` queda instalado en `main` al fusionar #1459.
+
+Resultado: PASS.
+
+### Concurrencia
+
+El concurrency group incluye `github.event_name` y conserva `cancel-in-progress: true`:
+
+```yaml
+group: pr-governance-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref_name || github.run_id }}
+cancel-in-progress: true
+```
+
+Esto evita que las ejecuciones `pull_request` y `pull_request_target` del mismo PR se cancelen entre si durante #1459.
 
 Resultado: PASS.
 
