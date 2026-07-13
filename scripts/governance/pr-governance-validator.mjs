@@ -4,6 +4,10 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { basename, posix, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
+import {
+  renderQualityGateImpactSummary,
+  validateQualityGateImpact,
+} from "./quality-gate-impact-validator.mjs";
 
 const ROOT = resolve(process.cwd());
 const EVENT_NAME = process.env.GITHUB_EVENT_NAME ?? "";
@@ -147,7 +151,7 @@ export function classifyPath(inputPath) {
   if (
     lower.startsWith(".github/") ||
     lower.startsWith(".vscode/") ||
-    [".gitignore", ".gitattributes", ".npmrc", ".pnpmrc", "agents.md", "tsconfig.json"].includes(name)
+    [".gitignore", ".gitattributes", ".npmrc", ".pnpmrc", ".cursorignore", "agents.md", "tsconfig.json"].includes(name)
   ) {
     return "repository configuration";
   }
@@ -298,7 +302,7 @@ function changedFiles(baseSha, headSha) {
     if (status.startsWith("R")) {
       const oldPath = normalizePath(tokens[index++]);
       const newPath = normalizePath(tokens[index++]);
-      entries.push({ status, path: newPath, display: `${oldPath} -> ${newPath}` });
+      entries.push({ status, path: newPath, oldPath, newPath, display: `${oldPath} -> ${newPath}` });
     } else {
       const path = normalizePath(tokens[index++]);
       entries.push({ status, path, display: path });
@@ -448,7 +452,7 @@ function validateMarkdown(entries, pass, fail) {
   }
 }
 
-function writeSummary({ baseSha, headSha, entries, categories, results, details, failures }) {
+function writeSummary({ baseSha, headSha, entries, categories, results, details, failures, qualityImpact }) {
   if (!SUMMARY_PATH) return;
   const escape = (value) => String(value).replaceAll("|", "\\|").replaceAll("\n", " ");
   const rows = Object.keys(results).map(
@@ -486,6 +490,8 @@ function writeSummary({ baseSha, headSha, entries, categories, results, details,
       "",
       failures.length === 0 ? "`PASS`" : "`FAIL`",
       "",
+      renderQualityGateImpactSummary(qualityImpact).trimEnd(),
+      "",
     ].join("\n"),
     "utf8",
   );
@@ -498,6 +504,7 @@ export function main() {
     "sensitive-file policy": "NOT RUN",
     "secret scan": "NOT RUN",
     Markdown: "NOT RUN",
+    "quality gate impact": "NOT RUN",
     metadata: "NOT RUN",
     scope: "NOT RUN",
   };
@@ -516,6 +523,7 @@ export function main() {
   const event = readEvent();
   const [baseSha, headSha] = determineRange(event, fail, detail);
   let entries = [];
+  let qualityImpact = null;
   const categories = new Map(CATEGORY_ORDER.map((category) => [category, []]));
 
   if (baseSha && headSha && ensureCommit(baseSha) && ensureCommit(headSha)) {
@@ -533,6 +541,17 @@ export function main() {
       validateSensitivePaths(entries, pass, fail);
       validateSecrets(baseSha, headSha, pass, fail);
       validateMarkdown(entries, pass, fail);
+
+      try {
+        qualityImpact = validateQualityGateImpact({ entries, rootDir: ROOT });
+        qualityImpact.details.forEach((message) => detail("quality gate impact", message));
+        qualityImpact.failures.forEach((message) => fail("quality gate impact", message));
+        if (qualityImpact.failures.length === 0) {
+          pass("quality gate impact", "Quality gate impact routing and taxonomy validation passed.");
+        }
+      } catch (error) {
+        fail("quality gate impact", `Quality gate impact validation crashed: ${error.message}`);
+      }
 
       if (EVENT_NAME === "pull_request") {
         const body = event.pull_request?.body ?? "";
@@ -556,7 +575,7 @@ export function main() {
     }
   }
 
-  writeSummary({ baseSha, headSha, entries, categories, results, details, failures });
+  writeSummary({ baseSha, headSha, entries, categories, results, details, failures, qualityImpact });
 
   if (failures.length > 0) {
     failures.forEach(({ section, message }) =>
@@ -565,6 +584,9 @@ export function main() {
     return 1;
   }
 
+  if (results["quality gate impact"] === "PASS") {
+    console.log("Quality gate impact PASS.");
+  }
   console.log("PR Governance passed.");
   return 0;
 }
