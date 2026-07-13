@@ -126,6 +126,58 @@ test("approved external action pinned to full SHA passes", () => {
   assert.equal(isPinnedExternalActionReference(`actions/checkout@${sha}`), true);
 });
 
+test("arbitrary job indentation with pinned action passes", () => {
+  const result = validate(`name: Arbitrary
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+    validate:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@${sha}
+`);
+
+  assert.deepEqual(result.failures, []);
+});
+
+test("jobs with one-space indentation and safe content pass", () => {
+  const result = validate(`name: One space
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+ validate:
+   runs-on: ubuntu-latest
+   steps:
+    - run: echo ok
+`);
+
+  assert.deepEqual(result.failures, []);
+});
+
+test("two sibling jobs with four-space indentation pass", () => {
+  const result = validate(`name: Siblings
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+    validate:
+        runs-on: ubuntu-latest
+        steps:
+          - run: echo ok
+    audit:
+        runs-on: ubuntu-latest
+        steps:
+          - run: echo ok
+`);
+
+  assert.deepEqual(result.failures, []);
+});
+
 test("quoted approved external action pinned to full SHA passes", () => {
   const result = validate(workflow(`    steps:
       - "uses": actions/checkout@${sha}
@@ -200,6 +252,74 @@ on:
 
   assert.deepEqual(result.failures, []);
   assert.equal(result.exceptionsUsed.length, 1);
+});
+
+test("postgres exception passes with arbitrary service indentation", () => {
+  const result = validate(
+    `name: Backend
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+   validate-backend:
+      runs-on: ubuntu-latest
+      services:
+          postgres:
+              image: postgres:16
+      steps:
+        - run: echo ok
+`,
+    ".github/workflows/backend-ci.yml",
+  );
+
+  assert.deepEqual(result.failures, []);
+  assert.equal(result.exceptionsUsed.length, 1);
+});
+
+test("quoted job and service names pass with arbitrary indentation", () => {
+  const result = validate(
+    `name: Backend
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+    "validate-backend":
+        runs-on: ubuntu-latest
+        services:
+             "postgres":
+                    image: postgres:16
+        steps:
+          - uses: actions/checkout@${sha}
+`,
+    ".github/workflows/backend-ci.yml",
+  );
+
+  assert.deepEqual(result.failures, []);
+  assert.equal(result.exceptionsUsed.length, 1);
+});
+
+test("comments and blank lines between arbitrary jobs do not reset child indentation", () => {
+  const result = validate(`name: Comments
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+    validate:
+        runs-on: ubuntu-latest
+        steps:
+          - run: echo ok
+
+    # Sibling job intentionally separated by a comment.
+    audit:
+        runs-on: ubuntu-latest
+        steps:
+          - run: echo ok
+`);
+
+  assert.deepEqual(result.failures, []);
 });
 
 test("digest-pinned container image passes", () => {
@@ -349,6 +469,42 @@ test("quoted job-level permissions fail", () => {
   assertFailureIncludes(result, "forbids unauthorized job-level permissions");
 });
 
+test("arbitrary job indentation rejects job-level permissions", () => {
+  const result = validate(`name: Bad
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+    validate:
+        permissions: write-all
+        steps:
+          - run: echo ok
+`);
+
+  assertFailureIncludes(result, "forbids unauthorized job-level permissions");
+});
+
+test("second arbitrary job sibling rejects job-level permissions", () => {
+  const result = validate(`name: Bad sibling
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+    validate:
+        runs-on: ubuntu-latest
+        steps:
+          - run: echo ok
+    audit:
+        permissions: write-all
+        steps:
+          - run: echo ok
+`);
+
+  assertFailureIncludes(result, "forbids unauthorized job-level permissions");
+});
+
 test("bare job-level permissions with space before colon fail", () => {
   const result = validate(workflow(`    permissions : write-all
     steps:
@@ -368,6 +524,21 @@ test("bare mutable action with space before colon fails", () => {
   const result = validate(workflow(`    steps:
       - uses : actions/checkout@v7
 `));
+
+  assertFailureIncludes(result, "must be pinned to a full commit SHA");
+});
+
+test("arbitrary job indentation rejects mutable action references", () => {
+  const result = validate(`name: Bad action
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+      validate:
+            steps:
+              - uses: actions/checkout@v7
+`);
 
   assertFailureIncludes(result, "must be pinned to a full commit SHA");
 });
@@ -469,6 +640,41 @@ test("bare container image with space before colon fails", () => {
   assertFailureIncludes(result, "uses forbidden latest tag");
 });
 
+test("arbitrary job indentation rejects latest container image", () => {
+  const result = validate(`name: Bad container
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+   validate:
+      container:
+         image: node:latest
+      steps:
+        - run: echo ok
+`);
+
+  assertFailureIncludes(result, "uses forbidden latest tag");
+});
+
+test("arbitrary service indentation rejects latest service image", () => {
+  const result = validate(`name: Bad service
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+    validate:
+        services:
+             database:
+                    image: postgres:latest
+        steps:
+          - run: echo ok
+`);
+
+  assertFailureIncludes(result, "uses forbidden latest tag");
+});
+
 test("mutable container image without exception fails", () => {
   const result = validate(workflow(`    container:
       image: node:24
@@ -514,6 +720,69 @@ test("tab indentation fails", () => {
   const result = validate("name: Bad\non: pull_request\npermissions:\n\tcontents: read\njobs:\n  validate:\n    runs-on: ubuntu-latest\n");
 
   assert.ok(result.failures.some((failure) => failure.includes("forbids tab indentation")));
+});
+
+test("inconsistent jobs child indentation fails closed with location", () => {
+  const result = validate(`name: Bad indent
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+    validate:
+        runs-on: ubuntu-latest
+  audit:
+      steps:
+        - run: echo ok
+`);
+
+  assertFailureIncludes(result, "inconsistent or ambiguous jobs child indentation");
+  assert.ok(
+    result.failures.some((failure) => /\.github\/workflows\/fixture\.yml:\d+/.test(failure)),
+    `expected workflow location, got: ${result.failures.join("; ")}`,
+  );
+});
+
+test("inconsistent services child indentation fails closed with location", () => {
+  const result = validate(`name: Bad service indent
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+    validate:
+        services:
+             database:
+                    image: postgres:16
+          cache:
+             image: redis:latest
+        steps:
+          - run: echo ok
+`);
+
+  assertFailureIncludes(result, "inconsistent or ambiguous services child indentation");
+  assert.ok(
+    result.failures.some((failure) => /\.github\/workflows\/fixture\.yml:\d+/.test(failure)),
+    `expected workflow location, got: ${result.failures.join("; ")}`,
+  );
+});
+
+test("top-level section after jobs does not inherit job context", () => {
+  const result = validate(`name: Top level reset
+on:
+  pull_request:
+jobs:
+    validate:
+        steps:
+          - run: echo ok
+env:
+  fixture:
+    permissions: write-all
+permissions:
+  contents: read
+`);
+
+  assert.deepEqual(result.failures, []);
 });
 
 test("ambiguous watched field fails closed", () => {

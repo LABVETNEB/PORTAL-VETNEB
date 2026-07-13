@@ -388,13 +388,47 @@ export function scanWorkflowSecurity({
   let topPermissions = null;
   let permissionsIndent = null;
   let jobsIndent = null;
+  let jobsChildIndent = null;
   let currentJob = null;
   let currentJobIndent = null;
   let servicesIndent = null;
+  let servicesChildIndent = null;
   let currentService = null;
   let currentServiceIndent = null;
   let containerIndent = null;
   let stepsIndent = null;
+
+  function clearServicesState() {
+    servicesIndent = null;
+    servicesChildIndent = null;
+    currentService = null;
+    currentServiceIndent = null;
+  }
+
+  function clearJobContentState() {
+    clearServicesState();
+    containerIndent = null;
+    stepsIndent = null;
+  }
+
+  function clearJobsState() {
+    jobsIndent = null;
+    jobsChildIndent = null;
+    currentJob = null;
+    currentJobIndent = null;
+    clearJobContentState();
+  }
+
+  function startJob(pair) {
+    currentJob = pair.key;
+    currentJobIndent = pair.indent;
+    clearJobContentState();
+  }
+
+  function startService(pair) {
+    currentService = pair.key;
+    currentServiceIndent = pair.indent;
+  }
 
   for (let index = 0; index < lines.length; index += 1) {
     const lineNumber = index + 1;
@@ -443,42 +477,43 @@ export function scanWorkflowSecurity({
 
     if (pair.indent === 0 && pair.key === "jobs") {
       jobsIndent = pair.indent;
+      jobsChildIndent = null;
       currentJob = null;
       currentJobIndent = null;
-      servicesIndent = null;
-      containerIndent = null;
-      stepsIndent = null;
+      clearJobContentState();
       continue;
     }
 
     if (jobsIndent !== null) {
       if (pair.indent <= jobsIndent) {
-        currentJob = null;
-        currentJobIndent = null;
-        servicesIndent = null;
-        currentService = null;
-        currentServiceIndent = null;
-        containerIndent = null;
-        stepsIndent = null;
-      } else if (pair.indent === jobsIndent + 2) {
-        currentJob = pair.key;
-        currentJobIndent = pair.indent;
-        servicesIndent = null;
-        currentService = null;
-        currentServiceIndent = null;
-        containerIndent = null;
-        stepsIndent = null;
+        clearJobsState();
+      } else if (jobsChildIndent === null) {
+        jobsChildIndent = pair.indent;
+        startJob(pair);
+      } else if (pair.indent === jobsChildIndent) {
+        startJob(pair);
+      } else if (pair.indent < jobsChildIndent) {
+        addFailure(report, `Workflow security inconsistent or ambiguous jobs child indentation: ${workflowLocation(path, lineNumber)}`);
+        continue;
       }
     }
 
-    if (currentJob && servicesIndent !== null && pair.indent <= servicesIndent) {
-      servicesIndent = null;
-      currentService = null;
-      currentServiceIndent = null;
-    }
-    if (currentJob && currentServiceIndent !== null && pair.indent <= currentServiceIndent) {
-      currentService = null;
-      currentServiceIndent = null;
+    if (currentJob && servicesIndent !== null) {
+      if (pair.indent <= servicesIndent) {
+        clearServicesState();
+      } else if (servicesChildIndent === null) {
+        servicesChildIndent = pair.indent;
+        if (value) addFailure(report, `Workflow security field is ambiguous: ${workflowLocation(path, lineNumber)}`);
+        startService(pair);
+        continue;
+      } else if (pair.indent === servicesChildIndent) {
+        if (value) addFailure(report, `Workflow security field is ambiguous: ${workflowLocation(path, lineNumber)}`);
+        startService(pair);
+        continue;
+      } else if (pair.indent < servicesChildIndent) {
+        addFailure(report, `Workflow security inconsistent or ambiguous services child indentation: ${workflowLocation(path, lineNumber)}`);
+        continue;
+      }
     }
     if (currentJob && containerIndent !== null && pair.indent <= containerIndent) {
       containerIndent = null;
@@ -567,15 +602,9 @@ export function scanWorkflowSecurity({
     if (currentJob && pair.key === "services" && pair.indent > currentJobIndent) {
       if (value) addFailure(report, `Workflow security field is ambiguous: ${workflowLocation(path, lineNumber)}`);
       servicesIndent = pair.indent;
+      servicesChildIndent = null;
       currentService = null;
       currentServiceIndent = null;
-      continue;
-    }
-
-    if (currentJob && servicesIndent !== null && pair.indent === servicesIndent + 2) {
-      if (value) addFailure(report, `Workflow security field is ambiguous: ${workflowLocation(path, lineNumber)}`);
-      currentService = pair.key;
-      currentServiceIndent = pair.indent;
       continue;
     }
 
