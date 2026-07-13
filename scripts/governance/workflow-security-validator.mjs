@@ -423,6 +423,11 @@ function startsFlowStyleListItem(line) {
   return /^\s*-\s*[\[{]/.test(line);
 }
 
+function startsBareFlowStyleCollectionLine(line) {
+  const trimmed = String(line ?? "").trimStart();
+  return trimmed.startsWith("{") || trimmed.startsWith("[");
+}
+
 function addUnsupportedFlowStyleFailure(report, path, lineNumber) {
   addFailure(report, `Workflow security unsupported flow-style YAML: ${workflowLocation(path, lineNumber)}`);
 }
@@ -507,6 +512,16 @@ export function scanWorkflowSecurity({
     currentServiceIndent = pair.indent;
   }
 
+  function isInsideWatchedStructure(lineIndent) {
+    return (
+      (permissionsIndent !== null && lineIndent > permissionsIndent) ||
+      (jobsIndent !== null && lineIndent > jobsIndent) ||
+      (currentJob && stepsIndent !== null && lineIndent > stepsIndent) ||
+      (currentJob && containerIndent !== null && lineIndent > containerIndent) ||
+      (currentJob && servicesIndent !== null && lineIndent > servicesIndent)
+    );
+  }
+
   for (let index = 0; index < lines.length; index += 1) {
     const lineNumber = index + 1;
     const rawLine = lines[index];
@@ -535,6 +550,11 @@ export function scanWorkflowSecurity({
     }
 
     if (currentJob && stepsIndent !== null && indent > stepsIndent && startsFlowStyleListItem(withoutComment)) {
+      addUnsupportedFlowStyleFailure(report, path, lineNumber);
+      continue;
+    }
+
+    if (isInsideWatchedStructure(indent) && startsBareFlowStyleCollectionLine(withoutComment)) {
       addUnsupportedFlowStyleFailure(report, path, lineNumber);
       continue;
     }

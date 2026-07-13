@@ -827,6 +827,33 @@ test("list item flow-style with mutable uses fails closed", () => {
   assertUnsupportedFlowStyle(result);
 });
 
+test("steps bare multiline flow-style with mutable uses fails closed", () => {
+  const result = validate(workflow(`    steps:
+      [{ uses: actions/checkout@v7 }]
+`));
+
+  assertUnsupportedFlowStyle(result);
+});
+
+test("steps bare split multiline flow-style with mutable uses fails closed", () => {
+  const result = validate(workflow(`    steps:
+      [
+        { uses: actions/checkout@v7 }
+      ]
+`));
+
+  assertUnsupportedFlowStyle(result);
+});
+
+test("steps nested bare flow-style mapping after empty sequence item fails closed", () => {
+  const result = validate(workflow(`    steps:
+      -
+        { uses: actions/checkout@v7 }
+`));
+
+  assertUnsupportedFlowStyle(result);
+});
+
 test("anchored flow-style step entry fails closed", () => {
   const result = validate(workflow(`    steps:
       - &bad { uses: actions/checkout@v7 }
@@ -881,6 +908,20 @@ jobs:
   assertUnsupportedFlowStyle(result);
 });
 
+test("permissions bare multiline flow-style fails closed", () => {
+  const result = validate(`name: Bad
+on:
+  pull_request:
+permissions:
+  { contents: write }
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+`);
+
+  assertUnsupportedFlowStyle(result);
+});
+
 test("anchored permissions fail closed", () => {
   const result = validate(`name: Bad
 on:
@@ -894,8 +935,31 @@ jobs:
   assertUnsupportedYamlNodeProperty(result);
 });
 
+test("jobs bare multiline flow-style fails closed", () => {
+  const result = validate(`name: Bad
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  { validate: { permissions: write-all } }
+`);
+
+  assertUnsupportedFlowStyle(result);
+});
+
 test("container flow-style fails closed", () => {
   const result = validate(workflow(`    container: { image: node:latest }
+    steps:
+      - run: echo ok
+`));
+
+  assertUnsupportedFlowStyle(result);
+});
+
+test("container bare multiline flow-style fails closed", () => {
+  const result = validate(workflow(`    container:
+      { image: node:latest }
     steps:
       - run: echo ok
 `));
@@ -925,6 +989,16 @@ test("verbatim tagged container fails closed", () => {
 
 test("services flow-style fails closed", () => {
   const result = validate(workflow(`    services: { postgres: { image: postgres:latest } }
+    steps:
+      - run: echo ok
+`));
+
+  assertUnsupportedFlowStyle(result);
+});
+
+test("services bare multiline flow-style fails closed", () => {
+  const result = validate(workflow(`    services:
+      { postgres: { image: postgres:latest } }
     steps:
       - run: echo ok
 `));
@@ -974,6 +1048,15 @@ test("run scalar with brackets passes", () => {
   assert.deepEqual(result.failures, []);
 });
 
+test("quoted run scalars with flow-looking text pass", () => {
+  const result = validate(workflow(`    steps:
+      - run: 'echo "[fixture]"'
+      - run: "echo {fixture}"
+`));
+
+  assert.deepEqual(result.failures, []);
+});
+
 test("GitHub expression scalar with braces passes", () => {
   const result = validate(workflow(`    steps:
       - if: \${{ github.event_name == 'pull_request' }}
@@ -1014,6 +1097,7 @@ test("unsupported-looking YAML node properties in comments pass", () => {
   const result = validate(`${workflow(`    steps:
       - run: echo ok
 `)}
+# [{ uses: actions/checkout@v7 }]
 # - &bad { uses: actions/checkout@v7 }
 `);
 
@@ -1075,6 +1159,7 @@ test("unsupported double-quoted key escape fails closed", () => {
 test("flow-looking text inside literal block scalar passes", () => {
   const result = validate(workflow(`    steps:
       - run: |
+          [{ uses: actions/checkout@v7 }]
           steps: [{ uses: actions/checkout@v7 }]
           permissions: { contents: write }
           - &bad { uses: actions/checkout@v7 }
@@ -1086,6 +1171,7 @@ test("flow-looking text inside literal block scalar passes", () => {
 test("flow-looking text inside folded block scalar passes", () => {
   const result = validate(workflow(`    steps:
       - run: >
+          { uses: actions/checkout@v7 }
           steps: [{ uses: actions/checkout@v7 }]
           container: { image: node:latest }
           *shared-step
