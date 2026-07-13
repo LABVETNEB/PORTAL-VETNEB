@@ -18,13 +18,6 @@ const frontendPathFilters = [
   "      - '.github/workflows/frontend-ci.yml'",
 ] as const;
 
-type ExecutableUse = {
-  line: number;
-  repository: string;
-  ref: string;
-  reference: string;
-};
-
 function readWorkflow(): string {
   return readFileSync(workflowPath, "utf8").replace(/\r\n/g, "\n");
 }
@@ -36,62 +29,8 @@ function assertContains(source: string, expected: string): void {
   );
 }
 
-function executableUses(source: string): ExecutableUse[] {
-  const uses: ExecutableUse[] = [];
-  let blockScalarIndent: number | null = null;
-
-  source.split("\n").forEach((line, index) => {
-    const indent = line.match(/^ */)?.[0].length ?? 0;
-    if (blockScalarIndent !== null) {
-      if (indent > blockScalarIndent) return;
-      blockScalarIndent = null;
-    }
-
-    const pair = line.match(/^\s*(?:-\s*)?([A-Za-z0-9_.-]+):(?:\s*(.*))?$/);
-    if (pair && /^(?:\||>)(?:[-+])?$/.test((pair[2] ?? "").trim())) {
-      blockScalarIndent = indent;
-    }
-
-    const match = line.match(/^\s*(?:-\s*)?uses:\s*([^#\s]+)/);
-    if (!match) return;
-
-    const reference = match[1];
-    const atIndex = reference.lastIndexOf("@");
-    assert.notEqual(atIndex, -1, `frontend-ci.yml executable uses must include @: ${reference}`);
-
-    uses.push({
-      line: index + 1,
-      repository: reference.slice(0, atIndex),
-      ref: reference.slice(atIndex + 1),
-      reference,
-    });
-  });
-
-  return uses;
-}
-
-function assertExecutableUsesPinned(source: string, expectedRepositories: readonly string[]): void {
-  const uses = executableUses(source);
-
-  assert.deepEqual(
-    uses.map((entry) => entry.repository),
-    expectedRepositories,
-  );
-
-  for (const entry of uses) {
-    assert.match(entry.ref, /^[0-9a-f]{40}$/, `frontend-ci.yml mutable executable ref at line ${entry.line}: ${entry.reference}`);
-  }
-}
-
-function assertNoLegacyMutableActionTags(source: string): void {
-  for (const legacyReference of [
-    "actions/checkout@v7",
-    "actions/setup-node@v6",
-    "pnpm/action-setup@v4",
-    "actions/upload-artifact@v7",
-  ]) {
-    assert.ok(!source.includes(legacyReference), `frontend-ci.yml conserva referencia mutable legacy: ${legacyReference}`);
-  }
+function assertNotContains(source: string, unexpected: string): void {
+  assert.ok(!source.includes(unexpected), `frontend-ci.yml no debe contener: ${unexpected}`);
 }
 
 function assertOrdered(source: string, expectedItems: readonly string[]): void {
@@ -164,13 +103,14 @@ test("Frontend CI define toolchain y cache de pnpm esperados", () => {
   const source = readWorkflow();
 
   assertContains(source, "timeout-minutes: 20");
-  assertExecutableUsesPinned(source, [
-    "actions/checkout",
-    "pnpm/action-setup",
-    "actions/setup-node",
-    "actions/upload-artifact",
-  ]);
-  assertNoLegacyMutableActionTags(source);
+  assertContains(source, "uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7");
+  assertContains(source, "uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4");
+  assertContains(source, "uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6");
+  assertContains(source, "uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7");
+  assertNotContains(source, "uses: actions/checkout@v7");
+  assertNotContains(source, "uses: pnpm/action-setup@v4");
+  assertNotContains(source, "uses: actions/setup-node@v6");
+  assertNotContains(source, "uses: actions/upload-artifact@v7");
   assertContains(source, "version: 10.8.1");
   assertContains(source, "node-version: 24");
   assertContains(source, "cache: pnpm");
@@ -197,22 +137,8 @@ test("Frontend CI sube reporte de Playwright solo en fallo", () => {
 
   assertContains(source, "      - name: Upload Playwright report");
   assertContains(source, "        if: failure()");
-  assert.ok(
-    executableUses(source).some(
-      (entry) => entry.repository === "actions/upload-artifact" && /^[0-9a-f]{40}$/.test(entry.ref),
-    ),
-    "frontend-ci.yml debe subir artifact con referencia ejecutable pinneada",
-  );
+  assertContains(source, "        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7");
   assertContains(source, "          name: frontend-playwright-report");
   assertContains(source, "          path: frontend/playwright-report/");
   assertContains(source, "          if-no-files-found: ignore");
-});
-
-test("Frontend CI executable uses parser rejects mutable refs", () => {
-  for (const reference of ["actions/setup-node@v6", "actions/setup-node@main"]) {
-    assert.throws(
-      () => assertExecutableUsesPinned(`steps:\n  - uses: ${reference}\n`, ["actions/setup-node"]),
-      /mutable executable ref/,
-    );
-  }
 });

@@ -28,6 +28,8 @@ test("classifyPath maps repository paths to governed categories", () => {
   assert.equal(classifyPath("frontend/src/example.tsx"), "frontend");
   assert.equal(classifyPath("test/unit/example.test.ts"), "tests");
   assert.equal(classifyPath(".github/workflows/pr-governance.yml"), "workflows/CI");
+  assert.equal(classifyPath("scripts/governance/quality-gate-impact-policy.mjs"), "workflows/CI");
+  assert.equal(classifyPath("scripts/governance/workflow-security-policy.mjs"), "workflows/CI");
   assert.equal(classifyPath("drizzle/0001_example.sql"), "database/migrations");
   assert.equal(classifyPath("docs/example.md"), "documentation");
   assert.equal(classifyPath("pnpm-lock.yaml"), "dependencies/lockfiles");
