@@ -307,6 +307,20 @@ test("contents write fails", () => {
   assert.ok(result.failures.some((failure) => failure.includes("forbids top-level permission contents: write")));
 });
 
+test("bare permissions entry with space before colon passes", () => {
+  const result = validate(`name: Spaced
+on:
+  pull_request:
+permissions:
+  contents : read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+`);
+
+  assert.deepEqual(result.failures, []);
+});
+
 test("write permissions for actions, pull requests and id-token fail", () => {
   const result = validate("name: Bad\non: pull_request\npermissions:\n  contents: read\n  actions: write\n  pull-requests: write\n  id-token: write\njobs:\n  validate:\n    runs-on: ubuntu-latest\n");
 
@@ -335,10 +349,27 @@ test("quoted job-level permissions fail", () => {
   assertFailureIncludes(result, "forbids unauthorized job-level permissions");
 });
 
+test("bare job-level permissions with space before colon fail", () => {
+  const result = validate(workflow(`    permissions : write-all
+    steps:
+      - run: echo ok
+`));
+
+  assertFailureIncludes(result, "forbids unauthorized job-level permissions");
+});
+
 test("mutable action tag fails", () => {
   const result = validate(validStep("actions/checkout@v7"));
 
   assert.ok(result.failures.some((failure) => failure.includes("must be pinned to a full commit SHA")));
+});
+
+test("bare mutable action with space before colon fails", () => {
+  const result = validate(workflow(`    steps:
+      - uses : actions/checkout@v7
+`));
+
+  assertFailureIncludes(result, "must be pinned to a full commit SHA");
 });
 
 test("quoted mutable action tag fails", () => {
@@ -421,6 +452,16 @@ test("quoted service latest image fails", () => {
   const result = validate(workflow(`    "services":
       "postgres":
         "image": postgres:latest
+    steps:
+      - run: echo ok
+`));
+
+  assertFailureIncludes(result, "uses forbidden latest tag");
+});
+
+test("bare container image with space before colon fails", () => {
+  const result = validate(workflow(`    container:
+      image : node:latest
     steps:
       - run: echo ok
 `));

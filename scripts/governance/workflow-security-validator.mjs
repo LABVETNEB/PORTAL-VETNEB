@@ -238,7 +238,7 @@ function parsePair(line, report, path, lineNumber) {
   const colon = line.indexOf(":", cursor);
   if (colon === -1) return null;
 
-  const key = line.slice(cursor, colon);
+  const key = line.slice(cursor, colon).trimEnd();
   if (!BARE_KEY_RE.test(key)) return null;
 
   return {
