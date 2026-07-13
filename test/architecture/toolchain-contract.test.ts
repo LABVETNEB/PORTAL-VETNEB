@@ -22,6 +22,10 @@ function assertContains(source: string, expected: string): void {
   assert.ok(source.includes(expected), `expected file to contain: ${expected}`);
 }
 
+function assertNotContains(source: string, unexpected: string): void {
+  assert.ok(!source.includes(unexpected), `expected file not to contain: ${unexpected}`);
+}
+
 function assertOrdered(source: string, expectedItems: readonly string[]): void {
   let lastIndex = -1;
 
@@ -49,10 +53,13 @@ test("Backend CI uses the pinned pnpm and Node toolchain", () => {
     workflow,
     "concurrency:\n  group: backend-ci-${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true",
   );
-  assertContains(workflow, "uses: actions/checkout@v7");
-  assertContains(workflow, "uses: pnpm/action-setup@v4");
+  assertContains(workflow, "uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7");
+  assertContains(workflow, "uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4");
+  assertContains(workflow, "uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6");
+  assertNotContains(workflow, "uses: actions/checkout@v7");
+  assertNotContains(workflow, "uses: pnpm/action-setup@v4");
+  assertNotContains(workflow, "uses: actions/setup-node@v6");
   assertContains(workflow, "version: 10.8.1");
-  assertContains(workflow, "uses: actions/setup-node@v6");
   assertContains(workflow, "node-version: 24");
   assertContains(workflow, "cache: pnpm");
   assertContains(workflow, "cache-dependency-path: pnpm-lock.yaml");
@@ -63,8 +70,8 @@ test("Backend CI installs dependencies after toolchain setup", () => {
   const workflow = readTextFile(".github", "workflows", "backend-ci.yml");
 
   assertOrdered(workflow, [
-    "      - name: Setup pnpm\n        uses: pnpm/action-setup@v4",
-    "      - name: Setup Node.js\n        uses: actions/setup-node@v6",
+    "      - name: Setup pnpm\n        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4",
+    "      - name: Setup Node.js\n        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6",
     "      - name: Install dependencies\n        run: pnpm install --frozen-lockfile",
   ]);
 });

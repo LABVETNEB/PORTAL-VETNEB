@@ -127,6 +127,17 @@ export function classifyPath(inputPath) {
   const name = basename(lower);
 
   if (lower.startsWith(".github/workflows/")) return "workflows/CI";
+  if (
+    [
+      "scripts/governance/pr-governance-validator.mjs",
+      "scripts/governance/quality-gate-impact-policy.mjs",
+      "scripts/governance/quality-gate-impact-policy.d.mts",
+      "scripts/governance/workflow-security-policy.mjs",
+      "scripts/governance/workflow-security-policy.d.mts",
+    ].includes(lower)
+  ) {
+    return "workflows/CI";
+  }
   if (lower.startsWith("frontend/")) return "frontend";
   if (lower.startsWith("server/")) return "backend";
   if (lower.startsWith("test/") || lower.includes("/test/") || lower.includes("/tests/")) return "tests";

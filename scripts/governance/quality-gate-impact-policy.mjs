@@ -605,6 +605,7 @@ export const REQUIRED_SOURCE_PATHS = deepFreeze([
   "scripts/governance/pr-governance-validator.mjs",
   "scripts/governance/quality-gate-impact-policy.mjs",
   "scripts/governance/quality-gate-impact-validator.mjs",
+  "scripts/governance/workflow-security-policy.mjs",
   "test/README.md",
   "package.json",
   "frontend/package.json",

@@ -29,6 +29,10 @@ function assertContains(source: string, expected: string): void {
   );
 }
 
+function assertNotContains(source: string, unexpected: string): void {
+  assert.ok(!source.includes(unexpected), `frontend-ci.yml no debe contener: ${unexpected}`);
+}
+
 function assertOrdered(source: string, expectedItems: readonly string[]): void {
   let lastIndex = -1;
 
@@ -99,9 +103,15 @@ test("Frontend CI define toolchain y cache de pnpm esperados", () => {
   const source = readWorkflow();
 
   assertContains(source, "timeout-minutes: 20");
-  assertContains(source, "uses: pnpm/action-setup@v4");
+  assertContains(source, "uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7");
+  assertContains(source, "uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4");
+  assertContains(source, "uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6");
+  assertContains(source, "uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7");
+  assertNotContains(source, "uses: actions/checkout@v7");
+  assertNotContains(source, "uses: pnpm/action-setup@v4");
+  assertNotContains(source, "uses: actions/setup-node@v6");
+  assertNotContains(source, "uses: actions/upload-artifact@v7");
   assertContains(source, "version: 10.8.1");
-  assertContains(source, "uses: actions/setup-node@v6");
   assertContains(source, "node-version: 24");
   assertContains(source, "cache: pnpm");
   assertContains(source, "cache-dependency-path: pnpm-lock.yaml");
@@ -127,7 +137,7 @@ test("Frontend CI sube reporte de Playwright solo en fallo", () => {
 
   assertContains(source, "      - name: Upload Playwright report");
   assertContains(source, "        if: failure()");
-  assertContains(source, "        uses: actions/upload-artifact@v7");
+  assertContains(source, "        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7");
   assertContains(source, "          name: frontend-playwright-report");
   assertContains(source, "          path: frontend/playwright-report/");
   assertContains(source, "          if-no-files-found: ignore");
