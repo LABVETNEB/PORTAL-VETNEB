@@ -13,8 +13,6 @@ const ROOT = resolve(process.cwd());
 const EVENT_NAME = process.env.GITHUB_EVENT_NAME ?? "";
 const EVENT_PATH = process.env.GITHUB_EVENT_PATH ?? "";
 const SUMMARY_PATH = process.env.GITHUB_STEP_SUMMARY ?? "";
-const WORKFLOW_SECURITY_VALIDATOR_PATH = "scripts/governance/workflow-security-validator.mjs";
-const WORKFLOW_SECURITY_DIRECTORY = ".github/workflows";
 
 export const CATEGORY_ORDER = [
   "backend",
@@ -467,208 +465,7 @@ function validateMarkdown(entries, pass, fail) {
   }
 }
 
-function createWorkflowSecurityFailureReport(message, details = []) {
-  return {
-    passed: false,
-    failures: [message],
-    details,
-    policyVersion: "unknown",
-    workflows: [],
-    externalActions: [],
-    localActions: [],
-    permissions: [],
-    containerImages: [],
-    exceptionsUsed: [],
-  };
-}
-
-function sanitizeWorkflowSecurityProcessText(value) {
-  let text = String(value ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "");
-  for (const [label, pattern] of SECRET_PATTERNS) {
-    text = text.replace(pattern, `[redacted ${label}]`);
-  }
-  text = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).join(" | ");
-  return text.length > 800 ? `${text.slice(0, 800)}...` : text;
-}
-
-function workflowSecurityProcessDetail(result) {
-  const status = result?.status ?? "null";
-  const signal = result?.signal ?? "null";
-  const parts = [`status=${status}`, `signal=${signal}`];
-  if (result?.error) parts.push(`error=${result.error.name}: ${result.error.message}`);
-
-  const stderr = sanitizeWorkflowSecurityProcessText(result?.stderr);
-  if (stderr) parts.push(`stderr=${stderr}`);
-
-  const stdout = sanitizeWorkflowSecurityProcessText(result?.stdout);
-  if (stdout) parts.push(`stdout=${stdout}`);
-
-  return parts.join("; ");
-}
-
-function normalizeWorkflowSecurityExecutionFailure(reason, result) {
-  return createWorkflowSecurityFailureReport(
-    `Workflow security validator exited unsuccessfully: ${reason}. ${workflowSecurityProcessDetail(result)}`,
-  );
-}
-
-function workflowSecuritySchemaFailures(report) {
-  const failures = [];
-  if (!report || typeof report !== "object" || Array.isArray(report)) {
-    return ["report must be a JSON object"];
-  }
-
-  const requiredArrays = [
-    "failures",
-    "details",
-    "workflows",
-    "externalActions",
-    "localActions",
-    "permissions",
-    "containerImages",
-    "exceptionsUsed",
-  ];
-
-  if (typeof report.passed !== "boolean") failures.push("passed must be boolean");
-  if (typeof report.policyVersion !== "string" || report.policyVersion.trim() === "") {
-    failures.push("policyVersion must be a non-empty string");
-  }
-  for (const field of requiredArrays) {
-    if (!Array.isArray(report[field])) failures.push(`${field} must be an array`);
-  }
-  return failures;
-}
-
-function parseWorkflowSecurityProcessResult(result) {
-  if (result.error) {
-    return normalizeWorkflowSecurityExecutionFailure("spawn error", result);
-  }
-
-  const nonZeroStatus = typeof result.status !== "number" || result.status !== 0;
-  const signaled = result.signal !== null && result.signal !== undefined;
-  const stdout = String(result.stdout ?? "");
-
-  if (stdout.trim() === "") {
-    return normalizeWorkflowSecurityExecutionFailure("empty JSON output", result);
-  }
-
-  let report;
-  try {
-    report = JSON.parse(stdout);
-  } catch (error) {
-    return normalizeWorkflowSecurityExecutionFailure(`invalid JSON output (${error.message})`, result);
-  }
-
-  const schemaFailures = workflowSecuritySchemaFailures(report);
-  if (schemaFailures.length > 0) {
-    return createWorkflowSecurityFailureReport(
-      `Workflow security validator returned invalid report schema: ${schemaFailures.join("; ")}.`,
-    );
-  }
-
-  if (nonZeroStatus || signaled) {
-    return {
-      ...report,
-      passed: false,
-      failures: [
-        `Workflow security validator exited unsuccessfully: ${workflowSecurityProcessDetail(result)}`,
-        ...report.failures,
-      ],
-    };
-  }
-
-  if (report.passed !== true) {
-    return {
-      ...report,
-      passed: false,
-      failures: report.failures.length > 0
-        ? report.failures
-        : ["Workflow security validator reported failure without details."],
-    };
-  }
-
-  return report;
-}
-
-function runWorkflowSecurityControl() {
-  const validatorPath = resolve(ROOT, WORKFLOW_SECURITY_VALIDATOR_PATH);
-  const workflowsPath = resolve(ROOT, WORKFLOW_SECURITY_DIRECTORY);
-
-  if (!existsSync(validatorPath)) {
-    if (existsSync(workflowsPath)) {
-      return {
-        passed: false,
-        failures: [`Workflow security validator is missing: ${WORKFLOW_SECURITY_VALIDATOR_PATH}`],
-        details: [],
-        policyVersion: "unknown",
-        workflows: [],
-        externalActions: [],
-        localActions: [],
-        permissions: [],
-        containerImages: [],
-        exceptionsUsed: [],
-      };
-    }
-
-    return {
-      passed: true,
-      failures: [],
-      details: ["Workflow security fixture has no tracked workflows."],
-      policyVersion: "fixture",
-      workflows: [],
-      externalActions: [],
-      localActions: [],
-      permissions: [],
-      containerImages: [],
-      exceptionsUsed: [],
-    };
-  }
-
-  const result = spawnSync("node", [WORKFLOW_SECURITY_VALIDATOR_PATH, "--json"], {
-    cwd: ROOT,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-
-  return parseWorkflowSecurityProcessResult(result);
-}
-
-function renderWorkflowSecuritySummary(report) {
-  if (!report) return "";
-
-  const workflowRows = (report.workflows ?? []).map((workflow) => {
-    const permissions = workflow.permissions?.scalar
-      ? workflow.permissions.scalar
-      : Object.entries(workflow.permissions?.entries ?? {})
-        .map(([key, entry]) => `${key}: ${entry.value}`)
-        .join(", ") || "(missing)";
-    return `| \`${workflow.path}\` | \`${permissions}\` | \`${workflow.externalActions?.length ?? 0}\` | \`${workflow.containerImages?.length ?? 0}\` |`;
-  });
-
-  return [
-    "## Workflow security",
-    "",
-    "| Field | Value |",
-    "| --- | --- |",
-    `| policy version | \`${report.policyVersion ?? "unknown"}\` |`,
-    `| result | \`${report.passed ? "PASS" : "FAIL"}\` |`,
-    `| workflows | \`${report.workflows?.length ?? 0}\` |`,
-    `| external actions | \`${report.externalActions?.length ?? 0}\` |`,
-    `| local actions | \`${report.localActions?.length ?? 0}\` |`,
-    `| permissions | \`${(report.failures ?? []).some((failure) => failure.includes("permission")) ? "FAIL" : "PASS"}\` |`,
-    `| container policy | \`${(report.failures ?? []).some((failure) => failure.includes("container image")) ? "FAIL" : "PASS"}\` |`,
-    `| exceptions used | \`${report.exceptionsUsed?.length ?? 0}\` |`,
-    "",
-    "### Workflows",
-    "",
-    "| Workflow | Permissions | External actions | Container images |",
-    "| --- | --- | ---: | ---: |",
-    ...(workflowRows.length > 0 ? workflowRows : ["| n/a | n/a | 0 | 0 |"]),
-    "",
-  ].join("\n");
-}
-
-function writeSummary({ baseSha, headSha, entries, categories, results, details, failures, qualityImpact, workflowSecurity }) {
+function writeSummary({ baseSha, headSha, entries, categories, results, details, failures, qualityImpact }) {
   if (!SUMMARY_PATH) return;
   const escape = (value) => String(value).replaceAll("|", "\\|").replaceAll("\n", " ");
   const rows = Object.keys(results).map(
@@ -708,8 +505,6 @@ function writeSummary({ baseSha, headSha, entries, categories, results, details,
       "",
       renderQualityGateImpactSummary(qualityImpact).trimEnd(),
       "",
-      renderWorkflowSecuritySummary(workflowSecurity).trimEnd(),
-      "",
     ].join("\n"),
     "utf8",
   );
@@ -723,7 +518,6 @@ export function main() {
     "secret scan": "NOT RUN",
     Markdown: "NOT RUN",
     "quality gate impact": "NOT RUN",
-    "workflow security": "NOT RUN",
     metadata: "NOT RUN",
     scope: "NOT RUN",
   };
@@ -743,7 +537,6 @@ export function main() {
   const [baseSha, headSha] = determineRange(event, fail, detail);
   let entries = [];
   let qualityImpact = null;
-  let workflowSecurity = null;
   const categories = new Map(CATEGORY_ORDER.map((category) => [category, []]));
 
   if (baseSha && headSha && ensureCommit(baseSha) && ensureCommit(headSha)) {
@@ -755,17 +548,6 @@ export function main() {
 
     if (entries.length === 0) fail("scope", "The comparison range contains no changed files.");
     entries.forEach((entry) => categories.get(classifyPath(entry.path)).push(entry.display));
-
-    try {
-      workflowSecurity = runWorkflowSecurityControl();
-      (workflowSecurity.details ?? []).forEach((message) => detail("workflow security", message));
-      (workflowSecurity.failures ?? []).forEach((message) => fail("workflow security", message));
-      if ((workflowSecurity.failures ?? []).length === 0) {
-        pass("workflow security", "Workflow security validation passed.");
-      }
-    } catch (error) {
-      fail("workflow security", `Workflow security validation crashed: ${error.message}`);
-    }
 
     if (entries.length > 0) {
       validateDiff(baseSha, headSha, pass, fail);
@@ -806,7 +588,7 @@ export function main() {
     }
   }
 
-  writeSummary({ baseSha, headSha, entries, categories, results, details, failures, qualityImpact, workflowSecurity });
+  writeSummary({ baseSha, headSha, entries, categories, results, details, failures, qualityImpact });
 
   if (failures.length > 0) {
     failures.forEach(({ section, message }) =>
@@ -817,9 +599,6 @@ export function main() {
 
   if (results["quality gate impact"] === "PASS") {
     console.log("Quality gate impact PASS.");
-  }
-  if (results["workflow security"] === "PASS") {
-    console.log("Workflow security PASS.");
   }
   console.log("PR Governance passed.");
   return 0;

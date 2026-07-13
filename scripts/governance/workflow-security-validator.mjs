@@ -15,6 +15,28 @@ import {
 const SHA_RE = /^[0-9a-f]{40}$/;
 const DIGEST_RE = /@sha256:[0-9a-f]{64}$/;
 const SCALAR_BLOCK_RE = /^(?:\||>)(?:[-+])?$/;
+const BARE_KEY_RE = /^[A-Za-z0-9_.-]+$/;
+const HEX_RE = /^[0-9a-fA-F]+$/;
+const DOUBLE_QUOTED_KEY_ESCAPES = new Map([
+  ["0", "\u0000"],
+  ["a", "\u0007"],
+  ["b", "\b"],
+  ["t", "\t"],
+  ["\t", "\t"],
+  ["n", "\n"],
+  ["v", "\u000b"],
+  ["f", "\f"],
+  ["r", "\r"],
+  ["e", "\u001b"],
+  ["\"", "\""],
+  ["/", "/"],
+  ["\\", "\\"],
+  ["N", "\u0085"],
+  ["_", "\u00a0"],
+  ["L", "\u2028"],
+  ["P", "\u2029"],
+]);
+const WATCHED_QUOTED_KEYS = new Set(["container", "image", "jobs", "permissions", "services", "steps", "uses"]);
 
 function normalizePath(value) {
   return String(value).replaceAll("\\", "/");
@@ -75,13 +97,154 @@ function unquote(value) {
   return trimmed;
 }
 
-function parsePair(line) {
-  const match = line.match(/^(\s*)(?:-\s*)?([A-Za-z0-9_.-]+):(?:\s*(.*))?$/);
-  if (!match) return null;
+function addQuotedKeyFailure(report, path, lineNumber, reason) {
+  addFailure(report, `Workflow security ${reason}: ${workflowLocation(path, lineNumber)}`);
+}
+
+function decodeHexKeyEscape(line, escapeStart, hexLength, report, path, lineNumber) {
+  const hexStart = escapeStart + 1;
+  const hex = line.slice(hexStart, hexStart + hexLength);
+  if (hex.length !== hexLength || !HEX_RE.test(hex)) {
+    addQuotedKeyFailure(report, path, lineNumber, "unsupported double-quoted key escape");
+    return null;
+  }
+
+  const codePoint = Number.parseInt(hex, 16);
+  if (codePoint > 0x10ffff) {
+    addQuotedKeyFailure(report, path, lineNumber, "unsupported double-quoted key escape");
+    return null;
+  }
+
   return {
-    indent: match[1].length,
-    key: match[2],
-    value: (match[3] ?? "").trim(),
+    value: String.fromCodePoint(codePoint),
+    cursor: hexStart + hexLength,
+  };
+}
+
+function parseSingleQuotedKey(line, cursor, report, path, lineNumber) {
+  let key = "";
+  cursor += 1;
+
+  while (cursor < line.length) {
+    const char = line[cursor];
+    if (char === "'") {
+      if (line[cursor + 1] === "'") {
+        key += "'";
+        cursor += 2;
+        continue;
+      }
+      return { key, cursor: cursor + 1 };
+    }
+
+    key += char;
+    cursor += 1;
+  }
+
+  addQuotedKeyFailure(report, path, lineNumber, "malformed quoted key");
+  return null;
+}
+
+function parseDoubleQuotedKey(line, cursor, report, path, lineNumber) {
+  let key = "";
+  cursor += 1;
+
+  while (cursor < line.length) {
+    const char = line[cursor];
+    if (char === "\"") return { key, cursor: cursor + 1 };
+
+    if (char !== "\\") {
+      key += char;
+      cursor += 1;
+      continue;
+    }
+
+    const escapeStart = cursor + 1;
+    const escaped = line[escapeStart];
+    if (escaped === undefined) {
+      addQuotedKeyFailure(report, path, lineNumber, "unsupported double-quoted key escape");
+      return null;
+    }
+
+    if (escaped === "x" || escaped === "u" || escaped === "U") {
+      const decoded = decodeHexKeyEscape(
+        line,
+        escapeStart,
+        escaped === "x" ? 2 : escaped === "u" ? 4 : 8,
+        report,
+        path,
+        lineNumber,
+      );
+      if (!decoded) return null;
+      key += decoded.value;
+      cursor = decoded.cursor;
+      continue;
+    }
+
+    const replacement = DOUBLE_QUOTED_KEY_ESCAPES.get(escaped);
+    if (replacement === undefined) {
+      addQuotedKeyFailure(report, path, lineNumber, "unsupported double-quoted key escape");
+      return null;
+    }
+
+    key += replacement;
+    cursor += 2;
+  }
+
+  addQuotedKeyFailure(report, path, lineNumber, "malformed quoted key");
+  return null;
+}
+
+function parseQuotedKey(line, cursor, report, path, lineNumber) {
+  return line[cursor] === "'"
+    ? parseSingleQuotedKey(line, cursor, report, path, lineNumber)
+    : parseDoubleQuotedKey(line, cursor, report, path, lineNumber);
+}
+
+function parsePair(line, report, path, lineNumber) {
+  const indent = line.match(/^ */)?.[0].length ?? 0;
+  let cursor = indent;
+
+  if (line[cursor] === "-") {
+    cursor += 1;
+    while (line[cursor] === " ") cursor += 1;
+  }
+
+  if (line[cursor] === "\"" || line[cursor] === "'") {
+    const parsed = parseQuotedKey(line, cursor, report, path, lineNumber);
+    if (!parsed) return null;
+    const trailing = line.slice(parsed.cursor);
+    const trimmedTrailing = trailing.trimStart();
+
+    if (parsed.key.length === 0) {
+      if (!trimmedTrailing.startsWith(":") && !trimmedTrailing.includes(":")) return null;
+      addQuotedKeyFailure(report, path, lineNumber, "forbids empty quoted key");
+      return null;
+    }
+
+    if (line[parsed.cursor] !== ":") {
+      if (trimmedTrailing.includes(":") || WATCHED_QUOTED_KEYS.has(parsed.key)) {
+        addQuotedKeyFailure(report, path, lineNumber, "malformed quoted key");
+      }
+      return null;
+    }
+
+    return {
+      indent,
+      key: parsed.key,
+      value: line.slice(parsed.cursor + 1).trim(),
+    };
+  }
+
+  const colon = line.indexOf(":", cursor);
+  if (colon === -1) return null;
+
+  const key = line.slice(cursor, colon);
+  if (!BARE_KEY_RE.test(key)) return null;
+
+  return {
+    indent,
+    key,
+    value: line.slice(colon + 1).trim(),
   };
 }
 
@@ -260,7 +423,7 @@ export function scanWorkflowSecurity({
       continue;
     }
 
-    const pair = parsePair(withoutComment);
+    const pair = parsePair(withoutComment, report, path, lineNumber);
     if (!pair) continue;
 
     const value = unquote(pair.value);

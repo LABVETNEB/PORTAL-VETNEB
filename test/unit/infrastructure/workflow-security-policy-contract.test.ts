@@ -57,6 +57,13 @@ function assertUnsupportedFlowStyle(result: ReturnType<typeof validate>): void {
   );
 }
 
+function assertFailureIncludes(result: ReturnType<typeof validate>, expected: string): void {
+  assert.ok(
+    result.failures.some((failure) => failure.includes(expected)),
+    `expected failure containing "${expected}", got: ${result.failures.join("; ")}`,
+  );
+}
+
 test("workflow security policy exposes immutable QGA-4 contract", () => {
   assert.equal(POLICY_VERSION, "QGA-4.1");
   assert.deepEqual(
@@ -119,6 +126,22 @@ test("approved external action pinned to full SHA passes", () => {
   assert.equal(isPinnedExternalActionReference(`actions/checkout@${sha}`), true);
 });
 
+test("quoted approved external action pinned to full SHA passes", () => {
+  const result = validate(workflow(`    steps:
+      - "uses": actions/checkout@${sha}
+`));
+
+  assert.deepEqual(result.failures, []);
+});
+
+test("single-quoted approved external action pinned to full SHA passes", () => {
+  const result = validate(workflow(`    steps:
+      - 'uses': actions/setup-node@${sha}
+`));
+
+  assert.deepEqual(result.failures, []);
+});
+
 test("approved reusable workflow pinned to full SHA passes", () => {
   const result = validate(validStep(`actions/checkout/.github/workflows/reusable.yml@${sha}`));
 
@@ -146,6 +169,29 @@ jobs:
     services:
       postgres:
         image: postgres:16
+    steps:
+      - run: echo ok
+`,
+    ".github/workflows/backend-ci.yml",
+  );
+
+  assert.deepEqual(result.failures, []);
+  assert.equal(result.exceptionsUsed.length, 1);
+});
+
+test("quoted postgres service image passes through the exact exception", () => {
+  const result = validate(
+    `name: Backend
+on:
+  pull_request:
+"permissions":
+  "contents": read
+"jobs":
+  "validate-backend":
+    runs-on: ubuntu-latest
+    "services":
+      "postgres":
+        "image": postgres:16
     steps:
       - run: echo ok
 `,
@@ -193,6 +239,17 @@ test("permissions inside a run block is ignored", () => {
   assert.deepEqual(result.failures, []);
 });
 
+test("quoted watched fields inside a run block are ignored", () => {
+  const result = validate(workflow(`    steps:
+      - name: Script
+        run: |
+          "uses": actions/checkout@v7
+          "permissions": write-all
+`));
+
+  assert.deepEqual(result.failures, []);
+});
+
 test("CRLF and LF workflows validate equivalently", () => {
   const lf = validStep(`actions/checkout@${sha}`);
   const crlf = lf.replace(/\n/g, "\r\n");
@@ -217,6 +274,19 @@ test("write-all scalar permissions fail", () => {
   const result = validate("name: Bad\non: pull_request\npermissions: write-all\njobs:\n  validate:\n    runs-on: ubuntu-latest\n");
 
   assert.ok(result.failures.some((failure) => failure.includes('forbids scalar permissions value "write-all"')));
+});
+
+test("quoted write-all scalar permissions fail", () => {
+  const result = validate(`name: Bad
+on:
+  pull_request:
+"permissions": write-all
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+`);
+
+  assertFailureIncludes(result, 'forbids scalar permissions value "write-all"');
 });
 
 test("read-all scalar permissions fail", () => {
@@ -255,16 +325,42 @@ test("job-level permissions fail", () => {
   assert.ok(result.failures.some((failure) => failure.includes("forbids unauthorized job-level permissions")));
 });
 
+test("quoted job-level permissions fail", () => {
+  const result = validate(workflow(`    "permissions":
+      contents: read
+    steps:
+      - run: echo ok
+`));
+
+  assertFailureIncludes(result, "forbids unauthorized job-level permissions");
+});
+
 test("mutable action tag fails", () => {
   const result = validate(validStep("actions/checkout@v7"));
 
   assert.ok(result.failures.some((failure) => failure.includes("must be pinned to a full commit SHA")));
 });
 
+test("quoted mutable action tag fails", () => {
+  const result = validate(workflow(`    steps:
+      - "uses": actions/checkout@v7
+`));
+
+  assertFailureIncludes(result, "must be pinned to a full commit SHA");
+});
+
 test("mutable action branch fails", () => {
   const result = validate(validStep("actions/setup-node@main"));
 
   assert.ok(result.failures.some((failure) => failure.includes("must be pinned to a full commit SHA")));
+});
+
+test("single-quoted mutable action branch fails", () => {
+  const result = validate(workflow(`    steps:
+      - 'uses': actions/setup-node@main
+`));
+
+  assertFailureIncludes(result, "must be pinned to a full commit SHA");
 });
 
 test("short SHA action ref fails", () => {
@@ -309,6 +405,27 @@ test("latest container image fails", () => {
 `));
 
   assert.ok(result.failures.some((failure) => failure.includes("uses forbidden latest tag")));
+});
+
+test("quoted container latest image fails", () => {
+  const result = validate(workflow(`    "container":
+      "image": node:latest
+    steps:
+      - run: echo ok
+`));
+
+  assertFailureIncludes(result, "uses forbidden latest tag");
+});
+
+test("quoted service latest image fails", () => {
+  const result = validate(workflow(`    "services":
+      "postgres":
+        "image": postgres:latest
+    steps:
+      - run: echo ok
+`));
+
+  assertFailureIncludes(result, "uses forbidden latest tag");
 });
 
 test("mutable container image without exception fails", () => {
@@ -369,6 +486,13 @@ test("ambiguous watched field fails closed", () => {
 
 test("steps inline flow-style with mutable uses fails closed", () => {
   const result = validate(workflow(`    steps: [{ uses: actions/checkout@v7 }]
+`));
+
+  assertUnsupportedFlowStyle(result);
+});
+
+test("quoted steps inline flow-style with mutable uses fails closed", () => {
+  const result = validate(workflow(`    "steps": [{ "uses": actions/checkout@v7 }]
 `));
 
   assertUnsupportedFlowStyle(result);
@@ -437,6 +561,59 @@ test("quoted scalar with braces passes", () => {
 `));
 
   assert.deepEqual(result.failures, []);
+});
+
+test("quoted scalars that look like watched fields pass", () => {
+  const result = validate(workflow(`    steps:
+      - name: "uses: actions/checkout@v7"
+        run: echo '"permissions": write-all'
+`));
+
+  assert.deepEqual(result.failures, []);
+});
+
+test("quoted job name passes", () => {
+  const result = validate(`name: Quoted job
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  "validate":
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@${sha}
+`);
+
+  assert.deepEqual(result.failures, []);
+});
+
+test("malformed quoted key fails closed with workflow location", () => {
+  const result = validate(workflow(`    steps:
+      - "uses: actions/checkout@v7
+`));
+
+  assertFailureIncludes(result, "malformed quoted key");
+  assert.ok(
+    result.failures.some((failure) => /\.github\/workflows\/fixture\.yml:\d+/.test(failure)),
+    `expected workflow location, got: ${result.failures.join("; ")}`,
+  );
+});
+
+test("quoted key trailing garbage fails closed", () => {
+  const result = validate(workflow(`    steps:
+      - "uses" garbage: actions/checkout@v7
+`));
+
+  assertFailureIncludes(result, "malformed quoted key");
+});
+
+test("unsupported double-quoted key escape fails closed", () => {
+  const result = validate(workflow(`    steps:
+      - "u\\qses": actions/checkout@${sha}
+`));
+
+  assertFailureIncludes(result, "unsupported double-quoted key escape");
 });
 
 test("flow-looking text inside literal block scalar passes", () => {
