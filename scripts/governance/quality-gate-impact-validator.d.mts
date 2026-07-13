@@ -3,14 +3,27 @@ import type { ImpactRule, QualityGate, QualityGateCommand, TestTaxonomySuite } f
 export interface ChangedFileEntry {
   status: string;
   path: string;
+  oldPath?: string;
+  newPath?: string;
   display: string;
+}
+
+export interface ChangedPathRoute {
+  role: "path" | "old" | "new";
+  path: string;
+  rule: ImpactRule | null;
 }
 
 export interface ChangedPathImpact {
   status: string;
   path: string;
+  oldPath?: string;
+  newPath?: string;
   display: string;
   rule: ImpactRule | null;
+  rules: ImpactRule[];
+  routes: ChangedPathRoute[];
+  impacts: string[];
   gates: QualityGate[];
   suites: Array<TestTaxonomySuite | { id: string }>;
 }
@@ -21,6 +34,7 @@ export interface QualityGateImpactReport {
   details: string[];
   policyVersion: string;
   changedPaths: ChangedPathImpact[];
+  impactedImpacts: string[];
   impactedGates: QualityGate[];
   impactedSuites: Array<TestTaxonomySuite | { id: string }>;
   scriptsPassed: boolean;
@@ -83,6 +97,7 @@ export function evaluateChangedPathImpact(input?: {
   passed: boolean;
   failures: string[];
   changedPaths: ChangedPathImpact[];
+  impactedImpacts: string[];
   impactedGates: QualityGate[];
   impactedSuites: Array<TestTaxonomySuite | { id: string }>;
 };

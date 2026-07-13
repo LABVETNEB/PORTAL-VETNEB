@@ -111,6 +111,31 @@ Revert fixture.
 `;
 }
 
+function repositoryConfigurationBody(): string {
+  return `## Summary
+Repository configuration routing fixture.
+
+## Scope
+- [ ] Backend runtime
+- [ ] Frontend runtime
+- [ ] Tests
+- [ ] Workflows/CI
+- [ ] Migrations/Schema
+- [ ] Docs
+- [ ] Dependencies
+- [ ] Scripts/Tooling
+- [x] Repository configuration
+- [ ] Other
+- [ ] Mixed-Scope exception
+
+## Validation
+- Integration fixture.
+
+## Rollback
+Revert fixture.
+`;
+}
+
 function otherScopeBody(): string {
   return `## Summary
 Quality impact failure fixture.
@@ -174,6 +199,20 @@ test("PR governance invokes quality impact control and passes a valid scripts di
     assert.match(result.stdout, /PR Governance passed\./);
     assert.match(summary, /## Quality gate impact/);
     assert.match(summary, /governance-scripts/);
+  });
+});
+
+test("PR governance invokes quality impact control and passes a valid repository config diff", () => {
+  withTempRepository(({ root, baseSha }) => {
+    const headSha = commitFile(root, ".gitignore", "node_modules/\n");
+    const { eventPath, summaryPath } = writeEvent(root, baseSha, headSha, repositoryConfigurationBody());
+    const result = runValidator(root, eventPath, summaryPath);
+    const summary = readFileSync(summaryPath, "utf8");
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Quality gate impact PASS\./);
+    assert.match(result.stdout, /PR Governance passed\./);
+    assert.match(summary, /repo-config-gitignore/);
   });
 });
 

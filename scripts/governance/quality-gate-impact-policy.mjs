@@ -354,6 +354,9 @@ export const TEST_TAXONOMY = deepFreeze([
   },
 ]);
 
+const BACKEND_SUITE_IDS = TEST_TAXONOMY.filter((suite) => suite.gate === "backend-ci").map((suite) => suite.id);
+const FRONTEND_SUITE_IDS = TEST_TAXONOMY.filter((suite) => suite.gate === "frontend-ci").map((suite) => suite.id);
+
 export const IMPACT_RULES = deepFreeze([
   {
     id: "test-readme-taxonomy",
@@ -377,12 +380,84 @@ export const IMPACT_RULES = deepFreeze([
     description: "Playwright tests and fixtures affect frontend browser validation.",
   },
   {
+    id: "frontend-ci-workflow",
+    matcher: { type: "exact", path: ".github/workflows/frontend-ci.yml" },
+    impacts: ["workflow-policy", "ci-routing", "frontend-ci-routing"],
+    gates: ["pr-governance", "backend-ci", "frontend-ci", "manual-review"],
+    suiteIds: ["backend-tests", ...FRONTEND_SUITE_IDS],
+    description: "Frontend CI workflow changes affect frontend validation routing and required governance summaries.",
+  },
+  {
+    id: "backend-ci-workflow",
+    matcher: { type: "exact", path: ".github/workflows/backend-ci.yml" },
+    impacts: ["workflow-policy", "ci-routing", "backend-ci-routing"],
+    gates: ["pr-governance", "backend-ci", "manual-review"],
+    suiteIds: BACKEND_SUITE_IDS,
+    description: "Backend CI workflow changes affect backend validation routing and required governance summaries.",
+  },
+  {
+    id: "pr-governance-workflow",
+    matcher: { type: "exact", path: ".github/workflows/pr-governance.yml" },
+    impacts: ["workflow-policy", "required-pr-governance"],
+    gates: ["pr-governance", "manual-review"],
+    suiteIds: [],
+    description: "Required PR governance workflow changes require governance validation and owner review.",
+  },
+  {
     id: "github-workflows",
     matcher: { type: "prefix", path: ".github/workflows/" },
     impacts: ["workflow-policy", "ci-routing"],
     gates: ["pr-governance", "backend-ci", "manual-review"],
     suiteIds: ["backend-tests"],
     description: "Workflow changes affect CI routing and required-check architecture.",
+  },
+  {
+    id: "repo-config-gitignore",
+    matcher: { type: "exact", path: ".gitignore" },
+    impacts: ["repository-configuration"],
+    gates: ["pr-governance", "manual-review"],
+    suiteIds: [],
+    description: "Git ignore rules affect repository configuration and require governance review.",
+  },
+  {
+    id: "repo-config-gitattributes",
+    matcher: { type: "exact", path: ".gitattributes" },
+    impacts: ["repository-configuration"],
+    gates: ["pr-governance", "manual-review"],
+    suiteIds: [],
+    description: "Git attributes affect repository configuration and require governance review.",
+  },
+  {
+    id: "repo-config-npmrc",
+    matcher: { type: "exact", path: ".npmrc" },
+    impacts: ["repository-configuration", "package-tooling"],
+    gates: ["pr-governance", "manual-review"],
+    suiteIds: [],
+    description: "Root npm configuration affects package tooling policy and requires governance review.",
+  },
+  {
+    id: "repo-config-pnpmrc",
+    matcher: { type: "exact", path: ".pnpmrc" },
+    impacts: ["repository-configuration", "package-tooling"],
+    gates: ["pr-governance", "manual-review"],
+    suiteIds: [],
+    description: "Root pnpm configuration affects package tooling policy and requires governance review.",
+  },
+  {
+    id: "repo-config-cursorignore",
+    matcher: { type: "exact", path: ".cursorignore" },
+    impacts: ["repository-configuration", "agent-tooling"],
+    gates: ["pr-governance", "manual-review"],
+    suiteIds: [],
+    description: "Cursor ignore rules affect repository agent configuration and require governance review.",
+  },
+  {
+    id: "repo-config-vscode",
+    matcher: { type: "prefix", path: ".vscode/" },
+    impacts: ["repository-configuration", "editor-tooling"],
+    gates: ["pr-governance", "manual-review"],
+    suiteIds: [],
+    description: "VS Code workspace settings affect repository editor configuration and require governance review.",
   },
   {
     id: "root-package",

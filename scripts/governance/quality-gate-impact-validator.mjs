@@ -38,6 +38,10 @@ function formatList(values) {
   return values.length > 0 ? values.join(", ") : "(none)";
 }
 
+function uniqueById(values) {
+  return [...new Map(values.map((value) => [value.id, value])).values()];
+}
+
 function commandText(command) {
   return command.command;
 }
@@ -68,6 +72,26 @@ export function findImpactRuleForPath(inputPath, rules = IMPACT_RULES) {
   }
 
   return null;
+}
+
+function impactPathsForEntry(entry) {
+  const status = String(entry.status ?? "");
+  const paths = [];
+  const push = (role, value) => {
+    if (!value) return;
+    const path = normalizePath(value);
+    if (!paths.some((candidate) => candidate.path === path)) paths.push({ role, path });
+  };
+
+  if (status.startsWith("R")) {
+    push("old", entry.oldPath);
+    push("new", entry.newPath ?? entry.path);
+  } else {
+    push("path", entry.path);
+  }
+
+  if (paths.length === 0) push("path", entry.path);
+  return paths;
 }
 
 export function validateImpactPolicy({
@@ -284,39 +308,68 @@ export function evaluateChangedPathImpact({
   const changedPaths = [];
   const impactedGateIds = new Set();
   const impactedSuiteIds = new Set();
+  const impactedImpactIds = new Set();
 
   for (const entry of entries ?? []) {
     const path = normalizePath(entry.path);
-    const rule = findImpactRuleForPath(path, rules);
-    const gatesForPath = [];
-    const suitesForPath = [];
+    const oldPath = entry.oldPath ? normalizePath(entry.oldPath) : undefined;
+    const newPath = entry.newPath ? normalizePath(entry.newPath) : undefined;
+    const impactPaths = impactPathsForEntry({ ...entry, path, oldPath, newPath });
+    const routes = [];
+    const rulesForPath = [];
+    const impactsForPath = new Set();
+    const gateIdsForPath = new Set();
+    const suiteIdsForPath = new Set();
 
-    if (!rule) {
-      failures.push(`Quality gate impact policy has no route for changed path: ${path}`);
-      changedPaths.push({ ...entry, path, rule: null, gates: [], suites: [] });
-      continue;
+    for (const impactPath of impactPaths) {
+      const rule = findImpactRuleForPath(impactPath.path, rules);
+      routes.push({ ...impactPath, rule });
+
+      if (!rule) {
+        failures.push(`Quality gate impact policy has no route for changed path: ${impactPath.path}`);
+        continue;
+      }
+
+      rulesForPath.push(rule);
+      for (const impact of rule.impacts ?? []) {
+        impactsForPath.add(impact);
+        impactedImpactIds.add(impact);
+      }
+      for (const gateId of rule.gates) gateIdsForPath.add(gateId);
+      for (const suiteId of rule.suiteIds ?? []) suiteIdsForPath.add(suiteId);
     }
 
     if (String(entry.status ?? "").startsWith("D") && requiredSourcePaths.includes(path)) {
       failures.push(`Quality gate impact policy cannot delete required source: ${path}`);
     }
 
-    for (const gateId of rule.gates) {
+    for (const gateId of gateIdsForPath) {
       impactedGateIds.add(gateId);
-      gatesForPath.push(gateMap.get(gateId) ?? { id: gateId, execution: "unknown", required: false });
     }
-    for (const suiteId of rule.suiteIds ?? []) {
+    for (const suiteId of suiteIdsForPath) {
       impactedSuiteIds.add(suiteId);
-      suitesForPath.push(suiteMap.get(suiteId) ?? { id: suiteId });
     }
 
-    changedPaths.push({ ...entry, path, rule, gates: gatesForPath, suites: suitesForPath });
+    const routedRules = uniqueById(rulesForPath);
+    changedPaths.push({
+      ...entry,
+      path,
+      oldPath,
+      newPath,
+      rule: routedRules[0] ?? null,
+      rules: routedRules,
+      routes,
+      impacts: [...impactsForPath],
+      gates: [...gateIdsForPath].map((id) => gateMap.get(id) ?? { id, execution: "unknown", required: false }),
+      suites: [...suiteIdsForPath].map((id) => suiteMap.get(id) ?? { id }),
+    });
   }
 
   return {
     passed: failures.length === 0,
     failures,
     changedPaths,
+    impactedImpacts: [...impactedImpactIds],
     impactedGates: [...impactedGateIds].map((id) => gateMap.get(id) ?? { id, execution: "unknown", required: false }),
     impactedSuites: [...impactedSuiteIds].map((id) => suiteMap.get(id) ?? { id }),
   };
@@ -360,6 +413,7 @@ export function evaluateQualityGateImpact({
     details,
     policyVersion: POLICY_VERSION,
     changedPaths: impact.changedPaths,
+    impactedImpacts: impact.impactedImpacts,
     impactedGates: impact.impactedGates,
     impactedSuites: impact.impactedSuites,
     scriptsPassed: commands.passed,
@@ -398,6 +452,7 @@ export function validateQualityGateImpact({ entries, rootDir = process.cwd() } =
       details: [],
       policyVersion: POLICY_VERSION,
       changedPaths: [],
+      impactedImpacts: [],
       impactedGates: [],
       impactedSuites: [],
       scriptsPassed: false,
@@ -417,9 +472,12 @@ export function renderQualityGateImpactSummary(report) {
   if (!report) return "";
 
   const changedRows = report.changedPaths.map((entry) => {
-    const ruleId = entry.rule?.id ?? "UNCLASSIFIED";
+    const ruleId = entry.rules?.length > 0
+      ? entry.rules.map((rule) => rule.id).join(", ")
+      : (entry.rule?.id ?? "UNCLASSIFIED");
+    const impacts = entry.impacts?.join(", ") || "(none)";
     const gates = entry.gates.map((gate) => `${gate.id} (${gate.execution})`).join(", ") || "(none)";
-    return `| \`${entry.display ?? entry.path}\` | \`${entry.status ?? ""}\` | \`${ruleId}\` | ${gates} |`;
+    return `| \`${entry.display ?? entry.path}\` | \`${entry.status ?? ""}\` | \`${ruleId}\` | ${impacts} | ${gates} |`;
   });
 
   const gateRows = report.impactedGates.map(
@@ -444,9 +502,9 @@ export function renderQualityGateImpactSummary(report) {
     "",
     "### Changed path routing",
     "",
-    "| Path | Status | Rule | Gates |",
-    "| --- | --- | --- | --- |",
-    ...(changedRows.length > 0 ? changedRows : ["| n/a | n/a | n/a | n/a |"]),
+    "| Path | Status | Rule | Impacts | Gates |",
+    "| --- | --- | --- | --- | --- |",
+    ...(changedRows.length > 0 ? changedRows : ["| n/a | n/a | n/a | n/a | n/a |"]),
     "",
     "### Impacted gates",
     "",

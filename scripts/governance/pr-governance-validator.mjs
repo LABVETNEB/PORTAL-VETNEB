@@ -151,7 +151,7 @@ export function classifyPath(inputPath) {
   if (
     lower.startsWith(".github/") ||
     lower.startsWith(".vscode/") ||
-    [".gitignore", ".gitattributes", ".npmrc", ".pnpmrc", "agents.md", "tsconfig.json"].includes(name)
+    [".gitignore", ".gitattributes", ".npmrc", ".pnpmrc", ".cursorignore", "agents.md", "tsconfig.json"].includes(name)
   ) {
     return "repository configuration";
   }
@@ -302,7 +302,7 @@ function changedFiles(baseSha, headSha) {
     if (status.startsWith("R")) {
       const oldPath = normalizePath(tokens[index++]);
       const newPath = normalizePath(tokens[index++]);
-      entries.push({ status, path: newPath, display: `${oldPath} -> ${newPath}` });
+      entries.push({ status, path: newPath, oldPath, newPath, display: `${oldPath} -> ${newPath}` });
     } else {
       const path = normalizePath(tokens[index++]);
       entries.push({ status, path, display: path });

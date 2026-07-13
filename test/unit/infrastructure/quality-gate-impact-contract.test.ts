@@ -10,6 +10,7 @@ import {
   TEST_TAXONOMY,
 } from "../../../scripts/governance/quality-gate-impact-policy.mjs";
 import type { QualityGateCommand } from "../../../scripts/governance/quality-gate-impact-policy.mjs";
+import { classifyPath } from "../../../scripts/governance/pr-governance-validator.mjs";
 import {
   evaluateChangedPathImpact,
   renderTestTaxonomyProjection,
@@ -22,6 +23,10 @@ import {
 const rootPackageJsonText = readFileSync(resolve(process.cwd(), "package.json"), "utf8");
 const frontendPackageJsonText = readFileSync(resolve(process.cwd(), "frontend/package.json"), "utf8");
 const readmeText = readFileSync(resolve(process.cwd(), "test/README.md"), "utf8");
+
+function ids(values: Array<{ id: string }>): string[] {
+  return values.map((value) => value.id);
+}
 
 function packageScriptCommand(
   packageScope: "root" | "frontend",
@@ -93,8 +98,17 @@ test("impact rule precedence resolves specific routes before general routes", ()
     validateRulePrecedence({
       specificPath: ".github/workflows/backend-ci.yml",
       generalPath: ".github/CODEOWNERS",
-      expectedSpecificRuleId: "github-workflows",
+      expectedSpecificRuleId: "backend-ci-workflow",
       expectedGeneralRuleId: "github-config",
+    }).failures,
+    [],
+  );
+  assert.deepEqual(
+    validateRulePrecedence({
+      specificPath: ".github/workflows/frontend-ci.yml",
+      generalPath: ".github/workflows/custom-ci.yml",
+      expectedSpecificRuleId: "frontend-ci-workflow",
+      expectedGeneralRuleId: "github-workflows",
     }).failures,
     [],
   );
@@ -109,8 +123,16 @@ test("impact routing classifies representative paths", () => {
     ["test/README.md", "test-readme-taxonomy"],
     ["drizzle/schema.ts", "database-migrations"],
     ["scripts/governance/example.mjs", "governance-scripts"],
-    [".github/workflows/backend-ci.yml", "github-workflows"],
+    [".github/workflows/backend-ci.yml", "backend-ci-workflow"],
+    [".github/workflows/frontend-ci.yml", "frontend-ci-workflow"],
+    [".github/workflows/pr-governance.yml", "pr-governance-workflow"],
     [".github/CODEOWNERS", "github-config"],
+    [".gitignore", "repo-config-gitignore"],
+    [".gitattributes", "repo-config-gitattributes"],
+    [".npmrc", "repo-config-npmrc"],
+    [".pnpmrc", "repo-config-pnpmrc"],
+    [".cursorignore", "repo-config-cursorignore"],
+    [".vscode/settings.json", "repo-config-vscode"],
     ["docs/governance/example.md", "docs"],
     ["package.json", "root-package"],
     ["frontend/package.json", "frontend-package"],
@@ -136,6 +158,58 @@ test("impact routing classifies representative paths", () => {
   }
 });
 
+test("PR governance classifyPath maps cursorignore to repository configuration", () => {
+  assert.equal(classifyPath(".cursorignore"), "repository configuration");
+});
+
+test("repository configuration routes use governance and manual review gates", () => {
+  const entries = [
+    ".gitignore",
+    ".gitattributes",
+    ".npmrc",
+    ".pnpmrc",
+    ".cursorignore",
+    ".vscode/settings.json",
+  ].map((path) => ({
+    status: "M",
+    path,
+    display: path,
+  }));
+
+  const result = evaluateChangedPathImpact({ entries });
+
+  assert.deepEqual(result.failures, []);
+  for (const routed of result.changedPaths) {
+    assert.ok(ids(routed.gates).includes("pr-governance"), routed.path);
+    assert.ok(ids(routed.gates).includes("manual-review"), routed.path);
+    assert.ok(routed.impacts.includes("repository-configuration"), routed.path);
+  }
+});
+
+test("frontend workflow exact route includes frontend CI and normative frontend suites", () => {
+  const result = evaluateChangedPathImpact({
+    entries: [
+      {
+        status: "M",
+        path: ".github/workflows/frontend-ci.yml",
+        display: ".github/workflows/frontend-ci.yml",
+      },
+    ],
+  });
+  const routed = result.changedPaths[0];
+  const gateIds = ids(routed.gates);
+  const suiteIds = ids(routed.suites);
+  const frontendSuiteIds = TEST_TAXONOMY.filter((suite) => suite.gate === "frontend-ci").map((suite) => suite.id);
+
+  assert.deepEqual(result.failures, []);
+  assert.equal(routed.rule?.id, "frontend-ci-workflow");
+  assert.ok(gateIds.includes("pr-governance"));
+  assert.ok(gateIds.includes("backend-ci"));
+  assert.ok(gateIds.includes("frontend-ci"));
+  assert.ok(gateIds.includes("manual-review"));
+  for (const suiteId of frontendSuiteIds) assert.ok(suiteIds.includes(suiteId), suiteId);
+});
+
 test("impact routing rejects unclassified root assets", () => {
   const result = evaluateChangedPathImpact({
     entries: [
@@ -153,6 +227,75 @@ test("impact routing rejects unclassified root assets", () => {
       "Quality gate impact policy has no route for changed path: unclassified-root-asset.bin",
     ),
   );
+});
+
+test("impact routing combines old and new paths for server to docs renames", () => {
+  const result = evaluateChangedPathImpact({
+    entries: [
+      {
+        status: "R100",
+        path: "docs/foo.md",
+        oldPath: "server/routes/foo.ts",
+        newPath: "docs/foo.md",
+        display: "server/routes/foo.ts -> docs/foo.md",
+      },
+    ],
+  });
+  const routed = result.changedPaths[0];
+
+  assert.deepEqual(result.failures, []);
+  assert.equal(routed.oldPath, "server/routes/foo.ts");
+  assert.equal(routed.newPath, "docs/foo.md");
+  assert.deepEqual(ids(routed.rules), ["server-runtime", "docs"]);
+  assert.ok(routed.impacts.includes("backend-runtime"));
+  assert.ok(routed.impacts.includes("documentation"));
+  assert.ok(ids(routed.gates).includes("backend-ci"));
+  assert.ok(ids(routed.gates).includes("manual-review"));
+});
+
+test("impact routing combines old and new paths for docs to frontend renames", () => {
+  const result = evaluateChangedPathImpact({
+    entries: [
+      {
+        status: "R100",
+        path: "frontend/src/app/page.tsx",
+        oldPath: "docs/foo.md",
+        newPath: "frontend/src/app/page.tsx",
+        display: "docs/foo.md -> frontend/src/app/page.tsx",
+      },
+    ],
+  });
+  const routed = result.changedPaths[0];
+
+  assert.deepEqual(result.failures, []);
+  assert.deepEqual(ids(routed.rules), ["docs", "frontend-runtime"]);
+  assert.ok(routed.impacts.includes("documentation"));
+  assert.ok(routed.impacts.includes("frontend-runtime"));
+  assert.ok(ids(routed.gates).includes("frontend-ci"));
+  assert.ok(ids(routed.gates).includes("manual-review"));
+});
+
+test("impact routing deduplicates gates and suites for same-domain renames", () => {
+  const result = evaluateChangedPathImpact({
+    entries: [
+      {
+        status: "R100",
+        path: "server/routes/bar.ts",
+        oldPath: "server/routes/foo.ts",
+        newPath: "server/routes/bar.ts",
+        display: "server/routes/foo.ts -> server/routes/bar.ts",
+      },
+    ],
+  });
+  const routed = result.changedPaths[0];
+  const gateIds = ids(routed.gates);
+  const suiteIds = ids(routed.suites);
+
+  assert.deepEqual(result.failures, []);
+  assert.deepEqual(ids(routed.rules), ["server-runtime"]);
+  assert.deepEqual(gateIds, [...new Set(gateIds)]);
+  assert.deepEqual(suiteIds, [...new Set(suiteIds)]);
+  assert.deepEqual(routed.impacts, [...new Set(routed.impacts)]);
 });
 
 test("impact routing blocks deletion of required sources", () => {
