@@ -57,6 +57,17 @@ function assertUnsupportedFlowStyle(result: ReturnType<typeof validate>): void {
   );
 }
 
+function assertUnsupportedYamlNodeProperty(result: ReturnType<typeof validate>): void {
+  assert.ok(
+    result.failures.some(
+      (failure) =>
+        failure.includes("forbids YAML anchors, aliases, tags or merge keys") &&
+        /\.github\/workflows\/fixture\.yml:\d+/.test(failure),
+    ),
+    `expected unsupported YAML node property failure with location, got: ${result.failures.join("; ")}`,
+  );
+}
+
 function assertFailureIncludes(result: ReturnType<typeof validate>, expected: string): void {
   assert.ok(
     result.failures.some((failure) => failure.includes(expected)),
@@ -816,6 +827,47 @@ test("list item flow-style with mutable uses fails closed", () => {
   assertUnsupportedFlowStyle(result);
 });
 
+test("anchored flow-style step entry fails closed", () => {
+  const result = validate(workflow(`    steps:
+      - &bad { uses: actions/checkout@v7 }
+`));
+
+  assertUnsupportedYamlNodeProperty(result);
+});
+
+test("anchored block-style step entry fails closed", () => {
+  const result = validate(workflow(`    steps:
+      - &checkout
+        uses: actions/checkout@${sha}
+`));
+
+  assertUnsupportedYamlNodeProperty(result);
+});
+
+test("aliased step entry fails closed", () => {
+  const result = validate(workflow(`    steps:
+      - *shared-step
+`));
+
+  assertUnsupportedYamlNodeProperty(result);
+});
+
+test("tagged step entry fails closed", () => {
+  const result = validate(workflow(`    steps:
+      - !fixture
+        uses: actions/checkout@${sha}
+`));
+
+  assertUnsupportedYamlNodeProperty(result);
+});
+
+test("anchored inline steps fail closed", () => {
+  const result = validate(workflow(`    steps: &bad [{ uses: actions/checkout@v7 }]
+`));
+
+  assertUnsupportedYamlNodeProperty(result);
+});
+
 test("permissions flow-style fails closed", () => {
   const result = validate(`name: Bad
 on:
@@ -829,6 +881,19 @@ jobs:
   assertUnsupportedFlowStyle(result);
 });
 
+test("anchored permissions fail closed", () => {
+  const result = validate(`name: Bad
+on:
+  pull_request:
+permissions: &bad { contents: read }
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+`);
+
+  assertUnsupportedYamlNodeProperty(result);
+});
+
 test("container flow-style fails closed", () => {
   const result = validate(workflow(`    container: { image: node:latest }
     steps:
@@ -838,6 +903,26 @@ test("container flow-style fails closed", () => {
   assertUnsupportedFlowStyle(result);
 });
 
+test("tagged container fails closed", () => {
+  const result = validate(workflow(`    container: !fixture
+      image: node:20
+    steps:
+      - run: echo ok
+`));
+
+  assertUnsupportedYamlNodeProperty(result);
+});
+
+test("verbatim tagged container fails closed", () => {
+  const result = validate(workflow(`    container: !<fixture>
+      image: node:20
+    steps:
+      - run: echo ok
+`));
+
+  assertUnsupportedYamlNodeProperty(result);
+});
+
 test("services flow-style fails closed", () => {
   const result = validate(workflow(`    services: { postgres: { image: postgres:latest } }
     steps:
@@ -845,6 +930,40 @@ test("services flow-style fails closed", () => {
 `));
 
   assertUnsupportedFlowStyle(result);
+});
+
+test("merge key fails closed", () => {
+  const result = validate(`name: Merge
+on:
+  pull_request:
+permissions:
+  contents: read
+defaults:
+  <<: *shared-defaults
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
+`);
+
+  assertUnsupportedYamlNodeProperty(result);
+});
+
+test("anchored flow-style step with arbitrary indentation fails closed", () => {
+  const result = validate(`name: Arbitrary
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+    validate:
+        runs-on: ubuntu-latest
+        steps:
+          - &bad { uses: actions/checkout@v7 }
+`);
+
+  assertUnsupportedYamlNodeProperty(result);
 });
 
 test("run scalar with brackets passes", () => {
@@ -877,6 +996,33 @@ test("quoted scalars that look like watched fields pass", () => {
   const result = validate(workflow(`    steps:
       - name: "uses: actions/checkout@v7"
         run: echo '"permissions": write-all'
+`));
+
+  assert.deepEqual(result.failures, []);
+});
+
+test("quoted scalars with unsupported-looking YAML node properties pass", () => {
+  const result = validate(workflow(`    steps:
+      - run: 'echo "&bad { uses: actions/checkout@v7 }"'
+      - run: "echo !fixture"
+`));
+
+  assert.deepEqual(result.failures, []);
+});
+
+test("unsupported-looking YAML node properties in comments pass", () => {
+  const result = validate(`${workflow(`    steps:
+      - run: echo ok
+`)}
+# - &bad { uses: actions/checkout@v7 }
+`);
+
+  assert.deepEqual(result.failures, []);
+});
+
+test("GitHub expression with anchor-looking property name passes", () => {
+  const result = validate(workflow(`    steps:
+      - run: echo "\${{ matrix.anchor }}"
 `));
 
   assert.deepEqual(result.failures, []);
@@ -931,6 +1077,7 @@ test("flow-looking text inside literal block scalar passes", () => {
       - run: |
           steps: [{ uses: actions/checkout@v7 }]
           permissions: { contents: write }
+          - &bad { uses: actions/checkout@v7 }
 `));
 
   assert.deepEqual(result.failures, []);
@@ -941,6 +1088,7 @@ test("flow-looking text inside folded block scalar passes", () => {
       - run: >
           steps: [{ uses: actions/checkout@v7 }]
           container: { image: node:latest }
+          *shared-step
 `));
 
   assert.deepEqual(result.failures, []);

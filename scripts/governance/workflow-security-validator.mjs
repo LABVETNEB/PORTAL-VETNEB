@@ -71,7 +71,13 @@ function stripInlineComment(line) {
     }
 
     if (quote === "'") {
-      if (char === "'") quote = null;
+      if (char === "'") {
+        if (line[index + 1] === "'") {
+          index += 1;
+          continue;
+        }
+        quote = null;
+      }
       continue;
     }
 
@@ -84,6 +90,70 @@ function stripInlineComment(line) {
   }
 
   return line.trimEnd();
+}
+
+function maskQuotedScalars(line) {
+  const masked = Array.from(line);
+  let quote = null;
+  let escaped = false;
+
+  for (let index = 0; index < masked.length; index += 1) {
+    const char = line[index];
+
+    if (quote === "\"") {
+      masked[index] = " ";
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === "\"") quote = null;
+      continue;
+    }
+
+    if (quote === "'") {
+      masked[index] = " ";
+      if (char === "'") {
+        if (line[index + 1] === "'") {
+          masked[index + 1] = " ";
+          index += 1;
+          continue;
+        }
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === "\"" || char === "'") {
+      masked[index] = " ";
+      quote = char;
+    }
+  }
+
+  return masked.join("");
+}
+
+function startsUnsupportedYamlNodeProperty(value) {
+  const trimmed = String(value ?? "").trimStart();
+  if (!trimmed) return false;
+  if (/^<<\s*:/.test(trimmed)) return true;
+  return trimmed.startsWith("&") || trimmed.startsWith("*") || trimmed.startsWith("!");
+}
+
+function hasUnsupportedYamlNodeProperty(line) {
+  const structural = maskQuotedScalars(line);
+  const trimmed = structural.trimStart();
+  const sequenceValue = trimmed.startsWith("-") ? trimmed.slice(1).trimStart() : trimmed;
+
+  if (startsUnsupportedYamlNodeProperty(sequenceValue)) return true;
+
+  const colon = structural.indexOf(":");
+  if (colon === -1) return false;
+
+  return startsUnsupportedYamlNodeProperty(structural.slice(colon + 1));
 }
 
 function unquote(value) {
@@ -357,6 +427,13 @@ function addUnsupportedFlowStyleFailure(report, path, lineNumber) {
   addFailure(report, `Workflow security unsupported flow-style YAML: ${workflowLocation(path, lineNumber)}`);
 }
 
+function addUnsupportedYamlNodePropertyFailure(report, path, lineNumber) {
+  addFailure(
+    report,
+    `Workflow security forbids YAML anchors, aliases, tags or merge keys: ${workflowLocation(path, lineNumber)}`,
+  );
+}
+
 export function scanWorkflowSecurity({
   workflowPath,
   text,
@@ -446,6 +523,11 @@ export function scanWorkflowSecurity({
     if (skipBlockIndent !== null) {
       if (indent > skipBlockIndent) continue;
       skipBlockIndent = null;
+    }
+
+    if (hasUnsupportedYamlNodeProperty(withoutComment)) {
+      addUnsupportedYamlNodePropertyFailure(report, path, lineNumber);
+      continue;
     }
 
     if (currentJob && stepsIndent !== null && indent <= stepsIndent) {
