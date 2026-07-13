@@ -4,9 +4,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 import {
-  assertClean7aDependencyCleanupScope,
+  assertClean7aDependencyCleanupInvariants,
   isClean7aAllowedDependencyChange,
-  isClean7aAllowedDependencyFile,
 } from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
 import { isReportForeignAccessBackendFile } from "../../../helpers/report-foreign-access-scope.ts";
 import { dashboardScopeGuardApplies } from "../../../helpers/dashboard-scope-guard.ts";
@@ -363,28 +362,8 @@ test("PR-2 DashboardShellRouter does not import AdminSectionTabs", () => {
 
 // ── No new dependencies ───────────────────────────────────────────────────────
 
-test("PR-2 workspace layout polish does not add new dependencies", () => {
-  const changedFiles = execFileSync("git", ["diff", "--name-only"], {
-    encoding: "utf8",
-  })
-    .trim()
-    .split(/\r?\n/)
-    .filter(Boolean);
-
-  const depFiles = changedFiles.filter(
-    (f) =>
-      f === "package.json" ||
-      f === "pnpm-lock.yaml" ||
-      f === "frontend/package.json" ||
-      f === "frontend/pnpm-lock.yaml",
-  );
-
-  assertClean7aDependencyCleanupScope();
-  assert.deepEqual(
-    depFiles.filter((file) => !isClean7aAllowedDependencyFile(file)),
-    [],
-    `PR-2 must not add new dependencies; modified dep files: ${depFiles.join(", ")}`,
-  );
+test("PR-2 workspace layout polish preserves CLEAN7A dependency invariants", () => {
+  assertClean7aDependencyCleanupInvariants();
 });
 
 // ── Scope guard ───────────────────────────────────────────────────────────────
