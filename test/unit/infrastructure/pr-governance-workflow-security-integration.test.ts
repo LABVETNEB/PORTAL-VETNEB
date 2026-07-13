@@ -141,6 +141,23 @@ function withTempRepository(assertion: (repo: { root: string; baseSha: string })
   }
 }
 
+function assertWorkflowSecurityChildFailure(content: string, expectedDiagnostic: RegExp): void {
+  withTempRepository(({ root, baseSha }) => {
+    const validatorPath = "scripts/governance/workflow-security-validator.mjs";
+    const headSha = commitFile(root, validatorPath, content);
+    const { eventPath, summaryPath } = writeEvent(root, baseSha, headSha, workflowScopeBody());
+    const result = runValidator(root, eventPath, summaryPath);
+    const summary = readFileSync(summaryPath, "utf8");
+
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /PR Governance workflow security/);
+    assert.match(result.stderr, expectedDiagnostic);
+    assert.match(summary, /## Workflow security/);
+    assert.match(summary, /`FAIL`/);
+    assert.doesNotMatch(result.stdout, /Workflow security PASS\./);
+  });
+}
+
 test("PR governance workflow security positive fixture passes", () => {
   withTempRepository(({ root, baseSha }) => {
     const workflowPath = ".github/workflows/pr-governance.yml";
@@ -157,6 +174,26 @@ test("PR governance workflow security positive fixture passes", () => {
     assert.match(summary, /## Workflow security/);
     assert.match(summary, /\| result \| `PASS` \|/);
   });
+});
+
+test("PR governance fails closed when workflow security child has a syntax error", () => {
+  assertWorkflowSecurityChildFailure("export const broken = ;\n", /exited unsuccessfully/);
+});
+
+test("PR governance fails closed when workflow security child exits zero with empty output", () => {
+  assertWorkflowSecurityChildFailure("process.exit(0);\n", /empty JSON output/);
+});
+
+test("PR governance fails closed when workflow security child exits zero with malformed JSON", () => {
+  assertWorkflowSecurityChildFailure("console.log('not-json');\n", /invalid JSON output/);
+});
+
+test("PR governance fails closed when workflow security child exits zero with an empty object", () => {
+  assertWorkflowSecurityChildFailure("console.log('{}');\n", /invalid report schema/);
+});
+
+test("PR governance fails closed when workflow security child exits zero with a partial report", () => {
+  assertWorkflowSecurityChildFailure("console.log(JSON.stringify({ passed: true }));\n", /invalid report schema/);
 });
 
 test("PR governance accepts QGA-4 workflow security enforcement sources as workflow scope", () => {

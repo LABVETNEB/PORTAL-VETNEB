@@ -180,6 +180,20 @@ function startsWatchedInlineObject(value) {
   return value.startsWith("{") || value.startsWith("[");
 }
 
+function startsUnsupportedFlowStyle(value) {
+  const trimmed = String(value ?? "").trimStart();
+  if (!trimmed || trimmed.startsWith("\"") || trimmed.startsWith("'")) return false;
+  return trimmed.startsWith("{") || trimmed.startsWith("[");
+}
+
+function startsFlowStyleListItem(line) {
+  return /^\s*-\s*[\[{]/.test(line);
+}
+
+function addUnsupportedFlowStyleFailure(report, path, lineNumber) {
+  addFailure(report, `Workflow security unsupported flow-style YAML: ${workflowLocation(path, lineNumber)}`);
+}
+
 export function scanWorkflowSecurity({
   workflowPath,
   text,
@@ -217,6 +231,7 @@ export function scanWorkflowSecurity({
   let currentService = null;
   let currentServiceIndent = null;
   let containerIndent = null;
+  let stepsIndent = null;
 
   for (let index = 0; index < lines.length; index += 1) {
     const lineNumber = index + 1;
@@ -234,6 +249,15 @@ export function scanWorkflowSecurity({
     if (skipBlockIndent !== null) {
       if (indent > skipBlockIndent) continue;
       skipBlockIndent = null;
+    }
+
+    if (currentJob && stepsIndent !== null && indent <= stepsIndent) {
+      stepsIndent = null;
+    }
+
+    if (currentJob && stepsIndent !== null && indent > stepsIndent && startsFlowStyleListItem(withoutComment)) {
+      addUnsupportedFlowStyleFailure(report, path, lineNumber);
+      continue;
     }
 
     const pair = parsePair(withoutComment);
@@ -260,6 +284,7 @@ export function scanWorkflowSecurity({
       currentJobIndent = null;
       servicesIndent = null;
       containerIndent = null;
+      stepsIndent = null;
       continue;
     }
 
@@ -271,6 +296,7 @@ export function scanWorkflowSecurity({
         currentService = null;
         currentServiceIndent = null;
         containerIndent = null;
+        stepsIndent = null;
       } else if (pair.indent === jobsIndent + 2) {
         currentJob = pair.key;
         currentJobIndent = pair.indent;
@@ -278,6 +304,7 @@ export function scanWorkflowSecurity({
         currentService = null;
         currentServiceIndent = null;
         containerIndent = null;
+        stepsIndent = null;
       }
     }
 
@@ -292,6 +319,24 @@ export function scanWorkflowSecurity({
     }
     if (currentJob && containerIndent !== null && pair.indent <= containerIndent) {
       containerIndent = null;
+    }
+
+    if (
+      startsUnsupportedFlowStyle(pair.value) &&
+      (
+        pair.key === "jobs" ||
+        pair.key === "permissions" ||
+        (currentJob && pair.indent > currentJobIndent && ["steps", "container", "services"].includes(pair.key)) ||
+        (jobsIndent !== null && pair.indent > jobsIndent)
+      )
+    ) {
+      addUnsupportedFlowStyleFailure(report, path, lineNumber);
+      continue;
+    }
+
+    if (currentJob && pair.key === "steps" && pair.indent > currentJobIndent) {
+      stepsIndent = pair.indent;
+      continue;
     }
 
     if (pair.key === "uses") {

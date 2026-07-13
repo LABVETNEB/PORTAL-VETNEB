@@ -25,17 +25,6 @@ concurrency:
   group: backend-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  WORKFLOW_SECURITY_LEGACY_CONTRACT_ANCHORS: |
-      - name: Checkout repository
-        uses: actions/checkout@v7
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
 jobs:
   validate-backend:
     runs-on: ubuntu-latest

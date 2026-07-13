@@ -46,6 +46,17 @@ function validStep(reference: string): string {
 `);
 }
 
+function assertUnsupportedFlowStyle(result: ReturnType<typeof validate>): void {
+  assert.ok(
+    result.failures.some(
+      (failure) =>
+        failure.includes("unsupported flow-style YAML") &&
+        /\.github\/workflows\/fixture\.yml:\d+/.test(failure),
+    ),
+    `expected unsupported flow-style YAML failure with location, got: ${result.failures.join("; ")}`,
+  );
+}
+
 test("workflow security policy exposes immutable QGA-4 contract", () => {
   assert.equal(POLICY_VERSION, "QGA-4.1");
   assert.deepEqual(
@@ -217,7 +228,7 @@ test("read-all scalar permissions fail", () => {
 test("empty permissions fail", () => {
   const result = validate("name: Bad\non: pull_request\npermissions: {}\njobs:\n  validate:\n    runs-on: ubuntu-latest\n");
 
-  assert.ok(result.failures.some((failure) => failure.includes('forbids scalar permissions value "{}"')));
+  assertUnsupportedFlowStyle(result);
 });
 
 test("contents write fails", () => {
@@ -354,6 +365,98 @@ test("ambiguous watched field fails closed", () => {
 `));
 
   assert.ok(result.failures.some((failure) => failure.includes("must be pinned to a full commit SHA")));
+});
+
+test("steps inline flow-style with mutable uses fails closed", () => {
+  const result = validate(workflow(`    steps: [{ uses: actions/checkout@v7 }]
+`));
+
+  assertUnsupportedFlowStyle(result);
+});
+
+test("list item flow-style with mutable uses fails closed", () => {
+  const result = validate(workflow(`    steps:
+      - { uses: actions/checkout@v7 }
+`));
+
+  assertUnsupportedFlowStyle(result);
+});
+
+test("permissions flow-style fails closed", () => {
+  const result = validate(`name: Bad
+on:
+  pull_request:
+permissions: { contents: read }
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+`);
+
+  assertUnsupportedFlowStyle(result);
+});
+
+test("container flow-style fails closed", () => {
+  const result = validate(workflow(`    container: { image: node:latest }
+    steps:
+      - run: echo ok
+`));
+
+  assertUnsupportedFlowStyle(result);
+});
+
+test("services flow-style fails closed", () => {
+  const result = validate(workflow(`    services: { postgres: { image: postgres:latest } }
+    steps:
+      - run: echo ok
+`));
+
+  assertUnsupportedFlowStyle(result);
+});
+
+test("run scalar with brackets passes", () => {
+  const result = validate(workflow(`    steps:
+      - run: echo "[fixture]"
+`));
+
+  assert.deepEqual(result.failures, []);
+});
+
+test("GitHub expression scalar with braces passes", () => {
+  const result = validate(workflow(`    steps:
+      - if: \${{ github.event_name == 'pull_request' }}
+        run: echo ok
+`));
+
+  assert.deepEqual(result.failures, []);
+});
+
+test("quoted scalar with braces passes", () => {
+  const result = validate(workflow(`    steps:
+      - name: "value {inside quoted scalar}"
+        run: echo ok
+`));
+
+  assert.deepEqual(result.failures, []);
+});
+
+test("flow-looking text inside literal block scalar passes", () => {
+  const result = validate(workflow(`    steps:
+      - run: |
+          steps: [{ uses: actions/checkout@v7 }]
+          permissions: { contents: write }
+`));
+
+  assert.deepEqual(result.failures, []);
+});
+
+test("flow-looking text inside folded block scalar passes", () => {
+  const result = validate(workflow(`    steps:
+      - run: >
+          steps: [{ uses: actions/checkout@v7 }]
+          container: { image: node:latest }
+`));
+
+  assert.deepEqual(result.failures, []);
 });
 
 test("deleting workflow security required sources is blocked by quality impact", () => {

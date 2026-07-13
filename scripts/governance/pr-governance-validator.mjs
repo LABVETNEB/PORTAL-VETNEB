@@ -467,6 +467,129 @@ function validateMarkdown(entries, pass, fail) {
   }
 }
 
+function createWorkflowSecurityFailureReport(message, details = []) {
+  return {
+    passed: false,
+    failures: [message],
+    details,
+    policyVersion: "unknown",
+    workflows: [],
+    externalActions: [],
+    localActions: [],
+    permissions: [],
+    containerImages: [],
+    exceptionsUsed: [],
+  };
+}
+
+function sanitizeWorkflowSecurityProcessText(value) {
+  let text = String(value ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "");
+  for (const [label, pattern] of SECRET_PATTERNS) {
+    text = text.replace(pattern, `[redacted ${label}]`);
+  }
+  text = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).join(" | ");
+  return text.length > 800 ? `${text.slice(0, 800)}...` : text;
+}
+
+function workflowSecurityProcessDetail(result) {
+  const status = result?.status ?? "null";
+  const signal = result?.signal ?? "null";
+  const parts = [`status=${status}`, `signal=${signal}`];
+  if (result?.error) parts.push(`error=${result.error.name}: ${result.error.message}`);
+
+  const stderr = sanitizeWorkflowSecurityProcessText(result?.stderr);
+  if (stderr) parts.push(`stderr=${stderr}`);
+
+  const stdout = sanitizeWorkflowSecurityProcessText(result?.stdout);
+  if (stdout) parts.push(`stdout=${stdout}`);
+
+  return parts.join("; ");
+}
+
+function normalizeWorkflowSecurityExecutionFailure(reason, result) {
+  return createWorkflowSecurityFailureReport(
+    `Workflow security validator exited unsuccessfully: ${reason}. ${workflowSecurityProcessDetail(result)}`,
+  );
+}
+
+function workflowSecuritySchemaFailures(report) {
+  const failures = [];
+  if (!report || typeof report !== "object" || Array.isArray(report)) {
+    return ["report must be a JSON object"];
+  }
+
+  const requiredArrays = [
+    "failures",
+    "details",
+    "workflows",
+    "externalActions",
+    "localActions",
+    "permissions",
+    "containerImages",
+    "exceptionsUsed",
+  ];
+
+  if (typeof report.passed !== "boolean") failures.push("passed must be boolean");
+  if (typeof report.policyVersion !== "string" || report.policyVersion.trim() === "") {
+    failures.push("policyVersion must be a non-empty string");
+  }
+  for (const field of requiredArrays) {
+    if (!Array.isArray(report[field])) failures.push(`${field} must be an array`);
+  }
+  return failures;
+}
+
+function parseWorkflowSecurityProcessResult(result) {
+  if (result.error) {
+    return normalizeWorkflowSecurityExecutionFailure("spawn error", result);
+  }
+
+  const nonZeroStatus = typeof result.status !== "number" || result.status !== 0;
+  const signaled = result.signal !== null && result.signal !== undefined;
+  const stdout = String(result.stdout ?? "");
+
+  if (stdout.trim() === "") {
+    return normalizeWorkflowSecurityExecutionFailure("empty JSON output", result);
+  }
+
+  let report;
+  try {
+    report = JSON.parse(stdout);
+  } catch (error) {
+    return normalizeWorkflowSecurityExecutionFailure(`invalid JSON output (${error.message})`, result);
+  }
+
+  const schemaFailures = workflowSecuritySchemaFailures(report);
+  if (schemaFailures.length > 0) {
+    return createWorkflowSecurityFailureReport(
+      `Workflow security validator returned invalid report schema: ${schemaFailures.join("; ")}.`,
+    );
+  }
+
+  if (nonZeroStatus || signaled) {
+    return {
+      ...report,
+      passed: false,
+      failures: [
+        `Workflow security validator exited unsuccessfully: ${workflowSecurityProcessDetail(result)}`,
+        ...report.failures,
+      ],
+    };
+  }
+
+  if (report.passed !== true) {
+    return {
+      ...report,
+      passed: false,
+      failures: report.failures.length > 0
+        ? report.failures
+        : ["Workflow security validator reported failure without details."],
+    };
+  }
+
+  return report;
+}
+
 function runWorkflowSecurityControl() {
   const validatorPath = resolve(ROOT, WORKFLOW_SECURITY_VALIDATOR_PATH);
   const workflowsPath = resolve(ROOT, WORKFLOW_SECURITY_DIRECTORY);
@@ -507,32 +630,7 @@ function runWorkflowSecurityControl() {
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-  if (result.error) throw result.error;
-
-  let report;
-  try {
-    report = JSON.parse(result.stdout || "{}");
-  } catch (error) {
-    return {
-      passed: false,
-      failures: [`Workflow security validation returned invalid JSON: ${error.message}`],
-      details: [],
-      policyVersion: "unknown",
-      workflows: [],
-      externalActions: [],
-      localActions: [],
-      permissions: [],
-      containerImages: [],
-      exceptionsUsed: [],
-    };
-  }
-
-  if (result.status !== 0 && report.failures?.length === 0) {
-    report.failures = [`Workflow security validation failed: ${(result.stderr || result.stdout || "unknown error").trim()}`];
-    report.passed = false;
-  }
-
-  return report;
+  return parseWorkflowSecurityProcessResult(result);
 }
 
 function renderWorkflowSecuritySummary(report) {
