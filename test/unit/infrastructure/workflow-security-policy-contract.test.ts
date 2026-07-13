@@ -200,9 +200,9 @@ test("backend workflow keeps the exact postgres 16 service exception", () => {
   assert.equal(CONTAINER_IMAGE_POLICY.exceptions[0].image, "postgres:16");
 });
 
-test("quality impact protects the declarative workflow security policy only", () => {
+test("quality impact protects the declarative workflow security policy and parser-backed validator", () => {
   assert.ok(REQUIRED_SOURCE_PATHS.includes("scripts/governance/workflow-security-policy.mjs"));
-  assert.equal(REQUIRED_SOURCE_PATHS.includes("scripts/governance/workflow-security-validator.mjs"), false);
+  assert.ok(REQUIRED_SOURCE_PATHS.includes("scripts/governance/workflow-security-validator.mjs"));
 
   const result = evaluateChangedPathImpact({
     entries: [

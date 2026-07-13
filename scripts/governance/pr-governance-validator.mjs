@@ -134,6 +134,8 @@ export function classifyPath(inputPath) {
       "scripts/governance/quality-gate-impact-policy.d.mts",
       "scripts/governance/workflow-security-policy.mjs",
       "scripts/governance/workflow-security-policy.d.mts",
+      "scripts/governance/workflow-security-validator.mjs",
+      "scripts/governance/workflow-security-validator.d.mts",
     ].includes(lower)
   ) {
     return "workflows/CI";

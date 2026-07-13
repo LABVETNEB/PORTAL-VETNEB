@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import test from "node:test";
 
 import {
+  assertClean7aDependencyCleanupInvariants,
   assertClean7aDependencyCleanupScopeInput,
   type Clean7aDependencyCleanupScopeInput,
   type Clean7aPackageJson,
@@ -191,6 +194,15 @@ test("rejects a root package.json change", () => {
   );
 });
 
+test("CLEAN7A scope input keeps package.json forbidden", () => {
+  assertScopeFails(
+    scopeInput({
+      changedManifestFiles: ["package.json", "frontend/package.json", "pnpm-lock.yaml"],
+    }),
+    /forbids manifest changes outside/,
+  );
+});
+
 test("rejects a frontend-local lockfile change", () => {
   assertScopeFails(
     scopeInput({
@@ -224,6 +236,25 @@ test("ignores dependency property order when values are unchanged", () => {
       currentFrontendPackage,
     }),
   );
+});
+
+test("deterministic CLEAN7A invariants do not inspect current git diff", () => {
+  assert.doesNotThrow(() => {
+    assertClean7aDependencyCleanupInvariants();
+  });
+
+  const helperSource = readFileSync(
+    resolve(process.cwd(), "test/helpers/clean7a-dependency-cleanup-scope.ts"),
+    "utf8",
+  );
+  const invariantFunction = helperSource.slice(
+    helperSource.indexOf("export function assertClean7aDependencyCleanupInvariants"),
+    helperSource.indexOf("export function isClean7aAllowedDependencyChange"),
+  );
+
+  assert.equal(invariantFunction.includes("gitDiffNameOnly"), false);
+  assert.equal(invariantFunction.includes("changedManifestFiles"), false);
+  assert.equal(invariantFunction.includes("readBaseFrontendPackage"), false);
 });
 
 test("detects a dependency version change as a real dependency mutation", () => {
@@ -266,6 +297,26 @@ test("preserves CLEAN removed-dependency invariants", () => {
       }),
     }),
     /must keep removed dependency absent/,
+  );
+});
+
+test("deterministic dependency invariants fail when removed dependencies are reintroduced in pure fixtures", () => {
+  assertScopeFails(
+    scopeInput({
+      changedManifestFiles: [
+        "frontend/package.json",
+        "pnpm-lock.yaml",
+      ],
+      currentFrontendPackage: packageFixture({
+        dependencies: {
+          ...activeRadixDependencies,
+          next: "16.2.7",
+          react: "19.2.7",
+          "react-hook-form": "7.0.0",
+        },
+      }),
+    }),
+    /PR-CLEAN7A must keep removed dependency absent: react-hook-form/,
   );
 });
 

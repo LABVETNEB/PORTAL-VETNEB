@@ -243,6 +243,13 @@ export function assertClean7aDependencyCleanupScope(): void {
   });
 }
 
+export function assertClean7aDependencyCleanupInvariants(): void {
+  assertCurrentDependencyInvariants(
+    readCurrentPackageJson("frontend/package.json"),
+    readText("docs/implementation/frontend-unused-deps-clean7a.md"),
+  );
+}
+
 export function isClean7aAllowedDependencyChange(file: string): boolean {
   if (!isClean7aAllowedDependencyFile(file)) {
     return false;

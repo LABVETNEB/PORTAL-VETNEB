@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 import {
-  assertClean7aDependencyCleanupScope,
-  isClean7aAllowedDependencyFile,
+  assertClean7aDependencyCleanupInvariants,
 } from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
 
 const INFORMES_PAGE_PATH = "frontend/src/app/dashboard/informes/page.tsx";
@@ -165,20 +163,12 @@ test("dashboard informes reportId null selects first report by default without s
   assert.equal(source.includes("?? reports[0] ?? null"), false);
 });
 
-test("dashboard informes master-detail scope avoids forbidden navigation and dependency changes", () => {
+test("dashboard informes master-detail preserves navigation and CLEAN7A dependency invariants", () => {
   const informesSource = read(INFORMES_PAGE_PATH);
   const informesListSource = read(INFORMES_LIST_PATH);
   const informesActionsSource = read(INFORMES_ACTIONS_PATH);
   const timelineSource = read(STUDY_TIMELINE_PATH);
   const stickyActionBarSource = read(STICKY_ACTION_BAR_PATH);
-  const packageDiff = execFileSync(
-    "git",
-    ["diff", "--name-only", "--", "package.json", "pnpm-lock.yaml"],
-    { encoding: "utf8" },
-  )
-    .trim()
-    .split(/\r?\n/)
-    .filter(Boolean);
 
   assertNoForbiddenSurfaceImports(informesListSource, "InformesReportsList");
   assertNoForbiddenSurfaceImports(informesActionsSource, "informes.actions");
@@ -192,6 +182,5 @@ test("dashboard informes master-detail scope avoids forbidden navigation and dep
   assert.equal(informesListSource.includes("<a"), false);
   assert.equal(timelineSource.includes("<a"), false);
   assert.equal(stickyActionBarSource.includes("<a"), false);
-  assertClean7aDependencyCleanupScope();
-  assert.deepEqual(packageDiff.filter((file) => !isClean7aAllowedDependencyFile(file)), []);
+  assertClean7aDependencyCleanupInvariants();
 });

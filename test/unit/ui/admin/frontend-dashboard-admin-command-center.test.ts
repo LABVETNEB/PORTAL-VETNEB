@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 import {
-  assertClean7aDependencyCleanupScope,
-  isClean7aAllowedDependencyFile,
+  assertClean7aDependencyCleanupInvariants,
 } from "../../../helpers/clean7a-dependency-cleanup-scope.ts";
 
 const ADMIN_PAGE_PATH = "frontend/src/app/dashboard/admin/page.tsx";
@@ -185,17 +183,9 @@ test("dashboard admin composes module hub, command center, and existing cards", 
   );
 });
 
-test("dashboard admin command center changes stay inside frontend scope", () => {
+test("dashboard admin command center preserves CLEAN7A dependency invariants", () => {
   const stickyActionBarSource = read(STICKY_ACTION_BAR_PATH);
   const commandCenterSource = read(ADMIN_COMMAND_CENTER_PATH);
-  const packageDiff = execFileSync(
-    "git",
-    ["diff", "--name-only", "--", "package.json", "pnpm-lock.yaml"],
-    { encoding: "utf8" },
-  )
-    .trim()
-    .split(/\r?\n/)
-    .filter(Boolean);
 
   assertNoForbiddenSurfaceImports(stickyActionBarSource, "StickyActionBar");
   assertNoForbiddenSurfaceImports(commandCenterSource, "AdminCommandCenter");
@@ -203,6 +193,5 @@ test("dashboard admin command center changes stay inside frontend scope", () => 
   assert.equal(commandCenterSource.includes("app/api"), false);
   assert.equal(stickyActionBarSource.toLowerCase().includes("middleware"), false);
   assert.equal(commandCenterSource.toLowerCase().includes("middleware"), false);
-  assertClean7aDependencyCleanupScope();
-  assert.deepEqual(packageDiff.filter((file) => !isClean7aAllowedDependencyFile(file)), []);
+  assertClean7aDependencyCleanupInvariants();
 });
