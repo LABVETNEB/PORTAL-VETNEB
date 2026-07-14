@@ -1,0 +1,14 @@
+name: QGA Negative Canary
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  negative-canary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deliberately mutable action reference
+        uses: actions/checkout@v7
