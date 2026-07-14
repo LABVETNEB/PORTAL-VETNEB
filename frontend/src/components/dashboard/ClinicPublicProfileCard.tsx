@@ -794,31 +794,22 @@ export function ClinicPublicProfileCard() {
         toolbar={
           <div
             data-clinic-profile-toolbar="true"
-            className="flex w-full flex-wrap items-center justify-between gap-2"
+            className="flex w-full flex-wrap items-center justify-end gap-2"
           >
-            <div className="min-w-0">
-              <h3 className="dashboard-section-heading">
-                Perfil para banco de especialidades
-              </h3>
-              <p className="dashboard-section-description line-clamp-1">
-                Publicación, calidad, avatar y datos visibles en tabs compactos.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <Badge variant={getPublicationVariant(profile)}>
-                {getPublicationLabel(profile)}
-              </Badge>
-              {!isPasswordTabActive ? (
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isWorking}
-                  form={PROFILE_FORM_ID}
-                >
-                  {isSubmitting ? "Guardando..." : "Guardar perfil público"}
-                </Button>
-              ) : null}
-            </div>
+            <Badge variant={getPublicationVariant(profile)}>
+              {getPublicationLabel(profile)}
+            </Badge>
+            {!isPasswordTabActive ? (
+              <Button
+                type="submit"
+                size="sm"
+                className="h-8 px-3 text-xs"
+                disabled={isWorking}
+                form={PROFILE_FORM_ID}
+              >
+                {isSubmitting ? "Guardando..." : "Guardar perfil público"}
+              </Button>
+            ) : null}
           </div>
         }
       >
@@ -830,7 +821,7 @@ export function ClinicPublicProfileCard() {
 
         {profileLoadErrorMessage ? (
           <div
-            className="clinical-alert-error flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 py-2"
+            className="clinical-alert-error flex shrink-0 flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 text-xs"
             role="alert"
           >
             <span>{profileLoadErrorMessage}</span>
@@ -838,6 +829,7 @@ export function ClinicPublicProfileCard() {
               type="button"
               variant="outline"
               size="sm"
+              className="h-8 px-2.5 text-xs"
               onClick={() => void loadProfile()}
               disabled={isWorking}
             >

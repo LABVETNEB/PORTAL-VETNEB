@@ -73,10 +73,10 @@ export function ClinicLogisticaWorkspaceSummary({
     <PublicRouteControl
       href={ROUTES.dashboardLogistica}
       variant="bare"
-      className="inline-flex h-9 items-center gap-2 rounded-md border border-vetneb-teal/45 bg-vetneb-teal/10 px-3 text-sm font-semibold text-vetneb-teal transition-colors hover:bg-vetneb-teal/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-vetneb-teal/45 bg-vetneb-teal/10 px-2.5 text-xs font-semibold text-vetneb-teal transition-colors hover:bg-vetneb-teal/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
       aria-label="Abrir módulo completo de logística"
     >
-      <ExternalLink className="h-4 w-4" aria-hidden="true" />
+      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
       Abrir módulo completo
     </PublicRouteControl>
   );
@@ -85,15 +85,7 @@ export function ClinicLogisticaWorkspaceSummary({
     <ModuleSurface
       ariaLabel="Visitas de campo recientes de la clínica"
       toolbar={
-        <div className="flex w-full flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-vetneb-ink">
-              Visitas de campo recientes
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Programación logística activa. Para gestión completa use el módulo de logística.
-            </p>
-          </div>
+        <div className="flex w-full flex-wrap items-center justify-end gap-2">
           {fullModuleLink}
         </div>
       }

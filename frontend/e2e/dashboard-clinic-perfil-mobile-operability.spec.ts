@@ -122,9 +122,15 @@ async function expectNoProfileInternalScroll(page: Page, label: string) {
     const fields = document.querySelector<HTMLElement>(
       '[data-clinic-profile-fields="true"]',
     );
+    // VIS-MOBILE-001: `.dashboard-module-body` is the single sanctioned scroll
+    // owner for the perfil module on low-height mobile viewports (it makes
+    // otherwise-clipped tab content reachable). Any OTHER internal scroll
+    // container would mean a second, unintended scroll owner, which is still
+    // disallowed.
     const scrollContainers = editor
       ? [editor, ...Array.from(editor.querySelectorAll<HTMLElement>("*"))].flatMap(
           (element) => {
+            if (element.classList.contains("dashboard-module-body")) return [];
             const style = window.getComputedStyle(element);
             return ["auto", "scroll"].includes(style.overflowY)
               ? [
