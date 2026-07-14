@@ -387,47 +387,103 @@ Registrar evidencia suficiente, resultado y cualquier limitación del entorno.
 
 ## 23. Body de PR
 
-Nico crea el PR manualmente con un body breve y verificable:
+El template operativo es `.github/PULL_REQUEST_TEMPLATE.md`. El contrato automatizado que lo valida es `scripts/governance/pr-governance-validator.mjs`, ejecutado por el check requerido `PR Governance` / `validate-pr-governance`. El body real del PR debe partir de ese template, no de un formato alternativo.
 
-```markdown
-## Objetivo
+### Headings requeridos
 
-<problema y resultado>
+El validador exige, con el nombre exacto y sin traducir, estos headings de nivel `##`:
 
-## Scope
+- `## Summary`
+- `## Scope`
+- `## Validation`
+- `## Rollback`
 
-- <incluido>
+Si falta cualquiera de estos cuatro headings, el check falla aunque el contenido sea correcto. No eliminar un heading requerido aunque su sección sea "no aplica"; en ese caso se escribe explícitamente que no aplica y por qué, dentro del heading.
 
-## Exclusiones
+El body también debe incluir los checklists y detalles aplicables del template vigente (`Mixed-Scope Justification`, `Other Scope Detail`, `Security / Regression Checklist`) cuando el escenario los active. No inventar checkboxes que no existan en el template.
 
-- <no tocado>
+### Regla de scope
 
-## Cambios
-
-- <cambio observable>
-
-## Validaciones
-
-- `<comando>` — <resultado>
-
-## QA humana
-
-- <matriz y resultado>
-
-## Riesgo residual
-
-- <riesgo o ninguno conocido>
-
-## Documentación
-
-- `<ruta del markdown>`
-```
+- Seleccionar exactamente un scope primario reconocido cuando el PR tiene un único scope real (`backend runtime`, `frontend runtime`, `tests`, `workflows/ci`, `migrations/schema`, `docs`, `dependencies`, `scripts/tooling`, `repository configuration`, `other`).
+- La selección debe coincidir con la clasificación real de los archivos cambiados; el validador deriva el scope primario desde el diff y lo compara contra el checkbox marcado.
+- Marcar `mixed-scope exception` únicamente cuando existen dos o más scopes primarios reales detectados en el diff. No usarla para evitar dividir un PR que en realidad tiene un solo scope.
+- En `mixed-scope exception` deben marcarse todos los scopes primarios afectados, ni más ni menos, y la sección `## Mixed-Scope Justification` debe explicar el acoplamiento entre dominios, por qué no pueden entregarse como PRs independientes y el límite de rollback.
+- `other` requiere una sección `## Other Scope Detail` con detalle sustantivo: paths concretos y motivo por el que ningún scope estándar aplica.
 
 No afirmar cobertura, seguridad o compatibilidad que no haya sido verificada.
 
+### Creación segura del body (bodies multilínea)
+
+Los bodies con varias líneas se gestionan con un archivo, nunca con un body largo construido directamente en la línea de comandos:
+
+1. escribir el body en un archivo Markdown temporal fuera del repositorio, codificado en UTF-8 sin BOM;
+2. verificar el contenido del archivo antes de usarlo;
+3. crear o editar el PR con `--body-file`, no con `--body`;
+4. no continuar con `gh pr view` ni `gh pr checks` hasta confirmar que el comando de creación devolvió una URL de PR válida.
+
+Ejemplo PowerShell compatible con Windows PowerShell 5.1 y PowerShell 7 (Nico ejecuta manualmente):
+
+```powershell
+$prBody = Join-Path $env:TEMP "vetneb-pr-body.md"
+
+$prBodyContent = Get-Content `
+  -LiteralPath ".github\PULL_REQUEST_TEMPLATE.md" `
+  -Raw
+
+[System.IO.File]::WriteAllText(
+  $prBody,
+  $prBodyContent,
+  [System.Text.UTF8Encoding]::new($false)
+)
+
+Get-Content -LiteralPath $prBody -Raw
+```
+
+`Set-Content -Encoding utf8NoBOM` no se usa porque ese parámetro no existe en Windows PowerShell 5.1; `[System.IO.File]::WriteAllText` con `UTF8Encoding($false)` escribe UTF-8 sin BOM en ambas versiones.
+
+A partir de ahí, Nico completa el archivo temporal (`$prBody`) conservando todos los headings, checkboxes y checklists del template vigente — no se recorta ni se resume el template al copiarlo al archivo temporal. Con el archivo ya completo y verificado:
+
+```powershell
+gh pr create `
+  --title "<titulo>" `
+  --base main `
+  --head "<rama>" `
+  --body-file $prBody
+```
+
+Para editar un PR existente:
+
+```powershell
+gh pr edit --body-file $prBody
+```
+
+No usar `gh pr create --body "..."` ni `gh pr edit --body "..."` para contenido multilínea, y no usar bloques PowerShell incompletos o sin verificación previa del archivo.
+
+### Verificación del body publicado
+
+Después de crear o editar el PR, confirmar el estado real antes de continuar:
+
+```powershell
+gh pr view --json number,title,state,url,headRefName,baseRefName,body
+```
+
+Confirmar explícitamente: el PR existe, los cuatro headings requeridos están presentes, el scope declarado coincide con el diff, el rollback está completo y las ramas head/base son las correctas.
+
+### Revalidación después de editar metadata
+
+Editar el body o el título de un PR no garantiza por sí solo una nueva ejecución del check de gobernanza. Con la configuración actual del repositorio:
+
+- después de corregir metadata (body, scope, headings), debe comprobarse si aparece un nuevo run de `PR Governance` para el SHA/metadata vigente;
+- si no aparece un nuevo run tras la corrección, Nico puede cerrar y reabrir el PR para generar un nuevo evento evaluable, sin crear commits vacíos;
+- debe volver a ejecutarse `gh pr checks --watch` y observarse hasta el final;
+- no usar commits vacíos únicamente para reactivar CI;
+- no reutilizar como evidencia un run fallido anterior al que ya no corresponde al body/scope corregido.
+
+Esta instrucción es específica al comportamiento observado en el flujo actual de `pull_request` + `workflow_dispatch` de este repositorio; no es una garantía general sobre cualquier configuración futura de CI.
+
 ## 24. Checks
 
-Después de que Nico haga push y cree el PR:
+Después de que Nico haga push y cree o actualice el PR:
 
 ### Terminal 1 — manual por Nico
 
@@ -436,7 +492,35 @@ Set-Location C:\PORTAL-VETNEB
 gh pr checks --watch
 ```
 
-No usar `gh pr checks <NUMERO_PR> --watch`. Un check verde no reemplaza la revisión de diff ni la QA humana.
+No usar `gh pr checks <NUMERO_PR> --watch`.
+
+Un resultado verde en `gh pr checks --watch` es necesario pero no suficiente para mergear: no reemplaza la revisión de diff, la QA humana, ni la verificación de mergeabilidad real del PR.
+
+### Estado de mergeabilidad después de los checks
+
+Tras `gh pr checks --watch`, verificar el estado real del PR, no solo el resultado de los checks:
+
+```powershell
+gh pr view `
+  --json number,title,state,mergeStateStatus,headRefName,baseRefName,statusCheckRollup,url
+```
+
+No autorizar el merge solamente porque `gh pr checks --watch` terminó en verde. `mergeStateStatus` puede seguir en `BLOCKED` por revisiones pendientes, review threads sin resolver, rama desactualizada u otra condición de branch protection ajena a los checks.
+
+### Review threads antes del merge
+
+Un check verde no implica que las conversaciones de revisión estén resueltas. Antes de considerar el PR mergeable:
+
+1. inspeccionar los comentarios y review threads del PR (en la UI de GitHub, o vía `gh api graphql` consultando `pullRequest.reviewThreads` si se necesita lectura programática — no hay IDs fijos que reutilizar entre PRs, cada consulta usa el número de PR vigente);
+2. distinguir un comentario informativo de un hallazgo accionable;
+3. no resolver (`resolve`) un thread antes de aplicar la corrección correspondiente;
+4. aplicar el cambio mínimo en la misma rama para cada hallazgo accionable;
+5. repetir las validaciones aplicables tras el cambio;
+6. publicar el nuevo commit (Nico hace push manualmente);
+7. esperar los checks del nuevo SHA, no reutilizar el resultado del SHA anterior;
+8. responder en el thread indicando qué se corrigió y dónde;
+9. resolver el thread solamente después de publicar y validar la corrección;
+10. antes de mergear, verificar que no queden review threads accionables sin resolver.
 
 ## 25. Manejo de CI fallido
 
@@ -451,18 +535,85 @@ No usar `gh pr checks <NUMERO_PR> --watch`. Un check verde no reemplaza la revis
 
 ## 26. Merge
 
-Solo Nico decide y ejecuta el merge cuando:
+### Amend y `force-with-lease`
 
+Cuando se decide conservar un PR de un solo commit, el amend y el force-push correspondiente son operaciones manuales exclusivas de Nico, y solo después de revisar el diff en stage:
+
+```powershell
+git commit --amend --no-edit
+git push --force-with-lease
+```
+
+No usar `git push --force` bajo ninguna circunstancia. El amend no es obligatorio para todos los PRs: un commit correctivo nuevo sobre la misma rama también es una opción válida según el caso, y suele ser preferible cuando ya hubo revisión externa sobre el historial existente.
+
+### Gate pre-merge
+
+Antes de ejecutar el merge deben cumplirse todos los siguientes puntos:
+
+- working tree local limpio;
+- HEAD local y rama remota sincronizados;
+- el PR está abierto y no es draft;
 - scope y diff están aprobados;
-- validaciones requeridas están verdes o existe una excepción documentada y aceptada;
-- revisión independiente no tiene hallazgos bloqueantes;
-- QA humana está aprobada;
-- markdown y body del PR están actualizados;
-- riesgo residual es conocido y aceptable.
+- el body del PR está vigente y validado (headings, scope, rollback — ver [Sección 23](#23-body-de-pr));
+- los checks del SHA actual son exitosos (no de un SHA anterior);
+- la revisión independiente no tiene hallazgos bloqueantes;
+- todos los review threads accionables están resueltos (ver [Sección 24](#24-checks));
+- `mergeStateStatus` es exactamente `CLEAN`;
+- QA humana está aprobada cuando aplica;
+- el riesgo residual es conocido y aceptable;
+- el rollback está documentado.
 
-No mezclar el merge con cambios adicionales de último minuto.
+Verificación estándar antes de decidir:
+
+```powershell
+gh pr view <PR> `
+  --json number,title,state,mergeStateStatus,headRefName,baseRefName,statusCheckRollup,url
+```
+
+Solo Nico decide y ejecuta el merge cuando el gate anterior se cumple completo. No mezclar el merge con cambios adicionales de último minuto.
+
+### `--admin` y `--auto`
+
+No usar `--admin` como workaround de branch protection. Si un PR requiere `--admin` para mergear, el bloqueo real no fue resuelto; hay que identificarlo y corregirlo, no sortearlo.
+
+`--auto` solo puede usarse por decisión explícita de Nico, cuando los requisitos de merge están pendientes pero se espera que se satisfagan normalmente (por ejemplo, checks en curso). No debe usarse para ocultar un bloqueo cuya causa no fue identificada.
+
+### Si `mergeStateStatus` es `BLOCKED`
+
+1. No reintentar el merge a ciegas.
+2. Inspeccionar checks, review threads, review decision, conversaciones y reglas de branch protection.
+3. Identificar el requisito exacto que falta.
+4. Corregir o resolver ese requisito puntual.
+5. Volver a verificar `mergeStateStatus` hasta obtener `CLEAN`.
 
 ## 27. Limpieza local post-merge
+
+### Confirmar el merge antes de limpiar
+
+Antes de cualquier limpieza local, confirmar el estado real del PR y del remoto:
+
+```powershell
+gh pr view <PR> `
+  --json number,title,state,mergedAt,mergeCommit,url
+
+git switch main
+git pull --ff-only
+git fetch --prune
+git log -1 --oneline
+git status --short --untracked-files=all
+```
+
+Confirmar explícitamente: el PR aparece como `MERGED`, `main` local ya contiene el commit de merge tras el `pull --ff-only`, y el working tree queda limpio.
+
+`git branch -r --no-merged origin/main` no se usa como fuente de verdad de merge porque `--no-merged` evalúa ancestry de commits: compara si el tip de la rama es alcanzable desde `origin/main`. En un squash merge, GitHub genera un commit nuevo en `main` con identidad, parentage e historial diferentes de los commits originales de la rama, aunque el tree resultante pueda ser equivalente al estado final de esa rama. Por ello, el tip original de una rama squash-merged no se convierte necesariamente en ancestro de `main` y puede seguir apareciendo como `--no-merged` aunque el PR esté efectivamente mergeado, sin que eso indique un problema real.
+
+Para verificar la existencia de la rama remota (por ejemplo, para confirmar que GitHub ya la eliminó tras el merge):
+
+```powershell
+git branch -r --list "origin/<rama>"
+```
+
+### Limpieza local
 
 La limpieza es manual por Nico y se realiza solo después de confirmar el merge y preservar cualquier trabajo local:
 
@@ -479,7 +630,7 @@ git branch -d <rama-mergeada>
 git status --short
 ```
 
-No usar `git branch -D`, `git reset`, `git clean` ni restauraciones masivas como limpieza rutinaria.
+No usar `git branch -D`, `git reset`, `git clean` ni restauraciones masivas como limpieza rutinaria. No borrar worktrees ni ramas ajenas a la tarea en curso. Confirmar que la rama remota fue eliminada cuando corresponda; no forzar su eliminación si pertenece a trabajo de otra persona.
 
 ## 28. Incidencias Windows / Git
 
@@ -600,6 +751,14 @@ El nuevo agente debe verificar el estado real por terminal; el handoff orienta, 
 - [ ] Solo archivos autorizados.
 - [ ] Riesgo residual documentado.
 - [ ] Comandos manuales entregados a Nico.
+- [ ] Body del PR conforme a `.github/PULL_REQUEST_TEMPLATE.md`, con los headings `## Summary`, `## Scope`, `## Validation` y `## Rollback` presentes.
+- [ ] Exactamente un scope primario marcado, o una excepción `mixed-scope` válida con todos los scopes reales declarados y justificados.
+- [ ] Rollback documentado con trigger, pasos e impacto en datos.
+- [ ] Checks verdes correspondientes al SHA actual del PR, no a un SHA anterior.
+- [ ] Ningún review thread accionable abierto.
+- [ ] `mergeStateStatus` verificado como `CLEAN` antes del merge.
+- [ ] HEAD local y rama remota coherentes.
+- [ ] Ningún uso de `--admin` como workaround de branch protection.
 
 ## 34. Comando estándar de cierre
 
@@ -620,6 +779,15 @@ Después de que Nico cree el PR, el comando estándar para observar checks es:
 ```powershell
 gh pr checks --watch
 ```
+
+Y, antes de decidir el merge, el comando estándar para verificar mergeabilidad real es:
+
+```powershell
+gh pr view `
+  --json number,title,state,mergeStateStatus,headRefName,baseRefName,statusCheckRollup,url
+```
+
+Un check verde en `gh pr checks --watch` no autoriza el merge por sí solo; ver [Sección 24](#24-checks) y [Sección 26](#26-merge).
 
 ## 35. Criterio final
 
