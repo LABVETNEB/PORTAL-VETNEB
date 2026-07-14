@@ -232,12 +232,18 @@ export function AdminClinicsManagementCard() {
     };
   }, [desktopBodyNode, mobileBodyNode, desktopRowNode, mobileRowNode]);
 
+  // Desktop context (detected by the discounted table header) keeps a floor of
+  // nine rows — the pre-adaptive fixed page size — so a transiently collapsed
+  // container can never feed back into a one-row page (VIS-ADMIN-001). The
+  // mobile list (no table header) keeps a floor of one so it can shrink freely
+  // on short phones.
+  const isDesktopMeasurement = measurement.headerHeightPx > 0;
   const { itemsPerPage: rowsPerPage } = useAdaptiveItemsPerPage({
     containerNode: measurement.containerNode,
     fallbackItems: CLINICS_FALLBACK_ROWS,
     itemHeightPx: measurement.rowHeightPx,
     headerHeightPx: measurement.headerHeightPx,
-    minItems: 1,
+    minItems: isDesktopMeasurement ? CLINICS_FALLBACK_ROWS : 1,
     maxItems: CLINICS_SUPERSET_CAP,
   });
 
@@ -645,7 +651,7 @@ export function AdminClinicsManagementCard() {
 
         <div
           ref={setDesktopBodyNode}
-          className="dashboard-table-responsive hidden md:block"
+          className="dashboard-table-responsive hidden min-h-0 flex-1 md:block"
         >
           <Table className="text-[0.8125rem] [&_th]:h-9 [&_th]:px-3 [&_td]:px-3">
             <TableHeader>
