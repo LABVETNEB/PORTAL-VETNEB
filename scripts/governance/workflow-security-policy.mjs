@@ -6,7 +6,7 @@ const deepFreeze = (value) => {
   return value;
 };
 
-export const POLICY_VERSION = "QGA-4.1";
+export const POLICY_VERSION = "QGA-4.2";
 
 export const WORKFLOW_PATH_PREFIX = ".github/workflows/";
 export const WORKFLOW_EXTENSIONS = deepFreeze([".yml", ".yaml"]);
@@ -16,6 +16,11 @@ export const APPROVED_EXTERNAL_ACTIONS = deepFreeze([
     repository: "actions/checkout",
     owner: "CI owner",
     reason: "Repository checkout is required by the tracked CI workflows.",
+  },
+  {
+    repository: "actions/create-github-app-token",
+    owner: "CI owner",
+    reason: "Minting the governance App installation token is required by the QGA governance check workflow.",
   },
   {
     repository: "actions/setup-node",

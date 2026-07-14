@@ -1,0 +1,93 @@
+name: QGA Governance
+
+on:
+  pull_request_target:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qga-governance-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  qga-workflow-security:
+    name: qga-workflow-security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      CANDIDATE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+
+    steps:
+      - name: Checkout trusted base branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
+      - name: Checkout candidate head as inert data
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: qga-candidate-head
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.8.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install trusted dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate candidate workflows with the trusted base validator
+        id: validate
+        working-directory: qga-candidate-head
+        run: |
+          set -u
+          if node "$GITHUB_WORKSPACE/scripts/governance/workflow-security-validator.mjs" > "$GITHUB_WORKSPACE/qga-validator-output.txt" 2>&1; then
+            echo "conclusion=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "conclusion=failure" >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_WORKSPACE/qga-validator-output.txt"
+
+      - name: Mint installation token for the governance App
+        id: governance-app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.QGA_GOVERNANCE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.QGA_GOVERNANCE_APP_PRIVATE_KEY }}
+
+      - name: Publish qga-workflow-security check run on the candidate head SHA
+        env:
+          GH_TOKEN: ${{ steps.governance-app.outputs.token }}
+          CHECK_CONCLUSION: ${{ steps.validate.outputs.conclusion }}
+        run: |
+          set -u
+          summary="$(head -c 60000 "$GITHUB_WORKSPACE/qga-validator-output.txt")"
+          gh api "repos/${GITHUB_REPOSITORY}/check-runs" \
+            --method POST \
+            -f "name=qga-workflow-security" \
+            -f "head_sha=${CANDIDATE_HEAD_SHA}" \
+            -f "status=completed" \
+            -f "conclusion=${CHECK_CONCLUSION}" \
+            -f "output[title]=Trusted base validator over candidate workflows" \
+            -f "output[summary]=${summary}" \
+            --jq ".id"
+
+      - name: Enforce validator conclusion on this job
+        env:
+          CHECK_CONCLUSION: ${{ steps.validate.outputs.conclusion }}
+        run: |
+          set -u
+          test "$CHECK_CONCLUSION" = "success"

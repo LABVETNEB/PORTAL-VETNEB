@@ -18,6 +18,7 @@ const canonicalWorkflowPaths = [
   ".github/workflows/backend-ci.yml",
   ".github/workflows/frontend-ci.yml",
   ".github/workflows/pr-governance.yml",
+  ".github/workflows/qga-governance.yml",
   ".github/workflows/visual-regression-manual.yml",
 ] as const;
 
@@ -48,6 +49,16 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
     ],
   ],
   [
+    ".github/workflows/qga-governance.yml",
+    [
+      "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1",
+      "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e",
+      "actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1",
+    ],
+  ],
+  [
     ".github/workflows/visual-regression-manual.yml",
     [
       "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
@@ -60,6 +71,7 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
 
 const mutableActionReferences = [
   "uses: actions/checkout@v7",
+  "uses: actions/create-github-app-token@v3",
   "uses: actions/setup-node@v6",
   "uses: actions/upload-artifact@v7",
   "uses: pnpm/action-setup@v4",
@@ -70,6 +82,7 @@ const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/backend-ci.yml", "1c46f2ef4291dd893ea3683a62d200d9d0623b5a896b68567fed497d76abf07f"],
   [".github/workflows/frontend-ci.yml", "7567b16a6c3b518d0a7e710838f6b2b05c9aa7f8402d561b39f8888d4a7b0944"],
   [".github/workflows/pr-governance.yml", "508d46915bb8f6b303a20eacdf31c47c6aa9e158e0041e7c240c0144b0313cac"],
+  [".github/workflows/qga-governance.yml", "0642833caad71b300196ac6083dab498da3ec5ff2447a528a2a1f9a43fd13c3c"],
   [".github/workflows/visual-regression-manual.yml", "48d6f8c4c2c04a2cb744b410a6114ac3aa1fbe9b6097ac405d2a56bc43d2bb0a"],
 ]);
 
@@ -96,10 +109,16 @@ function repositoryFromActionReference(reference: string): string {
 }
 
 test("workflow security policy exposes immutable QGA-4 declarative contract", () => {
-  assert.equal(POLICY_VERSION, "QGA-4.1");
+  assert.equal(POLICY_VERSION, "QGA-4.2");
   assert.deepEqual(
     APPROVED_EXTERNAL_ACTIONS.map((action) => action.repository).sort(),
-    ["actions/checkout", "actions/setup-node", "actions/upload-artifact", "pnpm/action-setup"],
+    [
+      "actions/checkout",
+      "actions/create-github-app-token",
+      "actions/setup-node",
+      "actions/upload-artifact",
+      "pnpm/action-setup",
+    ],
   );
   assert.deepEqual(PERMISSION_POLICY.topLevel, { contents: "read" });
   assert.deepEqual(PERMISSION_POLICY.jobLevelExceptions, []);
@@ -117,7 +136,7 @@ test("workflow security policy exposes immutable QGA-4 declarative contract", ()
   ]);
 });
 
-test("repository tracks exactly the five canonical workflow files", () => {
+test("repository tracks exactly the six canonical workflow files", () => {
   const actualWorkflowPaths = readdirSync(resolve(process.cwd(), ".github/workflows"))
     .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
     .map((name) => `.github/workflows/${name}`)

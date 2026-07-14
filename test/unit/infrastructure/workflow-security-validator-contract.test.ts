@@ -83,7 +83,7 @@ function assertFailsWith(
   }
 }
 
-test("parser-backed validator accepts the five real workflows", () => {
+test("parser-backed validator accepts the six real workflows", () => {
   const report = evaluateWorkflowSecurity();
 
   assertPasses(report);
@@ -94,10 +94,11 @@ test("parser-backed validator accepts the five real workflows", () => {
       ".github/workflows/backend-ci.yml",
       ".github/workflows/frontend-ci.yml",
       ".github/workflows/pr-governance.yml",
+      ".github/workflows/qga-governance.yml",
       ".github/workflows/visual-regression-manual.yml",
     ],
   );
-  assert.equal(report.policyVersion, "QGA-4.1");
+  assert.equal(report.policyVersion, "QGA-4.2");
   assert.equal(report.exceptionsUsed.length, 1);
   assert.equal(report.exceptionsUsed[0].path, "jobs.validate-backend.services.postgres.image");
 });
@@ -110,9 +111,13 @@ test("current pinned actions are approved and use lowercase SHA refs", () => {
   for (const action of report.externalActions) {
     assert.match(action.ref, /^[0-9a-f]{40}$/);
     assert.ok(
-      ["actions/checkout", "actions/setup-node", "actions/upload-artifact", "pnpm/action-setup"].includes(
-        action.repository,
-      ),
+      [
+        "actions/checkout",
+        "actions/create-github-app-token",
+        "actions/setup-node",
+        "actions/upload-artifact",
+        "pnpm/action-setup",
+      ].includes(action.repository),
       action.repository,
     );
   }
@@ -654,7 +659,7 @@ test("human summary stays deterministic and includes exact failure causes", (t) 
   const summary = renderWorkflowSecuritySummary(report);
 
   assert.match(summary, /^Workflow security validator FAIL\./);
-  assert.match(summary, /Policy version: QGA-4\.1\./);
+  assert.match(summary, /Policy version: QGA-4\.2\./);
   assert.match(summary, /jobs\.validate\.steps\[0\]\.uses/);
   assert.match(summary, /not a tag, branch or expression/);
 });
