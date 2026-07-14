@@ -260,8 +260,8 @@ test("admin clinics management card renders mobile cards while preserving deskto
     "mobile pager must keep the core pager landmark",
   );
   assert.ok(
-    source.includes('dashboard-table-responsive hidden md:block'),
-    "desktop table must be hidden on mobile and preserved from md upward",
+    source.includes('dashboard-table-responsive hidden min-h-0 flex-1 md:block'),
+    "desktop table must be hidden on mobile, fill its measured region and be preserved from md upward",
   );
   assert.ok(
     source.includes('aria-label={`Editar clínica ${clinic.clinicName}`}'),
