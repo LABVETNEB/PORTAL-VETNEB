@@ -13,6 +13,30 @@ runtime/staging falta.
 Resultado actual: **NO-GO para considerar cerrado el bloque RLS/enforcement**
 hasta completar evidencia runtime/staging sanitizada en los recursos críticos.
 
+## 1.1 Decisión de gobernanza RLS (ADR)
+
+La dirección arquitectónica de aislamiento tenant a nivel de datos quedó decidida
+en [`docs/architecture/rls-tenant-isolation-adr.md`](../architecture/rls-tenant-isolation-adr.md)
+(status **Accepted**). Esa decisión de gobernanza **no** cambia el estado técnico
+de esta matriz. La distinción es normativa:
+
+```
+RLS governance decision:        adopted (ADR Accepted)
+Application-level enforcement:   active and mandatory
+Native PostgreSQL RLS runtime:   not implemented
+Runtime evidence:               pending
+```
+
+En consecuencia:
+
+- el enforcement application-level sigue siendo **obligatorio**;
+- RLS nativo runtime sigue **no implementado**;
+- el bloque runtime permanece **pendiente**;
+- se mantiene **NO-GO** para el cierre técnico/runtime del bloque RLS/enforcement;
+- no se declara staging, producción ni policies activas;
+- la evidencia runtime requerida por recurso sigue **Abierto - pendiente
+  runtime/staging**.
+
 ## 2. Alcance
 
 Incluido:
