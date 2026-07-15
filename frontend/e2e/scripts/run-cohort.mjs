@@ -2,7 +2,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   CURRENT_COHORTS,
@@ -241,6 +241,7 @@ function main() {
   return runPlaywright(selection, extraArgs);
 }
 
-if (import.meta.url === `file://${SCRIPT_PATH.replace(/\\/g, "/")}` || process.argv[1] === SCRIPT_PATH) {
+const entryPath = process.argv[1];
+if (entryPath && import.meta.url === pathToFileURL(resolve(entryPath)).href) {
   process.exitCode = main();
 }
