@@ -299,6 +299,7 @@ test("runner rejects unknown cohorts and prints valid cohorts", () => {
 
 test("affected selection fails closed for empty or shared changes", async () => {
   const runnerPath = pathToFileURL(resolve(REPO_ROOT, "frontend/e2e/scripts/run-cohort.mjs")).href;
+  const exitCodeBeforeImport = process.exitCode;
   const runner = await import(runnerPath) as {
     classifyAffectedPaths: (changedPaths: string[]) => {
       specs: readonly string[];
@@ -306,6 +307,12 @@ test("affected selection fails closed for empty or shared changes", async () => 
       reason: string;
     };
   };
+
+  assert.equal(
+    process.exitCode,
+    exitCodeBeforeImport,
+    "importing the cohort runner must not execute its CLI entrypoint",
+  );
 
   const noRelevantSelection = runner.classifyAffectedPaths(["docs/audit/readme.md"]);
   assert.deepEqual(noRelevantSelection.specs, []);
