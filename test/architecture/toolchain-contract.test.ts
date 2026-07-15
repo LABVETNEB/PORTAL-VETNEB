@@ -5,7 +5,25 @@ import { resolve } from "node:path";
 
 type PackageJson = {
   packageManager?: string;
+  pnpm?: unknown;
 };
+
+const PINNED_PNPM_VERSION = "11.13.0";
+
+const PNPM_WORKFLOW_FILES = [
+  ".github/workflows/backend-ci.yml",
+  ".github/workflows/frontend-ci.yml",
+  ".github/workflows/qga-governance.yml",
+] as const;
+
+const SECURITY_OVERRIDE_LINES = [
+  '  "brace-expansion@>=5.0.0 <5.0.6": "5.0.6"',
+  '  esbuild: "0.28.1"',
+  '  "fast-uri@<=3.1.1": "3.1.2"',
+  '  "postcss@<8.5.10": "8.5.14"',
+  '  "ws@>=8.0.0 <8.20.1": "8.20.1"',
+  '  js-yaml: "4.2.0"',
+] as const;
 
 function readTextFile(...segments: string[]): string {
   return readFileSync(resolve(process.cwd(), ...segments), "utf8").replace(
@@ -42,7 +60,57 @@ function assertOrdered(source: string, expectedItems: readonly string[]): void {
 test("package.json pins the expected package manager", () => {
   const packageJson = readPackageJson();
 
-  assert.equal(packageJson.packageManager, "pnpm@10.8.1");
+  assert.equal(packageJson.packageManager, `pnpm@${PINNED_PNPM_VERSION}`);
+});
+
+test("package.json no longer carries pnpm configuration (moved to pnpm-workspace.yaml)", () => {
+  const packageJson = readPackageJson();
+
+  assert.equal(packageJson.pnpm, undefined);
+});
+
+test("every pnpm workflow pins the same pnpm version", () => {
+  for (const workflowFile of PNPM_WORKFLOW_FILES) {
+    const workflow = readTextFile(...workflowFile.split("/"));
+
+    assertContains(workflow, `version: ${PINNED_PNPM_VERSION}`);
+    assertNotContains(workflow, "version: 10.8.1");
+  }
+});
+
+test("pnpm-workspace.yaml keeps every security override exactly", () => {
+  const workspace = readTextFile("pnpm-workspace.yaml");
+
+  assertContains(workspace, 'packages:\n  - "frontend"');
+  assertContains(workspace, `overrides:\n${SECURITY_OVERRIDE_LINES.join("\n")}`);
+});
+
+test("pnpm-workspace.yaml preserves the build-script policy for argon2 and esbuild", () => {
+  const workspace = readTextFile("pnpm-workspace.yaml");
+
+  assertContains(
+    workspace,
+    "allowBuilds:\n  argon2: false\n  esbuild: false\n  sharp: false\n  unrs-resolver: false",
+  );
+
+  const allowBuildsIndex = workspace.indexOf("allowBuilds:");
+  const allowBuildsBlock = workspace
+    .slice(allowBuildsIndex)
+    .split(/\n(?=\S)/, 1)[0];
+
+  assertNotContains(allowBuildsBlock, ": true");
+  assertNotContains(workspace, "ignoredBuiltDependencies");
+});
+
+test("Backend CI keeps both dependency audits mandatory and blocking", () => {
+  const workflow = readTextFile(".github", "workflows", "backend-ci.yml");
+
+  assertContains(
+    workflow,
+    "      - name: Dependency security audit\n        run: |\n          pnpm audit --prod\n          pnpm audit",
+  );
+  assertNotContains(workflow, "continue-on-error");
+  assertNotContains(workflow, "|| true");
 });
 
 test("Backend CI uses the pinned pnpm and Node toolchain", () => {
@@ -59,7 +127,7 @@ test("Backend CI uses the pinned pnpm and Node toolchain", () => {
   assertNotContains(workflow, "uses: actions/checkout@v7");
   assertNotContains(workflow, "uses: pnpm/action-setup@v4");
   assertNotContains(workflow, "uses: actions/setup-node@v6");
-  assertContains(workflow, "version: 10.8.1");
+  assertContains(workflow, `version: ${PINNED_PNPM_VERSION}`);
   assertContains(workflow, "node-version: 24");
   assertContains(workflow, "cache: pnpm");
   assertContains(workflow, "cache-dependency-path: pnpm-lock.yaml");
