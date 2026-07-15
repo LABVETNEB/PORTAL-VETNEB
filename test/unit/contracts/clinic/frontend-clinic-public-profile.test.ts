@@ -26,7 +26,10 @@ test("clinic public profile card exists and is clinic scoped", () => {
   assert.ok(source.includes("getClinicPublicProfile"));
   assert.ok(source.includes("updateClinicPublicProfile"));
   assert.ok(source.includes('id="clinic-public-profile"'));
-  assert.ok(source.includes("Perfil para banco de especialidades"));
+  // FASE 2B: the card no longer duplicates the module title/subtitle that
+  // DashboardModuleWorkspace already renders once above it — it keeps the
+  // aria-label instead.
+  assert.ok(source.includes('ariaLabel="Perfil público de la clínica"'));
   assert.ok(source.includes("especialidades"));
   assert.equal(source.includes("/api/admin"), false);
 });

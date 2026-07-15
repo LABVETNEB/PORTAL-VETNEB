@@ -26,8 +26,7 @@
   }
 
   [data-vetneb-app-shell-surface="clinic"] [data-clinic-access-list-body="true"],
-  [data-vetneb-app-shell-surface="clinic"] [data-clinic-access-list-panel="true"],
-  [data-vetneb-app-shell-surface="clinic"] [data-clinic-profile-fields="true"] {
+  [data-vetneb-app-shell-surface="clinic"] [data-clinic-access-list-panel="true"] {
     min-height: 0;
     min-width: 0;
     overflow: hidden;
@@ -73,6 +72,37 @@
     --clinic-mobile-bottom-nav-h: clamp(3.15rem, 0.3rem + 0.45svh, 3.5rem);
     --clinic-mobile-bottom-nav-gap: clamp(0.1rem, 0.08rem + 0.08svw, 0.16rem);
     --clinic-mobile-type-2xs: clamp(0.56rem, 0.48rem + 0.22svw, 0.64rem);
+  }
+
+  /* Pinch-zoom must stay available on the whole clinic mobile shell (low-vision
+     accessibility). Accidental double-tap zoom / tap delay is suppressed only
+     on interactive controls via `manipulation`, which still allows pinch-zoom. */
+  [data-vetneb-app-shell-surface="clinic"]
+    :is(
+      button,
+      a,
+      [role="button"],
+      [role="tab"]
+    ) {
+    touch-action: manipulation;
+  }
+
+  /* FASE 2B: the operational chrome (tabs, cards, badges, buttons, labels,
+     lists, KPIs) must not be selectable by accident on touch; real form
+     fields opt back into normal text selection below. */
+  [data-vetneb-app-shell-surface="clinic"] * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  [data-vetneb-app-shell-surface="clinic"] input,
+  [data-vetneb-app-shell-surface="clinic"] textarea,
+  [data-vetneb-app-shell-surface="clinic"] select,
+  [data-vetneb-app-shell-surface="clinic"] [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
   }
 
   [data-vetneb-app-shell-surface="clinic"]
@@ -200,6 +230,36 @@
     button {
     min-height: 2rem;
     font-size: var(--clinic-mobile-type-2xs);
+  }
+
+  /* VIS-MOBILE-001 — operaciones and perfil are the two modules whose real
+     mobile content (tabbed KPI/lists, profile tabs) can exceed
+     dashboard-module-body's flex-allocated height at low-height portrait
+     viewports (measured: scrollHeight ~557-570 vs clientHeight ~270-390).
+     Their descendants already render at natural size (overflow: visible), so
+     making this single node the scroll owner makes the overflow reachable
+     instead of clipped, without introducing a second scroll container. */
+  [data-vetneb-app-shell-surface="clinic"]
+    [data-clinic-mobile-module="operaciones"]
+    .dashboard-module-body,
+  [data-vetneb-app-shell-surface="clinic"]
+    [data-clinic-mobile-module="perfil"]
+    .dashboard-module-body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(
+      var(--clinic-mobile-shell-gutter) + env(safe-area-inset-bottom)
+    );
+  }
+
+  /* Perfil's tab-content wrapper no longer clips internally — the module
+     body above is now the single scroll owner. */
+  [data-vetneb-app-shell-surface="clinic"]
+    [data-clinic-mobile-module="perfil"]
+    [data-clinic-profile-fields="true"] {
+    overflow: visible;
   }
 }
 /* clinic-admin-structure-parity:end */

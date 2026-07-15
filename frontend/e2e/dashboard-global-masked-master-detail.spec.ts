@@ -352,14 +352,21 @@ for (const viewport of VIEWPORTS) {
         page.locator('[data-dashboard-module-workspace="tokens"]').first(),
       ).toBeVisible({ timeout: 12_000 });
 
-      await page
+      // The generate button relies on a React onClick (not a link): under CI
+      // contention a click can land before hydration attaches the handler and
+      // silently open nothing. Retry until the click observably opened the
+      // dialog instead of trusting a single dispatched click.
+      const generateButton = page
         .getByRole("button", { name: "Generar token particular" })
-        .first()
-        .click();
-
-      await expect(
-        page.locator('[data-module-dialog="true"]').first(),
-      ).toBeVisible({ timeout: 5_000 });
+        .first();
+      const altaDialog = page.locator('[data-module-dialog="true"]').first();
+      await expect(generateButton).toBeEnabled();
+      await expect(async () => {
+        if (!(await altaDialog.isVisible())) {
+          await generateButton.click({ timeout: 2_000 });
+        }
+        await expect(altaDialog).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 10_000 });
       await expect(page.getByText("Paso 1 de 3: Vínculo")).toBeVisible();
       await page.locator("#clinic-token-particular-email").fill("particular@example.com");
       await page.locator("#clinic-token-tutor-last-name").fill("Tutor Demo");

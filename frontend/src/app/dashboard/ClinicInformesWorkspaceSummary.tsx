@@ -249,10 +249,10 @@ export function ClinicInformesWorkspaceSummary({
     <PublicRouteControl
       href={ROUTES.dashboardInformes}
       variant="bare"
-      className="inline-flex h-9 items-center gap-2 rounded-md border border-vetneb-teal/45 bg-vetneb-teal/10 px-3 text-sm font-semibold text-vetneb-teal transition-colors hover:bg-vetneb-teal/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
+      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-vetneb-teal/45 bg-vetneb-teal/10 px-2.5 text-xs font-semibold text-vetneb-teal transition-colors hover:bg-vetneb-teal/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2"
       aria-label="Abrir módulo completo de informes"
     >
-      <ExternalLink className="h-4 w-4" aria-hidden="true" />
+      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
       Abrir módulo completo
     </PublicRouteControl>
   );
@@ -369,37 +369,27 @@ export function ClinicInformesWorkspaceSummary({
     <ModuleSurface
       ariaLabel="Informes recientes de la clínica"
       toolbar={
-        <div className="flex w-full flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-vetneb-ink">
-              Informes recientes
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Últimos estudios cargados. Para acceso completo use el módulo de informes.
-            </p>
-          </div>
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-            <ModuleDialog
-              open={isFilterDialogOpen}
-              onOpenChange={setIsFilterDialogOpen}
-              title="Filtrar informes"
-              description="Los filtros se aplican sobre los informes recientes cargados en la workspace."
-              trigger={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 gap-1.5 px-2.5 text-xs md:hidden"
-                >
-                  <Filter className="h-3.5 w-3.5" aria-hidden="true" />
-                  {hasActiveFilters ? "Filtros activos" : "Filtros"}
-                </Button>
-              }
-            >
-              {renderAdvancedFilterForm(true)}
-            </ModuleDialog>
-            {fullModuleLink}
-          </div>
+        <div className="flex w-full flex-wrap items-center justify-end gap-2">
+          <ModuleDialog
+            open={isFilterDialogOpen}
+            onOpenChange={setIsFilterDialogOpen}
+            title="Filtrar informes"
+            description="Los filtros se aplican sobre los informes recientes cargados en la workspace."
+            trigger={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 px-2.5 text-xs md:hidden"
+              >
+                <Filter className="h-3.5 w-3.5" aria-hidden="true" />
+                {hasActiveFilters ? "Filtros activos" : "Filtros"}
+              </Button>
+            }
+          >
+            {renderAdvancedFilterForm(true)}
+          </ModuleDialog>
+          {fullModuleLink}
         </div>
       }
     >
@@ -512,11 +502,7 @@ export function ClinicInformesWorkspaceSummary({
                           #{report.id} · {report.patientName ?? "Sin nombre"}
                         </p>
                         <p className="truncate text-[0.6875rem] text-muted-foreground">
-                          {report.studyType ?? "Tipo sin registrar"} ·{" "}
-                          {formatDate(report.uploadDate)}
-                        </p>
-                        <p className="truncate text-[0.6875rem] text-muted-foreground">
-                          {formatReportFile(report)}
+                          {report.studyType ?? "Tipo sin registrar"}
                         </p>
                       </div>
                       <div className="flex shrink-0 items-center gap-1.5">

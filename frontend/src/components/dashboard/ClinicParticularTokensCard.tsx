@@ -845,29 +845,19 @@ export function ClinicParticularTokensCard() {
             data-clinic-access-toolbar="true"
             className="flex w-full flex-wrap items-center justify-between gap-2"
           >
-            <div className="min-w-0">
-              <h3 className="dashboard-section-heading">
-                Tokens particulares
-              </h3>
-              <p className="dashboard-section-description line-clamp-1">
-                Generación, actualización, estado y detalle clínico en un módulo
-                compacto.
-              </p>
-            </div>
+            <ParticularTokensMetricStrip
+              metrics={[
+                { label: "Tokens", value: tokens.length },
+                { label: "Activos", value: activeTokensCount },
+                { label: "Informes", value: linkedReportsCount },
+              ]}
+              className="grid grid-cols-3 rounded-md"
+              itemClassName="min-w-[4.25rem] px-2 py-1"
+              valueClassName="text-sm"
+              aria-label="Métricas de tokens particulares"
+            />
 
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-              <ParticularTokensMetricStrip
-                metrics={[
-                  { label: "Tokens", value: tokens.length },
-                  { label: "Activos", value: activeTokensCount },
-                  { label: "Informes", value: linkedReportsCount },
-                ]}
-                className="grid grid-cols-3 rounded-md"
-                itemClassName="min-w-[4.25rem] px-2 py-1"
-                valueClassName="text-sm"
-                aria-label="Métricas de tokens particulares"
-              />
-
               <ModuleDialog
                 open={isFilterDialogOpen}
                 onOpenChange={setIsFilterDialogOpen}
@@ -878,7 +868,7 @@ export function ClinicParticularTokensCard() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-10 min-h-10 gap-1.5 px-2.5 text-xs md:hidden"
+                    className="h-8 gap-1.5 px-2.5 text-xs md:hidden"
                   >
                     <Filter className="h-3.5 w-3.5" aria-hidden="true" />
                     {hasActiveFilters ? "Filtros activos" : "Filtros"}
@@ -892,6 +882,7 @@ export function ClinicParticularTokensCard() {
                 type="button"
                 variant="outline"
                 size="sm"
+                className="h-8 px-2.5 text-xs"
                 onClick={() => void loadTokens(effectiveFetchLimit)}
                 disabled={isLoadingTokens}
               >
@@ -900,6 +891,7 @@ export function ClinicParticularTokensCard() {
               <Button
                 type="button"
                 size="sm"
+                className="h-8 px-2.5 text-xs"
                 onClick={() => setIsCreateDialogOpen(true)}
                 disabled={generatedToken !== null}
               >

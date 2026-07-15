@@ -314,7 +314,22 @@ async function readWorstInternalVerticalScroll(
       }`;
     };
 
+    // VIS-MOBILE-001: `.dashboard-module-body` inside the clinic operaciones
+    // or perfil mobile modules is a deliberate, single, reachable scroll
+    // owner (their real content can exceed the flex-allocated body height at
+    // low-height mobile portrait). It is intentionally exempt from this
+    // "zero internal scroll" scan; every other element in `main` still must
+    // not introduce its own scroll container.
+    const isSanctionedScrollOwner = (element: HTMLElement) =>
+      element.classList.contains("dashboard-module-body") &&
+      (element.closest('[data-clinic-mobile-module="operaciones"]') !== null ||
+        element.closest('[data-clinic-mobile-module="perfil"]') !== null);
+
     main?.querySelectorAll<HTMLElement>("*").forEach((element) => {
+      if (isSanctionedScrollOwner(element)) {
+        return;
+      }
+
       const style = window.getComputedStyle(element);
       if (style.overflowY !== "auto" && style.overflowY !== "scroll") {
         return;
