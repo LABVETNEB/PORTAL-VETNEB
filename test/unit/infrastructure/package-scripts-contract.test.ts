@@ -25,7 +25,7 @@ test("root package keeps backend identity package manager and module mode", () =
   assert.equal(pkg.version, "2.1.0");
   assert.equal(pkg.private, true);
   assert.equal(pkg.type, "module");
-  assert.equal(pkg.packageManager, "pnpm@10.8.1");
+  assert.equal(pkg.packageManager, "pnpm@11.13.0");
 });
 
 test("root package keeps backend build validation and test scripts", () => {
