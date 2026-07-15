@@ -1,24 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, resolve, sep } from "node:path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { listTrackedSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = process.cwd();
 const CANONICAL_FIXTURE_HELPER_PATH =
   "test/helpers/public-professionals-fixtures.ts";
-
-const IGNORED_DIRECTORIES = new Set([
-  ".git",
-  ".next",
-  ".turbo",
-  "coverage",
-  "dist",
-  "node_modules",
-]);
-
-function toRepoPath(path: string): string {
-  return path.split(sep).join("/");
-}
 
 function readSource(relativePath: string): string {
   return readFileSync(resolve(REPO_ROOT, relativePath), "utf8").replace(
@@ -27,35 +15,11 @@ function readSource(relativePath: string): string {
   );
 }
 
-function listSourceFiles(directory: string): string[] {
-  const absoluteDirectory = resolve(REPO_ROOT, directory);
-  const entries = readdirSync(absoluteDirectory);
-  const files: string[] = [];
-
-  for (const entry of entries) {
-    if (IGNORED_DIRECTORIES.has(entry)) {
-      continue;
-    }
-
-    const absolutePath = join(absoluteDirectory, entry);
-    const stats = statSync(absolutePath);
-
-    if (stats.isDirectory()) {
-      files.push(...listSourceFiles(relative(REPO_ROOT, absolutePath)));
-      continue;
-    }
-
-    if (!stats.isFile()) {
-      continue;
-    }
-
-    if (/\.(cjs|cts|js|mjs|mts|ts)$/.test(entry)) {
-      files.push(toRepoPath(relative(REPO_ROOT, absolutePath)));
-    }
-  }
-
-  return files.sort();
-}
+// Tracked-file inventory (E2E-STAB-006): the scan covers exactly the files
+// git tracks, so auxiliary trees (.claude/worktrees/**, playwright-report/,
+// test-results/) can never inject false offenders and no exclusion list can
+// hide a tracked file.
+const listSourceFiles = listTrackedSourceFiles;
 
 function isAllowedPublicProfessionalsFixtureConsumerTest(file: string): boolean {
   const isLegacyTopLevelPublicProfessionalsTest =

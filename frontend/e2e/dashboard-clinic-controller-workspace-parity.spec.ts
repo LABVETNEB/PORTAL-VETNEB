@@ -20,20 +20,6 @@ const CLINIC_MODULES: ClinicModule[] = [
   "tokens",
 ];
 
-/**
- * Nav items whose href resolves to `/dashboard?module=<id>` exactly, so
- * aria-current is verifiable there. PR-CL4 resolved the Informes/Logística
- * nav dualism (CL-GAP-7): all 5 clinic modules now navigate through the
- * canonical `?module=` workspace, so aria-current is uniformly verifiable.
- */
-const CLINIC_MODULES_WITH_VERIFIABLE_NAV: Record<ClinicModule, string | null> = {
-  operaciones: "Resumen",
-  informes: "Informes",
-  logistica: "Logística",
-  perfil: "Perfil",
-  tokens: "Tokens",
-};
-
 async function setClinicSession(page: Page) {
   await page.context().addCookies([
     {
@@ -92,30 +78,30 @@ async function expectClinicStage(page: Page) {
   return stage;
 }
 
-async function expectSingleClinicLayer(
-  page: Page,
-  expected: "hub" | ClinicModule,
-) {
+// The clinic hub/cockpit was removed with the horizontal-nav redesign: a bare
+// `/dashboard` resolves to the operational default module and the stage always
+// renders exactly one workspace. "Single layer" therefore means: one workspace
+// mounted, zero hub layers.
+async function expectSingleClinicLayer(page: Page, expected: ClinicModule) {
   await expectClinicStage(page);
-
-  if (expected === "hub") {
-    await expect(page.locator('[data-dashboard-module-hub="true"]')).toBeVisible();
-    await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(0);
-    return;
-  }
 
   await expect(
     page.locator(`[data-dashboard-module-workspace="${expected}"]`),
   ).toBeVisible();
+  await expect(page.locator("[data-dashboard-module-workspace]")).toHaveCount(1);
   await expect(page.locator('[data-dashboard-module-hub="true"]')).toHaveCount(0);
 }
 
+const DEFAULT_CLINIC_MODULE: ClinicModule = "operaciones";
+
 test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
-  test("clinic /dashboard loads the module hub", async ({ page }) => {
+  test("clinic /dashboard loads the operational default workspace (no hub)", async ({
+    page,
+  }) => {
     await setClinicSession(page);
     await page.goto("/dashboard");
-    await expectSingleClinicLayer(page, "hub");
-    await expect(page.locator('[data-clinic-cockpit="true"]')).toBeVisible();
+    await expectSingleClinicLayer(page, DEFAULT_CLINIC_MODULE);
+    await expect(page.locator('[data-clinic-cockpit="true"]')).toHaveCount(0);
   });
 
   for (const moduleId of CLINIC_MODULES) {
@@ -161,25 +147,29 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     ).toBeVisible({ timeout: 8_000 });
   });
 
-  test("clinic Vista general returns to hub in a single click (no double-hop)", async ({
+  // The clinic workspace has no "Vista general" back control anymore (module
+  // navigation is owned by the shared rail), so single-click module switching
+  // is exercised through the rail item itself.
+  test("clinic rail reaches the operational default in a single click", async ({
     page,
   }) => {
     await setClinicSession(page);
-    await page.goto("/dashboard?module=operaciones");
-    const workspace = page.locator('[data-dashboard-module-workspace="operaciones"]');
-    await expect(workspace).toBeVisible({ timeout: 8_000 });
+    await page.goto("/dashboard?module=tokens");
+    await expectSingleClinicLayer(page, "tokens");
 
-    await workspace.locator('button[aria-label="Vista general"]').click();
+    await page
+      .locator(`[data-dashboard-module-rail-item="${DEFAULT_CLINIC_MODULE}"]`)
+      .click();
 
-    await expectSingleClinicLayer(page, "hub");
-    await expect(page).toHaveURL(/\/dashboard(?:\?.*)?$/);
-    await expect(page).not.toHaveURL(/module=/);
+    await expectSingleClinicLayer(page, DEFAULT_CLINIC_MODULE);
   });
 
-  test("clinic stage persists when returning to hub", async ({ page }) => {
+  test("clinic stage persists when switching modules through the rail", async ({
+    page,
+  }) => {
     await setClinicSession(page);
-    await page.goto("/dashboard?module=operaciones");
-    await expectSingleClinicLayer(page, "operaciones");
+    await page.goto("/dashboard?module=tokens");
+    await expectSingleClinicLayer(page, "tokens");
 
     const stage = await expectClinicStage(page);
     await stage.evaluate((element) => {
@@ -187,11 +177,10 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     });
 
     await page
-      .locator('[data-dashboard-module-workspace="operaciones"]')
-      .locator('button[aria-label="Vista general"]')
+      .locator(`[data-dashboard-module-rail-item="${DEFAULT_CLINIC_MODULE}"]`)
       .click();
 
-    await expectSingleClinicLayer(page, "hub");
+    await expectSingleClinicLayer(page, DEFAULT_CLINIC_MODULE);
     await expect(
       page.locator(
         '[data-dashboard-module-stage="true"][data-clinic-dashboard-stage="true"][data-e2e-stage-token="clinic-stage"]',
@@ -199,22 +188,23 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     ).toBeVisible();
   });
 
+  // The horizontal top nav is suppressed on the clinic main dashboard; the
+  // module rail is the single clinic module navigation there, so aria-current
+  // is asserted on the rail item.
   for (const moduleId of CLINIC_MODULES) {
-    const navLabel = CLINIC_MODULES_WITH_VERIFIABLE_NAV[moduleId];
-    if (!navLabel) continue;
-
-    test(`clinic ${moduleId} keeps active nav item aria-current visible`, async ({
+    test(`clinic ${moduleId} keeps active rail item aria-current visible`, async ({
       page,
     }) => {
       await setClinicSession(page);
       await page.goto(`/dashboard?module=${moduleId}`);
       await expectSingleClinicLayer(page, moduleId);
 
-      const navigation = page.getByRole("navigation", {
-        name: "Navegación principal",
+      const rail = page.getByRole("navigation", {
+        name: "Navegación de módulos de clínica",
       });
+      await expect(rail).toBeVisible({ timeout: 8_000 });
       await expect(
-        navigation.getByRole("button", { name: navLabel, exact: true }),
+        rail.locator(`[data-dashboard-module-rail-item="${moduleId}"]`),
       ).toHaveAttribute("aria-current", "page");
     });
   }
@@ -235,51 +225,16 @@ test.describe("clinic controller/workspace parity contract (PR-CL1)", () => {
     });
   }
 
-  test("clinic hub fits 390x844 without horizontal overflow or main scroll", async ({
+  test("clinic default entry fits 390x844 without horizontal overflow or main scroll", async ({
     page,
   }) => {
     await setClinicSession(page);
     await page.setViewportSize(MOBILE_VIEWPORT);
     await page.goto("/dashboard");
-    await expectSingleClinicLayer(page, "hub");
+    await expectSingleClinicLayer(page, DEFAULT_CLINIC_MODULE);
 
     await expectNoHorizontalOverflow(page);
     await expectMainNotScrollContainer(page);
-  });
-});
-
-test.describe("clinic cockpit hub parity (PR-CL7)", () => {
-  test("hub exposes operational cockpit sections and primary actions", async ({
-    page,
-  }) => {
-    await setClinicSession(page);
-    await page.goto("/dashboard");
-
-    const cockpit = page.locator('[data-clinic-cockpit="true"]');
-    await expect(cockpit).toBeVisible({ timeout: 8_000 });
-
-    for (const selector of [
-      '[data-clinic-cockpit-status="true"]',
-      '[data-clinic-cockpit-attention="true"]',
-      '[data-clinic-cockpit-continuity="true"]',
-      '[data-clinic-cockpit-activity="true"]',
-      '[data-clinic-cockpit-modules="true"]',
-      '[data-clinic-cockpit-primary-actions="true"]',
-    ]) {
-      await expect(cockpit.locator(selector)).toBeVisible();
-    }
-
-    for (const label of [
-      "Abrir operaciones",
-      "Abrir informes",
-      "Abrir logística",
-      "Abrir perfil",
-      "Generar o abrir tokens",
-    ]) {
-      await expect(
-        cockpit.getByRole("button", { name: label, exact: true }),
-      ).toBeVisible();
-    }
   });
 });
 

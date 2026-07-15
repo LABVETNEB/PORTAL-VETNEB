@@ -30,10 +30,15 @@ test.describe("particular authenticated session fixture (R-17)", () => {
 
     await expect(page.getByText("Sesión particular activa")).toBeVisible();
 
+    // The operational viewport mode (html[data-particular-operational-viewport])
+    // collapses the identity summary at 390x844 in favor of the flat
+    // operational cards; the summary stays in the DOM for larger viewports.
+    const flatStack = page.locator('[data-particular-mobile-flat-stack="true"]');
+    await expect(flatStack).toBeVisible();
     const mobileSummary = page.locator('[data-particular-mobile-safe-summary="true"]');
-    await expect(mobileSummary).toBeVisible();
-    await expect(mobileSummary.getByText(MOCK_PARTICULAR_SESSION.tutorLastName)).toBeVisible();
-    await expect(mobileSummary.getByText(MOCK_PARTICULAR_SESSION.petName)).toBeVisible();
+    await expect(mobileSummary).toBeAttached();
+    await expect(mobileSummary.getByText(MOCK_PARTICULAR_SESSION.tutorLastName)).toBeAttached();
+    await expect(mobileSummary.getByText(MOCK_PARTICULAR_SESSION.petName)).toBeAttached();
 
     const trackingCard = page.locator('[data-particular-mobile-flat-card="tracking"]');
     await expect(trackingCard).toBeVisible();

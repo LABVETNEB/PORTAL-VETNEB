@@ -62,7 +62,10 @@ async function readBoundary(page: Page, bottomNavSelector: string) {
 test.describe("dashboard zero-scroll mobile lower boundary", () => {
   for (const viewport of MOBILE_VIEWPORTS) {
     for (const route of CLINIC_ROUTES) {
-      test(`clinic ${route.path} keeps content above the bottom nav at ${viewport.name}`, async ({
+      // The clinic main dashboard (`/dashboard`, with or without ?module=) no
+      // longer mounts the mobile bottom nav — the module rail is the single
+      // clinic navigation there — so the lower boundary is the viewport edge.
+      test(`clinic ${route.path} keeps content inside the viewport at ${viewport.name}`, async ({
         page,
       }) => {
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -89,16 +92,18 @@ test.describe("dashboard zero-scroll mobile lower boundary", () => {
             boundary.horizontalScrollDelta,
             `${route.path} ${viewport.name}: horizontal scroll delta`,
           ).toBeLessThanOrEqual(TOLERANCE);
-          expect(
-            boundary.navVisible,
-            `${route.path} ${viewport.name}: clinic bottom nav visible`,
-          ).toBe(true);
           expect(boundary.mainBottom, "main rect resolved").not.toBeNull();
-          expect(boundary.navTop, "bottom nav rect resolved").not.toBeNull();
+
+          // Lower boundary: the bottom nav top when it is mounted (secondary
+          // clinic routes), otherwise the viewport edge.
+          const lowerBoundary =
+            boundary.navVisible && boundary.navTop !== null
+              ? boundary.navTop
+              : viewport.height;
           expect(
             boundary.mainBottom!,
-            `${route.path} ${viewport.name}: main must not escape below the bottom nav`,
-          ).toBeLessThanOrEqual(boundary.navTop! + TOLERANCE);
+            `${route.path} ${viewport.name}: main must not escape below its lower boundary`,
+          ).toBeLessThanOrEqual(lowerBoundary + TOLERANCE);
         }).toPass({ timeout: 12_000 });
       });
     }
