@@ -16,7 +16,7 @@ import {
   readModuleNoScrollContract as readNoScrollContract,
   setPopulatedAdminSession,
   suppressNextDevIndicator,
-} from "./helpers/admin-mobile-contracts";
+} from "../../helpers/admin-mobile-contracts";
 
 // PR-C — Admin mobile CONFIG modules (Precios + Mantenimiento). These rendered
 // the desktop editor card / ModuleTabs on mobile; with populated data they

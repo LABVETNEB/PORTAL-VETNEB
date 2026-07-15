@@ -16,7 +16,7 @@ import {
   readModuleNoScrollContract as readNoScrollContract,
   setPopulatedAdminSession,
   suppressNextDevIndicator,
-} from "./helpers/admin-mobile-contracts";
+} from "../../helpers/admin-mobile-contracts";
 
 // PR-B — Admin mobile STATUS modules (Administración/Resumen + Estado del
 // sistema). These two modules still rendered the desktop ModuleTabs/grids on

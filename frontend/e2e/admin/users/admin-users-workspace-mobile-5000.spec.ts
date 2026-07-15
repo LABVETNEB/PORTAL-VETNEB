@@ -7,7 +7,7 @@ import {
   readModuleNoScrollContract,
   setPopulatedAdminSession,
   suppressNextDevIndicator,
-} from "./helpers/admin-mobile-contracts";
+} from "../../helpers/admin-mobile-contracts";
 
 // CAP-A3 — real Admin Usuarios/Roles mobile list (AdminMobileOpsPager)
 // against the CAP-A1 5000-user fixture. Mirrors admin-users-workspace-5000.spec.ts

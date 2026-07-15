@@ -7,7 +7,7 @@ import {
 import {
   setPopulatedAdminSession,
   suppressNextDevIndicator,
-} from "./helpers/admin-mobile-contracts";
+} from "../../helpers/admin-mobile-contracts";
 
 // PR-CAP-QA1 — Visual Quality Gate for the real Admin Usuarios/Roles workspace
 // under the CAP-A1 5000-user fixture. Reproduces the viewport x state matrix of
