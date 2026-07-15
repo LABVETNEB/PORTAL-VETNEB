@@ -8,7 +8,7 @@ import {
   readDocumentNoScrollContract,
   setTestAdminSession,
   suppressNextDevIndicator,
-} from "./helpers/admin-mobile-contracts";
+} from "../../helpers/admin-mobile-contracts";
 
 // 40 clinics (R-02): guarantees a page 2 exists for any effectiveLimit <= 36
 // (HY superset cap), same margin used by Sessions/Users/Alerts.

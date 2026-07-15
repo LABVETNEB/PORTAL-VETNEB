@@ -13,7 +13,7 @@ import {
   fulfillJson,
   setPopulatedAdminSession,
   suppressNextDevIndicator,
-} from "./helpers/admin-mobile-contracts";
+} from "../../helpers/admin-mobile-contracts";
 
 const MOBILE_VIEWPORTS = [
   { name: "android-small-360x740", width: 360, height: 740 },

@@ -8,7 +8,7 @@ import {
   readModuleNoScrollContract,
   setPopulatedAdminSession,
   suppressNextDevIndicator,
-} from "./helpers/admin-mobile-contracts";
+} from "../../helpers/admin-mobile-contracts";
 
 // PR-SRV-1: sessions is adaptive (measured cardinality, superset cap 32). The
 // fixture stays larger than any effective mobile limit so page 2 always exists.
