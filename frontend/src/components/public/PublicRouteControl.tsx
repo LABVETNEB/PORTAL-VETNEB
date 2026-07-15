@@ -7,6 +7,7 @@ import type {
   MouseEvent,
   ReactNode,
 } from "react";
+import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,14 @@ const styledClasses: Record<
     "w-full border border-white/60 bg-white/10 px-7 font-semibold text-vetneb-navy shadow-sm hover:bg-white/16 hover:text-vetneb-navy active:text-vetneb-navy focus-visible:text-vetneb-navy sm:w-auto",
 };
 
+function isPublicPreHydrationRoute(href: string): boolean {
+  return (
+    href.startsWith("/") &&
+    !href.startsWith("/dashboard") &&
+    !href.includes("#")
+  );
+}
+
 export function PublicRouteControl({
   href,
   children,
@@ -58,9 +67,21 @@ export function PublicRouteControl({
 }: PublicRouteControlProps) {
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    document.documentElement.dataset.publicRouteControlsHydrated = "true";
+  }, []);
+
   const isRouteActive =
     activeClassName != null &&
     (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/"));
+  const publicRouteFallbackProps = isPublicPreHydrationRoute(href)
+    ? {
+        "data-public-route-control": "true",
+        "data-public-route-href": href,
+        "data-public-route-replace": replace ? "true" : undefined,
+      }
+    : {};
 
   const navigate = () => {
     if (replace) {
@@ -128,6 +149,7 @@ export function PublicRouteControl({
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onFocus={handleFocus}
+        {...publicRouteFallbackProps}
         className={cn(
           "inline-flex items-center gap-2 text-sm font-semibold text-vetneb-navy underline-offset-4 transition hover:text-vetneb-teal hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2",
           className,
@@ -149,6 +171,7 @@ export function PublicRouteControl({
         onMouseEnter={handleMouseEnter}
         onFocus={handleFocus}
         aria-current={isRouteActive ? "page" : undefined}
+        {...publicRouteFallbackProps}
         className={cn(
           "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/85 focus-visible:ring-offset-2",
           className,
@@ -171,6 +194,7 @@ export function PublicRouteControl({
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onFocus={handleFocus}
+      {...publicRouteFallbackProps}
       {...props}
     >
       {children}

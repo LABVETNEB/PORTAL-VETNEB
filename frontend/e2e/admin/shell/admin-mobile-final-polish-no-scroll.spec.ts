@@ -421,6 +421,7 @@ async function auditModuleItems(
 ) {
   const moduleRoot = page.locator(moduleScreen.mobileRoot);
   const items = moduleRoot.locator(moduleScreen.itemSelector);
+  const pager = moduleRoot.locator(moduleScreen.pagerSelector);
   await expect(items.first(), `${viewport.name} ${moduleScreen.key}: populated items`).toBeVisible({
     timeout: 15_000,
   });
@@ -432,22 +433,32 @@ async function auditModuleItems(
   await expect
     .poll(async () => items.count(), { timeout: 15_000 })
     .toBeGreaterThan(0);
-  let previousCount = -1;
-  await expect
-    .poll(
-      async () => {
-        const count = await items.count();
-        const stable = count === previousCount;
-        previousCount = count;
-        return stable;
-      },
-      { timeout: 15_000 },
-    )
-    .toBe(true);
+  let settledSignature = "";
+  let settledCount = 0;
+  await expect(async () => {
+    const current = await items.count();
+    const pagerText = (await pager.textContent()) ?? "";
+    const pagerRange = pagerText.match(/1\s*[–-]\s*(\d+)\s+de/i);
+    const pagerVisibleCount = pagerRange ? Number(pagerRange[1]) : current;
+    expect(
+      current,
+      `${viewport.name} ${moduleScreen.key}: visible item count`,
+    ).toBeGreaterThan(0);
+    expect(
+      current,
+      `${viewport.name} ${moduleScreen.key}: item count matches pager range`,
+    ).toBe(pagerVisibleCount);
 
-  const itemCount = await items.count();
-  expect(itemCount, `${viewport.name} ${moduleScreen.key}: populated item count`).toBeGreaterThan(0);
-  for (let index = 0; index < itemCount; index += 1) {
+    const signature = `${current}:${pagerText}`;
+    if (settledSignature !== signature) {
+      settledSignature = signature;
+      settledCount = current;
+      throw new Error(`${moduleScreen.key} item count not yet stable: ${signature}`);
+    }
+  }).toPass({ intervals: [250, 350, 500, 750, 1_000], timeout: 15_000 });
+
+  expect(settledCount, `${viewport.name} ${moduleScreen.key}: populated item count`).toBeGreaterThan(0);
+  for (let index = 0; index < await items.count(); index += 1) {
     await expectInsideMobileContentBand(
       page,
       items.nth(index),
@@ -460,7 +471,6 @@ async function auditModuleItems(
     );
   }
 
-  const pager = moduleRoot.locator(moduleScreen.pagerSelector);
   await expectInsideMobileContentBand(
     page,
     pager,

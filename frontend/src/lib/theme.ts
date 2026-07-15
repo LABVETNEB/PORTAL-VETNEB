@@ -9,6 +9,12 @@ export type ThemeMode =
   | typeof NORMAL_THEME_MODE
   | typeof DARK_GRAY_THEME_MODE;
 
+function themeColorForMode(theme: ThemeMode): string {
+  return theme === DARK_GRAY_THEME_MODE
+    ? DARK_GRAY_THEME_COLOR
+    : NORMAL_THEME_COLOR;
+}
+
 export function applyThemeMode(theme: ThemeMode): void {
   document.documentElement.dataset.theme = theme;
 
@@ -17,13 +23,14 @@ export function applyThemeMode(theme: ThemeMode): void {
   );
   const themeColor = themeColors.item(0);
   if (themeColor) {
-    themeColor.content =
-      theme === DARK_GRAY_THEME_MODE
-        ? DARK_GRAY_THEME_COLOR
-        : NORMAL_THEME_COLOR;
+    themeColor.content = themeColorForMode(theme);
   }
 
   for (let index = 1; index < themeColors.length; index += 1) {
-    themeColors.item(index)?.remove();
+    const duplicate = themeColors.item(index);
+    if (duplicate) {
+      duplicate.dataset.vetnebThemeColorDuplicate = "true";
+      duplicate.setAttribute("name", "theme-color-duplicate");
+    }
   }
 }

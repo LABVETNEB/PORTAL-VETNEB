@@ -149,6 +149,7 @@ export function AdminDashboardWorkspaceController({
     browserAccessErrorStatus ?? initialAccessErrorStatus ?? null;
   const hasRestoredLastModule = useRef(false);
   const previousUrlModule = useRef<AdminModule | null>(initialModule ?? null);
+  const currentUrlModule = useRef<AdminModule | null>(initialModule ?? null);
   // Latest sync navigation intention (hub tile, hero CTA, bottom-nav signal,
   // hub reset). The stage swaps optimistically before the router commits the
   // matching URL; this ref lets the URL-sync effect tell that commit apart
@@ -164,8 +165,14 @@ export function AdminDashboardWorkspaceController({
   const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
     useState(false);
 
+  const recordNavigationIntent = useCallback((target: AdminModule | null) => {
+    pendingNavigationIntent.current =
+      currentUrlModule.current === target ? null : { target };
+  }, []);
+
   useEffect(() => {
     const nextModule = parseAdminModule(searchParams.get("module"));
+    currentUrlModule.current = nextModule;
 
     if (previousUrlModule.current !== nextModule) {
       clearAdminAccessError();
@@ -185,10 +192,10 @@ export function AdminDashboardWorkspaceController({
     // sub-second optimistic window.
     const intent = pendingNavigationIntent.current;
     if (intent) {
-      pendingNavigationIntent.current = null;
       if (nextModule !== intent.target) {
         return;
       }
+      pendingNavigationIntent.current = null;
     }
 
     setActiveModule(parseAdminModule(searchParams.get("module")));
@@ -204,11 +211,11 @@ export function AdminDashboardWorkspaceController({
     () =>
       subscribeAdminHubReset(() => {
         clearAdminAccessError();
-        pendingNavigationIntent.current = { target: null };
+        recordNavigationIntent(null);
         setActiveModule(null);
         setHasManuallyReturnedToHub(true);
       }),
-    [],
+    [recordNavigationIntent],
   );
 
   // The mobile bottom-nav module destinations publish their target so the
@@ -222,11 +229,11 @@ export function AdminDashboardWorkspaceController({
         const parsed = parseAdminModule(moduleId);
         if (!parsed) return;
         clearAdminAccessError();
-        pendingNavigationIntent.current = { target: parsed };
+        recordNavigationIntent(parsed);
         setHasManuallyReturnedToHub(false);
         setActiveModule(parsed);
       }),
-    [],
+    [recordNavigationIntent],
   );
 
   useEffect(() => {
@@ -258,10 +265,10 @@ export function AdminDashboardWorkspaceController({
     const moduleId = pendingActivation;
     setPendingActivation(null);
     clearAdminAccessError();
-    pendingNavigationIntent.current = { target: moduleId };
+    recordNavigationIntent(moduleId);
     setActiveModule(moduleId);
     router.push(`/dashboard/admin?module=${moduleId}`, { scroll: false });
-  }, [pendingActivation, router]);
+  }, [pendingActivation, recordNavigationIntent, router]);
 
   const activateModule = useCallback((moduleId: AdminModule) => {
     setPendingActivation(moduleId);
@@ -269,11 +276,11 @@ export function AdminDashboardWorkspaceController({
 
   const backToHub = useCallback(() => {
     clearAdminAccessError();
-    pendingNavigationIntent.current = { target: null };
+    recordNavigationIntent(null);
     setActiveModule(null);
     setHasManuallyReturnedToHub(true);
     router.replace("/dashboard/admin", { scroll: false });
-  }, [router]);
+  }, [recordNavigationIntent, router]);
 
   const adminHero = (
     <DashboardHubHero
@@ -403,6 +410,7 @@ export function AdminDashboardWorkspaceController({
     >
       {activeModule && activeMeta ? (
         <DashboardModuleWorkspace
+          key={activeModule}
           title={activeMeta.title}
           description={activeMeta.description}
           moduleId={activeModule}

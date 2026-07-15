@@ -25,6 +25,14 @@ export function AdminMobileBottomNav() {
   const [activeModule, setActiveModule] = useState<string | null>(null);
   const [isModuleMenuOpen, setIsModuleMenuOpen] = useState(false);
   const closeModuleMenu = useCallback(() => setIsModuleMenuOpen(false), []);
+  const activateMobileModule = useCallback(
+    (moduleId: string) => {
+      setActiveModule(moduleId);
+      requestAdminModuleActivate(moduleId);
+      closeModuleMenu();
+    },
+    [closeModuleMenu],
+  );
   const isSecondaryModuleActive =
     activeModule !== null &&
     !FIXED_DESTINATIONS.some(
@@ -55,7 +63,7 @@ export function AdminMobileBottomNav() {
       <AdminMobileModuleMenu
         isOpen={isModuleMenuOpen}
         onClose={closeModuleMenu}
-        onNavigate={setActiveModule}
+        onNavigate={activateMobileModule}
       />
       <nav
         aria-label="Navegación móvil de administración"
@@ -91,15 +99,7 @@ export function AdminMobileBottomNav() {
               aria-label={destination.label}
               aria-current={isActive ? "page" : undefined}
               data-admin-mobile-bottom-nav-item="true"
-              onClick={() => {
-                setActiveModule(destination.moduleId);
-                // Activate the module synchronously so the workspace swaps
-                // immediately, instead of waiting for the async URL push (which
-                // can lag under load and strand the controller on the previous
-                // module). The router.push below keeps the URL in sync.
-                requestAdminModuleActivate(destination.moduleId);
-                closeModuleMenu();
-              }}
+              onClick={() => activateMobileModule(destination.moduleId)}
               className={cn(
                 "admin-mobile-bottom-nav-item",
                 isActive && "admin-mobile-bottom-nav-item-active",

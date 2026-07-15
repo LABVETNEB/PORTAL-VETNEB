@@ -1,11 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// The branded not-found CTAs navigate through an onClick handler (router.push),
-// which only runs after React hydrates. Right after a `domcontentloaded`
-// navigation the handler may not be attached yet, so the first click can be a
-// no-op and the URL stays put. Retry the click until the navigation actually
-// happens, mirroring the hydration-probe pattern used elsewhere in the suite
-// (see contacto-hydration.spec.ts).
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   const overflow = await page.evaluate(
     () =>
@@ -24,13 +18,8 @@ async function clickAndExpectNavigation(
 
   await expect(control).toBeVisible();
   await expect(control).toBeEnabled();
-  await expect(async () => {
-    await control.click();
-    await expect(page).toHaveURL(expectedUrl, { timeout: 500 });
-  }).toPass({
-    intervals: [50, 100, 250],
-    timeout: 5_000,
-  });
+  await control.click();
+  await expect(page).toHaveURL(expectedUrl);
 }
 
 const routes = [

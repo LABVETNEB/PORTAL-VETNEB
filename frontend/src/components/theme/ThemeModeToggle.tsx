@@ -34,6 +34,7 @@ export function ThemeModeToggle({ className }: { className?: string }) {
       // Sin persistencia disponible: el tema igual aplica en esta vista.
     }
     setTheme(next);
+    window.requestAnimationFrame(() => applyThemeMode(next));
   }
 
   return (

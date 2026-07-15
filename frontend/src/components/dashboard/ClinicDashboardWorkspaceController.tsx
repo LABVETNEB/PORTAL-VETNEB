@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardModuleRail } from "./DashboardModuleRail";
 import { DashboardModuleWorkspace } from "./DashboardModuleWorkspace";
@@ -72,6 +72,9 @@ export function ClinicDashboardWorkspaceController({
     initialModule ?? DEFAULT_CLINIC_MODULE,
   );
   const hasRestoredLastModule = useRef(false);
+  const currentUrlModule = useRef<ClinicModule>(
+    initialModule ?? DEFAULT_CLINIC_MODULE,
+  );
   // Latest sync navigation intention (rail tab, pager step, nav signal, hub
   // reset). The stage swaps the active module optimistically before the router
   // commits the matching URL; this ref lets the URL-sync effect tell that
@@ -80,10 +83,16 @@ export function ClinicDashboardWorkspaceController({
   const [hasManuallyReturnedToHub, setHasManuallyReturnedToHub] =
     useState(false);
 
+  const recordNavigationIntent = useCallback((target: ClinicModule) => {
+    pendingNavigationIntent.current =
+      currentUrlModule.current === target ? null : { target };
+  }, []);
+
   useEffect(() => {
     // No module in the URL means the operational default — never a hub.
     const nextModule =
       parseClinicModule(searchParams.get("module")) ?? DEFAULT_CLINIC_MODULE;
+    currentUrlModule.current = nextModule;
 
     // A sync activation swaps the stage before its URL commit. Under load the
     // SUPERSEDED previous navigation can still commit after that optimistic
@@ -96,10 +105,10 @@ export function ClinicDashboardWorkspaceController({
     // more than once, and only inside the sub-second optimistic window.
     const intent = pendingNavigationIntent.current;
     if (intent) {
-      pendingNavigationIntent.current = null;
       if (nextModule !== intent.target) {
         return;
       }
+      pendingNavigationIntent.current = null;
     }
 
     setActiveModule(nextModule);
@@ -110,11 +119,11 @@ export function ClinicDashboardWorkspaceController({
       subscribeClinicModuleActivate((moduleId) => {
         const parsed = parseClinicModule(moduleId);
         if (!parsed) return;
-        pendingNavigationIntent.current = { target: parsed };
+        recordNavigationIntent(parsed);
         setHasManuallyReturnedToHub(false);
         setActiveModule(parsed);
       }),
-    [],
+    [recordNavigationIntent],
   );
 
   // Legacy hub-reset signals (e.g. the "Inicio" control on secondary surfaces)
@@ -122,11 +131,11 @@ export function ClinicDashboardWorkspaceController({
   useEffect(
     () =>
       subscribeClinicHubReset(() => {
-        pendingNavigationIntent.current = { target: DEFAULT_CLINIC_MODULE };
+        recordNavigationIntent(DEFAULT_CLINIC_MODULE);
         setActiveModule(DEFAULT_CLINIC_MODULE);
         setHasManuallyReturnedToHub(true);
       }),
-    [],
+    [recordNavigationIntent],
   );
 
   useEffect(() => {
@@ -160,6 +169,7 @@ export function ClinicDashboardWorkspaceController({
     >
       <DashboardModuleRail activeModule={activeModule} />
       <DashboardModuleWorkspace
+        key={activeModule}
         title={meta.title}
         description={meta.description}
         moduleId={activeModule}
