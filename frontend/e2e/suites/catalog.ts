@@ -1,0 +1,176 @@
+export const DOMAINS = [
+  "admin",
+  "clinic",
+  "public",
+  "particular",
+  "platform",
+  "regression",
+] as const;
+
+export const CURRENT_COHORTS = [
+  "smoke",
+  "admin-mobile",
+  "visual-contract",
+  "public-clinic",
+] as const;
+
+export const EXECUTION_COHORTS = [
+  "ci",
+  "extended",
+  "evidence",
+  "visual-linux",
+  "full",
+  "affected",
+] as const;
+
+export const PLATFORMS = ["any", "linux"] as const;
+
+export type E2eDomain = (typeof DOMAINS)[number];
+export type E2eCurrentCohort = (typeof CURRENT_COHORTS)[number];
+export type E2eExecutionCohort = (typeof EXECUTION_COHORTS)[number];
+export type E2ePlatform = (typeof PLATFORMS)[number];
+export type E2eCriticality = "P0" | "P1" | "P2" | "P3";
+export type E2eTargetGate = "current-ci" | "future-p1" | "extended" | "manual";
+
+export type E2eCatalogEntry = {
+  readonly path: `e2e/${string}.spec.ts`;
+  readonly domain: E2eDomain;
+  readonly feature: string;
+  readonly contractType: string;
+  readonly criticality: E2eCriticality;
+  readonly owner: string;
+  readonly currentCohorts: readonly E2eCurrentCohort[];
+  readonly executionCohorts: readonly E2eExecutionCohort[];
+  readonly platform: E2ePlatform;
+  readonly fixture: string;
+  readonly evidence: string;
+  readonly targetGate: E2eTargetGate;
+  readonly notes: string;
+};
+
+const ci = ["ci", "full"] as const;
+const extended = ["extended", "full"] as const;
+const evidence = ["evidence", "full"] as const;
+const visualLinux = ["visual-linux", "full"] as const;
+
+const entry = (
+  path: E2eCatalogEntry["path"],
+  domain: E2eDomain,
+  feature: string,
+  contractType: string,
+  currentCohorts: readonly E2eCurrentCohort[],
+  executionCohorts: readonly E2eExecutionCohort[],
+  options: Partial<
+    Pick<
+      E2eCatalogEntry,
+      "criticality" | "platform" | "fixture" | "evidence" | "targetGate" | "notes"
+    >
+  > = {},
+): E2eCatalogEntry => ({
+  path,
+  domain,
+  feature,
+  contractType,
+  criticality: options.criticality ?? (currentCohorts.length > 0 ? "P1" : "P2"),
+  owner: domain,
+  currentCohorts,
+  executionCohorts,
+  platform: options.platform ?? "any",
+  fixture: options.fixture ?? "none",
+  evidence: options.evidence ?? "none",
+  targetGate: options.targetGate ?? (currentCohorts.length > 0 ? "current-ci" : "extended"),
+  notes: options.notes ?? "",
+});
+
+export const E2E_SUITE_CATALOG = [
+  entry("e2e/accessibility-axe-key-routes.spec.ts", "platform", "accessibility", "axe key routes", [], extended),
+  entry("e2e/admin-clinic-edit-drawer.spec.ts", "admin", "clinics", "admin isolation edit drawer", ["admin-mobile"], ci, { criticality: "P1", notes: "Security isolation contract; do not demote." }),
+  entry("e2e/admin-clinics-mobile-card-layout.spec.ts", "admin", "clinics", "mobile card layout", ["admin-mobile"], ci),
+  entry("e2e/admin-mobile-app-shell-absolute-no-scroll.spec.ts", "admin", "shell", "absolute no-scroll app shell", ["admin-mobile"], ci),
+  entry("e2e/admin-mobile-bottom-navigation-no-scroll.spec.ts", "admin", "shell", "bottom navigation no-scroll", ["admin-mobile"], ci),
+  entry("e2e/admin-mobile-config-modules-no-scroll.spec.ts", "admin", "shell", "config modules no-scroll", ["admin-mobile"], ci, { evidence: "test-results" }),
+  entry("e2e/admin-mobile-core-modules-no-scroll.spec.ts", "admin", "shell", "core modules no-scroll", ["admin-mobile"], ci, { fixture: "admin-mobile-contracts" }),
+  entry("e2e/admin-mobile-final-polish-no-scroll.spec.ts", "admin", "shell", "final polish no-scroll", ["admin-mobile"], ci, { fixture: "admin-mobile-contracts", evidence: "test-results" }),
+  entry("e2e/admin-mobile-hub-launcher-no-scroll.spec.ts", "admin", "shell", "hub launcher no-scroll", ["admin-mobile"], ci),
+  entry("e2e/admin-mobile-hub-stale-layer-stage.spec.ts", "admin", "shell", "stale layer stage", ["admin-mobile"], ci, { evidence: "test-results" }),
+  entry("e2e/admin-mobile-module-layer-isolation.spec.ts", "admin", "shell", "module layer isolation", ["admin-mobile"], ci, { evidence: "test-results" }),
+  entry("e2e/admin-mobile-ops-modules-no-scroll.spec.ts", "admin", "shell", "ops modules no-scroll", ["admin-mobile"], ci, { fixture: "admin-mobile-contracts" }),
+  entry("e2e/admin-mobile-status-modules-no-scroll.spec.ts", "admin", "shell", "status modules no-scroll", ["admin-mobile"], ci, { fixture: "admin-mobile-contracts", evidence: "test-results" }),
+  entry("e2e/admin-pricing-multi-form-measurement.spec.ts", "admin", "pricing", "multi-form measurement", [], extended),
+  entry("e2e/admin-tokens-mobile-toolbar-layout.spec.ts", "admin", "tokens", "mobile toolbar layout", ["admin-mobile"], ci),
+  entry("e2e/admin-users-fixture-pagination.spec.ts", "admin", "users", "fixture pagination", [], extended, { fixture: "admin-populated-api-server" }),
+  entry("e2e/admin-users-visual-quality-gate.spec.ts", "admin", "users", "visual quality capacity", [], extended, { fixture: "admin-mobile-contracts", notes: "Audit CAP classification mapped to extended in E2E-ORG-1." }),
+  entry("e2e/admin-users-workspace-5000.spec.ts", "admin", "users", "workspace capacity 5000", [], extended, { notes: "Audit CAP classification mapped to extended in E2E-ORG-1." }),
+  entry("e2e/admin-users-workspace-mobile-5000.spec.ts", "admin", "users", "mobile workspace capacity 5000", [], extended, { fixture: "admin-mobile-contracts", notes: "Audit CAP classification mapped to extended in E2E-ORG-1." }),
+  entry("e2e/clinic-informes-zero-internal-scroll.spec.ts", "clinic", "reports", "internal no-scroll", [], extended),
+  entry("e2e/clinic-reports-fixture-pagination.spec.ts", "clinic", "reports", "fixture pagination", [], extended, { fixture: "admin-populated-api-server" }),
+  entry("e2e/clinic-reports-workspace-1000.spec.ts", "clinic", "reports", "workspace capacity 1000 with P1 guards", [], extended, { notes: "Known Informes product defect remains out of scope; audit CAP classification mapped to extended." }),
+  entry("e2e/contacto-hydration.spec.ts", "platform", "hydration", "contact page hydration", ["smoke"], ci),
+  entry("e2e/dashboard-accessibility-keyboard.spec.ts", "platform", "accessibility", "dashboard keyboard accessibility", ["visual-contract"], ci),
+  entry("e2e/dashboard-adaptive-rows.spec.ts", "clinic", "shell", "adaptive rows", [], extended),
+  entry("e2e/dashboard-app-shell-visibility-contract.spec.ts", "platform", "app-shell", "app shell visibility", ["visual-contract"], ci),
+  entry("e2e/dashboard-auth-redirect.spec.ts", "platform", "auth", "private redirect and admin 404", ["smoke"], ci, { criticality: "P1", notes: "Security boundary; do not demote." }),
+  entry("e2e/dashboard-card-navigation-shell.spec.ts", "platform", "app-shell", "navigation and deep links", ["visual-contract"], ci),
+  entry("e2e/dashboard-centered-pager.spec.ts", "clinic", "shell", "centered pager", [], extended),
+  entry("e2e/dashboard-clinic-controller-workspace-parity.spec.ts", "clinic", "shell", "controller rail workspace parity", [], extended),
+  entry("e2e/dashboard-clinic-informes-mobile-parity.spec.ts", "clinic", "reports", "mobile reports parity", ["public-clinic"], ci),
+  entry("e2e/dashboard-clinic-logistica-mobile-parity.spec.ts", "clinic", "logistics", "mobile logistics parity", ["public-clinic"], ci),
+  entry("e2e/dashboard-clinic-mobile-content-reachability.spec.ts", "clinic", "shell", "mobile content reachability", [], extended),
+  entry("e2e/dashboard-clinic-mobile-operational-density.spec.ts", "clinic", "shell", "mobile operational density", [], extended),
+  entry("e2e/dashboard-clinic-module-state-parity.spec.ts", "clinic", "shell", "module state parity", [], extended),
+  entry("e2e/dashboard-clinic-perfil-mobile-operability.spec.ts", "clinic", "profile", "mobile profile operability", ["public-clinic"], ci),
+  entry("e2e/dashboard-clinic-tokens-mobile-parity.spec.ts", "clinic", "tokens", "mobile tokens parity", ["public-clinic"], ci),
+  entry("e2e/dashboard-global-masked-master-detail.spec.ts", "platform", "app-shell", "masked master detail", ["visual-contract"], ci),
+  entry("e2e/dashboard-informes-server-adaptive-pagination.spec.ts", "clinic", "reports", "server adaptive pagination", [], extended),
+  entry("e2e/dashboard-interaction-foundation.spec.ts", "clinic", "shell", "interaction foundation", ["smoke"], ci),
+  entry("e2e/dashboard-internal-no-scroll-contract.spec.ts", "platform", "app-shell", "internal no-scroll", ["visual-contract"], ci),
+  entry("e2e/dashboard-logistica-metricas-full-route-adaptive.spec.ts", "clinic", "logistics", "metrics full route adaptive", [], extended),
+  entry("e2e/dashboard-logistica-rutas-full-route-adaptive.spec.ts", "clinic", "logistics", "routes full route adaptive", [], extended),
+  entry("e2e/dashboard-logistica-visitas-full-route-adaptive.spec.ts", "clinic", "logistics", "visits full route adaptive", [], extended),
+  entry("e2e/dashboard-logout-private-cache.spec.ts", "platform", "auth", "logout and private no-store", [], extended, { criticality: "P1", targetGate: "future-p1", notes: "P1 future gate priority; intentionally outside effective ci in E2E-ORG-1." }),
+  entry("e2e/dashboard-master-detail-state-polish.spec.ts", "clinic", "shell", "master-detail state polish", ["visual-contract"], ci),
+  entry("e2e/dashboard-mobile-shell-nav-contract.spec.ts", "platform", "app-shell", "mobile shell navigation", ["visual-contract"], ci),
+  entry("e2e/dashboard-real-app-shell-no-scroll-contract.spec.ts", "platform", "app-shell", "real app shell no-scroll", ["visual-contract"], ci),
+  entry("e2e/dashboard-runtime-post-ux1-visual-evidence.spec.ts", "regression", "evidence", "runtime visual evidence", [], evidence, { evidence: "docs/audit" }),
+  entry("e2e/dashboard-single-viewport-app-shell.spec.ts", "platform", "app-shell", "single viewport app shell", ["visual-contract"], ci),
+  entry("e2e/dashboard-viewport-zoom-adaptability.spec.ts", "platform", "app-shell", "viewport zoom adaptability", ["visual-contract"], ci),
+  entry("e2e/dashboard-workspace-layout-polish.spec.ts", "platform", "app-shell", "workspace layout polish", ["visual-contract"], ci),
+  entry("e2e/dashboard-zero-scroll-mobile-boundary.spec.ts", "platform", "app-shell", "mobile zero-scroll boundary", [], extended),
+  entry("e2e/home-hero-evidence-first.spec.ts", "public", "home", "hero evidence-first", ["public-clinic"], ci),
+  entry("e2e/login-hydration.spec.ts", "platform", "hydration", "login page hydration", ["smoke"], ci),
+  entry("e2e/logistics-mobile-no-horizontal-table.spec.ts", "clinic", "logistics", "mobile no horizontal table", [], extended),
+  entry("e2e/particular-authenticated-no-scroll.spec.ts", "particular", "auth", "authenticated no-scroll", [], extended, { fixture: "particular-session-contracts" }),
+  entry("e2e/particular-authenticated-session-fixture.spec.ts", "particular", "auth", "authenticated session fixture", [], extended, { fixture: "particular-session-contracts" }),
+  entry("e2e/public-clinics-b2b-operations.spec.ts", "public", "clinics", "B2B operations landing", ["public-clinic"], ci),
+  entry("e2e/public-navigation-footer.spec.ts", "public", "navigation", "navigation and footer", ["public-clinic"], ci),
+  entry("e2e/public-perspective-scroll.spec.ts", "public", "home", "perspective scroll", ["public-clinic"], ci),
+  entry("e2e/public-pricing-actionable.spec.ts", "public", "pricing", "actionable pricing", ["public-clinic"], ci),
+  entry("e2e/public-report-preview.spec.ts", "public", "reports", "public report preview", ["public-clinic"], ci),
+  entry("e2e/public-routes.spec.ts", "public", "routes", "public routes resolve", ["smoke"], ci, { criticality: "P1", notes: "Availability boundary; do not demote." }),
+  entry("e2e/public-service-bento-specimen-journey.spec.ts", "public", "services", "service bento specimen journey", ["public-clinic"], ci),
+  entry("e2e/remove-dashboard-home-unified-workspace.spec.ts", "clinic", "shell", "post hub removal behavior", [], extended),
+  entry("e2e/remove-home-unified-workspace-screenshots.spec.ts", "regression", "evidence", "workspace screenshots evidence", [], evidence, { evidence: "docs/audit" }),
+  entry("e2e/theme-mode.spec.ts", "platform", "theme", "light dark toggle", ["smoke"], ci),
+  entry("e2e/visual-regression-authenticated.spec.ts", "regression", "visual", "authenticated pixel baseline", [], visualLinux, { platform: "linux", evidence: "snapshots", targetGate: "manual" }),
+  entry("e2e/visual-regression-public.spec.ts", "regression", "visual", "public pixel baseline", [], visualLinux, { platform: "linux", evidence: "snapshots", targetGate: "manual", notes: "Linux-only baseline; public spec has no platform skip." }),
+  entry("e2e/visual-regression-stress.spec.ts", "regression", "visual", "stress pixel baseline", [], visualLinux, { platform: "linux", evidence: "snapshots", targetGate: "manual" }),
+  entry("e2e/visual-smoke.spec.ts", "platform", "smoke", "multi-surface render sanity", ["smoke"], ci, { evidence: "memory" }),
+] as const satisfies readonly E2eCatalogEntry[];
+
+export const E2E_COHORT_SPECS: Readonly<Record<E2eExecutionCohort, readonly E2eCatalogEntry["path"][]>> =
+  Object.freeze({
+    ci: E2E_SUITE_CATALOG.filter((item) => item.executionCohorts.includes("ci")).map((item) => item.path),
+    extended: E2E_SUITE_CATALOG.filter((item) => item.executionCohorts.includes("extended")).map((item) => item.path),
+    evidence: E2E_SUITE_CATALOG.filter((item) => item.executionCohorts.includes("evidence")).map((item) => item.path),
+    "visual-linux": E2E_SUITE_CATALOG.filter((item) => item.executionCohorts.includes("visual-linux")).map((item) => item.path),
+    full: E2E_SUITE_CATALOG.filter((item) => item.executionCohorts.includes("full")).map((item) => item.path),
+    affected: [],
+  });
+
+export const E2E_CURRENT_COHORT_SPECS: Readonly<Record<E2eCurrentCohort, readonly E2eCatalogEntry["path"][]>> =
+  Object.freeze({
+    smoke: E2E_SUITE_CATALOG.filter((item) => item.currentCohorts.includes("smoke")).map((item) => item.path),
+    "admin-mobile": E2E_SUITE_CATALOG.filter((item) => item.currentCohorts.includes("admin-mobile")).map((item) => item.path),
+    "visual-contract": E2E_SUITE_CATALOG.filter((item) => item.currentCohorts.includes("visual-contract")).map((item) => item.path),
+    "public-clinic": E2E_SUITE_CATALOG.filter((item) => item.currentCohorts.includes("public-clinic")).map((item) => item.path),
+  });

@@ -99,12 +99,18 @@ test("frontend package keeps identity and Next scripts", () => {
   assert.equal(pkg.scripts.typecheck, "tsc --noEmit");
 });
 
-test("frontend package keeps Playwright script surface", () => {
+test("frontend package keeps Playwright script surface delegated through the E2E catalog runner", () => {
   const pkg = readPackage("frontend/package.json");
 
-  assert.equal(pkg.scripts.e2e, "playwright test");
+  assert.equal(pkg.scripts.e2e, "node e2e/scripts/run-cohort.mjs full");
   assert.equal(pkg.scripts["e2e:ui"], "playwright test --ui");
   assert.equal(pkg.scripts["e2e:report"], "playwright show-report");
+  assert.equal(pkg.scripts["e2e:full"], "node e2e/scripts/run-cohort.mjs full");
+  assert.equal(pkg.scripts["e2e:ci"], "node e2e/scripts/run-cohort.mjs ci");
+  assert.equal(pkg.scripts["e2e:smoke"], "node e2e/scripts/run-cohort.mjs smoke");
+  assert.equal(pkg.scripts["e2e:admin-mobile"], "node e2e/scripts/run-cohort.mjs admin-mobile");
+  assert.equal(pkg.scripts["e2e:visual-contract"], "node e2e/scripts/run-cohort.mjs visual-contract");
+  assert.equal(pkg.scripts["e2e:public-clinic"], "node e2e/scripts/run-cohort.mjs public-clinic");
 });
 
 test("frontend package keeps runtime dependency surface", () => {
