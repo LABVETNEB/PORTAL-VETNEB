@@ -95,8 +95,13 @@ test.describe("dashboard logout — server session invalidation", () => {
     });
 
     await page.goto("/dashboard");
+    // The clinic dashboard has no hub layer anymore: readiness is the clinic
+    // stage with its active workspace mounted.
     await expect(
-      page.locator('[data-dashboard-module-hub="true"]'),
+      page.locator('[data-clinic-dashboard-stage="true"]'),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.locator("[data-dashboard-module-workspace]"),
     ).toBeVisible({ timeout: 15_000 });
 
     await desktopLogoutButton(page).click();
@@ -111,7 +116,7 @@ test.describe("dashboard logout — server session invalidation", () => {
 
     await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
     await expect(
-      page.locator('[data-dashboard-module-hub="true"]'),
+      page.locator('[data-clinic-dashboard-stage="true"]'),
     ).toHaveCount(0);
   });
 });

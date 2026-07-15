@@ -887,8 +887,20 @@ const server = createServer((request, response) => {
 
 server.listen(PORT, HOST);
 
+// Teardown contract: the process must always exit and free port 3107, even
+// with keep-alive sockets still open. `closeAllConnections` prevents
+// `server.close` from waiting on idle agents, and the unref'd failsafe timer
+// guarantees exit if anything else keeps the event loop alive.
+let shuttingDown = false;
+
 function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
   server.close(() => process.exit(0));
+  server.closeAllConnections();
+
+  setTimeout(() => process.exit(0), 2_000).unref();
 }
 
 process.on("SIGINT", shutdown);

@@ -213,6 +213,31 @@ function mobilePagination(page: Page) {
     .getByRole("navigation", { name: MOBILE_PAGINATION_LABEL });
 }
 
+// Hydration guard for AdminMobileOpsPager: the step button can be painted
+// before React attaches its handler, silently losing the first click. The
+// click is only retried while the pager has not reached the expected page, so
+// a slow but successful click is never repeated (a repeat would step an extra
+// page).
+async function stepMobilePage(
+  page: Page,
+  buttonName: "Siguiente" | "Anterior",
+  expectedPageText: string,
+) {
+  await expect(async () => {
+    const before = await readMobileWorkspaceState(page);
+    if (before.pageText !== expectedPageText) {
+      await mobilePagination(page)
+        .getByRole("button", { name: buttonName })
+        .click();
+    }
+    await expect
+      .poll(async () => (await readMobileWorkspaceState(page)).pageText, {
+        timeout: 2_000,
+      })
+      .toBe(expectedPageText);
+  }).toPass({ timeout: 15_000 });
+}
+
 test.describe("admin users-roles workspace 5000-user fixture mobile (CAP-A3)", () => {
   test.beforeEach(async ({ page }) => {
     await setPopulatedAdminSession(page);
@@ -270,7 +295,7 @@ test.describe("admin users-roles workspace 5000-user fixture mobile (CAP-A3)", (
       const limit = firstPage.usernames.length;
       const pageCount = Math.ceil(HIGH_VOLUME_TOTAL / limit);
 
-      await mobilePagination(page).getByRole("button", { name: "Siguiente" }).click();
+      await stepMobilePage(page, "Siguiente", `Pág. 2 / ${pageCount}`);
 
       const secondPage = await readStableMobileState(page, HIGH_VOLUME_TOTAL);
       expect(secondPage.rangeText).toBe(
@@ -282,7 +307,7 @@ test.describe("admin users-roles workspace 5000-user fixture mobile (CAP-A3)", (
       );
       expect(secondPage.usernames).not.toContain("admin_operaciones");
 
-      await mobilePagination(page).getByRole("button", { name: "Anterior" }).click();
+      await stepMobilePage(page, "Anterior", `Pág. 1 / ${pageCount}`);
 
       const backToFirst = await readStableMobileState(page, HIGH_VOLUME_TOTAL);
       expect(backToFirst.rangeText).toBe(`1–${limit} de ${HIGH_VOLUME_TOTAL}`);

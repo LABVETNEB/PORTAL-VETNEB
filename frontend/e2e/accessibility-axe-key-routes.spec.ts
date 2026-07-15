@@ -23,9 +23,11 @@ const routeCases: RouteCase[] = [
     ready: 'form[aria-label="Formulario de inicio de sesión"]',
   },
   {
-    label: "clinic dashboard hub",
+    // The clinic dashboard resolves a bare /dashboard to the operational
+    // default workspace (the clinic hub layer no longer exists).
+    label: "clinic dashboard workspace",
     path: "/dashboard",
-    ready: '[data-dashboard-module-hub="true"]',
+    ready: "[data-dashboard-module-workspace]",
     session: "clinic",
   },
   {

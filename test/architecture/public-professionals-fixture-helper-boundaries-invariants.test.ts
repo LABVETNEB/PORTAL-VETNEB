@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, resolve, sep } from "node:path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { listTrackedSourceFiles } from "../helpers/tracked-source-files.ts";
 
 const REPO_ROOT = process.cwd();
 const FIXTURE_HELPER_PATH = "test/helpers/public-professionals-fixtures.ts";
@@ -13,45 +14,11 @@ function readSource(relativePath: string): string {
   );
 }
 
-function listSourceFiles(
-  directory: string,
-  excludedDirectories = new Set([
-    ".git",
-    "coverage",
-    "dist",
-    "node_modules",
-    ".next",
-    ".turbo",
-  ]),
-): string[] {
-  const absoluteDirectory = resolve(REPO_ROOT, directory);
-  const entries = readdirSync(absoluteDirectory);
-  const files: string[] = [];
-
-  for (const entry of entries) {
-    if (excludedDirectories.has(entry)) {
-      continue;
-    }
-
-    const absolutePath = join(absoluteDirectory, entry);
-    const stats = statSync(absolutePath);
-
-    if (stats.isDirectory()) {
-      files.push(...listSourceFiles(relative(REPO_ROOT, absolutePath)));
-      continue;
-    }
-
-    if (!stats.isFile()) {
-      continue;
-    }
-
-    if (/\.(cjs|cts|js|mjs|mts|ts)$/.test(entry)) {
-      files.push(relative(REPO_ROOT, absolutePath).split(sep).join("/"));
-    }
-  }
-
-  return files.sort();
-}
+// Tracked-file inventory (E2E-STAB-006): the scan covers exactly the files
+// git tracks, so auxiliary trees (.claude/worktrees/**, playwright-report/,
+// test-results/) can never inject false offenders and no exclusion list can
+// hide a tracked file.
+const listSourceFiles = listTrackedSourceFiles;
 
 function extractValueExports(source: string): string[] {
   return [
