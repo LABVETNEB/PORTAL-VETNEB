@@ -7,7 +7,7 @@ import {
   mockParticularAuthenticatedSession,
   readParticularDocumentNoScrollContract,
   setParticularSessionCookie,
-} from "./helpers/particular-session-contracts";
+} from "../../helpers/particular-session-contracts";
 
 // R-17: first e2e fixture for an authenticated/token-gated Particular
 // session. Covers /particulares in its authenticated state (previously only
