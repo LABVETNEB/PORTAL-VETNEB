@@ -105,11 +105,11 @@ test("Frontend CI define toolchain y cache de pnpm esperados", () => {
   assertContains(source, "timeout-minutes: 20");
   assertContains(source, "uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7");
   assertContains(source, "uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4");
-  assertContains(source, "uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6");
+  assertContains(source, "uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7");
   assertContains(source, "uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7");
   assertNotContains(source, "uses: actions/checkout@v7");
   assertNotContains(source, "uses: pnpm/action-setup@v4");
-  assertNotContains(source, "uses: actions/setup-node@v6");
+  assertNotContains(source, "uses: actions/setup-node@v7");
   assertNotContains(source, "uses: actions/upload-artifact@v7");
   assertContains(source, "version: 11.13.0");
   assertContains(source, "node-version: 24");
