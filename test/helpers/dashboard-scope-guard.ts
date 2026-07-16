@@ -26,6 +26,7 @@ const DASHBOARD_SCOPE_PREFIXES = [
   "frontend/src/components/dashboard",
   "frontend/src/features/dashboard",
   "frontend/src/styles/dashboard",
+  "frontend/e2e/clinic",
   "frontend/e2e/dashboard",
   "test/frontend-dashboard",
 ] as const;
