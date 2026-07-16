@@ -18,7 +18,7 @@ import { classifyPath } from "../../../scripts/governance/pr-governance-validato
 const checkoutSha = "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0";
 const setupNodeSha = "820762786026740c76f36085b0efc47a31fe5020";
 const uploadArtifactSha = "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a";
-const pnpmSha = "b906affcce14559ad1aafd4ab0e942779e9f58b1";
+const pnpmSha = "0ebf47130e4866e96fce0953f49152a61190b271";
 
 function writeWorkflowFixture(t: test.TestContext, workflowName: string, source: string): string {
   const rootDir = mkdtempSync(join(tmpdir(), "vetneb-workflow-security-"));
