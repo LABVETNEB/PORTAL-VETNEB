@@ -5,7 +5,7 @@ import {
   mockParticularAuthenticatedSession,
   readParticularDocumentNoScrollContract,
   setParticularSessionCookie,
-} from "./helpers/particular-session-contracts";
+} from "../../helpers/particular-session-contracts";
 
 const TOLERANCE = 2;
 
