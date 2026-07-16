@@ -123,10 +123,10 @@ test("Backend CI uses the pinned pnpm and Node toolchain", () => {
   );
   assertContains(workflow, "uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7");
   assertContains(workflow, "uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4");
-  assertContains(workflow, "uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6");
+  assertContains(workflow, "uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7");
   assertNotContains(workflow, "uses: actions/checkout@v7");
   assertNotContains(workflow, "uses: pnpm/action-setup@v4");
-  assertNotContains(workflow, "uses: actions/setup-node@v6");
+  assertNotContains(workflow, "uses: actions/setup-node@v7");
   assertContains(workflow, `version: ${PINNED_PNPM_VERSION}`);
   assertContains(workflow, "node-version: 24");
   assertContains(workflow, "cache: pnpm");
@@ -139,7 +139,7 @@ test("Backend CI installs dependencies after toolchain setup", () => {
 
   assertOrdered(workflow, [
     "      - name: Setup pnpm\n        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4",
-    "      - name: Setup Node.js\n        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6",
+    "      - name: Setup Node.js\n        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7",
     "      - name: Install dependencies\n        run: pnpm install --frozen-lockfile",
   ]);
 });
