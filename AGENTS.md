@@ -142,13 +142,19 @@ Matriz por dominio (todos los comandos existen en el repo):
   → `pnpm security:public-surface` si se tocó superficie pública.
 - **Schema/Drizzle** (R2, requiere autorización): test de schema dirigido →
   `pnpm validate:local:schema` (incluye `schema:verify`) → revisar archivos de migración.
+- **Dependencias/manifiestos/lockfile** (`package.json`, `frontend/package.json`,
+  `pnpm-workspace.yaml`, `pnpm-lock.yaml`) (R2, requiere autorización): `pnpm audit --prod` →
+  `pnpm audit` → gates funcionales aplicables del dominio afectado. Si los audits no se
+  ejecutaron, no declarar cobertura equivalente a CI: reportarlos como NOT_RUN o BLOCKED.
 - **Frontend no visual**: test dirigido si existe → `pnpm --dir frontend lint` →
   `pnpm --dir frontend typecheck` → `pnpm --dir frontend build` → `pnpm security:public-surface`.
 - **Frontend visual**: gates estáticos anteriores → cohorte E2E relevante (§7) → revisar
   screenshots/artefactos → diff.
 
-CI real que el trabajo debe sobrevivir: `backend-ci` = `db:migrate → typecheck → typecheck:test
-→ test → build`; `frontend-ci` = `lint → typecheck → build → security:public-surface → e2e:smoke
+CI real que el trabajo debe sobrevivir: `backend-ci` = `audit --prod → audit → db:migrate →
+typecheck → typecheck:test → test → build` (los audits corren siempre en CI; localmente solo son
+obligatorios cuando el cambio toca dependencias/lockfiles o cuando se declara cobertura
+equivalente completa); `frontend-ci` = `lint → typecheck → build → security:public-surface → e2e:smoke
 + e2e:admin-mobile + e2e:visual-contract + e2e:public-clinic` (Chromium). `pr-governance` valida
 metadatos del PR. La validación local debe cubrir, como mínimo, los gates de CI afectados por el
 cambio (`db:migrate` local suele quedar BLOCKED sin DB: reportarlo así).
@@ -160,12 +166,18 @@ general se ejecuta con el gate específico previo en FAILED sin diagnóstico.
 
 ```text
 Admin mobile afectado                → pnpm --dir frontend e2e:admin-mobile
-Zero-scroll / contrato visual        → pnpm --dir frontend e2e:visual-contract
+Zero-scroll desktop/contrato visual  → pnpm --dir frontend e2e:visual-contract
+Zero-scroll mobile boundary          → pnpm --dir frontend e2e:extended
 Público / clínica                    → pnpm --dir frontend e2e:public-clinic
 Flujo crítico general                → pnpm --dir frontend e2e:smoke
 Mapeo por paths soportado            → pnpm --dir frontend e2e:affected
-Suite completa                       → pnpm --dir frontend e2e:full  (solo si Nico lo pide)
+Suite completa                       → pnpm --dir frontend e2e:full  (solo si Nico lo pide o no
+                                       existe alternativa mínima suficiente)
 ```
+
+Antes de asignar una cohorte a un contrato concreto, verificar la pertenencia actual del spec en
+`frontend/e2e/suites/catalog.ts` y seleccionar la cohorte más pequeña que realmente lo contiene.
+El nombre de una cohorte no constituye evidencia de cobertura.
 
 Reglas: Playwright completo por defecto = 0. Si se editó CSS global con el dev server caído,
 borrar `frontend/.next` antes de correr Playwright (la caché sirve CSS pre-edición). Tras
@@ -235,9 +247,9 @@ reducción ilegible de fuente, alturas fijas arbitrarias, clipping de contenido,
 horizontal sin control.
 
 Criterio de salida: el cumplimiento se demuestra con los specs de contrato existentes en
-`frontend/e2e/` (no con inspección manual): `dashboard-internal-no-scroll-contract`,
-`dashboard-real-app-shell-no-scroll-contract`, `dashboard-zero-scroll-mobile-boundary` y la
-cohorte `visual-contract` en PASSED.
+`frontend/e2e/` (no con inspección manual): `dashboard-internal-no-scroll-contract` y
+`dashboard-real-app-shell-no-scroll-contract` vía cohorte `visual-contract`, y
+`dashboard-zero-scroll-mobile-boundary` vía cohorte `extended` (§7), en PASSED.
 
 ## 11. Documentación proporcional
 
