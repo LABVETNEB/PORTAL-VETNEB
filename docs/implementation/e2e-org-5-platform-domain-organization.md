@@ -30,8 +30,10 @@ El cambio es exclusivamente arquitectónico:
 - Actualización de sus 18 paths en `frontend/e2e/suites/catalog.ts`.
 - Orden lexicográfico global del catálogo.
 - Corrección del único import relativo afectado.
-- Cambio del prefijo `frontend/e2e/dashboard` a `frontend/e2e/platform` en
-  `test/helpers/dashboard-scope-guard.ts`.
+- Migración de la aplicabilidad legacy desde `frontend/e2e/dashboard*` hacia los
+  destinos canónicos `dashboard-*` de `platform/accessibility`,
+  `platform/app-shell` y `platform/auth`, sin clasificar todo `platform` como
+  dashboard scope.
 - Preservación del prefijo `frontend/e2e/clinic`.
 - Corrección del path legacy remanente en
   `test/architecture/e2e-suite-catalog-completeness.test.ts` (aserción del
@@ -155,15 +157,21 @@ Estado verificado:
 
 ## Dashboard scope guard
 
-Se reemplazó:
+La sustitución inicial de `frontend/e2e/dashboard` por el prefijo completo
+`frontend/e2e/platform` amplió accidentalmente la aplicabilidad de los legacy
+dashboard guards a specs no-dashboard como hydration, theme, smoke y axe general.
 
-`frontend/e2e/dashboard`
+La revisión P2 del PR #1489 confirmó que esa ampliación podía producir falsos
+positivos en cambios legítimos de contacto o tema que también tocaran rutas/API.
+La corrección conserva la semántica anterior y reconoce únicamente:
 
-por:
+- `frontend/e2e/platform/accessibility/dashboard-*`;
+- `frontend/e2e/platform/app-shell/dashboard-*`;
+- `frontend/e2e/platform/auth/dashboard-*`.
 
-`frontend/e2e/platform`
-
-Se preservó `frontend/e2e/clinic` y el resto de los prefijos del guard.
+Se preservaron `frontend/e2e/clinic`, los prefijos de runtime dashboard y
+`test/frontend-dashboard`. Los specs platform de hydration, theme, smoke y
+accessibility no-dashboard vuelven a ser no aplicables a estos guards legacy.
 
 ## Validaciones
 
@@ -171,7 +179,7 @@ Se preservó `frontend/e2e/clinic` y el resto de los prefijos del guard.
 | --- | --- |
 | Inventario físico: 72 specs, 18 platform | PASSED |
 | Catálogo en memoria: único y ordenado | PASSED |
-| Scope guard `clinic + platform` | PASSED |
+| Scope guard inicial `clinic + platform` | PASSED técnicamente, posteriormente estrechado por revisión P2 |
 | Playwright discovery: 785 tests en 72 archivos | PASSED |
 | `e2e:smoke` | PASSED |
 | `e2e:visual-contract` | PASSED |
@@ -189,7 +197,8 @@ Se preservó `frontend/e2e/clinic` y el resto de los prefijos del guard.
 | Contratos platform de `extended` afectados por el movimiento | PASSED: 22/22 |
 | Teardown final | PASSED: puertos 3000 y 3107 libres |
 | Artefactos Playwright | `test-results` y `playwright-report` presentes, ignorados por Git y sin contaminación del working tree |
-| Commit, push, PR y merge | NOT_RUN |
+| PR Governance inicial | FAILED por headings/checkboxes ausentes en el body; body corregido en GitHub |
+| Revisión P2 de dashboard scope | FIXED en `9fe9972`; CI del nuevo head pendiente |
 
 ## Auditoría de Claude sobre el fallo de Informes
 
@@ -217,7 +226,7 @@ real del defecto de producto.
 - Cero specs platform legacy en la raíz física.
 - Catálogo actualizado y ordenado.
 - Cohortes y metadata preservadas.
-- Scope guard actualizado.
+- Scope guard actualizado sin ampliar dashboard scope a todo `platform`.
 - 72 specs y 785 tests preservados.
 - Cero cambios de producto.
 - Cero cambios en dependencias, lockfiles o workflows.
@@ -239,25 +248,18 @@ pasó 5/5. La validación integral posterior pasó 3107/3107.
 
 ## Estado final de esta fase
 
-- Rama activa: `test/e2e-organize-platform-domain`.
-- HEAD: `45f2ebd744771b33d35b6a587b9ed3878c91cd79`.
-- Ramas locales: `main` y `test/e2e-organize-platform-domain`.
-- Worktrees: uno.
-- PRs abiertos: 0.
-- Stage: PASSED, limitado exactamente al scope E2E-ORG-5.
-- Commit: NOT_RUN.
-- Push: NOT_RUN.
-- PR: NOT_RUN.
+- Rama: `test/e2e-organize-platform-domain`.
+- Commit inicial del cambio: `2d8b6231a88dcab241bee13f5fbce207d3687263`.
+- Corrección P2 del scope guard: `9fe9972bf1ef2f7b6e094b6fc17349a85ecb74cc`.
+- PR abierto: #1489.
+- Body del PR actualizado al contrato de governance.
+- Review thread P2: pendiente de resolver después de registrar la corrección.
+- CI del nuevo head: pendiente.
 - Merge: NOT_RUN.
 
 ## Pendientes MANUAL-NICO
 
-1. ~~Autorizar stage exclusivo de E2E-ORG-5.~~ Ejecutado en dos fases: (a)
-   los 18 movimientos, `catalog.ts`, `dashboard-scope-guard.ts` y este
-   documento; (b) la corrección del path legacy en
-   `e2e-suite-catalog-completeness.test.ts` y la actualización de este
-   documento.
-2. ~~Ejecutar `pnpm validate:local` post-stage.~~ PASSED: 3107/3107.
-3. ~~Ejecutar los contratos platform de `extended` afectados por el movimiento.~~ PASSED: 22/22.
-4. ~~Verificar teardown, artefactos y diff staged.~~ PASSED: puertos libres, artefactos ignorados y stage íntegro.
-5. Autorizar commit, push y PR en mensajes separados.
+1. Esperar CI del nuevo head.
+2. Confirmar PR Governance en verde.
+3. Resolver el review thread P2 una vez reconocida la corrección.
+4. Autorizar merge en mensaje separado.
