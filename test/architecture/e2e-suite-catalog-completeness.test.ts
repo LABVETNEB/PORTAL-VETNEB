@@ -238,7 +238,7 @@ function validateCatalog(entries: readonly E2eCatalogEntry[], trackedSpecs: read
     assert.ok(E2E_COHORT_SPECS[cohort].length > 0, `${cohort} must not be empty`);
   }
 
-  const logout = entries.find((entry) => entry.path === "e2e/dashboard-logout-private-cache.spec.ts");
+  const logout = entries.find((entry) => entry.path === "e2e/platform/auth/dashboard-logout-private-cache.spec.ts");
   assert.ok(logout);
   assert.equal(logout.targetGate, "future-p1");
   assert.equal(logout.executionCohorts.includes("ci"), false);
