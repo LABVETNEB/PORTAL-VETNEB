@@ -419,3 +419,85 @@ esa clase sin ocultarla ni debilitar cobertura.
 Revertir las tres precondiciones de deep link a su forma anterior
 (`goto("/dashboard")` + rail visible + clic) y quitar esta sección. Sin cambios de
 producto, datos, dependencias ni configuración.
+
+## Visual Linux follow-up — clinic readiness selector
+
+Seguimiento del workflow `Visual Regression Manual` posterior al head
+`05ba123751d64fb5e899c91324c53fef6b6b7877`. No reescribe evidencia histórica.
+
+### Contexto y evidencia ejecutable
+
+1. Run `29600024330` (job `87949622589`), inputs `suite=all`,
+   `update_snapshots=false`, `upload_artifacts=true`.
+2. Head `05ba123751d64fb5e899c91324c53fef6b6b7877`.
+3. `visual-regression-public`: 10/10 PASSED.
+4. `visual-regression-authenticated` y `visual-regression-stress`: fallo **antes**
+   del screenshot, en el primer viewport 320, esperando el selector de readiness
+   (`waitForVisibleReadySelector`, `Expected: true / Received: false`, timeout
+   12000ms). Los 18 tests posteriores quedaron NOT_RUN por el modo `serial`.
+
+### Evidencia del artifact
+
+Con la sesión clínica activa, el dashboard autenticado estaba completamente
+renderizado: header "Dashboard Clínica" visible, rail de módulos visible, workspace
+"Centro de operaciones" (`[data-dashboard-module-workspace="operaciones"]`)
+renderizado, y el selector legacy del hub ausente. No fue fallo de auth, servidor,
+snapshot, timeout ni flake.
+
+### Causa raíz
+
+Los specs visuales se conservaron mecánicamente en E2E-ORG-6 con un `route.ready`
+clínico anterior a la eliminación del home/hub clínico
+(`[data-dashboard-module-hub="true"]`). Con el contrato actual `/dashboard` abre
+operaciones directamente y el hub clínico no existe, por lo que ese readiness es
+determinísticamente imposible. `waitForVisibleReadySelector` funciona
+correctamente; el valor de readiness clínico era el obsoleto.
+
+### Corrección
+
+Readiness clínico de ambos specs visuales pasa a la señal real del workspace
+inicial:
+
+- antes: `ready: '[data-dashboard-module-hub="true"]'` (ruta clínica);
+- después: `ready: '[data-dashboard-module-workspace="operaciones"]'`.
+
+Se cambió únicamente la ruta clínica (`dashboard` y `stress-dashboard`). Las rutas
+admin conservan `ready: '[data-dashboard-module-hub="true"]'` +
+`mobileReady: '[data-admin-mobile-hub-launcher="true"]'` (el hub admin sí existe).
+No se creó un selector combinado hub-OR-operaciones: el hub clínico fue eliminado y
+no vuelve a aceptarse como estado válido.
+
+### Ausencia de cambios colaterales
+
+Sin cambios de producto, de sesión (`applySession`), de mocks
+(`installStressApiMocks`), de workflow, de digest, de snapshots
+(`--update-snapshots` no ejecutado), de `maxDiffPixelRatio`, de timeouts, del skip
+Linux ni del modo serial. `waitForVisibleReadySelector` y `waitForStableDashboard`
+intactos.
+
+### Validaciones
+
+| Validación | Estado |
+| --- | --- |
+| Inspección estática (clinic=operaciones, admin=hub, admin mobileReady intacto) | PASSED |
+| Discovery Playwright de ambos specs | PASSED — 20 tests (10 + 10) |
+| `e2e:visual-linux` en Windows (contrato negativo) | PASSED — exit 5 antes de Playwright |
+| `pnpm --dir frontend lint` | PASSED |
+| `pnpm --dir frontend typecheck` | PASSED |
+| `pnpm validate:local` | PASSED |
+| `e2e:verify-teardown` | PASSED — puertos 3000/3107 libres |
+| Snapshots Linux byte-idénticos (no regenerados) | PASSED |
+| Certificación visual real en Linux | NOT_RUN — requiere re-ejecutar el workflow (MANUAL-NICO) |
+
+### Riesgo residual
+
+Windows no puede certificar los baselines Linux; la validación pixel real sólo
+ocurre al re-ejecutar `Visual Regression Manual` en Chromium Linux con
+`update_snapshots=false`. Los 30 PNG no se tocaron: si el render de operaciones
+coincide con el baseline versionado, el run cierra en verde sin regenerar.
+
+### Rollback
+
+Revertir los dos `route.ready` clínicos a `[data-dashboard-module-hub="true"]` y
+quitar esta sección. Sin cambios de producto, datos, dependencias ni
+configuración.

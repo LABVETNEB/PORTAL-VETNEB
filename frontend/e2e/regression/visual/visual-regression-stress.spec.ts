@@ -22,7 +22,7 @@ const routes: RouteCase[] = [
     name: "stress-dashboard",
     path: "/dashboard",
     session: "clinic",
-    ready: '[data-dashboard-module-hub="true"]',
+    ready: '[data-dashboard-module-workspace="operaciones"]',
   },
   {
     name: "stress-admin-dashboard",
