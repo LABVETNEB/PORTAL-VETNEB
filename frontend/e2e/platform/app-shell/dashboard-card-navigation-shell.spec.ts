@@ -816,9 +816,7 @@ test.describe("clinic dashboard — workspace isolation", () => {
   });
 
   test("Informes workspace does not render Logística content", async ({ page }) => {
-    await page.goto("/dashboard");
-    await expect(clinicRail(page)).toBeVisible({ timeout: 8_000 });
-    await clinicRailItem(page, "informes").click();
+    await page.goto("/dashboard?module=informes");
     await expect(
       page.locator('[data-dashboard-module-workspace="informes"]'),
     ).toBeVisible({ timeout: 12_000 });
@@ -828,9 +826,7 @@ test.describe("clinic dashboard — workspace isolation", () => {
   });
 
   test("Tokens workspace does not render Logística content", async ({ page }) => {
-    await page.goto("/dashboard");
-    await expect(clinicRail(page)).toBeVisible({ timeout: 8_000 });
-    await clinicRailItem(page, "tokens").click();
+    await page.goto("/dashboard?module=tokens");
     await expect(
       page.locator('[data-dashboard-module-workspace="tokens"]'),
     ).toBeVisible({ timeout: 12_000 });
@@ -840,9 +836,7 @@ test.describe("clinic dashboard — workspace isolation", () => {
   });
 
   test("Perfil público workspace does not render Informes workspace", async ({ page }) => {
-    await page.goto("/dashboard");
-    await expect(clinicRail(page)).toBeVisible({ timeout: 8_000 });
-    await clinicRailItem(page, "perfil").click();
+    await page.goto("/dashboard?module=perfil");
     await expect(
       page.locator('[data-dashboard-module-workspace="perfil"]'),
     ).toBeVisible({ timeout: 12_000 });

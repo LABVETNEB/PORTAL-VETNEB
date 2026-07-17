@@ -1,24 +1,12 @@
 import { test } from "@playwright/test";
-import { mkdirSync } from "node:fs";
-import { resolve } from "node:path";
 
 // Evidence generator for the "remove dashboard home + unified module workspace"
 // change. Each capture runs in its own isolated context (fresh storage) so a
 // bare `/dashboard` always resolves to the operational default (operaciones)
-// without the last-module restore interfering.
+// without the last-module restore interfering. Evidence is written to the
+// Playwright-managed test output dir so the tracked tree stays clean.
 
 type Page = import("@playwright/test").Page;
-
-const OUT_DIR = resolve(
-  process.cwd(),
-  "..",
-  "docs",
-  "audit",
-  "datos tecnicos dashboard",
-  "remove-dashboard-home-unified-workspace",
-);
-
-mkdirSync(OUT_DIR, { recursive: true });
 
 async function setClinicSession(page: Page) {
   await page.context().addCookies([
@@ -79,7 +67,7 @@ const CAPTURES: Array<{
 ];
 
 for (const capture of CAPTURES) {
-  test(`screenshot ${capture.file}`, async ({ page }) => {
+  test(`screenshot ${capture.file}`, async ({ page }, testInfo) => {
     await setClinicSession(page);
     await page.setViewportSize({ width: capture.width, height: capture.height });
     await page.goto(capture.url, { waitUntil: "networkidle" });
@@ -95,7 +83,7 @@ for (const capture of CAPTURES) {
     await page.waitForTimeout(900);
 
     await page.screenshot({
-      path: resolve(OUT_DIR, capture.file),
+      path: testInfo.outputPath(capture.file),
       fullPage: false,
     });
   });

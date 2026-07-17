@@ -323,3 +323,48 @@ test("affected selection fails closed for empty or shared changes", async () => 
   assert.equal(sharedSelection.specs.length, 42);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
+
+test("runner platform preflight rejects Linux-only selections off Linux before Playwright", async () => {
+  const runnerPath = pathToFileURL(resolve(REPO_ROOT, "frontend/e2e/scripts/run-cohort.mjs")).href;
+  const exitCodeBeforeImport = process.exitCode;
+  const runner = (await import(runnerPath)) as {
+    validatePlatformCompatibility: (
+      selectedSpecs: readonly string[],
+      platform: string,
+    ) => { compatible: boolean; platform: string; incompatibleSpecs: readonly string[] };
+  };
+
+  assert.equal(
+    process.exitCode,
+    exitCodeBeforeImport,
+    "importing the cohort runner must not execute its CLI entrypoint",
+  );
+
+  const visualSpecs = E2E_COHORT_SPECS["visual-linux"];
+  const evidenceSpecs = E2E_COHORT_SPECS.evidence;
+  const fullSpecs = E2E_COHORT_SPECS.full;
+
+  const visualOnWindows = runner.validatePlatformCompatibility(visualSpecs, "win32");
+  assert.equal(visualOnWindows.compatible, false, "visual-linux must be incompatible on win32");
+  assert.deepEqual(
+    [...visualOnWindows.incompatibleSpecs].sort(),
+    [...visualSpecs].sort(),
+    "every visual-linux spec must be reported as incompatible on win32",
+  );
+
+  const visualOnLinux = runner.validatePlatformCompatibility(visualSpecs, "linux");
+  assert.equal(visualOnLinux.compatible, true, "visual-linux must be compatible on linux");
+  assert.equal(visualOnLinux.incompatibleSpecs.length, 0);
+
+  const evidenceOnWindows = runner.validatePlatformCompatibility(evidenceSpecs, "win32");
+  assert.equal(evidenceOnWindows.compatible, true, "evidence selection must run on any platform");
+  assert.equal(evidenceOnWindows.incompatibleSpecs.length, 0);
+
+  const fullOnWindows = runner.validatePlatformCompatibility(fullSpecs, "win32");
+  assert.equal(fullOnWindows.compatible, false, "full must be blocked off Linux while it carries visual specs");
+  assert.deepEqual(
+    [...fullOnWindows.incompatibleSpecs].sort(),
+    [...visualSpecs].sort(),
+    "full must surface exactly the Linux-only visual specs on win32",
+  );
+});

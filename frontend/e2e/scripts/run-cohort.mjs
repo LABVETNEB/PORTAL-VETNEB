@@ -130,6 +130,19 @@ function resolveAffectedSelection() {
   return classifyAffectedPaths(collectChangedPaths());
 }
 
+export function validatePlatformCompatibility(selectedSpecs, platform) {
+  const linuxOnlySpecs = new Set(
+    E2E_SUITE_CATALOG.filter((entry) => entry.platform === "linux").map((entry) => entry.path),
+  );
+  const linuxSelected = selectedSpecs.filter((spec) => linuxOnlySpecs.has(spec));
+  const incompatibleSpecs = platform === "linux" ? [] : linuxSelected;
+  return {
+    compatible: incompatibleSpecs.length === 0,
+    platform,
+    incompatibleSpecs,
+  };
+}
+
 export function selectCohortSpecs(cohort) {
   if (cohort === "affected") return resolveAffectedSelection();
   if (!VALID_COHORTS.includes(cohort)) return null;
@@ -227,6 +240,19 @@ function main() {
       console.error("[e2e] affected is local-only and fail-closed; run ci explicitly when no safe selection exists.");
     }
     return 3;
+  }
+
+  const compatibility = validatePlatformCompatibility(selection.specs, process.platform);
+  if (!compatibility.compatible) {
+    console.error(
+      `[e2e] cohort ${cohort} includes Linux-only visual specs and cannot run on ${process.platform}.`,
+    );
+    console.error(
+      "[e2e] pixel baselines are versioned for Chromium on Linux; run this cohort on Linux (see .github/workflows/visual-regression-manual.yml).",
+    );
+    console.error("[e2e] incompatible specs:");
+    for (const spec of compatibility.incompatibleSpecs) console.error(`  ${spec}`);
+    return 5;
   }
 
   for (const spec of selection.specs) {
