@@ -501,3 +501,102 @@ coincide con el baseline versionado, el run cierra en verde sin regenerar.
 Revertir los dos `route.ready` clínicos a `[data-dashboard-module-hub="true"]` y
 quitar esta sección. Sin cambios de producto, datos, dependencias ni
 configuración.
+
+## Visual Linux baseline regeneration and determinism
+
+The manual Chromium Linux validation revealed that the mechanically
+relocated baselines were already stale relative to the current product.
+The relocation commit itself preserved all 30 PNG files byte for byte;
+the visual refresh documented here is a subsequent, explicitly audited
+follow-up.
+
+### Evidence
+
+- Initial comparison run: `29602633278`
+  - `suite=all`
+  - `update_snapshots=false`
+  - `upload_artifacts=true`
+  - public visual tests: 10/10 passed
+  - clinic authenticated and stress reached stable screenshot comparison
+  - both first failed at 320 because the tracked images represented the
+    removed clinic module hub instead of the current Operaciones workspace
+- Linux generation run A: `29603285727`
+  - `suite=all`
+  - `update_snapshots=true`
+  - `upload_artifacts=true`
+  - 30/30 passed
+- Linux generation run B: `29605773076`
+  - same head and inputs as run A
+  - 30/30 passed
+  - approved source artifact:
+    `visual-regression-all-snapshots-1`
+  - artifact ID: `8416807417`
+
+### Root cause and history
+
+- The five clinic authenticated and five clinic stress baselines were
+  stale after the clinic hub was removed and `/dashboard` began opening
+  the Operaciones workspace directly.
+- The four admin authenticated and four admin stress baselines at
+  768, 1024, 1536 and 1920 were stale after the premium admin dashboard
+  redesign.
+- Admin 320 remained unchanged because it uses the separate mobile hub
+  launcher surface.
+- The original E2E-ORG-6 relocation remained a mechanical R100 move; it
+  did not cause either product-level visual change.
+
+Relevant historical evidence:
+
+- clinic default-workspace transition: `f267af9` / PR #1288
+- admin premium dashboard redesign: `35647b3` / PR #1281
+- original visual baseline creation: `34d0784` / PR #1206
+- mechanical regression-domain relocation: `87cdcf8` / PR #1490
+
+### Determinism gate
+
+Run A and run B were compared after decoding all PNG files to RGBA:
+
+- paths compared: 30/30
+- dimensions identical: 30/30
+- pixel-identical: 30/30
+- byte-identical: 29/30
+- pixel-different: 0
+
+`stress-dashboard-1536-chromium-linux.png` differed only in PNG bytes
+between runs. Its dimensions and decoded RGBA pixels were exactly
+identical, so the difference was encoding or metadata only and not a
+visual difference.
+
+### Approved refresh
+
+Exactly 18 baselines were imported from run B:
+
+- clinic authenticated: 5
+- clinic stress: 5
+- admin authenticated at 768–1920: 4
+- admin stress at 768–1920: 4
+
+The ten public baselines and the two admin 320 baselines remain
+byte-identical to the tracked versions.
+
+No runtime product, API, session, mock, Playwright configuration,
+workflow, dependency, timeout, retry, screenshot tolerance or test title
+was changed as part of this baseline refresh.
+
+### Remaining acceptance gate
+
+After committing and publishing these 18 approved files, Visual
+Regression Manual must run again with:
+
+- `suite=all`
+- `update_snapshots=false`
+- `upload_artifacts=true`
+
+The PR is not complete until that final run reports 30/30 passed on the
+exact final head.
+
+### Rollback
+
+Reverting the dedicated baseline-refresh commit restores the prior 18
+PNG files and this evidence section without affecting runtime product
+code, data, schema, dependencies or workflow configuration.
