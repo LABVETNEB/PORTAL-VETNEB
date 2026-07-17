@@ -319,3 +319,103 @@ Fuera de alcance; ni el spec ni sus expected-failure guards se alteran.
 5. Ejecutar manualmente el workflow `Visual Regression Manual` en Linux para
    validar los snapshots reubicados.
 6. `gh pr checks --watch` y merge en un mensaje separado.
+
+## CI follow-up — clinic workspace isolation stabilization
+
+Seguimiento de CI posterior al commit de E2E-ORG-6. No reescribe la evidencia
+anterior; documenta una estabilización determinista de tests que ya existían.
+
+### Contexto y evidencia ejecutable
+
+1. PR #1490 (`test(e2e): organize regression domain`), head original
+   `87cdcf8cfaaf69c6dfa41afd9485ff7b3e522039`.
+2. Frontend CI run `29594231953`, sobre ese head exacto.
+3. Attempt 1 (job `87930589388`): falló
+   `frontend/e2e/platform/app-shell/dashboard-card-navigation-shell.spec.ts` →
+   `clinic dashboard — workspace isolation › Perfil público workspace does not
+   render Informes workspace`; el locator `[data-dashboard-module-workspace="perfil"]`
+   nunca apareció (timeout 12000ms).
+4. Attempt 2 (rerun, job `87936914443`): falló el sibling
+   `Tokens workspace does not render Logística content`; el locator
+   `[data-dashboard-module-workspace="tokens"]` nunca apareció. Cierre del attempt:
+   1 failed, 272 passed.
+5. En ambos intentos el Next dev server emitió múltiples `[WebServer] Error:
+   aborted` con `code: ECONNRESET`; ejecución sobre `next dev`, no `next start`.
+
+Además, un run previo del mismo head (`29593265119`) fue verde: mismo commit con
+resultados no deterministas ⇒ flake, no regresión de contrato.
+
+### Por qué ambos fallos son la misma clase
+
+El archivo afectado **no** formaba parte del diff original de E2E-ORG-6 (que sólo
+reorganiza regression/evidence/visual-linux + catálogo/runner/workflow/guards/doc).
+Los tres tests de `clinic dashboard — workspace isolation` mezclaban dos
+responsabilidades: (1) navegar por el rail con un clic client-side y (2) comprobar
+el aislamiento entre workspaces. Bajo contención del dev server en la cohorte
+`visual-contract`, la petición RSC/navegación disparada por el clic se aborta
+(`ECONNRESET`), el workspace destino no monta y el test agota los 12000ms. Perfil
+y Tokens son la misma falla: `/dashboard` default → rail visible → clic
+client-side → el workspace esperado nunca aparece.
+
+### Corrección
+
+La navegación por rail ya está cubierta, de forma separada y determinista, por el
+bloque `clinic dashboard — rail navigation`, que itera `CLINIC_RAIL_MODULES` y para
+cada módulo valida rail item visible → clic → URL `?module=` → workspace visible →
+`aria-current="page"`. Por eso los tests de aislamiento no necesitan repetir la
+navegación por clic: se convierte el módulo objetivo en una precondición
+determinista mediante deep link.
+
+En los tres tests de aislamiento se reemplazó únicamente la precondición de
+navegación:
+
+- antes: `page.goto("/dashboard")` + `expect(clinicRail).toBeVisible()` +
+  `clinicRailItem(page, "<module>").click()`;
+- después: `page.goto("/dashboard?module=<module>")`.
+
+Se preservaron exactamente los títulos, las assertions de workspace visible, las
+assertions de contenido ajeno no visible, el timeout de 12000ms, la sesión clínica
+del `beforeEach` y el `describe`. `clinicRail`, `clinicRailItem`,
+`CLINIC_RAIL_MODULES` y el bloque `rail navigation` no se tocaron (siguen en uso
+por los contratos de navegación).
+
+### Cobertura preservada
+
+- Navegación por clic del rail: intacta en `clinic dashboard — rail navigation`
+  (loop sobre `CLINIC_RAIL_MODULES`, incluye `perfil` y `tokens`).
+- Aislamiento entre workspaces: intacto en `clinic dashboard — workspace isolation`
+  (mismas assertions de aislamiento, ahora con precondición determinista).
+
+### Sin falsos arreglos
+
+No hubo cambios de producto, fixtures de sesión, retries, sleeps, aumentos de
+timeout, skips, `force: true`, soft assertions, cambios de cohorte, de CI ni de
+Playwright config.
+
+### Validaciones
+
+| Validación | Estado |
+| --- | --- |
+| `e2e:verify-teardown` inicial | PASSED — puertos 3000/3107 libres |
+| `dashboard-card-navigation-shell` grep `workspace isolation` `--repeat-each=30 --workers=1` | PASSED — 90/90 |
+| Archivo completo `--workers=1` | PASSED |
+| `e2e:visual-contract` (1.ª corrida) | PASSED — 273 tests |
+| `e2e:visual-contract` (2.ª corrida) | PASSED — 273 tests |
+| `e2e:verify-teardown` final | PASSED — puertos 3000/3107 libres |
+| `pnpm --dir frontend lint` | PASSED |
+| `pnpm --dir frontend typecheck` | PASSED |
+| `pnpm validate:local` | PASSED |
+
+### Riesgo residual
+
+La causa de fondo (contención del Next dev server bajo carga de cohorte, con
+`ECONNRESET` en peticiones RSC) persiste como clase de infraestructura hasta la
+Fase G (`next build` + `next start` para E2E de CI, backlog E2E-STAB, fuera de
+alcance). Esta corrección elimina la exposición de los tres tests de aislamiento a
+esa clase sin ocultarla ni debilitar cobertura.
+
+### Rollback
+
+Revertir las tres precondiciones de deep link a su forma anterior
+(`goto("/dashboard")` + rail visible + clic) y quitar esta sección. Sin cambios de
+producto, datos, dependencias ni configuración.
