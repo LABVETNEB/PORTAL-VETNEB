@@ -27,13 +27,26 @@ const DASHBOARD_SCOPE_PREFIXES = [
   "frontend/src/features/dashboard",
   "frontend/src/styles/dashboard",
   "frontend/e2e/clinic",
-  "frontend/e2e/platform",
   "test/frontend-dashboard",
+] as const;
+
+// E2E-ORG-5 moved the legacy root-level dashboard-* specs into the platform
+// domain. Keep the original guard semantics by matching only their canonical
+// dashboard locations instead of treating the whole platform tree as dashboard
+// scope. Hydration, theme, smoke and non-dashboard accessibility specs must
+// remain non-applicable to these legacy dashboard guards.
+const DASHBOARD_PLATFORM_E2E_PREFIXES = [
+  "frontend/e2e/platform/accessibility/dashboard-",
+  "frontend/e2e/platform/app-shell/dashboard-",
+  "frontend/e2e/platform/auth/dashboard-",
 ] as const;
 
 export function isDashboardScopedFile(file: string): boolean {
   const normalized = file.trim();
-  return DASHBOARD_SCOPE_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+  return (
+    DASHBOARD_SCOPE_PREFIXES.some((prefix) => normalized.startsWith(prefix)) ||
+    DASHBOARD_PLATFORM_E2E_PREFIXES.some((prefix) => normalized.startsWith(prefix))
+  );
 }
 
 /**
