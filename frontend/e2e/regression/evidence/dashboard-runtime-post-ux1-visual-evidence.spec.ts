@@ -1,5 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { writeFile } from "node:fs/promises";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const TOLERANCE = 2;
@@ -200,36 +199,16 @@ function expectNoGlobalScroll(metrics: VisualMetrics, label: string) {
 }
 
 async function captureScreen(page: Page, testInfo: TestInfo, fileName: string) {
-  const evidenceDirectory = resolve(
-    testInfo.config.rootDir,
-    "..",
-    "..",
-    "docs",
-    "audit",
-    "evidence",
-    "dashboard-runtime-post-ux1",
-  );
-  await mkdir(evidenceDirectory, { recursive: true });
   await page.screenshot({
-    path: resolve(evidenceDirectory, fileName),
+    path: testInfo.outputPath(fileName),
     animations: "disabled",
     fullPage: false,
   });
 }
 
 async function writeMetrics(testInfo: TestInfo, metrics: VisualMetrics[]) {
-  const evidenceDirectory = resolve(
-    testInfo.config.rootDir,
-    "..",
-    "..",
-    "docs",
-    "audit",
-    "evidence",
-    "dashboard-runtime-post-ux1",
-  );
-  await mkdir(evidenceDirectory, { recursive: true });
   await writeFile(
-    resolve(evidenceDirectory, "dashboard-runtime-post-ux1-metrics.json"),
+    testInfo.outputPath("dashboard-runtime-post-ux1-metrics.json"),
     `${JSON.stringify(metrics, null, 2)}\n`,
     "utf8",
   );

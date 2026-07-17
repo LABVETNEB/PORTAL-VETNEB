@@ -122,7 +122,6 @@ export const E2E_SUITE_CATALOG = [
   entry("e2e/clinic/shell/dashboard-master-detail-state-polish.spec.ts", "clinic", "shell", "master-detail state polish", ["visual-contract"], ci),
   entry("e2e/clinic/shell/remove-dashboard-home-unified-workspace.spec.ts", "clinic", "shell", "post hub removal behavior", [], extended),
   entry("e2e/clinic/tokens/dashboard-clinic-tokens-mobile-parity.spec.ts", "clinic", "tokens", "mobile tokens parity", ["public-clinic"], ci),
-  entry("e2e/dashboard-runtime-post-ux1-visual-evidence.spec.ts", "regression", "evidence", "runtime visual evidence", [], evidence, { evidence: "docs/audit" }),
   entry("e2e/particular/auth/particular-authenticated-no-scroll.spec.ts", "particular", "auth", "authenticated no-scroll", [], extended, { fixture: "particular-session-contracts" }),
   entry("e2e/particular/auth/particular-authenticated-session-fixture.spec.ts", "particular", "auth", "authenticated session fixture", [], extended, { fixture: "particular-session-contracts" }),
   entry("e2e/platform/accessibility/accessibility-axe-key-routes.spec.ts", "platform", "accessibility", "axe key routes", [], extended),
@@ -151,10 +150,11 @@ export const E2E_SUITE_CATALOG = [
   entry("e2e/public/reports/public-report-preview.spec.ts", "public", "reports", "public report preview", ["public-clinic"], ci),
   entry("e2e/public/routes/public-routes.spec.ts", "public", "routes", "public routes resolve", ["smoke"], ci, { criticality: "P1", notes: "Availability boundary; do not demote." }),
   entry("e2e/public/services/public-service-bento-specimen-journey.spec.ts", "public", "services", "service bento specimen journey", ["public-clinic"], ci),
-  entry("e2e/remove-home-unified-workspace-screenshots.spec.ts", "regression", "evidence", "workspace screenshots evidence", [], evidence, { evidence: "docs/audit" }),
-  entry("e2e/visual-regression-authenticated.spec.ts", "regression", "visual", "authenticated pixel baseline", [], visualLinux, { platform: "linux", evidence: "snapshots", targetGate: "manual" }),
-  entry("e2e/visual-regression-public.spec.ts", "regression", "visual", "public pixel baseline", [], visualLinux, { platform: "linux", evidence: "snapshots", targetGate: "manual", notes: "Linux-only baseline; public spec has no platform skip." }),
-  entry("e2e/visual-regression-stress.spec.ts", "regression", "visual", "stress pixel baseline", [], visualLinux, { platform: "linux", evidence: "snapshots", targetGate: "manual" }),
+  entry("e2e/regression/evidence/dashboard-runtime-post-ux1-visual-evidence.spec.ts", "regression", "evidence", "runtime visual evidence", [], evidence, { evidence: "test-results" }),
+  entry("e2e/regression/evidence/remove-home-unified-workspace-screenshots.spec.ts", "regression", "evidence", "workspace screenshots evidence", [], evidence, { evidence: "test-results" }),
+  entry("e2e/regression/visual/visual-regression-authenticated.spec.ts", "regression", "visual", "authenticated pixel baseline", [], visualLinux, { platform: "linux", evidence: "snapshots", targetGate: "manual" }),
+  entry("e2e/regression/visual/visual-regression-public.spec.ts", "regression", "visual", "public pixel baseline", [], visualLinux, { platform: "linux", evidence: "snapshots", targetGate: "manual", notes: "Linux-only baseline; public spec has no platform skip." }),
+  entry("e2e/regression/visual/visual-regression-stress.spec.ts", "regression", "visual", "stress pixel baseline", [], visualLinux, { platform: "linux", evidence: "snapshots", targetGate: "manual" }),
 ] as const satisfies readonly E2eCatalogEntry[];
 
 export const E2E_COHORT_SPECS: Readonly<Record<E2eExecutionCohort, readonly E2eCatalogEntry["path"][]>> =

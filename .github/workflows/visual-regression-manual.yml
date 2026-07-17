@@ -78,19 +78,19 @@ jobs:
           case "${VISUAL_SUITE}" in
             all)
               specs=(
-                "e2e/visual-regression-public.spec.ts"
-                "e2e/visual-regression-authenticated.spec.ts"
-                "e2e/visual-regression-stress.spec.ts"
+                "e2e/regression/visual/visual-regression-public.spec.ts"
+                "e2e/regression/visual/visual-regression-authenticated.spec.ts"
+                "e2e/regression/visual/visual-regression-stress.spec.ts"
               )
               ;;
             public)
-              specs=("e2e/visual-regression-public.spec.ts")
+              specs=("e2e/regression/visual/visual-regression-public.spec.ts")
               ;;
             authenticated)
-              specs=("e2e/visual-regression-authenticated.spec.ts")
+              specs=("e2e/regression/visual/visual-regression-authenticated.spec.ts")
               ;;
             stress)
-              specs=("e2e/visual-regression-stress.spec.ts")
+              specs=("e2e/regression/visual/visual-regression-stress.spec.ts")
               ;;
             *)
               echo "::error::Invalid suite: ${VISUAL_SUITE}"

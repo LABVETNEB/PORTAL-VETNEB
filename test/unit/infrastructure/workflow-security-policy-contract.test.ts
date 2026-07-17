@@ -83,7 +83,7 @@ const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/frontend-ci.yml", "5e7293bc535ace53903ed8364a9c0defb102b0dce6b8a1d999a8434231c12290"],
   [".github/workflows/pr-governance.yml", "11a3f1b9a0afa6e935709deac50d38bccea2ca074599b6f272e05ca380ddff80"],
   [".github/workflows/qga-governance.yml", "89abf7907ed702b5f7de82f3b0f0cc174e8cdf2e990f9dd0f61cea49a65de2ee"],
-  [".github/workflows/visual-regression-manual.yml", "b21290adb17d0737f647bc6d1480f767b1c544e6d99d0deb99367c7401f9dec6"],
+  [".github/workflows/visual-regression-manual.yml", "3344160f3c37da9067ba744ca317a27168799839157c95301e8ac3905754faf0"],
 ]);
 
 function readWorkflow(workflowPath: string): string {
