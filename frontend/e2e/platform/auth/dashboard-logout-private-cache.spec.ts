@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import nextConfig from "../next.config";
+import nextConfig from "../../../next.config";
 
 // Regression guard for the security blocker: after logout, Back + reload must
 // never re-render a private dashboard. The fix has two halves and this spec
