@@ -3,7 +3,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, posix, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
-import yaml from "js-yaml";
+import { CORE_SCHEMA, load, mergeTag } from "js-yaml";
 
 import {
   APPROVED_EXTERNAL_ACTIONS,
@@ -19,7 +19,8 @@ const SHA_40 = /^[0-9a-f]{40}$/;
 const HEX_40 = /^[0-9a-fA-F]{40}$/;
 const SHA_256_DIGEST = /@sha256:[0-9a-f]{64}$/;
 const MAX_YAML_DEPTH = 100;
-const MAX_MERGE_SEQUENCE_LENGTH = 20;
+const MAX_TOTAL_MERGE_KEYS = 20;
+const WORKFLOW_SCHEMA = CORE_SCHEMA.withTags(mergeTag);
 
 function normalizePath(value) {
   return String(value).replaceAll("\\", "/");
@@ -103,12 +104,12 @@ function parseWorkflowDocument({ rootDir, workflow, report }) {
   }
 
   try {
-    const listener = createAliasRejectingListener({ workflow, report });
-    const document = yaml.load(source, {
+    const document = load(source, {
       filename: workflow,
+      schema: WORKFLOW_SCHEMA,
       maxDepth: MAX_YAML_DEPTH,
-      maxMergeSeqLength: MAX_MERGE_SEQUENCE_LENGTH,
-      listener,
+      maxTotalMergeKeys: MAX_TOTAL_MERGE_KEYS,
+      maxAliases: 0,
     });
 
     if (typeof document === "undefined" || document === null) {
@@ -125,29 +126,14 @@ function parseWorkflowDocument({ rootDir, workflow, report }) {
     const reason = error?.reason ?? error?.message ?? "unknown YAML parser error";
     const cause = reason.includes("expected a single document")
       ? "Multiple YAML documents are not allowed in a workflow file."
-      : `YAML parse error: ${reason}`;
+      : reason.includes("expected a document, but the input is empty")
+        ? "Workflow YAML document must not be empty."
+        : reason.includes("aliases exceeded maxAliases")
+          ? "YAML aliases are not allowed."
+          : `YAML parse error: ${reason}`;
     addFailure(report, workflow, "$", cause);
     return null;
   }
-}
-
-function isAliasCloseEvent(state) {
-  return state.kind === null && state.tag === null && state.anchor === null && state.result !== null;
-}
-
-function createAliasRejectingListener({ workflow, report }) {
-  let aliasCount = 0;
-
-  return (event, state) => {
-    if (event !== "close" || !isAliasCloseEvent(state)) return;
-    aliasCount += 1;
-    addFailure(
-      report,
-      workflow,
-      "$",
-      `YAML aliases are not allowed because js-yaml 4.2.0 does not expose a sufficient maxAliasCount option. Alias event: ${aliasCount}.`,
-    );
-  };
 }
 
 function validateTopLevelPermissions({ document, workflow, report }) {
@@ -509,9 +495,11 @@ export function evaluateWorkflowSecurity({ rootDir = process.cwd(), workflowPath
     validateWorkflowDocument({ document, workflow, report });
   }
 
-  report.details.push(`Parsed ${workflows.length} workflow file(s) with js-yaml 4.2.0.`);
-  report.details.push(`Applied maxDepth=${MAX_YAML_DEPTH} and maxMergeSeqLength=${MAX_MERGE_SEQUENCE_LENGTH}.`);
-  report.details.push("YAML aliases observed by the js-yaml parser listener are rejected because js-yaml 4.2.0 does not document a sufficient maxAliasCount option.");
+  report.details.push(`Parsed ${workflows.length} workflow file(s) with js-yaml 5.2.1.`);
+  report.details.push(
+    `Applied maxDepth=${MAX_YAML_DEPTH}, maxTotalMergeKeys=${MAX_TOTAL_MERGE_KEYS} and maxAliases=0.`,
+  );
+  report.details.push("YAML aliases are rejected by the js-yaml maxAliases=0 loader limit.");
   report.passed = report.failures.length === 0;
   return report;
 }
