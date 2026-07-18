@@ -32,14 +32,14 @@ const EXPECTED_DOMAIN_COUNTS = new Map([
   ["regression", 5],
 ]);
 const EXPECTED_CURRENT_COUNTS = new Map([
-  ["smoke", 7],
+  ["smoke", 8],
   ["admin-mobile", 13],
   ["visual-contract", 11],
   ["public-clinic", 11],
 ]);
 const EXPECTED_EXECUTION_COUNTS = new Map<E2eExecutionCohort, number>([
-  ["ci", 42],
-  ["extended", 25],
+  ["ci", 43],
+  ["extended", 24],
   ["evidence", 2],
   ["visual-linux", 3],
   ["full", 72],
@@ -231,7 +231,7 @@ function validateCatalog(entries: readonly E2eCatalogEntry[], trackedSpecs: read
   }
 
   const currentUnion = unique([...currentMemberships.keys()]).sort();
-  assert.equal(currentUnion.length, 42);
+  assert.equal(currentUnion.length, 43);
   assert.deepEqual(E2E_COHORT_SPECS.ci, currentUnion, "ci must equal the current four-cohort union");
 
   for (const cohort of ["extended", "evidence", "visual-linux", "full"] as const) {
@@ -240,9 +240,10 @@ function validateCatalog(entries: readonly E2eCatalogEntry[], trackedSpecs: read
 
   const logout = entries.find((entry) => entry.path === "e2e/platform/auth/dashboard-logout-private-cache.spec.ts");
   assert.ok(logout);
-  assert.equal(logout.targetGate, "future-p1");
-  assert.equal(logout.executionCohorts.includes("ci"), false);
-  assert.equal(E2E_COHORT_SPECS.ci.includes(logout.path), false);
+  assert.equal(logout.targetGate, "current-ci");
+  assert.equal(logout.currentCohorts.includes("smoke"), true);
+  assert.equal(logout.executionCohorts.includes("ci"), true);
+  assert.equal(E2E_COHORT_SPECS.ci.includes(logout.path), true);
 }
 
 test("E2E suite catalog is complete, deterministic and fail-closed", async () => {
@@ -320,7 +321,7 @@ test("affected selection fails closed for empty or shared changes", async () => 
 
   const sharedSelection = runner.classifyAffectedPaths(["frontend/e2e/helpers/admin-mobile-contracts.ts"]);
   assert.equal(sharedSelection.fallback, true);
-  assert.equal(sharedSelection.specs.length, 42);
+  assert.equal(sharedSelection.specs.length, 43);
   assert.match(sharedSelection.reason, /shared E2E infrastructure/);
 });
 

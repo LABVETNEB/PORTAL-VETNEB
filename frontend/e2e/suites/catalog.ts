@@ -137,7 +137,7 @@ export const E2E_SUITE_CATALOG = [
   entry("e2e/platform/app-shell/dashboard-workspace-layout-polish.spec.ts", "platform", "app-shell", "workspace layout polish", ["visual-contract"], ci),
   entry("e2e/platform/app-shell/dashboard-zero-scroll-mobile-boundary.spec.ts", "platform", "app-shell", "mobile zero-scroll boundary", [], extended),
   entry("e2e/platform/auth/dashboard-auth-redirect.spec.ts", "platform", "auth", "private redirect and admin 404", ["smoke"], ci, { criticality: "P1", notes: "Security boundary; do not demote." }),
-  entry("e2e/platform/auth/dashboard-logout-private-cache.spec.ts", "platform", "auth", "logout and private no-store", [], extended, { criticality: "P1", targetGate: "future-p1", notes: "P1 future gate priority; intentionally outside effective ci in E2E-ORG-1." }),
+  entry("e2e/platform/auth/dashboard-logout-private-cache.spec.ts", "platform", "auth", "logout and private no-store", ["smoke"], ci, { criticality: "P1", targetGate: "current-ci", notes: "Security boundary promoted to the effective CI gate in E2E-ORG-CI; do not demote." }),
   entry("e2e/platform/hydration/contacto-hydration.spec.ts", "platform", "hydration", "contact page hydration", ["smoke"], ci),
   entry("e2e/platform/hydration/login-hydration.spec.ts", "platform", "hydration", "login page hydration", ["smoke"], ci),
   entry("e2e/platform/smoke/visual-smoke.spec.ts", "platform", "smoke", "multi-surface render sanity", ["smoke"], ci, { evidence: "memory" }),

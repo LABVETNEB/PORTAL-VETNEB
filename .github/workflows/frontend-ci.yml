@@ -68,24 +68,7 @@ jobs:
         run: pnpm --dir frontend exec playwright install --with-deps chromium
 
       - name: Run frontend E2E layered tests
-        run: |
-          set +e
-
-          pnpm --dir frontend e2e:smoke
-          smoke_status=$?
-
-          pnpm --dir frontend e2e:admin-mobile
-          admin_mobile_status=$?
-
-          pnpm --dir frontend e2e:visual-contract
-          visual_contract_status=$?
-
-          pnpm --dir frontend e2e:public-clinic
-          public_clinic_status=$?
-
-          if [ "$smoke_status" -ne 0 ] || [ "$admin_mobile_status" -ne 0 ] || [ "$visual_contract_status" -ne 0 ] || [ "$public_clinic_status" -ne 0 ]; then
-            exit 1
-          fi
+        run: pnpm --dir frontend e2e:ci
 
       - name: Upload Playwright report
         if: failure()
