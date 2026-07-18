@@ -200,6 +200,63 @@ test("next.config.ts declara rewrites que proxyan /api/** al backend cuando NEXT
   );
 });
 
+test("resolveApiBaseUrlForRuntime exempts the CI-only local E2E fixture with a fail-closed 4-condition guard", () => {
+  const source = read(API_CLIENT_PATH);
+
+  assert.ok(
+    source.includes('const E2E_FIXTURE_API_ORIGIN = "http://127.0.0.1:3107";'),
+    "must pin the exact E2E fixture origin as a constant",
+  );
+  assert.ok(
+    source.includes(
+      "function isE2eLocalFixtureOriginAllowed(origin: string): boolean {",
+    ),
+  );
+  assert.ok(
+    source.includes('process.env.NODE_ENV === "production" &&'),
+    "exception must require the real (non-injectable) NODE_ENV to be production",
+  );
+  assert.ok(source.includes('process.env.CI === "true" &&'));
+  assert.ok(
+    source.includes(
+      'process.env.VETNEB_E2E_ALLOW_LOCAL_API === "1" &&',
+    ),
+  );
+  assert.ok(source.includes("origin === E2E_FIXTURE_API_ORIGIN"));
+
+  // The original production guard must remain byte-for-byte untouched: the
+  // exception is a preceding early-return, never a rewrite of the throw.
+  assert.ok(
+    source.includes("if (!isDevelopment && isLocalOrLanHostname(parsedUrl.hostname)) {"),
+    "original throw guard must stay intact for the fail-closed default",
+  );
+  assert.ok(source.includes("throw new Error(PUBLIC_API_CONFIGURATION_ERROR_MESSAGE);"));
+
+  const exceptionIndex = source.indexOf("isE2eLocalFixtureOriginAllowed(parsedUrl.origin)");
+  const originalGuardIndex = source.indexOf(
+    "if (!isDevelopment && isLocalOrLanHostname(parsedUrl.hostname)) {",
+  );
+  assert.ok(
+    exceptionIndex > 0 && exceptionIndex < originalGuardIndex,
+    "the E2E exception must be evaluated before the original throw guard",
+  );
+
+  const browserBranchIndex = source.indexOf("if (isBrowserRuntime) {");
+  assert.ok(
+    browserBranchIndex < exceptionIndex,
+    "browser same-origin branch must still run before any server-side URL validation",
+  );
+
+  // Only the exact fixture origin is exempt — no localhost, no other port, no LAN IP.
+  assert.equal(source.includes('"http://localhost:3107"'), false);
+  assert.equal(source.includes('"http://127.0.0.1:3000"'), false);
+  assert.equal(
+    /origin === "http:\/\/192\.168\./.test(source),
+    false,
+    "must not special-case any LAN origin",
+  );
+});
+
 test("next API rewrite contract does not shadow login rate-limit headers", () => {
   const source = read(NEXT_CONFIG_PATH);
 

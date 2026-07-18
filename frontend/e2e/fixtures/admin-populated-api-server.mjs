@@ -824,6 +824,29 @@ const server = createServer((request, response) => {
     return;
   }
 
+  // Public, unauthenticated — mirrors server/routes/app-version.fastify.ts so
+  // AppVersionGate's production-only check (frontend/src/components/app-version/AppVersionGate.tsx)
+  // resolves instead of 404ing under `next start`. forceUpdate stays false so
+  // E2E never sees the update-required overlay.
+  if (url.pathname === "/api/app-version") {
+    response.writeHead(200, {
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      Pragma: "no-cache",
+      Expires: "0",
+      "Content-Type": "application/json; charset=utf-8",
+    });
+    response.end(
+      JSON.stringify({
+        success: true,
+        appVersion: "e2e-app-version",
+        clientMinVersion: "e2e-app-version",
+        forceUpdate: false,
+        displayVersion: "Portal VETNEB v2.1.0",
+      }),
+    );
+    return;
+  }
+
   if (hasPopulatedClinicSession(request) && url.pathname === "/api/reports") {
     const reports =
       url.searchParams.has("query") ||

@@ -55,7 +55,7 @@ const footerLinks = [
 
 const mapsLocationUrl =
   "https://www.google.com/maps?q=Blvd.%20Italia%20274%2C%20Villa%20Maria%2C%20Cordoba%2C%20Argentina";
-const mapsEmbedUrl =
+const PUBLIC_MAPS_EMBED_SRC =
   "https://www.google.com/maps?output=embed&q=Blvd.%20Italia%20274%2C%20Villa%20Maria%2C%20Cordoba%2C%20Argentina";
 
 export function FooterFaq() {
@@ -89,6 +89,22 @@ export function FooterFaq() {
 
 export function Footer() {
   const year = new Date().getFullYear();
+  // Server-only double key: real deployments never set both, so production
+  // always renders the live embed. Only e2e:ci against `next start` sets
+  // both, keeping the run hermetic (no maps.googleapis.com network activity
+  // blocking Playwright's networkidle wait).
+  const disableExternalEmbedsForE2e =
+    process.env.CI === "true" &&
+    process.env.VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS === "1";
+  // Same identifier and JSX shape (`src={mapsEmbedUrl}`) as the always-on
+  // embed; only the bound value changes, and only the `src` attribute is
+  // affected — never the element type — so a server/client disagreement on
+  // `disableExternalEmbedsForE2e` (server-only env vars are invisible
+  // client-side) can only ever produce a harmless attribute diff, not a
+  // hydration type-mismatch.
+  const mapsEmbedUrl = disableExternalEmbedsForE2e
+    ? undefined
+    : PUBLIC_MAPS_EMBED_SRC;
 
   return (
     <footer className="bg-transparent text-sidebar-foreground" role="contentinfo">
@@ -205,6 +221,9 @@ export function Footer() {
               <iframe
                 title="Mapa de ubicación de Servicio Patológico VETNEB"
                 src={mapsEmbedUrl}
+                data-e2e-external-embed-disabled={
+                  disableExternalEmbedsForE2e ? "true" : undefined
+                }
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
                 aria-hidden="true"
