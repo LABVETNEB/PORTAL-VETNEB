@@ -125,10 +125,26 @@ test("Frontend CI ejecuta gates obligatorios en orden", () => {
     "      - name: Install dependencies\n        run: pnpm install --frozen-lockfile",
     "      - name: Lint frontend\n        run: pnpm --dir frontend lint",
     "      - name: Typecheck frontend\n        run: pnpm --dir frontend typecheck",
-    "      - name: Build frontend\n        run: pnpm --dir frontend build",
+    "      - name: Build frontend\n        run: pnpm --dir frontend build\n        env:\n          NEXT_PUBLIC_API_URL: http://127.0.0.1:3107\n          VETNEB_E2E_ALLOW_LOCAL_API: \"1\"\n          VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS: \"1\"",
     "      - name: Audit built public surface\n        run: pnpm security:public-surface",
     "      - name: Install Playwright browsers\n        run: pnpm --dir frontend exec playwright install --with-deps chromium",
-    "      - name: Run frontend E2E layered tests\n        run: pnpm --dir frontend e2e:ci",
+    "      - name: Run frontend E2E layered tests\n        run: pnpm --dir frontend e2e:ci\n        env:\n          VETNEB_E2E_PRODUCTION_RUNNER: \"1\"",
+  ]);
+});
+
+test("Frontend CI compila el bundle E2E con la URL pública del fixture", () => {
+  const source = readWorkflow();
+
+  assertContains(
+    source,
+    "      - name: Build frontend\n        run: pnpm --dir frontend build\n        env:\n          NEXT_PUBLIC_API_URL: http://127.0.0.1:3107\n          VETNEB_E2E_ALLOW_LOCAL_API: \"1\"\n          VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS: \"1\"",
+  );
+
+  assertOrdered(source, [
+    "      - name: Build frontend\n        run: pnpm --dir frontend build\n        env:\n          NEXT_PUBLIC_API_URL: http://127.0.0.1:3107\n          VETNEB_E2E_ALLOW_LOCAL_API: \"1\"\n          VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS: \"1\"",
+    "      - name: Audit built public surface\n        run: pnpm security:public-surface",
+    "      - name: Install Playwright browsers\n        run: pnpm --dir frontend exec playwright install --with-deps chromium",
+    "      - name: Run frontend E2E layered tests\n        run: pnpm --dir frontend e2e:ci\n        env:\n          VETNEB_E2E_PRODUCTION_RUNNER: \"1\"",
   ]);
 });
 
@@ -148,6 +164,25 @@ test("Frontend CI usa una sola invocación Playwright catalogada", () => {
   ]) {
     assertNotContains(source, legacyCommand);
   }
+});
+
+test("Frontend CI activa el runner productivo únicamente en el step e2e:ci (P1 PR #1495)", () => {
+  const source = readWorkflow();
+
+  // Other workflows (e.g. visual-regression-manual.yml) run Playwright with
+  // CI=true but never `pnpm --dir frontend build`; VETNEB_E2E_PRODUCTION_RUNNER
+  // must stay scoped to this single step, never promoted to job/workflow env.
+  const occurrences = source.match(/VETNEB_E2E_PRODUCTION_RUNNER/g);
+  assert.equal(
+    occurrences?.length,
+    1,
+    "VETNEB_E2E_PRODUCTION_RUNNER must appear exactly once in frontend-ci.yml",
+  );
+
+  assertContains(
+    source,
+    "      - name: Run frontend E2E layered tests\n        run: pnpm --dir frontend e2e:ci\n        env:\n          VETNEB_E2E_PRODUCTION_RUNNER: \"1\"",
+  );
 });
 
 test("Frontend CI sube reporte de Playwright solo en fallo", () => {

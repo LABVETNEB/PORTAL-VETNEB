@@ -1,14 +1,40 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // Server ownership: Playwright is the single orchestrator of both processes
-// (fixture API on 3107, Next.js dev on 3000) and is responsible for their
-// readiness and teardown.
-// - CI always starts fresh servers (reuseExistingServer=false).
-// - Local runs also start fresh servers by default so no run silently reuses
-//   a stale dev server (wrong NEXT_PUBLIC_API_URL, stale .next CSS). Reuse is
-//   an explicit opt-in for fast iteration: E2E_REUSE_SERVER=1.
+// (fixture API on 3107 and the Next.js application on 3000) and owns readiness
+// and teardown.
+// - Local runs use next dev and start fresh by default so they cannot silently
+//   reuse stale public environment values or cached CSS.
+// - Local reuse remains an explicit development-only optimization.
+const isCi = process.env.CI === "true";
 const reuseExistingServer =
-  !process.env.CI && process.env.E2E_REUSE_SERVER === "1";
+  !isCi && process.env.E2E_REUSE_SERVER === "1";
+
+// P1 (PR #1495): CI=true alone is not a safe signal for "a production bundle
+// exists". Other workflows (e.g. visual-regression-manual.yml) run Playwright
+// with CI=true but never `pnpm --dir frontend build`, so `next start` would
+// fail there. Only Frontend CI's e2e:ci step sets this explicitly, right
+// after building. Every other CI=true context keeps using `next dev`.
+const isProductionRunner =
+  isCi && process.env.VETNEB_E2E_PRODUCTION_RUNNER === "1";
+const applicationServerCommand = isProductionRunner
+  ? "pnpm start --hostname 127.0.0.1"
+  : "pnpm dev --hostname 127.0.0.1";
+
+// Server-only, non-NEXT_PUBLIC_ flags that unlock the two production-only
+// exceptions e2e:ci needs to run hermetically against the real `next start`
+// bundle: the local-fixture API origin (frontend/src/lib/api.ts) and the
+// external Google Maps embed kill switch (frontend/src/components/layout/Footer.tsx).
+// Production-runner-only by construction — no other CI context runs `next start`.
+const applicationServerEnv: Record<string, string> = {
+  NEXT_PUBLIC_API_URL: "http://127.0.0.1:3107",
+  ...(isProductionRunner
+    ? {
+        VETNEB_E2E_ALLOW_LOCAL_API: "1",
+        VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS: "1",
+      }
+    : {}),
+};
 
 // Hung-run guard: the layered CI suites finish in single-digit minutes and a
 // warm full local run takes ~4 minutes, so 30 minutes is generous headroom
@@ -39,10 +65,8 @@ export default defineConfig({
       timeout: 30_000,
     },
     {
-      command: "pnpm dev --hostname 127.0.0.1",
-      env: {
-        NEXT_PUBLIC_API_URL: "http://127.0.0.1:3107",
-      },
+      command: applicationServerCommand,
+      env: applicationServerEnv,
       url: "http://127.0.0.1:3000",
       reuseExistingServer,
       timeout: 120_000,

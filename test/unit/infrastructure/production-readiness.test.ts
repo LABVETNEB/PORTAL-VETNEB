@@ -281,7 +281,7 @@ test("production readiness documentation lists env names without assignments", (
 test("frontend CI audits the built public surface before E2E", () => {
   const workflow = read(".github/workflows/frontend-ci.yml");
   const buildIndex = workflow.indexOf(
-    "      - name: Build frontend\n        run: pnpm --dir frontend build",
+    "      - name: Build frontend\n        run: pnpm --dir frontend build\n        env:\n          NEXT_PUBLIC_API_URL: http://127.0.0.1:3107\n          VETNEB_E2E_ALLOW_LOCAL_API: \"1\"\n          VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS: \"1\"",
   );
   const auditIndex = workflow.indexOf(
     "      - name: Audit built public surface\n        run: pnpm security:public-surface",

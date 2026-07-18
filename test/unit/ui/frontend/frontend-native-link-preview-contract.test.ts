@@ -224,6 +224,75 @@ test("footer map surface uses a single non-interactive iframe and keeps external
   assert.equal(/<Link\b/.test(footer), false);
 });
 
+test("footer map iframe is hermetic under CI E2E flag and keeps the external control unconditional", () => {
+  const footer = read(FOOTER_PATH);
+
+  assert.ok(
+    footer.includes(
+      'process.env.VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS === "1"',
+    ),
+    "must gate on the server-only E2E embed flag",
+  );
+  assert.ok(
+    footer.includes('process.env.CI === "true" &&'),
+    "must require CI in addition to the embed flag (double-key, not flag-only)",
+  );
+  assert.equal(
+    footer.includes("NEXT_PUBLIC_"),
+    false,
+    "must never use a NEXT_PUBLIC_* var for this server-only condition",
+  );
+
+  const conditionIndex = footer.indexOf("disableExternalEmbedsForE2e =");
+  assert.ok(conditionIndex >= 0, "must define the disableExternalEmbedsForE2e condition");
+
+  // Exactly one <iframe> in source, always (other frozen contracts pin this
+  // count independently). Non-NEXT_PUBLIC_ env vars are only inlined for
+  // server bundles — any client-bundled re-execution of this module (e.g.
+  // reached through a "use client" ancestor) sees them as unset — so the
+  // element TYPE must never branch on the flag (that would be a hard
+  // hydration mismatch); only the `src` VALUE bound to the `mapsEmbedUrl`
+  // identifier may differ, via shadowing a renamed module-level constant.
+  const iframeMatches = footer.match(/<iframe\b/g);
+  assert.equal(iframeMatches?.length, 1, "must render exactly one <iframe>, unconditionally");
+
+  assert.ok(
+    footer.includes("const PUBLIC_MAPS_EMBED_SRC ="),
+    "the always-on embed URL must live in a renamed module-level constant",
+  );
+  assert.ok(
+    footer.includes(
+      "const mapsEmbedUrl = disableExternalEmbedsForE2e\n    ? undefined\n    : PUBLIC_MAPS_EMBED_SRC;",
+    ),
+    "must shadow `mapsEmbedUrl` locally so the JSX keeps its ordinary src={mapsEmbedUrl} shape",
+  );
+  assert.ok(footer.includes("src={mapsEmbedUrl}"));
+  assert.ok(
+    footer.includes(
+      'data-e2e-external-embed-disabled={\n                  disableExternalEmbedsForE2e ? "true" : undefined\n                }',
+    ),
+    "must mark the disabled state via an attribute, not via a different element",
+  );
+
+  // The external "Ver ubicación en Maps" control must stay outside the
+  // conditional that hides the iframe — it never depends on the E2E flag.
+  const controlBlockStart = footer.indexOf(
+    "<PublicExternalControl\n                href={mapsLocationUrl}",
+  );
+  assert.ok(controlBlockStart > 0, "must find the maps external control block");
+  const controlBlockEnd = footer.indexOf(
+    "</PublicExternalControl>",
+    controlBlockStart,
+  );
+  const controlBlock = footer.slice(controlBlockStart, controlBlockEnd);
+  assert.equal(
+    controlBlock.includes("disableExternalEmbedsForE2e"),
+    false,
+    "the external Maps link control must not be conditioned on the E2E embed flag",
+  );
+  assert.ok(controlBlock.includes("Ver ubicación en Maps"));
+});
+
 test("navigation controls avoid anti-preview hacks", () => {
   const guardedFiles = [
     PUBLIC_ROUTE_CONTROL_PATH,

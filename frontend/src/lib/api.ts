@@ -60,6 +60,11 @@ const CLIENT_VERSION_UNSUPPORTED_CODE = "CLIENT_VERSION_UNSUPPORTED";
 const LOCAL_DEVELOPMENT_API_BASE_URL = "http://localhost:3000";
 const SAME_ORIGIN_API_BASE_URL = "";
 
+// Origen exacto del fixture HTTP hermético que Playwright arranca en CI para
+// e2e:ci contra el bundle productivo (`next start`). Es la única grieta
+// permitida en el guard de producción de abajo — ver isE2eLocalFixtureOriginAllowed.
+const E2E_FIXTURE_API_ORIGIN = "http://127.0.0.1:3107";
+
 export const PUBLIC_API_CONFIGURATION_ERROR_MESSAGE =
   "El servicio público no está configurado para recibir solicitudes. Contacte a VETNEB por los canales oficiales.";
 export const BACKEND_CONNECTION_ERROR_MESSAGE =
@@ -85,6 +90,19 @@ function isLocalOrLanHostname(hostname: string): boolean {
 
 function normalizeApiBaseUrl(value: string): string {
   return value.replace(/\/+$/, "");
+}
+
+// Fail-closed: las 4 condiciones deben cumplirse simultáneamente. Lee
+// process.env directo (no los overrides de `input` de resolveApiBaseUrlForRuntime)
+// para que un test no pueda simular esta grieta sin que el proceso real esté
+// en CI de e2e:ci contra next start. Nunca debe ampliarse a otro host/puerto.
+function isE2eLocalFixtureOriginAllowed(origin: string): boolean {
+  return (
+    process.env.NODE_ENV === "production" &&
+    process.env.CI === "true" &&
+    process.env.VETNEB_E2E_ALLOW_LOCAL_API === "1" &&
+    origin === E2E_FIXTURE_API_ORIGIN
+  );
 }
 
 export function resolveApiBaseUrlForRuntime(input: {
@@ -120,6 +138,17 @@ export function resolveApiBaseUrlForRuntime(input: {
     parsedUrl = new URL(nextPublicApiUrl);
   } catch {
     throw new Error(PUBLIC_API_CONFIGURATION_ERROR_MESSAGE);
+  }
+
+  // e2e:ci runs the real production bundle (`next start`) against a local
+  // HTTP fixture, so this is the one legitimate case where a local/LAN
+  // origin must pass the guard below. Everything else keeps failing closed.
+  if (
+    !isDevelopment &&
+    isLocalOrLanHostname(parsedUrl.hostname) &&
+    isE2eLocalFixtureOriginAllowed(parsedUrl.origin)
+  ) {
+    return normalizeApiBaseUrl(nextPublicApiUrl);
   }
 
   if (!isDevelopment && isLocalOrLanHostname(parsedUrl.hostname)) {

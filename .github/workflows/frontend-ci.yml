@@ -60,6 +60,10 @@ jobs:
 
       - name: Build frontend
         run: pnpm --dir frontend build
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:3107
+          VETNEB_E2E_ALLOW_LOCAL_API: "1"
+          VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS: "1"
 
       - name: Audit built public surface
         run: pnpm security:public-surface
@@ -69,6 +73,8 @@ jobs:
 
       - name: Run frontend E2E layered tests
         run: pnpm --dir frontend e2e:ci
+        env:
+          VETNEB_E2E_PRODUCTION_RUNNER: "1"
 
       - name: Upload Playwright report
         if: failure()
