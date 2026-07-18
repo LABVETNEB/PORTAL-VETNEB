@@ -20,6 +20,7 @@ let importSequence = 0;
 function restoreEnvironment(
   previousCi: string | undefined,
   previousReuse: string | undefined,
+  previousProductionRunner: string | undefined,
 ): void {
   if (previousCi === undefined) {
     delete process.env.CI;
@@ -32,14 +33,22 @@ function restoreEnvironment(
   } else {
     process.env.E2E_REUSE_SERVER = previousReuse;
   }
+
+  if (previousProductionRunner === undefined) {
+    delete process.env.VETNEB_E2E_PRODUCTION_RUNNER;
+  } else {
+    process.env.VETNEB_E2E_PRODUCTION_RUNNER = previousProductionRunner;
+  }
 }
 
 async function loadConfig(input: {
   ci?: string;
   reuse?: string;
+  productionRunner?: string;
 }): Promise<PlaywrightConfigLike> {
   const previousCi = process.env.CI;
   const previousReuse = process.env.E2E_REUSE_SERVER;
+  const previousProductionRunner = process.env.VETNEB_E2E_PRODUCTION_RUNNER;
 
   if (input.ci === undefined) {
     delete process.env.CI;
@@ -53,6 +62,12 @@ async function loadConfig(input: {
     process.env.E2E_REUSE_SERVER = input.reuse;
   }
 
+  if (input.productionRunner === undefined) {
+    delete process.env.VETNEB_E2E_PRODUCTION_RUNNER;
+  } else {
+    process.env.VETNEB_E2E_PRODUCTION_RUNNER = input.productionRunner;
+  }
+
   try {
     const configUrl = pathToFileURL(
       resolve(process.cwd(), "frontend/playwright.config.ts"),
@@ -63,7 +78,7 @@ async function loadConfig(input: {
 
     return imported.default as PlaywrightConfigLike;
   } finally {
-    restoreEnvironment(previousCi, previousReuse);
+    restoreEnvironment(previousCi, previousReuse, previousProductionRunner);
   }
 }
 
@@ -83,7 +98,7 @@ function applicationServer(config: PlaywrightConfigLike): WebServerLike {
   return server;
 }
 
-test("Playwright selecciona dev local y next start en CI", async (t) => {
+test("Playwright selecciona dev local y next start solo en el runner productivo explícito", async (t) => {
   await t.test("local default starts a fresh development server", async () => {
     const server = applicationServer(
       await loadConfig({}),
@@ -110,11 +125,40 @@ test("Playwright selecciona dev local y next start en CI", async (t) => {
     );
   });
 
-  await t.test("CI serves the existing production build", async () => {
+  // P1 (PR #1495): CI=true alone is not enough — other workflows (e.g.
+  // visual-regression-manual.yml) run Playwright with CI=true but never run
+  // `pnpm --dir frontend build`, so `next start` would fail there. Only
+  // Frontend CI's e2e:ci step sets VETNEB_E2E_PRODUCTION_RUNNER=1.
+  await t.test("generic CI (no production runner flag) still uses pnpm dev", async () => {
+    const server = applicationServer(
+      await loadConfig({
+        ci: "true",
+      }),
+    );
+
+    assert.equal(
+      server.command,
+      "pnpm dev --hostname 127.0.0.1",
+      "CI=true alone (e.g. visual-regression-manual.yml) must not select next start",
+    );
+    assert.equal(
+      server.env?.VETNEB_E2E_ALLOW_LOCAL_API,
+      undefined,
+      "generic CI must not enable the production-only local API exception",
+    );
+    assert.equal(
+      server.env?.VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS,
+      undefined,
+      "generic CI must not disable external embeds meant for the production runner",
+    );
+  });
+
+  await t.test("Frontend CI's explicit production runner serves the existing production build", async () => {
     const server = applicationServer(
       await loadConfig({
         ci: "true",
         reuse: "1",
+        productionRunner: "1",
       }),
     );
 
@@ -125,7 +169,7 @@ test("Playwright selecciona dev local y next start en CI", async (t) => {
     assert.equal(
       server.reuseExistingServer,
       false,
-      "CI must never reuse an existing application server",
+      "the production runner must never reuse an existing application server",
     );
     assert.equal(
       server.env?.NEXT_PUBLIC_API_URL,
@@ -134,13 +178,29 @@ test("Playwright selecciona dev local y next start en CI", async (t) => {
     assert.equal(
       server.env?.VETNEB_E2E_ALLOW_LOCAL_API,
       "1",
-      "CI must propagate the server-only local API exception to next start",
+      "the production runner must propagate the server-only local API exception to next start",
     );
     assert.equal(
       server.env?.VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS,
       "1",
-      "CI must propagate the server-only external embed kill switch to next start",
+      "the production runner must propagate the server-only external embed kill switch to next start",
     );
+  });
+
+  await t.test("production runner flag without CI is not enough on its own", async () => {
+    const server = applicationServer(
+      await loadConfig({
+        productionRunner: "1",
+      }),
+    );
+
+    assert.equal(
+      server.command,
+      "pnpm dev --hostname 127.0.0.1",
+      "the production runner flag alone (outside CI) must not select next start",
+    );
+    assert.equal(server.env?.VETNEB_E2E_ALLOW_LOCAL_API, undefined);
+    assert.equal(server.env?.VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS, undefined);
   });
 
   await t.test("local explicit reuse remains development-only", async () => {

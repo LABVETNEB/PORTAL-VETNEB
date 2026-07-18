@@ -154,9 +154,12 @@ workflow-security permaneció en `QGA-4.2` y aceptó el workflow modificado.
 
 Digest SHA-256 canónico revisado de `.github/workflows/frontend-ci.yml`
 (recalculado con normalización CRLF→LF, verificado independientemente del
-test):
+test) en esta etapa:
 
 `a7c59daab8a9b07627e7b0e22e610fbcc570fa0f68332d3f1378e800046558c7`
+
+(Superado por el recálculo de la corrección P1 más abajo, tras agregar
+`VETNEB_E2E_PRODUCTION_RUNNER` al step `e2e:ci`.)
 
 ## Scope
 
@@ -221,6 +224,74 @@ sesiones previas como flake conocido de ese spec bajo paralelismo completo
 (no reproduce aislado, 3/3 passed). No se tocó ese spec ni se agregaron
 retries; una recorrida completa sin cambios adicionales dio `568/568` limpio.
 
+## P1 — PR #1495: `CI=true` no distinguía Frontend CI de otros workflows
+
+Hallazgo de review thread abierto en `frontend/playwright.config.ts`
+(PR #1495): `isCi = process.env.CI === "true"` seleccionaba `pnpm start` y
+las 2 variables server-only para **cualquier** workflow que ejecutara
+Playwright con `CI=true`, no solo Frontend CI.
+`.github/workflows/visual-regression-manual.yml` fija `CI: true` a nivel de
+job pero nunca corre `pnpm --dir frontend build` — con el diseño anterior,
+ese workflow habría intentado `next start` sin build, fallando por falta de
+`.next`.
+
+### Corrección
+
+`frontend/playwright.config.ts` separa la señal genérica de CI de la
+activación explícita del runner productivo:
+
+```ts
+const isCi = process.env.CI === "true";
+const isProductionRunner =
+  isCi && process.env.VETNEB_E2E_PRODUCTION_RUNNER === "1";
+```
+
+Solo `isProductionRunner` selecciona `pnpm start --hostname 127.0.0.1` y las
+3 variables del `webServer` de aplicación (`NEXT_PUBLIC_API_URL`,
+`VETNEB_E2E_ALLOW_LOCAL_API`, `VETNEB_E2E_DISABLE_EXTERNAL_EMBEDS`). `isCi`
+solo sigue rigiendo lo que ya regía antes de esta corrección y no pertenece
+al runner productivo: `reuseExistingServer=false` en CI. Cualquier `CI=true`
+sin el flag (incluido `visual-regression-manual.yml`, sin cambios) continúa
+usando `pnpm dev --hostname 127.0.0.1`, igual que en local.
+
+`.github/workflows/frontend-ci.yml` agrega `VETNEB_E2E_PRODUCTION_RUNNER:
+"1"` únicamente como `env` del step `Run frontend E2E layered tests` — no a
+nivel de job ni de workflow. Verificado con contrato ejecutable: la cadena
+`VETNEB_E2E_PRODUCTION_RUNNER` aparece exactamente una vez en todo el
+archivo.
+
+Digest SHA-256 canónico recalculado tras el cambio (CRLF→LF, verificado
+independientemente del test):
+
+`ab34aea3f70558eec441d8969187587a406e0f4c0fab04d3a5d6e583cd554607`
+
+### Verificación negativa
+
+Contrato ejecutable (`frontend-playwright-production-runner.test.ts`)
+prueba, importando el config real:
+
+- `CI=true` sin `VETNEB_E2E_PRODUCTION_RUNNER` → `pnpm dev`, sin las 2
+  variables server-only.
+- `CI=true` + `VETNEB_E2E_PRODUCTION_RUNNER=1` → `pnpm start`, con las 3
+  variables, `reuseExistingServer=false`.
+- `VETNEB_E2E_PRODUCTION_RUNNER=1` sin `CI=true` → `pnpm dev` (el flag solo
+  no alcanza).
+- Reuse local explícito → sin cambios respecto al diseño previo.
+
+No fue necesario ejecutar `visual-regression-manual.yml` para demostrar la
+corrección: el workflow queda fuera del diff (no tocado) y el contrato
+ejecutable demuestra que su `CI=true` sin el flag nuevo sigue resolviendo a
+`pnpm dev`.
+
+### Fallo remoto previo (567/568) — clasificado como transitorio
+
+Un rerun local de `e2e:ci` con `VETNEB_E2E_PRODUCTION_RUNNER=1` produjo
+`567 passed, 1 failed` (`dashboard-single-viewport-app-shell.spec.ts` —
+"admin clinics fits one viewport without scroll"). Un segundo rerun
+inmediato, sin ningún cambio de código, dio `568 passed, 0 failed`. Coincide
+con la clasificación de Nico del fallo remoto equivalente en el PR: no se
+tocó ese spec, no se agregaron retries ni se relajaron timeouts.
+
 ## Rollback
 
 Revertir el lote como una unidad restaura:
@@ -242,5 +313,7 @@ iframe de Maps) permanece exactamente igual salvo bajo la doble llave
 
 ## CI remoto
 
-`NOT_RUN` — pendiente de crear el PR y observar la corrida real en GitHub
-Actions.
+PR #1495. Checks remotos previos a la corrección P1: todos `PASSED` (con la
+excepción transitoria 567/568 ya clasificada arriba). Corrida remota tras la
+corrección P1 (separación `isProductionRunner`): `NOT_RUN` — pendiente de
+push y observación en GitHub Actions.

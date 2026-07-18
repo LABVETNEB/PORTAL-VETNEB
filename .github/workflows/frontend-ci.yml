@@ -73,6 +73,8 @@ jobs:
 
       - name: Run frontend E2E layered tests
         run: pnpm --dir frontend e2e:ci
+        env:
+          VETNEB_E2E_PRODUCTION_RUNNER: "1"
 
       - name: Upload Playwright report
         if: failure()
