@@ -463,7 +463,12 @@ function summarize({ leftCount, rightCount, matchedPaths, missingLeft, missingRi
   const requireCountSatisfied =
     requireCount === null || (leftCount === requireCount && rightCount === requireCount);
   const pathsIdentical = missingLeft.length === 0 && missingRight.length === 0;
-  const exactVisualContract = results.every((r) => r.dimensionsIdentical && r.pixelIdentical);
+
+  // Array.prototype.every() is vacuously true for an empty array. Visual
+  // evidence is valid only when at least one PNG path is present on both sides.
+  const hasComparableArtifacts = matchedPaths.length > 0;
+  const exactVisualContract =
+    hasComparableArtifacts && results.every((r) => r.dimensionsIdentical && r.pixelIdentical);
 
   return {
     leftCount,
@@ -700,7 +705,9 @@ export function helpText() {
     "  Relative paths resolve from the current working directory. Both roots must exist and",
     "  be directories. Discovery is recursive, considers only .png files, normalizes relative",
     "  paths with '/', preserves case, sorts lexicographically, and rejects symlinks. Input",
-    "  directories are never modified and the network is never accessed.",
+    "  directories are never modified and the network is never accessed. A comparison requires",
+    "  at least one PNG path present on both sides; two empty trees fail with exit code 1, even",
+    "  when --require-count 0 is supplied.",
     "",
     "Per-file classification (exactly one):",
     "  byte-identical                 identical raw bytes (implies pixel-identical).",
