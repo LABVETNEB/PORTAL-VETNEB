@@ -456,6 +456,57 @@ test("8: unsatisfied --require-count fails and is validated independently per si
 });
 
 // ---------------------------------------------------------------------------
+// E2E-FIX-EMPTY. Empty artifact sets are never valid visual evidence.
+// ---------------------------------------------------------------------------
+
+test("empty artifact directories fail the pure comparison contract even when require-count is zero", () => {
+  const left = makeCaseDir("empty-left");
+  const right = makeCaseDir("empty-right");
+
+  const defaultComparison = comparator.compareDirectories(left, right);
+  assert.equal(defaultComparison.summary.leftCount, 0);
+  assert.equal(defaultComparison.summary.rightCount, 0);
+  assert.equal(defaultComparison.summary.matchedPathCount, 0);
+  assert.equal(defaultComparison.summary.passed, false);
+
+  const explicitZeroComparison = comparator.compareDirectories(left, right, {
+    requireCount: 0,
+  });
+  assert.equal(explicitZeroComparison.summary.leftCount, 0);
+  assert.equal(explicitZeroComparison.summary.rightCount, 0);
+  assert.equal(explicitZeroComparison.summary.matchedPathCount, 0);
+  assert.equal(explicitZeroComparison.summary.requireCountSatisfied, true);
+  assert.equal(explicitZeroComparison.summary.passed, false);
+});
+
+test("empty artifact directories fail the CLI contract with exit 1", () => {
+  const left = makeCaseDir("empty-cli-left");
+  const right = makeCaseDir("empty-cli-right");
+
+  const defaultCli = runCli(["--left", left, "--right", right]);
+  assert.equal(defaultCli.status, comparator.EXIT_CONTRACT_FAILED);
+  assert.equal(defaultCli.stderr, "");
+  assert.match(defaultCli.stdout, /left PNG count:\s+0/);
+  assert.match(defaultCli.stdout, /right PNG count:\s+0/);
+  assert.match(defaultCli.stdout, /matched paths:\s+0/);
+  assert.match(defaultCli.stdout, /RESULT: FAIL/);
+  assert.match(defaultCli.stdout, /EXIT CODE:\s+1/);
+
+  const explicitZeroCli = runCli([
+    "--left",
+    left,
+    "--right",
+    right,
+    "--require-count",
+    "0",
+  ]);
+  assert.equal(explicitZeroCli.status, comparator.EXIT_CONTRACT_FAILED);
+  assert.equal(explicitZeroCli.stderr, "");
+  assert.match(explicitZeroCli.stdout, /require-count:\s+0 \(satisfied\)/);
+  assert.match(explicitZeroCli.stdout, /RESULT: FAIL/);
+  assert.match(explicitZeroCli.stdout, /EXIT CODE:\s+1/);
+});
+// ---------------------------------------------------------------------------
 // 9. Nonexistent directory -> exit 2.
 // ---------------------------------------------------------------------------
 
@@ -722,6 +773,8 @@ test("18: --help documents every argument and exit code and exits 0", () => {
   for (const flag of ["--left", "--right", "--require-count", "--report-dir", "--help"]) {
     assert.ok(cli.stdout.includes(flag), `help must document ${flag}`);
   }
+  assert.match(cli.stdout, /at least one PNG path present on both sides/);
+  assert.match(cli.stdout, /two empty trees fail with exit code 1/);
   assert.match(cli.stdout, /Exit codes:/);
   for (const code of ["0", "1", "2"]) {
     assert.match(cli.stdout, new RegExp(`\\n\\s+${code}\\s`), `help must document exit code ${code}`);
