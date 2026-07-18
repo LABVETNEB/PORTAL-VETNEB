@@ -554,18 +554,51 @@ Relevant historical evidence:
 
 ### Determinism gate
 
+> **Corrected 2026-07-17 — see "Audit correction" below.** The original
+> figures reported here (pixel-identical 30/30, pixel-different 0) were a
+> false negative and are wrong. The exact result is pixel-identical 29/30,
+> pixel-different 1.
+
 Run A and run B were compared after decoding all PNG files to RGBA:
 
 - paths compared: 30/30
 - dimensions identical: 30/30
-- pixel-identical: 30/30
+- pixel-identical: ~~30/30~~ **29/30** (corrected)
 - byte-identical: 29/30
-- pixel-different: 0
+- pixel-different: ~~0~~ **1** (corrected)
 
-`stress-dashboard-1536-chromium-linux.png` differed only in PNG bytes
-between runs. Its dimensions and decoded RGBA pixels were exactly
-identical, so the difference was encoding or metadata only and not a
-visual difference.
+`stress-dashboard-1536-chromium-linux.png` differed in PNG bytes between
+runs **and is not pixel-identical**: an exact RGBA comparison finds 36
+genuinely different pixels (RGB deltas of ±1–7, alpha identical), localized
+to a thin text band, bounding box `[791,405]-[1194,427]`. The earlier claim
+that its "decoded RGBA pixels were exactly identical" was incorrect.
+
+### Audit correction (2026-07-17)
+
+A dedicated exact PNG comparator (Node + `pngjs`, no tolerances) was later
+built under `tooling/visual-determinism-comparator` and re-ran run A vs run B
+on the exact same approved artifacts (`8415870767` vs `8416807417`). Findings:
+
+- The original temporary validation **incorrectly reported pixel-identical
+  30/30**.
+- The exact Node/`pngjs` comparator found **36 different RGB pixels** in
+  `stress-dashboard-1536-chromium-linux.png` (exit 1, pixel-different: 1).
+- A **second, independent PNG decoder** (from-scratch zlib inflate + scanline
+  unfilter, no `pngjs`) confirmed the same 36-pixel result byte for byte.
+- The difference concentrates in a thin text band; alpha is identical.
+- **run B vs the tracked baselines remains 30/30 byte-identical** (exit 0).
+- This correction does **not** change the versioned snapshots nor the
+  acceptance of run B (`8416807417`) as the approved imported source; the
+  tracked baselines stay reproducible against run B.
+- It **does** invalidate the historical claim that run A and run B were
+  pixel-identical.
+
+Probable cause of the original false negative (documented cautiously; the
+temporary script was never committed and could not be re-run here): a
+Pillow/ImageChops path where `Image.getbbox()` — whose default became
+`alpha_only=True` in Pillow 10.0.0 — trimmed the RGBA diff by its all-zero
+alpha channel and returned `None`, masking the non-zero RGB differences. See
+`visual-determinism-comparator.md` for the full evidence and reasoning.
 
 ### Approved refresh
 

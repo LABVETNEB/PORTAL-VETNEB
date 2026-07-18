@@ -23,6 +23,7 @@
     "e2e:evidence": "node e2e/scripts/run-cohort.mjs evidence",
     "e2e:visual-linux": "node e2e/scripts/run-cohort.mjs visual-linux",
     "e2e:affected": "node e2e/scripts/run-cohort.mjs affected",
+    "e2e:compare-visual-artifacts": "node e2e/scripts/compare-visual-artifacts.mjs",
     "e2e:verify-catalog": "node --experimental-strip-types --experimental-specifier-resolution=node --test ../test/architecture/e2e-suite-catalog-completeness.test.ts"
   },
   "dependencies": {
@@ -51,6 +52,7 @@
     "@types/react-dom": "^19.0.0",
     "eslint": "^10.7.0",
     "eslint-config-next": "^16.2.9",
+    "pngjs": "^7.0.0",
     "postcss": "^8.5.19",
     "tailwindcss": "^4.3.1",
     "typescript": "^5.7.2"
