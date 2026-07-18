@@ -21,7 +21,7 @@ const directCommand = ({ id, command, reason }) => ({
   reason,
 });
 
-export const POLICY_VERSION = "QGA-2.1";
+export const POLICY_VERSION = "QGA-2.2";
 
 export const README_MARKERS = deepFreeze({
   start: "<!-- quality-gate-taxonomy:start -->",
@@ -118,28 +118,10 @@ export const QUALITY_GATES = deepFreeze([
         command: "pnpm security:public-surface",
       }),
       packageCommand({
-        id: "frontend-e2e-smoke",
+        id: "frontend-e2e-ci",
         packageScope: "frontend",
-        script: "e2e:smoke",
-        command: "pnpm --dir frontend e2e:smoke",
-      }),
-      packageCommand({
-        id: "frontend-e2e-admin-mobile",
-        packageScope: "frontend",
-        script: "e2e:admin-mobile",
-        command: "pnpm --dir frontend e2e:admin-mobile",
-      }),
-      packageCommand({
-        id: "frontend-e2e-visual-contract",
-        packageScope: "frontend",
-        script: "e2e:visual-contract",
-        command: "pnpm --dir frontend e2e:visual-contract",
-      }),
-      packageCommand({
-        id: "frontend-e2e-public-clinic",
-        packageScope: "frontend",
-        script: "e2e:public-clinic",
-        command: "pnpm --dir frontend e2e:public-clinic",
+        script: "e2e:ci",
+        command: "pnpm --dir frontend e2e:ci",
       }),
     ],
     responsibility:
@@ -289,64 +271,16 @@ export const TEST_TAXONOMY = deepFreeze([
     requirement: "conditional",
   },
   {
-    id: "frontend-e2e-smoke",
-    purpose: "Fast Playwright smoke for auth, public routes, hydration, theme and dashboard foundation.",
+    id: "frontend-e2e-ci",
+    purpose: "Single catalog-backed Playwright invocation for the complete frontend CI browser gate.",
     representativePaths: ["frontend/e2e/**", "frontend/src/**"],
     gate: "frontend-ci",
     commands: [
       packageCommand({
-        id: "frontend-e2e-smoke",
+        id: "frontend-e2e-ci",
         packageScope: "frontend",
-        script: "e2e:smoke",
-        command: "pnpm --dir frontend e2e:smoke",
-      }),
-    ],
-    packageScope: "frontend",
-    requirement: "conditional",
-  },
-  {
-    id: "frontend-e2e-admin-mobile",
-    purpose: "Playwright mobile admin app-shell and module operability contracts.",
-    representativePaths: ["frontend/e2e/admin-*.spec.ts", "frontend/e2e/dashboard-*.spec.ts"],
-    gate: "frontend-ci",
-    commands: [
-      packageCommand({
-        id: "frontend-e2e-admin-mobile",
-        packageScope: "frontend",
-        script: "e2e:admin-mobile",
-        command: "pnpm --dir frontend e2e:admin-mobile",
-      }),
-    ],
-    packageScope: "frontend",
-    requirement: "conditional",
-  },
-  {
-    id: "frontend-e2e-visual-contract",
-    purpose: "Playwright visual and layout contracts for dashboard shells and responsive behavior.",
-    representativePaths: ["frontend/e2e/dashboard-*.spec.ts"],
-    gate: "frontend-ci",
-    commands: [
-      packageCommand({
-        id: "frontend-e2e-visual-contract",
-        packageScope: "frontend",
-        script: "e2e:visual-contract",
-        command: "pnpm --dir frontend e2e:visual-contract",
-      }),
-    ],
-    packageScope: "frontend",
-    requirement: "conditional",
-  },
-  {
-    id: "frontend-e2e-public-clinic",
-    purpose: "Playwright public and clinic-facing route contracts.",
-    representativePaths: ["frontend/e2e/public-*.spec.ts", "frontend/e2e/dashboard-clinic-*.spec.ts"],
-    gate: "frontend-ci",
-    commands: [
-      packageCommand({
-        id: "frontend-e2e-public-clinic",
-        packageScope: "frontend",
-        script: "e2e:public-clinic",
-        command: "pnpm --dir frontend e2e:public-clinic",
+        script: "e2e:ci",
+        command: "pnpm --dir frontend e2e:ci",
       }),
     ],
     packageScope: "frontend",
@@ -371,12 +305,7 @@ export const IMPACT_RULES = deepFreeze([
     matcher: { type: "prefix", path: "frontend/e2e/" },
     impacts: ["frontend-e2e", "browser-behavior"],
     gates: ["pr-governance", "frontend-ci"],
-    suiteIds: [
-      "frontend-e2e-smoke",
-      "frontend-e2e-admin-mobile",
-      "frontend-e2e-visual-contract",
-      "frontend-e2e-public-clinic",
-    ],
+    suiteIds: ["frontend-e2e-ci"],
     description: "Playwright tests and fixtures affect frontend browser validation.",
   },
   {
@@ -498,10 +427,7 @@ export const IMPACT_RULES = deepFreeze([
       "frontend-lint",
       "frontend-typecheck",
       "frontend-build",
-      "frontend-e2e-smoke",
-      "frontend-e2e-admin-mobile",
-      "frontend-e2e-visual-contract",
-      "frontend-e2e-public-clinic",
+      "frontend-e2e-ci",
     ],
     description: "Frontend package changes can affect lint, typecheck, build and Playwright scripts.",
   },
@@ -563,9 +489,9 @@ export const IMPACT_RULES = deepFreeze([
       "frontend-typecheck",
       "frontend-build",
       "public-surface-audit",
-      "frontend-e2e-smoke",
+      "frontend-e2e-ci",
     ],
-    description: "Frontend runtime changes require frontend lint, typecheck, build and public-surface validation.",
+    description: "Frontend runtime changes require frontend lint, typecheck, build, public-surface and catalog-backed browser validation.",
   },
   {
     id: "node-tests",

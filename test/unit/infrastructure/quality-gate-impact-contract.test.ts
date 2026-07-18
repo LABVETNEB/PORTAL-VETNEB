@@ -210,6 +210,49 @@ test("frontend workflow exact route includes frontend CI and normative frontend 
   for (const suiteId of frontendSuiteIds) assert.ok(suiteIds.includes(suiteId), suiteId);
 });
 
+test("frontend CI taxonomy exposes one catalog-backed Playwright command", () => {
+  const frontendGate = QUALITY_GATES.find((gate) => gate.id === "frontend-ci");
+  assert.ok(frontendGate);
+
+  const e2eCommands = frontendGate.commands
+    .filter((command) => command.id.startsWith("frontend-e2e-"))
+    .map((command) => ({
+      id: command.id,
+      command: command.command,
+    }));
+
+  assert.deepEqual(e2eCommands, [
+    {
+      id: "frontend-e2e-ci",
+      command: "pnpm --dir frontend e2e:ci",
+    },
+  ]);
+
+  const e2eSuites = TEST_TAXONOMY.filter(
+    (suite) =>
+      suite.gate === "frontend-ci" &&
+      suite.id.startsWith("frontend-e2e-"),
+  );
+
+  assert.equal(e2eSuites.length, 1);
+  assert.equal(e2eSuites[0]?.id, "frontend-e2e-ci");
+  assert.ok(e2eSuites[0]?.representativePaths.includes("frontend/e2e/**"));
+  assert.ok(e2eSuites[0]?.representativePaths.includes("frontend/src/**"));
+
+  assert.deepEqual(
+    e2eSuites[0]?.commands.map((command) => ({
+      id: command.id,
+      command: command.command,
+    })),
+    [
+      {
+        id: "frontend-e2e-ci",
+        command: "pnpm --dir frontend e2e:ci",
+      },
+    ],
+  );
+});
+
 test("impact routing rejects unclassified root assets", () => {
   const result = evaluateChangedPathImpact({
     entries: [
