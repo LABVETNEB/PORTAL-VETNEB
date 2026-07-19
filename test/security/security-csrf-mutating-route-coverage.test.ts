@@ -209,17 +209,22 @@ test("logistics-route-plans lifecycle actions usan handler compartido con enforc
     "handleRoutePlanLifecycleAction",
   );
 
-  // Los 4 POST lifecycle deben delegar al handler compartido
+  // Los 4 POST lifecycle deben delegar al handler compartido. Desde M08, la
+  // ruta `cancel` rutea la transición por el caso de uso de application
+  // (`cancelRoutePlan`) como 4º argumento del helper; release/start/complete
+  // permanecen fuera de M08 con la firma de 3 argumentos. El handler compartido
+  // (y por tanto enforceTrustedOrigin) cubre las cuatro por igual.
   for (const action of ["release", "start", "complete", "cancel"]) {
     assert.ok(
       source.includes(`"/:routePlanId/${action}"`),
       `logistics-route-plans debe registrar POST /:routePlanId/${action}`,
     );
-    // Cada uno usa el handler
+    const expectedCall =
+      action === "cancel"
+        ? `handleRoutePlanLifecycleAction("cancel", request, reply, cancelRoutePlan)`
+        : `handleRoutePlanLifecycleAction("${action}", request, reply)`;
     assert.ok(
-      source.includes(
-        `handleRoutePlanLifecycleAction("${action}", request, reply)`,
-      ),
+      source.includes(expectedCall),
       `POST /:routePlanId/${action} debe delegar a handleRoutePlanLifecycleAction`,
     );
   }

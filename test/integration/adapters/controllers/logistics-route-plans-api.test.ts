@@ -70,7 +70,7 @@ test("logistics route plans API keeps all route plan operations clinic scoped", 
   assert.match(routeSource, /clinicId: auth\.clinicId/);
   assert.match(routeSource, /routePlansRead\.listRoutePlans\(params\)/);
   assert.match(routeSource, /routePlansRead\.getRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*\)/);
-  assert.match(routeSource, /deps\.updateClinicScopedRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*parsed\.input,\s*\)/);
+  assert.match(routeSource, /routePlansWrite\.updateRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*parsed\.input,\s*\)/);
 });
 
 test("logistics route plans API validates route plan contract before DB calls", () => {
@@ -132,7 +132,9 @@ test("logistics route plans API wires lifecycle transition helper through inject
   assert.match(routeSource, /RoutePlanLifecycleAction/);
   assert.match(routeSource, /RoutePlanLifecycleTransitionResult/);
   assert.match(routeSource, /dbLogistics\.transitionClinicScopedRoutePlanStatus/);
-  assert.match(routeSource, /deps\.transitionClinicScopedRoutePlanStatus\(\s*routePlanId,\s*auth\.clinicId,\s*action,\s*\)/);
+  // release/start/complete (fuera de M08) conservan la llamada directa a la dep
+  // vía el default del helper de lifecycle.
+  assert.match(routeSource, /deps\.transitionClinicScopedRoutePlanStatus\(\s*routePlanId,\s*clinicId,\s*action\s*\)/);
 });
 
 test("logistics route plans API keeps lifecycle writes clinic scoped and trusted-origin protected", () => {
@@ -230,11 +232,11 @@ test("logistics route plans API audits lifecycle transitions", () => {
 });
 
 test("logistics route plans API delegates read and heuristic flows to the M07 application use cases", () => {
-  // 1. La ruta importa los casos de uso desde el barrel de application.
-  assert.match(
-    routeSource,
-    /import \{\s*createGenerateHeuristicRoutePlan,\s*createRoutePlansReadUseCases,\s*\} from "\.\.\/features\/logistics\/application\/index\.ts";/,
-  );
+  // 1. La ruta importa los casos de uso de lectura/heuristic desde el barrel.
+  //    (La lista de miembros del import crece con M08; se comprueba presencia.)
+  assert.match(routeSource, /from "\.\.\/features\/logistics\/application\/index\.ts";/);
+  assert.match(routeSource, /createRoutePlansReadUseCases,/);
+  assert.match(routeSource, /createGenerateHeuristicRoutePlan,/);
 
   // 2. Los puertos se adaptan desde el seam LogisticsRoutePlansNativeRoutesOptions
   //    (deps ya resueltas), una sola vez a nivel plugin, antes de registrar
@@ -284,10 +286,8 @@ test("logistics route plans API delegates read and heuristic flows to the M07 ap
   assert.match(routeSource, /dbLogistics\.listRouteStopsForClinicRoutePlan/);
   assert.match(routeSource, /dbLogistics\.generateHeuristicRoutePlan/);
 
-  // Las escrituras (M08) siguen llamando a deps directamente.
-  assert.match(routeSource, /await deps\.createRoutePlan\(/);
-  assert.match(routeSource, /await deps\.updateClinicScopedRoutePlan\(/);
-  assert.match(routeSource, /await deps\.transitionClinicScopedRoutePlanStatus\(/);
+  // Las escrituras (create/update de plan y stop) y el lifecycle cancel se
+  // delegan en application a partir de M08; su contrato vive en el test dedicado.
 });
 
 test("logistics route plans application layer (M07) stays free of HTTP and DB imports", () => {
@@ -296,6 +296,125 @@ test("logistics route plans application layer (M07) stays free of HTTP and DB im
     "server/features/logistics/application/generate-heuristic-route-plan.ts",
     "server/features/logistics/application/ports/logistics-route-plans-read-repository.ts",
     "server/features/logistics/application/ports/logistics-route-plan-generator.ts",
+  ] as const;
+
+  const forbiddenSpecifierRules: Array<{ label: string; pattern: RegExp }> = [
+    { label: "fastify", pattern: /^fastify(\/|$)/ },
+    { label: "server/db-logistics", pattern: /db-logistics/ },
+    { label: "server/db", pattern: /(^|\/)db(\.ts)?$/ },
+    { label: "drizzle-orm", pattern: /^drizzle-orm(\/|$)/ },
+    { label: "drizzle/schema", pattern: /drizzle\/schema/ },
+    { label: "server/lib", pattern: /(^|\/)lib\// },
+    { label: "server/routes", pattern: /(^|\/)routes\// },
+  ];
+
+  const violations: string[] = [];
+
+  for (const file of applicationFiles) {
+    const source = readFileSync(resolve(process.cwd(), file), "utf8");
+    const specifiers = Array.from(
+      source.matchAll(
+        /\bfrom\s+["']([^"']+)["']|\brequire\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s+["']([^"']+)["']/g,
+      ),
+      (match) => match[1] ?? match[2] ?? match[3] ?? match[4] ?? "",
+    );
+
+    for (const specifier of specifiers) {
+      for (const { label, pattern } of forbiddenSpecifierRules) {
+        if (pattern.test(specifier)) {
+          violations.push(`${file}: ${label} ("${specifier}")`);
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(violations, []);
+});
+
+test("logistics route plans API delegates write and cancel flows to the M08 application use cases", () => {
+  // 1. La ruta importa los casos de uso de escritura y cancel desde el barrel.
+  assert.match(
+    routeSource,
+    /import \{\s*createCancelRoutePlan,\s*createGenerateHeuristicRoutePlan,\s*createRoutePlansReadUseCases,\s*createRoutePlansWriteUseCases,\s*createRouteStopsWriteUseCases,\s*\} from "\.\.\/features\/logistics\/application\/index\.ts";/,
+  );
+
+  // 2. Los tres adaptadores M08 se componen desde deps, una sola vez, antes de
+  //    registrar handlers.
+  const plansWritePattern =
+    /const routePlansWrite = createRoutePlansWriteUseCases\(\{\s*createRoutePlan:\s*deps\.createRoutePlan,\s*updateClinicScopedRoutePlan:\s*deps\.updateClinicScopedRoutePlan,\s*\}\);/;
+  const stopsWritePattern =
+    /const routeStopsWrite = createRouteStopsWriteUseCases\(\{\s*createRouteStopForClinicRoutePlan:\s*deps\.createRouteStopForClinicRoutePlan,\s*updateClinicScopedRouteStop:\s*deps\.updateClinicScopedRouteStop,\s*\}\);/;
+  const cancelPattern =
+    /const cancelRoutePlan = createCancelRoutePlan\(\{\s*cancelClinicScopedRoutePlan:\s*\(id, clinicId\) =>\s*deps\.transitionClinicScopedRoutePlanStatus\(id, clinicId, "cancel"\),\s*\}\);/;
+  assert.match(routeSource, plansWritePattern);
+  assert.match(routeSource, stopsWritePattern);
+  assert.match(routeSource, cancelPattern);
+
+  const handlersStart = routeSource.indexOf("app.options(");
+  assert.ok(handlersStart > 0, "no se encontró la región de handlers");
+  for (const pattern of [plansWritePattern, stopsWritePattern, cancelPattern]) {
+    assert.ok(
+      routeSource.search(pattern) < handlersStart,
+      "la composición de escritura/cancel debe ocurrir antes de los handlers",
+    );
+  }
+
+  // 3. Ningún handler invoca directamente las deps de escritura de plan/stop:
+  //    cada `deps.<op>` sólo aparece en la zona de composición.
+  for (const op of [
+    "deps.createRoutePlan",
+    "deps.updateClinicScopedRoutePlan",
+    "deps.createRouteStopForClinicRoutePlan",
+    "deps.updateClinicScopedRouteStop",
+  ]) {
+    assert.ok(
+      routeSource.lastIndexOf(op) < handlersStart,
+      `${op} no debe invocarse dentro de un handler (sólo en composición)`,
+    );
+  }
+
+  // Los handlers de escritura delegan en los casos de uso.
+  assert.match(routeSource, /await routePlansWrite\.createRoutePlan\(parsed\.input\)/);
+  assert.match(routeSource, /await routePlansWrite\.updateRoutePlan\(/);
+  assert.match(routeSource, /await routeStopsWrite\.createRouteStop\(parsed\.input\)/);
+  assert.match(routeSource, /await routeStopsWrite\.updateRouteStop\(/);
+
+  // 4. Sólo cancel se rutea por el caso de uso: su registración pasa
+  //    `cancelRoutePlan` como transición al helper compartido.
+  assert.match(
+    routeSource,
+    /handleRoutePlanLifecycleAction\("cancel", request, reply, cancelRoutePlan\)/,
+  );
+
+  // 5. release/start/complete permanecen fuera de M08: registran con 3 args y
+  //    usan el default del helper (deps.transition), sin pasar caso de uso.
+  for (const action of ["release", "start", "complete"]) {
+    const pattern = new RegExp(
+      `handleRoutePlanLifecycleAction\\("${action}", request, reply\\)`,
+    );
+    assert.match(routeSource, pattern);
+  }
+  assert.doesNotMatch(
+    routeSource,
+    /handleRoutePlanLifecycleAction\("(release|start|complete)", request, reply, /,
+  );
+
+  // 6. La carga default desde db-logistics sigue existiendo en el loader.
+  assert.match(routeSource, /dbLogistics\.createRoutePlan/);
+  assert.match(routeSource, /dbLogistics\.updateClinicScopedRoutePlan/);
+  assert.match(routeSource, /dbLogistics\.createRouteStopForClinicRoutePlan/);
+  assert.match(routeSource, /dbLogistics\.updateClinicScopedRouteStop/);
+  assert.match(routeSource, /dbLogistics\.transitionClinicScopedRoutePlanStatus/);
+});
+
+test("logistics route plans write/cancel application layer (M08) stays free of HTTP and DB imports", () => {
+  const applicationFiles = [
+    "server/features/logistics/application/route-plans-write-use-cases.ts",
+    "server/features/logistics/application/route-stops-write-use-cases.ts",
+    "server/features/logistics/application/cancel-route-plan.ts",
+    "server/features/logistics/application/ports/logistics-route-plans-write-repository.ts",
+    "server/features/logistics/application/ports/logistics-route-stops-write-repository.ts",
+    "server/features/logistics/application/ports/logistics-route-plan-cancel-repository.ts",
   ] as const;
 
   const forbiddenSpecifierRules: Array<{ label: string; pattern: RegExp }> = [
