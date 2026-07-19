@@ -1,7 +1,8 @@
 # Logistics · application (orquestación)
 
-> Capa **application** del contexto Logistics. **Contiene código** desde M06:
-> el primer caso de uso real (SLA lectura/overdue) y su puerto mínimo.
+> Capa **application** del contexto Logistics. **Contiene código** desde M06
+> (primer caso de uso: SLA lectura/overdue) y crece en M07 con los casos de uso
+> de lectura de planes de ruta y de generación heurística.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
@@ -32,6 +33,28 @@ El adaptador real del puerto se construye **en la ruta**
 `deps`; la carga default desde `db-logistics.ts` sigue viviendo en la zona de
 composición de la ruta, no aquí.
 
+## Qué vive aquí (M07)
+
+- **`route-plans-read-use-cases.ts`** — `createRoutePlansReadUseCases`: agrupa las
+  lecturas de planes de ruta (`listRoutePlans`, `getRoutePlan`,
+  `listRoutePlanStops`) consumidas por los handlers de list, detalle, metrics y
+  stops. Cada método delega exactamente una vez en el puerto y devuelve su
+  resultado sin mutarlo.
+- **`generate-heuristic-route-plan.ts`** — `createGenerateHeuristicRoutePlan`:
+  caso de uso de generación heurística; delega una vez en el puerto generador y
+  preserva tal cual el resultado de éxito o rechazo del dominio.
+- **`ports/logistics-route-plans-read-repository.ts`** —
+  `LogisticsRoutePlansReadRepository`, genérico sobre plan/stop/params, derivado
+  del seam `LogisticsRoutePlansNativeRoutesOptions`.
+- **`ports/logistics-route-plan-generator.ts`** — `LogisticsRoutePlanGenerator`,
+  con `TInput`/`TResult` opacos.
+
+El timing (`planningDurationMs`), la cache de listas/metrics, la invalidación de
+cache tras generar, la serialización, el mapeo de rechazo/error y las
+validaciones (400) permanecen en `server/routes/logistics-route-plans.fastify.ts`.
+Los adaptadores se componen una sola vez por registro del plugin desde `deps`.
+Las escrituras (create/update/lifecycle) siguen en la ruta y son M08.
+
 ## Regla de dependencia
 
 - **Puede importar:** `domain`, **puertos** (interfaces) y el shared kernel.
@@ -44,16 +67,17 @@ composición de la ruta, no aquí.
   serialización permanecen en `routes`. La persistencia concreta permanece fuera
   de application.
 
-Frontera fijada por
-`test/unit/application/logistics/list-overdue-active-sla-instances.test.ts` y por
-el contrato de fuente
-`test/integration/adapters/controllers/logistics-sla-routes-api.test.ts`.
+Frontera fijada por los tests unitarios de application en
+`test/unit/application/logistics/` y por los contratos de fuente
+`test/integration/adapters/controllers/logistics-sla-routes-api.test.ts` y
+`logistics-route-plans-api.test.ts`.
 
 ## Qué vendrá después (no ahora)
 
-M07–M11 (casos de uso de route-plans, field-visits, route-events, guard de capa y
-closeout) **no están iniciados**. Cada puerto nuevo se introduce junto con su
-primer consumidor real — nunca como interfaz vacía anticipada.
+M08–M11 (casos de uso de route-plans escritura + lifecycle, field-visits,
+route-events, guard de capa y closeout) **no están iniciados**. Cada puerto nuevo
+se introduce junto con su primer consumidor real — nunca como interfaz vacía
+anticipada.
 
 ## Qué NO hacer
 

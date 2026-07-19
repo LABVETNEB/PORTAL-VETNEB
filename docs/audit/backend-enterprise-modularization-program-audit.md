@@ -700,14 +700,25 @@ docs. *(M02b+M03 fusionables → mínima 40.)*
 lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10** UC route-events ·
 **M11** guard application + suite UCs + closeout de capa.
 
-> **Status de ejecución (2026-07-19):** **M06 — implementado / cerrado al merge.**
+> **Status de ejecución (2026-07-19):** **M06 — implementado / cerrado (#1502).**
 > Fase B iniciada: primer caso de uso de application materializado
 > (`server/features/logistics/application/list-overdue-active-sla-instances.ts`)
 > con puerto mínimo de lectura derivado del seam `LogisticsSlaNativeRoutesOptions`
 > (§2.5) y adaptador compuesto en la ruta; el handler `/overdue` delega en el UC
-> sin cambio de contrato HTTP. M07 — no iniciado. Detalle en
+> sin cambio de contrato HTTP. Detalle en
 > [`docs/implementation/m06-logistics-sla-overdue-use-case.md`](../implementation/m06-logistics-sla-overdue-use-case.md).
-> Esta anotación es status, no altera el conteo recomendado, riesgos, grafo,
+>
+> **M07 — implementado / cerrado al merge.** Casos de uso de lectura de planes de
+> ruta (`route-plans-read-use-cases.ts`: list/get/listStops) y de generación
+> heurística (`generate-heuristic-route-plan.ts`), con puertos mínimos
+> `LogisticsRoutePlansReadRepository` y `LogisticsRoutePlanGenerator` derivados del
+> seam `LogisticsRoutePlansNativeRoutesOptions`; los 5 handlers de lectura/heuristic
+> de `logistics-route-plans.fastify.ts` delegan en los UC. Cache, auditoría de
+> lifecycle, timing, serialización, validaciones, escrituras (M08) y `db-logistics.ts`
+> intactos. M08 — no iniciado. Detalle en
+> [`docs/implementation/m07-logistics-route-plans-read-heuristic-use-cases.md`](../implementation/m07-logistics-route-plans-read-heuristic-use-cases.md).
+>
+> Estas anotaciones son status, no alteran el conteo recomendado, riesgos, grafo,
 > invariantes ni conclusiones.
 
 **Fase C — Logistics infra + rutas (6):**
