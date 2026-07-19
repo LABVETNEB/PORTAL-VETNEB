@@ -1,6 +1,6 @@
 // Barrel público de la capa application de Logistics. Expone únicamente la
-// superficie ya materializada (M06 SLA overdue + M07 route-plans lectura y
-// generate-heuristic); sin exports preventivos para milestones futuros.
+// superficie ya materializada (M06-M09); sin exports preventivos para
+// milestones futuros.
 
 export {
   createListOverdueActiveSlaInstances,
@@ -40,3 +40,9 @@ export {
   type CancelRoutePlan,
 } from "./cancel-route-plan.ts";
 export type { LogisticsRoutePlanCancelRepository } from "./ports/logistics-route-plan-cancel-repository.ts";
+
+export {
+  createUpdateFieldVisit,
+  type UpdateFieldVisit,
+} from "./update-field-visit.ts";
+export type { LogisticsFieldVisitUpdateRepository } from "./ports/logistics-field-visit-update-repository.ts";

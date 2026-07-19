@@ -3,7 +3,8 @@
 > Capa **application** del contexto Logistics. **Contiene código** desde M06
 > (SLA lectura/overdue), crece en M07 con las lecturas de planes de ruta y la
 > generación heurística, y en M08 con las escrituras de planes y stops
-> (create/update) y la cancelación de plan (lifecycle `cancel`).
+> (create/update) y la cancelación de plan (lifecycle `cancel`). M09 agrega la
+> actualización clinic-scoped de field visits detrás del PATCH existente.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
@@ -77,6 +78,26 @@ lifecycle y la serialización permanecen en la ruta. **`release`, `start` y
 `complete` quedan fuera de M08**: siguen usando la dep directa vía el default del
 helper de lifecycle compartido.
 
+## Qué vive aquí (M09)
+
+- **`update-field-visit.ts`** — `createUpdateFieldVisit`: recibe `id`,
+  `clinicId` y el input parcial completo ya autenticado y validado, delega una
+  vez y devuelve el resultado sin transformarlo.
+- **`ports/logistics-field-visit-update-repository.ts`** — puerto mínimo con
+  `updateClinicScopedFieldVisit`, derivado del seam
+  `LogisticsFieldVisitsNativeRoutesOptions`.
+
+Sólo `PATCH /:fieldVisitId` consume este caso de uso. Trusted-origin, auth,
+sesiones, permisos, parsing, validaciones, 404, mensaje, status HTTP y
+serialización permanecen en la ruta. El status sigue siendo un campo opcional
+del mismo PATCH junto con los demás campos actualizables: no se agrega máquina
+de estados, compare-and-set, auditoría, eventos, side-effects ni idempotencia.
+
+La asignación manual de una visita a un plan se representa mediante route
+stops, y la automática mediante generación heurística de stops; ambos flujos ya
+fueron extraídos en M07/M08. La ruta de field visits no tiene `/assign`, y M09
+no agrega reasignación, unassign, DELETE ni restricciones de unicidad.
+
 ## Regla de dependencia
 
 - **Puede importar:** `domain`, **puertos** (interfaces) y el shared kernel.
@@ -96,10 +117,11 @@ Frontera fijada por los tests unitarios de application en
 
 ## Qué vendrá después (no ahora)
 
-`release`/`start`/`complete` (resto del lifecycle) y M09–M11 (field-visits,
-route-events, guard de capa y closeout) **no están iniciados**. Cada puerto nuevo
-se introduce junto con su primer consumidor real — nunca como interfaz vacía
-anticipada.
+`release`/`start`/`complete` (resto del lifecycle), M10 route-events y M11
+(guard de capa y closeout) **no están iniciados**. GET/POST/location/time-windows
+de field visits permanecen fuera de M09 y se difieren al thin-route M15. Cada
+puerto nuevo se introduce junto con su primer consumidor real — nunca como
+interfaz vacía anticipada.
 
 ## Qué NO hacer
 
