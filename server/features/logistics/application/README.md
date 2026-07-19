@@ -1,8 +1,9 @@
 # Logistics · application (orquestación)
 
 > Capa **application** del contexto Logistics. **Contiene código** desde M06
-> (primer caso de uso: SLA lectura/overdue) y crece en M07 con los casos de uso
-> de lectura de planes de ruta y de generación heurística.
+> (SLA lectura/overdue), crece en M07 con las lecturas de planes de ruta y la
+> generación heurística, y en M08 con las escrituras de planes y stops
+> (create/update) y la cancelación de plan (lifecycle `cancel`).
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
@@ -53,7 +54,28 @@ El timing (`planningDurationMs`), la cache de listas/metrics, la invalidación d
 cache tras generar, la serialización, el mapeo de rechazo/error y las
 validaciones (400) permanecen en `server/routes/logistics-route-plans.fastify.ts`.
 Los adaptadores se componen una sola vez por registro del plugin desde `deps`.
-Las escrituras (create/update/lifecycle) siguen en la ruta y son M08.
+
+## Qué vive aquí (M08)
+
+- **`route-plans-write-use-cases.ts`** — `createRoutePlansWriteUseCases`:
+  `createRoutePlan` y `updateRoutePlan`, consumidos por los handlers `POST /` y
+  `PATCH /:routePlanId`.
+- **`route-stops-write-use-cases.ts`** — `createRouteStopsWriteUseCases`:
+  `createRouteStop` y `updateRouteStop`, consumidos por `POST /:routePlanId/stops`
+  y `PATCH /:routePlanId/stops/:routeStopId`.
+- **`cancel-route-plan.ts`** — `createCancelRoutePlan`: cancela un plan de ruta
+  (lifecycle `cancel` únicamente), consumido por `POST /:routePlanId/cancel`.
+- **Puertos** — `ports/logistics-route-plans-write-repository.ts`,
+  `ports/logistics-route-stops-write-repository.ts` y
+  `ports/logistics-route-plan-cancel-repository.ts`, genéricos, derivados del
+  seam.
+
+Cada método de escritura/cancel delega exactamente una vez y devuelve el
+resultado del puerto sin mutarlo (incluyendo `null`/rechazo del dominio). El
+500/404 sobre resultado ausente, la invalidación de cache, la auditoría del
+lifecycle y la serialización permanecen en la ruta. **`release`, `start` y
+`complete` quedan fuera de M08**: siguen usando la dep directa vía el default del
+helper de lifecycle compartido.
 
 ## Regla de dependencia
 
@@ -74,7 +96,7 @@ Frontera fijada por los tests unitarios de application en
 
 ## Qué vendrá después (no ahora)
 
-M08–M11 (casos de uso de route-plans escritura + lifecycle, field-visits,
+`release`/`start`/`complete` (resto del lifecycle) y M09–M11 (field-visits,
 route-events, guard de capa y closeout) **no están iniciados**. Cada puerto nuevo
 se introduce junto con su primer consumidor real — nunca como interfaz vacía
 anticipada.

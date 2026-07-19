@@ -708,15 +708,28 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > sin cambio de contrato HTTP. Detalle en
 > [`docs/implementation/m06-logistics-sla-overdue-use-case.md`](../implementation/m06-logistics-sla-overdue-use-case.md).
 >
-> **M07 — implementado / cerrado al merge.** Casos de uso de lectura de planes de
+> **M07 — implementado / cerrado (#1503).** Casos de uso de lectura de planes de
 > ruta (`route-plans-read-use-cases.ts`: list/get/listStops) y de generación
 > heurística (`generate-heuristic-route-plan.ts`), con puertos mínimos
 > `LogisticsRoutePlansReadRepository` y `LogisticsRoutePlanGenerator` derivados del
 > seam `LogisticsRoutePlansNativeRoutesOptions`; los 5 handlers de lectura/heuristic
 > de `logistics-route-plans.fastify.ts` delegan en los UC. Cache, auditoría de
-> lifecycle, timing, serialización, validaciones, escrituras (M08) y `db-logistics.ts`
-> intactos. M08 — no iniciado. Detalle en
+> lifecycle, timing, serialización, validaciones, escrituras y `db-logistics.ts`
+> intactos. Detalle en
 > [`docs/implementation/m07-logistics-route-plans-read-heuristic-use-cases.md`](../implementation/m07-logistics-route-plans-read-heuristic-use-cases.md).
+>
+> **M08 — implementado / cerrado al merge (scope acotado por autorización).**
+> Escrituras de planes (`route-plans-write-use-cases.ts`: create/update) y de stops
+> (`route-stops-write-use-cases.ts`: create/update) y cancelación de plan
+> (`cancel-route-plan.ts`, lifecycle `cancel` **únicamente**), con puertos mínimos
+> `LogisticsRoutePlansWriteRepository`, `LogisticsRouteStopsWriteRepository` y
+> `LogisticsRoutePlanCancelRepository`. Los 4 handlers de escritura delegan; el
+> helper de lifecycle recibe una transición inyectable con default = comportamiento
+> previo. Las registraciones de **`release`, `start` y `complete` permanecen sin
+> cambios y su comportamiento se preserva mediante el valor por defecto del helper
+> compartido**. Cache, auditoría, timing, serialización, validaciones,
+> transacciones y `db-logistics.ts` intactos. M09+ — no iniciado. Detalle en
+> [`docs/implementation/m08-logistics-route-plans-write-cancel-use-cases.md`](../implementation/m08-logistics-route-plans-write-cancel-use-cases.md).
 >
 > Estas anotaciones son status, no alteran el conteo recomendado, riesgos, grafo,
 > invariantes ni conclusiones.

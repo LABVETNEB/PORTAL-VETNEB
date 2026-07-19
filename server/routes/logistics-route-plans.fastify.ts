@@ -51,8 +51,11 @@ import {
 import { createRuntimeTimer } from "../lib/runtime-timing.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import {
+  createCancelRoutePlan,
   createGenerateHeuristicRoutePlan,
   createRoutePlansReadUseCases,
+  createRoutePlansWriteUseCases,
+  createRouteStopsWriteUseCases,
 } from "../features/logistics/application/index.ts";
 import {
   clearRoutePlanMetricsCacheByPlan,
@@ -1484,6 +1487,23 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     generateHeuristicRoutePlan: deps.generateHeuristicRoutePlan,
   });
 
+  // Adaptadores M08: escritura de planes y stops, y cancelación de plan
+  // (lifecycle "cancel" únicamente; release/start/complete quedan fuera de M08).
+  // Se componen una sola vez por registro del plugin desde el seam de deps ya
+  // resuelto.
+  const routePlansWrite = createRoutePlansWriteUseCases({
+    createRoutePlan: deps.createRoutePlan,
+    updateClinicScopedRoutePlan: deps.updateClinicScopedRoutePlan,
+  });
+  const routeStopsWrite = createRouteStopsWriteUseCases({
+    createRouteStopForClinicRoutePlan: deps.createRouteStopForClinicRoutePlan,
+    updateClinicScopedRouteStop: deps.updateClinicScopedRouteStop,
+  });
+  const cancelRoutePlan = createCancelRoutePlan({
+    cancelClinicScopedRoutePlan: (id, clinicId) =>
+      deps.transitionClinicScopedRoutePlanStatus(id, clinicId, "cancel"),
+  });
+
   const now = options.now ?? (() => Date.now());
   const allowedOrigins = new Set(getAllowedOrigins());
 
@@ -1736,7 +1756,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const routePlan = await deps.createRoutePlan(parsed.input);
+    const routePlan = await routePlansWrite.createRoutePlan(parsed.input);
 
     if (!routePlan) {
       return reply.code(500).send({
@@ -1846,7 +1866,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const routePlan = await deps.updateClinicScopedRoutePlan(
+    const routePlan = await routePlansWrite.updateRoutePlan(
       routePlanId,
       auth.clinicId,
       parsed.input,
@@ -2053,9 +2073,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const routeStop = await deps.createRouteStopForClinicRoutePlan(
-      parsed.input,
-    );
+    const routeStop = await routeStopsWrite.createRouteStop(parsed.input);
 
     if (!routeStop) {
       return reply.code(404).send({
@@ -2126,7 +2144,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const routeStop = await deps.updateClinicScopedRouteStop(
+    const routeStop = await routeStopsWrite.updateRouteStop(
       routeStopId,
       auth.clinicId,
       parsed.input,
@@ -2156,6 +2174,17 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       };
     }>,
     reply: FastifyReply,
+    // Transición inyectable. Default M08: comportamiento previo (llamada directa
+    // a la dep) para release/start/complete, que quedan fuera del scope de M08.
+    // La ruta `cancel` pasa el caso de uso `cancelRoutePlan` de application.
+    runTransition: (
+      routePlanId: number,
+      clinicId: number,
+    ) => Promise<RoutePlanLifecycleTransitionResult> = (
+      routePlanId,
+      clinicId,
+    ) =>
+      deps.transitionClinicScopedRoutePlanStatus(routePlanId, clinicId, action),
   ) {
     if (!enforceTrustedOrigin(request, reply, allowedOrigins)) {
       return reply;
@@ -2186,11 +2215,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const result = await deps.transitionClinicScopedRoutePlanStatus(
-      routePlanId,
-      auth.clinicId,
-      action,
-    );
+    const result = await runTransition(routePlanId, auth.clinicId);
 
     if (!result.routePlan) {
       const error = getLifecycleActionError(result);
@@ -2252,7 +2277,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       routePlanId: string;
     };
   }>("/:routePlanId/cancel", async (request, reply) =>
-    handleRoutePlanLifecycleAction("cancel", request, reply),
+    handleRoutePlanLifecycleAction("cancel", request, reply, cancelRoutePlan),
   );
 
 };
