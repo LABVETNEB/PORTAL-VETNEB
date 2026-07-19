@@ -40,6 +40,11 @@ Cada archivo materializa código real (nunca stubs por dogma):
   shared kernel y no se acopla al schema de fila de `slaInstances`. El adaptador con
   `db-*` (`markOverdueSlaBreachesWithDb`) vive en `../infrastructure/sla-breach-db.ts`,
   **no aquí**.
+- **`route-planning.ts`** (M03) — heurística determinista de planificación de rutas:
+  `buildHeuristicRoutePlan` (nearest-next por objetivo `distance`/`time`/`sla` con
+  ventanas duras y desempate estable) y `calculateHaversineKm`, más sus tipos
+  (`RoutePlanningObjective/Point/TimeWindow/Visit`, `BuildHeuristicRoutePlanOptions`,
+  `PlannedRouteStop`, `HeuristicRoutePlanResult`). Sin imports (100% puro).
 
 ## Barrel público
 
@@ -49,5 +54,5 @@ entrada del dominio. No re-exporta el adaptador de infraestructura.
 ## Qué NO hacer
 
 No importar `db-*`, Drizzle runtime, `fastify`, `env` ni I/O. No crear stubs,
-interfaces ni barrels vacíos. `metrics.ts` y `route-planning.ts` siguen en
-`server/lib/logistics/` y se migrarán en M03/M04.
+interfaces ni barrels vacíos. `metrics.ts` sigue en `server/lib/logistics/` y se
+migrará en M04.

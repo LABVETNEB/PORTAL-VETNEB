@@ -9,6 +9,7 @@
 // - ARCH-5 · `route-plan-field-visits.ts`
 // - ARCH-7 · `pagination.ts`
 // - M02b   · `time-window.ts` y el núcleo puro `sla-breach.ts`
+// - M03    · `route-planning.ts` (heurística pura de planificación de rutas)
 //
 // El adaptador de DB de SLA (`markOverdueSlaBreachesWithDb`) NO se re-exporta
 // aquí: vive en `../infrastructure/sla-breach-db.ts` porque conoce `db-*`.
@@ -38,3 +39,14 @@ export type {
   MarkOverdueSlaBreachesResult,
   MarkOverdueSlaInstancesParams,
 } from "./sla-breach.ts";
+
+export { buildHeuristicRoutePlan, calculateHaversineKm } from "./route-planning.ts";
+export type {
+  BuildHeuristicRoutePlanOptions,
+  HeuristicRoutePlanResult,
+  PlannedRouteStop,
+  RoutePlanningObjective,
+  RoutePlanningPoint,
+  RoutePlanningTimeWindow,
+  RoutePlanningVisit,
+} from "./route-planning.ts";

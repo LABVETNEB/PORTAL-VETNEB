@@ -7,12 +7,15 @@ import {
   LOGISTICS_MAX_LIMIT,
   TIME_WINDOW_TIMEZONE_MAX_LENGTH,
   assertValidTimeWindowRange,
+  buildHeuristicRoutePlan,
+  calculateHaversineKm,
   isValidTimeWindowRange,
   markOverdueSlaBreaches,
   normalizeGenerateHeuristicFieldVisitIds,
   normalizeLogisticsLimit,
   normalizeLogisticsOffset,
   normalizeTimeWindowTimezone,
+  type RoutePlanningVisit,
 } from "../../../../server/features/logistics/domain/index.ts";
 
 test("logistics domain barrel re-exports the pagination helpers unchanged", () => {
@@ -67,6 +70,32 @@ test("logistics domain barrel re-exports the time-window helpers unchanged", () 
         new Date("2026-05-03T10:00:00.000Z"),
       ),
     /windowStart must be earlier than windowEnd/,
+  );
+});
+
+test("logistics domain barrel re-exports the pure route planning helpers unchanged", () => {
+  const distance = calculateHaversineKm(
+    { lat: -34.6037, lng: -58.3816 },
+    { lat: -34.6, lng: -58.38 },
+  );
+  assert.ok(distance > 0 && distance < 1);
+
+  const visits: RoutePlanningVisit[] = [
+    { fieldVisitId: 1, location: { lat: -34.6, lng: -58.38 } },
+    { fieldVisitId: 2, location: { lat: -34.61, lng: -58.39 } },
+  ];
+
+  const plan = buildHeuristicRoutePlan(visits, {
+    routeStart: new Date("2026-05-04T12:00:00.000Z"),
+    startLocation: { lat: -34.6037, lng: -58.3816 },
+    objective: "distance",
+  });
+
+  assert.equal(plan.planningMode, "heuristic");
+  assert.equal(plan.objective, "distance");
+  assert.deepEqual(
+    plan.stops.map((stop) => stop.fieldVisitId),
+    [1, 2],
   );
 });
 
