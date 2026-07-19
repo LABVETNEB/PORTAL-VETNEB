@@ -30,6 +30,7 @@ import {
   normalizeClinicUserRole,
 } from "../lib/permissions.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
+import { createListOverdueActiveSlaInstances } from "../features/logistics/application/index.ts";
 
 type ActiveSessionRecord = {
   clinicUserId: number;
@@ -586,6 +587,12 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
       options.getClinicSlaSummary ?? defaultDeps!.getClinicSlaSummary,
   };
 
+  // Adaptador M06: el puerto de lectura de application se construye una sola
+  // vez por registro del plugin desde el seam de deps ya resuelto.
+  const listOverdueActiveSlaInstances = createListOverdueActiveSlaInstances({
+    listOverdueActiveClinicSlaInstances: deps.listOverdueActiveClinicSlaInstances,
+  });
+
   const now = options.now ?? (() => Date.now());
   const allowedOrigins = new Set(getAllowedOrigins());
 
@@ -660,9 +667,7 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const instances = await deps.listOverdueActiveClinicSlaInstances(
-      parsed.params,
-    );
+    const instances = await listOverdueActiveSlaInstances(parsed.params);
 
     return reply.code(200).send({
       success: true,

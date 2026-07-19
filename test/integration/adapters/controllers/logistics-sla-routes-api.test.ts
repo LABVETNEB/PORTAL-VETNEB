@@ -56,7 +56,108 @@ test("logistics SLA API wires DB helpers through injectable deps", () => {
   assert.match(routeSource, /deps\.listActiveClinicSlaPolicies\(parsed\.params\)/);
   assert.match(routeSource, /deps\.listClinicSlaInstances\(parsed\.params\)/);
   assert.match(routeSource, /deps\.getClinicSlaSummary\(auth\.clinicId\)/);
-  assert.match(routeSource, /deps\.listOverdueActiveClinicSlaInstances\(\s*parsed\.params,\s*\)/);
+});
+
+test("logistics SLA API delegates overdue reads to the M06 application use case", () => {
+  // 1. La ruta importa el caso de uso desde el barrel de application.
+  assert.match(
+    routeSource,
+    /import \{ createListOverdueActiveSlaInstances \} from "\.\.\/features\/logistics\/application\/index\.ts";/,
+  );
+
+  // 2. El puerto se adapta desde el seam LogisticsSlaNativeRoutesOptions
+  //    (deps ya resueltas), una sola vez a nivel plugin, no por request.
+  const compositionPattern =
+    /const listOverdueActiveSlaInstances = createListOverdueActiveSlaInstances\(\{\s*listOverdueActiveClinicSlaInstances:\s*deps\.listOverdueActiveClinicSlaInstances,\s*\}\);/;
+  assert.match(routeSource, compositionPattern);
+
+  const compositionIndex = routeSource.search(compositionPattern);
+  const firstHandlerIndex = routeSource.indexOf("app.options(");
+  assert.ok(compositionIndex >= 0);
+  assert.ok(
+    compositionIndex < firstHandlerIndex,
+    "la composición del puerto debe ocurrir antes de registrar handlers",
+  );
+
+  // Bloque del handler GET /overdue, delimitado para no afectar la zona de
+  // composición ni las demás rutas.
+  const overdueHandlerStart = routeSource.indexOf(
+    '("/overdue", async (request, reply) => {',
+  );
+  const overdueHandlerEnd = routeSource.indexOf('app.get("/summary"');
+  assert.ok(overdueHandlerStart >= 0, "handler /overdue no encontrado");
+  assert.ok(overdueHandlerEnd > overdueHandlerStart, "límite del handler /overdue no encontrado");
+  const overdueHandlerSource = routeSource.slice(
+    overdueHandlerStart,
+    overdueHandlerEnd,
+  );
+
+  // 3. El handler delega en el caso de uso con los params ya parseados.
+  assert.match(
+    overdueHandlerSource,
+    /const instances = await listOverdueActiveSlaInstances\(parsed\.params\);/,
+  );
+
+  // 4. El handler ya no invoca la dependencia del seam directamente; la
+  //    composición fuera del handler sigue siendo legítima.
+  assert.doesNotMatch(
+    overdueHandlerSource,
+    /deps\.listOverdueActiveClinicSlaInstances/,
+  );
+
+  // 6–8. Auth, permisos y parsing preceden a la consulta overdue.
+  const authIndex = overdueHandlerSource.indexOf("await authenticateClinicUser(");
+  const permissionIndex = overdueHandlerSource.indexOf("canViewLogisticsSla");
+  const parseIndex = overdueHandlerSource.indexOf(
+    "buildListOverdueSlaInstancesParams(",
+  );
+  const useCaseIndex = overdueHandlerSource.indexOf(
+    "await listOverdueActiveSlaInstances(",
+  );
+  assert.ok(authIndex >= 0, "auth ausente en el handler overdue");
+  assert.ok(permissionIndex > authIndex, "permisos deben seguir a auth");
+  assert.ok(parseIndex > permissionIndex, "parsing debe seguir a permisos");
+  assert.ok(useCaseIndex > parseIndex, "la consulta debe seguir al parsing");
+});
+
+test("logistics SLA application layer stays free of HTTP and DB imports", () => {
+  const applicationFiles = [
+    "server/features/logistics/application/index.ts",
+    "server/features/logistics/application/list-overdue-active-sla-instances.ts",
+    "server/features/logistics/application/ports/logistics-sla-read-repository.ts",
+  ] as const;
+
+  const forbiddenSpecifierRules: Array<{ label: string; pattern: RegExp }> = [
+    { label: "fastify", pattern: /^fastify(\/|$)/ },
+    { label: "server/db-logistics", pattern: /db-logistics/ },
+    { label: "server/db", pattern: /(^|\/)db(\.ts)?$/ },
+    { label: "drizzle-orm", pattern: /^drizzle-orm(\/|$)/ },
+    { label: "drizzle/schema", pattern: /drizzle\/schema/ },
+    { label: "server/lib", pattern: /(^|\/)lib\// },
+    { label: "server/routes", pattern: /(^|\/)routes\// },
+  ];
+
+  const violations: string[] = [];
+
+  for (const file of applicationFiles) {
+    const source = readFileSync(resolve(process.cwd(), file), "utf8");
+    const specifiers = Array.from(
+      source.matchAll(
+        /\bfrom\s+["']([^"']+)["']|\brequire\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s+["']([^"']+)["']/g,
+      ),
+      (match) => match[1] ?? match[2] ?? match[3] ?? match[4] ?? "",
+    );
+
+    for (const specifier of specifiers) {
+      for (const { label, pattern } of forbiddenSpecifierRules) {
+        if (pattern.test(specifier)) {
+          violations.push(`${file}: ${label} ("${specifier}")`);
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(violations, []);
 });
 
 test("logistics SLA API keeps reads clinic scoped and paginated", () => {

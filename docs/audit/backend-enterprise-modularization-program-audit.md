@@ -700,6 +700,16 @@ docs. *(M02b+M03 fusionables → mínima 40.)*
 lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10** UC route-events ·
 **M11** guard application + suite UCs + closeout de capa.
 
+> **Status de ejecución (2026-07-19):** **M06 — implementado / cerrado al merge.**
+> Fase B iniciada: primer caso de uso de application materializado
+> (`server/features/logistics/application/list-overdue-active-sla-instances.ts`)
+> con puerto mínimo de lectura derivado del seam `LogisticsSlaNativeRoutesOptions`
+> (§2.5) y adaptador compuesto en la ruta; el handler `/overdue` delega en el UC
+> sin cambio de contrato HTTP. M07 — no iniciado. Detalle en
+> [`docs/implementation/m06-logistics-sla-overdue-use-case.md`](../implementation/m06-logistics-sla-overdue-use-case.md).
+> Esta anotación es status, no altera el conteo recomendado, riesgos, grafo,
+> invariantes ni conclusiones.
+
 **Fase C — Logistics infra + rutas (6):**
 **M12** mover `db-logistics.ts` completo → infrastructure (tx intactas; shim documentado) ·
 **M13** cache adapter · **M14** thin `logistics-route-plans` · **M15** thin
