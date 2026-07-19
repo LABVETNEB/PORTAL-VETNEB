@@ -728,8 +728,19 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > previo. Las registraciones de **`release`, `start` y `complete` permanecen sin
 > cambios y su comportamiento se preserva mediante el valor por defecto del helper
 > compartido**. Cache, auditoría, timing, serialización, validaciones,
-> transacciones y `db-logistics.ts` intactos. M09+ — no iniciado. Detalle en
+> transacciones y `db-logistics.ts` intactos. M10+ — no iniciado. Detalle en
 > [`docs/implementation/m08-logistics-route-plans-write-cancel-use-cases.md`](../implementation/m08-logistics-route-plans-write-cancel-use-cases.md).
+>
+> **M09 — implementado / cerrado al merge (scope acotado por autorización).**
+> El `PATCH /:fieldVisitId` completo delega la actualización clinic-scoped en
+> `update-field-visit.ts`, mediante el puerto mínimo
+> `LogisticsFieldVisitUpdateRepository`; status permanece dentro del mismo input
+> parcial, sin máquina de estados ni side-effects nuevos. La asignación manual
+> mediante route stops y la automática mediante generación heurística ya fueron
+> cubiertas por M08 y M07. `GET /`, `POST /`, location y time-windows permanecen
+> fuera; `db-logistics.ts`, schema y transacciones siguen intactos. M10+ — no
+> iniciado. Detalle en
+> [`docs/implementation/m09-logistics-field-visit-status-use-case.md`](../implementation/m09-logistics-field-visit-status-use-case.md).
 >
 > Estas anotaciones son status, no alteran el conteo recomendado, riesgos, grafo,
 > invariantes ni conclusiones.

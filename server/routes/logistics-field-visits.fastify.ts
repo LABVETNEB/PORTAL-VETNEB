@@ -23,6 +23,7 @@ import type {
   UpsertVisitLocationInput,
   VisitLocation,
 } from "../db-logistics.ts";
+import { createUpdateFieldVisit } from "../features/logistics/application/index.ts";
 import {
   UNSAFE_METHODS,
   enforceTrustedOrigin,
@@ -976,6 +977,10 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       defaultDeps!.listTimeWindowsForClinicVisit,
   };
 
+  const updateFieldVisit = createUpdateFieldVisit({
+    updateClinicScopedFieldVisit: deps.updateClinicScopedFieldVisit,
+  });
+
   const now = options.now ?? (() => Date.now());
   const allowedOrigins = new Set(getAllowedOrigins());
 
@@ -1177,7 +1182,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const updated = await deps.updateClinicScopedFieldVisit(
+    const updated = await updateFieldVisit(
       fieldVisitId,
       auth.clinicId,
       parsed.input,

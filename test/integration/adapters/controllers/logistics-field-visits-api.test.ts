@@ -44,7 +44,7 @@ test("logistics field visit API keeps all reads and writes clinic scoped", () =>
   assert.match(routeSource, /deps\.listClinicFieldVisits\(params\)/);
   assert.match(routeSource, /buildCreateFieldVisitInput\(request\.body, auth\.clinicId\)/);
   assert.match(routeSource, /deps\.createFieldVisit\(parsed\.input\)/);
-  assert.match(routeSource, /deps\.updateClinicScopedFieldVisit\(\s*fieldVisitId,\s*auth\.clinicId,\s*parsed\.input,\s*\)/);
+  assert.match(routeSource, /updateFieldVisit\(\s*fieldVisitId,\s*auth\.clinicId,\s*parsed\.input,\s*\)/);
 });
 
 test("logistics field visit API validates contracts and pagination before calling DB helpers", () => {
@@ -162,4 +162,86 @@ test("logistics field visit API enforces role-aware logistics field visit permis
   assert.match(routeSource, /getClinicPermissions\(auth\.role\)\.canManageLogisticsFieldVisits/);
   assert.match(routeSource, /UNSAFE_METHODS\.has\(request\.method\.toUpperCase\(\)\)/);
   assert.match(routeSource, /Permisos insuficientes para logistica/);
+});
+
+test("logistics field visit API delegates only PATCH update to the M09 application use case", () => {
+  assert.match(
+    routeSource,
+    /import \{ createUpdateFieldVisit \} from "\.\.\/features\/logistics\/application\/index\.ts";/,
+  );
+
+  const compositionPattern =
+    /const updateFieldVisit = createUpdateFieldVisit\(\{\s*updateClinicScopedFieldVisit: deps\.updateClinicScopedFieldVisit,\s*\}\);/;
+  assert.match(routeSource, compositionPattern);
+
+  const handlersStart = routeSource.indexOf("app.options(");
+  assert.ok(handlersStart > 0, "no se encontró la región de handlers");
+  assert.ok(
+    routeSource.search(compositionPattern) < handlersStart,
+    "la composición M09 debe ocurrir antes de los handlers",
+  );
+  assert.ok(
+    routeSource.lastIndexOf("deps.updateClinicScopedFieldVisit") < handlersStart,
+    "PATCH no debe invocar directamente deps.updateClinicScopedFieldVisit",
+  );
+  assert.match(
+    routeSource,
+    /const updated = await updateFieldVisit\(\s*fieldVisitId,\s*auth\.clinicId,\s*parsed\.input,\s*\);/,
+  );
+  assert.match(routeSource, /dbLogistics\.updateClinicScopedFieldVisit/);
+});
+
+test("M09 preserves direct dependencies for out-of-scope field visit handlers", () => {
+  for (const marker of [
+    "deps.listClinicFieldVisits(params)",
+    "deps.createFieldVisit(parsed.input)",
+    "deps.getVisitLocationForClinicVisit(",
+    "deps.upsertVisitLocationForClinicVisit(parsed.input)",
+    "deps.listTimeWindowsForClinicVisit(",
+    "deps.createTimeWindowForClinicVisit(parsed.input)",
+  ]) {
+    assert.ok(routeSource.includes(marker), `debe preservar ${marker}`);
+  }
+
+  assert.match(
+    routeSource,
+    /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)[\s\S]*?authenticateClinicUser\(request, reply, deps, now\)[\s\S]*?canManageLogisticsFieldVisits[\s\S]*?parseEntityId\(request\.params\.fieldVisitId\)[\s\S]*?buildUpdateFieldVisitInput\(request\.body\)[\s\S]*?updateFieldVisit\(/,
+  );
+});
+
+test("logistics field visit M09 application files stay free of HTTP and DB imports", () => {
+  const applicationFiles = [
+    "server/features/logistics/application/update-field-visit.ts",
+    "server/features/logistics/application/ports/logistics-field-visit-update-repository.ts",
+  ] as const;
+  const forbiddenSpecifierRules: Array<{ label: string; pattern: RegExp }> = [
+    { label: "fastify", pattern: /^fastify(\/|$)/ },
+    { label: "server/db-logistics", pattern: /db-logistics/ },
+    { label: "server/db", pattern: /(^|\/)db(\.ts)?$/ },
+    { label: "drizzle-orm", pattern: /^drizzle-orm(\/|$)/ },
+    { label: "drizzle/schema", pattern: /drizzle\/schema/ },
+    { label: "server/lib", pattern: /(^|\/)lib\// },
+    { label: "server/routes", pattern: /(^|\/)routes\// },
+  ];
+  const violations: string[] = [];
+
+  for (const file of applicationFiles) {
+    const source = readFileSync(resolve(process.cwd(), file), "utf8");
+    const specifiers = Array.from(
+      source.matchAll(
+        /\bfrom\s+["']([^"']+)["']|\brequire\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s+["']([^"']+)["']/g,
+      ),
+      (match) => match[1] ?? match[2] ?? match[3] ?? match[4] ?? "",
+    );
+
+    for (const specifier of specifiers) {
+      for (const { label, pattern } of forbiddenSpecifierRules) {
+        if (pattern.test(specifier)) {
+          violations.push(`${file}: ${label} ("${specifier}")`);
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(violations, []);
 });
