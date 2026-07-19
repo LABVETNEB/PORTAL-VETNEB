@@ -1,6 +1,6 @@
 // Barrel público de la capa application de Logistics. Expone únicamente la
-// superficie de M06 (caso de uso SLA overdue + su puerto de lectura); sin
-// exports preventivos para milestones futuros.
+// superficie ya materializada (M06 SLA overdue + M07 route-plans lectura y
+// generate-heuristic); sin exports preventivos para milestones futuros.
 
 export {
   createListOverdueActiveSlaInstances,
@@ -10,3 +10,15 @@ export type {
   ListOverdueActiveSlaInstancesInput,
   LogisticsSlaReadRepository,
 } from "./ports/logistics-sla-read-repository.ts";
+
+export {
+  createRoutePlansReadUseCases,
+  type RoutePlansReadUseCases,
+} from "./route-plans-read-use-cases.ts";
+export type { LogisticsRoutePlansReadRepository } from "./ports/logistics-route-plans-read-repository.ts";
+
+export {
+  createGenerateHeuristicRoutePlan,
+  type GenerateHeuristicRoutePlan,
+} from "./generate-heuristic-route-plan.ts";
+export type { LogisticsRoutePlanGenerator } from "./ports/logistics-route-plan-generator.ts";

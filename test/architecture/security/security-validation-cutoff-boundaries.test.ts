@@ -321,7 +321,7 @@ test("logistics heuristic route validates fieldVisitIds bound before planning ex
       "const parsed = buildGenerateHeuristicRoutePlanInput(",
       "if (!parsed.input) {",
       "return reply.code(400).send({",
-      "const result = await deps.generateHeuristicRoutePlan(parsed.input);",
+      "const result = await generateHeuristicRoutePlan(parsed.input);",
     ],
     "logistics heuristic validation cut-off",
   );

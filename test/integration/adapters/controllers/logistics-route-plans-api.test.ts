@@ -68,8 +68,8 @@ test("logistics route plans API wires route stop DB helpers through injectable d
 
 test("logistics route plans API keeps all route plan operations clinic scoped", () => {
   assert.match(routeSource, /clinicId: auth\.clinicId/);
-  assert.match(routeSource, /deps\.listClinicRoutePlans\(params\)/);
-  assert.match(routeSource, /deps\.getClinicScopedRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*\)/);
+  assert.match(routeSource, /routePlansRead\.listRoutePlans\(params\)/);
+  assert.match(routeSource, /routePlansRead\.getRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*\)/);
   assert.match(routeSource, /deps\.updateClinicScopedRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*parsed\.input,\s*\)/);
 });
 
@@ -148,7 +148,7 @@ test("logistics route plans API exposes heuristic generation endpoint", () => {
   assert.match(routeSource, /app\.options\("\/heuristic", optionsHandler\)/);
   assert.match(routeSource, /app\.post<[\s\S]*>\("\/heuristic", async/);
   assert.match(routeSource, /buildGenerateHeuristicRoutePlanInput/);
-  assert.match(routeSource, /deps\.generateHeuristicRoutePlan\(parsed\.input\)/);
+  assert.match(routeSource, /await generateHeuristicRoutePlan\(parsed\.input\)/);
   assert.match(routeSource, /createRuntimeTimer/);
   assert.match(routeSource, /planningDurationMs/);
   assert.match(routeSource, /planning:\s*{\s*mode: "heuristic"/);
@@ -181,7 +181,7 @@ test("logistics route plans API validates heuristic generation input before DB c
 test("logistics route plans API keeps heuristic planning call behind 400 validation cut-off", () => {
   assert.match(
     routeSource,
-    /const parsed = buildGenerateHeuristicRoutePlanInput\([\s\S]*?if \(!parsed\.input\) {[\s\S]*?return reply\.code\(400\)\.send\({[\s\S]*?}\);\s*}\s*const planningTimer = createRuntimeTimer\(\);\s*const result = await deps\.generateHeuristicRoutePlan\(parsed\.input\);/,
+    /const parsed = buildGenerateHeuristicRoutePlanInput\([\s\S]*?if \(!parsed\.input\) {[\s\S]*?return reply\.code\(400\)\.send\({[\s\S]*?}\);\s*}\s*const planningTimer = createRuntimeTimer\(\);\s*const result = await generateHeuristicRoutePlan\(parsed\.input\);/,
   );
 });
 
@@ -198,8 +198,8 @@ test("logistics route plans API exposes route compliance metrics endpoint", () =
   assert.match(routeSource, /RouteStopComplianceInput/);
   assert.match(routeSource, /buildRouteStopComplianceInputs/);
   assert.match(routeSource, /"\/:routePlanId\/metrics"/);
-  assert.match(routeSource, /deps\.getClinicScopedRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*\)/);
-  assert.match(routeSource, /deps\.listRouteStopsForClinicRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*\)/);
+  assert.match(routeSource, /routePlansRead\.getRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*\)/);
+  assert.match(routeSource, /routePlansRead\.listRoutePlanStops\(\s*routePlanId,\s*auth\.clinicId,\s*\)/);
   assert.match(routeSource, /metrics: calculateRouteStopComplianceMetrics\(metricInputs\.inputs\)/);
 });
 
@@ -227,4 +227,106 @@ test("logistics route plans API audits lifecycle transitions", () => {
   assert.match(routeSource, /await deps\.writeAuditLog\(createAuditRequestLike\(request, auth\),/);
   assert.match(routeSource, /routePlanId,/);
   assert.match(routeSource, /action,/);
+});
+
+test("logistics route plans API delegates read and heuristic flows to the M07 application use cases", () => {
+  // 1. La ruta importa los casos de uso desde el barrel de application.
+  assert.match(
+    routeSource,
+    /import \{\s*createGenerateHeuristicRoutePlan,\s*createRoutePlansReadUseCases,\s*\} from "\.\.\/features\/logistics\/application\/index\.ts";/,
+  );
+
+  // 2. Los puertos se adaptan desde el seam LogisticsRoutePlansNativeRoutesOptions
+  //    (deps ya resueltas), una sola vez a nivel plugin, antes de registrar
+  //    handlers.
+  const readCompositionPattern =
+    /const routePlansRead = createRoutePlansReadUseCases\(\{\s*listClinicRoutePlans:\s*deps\.listClinicRoutePlans,\s*getClinicScopedRoutePlan:\s*deps\.getClinicScopedRoutePlan,\s*listRouteStopsForClinicRoutePlan:\s*deps\.listRouteStopsForClinicRoutePlan,\s*\}\);/;
+  const heuristicCompositionPattern =
+    /const generateHeuristicRoutePlan = createGenerateHeuristicRoutePlan\(\{\s*generateHeuristicRoutePlan:\s*deps\.generateHeuristicRoutePlan,\s*\}\);/;
+  assert.match(routeSource, readCompositionPattern);
+  assert.match(routeSource, heuristicCompositionPattern);
+
+  const handlersStart = routeSource.indexOf("app.options(");
+  assert.ok(handlersStart > 0, "no se encontró la región de handlers");
+  assert.ok(
+    routeSource.search(readCompositionPattern) < handlersStart,
+    "la composición de lecturas debe ocurrir antes de los handlers",
+  );
+  assert.ok(
+    routeSource.search(heuristicCompositionPattern) < handlersStart,
+    "la composición del generador debe ocurrir antes de los handlers",
+  );
+
+  // 3–4. Ningún handler invoca directamente las deps de lectura/heuristic: cada
+  //      `deps.<op>` de estas cuatro operaciones sólo aparece en la zona de
+  //      composición (antes de los handlers). La adaptación desde deps es legítima.
+  for (const op of [
+    "deps.listClinicRoutePlans",
+    "deps.getClinicScopedRoutePlan",
+    "deps.listRouteStopsForClinicRoutePlan",
+    "deps.generateHeuristicRoutePlan",
+  ]) {
+    assert.ok(
+      routeSource.lastIndexOf(op) < handlersStart,
+      `${op} no debe invocarse dentro de un handler (sólo en composición)`,
+    );
+  }
+
+  // Los handlers delegan en los casos de uso.
+  assert.match(routeSource, /await routePlansRead\.listRoutePlans\(params\)/);
+  assert.match(routeSource, /await routePlansRead\.getRoutePlan\(/);
+  assert.match(routeSource, /routePlansRead\.listRoutePlanStops\(/);
+  assert.match(routeSource, /await generateHeuristicRoutePlan\(parsed\.input\)/);
+
+  // 5. La carga default desde db-logistics sigue existiendo en el loader.
+  assert.match(routeSource, /dbLogistics\.listClinicRoutePlans/);
+  assert.match(routeSource, /dbLogistics\.getClinicScopedRoutePlan/);
+  assert.match(routeSource, /dbLogistics\.listRouteStopsForClinicRoutePlan/);
+  assert.match(routeSource, /dbLogistics\.generateHeuristicRoutePlan/);
+
+  // Las escrituras (M08) siguen llamando a deps directamente.
+  assert.match(routeSource, /await deps\.createRoutePlan\(/);
+  assert.match(routeSource, /await deps\.updateClinicScopedRoutePlan\(/);
+  assert.match(routeSource, /await deps\.transitionClinicScopedRoutePlanStatus\(/);
+});
+
+test("logistics route plans application layer (M07) stays free of HTTP and DB imports", () => {
+  const applicationFiles = [
+    "server/features/logistics/application/route-plans-read-use-cases.ts",
+    "server/features/logistics/application/generate-heuristic-route-plan.ts",
+    "server/features/logistics/application/ports/logistics-route-plans-read-repository.ts",
+    "server/features/logistics/application/ports/logistics-route-plan-generator.ts",
+  ] as const;
+
+  const forbiddenSpecifierRules: Array<{ label: string; pattern: RegExp }> = [
+    { label: "fastify", pattern: /^fastify(\/|$)/ },
+    { label: "server/db-logistics", pattern: /db-logistics/ },
+    { label: "server/db", pattern: /(^|\/)db(\.ts)?$/ },
+    { label: "drizzle-orm", pattern: /^drizzle-orm(\/|$)/ },
+    { label: "drizzle/schema", pattern: /drizzle\/schema/ },
+    { label: "server/lib", pattern: /(^|\/)lib\// },
+    { label: "server/routes", pattern: /(^|\/)routes\// },
+  ];
+
+  const violations: string[] = [];
+
+  for (const file of applicationFiles) {
+    const source = readFileSync(resolve(process.cwd(), file), "utf8");
+    const specifiers = Array.from(
+      source.matchAll(
+        /\bfrom\s+["']([^"']+)["']|\brequire\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s+["']([^"']+)["']/g,
+      ),
+      (match) => match[1] ?? match[2] ?? match[3] ?? match[4] ?? "",
+    );
+
+    for (const specifier of specifiers) {
+      for (const { label, pattern } of forbiddenSpecifierRules) {
+        if (pattern.test(specifier)) {
+          violations.push(`${file}: ${label} ("${specifier}")`);
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(violations, []);
 });

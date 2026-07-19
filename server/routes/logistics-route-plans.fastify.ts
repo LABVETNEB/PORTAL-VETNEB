@@ -51,6 +51,10 @@ import {
 import { createRuntimeTimer } from "../lib/runtime-timing.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import {
+  createGenerateHeuristicRoutePlan,
+  createRoutePlansReadUseCases,
+} from "../features/logistics/application/index.ts";
+import {
   clearRoutePlanMetricsCacheByPlan,
   clearRoutePlansCacheByClinic,
   getCachedRoutePlanMetricsSnapshot,
@@ -1467,6 +1471,19 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       })),
   };
 
+  // Adaptadores M07: los puertos de lectura y de generación heurística de
+  // application se construyen una sola vez por registro del plugin desde el seam
+  // de deps ya resuelto (no por request). La carga default desde db-logistics.ts
+  // sigue viviendo en loadDefaultDeps.
+  const routePlansRead = createRoutePlansReadUseCases({
+    listClinicRoutePlans: deps.listClinicRoutePlans,
+    getClinicScopedRoutePlan: deps.getClinicScopedRoutePlan,
+    listRouteStopsForClinicRoutePlan: deps.listRouteStopsForClinicRoutePlan,
+  });
+  const generateHeuristicRoutePlan = createGenerateHeuristicRoutePlan({
+    generateHeuristicRoutePlan: deps.generateHeuristicRoutePlan,
+  });
+
   const now = options.now ?? (() => Date.now());
   const allowedOrigins = new Set(getAllowedOrigins());
 
@@ -1556,7 +1573,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     }
 
     const planningTimer = createRuntimeTimer();
-    const result = await deps.generateHeuristicRoutePlan(parsed.input);
+    const result = await generateHeuristicRoutePlan(parsed.input);
     const planningDurationMs = planningTimer.elapsedMs();
 
     if (result.reason) {
@@ -1668,7 +1685,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       return reply.code(200).send(cachedSnapshot);
     }
 
-    const routePlans = await deps.listClinicRoutePlans(params);
+    const routePlans = await routePlansRead.listRoutePlans(params);
     const snapshot: RoutePlansListSnapshot = {
       success: true,
       count: routePlans.length,
@@ -1767,7 +1784,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const routePlan = await deps.getClinicScopedRoutePlan(
+    const routePlan = await routePlansRead.getRoutePlan(
       routePlanId,
       auth.clinicId,
     );
@@ -1905,11 +1922,11 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     }
 
     const [routePlan, routeStops] = await Promise.all([
-      deps.getClinicScopedRoutePlan(
+      routePlansRead.getRoutePlan(
         routePlanId,
         auth.clinicId,
       ),
-      deps.listRouteStopsForClinicRoutePlan(
+      routePlansRead.listRoutePlanStops(
         routePlanId,
         auth.clinicId,
       ),
@@ -1974,7 +1991,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const routeStops = await deps.listRouteStopsForClinicRoutePlan(
+    const routeStops = await routePlansRead.listRoutePlanStops(
       routePlanId,
       auth.clinicId,
     );
