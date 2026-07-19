@@ -1,6 +1,7 @@
 # Logistics · application (orquestación)
 
-> Capa **application** del contexto Logistics. Docs-only: hoy no contiene código.
+> Capa **application** del contexto Logistics. **Contiene código** desde M06:
+> el primer caso de uso real (SLA lectura/overdue) y su puerto mínimo.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
@@ -11,25 +12,51 @@ provistos por `infrastructure`, aplicando la secuencia de un flujo (validar →
 resolver → persistir → responder) sin conocer detalles de HTTP ni de persistencia
 concreta.
 
+## Qué vive aquí (M06)
+
+- **`list-overdue-active-sla-instances.ts`** — caso de uso
+  `createListOverdueActiveSlaInstances`: recibe un input ya autenticado, validado
+  y clinic-scoped desde la ruta, delega exactamente una vez en el puerto de
+  lectura y devuelve el resultado sin mutarlo, propagando los errores del puerto
+  sin envolverlos.
+- **`ports/logistics-sla-read-repository.ts`** — puerto mínimo
+  `LogisticsSlaReadRepository`: una sola operación semántica
+  (`listOverdueActiveClinicSlaInstances`), derivada del seam
+  `LogisticsSlaNativeRoutesOptions`. Genérico sobre el tipo de instancia y de
+  target para no filtrar tipos concretos de DB/schema hacia application.
+- **`index.ts`** — barrel público con la superficie de M06, sin exports
+  preventivos para milestones futuros.
+
+El adaptador real del puerto se construye **en la ruta**
+(`server/routes/logistics-sla.fastify.ts`) desde la dependencia ya resuelta en
+`deps`; la carga default desde `db-logistics.ts` sigue viviendo en la zona de
+composición de la ruta, no aquí.
+
 ## Regla de dependencia
 
 - **Puede importar:** `domain`, **puertos** (interfaces) y el shared kernel.
 - **No puede importar:** `fastify`, un `db-*` concreto, el runtime de Drizzle,
   React/Next ni `http`.
 - Habla con el exterior a través de **puertos**, no de implementaciones concretas.
-  `infrastructure` implementa esos puertos; `application` no los implementa.
+  `infrastructure` (o la zona de composición de la ruta) implementa esos puertos;
+  `application` no los implementa.
+- HTTP, auth, cookies, CORS, parsing de query, validaciones de transporte y
+  serialización permanecen en `routes`. La persistencia concreta permanece fuera
+  de application.
 
-## Qué vivirá aquí (futuro, no ahora)
+Frontera fijada por
+`test/unit/application/logistics/list-overdue-active-sla-instances.test.ts` y por
+el contrato de fuente
+`test/integration/adapters/controllers/logistics-sla-routes-api.test.ts`.
 
-En **M06** — primer caso de uso SLA (lectura/overdue) y puertos mínimos — se
-extraerá **un** caso de uso desde un god-handler existente (candidato: parte de
-`logistics-route-plans.fastify.ts`) a un service aquí, detrás del contrato
-por-ruta existente, dejando el handler thin. El puerto de repositorio se introduce
-**junto con** su primer consumidor y su implementación real — nunca como interfaz
-vacía anticipada. La Fase A (cerrada en M05) **no** inicia esta capa: hoy sigue
-siendo docs-only.
+## Qué vendrá después (no ahora)
+
+M07–M11 (casos de uso de route-plans, field-visits, route-events, guard de capa y
+closeout) **no están iniciados**. Cada puerto nuevo se introduce junto con su
+primer consumidor real — nunca como interfaz vacía anticipada.
 
 ## Qué NO hacer
 
-No crear services vacíos ni puertos/interfaces sin implementación. No introducir
-event bus. No mover lógica antes de tener el contrato por-ruta verde.
+No crear services vacíos ni puertos/interfaces sin consumidor. No introducir
+event bus, DI container ni repositories genéricos. No mover validaciones HTTP ni
+serialización al caso de uso.
