@@ -76,7 +76,7 @@ test("logistics metrics suite keeps route event aggregation coverage", () => {
 });
 
 test("logistics metrics module keeps public helper exports", () => {
-  const metricsFile = readRepoFile("server/lib/logistics/metrics.ts");
+  const metricsFile = readRepoFile("server/features/logistics/domain/metrics.ts");
 
   const requiredExports = [
     "export function calculateBasicRouteComplianceMetrics",

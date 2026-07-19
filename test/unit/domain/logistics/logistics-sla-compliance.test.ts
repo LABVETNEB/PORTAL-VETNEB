@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   classifySlaCompliance,
   summarizeSlaCompliance,
-} from "../../../../server/lib/logistics/metrics.ts";
+} from "../../../../server/features/logistics/domain/index.ts";
 
 const now = new Date("2026-05-03T12:00:00.000Z");
 
