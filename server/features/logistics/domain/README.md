@@ -1,13 +1,13 @@
 # Logistics · domain (reglas puras)
 
-> Capa **domain** del contexto Logistics. Docs-only: hoy no contiene código.
+> Capa **domain** del contexto Logistics. **Contiene código** desde ARCH-5.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
 ## Responsabilidad
 
 Reglas de negocio **puras** de logística: cálculo de ventanas de tiempo,
-planificación de rutas, detección de breach de SLA y métricas. Sin efectos
+planificación de rutas, detección de breach de SLA y paginación. Sin efectos
 secundarios, sin I/O, sin framework. Determinista y testeable en aislamiento.
 
 ## Regla de dependencia
@@ -19,15 +19,35 @@ secundarios, sin I/O, sin framework. Determinista y testeable en aislamiento.
 - La dependencia apunta hacia adentro: `domain` no conoce el transporte HTTP ni el
   motor de persistencia. `infrastructure` depende de `domain`, nunca al revés.
 
-## Qué vivirá aquí (futuro, no ahora)
+Verificado por `test/architecture/logistics-domain-boundary-guard.test.ts`, que
+además exige que todo consumidor runtime importe el dominio por el barrel público
+(`index.ts`), nunca un archivo interno.
 
-Los helpers puros que hoy están en `server/lib/logistics/`
-(`metrics`, `route-planning`, `sla-breach`, `time-window`) ya cumplen esta regla
-(importan sólo tipos de schema). En **ARCH-5** se migrará **uno** de ellos aquí,
-con su test, comportamiento idéntico. No se crea ningún archivo hasta que haya
-código real que mover.
+## Qué vive aquí
+
+Cada archivo materializa código real (nunca stubs por dogma):
+
+- **`pagination.ts`** (ARCH-7) — `LOGISTICS_DEFAULT_LIMIT`, `LOGISTICS_MAX_LIMIT`,
+  `normalizeLogisticsLimit`, `normalizeLogisticsOffset`.
+- **`route-plan-field-visits.ts`** (ARCH-5) — `normalizeGenerateHeuristicFieldVisitIds`.
+- **`time-window.ts`** (M02b) — `DEFAULT_TIME_WINDOW_TIMEZONE`,
+  `TIME_WINDOW_TIMEZONE_MAX_LENGTH`, `isValidTimeWindowRange`,
+  `normalizeTimeWindowTimezone`, `assertValidTimeWindowRange`. Sin imports (100% puro).
+- **`sla-breach.ts`** (M02b) — núcleo puro `markOverdueSlaBreaches` más sus tipos de
+  dominio (`MarkOverdueSlaBreachesInput/Deps/Result/Notification`,
+  `MarkOverdueSlaInstancesParams`). El tipo de las instancias marcadas es opaco
+  (`TInstance`), de modo que el dominio sólo importa el tipo `SlaTargetType` del
+  shared kernel y no se acopla al schema de fila de `slaInstances`. El adaptador con
+  `db-*` (`markOverdueSlaBreachesWithDb`) vive en `../infrastructure/sla-breach-db.ts`,
+  **no aquí**.
+
+## Barrel público
+
+`index.ts` re-exporta la API anterior sin transformarla y es el único punto de
+entrada del dominio. No re-exporta el adaptador de infraestructura.
 
 ## Qué NO hacer
 
-No mover `server/lib/logistics/*` en el PR del shell. No crear stubs, interfaces ni
-barrels vacíos.
+No importar `db-*`, Drizzle runtime, `fastify`, `env` ni I/O. No crear stubs,
+interfaces ni barrels vacíos. `metrics.ts` y `route-planning.ts` siguen en
+`server/lib/logistics/` y se migrarán en M03/M04.
