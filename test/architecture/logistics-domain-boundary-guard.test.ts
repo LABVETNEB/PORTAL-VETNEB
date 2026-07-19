@@ -7,6 +7,26 @@ const repoRoot = process.cwd();
 const domainDir = "server/features/logistics/domain";
 const domainIndexFile = `${domainDir}/index.ts`;
 
+// Inventario mínimo requerido del dominio Logistics tras el cierre de Fase A
+// (M02b → M03 → M04 → M05). Es un subconjunto obligatorio, NO un inventario
+// cerrado: futuras incorporaciones legítimas pueden agregar módulos sin tocar
+// este contrato (se comprueba presencia, no igualdad exacta del directorio).
+const REQUIRED_DOMAIN_MODULES = [
+  "index.ts",
+  "pagination.ts",
+  "route-plan-field-visits.ts",
+  "time-window.ts",
+  "sla-breach.ts",
+  "route-planning.ts",
+  "metrics.ts",
+] as const;
+
+// Namespace de dominio legacy retirado en la Fase A. Se construye por
+// concatenación (no como literal fijo) para que el propio archivo del guard no
+// sea un falso positivo bajo ningún escaneo, y para comparar contra specifiers
+// de import ya parseados (nunca contra texto libre ni comentarios históricos).
+const LEGACY_DOMAIN_DIR = ["server", "lib", "logistics"].join("/");
+
 function readText(relativePath: string) {
   return readFileSync(join(repoRoot, relativePath), "utf8");
 }
@@ -34,9 +54,9 @@ function walkTsFiles(relativeDir: string): string[] {
 function listImportSpecifiers(source: string) {
   return Array.from(
     source.matchAll(
-      /\bfrom\s+["']([^"']+)["']|\brequire\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
+      /\bfrom\s+["']([^"']+)["']|\brequire\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s+["']([^"']+)["']/g,
     ),
-    (match) => match[1] ?? match[2] ?? match[3] ?? "",
+    (match) => match[1] ?? match[2] ?? match[3] ?? match[4] ?? "",
   );
 }
 
@@ -199,6 +219,89 @@ test("Logistics runtime consumers import logistics domain through the public bar
         violations.push(
           `${file}: import directo a archivo interno de logistics/domain ("${specifier}" -> ${resolvedSpecifier})`,
         );
+      }
+    }
+  }
+
+  assert.deepEqual(violations, []);
+});
+
+// --- Cierre de Fase A (M05): endurecimiento del contrato de dominio ---
+
+function pointsToLegacyDomain(resolvedSpecifier: string) {
+  // Sólo el namespace de dominio retirado: `server/lib/logistics` exacto o
+  // cualquier archivo bajo `server/lib/logistics/`. NO matchea la cache vigente
+  // `server/lib/logistics-route-plans-cache.ts` (prefijo con guion, no `/`),
+  // que sigue siendo runtime legítimo hasta M13.
+  const normalized = resolvedSpecifier.replace(/\.ts$/, "");
+  return normalized === LEGACY_DOMAIN_DIR || normalized.startsWith(`${LEGACY_DOMAIN_DIR}/`);
+}
+
+test("El parser de imports cubre imports estáticos de efecto lateral", () => {
+  const legacySideEffectSpecifier = `${LEGACY_DOMAIN_DIR}/side-effect`;
+
+  // Sintaxis que originó el review: `import "..."` sin binding. El parser debe
+  // extraer el specifier y `pointsToLegacyDomain` clasificarlo como legacy.
+  assert.deepEqual(
+    listImportSpecifiers(`import "${legacySideEffectSpecifier}";`),
+    [legacySideEffectSpecifier],
+  );
+  assert.equal(pointsToLegacyDomain(legacySideEffectSpecifier), true);
+
+  // Regresión: las tres formas previas siguen reconociéndose sin cambios.
+  assert.deepEqual(
+    listImportSpecifiers(
+      [
+        `import { x } from "${LEGACY_DOMAIN_DIR}/from";`,
+        `const y = require("${LEGACY_DOMAIN_DIR}/require");`,
+        `const z = await import("${LEGACY_DOMAIN_DIR}/dynamic");`,
+      ].join("\n"),
+    ),
+    [
+      `${LEGACY_DOMAIN_DIR}/from`,
+      `${LEGACY_DOMAIN_DIR}/require`,
+      `${LEGACY_DOMAIN_DIR}/dynamic`,
+    ],
+  );
+});
+
+test("Logistics domain expone el inventario mínimo requerido de la Fase A (subconjunto, no cerrado)", () => {
+  const missing = REQUIRED_DOMAIN_MODULES.filter(
+    (moduleName) => !existsSync(join(repoRoot, domainDir, moduleName)),
+  );
+
+  assert.deepEqual(
+    missing,
+    [],
+    `faltan módulos requeridos en ${domainDir}: ${missing.join(", ")}`,
+  );
+});
+
+test("El namespace de dominio legacy no reaparece en un checkout limpio", () => {
+  assert.equal(
+    existsSync(join(repoRoot, LEGACY_DOMAIN_DIR)),
+    false,
+    `${LEGACY_DOMAIN_DIR} no debe reaparecer después del cierre M05`,
+  );
+});
+
+test("Ningún archivo de server/** ni test/** importa el namespace de dominio legacy", () => {
+  const violations: string[] = [];
+
+  for (const relativeDir of ["server", "test"]) {
+    for (const file of walkTsFiles(relativeDir)) {
+      const specifiers = listImportSpecifiers(readText(file));
+
+      for (const specifier of specifiers) {
+        const resolvedSpecifier = specifier.startsWith(".")
+          ? resolveRelativeTsSpecifier(file, specifier)
+          : toRepoRelativePath(specifier);
+
+        if (pointsToLegacyDomain(resolvedSpecifier)) {
+          violations.push(
+            `${file}: import al dominio legacy retirado ("${specifier}" -> ${resolvedSpecifier})`,
+          );
+        }
       }
     }
   }

@@ -686,6 +686,14 @@ alineación de guards (lista de los 188 tests ancla, por contexto). ·
 **M04** mover `metrics` (829) · **M05** cierre: borrar `lib/logistics/` vacío, endurecer guard,
 docs. *(M02b+M03 fusionables → mínima 40.)*
 
+> **Status de ejecución (2026-07-19):** M02b — completado · M03 — completado ·
+> M04 — completado · **M05 — este closeout / completado al merge**. `server/lib/logistics/`
+> retirado (0 archivos versionados, directorio ausente); guard endurecido; sin cambios
+> runtime. Detalle en
+> [`docs/implementation/m05-logistics-domain-phase-closeout.md`](../implementation/m05-logistics-domain-phase-closeout.md)
+> y en el addendum de ejecución de ARCH-3. Esta anotación es status, no altera el conteo
+> recomendado, riesgos, grafo, invariantes ni conclusiones.
+
 **Fase B — Logistics application (6):**
 **M06** primer UC (SLA lectura/overdue) + puertos mínimos derivados de Options (= ARCH-6) ·
 **M07** UC route-plans lectura + generate-heuristic · **M08** UC route-plans escritura +

@@ -1,5 +1,15 @@
 ﻿﻿# Logistics Rolling Roadmap
 
+> **Nota de vigencia (cierre Fase A / M05, 2026-07-19).** Este documento registra el
+> **roadmap de implementación original** de Logistics (issues #185/#186) y sus PRs
+> originales; se conserva como referencia histórica y no se reescribe. Los paths
+> `server/lib/logistics/*` que aparecen abajo son **históricos**: la ubicación canónica
+> actual del dominio es **`server/features/logistics/domain/`** (el namespace
+> `server/lib/logistics/` fue retirado al cerrar la Fase A). La **secuencia
+> arquitectónica vigente** —fases, milestones M01–M48 y su orden— está regida por
+> [`backend-enterprise-modularization-program-audit.md`](../audit/backend-enterprise-modularization-program-audit.md),
+> no por este roadmap.
+
 ## Purpose
 
 This document converts the logistics audit and planning issues into an incremental implementation roadmap.
