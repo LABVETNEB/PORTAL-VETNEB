@@ -4,7 +4,7 @@
 > docs-only en ARCH-4; **desde ARCH-5 contiene código real** en `domain/` y, desde
 > M02b, también en `infrastructure/`.
 > **Origen:** [ARCH-1](../../../docs/audit/repository-domain-architecture-audit.md) · [ARCH-2](../../../docs/architecture/backend-boundary-adr.md) · [ARCH-3](../../../docs/architecture/shared-lib-boundary-inventory.md).
-> **ID:** ARCH-4 (shell) → ARCH-5/7/8 (domain) → M02b (time-window + SLA) → M03 (route-planning) → M04 (metrics).
+> **ID:** ARCH-4 (shell) → ARCH-5/7/8 (domain) → M02b (time-window + SLA) → M03 (route-planning) → M04 (metrics) → **M05 (cierre de Fase A)**.
 
 Este directorio es la **frontera** del contexto Logistics. Declara las reglas de
 dependencia del ADR ([ARCH-2](../../../docs/architecture/backend-boundary-adr.md))
@@ -18,9 +18,13 @@ y ya aloja código migrado, capa por capa, detrás de contratos con tests verdes
   (`sla-breach-db.ts`).
 - **`application/`** y **`routes/`** — todavía sólo README (sin código).
 
-El resto del runtime legacy sigue viviendo en `server/db-logistics.ts` y
-`server/routes/logistics-*.fastify.ts`. Tras M04, `server/lib/logistics/` ya no
-aloja módulos de dominio: `metrics.ts` se movió a `domain/`.
+El resto del runtime legacy sigue viviendo en `server/db-logistics.ts`,
+`server/lib/logistics-route-plans-cache.ts` y
+`server/routes/logistics-*.fastify.ts`. **M05 cierra la Fase A**: el namespace de
+dominio legacy `server/lib/logistics/` queda **retirado** (cero archivos
+versionados y directorio ausente en un checkout limpio, garantizado por el guard
+endurecido); todo consumidor externo del dominio lo hace por el barrel público. M05
+no cambia ningún comportamiento runtime.
 
 ## 1. Responsabilidad del contexto Logistics
 
@@ -55,15 +59,20 @@ Su superficie actual es:
 > respecto de la fila de `slaInstances`) del adaptador con `db-*`
 > (`infrastructure/sla-breach-db.ts`).
 
-## 2. Relación temporal con `server/lib/logistics` actual
+## 2. Relación temporal con el runtime legacy
 
-Esta carpeta **convive** con la estructura legacy y ya absorbió parte de ella. El
-dominio migrado (`domain/`) es la fuente de verdad ejecutable de la paginación, la
-normalización de visitas heurísticas, las ventanas de tiempo, el núcleo puro de
-SLA y la planificación de rutas; `server/db-logistics.ts` los consume por el
-barrel. Lo que **aún no se ha movido**: `server/db-logistics.ts` (legacy,
-candidato a repositorio en M12) y `server/routes/logistics-*.fastify.ts`. Tras M04,
-`server/lib/logistics/` queda sin módulos de dominio.
+Tras el cierre de Fase A (M05), el namespace de dominio `server/lib/logistics/`
+**ya no existe**: sus cuatro módulos puros migraron a `domain/` (`sla-breach` +
+`time-window` en M02b, `route-planning` en M03, `metrics` en M04) y el directorio
+se retiró. El dominio migrado (`domain/`) es la fuente de verdad ejecutable de la
+paginación, la normalización de visitas heurísticas, las ventanas de tiempo, el
+núcleo puro de SLA, la planificación de rutas y las métricas; `server/db-logistics.ts`
+y `server/routes/logistics-route-plans.fastify.ts` los consumen por el barrel.
+
+Lo que **aún es legacy** (fuera de alcance en la Fase A): `server/db-logistics.ts`
+(candidato a repositorio en **M12**), `server/lib/logistics-route-plans-cache.ts`
+(cache adapter en **M13**) y `server/routes/logistics-*.fastify.ts` (rutas delgadas
+en **M14–M17**).
 
 Es una migración incremental y deliberada: se mueve código real capa por capa,
 detrás de los contratos por-ruta existentes y sólo con tests verdes.
@@ -103,19 +112,30 @@ verdes. Cada carpeta materializa código **sólo cuando hay algo real que la hab
   byte-idéntico; el módulo no tiene imports). Barrel re-exporta `buildHeuristicRoutePlan`,
   `calculateHaversineKm` y sus tipos; `server/db-logistics.ts` los consume por el barrel.
   `server/lib/logistics/route-planning.ts` eliminado.
-- **M04 (este PR)** — `metrics.ts` movido a `domain/metrics.ts` (move byte-idéntico;
+- **M04 (hecho)** — `metrics.ts` movido a `domain/metrics.ts` (move byte-idéntico;
   el módulo tiene **cero imports**). El barrel re-exporta explícitamente sus 12 funciones
   y 20 tipos; `server/routes/logistics-route-plans.fastify.ts` los consume por el barrel.
   `server/lib/logistics/metrics.ts` eliminado; `server/lib/logistics/` queda sin
   módulos de dominio.
-- **Application / routes (pendiente)** — extraer un caso de uso de un god-handler a
-  `application/` y dejar el handler thin; sólo cuando haya código real que lo habite.
+- **M05 (este PR) — cierre de Fase A** — closeout de arquitectura, tests y
+  documentación; **cero cambios runtime**. Certifica que `server/lib/logistics/` está
+  retirado (cero archivos versionados, directorio ausente), que ningún import de
+  `server/**` ni `test/**` apunta al dominio legacy y que el inventario mínimo del
+  dominio está presente y se consume por el barrel. Endurece
+  `test/architecture/logistics-domain-boundary-guard.test.ts` con tres contratos
+  nuevos (inventario requerido como subconjunto, ausencia del directorio legacy,
+  prohibición de imports legacy). No mueve `db-logistics.ts`, la cache ni las rutas.
+- **M06 (próximo) — Logistics application** — extraer el primer caso de uso (SLA
+  lectura/overdue) a `application/` con puertos mínimos, dejando el handler thin;
+  sólo cuando haya código real que lo habite. `M12/M13` (infra) y `M14–M17` (rutas)
+  permanecen futuros.
 
-## 5. Qué NO se mueve en M04
+## 5. Qué NO se mueve en la Fase A (incluido M05)
 
 - **No** mover `server/db-logistics.ts` (legacy; candidato a repositorio en M12).
-- **No** tocar `server/routes/logistics-*.fastify.ts`.
-- **No** crear services vacíos ni puertos/interfaces vacíos.
+- **No** mover `server/lib/logistics-route-plans-cache.ts` (cache adapter en M13).
+- **No** tocar `server/routes/logistics-*.fastify.ts` (rutas delgadas en M14–M17).
+- **No** crear services vacíos ni puertos/interfaces vacíos (empieza en M06).
 - **No** introducir event bus.
 - **No** fragmentar `drizzle/schema.ts` ni tocar migraciones.
 - **No** cambiar auth/security/middlewares.
@@ -145,3 +165,4 @@ la red de seguridad que habilita reorganizar sin cambiar comportamiento.
 - [Nota de implementación — M02b](../../../docs/implementation/m02b-logistics-sla-time-window-domain-move.md) — mueve `time-window` y el núcleo puro de `sla-breach` a `domain/`, y el adaptador de DB a `infrastructure/`.
 - [Nota de implementación — M03](../../../docs/implementation/m03-logistics-route-planning-domain-move.md) — mueve la heurística pura `route-planning` a `domain/` y la re-exporta por el barrel.
 - [Nota de implementación — M04](../../../docs/implementation/m04-logistics-metrics-domain-move.md) — mueve las métricas puras `metrics` a `domain/` y las re-exporta por el barrel.
+- [Nota de implementación — M05](../../../docs/implementation/m05-logistics-domain-phase-closeout.md) — cierre de la Fase A: censo legacy, endurecimiento del guard y reconciliación documental, sin cambios runtime.

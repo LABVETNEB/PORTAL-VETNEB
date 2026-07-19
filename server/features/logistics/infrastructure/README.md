@@ -31,11 +31,18 @@ de persistencia y el I/O real del contexto.
 
 ## Qué vivirá aquí (futuro, no ahora)
 
-El candidato natural a repositorio del contexto es `server/db-logistics.ts` (~1.322
-LOC), único `db-*` que ya delega en helpers de dominio (`time-window`,
-`route-planning`); y la cache `server/lib/logistics-route-plans-cache.ts`. Su
-migración es **posterior** a la extracción de un puerto en `application` que les dé
-forma. **`db-logistics.ts` sigue siendo legacy y fuera de alcance en M02b.**
+La Fase A (cerrada en M05) **no** amplía esta capa: el único código que vive aquí es
+el adaptador transitorio de SLA. La infraestructura completa del contexto llega
+después, en su propia secuencia:
+
+- **M12 — move completo de `server/db-logistics.ts`** (~1.322 LOC) → repositorio en
+  `infrastructure/`, con las transacciones intactas y un shim documentado. Es el
+  único `db-*` que ya delega en helpers de dominio (`time-window`, `route-planning`).
+- **M13 — cache adapter** para `server/lib/logistics-route-plans-cache.ts` (TTL/keys
+  preservados; contract-test de runtime existente).
+
+Ninguno de esos milestones se adelanta aquí. **`db-logistics.ts` y la cache siguen
+siendo legacy y fuera de alcance hasta M12/M13.**
 
 ## Qué NO hacer
 

@@ -21,11 +21,13 @@ concreta.
 
 ## Qué vivirá aquí (futuro, no ahora)
 
-En **ARCH-6** se extraerá **un** caso de uso desde un god-handler existente
-(candidato: parte de `logistics-route-plans.fastify.ts`) a un service aquí, detrás
-del contrato por-ruta existente, dejando el handler thin. El puerto de repositorio
-se introduce **junto con** su primer consumidor y su implementación real — nunca
-como interfaz vacía anticipada.
+En **M06** — primer caso de uso SLA (lectura/overdue) y puertos mínimos — se
+extraerá **un** caso de uso desde un god-handler existente (candidato: parte de
+`logistics-route-plans.fastify.ts`) a un service aquí, detrás del contrato
+por-ruta existente, dejando el handler thin. El puerto de repositorio se introduce
+**junto con** su primer consumidor y su implementación real — nunca como interfaz
+vacía anticipada. La Fase A (cerrada en M05) **no** inicia esta capa: hoy sigue
+siendo docs-only.
 
 ## Qué NO hacer
 

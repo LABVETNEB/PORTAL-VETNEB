@@ -61,6 +61,24 @@ Cada archivo materializa código real (nunca stubs por dogma):
 `index.ts` re-exporta la API anterior sin transformarla y es el único punto de
 entrada del dominio. No re-exporta el adaptador de infraestructura.
 
+## Certificación de cierre — Fase A (M05)
+
+Con M05 la capa domain de Logistics queda **cerrada para la Fase A**:
+
+- **Inventario mínimo presente:** `index.ts`, `pagination.ts`,
+  `route-plan-field-visits.ts`, `time-window.ts`, `sla-breach.ts`,
+  `route-planning.ts`, `metrics.ts` — comprobado como **subconjunto requerido**
+  (no inventario cerrado) por el guard.
+- **Namespace legacy ausente:** `server/lib/logistics/` está retirado (cero
+  archivos versionados y directorio inexistente en un checkout limpio).
+- **Imports externos por barrel:** todo consumidor runtime importa el dominio por
+  `index.ts`; ningún archivo de `server/**` ni `test/**` apunta al dominio legacy.
+- **Guard ejecutable:** `test/architecture/logistics-domain-boundary-guard.test.ts`
+  (pureza + frontera + inventario + ausencia de legacy + prohibición de imports
+  legacy).
+- **M05 no cambia comportamiento runtime.** Futuras reglas de dominio se incorporan
+  **sólo con código real y sus tests**, nunca como stubs anticipados.
+
 ## Qué NO hacer
 
 No importar `db-*`, Drizzle runtime, `fastify`, `env` ni I/O. No crear stubs,

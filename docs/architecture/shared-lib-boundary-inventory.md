@@ -887,3 +887,59 @@ fragmenta** (rompería Drizzle y las migraciones 0000–0030).
 - `server/features/logistics/README.md` — frontera del contexto (espejo de las reglas de
   dependencia).
 - `docs/logistics/MVP_DOMAIN.md` — documento de dominio del piloto.
+
+---
+
+## Addendum de ejecución — cierre Fase A / M05
+
+> **Alcance del addendum:** status de ejecución, no reinterpretación retroactiva. Las
+> tablas y cifras M01 anteriores se conservan **tal cual** como snapshot histórico del
+> estado previo al piloto; este addendum registra el estado **ejecutado** de la Fase A.
+> **Base M05:** `main` · **HEAD:** `ba9de2a311031e9e56ceb8fec2bb8b3d27862c79`
+> refactor(logistics): move metrics domain module (M04) (#1500).
+> **Rama:** `refactor/backend-modularization-m05-logistics-domain-closeout`.
+> **Fecha:** 2026-07-19.
+
+**Milestones de la Fase A completados** (cada uno como move byte-idéntico, sin cambio
+de comportamiento):
+
+| Milestone | Módulo(s) movido(s) desde `server/lib/logistics/` | Destino canónico | Estado |
+| --- | --- | --- | --- |
+| M02b | `sla-breach.ts` (111) + `time-window.ts` (40) | `features/logistics/domain/` | completado |
+| M03 | `route-planning.ts` (515) | `features/logistics/domain/` | completado |
+| M04 | `metrics.ts` (829) | `features/logistics/domain/` | completado |
+| M05 | — (cierre: docs + guard) | — | este closeout / completado al merge |
+
+**Namespace de dominio legacy retirado.** Verificado con comandos reproducibles sobre
+el HEAD base:
+
+```powershell
+git ls-files "server/lib/logistics/**"          # → 0 archivos versionados
+Test-Path -LiteralPath "server/lib/logistics"   # → False (directorio ausente)
+```
+
+**Ubicación canónica actual del dominio** (`server/features/logistics/domain/`),
+inventario y LOC recalculados vía `git ls-files "server/features/logistics/domain/*.ts" | xargs wc -l`:
+
+| Módulo | LOC |
+| --- | --- |
+| `index.ts` (barrel público) | 91 |
+| `metrics.ts` | 829 |
+| `pagination.ts` | 52 |
+| `route-plan-field-visits.ts` | 36 |
+| `route-planning.ts` | 515 |
+| `sla-breach.ts` | 111 |
+| `time-window.ts` | 51 |
+| **Total dominio** | **1.685** |
+
+**Guard de cierre.** `test/architecture/logistics-domain-boundary-guard.test.ts`
+conserva sus cuatro contratos (existencia + pureza + imports permitidos + consumo por
+barrel) y suma tres contratos de cierre M05: inventario mínimo requerido (subconjunto,
+no cerrado), ausencia del directorio legacy en checkout limpio y prohibición de imports
+al dominio legacy en `server/**` y `test/**`. La cache vigente
+`server/lib/logistics-route-plans-cache.ts` (guion, no `/`) queda explícitamente fuera
+de la detección: es runtime legítimo hasta M13.
+
+Las filas de la matriz origen-destino previas (`lib/logistics/*` → `features/logistics/domain/`,
+milestones M02b/M03/M04) reflejaban el **plan**; con este addendum quedan **ejecutadas**.
+Ninguna cifra histórica de la matriz M01 se altera.
