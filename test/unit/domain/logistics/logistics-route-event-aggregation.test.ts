@@ -5,7 +5,7 @@ import {
   getRouteEventBoundariesByRoutePlan,
   getRouteEventBoundariesByRouteStop,
   summarizeRouteEvents,
-} from "../../../../server/lib/logistics/metrics.ts";
+} from "../../../../server/features/logistics/domain/index.ts";
 
 const events = [
   {

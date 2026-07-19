@@ -7,8 +7,9 @@
 ## Responsabilidad
 
 Reglas de negocio **puras** de logística: cálculo de ventanas de tiempo,
-planificación de rutas, detección de breach de SLA y paginación. Sin efectos
-secundarios, sin I/O, sin framework. Determinista y testeable en aislamiento.
+planificación de rutas, detección de breach de SLA, métricas de cumplimiento de
+rutas y paginación. Sin efectos secundarios, sin I/O, sin framework. Determinista y
+testeable en aislamiento.
 
 ## Regla de dependencia
 
@@ -45,6 +46,15 @@ Cada archivo materializa código real (nunca stubs por dogma):
   ventanas duras y desempate estable) y `calculateHaversineKm`, más sus tipos
   (`RoutePlanningObjective/Point/TimeWindow/Visit`, `BuildHeuristicRoutePlanOptions`,
   `PlannedRouteStop`, `HeuristicRoutePlanResult`). Sin imports (100% puro).
+- **`metrics.ts`** (M04) — métricas puras de logística: cumplimiento de distancia de
+  ruta (`calculateRouteDistanceCompliance`, `calculateKmPerCompletedVisit`), ventanas
+  horarias (`classifyTimeWindowCompliance`, `summarizeWindowCompliance`), cumplimiento
+  de SLA (`classifySlaCompliance`, `summarizeSlaCompliance`), agregación de eventos de
+  ruta (`summarizeRouteEvents`, `getRouteEventBoundariesByRoutePlan`,
+  `getRouteEventBoundariesByRouteStop`, `calculateDurationBetweenRouteEvents`) y
+  cumplimiento por parada (`calculateBasicRouteComplianceMetrics`,
+  `calculateRouteStopComplianceMetrics`), más sus 20 tipos. **Cero imports** (100%
+  puro); toda su API se consume por el barrel.
 
 ## Barrel público
 
@@ -54,5 +64,4 @@ entrada del dominio. No re-exporta el adaptador de infraestructura.
 ## Qué NO hacer
 
 No importar `db-*`, Drizzle runtime, `fastify`, `env` ni I/O. No crear stubs,
-interfaces ni barrels vacíos. `metrics.ts` sigue en `server/lib/logistics/` y se
-migrará en M04.
+interfaces ni barrels vacíos.

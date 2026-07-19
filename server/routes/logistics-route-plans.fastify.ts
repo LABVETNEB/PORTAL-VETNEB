@@ -47,7 +47,7 @@ import {
 import {
   calculateRouteStopComplianceMetrics,
   type RouteStopComplianceInput,
-} from "../lib/logistics/metrics.ts";
+} from "../features/logistics/domain/index.ts";
 import { createRuntimeTimer } from "../lib/runtime-timing.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import {

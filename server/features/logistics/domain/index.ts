@@ -10,6 +10,8 @@
 // - ARCH-7 · `pagination.ts`
 // - M02b   · `time-window.ts` y el núcleo puro `sla-breach.ts`
 // - M03    · `route-planning.ts` (heurística pura de planificación de rutas)
+// - M04    · `metrics.ts` (métricas puras: distancia, ventanas, SLA, eventos y
+//            cumplimiento por parada; cero imports, sólo cálculo)
 //
 // El adaptador de DB de SLA (`markOverdueSlaBreachesWithDb`) NO se re-exporta
 // aquí: vive en `../infrastructure/sla-breach-db.ts` porque conoce `db-*`.
@@ -50,3 +52,40 @@ export type {
   RoutePlanningTimeWindow,
   RoutePlanningVisit,
 } from "./route-planning.ts";
+
+export {
+  calculateBasicRouteComplianceMetrics,
+  calculateDurationBetweenRouteEvents,
+  calculateKmPerCompletedVisit,
+  calculateRouteDistanceCompliance,
+  calculateRouteStopComplianceMetrics,
+  classifySlaCompliance,
+  classifyTimeWindowCompliance,
+  getRouteEventBoundariesByRoutePlan,
+  getRouteEventBoundariesByRouteStop,
+  summarizeRouteEvents,
+  summarizeSlaCompliance,
+  summarizeWindowCompliance,
+} from "./metrics.ts";
+export type {
+  BasicRouteComplianceInput,
+  BasicRouteComplianceMetrics,
+  NumericMetricInput,
+  RouteDistanceComplianceInput,
+  RouteDistanceComplianceMetrics,
+  RouteEventAggregationSummary,
+  RouteEventBoundary,
+  RouteEventDurationResult,
+  RouteEventMetricInput,
+  RouteStopComplianceInput,
+  RouteStopComplianceMetric,
+  RouteStopComplianceSummary,
+  SlaComplianceInput,
+  SlaComplianceResult,
+  SlaComplianceStatus,
+  SlaComplianceSummary,
+  TimeWindowComplianceInput,
+  TimeWindowComplianceResult,
+  TimeWindowComplianceStatus,
+  WindowComplianceSummary,
+} from "./metrics.ts";
