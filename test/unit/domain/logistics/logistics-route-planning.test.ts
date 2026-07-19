@@ -5,7 +5,7 @@ import {
   buildHeuristicRoutePlan,
   calculateHaversineKm,
   type RoutePlanningVisit,
-} from "../../../../server/lib/logistics/route-planning.ts";
+} from "../../../../server/features/logistics/domain/index.ts";
 
 const routeStart = new Date("2026-05-04T12:00:00.000Z");
 

@@ -24,18 +24,16 @@ import {
   type VisitLocationGeoQuality,
 } from "../drizzle/schema.ts";
 import {
-  buildHeuristicRoutePlan,
-  type RoutePlanningPoint,
-  type RoutePlanningVisit,
-} from "./lib/logistics/route-planning.ts";
-import {
   assertValidTimeWindowRange,
+  buildHeuristicRoutePlan,
   LOGISTICS_DEFAULT_LIMIT,
   LOGISTICS_MAX_LIMIT,
   normalizeGenerateHeuristicFieldVisitIds,
   normalizeLogisticsLimit,
   normalizeLogisticsOffset,
   normalizeTimeWindowTimezone,
+  type RoutePlanningPoint,
+  type RoutePlanningVisit,
 } from "./features/logistics/domain/index.ts";
 
 export {

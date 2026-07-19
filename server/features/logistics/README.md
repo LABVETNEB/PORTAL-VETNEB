@@ -4,21 +4,21 @@
 > docs-only en ARCH-4; **desde ARCH-5 contiene código real** en `domain/` y, desde
 > M02b, también en `infrastructure/`.
 > **Origen:** [ARCH-1](../../../docs/audit/repository-domain-architecture-audit.md) · [ARCH-2](../../../docs/architecture/backend-boundary-adr.md) · [ARCH-3](../../../docs/architecture/shared-lib-boundary-inventory.md).
-> **ID:** ARCH-4 (shell) → ARCH-5/7/8 (domain) → M02b (time-window + SLA).
+> **ID:** ARCH-4 (shell) → ARCH-5/7/8 (domain) → M02b (time-window + SLA) → M03 (route-planning).
 
 Este directorio es la **frontera** del contexto Logistics. Declara las reglas de
 dependencia del ADR ([ARCH-2](../../../docs/architecture/backend-boundary-adr.md))
 y ya aloja código migrado, capa por capa, detrás de contratos con tests verdes:
 
 - **`domain/`** — reglas puras con barrel público (`index.ts`): paginación,
-  normalización de visitas heurísticas, ventanas de tiempo y el núcleo puro de
-  breach de SLA.
+  normalización de visitas heurísticas, ventanas de tiempo, el núcleo puro de
+  breach de SLA y la heurística de planificación de rutas.
 - **`infrastructure/`** — adaptador transitorio de DB para el breach de SLA
   (`sla-breach-db.ts`).
 - **`application/`** y **`routes/`** — todavía sólo README (sin código).
 
-El resto del runtime sigue viviendo, sin cambios en M02b, en
-`server/lib/logistics/{metrics,route-planning}.ts`, `server/db-logistics.ts` y
+El resto del runtime sigue viviendo, sin cambios en M03, en
+`server/lib/logistics/metrics.ts`, `server/db-logistics.ts` y
 `server/routes/logistics-*.fastify.ts`.
 
 ## 1. Responsabilidad del contexto Logistics
@@ -34,10 +34,11 @@ LOC), donde extraer application/domain tiene el mayor retorno de mantenibilidad.
 Su superficie actual es:
 
 - **Dominio migrado** — `server/features/logistics/domain/` (paginación,
-  `route-plan-field-visits`, `time-window`, núcleo puro de `sla-breach`), consumido
-  por el resto del backend a través del barrel `domain/index.ts`.
-- **Dominio pendiente** — `server/lib/logistics/{metrics,route-planning}.ts`. Importan
-  **sólo tipos** de `drizzle/schema.ts`; cero `fastify`, cero `db`. Migran en M03/M04.
+  `route-plan-field-visits`, `time-window`, núcleo puro de `sla-breach`,
+  `route-planning`), consumido por el resto del backend a través del barrel
+  `domain/index.ts`.
+- **Dominio pendiente** — `server/lib/logistics/metrics.ts`. Importa **sólo tipos**
+  de `drizzle/schema.ts`; cero `fastify`, cero `db`. Migra en M04.
 - **Adaptador de infraestructura** — `server/features/logistics/infrastructure/sla-breach-db.ts`
   (transitorio): cablea el núcleo puro de SLA con `db-logistics.ts` vía import lazy.
 - **Persistencia + dominio mezclados (legacy, fuera de M02b)** — `server/db-logistics.ts`
@@ -58,9 +59,9 @@ Su superficie actual es:
 
 Esta carpeta **convive** con la estructura legacy y ya absorbió parte de ella. El
 dominio migrado (`domain/`) es la fuente de verdad ejecutable de la paginación, la
-normalización de visitas heurísticas, las ventanas de tiempo y el núcleo puro de
-SLA; `server/db-logistics.ts` los consume por el barrel. Lo que **aún no se ha
-movido**: `server/lib/logistics/{metrics,route-planning}.ts` (M03/M04),
+normalización de visitas heurísticas, las ventanas de tiempo, el núcleo puro de
+SLA y la planificación de rutas; `server/db-logistics.ts` los consume por el
+barrel. Lo que **aún no se ha movido**: `server/lib/logistics/metrics.ts` (M04),
 `server/db-logistics.ts` (legacy, candidato a repositorio en M12) y
 `server/routes/logistics-*.fastify.ts`.
 
@@ -94,18 +95,21 @@ verdes. Cada carpeta materializa código **sólo cuando hay algo real que la hab
 - **ARCH-5 (hecho)** — `route-plan-field-visits.ts` movido a `domain/`.
 - **ARCH-7 (hecho)** — `pagination.ts` extraído a `domain/`.
 - **ARCH-8 (hecho)** — barrel público `domain/index.ts`.
-- **M02b (este PR)** — `time-window.ts` y el núcleo puro de `sla-breach.ts` movidos a
+- **M02b (hecho)** — `time-window.ts` y el núcleo puro de `sla-breach.ts` movidos a
   `domain/`; el adaptador de DB de SLA (`markOverdueSlaBreachesWithDb`) a
   `infrastructure/sla-breach-db.ts`. `server/lib/logistics/{time-window,sla-breach}.ts`
   eliminados.
-- **M03/M04 (pendiente)** — mover `route-planning.ts` y `metrics.ts` desde
-  `server/lib/logistics/` a `domain/`.
+- **M03 (este PR)** — `route-planning.ts` movido a `domain/route-planning.ts` (move
+  byte-idéntico; el módulo no tiene imports). Barrel re-exporta `buildHeuristicRoutePlan`,
+  `calculateHaversineKm` y sus tipos; `server/db-logistics.ts` los consume por el barrel.
+  `server/lib/logistics/route-planning.ts` eliminado.
+- **M04 (pendiente)** — mover `metrics.ts` desde `server/lib/logistics/` a `domain/`.
 - **Application / routes (pendiente)** — extraer un caso de uso de un god-handler a
   `application/` y dejar el handler thin; sólo cuando haya código real que lo habite.
 
-## 5. Qué NO se mueve en M02b
+## 5. Qué NO se mueve en M03
 
-- **No** mover `server/lib/logistics/{metrics,route-planning}.ts` (M03/M04).
+- **No** mover `server/lib/logistics/metrics.ts` (M04).
 - **No** mover `server/db-logistics.ts` (legacy; candidato a repositorio en M12).
 - **No** tocar `server/routes/logistics-*.fastify.ts`.
 - **No** crear services vacíos ni puertos/interfaces vacíos.
@@ -136,3 +140,4 @@ la red de seguridad que habilita reorganizar sin cambiar comportamiento.
 - [ARCH-3 — Shared / Lib Boundary Inventory](../../../docs/architecture/shared-lib-boundary-inventory.md) — inventario a nivel de archivo del terreno a migrar.
 - [Nota de implementación — ARCH-4 shell](../../../docs/implementation/logistics-domain-shell.md) — objetivo, alcance y guardrails del shell.
 - [Nota de implementación — M02b](../../../docs/implementation/m02b-logistics-sla-time-window-domain-move.md) — mueve `time-window` y el núcleo puro de `sla-breach` a `domain/`, y el adaptador de DB a `infrastructure/`.
+- [Nota de implementación — M03](../../../docs/implementation/m03-logistics-route-planning-domain-move.md) — mueve la heurística pura `route-planning` a `domain/` y la re-exporta por el barrel.
