@@ -1,24 +1,42 @@
-import type {
-  MarkOverdueActiveClinicSlaInstancesBreachedParams,
-  SlaInstance,
-} from "../../db-logistics.ts";
-import type { SlaTargetType } from "../../../drizzle/schema.ts";
+// Logistics · domain (reglas puras)
+//
+// Núcleo puro de marcado de breach de SLA: valida la entrada, resuelve los
+// defaults contra un reloj inyectado, delega el marcado de instancias en una
+// dependencia inyectada y, si hubo breaches, dispara un hook opcional de
+// notificación. Determinístico respecto de sus dependencias, sin I/O, sin
+// framework y sin persistencia.
+//
+// Esta lógica vivía en `server/lib/logistics/sla-breach.ts` mezclada con un
+// adaptador de DB. M02b separa el núcleo puro (aquí) del adaptador con `db-*`
+// (`server/features/logistics/infrastructure/sla-breach-db.ts`). El dominio no
+// conoce Drizzle, `db-logistics.ts` ni ninguna persistencia: el tipo de las
+// instancias marcadas es opaco (`TInstance`), de forma que el dominio sólo las
+// cuenta y las reenvía sin acoplarse al schema de fila de `slaInstances`.
 
-export type MarkOverdueSlaBreachesNotification = {
+import type { SlaTargetType } from "../../../../drizzle/schema.ts";
+
+export type MarkOverdueSlaInstancesParams = {
   clinicId: number;
-  breachedCount: number;
-  breachedInstances: SlaInstance[];
   dueAtOrBefore: Date;
   breachedAt: Date;
   targetType?: SlaTargetType;
 };
 
-export type MarkOverdueSlaBreachesDeps = {
+export type MarkOverdueSlaBreachesNotification<TInstance> = {
+  clinicId: number;
+  breachedCount: number;
+  breachedInstances: TInstance[];
+  dueAtOrBefore: Date;
+  breachedAt: Date;
+  targetType?: SlaTargetType;
+};
+
+export type MarkOverdueSlaBreachesDeps<TInstance> = {
   markOverdueActiveClinicSlaInstancesBreached: (
-    params: MarkOverdueActiveClinicSlaInstancesBreachedParams,
-  ) => Promise<SlaInstance[]>;
+    params: MarkOverdueSlaInstancesParams,
+  ) => Promise<TInstance[]>;
   notifySlaBreaches?: (
-    notification: MarkOverdueSlaBreachesNotification,
+    notification: MarkOverdueSlaBreachesNotification<TInstance>,
   ) => Promise<void>;
   now?: () => Date;
 };
@@ -30,15 +48,11 @@ export type MarkOverdueSlaBreachesInput = {
   targetType?: SlaTargetType;
 };
 
-export type MarkOverdueSlaBreachesResult = {
+export type MarkOverdueSlaBreachesResult<TInstance> = {
   breachedCount: number;
-  breachedInstances: SlaInstance[];
+  breachedInstances: TInstance[];
   dueAtOrBefore: Date;
   breachedAt: Date;
-};
-
-export type MarkOverdueSlaBreachesWithDbOptions = {
-  now?: () => Date;
 };
 
 function assertValidDate(value: Date, fieldName: string): void {
@@ -53,10 +67,10 @@ function assertValidClinicId(clinicId: number): void {
   }
 }
 
-export async function markOverdueSlaBreaches(
+export async function markOverdueSlaBreaches<TInstance>(
   input: MarkOverdueSlaBreachesInput,
-  deps: MarkOverdueSlaBreachesDeps,
-): Promise<MarkOverdueSlaBreachesResult> {
+  deps: MarkOverdueSlaBreachesDeps<TInstance>,
+): Promise<MarkOverdueSlaBreachesResult<TInstance>> {
   assertValidClinicId(input.clinicId);
 
   const now = deps.now ?? (() => new Date());
@@ -94,18 +108,4 @@ export async function markOverdueSlaBreaches(
     dueAtOrBefore,
     breachedAt,
   };
-}
-
-export async function markOverdueSlaBreachesWithDb(
-  input: MarkOverdueSlaBreachesInput,
-  options: MarkOverdueSlaBreachesWithDbOptions = {},
-): Promise<MarkOverdueSlaBreachesResult> {
-  const { markOverdueActiveClinicSlaInstancesBreached } = await import(
-    "../../db-logistics.ts"
-  );
-
-  return markOverdueSlaBreaches(input, {
-    markOverdueActiveClinicSlaInstancesBreached,
-    now: options.now,
-  });
 }

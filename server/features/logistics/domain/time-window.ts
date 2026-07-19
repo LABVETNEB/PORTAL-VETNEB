@@ -1,3 +1,14 @@
+// Logistics · domain (reglas puras)
+//
+// Reglas puras de ventanas de tiempo de una visita de campo: valida el rango
+// `[windowStart, windowEnd)` y normaliza el `timezone`. Determinística, sin I/O,
+// sin framework y sin persistencia — sólo transforma la entrada en la salida.
+//
+// Esta lógica vivía en `server/lib/logistics/time-window.ts`. M02b la mueve al
+// contexto `logistics/domain` manteniendo el comportamiento observable idéntico:
+// `db-logistics.ts` la sigue invocando con el mismo nombre, ahora vía el barrel
+// público del dominio.
+
 export const DEFAULT_TIME_WINDOW_TIMEZONE = "UTC";
 export const TIME_WINDOW_TIMEZONE_MAX_LENGTH = 64;
 

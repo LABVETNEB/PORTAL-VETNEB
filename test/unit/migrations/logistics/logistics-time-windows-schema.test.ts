@@ -9,7 +9,7 @@ import {
   assertValidTimeWindowRange,
   isValidTimeWindowRange,
   normalizeTimeWindowTimezone,
-} from "../../../../server/lib/logistics/time-window.ts";
+} from "../../../../server/features/logistics/domain/index.ts";
 
 test("logistics schema exports time windows table", () => {
   assert.equal(typeof timeWindows, "object");
