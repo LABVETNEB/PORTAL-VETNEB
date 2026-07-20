@@ -52,9 +52,9 @@ test("logistics route events API wires route event DB helpers through injectable
 
 test("logistics route events API keeps reads clinic scoped", () => {
   assert.match(routeSource, /buildListRouteEventsParams\(request\.query, auth\.clinicId\)/);
-  assert.match(routeSource, /deps\.listClinicRouteEvents\(parsed\.params\)/);
-  assert.match(routeSource, /deps\.listIncrementalClinicRouteEvents\(\s*auth\.clinicId,\s*afterId,\s*limit,\s*\)/);
-  assert.match(routeSource, /deps\.listRouteEventsForClinicRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*params,\s*\)/);
+  assert.match(routeSource, /routeEventsRead\.listRouteEvents\(parsed\.params\)/);
+  assert.match(routeSource, /routeEventsRead\.pollRouteEvents\(\s*auth\.clinicId,\s*afterId,\s*limit,\s*\)/);
+  assert.match(routeSource, /routeEventsRead\.listRoutePlanEvents\(\s*routePlanId,\s*auth\.clinicId,\s*params,\s*\)/);
 });
 
 test("logistics route events API validates route event create payload before DB calls", () => {
@@ -119,4 +119,113 @@ test("logistics route events API audits route event creation", () => {
   assert.match(routeSource, /await deps\.writeAuditLog\(createAuditRequestLike\(request, auth\),/);
   assert.match(routeSource, /routeEventId: routeEvent\.id/);
   assert.match(routeSource, /eventType: routeEvent\.eventType/);
+});
+
+test("logistics route events API delegates the four data operations to M10 application use cases", () => {
+  assert.match(
+    routeSource,
+    /import \{\s*createCreateRouteEvent,\s*createRouteEventsReadUseCases,\s*\} from "\.\.\/features\/logistics\/application\/index\.ts";/,
+  );
+
+  const writeComposition =
+    /const createRouteEvent = createCreateRouteEvent\(\{\s*createRouteEvent: deps\.createRouteEvent,\s*\}\);/;
+  const readComposition =
+    /const routeEventsRead = createRouteEventsReadUseCases\(\{\s*listClinicRouteEvents: deps\.listClinicRouteEvents,\s*listRouteEventsForClinicRoutePlan: deps\.listRouteEventsForClinicRoutePlan,\s*listIncrementalClinicRouteEvents: deps\.listIncrementalClinicRouteEvents,\s*\}\);/;
+
+  assert.match(routeSource, writeComposition);
+  assert.match(routeSource, readComposition);
+
+  const handlersStart = routeSource.indexOf("app.options(");
+  assert.ok(handlersStart > 0, "no se encontró la región de handlers");
+  assert.ok(
+    routeSource.search(writeComposition) < handlersStart,
+    "la composición de escritura M10 debe ocurrir antes de los handlers",
+  );
+  assert.ok(
+    routeSource.search(readComposition) < handlersStart,
+    "la composición de lectura M10 debe ocurrir antes de los handlers",
+  );
+
+  assert.match(routeSource, /const routeEvent = await createRouteEvent\(parsed\.input\);/);
+  assert.match(routeSource, /await routeEventsRead\.listRouteEvents\(parsed\.params\)/);
+  assert.match(routeSource, /await routeEventsRead\.pollRouteEvents\(/);
+  assert.match(routeSource, /await routeEventsRead\.listRoutePlanEvents\(/);
+});
+
+test("logistics route events handlers no longer invoke the four deps directly", () => {
+  const handlersStart = routeSource.indexOf("app.options(");
+  assert.ok(handlersStart > 0, "no se encontró la región de handlers");
+
+  for (const dependency of [
+    "deps.createRouteEvent",
+    "deps.listClinicRouteEvents",
+    "deps.listRouteEventsForClinicRoutePlan",
+    "deps.listIncrementalClinicRouteEvents",
+  ]) {
+    assert.ok(
+      routeSource.lastIndexOf(dependency) < handlersStart,
+      `${dependency} no debe invocarse desde los handlers`,
+    );
+  }
+
+  assert.doesNotMatch(routeSource, /deps\.createRouteEvent\(parsed\.input\)/);
+  assert.doesNotMatch(routeSource, /deps\.listClinicRouteEvents\(parsed\.params\)/);
+  assert.doesNotMatch(routeSource, /deps\.listIncrementalClinicRouteEvents\(\s*auth\.clinicId/);
+  assert.doesNotMatch(routeSource, /deps\.listRouteEventsForClinicRoutePlan\(\s*routePlanId/);
+});
+
+test("M10 keeps OPTIONS, audit ordering and HTTP responsibilities inside Fastify", () => {
+  assert.match(routeSource, /app\.options\("\/", optionsHandler\)/);
+  assert.match(routeSource, /app\.options\("\/poll", optionsHandler\)/);
+  assert.match(routeSource, /app\.options\("\/route-plans\/:routePlanId", optionsHandler\)/);
+  assert.match(routeSource, /const optionsHandler = async \(/);
+  assert.match(routeSource, /reply\.header\("access-control-allow-methods", "GET,POST,OPTIONS"\)/);
+  assert.match(routeSource, /return reply\.code\(204\)\.send\(\)/);
+
+  assert.match(
+    routeSource,
+    /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)[\s\S]*?authenticateClinicUser\(request, reply, deps, now\)[\s\S]*?canManageLogisticsRouteEvents[\s\S]*?buildCreateRouteEventInput\(request\.body, auth\.clinicId\)[\s\S]*?await createRouteEvent\(parsed\.input\)[\s\S]*?Plan de ruta o parada no encontrada[\s\S]*?await deps\.writeAuditLog\([\s\S]*?reply\.code\(201\)/,
+  );
+
+  assert.match(routeSource, /function serializeRouteEvent/);
+  assert.match(routeSource, /routeEvents\.map\(\(routeEvent\) =>\s*serializeRouteEvent\(routeEvent\),\s*\)/);
+});
+
+test("logistics route events M10 application files stay free of HTTP and DB imports", () => {
+  const applicationFiles = [
+    "server/features/logistics/application/create-route-event.ts",
+    "server/features/logistics/application/route-events-read-use-cases.ts",
+    "server/features/logistics/application/ports/logistics-route-event-write-repository.ts",
+    "server/features/logistics/application/ports/logistics-route-events-read-repository.ts",
+  ] as const;
+  const forbiddenSpecifierRules: Array<{ label: string; pattern: RegExp }> = [
+    { label: "fastify", pattern: /^fastify(\/|$)/ },
+    { label: "server/db-logistics", pattern: /db-logistics/ },
+    { label: "server/db", pattern: /(^|\/)db(\.ts)?$/ },
+    { label: "drizzle-orm", pattern: /^drizzle-orm(\/|$)/ },
+    { label: "drizzle/schema", pattern: /drizzle\/schema/ },
+    { label: "server/lib", pattern: /(^|\/)lib\// },
+    { label: "server/routes", pattern: /(^|\/)routes\// },
+  ];
+  const violations: string[] = [];
+
+  for (const file of applicationFiles) {
+    const source = readFileSync(resolve(process.cwd(), file), "utf8");
+    const specifiers = Array.from(
+      source.matchAll(
+        /\bfrom\s+["']([^"']+)["']|\brequire\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s+["']([^"']+)["']/g,
+      ),
+      (match) => match[1] ?? match[2] ?? match[3] ?? match[4] ?? "",
+    );
+
+    for (const specifier of specifiers) {
+      for (const { label, pattern } of forbiddenSpecifierRules) {
+        if (pattern.test(specifier)) {
+          violations.push(`${file}: ${label} ("${specifier}")`);
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(violations, []);
 });

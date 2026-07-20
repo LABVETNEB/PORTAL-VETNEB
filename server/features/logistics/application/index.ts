@@ -1,5 +1,5 @@
 // Barrel público de la capa application de Logistics. Expone únicamente la
-// superficie ya materializada (M06-M09); sin exports preventivos para
+// superficie ya materializada (M06-M10); sin exports preventivos para
 // milestones futuros.
 
 export {
@@ -46,3 +46,15 @@ export {
   type UpdateFieldVisit,
 } from "./update-field-visit.ts";
 export type { LogisticsFieldVisitUpdateRepository } from "./ports/logistics-field-visit-update-repository.ts";
+
+export {
+  createCreateRouteEvent,
+  type CreateRouteEvent,
+} from "./create-route-event.ts";
+export type { LogisticsRouteEventWriteRepository } from "./ports/logistics-route-event-write-repository.ts";
+
+export {
+  createRouteEventsReadUseCases,
+  type RouteEventsReadUseCases,
+} from "./route-events-read-use-cases.ts";
+export type { LogisticsRouteEventsReadRepository } from "./ports/logistics-route-events-read-repository.ts";

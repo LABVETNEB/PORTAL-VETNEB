@@ -4,7 +4,8 @@
 > (SLA lectura/overdue), crece en M07 con las lecturas de planes de ruta y la
 > generación heurística, y en M08 con las escrituras de planes y stops
 > (create/update) y la cancelación de plan (lifecycle `cancel`). M09 agrega la
-> actualización clinic-scoped de field visits detrás del PATCH existente.
+> actualización clinic-scoped de field visits detrás del PATCH existente, y M10
+> el append explícito y las tres lecturas de route events.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
@@ -98,6 +99,25 @@ stops, y la automática mediante generación heurística de stops; ambos flujos 
 fueron extraídos en M07/M08. La ruta de field visits no tiene `/assign`, y M09
 no agrega reasignación, unassign, DELETE ni restricciones de unicidad.
 
+## Qué vive aquí (M10)
+
+- **`create-route-event.ts`** — `createCreateRouteEvent`: append explícito de un
+  evento de ruta con el input ya autenticado, validado y clinic-scoped; delega
+  una vez y devuelve el resultado sin transformarlo.
+- **`route-events-read-use-cases.ts`** — `createRouteEventsReadUseCases`:
+  `listRouteEvents`, `listRoutePlanEvents` y `pollRouteEvents`, consumidos por
+  `GET /`, `GET /route-plans/:routePlanId` y `GET /poll`.
+- **Puertos** — `ports/logistics-route-event-write-repository.ts` y
+  `ports/logistics-route-events-read-repository.ts`, genéricos, derivados del
+  seam `LogisticsRouteEventsNativeRoutesOptions`.
+
+Las lecturas no aplican defaults propios: `params` y `limit` ausentes se
+reenvían como `undefined`. `OPTIONS`, CORS, trusted-origin, auth, RBAC, parsing,
+paginación, `lastEventId`, serialización, el 404 sobre resultado ausente y
+`writeAuditLog` (posterior al append) permanecen en la ruta. **M10 no agrega
+ningún productor automático de eventos**: el append sigue provocado únicamente
+por `POST /`, sin event bus, outbox, retry, deduplicación ni idempotency keys.
+
 ## Regla de dependencia
 
 - **Puede importar:** `domain`, **puertos** (interfaces) y el shared kernel.
@@ -117,8 +137,8 @@ Frontera fijada por los tests unitarios de application en
 
 ## Qué vendrá después (no ahora)
 
-`release`/`start`/`complete` (resto del lifecycle), M10 route-events y M11
-(guard de capa y closeout) **no están iniciados**. GET/POST/location/time-windows
+`release`/`start`/`complete` (resto del lifecycle) y M11 (guard de capa y
+closeout) **no están iniciados**. GET/POST/location/time-windows
 de field visits permanecen fuera de M09 y se difieren al thin-route M15. Cada
 puerto nuevo se introduce junto con su primer consumidor real — nunca como
 interfaz vacía anticipada.
