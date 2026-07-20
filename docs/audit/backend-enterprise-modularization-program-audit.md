@@ -738,9 +738,24 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > parcial, sin máquina de estados ni side-effects nuevos. La asignación manual
 > mediante route stops y la automática mediante generación heurística ya fueron
 > cubiertas por M08 y M07. `GET /`, `POST /`, location y time-windows permanecen
-> fuera; `db-logistics.ts`, schema y transacciones siguen intactos. M10+ — no
-> iniciado. Detalle en
+> fuera; `db-logistics.ts`, schema y transacciones siguen intactos. Detalle en
 > [`docs/implementation/m09-logistics-field-visit-status-use-case.md`](../implementation/m09-logistics-field-visit-status-use-case.md).
+>
+> **M10 — implementado / pendiente de merge (scope acotado por autorización).**
+> Los cuatro handlers de datos de `logistics-route-events` delegan en
+> `create-route-event.ts` (append explícito de `POST /`) y en
+> `route-events-read-use-cases.ts` (`listRouteEvents`, `listRoutePlanEvents`,
+> `pollRouteEvents`), mediante los puertos mínimos
+> `LogisticsRouteEventWriteRepository` y `LogisticsRouteEventsReadRepository`.
+> `OPTIONS` permanece íntegramente en Fastify. **No se agregó ningún productor
+> automático de eventos** (lifecycle, stop status, field-visit status,
+> heurística, `no_show`) ni event bus, outbox, retry, deduplicación,
+> idempotency keys u optimistic locking. El orden append → `writeAuditLog`, el
+> 404 sobre resultado ausente, la paginación, el cursor y la serialización
+> permanecen en la ruta; `db-logistics.ts`, schema y transacciones siguen
+> intactos. El mismatch preexistente `routePlanId`/`routeStopId` queda
+> documentado como deuda, no corregido. **M11 — pendiente.** Detalle en
+> [`docs/implementation/m10-logistics-route-events-use-cases.md`](../implementation/m10-logistics-route-events-use-cases.md).
 >
 > Estas anotaciones son status, no alteran el conteo recomendado, riesgos, grafo,
 > invariantes ni conclusiones.

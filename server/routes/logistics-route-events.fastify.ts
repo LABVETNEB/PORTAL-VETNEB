@@ -29,6 +29,10 @@ import {
   type AuditWriteInput,
 } from "../lib/audit.ts";
 import {
+  createCreateRouteEvent,
+  createRouteEventsReadUseCases,
+} from "../features/logistics/application/index.ts";
+import {
   getClinicPermissions,
   normalizeClinicUserRole,
 } from "../lib/permissions.ts";
@@ -726,6 +730,19 @@ export const logisticsRouteEventsNativeRoutes: FastifyPluginAsync<
       (async () => undefined),
   };
 
+  // Adaptadores M10: append explícito y las tres lecturas de eventos de ruta.
+  // Se componen una sola vez por registro del plugin desde el seam de deps ya
+  // resuelto (no por request). La carga default desde db-logistics.ts sigue
+  // viviendo en loadDefaultDeps; audit, serialización y HTTP siguen en la ruta.
+  const createRouteEvent = createCreateRouteEvent({
+    createRouteEvent: deps.createRouteEvent,
+  });
+  const routeEventsRead = createRouteEventsReadUseCases({
+    listClinicRouteEvents: deps.listClinicRouteEvents,
+    listRouteEventsForClinicRoutePlan: deps.listRouteEventsForClinicRoutePlan,
+    listIncrementalClinicRouteEvents: deps.listIncrementalClinicRouteEvents,
+  });
+
   const now = options.now ?? (() => Date.now());
   const allowedOrigins = new Set(getAllowedOrigins());
 
@@ -798,7 +815,7 @@ export const logisticsRouteEventsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const routeEvents = await deps.listClinicRouteEvents(parsed.params);
+    const routeEvents = await routeEventsRead.listRouteEvents(parsed.params);
 
     return reply.code(200).send({
       success: true,
@@ -838,7 +855,7 @@ export const logisticsRouteEventsNativeRoutes: FastifyPluginAsync<
 
     const afterId = parseAfterId(request.query.afterId);
     const limit = parsePositiveInt(request.query.limit, 50, 100);
-    const routeEvents = await deps.listIncrementalClinicRouteEvents(
+    const routeEvents = await routeEventsRead.pollRouteEvents(
       auth.clinicId,
       afterId,
       limit,
@@ -925,7 +942,7 @@ export const logisticsRouteEventsNativeRoutes: FastifyPluginAsync<
       offset: parseOffset(request.query.offset),
     };
 
-    const routeEvents = await deps.listRouteEventsForClinicRoutePlan(
+    const routeEvents = await routeEventsRead.listRoutePlanEvents(
       routePlanId,
       auth.clinicId,
       params,
@@ -978,7 +995,7 @@ export const logisticsRouteEventsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const routeEvent = await deps.createRouteEvent(parsed.input);
+    const routeEvent = await createRouteEvent(parsed.input);
 
     if (!routeEvent) {
       return reply.code(404).send({
