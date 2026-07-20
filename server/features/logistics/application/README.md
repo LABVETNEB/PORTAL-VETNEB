@@ -5,7 +5,9 @@
 > generación heurística, y en M08 con las escrituras de planes y stops
 > (create/update) y la cancelación de plan (lifecycle `cancel`). M09 agrega la
 > actualización clinic-scoped de field visits detrás del PATCH existente, y M10
-> el append explícito y las tres lecturas de route events.
+> el append explícito y las tres lecturas de route events. **M11 no agrega
+> código productivo**: cierra la capa con el guard global de frontera y el
+> contrato global de inventario de casos de uso.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
@@ -130,18 +132,53 @@ por `POST /`, sin event bus, outbox, retry, deduplicación ni idempotency keys.
   serialización permanecen en `routes`. La persistencia concreta permanece fuera
   de application.
 
-Frontera fijada por los tests unitarios de application en
-`test/unit/application/logistics/` y por los contratos de fuente
+Frontera fijada por el guard global
+`test/architecture/logistics-application-boundary-guard.test.ts` (M11), por los
+tests unitarios de application en `test/unit/application/logistics/` y por los
+contratos de fuente
 `test/integration/adapters/controllers/logistics-sla-routes-api.test.ts` y
 `logistics-route-plans-api.test.ts`.
 
+## Qué protege M11 (cierre de capa)
+
+M11 **no toca código productivo**: agrega dos contratos ejecutables que fijan lo
+que M06–M10 dejaron implícito.
+
+- **`test/architecture/logistics-application-boundary-guard.test.ts`** — guard
+  global de frontera. **Auto-descubre** recursivamente todos los `.ts` de esta
+  carpeta (incluido `ports/` y cualquier subdirectorio futuro): un caso de uso
+  nuevo queda cubierto sin registrarlo a mano. Es *default-deny*: sólo permite
+  imports que resuelvan **dentro de la capa** y el barrel público de dominio
+  `../domain/index.ts`; todo lo demás es violación, incluidos los `import type`.
+  `drizzle/schema` queda prohibido **también como tipo** — la capa habla con
+  tipos estructurales o del barrel de dominio, nunca con tipos de persistencia.
+  Cubre las cinco formas de import (`from`, `export … from`, `import()`,
+  `require()`, `import "…"`), ignora comentarios y literales, detecta
+  `process.*`, `fetch(` y accesos directos al filesystem, exige que los puertos
+  declaren contratos y no implementaciones, y fija que los consumidores runtime
+  importen la capa **por `index.ts`**, nunca por un archivo interno.
+- **`test/unit/application/logistics/logistics-application-use-case-suite-completeness.test.ts`**
+  — contrato global de inventario. **No es un runner agregador**: no importa ni
+  reejecuta los nueve tests unitarios (`pnpm test` ya los descubre por glob).
+  Verifica dinámicamente que cada módulo de caso de uso tenga test correlativo,
+  que no haya tests huérfanos, que cada factory pública del barrel pertenezca a
+  un módulo y esté cubierta por su test, que cada factory se componga
+  **exactamente una vez** en las rutas de Logistics, y que cada puerto esté
+  exportado como tipo, consumido por un caso de uso y referenciado por un test.
+
+Los nueve tests unitarios y los cuatro contratos de fuente de M06–M10 siguen
+intactos: el guard global los **subsume**, no los reemplaza.
+
 ## Qué vendrá después (no ahora)
 
-`release`/`start`/`complete` (resto del lifecycle) y M11 (guard de capa y
-closeout) **no están iniciados**. GET/POST/location/time-windows
-de field visits permanecen fuera de M09 y se difieren al thin-route M15. Cada
-puerto nuevo se introduce junto con su primer consumidor real — nunca como
-interfaz vacía anticipada.
+`release`/`start`/`complete` (resto del lifecycle) permanecen fuera de la capa y
+siguen usando el default del helper de lifecycle compartido.
+GET/POST/location/time-windows de field visits permanecen fuera de M09 y se
+difieren al thin-route M15. El siguiente milestone es **M12** (mover
+`db-logistics.ts` completo a `infrastructure`, transacciones intactas): el guard
+de M11 prohíbe `db-logistics` **por nombre de módulo**, de modo que sigue siendo
+correcto antes y después de ese move. Cada puerto nuevo se introduce junto con su
+primer consumidor real — nunca como interfaz vacía anticipada.
 
 ## Qué NO hacer
 

@@ -741,7 +741,8 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > fuera; `db-logistics.ts`, schema y transacciones siguen intactos. Detalle en
 > [`docs/implementation/m09-logistics-field-visit-status-use-case.md`](../implementation/m09-logistics-field-visit-status-use-case.md).
 >
-> **M10 — implementado / pendiente de merge (scope acotado por autorización).**
+> **M10 — implementado / cerrado al merge (#1506).** Squash SHA
+> `04e6681de8ee220f66f6c6049df36a6796314a55`. (Scope acotado por autorización.)
 > Los cuatro handlers de datos de `logistics-route-events` delegan en
 > `create-route-event.ts` (append explícito de `POST /`) y en
 > `route-events-read-use-cases.ts` (`listRouteEvents`, `listRoutePlanEvents`,
@@ -754,8 +755,32 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > 404 sobre resultado ausente, la paginación, el cursor y la serialización
 > permanecen en la ruta; `db-logistics.ts`, schema y transacciones siguen
 > intactos. El mismatch preexistente `routePlanId`/`routeStopId` queda
-> documentado como deuda, no corregido. **M11 — pendiente.** Detalle en
+> documentado como deuda, no corregido. Detalle en
 > [`docs/implementation/m10-logistics-route-events-use-cases.md`](../implementation/m10-logistics-route-events-use-cases.md).
+>
+> **M11 — implementado / pendiente de merge (scope acotado por autorización).**
+> Cierre de capa **sin cambios runtime**: no se tocó ningún archivo productivo
+> de `server/**`, ni `package.json`, scripts, dependencias o CI. Se agregan dos
+> contratos ejecutables sobre el patrón existente (`node:test` + lectura de
+> fuente, sin dependencias nuevas): el guard global de frontera
+> `test/architecture/logistics-application-boundary-guard.test.ts`, que
+> auto-descubre recursivamente `server/features/logistics/application/**` en
+> lugar de fijar listas literales por milestone y es *default-deny* (sólo
+> permite imports internos a la capa y el barrel `domain/index.ts`, prohibiendo
+> `drizzle/schema` incluso como tipo, y exigiendo consumo por el barrel
+> `application/index.ts`); y el contrato global de inventario
+> `test/unit/application/logistics/logistics-application-use-case-suite-completeness.test.ts`,
+> que **no reejecuta** los nueve tests unitarios (`pnpm test` ya los descubre
+> por glob) sino que verifica dinámicamente el mapeo módulo↔test, la ausencia de
+> tests huérfanos, la cobertura y composición única de cada factory pública, y
+> el respaldo de cada puerto. Cero violaciones productivas detectadas. Los nueve
+> tests unitarios de M06–M10, los cuatro contratos de fuente,
+> `audit-suite-completeness` y `security-boundary-suite-completeness` quedan
+> intactos. Detalle en
+> [`docs/implementation/m11-logistics-application-phase-closeout.md`](../implementation/m11-logistics-application-phase-closeout.md).
+>
+> **Fase B implementada / pendiente del merge de M11.** **M12 — pendiente**
+> (mover `db-logistics.ts` completo a `infrastructure`, transacciones intactas).
 >
 > Estas anotaciones son status, no alteran el conteo recomendado, riesgos, grafo,
 > invariantes ni conclusiones.
