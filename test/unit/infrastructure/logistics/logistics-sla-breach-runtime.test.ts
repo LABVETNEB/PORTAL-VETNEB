@@ -17,7 +17,9 @@ test("SLA breach runtime DB-wired entrypoint imports DB helper lazily and delega
 
   assert.match(
     slaBreachDbSource,
-    /const\s+\{\s*markOverdueActiveClinicSlaInstancesBreached\s*\}\s*=\s*await\s+import\(\s*"\.\.\/\.\.\/\.\.\/db-logistics\.ts"\s*\)/,
+    // M12: la persistencia canónica vive en la misma capa infrastructure; el
+    // adaptador ya no consume el shim raíz `server/db-logistics.ts`.
+    /const\s+\{\s*markOverdueActiveClinicSlaInstancesBreached\s*\}\s*=\s*await\s+import\(\s*"\.\/db-logistics\.ts"\s*\)/,
   );
 
   assert.match(

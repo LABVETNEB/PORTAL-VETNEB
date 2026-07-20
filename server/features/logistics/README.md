@@ -4,7 +4,10 @@
 > docs-only en ARCH-4; **desde ARCH-5 contiene código real** en `domain/` y, desde
 > M02b, también en `infrastructure/`.
 > **Origen:** [ARCH-1](../../../docs/audit/repository-domain-architecture-audit.md) · [ARCH-2](../../../docs/architecture/backend-boundary-adr.md) · [ARCH-3](../../../docs/architecture/shared-lib-boundary-inventory.md).
-> **ID:** ARCH-4 (shell) → ARCH-5/7/8 (domain) → M02b (time-window + SLA) → M03 (route-planning) → M04 (metrics) → **M05 (cierre de Fase A)**.
+> **ID:** ARCH-4 (shell) → ARCH-5/7/8 (domain) → M02b (time-window + SLA) → M03 (route-planning) → M04 (metrics) → **M05 (cierre de Fase A)** → M06–M10 (casos de uso) → **M11 (cierre de Fase B)** → **M12 (Fase C: persistencia canónica en `infrastructure/`)**.
+>
+> **Estado:** Fase A **cerrada** (M05) · Fase B **cerrada** (M11, PR #1507 merged) ·
+> Fase C **iniciada por M12** (implementado / pendiente de merge).
 
 Este directorio es la **frontera** del contexto Logistics. Declara las reglas de
 dependencia del ADR ([ARCH-2](../../../docs/architecture/backend-boundary-adr.md))
@@ -14,13 +17,19 @@ y ya aloja código migrado, capa por capa, detrás de contratos con tests verdes
   normalización de visitas heurísticas, ventanas de tiempo, el núcleo puro de
   breach de SLA, la heurística de planificación de rutas y las métricas puras de
   logística (`metrics.ts`).
-- **`infrastructure/`** — adaptador transitorio de DB para el breach de SLA
-  (`sla-breach-db.ts`).
-- **`application/`** y **`routes/`** — todavía sólo README (sin código).
+- **`infrastructure/`** — **persistencia canónica del contexto**
+  (`db-logistics.ts`, movida completa en M12 con las 7 transacciones intactas) y el
+  adaptador de DB para el breach de SLA (`sla-breach-db.ts`, que desde M12 consume el
+  canónico de su propia capa).
+- **`application/`** — casos de uso extraídos en M06–M10 y cerrados en M11.
+- **`routes/`** — todavía sólo README (sin código).
 
-El resto del runtime legacy sigue viviendo en `server/db-logistics.ts`,
-`server/lib/logistics-route-plans-cache.ts` y
-`server/routes/logistics-*.fastify.ts`. **M05 cierra la Fase A**: el namespace de
+El runtime legacy que queda fuera es `server/lib/logistics-route-plans-cache.ts`
+(cache adapter en **M13**) y `server/routes/logistics-*.fastify.ts` (thin routes en
+**M14–M16**, cierre en M17). `server/db-logistics.ts` **ya no es implementación**:
+desde M12 es un **shim de compatibilidad** que sólo re-exporta
+`features/logistics/infrastructure/db-logistics.ts`, y se conserva únicamente porque
+esas rutas legacy siguen importándolo. **M05 cierra la Fase A**: el namespace de
 dominio legacy `server/lib/logistics/` queda **retirado** (cero archivos
 versionados y directorio ausente en un checkout limpio, garantizado por el guard
 endurecido); todo consumidor externo del dominio lo hace por el barrel público. M05
@@ -43,11 +52,13 @@ Su superficie actual es:
   `route-planning`, `metrics`), consumido por el resto del backend a través del
   barrel `domain/index.ts`. `metrics.ts` es cálculo puro con **cero imports**
   (ni siquiera tipos de `drizzle/schema.ts`); cero `fastify`, cero `db`.
-- **Adaptador de infraestructura** — `server/features/logistics/infrastructure/sla-breach-db.ts`
-  (transitorio): cablea el núcleo puro de SLA con `db-logistics.ts` vía import lazy.
-- **Persistencia + dominio mezclados (legacy, fuera de M02b)** — `server/db-logistics.ts`
-  (~1.322 LOC). Único `db-*` que delega en helpers de dominio (`time-window`,
-  `route-planning`); candidato natural a repositorio del contexto en M12.
+- **Persistencia canónica (M12)** — `server/features/logistics/infrastructure/db-logistics.ts`
+  (**1.291 LOC** medidos en HEAD `101731d`; 7 transacciones intactas). Único `db-*`
+  que delega en helpers de dominio (`time-window`, `route-planning`), ahora vía
+  `../domain/index.ts`. `server/db-logistics.ts` queda como **shim** temporal.
+- **Adaptador de infraestructura** — `server/features/logistics/infrastructure/sla-breach-db.ts`:
+  cablea el núcleo puro de SLA con la persistencia canónica de su misma capa vía
+  import lazy.
 - **Infra de contexto** — `server/lib/logistics-route-plans-cache.ts`.
 - **Adaptadores HTTP** — `server/routes/logistics-{route-plans,field-visits,route-events,sla}.fastify.ts`.
 
@@ -69,10 +80,11 @@ paginación, la normalización de visitas heurísticas, las ventanas de tiempo, 
 núcleo puro de SLA, la planificación de rutas y las métricas; `server/db-logistics.ts`
 y `server/routes/logistics-route-plans.fastify.ts` los consumen por el barrel.
 
-Lo que **aún es legacy** (fuera de alcance en la Fase A): `server/db-logistics.ts`
-(candidato a repositorio en **M12**), `server/lib/logistics-route-plans-cache.ts`
-(cache adapter en **M13**) y `server/routes/logistics-*.fastify.ts` (rutas delgadas
-en **M14–M17**).
+Tras **M12** la persistencia ya no es legacy: vive en
+`features/logistics/infrastructure/db-logistics.ts` y el root es sólo un shim. Lo que
+**aún es legacy**: `server/lib/logistics-route-plans-cache.ts` (cache adapter en
+**M13**, pendiente) y `server/routes/logistics-*.fastify.ts` (rutas delgadas en
+**M14–M16**, cierre en **M17**).
 
 Es una migración incremental y deliberada: se mueve código real capa por capa,
 detrás de los contratos por-ruta existentes y sólo con tests verdes.
@@ -117,7 +129,7 @@ verdes. Cada carpeta materializa código **sólo cuando hay algo real que la hab
   y 20 tipos; `server/routes/logistics-route-plans.fastify.ts` los consume por el barrel.
   `server/lib/logistics/metrics.ts` eliminado; `server/lib/logistics/` queda sin
   módulos de dominio.
-- **M05 (este PR) — cierre de Fase A** — closeout de arquitectura, tests y
+- **M05 — cierre de Fase A** — closeout de arquitectura, tests y
   documentación; **cero cambios runtime**. Certifica que `server/lib/logistics/` está
   retirado (cero archivos versionados, directorio ausente), que ningún import de
   `server/**` ni `test/**` apunta al dominio legacy y que el inventario mínimo del
@@ -125,17 +137,26 @@ verdes. Cada carpeta materializa código **sólo cuando hay algo real que la hab
   `test/architecture/logistics-domain-boundary-guard.test.ts` con tres contratos
   nuevos (inventario requerido como subconjunto, ausencia del directorio legacy,
   prohibición de imports legacy). No mueve `db-logistics.ts`, la cache ni las rutas.
-- **M06 (próximo) — Logistics application** — extraer el primer caso de uso (SLA
-  lectura/overdue) a `application/` con puertos mínimos, dejando el handler thin;
-  sólo cuando haya código real que lo habite. `M12/M13` (infra) y `M14–M17` (rutas)
-  permanecen futuros.
+- **M06–M10 (hechos) — Logistics application** — casos de uso extraídos a
+  `application/` con puertos mínimos, dejando los handlers thin.
+- **M11 (hecho) — cierre de Fase B** — closeout de la capa application (guard de
+  frontera + contrato global de inventario); cero cambios runtime.
+- **M12 (este PR) — apertura de Fase C** — move **completo** de
+  `server/db-logistics.ts` (1.291 LOC) a
+  `infrastructure/db-logistics.ts`, con las **7 transacciones intactas**, shim
+  documentado en el root, `sla-breach-db.ts` reapuntado al canónico y guard de
+  frontera nuevo (`test/architecture/logistics-infrastructure-boundary-guard.test.ts`).
+  Sin cambios de comportamiento, endpoints, schema ni migraciones.
+- **M13 (próximo)** — cache adapter para `server/lib/logistics-route-plans-cache.ts`.
+  `M14–M16` (thin routes) y `M17` (cierre de Logistics) permanecen futuros.
 
-## 5. Qué NO se mueve en la Fase A (incluido M05)
+## 5. Qué NO se mueve en M12
 
-- **No** mover `server/db-logistics.ts` (legacy; candidato a repositorio en M12).
 - **No** mover `server/lib/logistics-route-plans-cache.ts` (cache adapter en M13).
-- **No** tocar `server/routes/logistics-*.fastify.ts` (rutas delgadas en M14–M17).
-- **No** crear services vacíos ni puertos/interfaces vacíos (empieza en M06).
+- **No** tocar `server/routes/logistics-*.fastify.ts` (rutas delgadas en M14–M16).
+- **No** eliminar el shim `server/db-logistics.ts` mientras las rutas legacy lo
+  importen.
+- **No** reparticionar transacciones ni dividir el archivo canónico.
 - **No** introducir event bus.
 - **No** fragmentar `drizzle/schema.ts` ni tocar migraciones.
 - **No** cambiar auth/security/middlewares.
