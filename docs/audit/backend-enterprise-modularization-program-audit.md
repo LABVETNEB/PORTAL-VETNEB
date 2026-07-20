@@ -700,7 +700,7 @@ docs. *(M02b+M03 fusionables → mínima 40.)*
 lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10** UC route-events ·
 **M11** guard application + suite UCs + closeout de capa.
 
-> **Status de ejecución (2026-07-19):** **M06 — implementado / cerrado (#1502).**
+> **Status de ejecución (actualizado 2026-07-20):** **M06 — implementado / cerrado (#1502).**
 > Fase B iniciada: primer caso de uso de application materializado
 > (`server/features/logistics/application/list-overdue-active-sla-instances.ts`)
 > con puerto mínimo de lectura derivado del seam `LogisticsSlaNativeRoutesOptions`
@@ -758,7 +758,8 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > documentado como deuda, no corregido. Detalle en
 > [`docs/implementation/m10-logistics-route-events-use-cases.md`](../implementation/m10-logistics-route-events-use-cases.md).
 >
-> **M11 — implementado / pendiente de merge (scope acotado por autorización).**
+> **M11 — implementado / cerrado al merge (#1507).** Squash SHA `bb320297df290cb64249ddf4eba4209967b18cfc`.
+> (Scope acotado por autorización.)
 > Cierre de capa **sin cambios runtime**: no se tocó ningún archivo productivo
 > de `server/**`, ni `package.json`, scripts, dependencias o CI. Se agregan dos
 > contratos ejecutables sobre el patrón existente (`node:test` + lectura de
@@ -779,8 +780,12 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > intactos. Detalle en
 > [`docs/implementation/m11-logistics-application-phase-closeout.md`](../implementation/m11-logistics-application-phase-closeout.md).
 >
-> **Fase B implementada / pendiente del merge de M11.** **M12 — pendiente**
-> (mover `db-logistics.ts` completo a `infrastructure`, transacciones intactas).
+> **Fase B — cerrada al merge de M11 (#1507).** Evidencia final: PR #1507 MERGED
+> (squash SHA `bb320297df290cb64249ddf4eba4209967b18cfc`); CI final verde; `main`
+> sincronizado con `origin/main` y `origin/HEAD` en ese SHA; rama técnica
+> `test/backend-modularization-m11-logistics-application-phase-closeout` eliminada
+> local y remotamente; cero PRs abiertos. **M12 — pendiente** (mover
+> `db-logistics.ts` completo a `infrastructure`, transacciones intactas).
 >
 > Estas anotaciones son status, no alteran el conteo recomendado, riesgos, grafo,
 > invariantes ni conclusiones.
