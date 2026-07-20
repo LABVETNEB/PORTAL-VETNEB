@@ -1,8 +1,8 @@
 # M11 — Guard de frontera application, suite global de casos de uso y cierre de Fase B (Logistics)
 
-> Estado: **implementado / pendiente de merge**.
-> **Fase B implementada / pendiente del merge de M11.**
-> Ni M11 ni la Fase B están cerrados hasta que el PR esté fusionado y `main` verde.
+> Estado: **cerrado al merge (#1507)**. Squash SHA `bb320297df290cb64249ddf4eba4209967b18cfc`.
+> **Fase B cerrada al merge de M11 (#1507).**
+> M11 y la Fase B quedan cerrados: PR #1507 fusionado y `main` verde en ese SHA.
 
 ---
 
@@ -254,7 +254,7 @@ ese patrón. Verificado en verde tras el cambio.
 | Romper `audit-suite-completeness` o `security-boundary-suite-completeness` | ALTA | Basenames verificados contra ambos filtros; ambos censos ejecutados en verde |
 | Anclar la ubicación futura de infraestructura (adelantar M12) | ALTA | `db-logistics` se prohíbe por **nombre de módulo**, no por path: válido antes y después del move |
 | Dependencia de nombres frágiles / no cubrir UCs futuros | MEDIA | Discovery por `readdirSync` en ambos artefactos; cero listas cerradas de archivos |
-| Declarar cerrada la Fase B sin evidencia | ALTA | Formulación `implementado / pendiente de merge` en doc, README y rector |
+| Declarar cerrada la Fase B sin evidencia | ALTA | Cierre respaldado por evidencia post-merge real: PR #1507 MERGED (squash SHA `bb320297df290cb64249ddf4eba4209967b18cfc`), CI final verde, `main` sincronizado con `origin/main` y `origin/HEAD`, rama técnica `test/backend-modularization-m11-logistics-application-phase-closeout` eliminada local y remotamente, cero PRs abiertos |
 
 ## 12. Rollback
 
@@ -293,11 +293,13 @@ Contra el DoD por fase del rector §18:
 | Suite completa verde | ✅ `pnpm validate:local` PASSED |
 | Guard endurecido | ✅ guard global de frontera nuevo, con auto-discovery de la capa |
 | Sección de docs del contexto actualizada | ✅ `application/README.md` |
-| Anotación del estado real en la tabla §8 del rector | ✅ M10 corregido a `cerrado al merge (#1506)` con squash SHA; M11 y Fase B registrados |
+| Anotación del estado real en la tabla §8 del rector | ✅ M10 cerrado mediante PR #1506; M11 cerrado mediante PR #1507 (squash SHA `bb320297df290cb64249ddf4eba4209967b18cfc`); Fase B cerrada; M12 pendiente |
 
-**Formulación vigente hasta el merge:** M11 — `implementado / pendiente de merge`;
-**Fase B implementada / pendiente del merge de M11**. La fase no se declara cerrada en este
-documento.
+**Cierre confirmado:** M11 — `cerrado al merge (#1507)`, squash SHA `bb320297df290cb64249ddf4eba4209967b18cfc`;
+**Fase B cerrada**. Evidencia final: PR #1507 MERGED, CI final verde, `main` sincronizado
+con `origin/main` y `origin/HEAD` en ese SHA; rama técnica
+`test/backend-modularization-m11-logistics-application-phase-closeout` eliminada local y
+remotamente; cero PRs abiertos.
 
 ## 15. M12 — pendiente
 
@@ -309,6 +311,10 @@ nombre de módulo, lo que sigue siendo correcto después del move.
 
 ## 16. Estado final
 
-Diff de exactamente cinco paths: tres nuevos, dos modificados. Cero cambios runtime, cero
-cambios de manifiestos, dependencias y CI, denylist intacta, índice vacío, sin artefactos.
-Pendiente: revisión y merge por Nico.
+El PR técnico #1507 tuvo un diff de exactamente cinco paths: tres nuevos y dos modificados.
+Cero cambios runtime, de manifiestos, dependencias o CI; denylist intacta y sin artefactos.
+PR #1507 fue fusionado (squash SHA `bb320297df290cb64249ddf4eba4209967b18cfc`): M11 queda
+cerrado. **M12 — pendiente** (mover `db-logistics.ts` completo a `infrastructure`).
+
+Este closeout documental modifica únicamente los dos archivos Markdown allowlisted. No modifica
+runtime, tests, DB, frontend, dependencias ni CI.
