@@ -26,13 +26,14 @@ y la infraestructura (M12–M13):
 - **M15** — thin `logistics-field-visits` — **completado**.
 - **M16** — thin `logistics-route-events` + `logistics-sla` — **completado**.
 - **M17** — cierre integral de Logistics (retiro del shim legacy, regresión
-  contractual completa, docs) — **implementado / pendiente de merge**.
+  contractual completa, docs) — **mergeado (PR #1517)**.
 
-Las cuatro rutas están thin. **M17 no mueve ningún handler**: los handlers siguen
+Las cuatro rutas están thin. **M17 no movió ningún handler**: los handlers siguen
 registrados en `server/routes/` y esta carpeta `routes/` **continúa docs-only**
 (hoy no contiene código). Cada adelgazamiento extrajo casos de uso a `application`
 **detrás del contrato por-ruta existente**, sin cambiar paths ni contratos
-públicos. La Fase C queda **técnicamente completada / pendiente de merge**.
+públicos. **La Fase C queda cerrada.** El siguiente milestone del programa es
+**M18 (Pricing)**, no iniciado — no una migración adicional de Logistics.
 
 ## Qué NO hacer
 

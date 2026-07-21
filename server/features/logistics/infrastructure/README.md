@@ -106,13 +106,13 @@ de persistencia y el I/O real del contexto.
 
 ## Shims de compatibilidad fuera de la capa
 
-El shim raíz `server/db-logistics.ts` fue **retirado en M17** (*implementado /
-pendiente de merge*). Desde M14–M16 ninguna ruta productiva lo consumía
+El shim raíz `server/db-logistics.ts` fue **retirado en M17** (*mergeado, PR
+#1517*). Desde M14–M16 ninguna ruta productiva lo consumía
 (`logistics-route-plans` usa el adapter DB de esta capa; `logistics-field-visits`,
 `logistics-field-visits-db-adapter.ts`; `logistics-route-events` y `logistics-sla`,
 sus adapters M16), y tras M16 quedó **sin consumidores productivos**: los únicos
 imports restantes eran de **cinco** tests que sólo necesitaban sus **tipos**. M17
-retira el shim y realinea esos cinco tests al canónico de esta capa
+retiró el shim y realineó esos cinco tests al canónico de esta capa
 (`db-logistics.ts`, Opción B, `import type` sin cambio de símbolos ni runtime). La
 **única fuente de persistencia** de Logistics es ahora
 `server/features/logistics/infrastructure/db-logistics.ts`, con sus **siete
@@ -131,9 +131,9 @@ de frontera fija que el path retirado no se recree ni se importe.
 ## Qué vivirá aquí (futuro, no ahora)
 
 - Nada nuevo planificado para esta capa. **M17** (cierre de Logistics,
-  *implementado / pendiente de merge*) retiró el shim de `db-logistics` y completó
-  la regresión contractual; no añadió módulos aquí. La Fase C queda **técnicamente
-  completada / pendiente de merge**; **M18 (Pricing)** no iniciado.
+  *mergeado, PR #1517*) retiró el shim de `db-logistics` y completó
+  la regresión contractual; no añadió módulos aquí. **La Fase C queda cerrada**;
+  **M18 (Pricing)** es el siguiente milestone del programa, no iniciado.
 
 ## Qué NO hacer
 
