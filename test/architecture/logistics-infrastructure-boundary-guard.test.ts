@@ -26,6 +26,8 @@ const canonicalCacheFile = `${infrastructureDir}/logistics-route-plans-cache.ts`
 const cacheAdapterFile = `${infrastructureDir}/logistics-route-plans-cache-adapter.ts`;
 const dbAdapterFile = `${infrastructureDir}/logistics-route-plans-db-adapter.ts`;
 const fieldVisitsDbAdapterFile = `${infrastructureDir}/logistics-field-visits-db-adapter.ts`;
+const routeEventsDbAdapterFile = `${infrastructureDir}/logistics-route-events-db-adapter.ts`;
+const slaDbAdapterFile = `${infrastructureDir}/logistics-sla-db-adapter.ts`;
 const retiredCacheShimFile = "server/lib/logistics-route-plans-cache.ts";
 
 // Superficie de persistencia de field visits consumida por la ruta thin (M15):
@@ -38,6 +40,24 @@ const FIELD_VISITS_ADAPTER_OPERATIONS = [
   "upsertVisitLocationForClinicVisit",
   "createTimeWindowForClinicVisit",
   "listTimeWindowsForClinicVisit",
+] as const;
+
+// Superficie de persistencia de route events consumida por la ruta thin (M16):
+// el append explícito y las tres lecturas canónicas con call-site real.
+const ROUTE_EVENTS_ADAPTER_OPERATIONS = [
+  "createRouteEvent",
+  "listClinicRouteEvents",
+  "listRouteEventsForClinicRoutePlan",
+  "listIncrementalClinicRouteEvents",
+] as const;
+
+// Superficie de persistencia SLA consumida por la ruta thin (M16): las cuatro
+// operaciones canónicas con call-site real (tres lecturas M16 + overdue M06).
+const SLA_ADAPTER_OPERATIONS = [
+  "listActiveClinicSlaPolicies",
+  "listClinicSlaInstances",
+  "listOverdueActiveClinicSlaInstances",
+  "getClinicSlaSummary",
 ] as const;
 
 // Baseline R0 medido en HEAD 101731d, antes del move: `server/db-logistics.ts`
@@ -556,6 +576,130 @@ test("La ruta de field visits no importa canónicos de infraestructura ni refere
   );
 
   assert.deepEqual(violations, []);
+});
+
+// --- M16: adapters DB de route events y SLA; rutas thin ---
+
+function assertMinimalDbAdapter(
+  adapterFile: string,
+  factoryName: string,
+  expectedOperations: readonly string[],
+): void {
+  assert.equal(
+    existsSync(join(repoRoot, adapterFile)),
+    true,
+    `${adapterFile} debe existir tras M16 (superficie DB consumida por la ruta thin)`,
+  );
+
+  const source = readText(adapterFile);
+
+  assert.match(
+    source,
+    new RegExp(`^export function ${factoryName}\\b`, "m"),
+    `${adapterFile} debe exportar la factory ${factoryName}`,
+  );
+
+  // Composición mínima: sólo importa el DB canónico de su propia capa.
+  const specifiers = listImportSpecifiers(source);
+
+  assert.deepEqual(
+    Array.from(
+      new Set(
+        specifiers.map((specifier) => resolveSpecifier(adapterFile, specifier)),
+      ),
+    ),
+    [canonicalDbFile],
+    `${adapterFile} sólo puede importar ${canonicalDbFile}`,
+  );
+
+  // No re-implementa persistencia: sin Drizzle, sin transacciones propias.
+  assert.doesNotMatch(
+    source,
+    /db\.transaction\(|drizzle-orm/,
+    `${adapterFile} no puede contener queries ni transacciones propias`,
+  );
+
+  // Expone exactamente la superficie esperada como referencias directas, sin
+  // wrappers ni operaciones extra.
+  const factoryBody = source.match(
+    new RegExp(
+      `export function ${factoryName}\\(\\) \\{\\s*return \\{([\\s\\S]*?)\\};\\s*\\}`,
+    ),
+  );
+  assert.ok(
+    factoryBody,
+    `${adapterFile} debe retornar un objeto literal de referencias directas`,
+  );
+
+  const returnedOperations = (factoryBody?.[1] ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+    .sort();
+
+  assert.deepEqual(
+    returnedOperations,
+    [...expectedOperations].sort(),
+    `${adapterFile} debe exponer exactamente sus operaciones canónicas como referencias directas (sin wrappers)`,
+  );
+
+  // Ninguna referencia al shim raíz.
+  for (const specifier of specifiers) {
+    assert.notEqual(
+      resolveSpecifier(adapterFile, specifier),
+      rootShimFile,
+      `${adapterFile} no puede importar el shim raíz`,
+    );
+  }
+}
+
+function assertThinRouteHasNoDbLogistics(routeFile: string): void {
+  const routeSource = readText(routeFile);
+  const violations: string[] = [];
+
+  for (const specifier of listImportSpecifiers(routeSource)) {
+    const resolved = resolveSpecifier(routeFile, specifier);
+
+    if (resolved === canonicalDbFile || resolved === rootShimFile) {
+      violations.push(
+        `${routeFile}: import de db-logistics ("${specifier}")`,
+      );
+    }
+  }
+
+  // Refuerzo textual M16: ni siquiera referencias type-only o en comentarios al
+  // módulo db-logistics dentro de la ruta thin.
+  assert.doesNotMatch(
+    routeSource,
+    /db-logistics/,
+    `${routeFile} no puede contener ninguna referencia textual a db-logistics`,
+  );
+
+  assert.deepEqual(violations, []);
+}
+
+test("El adapter DB de route events (M16) compone el canónico de su capa sin reescribirlo", () => {
+  assertMinimalDbAdapter(
+    routeEventsDbAdapterFile,
+    "createLogisticsRouteEventsDbAdapter",
+    ROUTE_EVENTS_ADAPTER_OPERATIONS,
+  );
+});
+
+test("El adapter DB de SLA (M16) compone el canónico de su capa sin reescribirlo", () => {
+  assertMinimalDbAdapter(
+    slaDbAdapterFile,
+    "createLogisticsSlaDbAdapter",
+    SLA_ADAPTER_OPERATIONS,
+  );
+});
+
+test("La ruta de route events no importa canónicos de infraestructura ni referencia db-logistics (M16)", () => {
+  assertThinRouteHasNoDbLogistics("server/routes/logistics-route-events.fastify.ts");
+});
+
+test("La ruta de SLA no importa canónicos de infraestructura ni referencia db-logistics (M16)", () => {
+  assertThinRouteHasNoDbLogistics("server/routes/logistics-sla.fastify.ts");
 });
 
 test("El move de M12 conserva exactamente los call-sites transaccionales del baseline R0", () => {

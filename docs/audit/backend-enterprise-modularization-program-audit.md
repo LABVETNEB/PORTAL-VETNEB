@@ -899,8 +899,32 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > sin `db-logistics`). Cero cambios de endpoints, contratos HTTP, schema y
 > migraciones. Detalle en
 > [`docs/implementation/m15-logistics-field-visits-thin-route.md`](../implementation/m15-logistics-field-visits-thin-route.md).
-> **M16 — pendiente** (thin `logistics-route-events` + `logistics-sla`).
-> **Fase C no cerrada.**
+>
+> **Status M16 — implementado / pendiente de merge.** Thin
+> `logistics-route-events` + `logistics-sla`: ambas rutas dejan de referenciar
+> `db-logistics` (estática, dinámica, type-only y textualmente). En
+> route-events los cuatro handlers ya delegaban en los casos de uso M10
+> (intactos); M16 sólo reencamina los tipos y la carga default por el adapter
+> nuevo `logistics-route-events-db-adapter.ts` (4 ops + 3 tipos, referencias
+> directas al canónico M12), preservando la auditoría posterior al append en la
+> ruta. En SLA, `/overdue` sigue en el caso de uso M06 (intacto) y las tres
+> lecturas restantes (`/policies`, `/instances`, `/summary`) delegan en el
+> caso de uso nuevo `createSlaReadUseCases` sobre el puerto mínimo
+> `LogisticsSlaReadModelsRepository` (3 ops, genérico, cero imports); los tipos
+> y la carga default pasan por `logistics-sla-db-adapter.ts` (4 ops + 6 tipos).
+> Ambos adapters de infrastructure componen el canónico por referencias
+> directas, sin queries ni transacciones propias, sin importar el shim. El
+> canónico M12 permanece byte-idéntico con sus **7 transacciones**; el shim
+> `server/db-logistics.ts` **permanece intacto** (sin consumidores productivos
+> tras M16; retiro global en M17). Contratos realineados in-PR sin debilitar:
+> `logistics-route-events-api` (`dbLogistics.*` → `routeEventsDb.*`),
+> `logistics-sla-routes-api` (`dbLogistics.*` → `slaDb.*`, `deps.*` → `slaReads.*`
+> + `applicationFiles` extendida) y guard de infraestructura (2 adapters + 2
+> rutas sin `db-logistics`). Cero cambios de endpoints, contratos HTTP, schema
+> y migraciones. Detalle en
+> [`docs/implementation/m16-logistics-route-events-sla-thin-routes.md`](../implementation/m16-logistics-route-events-sla-thin-routes.md).
+> **M17 — pendiente** (cierre de Logistics: retiro del shim, regresión
+> contractual completa, docs). **Fase C no cerrada.**
 
 **M12** mover `db-logistics.ts` completo → infrastructure (tx intactas; shim documentado) ·
 **M13** cache adapter · **M14** thin `logistics-route-plans` · **M15** thin

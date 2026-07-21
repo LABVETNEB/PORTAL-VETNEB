@@ -1,6 +1,6 @@
 // Barrel público de la capa application de Logistics. Expone únicamente la
-// superficie ya materializada (M06-M10, M14 y M15); sin exports preventivos
-// para milestones futuros.
+// superficie ya materializada (M06-M10, M14, M15 y M16); sin exports
+// preventivos para milestones futuros.
 
 export {
   createListOverdueActiveSlaInstances,
@@ -10,6 +10,12 @@ export type {
   ListOverdueActiveSlaInstancesInput,
   LogisticsSlaReadRepository,
 } from "./ports/logistics-sla-read-repository.ts";
+
+export {
+  createSlaReadUseCases,
+  type SlaReadUseCases,
+} from "./sla-read-use-cases.ts";
+export type { LogisticsSlaReadModelsRepository } from "./ports/logistics-sla-read-models-repository.ts";
 
 export {
   createRoutePlansReadUseCases,

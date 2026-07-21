@@ -49,20 +49,140 @@ test("logistics SLA API wires DB helpers through injectable deps", () => {
   assert.match(routeSource, /listClinicSlaInstances\?:/);
   assert.match(routeSource, /getClinicSlaSummary\?:/);
   assert.match(routeSource, /listOverdueActiveClinicSlaInstances\?:/);
-  assert.match(routeSource, /dbLogistics\.listActiveClinicSlaPolicies/);
-  assert.match(routeSource, /dbLogistics\.listClinicSlaInstances/);
-  assert.match(routeSource, /dbLogistics\.getClinicSlaSummary/);
-  assert.match(routeSource, /dbLogistics\.listOverdueActiveClinicSlaInstances/);
-  assert.match(routeSource, /deps\.listActiveClinicSlaPolicies\(parsed\.params\)/);
-  assert.match(routeSource, /deps\.listClinicSlaInstances\(parsed\.params\)/);
-  assert.match(routeSource, /deps\.getClinicSlaSummary\(auth\.clinicId\)/);
+  assert.match(routeSource, /slaDb\.listActiveClinicSlaPolicies/);
+  assert.match(routeSource, /slaDb\.listClinicSlaInstances/);
+  assert.match(routeSource, /slaDb\.getClinicSlaSummary/);
+  assert.match(routeSource, /slaDb\.listOverdueActiveClinicSlaInstances/);
+  assert.match(routeSource, /slaReads\.listActivePolicies\(parsed\.params\)/);
+  assert.match(routeSource, /slaReads\.listInstances\(parsed\.params\)/);
+  assert.match(routeSource, /slaReads\.getSummary\(auth\.clinicId\)/);
+});
+
+test("M16 loads the default SLA persistence through the infrastructure adapter, not the shim", () => {
+  // Los seis tipos de I/O se importan del adapter de infrastructure (no del shim).
+  assert.match(
+    routeSource,
+    /import type \{\s*ClinicSlaSummary,\s*ListActiveClinicSlaPoliciesParams,\s*ListClinicSlaInstancesParams,\s*ListOverdueActiveClinicSlaInstancesParams,\s*SlaInstance,\s*SlaPolicy,\s*\} from "\.\.\/features\/logistics\/infrastructure\/logistics-sla-db-adapter\.ts";/,
+  );
+
+  // La carga default (lazy, dentro de loadDefaultDeps) compone la factory del
+  // adapter DB exactamente una vez.
+  const adapterComposition =
+    /const slaDb = \(\s*await import\(\s*"\.\.\/features\/logistics\/infrastructure\/logistics-sla-db-adapter\.ts"\s*\)\s*\)\.createLogisticsSlaDbAdapter\(\);/;
+  assert.match(routeSource, adapterComposition);
+  assert.equal(
+    routeSource.match(/createLogisticsSlaDbAdapter\(\)/g)?.length,
+    1,
+    "el adapter DB debe componerse exactamente una vez",
+  );
+
+  // Las cuatro operaciones de persistencia se cablean desde el adapter.
+  assert.match(
+    routeSource,
+    /listActiveClinicSlaPolicies: slaDb\.listActiveClinicSlaPolicies/,
+  );
+  assert.match(
+    routeSource,
+    /listClinicSlaInstances: slaDb\.listClinicSlaInstances/,
+  );
+  assert.match(
+    routeSource,
+    /listOverdueActiveClinicSlaInstances:\s*slaDb\.listOverdueActiveClinicSlaInstances/,
+  );
+  assert.match(routeSource, /getClinicSlaSummary: slaDb\.getClinicSlaSummary/);
+
+  // La carga default sigue siendo lazy dentro de loadDefaultDeps.
+  assert.match(routeSource, /async function loadDefaultDeps\(/);
+
+  // Refuerzo textual M16: cero referencias (estáticas, dinámicas, type-only o
+  // en comentarios) al módulo db-logistics dentro de la ruta thin.
+  assert.doesNotMatch(routeSource, /db-logistics/);
+});
+
+test("logistics SLA API delegates the three remaining reads to the M16 application use cases", () => {
+  // La ruta importa createSlaReadUseCases del barrel, junto al caso de uso M06.
+  assert.match(
+    routeSource,
+    /import \{\s*createListOverdueActiveSlaInstances,\s*createSlaReadUseCases,\s*\} from "\.\.\/features\/logistics\/application\/index\.ts";/,
+  );
+
+  // createSlaReadUseCases se compone exactamente una vez, con las tres deps.
+  const readsComposition =
+    /const slaReads = createSlaReadUseCases\(\{\s*listActiveClinicSlaPolicies: deps\.listActiveClinicSlaPolicies,\s*listClinicSlaInstances: deps\.listClinicSlaInstances,\s*getClinicSlaSummary: deps\.getClinicSlaSummary,\s*\}\);/;
+  assert.match(routeSource, readsComposition);
+  assert.equal(
+    routeSource.match(/createSlaReadUseCases\(/g)?.length,
+    1,
+    "createSlaReadUseCases debe componerse exactamente una vez",
+  );
+
+  // La composición M06 permanece intacta y también se compone una sola vez.
+  assert.match(
+    routeSource,
+    /const listOverdueActiveSlaInstances = createListOverdueActiveSlaInstances\(\{\s*listOverdueActiveClinicSlaInstances:\s*deps\.listOverdueActiveClinicSlaInstances,\s*\}\);/,
+  );
+  assert.equal(
+    routeSource.match(/createListOverdueActiveSlaInstances\(/g)?.length,
+    1,
+    "el caso de uso M06 debe componerse exactamente una vez",
+  );
+
+  // Las composiciones ocurren antes de registrar handlers.
+  const firstHandlerIndex = routeSource.indexOf("app.options(");
+  assert.ok(routeSource.search(readsComposition) < firstHandlerIndex);
+
+  // Los tres handlers delegan en los casos de uso M16.
+  assert.match(routeSource, /const summary = await slaReads\.getSummary\(auth\.clinicId\);/);
+  assert.match(
+    routeSource,
+    /const policies = await slaReads\.listActivePolicies\(parsed\.params\);/,
+  );
+  assert.match(
+    routeSource,
+    /const instances = await slaReads\.listInstances\(parsed\.params\);/,
+  );
+
+  // /overdue sigue delegando en el caso de uso M06.
+  assert.match(
+    routeSource,
+    /const instances = await listOverdueActiveSlaInstances\(parsed\.params\);/,
+  );
+
+  // Las tres operaciones ya no se invocan directamente vía deps dentro de los
+  // handlers: la única referencia legítima a deps.* de estas tres operaciones
+  // vive en la zona de composición del caso de uso M16.
+  assert.equal(
+    routeSource.match(/deps\.getClinicSlaSummary/g)?.length,
+    1,
+    "deps.getClinicSlaSummary sólo debe aparecer en la composición de slaReads",
+  );
+  assert.equal(
+    routeSource.match(/deps\.listActiveClinicSlaPolicies/g)?.length,
+    1,
+    "deps.listActiveClinicSlaPolicies sólo debe aparecer en la composición de slaReads",
+  );
+  assert.equal(
+    routeSource.match(/deps\.listClinicSlaInstances/g)?.length,
+    1,
+    "deps.listClinicSlaInstances sólo debe aparecer en la composición de slaReads",
+  );
+  assert.doesNotMatch(routeSource, /deps\.getClinicSlaSummary\(auth\.clinicId\)/);
+  assert.doesNotMatch(
+    routeSource,
+    /deps\.listActiveClinicSlaPolicies\(parsed\.params\)/,
+  );
+  assert.doesNotMatch(
+    routeSource,
+    /deps\.listClinicSlaInstances\(parsed\.params\)/,
+  );
 });
 
 test("logistics SLA API delegates overdue reads to the M06 application use case", () => {
-  // 1. La ruta importa el caso de uso desde el barrel de application.
+  // 1. La ruta importa el caso de uso M06 desde el barrel de application
+  //    (junto al caso de uso de lectura M16, en el mismo bloque de import).
   assert.match(
     routeSource,
-    /import \{ createListOverdueActiveSlaInstances \} from "\.\.\/features\/logistics\/application\/index\.ts";/,
+    /import \{[\s\S]*?\bcreateListOverdueActiveSlaInstances\b[\s\S]*?\} from "\.\.\/features\/logistics\/application\/index\.ts";/,
   );
 
   // 2. El puerto se adapta desde el seam LogisticsSlaNativeRoutesOptions
@@ -125,6 +245,8 @@ test("logistics SLA application layer stays free of HTTP and DB imports", () => 
     "server/features/logistics/application/index.ts",
     "server/features/logistics/application/list-overdue-active-sla-instances.ts",
     "server/features/logistics/application/ports/logistics-sla-read-repository.ts",
+    "server/features/logistics/application/sla-read-use-cases.ts",
+    "server/features/logistics/application/ports/logistics-sla-read-models-repository.ts",
   ] as const;
 
   const forbiddenSpecifierRules: Array<{ label: string; pattern: RegExp }> = [
@@ -163,7 +285,7 @@ test("logistics SLA application layer stays free of HTTP and DB imports", () => 
 test("logistics SLA API keeps reads clinic scoped and paginated", () => {
   assert.match(routeSource, /buildListSlaPoliciesParams\(request\.query, auth\.clinicId\)/);
   assert.match(routeSource, /buildListSlaInstancesParams\(request\.query, auth\.clinicId\)/);
-  assert.match(routeSource, /getClinicSlaSummary\(auth\.clinicId\)/);
+  assert.match(routeSource, /slaReads\.getSummary\(auth\.clinicId\)/);
   assert.match(routeSource, /clinicId,/);
   assert.match(routeSource, /parsePositiveInt\(query\.limit, 50, 100\)/);
   assert.match(routeSource, /parseOffset\(query\.offset\)/);

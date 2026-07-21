@@ -12,6 +12,9 @@
 > introducido junto con su primer consumidor real. **M15** agrega los casos de
 > uso restantes de field visits (listado, creación, ubicación y ventanas
 > horarias) con sus puertos mínimos, dejando thin la ruta de field visits.
+> **M16** agrega el caso de uso de lecturas SLA (`createSlaReadUseCases`:
+> políticas, instancias y summary) con su puerto mínimo, dejando thin la ruta de
+> SLA; route-events ya delegaba en M10 y no requiere código nuevo de esta capa.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
@@ -183,6 +186,31 @@ mensajes, serialización y paginación permanecen en la ruta. La carga default d
 persistencia de la ruta pasa por el adapter
 `infrastructure/logistics-field-visits-db-adapter.ts` (M15), no por esta capa.
 
+## Qué vive aquí (M16)
+
+- **`sla-read-use-cases.ts`** — `createSlaReadUseCases`: las **tres** lecturas
+  SLA que todavía tenían consumidor directo en los handlers de
+  `server/routes/logistics-sla.fastify.ts` — `listActivePolicies` (`/policies`),
+  `listInstances` (`/instances`) y `getSummary` (`/summary`). Cada método delega
+  exactamente una vez en el puerto de read models y devuelve su resultado por
+  identidad, sin defaults, parsing, serialización ni mutación, propagando el
+  error original. La lectura **overdue** queda fuera: la sirve el caso de uso
+  M06 (`createListOverdueActiveSlaInstances`), intacto y con su propio puerto.
+- **`ports/logistics-sla-read-models-repository.ts`** —
+  `LogisticsSlaReadModelsRepository`, genérico y estructural
+  (`TSlaPolicy`, `TSlaInstance`, `TSlaSummary`, `TListPoliciesParams`,
+  `TListInstancesParams`), con `clinicId: number` para summary. Cero imports,
+  cero `any`. Modela **sólo** las tres operaciones con consumidor real; no
+  incluye `listOverdueActiveClinicSlaInstances` (pertenece al puerto M06).
+
+La ruta compone `createSlaReadUseCases` **exactamente una vez** por registro del
+plugin, junto a la composición M06 intacta. La carga default de persistencia
+pasa por el adapter `infrastructure/logistics-sla-db-adapter.ts` (M16), no por
+esta capa. **M06 y M10 quedan intactos**: los casos de uso, puertos y tests de
+route events (M10) y de overdue (M06) no se tocan; M16 sólo agrega una interfaz
+nueva con **tres consumidores reales inmediatos** (los tres handlers), sin
+interfaces anticipadas.
+
 ## Regla de dependencia
 
 - **Puede importar:** `domain`, **puertos** (interfaces) y el shared kernel.
@@ -249,9 +277,13 @@ con su primer consumidor real (`createRoutePlansCacheUseCases`), adelgazó
 `logistics-route-plans` y retiró el shim del cache de `server/lib`. **M15**
 (mergeado en PR #1513) adelgazó `logistics-field-visits`: los seis handlers restantes delegan en
 los casos de uso de esta capa y la carga default pasa por el adapter DB de
-field visits. Los siguientes milestones son **M16** (thin route-events + SLA) y
-**M17** (cierre). Cada puerto nuevo se introduce junto con su primer consumidor
-real — nunca como interfaz vacía anticipada.
+field visits. **M16** (implementado / pendiente de merge) adelgazó
+`logistics-route-events` (ya delegaba en M10) y `logistics-sla`: las tres
+lecturas SLA restantes delegan en `createSlaReadUseCases` de esta capa, `/overdue`
+sigue en M06, y la carga default de ambas rutas pasa por sus adapters DB. El
+siguiente milestone es **M17** (cierre: retiro del shim, ya sin consumidores
+productivos, y regresión contractual completa). Cada puerto nuevo se introduce
+junto con su primer consumidor real — nunca como interfaz vacía anticipada.
 
 ## Qué NO hacer
 

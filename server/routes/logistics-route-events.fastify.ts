@@ -15,7 +15,7 @@ import type {
   CreateRouteEventInput,
   ListRouteEventsParams,
   RouteEvent,
-} from "../db-logistics.ts";
+} from "../features/logistics/infrastructure/logistics-route-events-db-adapter.ts";
 import {
   UNSAFE_METHODS,
   enforceTrustedOrigin,
@@ -114,7 +114,11 @@ async function loadDefaultDeps(): Promise<NativeLogisticsRouteEventsDeps> {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
-      const dbLogistics = await import("../db-logistics.ts");
+      const routeEventsDb = (
+        await import(
+          "../features/logistics/infrastructure/logistics-route-events-db-adapter.ts"
+        )
+      ).createLogisticsRouteEventsDbAdapter();
       const audit = await import("../lib/audit.ts");
 
       return {
@@ -123,12 +127,12 @@ async function loadDefaultDeps(): Promise<NativeLogisticsRouteEventsDeps> {
         getClinicUserById: db.getClinicUserById,
         updateSessionLastAccess: db.updateSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
-        createRouteEvent: dbLogistics.createRouteEvent,
-        listClinicRouteEvents: dbLogistics.listClinicRouteEvents,
+        createRouteEvent: routeEventsDb.createRouteEvent,
+        listClinicRouteEvents: routeEventsDb.listClinicRouteEvents,
         listRouteEventsForClinicRoutePlan:
-          dbLogistics.listRouteEventsForClinicRoutePlan,
+          routeEventsDb.listRouteEventsForClinicRoutePlan,
         listIncrementalClinicRouteEvents:
-          dbLogistics.listIncrementalClinicRouteEvents,
+          routeEventsDb.listIncrementalClinicRouteEvents,
         writeAuditLog: audit.writeAuditLog as (
           req: unknown,
           input: AuditWriteInput,
@@ -732,8 +736,8 @@ export const logisticsRouteEventsNativeRoutes: FastifyPluginAsync<
 
   // Adaptadores M10: append explícito y las tres lecturas de eventos de ruta.
   // Se componen una sola vez por registro del plugin desde el seam de deps ya
-  // resuelto (no por request). La carga default desde db-logistics.ts sigue
-  // viviendo en loadDefaultDeps; audit, serialización y HTTP siguen en la ruta.
+  // resuelto (no por request). La carga default de persistencia pasa por el
+  // adapter de infrastructure (M16); audit, serialización y HTTP siguen en la ruta.
   const createRouteEvent = createCreateRouteEvent({
     createRouteEvent: deps.createRouteEvent,
   });
