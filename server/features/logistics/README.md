@@ -4,11 +4,11 @@
 > docs-only en ARCH-4; **desde ARCH-5 contiene código real** en `domain/` y, desde
 > M02b, también en `infrastructure/`.
 > **Origen:** [ARCH-1](../../../docs/audit/repository-domain-architecture-audit.md) · [ARCH-2](../../../docs/architecture/backend-boundary-adr.md) · [ARCH-3](../../../docs/architecture/shared-lib-boundary-inventory.md).
-> **ID:** ARCH-4 (shell) → ARCH-5/7/8 (domain) → M02b (time-window + SLA) → M03 (route-planning) → M04 (metrics) → **M05 (cierre de Fase A)** → M06–M10 (casos de uso) → **M11 (cierre de Fase B)** → **M12 (Fase C: persistencia canónica en `infrastructure/`)** → **M13 (cache canónico en `infrastructure/`)**.
+> **ID:** ARCH-4 (shell) → ARCH-5/7/8 (domain) → M02b (time-window + SLA) → M03 (route-planning) → M04 (metrics) → **M05 (cierre de Fase A)** → M06–M10 (casos de uso) → **M11 (cierre de Fase B)** → **M12 (Fase C: persistencia canónica en `infrastructure/`)** → **M13 (cache canónico en `infrastructure/`)** → **M14 (thin `logistics-route-plans` + puerto de cache)**.
 >
 > **Estado:** Fase A **cerrada** (M05) · Fase B **cerrada** (M11, PR #1507 merged) ·
-> Fase C **en curso**: M12 **mergeado** (PR #1509) · M13 implementado / pendiente
-> de merge.
+> Fase C **en curso**: M12 **mergeado** (PR #1509) · M13 **mergeado** (PR #1511) ·
+> M14 implementado / pendiente de merge.
 
 Este directorio es la **frontera** del contexto Logistics. Declara las reglas de
 dependencia del ADR ([ARCH-2](../../../docs/architecture/backend-boundary-adr.md))
@@ -26,12 +26,15 @@ y ya aloja código migrado, capa por capa, detrás de contratos con tests verdes
 - **`application/`** — casos de uso extraídos en M06–M10 y cerrados en M11.
 - **`routes/`** — todavía sólo README (sin código).
 
-El runtime legacy que queda fuera es `server/routes/logistics-*.fastify.ts` (thin
-routes en **M14–M16**, cierre en M17). `server/db-logistics.ts` y
-`server/lib/logistics-route-plans-cache.ts` **ya no son implementación**: desde M12
-y M13 respectivamente son **shims de compatibilidad** que sólo re-exportan sus
-canónicos de `features/logistics/infrastructure/`, y se conservan únicamente porque
-esas rutas legacy siguen importándolos. **M05 cierra la Fase A**: el namespace de
+El runtime legacy que queda fuera son las rutas de field-visits, route-events y
+SLA (`server/routes/logistics-*.fastify.ts`, thin routes en **M15–M16**, cierre en
+M17); `logistics-route-plans` quedó thin en **M14** (cache vía puerto de
+application + adapter de infrastructure). `server/db-logistics.ts` **ya no es
+implementación**: desde M12 es un **shim de compatibilidad** que sólo re-exporta el
+canónico de `features/logistics/infrastructure/`, conservado únicamente porque las
+rutas legacy restantes siguen importándolo. El shim del cache
+(`server/lib/logistics-route-plans-cache.ts`) fue **retirado en M14** (su único
+consumidor productivo era la ruta de route plans). **M05 cierra la Fase A**: el namespace de
 dominio legacy `server/lib/logistics/` queda **retirado** (cero archivos
 versionados y directorio ausente en un checkout limpio, garantizado por el guard
 endurecido); todo consumidor externo del dominio lo hace por el barrel público. M05
@@ -61,11 +64,15 @@ Su superficie actual es:
 - **Adaptador de infraestructura** — `server/features/logistics/infrastructure/sla-breach-db.ts`:
   cablea el núcleo puro de SLA con la persistencia canónica de su misma capa vía
   import lazy.
-- **Cache canónico (M13)** — `server/features/logistics/infrastructure/logistics-route-plans-cache.ts`
-  (107 LOC, cero imports, 9 exports; move byte-idéntico).
-  `server/lib/logistics-route-plans-cache.ts` queda como **shim** temporal hasta M14.
-  Claves, TTL (5 min), invalidaciones y header `X-Logistics-Cache` sin cambios; la
-  construcción de claves y el header siguen en la ruta hasta M14.
+- **Cache canónico (M13) + adapter del puerto (M14)** —
+  `server/features/logistics/infrastructure/logistics-route-plans-cache.ts`
+  (107 LOC, cero imports, 9 exports; move byte-idéntico, intacto en M14) y
+  `logistics-route-plans-cache-adapter.ts`, que implementa por composición mínima
+  el puerto `LogisticsRoutePlansCacheRepository` de application. Claves, TTL
+  (5 min), invalidaciones y semántica HIT/MISS sin cambios; desde M14 la
+  construcción de claves y el read-through viven en el caso de uso de
+  application, y la ruta sólo escribe el header `X-Logistics-Cache` a partir del
+  `cacheStatus` retornado. El shim de `server/lib` fue retirado.
 - **Adaptadores HTTP** — `server/routes/logistics-{route-plans,field-visits,route-events,sla}.fastify.ts`.
 
 > **Nota (M01/ARCH-4 vs. código real):** el inventario ARCH-3 clasificaba
@@ -89,10 +96,11 @@ y `server/routes/logistics-route-plans.fastify.ts` los consumen por el barrel.
 Tras **M12** la persistencia ya no es legacy: vive en
 `features/logistics/infrastructure/db-logistics.ts` y el root es sólo un shim. Tras
 **M13** el cache tampoco: vive en
-`features/logistics/infrastructure/logistics-route-plans-cache.ts` y el path de
-`server/lib` es sólo un shim. Lo que **aún es legacy**:
-`server/routes/logistics-*.fastify.ts` (rutas delgadas en **M14–M16**, cierre en
-**M17**).
+`features/logistics/infrastructure/logistics-route-plans-cache.ts`; el shim de
+`server/lib` fue retirado en **M14**, cuando la ruta de route plans quedó thin y
+pasó a consumir el cache por puerto de application + adapter. Lo que **aún es
+legacy**: las rutas de field-visits, route-events y SLA (rutas delgadas en
+**M15–M16**, cierre en **M17**).
 
 Es una migración incremental y deliberada: se mueve código real capa por capa,
 detrás de los contratos por-ruta existentes y sólo con tests verdes.
@@ -155,14 +163,32 @@ verdes. Cada carpeta materializa código **sólo cuando hay algo real que la hab
   documentado en el root, `sla-breach-db.ts` reapuntado al canónico y guard de
   frontera nuevo (`test/architecture/logistics-infrastructure-boundary-guard.test.ts`).
   Sin cambios de comportamiento, endpoints, schema ni migraciones.
-- **M13 (este PR)** — move **byte-idéntico** de
+- **M13 (hecho, PR #1511)** — move **byte-idéntico** de
   `server/lib/logistics-route-plans-cache.ts` (107 LOC, cero imports, 9 exports) a
   `infrastructure/logistics-route-plans-cache.ts`, shim documentado en el path
   legacy, tests del cache reapuntados al canónico y guard de infraestructura
   extendido (pureza del cache, shim sólo-re-export, infra no consume el shim).
   TTL, claves, invalidaciones y semántica HIT/MISS sin cambios; la ruta
   productiva queda byte-idéntica. Sin puerto de cache anticipado.
-  `M14–M16` (thin routes) y `M17` (cierre de Logistics) permanecen futuros.
+- **M14 (este PR) — thin `logistics-route-plans`** — la ruta deja de orquestar el
+  cache directamente: se introduce el puerto opaco
+  `LogisticsRoutePlansCacheRepository` (application/ports) **junto con su primer
+  consumidor real**, el caso de uso `createRoutePlansCacheUseCases`
+  (read-through HIT/MISS de listado y métricas con las mismas claves, más las
+  invalidaciones exactas tras las siete mutaciones), implementado en
+  infrastructure por `logistics-route-plans-cache-adapter.ts` (composición mínima
+  sobre el cache canónico de M13, intacto). La ruta queda además **sin ninguna
+  referencia a `db-logistics`**: tipos y carga default llegan por
+  `logistics-route-plans-db-adapter.ts` (referencias directas al DB canónico de
+  M12, laziness preservada). La ruta conserva sólo HTTP: auth,
+  RBAC, clinic scoping, parsing, serialización pura vía callbacks
+  (`serializeSnapshot` síncrono, sin efectos), mapeo de status codes y escritura
+  de `X-Logistics-Cache` desde el `cacheStatus` retornado. El shim
+  `server/lib/logistics-route-plans-cache.ts` queda **retirado**; el shim
+  `server/db-logistics.ts` permanece sólo para las rutas de M15/M16. Cero
+  cambios de contrato HTTP, claves, TTL, invalidaciones, auth ni auditoría.
+  `M15–M16` (thin routes restantes) y `M17` (cierre de Logistics) permanecen
+  futuros.
 
 ## 5. Qué NO se mueve en M12
 

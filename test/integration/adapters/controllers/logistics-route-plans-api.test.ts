@@ -51,24 +51,26 @@ test("logistics route plans API wires route plan DB helpers through injectable d
   assert.match(routeSource, /getClinicScopedRoutePlan\?:/);
   assert.match(routeSource, /listClinicRoutePlans\?:/);
   assert.match(routeSource, /updateClinicScopedRoutePlan\?:/);
-  assert.match(routeSource, /dbLogistics\.createRoutePlan/);
-  assert.match(routeSource, /dbLogistics\.getClinicScopedRoutePlan/);
-  assert.match(routeSource, /dbLogistics\.listClinicRoutePlans/);
-  assert.match(routeSource, /dbLogistics\.updateClinicScopedRoutePlan/);
+  assert.match(routeSource, /routePlansDb\.createRoutePlan/);
+  assert.match(routeSource, /routePlansDb\.getClinicScopedRoutePlan/);
+  assert.match(routeSource, /routePlansDb\.listClinicRoutePlans/);
+  assert.match(routeSource, /routePlansDb\.updateClinicScopedRoutePlan/);
 });
 
 test("logistics route plans API wires route stop DB helpers through injectable deps", () => {
   assert.match(routeSource, /createRouteStopForClinicRoutePlan\?:/);
   assert.match(routeSource, /listRouteStopsForClinicRoutePlan\?:/);
   assert.match(routeSource, /updateClinicScopedRouteStop\?:/);
-  assert.match(routeSource, /dbLogistics\.createRouteStopForClinicRoutePlan/);
-  assert.match(routeSource, /dbLogistics\.listRouteStopsForClinicRoutePlan/);
-  assert.match(routeSource, /dbLogistics\.updateClinicScopedRouteStop/);
+  assert.match(routeSource, /routePlansDb\.createRouteStopForClinicRoutePlan/);
+  assert.match(routeSource, /routePlansDb\.listRouteStopsForClinicRoutePlan/);
+  assert.match(routeSource, /routePlansDb\.updateClinicScopedRouteStop/);
 });
 
 test("logistics route plans API keeps all route plan operations clinic scoped", () => {
   assert.match(routeSource, /clinicId: auth\.clinicId/);
-  assert.match(routeSource, /routePlansRead\.listRoutePlans\(params\)/);
+  // M14: el listado se resuelve vía el caso de uso de cache con params
+  // clinic-scoped construidos en la ruta.
+  assert.match(routeSource, /routePlansCache\.getRoutePlansListSnapshot\(\s*params,/);
   assert.match(routeSource, /routePlansRead\.getRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*\)/);
   assert.match(routeSource, /routePlansWrite\.updateRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*parsed\.input,\s*\)/);
 });
@@ -131,7 +133,7 @@ test("logistics route plans API wires lifecycle transition helper through inject
   assert.match(routeSource, /transitionClinicScopedRoutePlanStatus\?:/);
   assert.match(routeSource, /RoutePlanLifecycleAction/);
   assert.match(routeSource, /RoutePlanLifecycleTransitionResult/);
-  assert.match(routeSource, /dbLogistics\.transitionClinicScopedRoutePlanStatus/);
+  assert.match(routeSource, /routePlansDb\.transitionClinicScopedRoutePlanStatus/);
   // release/start/complete (fuera de M08) conservan la llamada directa a la dep
   // vía el default del helper de lifecycle.
   assert.match(routeSource, /deps\.transitionClinicScopedRoutePlanStatus\(\s*routePlanId,\s*clinicId,\s*action\s*\)/);
@@ -160,7 +162,7 @@ test("logistics route plans API wires heuristic generation through injectable de
   assert.match(routeSource, /GenerateHeuristicRoutePlanInput/);
   assert.match(routeSource, /GenerateHeuristicRoutePlanResult/);
   assert.match(routeSource, /generateHeuristicRoutePlan\?:/);
-  assert.match(routeSource, /dbLogistics\.generateHeuristicRoutePlan/);
+  assert.match(routeSource, /routePlansDb\.generateHeuristicRoutePlan/);
   assert.match(routeSource, /options\.generateHeuristicRoutePlan/);
 });
 
@@ -200,8 +202,12 @@ test("logistics route plans API exposes route compliance metrics endpoint", () =
   assert.match(routeSource, /RouteStopComplianceInput/);
   assert.match(routeSource, /buildRouteStopComplianceInputs/);
   assert.match(routeSource, /"\/:routePlanId\/metrics"/);
-  assert.match(routeSource, /routePlansRead\.getRoutePlan\(\s*routePlanId,\s*auth\.clinicId,\s*\)/);
-  assert.match(routeSource, /routePlansRead\.listRoutePlanStops\(\s*routePlanId,\s*auth\.clinicId,\s*\)/);
+  // M14: plan y stops clinic-scoped se resuelven dentro del caso de uso de
+  // cache; el cálculo puro de métricas sigue en el serializer de la ruta.
+  assert.match(
+    routeSource,
+    /routePlansCache\.getRoutePlanMetricsSnapshot\(\s*\{\s*clinicId: auth\.clinicId,\s*routePlanId,/,
+  );
   assert.match(routeSource, /metrics: calculateRouteStopComplianceMetrics\(metricInputs\.inputs\)/);
 });
 
@@ -274,17 +280,18 @@ test("logistics route plans API delegates read and heuristic flows to the M07 ap
     );
   }
 
-  // Los handlers delegan en los casos de uso.
-  assert.match(routeSource, /await routePlansRead\.listRoutePlans\(params\)/);
+  // Los handlers delegan en los casos de uso. (Desde M14 el listado cacheado
+  // delega en el caso de uso de cache; detalle y stops siguen en routePlansRead.)
+  assert.match(routeSource, /await routePlansCache\.getRoutePlansListSnapshot\(/);
   assert.match(routeSource, /await routePlansRead\.getRoutePlan\(/);
   assert.match(routeSource, /routePlansRead\.listRoutePlanStops\(/);
   assert.match(routeSource, /await generateHeuristicRoutePlan\(parsed\.input\)/);
 
-  // 5. La carga default desde db-logistics sigue existiendo en el loader.
-  assert.match(routeSource, /dbLogistics\.listClinicRoutePlans/);
-  assert.match(routeSource, /dbLogistics\.getClinicScopedRoutePlan/);
-  assert.match(routeSource, /dbLogistics\.listRouteStopsForClinicRoutePlan/);
-  assert.match(routeSource, /dbLogistics\.generateHeuristicRoutePlan/);
+  // 5. La carga default sigue en el loader, desde M14 vía el adapter DB de infrastructure.
+  assert.match(routeSource, /routePlansDb\.listClinicRoutePlans/);
+  assert.match(routeSource, /routePlansDb\.getClinicScopedRoutePlan/);
+  assert.match(routeSource, /routePlansDb\.listRouteStopsForClinicRoutePlan/);
+  assert.match(routeSource, /routePlansDb\.generateHeuristicRoutePlan/);
 
   // Las escrituras (create/update de plan y stop) y el lifecycle cancel se
   // delegan en application a partir de M08; su contrato vive en el test dedicado.
@@ -335,7 +342,7 @@ test("logistics route plans API delegates write and cancel flows to the M08 appl
   // 1. La ruta importa los casos de uso de escritura y cancel desde el barrel.
   assert.match(
     routeSource,
-    /import \{\s*createCancelRoutePlan,\s*createGenerateHeuristicRoutePlan,\s*createRoutePlansReadUseCases,\s*createRoutePlansWriteUseCases,\s*createRouteStopsWriteUseCases,\s*\} from "\.\.\/features\/logistics\/application\/index\.ts";/,
+    /import \{\s*createCancelRoutePlan,\s*createGenerateHeuristicRoutePlan,\s*createRoutePlansCacheUseCases,\s*createRoutePlansReadUseCases,\s*createRoutePlansWriteUseCases,\s*createRouteStopsWriteUseCases,\s*\} from "\.\.\/features\/logistics\/application\/index\.ts";/,
   );
 
   // 2. Los tres adaptadores M08 se componen desde deps, una sola vez, antes de
@@ -399,12 +406,12 @@ test("logistics route plans API delegates write and cancel flows to the M08 appl
     /handleRoutePlanLifecycleAction\("(release|start|complete)", request, reply, /,
   );
 
-  // 6. La carga default desde db-logistics sigue existiendo en el loader.
-  assert.match(routeSource, /dbLogistics\.createRoutePlan/);
-  assert.match(routeSource, /dbLogistics\.updateClinicScopedRoutePlan/);
-  assert.match(routeSource, /dbLogistics\.createRouteStopForClinicRoutePlan/);
-  assert.match(routeSource, /dbLogistics\.updateClinicScopedRouteStop/);
-  assert.match(routeSource, /dbLogistics\.transitionClinicScopedRoutePlanStatus/);
+  // 6. La carga default sigue en el loader, desde M14 vía el adapter DB de infrastructure.
+  assert.match(routeSource, /routePlansDb\.createRoutePlan/);
+  assert.match(routeSource, /routePlansDb\.updateClinicScopedRoutePlan/);
+  assert.match(routeSource, /routePlansDb\.createRouteStopForClinicRoutePlan/);
+  assert.match(routeSource, /routePlansDb\.updateClinicScopedRouteStop/);
+  assert.match(routeSource, /routePlansDb\.transitionClinicScopedRoutePlanStatus/);
 });
 
 test("logistics route plans write/cancel application layer (M08) stays free of HTTP and DB imports", () => {
@@ -425,6 +432,131 @@ test("logistics route plans write/cancel application layer (M08) stays free of H
     { label: "drizzle/schema", pattern: /drizzle\/schema/ },
     { label: "server/lib", pattern: /(^|\/)lib\// },
     { label: "server/routes", pattern: /(^|\/)routes\// },
+  ];
+
+  const violations: string[] = [];
+
+  for (const file of applicationFiles) {
+    const source = readFileSync(resolve(process.cwd(), file), "utf8");
+    const specifiers = Array.from(
+      source.matchAll(
+        /\bfrom\s+["']([^"']+)["']|\brequire\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s+["']([^"']+)["']/g,
+      ),
+      (match) => match[1] ?? match[2] ?? match[3] ?? match[4] ?? "",
+    );
+
+    for (const specifier of specifiers) {
+      for (const { label, pattern } of forbiddenSpecifierRules) {
+        if (pattern.test(specifier)) {
+          violations.push(`${file}: ${label} ("${specifier}")`);
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(violations, []);
+});
+
+test("logistics route plans API delegates cache read-through and invalidation to the M14 application use case", () => {
+  // 1. La ruta compone el caso de uso de cache desde el barrel y el adapter de
+  //    infrastructure (nunca el shim legacy ni el cache canónico directo).
+  assert.match(routeSource, /createRoutePlansCacheUseCases,/);
+  assert.match(
+    routeSource,
+    /import \{ createLogisticsRoutePlansCacheAdapter \} from "\.\.\/features\/logistics\/infrastructure\/logistics-route-plans-cache-adapter\.ts";/,
+  );
+  assert.doesNotMatch(routeSource, /lib\/logistics-route-plans-cache\.ts/);
+  assert.doesNotMatch(
+    routeSource,
+    /infrastructure\/logistics-route-plans-cache\.ts/,
+  );
+  assert.doesNotMatch(
+    routeSource,
+    /getCachedRoutePlansSnapshot|setCachedRoutePlansSnapshot|clearRoutePlansCache|getCachedRoutePlanMetricsSnapshot|setCachedRoutePlanMetricsSnapshot|clearRoutePlanMetricsCache/,
+  );
+
+  // 1b. La ruta no referencia db-logistics de ninguna forma (estática, dinámica,
+  //     type-only o textual): tipos y carga default llegan por el adapter DB de
+  //     infrastructure. Bloquea también el acceso directo a símbolos del
+  //     canónico fuera del objeto del adapter.
+  assert.doesNotMatch(routeSource, /db-logistics/);
+  assert.match(
+    routeSource,
+    /} from "\.\.\/features\/logistics\/infrastructure\/logistics-route-plans-db-adapter\.ts";/,
+  );
+  assert.match(
+    routeSource,
+    /\)\s*\.createLogisticsRoutePlansDbAdapter\(\)/,
+  );
+
+  // 2. Composición única del caso de uso de cache, desde el seam de deps ya
+  //    resuelto, antes de registrar handlers.
+  const cacheCompositionPattern =
+    /const routePlansCache = createRoutePlansCacheUseCases\(\{\s*repository:\s*\{\s*listClinicRoutePlans:\s*deps\.listClinicRoutePlans,\s*getClinicScopedRoutePlan:\s*deps\.getClinicScopedRoutePlan,\s*listRouteStopsForClinicRoutePlan:\s*deps\.listRouteStopsForClinicRoutePlan,\s*\},\s*cache:\s*createLogisticsRoutePlansCacheAdapter<\s*RoutePlansListSnapshot,\s*RoutePlanMetricsSnapshot\s*>\(\),\s*now,\s*\}\);/;
+  assert.match(routeSource, cacheCompositionPattern);
+
+  const handlersStart = routeSource.indexOf("app.options(");
+  assert.ok(handlersStart > 0, "no se encontró la región de handlers");
+  assert.ok(
+    routeSource.search(cacheCompositionPattern) < handlersStart,
+    "la composición del caso de uso de cache debe ocurrir antes de los handlers",
+  );
+
+  // 3. La ruta escribe X-Logistics-Cache exclusivamente desde el cacheStatus
+  //    retornado por el caso de uso; en error/404 no hay cacheStatus ni header.
+  assert.match(
+    routeSource,
+    /markLogisticsCacheStatus\(reply, result\.cacheStatus\)/,
+  );
+  assert.doesNotMatch(routeSource, /markLogisticsCacheStatus\(reply, "HIT"\)/);
+  assert.doesNotMatch(routeSource, /markLogisticsCacheStatus\(reply, "MISS"\)/);
+
+  // 4. El serializer de métricas es puro: cierra sobre datos planos extraídos
+  //    de la query, valida tolerancias tras resolver el plan (404 precede al
+  //    400) y señaliza el rechazo con el error tipado que la ruta mapea a 400.
+  assert.match(routeSource, /const toleranceQuery = \{/);
+  assert.match(routeSource, /class MetricsToleranceValidationError extends Error/);
+  assert.match(
+    routeSource,
+    /if \(error instanceof MetricsToleranceValidationError\) \{\s*return reply\.code\(400\)\.send\(\{/,
+  );
+
+  // 5. Las siete mutaciones invalidan cache vía el caso de uso, con el mismo
+  //    alcance previo a M14 (heurística/PATCH plan/lifecycle = lista + métricas
+  //    del plan; create = sólo lista; stops = sólo métricas del plan).
+  assert.match(
+    routeSource,
+    /routePlansCache\.invalidateAfterRoutePlanMutation\(\s*auth\.clinicId,\s*result\.routePlan\.id,\s*\)/,
+  );
+  assert.match(
+    routeSource,
+    /routePlansCache\.invalidateAfterRoutePlanCreated\(auth\.clinicId\)/,
+  );
+  assert.match(
+    routeSource,
+    /routePlansCache\.invalidateAfterRoutePlanMutation\(auth\.clinicId, routePlanId\)/,
+  );
+  assert.match(
+    routeSource,
+    /routePlansCache\.invalidateAfterRouteStopMutation\(auth\.clinicId, routePlanId\)/,
+  );
+});
+
+test("logistics route plans cache application layer (M14) stays free of HTTP and DB imports", () => {
+  const applicationFiles = [
+    "server/features/logistics/application/route-plans-cache-use-cases.ts",
+    "server/features/logistics/application/ports/logistics-route-plans-cache-repository.ts",
+  ] as const;
+
+  const forbiddenSpecifierRules: Array<{ label: string; pattern: RegExp }> = [
+    { label: "fastify", pattern: /^fastify(\/|$)/ },
+    { label: "server/db-logistics", pattern: /db-logistics/ },
+    { label: "server/db", pattern: /(^|\/)db(\.ts)?$/ },
+    { label: "drizzle-orm", pattern: /^drizzle-orm(\/|$)/ },
+    { label: "drizzle/schema", pattern: /drizzle\/schema/ },
+    { label: "server/lib", pattern: /(^|\/)lib\// },
+    { label: "server/routes", pattern: /(^|\/)routes\// },
+    { label: "infrastructure", pattern: /(^|\/)infrastructure\// },
   ];
 
   const violations: string[] = [];

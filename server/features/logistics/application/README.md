@@ -7,7 +7,9 @@
 > actualización clinic-scoped de field visits detrás del PATCH existente, y M10
 > el append explícito y las tres lecturas de route events. **M11 no agrega
 > código productivo**: cierra la capa con el guard global de frontera y el
-> contrato global de inventario de casos de uso.
+> contrato global de inventario de casos de uso. **M14** agrega el caso de uso
+> de cache de route plans (read-through + invalidaciones) con su puerto opaco,
+> introducido junto con su primer consumidor real.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
@@ -120,6 +122,36 @@ paginación, `lastEventId`, serialización, el 404 sobre resultado ausente y
 ningún productor automático de eventos**: el append sigue provocado únicamente
 por `POST /`, sin event bus, outbox, retry, deduplicación ni idempotency keys.
 
+## Qué vive aquí (M14)
+
+- **`route-plans-cache-use-cases.ts`** — `createRoutePlansCacheUseCases`:
+  read-through de los dos GET cacheados de route plans y las invalidaciones
+  posteriores a las mutaciones reales. En lectura construye la misma clave que la
+  ruta previa a M14 (carácter por carácter, incluida la normalización de
+  tolerancias), consulta el puerto de cache y, en MISS, delega en el puerto de
+  lectura (`LogisticsRoutePlansReadRepository`, reutilizado de M07), ejecuta el
+  callback puro y síncrono `serializeSnapshot` provisto por la ruta y escribe el
+  snapshot con la misma marca de tiempo de la lectura. Retorna
+  `{ snapshot, cacheStatus: "HIT" | "MISS" }`; para métricas, un plan fuera del
+  scope retorna `{ reason: "route_plan_not_found" }` **sin** `cacheStatus`. En
+  error (repositorio o serializer) no hay `cache.set` y el error se propaga sin
+  envolver. Las invalidaciones exponen la semántica exacta previa:
+  `invalidateAfterRoutePlanCreated` (sólo listado),
+  `invalidateAfterRoutePlanMutation` (listado + métricas del plan: heurística,
+  PATCH de plan y lifecycle) e `invalidateAfterRouteStopMutation` (sólo métricas
+  del plan).
+- **`ports/logistics-route-plans-cache-repository.ts`** — puerto mínimo
+  `LogisticsRoutePlansCacheRepository`, genérico y **opaco sobre los snapshots**:
+  get/set de snapshot de listado y de métricas, invalidación de listado por
+  clínica y de métricas por plan. Sólo las operaciones con call-site real en M14;
+  la implementación vive en infrastructure
+  (`logistics-route-plans-cache-adapter.ts`, sobre el cache canónico de M13).
+
+La ruta conserva auth, RBAC, clinic scoping, parsing/validaciones HTTP, la
+serialización concreta (dentro del callback puro), el mapeo de errores a status
+codes y la escritura del header `X-Logistics-Cache` a partir del `cacheStatus`
+retornado. TTL, Maps y expiración siguen en infrastructure.
+
 ## Regla de dependencia
 
 - **Puede importar:** `domain`, **puertos** (interfaces) y el shared kernel.
@@ -180,11 +212,13 @@ intactas, dejando un shim en el root. Es **infraestructura de persistencia** y *
 cambia esta capa**: `application` sigue sin importar `db-*` — el guard de M11 lo
 prohíbe **por nombre de módulo**, de modo que sigue siendo correcto antes y después
 del move. **M13** movió el cache de route plans a
-`infrastructure/logistics-route-plans-cache.ts` (shim en `server/lib`), también sin
-tocar esta capa y **sin puerto de cache anticipado**: el puerto se definirá junto
-con su primer consumidor real cuando la ruta se adelgace en **M14**, el siguiente
-milestone. Cada puerto nuevo se introduce junto con su primer consumidor real —
-nunca como interfaz vacía anticipada.
+`infrastructure/logistics-route-plans-cache.ts`, también sin tocar esta capa y
+sin puerto de cache anticipado. **M14** (este PR) materializó ese puerto junto
+con su primer consumidor real (`createRoutePlansCacheUseCases`), adelgazó
+`logistics-route-plans` y retiró el shim del cache de `server/lib`. Los
+siguientes milestones son **M15–M16** (thin field-visits / route-events + SLA) y
+**M17** (cierre). Cada puerto nuevo se introduce junto con su primer consumidor
+real — nunca como interfaz vacía anticipada.
 
 ## Qué NO hacer
 

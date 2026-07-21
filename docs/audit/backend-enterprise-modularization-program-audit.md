@@ -812,7 +812,8 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > **M12 — mergeado** (PR #1509, squash SHA
 > `5c775b3cd6bd4cc33bbd7442dfe733f6f1169308`).
 >
-> **Status M13 — implementado / pendiente de merge.** Move **byte-idéntico** de
+> **Status M13 — mergeado** (PR #1511, squash SHA
+> `4fedeffa68dfa6a680beff602bda12b5a31abfbc`). Move **byte-idéntico** de
 > `server/lib/logistics-route-plans-cache.ts` →
 > `server/features/logistics/infrastructure/logistics-route-plans-cache.ts`
 > (**107 LOC**, cero imports, 9 exports, misma copia byte a byte verificada por
@@ -827,7 +828,41 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > consume el shim del cache). Cero cambios de endpoints, contratos HTTP, schema
 > y migraciones. Detalle en
 > [`docs/implementation/m13-logistics-cache-infrastructure-move.md`](../implementation/m13-logistics-cache-infrastructure-move.md).
-> **M14 — pendiente** (thin `logistics-route-plans`). **Fase C no cerrada.**
+>
+> **Status M14 — implementado / pendiente de merge.** Thin
+> `logistics-route-plans`: la ruta deja de importar y orquestar el cache
+> directamente. Se introduce el **puerto opaco**
+> `LogisticsRoutePlansCacheRepository` (application/ports) **junto con su primer
+> consumidor real** — el caso de uso `createRoutePlansCacheUseCases`
+> (read-through HIT/MISS del listado y de métricas con **claves reproducidas
+> carácter por carácter**, serialización delegada a un callback puro y síncrono
+> `serializeSnapshot` provisto por la ruta, sin `cache.set` ni `cacheStatus` en
+> error, y las **invalidaciones exactas** tras las siete mutaciones: heurística /
+> PATCH de plan / lifecycle = lista + métricas del plan; create = sólo lista;
+> stops = sólo métricas del plan) — implementado en infrastructure por el
+> adapter mínimo `logistics-route-plans-cache-adapter.ts` (composición sobre el
+> cache canónico de M13, **intacto**: mismas Maps, TTL 5 min, 9 exports, cero
+> imports). La ruta queda además **sin ninguna referencia a `db-logistics`**
+> (ni estática, ni dinámica, ni type-only): los 11 tipos de I/O y las 9
+> operaciones DB llegan por el adapter mínimo
+> `logistics-route-plans-db-adapter.ts` (referencias directas al canónico de
+> M12, laziness de `loadDefaultDeps` preservada). La ruta conserva sólo HTTP
+> (auth, RBAC, clinic scoping, parsing, mapeo de status codes y escritura de
+> `X-Logistics-Cache` desde el `cacheStatus` retornado); el 404 clinic-scoped
+> precede al 400 de tolerancias como antes. El shim
+> `server/lib/logistics-route-plans-cache.ts` queda **retirado** (su único
+> consumidor productivo era esta ruta); el shim `server/db-logistics.ts`
+> **permanece intacto** porque field-visits/route-events/SLA lo consumen hasta
+> M15/M16 (retiro global en M17). El guard de infraestructura fija la ausencia
+> del shim del cache, los contratos de ambos adapters y que la ruta no importe
+> canónicos ni referencie `db-logistics`. Contratos realineados in-PR sin
+> debilitar: `logistics-route-plans-api` (+2 tests M14, `dbLogistics.*` →
+> `routePlansDb.*`) y guard de infraestructura;
+> `logistics-route-plans-cache-runtime` pasa **sin cambiar expectativas** (R-07
+> mitigado). Cero cambios de endpoints, contratos HTTP, schema y migraciones.
+> Detalle en
+> [`docs/implementation/m14-logistics-route-plans-thin-route.md`](../implementation/m14-logistics-route-plans-thin-route.md).
+> **M15 — pendiente** (thin `logistics-field-visits`). **Fase C no cerrada.**
 
 **M12** mover `db-logistics.ts` completo → infrastructure (tx intactas; shim documentado) ·
 **M13** cache adapter · **M14** thin `logistics-route-plans` · **M15** thin
