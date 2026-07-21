@@ -1,5 +1,5 @@
 // Barrel público de la capa application de Logistics. Expone únicamente la
-// superficie ya materializada (M06-M10); sin exports preventivos para
+// superficie ya materializada (M06-M10 y M14); sin exports preventivos para
 // milestones futuros.
 
 export {
@@ -58,3 +58,13 @@ export {
   type RouteEventsReadUseCases,
 } from "./route-events-read-use-cases.ts";
 export type { LogisticsRouteEventsReadRepository } from "./ports/logistics-route-events-read-repository.ts";
+
+export {
+  createRoutePlansCacheUseCases,
+  type RoutePlanMetricsCacheKeyInput,
+  type RoutePlanMetricsCacheReadResult,
+  type RoutePlansCacheReadResult,
+  type RoutePlansCacheUseCases,
+  type RoutePlansListCacheKeyInput,
+} from "./route-plans-cache-use-cases.ts";
+export type { LogisticsRoutePlansCacheRepository } from "./ports/logistics-route-plans-cache-repository.ts";

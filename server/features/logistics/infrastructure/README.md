@@ -2,8 +2,9 @@
 
 > Capa **infrastructure** del contexto Logistics. **Contiene código** desde M02b
 > (adaptador de DB para el breach de SLA); desde **M12 (mergeado en PR #1509)**,
-> la **persistencia canónica** del contexto; y desde **M13**, el **cache de
-> route plans**.
+> la **persistencia canónica** del contexto; desde **M13 (mergeado en PR
+> #1511)**, el **cache de route plans**; y desde **M14**, el **adapter del
+> puerto de cache**.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
@@ -43,40 +44,57 @@ de persistencia y el I/O real del contexto.
   move **byte-idéntico** desde `server/lib/logistics-route-plans-cache.ts`
   (107 LOC, **cero imports**, 9 exports). In-memory puro (dos `Map` module-level),
   TTL de 5 minutos, expiración lazy, miss = `null`, invalidación completa y por
-  prefijo `clinic:`/`clinic:+plan:`. La **construcción de claves** y el header
-  `X-Logistics-Cache` (HIT/MISS) **no viven aquí**: pertenecen a
-  `server/routes/logistics-route-plans.fastify.ts` hasta M14. Sin puerto de
-  cache anticipado. La pureza (cero imports) y el shim quedan fijados por el
-  guard de frontera.
+  prefijo `clinic:`/`clinic:+plan:`. **Intacto en M14.** Desde M14 la
+  **construcción de claves** y el read-through viven en el caso de uso de cache
+  de application; el header `X-Logistics-Cache` (HIT/MISS) sigue perteneciendo a
+  `server/routes/logistics-route-plans.fastify.ts`. La pureza (cero imports)
+  queda fijada por el guard de frontera.
+- **`logistics-route-plans-cache-adapter.ts`** (M14) — **adapter del puerto de
+  cache**: implementa por composición mínima sobre el cache canónico (mismas
+  Maps, mismo TTL, sin estado propio) el puerto
+  `LogisticsRoutePlansCacheRepository` que define application, con conformidad
+  estructural (esta capa no importa `application`). La ruta lo compone una sola
+  vez al registrar el plugin. El guard fija que sólo importa el canónico y que
+  no declara Maps propias.
+- **`logistics-route-plans-db-adapter.ts`** (M14) — **adapter DB de la ruta
+  thin**: factory `createLogisticsRoutePlansDbAdapter()` con **referencias
+  directas** a las 9 operaciones del DB canónico consumidas por
+  `logistics-route-plans` (sin envolver resultados ni alterar signatures,
+  null/undefined, errores o transacciones) + re-export de los 11 tipos de I/O.
+  Desde la corrección M14, la ruta no contiene **ninguna** referencia a
+  `db-logistics`: sus tipos y su carga default (lazy, dentro de
+  `loadDefaultDeps`) llegan por este adapter. El guard fija que sólo importa
+  `./db-logistics.ts` y que no contiene queries ni transacciones propias.
 
 ## Shims de compatibilidad fuera de la capa
 
 `server/db-logistics.ts` queda como **shim temporal**: sólo re-exporta la superficie
 pública desde `./features/logistics/infrastructure/db-logistics.ts`. No importa
 Drizzle, ni `drizzle/schema.ts`, ni `server/db.ts`; no contiene funciones, queries ni
-transacciones, y no declara default export. Existe porque las rutas legacy
-`server/routes/logistics-*.fastify.ts` siguen importando `../db-logistics.ts`
-(estática y dinámicamente) hasta **M14–M16**; al cerrarse esa secuencia, el shim
-desaparece.
+transacciones, y no declara default export. Desde M14, `logistics-route-plans`
+**ya no lo consume** (usa el adapter DB de esta capa); el shim existe únicamente
+porque las rutas legacy restantes (field-visits, route-events, SLA) siguen
+importando `../db-logistics.ts` (estática y dinámicamente) hasta **M15–M16**. Su
+eliminación global sigue prevista para **M17**, o cuando desaparezca el último
+consumidor.
 
-`server/lib/logistics-route-plans-cache.ts` es, desde M13, el **shim del cache**:
-un único `export *` hacia el canónico de esta capa, sin lógica ni exports propios.
-Existe porque `server/routes/logistics-route-plans.fastify.ts` sigue importándolo
-hasta **M14**; al adelgazarse esa ruta, el shim desaparece.
+El **shim del cache** (`server/lib/logistics-route-plans-cache.ts`) fue
+**retirado en M14**: su único consumidor productivo era la ruta de route plans,
+que ahora consume el cache por el puerto de application y este adapter. El guard
+de frontera fija que el path retirado no se recree ni se importe.
 
-**Sin cambios de schema ni de migraciones**: M12 no toca `drizzle/schema.ts`,
+**Sin cambios de schema ni de migraciones**: M12–M14 no tocan `drizzle/schema.ts`,
 `drizzle/**`, `migrations/**`, endpoints ni contratos HTTP.
 
 ## Qué vivirá aquí (futuro, no ahora)
 
 - Nada nuevo planificado para esta capa: los siguientes milestones de la Fase C
-  (**M14–M16**, thin routes, y **M17**, cierre) adelgazan `server/routes/**` y
-  retiran los shims; no añaden módulos aquí.
+  (**M15–M16**, thin routes restantes, y **M17**, cierre) adelgazan
+  `server/routes/**` y retiran el shim de `db-logistics`; no añaden módulos aquí.
 
 ## Qué NO hacer
 
-No crear adaptadores vacíos. No introducir un puerto de cache anticipado (se
-define junto con su primer consumidor real en M14). No tocar
-`drizzle/schema.ts` ni migraciones. No reparticionar las transacciones del archivo
-canónico. No importar `application`, `routes` ni Fastify desde esta capa (el guard
-de frontera lo bloquea).
+No crear adaptadores vacíos. No reescribir el cache canónico ni duplicar su
+estado en el adapter. No tocar `drizzle/schema.ts` ni migraciones. No
+reparticionar las transacciones del archivo canónico. No importar `application`,
+`routes` ni Fastify desde esta capa (el guard de frontera lo bloquea).

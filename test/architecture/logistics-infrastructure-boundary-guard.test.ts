@@ -23,9 +23,9 @@ const rootShimFile = "server/db-logistics.ts";
 const canonicalSpecifierFromRoot =
   "./features/logistics/infrastructure/db-logistics.ts";
 const canonicalCacheFile = `${infrastructureDir}/logistics-route-plans-cache.ts`;
-const cacheShimFile = "server/lib/logistics-route-plans-cache.ts";
-const canonicalCacheSpecifierFromLib =
-  "../features/logistics/infrastructure/logistics-route-plans-cache.ts";
+const cacheAdapterFile = `${infrastructureDir}/logistics-route-plans-cache-adapter.ts`;
+const dbAdapterFile = `${infrastructureDir}/logistics-route-plans-db-adapter.ts`;
+const retiredCacheShimFile = "server/lib/logistics-route-plans-cache.ts";
 
 // Baseline R0 medido en HEAD 101731d, antes del move: `server/db-logistics.ts`
 // contenía exactamente 7 call-sites `db.transaction(`. M12 prohíbe
@@ -329,58 +329,131 @@ test("El cache canónico de M13 existe y es un módulo puro sin imports", () => 
   );
 });
 
-test("El shim legacy del cache sólo re-exporta la implementación canónica", () => {
+// --- M14: shim legacy del cache retirado y adapter del puerto de cache ---
+
+test("El shim legacy del cache fue retirado en M14 y ningún módulo lo referencia", () => {
   assert.equal(
-    existsSync(join(repoRoot, cacheShimFile)),
-    true,
-    `${cacheShimFile} debe existir mientras la ruta legacy lo importe (hasta M14)`,
+    existsSync(join(repoRoot, retiredCacheShimFile)),
+    false,
+    `${retiredCacheShimFile} fue retirado en M14 (la ruta consume el puerto de cache vía application); no debe recrearse`,
   );
 
-  const shimSource = readText(cacheShimFile);
-  const specifiers = listImportSpecifiers(shimSource);
-
-  assert.ok(
-    specifiers.length > 0,
-    `${cacheShimFile} debe re-exportar la superficie pública del cache`,
-  );
-
-  const offending = specifiers.filter(
-    (specifier) => specifier !== canonicalCacheSpecifierFromLib,
-  );
-
-  assert.deepEqual(
-    offending,
-    [],
-    `${cacheShimFile} sólo puede referenciar ${canonicalCacheSpecifierFromLib}`,
-  );
-
-  assert.match(
-    shimSource,
-    /export \* from "\.\.\/features\/logistics\/infrastructure\/logistics-route-plans-cache\.ts";/,
-    `${cacheShimFile} debe re-exportar toda la superficie con export *`,
-  );
-
-  assert.doesNotMatch(
-    shimSource,
-    /^export\s+(async\s+)?function\b/m,
-    `${cacheShimFile} no puede declarar funciones`,
-  );
-});
-
-test("Ningún archivo de Logistics infrastructure importa el shim legacy del cache", () => {
   const violations: string[] = [];
 
-  for (const file of walkTsFiles(infrastructureDir)) {
-    for (const specifier of listImportSpecifiers(readText(file))) {
-      if (resolveSpecifier(file, specifier) === cacheShimFile) {
-        violations.push(
-          `${file}: import al shim legacy del cache ("${specifier}" -> ${cacheShimFile}); usar ${canonicalCacheFile}`,
-        );
+  for (const scanDir of [infrastructureDir, "server/routes"]) {
+    for (const file of walkTsFiles(scanDir)) {
+      for (const specifier of listImportSpecifiers(readText(file))) {
+        if (resolveSpecifier(file, specifier) === retiredCacheShimFile) {
+          violations.push(
+            `${file}: import al shim retirado del cache ("${specifier}" -> ${retiredCacheShimFile})`,
+          );
+        }
       }
     }
   }
 
   assert.deepEqual(violations, []);
+});
+
+test("El adapter del puerto de cache (M14) compone el cache canónico sin reescribirlo", () => {
+  assert.equal(
+    existsSync(join(repoRoot, cacheAdapterFile)),
+    true,
+    `${cacheAdapterFile} debe existir tras M14 (implementación del puerto de cache de application)`,
+  );
+
+  const source = readText(cacheAdapterFile);
+
+  // Implementación real del puerto (factory), no un re-export.
+  assert.match(
+    source,
+    /^export function createLogisticsRoutePlansCacheAdapter\b/m,
+    `${cacheAdapterFile} debe exportar la factory del adapter`,
+  );
+
+  // Composición mínima: el adapter sólo importa el cache canónico de su capa.
+  const specifiers = listImportSpecifiers(source);
+
+  assert.deepEqual(
+    specifiers.map((specifier) => resolveSpecifier(cacheAdapterFile, specifier)),
+    [canonicalCacheFile],
+    `${cacheAdapterFile} sólo puede importar ${canonicalCacheFile}`,
+  );
+
+  // El adapter no re-implementa el cache: sin Maps propios ni TTL propio.
+  assert.doesNotMatch(
+    source,
+    /new\s+Map\s*[<(]/,
+    `${cacheAdapterFile} no puede declarar Maps propios (el estado vive en el cache canónico)`,
+  );
+});
+
+test("La ruta de route plans no importa los canónicos de infraestructura directamente (sólo los adapters)", () => {
+  const routeFile = "server/routes/logistics-route-plans.fastify.ts";
+  const routeSource = readText(routeFile);
+  const violations: string[] = [];
+
+  for (const specifier of listImportSpecifiers(routeSource)) {
+    const resolved = resolveSpecifier(routeFile, specifier);
+
+    if (resolved === canonicalCacheFile) {
+      violations.push(
+        `${routeFile}: import directo al cache canónico ("${specifier}"); usar el puerto de application y el adapter ${cacheAdapterFile}`,
+      );
+    }
+
+    if (resolved === canonicalDbFile || resolved === rootShimFile) {
+      violations.push(
+        `${routeFile}: import de db-logistics ("${specifier}"); usar el adapter ${dbAdapterFile}`,
+      );
+    }
+  }
+
+  // Refuerzo textual M14: ni siquiera referencias type-only o en comentarios al
+  // módulo db-logistics dentro de la ruta thin.
+  assert.doesNotMatch(
+    routeSource,
+    /db-logistics/,
+    `${routeFile} no puede contener ninguna referencia textual a db-logistics`,
+  );
+
+  assert.deepEqual(violations, []);
+});
+
+test("El adapter DB de route plans (M14) compone el canónico de su capa sin reescribirlo", () => {
+  assert.equal(
+    existsSync(join(repoRoot, dbAdapterFile)),
+    true,
+    `${dbAdapterFile} debe existir tras M14 (superficie DB consumida por la ruta thin)`,
+  );
+
+  const source = readText(dbAdapterFile);
+
+  assert.match(
+    source,
+    /^export function createLogisticsRoutePlansDbAdapter\b/m,
+    `${dbAdapterFile} debe exportar la factory del adapter DB`,
+  );
+
+  // Composición mínima: sólo importa el DB canónico de su propia capa.
+  const specifiers = listImportSpecifiers(source);
+
+  assert.deepEqual(
+    Array.from(
+      new Set(
+        specifiers.map((specifier) => resolveSpecifier(dbAdapterFile, specifier)),
+      ),
+    ),
+    [canonicalDbFile],
+    `${dbAdapterFile} sólo puede importar ${canonicalDbFile}`,
+  );
+
+  // No re-implementa persistencia: sin Drizzle, sin transacciones propias.
+  assert.doesNotMatch(
+    source,
+    /db\.transaction\(|drizzle-orm/,
+    `${dbAdapterFile} no puede contener queries ni transacciones propias`,
+  );
 });
 
 test("El move de M12 conserva exactamente los call-sites transaccionales del baseline R0", () => {

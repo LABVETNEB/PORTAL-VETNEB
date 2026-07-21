@@ -27,7 +27,7 @@ import type {
   RouteStop,
   UpdateRoutePlanInput,
   UpdateRouteStopInput,
-} from "../db-logistics.ts";
+} from "../features/logistics/infrastructure/logistics-route-plans-db-adapter.ts";
 import {
   UNSAFE_METHODS,
   enforceTrustedOrigin,
@@ -53,18 +53,12 @@ import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import {
   createCancelRoutePlan,
   createGenerateHeuristicRoutePlan,
+  createRoutePlansCacheUseCases,
   createRoutePlansReadUseCases,
   createRoutePlansWriteUseCases,
   createRouteStopsWriteUseCases,
 } from "../features/logistics/application/index.ts";
-import {
-  clearRoutePlanMetricsCacheByPlan,
-  clearRoutePlansCacheByClinic,
-  getCachedRoutePlanMetricsSnapshot,
-  getCachedRoutePlansSnapshot,
-  setCachedRoutePlanMetricsSnapshot,
-  setCachedRoutePlansSnapshot,
-} from "../lib/logistics-route-plans-cache.ts";
+import { createLogisticsRoutePlansCacheAdapter } from "../features/logistics/infrastructure/logistics-route-plans-cache-adapter.ts";
 
 type ActiveSessionRecord = {
   clinicUserId: number;
@@ -180,52 +174,10 @@ type RoutePlanMetricsSnapshot = {
   metrics: ReturnType<typeof calculateRouteStopComplianceMetrics>;
 };
 
-function serializeCacheValue(value: unknown): string {
-  if (typeof value === "string") {
-    return value.trim();
-  }
-
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return String(value);
-  }
-
-  return "";
-}
-
-function buildRoutePlansListCacheKey(input: {
-  clinicId: number;
-  status?: RoutePlanStatus;
-  planningMode?: RoutePlanningMode;
-  objective?: RoutePlanObjective;
-  limit: number;
-  offset: number;
-}): string {
-  return [
-    `clinic:${input.clinicId}`,
-    `status:${input.status ?? ""}`,
-    `planningMode:${input.planningMode ?? ""}`,
-    `objective:${input.objective ?? ""}`,
-    `limit:${input.limit}`,
-    `offset:${input.offset}`,
-  ].join("|");
-}
-
-function buildRoutePlanMetricsCacheKey(input: {
-  clinicId: number;
-  routePlanId: number;
-  distanceTolerancePercent?: unknown;
-  timeToleranceMin?: unknown;
-  toleranceMin?: unknown;
-}): string {
-  return [
-    `clinic:${input.clinicId}`,
-    `plan:${input.routePlanId}`,
-    `distanceTolerancePercent:${serializeCacheValue(input.distanceTolerancePercent)}`,
-    `timeToleranceMin:${serializeCacheValue(input.timeToleranceMin)}`,
-    `toleranceMin:${serializeCacheValue(input.toleranceMin)}`,
-  ].join("|");
-}
-
+// M14: la construcción de claves de cache (lista y métricas) vive en el caso
+// de uso de application (`route-plans-cache-use-cases.ts`), que reproduce las
+// claves previas carácter por carácter. La ruta conserva únicamente la
+// escritura del header X-Logistics-Cache a partir del cacheStatus retornado.
 function markLogisticsCacheStatus(
   reply: FastifyReply,
   cacheStatus: "HIT" | "MISS",
@@ -238,7 +190,11 @@ async function loadDefaultDeps(): Promise<NativeLogisticsRoutePlansDeps> {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
-      const dbLogistics = await import("../db-logistics.ts");
+      const routePlansDb = (
+        await import(
+          "../features/logistics/infrastructure/logistics-route-plans-db-adapter.ts"
+        )
+      ).createLogisticsRoutePlansDbAdapter();
       const audit = await import("../lib/audit.ts");
 
       return {
@@ -247,19 +203,19 @@ async function loadDefaultDeps(): Promise<NativeLogisticsRoutePlansDeps> {
         getClinicUserById: db.getClinicUserById,
         updateSessionLastAccess: db.updateSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
-        createRoutePlan: dbLogistics.createRoutePlan,
-        getClinicScopedRoutePlan: dbLogistics.getClinicScopedRoutePlan,
-        listClinicRoutePlans: dbLogistics.listClinicRoutePlans,
-        updateClinicScopedRoutePlan: dbLogistics.updateClinicScopedRoutePlan,
+        createRoutePlan: routePlansDb.createRoutePlan,
+        getClinicScopedRoutePlan: routePlansDb.getClinicScopedRoutePlan,
+        listClinicRoutePlans: routePlansDb.listClinicRoutePlans,
+        updateClinicScopedRoutePlan: routePlansDb.updateClinicScopedRoutePlan,
         createRouteStopForClinicRoutePlan:
-          dbLogistics.createRouteStopForClinicRoutePlan,
+          routePlansDb.createRouteStopForClinicRoutePlan,
         listRouteStopsForClinicRoutePlan:
-          dbLogistics.listRouteStopsForClinicRoutePlan,
+          routePlansDb.listRouteStopsForClinicRoutePlan,
         updateClinicScopedRouteStop:
-          dbLogistics.updateClinicScopedRouteStop,
+          routePlansDb.updateClinicScopedRouteStop,
         transitionClinicScopedRoutePlanStatus:
-          dbLogistics.transitionClinicScopedRoutePlanStatus,
-        generateHeuristicRoutePlan: dbLogistics.generateHeuristicRoutePlan,
+          routePlansDb.transitionClinicScopedRoutePlanStatus,
+        generateHeuristicRoutePlan: routePlansDb.generateHeuristicRoutePlan,
         writeAuditLog: audit.writeAuditLog as (
           req: unknown,
           input: AuditWriteInput,
@@ -1323,6 +1279,21 @@ function buildRouteStopComplianceInputs(
   };
 }
 
+// M14: la validación de tolerancias de métricas conserva su posición previa al
+// adelgazamiento (después de resolver plan y stops; el 404 clinic-scoped tiene
+// precedencia sobre el 400 de tolerancias). Como esa validación se ejecuta
+// dentro del serializer puro del caso de uso de cache, su rechazo se señaliza
+// con este error tipado, que el handler traduce a 400 sin cache.set y sin
+// escribir X-Logistics-Cache.
+class MetricsToleranceValidationError extends Error {
+  readonly validationError: string;
+
+  constructor(validationError: string) {
+    super(validationError);
+    this.validationError = validationError;
+  }
+}
+
 
 function getLifecycleActionError(
   result: RoutePlanLifecycleTransitionResult,
@@ -1476,8 +1447,8 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
 
   // Adaptadores M07: los puertos de lectura y de generación heurística de
   // application se construyen una sola vez por registro del plugin desde el seam
-  // de deps ya resuelto (no por request). La carga default desde db-logistics.ts
-  // sigue viviendo en loadDefaultDeps.
+  // de deps ya resuelto (no por request). La carga default vive en
+  // loadDefaultDeps, que desde M14 consume el adapter DB de infrastructure.
   const routePlansRead = createRoutePlansReadUseCases({
     listClinicRoutePlans: deps.listClinicRoutePlans,
     getClinicScopedRoutePlan: deps.getClinicScopedRoutePlan,
@@ -1505,6 +1476,27 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
   });
 
   const now = options.now ?? (() => Date.now());
+
+  // Adaptador M14: read-through e invalidación de cache de planes de ruta. El
+  // caso de uso coordina HIT/MISS, construye las mismas claves previas, delega
+  // en el puerto de lectura en MISS y escribe el snapshot serializado por la
+  // ruta (callback puro). El adaptador de infrastructure implementa el puerto
+  // sobre el cache canónico de M13 (mismas Maps, TTL e invalidaciones). Se
+  // compone una sola vez por registro del plugin desde el seam de deps ya
+  // resuelto.
+  const routePlansCache = createRoutePlansCacheUseCases({
+    repository: {
+      listClinicRoutePlans: deps.listClinicRoutePlans,
+      getClinicScopedRoutePlan: deps.getClinicScopedRoutePlan,
+      listRouteStopsForClinicRoutePlan: deps.listRouteStopsForClinicRoutePlan,
+    },
+    cache: createLogisticsRoutePlansCacheAdapter<
+      RoutePlansListSnapshot,
+      RoutePlanMetricsSnapshot
+    >(),
+    now,
+  });
+
   const allowedOrigins = new Set(getAllowedOrigins());
 
   app.addHook("onRequest", async (request, reply) => {
@@ -1606,8 +1598,10 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    clearRoutePlansCacheByClinic(auth.clinicId);
-    clearRoutePlanMetricsCacheByPlan(auth.clinicId, result.routePlan.id);
+    routePlansCache.invalidateAfterRoutePlanMutation(
+      auth.clinicId,
+      result.routePlan.id,
+    );
 
     return reply.code(201).send({
       success: true,
@@ -1679,49 +1673,35 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
     const limit = parsePositiveInt(request.query.limit, 50, 100);
     const offset = parseOffset(request.query.offset);
 
-    const params: ListRoutePlansParams = {
+    const params = {
       clinicId: auth.clinicId,
       status: status.value,
       planningMode: planningMode.value,
       objective: objective.value,
       limit,
       offset,
-    };
+    } satisfies ListRoutePlansParams;
 
-    const nowMs = now();
-    const cacheKey = buildRoutePlansListCacheKey({
-      clinicId: auth.clinicId,
-      status: status.value,
-      planningMode: planningMode.value,
-      objective: objective.value,
-      limit,
-      offset,
-    });
-    const cachedSnapshot =
-      getCachedRoutePlansSnapshot<RoutePlansListSnapshot>(cacheKey, nowMs);
+    // M14: read-through delegado al caso de uso de cache; la serialización del
+    // snapshot es un callback puro y síncrono sin acceso a request/reply.
+    const result = await routePlansCache.getRoutePlansListSnapshot(
+      params,
+      (routePlans): RoutePlansListSnapshot => ({
+        success: true,
+        count: routePlans.length,
+        routePlans: routePlans.map((routePlan) =>
+          serializeRoutePlan(routePlan),
+        ),
+        pagination: {
+          limit,
+          offset,
+        },
+      }),
+    );
 
-    if (cachedSnapshot) {
-      markLogisticsCacheStatus(reply, "HIT");
-      return reply.code(200).send(cachedSnapshot);
-    }
+    markLogisticsCacheStatus(reply, result.cacheStatus);
 
-    const routePlans = await routePlansRead.listRoutePlans(params);
-    const snapshot: RoutePlansListSnapshot = {
-      success: true,
-      count: routePlans.length,
-      routePlans: routePlans.map((routePlan) =>
-        serializeRoutePlan(routePlan),
-      ),
-      pagination: {
-        limit,
-        offset,
-      },
-    };
-
-    setCachedRoutePlansSnapshot(cacheKey, snapshot, nowMs);
-    markLogisticsCacheStatus(reply, "MISS");
-
-    return reply.code(200).send(snapshot);
+    return reply.code(200).send(result.snapshot);
   });
 
   app.post<{
@@ -1765,7 +1745,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    clearRoutePlansCacheByClinic(auth.clinicId);
+    routePlansCache.invalidateAfterRoutePlanCreated(auth.clinicId);
 
     return reply.code(201).send({
       success: true,
@@ -1879,8 +1859,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    clearRoutePlansCacheByClinic(auth.clinicId);
-    clearRoutePlanMetricsCacheByPlan(auth.clinicId, routePlanId);
+    routePlansCache.invalidateAfterRoutePlanMutation(auth.clinicId, routePlanId);
 
     return reply.code(200).send({
       success: true,
@@ -1922,64 +1901,67 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const nowMs = now();
-    const cacheKey = buildRoutePlanMetricsCacheKey({
-      clinicId: auth.clinicId,
-      routePlanId,
+    // M14: read-through delegado al caso de uso de cache. El serializer es un
+    // callback puro y síncrono que sólo cierra sobre datos planos ya extraídos
+    // de la query (sin request/reply/DB/cache/auth); se ejecuta únicamente en
+    // MISS con el plan clinic-scoped ya resuelto.
+    const toleranceQuery = {
       distanceTolerancePercent: request.query.distanceTolerancePercent,
       timeToleranceMin: request.query.timeToleranceMin,
       toleranceMin: request.query.toleranceMin,
-    });
-    const cachedSnapshot =
-      getCachedRoutePlanMetricsSnapshot<RoutePlanMetricsSnapshot>(
-        cacheKey,
-        nowMs,
-      );
+    };
 
-    if (cachedSnapshot) {
-      markLogisticsCacheStatus(reply, "HIT");
-      return reply.code(200).send(cachedSnapshot);
+    let result;
+
+    try {
+      result = await routePlansCache.getRoutePlanMetricsSnapshot(
+        {
+          clinicId: auth.clinicId,
+          routePlanId,
+          distanceTolerancePercent: toleranceQuery.distanceTolerancePercent,
+          timeToleranceMin: toleranceQuery.timeToleranceMin,
+          toleranceMin: toleranceQuery.toleranceMin,
+        },
+        ({ routePlan, routeStops }): RoutePlanMetricsSnapshot => {
+          const metricInputs = buildRouteStopComplianceInputs(
+            routeStops,
+            toleranceQuery,
+          );
+
+          if (!metricInputs.inputs) {
+            throw new MetricsToleranceValidationError(
+              metricInputs.error ?? "Query invalida",
+            );
+          }
+
+          return {
+            success: true,
+            routePlan: serializeRoutePlan(routePlan),
+            metrics: calculateRouteStopComplianceMetrics(metricInputs.inputs),
+          };
+        },
+      );
+    } catch (error) {
+      if (error instanceof MetricsToleranceValidationError) {
+        return reply.code(400).send({
+          success: false,
+          error: error.validationError,
+        });
+      }
+
+      throw error;
     }
 
-    const [routePlan, routeStops] = await Promise.all([
-      routePlansRead.getRoutePlan(
-        routePlanId,
-        auth.clinicId,
-      ),
-      routePlansRead.listRoutePlanStops(
-        routePlanId,
-        auth.clinicId,
-      ),
-    ]);
-
-    if (!routePlan) {
+    if ("reason" in result) {
       return reply.code(404).send({
         success: false,
         error: "Plan de ruta no encontrado",
       });
     }
-    const metricInputs = buildRouteStopComplianceInputs(
-      routeStops,
-      request.query,
-    );
 
-    if (!metricInputs.inputs) {
-      return reply.code(400).send({
-        success: false,
-        error: metricInputs.error ?? "Query invalida",
-      });
-    }
+    markLogisticsCacheStatus(reply, result.cacheStatus);
 
-    const snapshot: RoutePlanMetricsSnapshot = {
-      success: true,
-      routePlan: serializeRoutePlan(routePlan),
-      metrics: calculateRouteStopComplianceMetrics(metricInputs.inputs),
-    };
-
-    setCachedRoutePlanMetricsSnapshot(cacheKey, snapshot, nowMs);
-    markLogisticsCacheStatus(reply, "MISS");
-
-    return reply.code(200).send(snapshot);
+    return reply.code(200).send(result.snapshot);
   });
   app.get<{
     Params: {
@@ -2082,7 +2064,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    clearRoutePlanMetricsCacheByPlan(auth.clinicId, routePlanId);
+    routePlansCache.invalidateAfterRouteStopMutation(auth.clinicId, routePlanId);
 
     return reply.code(201).send({
       success: true,
@@ -2157,7 +2139,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    clearRoutePlanMetricsCacheByPlan(auth.clinicId, routePlanId);
+    routePlansCache.invalidateAfterRouteStopMutation(auth.clinicId, routePlanId);
 
     return reply.code(200).send({
       success: true,
@@ -2237,8 +2219,7 @@ export const logisticsRoutePlansNativeRoutes: FastifyPluginAsync<
       },
     });
 
-    clearRoutePlansCacheByClinic(auth.clinicId);
-    clearRoutePlanMetricsCacheByPlan(auth.clinicId, routePlanId);
+    routePlansCache.invalidateAfterRoutePlanMutation(auth.clinicId, routePlanId);
 
     return reply.code(200).send({
       success: true,
