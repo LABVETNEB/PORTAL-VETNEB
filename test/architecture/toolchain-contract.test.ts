@@ -18,6 +18,7 @@ const PNPM_WORKFLOW_FILES = [
 
 const SECURITY_OVERRIDE_LINES = [
   '  "brace-expansion@<1.1.16": "1.1.16"',
+  '  "brace-expansion@>=2.0.0 <2.1.2": "2.1.2"',
   '  "brace-expansion@>=3.0.0 <5.0.7": "5.0.7"',
   '  esbuild: "0.28.1"',
   '  "fast-uri@<=3.1.1": "3.1.2"',
