@@ -970,8 +970,16 @@ eliminados, cero consumidores operativos; guard extendido a shim-ausente +
 frontera de servicio + delegación de rutas; contratos HTTP preservados byte a
 byte; ver
 [`docs/implementation/m19-pricing-thin-routes.md`](../implementation/m19-pricing-thin-routes.md)).
-**Fase D abierta.** · **M20** cierre (+ nota de ownership Maintenance/Health fuera
-de features) — **no iniciado**.
+· **M20** cierre documental de Pricing (+ nota de ownership Maintenance/Health) —
+verifica y formaliza que Pricing alcanzó la arquitectura objetivo proporcional
+`route → servicio directo → infraestructura canónica` (sin `domain/` ni
+`application/`, por ausencia justificada de reglas de dominio), sin trabajo runtime
+adicional; registra la decisión de ownership **Maintenance/Health = Platform/Ops,
+fuera de `server/features/`, `KEEP` (sin move ni refactor)** — Contact y App Version
+permanecen igual por la misma razón; ver
+[`docs/implementation/m20-pricing-phase-closeout.md`](../implementation/m20-pricing-phase-closeout.md).
+**Fase D — cerrada con este cambio.** **M21 — siguiente milestone del programa
+(Fase E — Public Professionals), no iniciado.**
 
 **Fase E — Public Professionals (4):** **M21** domain (bank-eligibility) · **M22** repo +
 mapping (SQL-drift alineado) · **M23** thin ruta + rate limit wiring · **M24** cierre.

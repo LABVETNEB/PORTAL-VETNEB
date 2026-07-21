@@ -16,7 +16,8 @@
 > `d1b25111d6bc0aa644647e67a784cb596b4e1afe`, 2026-07-21: retirado
 > `server/db-pricing.ts`, retirado `server/lib/public-pricing-cache.ts`; el acceso
 > operativo es `route → servicio directo → canónico`. **M19 mergeado y cerrado.**
-> Fase D sigue abierta; M20 no iniciado.
+> **M20 — cierre documental; la Fase D queda cerrada al integrar este cambio.**
+> Ver [`m20-pricing-phase-closeout.md`](../../../../docs/implementation/m20-pricing-phase-closeout.md).
 
 ## Responsabilidad
 
@@ -33,6 +34,8 @@ serialización directa.
   `application`, `frontend`, `auth/session/CORS/audit/email`, `server/lib` ni los
   shims legacy. (Verificado por
   `test/architecture/pricing-infrastructure-boundary-guard.test.ts`.)
+
+Maintenance/Health pertenece a Platform/Ops y no forma parte de esta frontera.
 
 ## Qué vive aquí
 

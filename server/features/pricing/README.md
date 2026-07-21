@@ -9,8 +9,9 @@
 > `5f99b5f40e08ea8929be869374f1d154f740153f`, 2026-07-21. **M19 (thin rutas
 > admin+public) — mergeado y cerrado** — PR #1521, squash SHA
 > `d1b25111d6bc0aa644647e67a784cb596b4e1afe`, 2026-07-21 (adelgaza las rutas vía
-> servicios directos y **retira ambos shims legacy**). **Fase D — abierta. M20 —
-> no iniciado.**
+> servicios directos y **retira ambos shims legacy**). **M20 — cierre documental
+> de Pricing; la Fase D queda cerrada al integrar este cambio. M21 — no iniciado.**
+> Ver [`m20-pricing-phase-closeout.md`](../../../docs/implementation/m20-pricing-phase-closeout.md).
 
 Este directorio es la **frontera** del contexto Pricing. A diferencia de
 Logistics, **Pricing no tiene reglas de dominio** [CONFIRMED: `db-pricing.ts` es
@@ -49,6 +50,29 @@ adelgazar las rutas (cero consumidores operativos tras el reapunte):
 El único acceso es ahora `route → servicio directo → canónico`. La identidad de
 módulo del cache (singleton compartido) se preserva porque todos los consumidores
 resuelven al mismo canónico `infrastructure/public-pricing-cache.ts`.
+
+## Cierre de Fase D (M20)
+
+M20 es un **cierre documental**: no implementa código nuevo; verifica y formaliza
+que Pricing alcanzó la arquitectura objetivo proporcional
+`route → servicio directo → infraestructura canónica`.
+
+- **Infraestructura canónica (M18):** `infrastructure/db-pricing.ts` (persistencia,
+  cero transacciones) y `infrastructure/public-pricing-cache.ts` (cache puro, cero
+  imports, TTL 5 min).
+- **Servicios directos (M19):** `admin-pricing-service.ts` y
+  `public-pricing-service.ts` como frontera del contexto, sin HTTP/auth/CORS/audit.
+- **Rutas thin (M19):** `admin-pricing.fastify.ts` y `public-pricing.fastify.ts`
+  conservan sólo HTTP y cross-cutting.
+- **Shims legacy retirados (M19):** `server/db-pricing.ts` y
+  `server/lib/public-pricing-cache.ts` eliminados; cero consumidores operativos.
+- **Contratos protegidos:** `pricing-infrastructure-boundary-guard`, contratos HTTP
+  admin/public y contratos conductuales de los servicios directos (ver abajo).
+- **Ausencia justificada de `domain/` y `application/`:** Pricing no tiene reglas de
+  dominio independientes; fabricar esas capas sería inventar estructura para código
+  inexistente (restricción 13 del programa).
+- **Cero trabajo runtime en M20.** Detalle en
+  [`m20-pricing-phase-closeout.md`](../../../docs/implementation/m20-pricing-phase-closeout.md).
 
 ## Contratos que protegen esta frontera
 

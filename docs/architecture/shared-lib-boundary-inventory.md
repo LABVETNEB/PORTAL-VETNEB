@@ -234,7 +234,7 @@ nombre); fan-in = archivos de `server/` que lo importan. `Estado`: **mover** (a 
 | `lib/sensitive-response-cache.ts` (19) | HTTP/seguridad | http adapter | 1 | Medio | `lib/http` **con revisión de seguridad** | M46 (SEC) | diferir/congelado |
 | `lib/http-runtime.ts` (85) | Observabilidad | infra (importa `db`) | 2 | Medio | `lib/infra` | M47 | diferir |
 | `lib/runtime-timing.ts` (26) | Observabilidad | infra | 21 | Bajo | `lib/infra`; thin-PRs alinean imports | Fase K | diferir |
-| `lib/schema-health.ts` (168) | Maintenance/ops | infra (importa `db`+supabase) | 1 | Medio | infra de ops; fuera de features | — (ops) | permanecer |
+| `lib/schema-health.ts` (168) | Maintenance/ops | infra (importa `db`+supabase) | 1 | Medio | infra de ops; fuera de features | M20 (ownership KEEP, ops) | permanecer |
 | `lib/contact-rate-limit.ts` (48) | Contact/ops | infra | — | Bajo | ops/plataforma; fuera de features | — (ops) | permanecer |
 | `lib/http-types.ts` (36) | Contrato http | **shared técnico** | 8 | Bajo | shared técnico; candidato `lib/shared` (C3) | contingencia C3 | permanecer |
 | `lib/list-pagination.ts` (54) | Paginación | **shared técnico** | 8 | Bajo | shared técnico; candidato `lib/shared` (C3) | contingencia C3 | permanecer |
@@ -267,7 +267,7 @@ nombre); fan-in = archivos de `server/` que lo importan. `Estado`: **mover** (a 
 | `db-particular.ts` (204) | Particular Access | persistencia | 0 | `features/particular-access/infrastructure/` | M33 | mover |
 | `db-report-access.ts` (168) | Report Access | persistencia | 0 | `features/report-access/infrastructure/` | M34 | mover |
 | `db-pricing.ts` (160) | Pricing | CRUD + `serializePricingItem` + guard patch | 0 | `features/pricing/infrastructure/` | M18 | movido completo (M18 mergeado — PR #1519, squash `5f99b5f…`, 2026-07-21); path legacy conservado como shim temporal hasta M19; sólo 2 specifiers reapuntados |
-| `db-maintenance.ts` (122) | Maintenance/ops | dry-run, schema-health | 0 | infra de ops; fuera de features | — (ops) | permanecer |
+| `db-maintenance.ts` (122) | Maintenance/ops | dry-run, schema-health | 0 | infra de ops; fuera de features | M20 (ownership KEEP, ops) | permanecer |
 | `db-admin-failed-login-alerts.ts` (106) | Failed Login/Auth | persistencia | 0 | — | secuencia seguridad C4 | congelado |
 
 ---
@@ -331,7 +331,7 @@ rollback = revert independiente del PR (§8). "Tests anclados" remite a §7.
 | Auth/security frozen | `auth.fastify`, `admin-auth.fastify`, `particular-auth.fastify`, `lib/{auth-security,fastify-admin-auth,login-rate-limit,session-last-access}.ts`, `db-admin-sessions.ts`, `db-admin-failed-login-alerts.ts`, `middlewares/{admin-auth,auth,particular-auth}.ts` | auth (3 realms) | — | — | — (fuera del programa) | diseño + sign-off | cookies, CSRF, rate limits por realm | 16 guards `architecture/security/*` | — | — | **Crítico** | FROZEN (C4) |
 | Shared infra residual | `lib/{env,logger,cors-headers,api-request-id,api-response-security,sensitive-response-cache,runtime-timing,http-runtime,rate-limit-store}.ts` | http/infra | `lib/{http,infra}` **sólo al final** | — | M46/M47 | todas las features cerradas | headers/CORS/observabilidad por-ruta | guards de frontera | shims documentados | revert | Alto si se adelanta | DEFER |
 | Shared técnico | `lib/{http-types,list-pagination}.ts` | shared | `lib/shared` (si se decide) | — | C3 | — | paginación/tipos http | — | — | revert | Bajo | CONTINGENCY |
-| Plataforma/ops | `contact.fastify`, `lib/contact-rate-limit.ts`, `admin-system-*.fastify`, `lib/schema-health.ts`, `db-maintenance.ts`, `app-version.fastify.ts` | ops | permanece (no es bounded context) | — | M20 (docs ownership) | — | health/version/contact | — | — | n/a | KEEP |
+| Plataforma/ops | `contact.fastify`, `lib/contact-rate-limit.ts`, `admin-system-*.fastify`, `lib/schema-health.ts`, `db-maintenance.ts`, `app-version.fastify.ts` | ops | permanece (no es bounded context) | — | M20 (ownership documentado; fuera de features) | — | health/version/contact | — | — | n/a | KEEP |
 | Huérfanos | `server/utils/async-handler.ts`, `server/middlewares/error-handler.ts` (+ su test) | Express-era muerto | eliminado | — | **M02** | — | ninguno (cero consumidores runtime) | actualizar `tracked-source-inventory` | revert | Bajo | REMOVE |
 
 ---
@@ -383,12 +383,12 @@ secundarias se anotan en §7.3 sin doble conteo.
 | 8 | Public Professionals | 10 | Fase E (M21–M24) |
 | 9 | Frontend/build (anclando backend) | 10 | n/a (no lo mueve el programa backend) |
 | 10 | Study Tracking | 9 | Fase G (M30–M32b/M35) |
-| 11 | Platform / Ops (Contact, Health, Version) | 7 | M20 (docs); no se mueve |
+| 11 | Platform / Ops (Contact, Health, Version) | 7 | M20 (ownership documentado); permanece fuera de features |
 | 12 | Global inventories & architecture guards | 7 | M01/M02 + cada fase |
 | 13 | Clinics | 6 | Fase F (M25–M29) |
 | 14 | Particular Access | 5 | Fase H (M33) |
 | 15 | Users / Roles | 2 | Fase J (M42–M43) |
-| 16 | Pricing | 2 | Fase D (M18–M20) |
+| 16 | Pricing | 2 | Fase D (M18–M20, cerrada) |
 | | **Total** | **202** | suma exacta = 202 [CONFIRMED] |
 
 ### 7.2 Notas de clasificación
@@ -447,7 +447,7 @@ test/unit/infrastructure/logistics/logistics-sla-breach-runtime.test.ts
 test/unit/migrations/logistics/logistics-time-windows-schema.test.ts
 ```
 
-**Pricing (2) — M18–M20**
+**Pricing (2) — M18–M20 (Fase D cerrada)**
 ```
 test/integration/adapters/controllers/admin-pricing-api.test.ts
 test/integration/adapters/controllers/public-pricing-api.test.ts
@@ -655,7 +655,7 @@ test/unit/infrastructure/supabase-upload-success.test.ts
 test/unit/infrastructure/supabase.test.ts
 ```
 
-**Platform / Ops — Contact, Maintenance/Health, App Version (7) — M20 (docs); no se mueve**
+**Platform / Ops — Contact, Maintenance/Health, App Version (7) — M20 (ownership documentado); permanece fuera de features**
 ```
 test/integration/adapters/controllers/admin-system-health.fastify.test.ts
 test/integration/adapters/controllers/admin-system-maintenance.fastify.test.ts
