@@ -1,22 +1,28 @@
 # M17 — Logistics: retiro del shim legacy y cierre técnico de Fase C
 
-**Estado:** **implementado / pendiente de merge**. Working tree listo para revisión
-manual de Nico; ninguna escritura Git/GitHub ejecutada por el agente.
+**Estado:** **mergeado y cerrado.**
 
-- **Rama:** `refactor/backend-modularization-m17-logistics-closeout`
-- **Base exacta:** `dd729bf973120ac4f8e667e08d5f87aedec1c0da`
+- **PR técnico:** [#1517](https://github.com/LABVETNEB/PORTAL-VETNEB/pull/1517) — MERGED
+- **Squash SHA:** `6157e9e71baf83aa9bf0ae3dfb748eaefac74be1`
+- **Merge timestamp:** `2026-07-21T12:17:23Z`
+- **Merge date:** 2026-07-21
+- **Rama técnica:** `refactor/backend-modularization-m17-logistics-closeout` —
+  eliminada local y remotamente
+- **Base técnica:** `dd729bf973120ac4f8e667e08d5f87aedec1c0da`
   (`docs(architecture): close M16 logistics milestone` = **M16 ya mergeado**, PR #1515)
+- **Resultado técnico:** `6157e9e71baf83aa9bf0ae3dfb748eaefac74be1` (= `main` =
+  `origin/main` = `origin/HEAD`)
 - **Programa:** Fase C (Logistics infra + rutas), milestone **M17** (cierre)
 - **Autorización:** refactor **R2 estructural backend**, autorizado específicamente
   por Nico (AGENTS.md §3), limitado a la allowlist exacta de 14 paths, invariantes
   y validaciones de esta especificación.
-- **Estado de fase:** con M17, la **Fase C queda técnicamente completada /
-  pendiente de merge**. **M18 (Pricing) no iniciado.**
+- **Estado de fase:** con M17, la **Fase C queda cerrada**. **M18 (Pricing) no
+  iniciado.**
 
-> **No mergeado.** Este documento describe el estado **local** anterior al merge. El
-> squash SHA real, la fecha de merge y los resultados de CI remoto pertenecen al
-> **closeout documental posterior** (`docs(architecture): close M17 logistics
-> milestone`), no a esta nota.
+> Este documento registra el estado **histórico** del cierre técnico de M17, ya
+> mergeado. El closeout documental posterior
+> (`docs(architecture): close M17 logistics milestone`) convierte esta nota y el
+> documento rector del programa en registro definitivo de Fase C.
 
 ## 1. Objetivo y alcance
 
@@ -131,11 +137,11 @@ server/db-logistics.ts (shim raíz, export * del canónico)   →  ELIMINADO
 
 | Archivo | Cambio |
 | --- | --- |
-| `docs/audit/backend-enterprise-modularization-program-audit.md` | Status M17 = implementado / pendiente de merge; Fase C técnicamente completada / pendiente de merge; M18 no iniciado. |
+| `docs/audit/backend-enterprise-modularization-program-audit.md` | Status M17 = mergeado (PR #1517); Fase C cerrada; M18 no iniciado. |
 | `server/features/logistics/README.md` | Estado M17; shim retirado; canónico como única persistencia; se elimina la instrucción de conservar el shim; +link M17. |
 | `server/features/logistics/application/README.md` | M17 no toca application (M06–M16 intacta); sólo retira compat legacy. |
 | `server/features/logistics/infrastructure/README.md` | Sección de shims: `db-logistics` retirado en M17; canónico único; 7 transacciones; adapters intactos. |
-| `server/features/logistics/routes/README.md` | M14–M16 completados; M17 implementado / pendiente; `routes/` sigue docs-only; ningún handler se movió. |
+| `server/features/logistics/routes/README.md` | M14–M16 completados; M17 mergeado (PR #1517); `routes/` sigue docs-only; ningún handler se movió. |
 
 **Denylist respetada (cero cambios, hashes verificados):** canónico M12
 (`infrastructure/db-logistics.ts`, 7 transacciones), los cuatro adapters DB
@@ -175,7 +181,7 @@ guards de domain/application, `logistics-sla-breach-runtime.test.ts`,
 | `pnpm validate:local:schema` / `db:migrate` | **NOT_RUN** (sin schema/migraciones) |
 | Frontend E2E (Playwright) | **NOT_RUN** (sin frontend) |
 | Dependency audits (`pnpm audit`) | **NOT_RUN** (sin manifests/lockfile) |
-| Escrituras Git/GitHub (stage/commit/push/PR/merge) | **NO EJECUTADAS** |
+| CI remoto (PR #1517) | **PASSED** — 5 successful · 1 skipped · 0 failing · 0 pending; ver §6.4 |
 
 ### 6.1 Cohorte 1
 
@@ -198,6 +204,20 @@ Resultado: **PASSED** — `tests 367 · pass 367 · fail 0 · skipped 0 · durat
 `typecheck && typecheck:test && test && build`. Resultado: **PASSED** —
 `test: tests 3340 · pass 3339 · skipped 1 · fail 0`; `build: esbuild dist/index.js ≈ 848 kb`; `exit 0`.
 
+### 6.4 CI remoto (PR #1517)
+
+**5 successful · 1 skipped · 0 failing · 0 pending.**
+
+Checks exitosos:
+
+- `qga-workflow-security`
+- `QGA Governance / qga-workflow-security (pull_request_target)`
+- `Backend CI / validate-backend (pull_request)`
+- `PR Governance / validate-pr-governance (pull_request)`
+- `Backend CI / validate-backend (push)`
+
+Check omitido (no fallido): `Supabase Preview`.
+
 ## 7. Riesgos residuales y mitigación
 
 - **Eliminación incompleta:** mitigada por la realineación de los 5 imports, el
@@ -210,8 +230,10 @@ Resultado: **PASSED** — `tests 367 · pass 367 · fail 0 · skipped 0 · durat
   los adapters lo importan legítimamente como `./db-logistics.ts`).
 - **Scope creep:** mitigado — allowlist exacta de 14; M12 stale y roadmap histórico
   excluidos; runtime productivo en denylist.
-- **Cierre prematuro de fase:** mitigado — los documentos dicen *pendiente de
-  merge*; el cierre definitivo (SHA/fecha/CI) lo registra el closeout posterior.
+- **Cierre prematuro de fase:** mitigado — el squash merge de PR #1517
+  (`6157e9e71baf83aa9bf0ae3dfb748eaefac74be1`, 2026-07-21) y el closeout
+  documental posterior (`docs(architecture): close M17 logistics milestone`)
+  registran el cierre definitivo con SHA, fecha y CI.
 
 ## 8. Rollback
 
@@ -227,27 +249,29 @@ Independiente y sin efectos de datos:
 
 No requiere revertir M12–M16 ni rollback de DB, schema, migraciones o datos.
 
-## 9. Estado Git local
+## 9. Estado Git/GitHub
 
 ```text
-rama = refactor/backend-modularization-m17-logistics-closeout
-base = dd729bf973120ac4f8e667e08d5f87aedec1c0da
-working tree = 14 paths (1 D + 12 M + 1 ??)
-índice = vacío
-commit = no creado
-push = no ejecutado
-PR = no creado
+rama técnica = refactor/backend-modularization-m17-logistics-closeout
+base técnica = dd729bf973120ac4f8e667e08d5f87aedec1c0da
+commit técnico local = creado
+rama técnica = publicada
+PR #1517 = creado
+checks CI = completados (5 successful · 1 skipped · 0 failing)
+squash merge = completado (SHA 6157e9e71baf83aa9bf0ae3dfb748eaefac74be1, 2026-07-21)
+rama técnica = eliminada local y remotamente
+main = sincronizado con origin/main y origin/HEAD en el squash SHA
+working tree = limpio
 M18 = no iniciado
 ```
 
 ## 10. Estado final
 
 ```text
-M17 implementado / pendiente de merge
-shim server/db-logistics.ts retirado localmente
-cero consumidores productivos · cero imports reales de tests
+M17 mergeado y cerrado (PR #1517, squash SHA 6157e9e71baf83aa9bf0ae3dfb748eaefac74be1, 2026-07-21)
+shim server/db-logistics.ts retirado
+cero consumidores productivos · cero imports reales de tests al shim
 canónico intacto (7 transacciones)
-Fase C técnicamente completada / pendiente de merge
+Fase C cerrada
 M18 (Pricing) no iniciado
-pendiente de revisión manual y merge por Nico
 ```
