@@ -5,7 +5,8 @@
 > **Origen:** [ARCH-1](../../../docs/audit/repository-domain-architecture-audit.md) · [ARCH-2](../../../docs/architecture/backend-boundary-adr.md) · [ARCH-3](../../../docs/architecture/shared-lib-boundary-inventory.md) · [programa](../../../docs/audit/backend-enterprise-modularization-program-audit.md).
 > **ID:** **M18 (Fase D: infraestructura de persistencia y cache en `infrastructure/`)**.
 >
-> **Estado:** M18 **implementado / pendiente de merge**. **Fase D — no cerrada.**
+> **Estado:** M18 **mergeado y cerrado** — PR #1519, squash SHA
+> `5f99b5f40e08ea8929be869374f1d154f740153f`, 2026-07-21. **Fase D — abierta.**
 > **M19 (thin rutas admin+public) — no iniciado.**
 
 Este directorio es la **frontera** del contexto Pricing. A diferencia de

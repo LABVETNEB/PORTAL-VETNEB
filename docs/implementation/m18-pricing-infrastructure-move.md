@@ -1,11 +1,33 @@
 # M18 — Pricing infrastructure move (Fase D)
 
-> **Estado documental:** **implementado / pendiente de merge.**
-> **M18 no cierra Fase D. M19 no iniciado.**
+> **Estado:** **mergeado y cerrado.**
+> **M18 cierra su move de infraestructura; Fase D sigue abierta. M19 no iniciado.**
+
+- **PR técnico:** [#1519](https://github.com/LABVETNEB/PORTAL-VETNEB/pull/1519) — MERGED
+- **Commit técnico:** `0dfa1388d41dea4214fa48c9765a1d625c0396ed`
+- **Squash SHA:** `5f99b5f40e08ea8929be869374f1d154f740153f`
+- **Merge timestamp:** `2026-07-21T14:17:16Z`
+- **Merge date:** 2026-07-21
+- **Rama técnica:** `refactor/backend-modularization-m18-pricing-infrastructure` —
+  eliminada local y remotamente
+- **Base técnica:** `877185f161ea292313ab457a6fe4b0907eb6e28b`
+  (`docs(architecture): close M17 logistics milestone` = **M17 ya mergeado**, PR #1517)
+- **Resultado técnico:** `5f99b5f40e08ea8929be869374f1d154f740153f` (= `main` =
+  `origin/main` = `origin/HEAD`)
+- **Programa:** Fase D (Pricing), milestone **M18** (infra: persistencia + cache)
+- **Estado de fase:** con M18 la **Fase D permanece abierta**. **M19 (thin rutas
+  admin+public) — siguiente milestone, no iniciado.**
+
+> Este documento registra el estado **histórico** del move técnico de M18, ya
+> mergeado (PR #1519, squash `5f99b5f…`, 2026-07-21). El closeout documental
+> (`docs(architecture): close M18 pricing milestone`) convierte esta nota y el
+> documento rector del programa en registro definitivo del move de infraestructura
+> de Pricing. M18 no declara cerrada la Fase D: eso corresponde a M20.
 
 ## Rama y base
 
-- **Rama:** `refactor/backend-modularization-m18-pricing-infrastructure`.
+- **Rama técnica:** `refactor/backend-modularization-m18-pricing-infrastructure`
+  — eliminada local y remotamente tras el squash merge.
 - **Base exacta:** `877185f161ea292313ab457a6fe4b0907eb6e28b`
   (`docs(architecture): close M17 logistics milestone`).
 - **Working tree al iniciar:** limpio.
@@ -13,10 +35,11 @@
 ## Autorización (R2)
 
 Move estructural de backend dentro del scope explícito de la tarea M18 (Fase D
-del programa rector). Autorizado por Nico en el mensaje actual: mover la
-infraestructura de Pricing a `features/pricing/infrastructure/` conservando shims
-de compatibilidad hasta M19. No se tocan dependencias, schema, migraciones, CI ni
-rutas. No se ejecutan `git add/commit/push` ni creación de PR.
+del programa rector). Autorizado por Nico: mover la infraestructura de Pricing a
+`features/pricing/infrastructure/` conservando shims de compatibilidad hasta M19.
+No se tocan dependencias, schema, migraciones, CI ni rutas. El trabajo técnico se
+completó, se abrió el PR #1519 y se mergeó por squash
+(`5f99b5f40e08ea8929be869374f1d154f740153f`, `2026-07-21T14:17:16Z`).
 
 ## Auditoría R0 (medida sobre HEAD `877185f`)
 
@@ -195,13 +218,62 @@ a su implementación original (hashes R0 `c3114e5…` y `283af00…`), y reverti
 reapunte de los dos tests y las notas de docs. No hay migraciones ni cambios de
 schema que deshacer.
 
-## Resultados de validación
+## Resultados de validación (estados canónicos)
 
-Ver la respuesta de entrega para los estados canónicos observados (cohorte
-específica → `validate:local` → `security:public-surface` → `git diff --check`).
+Evidencia autosuficiente del move técnico M18 (cohorte dirigida → `validate:local`
+→ `security:public-surface` → `git diff --check`), más el resultado de CI del
+PR #1519 ya mergeado.
+
+| Gate | Estado |
+| --- | --- |
+| Pricing infrastructure boundary guard — 11/11 | **PASSED** |
+| Pricing API + contratos globales dirigidos — 21/21 | **PASSED** |
+| `pnpm validate:local` | **PASSED** — 3350 passed, 1 skipped preexistente, 0 failed; build passed |
+| `pnpm security:public-surface` | **PASSED** |
+| `git diff --check` | **PASSED** |
+| Schema / migraciones | **NOT_RUN** — sin cambios de schema o migraciones |
+| Playwright / E2E | **NOT_RUN** — sin cambios frontend |
+| Dependency audits | **NOT_RUN** — sin manifests o lockfiles |
+| CI remoto ejecutado (PR #1519) | **PASSED** — 5 successful, 0 failing, 0 pending |
+| Supabase Preview (PR #1519) | **NOT_RUN** — check skipped; no se ejecutó |
+
+### CI remoto (PR #1519)
+
+**5 successful · 1 skipped · 0 failing · 0 pending.**
+
+Checks exitosos:
+
+- `qga-workflow-security`
+- `QGA Governance / qga-workflow-security`
+- `Backend CI / validate-backend (push)`
+- `Backend CI / validate-backend (pull_request)`
+- `PR Governance / validate-pr-governance`
+
+Check omitido (no fallido, no PASSED): `Supabase Preview` — **skipped**.
+
+## Estado Git/GitHub
+
+```text
+rama técnica = refactor/backend-modularization-m18-pricing-infrastructure
+base técnica = 877185f161ea292313ab457a6fe4b0907eb6e28b
+commit técnico = 0dfa1388d41dea4214fa48c9765a1d625c0396ed
+PR #1519 = creado
+checks CI = completados (5 successful · 1 skipped · 0 failing · 0 pending)
+squash merge = completado (SHA 5f99b5f40e08ea8929be869374f1d154f740153f, 2026-07-21T14:17:16Z)
+rama técnica = eliminada local y remotamente
+main = sincronizado con origin/main y origin/HEAD en el squash SHA
+working tree = limpio
+M19 = no iniciado
+```
 
 ## Estado final
 
-- **M18 implementado / pendiente de merge.**
-- **M19 no iniciado.**
-- **Fase D no cerrada.**
+```text
+M18 mergeado y cerrado (PR #1519, squash SHA 5f99b5f40e08ea8929be869374f1d154f740153f, 2026-07-21)
+persistencia (db-pricing) y cache público movidos a features/pricing/infrastructure/ (canónicos)
+paths legacy = shims de un único export * (vivos hasta M19)
+rutas admin/public byte-idénticas en M18
+guard de infraestructura pricing activo (11/11)
+Fase D abierta
+M19 (thin rutas admin+public) = siguiente milestone, no iniciado
+```

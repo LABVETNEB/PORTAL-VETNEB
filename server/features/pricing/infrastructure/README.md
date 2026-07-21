@@ -5,6 +5,14 @@
 > precios públicos (`public-pricing-cache.ts`).
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
+>
+> **Estado M18 — mergeado y cerrado.** Esta capa se estableció mediante el
+> move técnico de M18, mergeado por **PR #1519** (squash SHA
+> `5f99b5f40e08ea8929be869374f1d154f740153f`, 2026-07-21): `db-pricing.ts` y
+> `public-pricing-cache.ts` son la **persistencia y el cache canónicos** del
+> contexto. Los paths legacy `server/db-pricing.ts` y
+> `server/lib/public-pricing-cache.ts` quedan como **shims temporales** (un único
+> `export *`) **vivos hasta M19**. Fase D sigue abierta; M19 no iniciado.
 
 ## Responsabilidad
 
