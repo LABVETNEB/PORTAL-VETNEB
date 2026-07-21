@@ -864,7 +864,8 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > Detalle en
 > [`docs/implementation/m14-logistics-route-plans-thin-route.md`](../implementation/m14-logistics-route-plans-thin-route.md).
 >
-> **Status M15 — implementado / pendiente de merge.** Thin
+> **Status M15 — mergeado** (PR #1513, squash SHA
+> `27be4cf4c65bd0f1bcd842151853a9537ec1954e`). Thin
 > `logistics-field-visits`: los seis handlers que aún invocaban `deps.*`
 > directamente (`GET /` listado, `POST /` creación, `GET/PUT
 > /:fieldVisitId/location`, `GET/POST /:fieldVisitId/time-windows`) delegan en

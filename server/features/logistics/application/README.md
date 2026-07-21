@@ -237,17 +237,17 @@ intactos: el guard global los **subsume**, no los reemplaza.
 `release`/`start`/`complete` (resto del lifecycle) permanecen fuera de la capa y
 siguen usando el default del helper de lifecycle compartido.
 GET/POST/location/time-windows de field visits quedaron fuera de M09 y fueron
-extraídos en el thin-route M15 (este PR). **M12** (mergeado en PR #1509) movió
+extraídos en el thin-route M15 (mergeado en PR #1513). **M12** (mergeado en PR #1509) movió
 `db-logistics.ts` completo a `infrastructure/db-logistics.ts` con las transacciones
 intactas, dejando un shim en el root. Es **infraestructura de persistencia** y **no
 cambia esta capa**: `application` sigue sin importar `db-*` — el guard de M11 lo
 prohíbe **por nombre de módulo**, de modo que sigue siendo correcto antes y después
 del move. **M13** movió el cache de route plans a
 `infrastructure/logistics-route-plans-cache.ts`, también sin tocar esta capa y
-sin puerto de cache anticipado. **M14** (este PR) materializó ese puerto junto
+sin puerto de cache anticipado. **M14** (mergeado en PR #1512) materializó ese puerto junto
 con su primer consumidor real (`createRoutePlansCacheUseCases`), adelgazó
-`logistics-route-plans` y retiró el shim del cache de `server/lib`. **M15** (este
-PR) adelgazó `logistics-field-visits`: los seis handlers restantes delegan en
+`logistics-route-plans` y retiró el shim del cache de `server/lib`. **M15**
+(mergeado en PR #1513) adelgazó `logistics-field-visits`: los seis handlers restantes delegan en
 los casos de uso de esta capa y la carga default pasa por el adapter DB de
 field visits. Los siguientes milestones son **M16** (thin route-events + SLA) y
 **M17** (cierre). Cada puerto nuevo se introduce junto con su primer consumidor

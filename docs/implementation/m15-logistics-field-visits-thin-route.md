@@ -1,11 +1,15 @@
 # M15 — Logistics: thin `logistics-field-visits` (casos de uso + adapter DB)
 
-**Estado:** implementado / **pendiente de merge**. Working tree listo para revisión
-manual de Nico; ninguna escritura Git/GitHub ejecutada por el agente.
+**Estado:** mergeado y cerrado.
 
-- **Rama:** `refactor/backend-modularization-m15-thin-logistics-field-visits`
-- **Base exacta:** `c48791657a4c0eb9532d24df367cae8d18da3b7b`
+- **PR técnico:** #1513
+- **Squash SHA:** `27be4cf4c65bd0f1bcd842151853a9537ec1954e`
+- **Fecha de merge:** 2026-07-21
+- **Rama técnica:** `refactor/backend-modularization-m15-thin-logistics-field-visits`
+- **Rama técnica eliminada local y remotamente después del merge.**
+- **Base original:** `c48791657a4c0eb9532d24df367cae8d18da3b7b`
   (`refactor(logistics): thin route plans handlers (#1512)` = **M14 ya mergeado**)
+- **Resultado en main:** `27be4cf4c65bd0f1bcd842151853a9537ec1954e`
 - **Programa:** Fase C (Logistics infra + rutas), milestone **M15**
 - **Autorización:** refactor **R2 estructural backend**, autorizado específicamente
   por Nico en la tarea actual (AGENTS.md §3), limitado al diseño, allowlist,
@@ -159,15 +163,21 @@ M09–M14.
 | `pnpm validate:local:schema` / `db:migrate` | **NOT_RUN** (sin schema/migraciones) |
 | E2E (Playwright) | **NOT_RUN** (sin frontend) |
 | Audits de dependencias | **NOT_RUN** (manifests/lockfile fuera de scope) |
-| Escrituras Git/GitHub | **BLOCKED** para el agente — **[MANUAL-NICO]** |
+| PR #1513 CI | **PASSED** (5 successful, 1 skipped, 0 failing, 0 pending) |
+| Operaciones Git/GitHub manuales | **PASSED** — ejecutadas por Nico |
 
 ## 8. Siguiente milestone
 
 **M16 — thin `logistics-route-events` + `logistics-sla`.** No adelantado aquí.
-Fase C **no cerrada**; M15 **no se declara cerrado hasta el merge**.
 
-## 9. Operaciones [MANUAL-NICO]
+M15 cerrado mediante PR #1513.
+M16 permanece pendiente.
+Fase C permanece abierta.
 
-El agente **no** ejecutó ninguna escritura Git/GitHub. Pendientes de Nico:
-`git add`, `git commit`, `git push`, creación de PR, `gh pr checks --watch` (en
-la rama del PR activo, sin número), merge.
+## 9. Resultado de las operaciones Git/GitHub
+
+PR #1513 squash merged.
+`main`/`origin/main` = `27be4cf4c65bd0f1bcd842151853a9537ec1954e`.
+Rama técnica eliminada local/remota.
+Working tree final limpio.
+PRs abiertos al cierre = 0.

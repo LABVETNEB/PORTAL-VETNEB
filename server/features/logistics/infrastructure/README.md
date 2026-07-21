@@ -5,7 +5,7 @@
 > la **persistencia canónica** del contexto; desde **M13 (mergeado en PR
 > #1511)**, el **cache de route plans**; desde **M14 (mergeado en PR #1512)**,
 > el **adapter del puerto de cache** y el **adapter DB de route plans**; y desde
-> **M15**, el **adapter DB de field visits**.
+> **M15 (mergeado en PR #1513)**, el **adapter DB de field visits**.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
