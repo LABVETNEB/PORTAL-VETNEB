@@ -7,8 +7,10 @@
 >
 > **Estado:** M18 **mergeado y cerrado** — PR #1519, squash SHA
 > `5f99b5f40e08ea8929be869374f1d154f740153f`, 2026-07-21. **M19 (thin rutas
-> admin+public) — implementado / pendiente de revisión** (adelgaza las rutas vía
-> servicios directos y **retira ambos shims legacy**). **Fase D — abierta.**
+> admin+public) — mergeado y cerrado** — PR #1521, squash SHA
+> `d1b25111d6bc0aa644647e67a784cb596b4e1afe`, 2026-07-21 (adelgaza las rutas vía
+> servicios directos y **retira ambos shims legacy**). **Fase D — abierta. M20 —
+> no iniciado.**
 
 Este directorio es la **frontera** del contexto Pricing. A diferencia de
 Logistics, **Pricing no tiene reglas de dominio** [CONFIRMED: `db-pricing.ts` es

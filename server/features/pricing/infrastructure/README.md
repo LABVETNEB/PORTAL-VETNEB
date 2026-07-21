@@ -11,8 +11,12 @@
 > `5f99b5f40e08ea8929be869374f1d154f740153f`, 2026-07-21): `db-pricing.ts` y
 > `public-pricing-cache.ts` son la **persistencia y el cache canónicos** del
 > contexto. Los paths legacy `server/db-pricing.ts` y
-> `server/lib/public-pricing-cache.ts` quedan como **shims temporales** (un único
-> `export *`) **vivos hasta M19**. Fase D sigue abierta; M19 no iniciado.
+> `server/lib/public-pricing-cache.ts` fueron **shims temporales** (un único
+> `export *`) durante M18 y **M19 los retiró** — PR #1521, squash SHA
+> `d1b25111d6bc0aa644647e67a784cb596b4e1afe`, 2026-07-21: retirado
+> `server/db-pricing.ts`, retirado `server/lib/public-pricing-cache.ts`; el acceso
+> operativo es `route → servicio directo → canónico`. **M19 mergeado y cerrado.**
+> Fase D sigue abierta; M20 no iniciado.
 
 ## Responsabilidad
 

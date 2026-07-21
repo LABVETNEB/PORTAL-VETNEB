@@ -960,8 +960,10 @@ Pricing canónica establecida en `features/pricing/infrastructure/` — move com
 preservados en los paths legacy hasta M19; rutas admin/public **byte-idénticas** en M18;
 guard `pricing-infrastructure-boundary-guard` activo; ver
 [`docs/implementation/m18-pricing-infrastructure-move.md`](../implementation/m18-pricing-infrastructure-move.md)).
-· **M19** thin rutas admin+public — **implementado / pendiente de revisión**
-(rutas adelgazadas a `route → servicio directo → canónico` vía
+· **M19** thin rutas admin+public — **mergeado y cerrado** (PR #1521, commit
+técnico `b9847412fdff839ba50d2caf8c14d1a33e0af776`, squash
+`d1b25111d6bc0aa644647e67a784cb596b4e1afe`, 2026-07-21: rutas adelgazadas a
+`route → servicio directo → canónico` vía
 `features/pricing/{admin,public}-pricing-service.ts`; **ambos shims legacy
 retirados** —`server/db-pricing.ts` y `server/lib/public-pricing-cache.ts`
 eliminados, cero consumidores operativos; guard extendido a shim-ausente +

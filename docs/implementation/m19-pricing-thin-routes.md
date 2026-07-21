@@ -1,7 +1,18 @@
 # M19 — Pricing thin routes (Fase D)
 
-> **Estado:** **M19 implementado / pendiente de revisión.**
-> **Fase D permanece abierta. M20 no iniciado. M18 permanece cerrado.**
+> **Estado:** **M19 mergeado y cerrado.** PR técnico **#1521** — **MERGED**.
+> **M18 permanece cerrado. Fase D permanece abierta. M20 no iniciado.**
+>
+> **Cierre técnico (registro histórico autosuficiente):**
+> - PR técnico: **#1521** — **MERGED** (base `main`).
+> - Commit técnico final (head): `b9847412fdff839ba50d2caf8c14d1a33e0af776`.
+> - Squash SHA en `main`: `d1b25111d6bc0aa644647e67a784cb596b4e1afe`.
+> - Merge timestamp: `2026-07-21T19:30:35Z` · Merge date: `2026-07-21`.
+> - Base técnica: `a0ce4b47c7c736efe0e0a42b629826fab22de397`.
+> - Rama técnica `refactor/backend-modularization-m19-thin-pricing-routes`
+>   eliminada local y remotamente.
+> - `main` = `origin/main` = `origin/HEAD` = squash SHA
+>   `d1b25111d6bc0aa644647e67a784cb596b4e1afe`.
 
 Adelgaza `server/routes/admin-pricing.fastify.ts` y
 `server/routes/public-pricing.fastify.ts` a la arquitectura objetivo
@@ -208,7 +219,7 @@ tipos sin cambios).
 | Guards de rutas fuera del superset (no-store-cache, csrf-mutating, auth-boundary) + logistics guard | **PASSED** — 56/56 (verificación de no-regresión) |
 | `pnpm validate:local` | **PASSED** — 3364 passed, 1 skipped preexistente, 0 failed; build OK |
 | `pnpm security:public-surface` | **PASSED** |
-| CI PR #1521 sobre el commit técnico original `28f5afd87576dbd0259ef36dce328fce0afb757f` | **PASSED** — 5 successful, 1 skipped, 0 failing, 0 pending |
+| CI técnico PR #1521 sobre el head técnico final `b9847412fdff839ba50d2caf8c14d1a33e0af776` | **PASSED** — 5 successful, 1 skipped, 0 failing, 0 pending |
 | Supabase Preview | **NOT_RUN** — skipped porque no hubo cambios en `supabase/` |
 | Schema / migrations | **NOT_RUN** |
 | Playwright / E2E | **NOT_RUN** |
@@ -227,12 +238,11 @@ schema que deshacer. Los canónicos infra no se tocaron.
 
 ```text
 M18 permanece cerrado
-M19 implementado / pendiente de merge (PR #1521 abierto)
-Revisión técnica externa del cambio funcional: PASSED
-El amend posterior contiene exclusivamente correcciones documentales
-Gate de revisión automatizada adicional: no requerido
-CI del head final: verificar externamente en PR #1521 antes del merge
-merge: no ejecutado
+M19 mergeado y cerrado
+PR técnico #1521
+squash merge completado (d1b25111d6bc0aa644647e67a784cb596b4e1afe)
+CI técnico PASSED: 5 successful, 1 skipped, 0 failing, 0 pending
+rama técnica eliminada local y remotamente
 Fase D abierta
 M20 no iniciado
 ```
