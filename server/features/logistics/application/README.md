@@ -284,10 +284,14 @@ los casos de uso de esta capa y la carga default pasa por el adapter DB de
 field visits. **M16** (mergeado en PR #1515) adelgazó
 `logistics-route-events` (ya delegaba en M10) y `logistics-sla`: las tres
 lecturas SLA restantes delegan en `createSlaReadUseCases` de esta capa, `/overdue`
-sigue en M06, y la carga default de ambas rutas pasa por sus adapters DB. El
-siguiente milestone es **M17** (cierre: retiro del shim, ya sin consumidores
-productivos, y regresión contractual completa). Cada puerto nuevo se introduce
-junto con su primer consumidor real — nunca como interfaz vacía anticipada.
+sigue en M06, y la carga default de ambas rutas pasa por sus adapters DB. **M17**
+(*implementado / pendiente de merge*) cierra Logistics **sin tocar esta capa**: no
+agrega casos de uso ni puertos y `application` M06–M16 permanece intacta; el cierre
+sólo retira el shim legacy `server/db-logistics.ts` (ya sin consumidores
+productivos) y completa la regresión contractual. Con M17, la Fase C queda
+**técnicamente completada / pendiente de merge**; **M18 (Pricing)** no iniciado.
+Cada puerto nuevo se introduce junto con su primer consumidor real — nunca como
+interfaz vacía anticipada.
 
 ## Qué NO hacer
 

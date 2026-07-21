@@ -4,8 +4,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 // M12: la implementación canónica vive en la capa infrastructure del contexto.
-// `server/db-logistics.ts` queda como shim de compatibilidad (ver los contratos
-// del final de este archivo).
+// M17 retiró el shim raíz `server/db-logistics.ts`; este archivo protege sólo la
+// implementación canónica (la ausencia y no-recreación del shim las fija el guard
+// de infraestructura `logistics-infrastructure-boundary-guard.test.ts`).
 const CANONICAL_DB_LOGISTICS_PATH = resolve(
   process.cwd(),
   "server",
@@ -15,10 +16,7 @@ const CANONICAL_DB_LOGISTICS_PATH = resolve(
   "db-logistics.ts",
 );
 
-const ROOT_SHIM_PATH = resolve(process.cwd(), "server", "db-logistics.ts");
-
 const dbLogisticsSource = readFileSync(CANONICAL_DB_LOGISTICS_PATH, "utf8");
-const rootShimSource = readFileSync(ROOT_SHIM_PATH, "utf8");
 
 // Baseline R0 medido en HEAD 101731d antes del move: `server/db-logistics.ts`
 // contenía exactamente 7 call-sites `db.transaction(`. El move no puede
@@ -256,63 +254,16 @@ test("logistics DB SLA breach marking updates only overdue active instances", ()
   assert.ok(dbLogisticsSource.includes(".returning()"));
 });
 
-// --- M12: move a infrastructure + shim de compatibilidad ---------------------
+// --- M12: move a infrastructure (implementación canónica) --------------------
+// M17 retiró el shim raíz `server/db-logistics.ts`; los contratos que fijaban su
+// forma se eliminaron. La ausencia y no-recreación del shim las fija el guard de
+// infraestructura. Aquí sólo se protege la implementación canónica del move.
 
 test("M12 · la implementación real vive en el archivo canónico de infrastructure", () => {
   assert.match(dbLogisticsSource, /^import \{ db \} from "\.\.\/\.\.\/\.\.\/db\.ts";$/m);
   assert.match(dbLogisticsSource, /from "\.\.\/\.\.\/\.\.\/\.\.\/drizzle\/schema\.ts";/);
   assert.match(dbLogisticsSource, /from "drizzle-orm";/);
   assert.match(dbLogisticsSource, /db\.transaction\(/);
-});
-
-test("M12 · server/db-logistics.ts es únicamente un shim que re-exporta el canónico", () => {
-  const canonicalSpecifier =
-    "./features/logistics/infrastructure/db-logistics.ts";
-
-  assert.match(
-    rootShimSource,
-    new RegExp(
-      `export \\* from "${canonicalSpecifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}";`,
-    ),
-    "el shim debe re-exportar la superficie pública desde el archivo canónico",
-  );
-
-  // Todo specifier del shim apunta exactamente al archivo canónico.
-  const specifiers = Array.from(
-    rootShimSource.matchAll(/\bfrom\s+["']([^"']+)["']/g),
-    (match) => match[1],
-  );
-
-  assert.ok(specifiers.length > 0, "el shim debe tener al menos un re-export");
-  assert.deepEqual(
-    specifiers.filter((specifier) => specifier !== canonicalSpecifier),
-    [],
-    `el shim sólo puede importar de ${canonicalSpecifier}`,
-  );
-
-  assert.doesNotMatch(
-    rootShimSource,
-    /export\s+default\b/,
-    "el shim no debe declarar default export",
-  );
-});
-
-test("M12 · el shim no conserva persistencia: ni Drizzle, ni schema, ni db, ni queries", () => {
-  const FORBIDDEN_IN_SHIM: Array<{ label: string; pattern: RegExp }> = [
-    { label: "import de drizzle-orm", pattern: /from\s+["']drizzle-orm["']/ },
-    { label: "import del schema drizzle", pattern: /drizzle\/schema/ },
-    { label: "import de server/db.ts", pattern: /from\s+["']\.\/db\.ts["']/ },
-    { label: "transacción", pattern: /\.transaction\s*\(/ },
-    { label: "query builder", pattern: /\b(select|insert|update|delete)\s*\(/ },
-    { label: "declaración de función", pattern: /^export\s+(async\s+)?function\b/m },
-    { label: "declaración de tipo/const propios", pattern: /^export\s+(type|const)\s+\w+\s*=/m },
-  ];
-
-  const violations = FORBIDDEN_IN_SHIM.filter(({ pattern }) =>
-    pattern.test(rootShimSource),
-  ).map(({ label }) => `server/db-logistics.ts: ${label}`);
-
-  assert.deepEqual(violations, []);
 });
 
 test("M12 · el move preserva exactamente los call-sites transaccionales del baseline R0", () => {
@@ -322,12 +273,6 @@ test("M12 · el move preserva exactamente los call-sites transaccionales del bas
     canonicalTransactions.length,
     R0_TRANSACTION_CALL_SITES,
     `el archivo canónico debe conservar ${R0_TRANSACTION_CALL_SITES} call-sites db.transaction( (baseline R0)`,
-  );
-
-  assert.equal(
-    (rootShimSource.match(/db\.transaction\(/g) ?? []).length,
-    0,
-    "el shim no puede contener transacciones",
   );
 });
 
@@ -353,23 +298,4 @@ test("M12 · las exports críticas siguen presentes en el archivo canónico", ()
   );
 
   assert.deepEqual(missing, []);
-});
-
-test("M12 · no queda una segunda implementación de persistencia en el root", () => {
-  const rootImplementationMarkers = [
-    "export async function createFieldVisit",
-    "export async function generateHeuristicRoutePlan",
-    "eq(fieldVisits.clinicId",
-    "orderBy(",
-  ];
-
-  const leaked = rootImplementationMarkers.filter((marker) =>
-    rootShimSource.includes(marker),
-  );
-
-  assert.deepEqual(
-    leaked,
-    [],
-    "server/db-logistics.ts no puede duplicar la implementación canónica",
-  );
 });

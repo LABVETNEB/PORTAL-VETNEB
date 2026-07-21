@@ -7,7 +7,7 @@ import type {
   CreateRouteEventInput,
   ListRouteEventsParams,
   RouteEvent,
-} from "../../../../server/db-logistics.ts";
+} from "../../../../server/features/logistics/infrastructure/db-logistics.ts";
 import type { ClinicUserRole } from "../../../../drizzle/schema.ts";
 
 process.env.NODE_ENV ??= "development";

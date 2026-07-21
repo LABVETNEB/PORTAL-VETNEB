@@ -924,8 +924,28 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > rutas sin `db-logistics`). Cero cambios de endpoints, contratos HTTP, schema
 > y migraciones. Detalle en
 > [`docs/implementation/m16-logistics-route-events-sla-thin-routes.md`](../implementation/m16-logistics-route-events-sla-thin-routes.md).
-> **M17 — pendiente** (cierre de Logistics: retiro del shim, regresión
-> contractual completa, docs). **Fase C no cerrada.**
+> **Status M17 — implementado / pendiente de merge** (rama
+> `refactor/backend-modularization-m17-logistics-closeout`, base `dd729bf`).
+> Cierre técnico de Logistics: el shim raíz `server/db-logistics.ts` (16 LOC,
+> `export *` del canónico, **cero consumidores productivos** desde M16) queda
+> **retirado**; los **cinco** tests que sólo importaban **tipos** del shim
+> (`logistics-audit-runtime`, los dos `*-integration.fastify` de field-visits y
+> route-events, y route-plans heuristic/metrics runtime) se realinean al canónico
+> `features/logistics/infrastructure/db-logistics.ts` (Opción B: `import type`,
+> misma lista de símbolos, sin runtime nuevo). El guard de infraestructura
+> **invierte** su contrato — de "el shim existe y sólo re-exporta" a "el shim fue
+> retirado y no puede recrearse" — verificando por **path resuelto**: existencia
+> falsa + cero imports productivos en `server/**` + los cinco tests sin resolver
+> al path retirado (los imports `./db-logistics.ts` de infrastructure siguen
+> permitidos porque resuelven al canónico). `logistics-db.test.ts` deja de leer
+> el shim y conserva íntegra la protección del canónico (implementación real,
+> exports críticos, **7 transacciones**). El canónico M12 permanece
+> **byte-idéntico** (7 transacciones); los cuatro adapters M14–M16 y
+> `sla-breach-db.ts`, intactos. Regresión contractual local completa. **Fase C
+> técnicamente completada / pendiente de merge. M18 (Pricing) no iniciado.** Sin
+> cambios de endpoints, contratos HTTP, schema, migraciones, auth, CORS ni
+> dependencias. Detalle en
+> [`docs/implementation/m17-logistics-phase-closeout.md`](../implementation/m17-logistics-phase-closeout.md).
 
 **M12** mover `db-logistics.ts` completo → infrastructure (tx intactas; shim documentado) ·
 **M13** cache adapter · **M14** thin `logistics-route-plans` · **M15** thin

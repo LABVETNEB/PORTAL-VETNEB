@@ -16,22 +16,23 @@ service de `application`. Thin handlers, sin reglas de negocio inline.
 - **No puede importar:** un `db-*` directo, el runtime de Drizzle, ni contener
   reglas de negocio inline.
 
-## Qué vivirá aquí (futuro, no ahora)
+## Estado de la secuencia (Fase C)
 
-Los handlers actuales viven en `server/routes/logistics-{route-plans,field-visits,route-events,sla}.fastify.ts`
-y son god-handlers (`logistics-route-plans` ≈ 2.241 LOC). La Fase A (cerrada en
-**M05**) **no toca rutas**; su adelgazamiento ocurre en la Fase C, después de la
-capa `application` (M06–M11) y la infraestructura (M12–M13), en su propia secuencia:
+Los handlers productivos viven en `server/routes/logistics-{route-plans,field-visits,route-events,sla}.fastify.ts`.
+El adelgazamiento ocurre en la Fase C, después de la capa `application` (M06–M11)
+y la infraestructura (M12–M13):
 
-- **M14** — thin `logistics-route-plans`.
-- **M15** — thin `logistics-field-visits`.
-- **M16** — thin `logistics-route-events` + `logistics-sla`.
-- **M17** — cierre integral de Logistics (imports legacy, regresión contractual
-  completa y docs).
+- **M14** — thin `logistics-route-plans` — **completado**.
+- **M15** — thin `logistics-field-visits` — **completado**.
+- **M16** — thin `logistics-route-events` + `logistics-sla` — **completado**.
+- **M17** — cierre integral de Logistics (retiro del shim legacy, regresión
+  contractual completa, docs) — **implementado / pendiente de merge**.
 
-Cada adelgazamiento extrae un caso de uso a `application`, **detrás del contrato
-por-ruta existente** y sin cambiar paths ni contratos públicos. La ruta permanece
-registrada donde está hoy hasta que su lógica esté migrada.
+Las cuatro rutas están thin. **M17 no mueve ningún handler**: los handlers siguen
+registrados en `server/routes/` y esta carpeta `routes/` **continúa docs-only**
+(hoy no contiene código). Cada adelgazamiento extrajo casos de uso a `application`
+**detrás del contrato por-ruta existente**, sin cambiar paths ni contratos
+públicos. La Fase C queda **técnicamente completada / pendiente de merge**.
 
 ## Qué NO hacer
 

@@ -106,32 +106,34 @@ de persistencia y el I/O real del contexto.
 
 ## Shims de compatibilidad fuera de la capa
 
-`server/db-logistics.ts` queda como **shim temporal**: sólo re-exporta la superficie
-pública desde `./features/logistics/infrastructure/db-logistics.ts`. No importa
-Drizzle, ni `drizzle/schema.ts`, ni `server/db.ts`; no contiene funciones, queries ni
-transacciones, y no declara default export. Desde M14, `logistics-route-plans`
-**ya no lo consume** (usa el adapter DB de esta capa); desde M15 tampoco
-`logistics-field-visits` (usa `logistics-field-visits-db-adapter.ts`); y desde
-**M16** tampoco `logistics-route-events` ni `logistics-sla` (usan
-`logistics-route-events-db-adapter.ts` / `logistics-sla-db-adapter.ts`). Tras
-M16 el shim **ya no tiene consumidores productivos**: los únicos imports
-restantes son de tests que necesitan sus tipos. Su eliminación global sigue
-prevista para **M17**, o cuando desaparezca el último consumidor.
+El shim raíz `server/db-logistics.ts` fue **retirado en M17** (*implementado /
+pendiente de merge*). Desde M14–M16 ninguna ruta productiva lo consumía
+(`logistics-route-plans` usa el adapter DB de esta capa; `logistics-field-visits`,
+`logistics-field-visits-db-adapter.ts`; `logistics-route-events` y `logistics-sla`,
+sus adapters M16), y tras M16 quedó **sin consumidores productivos**: los únicos
+imports restantes eran de **cinco** tests que sólo necesitaban sus **tipos**. M17
+retira el shim y realinea esos cinco tests al canónico de esta capa
+(`db-logistics.ts`, Opción B, `import type` sin cambio de símbolos ni runtime). La
+**única fuente de persistencia** de Logistics es ahora
+`server/features/logistics/infrastructure/db-logistics.ts`, con sus **siete
+transacciones intactas**; los cuatro adapters DB M14–M16 y `sla-breach-db.ts`
+permanecen sin cambios. El guard de infraestructura fija que el path retirado no
+existe ni puede recrearse ni volver a importarse (verificación por path resuelto).
 
 El **shim del cache** (`server/lib/logistics-route-plans-cache.ts`) fue
 **retirado en M14**: su único consumidor productivo era la ruta de route plans,
 que ahora consume el cache por el puerto de application y este adapter. El guard
 de frontera fija que el path retirado no se recree ni se importe.
 
-**Sin cambios de schema ni de migraciones**: M12–M16 no tocan `drizzle/schema.ts`,
+**Sin cambios de schema ni de migraciones**: M12–M17 no tocan `drizzle/schema.ts`,
 `drizzle/**`, `migrations/**`, endpoints ni contratos HTTP.
 
 ## Qué vivirá aquí (futuro, no ahora)
 
-- Nada nuevo planificado para esta capa: el milestone restante de la Fase C
-  (**M17**, cierre) retira el shim de `db-logistics` (ya sin consumidores
-  productivos tras M16) y completa la regresión contractual; no añade módulos
-  aquí.
+- Nada nuevo planificado para esta capa. **M17** (cierre de Logistics,
+  *implementado / pendiente de merge*) retiró el shim de `db-logistics` y completó
+  la regresión contractual; no añadió módulos aquí. La Fase C queda **técnicamente
+  completada / pendiente de merge**; **M18 (Pricing)** no iniciado.
 
 ## Qué NO hacer
 
