@@ -25,7 +25,20 @@ const canonicalSpecifierFromRoot =
 const canonicalCacheFile = `${infrastructureDir}/logistics-route-plans-cache.ts`;
 const cacheAdapterFile = `${infrastructureDir}/logistics-route-plans-cache-adapter.ts`;
 const dbAdapterFile = `${infrastructureDir}/logistics-route-plans-db-adapter.ts`;
+const fieldVisitsDbAdapterFile = `${infrastructureDir}/logistics-field-visits-db-adapter.ts`;
 const retiredCacheShimFile = "server/lib/logistics-route-plans-cache.ts";
+
+// Superficie de persistencia de field visits consumida por la ruta thin (M15):
+// exactamente las siete operaciones canónicas con call-site real.
+const FIELD_VISITS_ADAPTER_OPERATIONS = [
+  "createFieldVisit",
+  "listClinicFieldVisits",
+  "updateClinicScopedFieldVisit",
+  "getVisitLocationForClinicVisit",
+  "upsertVisitLocationForClinicVisit",
+  "createTimeWindowForClinicVisit",
+  "listTimeWindowsForClinicVisit",
+] as const;
 
 // Baseline R0 medido en HEAD 101731d, antes del move: `server/db-logistics.ts`
 // contenía exactamente 7 call-sites `db.transaction(`. M12 prohíbe
@@ -454,6 +467,95 @@ test("El adapter DB de route plans (M14) compone el canónico de su capa sin ree
     /db\.transaction\(|drizzle-orm/,
     `${dbAdapterFile} no puede contener queries ni transacciones propias`,
   );
+});
+
+// --- M15: adapter DB de field visits y ruta thin ---
+
+test("El adapter DB de field visits (M15) compone el canónico de su capa sin reescribirlo", () => {
+  assert.equal(
+    existsSync(join(repoRoot, fieldVisitsDbAdapterFile)),
+    true,
+    `${fieldVisitsDbAdapterFile} debe existir tras M15 (superficie DB consumida por la ruta thin)`,
+  );
+
+  const source = readText(fieldVisitsDbAdapterFile);
+
+  assert.match(
+    source,
+    /^export function createLogisticsFieldVisitsDbAdapter\b/m,
+    `${fieldVisitsDbAdapterFile} debe exportar la factory del adapter DB`,
+  );
+
+  // Composición mínima: sólo importa el DB canónico de su propia capa.
+  const specifiers = listImportSpecifiers(source);
+
+  assert.deepEqual(
+    Array.from(
+      new Set(
+        specifiers.map((specifier) =>
+          resolveSpecifier(fieldVisitsDbAdapterFile, specifier),
+        ),
+      ),
+    ),
+    [canonicalDbFile],
+    `${fieldVisitsDbAdapterFile} sólo puede importar ${canonicalDbFile}`,
+  );
+
+  // No re-implementa persistencia: sin Drizzle, sin transacciones propias.
+  assert.doesNotMatch(
+    source,
+    /db\.transaction\(|drizzle-orm/,
+    `${fieldVisitsDbAdapterFile} no puede contener queries ni transacciones propias`,
+  );
+
+  // Expone exactamente la superficie field-visits esperada: las siete
+  // operaciones canónicas, cada una como referencia directa dentro de la
+  // factory, sin operaciones extra.
+  const factoryBody = source.match(
+    /export function createLogisticsFieldVisitsDbAdapter\(\) \{\s*return \{([\s\S]*?)\};\s*\}/,
+  );
+  assert.ok(
+    factoryBody,
+    `${fieldVisitsDbAdapterFile} debe retornar un objeto literal de referencias directas`,
+  );
+
+  const returnedOperations = (factoryBody?.[1] ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+    .sort();
+
+  assert.deepEqual(
+    returnedOperations,
+    [...FIELD_VISITS_ADAPTER_OPERATIONS].sort(),
+    `${fieldVisitsDbAdapterFile} debe exponer exactamente las siete operaciones de field visits como referencias directas (sin wrappers)`,
+  );
+});
+
+test("La ruta de field visits no importa canónicos de infraestructura ni referencia db-logistics (M15)", () => {
+  const routeFile = "server/routes/logistics-field-visits.fastify.ts";
+  const routeSource = readText(routeFile);
+  const violations: string[] = [];
+
+  for (const specifier of listImportSpecifiers(routeSource)) {
+    const resolved = resolveSpecifier(routeFile, specifier);
+
+    if (resolved === canonicalDbFile || resolved === rootShimFile) {
+      violations.push(
+        `${routeFile}: import de db-logistics ("${specifier}"); usar el adapter ${fieldVisitsDbAdapterFile}`,
+      );
+    }
+  }
+
+  // Refuerzo textual M15: ni siquiera referencias type-only o en comentarios al
+  // módulo db-logistics dentro de la ruta thin.
+  assert.doesNotMatch(
+    routeSource,
+    /db-logistics/,
+    `${routeFile} no puede contener ninguna referencia textual a db-logistics`,
+  );
+
+  assert.deepEqual(violations, []);
 });
 
 test("El move de M12 conserva exactamente los call-sites transaccionales del baseline R0", () => {

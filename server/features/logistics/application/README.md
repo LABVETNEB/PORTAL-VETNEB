@@ -9,7 +9,9 @@
 > código productivo**: cierra la capa con el guard global de frontera y el
 > contrato global de inventario de casos de uso. **M14** agrega el caso de uso
 > de cache de route plans (read-through + invalidaciones) con su puerto opaco,
-> introducido junto con su primer consumidor real.
+> introducido junto con su primer consumidor real. **M15** agrega los casos de
+> uso restantes de field visits (listado, creación, ubicación y ventanas
+> horarias) con sus puertos mínimos, dejando thin la ruta de field visits.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
@@ -152,6 +154,35 @@ serialización concreta (dentro del callback puro), el mapeo de errores a status
 codes y la escritura del header `X-Logistics-Cache` a partir del `cacheStatus`
 retornado. TTL, Maps y expiración siguen en infrastructure.
 
+## Qué vive aquí (M15)
+
+- **`list-field-visits.ts`** — `createListFieldVisits`: listado clinic-scoped de
+  visitas de campo consumido por `GET /`; reenvía los params ya autenticados y
+  validados por identidad.
+- **`create-field-visit.ts`** — `createCreateFieldVisit`: creación de una visita
+  de campo consumida por `POST /`; el 500 sobre resultado ausente permanece en
+  la ruta.
+- **`visit-location-use-cases.ts`** — `createVisitLocationUseCases`:
+  `getVisitLocation` y `upsertVisitLocation`, consumidos por
+  `GET/PUT /:fieldVisitId/location`.
+- **`time-window-use-cases.ts`** — `createTimeWindowUseCases`:
+  `listTimeWindows` y `createTimeWindow`, consumidos por
+  `GET/POST /:fieldVisitId/time-windows`.
+- **Puertos** — `ports/logistics-field-visits-read-repository.ts`,
+  `ports/logistics-field-visit-create-repository.ts`,
+  `ports/logistics-visit-location-repository.ts` y
+  `ports/logistics-time-windows-repository.ts`, estructurales y genéricos,
+  derivados del seam `LogisticsFieldVisitsNativeRoutesOptions`. El puerto M09
+  (`logistics-field-visit-update-repository.ts`) queda intacto: el PATCH sigue
+  siendo el único consumidor de `createUpdateFieldVisit`.
+
+Cada operación delega exactamente una vez y devuelve el resultado del puerto sin
+transformarlo (incluidos `null`/`undefined` y el array vacío). CORS, preflight,
+trusted-origin, auth de sesión, RBAC, parsing, validaciones, 400/404/500,
+mensajes, serialización y paginación permanecen en la ruta. La carga default de
+persistencia de la ruta pasa por el adapter
+`infrastructure/logistics-field-visits-db-adapter.ts` (M15), no por esta capa.
+
 ## Regla de dependencia
 
 - **Puede importar:** `domain`, **puertos** (interfaces) y el shared kernel.
@@ -205,8 +236,8 @@ intactos: el guard global los **subsume**, no los reemplaza.
 
 `release`/`start`/`complete` (resto del lifecycle) permanecen fuera de la capa y
 siguen usando el default del helper de lifecycle compartido.
-GET/POST/location/time-windows de field visits permanecen fuera de M09 y se
-difieren al thin-route M15. **M12** (mergeado en PR #1509) movió
+GET/POST/location/time-windows de field visits quedaron fuera de M09 y fueron
+extraídos en el thin-route M15 (este PR). **M12** (mergeado en PR #1509) movió
 `db-logistics.ts` completo a `infrastructure/db-logistics.ts` con las transacciones
 intactas, dejando un shim en el root. Es **infraestructura de persistencia** y **no
 cambia esta capa**: `application` sigue sin importar `db-*` — el guard de M11 lo
@@ -215,8 +246,10 @@ del move. **M13** movió el cache de route plans a
 `infrastructure/logistics-route-plans-cache.ts`, también sin tocar esta capa y
 sin puerto de cache anticipado. **M14** (este PR) materializó ese puerto junto
 con su primer consumidor real (`createRoutePlansCacheUseCases`), adelgazó
-`logistics-route-plans` y retiró el shim del cache de `server/lib`. Los
-siguientes milestones son **M15–M16** (thin field-visits / route-events + SLA) y
+`logistics-route-plans` y retiró el shim del cache de `server/lib`. **M15** (este
+PR) adelgazó `logistics-field-visits`: los seis handlers restantes delegan en
+los casos de uso de esta capa y la carga default pasa por el adapter DB de
+field visits. Los siguientes milestones son **M16** (thin route-events + SLA) y
 **M17** (cierre). Cada puerto nuevo se introduce junto con su primer consumidor
 real — nunca como interfaz vacía anticipada.
 

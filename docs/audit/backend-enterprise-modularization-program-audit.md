@@ -829,7 +829,8 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > y migraciones. Detalle en
 > [`docs/implementation/m13-logistics-cache-infrastructure-move.md`](../implementation/m13-logistics-cache-infrastructure-move.md).
 >
-> **Status M14 — implementado / pendiente de merge.** Thin
+> **Status M14 — mergeado** (PR #1512, squash SHA
+> `c48791657a4c0eb9532d24df367cae8d18da3b7b`). Thin
 > `logistics-route-plans`: la ruta deja de importar y orquestar el cache
 > directamente. Se introduce el **puerto opaco**
 > `LogisticsRoutePlansCacheRepository` (application/ports) **junto con su primer
@@ -862,7 +863,43 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > mitigado). Cero cambios de endpoints, contratos HTTP, schema y migraciones.
 > Detalle en
 > [`docs/implementation/m14-logistics-route-plans-thin-route.md`](../implementation/m14-logistics-route-plans-thin-route.md).
-> **M15 — pendiente** (thin `logistics-field-visits`). **Fase C no cerrada.**
+>
+> **Status M15 — implementado / pendiente de merge.** Thin
+> `logistics-field-visits`: los seis handlers que aún invocaban `deps.*`
+> directamente (`GET /` listado, `POST /` creación, `GET/PUT
+> /:fieldVisitId/location`, `GET/POST /:fieldVisitId/time-windows`) delegan en
+> casos de uso de application (`createListFieldVisits`,
+> `createCreateFieldVisit`, `createVisitLocationUseCases`,
+> `createTimeWindowUseCases`), cada uno compuesto **exactamente una vez** antes
+> de los handlers sobre puertos mínimos genéricos derivados del seam
+> `LogisticsFieldVisitsNativeRoutesOptions`
+> (`LogisticsFieldVisitsReadRepository`, `LogisticsFieldVisitCreateRepository`,
+> `LogisticsVisitLocationRepository`, `LogisticsTimeWindowsRepository`). Cada
+> operación delega una vez y preserva identidad, `null`/`undefined`, array
+> vacío y errores sin envolver. El PATCH conserva **intacto** el caso de uso
+> M09 (`createUpdateFieldVisit` y su puerto). La ruta queda **sin ninguna
+> referencia a `db-logistics`** (ni estática, ni dinámica, ni type-only, ni
+> textual): los 8 tipos de I/O y las 7 operaciones de persistencia llegan por
+> el adapter mínimo `logistics-field-visits-db-adapter.ts` (referencias
+> directas al canónico de M12, laziness de `loadDefaultDeps` preservada; el
+> guard fija superficie exacta de 7 operaciones, sin queries ni transacciones
+> propias). La ruta conserva sólo HTTP: CORS por-ruta, preflight,
+> trusted-origin, auth de sesión de clínica (`app_session_id` vía
+> `ENV.cookieName`), RBAC `canManageLogisticsFieldVisits`, parsing,
+> validaciones, serializers (location sin `createdAt`), paginación 50/100,
+> mensajes y status codes, carácter por carácter. **No se agregó** cache,
+> auditoría, máquina de estados, endpoints ni side-effects. El shim
+> `server/db-logistics.ts` **permanece intacto** (route-events y SLA lo
+> consumen hasta M16; retiro global en M17); el canónico M12 permanece
+> byte-idéntico con sus 7 transacciones. Contratos realineados in-PR sin
+> debilitar: `logistics-field-visits-api` (`dbLogistics.*` → `fieldVisitsDb.*`,
+> el contrato M09 de deps directas out-of-scope reemplazado por los contratos
+> M15 de delegación) y guard de infraestructura extendido (adapter M15 + ruta
+> sin `db-logistics`). Cero cambios de endpoints, contratos HTTP, schema y
+> migraciones. Detalle en
+> [`docs/implementation/m15-logistics-field-visits-thin-route.md`](../implementation/m15-logistics-field-visits-thin-route.md).
+> **M16 — pendiente** (thin `logistics-route-events` + `logistics-sla`).
+> **Fase C no cerrada.**
 
 **M12** mover `db-logistics.ts` completo → infrastructure (tx intactas; shim documentado) ·
 **M13** cache adapter · **M14** thin `logistics-route-plans` · **M15** thin

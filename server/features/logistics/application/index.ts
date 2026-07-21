@@ -1,6 +1,6 @@
 // Barrel público de la capa application de Logistics. Expone únicamente la
-// superficie ya materializada (M06-M10 y M14); sin exports preventivos para
-// milestones futuros.
+// superficie ya materializada (M06-M10, M14 y M15); sin exports preventivos
+// para milestones futuros.
 
 export {
   createListOverdueActiveSlaInstances,
@@ -46,6 +46,30 @@ export {
   type UpdateFieldVisit,
 } from "./update-field-visit.ts";
 export type { LogisticsFieldVisitUpdateRepository } from "./ports/logistics-field-visit-update-repository.ts";
+
+export {
+  createListFieldVisits,
+  type ListFieldVisits,
+} from "./list-field-visits.ts";
+export type { LogisticsFieldVisitsReadRepository } from "./ports/logistics-field-visits-read-repository.ts";
+
+export {
+  createCreateFieldVisit,
+  type CreateFieldVisit,
+} from "./create-field-visit.ts";
+export type { LogisticsFieldVisitCreateRepository } from "./ports/logistics-field-visit-create-repository.ts";
+
+export {
+  createVisitLocationUseCases,
+  type VisitLocationUseCases,
+} from "./visit-location-use-cases.ts";
+export type { LogisticsVisitLocationRepository } from "./ports/logistics-visit-location-repository.ts";
+
+export {
+  createTimeWindowUseCases,
+  type TimeWindowUseCases,
+} from "./time-window-use-cases.ts";
+export type { LogisticsTimeWindowsRepository } from "./ports/logistics-time-windows-repository.ts";
 
 export {
   createCreateRouteEvent,

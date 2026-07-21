@@ -41,9 +41,9 @@ test("logistics field visit API authenticates clinic users with existing session
 
 test("logistics field visit API keeps all reads and writes clinic scoped", () => {
   assert.match(routeSource, /clinicId: auth\.clinicId/);
-  assert.match(routeSource, /deps\.listClinicFieldVisits\(params\)/);
+  assert.match(routeSource, /await listFieldVisits\(params\)/);
   assert.match(routeSource, /buildCreateFieldVisitInput\(request\.body, auth\.clinicId\)/);
-  assert.match(routeSource, /deps\.createFieldVisit\(parsed\.input\)/);
+  assert.match(routeSource, /await createFieldVisitUseCase\(parsed\.input\)/);
   assert.match(routeSource, /updateFieldVisit\(\s*fieldVisitId,\s*auth\.clinicId,\s*parsed\.input,\s*\)/);
 });
 
@@ -85,10 +85,10 @@ test("logistics field visit API exposes clinic-scoped location endpoints", () =>
 test("logistics field visit API wires visit location DB helpers through injectable deps", () => {
   assert.match(routeSource, /getVisitLocationForClinicVisit\?:/);
   assert.match(routeSource, /upsertVisitLocationForClinicVisit\?:/);
-  assert.match(routeSource, /dbLogistics\.getVisitLocationForClinicVisit/);
-  assert.match(routeSource, /dbLogistics\.upsertVisitLocationForClinicVisit/);
-  assert.match(routeSource, /deps\.getVisitLocationForClinicVisit\(\s*fieldVisitId,\s*auth\.clinicId,\s*\)/);
-  assert.match(routeSource, /deps\.upsertVisitLocationForClinicVisit\(parsed\.input\)/);
+  assert.match(routeSource, /fieldVisitsDb\.getVisitLocationForClinicVisit/);
+  assert.match(routeSource, /fieldVisitsDb\.upsertVisitLocationForClinicVisit/);
+  assert.match(routeSource, /visitLocationUseCases\.getVisitLocation\(\s*fieldVisitId,\s*auth\.clinicId,\s*\)/);
+  assert.match(routeSource, /visitLocationUseCases\.upsertVisitLocation\(\s*parsed\.input,\s*\)/);
 });
 
 test("logistics field visit API validates visit location payload before upsert", () => {
@@ -125,10 +125,10 @@ test("logistics field visit API exposes clinic-scoped time-window endpoints", ()
 test("logistics field visit API wires time-window DB helpers through injectable deps", () => {
   assert.match(routeSource, /createTimeWindowForClinicVisit\?:/);
   assert.match(routeSource, /listTimeWindowsForClinicVisit\?:/);
-  assert.match(routeSource, /dbLogistics\.createTimeWindowForClinicVisit/);
-  assert.match(routeSource, /dbLogistics\.listTimeWindowsForClinicVisit/);
-  assert.match(routeSource, /deps\.listTimeWindowsForClinicVisit\(\s*fieldVisitId,\s*auth\.clinicId,\s*\)/);
-  assert.match(routeSource, /deps\.createTimeWindowForClinicVisit\(parsed\.input\)/);
+  assert.match(routeSource, /fieldVisitsDb\.createTimeWindowForClinicVisit/);
+  assert.match(routeSource, /fieldVisitsDb\.listTimeWindowsForClinicVisit/);
+  assert.match(routeSource, /timeWindowUseCases\.listTimeWindows\(\s*fieldVisitId,\s*auth\.clinicId,\s*\)/);
+  assert.match(routeSource, /timeWindowUseCases\.createTimeWindow\(parsed\.input\)/);
 });
 
 test("logistics field visit API validates time-window payload before create", () => {
@@ -165,11 +165,6 @@ test("logistics field visit API enforces role-aware logistics field visit permis
 });
 
 test("logistics field visit API delegates only PATCH update to the M09 application use case", () => {
-  assert.match(
-    routeSource,
-    /import \{ createUpdateFieldVisit \} from "\.\.\/features\/logistics\/application\/index\.ts";/,
-  );
-
   const compositionPattern =
     /const updateFieldVisit = createUpdateFieldVisit\(\{\s*updateClinicScopedFieldVisit: deps\.updateClinicScopedFieldVisit,\s*\}\);/;
   assert.match(routeSource, compositionPattern);
@@ -188,25 +183,115 @@ test("logistics field visit API delegates only PATCH update to the M09 applicati
     routeSource,
     /const updated = await updateFieldVisit\(\s*fieldVisitId,\s*auth\.clinicId,\s*parsed\.input,\s*\);/,
   );
-  assert.match(routeSource, /dbLogistics\.updateClinicScopedFieldVisit/);
+  assert.match(routeSource, /fieldVisitsDb\.updateClinicScopedFieldVisit/);
 });
 
-test("M09 preserves direct dependencies for out-of-scope field visit handlers", () => {
-  for (const marker of [
-    "deps.listClinicFieldVisits(params)",
-    "deps.createFieldVisit(parsed.input)",
-    "deps.getVisitLocationForClinicVisit(",
-    "deps.upsertVisitLocationForClinicVisit(parsed.input)",
-    "deps.listTimeWindowsForClinicVisit(",
-    "deps.createTimeWindowForClinicVisit(parsed.input)",
-  ]) {
-    assert.ok(routeSource.includes(marker), `debe preservar ${marker}`);
+test("M15 delegates the six remaining handlers to application use cases composed once", () => {
+  // Import de las factories desde el barrel público de application.
+  assert.match(
+    routeSource,
+    /import \{\s*createCreateFieldVisit,\s*createListFieldVisits,\s*createTimeWindowUseCases,\s*createUpdateFieldVisit,\s*createVisitLocationUseCases,\s*\} from "\.\.\/features\/logistics\/application\/index\.ts";/,
+  );
+
+  const handlersStart = routeSource.indexOf("app.options(");
+  assert.ok(handlersStart > 0, "no se encontró la región de handlers");
+
+  // Composición exacta de cada factory M15, una sola vez y antes de los handlers.
+  const compositions: Array<{ name: string; pattern: RegExp }> = [
+    {
+      name: "createListFieldVisits",
+      pattern:
+        /const listFieldVisits = createListFieldVisits\(\{\s*listClinicFieldVisits: deps\.listClinicFieldVisits,\s*\}\);/,
+    },
+    {
+      name: "createCreateFieldVisit",
+      pattern:
+        /const createFieldVisitUseCase = createCreateFieldVisit\(\{\s*createFieldVisit: deps\.createFieldVisit,\s*\}\);/,
+    },
+    {
+      name: "createVisitLocationUseCases",
+      pattern:
+        /const visitLocationUseCases = createVisitLocationUseCases\(\{\s*getVisitLocationForClinicVisit: deps\.getVisitLocationForClinicVisit,\s*upsertVisitLocationForClinicVisit: deps\.upsertVisitLocationForClinicVisit,\s*\}\);/,
+    },
+    {
+      name: "createTimeWindowUseCases",
+      pattern:
+        /const timeWindowUseCases = createTimeWindowUseCases\(\{\s*listTimeWindowsForClinicVisit: deps\.listTimeWindowsForClinicVisit,\s*createTimeWindowForClinicVisit: deps\.createTimeWindowForClinicVisit,\s*\}\);/,
+    },
+  ];
+
+  for (const { name, pattern } of compositions) {
+    assert.match(routeSource, pattern);
+    assert.ok(
+      routeSource.search(pattern) < handlersStart,
+      `la composición de ${name} debe ocurrir antes de los handlers`,
+    );
+    assert.equal(
+      routeSource.match(new RegExp(`\\b${name}\\s*\\(`, "g"))?.length ?? 0,
+      1,
+      `${name} debe componerse exactamente una vez`,
+    );
   }
 
+  // Los seis handlers restantes delegan en los casos de uso M15.
+  for (const marker of [
+    "await listFieldVisits(params)",
+    "await createFieldVisitUseCase(parsed.input)",
+    "await visitLocationUseCases.getVisitLocation(",
+    "await visitLocationUseCases.upsertVisitLocation(",
+    "await timeWindowUseCases.listTimeWindows(",
+    "await timeWindowUseCases.createTimeWindow(parsed.input)",
+  ]) {
+    assert.ok(routeSource.includes(marker), `debe delegar mediante ${marker}`);
+  }
+
+  // Cero llamadas persistentes directas dentro de handlers: las deps de
+  // persistencia sólo pueden referenciarse (sin invocar) en las composiciones.
+  assert.doesNotMatch(
+    routeSource,
+    /deps\.(createFieldVisit|listClinicFieldVisits|updateClinicScopedFieldVisit|getVisitLocationForClinicVisit|upsertVisitLocationForClinicVisit|createTimeWindowForClinicVisit|listTimeWindowsForClinicVisit)\s*\(/,
+    "ningún handler puede invocar directamente una dependencia de persistencia",
+  );
+
+  // La secuencia observable del PATCH permanece intacta.
   assert.match(
     routeSource,
     /if \(!enforceTrustedOrigin\(request, reply, allowedOrigins\)\)[\s\S]*?authenticateClinicUser\(request, reply, deps, now\)[\s\S]*?canManageLogisticsFieldVisits[\s\S]*?parseEntityId\(request\.params\.fieldVisitId\)[\s\S]*?buildUpdateFieldVisitInput\(request\.body\)[\s\S]*?updateFieldVisit\(/,
   );
+});
+
+test("M15 loads default persistence only through the field visits DB adapter", () => {
+  // La ruta no contiene ninguna referencia a db-logistics: ni import estático,
+  // ni dinámico, ni type-only, ni textual.
+  assert.doesNotMatch(routeSource, /db-logistics/);
+
+  // Tipos de I/O provenientes del adapter de infrastructure.
+  assert.match(
+    routeSource,
+    /import type \{[\s\S]*?\} from "\.\.\/features\/logistics\/infrastructure\/logistics-field-visits-db-adapter\.ts";/,
+  );
+
+  // Carga default lazy vía la factory del adapter, dentro de loadDefaultDeps.
+  assert.match(
+    routeSource,
+    /const fieldVisitsDb = \(\s*await import\(\s*"\.\.\/features\/logistics\/infrastructure\/logistics-field-visits-db-adapter\.ts"\s*\)\s*\)\.createLogisticsFieldVisitsDbAdapter\(\);/,
+  );
+
+  // Las siete operaciones de persistencia provienen del adapter.
+  for (const operation of [
+    "createFieldVisit",
+    "listClinicFieldVisits",
+    "updateClinicScopedFieldVisit",
+    "getVisitLocationForClinicVisit",
+    "upsertVisitLocationForClinicVisit",
+    "createTimeWindowForClinicVisit",
+    "listTimeWindowsForClinicVisit",
+  ]) {
+    assert.ok(
+      routeSource.includes(`fieldVisitsDb.${operation}`),
+      `loadDefaultDeps debe componer ${operation} desde el adapter`,
+    );
+  }
 });
 
 test("logistics field visit M09 application files stay free of HTTP and DB imports", () => {
