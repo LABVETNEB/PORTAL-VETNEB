@@ -809,7 +809,25 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > auth/session/CORS/audit/email, `server/lib` y el shim raíz). Cero cambios de
 > endpoints, contratos HTTP, schema y migraciones. Detalle en
 > [`docs/implementation/m12-logistics-db-infrastructure-move.md`](../implementation/m12-logistics-db-infrastructure-move.md).
-> **M13 — pendiente** (cache adapter). **Fase C no cerrada.**
+> **M12 — mergeado** (PR #1509, squash SHA
+> `5c775b3cd6bd4cc33bbd7442dfe733f6f1169308`).
+>
+> **Status M13 — implementado / pendiente de merge.** Move **byte-idéntico** de
+> `server/lib/logistics-route-plans-cache.ts` →
+> `server/features/logistics/infrastructure/logistics-route-plans-cache.ts`
+> (**107 LOC**, cero imports, 9 exports, misma copia byte a byte verificada por
+> `git hash-object`). TTL 5 min, claves, invalidaciones por prefijo
+> clinic/clinic+plan y semántica miss/hit sin cambios; la construcción de claves
+> y el header `X-Logistics-Cache` (HIT/MISS) siguen perteneciendo a la ruta
+> hasta M14 — **sin puerto de cache anticipado**. `server/lib/logistics-route-plans-cache.ts`
+> queda como **shim documentado** que sólo re-exporta el canónico, conservado
+> porque `server/routes/logistics-route-plans.fastify.ts` lo importa hasta M14
+> (ruta byte-idéntica en M13). Guard de infraestructura extendido con tres
+> contratos M13 (cache canónico puro sin imports, shim sólo-re-export, infra no
+> consume el shim del cache). Cero cambios de endpoints, contratos HTTP, schema
+> y migraciones. Detalle en
+> [`docs/implementation/m13-logistics-cache-infrastructure-move.md`](../implementation/m13-logistics-cache-infrastructure-move.md).
+> **M14 — pendiente** (thin `logistics-route-plans`). **Fase C no cerrada.**
 
 **M12** mover `db-logistics.ts` completo → infrastructure (tx intactas; shim documentado) ·
 **M13** cache adapter · **M14** thin `logistics-route-plans` · **M15** thin

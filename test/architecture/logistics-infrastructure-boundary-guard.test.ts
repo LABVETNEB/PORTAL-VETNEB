@@ -22,6 +22,10 @@ const domainIndexFile = `${domainDir}/index.ts`;
 const rootShimFile = "server/db-logistics.ts";
 const canonicalSpecifierFromRoot =
   "./features/logistics/infrastructure/db-logistics.ts";
+const canonicalCacheFile = `${infrastructureDir}/logistics-route-plans-cache.ts`;
+const cacheShimFile = "server/lib/logistics-route-plans-cache.ts";
+const canonicalCacheSpecifierFromLib =
+  "../features/logistics/infrastructure/logistics-route-plans-cache.ts";
 
 // Baseline R0 medido en HEAD 101731d, antes del move: `server/db-logistics.ts`
 // contenía exactamente 7 call-sites `db.transaction(`. M12 prohíbe
@@ -295,6 +299,88 @@ test("El shim raíz existe y sólo re-exporta la implementación canónica", () 
     /^export\s+(async\s+)?function\b/m,
     `${rootShimFile} no puede declarar funciones`,
   );
+});
+
+// --- M13: cache adapter de route plans movido a infrastructure ---
+
+test("El cache canónico de M13 existe y es un módulo puro sin imports", () => {
+  assert.equal(
+    existsSync(join(repoRoot, canonicalCacheFile)),
+    true,
+    `${canonicalCacheFile} debe existir tras el move de M13`,
+  );
+
+  const source = readText(canonicalCacheFile);
+
+  // Implementación real, no un re-export.
+  assert.match(
+    source,
+    /^export function \w+/m,
+    `${canonicalCacheFile} debe contener la implementación real del cache`,
+  );
+
+  // Invariante de pureza: el cache es in-memory puro. Cero specifiers de
+  // import (estático, dinámico o require) impide cablearle Redis, DB,
+  // Fastify o server/lib a futuro sin pasar por revisión de arquitectura.
+  assert.deepEqual(
+    listImportSpecifiers(source),
+    [],
+    `${canonicalCacheFile} debe tener cero imports (módulo in-memory puro)`,
+  );
+});
+
+test("El shim legacy del cache sólo re-exporta la implementación canónica", () => {
+  assert.equal(
+    existsSync(join(repoRoot, cacheShimFile)),
+    true,
+    `${cacheShimFile} debe existir mientras la ruta legacy lo importe (hasta M14)`,
+  );
+
+  const shimSource = readText(cacheShimFile);
+  const specifiers = listImportSpecifiers(shimSource);
+
+  assert.ok(
+    specifiers.length > 0,
+    `${cacheShimFile} debe re-exportar la superficie pública del cache`,
+  );
+
+  const offending = specifiers.filter(
+    (specifier) => specifier !== canonicalCacheSpecifierFromLib,
+  );
+
+  assert.deepEqual(
+    offending,
+    [],
+    `${cacheShimFile} sólo puede referenciar ${canonicalCacheSpecifierFromLib}`,
+  );
+
+  assert.match(
+    shimSource,
+    /export \* from "\.\.\/features\/logistics\/infrastructure\/logistics-route-plans-cache\.ts";/,
+    `${cacheShimFile} debe re-exportar toda la superficie con export *`,
+  );
+
+  assert.doesNotMatch(
+    shimSource,
+    /^export\s+(async\s+)?function\b/m,
+    `${cacheShimFile} no puede declarar funciones`,
+  );
+});
+
+test("Ningún archivo de Logistics infrastructure importa el shim legacy del cache", () => {
+  const violations: string[] = [];
+
+  for (const file of walkTsFiles(infrastructureDir)) {
+    for (const specifier of listImportSpecifiers(readText(file))) {
+      if (resolveSpecifier(file, specifier) === cacheShimFile) {
+        violations.push(
+          `${file}: import al shim legacy del cache ("${specifier}" -> ${cacheShimFile}); usar ${canonicalCacheFile}`,
+        );
+      }
+    }
+  }
+
+  assert.deepEqual(violations, []);
 });
 
 test("El move de M12 conserva exactamente los call-sites transaccionales del baseline R0", () => {

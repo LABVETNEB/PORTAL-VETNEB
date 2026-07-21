@@ -16,7 +16,9 @@ const { logisticsRoutePlansNativeRoutes } = await import(
 const {
   clearRoutePlanMetricsCache,
   clearRoutePlansCache,
-} = await import("../../../../server/lib/logistics-route-plans-cache.ts");
+} = await import(
+  "../../../../server/features/logistics/infrastructure/logistics-route-plans-cache.ts"
+);
 
 const VALID_ORIGIN = "http://localhost:3000";
 const SESSION_TOKEN = "clinic-session-token";
