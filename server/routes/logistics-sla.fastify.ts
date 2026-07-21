@@ -18,7 +18,7 @@ import type {
   ListOverdueActiveClinicSlaInstancesParams,
   SlaInstance,
   SlaPolicy,
-} from "../db-logistics.ts";
+} from "../features/logistics/infrastructure/logistics-sla-db-adapter.ts";
 import { ENV } from "../lib/env.ts";
 import {
   getAllowedOriginForCors,
@@ -30,7 +30,10 @@ import {
   normalizeClinicUserRole,
 } from "../lib/permissions.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
-import { createListOverdueActiveSlaInstances } from "../features/logistics/application/index.ts";
+import {
+  createListOverdueActiveSlaInstances,
+  createSlaReadUseCases,
+} from "../features/logistics/application/index.ts";
 
 type ActiveSessionRecord = {
   clinicUserId: number;
@@ -101,7 +104,11 @@ async function loadDefaultDeps(): Promise<NativeLogisticsSlaDeps> {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
-      const dbLogistics = await import("../db-logistics.ts");
+      const slaDb = (
+        await import(
+          "../features/logistics/infrastructure/logistics-sla-db-adapter.ts"
+        )
+      ).createLogisticsSlaDbAdapter();
 
       return {
         deleteActiveSession: db.deleteActiveSession,
@@ -109,11 +116,11 @@ async function loadDefaultDeps(): Promise<NativeLogisticsSlaDeps> {
         getClinicUserById: db.getClinicUserById,
         updateSessionLastAccess: db.updateSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
-        listActiveClinicSlaPolicies: dbLogistics.listActiveClinicSlaPolicies,
-        listClinicSlaInstances: dbLogistics.listClinicSlaInstances,
+        listActiveClinicSlaPolicies: slaDb.listActiveClinicSlaPolicies,
+        listClinicSlaInstances: slaDb.listClinicSlaInstances,
         listOverdueActiveClinicSlaInstances:
-          dbLogistics.listOverdueActiveClinicSlaInstances,
-        getClinicSlaSummary: dbLogistics.getClinicSlaSummary,
+          slaDb.listOverdueActiveClinicSlaInstances,
+        getClinicSlaSummary: slaDb.getClinicSlaSummary,
       };
     })();
   }
@@ -593,6 +600,15 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
     listOverdueActiveClinicSlaInstances: deps.listOverdueActiveClinicSlaInstances,
   });
 
+  // Casos de uso M16: las tres lecturas restantes (políticas, instancias y
+  // summary) se componen una sola vez por registro del plugin desde el seam de
+  // deps ya resuelto. La lectura overdue queda en el caso de uso M06.
+  const slaReads = createSlaReadUseCases({
+    listActiveClinicSlaPolicies: deps.listActiveClinicSlaPolicies,
+    listClinicSlaInstances: deps.listClinicSlaInstances,
+    getClinicSlaSummary: deps.getClinicSlaSummary,
+  });
+
   const now = options.now ?? (() => Date.now());
   const allowedOrigins = new Set(getAllowedOrigins());
 
@@ -697,7 +713,7 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const summary = await deps.getClinicSlaSummary(auth.clinicId);
+    const summary = await slaReads.getSummary(auth.clinicId);
 
     return reply.code(200).send({
       success: true,
@@ -736,7 +752,7 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const policies = await deps.listActiveClinicSlaPolicies(parsed.params);
+    const policies = await slaReads.listActivePolicies(parsed.params);
 
     return reply.code(200).send({
       success: true,
@@ -782,7 +798,7 @@ export const logisticsSlaNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const instances = await deps.listClinicSlaInstances(parsed.params);
+    const instances = await slaReads.listInstances(parsed.params);
 
     return reply.code(200).send({
       success: true,

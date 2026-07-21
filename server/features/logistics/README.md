@@ -8,8 +8,9 @@
 >
 > **Estado:** Fase A **cerrada** (M05) · Fase B **cerrada** (M11, PR #1507 merged) ·
 > Fase C **en curso**: M12 **mergeado** (PR #1509) · M13 **mergeado** (PR #1511) ·
-> M14 **mergeado** (PR #1512) · M15 **mergeado** (PR #1513) · M16–M17
-> pendientes.
+> M14 **mergeado** (PR #1512) · M15 **mergeado** (PR #1513) · M16
+> **implementado / pendiente de merge** (thin route-events + SLA) · M17
+> pendiente.
 
 Este directorio es la **frontera** del contexto Logistics. Declara las reglas de
 dependencia del ADR ([ARCH-2](../../../docs/architecture/backend-boundary-adr.md))
@@ -27,15 +28,20 @@ y ya aloja código migrado, capa por capa, detrás de contratos con tests verdes
 - **`application/`** — casos de uso extraídos en M06–M10 y cerrados en M11.
 - **`routes/`** — todavía sólo README (sin código).
 
-El runtime legacy que queda fuera son las rutas de route-events y SLA
-(`server/routes/logistics-*.fastify.ts`, thin routes en **M16**, cierre en M17);
-`logistics-route-plans` quedó thin en **M14** (cache vía puerto de application +
-adapter de infrastructure) y `logistics-field-visits` en **M15** (seis handlers
+Las cuatro rutas HTTP de Logistics quedaron thin:
+`logistics-route-plans` en **M14** (cache vía puerto de application +
+adapter de infrastructure), `logistics-field-visits` en **M15** (seis handlers
 delegando en casos de uso y carga default por
-`logistics-field-visits-db-adapter.ts`). `server/db-logistics.ts` **ya no es
+`logistics-field-visits-db-adapter.ts`) y `logistics-route-events` + `logistics-sla`
+en **M16** (route-events ya delegaba en M10; SLA delega overdue en M06 y las tres
+lecturas restantes en el caso de uso nuevo `createSlaReadUseCases`; ambas cargan
+la persistencia default por sus adapters `logistics-route-events-db-adapter.ts` /
+`logistics-sla-db-adapter.ts`). El cierre integral (retiro del shim, regresión
+contractual completa) es **M17**. `server/db-logistics.ts` **ya no es
 implementación**: desde M12 es un **shim de compatibilidad** que sólo re-exporta el
-canónico de `features/logistics/infrastructure/`, conservado únicamente porque las
-rutas legacy restantes (route-events y SLA) siguen importándolo. El shim del cache
+canónico de `features/logistics/infrastructure/`; tras M16 ya **no tiene
+consumidores productivos** (sólo lo importan tests que necesitan sus tipos) y su
+retiro global se decide en M17. El shim del cache
 (`server/lib/logistics-route-plans-cache.ts`) fue **retirado en M14** (su único
 consumidor productivo era la ruta de route plans). **M05 cierra la Fase A**: el namespace de
 dominio legacy `server/lib/logistics/` queda **retirado** (cero archivos
@@ -105,8 +111,13 @@ pasó a consumir el cache por puerto de application + adapter. Tras **M15**,
 `logistics-field-visits` también quedó thin: sus siete handlers funcionales
 delegan en casos de uso de application y su carga default de persistencia pasa
 por `logistics-field-visits-db-adapter.ts`, sin ninguna referencia a
-`db-logistics`. Lo que **aún es legacy**: las rutas de route-events y SLA (rutas
-delgadas en **M16**, cierre en **M17**).
+`db-logistics`. Tras **M16**, `logistics-route-events` y `logistics-sla` también
+quedaron thin: route-events ya delegaba en los casos de uso M10 y SLA delega
+overdue en M06 y las tres lecturas restantes en `createSlaReadUseCases`; la carga
+default de ambas pasa por `logistics-route-events-db-adapter.ts` /
+`logistics-sla-db-adapter.ts`, sin ninguna referencia a `db-logistics`. Lo que
+**queda para M17**: el cierre integral de Logistics (retiro del shim, ya sin
+consumidores productivos, y regresión contractual completa).
 
 Es una migración incremental y deliberada: se mueve código real capa por capa,
 detrás de los contratos por-ruta existentes y sólo con tests verdes.
@@ -207,8 +218,21 @@ verdes. Cada carpeta materializa código **sólo cuando hay algo real que la hab
   validaciones, serializers, mensajes y status codes, carácter por carácter. El
   shim `server/db-logistics.ts` permanece sólo para route-events y SLA (M16;
   retiro global en M17). Cero cambios de contrato HTTP, schema, migraciones,
-  auth ni CORS. `M16` (thin route-events + SLA) y `M17` (cierre de Logistics)
-  permanecen futuros.
+  auth ni CORS.
+- **M16 (implementado / pendiente de merge) — thin `logistics-route-events` +
+  `logistics-sla`** — ambas rutas dejan de referenciar `db-logistics` (estática,
+  dinámica, type-only y textualmente). Route-events ya delegaba en los casos de
+  uso M10 (intactos); M16 sólo reencamina tipos y carga default por
+  `logistics-route-events-db-adapter.ts` (4 ops + 3 tipos), preservando la
+  auditoría posterior al append en la ruta. En SLA, `/overdue` sigue en el caso
+  de uso M06 (intacto) y las tres lecturas restantes (`/policies`, `/instances`,
+  `/summary`) delegan en el caso de uso nuevo `createSlaReadUseCases` sobre el
+  puerto mínimo genérico `LogisticsSlaReadModelsRepository`; tipos y carga
+  default llegan por `logistics-sla-db-adapter.ts` (4 ops + 6 tipos). El
+  canónico M12 permanece byte-idéntico (7 transacciones); el shim
+  `server/db-logistics.ts` permanece intacto pero **ya sin consumidores
+  productivos** (retiro global en M17). Cero cambios de contrato HTTP, schema,
+  migraciones, auth ni CORS. `M17` (cierre de Logistics) permanece futuro.
 
 ## 5. Qué NO se mueve en M12
 
@@ -251,3 +275,4 @@ la red de seguridad que habilita reorganizar sin cambiar comportamiento.
 - [Nota de implementación — M13](../../../docs/implementation/m13-logistics-cache-infrastructure-move.md) — mueve el cache de route plans a `infrastructure/` con shim en `server/lib`.
 - [Nota de implementación — M14](../../../docs/implementation/m14-logistics-route-plans-thin-route.md) — thin `logistics-route-plans`: puerto de cache + adapter DB; retira el shim del cache.
 - [Nota de implementación — M15](../../../docs/implementation/m15-logistics-field-visits-thin-route.md) — thin `logistics-field-visits`: casos de uso + adapter DB de field visits.
+- [Nota de implementación — M16](../../../docs/implementation/m16-logistics-route-events-sla-thin-routes.md) — thin `logistics-route-events` + `logistics-sla`: adapters DB + caso de uso de lecturas SLA.

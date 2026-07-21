@@ -44,10 +44,51 @@ test("logistics route events API wires route event DB helpers through injectable
   assert.match(routeSource, /listClinicRouteEvents\?:/);
   assert.match(routeSource, /listRouteEventsForClinicRoutePlan\?:/);
   assert.match(routeSource, /listIncrementalClinicRouteEvents\?:/);
-  assert.match(routeSource, /dbLogistics\.createRouteEvent/);
-  assert.match(routeSource, /dbLogistics\.listClinicRouteEvents/);
-  assert.match(routeSource, /dbLogistics\.listRouteEventsForClinicRoutePlan/);
-  assert.match(routeSource, /dbLogistics\.listIncrementalClinicRouteEvents/);
+  assert.match(routeSource, /routeEventsDb\.createRouteEvent/);
+  assert.match(routeSource, /routeEventsDb\.listClinicRouteEvents/);
+  assert.match(routeSource, /routeEventsDb\.listRouteEventsForClinicRoutePlan/);
+  assert.match(routeSource, /routeEventsDb\.listIncrementalClinicRouteEvents/);
+});
+
+test("M16 loads the default route event persistence through the infrastructure adapter, not the shim", () => {
+  // Tipos de I/O importados desde el adapter de infrastructure (no del shim).
+  assert.match(
+    routeSource,
+    /import type \{\s*CreateRouteEventInput,\s*ListRouteEventsParams,\s*RouteEvent,\s*\} from "\.\.\/features\/logistics\/infrastructure\/logistics-route-events-db-adapter\.ts";/,
+  );
+
+  // La carga default (lazy, dentro de loadDefaultDeps) compone la factory del
+  // adapter DB exactamente una vez.
+  const adapterComposition =
+    /const routeEventsDb = \(\s*await import\(\s*"\.\.\/features\/logistics\/infrastructure\/logistics-route-events-db-adapter\.ts"\s*\)\s*\)\.createLogisticsRouteEventsDbAdapter\(\);/;
+  assert.match(routeSource, adapterComposition);
+  assert.equal(
+    routeSource.match(/createLogisticsRouteEventsDbAdapter\(\)/g)?.length,
+    1,
+    "el adapter DB debe componerse exactamente una vez",
+  );
+
+  // Las cuatro operaciones de persistencia se cablean desde el adapter.
+  assert.match(routeSource, /createRouteEvent: routeEventsDb\.createRouteEvent/);
+  assert.match(
+    routeSource,
+    /listClinicRouteEvents: routeEventsDb\.listClinicRouteEvents/,
+  );
+  assert.match(
+    routeSource,
+    /listRouteEventsForClinicRoutePlan:\s*routeEventsDb\.listRouteEventsForClinicRoutePlan/,
+  );
+  assert.match(
+    routeSource,
+    /listIncrementalClinicRouteEvents:\s*routeEventsDb\.listIncrementalClinicRouteEvents/,
+  );
+
+  // La carga default sigue siendo lazy dentro de loadDefaultDeps.
+  assert.match(routeSource, /async function loadDefaultDeps\(/);
+
+  // Refuerzo textual M16: cero referencias (estáticas, dinámicas, type-only o
+  // en comentarios) al módulo db-logistics dentro de la ruta thin.
+  assert.doesNotMatch(routeSource, /db-logistics/);
 });
 
 test("logistics route events API keeps reads clinic scoped", () => {
