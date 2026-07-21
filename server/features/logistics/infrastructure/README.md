@@ -6,7 +6,7 @@
 > #1511)**, el **cache de route plans**; desde **M14 (mergeado en PR #1512)**,
 > el **adapter del puerto de cache** y el **adapter DB de route plans**; desde
 > **M15 (mergeado en PR #1513)**, el **adapter DB de field visits**; y desde
-> **M16 (implementado / pendiente de merge)**, los **adapters DB de route events y SLA**.
+> **M16 (mergeado en PR #1515)**, los **adapters DB de route events y SLA**.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 

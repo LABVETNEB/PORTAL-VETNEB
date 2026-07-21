@@ -12,9 +12,10 @@
 > introducido junto con su primer consumidor real. **M15** agrega los casos de
 > uso restantes de field visits (listado, creación, ubicación y ventanas
 > horarias) con sus puertos mínimos, dejando thin la ruta de field visits.
-> **M16** agrega el caso de uso de lecturas SLA (`createSlaReadUseCases`:
-> políticas, instancias y summary) con su puerto mínimo, dejando thin la ruta de
-> SLA; route-events ya delegaba en M10 y no requiere código nuevo de esta capa.
+> **M16** (mergeado en PR #1515) agrega el caso de uso de lecturas SLA
+> (`createSlaReadUseCases`: políticas, instancias y summary) con su puerto
+> mínimo, dejando thin la ruta de SLA; route-events ya delegaba en M10 y no
+> requiere código nuevo de esta capa.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
@@ -42,8 +43,11 @@ concreta.
 
 El adaptador real del puerto se construye **en la ruta**
 (`server/routes/logistics-sla.fastify.ts`) desde la dependencia ya resuelta en
-`deps`; la carga default desde `db-logistics.ts` sigue viviendo en la zona de
-composición de la ruta, no aquí.
+`deps`. En **M06** la carga default de esa dependencia todavía llegaba desde el
+shim `db-logistics.ts` en la zona de composición de la ruta; **desde M16** esa
+carga default pasa por `infrastructure/logistics-sla-db-adapter.ts` y la ruta ya
+no referencia `db-logistics`. El caso de uso y el puerto M06 permanecen
+intactos.
 
 ## Qué vive aquí (M07)
 
@@ -277,7 +281,7 @@ con su primer consumidor real (`createRoutePlansCacheUseCases`), adelgazó
 `logistics-route-plans` y retiró el shim del cache de `server/lib`. **M15**
 (mergeado en PR #1513) adelgazó `logistics-field-visits`: los seis handlers restantes delegan en
 los casos de uso de esta capa y la carga default pasa por el adapter DB de
-field visits. **M16** (implementado / pendiente de merge) adelgazó
+field visits. **M16** (mergeado en PR #1515) adelgazó
 `logistics-route-events` (ya delegaba en M10) y `logistics-sla`: las tres
 lecturas SLA restantes delegan en `createSlaReadUseCases` de esta capa, `/overdue`
 sigue en M06, y la carga default de ambas rutas pasa por sus adapters DB. El

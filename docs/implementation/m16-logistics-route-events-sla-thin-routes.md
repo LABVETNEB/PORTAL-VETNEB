@@ -1,15 +1,19 @@
 # M16 — Logistics: thin `logistics-route-events` + `logistics-sla`
 
-**Estado:** implementado / **pendiente de merge**. Working tree listo para revisión
-manual de Nico; ninguna escritura Git/GitHub ejecutada por el agente.
+**Estado:** **mergeado y cerrado técnicamente**. Registro histórico del milestone.
 
-- **Rama:** `refactor/backend-modularization-m16-thin-route-events-sla`
-- **Base exacta:** `30d604d0f488618357f02bb7ccb6c9fa0ace37fe`
+- **PR:** #1515
+- **Squash SHA:** `a4245d74501ee7c055c8eb09212bca93a4b50d3d`
+- **Merge date:** 2026-07-21
+- **Base:** `30d604d0f488618357f02bb7ccb6c9fa0ace37fe`
   (`docs(architecture): close M15 logistics milestone` = **M15 ya mergeado**, PR #1513)
+- **Resultado:** `a4245d74501ee7c055c8eb09212bca93a4b50d3d` (= `origin/main`)
+- **Rama técnica:** `refactor/backend-modularization-m16-thin-route-events-sla`
+- **Rama técnica eliminada:** local y remota.
 - **Programa:** Fase C (Logistics infra + rutas), milestone **M16**
 - **Autorización:** refactor **R2 estructural backend**, autorizado específicamente
-  por Nico en la tarea actual (AGENTS.md §3), limitado a la allowlist de 16
-  archivos, invariantes y validaciones de esta especificación. No cubre M17.
+  por Nico (AGENTS.md §3), limitado a la allowlist de 16 archivos, invariantes y
+  validaciones de esta especificación. No cubrió M17.
 
 ## 1. Objetivo y alcance
 
@@ -160,9 +164,9 @@ route-plans/field-visits, `server/fastify-app.ts`, `server/db.ts`,
 
 | Gate | Estado |
 | --- | --- |
-| Cohorte 1 (unit M16) | **PASSED** |
+| Cohorte 1 (unit M16) | **PASSED** (10/10) |
 | Cohorte 2 (dirigida + seguridad) | **PASSED** (179/179) |
-| `pnpm validate:local` (`typecheck && typecheck:test && test && build`) | **PASSED** |
+| `pnpm validate:local` (`typecheck && typecheck:test && test && build`) | **PASSED** (3343 tests: 3342 pass, 1 skipped, 0 fail) |
 | `pnpm security:public-surface` | **PASSED** |
 | `git diff --check` | **PASSED** |
 | Hashes de archivos protegidos (9) | **PASSED** (sin cambios) |
@@ -170,7 +174,20 @@ route-plans/field-visits, `server/fastify-app.ts`, `server/db.ts`,
 | `pnpm validate:local:schema` / `db:migrate` | **NOT_RUN** (sin schema/migraciones) |
 | Frontend E2E (Playwright) | **NOT_RUN** (sin frontend) |
 | Dependency audits | **NOT_RUN** (sin manifests/lockfile) |
-| Escrituras Git/GitHub | **BLOCKED** para el agente — **[MANUAL-NICO]** |
+| Escrituras Git/GitHub | **COMPLETADAS** — ver §11 (histórico) |
+
+### 7.1 Checks de CI del PR #1515 (histórico)
+
+Resultado real de la corrida del PR: **5 successful · 1 skipped · 0 failing · 0 pending**.
+
+| Check | Resultado |
+| --- | --- |
+| `qga-workflow-security` | **successful** |
+| `QGA Governance/qga-workflow-security` | **successful** |
+| `Backend CI/validate-backend (pull_request)` | **successful** |
+| `PR Governance/validate-pr-governance` | **successful** |
+| `Backend CI/validate-backend (push)` | **successful** |
+| `Supabase Preview` | **skipped** (omitido, no fallido) |
 
 ## 8. Riesgos residuales y mitigación
 
@@ -196,15 +213,24 @@ requiere revertir M06–M15. Cada ruta se revierte por separado.
 ## 10. Estado final
 
 ```text
-M16 implementado / pendiente de merge
+M16 mergeado y cerrado técnicamente
+PR #1515
+squash SHA a4245d74501ee7c055c8eb09212bca93a4b50d3d
 M17 pendiente
 Fase C abierta
 ```
 
-M16 **no se declara cerrado** hasta el merge.
+## 11. Operaciones Git/GitHub (completadas, histórico)
 
-## 11. Operaciones [MANUAL-NICO]
+Estas operaciones se ejecutaron manualmente y ya están **completadas**; se dejan
+registradas como historia del milestone:
 
-El agente **no** ejecutó ninguna escritura Git/GitHub. Pendientes de Nico:
-`git add`, `git commit`, `git push`, creación de PR, `gh pr checks --watch` (en
-la rama del PR activo, sin número), merge.
+- `git add` / `git commit` de la rama técnica
+  `refactor/backend-modularization-m16-thin-route-events-sla` sobre la base
+  `30d604d0f488618357f02bb7ccb6c9fa0ace37fe`.
+- `git push` de la rama técnica.
+- Creación del PR **#1515**.
+- Corrida de checks del PR (5 successful · 1 skipped · 0 failing · 0 pending; ver §7.1).
+- **Merge** por squash → SHA `a4245d74501ee7c055c8eb09212bca93a4b50d3d`
+  (merge date 2026-07-21); `origin/main` sincronizado a ese SHA.
+- Eliminación de la rama técnica: **local y remota**.
