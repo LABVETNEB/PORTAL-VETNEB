@@ -953,13 +953,15 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 **M17** cierre Logistics — **mergeado** (PR #1517, legacy imports retirados, regresión
 contractual completa, docs; Fase C cerrada).
 
-**Fase D — Pricing (3):** **M18** infra (db-pricing + cache) — **implementado / pendiente
-de merge** (move completo + cache byte-idéntico a `features/pricing/infrastructure/`; paths
-legacy = shims `export *`; rutas byte-idénticas; guard nuevo
-`pricing-infrastructure-boundary-guard`; ver
+**Fase D — Pricing (3):** **M18** infra (db-pricing + cache) — **mergeado y cerrado**
+(PR #1519, squash `5f99b5f40e08ea8929be869374f1d154f740153f`, 2026-07-21: infraestructura
+Pricing canónica establecida en `features/pricing/infrastructure/` — move completo de
+`db-pricing` + cache pública byte-idéntica; **dos shims temporales** `export *`
+preservados en los paths legacy hasta M19; rutas admin/public **byte-idénticas** en M18;
+guard `pricing-infrastructure-boundary-guard` activo; ver
 [`docs/implementation/m18-pricing-infrastructure-move.md`](../implementation/m18-pricing-infrastructure-move.md)).
-**Fase D no cerrada.** · **M19** thin rutas admin+public (no iniciado) · **M20** cierre
-(+ nota de ownership Maintenance/Health fuera de features).
+**Fase D abierta.** · **M19** thin rutas admin+public — **siguiente, no iniciado** ·
+**M20** cierre (+ nota de ownership Maintenance/Health fuera de features).
 
 **Fase E — Public Professionals (4):** **M21** domain (bank-eligibility) · **M22** repo +
 mapping (SQL-drift alineado) · **M23** thin ruta + rate limit wiring · **M24** cierre.
