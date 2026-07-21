@@ -8,7 +8,7 @@ import type {
   GenerateHeuristicRoutePlanResult,
   RoutePlan,
   RouteStop,
-} from "../../../../server/db-logistics.ts";
+} from "../../../../server/features/logistics/infrastructure/db-logistics.ts";
 
 process.env.NODE_ENV ??= "development";
 process.env.SUPABASE_URL ??= "https://example.supabase.co";

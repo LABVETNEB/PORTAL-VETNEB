@@ -4,12 +4,14 @@
 > docs-only en ARCH-4; **desde ARCH-5 contiene código real** en `domain/` y, desde
 > M02b, también en `infrastructure/`.
 > **Origen:** [ARCH-1](../../../docs/audit/repository-domain-architecture-audit.md) · [ARCH-2](../../../docs/architecture/backend-boundary-adr.md) · [ARCH-3](../../../docs/architecture/shared-lib-boundary-inventory.md).
-> **ID:** ARCH-4 (shell) → ARCH-5/7/8 (domain) → M02b (time-window + SLA) → M03 (route-planning) → M04 (metrics) → **M05 (cierre de Fase A)** → M06–M10 (casos de uso) → **M11 (cierre de Fase B)** → **M12 (Fase C: persistencia canónica en `infrastructure/`)** → **M13 (cache canónico en `infrastructure/`)** → **M14 (thin `logistics-route-plans` + puerto de cache)** → **M15 (thin `logistics-field-visits` + adapter DB de field visits)** → **M16 (thin `logistics-route-events` + `logistics-sla` + adapters DB)**.
+> **ID:** ARCH-4 (shell) → ARCH-5/7/8 (domain) → M02b (time-window + SLA) → M03 (route-planning) → M04 (metrics) → **M05 (cierre de Fase A)** → M06–M10 (casos de uso) → **M11 (cierre de Fase B)** → **M12 (Fase C: persistencia canónica en `infrastructure/`)** → **M13 (cache canónico en `infrastructure/`)** → **M14 (thin `logistics-route-plans` + puerto de cache)** → **M15 (thin `logistics-field-visits` + adapter DB de field visits)** → **M16 (thin `logistics-route-events` + `logistics-sla` + adapters DB)** → **M17 (cierre de Fase C: retiro del shim legacy)**.
 >
 > **Estado:** Fase A **cerrada** (M05) · Fase B **cerrada** (M11, PR #1507 merged) ·
-> Fase C **en curso**: M12 **mergeado** (PR #1509) · M13 **mergeado** (PR #1511) ·
+> Fase C: M12 **mergeado** (PR #1509) · M13 **mergeado** (PR #1511) ·
 > M14 **mergeado** (PR #1512) · M15 **mergeado** (PR #1513) · M16
-> **mergeado** (PR #1515) (thin route-events + SLA) · M17 pendiente.
+> **mergeado** (PR #1515) ·
+> **M17 implementado / pendiente de merge** (retiro del shim legacy; Fase C
+> **técnicamente completada / pendiente de merge**). **M18 (Pricing) no iniciado.**
 
 Este directorio es la **frontera** del contexto Logistics. Declara las reglas de
 dependencia del ADR ([ARCH-2](../../../docs/architecture/backend-boundary-adr.md))
@@ -35,12 +37,14 @@ delegando en casos de uso y carga default por
 en **M16** (route-events ya delegaba en M10; SLA delega overdue en M06 y las tres
 lecturas restantes en el caso de uso nuevo `createSlaReadUseCases`; ambas cargan
 la persistencia default por sus adapters `logistics-route-events-db-adapter.ts` /
-`logistics-sla-db-adapter.ts`). El cierre integral (retiro del shim, regresión
-contractual completa) es **M17**. `server/db-logistics.ts` **ya no es
-implementación**: desde M12 es un **shim de compatibilidad** que sólo re-exporta el
-canónico de `features/logistics/infrastructure/`; tras M16 ya **no tiene
-consumidores productivos** (sólo lo importan tests que necesitan sus tipos) y su
-retiro global se decide en M17. El shim del cache
+`logistics-sla-db-adapter.ts`). El cierre integral de Logistics — retiro del shim
+legacy y regresión contractual completa — es **M17** (*implementado / pendiente de
+merge*). `server/db-logistics.ts` fue **retirado en M17**: había sido, desde M12,
+un shim de compatibilidad que sólo re-exportaba el canónico de
+`features/logistics/infrastructure/`; tras M16 quedó sin consumidores productivos
+(sólo lo importaban tests que necesitaban sus tipos) y M17 lo elimina, realineando
+esos tests al canónico. La **única** persistencia de Logistics es ahora
+`features/logistics/infrastructure/db-logistics.ts`. El shim del cache
 (`server/lib/logistics-route-plans-cache.ts`) fue **retirado en M14** (su único
 consumidor productivo era la ruta de route plans). **M05 cierra la Fase A**: el namespace de
 dominio legacy `server/lib/logistics/` queda **retirado** (cero archivos
@@ -68,7 +72,7 @@ Su superficie actual es:
 - **Persistencia canónica (M12)** — `server/features/logistics/infrastructure/db-logistics.ts`
   (**1.291 LOC** medidos en HEAD `101731d`; 7 transacciones intactas). Único `db-*`
   que delega en helpers de dominio (`time-window`, `route-planning`), ahora vía
-  `../domain/index.ts`. `server/db-logistics.ts` queda como **shim** temporal.
+  `../domain/index.ts`. El shim raíz `server/db-logistics.ts` fue **retirado en M17**.
 - **Adaptador de infraestructura** — `server/features/logistics/infrastructure/sla-breach-db.ts`:
   cablea el núcleo puro de SLA con la persistencia canónica de su misma capa vía
   import lazy.
@@ -102,7 +106,8 @@ núcleo puro de SLA, la planificación de rutas y las métricas; `server/db-logi
 y `server/routes/logistics-route-plans.fastify.ts` los consumen por el barrel.
 
 Tras **M12** la persistencia ya no es legacy: vive en
-`features/logistics/infrastructure/db-logistics.ts` y el root es sólo un shim. Tras
+`features/logistics/infrastructure/db-logistics.ts` (el shim raíz que quedaba en el
+root fue **retirado en M17**). Tras
 **M13** el cache tampoco: vive en
 `features/logistics/infrastructure/logistics-route-plans-cache.ts`; el shim de
 `server/lib` fue retirado en **M14**, cuando la ruta de route plans quedó thin y
@@ -114,9 +119,12 @@ por `logistics-field-visits-db-adapter.ts`, sin ninguna referencia a
 quedaron thin: route-events ya delegaba en los casos de uso M10 y SLA delega
 overdue en M06 y las tres lecturas restantes en `createSlaReadUseCases`; la carga
 default de ambas pasa por `logistics-route-events-db-adapter.ts` /
-`logistics-sla-db-adapter.ts`, sin ninguna referencia a `db-logistics`. Lo que
-**queda para M17**: el cierre integral de Logistics (retiro del shim, ya sin
-consumidores productivos, y regresión contractual completa).
+`logistics-sla-db-adapter.ts`, sin ninguna referencia a `db-logistics`. **M17**
+(*implementado / pendiente de merge*) completó el cierre integral de Logistics:
+retiró el shim raíz `server/db-logistics.ts` (ya sin consumidores productivos),
+realineó al canónico los cinco tests que importaban sus tipos y completó la
+regresión contractual. La Fase C queda **técnicamente completada / pendiente de
+merge**.
 
 Es una migración incremental y deliberada: se mueve código real capa por capa,
 detrás de los contratos por-ruta existentes y sólo con tests verdes.
@@ -228,17 +236,28 @@ verdes. Cada carpeta materializa código **sólo cuando hay algo real que la hab
   `/summary`) delegan en el caso de uso nuevo `createSlaReadUseCases` sobre el
   puerto mínimo genérico `LogisticsSlaReadModelsRepository`; tipos y carga
   default llegan por `logistics-sla-db-adapter.ts` (4 ops + 6 tipos). El
-  canónico M12 permanece byte-idéntico (7 transacciones); el shim
-  `server/db-logistics.ts` permanece intacto pero **ya sin consumidores
-  productivos** (retiro global en M17). Cero cambios de contrato HTTP, schema,
-  migraciones, auth ni CORS. `M17` (cierre de Logistics) permanece futuro.
+  canónico M12 permanece byte-idéntico (7 transacciones); tras M16 el shim
+  `server/db-logistics.ts` quedó **sin consumidores productivos**. Cero cambios de
+  contrato HTTP, schema, migraciones, auth ni CORS.
+- **M17 (implementado / pendiente de merge) — cierre de Fase C** — retira el shim
+  raíz `server/db-logistics.ts` (16 LOC, `export *` del canónico, sin consumidores
+  productivos desde M16) y realinea al canónico
+  `features/logistics/infrastructure/db-logistics.ts` los **cinco** tests que sólo
+  importaban sus **tipos** (Opción B, `import type` sin cambio de símbolos ni
+  runtime). El guard de infraestructura invierte su contrato a "shim retirado y no
+  recreable" (por path resuelto); `logistics-db.test.ts` deja de leer el shim y
+  conserva la protección del canónico (implementación real, **7 transacciones**).
+  El canónico y los cuatro adapters M14–M16 quedan byte-idénticos. Regresión
+  contractual completa. Cero cambios de endpoints, contratos HTTP, schema,
+  migraciones, auth, CORS ni dependencias. Con M17 la Fase C queda **técnicamente
+  completada / pendiente de merge**; **M18 (Pricing) no iniciado**.
 
-## 5. Qué NO se mueve en M12
+## 5. Qué NO se movió en M12
 
 - **No** mover `server/lib/logistics-route-plans-cache.ts` (cache adapter en M13).
 - **No** tocar `server/routes/logistics-*.fastify.ts` (rutas delgadas en M14–M16).
-- **No** eliminar el shim `server/db-logistics.ts` mientras las rutas legacy lo
-  importen.
+- El shim `server/db-logistics.ts` se conservó durante M12–M16 mientras las rutas
+  legacy lo consumían; **retirado en M17** una vez sin consumidores productivos.
 - **No** reparticionar transacciones ni dividir el archivo canónico.
 - **No** introducir event bus.
 - **No** fragmentar `drizzle/schema.ts` ni tocar migraciones.
@@ -275,3 +294,4 @@ la red de seguridad que habilita reorganizar sin cambiar comportamiento.
 - [Nota de implementación — M14](../../../docs/implementation/m14-logistics-route-plans-thin-route.md) — thin `logistics-route-plans`: puerto de cache + adapter DB; retira el shim del cache.
 - [Nota de implementación — M15](../../../docs/implementation/m15-logistics-field-visits-thin-route.md) — thin `logistics-field-visits`: casos de uso + adapter DB de field visits.
 - [Nota de implementación — M16](../../../docs/implementation/m16-logistics-route-events-sla-thin-routes.md) — thin `logistics-route-events` + `logistics-sla`: adapters DB + caso de uso de lecturas SLA.
+- [Nota de implementación — M17](../../../docs/implementation/m17-logistics-phase-closeout.md) — cierre de Fase C: retiro del shim legacy `server/db-logistics.ts` y realineación de tests al canónico (*implementado / pendiente de merge*).

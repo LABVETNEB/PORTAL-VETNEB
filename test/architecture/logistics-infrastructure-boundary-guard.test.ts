@@ -20,8 +20,6 @@ const slaBreachAdapterFile = `${infrastructureDir}/sla-breach-db.ts`;
 const domainDir = "server/features/logistics/domain";
 const domainIndexFile = `${domainDir}/index.ts`;
 const rootShimFile = "server/db-logistics.ts";
-const canonicalSpecifierFromRoot =
-  "./features/logistics/infrastructure/db-logistics.ts";
 const canonicalCacheFile = `${infrastructureDir}/logistics-route-plans-cache.ts`;
 const cacheAdapterFile = `${infrastructureDir}/logistics-route-plans-cache-adapter.ts`;
 const dbAdapterFile = `${infrastructureDir}/logistics-route-plans-db-adapter.ts`;
@@ -296,42 +294,66 @@ test("sla-breach-db.ts consume el archivo canónico de su propia capa", () => {
   );
 });
 
-test("El shim raíz existe y sólo re-exporta la implementación canónica", () => {
+// Los cinco tests que consumían tipos del shim raíz hasta M16; M17 los
+// realinea al canónico (Opción B). El guard fija que ninguno vuelve a resolver
+// al path retirado.
+const M16_SHIM_TYPE_CONSUMER_TESTS = [
+  "test/integration/adapters/controllers/logistics-audit-runtime.test.ts",
+  "test/integration/adapters/controllers/logistics-field-visits-integration.fastify.test.ts",
+  "test/integration/adapters/controllers/logistics-route-events-integration.fastify.test.ts",
+  "test/integration/adapters/controllers/logistics-route-plans-heuristic-runtime.test.ts",
+  "test/integration/adapters/controllers/logistics-route-plans-metrics-runtime.test.ts",
+] as const;
+
+test("El shim raíz server/db-logistics.ts fue retirado en M17 y no puede recrearse", () => {
+  // Retiro efectivo: el path legacy no existe. Espeja el precedente del shim de
+  // cache retirado en M14; el canónico conserva el mismo nombre en su propia
+  // capa, así que la comprobación es por PATH RESUELTO, nunca por texto.
   assert.equal(
     existsSync(join(repoRoot, rootShimFile)),
-    true,
-    `${rootShimFile} debe existir mientras las rutas legacy lo importen (hasta M14–M16)`,
+    false,
+    `${rootShimFile} fue retirado en M17 (cierre de Logistics); su implementación canónica vive en ${canonicalDbFile} y no debe recrearse`,
   );
 
-  const shimSource = readText(rootShimFile);
-  const specifiers = listImportSpecifiers(shimSource);
+  // Ningún módulo productivo de server/ importa el shim retirado. Los imports
+  // legítimos `./db-logistics.ts` dentro de infrastructure resuelven al canónico
+  // (path distinto) y por eso no disparan.
+  const productiveViolations: string[] = [];
 
-  assert.ok(
-    specifiers.length > 0,
-    `${rootShimFile} debe re-exportar la superficie pública`,
-  );
+  for (const file of walkTsFiles("server")) {
+    for (const specifier of listImportSpecifiers(readText(file))) {
+      if (resolveSpecifier(file, specifier) === rootShimFile) {
+        productiveViolations.push(
+          `${file}: import al shim retirado ("${specifier}" -> ${rootShimFile}); usar ${canonicalDbFile}`,
+        );
+      }
+    }
+  }
 
-  const offending = specifiers.filter(
-    (specifier) => specifier !== canonicalSpecifierFromRoot,
-  );
+  assert.deepEqual(productiveViolations, []);
 
-  assert.deepEqual(
-    offending,
-    [],
-    `${rootShimFile} sólo puede referenciar ${canonicalSpecifierFromRoot}`,
-  );
+  // Los cinco tests que consumían tipos del shim quedaron realineados al
+  // canónico: se verifican por path resuelto, no por escaneo textual de test/
+  // (que contiene fixtures y clasificadores con el string como dato de prueba).
+  const testViolations: string[] = [];
 
-  assert.match(
-    shimSource,
-    /export \* from "\.\/features\/logistics\/infrastructure\/db-logistics\.ts";/,
-    `${rootShimFile} debe re-exportar toda la superficie con export *`,
-  );
+  for (const testFile of M16_SHIM_TYPE_CONSUMER_TESTS) {
+    assert.equal(
+      existsSync(join(repoRoot, testFile)),
+      true,
+      `${testFile} debe existir para verificar su realineación`,
+    );
 
-  assert.doesNotMatch(
-    shimSource,
-    /^export\s+(async\s+)?function\b/m,
-    `${rootShimFile} no puede declarar funciones`,
-  );
+    for (const specifier of listImportSpecifiers(readText(testFile))) {
+      if (resolveSpecifier(testFile, specifier) === rootShimFile) {
+        testViolations.push(
+          `${testFile}: import al shim retirado ("${specifier}" -> ${rootShimFile}); usar ${canonicalDbFile}`,
+        );
+      }
+    }
+  }
+
+  assert.deepEqual(testViolations, []);
 });
 
 // --- M13: cache adapter de route plans movido a infrastructure ---
