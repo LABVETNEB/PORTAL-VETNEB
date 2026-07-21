@@ -11,7 +11,7 @@ import {
 import {
   HISTOPATHOLOGY_REPORT_STUDY_TYPE,
   PROFESSIONAL_BANK_ELIGIBILITY_MONTHS,
-} from "./lib/professional-bank-eligibility.ts";
+} from "./features/public-professionals/domain/index.ts";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
