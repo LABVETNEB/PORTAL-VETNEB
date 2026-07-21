@@ -960,8 +960,16 @@ Pricing canónica establecida en `features/pricing/infrastructure/` — move com
 preservados en los paths legacy hasta M19; rutas admin/public **byte-idénticas** en M18;
 guard `pricing-infrastructure-boundary-guard` activo; ver
 [`docs/implementation/m18-pricing-infrastructure-move.md`](../implementation/m18-pricing-infrastructure-move.md)).
-**Fase D abierta.** · **M19** thin rutas admin+public — **siguiente, no iniciado** ·
-**M20** cierre (+ nota de ownership Maintenance/Health fuera de features).
+· **M19** thin rutas admin+public — **implementado / pendiente de revisión**
+(rutas adelgazadas a `route → servicio directo → canónico` vía
+`features/pricing/{admin,public}-pricing-service.ts`; **ambos shims legacy
+retirados** —`server/db-pricing.ts` y `server/lib/public-pricing-cache.ts`
+eliminados, cero consumidores operativos; guard extendido a shim-ausente +
+frontera de servicio + delegación de rutas; contratos HTTP preservados byte a
+byte; ver
+[`docs/implementation/m19-pricing-thin-routes.md`](../implementation/m19-pricing-thin-routes.md)).
+**Fase D abierta.** · **M20** cierre (+ nota de ownership Maintenance/Health fuera
+de features) — **no iniciado**.
 
 **Fase E — Public Professionals (4):** **M21** domain (bank-eligibility) · **M22** repo +
 mapping (SQL-drift alineado) · **M23** thin ruta + rate limit wiring · **M24** cierre.
