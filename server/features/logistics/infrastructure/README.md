@@ -3,8 +3,9 @@
 > Capa **infrastructure** del contexto Logistics. **Contiene código** desde M02b
 > (adaptador de DB para el breach de SLA); desde **M12 (mergeado en PR #1509)**,
 > la **persistencia canónica** del contexto; desde **M13 (mergeado en PR
-> #1511)**, el **cache de route plans**; y desde **M14**, el **adapter del
-> puerto de cache**.
+> #1511)**, el **cache de route plans**; desde **M14 (mergeado en PR #1512)**,
+> el **adapter del puerto de cache** y el **adapter DB de route plans**; y desde
+> **M15**, el **adapter DB de field visits**.
 > Ver la frontera del contexto en [`../README.md`](../README.md) y el contrato en
 > [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
@@ -65,6 +66,17 @@ de persistencia y el I/O real del contexto.
   `db-logistics`: sus tipos y su carga default (lazy, dentro de
   `loadDefaultDeps`) llegan por este adapter. El guard fija que sólo importa
   `./db-logistics.ts` y que no contiene queries ni transacciones propias.
+- **`logistics-field-visits-db-adapter.ts`** (M15) — **adapter DB de la ruta
+  thin de field visits**: factory `createLogisticsFieldVisitsDbAdapter()` con
+  **referencias directas** a las 7 operaciones del DB canónico consumidas por
+  `logistics-field-visits` (create/list/update de visitas, get/upsert de
+  ubicación, list/create de ventanas horarias; sin envolver resultados ni
+  alterar signatures, null/undefined, errores o transacciones) + re-export de
+  los 8 tipos de I/O. Desde M15 la ruta no contiene **ninguna** referencia a
+  `db-logistics`: sus tipos y su carga default (lazy, dentro de
+  `loadDefaultDeps`) llegan por este adapter. El guard fija que sólo importa
+  `./db-logistics.ts`, que no contiene queries ni transacciones propias y que
+  expone exactamente esa superficie de 7 operaciones.
 
 ## Shims de compatibilidad fuera de la capa
 
@@ -72,9 +84,10 @@ de persistencia y el I/O real del contexto.
 pública desde `./features/logistics/infrastructure/db-logistics.ts`. No importa
 Drizzle, ni `drizzle/schema.ts`, ni `server/db.ts`; no contiene funciones, queries ni
 transacciones, y no declara default export. Desde M14, `logistics-route-plans`
-**ya no lo consume** (usa el adapter DB de esta capa); el shim existe únicamente
-porque las rutas legacy restantes (field-visits, route-events, SLA) siguen
-importando `../db-logistics.ts` (estática y dinámicamente) hasta **M15–M16**. Su
+**ya no lo consume** (usa el adapter DB de esta capa) y desde M15 tampoco
+`logistics-field-visits` (usa `logistics-field-visits-db-adapter.ts`); el shim
+existe únicamente porque las rutas legacy restantes (route-events y SLA) siguen
+importando `../db-logistics.ts` (estática y dinámicamente) hasta **M16**. Su
 eliminación global sigue prevista para **M17**, o cuando desaparezca el último
 consumidor.
 
@@ -83,14 +96,16 @@ El **shim del cache** (`server/lib/logistics-route-plans-cache.ts`) fue
 que ahora consume el cache por el puerto de application y este adapter. El guard
 de frontera fija que el path retirado no se recree ni se importe.
 
-**Sin cambios de schema ni de migraciones**: M12–M14 no tocan `drizzle/schema.ts`,
+**Sin cambios de schema ni de migraciones**: M12–M15 no tocan `drizzle/schema.ts`,
 `drizzle/**`, `migrations/**`, endpoints ni contratos HTTP.
 
 ## Qué vivirá aquí (futuro, no ahora)
 
 - Nada nuevo planificado para esta capa: los siguientes milestones de la Fase C
-  (**M15–M16**, thin routes restantes, y **M17**, cierre) adelgazan
-  `server/routes/**` y retiran el shim de `db-logistics`; no añaden módulos aquí.
+  (**M16**, thin route-events + SLA, y **M17**, cierre) adelgazan
+  `server/routes/**` y retiran el shim de `db-logistics`; no añaden módulos aquí
+  salvo que M16 requiera su propio adapter DB mínimo, decidido en su propia
+  autorización.
 
 ## Qué NO hacer
 

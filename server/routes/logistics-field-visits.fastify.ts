@@ -13,6 +13,13 @@ import {
   type FieldVisitStatus,
   type VisitLocationGeoQuality,
 } from "../../drizzle/schema.ts";
+import {
+  createCreateFieldVisit,
+  createListFieldVisits,
+  createTimeWindowUseCases,
+  createUpdateFieldVisit,
+  createVisitLocationUseCases,
+} from "../features/logistics/application/index.ts";
 import type {
   CreateFieldVisitInput,
   FieldVisit,
@@ -22,8 +29,7 @@ import type {
   UpdateFieldVisitInput,
   UpsertVisitLocationInput,
   VisitLocation,
-} from "../db-logistics.ts";
-import { createUpdateFieldVisit } from "../features/logistics/application/index.ts";
+} from "../features/logistics/infrastructure/logistics-field-visits-db-adapter.ts";
 import {
   UNSAFE_METHODS,
   enforceTrustedOrigin,
@@ -124,7 +130,11 @@ async function loadDefaultDeps(): Promise<NativeLogisticsFieldVisitsDeps> {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
-      const dbLogistics = await import("../db-logistics.ts");
+      const fieldVisitsDb = (
+        await import(
+          "../features/logistics/infrastructure/logistics-field-visits-db-adapter.ts"
+        )
+      ).createLogisticsFieldVisitsDbAdapter();
 
       return {
         deleteActiveSession: db.deleteActiveSession,
@@ -132,18 +142,18 @@ async function loadDefaultDeps(): Promise<NativeLogisticsFieldVisitsDeps> {
         getClinicUserById: db.getClinicUserById,
         updateSessionLastAccess: db.updateSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
-        createFieldVisit: dbLogistics.createFieldVisit,
-        listClinicFieldVisits: dbLogistics.listClinicFieldVisits,
+        createFieldVisit: fieldVisitsDb.createFieldVisit,
+        listClinicFieldVisits: fieldVisitsDb.listClinicFieldVisits,
         updateClinicScopedFieldVisit:
-          dbLogistics.updateClinicScopedFieldVisit,
+          fieldVisitsDb.updateClinicScopedFieldVisit,
         getVisitLocationForClinicVisit:
-          dbLogistics.getVisitLocationForClinicVisit,
+          fieldVisitsDb.getVisitLocationForClinicVisit,
         upsertVisitLocationForClinicVisit:
-          dbLogistics.upsertVisitLocationForClinicVisit,
+          fieldVisitsDb.upsertVisitLocationForClinicVisit,
         createTimeWindowForClinicVisit:
-          dbLogistics.createTimeWindowForClinicVisit,
+          fieldVisitsDb.createTimeWindowForClinicVisit,
         listTimeWindowsForClinicVisit:
-          dbLogistics.listTimeWindowsForClinicVisit,
+          fieldVisitsDb.listTimeWindowsForClinicVisit,
       };
     })();
   }
@@ -980,6 +990,20 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
   const updateFieldVisit = createUpdateFieldVisit({
     updateClinicScopedFieldVisit: deps.updateClinicScopedFieldVisit,
   });
+  const listFieldVisits = createListFieldVisits({
+    listClinicFieldVisits: deps.listClinicFieldVisits,
+  });
+  const createFieldVisitUseCase = createCreateFieldVisit({
+    createFieldVisit: deps.createFieldVisit,
+  });
+  const visitLocationUseCases = createVisitLocationUseCases({
+    getVisitLocationForClinicVisit: deps.getVisitLocationForClinicVisit,
+    upsertVisitLocationForClinicVisit: deps.upsertVisitLocationForClinicVisit,
+  });
+  const timeWindowUseCases = createTimeWindowUseCases({
+    listTimeWindowsForClinicVisit: deps.listTimeWindowsForClinicVisit,
+    createTimeWindowForClinicVisit: deps.createTimeWindowForClinicVisit,
+  });
 
   const now = options.now ?? (() => Date.now());
   const allowedOrigins = new Set(getAllowedOrigins());
@@ -1075,7 +1099,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       offset,
     };
 
-    const fieldVisits = await deps.listClinicFieldVisits(params);
+    const fieldVisits = await listFieldVisits(params);
 
     return reply.code(200).send({
       success: true,
@@ -1122,7 +1146,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const created = await deps.createFieldVisit(parsed.input);
+    const created = await createFieldVisitUseCase(parsed.input);
 
     if (!created) {
       return reply.code(500).send({
@@ -1232,7 +1256,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const location = await deps.getVisitLocationForClinicVisit(
+    const location = await visitLocationUseCases.getVisitLocation(
       fieldVisitId,
       auth.clinicId,
     );
@@ -1298,7 +1322,9 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const location = await deps.upsertVisitLocationForClinicVisit(parsed.input);
+    const location = await visitLocationUseCases.upsertVisitLocation(
+      parsed.input,
+    );
 
     if (!location) {
       return reply.code(404).send({
@@ -1345,7 +1371,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const timeWindows = await deps.listTimeWindowsForClinicVisit(
+    const timeWindows = await timeWindowUseCases.listTimeWindows(
       fieldVisitId,
       auth.clinicId,
     );
@@ -1407,7 +1433,7 @@ export const logisticsFieldVisitsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const timeWindow = await deps.createTimeWindowForClinicVisit(parsed.input);
+    const timeWindow = await timeWindowUseCases.createTimeWindow(parsed.input);
 
     if (!timeWindow) {
       return reply.code(404).send({
