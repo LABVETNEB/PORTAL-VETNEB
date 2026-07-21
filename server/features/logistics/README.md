@@ -8,7 +8,7 @@
 >
 > **Estado:** Fase A **cerrada** (M05) · Fase B **cerrada** (M11, PR #1507 merged) ·
 > Fase C **en curso**: M12 **mergeado** (PR #1509) · M13 **mergeado** (PR #1511) ·
-> M14 **mergeado** (PR #1512) · M15 implementado / pendiente de merge · M16–M17
+> M14 **mergeado** (PR #1512) · M15 **mergeado** (PR #1513) · M16–M17
 > pendientes.
 
 Este directorio es la **frontera** del contexto Logistics. Declara las reglas de
@@ -193,7 +193,7 @@ verdes. Cada carpeta materializa código **sólo cuando hay algo real que la hab
   `server/lib/logistics-route-plans-cache.ts` queda **retirado**; el shim
   `server/db-logistics.ts` permanece sólo para las rutas de M15/M16. Cero
   cambios de contrato HTTP, claves, TTL, invalidaciones, auth ni auditoría.
-- **M15 (este PR) — thin `logistics-field-visits`** — los seis handlers que aún
+- **M15 (mergeado en PR #1513) — thin `logistics-field-visits`** — los seis handlers que aún
   llamaban `deps.*` directamente delegan en casos de uso de application
   (`createListFieldVisits`, `createCreateFieldVisit`,
   `createVisitLocationUseCases`, `createTimeWindowUseCases`), cada uno con su
