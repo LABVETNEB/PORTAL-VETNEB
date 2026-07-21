@@ -791,6 +791,26 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > invariantes ni conclusiones.
 
 **Fase C — Logistics infra + rutas (6):**
+
+> **Status M12 — implementado / pendiente de merge.** Move **completo** de
+> `server/db-logistics.ts` → `server/features/logistics/infrastructure/db-logistics.ts`
+> (**1.291 LOC** reales medidos en HEAD `101731d`; el inventario ARCH-3 citaba
+> 1.322/1.295, desactualizados). Sin reorganizar funciones, sin dividir el archivo,
+> sin renombrar exports: sólo cambian los tres specifiers exigidos por la nueva
+> profundidad. **Transacciones intactas: 7 call-sites `db.transaction(` antes y
+> después**, fijados por contrato ejecutable. `server/db-logistics.ts` queda como
+> **shim documentado** que sólo re-exporta el canónico (sin Drizzle, schema, `db`,
+> queries ni transacciones), conservado porque las rutas legacy lo importan hasta
+> M14–M16. `infrastructure/sla-breach-db.ts` reapuntado al canónico de su propia capa
+> (import lazy y delegación al dominio preservados). Guard de infraestructura nuevo:
+> `test/architecture/logistics-infrastructure-boundary-guard.test.ts`
+> (auto-descubre la capa; permite `drizzle-orm`, `server/db.ts`, `drizzle/schema.ts`
+> y `../domain/index.ts`; prohíbe Fastify, routes, application, frontend,
+> auth/session/CORS/audit/email, `server/lib` y el shim raíz). Cero cambios de
+> endpoints, contratos HTTP, schema y migraciones. Detalle en
+> [`docs/implementation/m12-logistics-db-infrastructure-move.md`](../implementation/m12-logistics-db-infrastructure-move.md).
+> **M13 — pendiente** (cache adapter). **Fase C no cerrada.**
+
 **M12** mover `db-logistics.ts` completo → infrastructure (tx intactas; shim documentado) ·
 **M13** cache adapter · **M14** thin `logistics-route-plans` · **M15** thin
 `logistics-field-visits` · **M16** thin `logistics-route-events` + `logistics-sla` ·

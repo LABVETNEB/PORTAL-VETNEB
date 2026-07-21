@@ -50,7 +50,10 @@ const HEAVY_SURFACES: readonly HeavySurface[] = [
     markers: ["normalizeListPagination", ".limit(limit)", ".offset(offset)"],
   },
   {
-    file: "server/db-logistics.ts",
+    // M12: Logistics canonical persistence lives in the context infrastructure
+    // layer; `server/db-logistics.ts` is only a compatibility shim. This
+    // contract must measure the real implementation, not the re-export.
+    file: "server/features/logistics/infrastructure/db-logistics.ts",
     markers: ["normalizeLogisticsLimit", "normalizeLogisticsOffset"],
   },
 ];

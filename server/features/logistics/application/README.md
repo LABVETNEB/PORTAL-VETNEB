@@ -174,11 +174,14 @@ intactos: el guard global los **subsume**, no los reemplaza.
 `release`/`start`/`complete` (resto del lifecycle) permanecen fuera de la capa y
 siguen usando el default del helper de lifecycle compartido.
 GET/POST/location/time-windows de field visits permanecen fuera de M09 y se
-difieren al thin-route M15. El siguiente milestone es **M12** (mover
-`db-logistics.ts` completo a `infrastructure`, transacciones intactas): el guard
-de M11 prohíbe `db-logistics` **por nombre de módulo**, de modo que sigue siendo
-correcto antes y después de ese move. Cada puerto nuevo se introduce junto con su
-primer consumidor real — nunca como interfaz vacía anticipada.
+difieren al thin-route M15. **M12** ya está implementado (pendiente de merge): movió
+`db-logistics.ts` completo a `infrastructure/db-logistics.ts` con las transacciones
+intactas, dejando un shim en el root. Es **infraestructura de persistencia** y **no
+cambia esta capa**: `application` sigue sin importar `db-*` — el guard de M11 lo
+prohíbe **por nombre de módulo**, de modo que sigue siendo correcto antes y después
+del move. El siguiente milestone es **M13** (cache adapter para
+`server/lib/logistics-route-plans-cache.ts`). Cada puerto nuevo se introduce junto
+con su primer consumidor real — nunca como interfaz vacía anticipada.
 
 ## Qué NO hacer
 
