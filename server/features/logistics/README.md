@@ -4,13 +4,12 @@
 > docs-only en ARCH-4; **desde ARCH-5 contiene código real** en `domain/` y, desde
 > M02b, también en `infrastructure/`.
 > **Origen:** [ARCH-1](../../../docs/audit/repository-domain-architecture-audit.md) · [ARCH-2](../../../docs/architecture/backend-boundary-adr.md) · [ARCH-3](../../../docs/architecture/shared-lib-boundary-inventory.md).
-> **ID:** ARCH-4 (shell) → ARCH-5/7/8 (domain) → M02b (time-window + SLA) → M03 (route-planning) → M04 (metrics) → **M05 (cierre de Fase A)** → M06–M10 (casos de uso) → **M11 (cierre de Fase B)** → **M12 (Fase C: persistencia canónica en `infrastructure/`)** → **M13 (cache canónico en `infrastructure/`)** → **M14 (thin `logistics-route-plans` + puerto de cache)** → **M15 (thin `logistics-field-visits` + adapter DB de field visits)**.
+> **ID:** ARCH-4 (shell) → ARCH-5/7/8 (domain) → M02b (time-window + SLA) → M03 (route-planning) → M04 (metrics) → **M05 (cierre de Fase A)** → M06–M10 (casos de uso) → **M11 (cierre de Fase B)** → **M12 (Fase C: persistencia canónica en `infrastructure/`)** → **M13 (cache canónico en `infrastructure/`)** → **M14 (thin `logistics-route-plans` + puerto de cache)** → **M15 (thin `logistics-field-visits` + adapter DB de field visits)** → **M16 (thin `logistics-route-events` + `logistics-sla` + adapters DB)**.
 >
 > **Estado:** Fase A **cerrada** (M05) · Fase B **cerrada** (M11, PR #1507 merged) ·
 > Fase C **en curso**: M12 **mergeado** (PR #1509) · M13 **mergeado** (PR #1511) ·
 > M14 **mergeado** (PR #1512) · M15 **mergeado** (PR #1513) · M16
-> **implementado / pendiente de merge** (thin route-events + SLA) · M17
-> pendiente.
+> **mergeado** (PR #1515) (thin route-events + SLA) · M17 pendiente.
 
 Este directorio es la **frontera** del contexto Logistics. Declara las reglas de
 dependencia del ADR ([ARCH-2](../../../docs/architecture/backend-boundary-adr.md))
@@ -219,7 +218,7 @@ verdes. Cada carpeta materializa código **sólo cuando hay algo real que la hab
   shim `server/db-logistics.ts` permanece sólo para route-events y SLA (M16;
   retiro global en M17). Cero cambios de contrato HTTP, schema, migraciones,
   auth ni CORS.
-- **M16 (implementado / pendiente de merge) — thin `logistics-route-events` +
+- **M16 (mergeado, PR #1515) — thin `logistics-route-events` +
   `logistics-sla`** — ambas rutas dejan de referenciar `db-logistics` (estática,
   dinámica, type-only y textualmente). Route-events ya delegaba en los casos de
   uso M10 (intactos); M16 sólo reencamina tipos y carga default por

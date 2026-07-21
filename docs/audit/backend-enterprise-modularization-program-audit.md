@@ -900,7 +900,8 @@ lifecycle (`cancel`) · **M09** UC field-visits (asignación + estados) · **M10
 > migraciones. Detalle en
 > [`docs/implementation/m15-logistics-field-visits-thin-route.md`](../implementation/m15-logistics-field-visits-thin-route.md).
 >
-> **Status M16 — implementado / pendiente de merge.** Thin
+> **Status M16 — mergeado** (PR #1515, squash SHA
+> `a4245d74501ee7c055c8eb09212bca93a4b50d3d`, merge date 2026-07-21). Thin
 > `logistics-route-events` + `logistics-sla`: ambas rutas dejan de referenciar
 > `db-logistics` (estática, dinámica, type-only y textualmente). En
 > route-events los cuatro handlers ya delegaban en los casos de uso M10
