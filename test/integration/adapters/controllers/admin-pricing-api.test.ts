@@ -17,12 +17,16 @@ const {
   clearPublicPricingCache,
   getCachedPublicPricingSnapshot,
   setCachedPublicPricingSnapshot,
-} = await import("../../../../server/lib/public-pricing-cache.ts");
+} = await import(
+  "../../../../server/features/pricing/infrastructure/public-pricing-cache.ts"
+);
 
 type AdminPricingNativeRoutesOptions = import(
   "../../../../server/routes/admin-pricing.fastify.ts"
 ).AdminPricingNativeRoutesOptions;
-type PricingItem = import("../../../../server/db-pricing.ts").PricingItem;
+type PricingItem = import(
+  "../../../../server/features/pricing/infrastructure/db-pricing.ts"
+).PricingItem;
 
 function createPricingItem(overrides: Record<string, unknown> = {}): PricingItem {
   return {

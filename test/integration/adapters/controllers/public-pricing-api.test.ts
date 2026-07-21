@@ -6,7 +6,7 @@ const { publicPricingNativeRoutes } = await import(
   "../../../../server/routes/public-pricing.fastify.ts"
 );
 const { clearPublicPricingCache } = await import(
-  "../../../../server/lib/public-pricing-cache.ts"
+  "../../../../server/features/pricing/infrastructure/public-pricing-cache.ts"
 );
 
 type PublicPricingNativeRoutesOptions = import(

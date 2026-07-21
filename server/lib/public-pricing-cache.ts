@@ -1,54 +1,11 @@
-const PUBLIC_PRICING_CACHE_TTL_MS = 5 * 60 * 1000;
-
-export type PublicPricingSnapshotItem = {
-  id: number;
-  studyName: string;
-  priceLabel: string | null;
-  displayOrder: number;
-};
-
-export type PublicPricingSnapshotCategory = {
-  category: string;
-  items: PublicPricingSnapshotItem[];
-};
-
-export type PublicPricingSnapshot = {
-  success: true;
-  categories: PublicPricingSnapshotCategory[];
-};
-
-type PublicPricingCacheEntry = {
-  snapshot: PublicPricingSnapshot;
-  expiresAt: number;
-};
-
-let cacheEntry: PublicPricingCacheEntry | null = null;
-
-export function getCachedPublicPricingSnapshot(
-  now: number = Date.now(),
-): PublicPricingSnapshot | null {
-  if (!cacheEntry) {
-    return null;
-  }
-
-  if (cacheEntry.expiresAt <= now) {
-    cacheEntry = null;
-    return null;
-  }
-
-  return cacheEntry.snapshot;
-}
-
-export function setCachedPublicPricingSnapshot(
-  snapshot: PublicPricingSnapshot,
-  now: number = Date.now(),
-): void {
-  cacheEntry = {
-    snapshot,
-    expiresAt: now + PUBLIC_PRICING_CACHE_TTL_MS,
-  };
-}
-
-export function clearPublicPricingCache(): void {
-  cacheEntry = null;
-}
+// Shim de compatibilidad temporal (M18, Fase D).
+//
+// El cache canónico de precios públicos se movió byte-idéntico a
+// `server/features/pricing/infrastructure/public-pricing-cache.ts` (módulo
+// in-memory puro, cero imports, TTL de 5 minutos). Este archivo re-exporta su
+// superficie pública para preservar a los consumidores legacy (ruta public,
+// ruta admin y contratos globales) hasta que M19 los reapunte. El `export *`
+// mantiene la MISMA instancia de módulo, por lo que el estado module-level del
+// cache sigue siendo un único singleton compartido. No agregar imports ni
+// lógica: sólo el re-export de abajo.
+export * from "../features/pricing/infrastructure/public-pricing-cache.ts";

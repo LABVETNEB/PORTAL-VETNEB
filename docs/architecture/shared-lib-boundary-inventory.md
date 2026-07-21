@@ -213,7 +213,7 @@ nombre); fan-in = archivos de `server/` que lo importan. `Estado`: **mover** (a 
 | `lib/report-access-token.ts` (171) | Report Access | domain (token) | — | Bajo | `features/report-access/domain/` | M34 | mover |
 | `lib/particular-token.ts` (133) | Particular Access | domain (token) | — | Bajo | `features/particular-access/domain/` | M33 | mover |
 | `lib/professional-bank-eligibility.ts` (124) | Public Professionals | domain | — | Bajo | `features/public-professionals/domain/` | M21 | mover |
-| `lib/public-pricing-cache.ts` (54) | Pricing | infrastructure (cache) | — | Bajo | `features/pricing/infrastructure/` | M18 | mover |
+| `lib/public-pricing-cache.ts` (54) | Pricing | infrastructure (cache) | — | Bajo | `features/pricing/infrastructure/` | M18 | movido byte-idéntico (M18 implementado / pendiente de merge); path legacy = shim |
 | `lib/public-professionals-rate-limit.ts` (9) | Public Professionals | infra (wrapper) | — | Bajo | con la ruta pública (store queda en lib) | M23 | mover (con ruta) |
 | `lib/public-report-access-rate-limit.ts` (4) | Report Access | infra (wrapper) | — | Bajo | con Report Access | M34 | mover (con ruta) |
 | `lib/report-access-token-rate-limit.ts` (4) | Report Access | infra (wrapper) | — | Bajo | con Report Access | M34 | mover (con ruta) |
@@ -266,7 +266,7 @@ nombre); fan-in = archivos de `server/` que lo importan. `Estado`: **mover** (a 
 | `db-report-workflow.ts` (220) | Reports | persistencia+mapping (side-effect email) | 0 | `features/reports/infrastructure/` (por puerto) | M37 | mover |
 | `db-particular.ts` (204) | Particular Access | persistencia | 0 | `features/particular-access/infrastructure/` | M33 | mover |
 | `db-report-access.ts` (168) | Report Access | persistencia | 0 | `features/report-access/infrastructure/` | M34 | mover |
-| `db-pricing.ts` (160) | Pricing | CRUD + `serializePricingItem` + guard patch | 0 | `features/pricing/infrastructure/` | M18 | mover |
+| `db-pricing.ts` (160) | Pricing | CRUD + `serializePricingItem` + guard patch | 0 | `features/pricing/infrastructure/` | M18 | movido completo (M18 implementado / pendiente de merge); path legacy = shim; sólo 2 specifiers reapuntados |
 | `db-maintenance.ts` (122) | Maintenance/ops | dry-run, schema-health | 0 | infra de ops; fuera de features | — (ops) | permanecer |
 | `db-admin-failed-login-alerts.ts` (106) | Failed Login/Auth | persistencia | 0 | — | secuencia seguridad C4 | congelado |
 
@@ -311,7 +311,7 @@ rollback = revert independiente del PR (§8). "Tests anclados" remite a §7.
 | Logistics | `lib/logistics/metrics.ts` | domain (en lib) | `features/logistics/domain/` | domain | M04 | M03 | contratos de métricas por-ruta | ídem | sí | revert | Bajo | MOVE |
 | Logistics | `db-logistics.ts` | infra (repo) | `features/logistics/infrastructure/` | infrastructure | M12 | Fase B | tx (7 call-sites); serialización ISO | infra guard (nuevo) | sí (documentado) | revert | Alto | MOVE |
 | Logistics | `lib/logistics-route-plans-cache.ts` | infra (cache) | `features/logistics/infrastructure/` | infrastructure | M13 | M12 | `logistics-route-plans-cache-runtime` | ídem | sí | revert | Medio | MOVE |
-| Pricing | `db-pricing.ts` + `lib/public-pricing-cache.ts` | infra | `features/pricing/infrastructure/` | infrastructure | M18 | precedente Logistics | serialización pricing | infra guard | sí | revert | Bajo | MOVE |
+| Pricing | `db-pricing.ts` + `lib/public-pricing-cache.ts` | infra | `features/pricing/infrastructure/` | infrastructure | M18 | precedente Logistics | serialización pricing | infra guard (nuevo: `pricing-infrastructure-boundary-guard`) | sí (shims documentados) | revert | Bajo | MOVE (implementado / pendiente de merge) |
 | Public Professionals | `lib/professional-bank-eligibility.ts` | domain (en lib) | `features/public-professionals/domain/` | domain | M21 | M17 | ninguno | domain guard (nuevo) | sí | revert | Bajo | MOVE |
 | Public Professionals | `db-public-professionals.ts` | infra | `features/public-professionals/infrastructure/` | infrastructure | M22 | M21 | SQL-drift-guard (histopatología) | infra guard | sí | revert | Medio | MOVE |
 | Public Professionals | `lib/public-professionals-rate-limit.ts` | infra (wrapper) | `features/public-professionals/infrastructure/` | infrastructure | M23 | M22 | rate limit público | — | store queda en lib | revert | Bajo | MOVE |
