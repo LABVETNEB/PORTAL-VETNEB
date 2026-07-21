@@ -107,18 +107,71 @@ test("public pricing invariants: runtime base URL and /precios success rendering
     preciosContentFile,
   );
 
+  // M19 (Fase D): la construcción read-through del snapshot público se movió de
+  // la ruta al servicio directo de Pricing. La ruta quedó thin (sólo HTTP). Las
+  // mismas invariantes de producción del snapshot se verifican ahora sobre el
+  // servicio, sin debilitar la expectativa: shape del snapshot, success:true y
+  // categorías agrupadas por `groupPublicPricingItems(items)`.
+  const publicPricingServiceFile =
+    "server/features/pricing/public-pricing-service.ts";
+  const publicPricingServiceSource = read(publicPricingServiceFile);
+
+  assertIncludes(
+    publicPricingServiceSource,
+    "const snapshot: PublicPricingSnapshot = {",
+    publicPricingServiceFile,
+  );
+  assertIncludes(
+    publicPricingServiceSource,
+    "success: true,",
+    publicPricingServiceFile,
+  );
+  assertIncludes(
+    publicPricingServiceSource,
+    "categories: groupPublicPricingItems(items),",
+    publicPricingServiceFile,
+  );
+
+  // M19: la ruta pública quedó thin y DELEGA en el servicio directo. Se ancla la
+  // delegación route -> service y se prohíbe reintroducir el read-through/snapshot
+  // inline o imports hacia los shims retirados. Estas anclas protegen las mismas
+  // invariantes de producción: que el snapshot lo construye el servicio y que la
+  // ruta sólo es un adapter HTTP.
   const publicPricingRouteFile = "server/routes/public-pricing.fastify.ts";
   const publicPricingRouteSource = read(publicPricingRouteFile);
 
   assertIncludes(
     publicPricingRouteSource,
+    'from "../features/pricing/public-pricing-service.ts"',
+    publicPricingRouteFile,
+  );
+  assertIncludes(
+    publicPricingRouteSource,
+    "readThroughPublicPricing({",
+    publicPricingRouteFile,
+  );
+
+  // No reintroducir grouping/snapshot inline en la ruta.
+  assertNotIncludes(
+    publicPricingRouteSource,
     "const snapshot: PublicPricingSnapshot = {",
     publicPricingRouteFile,
   );
-  assertIncludes(publicPricingRouteSource, "success: true,", publicPricingRouteFile);
-  assertIncludes(
+  assertNotIncludes(
     publicPricingRouteSource,
-    "categories: groupPublicPricingItems(items),",
+    "groupPublicPricingItems",
+    publicPricingRouteFile,
+  );
+
+  // No reintroducir imports hacia los shims retirados en M19.
+  assertNotIncludes(
+    publicPricingRouteSource,
+    "../lib/public-pricing-cache.ts",
+    publicPricingRouteFile,
+  );
+  assertNotIncludes(
+    publicPricingRouteSource,
+    "../db-pricing.ts",
     publicPricingRouteFile,
   );
 });

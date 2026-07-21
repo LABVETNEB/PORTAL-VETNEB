@@ -4,7 +4,6 @@ import type {
   FastifyRequest,
 } from "fastify";
 
-import { ENV } from "../lib/env.ts";
 import {
   getAllowedOrigins,
   getAllowedOriginForCors,
@@ -12,12 +11,17 @@ import {
   enforceTrustedOrigin,
 } from "../lib/cors-headers.ts";
 import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
-import { clearPublicPricingCache } from "../lib/public-pricing-cache.ts";
 import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
-import type {
-  PricingItem,
-  UpdatePricingItemInput,
-} from "../db-pricing.ts";
+import {
+  invalidatePublicPricingCache,
+  listAdminPricingCategories,
+  loadDefaultAdminPricingDataDeps,
+  serializeAdminPricingItem,
+  updateAdminPricingItem,
+  type ListAdminPricingItemsFn,
+  type UpdateAdminPricingPayload,
+  type UpdatePricingItemFn,
+} from "../features/pricing/admin-pricing-service.ts";
 
 type AdminSessionRecord = {
   id: number;
@@ -36,17 +40,6 @@ type AuthenticatedAdminUser = {
   username: string;
 };
 
-type UpdatePricingPayload = Pick<
-  UpdatePricingItemInput,
-  "priceLabel" | "isActive" | "displayOrder"
->;
-
-type ListAdminPricingItemsFn = () => Promise<PricingItem[]>;
-type UpdatePricingItemFn = (
-  id: number,
-  payload: UpdatePricingPayload & { now?: Date },
-) => Promise<PricingItem | null>;
-
 type AdminPricingRequestParams = {
   id?: unknown;
 };
@@ -56,20 +49,6 @@ type AdminPricingPatchBody = {
   isActive?: unknown;
   displayOrder?: unknown;
   [key: string]: unknown;
-};
-
-type AdminPricingCategoryItem = {
-  id: number;
-  studyName: string;
-  priceLabel: string | null;
-  displayOrder: number;
-  isActive: boolean;
-  updatedAt: string;
-};
-
-type AdminPricingCategory = {
-  category: string;
-  items: AdminPricingCategoryItem[];
 };
 
 export type AdminPricingNativeRoutesOptions = {
@@ -109,7 +88,7 @@ async function loadDefaultDeps(): Promise<NativeAdminPricingDeps> {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
-      const pricing = await import("../db-pricing.ts");
+      const pricingData = await loadDefaultAdminPricingDataDeps();
       const audit = await import("../lib/audit.ts");
 
       return {
@@ -118,8 +97,8 @@ async function loadDefaultDeps(): Promise<NativeAdminPricingDeps> {
         getAdminUserById: db.getAdminUserById,
         updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
-        listAdminPricingItems: pricing.listAdminPricingItems,
-        updatePricingItem: pricing.updatePricingItem as UpdatePricingItemFn,
+        listAdminPricingItems: pricingData.listAdminPricingItems,
+        updatePricingItem: pricingData.updatePricingItem,
         writeAuditLog: audit.writeAuditLog as (
           req: unknown,
           input: AuditWriteInput,
@@ -178,7 +157,7 @@ function parsePositiveInteger(value: unknown): number | null {
 
 function parsePatchPayload(
   body: unknown,
-): { payload?: UpdatePricingPayload; error?: string } {
+): { payload?: UpdateAdminPricingPayload; error?: string } {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return {
       error:
@@ -205,7 +184,7 @@ function parsePatchPayload(
     };
   }
 
-  const payload: UpdatePricingPayload = {};
+  const payload: UpdateAdminPricingPayload = {};
 
   if (Object.prototype.hasOwnProperty.call(rawBody, "priceLabel")) {
     const value = rawBody.priceLabel;
@@ -259,45 +238,6 @@ function parsePatchPayload(
   }
 
   return { payload };
-}
-
-function serializeAdminPricingItem(item: PricingItem) {
-  return {
-    id: item.id,
-    category: item.category,
-    studyName: item.studyName,
-    priceLabel: item.priceLabel ?? null,
-    displayOrder: item.displayOrder,
-    isActive: item.isActive,
-    updatedAt: item.updatedAt,
-  };
-}
-
-function groupAdminPricingItems(items: PricingItem[]): AdminPricingCategory[] {
-  const categories: AdminPricingCategory[] = [];
-  let currentCategory: AdminPricingCategory | undefined;
-
-  for (const item of items) {
-    if (!currentCategory || currentCategory.category !== item.category) {
-      currentCategory = {
-        category: item.category,
-        items: [],
-      };
-
-      categories.push(currentCategory);
-    }
-
-    currentCategory.items.push({
-      id: item.id,
-      studyName: item.studyName,
-      priceLabel: item.priceLabel ?? null,
-      displayOrder: item.displayOrder,
-      isActive: item.isActive,
-      updatedAt: item.updatedAt,
-    });
-  }
-
-  return categories;
 }
 
 function createAuditRequestLike(
@@ -396,11 +336,13 @@ export const adminPricingNativeRoutes: FastifyPluginAsync<
         return reply;
       }
 
-      const items = await deps.listAdminPricingItems();
+      const categories = await listAdminPricingCategories({
+        listAdminPricingItems: deps.listAdminPricingItems,
+      });
 
       return reply.code(200).send({
         success: true,
-        categories: groupAdminPricingItems(items),
+        categories,
       });
     } catch (error) {
       console.error("[ADMIN_PRICING_LIST_ERROR]", {
@@ -449,28 +391,24 @@ export const adminPricingNativeRoutes: FastifyPluginAsync<
         });
       }
 
-      const previousItem = (await deps.listAdminPricingItems()).find(
-        (item) => item.id === pricingItemId,
+      const result = await updateAdminPricingItem(
+        {
+          listAdminPricingItems: deps.listAdminPricingItems,
+          updatePricingItem: deps.updatePricingItem,
+        },
+        pricingItemId,
+        parsed.payload,
+        new Date(now()),
       );
 
-      if (!previousItem) {
+      if (result.status === "not_found") {
         return reply.code(404).send({
           success: false,
           error: "Ítem de precio no encontrado",
         });
       }
 
-      const updated = await deps.updatePricingItem(pricingItemId, {
-        ...parsed.payload,
-        now: new Date(now()),
-      });
-
-      if (!updated) {
-        return reply.code(404).send({
-          success: false,
-          error: "Ítem de precio no encontrado",
-        });
-      }
+      const { previous, updated } = result;
 
       await deps.writeAuditLog(createAuditRequestLike(request, admin), {
         event: AUDIT_EVENTS.ADMIN_PRICING_UPDATED,
@@ -480,9 +418,9 @@ export const adminPricingNativeRoutes: FastifyPluginAsync<
           studyName: updated.studyName,
           updatedFields: Object.keys(parsed.payload),
           previous: {
-            priceLabel: previousItem.priceLabel,
-            isActive: previousItem.isActive,
-            displayOrder: previousItem.displayOrder,
+            priceLabel: previous.priceLabel,
+            isActive: previous.isActive,
+            displayOrder: previous.displayOrder,
           },
           next: {
             priceLabel: updated.priceLabel,
@@ -492,7 +430,7 @@ export const adminPricingNativeRoutes: FastifyPluginAsync<
         },
       });
 
-      clearPublicPricingCache();
+      invalidatePublicPricingCache();
 
       return reply.code(200).send({
         success: true,

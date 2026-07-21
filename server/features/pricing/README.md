@@ -6,8 +6,9 @@
 > **ID:** **M18 (Fase D: infraestructura de persistencia y cache en `infrastructure/`)**.
 >
 > **Estado:** M18 **mergeado y cerrado** — PR #1519, squash SHA
-> `5f99b5f40e08ea8929be869374f1d154f740153f`, 2026-07-21. **Fase D — abierta.**
-> **M19 (thin rutas admin+public) — no iniciado.**
+> `5f99b5f40e08ea8929be869374f1d154f740153f`, 2026-07-21. **M19 (thin rutas
+> admin+public) — implementado / pendiente de revisión** (adelgaza las rutas vía
+> servicios directos y **retira ambos shims legacy**). **Fase D — abierta.**
 
 Este directorio es la **frontera** del contexto Pricing. A diferencia de
 Logistics, **Pricing no tiene reglas de dominio** [CONFIRMED: `db-pricing.ts` es
@@ -20,30 +21,44 @@ inexistente — prohibido por la restricción 13 del programa).
   **cache canónico** de precios públicos (`public-pricing-cache.ts`, move
   byte-idéntico desde `server/lib/public-pricing-cache.ts`). Ver
   [`infrastructure/README.md`](infrastructure/README.md).
+- **`admin-pricing-service.ts`** y **`public-pricing-service.ts`** (M19) —
+  **servicios directos** del contexto: la mínima abstracción real que compone los
+  canónicos y retira de las rutas la orquestación de datos/cache/agrupamiento que
+  no pertenece al adapter HTTP. No conocen Fastify, auth, CORS ni audit. No hay
+  `application/` ni puertos: Pricing no tiene reglas de dominio.
 
-## Shims de compatibilidad (temporales, hasta M19)
-
-M18 **no adelgaza las rutas**. Los paths legacy quedan como **shims mínimos**
-(un único `export *` hacia el canónico) para no romper a los consumidores que
-todavía los importan:
-
-- `server/db-pricing.ts` → `infrastructure/db-pricing.ts`.
-- `server/lib/public-pricing-cache.ts` → `infrastructure/public-pricing-cache.ts`.
+## Rutas thin (M19)
 
 `server/routes/admin-pricing.fastify.ts` y `server/routes/public-pricing.fastify.ts`
-siguen consumiendo los shims sin cambios (byte-idénticas en M18). **M19** será
-responsable de reapuntar las rutas al canónico y adelgazarlas.
+quedan **thin**: conservan sólo HTTP y cross-cutting (registro Fastify, CORS,
+trusted-origin, auth admin, parsing/validación, status codes, mensajes, headers,
+logging de errores, contexto y llamada de auditoría en el punto contractual). La
+ruta admin conserva el orden explícito `update → audit → clear cache → response`;
+la auditoría **no** vive en el servicio.
 
-El `export *` preserva la **identidad de módulo**: el estado module-level del
-cache sigue siendo un único singleton, aunque una parte de los consumidores
-importe por el shim y otra por el canónico.
+## Shims legacy — retirados en M19
+
+Los paths legacy que M18 conservó como shims temporales fueron **retirados** al
+adelgazar las rutas (cero consumidores operativos tras el reapunte):
+
+- `server/db-pricing.ts` — **eliminado**.
+- `server/lib/public-pricing-cache.ts` — **eliminado**.
+
+El único acceso es ahora `route → servicio directo → canónico`. La identidad de
+módulo del cache (singleton compartido) se preserva porque todos los consumidores
+resuelven al mismo canónico `infrastructure/public-pricing-cache.ts`.
 
 ## Contratos que protegen esta frontera
 
 - `test/architecture/pricing-infrastructure-boundary-guard.test.ts` — la capa
   existe con implementación real, el cache conserva cero imports y TTL de 5
-  minutos, la superficie pública del DB no cambia, cero transacciones, los shims
-  son sólo re-exports y ningún canónico consume los shims.
+  minutos, la superficie pública del DB no cambia, cero transacciones, **los
+  shims legacy están ausentes y no pueden recrearse ni tener consumidores**, los
+  servicios directos no conocen HTTP/auth/CORS/audit y las rutas delegan en el
+  servicio sin importar los canónicos DB/cache directamente.
 - `test/integration/adapters/controllers/admin-pricing-api.test.ts` y
   `public-pricing-api.test.ts` — contratos HTTP admin/public (reapuntados al
-  canónico en M18).
+  canónico en M18; verdes tras el adelgazamiento M19).
+- `test/unit/pricing/pricing-admin-service.test.ts` y
+  `pricing-public-service.test.ts` — contratos conductuales de los servicios
+  directos (M19).

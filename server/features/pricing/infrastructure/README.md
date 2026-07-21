@@ -54,8 +54,12 @@ serialización directa.
   impide cablearle Redis, DB, timers o `server/lib` a futuro sin pasar por
   revisión de arquitectura.
 
-## Shims legacy (hasta M19)
+## Shims legacy — retirados en M19
 
-`server/db-pricing.ts` y `server/lib/public-pricing-cache.ts` quedan como shims
-de un único `export *` hacia estos canónicos. Ningún archivo de esta capa puede
-consumir esos shims (la dependencia va sólo shim → canónico, nunca al revés).
+`server/db-pricing.ts` y `server/lib/public-pricing-cache.ts` fueron **shims
+temporales** de un único `export *` hacia estos canónicos durante M18. **M19 los
+retiró** al adelgazar las rutas (cero consumidores operativos tras el reapunte):
+el único acceso es ahora `route → servicio directo del contexto → canónico`.
+`test/architecture/pricing-infrastructure-boundary-guard.test.ts` fija que ambos
+paths legacy están ausentes, que no pueden recrearse y que ningún módulo
+productivo ni test operativo los resuelve.

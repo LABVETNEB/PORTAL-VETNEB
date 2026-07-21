@@ -19,7 +19,7 @@ const { API_REQUEST_ID_HEADER_KEY } = await import(
   "../../../../server/lib/api-request-id.ts"
 );
 const { clearPublicPricingCache } = await import(
-  "../../../../server/lib/public-pricing-cache.ts"
+  "../../../../server/features/pricing/infrastructure/public-pricing-cache.ts"
 );
 const {
   assertApiErrorLogRequestId,

@@ -16,7 +16,7 @@ const repoRoot = resolve(fileURLToPath(new URL("../../../../", import.meta.url))
 const { ENV } = await import("../../../../server/lib/env.ts");
 const { createFastifyApp } = await import("../../../../server/fastify-app.ts");
 const { clearPublicPricingCache } = await import(
-  "../../../../server/lib/public-pricing-cache.ts"
+  "../../../../server/features/pricing/infrastructure/public-pricing-cache.ts"
 );
 const { assertBodyRequestIdMatchesHeader } = await import(
   "../../../helpers/api-request-id-contract.ts"

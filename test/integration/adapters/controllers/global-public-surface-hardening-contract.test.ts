@@ -13,7 +13,7 @@ process.env.CORS_ORIGIN ??= "http://localhost:3000";
 
 const { createFastifyApp } = await import("../../../../server/fastify-app.ts");
 const { clearPublicPricingCache } = await import(
-  "../../../../server/lib/public-pricing-cache.ts"
+  "../../../../server/features/pricing/infrastructure/public-pricing-cache.ts"
 );
 const { createMemoryRateLimitStore } = await import(
   "../../../../server/lib/rate-limit-store.ts"
