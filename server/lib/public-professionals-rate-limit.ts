@@ -1,9 +1,1 @@
-﻿export const PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
-export const PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_MAX_ATTEMPTS = 10;
-export const PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_ERROR_MESSAGE =
-  "Demasiadas consultas al directorio público. Intente más tarde.";
-
-export const PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
-export const PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_MAX_ATTEMPTS = 20;
-export const PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_ERROR_MESSAGE =
-  "Demasiadas consultas al perfil público. Intente más tarde.";
+export * from "../features/public-professionals/infrastructure/public-professionals-rate-limit.ts";

@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, relative, resolve, sep } from "node:path";
@@ -128,218 +128,161 @@ function extractPluginBody(source: string): string {
   return source.slice(start);
 }
 
-test("router público de profesionales no importa DB ni storage de forma estática", () => {
-  const source = readSource("server/routes/public-professionals.fastify.ts");
+test("router público conserva sólo HTTP y dependencias cross-cutting", () => {
+  const source = readSource(
+    "server/routes/public-professionals.fastify.ts",
+  );
   const imports = extractImports(source);
   const staticImportBlock = imports.join("\n");
 
-  assert.ok(
-    imports.length > 0,
-    "el test debe poder inspeccionar imports estáticos",
-  );
+  assert.ok(imports.length > 0);
 
   assert.ok(
     !staticImportBlock.includes("db-public-professionals"),
-    "el router público no debe acoplarse a DB mediante import estático",
+    "la ruta no debe consumir el shim DB",
   );
 
   assert.ok(
     !staticImportBlock.includes("../lib/supabase"),
-    "el router público no debe acoplarse a storage mediante import estático",
+    "la ruta no debe importar storage",
+  );
+
+  assert.ok(
+    !staticImportBlock.includes(
+      "../lib/public-professionals-rate-limit.ts",
+    ),
+    "la ruta no debe consumir el shim de rate limit",
+  );
+
+  assert.ok(
+    staticImportBlock.includes(
+      "../features/public-professionals/public-professionals-query-service.ts",
+    ),
+    "la ruta debe consumir el query service",
+  );
+
+  assert.ok(
+    staticImportBlock.includes(
+      "../features/public-professionals/infrastructure/public-professionals-rate-limit.ts",
+    ),
+    "la ruta debe consumir el rate limit canónico",
   );
 
   assert.ok(
     staticImportBlock.includes("../lib/env.ts"),
-    "CORS/env sí debe seguir siendo una dependencia explícita del router",
+    "CORS/env permanece en la ruta",
   );
 
   assert.ok(
-    staticImportBlock.includes("../lib/public-professionals-rate-limit.ts"),
-    "las constantes de rate limit sí deben seguir importadas explícitamente",
-  );
-
-  assert.ok(
-    staticImportBlock.includes("../middlewares/request-logger.ts"),
-    "logging sanitizado sí debe seguir importado explícitamente",
+    staticImportBlock.includes(
+      "../middlewares/request-logger.ts",
+    ),
+    "logging permanece en la ruta",
   );
 });
 
-test("defaults de DB y storage quedan aislados en loaders dinámicos específicos", () => {
-  const source = readSource("server/routes/public-professionals.fastify.ts");
+test("query service aísla los defaults de DB y storage", () => {
+  const source = readSource(
+    "server/features/public-professionals/public-professionals-query-service.ts",
+  );
 
-  const searchLoader = extractFunction(source, "loadDefaultSearchPublicProfessionals");
-  const detailLoader = extractFunction(
+  const loader = extractFunction(
     source,
-    "loadDefaultGetPublicProfessionalByClinicId",
-  );
-  const signingLoader = extractFunction(source, "loadDefaultCreateSignedStorageUrl");
-
-  assert.ok(
-    searchLoader.includes('await import("../db-public-professionals.ts")'),
-    "search default debe cargar DB solo desde su loader dinámico",
-  );
-  assert.ok(
-    searchLoader.includes("return module.searchPublicProfessionals;"),
-    "search loader debe devolver solo searchPublicProfessionals",
-  );
-  assert.ok(
-    !searchLoader.includes("getPublicProfessionalByClinicId"),
-    "search loader no debe mezclar helper de detail",
+    "loadDefaultPublicProfessionalsQueryDeps",
   );
 
   assert.ok(
-    detailLoader.includes('await import("../db-public-professionals.ts")'),
-    "detail default debe cargar DB solo desde su loader dinámico",
-  );
-  assert.ok(
-    detailLoader.includes("return module.getPublicProfessionalByClinicId;"),
-    "detail loader debe devolver solo getPublicProfessionalByClinicId",
-  );
-  assert.ok(
-    !detailLoader.includes("searchPublicProfessionals;"),
-    "detail loader no debe mezclar helper de search",
+    loader.includes('import("./infrastructure/index.ts")'),
+    "debe cargar el barrel canónico",
   );
 
   assert.ok(
-    signingLoader.includes('await import("../lib/supabase.ts")'),
-    "signing default debe cargar storage solo desde su loader dinámico",
+    loader.includes('import("../../lib/supabase.ts")'),
+    "debe cargar storage fuera de la ruta",
   );
+
   assert.ok(
-    signingLoader.includes("return module.createSignedStorageUrl;"),
-    "signing loader debe devolver solo createSignedStorageUrl",
-  );
-  assert.ok(
-    !signingLoader.includes("db-public-professionals"),
-    "signing loader no debe conocer DB pública",
+    !loader.includes("db-public-professionals"),
+    "no debe consumir el shim DB",
   );
 });
 
-test("router prioriza helpers inyectados antes de cargar defaults", () => {
-  const source = readSource("server/routes/public-professionals.fastify.ts");
+test("router delega search y detail al query service", () => {
+  const source = readSource(
+    "server/routes/public-professionals.fastify.ts",
+  );
+
   const pluginBody = extractPluginBody(source);
 
   assert.ok(
     pluginBody.includes(
-      "const searchPublicProfessionals =\n    options.searchPublicProfessionals ??\n    (await loadDefaultSearchPublicProfessionals());",
+      "resolvePublicProfessionalsQueryDeps({",
     ),
-    "search debe usar override inyectado antes del default",
   );
 
   assert.ok(
     pluginBody.includes(
-      "const getPublicProfessionalByClinicId =\n    options.getPublicProfessionalByClinicId ??\n    (await loadDefaultGetPublicProfessionalByClinicId());",
+      "searchPublicProfessionalsDirectory(",
     ),
-    "detail debe usar override inyectado antes del default",
   );
 
   assert.ok(
     pluginBody.includes(
-      "const createSignedStorageUrl =\n    options.createSignedStorageUrl ??\n    (await loadDefaultCreateSignedStorageUrl());",
+      "getPublicProfessionalDetail(",
     ),
-    "signing debe usar override inyectado antes del default",
   );
 
   assert.ok(
-    pluginBody.indexOf("options.searchPublicProfessionals") <
-      pluginBody.indexOf("loadDefaultSearchPublicProfessionals"),
-    "search no debe cargar default antes de evaluar override",
+    !source.includes("serializeProfessional("),
+    "la serialización no debe permanecer en la ruta",
   );
 
   assert.ok(
-    pluginBody.indexOf("options.getPublicProfessionalByClinicId") <
-      pluginBody.indexOf("loadDefaultGetPublicProfessionalByClinicId"),
-    "detail no debe cargar default antes de evaluar override",
+    !source.includes("resolvePublicAvatarUrl("),
+    "la firma de avatar no debe permanecer en la ruta",
   );
 
   assert.ok(
-    pluginBody.indexOf("options.createSignedStorageUrl") <
-      pluginBody.indexOf("loadDefaultCreateSignedStorageUrl"),
-    "signing no debe cargar default antes de evaluar override",
+    !source.includes("result.rows.map("),
+    "la ruta no debe mapear filas de DB",
+  );
+
+  assert.ok(
+    !source.includes("loadDefaultSearchPublicProfessionals"),
+    "la ruta no debe contener loaders DB",
+  );
+
+  assert.ok(
+    !source.includes("loadDefaultCreateSignedStorageUrl"),
+    "la ruta no debe contener loader de storage",
   );
 });
 
-test("serialización pública no consulta storage salvo por createSignedStorageUrl", () => {
-  const source = readSource("server/routes/public-professionals.fastify.ts");
-  const avatarUrlHelper = extractFunction(source, "resolvePublicAvatarUrl");
-  const serializer = extractFunction(source, "serializeProfessional");
+test("query service prioriza overrides y conserva seams inyectables", () => {
+  const source = readSource(
+    "server/features/public-professionals/public-professionals-query-service.ts",
+  );
 
-  assert.ok(
-    serializer.includes("createSignedStorageUrl: CreateSignedStorageUrlFn"),
-    "serializeProfessional debe recibir signing como dependencia inyectada",
+  const resolver = extractFunction(
+    source,
+    "resolvePublicProfessionalsQueryDeps",
   );
 
   assert.ok(
-    avatarUrlHelper.includes("return await createSignedStorageUrl(row.avatarStoragePath);"),
-    "serializeProfessional debe firmar solo cuando existe avatarStoragePath",
+    resolver.includes(
+      "overrides.searchPublicProfessionals ??",
+    ),
   );
 
   assert.ok(
-    avatarUrlHelper.includes("return null;"),
-    "serializeProfessional debe devolver avatarUrl null cuando no hay avatar",
+    resolver.includes(
+      "overrides.getPublicProfessionalByClinicId ??",
+    ),
   );
 
   assert.ok(
-    serializer.includes("const avatarUrl = await resolvePublicAvatarUrl(row, createSignedStorageUrl);"),
-    "serializeProfessional debe delegar solo en el helper de avatar público",
-  );
-
-  assert.ok(
-    !serializer.includes("await import("),
-    "serializeProfessional no debe cargar módulos dinámicamente",
-  );
-
-  assert.ok(
-    !serializer.includes("supabase"),
-    "serializeProfessional no debe conocer Supabase directamente",
-  );
-
-  assert.ok(
-    !serializer.includes("storage"),
-    "serializeProfessional no debe conocer storage directo",
-  );
-
-  assert.ok(
-    !serializer.includes("db"),
-    "serializeProfessional no debe consultar DB",
-  );
-});
-
-test("tests del router público usan harness inyectado sin DB ni storage reales", () => {
-  const source = readSource("test/public-professionals.fastify.test.ts");
-  const imports = extractImports(source).join("\n");
-  const createTestApp = extractFunction(source, "createTestApp");
-
-  assert.ok(
-    !imports.includes("db-public-professionals"),
-    "los tests fastify del router público no deben importar DB pública real",
-  );
-
-  assert.ok(
-    !imports.includes("../server/lib/supabase"),
-    "los tests fastify del router público no deben importar storage real",
-  );
-
-  assert.match(
-    createTestApp,
-    /searchPublicProfessionals:\s*async\s*\(\)\s*=>\s*\(\{\s*rows:\s*\[\],\s*total:\s*0,\s*limit:\s*20,\s*offset:\s*0,\s*\}\)/,
-    "createTestApp debe mantener search default determinístico",
-  );
-
-  assert.match(
-    createTestApp,
-    /getPublicProfessionalByClinicId:\s*async\s*\(\)\s*=>\s*null/,
-    "createTestApp debe mantener detail default sin DB",
-  );
-
-  assert.match(
-    createTestApp,
-    /createSignedStorageUrl:\s*async\s*\(path:\s*string\)\s*=>\s*`signed:\$\{path\}`/,
-    "createTestApp debe mantener signing default sin storage real",
-  );
-
-  assert.match(
-    createTestApp,
-    /\.\.\.overrides/,
-    "createTestApp debe permitir overrides por test",
+    resolver.includes(
+      "overrides.createSignedStorageUrl ??",
+    ),
   );
 });

@@ -1,68 +1,137 @@
-# Public Professionals · infrastructure (persistencia + mapping)
+# Public Professionals · infrastructure
 
-> Capa **infrastructure** del contexto Public Professionals. **Contiene código**
-> desde M22. Ver la frontera del contexto en [`../README.md`](../README.md), el
-> dominio en [`../domain/README.md`](../domain/README.md) y el contrato de
-> dependencia en [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
+> Capa **infrastructure** del contexto Public Professionals.
+> Contiene persistencia y mapping desde M22, y las constantes del rate limit
+> público desde M23.
+>
+> Ver la frontera del contexto en [`../README.md`](../README.md), el dominio en
+> [`../domain/README.md`](../domain/README.md) y el contrato de dependencia en
+> [ARCH-2](../../../../docs/architecture/backend-boundary-adr.md).
 
 ## Responsabilidad
 
-Materializa la persistencia y el mapping del directorio público de profesionales,
-movidos desde `server/db-public-professionals.ts` (756 LOC) sin alterar el
-comportamiento observable. Dos módulos con responsabilidades separadas más un
-barrel:
+Materializa la infraestructura propia del directorio público de profesionales
+sin alterar el comportamiento observable.
 
-- **`public-professionals-mapping.ts`** — lógica **pura** de normalización,
-  evaluación de publicación y armado de respuesta. Sin I/O, sin Drizzle runtime,
-  sin DB. Sólo importa **tipos** del shared kernel (`drizzle/schema.ts`).
-- **`public-professionals-repository.ts`** — acceso a datos sobre el motor real:
-  Drizzle (`db`), `pgClient.unsafe`, el SQL de elegibilidad por histopatología,
-  filtros, ranking/scoring, límites/offset, upsert/patch, sincronización de
-  `clinic_public_search`, búsqueda y detalle. Consume el dominio **exclusivamente
-  por el barrel** (`../domain/index.ts`) y el mapping por path interno.
-- **`index.ts`** — barrel público que re-exporta ambos módulos sin lógica.
+### `public-professionals-mapping.ts`
+
+Lógica pura de:
+
+- normalización;
+- evaluación de publicación;
+- armado de respuestas del perfil público;
+- scoring de calidad.
+
+No realiza I/O, no importa DB ni runtime de Drizzle y sólo consume tipos del
+shared kernel cuando corresponde.
+
+### `public-professionals-repository.ts`
+
+Acceso a datos sobre el motor real:
+
+- Drizzle y `pgClient.unsafe`;
+- SQL de elegibilidad por histopatología;
+- filtros, ranking y scoring;
+- límites y offset;
+- upsert y patch;
+- sincronización de `clinic_public_search`;
+- búsqueda y detalle público.
+
+Consume el dominio exclusivamente mediante `../domain/index.ts` y el mapping
+por path interno.
+
+### `public-professionals-rate-limit.ts`
+
+Define las constantes de rate limit de:
+
+- búsqueda pública;
+- detalle público.
+
+El store fixed-window genérico permanece en
+`server/lib/rate-limit-store.ts`. La ruta conserva el wiring HTTP, los headers,
+los buckets independientes y las respuestas 429.
+
+### `index.ts`
+
+Barrel público que re-exporta únicamente mapping y repository. El archivo de
+rate limit se importa directamente para evitar cargar estáticamente el
+repository desde el wiring HTTP.
+
+## Query service consumidor
+
+`../public-professionals-query-service.ts` consume el barrel de infrastructure
+mediante carga dinámica y concentra:
+
+- búsqueda;
+- detalle;
+- serialización pública;
+- firma opcional de avatar;
+- resolución de dependencias por defecto;
+- seams inyectables utilizados por los tests.
+
+No existe una capa `application`, puertos vacíos ni abstracciones
+especulativas.
 
 ## Exports públicos
 
-Mapping:
+### Mapping
 
-- **Constante:** `MIN_PUBLIC_PROFILE_QUALITY_SCORE` (75).
-- **Tipo:** `UpsertClinicPublicProfileInput`.
-- **Funciones:** `evaluateClinicPublicProfilePublication`,
-  `buildClinicPublicProfileResponse`.
+- `MIN_PUBLIC_PROFILE_QUALITY_SCORE`
+- `UpsertClinicPublicProfileInput`
+- `evaluateClinicPublicProfilePublication`
+- `buildClinicPublicProfileResponse`
 
-Repository:
+### Repository
 
-- `getClinicPublicProfileByClinicId`, `upsertClinicPublicProfile`,
-  `patchClinicPublicProfile`, `syncClinicPublicSearch`,
-  `removeClinicPublicAvatar`, `getPublicProfessionalByClinicId`,
-  `searchPublicProfessionals`.
+- `getClinicPublicProfileByClinicId`
+- `upsertClinicPublicProfile`
+- `patchClinicPublicProfile`
+- `syncClinicPublicSearch`
+- `removeClinicPublicAvatar`
+- `getPublicProfessionalByClinicId`
+- `searchPublicProfessionals`
 
-## Invariantes preservados (sin cambios de comportamiento)
+### Rate limit
 
-- `MIN_PUBLIC_PROFILE_QUALITY_SCORE = 75`; campos requeridos/recomendados,
-  scoring y mensajes en español idénticos.
-- SQL de elegibilidad **byte por byte**: `LAST_HISTOPATHOLOGY_REPORT_DELIVERED_AT_SQL`,
-  `PROFESSIONAL_BANK_ELIGIBILITY_SQL`, `PROFESSIONAL_BANK_ELIGIBILITY_DRIZZLE_SQL`
-  (`sql.raw` reutiliza exactamente el SQL raw); filtros `is_public` /
-  `is_search_eligible`; websearch/unaccent/trigram; pesos y boosts; `ORDER BY`;
-  `LIMIT` máximo 50; offset; count con el mismo `whereSql`.
-- **Cero transacciones** (medido en R0: `db-public-professionals.ts` tenía 0
-  call-sites `.transaction(`).
+- constantes de ventana, máximo de intentos y mensaje público para search;
+- constantes de ventana, máximo de intentos y mensaje público para detail.
+
+## Invariantes preservados
+
+- `MIN_PUBLIC_PROFILE_QUALITY_SCORE = 75`.
+- SQL de elegibilidad preservado.
+- Filtros `is_public` e `is_search_eligible` preservados.
+- Websearch, unaccent, trigram, pesos, boosts y `ORDER BY` preservados.
+- Límite máximo de búsqueda 50.
+- Count y paginación preservados.
+- Cero transacciones en el repository.
+- Buckets de rate limit separados para search y detail.
+- El store compartido no se mueve fuera de `server/lib`.
+- Sin cambios de schema, migraciones, auth, CORS ni contratos HTTP.
 
 ## Regla de dependencia
 
-| Puede importar | No puede importar |
-| --- | --- |
-| `drizzle-orm`, `server/db.ts`, `drizzle/schema.ts`, el domain barrel (`../domain/index.ts`), y archivos de la propia capa | `fastify`, `server/routes`, una capa `application`, auth/sesiones/CORS/audit/email, `server/lib/**`, Supabase, frontend |
+| Módulo | Puede importar | No puede importar |
+| --- | --- | --- |
+| Mapping | tipos del shared kernel y archivos de la propia capa | DB, Drizzle runtime, Fastify, routes, auth, env, CORS, rate limit, Supabase, I/O |
+| Repository | Drizzle, `server/db.ts`, schema, domain barrel y mapping | routes, application, Fastify, auth, CORS, audit, email, Supabase, `server/lib/**`, frontend |
+| Rate limit | ninguna dependencia runtime | store, Fastify, routes, auth, DB, Supabase |
+| Query service | barrel de infrastructure y cliente compartido de storage | shims legacy, rutas, Fastify, auth, CORS |
 
-El **mapping** es estricto: no importa DB, ni el runtime de Drizzle, ni Fastify,
-routes, auth, env, CORS, rate limit, Supabase o I/O. Verificado por
-`test/architecture/public-professionals-infrastructure-boundary-guard.test.ts`.
+Estas reglas se verifican mediante:
 
-## Shim legacy temporal
+- `test/architecture/public-professionals-infrastructure-boundary-guard.test.ts`
+- `test/architecture/public-professionals-source-boundaries.test.ts`
 
-`server/db-public-professionals.ts` queda como **shim mínimo** — un único
-`export *` hacia este barrel, sin lógica — porque las rutas
-(`public-professionals.fastify.ts`, `clinic-public-profile.fastify.ts`) todavía
-consumen el path legacy en M22. Su reapunte o retiro corresponde a **M23/M24**.
+## Shims legacy temporales
+
+Permanecen hasta M24:
+
+- `server/db-public-professionals.ts`
+- `server/lib/public-professionals-rate-limit.ts`
+- `server/lib/professional-bank-eligibility.ts`
+
+M23 eliminó sus consumidores operativos. Cada shim contiene únicamente un
+re-export hacia la frontera canónica correspondiente.
+
+M24 realizará el censo final y su retiro.

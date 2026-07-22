@@ -214,7 +214,7 @@ nombre); fan-in = archivos de `server/` que lo importan. `Estado`: **mover** (a 
 | `lib/particular-token.ts` (133) | Particular Access | domain (token) | — | Bajo | `features/particular-access/domain/` | M33 | mover |
 | `lib/professional-bank-eligibility.ts` (124) | Public Professionals | domain | — | Bajo | `features/public-professionals/domain/` | M21 | mover |
 | `lib/public-pricing-cache.ts` (54) | Pricing | infrastructure (cache) | — | Bajo | `features/pricing/infrastructure/` | M18 | movido byte-idéntico (M18 mergeado — PR #1519, squash `5f99b5f…`, 2026-07-21); **shim legacy retirado en M19 (mergeado y cerrado — PR #1521, squash `d1b2511…`, 2026-07-21)**: ambos shims legacy eliminados, rutas thin vía servicio directo, cero consumidores operativos |
-| `lib/public-professionals-rate-limit.ts` (9) | Public Professionals | infra (wrapper) | — | Bajo | con la ruta pública (store queda en lib) | M23 | mover (con ruta) |
+| `lib/public-professionals-rate-limit.ts` (9) | Public Professionals | infra (wrapper) | — | Bajo | `features/public-professionals/infrastructure/` (store queda en lib) | M23 | movido; shim temporal sin consumidores operativos hasta M24 |
 | `lib/public-report-access-rate-limit.ts` (4) | Report Access | infra (wrapper) | — | Bajo | con Report Access | M34 | mover (con ruta) |
 | `lib/report-access-token-rate-limit.ts` (4) | Report Access | infra (wrapper) | — | Bajo | con Report Access | M34 | mover (con ruta) |
 | `lib/permissions.ts` (57) | Users/Roles (autorización) | **shared kernel** | 14 | Medio | permanece en `lib` (kernel documentado) | M42 (docs+guard) | permanecer/kernel |
@@ -285,7 +285,7 @@ application):
 | `logistics-route-events.fastify.ts` (1.008) | Logistics | `/api/logistics/route-events` | thin | M16 |
 | `logistics-sla.fastify.ts` (792) | Logistics | `/api/logistics/sla` | thin | M16 |
 | `admin-pricing.fastify.ts` (513) / `public-pricing.fastify.ts` (136) | Pricing | `/api/admin/pricing`, `/api/pricing` | thin (query service directo) | M19 |
-| `public-professionals.fastify.ts` (479) | Public Professionals | público estable | thin + rate-limit wiring | M23 |
+| `public-professionals.fastify.ts` (479) | Public Professionals | público estable | thin vía query service directo + rate-limit canónico; contratos intactos | M23 |
 | `admin-clinics.fastify.ts` (987) / `clinic-public-profile.fastify.ts` (1.316) | Clinics | admin + público | thin (disclosure verde) | M27/M28 |
 | `admin-study-tracking.fastify.ts` (1.205) / `study-tracking.fastify.ts` (1.034) / `particular-study-tracking.fastify.ts` | Study Tracking | admin/clínica/particular | thin + puerto email | M32/M32b |
 | `particular-tokens.fastify.ts` (872) / `admin-particular-tokens.fastify.ts` (868) | Particular Access | tokens | thin | M33 |

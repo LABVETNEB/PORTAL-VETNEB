@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -150,7 +150,7 @@ test("search mantiene limit con fallback 20, máximo 50 y offset con fallback 0"
 
   assert.ok(
     searchRoute.includes(
-      "const result = await searchPublicProfessionals({\n        query,\n        locality,\n        country,\n        limit,\n        offset,\n      });",
+      "const result = await searchPublicProfessionalsDirectory(\n        {\n          query,\n          locality,\n          country,\n          limit,\n          offset,\n        },\n        queryDeps,\n      );",
     ),
     "search debe pasar query/locality/country/limit/offset ya normalizados al helper público",
   );
@@ -219,7 +219,7 @@ test("parseClinicId acepta solo enteros positivos y detail rechaza inválidos an
 
   assert.ok(
     detailRoute.indexOf("if (!clinicId)") <
-      detailRoute.indexOf("await getPublicProfessionalByClinicId(clinicId)"),
+      detailRoute.indexOf("await getPublicProfessionalDetail("),
     "la validación de clinicId debe ocurrir antes del lookup público",
   );
 });

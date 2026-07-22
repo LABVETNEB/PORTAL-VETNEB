@@ -18,8 +18,8 @@ const PROFESIONAL_DETAIL_CONTENT_PATH =
 const PUBLIC_PROFESSIONALS_HELPER_PATH =
   "frontend/src/lib/public-professionals.ts";
 const PUBLIC_PROFESSIONALS_API_CLIENT_PATH = "frontend/src/lib/api.ts";
-const PUBLIC_PROFESSIONALS_API_ROUTE_PATH =
-  "server/routes/public-professionals.fastify.ts";
+const PUBLIC_PROFESSIONALS_QUERY_SERVICE_PATH =
+  "server/features/public-professionals/public-professionals-query-service.ts";
 
 function read(relativePath: string): string {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8").replace(
@@ -29,11 +29,11 @@ function read(relativePath: string): string {
 }
 
 function extractSerializeProfessional(source: string) {
-  const start = source.indexOf("async function serializeProfessional(");
-  assert.notEqual(start, -1, "serializeProfessional must exist");
+  const start = source.indexOf("export async function serializePublicProfessional(");
+  assert.notEqual(start, -1, "serializePublicProfessional must exist");
 
-  const end = source.indexOf("\nfunction applyCorsHeaders", start);
-  assert.notEqual(end, -1, "serializeProfessional block must be bounded");
+  const end = source.indexOf("\nexport async function loadDefaultPublicProfessionalsQueryDeps", start);
+  assert.notEqual(end, -1, "serializePublicProfessional block must be bounded");
 
   return source.slice(start, end);
 }
@@ -192,8 +192,8 @@ test("public professionals UI and API contracts avoid private public-surface lea
     read(PROFESIONAL_DETAIL_CONTENT_PATH),
     read(PUBLIC_PROFESSIONALS_HELPER_PATH),
   ].join("\n");
-  const serializeProfessional = extractSerializeProfessional(
-    read(PUBLIC_PROFESSIONALS_API_ROUTE_PATH),
+  const serializePublicProfessional = extractSerializeProfessional(
+    read(PUBLIC_PROFESSIONALS_QUERY_SERVICE_PATH),
   );
   const forbiddenPublicUiMarkers = [
     "avatarStoragePath",
@@ -219,9 +219,9 @@ test("public professionals UI and API contracts avoid private public-surface lea
     );
   }
 
-  assert.ok(serializeProfessional.includes("avatarUrl"));
-  assert.equal(serializeProfessional.includes("avatarStoragePath:"), false);
-  assert.equal(serializeProfessional.includes("storagePath"), false);
-  assert.equal(serializeProfessional.includes("token"), false);
-  assert.equal(serializeProfessional.includes("cookie"), false);
+  assert.ok(serializePublicProfessional.includes("avatarUrl"));
+  assert.equal(serializePublicProfessional.includes("avatarStoragePath:"), false);
+  assert.equal(serializePublicProfessional.includes("storagePath"), false);
+  assert.equal(serializePublicProfessional.includes("token"), false);
+  assert.equal(serializePublicProfessional.includes("cookie"), false);
 });

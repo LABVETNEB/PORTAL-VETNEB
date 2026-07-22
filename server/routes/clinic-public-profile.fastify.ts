@@ -24,7 +24,7 @@ import {
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
-import type { UpsertClinicPublicProfileInput } from "../db-public-professionals.ts";
+import type { UpsertClinicPublicProfileInput } from "../features/public-professionals/infrastructure/index.ts";
 
 type ClinicRecord = {
   id: number;
@@ -209,7 +209,7 @@ async function loadDefaultDeps(): Promise<NativeClinicPublicProfileDeps> {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
-      const publicProfiles = await import("../db-public-professionals.ts");
+      const publicProfiles = await import("../features/public-professionals/infrastructure/index.ts");
       const supabase = await import("../lib/supabase.ts");
 
       return {
