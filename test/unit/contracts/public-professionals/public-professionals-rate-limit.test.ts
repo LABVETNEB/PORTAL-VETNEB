@@ -7,7 +7,7 @@ import {
   PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_ERROR_MESSAGE,
   PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_MAX_ATTEMPTS,
   PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_WINDOW_MS,
-} from "../../../../server/lib/public-professionals-rate-limit.ts";
+} from "../../../../server/features/public-professionals/infrastructure/public-professionals-rate-limit.ts";
 
 test("constantes de rate limit para directorio público son estables", () => {
   assert.equal(PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000);

@@ -167,7 +167,7 @@ test("rate limit isolation matrix documents the protected contract", () => {
 test("rate limit constants remain split by auth public read and token mutation domains", () => {
   const login = readSource("server/lib/login-rate-limit.ts");
   const publicProfessionals = readSource(
-    "server/lib/public-professionals-rate-limit.ts",
+    "server/features/public-professionals/infrastructure/public-professionals-rate-limit.ts",
   );
   const publicReportAccess = readSource(
     "server/lib/public-report-access-rate-limit.ts",
@@ -382,7 +382,7 @@ test("public professionals search and detail keep independent fixed-window store
 
   assertContains(
     source,
-    'from "../lib/public-professionals-rate-limit.ts"',
+    'from "../features/public-professionals/infrastructure/public-professionals-rate-limit.ts"',
     "public professionals rate limit import",
   );
   assertContains(

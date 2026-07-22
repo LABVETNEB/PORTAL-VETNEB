@@ -6,8 +6,8 @@
 > **Origen:** [ARCH-1](../../../docs/audit/repository-domain-architecture-audit.md) · [ARCH-2](../../../docs/architecture/backend-boundary-adr.md) · [ARCH-3](../../../docs/architecture/shared-lib-boundary-inventory.md).
 > **ID:** **M22 (Fase E — persistencia a `infrastructure/`)**.
 >
-> **Estado:** M21 mergeado. **M22 listo para integración** (no mergeado).
-> **Fase E abierta. M23 (ruta + rate limit) no iniciado.**
+> **Estado:** M21 y M22 mergeados. **M23 listo para integración** (no mergeado).
+> **Fase E abierta. M24 no iniciado.**
 
 Este directorio es la **frontera** del contexto Public Professionals: el
 directorio público de profesionales del portal (perfil público de clínica,
@@ -31,42 +31,60 @@ detrás de un barrel público, sin cambiar comportamiento observable.
 
 ## 2. Arquitectura actual
 
-```text
-routes (public-professionals, clinic-public-profile)
-  → shim legacy (server/db-public-professionals.ts, un solo re-export)
-    → infrastructure barrel (features/public-professionals/infrastructure/index.ts)
-        ├─ public-professionals-mapping.ts     (puro; sólo tipos del shared kernel)
-        └─ public-professionals-repository.ts  → domain barrel (features/.../domain/index.ts)
-```
+~~~text
+public-professionals.fastify.ts
+  ├─ HTTP, parsing, CORS, logging y rate-limit wiring
+  ├─ public-professionals-query-service.ts
+  │  ├─ búsqueda y detalle
+  │  ├─ serialización pública
+  │  ├─ firma opcional de avatar
+  │  └─ infrastructure/index.ts + lib/supabase.ts
+  └─ infrastructure/public-professionals-rate-limit.ts
+     └─ constantes del rate limit público
 
-- **`infrastructure/`** — persistencia y mapping movidos desde
-  `server/db-public-professionals.ts` en **M22**: `public-professionals-mapping.ts`
-  (lógica pura) + `public-professionals-repository.ts` (Drizzle, `pgClient.unsafe`,
-  SQL de elegibilidad) tras un barrel. Ver
-  [`infrastructure/README.md`](./infrastructure/README.md).
-- El **repository** consume la elegibilidad **por el domain barrel canónico**,
-  nunca por un archivo interno del dominio ni por el path legacy.
-- El **shim legacy** `server/db-public-professionals.ts` queda como un único
-  `export *` hacia el barrel de infrastructure porque las rutas todavía consumen
-  el path legacy en M22 (su reapunte/retiro es M23/M24).
+clinic-public-profile.fastify.ts
+  └─ infrastructure/index.ts
 
-## 3. Qué NO mueve M22
+infrastructure/index.ts
+  ├─ public-professionals-mapping.ts
+  └─ public-professionals-repository.ts
+     └─ domain/index.ts
+~~~
 
-- **Ruta y rate limit** — `server/routes/public-professionals.fastify.ts` y
-  `server/lib/public-professionals-rate-limit.ts` quedan **intactos** hasta
-  **M23**.
-- **Catálogo de Reports** — `server/lib/report-study-types.ts` pertenece al
-  contexto Reports (move reservado para **M36**). El dominio canónico **no**
-  depende de él en runtime; la relación contractual (histopatología ∈ catálogo)
-  se preserva por test.
+- **`public-professionals-query-service.ts`** — query service directo sin capa
+  `application`. Resuelve dependencias, consulta búsqueda/detalle, serializa el
+  payload público y firma avatares de forma opcional.
+- **`infrastructure/`** — mapping, repository y constantes del rate limit
+  público. El store genérico permanece en `server/lib/rate-limit-store.ts`.
+- **La ruta pública** conserva únicamente responsabilidades HTTP y
+  cross-cutting: parsing, validación, CORS, logging, status codes, payloads y
+  wiring del rate limit.
+- **La ruta clínica** consume directamente el barrel canónico de
+  infrastructure.
+- Los paths legacy permanecen como shims mínimos hasta M24, pero ya no tienen
+  consumidores operativos en M23.
+## 3. Qué materializa M23
 
-## 4. Shim legacy temporal
+- Adelgaza `server/routes/public-professionals.fastify.ts`.
+- Extrae búsqueda, detalle, serialización y firma opcional de avatar al query
+  service directo del contexto.
+- Mueve `server/lib/public-professionals-rate-limit.ts` a
+  `infrastructure/public-professionals-rate-limit.ts`.
+- Mantiene `server/lib/rate-limit-store.ts` como infraestructura compartida.
+- Reapunta `clinic-public-profile.fastify.ts` al barrel canónico.
+- Conserva los seams inyectables utilizados por los tests.
+- No modifica paths, métodos, payloads, status codes, CORS, logging, SQL, auth,
+  schema ni migraciones.
+## 4. Shims legacy temporales
 
-`server/lib/professional-bank-eligibility.ts` se conserva como **shim mínimo**
-(`export *` hacia el barrel canónico), sólo por compatibilidad temporal del
-programa. Tras M21 **no tiene consumidores runtime**; **expira en M24**, tras el
-censo final de Fase E.
+Permanecen hasta el cierre M24:
 
+- `server/db-public-professionals.ts`
+- `server/lib/public-professionals-rate-limit.ts`
+- `server/lib/professional-bank-eligibility.ts`
+
+Los tres son re-exports mínimos. M23 elimina sus consumidores operativos; M24
+realizará el censo final y su retiro.
 ## 5. Reglas de dependencia
 
 La dependencia **siempre apunta hacia adentro**. `domain/` es puro: no conoce
@@ -89,16 +107,10 @@ Verificado por
   `domain/` con barrel público, reapuntado del consumidor runtime y del test de
   dominio al barrel, shim temporal en el path legacy `server/lib/...`, guard de
   frontera y documentación.
-- **M22 — persistencia a `infrastructure/` (listo para integración, no
-  mergeado)** — split de `server/db-public-professionals.ts` en
-  `infrastructure/{public-professionals-mapping,public-professionals-repository}.ts`
-  tras un barrel, shim legacy de un solo re-export en el path legacy, guard de
-  infraestructura nuevo, reapunte de los tests SQL al repository canónico y del
-  guard de dominio al repository. **Cero cambios** en SQL, rutas, rate limits,
-  schema, migraciones, auth ni CORS. Ver
-  [Nota de implementación — M22](../../../docs/implementation/m22-public-professionals-infrastructure.md).
-- **M23 (no iniciado)** — ruta y rate limit.
-- **M24 (no iniciado)** — cierre de Fase E y retiro de los shims legacy.
+- **M22 — mergeado** — persistencia y mapping movidos a
+  `infrastructure/`, barrel canónico y shim DB mínimo.
+- **M23 — listo para integración** — query service directo, ruta pública thin, rate-limit wrapper canónico, rutas reapuntadas y contratos preservados. Ver [Nota de implementación — M23](../../../docs/implementation/m23-public-professionals-thin-route.md).
+- **M24 (no iniciado)** — cierre de Fase E, censo final y retiro de los tres shims legacy.
 
 ## 7. Documentos rectores
 

@@ -4,6 +4,11 @@ import type {
   FastifyRequest,
 } from "fastify";
 
+import {
+  getPublicProfessionalDetail,
+  resolvePublicProfessionalsQueryDeps,
+  searchPublicProfessionalsDirectory,
+} from "../features/public-professionals/public-professionals-query-service.ts";
 import { ENV } from "../lib/env.ts";
 import {
   PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_ERROR_MESSAGE,
@@ -12,7 +17,7 @@ import {
   PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_ERROR_MESSAGE,
   PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_MAX_ATTEMPTS,
   PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_WINDOW_MS,
-} from "../lib/public-professionals-rate-limit.ts";
+} from "../features/public-professionals/infrastructure/public-professionals-rate-limit.ts";
 import {
   createMemoryRateLimitStore,
   getOrCreateRateLimitEntry,
@@ -150,56 +155,6 @@ function parseClinicId(value: unknown) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
-async function resolvePublicAvatarUrl(
-  row: PublicProfessionalRow,
-  createSignedStorageUrl: CreateSignedStorageUrlFn,
-) {
-  if (!row.avatarStoragePath) {
-    return null;
-  }
-
-  try {
-    return await createSignedStorageUrl(row.avatarStoragePath);
-  } catch {
-    console.warn("[PUBLIC_PROFESSIONAL_AVATAR_URL_ERROR]", {
-      clinicId: row.clinicId,
-      hasAvatar: true,
-    });
-    return null;
-  }
-}
-
-async function serializeProfessional(
-  row: PublicProfessionalRow,
-  createSignedStorageUrl: CreateSignedStorageUrlFn,
-) {
-  const avatarUrl = await resolvePublicAvatarUrl(row, createSignedStorageUrl);
-  const publicAddress = normalizeText(row.publicAddress) ?? null;
-  const mapLink = normalizeText(row.mapLink) ?? null;
-
-  return {
-    clinicId: row.clinicId,
-    displayName: row.displayName,
-    avatarUrl,
-    specialtyText: row.specialtyText,
-    servicesText: row.servicesText,
-    email: row.email,
-    phone: row.phone,
-    locality: row.locality,
-    country: row.country,
-    aboutText: row.aboutText,
-    ...(publicAddress ? { publicAddress } : {}),
-    ...(mapLink ? { mapLink } : {}),
-    updatedAt: row.updatedAt,
-    relevance: {
-      rank: row.rank ?? 0,
-      similarity: row.similarity ?? 0,
-      score: row.score ?? 0,
-    },
-    profileQualityScore: row.profileQualityScore ?? null,
-  };
-}
-
 function applyCorsHeaders(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -298,35 +253,16 @@ function createFixedWindowRateLimit(config: {
   };
 }
 
-async function loadDefaultSearchPublicProfessionals(): Promise<SearchPublicProfessionalsFn> {
-  const module = await import("../db-public-professionals.ts");
-  return module.searchPublicProfessionals;
-}
-
-async function loadDefaultGetPublicProfessionalByClinicId(): Promise<GetPublicProfessionalByClinicIdFn> {
-  const module = await import("../db-public-professionals.ts");
-  return module.getPublicProfessionalByClinicId;
-}
-
-async function loadDefaultCreateSignedStorageUrl(): Promise<CreateSignedStorageUrlFn> {
-  const module = await import("../lib/supabase.ts");
-  return module.createSignedStorageUrl;
-}
-
 export const publicProfessionalsNativeRoutes: FastifyPluginAsync<
   PublicProfessionalsNativeRoutesOptions
 > = async (app, options) => {
-  const searchPublicProfessionals =
-    options.searchPublicProfessionals ??
-    (await loadDefaultSearchPublicProfessionals());
+  const queryDeps = await resolvePublicProfessionalsQueryDeps({
+    searchPublicProfessionals: options.searchPublicProfessionals,
+    getPublicProfessionalByClinicId:
+      options.getPublicProfessionalByClinicId,
+    createSignedStorageUrl: options.createSignedStorageUrl,
+  });
 
-  const getPublicProfessionalByClinicId =
-    options.getPublicProfessionalByClinicId ??
-    (await loadDefaultGetPublicProfessionalByClinicId());
-
-  const createSignedStorageUrl =
-    options.createSignedStorageUrl ??
-    (await loadDefaultCreateSignedStorageUrl());
 
   const allowedOrigins = new Set(getAllowedOrigins());
 
@@ -407,25 +343,22 @@ export const publicProfessionalsNativeRoutes: FastifyPluginAsync<
       const limit = parsePositiveInt(request.query.limit, 20, 50);
       const offset = parseOffset(request.query.offset, 0);
 
-      const result = await searchPublicProfessionals({
-        query,
-        locality,
-        country,
-        limit,
-        offset,
-      });
-
-      const professionals = await Promise.all(
-        result.rows.map((row) =>
-          serializeProfessional(row, createSignedStorageUrl),
-        ),
+      const result = await searchPublicProfessionalsDirectory(
+        {
+          query,
+          locality,
+          country,
+          limit,
+          offset,
+        },
+        queryDeps,
       );
 
       return reply.code(200).send({
         success: true,
-        count: professionals.length,
+        count: result.professionals.length,
         total: result.total,
-        professionals,
+        professionals: result.professionals,
         filters: {
           query: query ?? null,
           locality: locality ?? null,
@@ -458,7 +391,10 @@ export const publicProfessionalsNativeRoutes: FastifyPluginAsync<
         });
       }
 
-      const professional = await getPublicProfessionalByClinicId(clinicId);
+      const professional = await getPublicProfessionalDetail(
+        clinicId,
+        queryDeps,
+      );
 
       if (!professional) {
         return reply.code(404).send({
@@ -469,10 +405,7 @@ export const publicProfessionalsNativeRoutes: FastifyPluginAsync<
 
       return reply.code(200).send({
         success: true,
-        professional: await serializeProfessional(
-          professional,
-          createSignedStorageUrl,
-        ),
+        professional,
       });
     },
   );

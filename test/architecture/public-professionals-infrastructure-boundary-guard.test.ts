@@ -24,11 +24,18 @@ const infrastructureDir = `${featureDir}/infrastructure`;
 const barrelFile = `${infrastructureDir}/index.ts`;
 const mappingFile = `${infrastructureDir}/public-professionals-mapping.ts`;
 const repositoryFile = `${infrastructureDir}/public-professionals-repository.ts`;
+const rateLimitFile = `${infrastructureDir}/public-professionals-rate-limit.ts`;
+const queryServiceFile = `${featureDir}/public-professionals-query-service.ts`;
 
 // Shim legacy conservado en M22: único re-export hacia el barrel canónico. Su
 // path se construye por concatenación para que el propio guard no sea un falso
 // positivo y para comparar contra specifiers ya resueltos, no contra texto.
 const legacyShimFile = ["server", "db-public-professionals.ts"].join("/");
+const legacyRateLimitShimFile = [
+  "server",
+  "lib",
+  "public-professionals-rate-limit.ts",
+].join("/");
 
 // Rutas que todavía consumen el path legacy durante M22 (M23 las adelgaza).
 const routeFiles = [
@@ -226,7 +233,7 @@ test("Public Professionals infrastructure existe con mapping, repository y barre
   const files = walkTsFiles(infrastructureDir);
   assert.ok(files.length > 0, `${infrastructureDir} debe contener al menos un .ts`);
 
-  for (const requiredFile of [mappingFile, repositoryFile, barrelFile]) {
+  for (const requiredFile of [mappingFile, repositoryFile, rateLimitFile, barrelFile]) {
     assert.ok(files.includes(requiredFile), `${requiredFile} debe existir`);
   }
 
@@ -444,6 +451,52 @@ test("El repository conserva cero transacciones (invariante R0)", () => {
   );
 });
 
+// M23: las constantes de rate limit viven en infrastructure. El path legacy
+// permanece únicamente como shim hasta el cierre M24.
+test("El rate limit público vive en infrastructure con shim legacy mínimo", () => {
+  const source = readText(rateLimitFile);
+
+  for (const name of [
+    "PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_WINDOW_MS",
+    "PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_MAX_ATTEMPTS",
+    "PUBLIC_PROFESSIONALS_SEARCH_RATE_LIMIT_ERROR_MESSAGE",
+    "PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_WINDOW_MS",
+    "PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_MAX_ATTEMPTS",
+    "PUBLIC_PROFESSIONAL_DETAIL_RATE_LIMIT_ERROR_MESSAGE",
+  ]) {
+    assert.ok(
+      source.includes(`export const ${name}`),
+      `${rateLimitFile} debe exportar ${name}`,
+    );
+  }
+
+  assert.deepEqual(
+    listImportSpecifiers(source),
+    [],
+    "el wrapper de rate limit no debe importar el store ni transporte HTTP",
+  );
+
+  const shimLines = stripComments(
+    readText(legacyRateLimitShimFile),
+  )
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  assert.deepEqual(
+    shimLines,
+    [
+      'export * from "../features/public-professionals/infrastructure/public-professionals-rate-limit.ts";',
+    ],
+    "el shim de rate limit debe ser un único re-export",
+  );
+
+  assert.deepEqual(
+    resolvedSpecifiers(legacyRateLimitShimFile),
+    [rateLimitFile],
+    "el shim de rate limit debe resolver al archivo canónico",
+  );
+});
 // 13: el shim legacy es sólo el re-export exacto hacia el barrel canónico.
 test("El shim legacy server/db-public-professionals.ts es un único re-export hacia el barrel, sin lógica", () => {
   assert.equal(
@@ -470,57 +523,93 @@ test("El shim legacy server/db-public-professionals.ts es un único re-export ha
   );
 });
 
-// 14: las rutas siguen consumiendo el shim legacy durante M22, sin tocar los
-// archivos internos de infrastructure (M23 aún no iniciado).
-test("Las rutas siguen consumiendo el shim legacy y no importan archivos internos de infrastructure", () => {
-  const missingShimConsumers: string[] = [];
-  const internalImportViolations: string[] = [];
+// 14: M23 reapunta los consumidores operativos a las fronteras canónicas.
+test("M23 elimina consumidores operativos de los shims legacy", () => {
+  const publicRouteFile = routeFiles[0];
+  const clinicRouteFile = routeFiles[1];
 
-  for (const routeFile of routeFiles) {
-    const targets = resolvedSpecifiers(routeFile);
+  const publicTargets = resolvedSpecifiers(publicRouteFile);
+  const clinicTargets = resolvedSpecifiers(clinicRouteFile);
+  const serviceTargets = resolvedSpecifiers(queryServiceFile);
 
-    if (!targets.includes(legacyShimFile)) {
-      missingShimConsumers.push(routeFile);
-    }
+  assert.ok(
+    publicTargets.includes(queryServiceFile),
+    `${publicRouteFile} debe consumir el query service`,
+  );
 
-    for (const resolved of targets) {
-      if (
-        resolved === barrelFile ||
-        resolved === mappingFile ||
-        resolved === repositoryFile
-      ) {
-        internalImportViolations.push(`${routeFile} -> ${resolved}`);
-      }
-    }
+  assert.ok(
+    publicTargets.includes(rateLimitFile),
+    `${publicRouteFile} debe consumir el rate limit canónico`,
+  );
+
+  assert.ok(
+    clinicTargets.includes(barrelFile),
+    `${clinicRouteFile} debe consumir el barrel canónico`,
+  );
+
+  assert.ok(
+    serviceTargets.includes(barrelFile),
+    `${queryServiceFile} debe consumir el barrel canónico`,
+  );
+
+  for (const item of [
+    { consumer: publicRouteFile, targets: publicTargets },
+    { consumer: clinicRouteFile, targets: clinicTargets },
+    { consumer: queryServiceFile, targets: serviceTargets },
+  ]) {
+    assert.equal(
+      item.targets.includes(legacyShimFile),
+      false,
+      `${item.consumer} no debe consumir el shim DB`,
+    );
+
+    assert.equal(
+      item.targets.includes(legacyRateLimitShimFile),
+      false,
+      `${item.consumer} no debe consumir el shim de rate limit`,
+    );
+
+    assert.equal(
+      item.targets.includes(mappingFile),
+      false,
+      `${item.consumer} no debe importar el mapping interno`,
+    );
+
+    assert.equal(
+      item.targets.includes(repositoryFile),
+      false,
+      `${item.consumer} no debe importar el repository interno`,
+    );
   }
-
-  assert.deepEqual(
-    missingShimConsumers,
-    [],
-    "durante M22 las rutas deben seguir consumiendo el shim legacy (M23 reapunta)",
-  );
-  assert.deepEqual(
-    internalImportViolations,
-    [],
-    "ninguna ruta debe importar archivos internos de infrastructure antes de M23",
-  );
 });
 
-// 15: no se inició M23 — no existe capa application ni el shim fue retirado.
-test("M23 no iniciado: no hay capa application en el contexto ni el shim legacy fue retirado", () => {
+// 15: M23 usa un query service directo proporcional. Los shims permanecen
+// temporalmente hasta el censo y retiro final de M24.
+test("M23 usa query service directo sin capa application y conserva shims", () => {
+  assert.equal(
+    existsSync(join(repoRoot, queryServiceFile)),
+    true,
+    `${queryServiceFile} debe existir`,
+  );
+
   assert.equal(
     existsSync(join(repoRoot, `${featureDir}/application`)),
     false,
-    "M22 no crea una capa application (query service directo, sin application pesada)",
+    "M23 no debe crear una capa application",
   );
 
   assert.equal(
     existsSync(join(repoRoot, legacyShimFile)),
     true,
-    "el shim legacy sólo se retira en M23/M24, no en M22",
+    "el shim DB permanece hasta M24",
+  );
+
+  assert.equal(
+    existsSync(join(repoRoot, legacyRateLimitShimFile)),
+    true,
+    "el shim de rate limit permanece hasta M24",
   );
 });
-
 // 16: el parser de imports del guard reconoce las cuatro formas de specifier.
 test("El parser de imports del guard reconoce las cuatro formas de specifier", () => {
   assert.deepEqual(

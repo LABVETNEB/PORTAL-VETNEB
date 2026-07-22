@@ -238,7 +238,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
         markers: [
           "serializeProfessional firma avatarStoragePath",
           "sin exponer el path crudo",
-          "serializeProfessional(row, createSignedStorageUrl)",
+          "serializePublicProfessional(",
         ],
       },
     ],
@@ -252,10 +252,11 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
         ],
       },
       {
-        path: "server/routes/public-professionals.fastify.ts",
+        path: "server/features/public-professionals/public-professionals-query-service.ts",
         markers: [
           "createSignedStorageUrl",
           "avatarStoragePath",
+          "serializePublicProfessional",
         ],
       },
     ],

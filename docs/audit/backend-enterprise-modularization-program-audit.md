@@ -573,8 +573,8 @@ Riesgo = P×I. Columna "→" = PR del programa corregido (§8). Confianza: A=alt
 | 52 | V | `professional-bank-eligibility` (124) + tests histopatología = dominio real | 6 | **M21** | A |
 | 53 | VC | Query service, sin application pesada | 6 | **M22** | M |
 | 54 | V | Repo `db-public-professionals` (756); SQL-drift-guard fija el SQL → alinear in-PR | 9 | **M22** | A |
-| 55 | VC | Rate limit: wrapper 9 LOC se muda con ruta; store queda en lib | 6 | **M23** | A |
-| 56 | V | Thin ruta pública (path/contrato intocables) + cierre | 6 | **M23–M24** | A |
+| 55 | V | Rate limit movido a infrastructure; store permanece en lib; shim temporal sin consumidores operativos | 6 | **M23** | A |
+| 56 | V | Ruta pública thin vía query service directo; path/contrato intactos; cierre y retiro de shims diferidos a M24 | 6 | **M23–M24** | A |
 | 57 | MG | Shell Clinics sin código: prohibido | — | **M25** | A |
 | 58 | VC | Modelo/reglas: validación hoy dentro de `db-admin-clinics` | 9 | **M25** | M |
 | 59 | RM | "Contratos de repositorio" anticipados = abstracción especulativa | — | — | A |
