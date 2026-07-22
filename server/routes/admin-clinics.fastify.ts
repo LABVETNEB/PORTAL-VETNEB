@@ -24,7 +24,12 @@ import type {
   AdminClinicDeleteInput,
   AdminClinicUpdateInput,
 } from "../db-admin-clinics.ts";
-import type { ClinicUserRole } from "../../drizzle/schema.ts";
+import {
+  parseClinicCreateInput,
+  parseClinicUpdateInput,
+  parseClinicDeleteConfirmation,
+  confirmClinicNameMatches,
+} from "../features/clinics/domain/index.ts";
 
 type AdminSessionRecord = {
   id?: number;
@@ -116,22 +121,6 @@ type NativeAdminClinicsDeps = Required<
   >
 >;
 
-type ParsedCreateClinicPayload = {
-  clinicName: string;
-  contactEmail: string;
-  contactPhone: string | null;
-  username: string;
-  password: string;
-  role: ClinicUserRole;
-};
-
-type ParsedClinicUpdatePayload = {
-  clinicName?: string;
-  contactEmail?: string | null;
-  contactPhone?: string | null;
-  updatedFields: string[];
-};
-
 let defaultDepsPromise: Promise<NativeAdminClinicsDeps> | undefined;
 
 async function loadDefaultDeps(): Promise<NativeAdminClinicsDeps> {
@@ -197,18 +186,6 @@ function parsePositiveIntegerParam(value: string | undefined) {
   return parsed;
 }
 
-function parseClinicUserRole(value: unknown): ClinicUserRole | null {
-  if (value === undefined || value === null || value === "") {
-    return "clinic_owner";
-  }
-
-  if (value === "clinic_owner" || value === "clinic_staff") {
-    return value;
-  }
-
-  return null;
-}
-
 function applyCorsHeaders(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -223,275 +200,6 @@ function applyCorsHeaders(
   reply.header("vary", "Origin");
   reply.header("access-control-allow-origin", allowedOrigin);
   reply.header("access-control-allow-credentials", "true");
-}
-
-function parseRequiredString(input: {
-  value: unknown;
-  field: string;
-  label: string;
-  maxLength: number;
-}) {
-  if (typeof input.value !== "string") {
-    return {
-      ok: false as const,
-      error: `${input.label} es obligatorio.`,
-    };
-  }
-
-  const trimmed = input.value.trim();
-
-  if (!trimmed) {
-    return {
-      ok: false as const,
-      error: `${input.label} es obligatorio.`,
-    };
-  }
-
-  if (trimmed.length > input.maxLength) {
-    return {
-      ok: false as const,
-      error: `${input.label} excede ${input.maxLength} caracteres.`,
-    };
-  }
-
-  return {
-    ok: true as const,
-    value: trimmed,
-  };
-}
-
-function parseOptionalString(input: {
-  value: unknown;
-  label: string;
-  maxLength: number;
-}) {
-  if (input.value === undefined) {
-    return {
-      ok: true as const,
-      value: undefined,
-    };
-  }
-
-  if (input.value === null) {
-    return {
-      ok: true as const,
-      value: null,
-    };
-  }
-
-  if (typeof input.value !== "string") {
-    return {
-      ok: false as const,
-      error: `${input.label} debe ser texto.`,
-    };
-  }
-
-  const trimmed = input.value.trim();
-
-  if (trimmed.length > input.maxLength) {
-    return {
-      ok: false as const,
-      error: `${input.label} excede ${input.maxLength} caracteres.`,
-    };
-  }
-
-  return {
-    ok: true as const,
-    value: trimmed || null,
-  };
-}
-
-function parseOptionalRequiredString(input: {
-  value: unknown;
-  label: string;
-  maxLength: number;
-}) {
-  if (input.value === undefined) {
-    return {
-      ok: true as const,
-      value: undefined,
-    };
-  }
-
-  return parseRequiredString({
-    value: input.value,
-    field: input.label,
-    label: input.label,
-    maxLength: input.maxLength,
-  });
-}
-
-function isValidEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function parseCreateClinicBody(
-  body: AdminClinicCreateBody | undefined,
-):
-  | { ok: true; data: ParsedCreateClinicPayload }
-  | { ok: false; error: string } {
-  const clinicName = parseRequiredString({
-    value: body?.clinicName,
-    field: "clinicName",
-    label: "Nombre de clínica",
-    maxLength: 255,
-  });
-  const contactEmail = parseRequiredString({
-    value: body?.contactEmail,
-    field: "contactEmail",
-    label: "Email de contacto",
-    maxLength: 255,
-  });
-  const contactPhone = parseOptionalString({
-    value: body?.contactPhone,
-    label: "Teléfono de contacto",
-    maxLength: 50,
-  });
-  const username = parseRequiredString({
-    value: body?.username,
-    field: "username",
-    label: "Usuario",
-    maxLength: 100,
-  });
-
-  if (!clinicName.ok) return clinicName;
-  if (!contactEmail.ok) return contactEmail;
-  if (!contactPhone.ok) return contactPhone;
-  if (!username.ok) return username;
-
-  if (!isValidEmail(contactEmail.value)) {
-    return {
-      ok: false,
-      error: "Email de contacto inválido.",
-    };
-  }
-
-  if (username.value.length < 3) {
-    return {
-      ok: false,
-      error: "Usuario debe tener al menos 3 caracteres.",
-    };
-  }
-
-  if (
-    typeof body?.password !== "string" ||
-    body.password.length < 8 ||
-    body.password.trim().length < 8
-  ) {
-    return {
-      ok: false,
-      error: "La contraseña debe tener al menos 8 caracteres.",
-    };
-  }
-
-  const role = parseClinicUserRole(body.role);
-
-  if (!role) {
-    return {
-      ok: false,
-      error: "role inválido. Debe ser clinic_owner o clinic_staff.",
-    };
-  }
-
-  return {
-    ok: true,
-    data: {
-      clinicName: clinicName.value,
-      contactEmail: contactEmail.value,
-      contactPhone: contactPhone.value ?? null,
-      username: username.value,
-      password: body.password,
-      role,
-    },
-  };
-}
-
-function parseClinicUpdateBody(
-  body: AdminClinicUpdateBody | undefined,
-):
-  | { ok: true; data: ParsedClinicUpdatePayload }
-  | { ok: false; error: string } {
-  const clinicName = parseOptionalRequiredString({
-    value: body?.clinicName,
-    label: "Nombre de clínica",
-    maxLength: 255,
-  });
-  const contactEmail = parseOptionalString({
-    value: body?.contactEmail,
-    label: "Email de contacto",
-    maxLength: 255,
-  });
-  const contactPhone = parseOptionalString({
-    value: body?.contactPhone,
-    label: "Teléfono de contacto",
-    maxLength: 50,
-  });
-
-  if (!clinicName.ok) return clinicName;
-  if (!contactEmail.ok) return contactEmail;
-  if (!contactPhone.ok) return contactPhone;
-
-  if (
-    typeof contactEmail.value === "string" &&
-    !isValidEmail(contactEmail.value)
-  ) {
-    return {
-      ok: false,
-      error: "Email de contacto inválido.",
-    };
-  }
-
-  const updatedFields: string[] = [];
-  const data: ParsedClinicUpdatePayload = {
-    updatedFields,
-  };
-
-  if (clinicName.value !== undefined) {
-    data.clinicName = clinicName.value;
-    updatedFields.push("clinicName");
-  }
-
-  if (contactEmail.value !== undefined) {
-    data.contactEmail = contactEmail.value;
-    updatedFields.push("contactEmail");
-  }
-
-  if (contactPhone.value !== undefined) {
-    data.contactPhone = contactPhone.value;
-    updatedFields.push("contactPhone");
-  }
-
-  if (updatedFields.length === 0) {
-    return {
-      ok: false,
-      error: "Debe enviar al menos un dato de clínica para actualizar.",
-    };
-  }
-
-  return {
-    ok: true,
-    data,
-  };
-}
-
-function parseClinicDeleteBody(
-  body: AdminClinicDeleteBody | undefined,
-): { ok: true; confirmClinicName: string } | { ok: false; error: string } {
-  const confirmClinicName = parseRequiredString({
-    value: body?.confirmClinicName,
-    field: "confirmClinicName",
-    label: "Confirmación de clínica",
-    maxLength: 255,
-  });
-
-  if (!confirmClinicName.ok) {
-    return confirmClinicName;
-  }
-
-  return {
-    ok: true,
-    confirmClinicName: confirmClinicName.value,
-  };
 }
 
 function createAuditRequestLike(
@@ -718,7 +426,7 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
         return reply;
       }
 
-      const parsed = parseCreateClinicBody(request.body);
+      const parsed = parseClinicCreateInput(request.body);
 
       if (!parsed.ok) {
         return reply.code(400).send({
@@ -836,7 +544,7 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const parsed = parseClinicUpdateBody(request.body);
+    const parsed = parseClinicUpdateInput(request.body);
 
     if (!parsed.ok) {
       return reply.code(400).send({
@@ -908,7 +616,7 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const parsedDelete = parseClinicDeleteBody(request.body);
+    const parsedDelete = parseClinicDeleteConfirmation(request.body);
 
     if (!parsedDelete.ok) {
       return reply.code(400).send({
@@ -926,7 +634,7 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    if (parsedDelete.confirmClinicName !== clinic.clinicName) {
+    if (!confirmClinicNameMatches(parsedDelete.confirmClinicName, clinic.clinicName)) {
       return reply.code(400).send({
         success: false,
         error:
