@@ -3,9 +3,19 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+// M22: el SQL de persistencia se movió a la capa infrastructure. La superficie
+// canónica del repositorio vive en `public-professionals-repository.ts`; el path
+// legacy `server/db-public-professionals.ts` quedó como shim de un solo re-export.
 function readDbPublicProfessionalsSource(): string {
   return readFileSync(
-    resolve(process.cwd(), "server", "db-public-professionals.ts"),
+    resolve(
+      process.cwd(),
+      "server",
+      "features",
+      "public-professionals",
+      "infrastructure",
+      "public-professionals-repository.ts",
+    ),
     "utf8",
   ).replace(/\r\n/g, "\n");
 }
