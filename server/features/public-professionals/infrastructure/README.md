@@ -2,7 +2,7 @@
 
 > Capa **infrastructure** del contexto Public Professionals.
 > Contiene persistencia y mapping desde M22, y las constantes del rate limit
-> público desde M23.
+> público desde M23. M24 retiró los tres paths legacy del contexto.
 >
 > Ver la frontera del contexto en [`../README.md`](../README.md), el dominio en
 > [`../domain/README.md`](../domain/README.md) y el contrato de dependencia en
@@ -116,22 +116,25 @@ especulativas.
 | Mapping | tipos del shared kernel y archivos de la propia capa | DB, Drizzle runtime, Fastify, routes, auth, env, CORS, rate limit, Supabase, I/O |
 | Repository | Drizzle, `server/db.ts`, schema, domain barrel y mapping | routes, application, Fastify, auth, CORS, audit, email, Supabase, `server/lib/**`, frontend |
 | Rate limit | ninguna dependencia runtime | store, Fastify, routes, auth, DB, Supabase |
-| Query service | barrel de infrastructure y cliente compartido de storage | shims legacy, rutas, Fastify, auth, CORS |
+| Query service | barrel de infrastructure y cliente compartido de storage | paths legacy retirados, rutas, Fastify, auth, CORS |
 
 Estas reglas se verifican mediante:
 
 - `test/architecture/public-professionals-infrastructure-boundary-guard.test.ts`
 - `test/architecture/public-professionals-source-boundaries.test.ts`
 
-## Shims legacy temporales
+## Closeout M24
 
-Permanecen hasta M24:
+M24 confirmó cero consumidores operativos y retiró:
 
 - `server/db-public-professionals.ts`
 - `server/lib/public-professionals-rate-limit.ts`
 - `server/lib/professional-bank-eligibility.ts`
 
-M23 eliminó sus consumidores operativos. Cada shim contiene únicamente un
-re-export hacia la frontera canónica correspondiente.
+El barrel `index.ts`, el repository, el mapping y el módulo canónico de rate
+limit permanecen sin cambios funcionales. Los guards fijan:
 
-M24 realizará el censo final y su retiro.
+- ausencia permanente de los tres paths retirados;
+- cero imports runtime resueltos hacia ellos;
+- consumo de rutas y query service mediante fronteras canónicas;
+- ausencia de una capa `application` especulativa.

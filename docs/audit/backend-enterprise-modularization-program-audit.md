@@ -984,6 +984,26 @@ permanecen igual por la misma razón; ver
 **Fase E — Public Professionals (4):** **M21** domain (bank-eligibility) · **M22** repo +
 mapping (SQL-drift alineado) · **M23** thin ruta + rate limit wiring · **M24** cierre.
 
+> **Status M24 — cierre de Fase E con este cambio.** El censo final confirmó
+> cero consumidores operativos de `server/db-public-professionals.ts`,
+> `server/lib/public-professionals-rate-limit.ts` y
+> `server/lib/professional-bank-eligibility.ts`; los tres paths legacy fueron
+> retirados. Los guards de dominio e infrastructure invirtieron su contrato de
+> “shim existente” a “path ausente y no recreable”, y source boundaries fija la
+> ausencia de los tres paths.
+>
+> Las superficies canónicas, rutas, SQL, mapping, ranking, filtros, paginación,
+> rate limits, payloads, status codes, CORS, logging, auth, schema y migraciones
+> permanecen sin cambios funcionales. La topología final proporcional es
+> `route → query service directo → infrastructure canónica`, con dominio puro
+> para elegibilidad y sin capa `application`.
+>
+> Detalle:
+> [`docs/implementation/m24-public-professionals-closeout.md`](../implementation/m24-public-professionals-closeout.md).
+>
+> **Fase E — cerrada con M24.** El siguiente milestone secuencial es **M25 —
+> apertura de Fase F, Clinics**, sujeto a su propia auditoría de entrada.
+
 **Fase F — Clinics (5):** **M25** domain/validaciones reales · **M26** repo (tx exactas) ·
 **M27** thin admin (consultas+comandos) · **M28** thin perfil público (disclosure verde) ·
 **M29** cierre + cross-tenant.

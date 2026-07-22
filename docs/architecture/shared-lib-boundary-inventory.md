@@ -212,9 +212,9 @@ nombre); fan-in = archivos de `server/` que lo importan. `Estado`: **mover** (a 
 | `lib/report-workflow-communication.ts` (57) | Reports | **acoplamiento accidental** (db+schema+email) | 1 | Medio | `features/reports/` (puerto datos + puerto notif) | M37 | mover (desacople) |
 | `lib/report-access-token.ts` (171) | Report Access | domain (token) | — | Bajo | `features/report-access/domain/` | M34 | mover |
 | `lib/particular-token.ts` (133) | Particular Access | domain (token) | — | Bajo | `features/particular-access/domain/` | M33 | mover |
-| `lib/professional-bank-eligibility.ts` (124) | Public Professionals | domain | — | Bajo | `features/public-professionals/domain/` | M21 | mover |
+| `lib/professional-bank-eligibility.ts` (124) | Public Professionals | domain | — | Bajo | `features/public-professionals/domain/` | M21 | movido; path legacy retirado en M24, cero consumidores |
 | `lib/public-pricing-cache.ts` (54) | Pricing | infrastructure (cache) | — | Bajo | `features/pricing/infrastructure/` | M18 | movido byte-idéntico (M18 mergeado — PR #1519, squash `5f99b5f…`, 2026-07-21); **shim legacy retirado en M19 (mergeado y cerrado — PR #1521, squash `d1b2511…`, 2026-07-21)**: ambos shims legacy eliminados, rutas thin vía servicio directo, cero consumidores operativos |
-| `lib/public-professionals-rate-limit.ts` (9) | Public Professionals | infra (wrapper) | — | Bajo | `features/public-professionals/infrastructure/` (store queda en lib) | M23 | movido; shim temporal sin consumidores operativos hasta M24 |
+| `lib/public-professionals-rate-limit.ts` (9) | Public Professionals | infra (wrapper) | — | Bajo | `features/public-professionals/infrastructure/` (store queda en lib) | M23 | movido; path legacy retirado en M24, store compartido intacto |
 | `lib/public-report-access-rate-limit.ts` (4) | Report Access | infra (wrapper) | — | Bajo | con Report Access | M34 | mover (con ruta) |
 | `lib/report-access-token-rate-limit.ts` (4) | Report Access | infra (wrapper) | — | Bajo | con Report Access | M34 | mover (con ruta) |
 | `lib/permissions.ts` (57) | Users/Roles (autorización) | **shared kernel** | 14 | Medio | permanece en `lib` (kernel documentado) | M42 (docs+guard) | permanecer/kernel |
@@ -257,7 +257,7 @@ nombre); fan-in = archivos de `server/` que lo importan. `Estado`: **mover** (a 
 |---|---|---|:--:|---|---|---|
 | `db.ts` (873) | infra compartida | pool + cliente Drizzle (kernel de datos) | 2 | permanece (base de todos los repos) | — | permanecer |
 | `db-logistics.ts` (1.295) | Logistics | queries+mapping; **importa `lib/logistics`** | 7 | `features/logistics/infrastructure/` (archivo completo, tx intactas) | M12 | mover |
-| `db-public-professionals.ts` (756) | Public Professionals | persistencia+mapping (SQL-drift-guard) | 0 | `features/public-professionals/infrastructure/` | M22 | mover |
+| `db-public-professionals.ts` (756) | Public Professionals | persistencia+mapping (SQL-drift-guard) | 0 | `features/public-professionals/infrastructure/` | M22 | movido; path legacy retirado en M24, SQL-drift preservado |
 | `db-admin-clinics.ts` (694) | Clinics | persistencia+mapping+validación | 2 | `features/clinics/infrastructure/` (tx exactas) | M26 | mover |
 | `db-audit.ts` (413) | Audit (cross-cutting) | persistencia+mapping | 0 | permanece (cross-cutting) | — | permanecer/drenar |
 | `db-admin-users-roles.ts` (357) | Users/Roles | persistencia+validación | 0 | `features/users-roles/infrastructure/` | M43 | mover |
@@ -312,9 +312,9 @@ rollback = revert independiente del PR (§8). "Tests anclados" remite a §7.
 | Logistics | `db-logistics.ts` | infra (repo) | `features/logistics/infrastructure/` | infrastructure | M12 | Fase B | tx (7 call-sites); serialización ISO | infra guard (nuevo) | sí (documentado) | revert | Alto | MOVE |
 | Logistics | `lib/logistics-route-plans-cache.ts` | infra (cache) | `features/logistics/infrastructure/` | infrastructure | M13 | M12 | `logistics-route-plans-cache-runtime` | ídem | sí | revert | Medio | MOVE |
 | Pricing | `db-pricing.ts` + `lib/public-pricing-cache.ts` | infra | `features/pricing/infrastructure/` | infrastructure | M18 | precedente Logistics | serialización pricing | infra guard (`pricing-infrastructure-boundary-guard`) | shims retirados en M19 | revert | Bajo | MOVE (M18 mergeado — PR #1519, squash `5f99b5f…`, 2026-07-21). **M19 mergeado y cerrado — PR #1521, squash `d1b2511…`, 2026-07-21: rutas thin vía servicios directos `features/pricing/{admin,public}-pricing-service.ts`; ambos shims legacy retirados, cero consumidores operativos** |
-| Public Professionals | `lib/professional-bank-eligibility.ts` | domain (en lib) | `features/public-professionals/domain/` | domain | M21 | M17 | ninguno | domain guard (nuevo) | sí | revert | Bajo | MOVE |
-| Public Professionals | `db-public-professionals.ts` | infra | `features/public-professionals/infrastructure/` | infrastructure | M22 | M21 | SQL-drift-guard (histopatología) | infra guard | sí | revert | Medio | MOVE |
-| Public Professionals | `lib/public-professionals-rate-limit.ts` | infra (wrapper) | `features/public-professionals/infrastructure/` | infrastructure | M23 | M22 | rate limit público | — | store queda en lib | revert | Bajo | MOVE |
+| Public Professionals | `lib/professional-bank-eligibility.ts` | domain (en lib) | `features/public-professionals/domain/` | domain | M21 | M17 | ninguno | domain guard | retirado M24 | revert | Bajo | MOVE — canónico estable; path legacy ausente |
+| Public Professionals | `db-public-professionals.ts` | infra | `features/public-professionals/infrastructure/` | infrastructure | M22 | M21 | SQL-drift-guard (histopatología) | infra guard | retirado M24 | revert | Medio | MOVE — canónico estable; path legacy ausente |
+| Public Professionals | `lib/public-professionals-rate-limit.ts` | infra (wrapper) | `features/public-professionals/infrastructure/` | infrastructure | M23 | M22 | rate limit público | infra guard | retirado M24; store queda en lib | revert | Bajo | MOVE — canónico estable; path legacy ausente |
 | Clinics | `db-admin-clinics.ts` | infra (repo) | `features/clinics/infrastructure/` | infrastructure | M26 | M25 | tx (2 call-sites); `reconcile-public-profile-db-contract` | infra guard | sí | revert | Alto | MOVE |
 | Clinics | `middlewares/clinic-permissions.ts` | http/authz | permanece (RBAC clínica) | — | — | — | `clinic-permissions-middleware` | — | — | revert | Medio | KEEP |
 | Study Tracking | `lib/{study-tracking,token-study-tracking}.ts` | domain (en lib) | `features/study-tracking/domain/` | domain | M30 | M17 | ninguno | domain guard (nuevo) | sí | revert | Bajo | MOVE |
