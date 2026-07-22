@@ -59,3 +59,51 @@ test.describe("home hero — evidence-first (PR-10)", () => {
   });
 
 });
+
+test.describe("home hero - production image optimizer (P2)", () => {
+  test("hero next/image se sirve por el optimizador sharp con dimensiones reales (P2)", async ({
+    page,
+  }) => {
+    const optimizedResponsePromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        url.pathname === "/_next/image" &&
+        url.searchParams.get("url")?.includes("hero-microscope-vetneb") === true
+      );
+    });
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    const optimizedResponse = await optimizedResponsePromise;
+
+    const heroImage = page.getByAltText(
+      "Microscopio en laboratorio patológico veterinario",
+    );
+    await expect(heroImage).toBeVisible();
+    await expect(heroImage).toHaveAttribute("src", /\/_next\/image\?/);
+
+    expect(optimizedResponse.status()).toBe(200);
+    expect(optimizedResponse.ok()).toBe(true);
+    expect(optimizedResponse.headers()["content-type"]).toMatch(/^image\//);
+
+    const optimizedBody = await optimizedResponse.body();
+    expect(optimizedBody.byteLength).toBeGreaterThan(0);
+
+    await expect
+      .poll(() =>
+        heroImage.evaluate((element) => (element as HTMLImageElement).complete),
+      )
+      .toBe(true);
+
+    const naturalDimensions = await heroImage.evaluate((element) => {
+      const image = element as HTMLImageElement;
+      return {
+        naturalWidth: image.naturalWidth,
+        naturalHeight: image.naturalHeight,
+      };
+    });
+
+    expect(naturalDimensions.naturalWidth).toBeGreaterThan(0);
+    expect(naturalDimensions.naturalHeight).toBeGreaterThan(0);
+  });
+});
