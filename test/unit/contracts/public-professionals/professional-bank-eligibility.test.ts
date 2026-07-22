@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  HISTOPATHOLOGY_REPORT_STUDY_TYPE,
   addMonths,
   getEligibleUntil,
   getLastHistopathologyReportDeliveredAt,
@@ -9,7 +10,8 @@ import {
   getProfessionalBankEligibilityWindow,
   isHistopathologyReport,
   isProfessionalBankEligible,
-} from "../../../../server/lib/professional-bank-eligibility.ts";
+} from "../../../../server/features/public-professionals/domain/index.ts";
+import { REPORT_STUDY_TYPES } from "../../../../server/lib/report-study-types.ts";
 
 const NOW = new Date("2026-06-03T12:00:00.000Z");
 
@@ -57,6 +59,19 @@ test("histopathology definition uses the report study type catalog", () => {
   assert.equal(isHistopathologyReport({ studyType: "citologia" }), false);
   assert.equal(isHistopathologyReport({ studyType: "Histopatologia" }), false);
   assert.equal(isHistopathologyReport({ studyType: null }), false);
+});
+
+test("histopathology study type stays a member of the report study type catalog", () => {
+  // Relación contractual preservada por test, no por dependencia runtime: el
+  // dominio canónico ya no importa `report-study-types.ts` (M21). El nuevo
+  // predicado `input.studyType === HISTOPATHOLOGY_REPORT_STUDY_TYPE` es
+  // equivalente al anterior `isReportStudyType(x) && x === HISTOPATHOLOGY...`
+  // exactamente porque el único valor que satisface la igualdad también
+  // pertenece al catálogo. Este assert ancla esa pertenencia.
+  assert.equal(
+    REPORT_STUDY_TYPES.includes(HISTOPATHOLOGY_REPORT_STUDY_TYPE),
+    true,
+  );
 });
 
 test("last histopathology delivery ignores non-admin, non-histopathology, and invalid rows", () => {
