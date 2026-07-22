@@ -3,9 +3,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+// M22: el SQL de elegibilidad se movió a la capa infrastructure (repository
+// canónico); el path legacy quedó como shim de un solo re-export.
 function readSource(): string {
   return readFileSync(
-    resolve(process.cwd(), "server", "db-public-professionals.ts"),
+    resolve(
+      process.cwd(),
+      "server",
+      "features",
+      "public-professionals",
+      "infrastructure",
+      "public-professionals-repository.ts",
+    ),
     "utf8",
   ).replace(/\r\n/g, "\n");
 }

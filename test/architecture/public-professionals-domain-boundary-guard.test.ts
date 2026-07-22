@@ -18,7 +18,12 @@ const legacyShimFile = ["server", "lib", "professional-bank-eligibility.ts"].joi
   "/",
 );
 
-const runtimeConsumerFile = "server/db-public-professionals.ts";
+// Tras M22 la persistencia vive en `infrastructure/`; el consumidor runtime real
+// del barrel de dominio es el repository canónico, no el shim legacy
+// `server/db-public-professionals.ts` (que quedó como único re-export hacia el
+// barrel de infraestructura y ya no importa el dominio directamente).
+const runtimeConsumerFile =
+  "server/features/public-professionals/infrastructure/public-professionals-repository.ts";
 
 // Catálogo de Reports cuyo move está reservado para M36: el dominio canónico de
 // Public Professionals no debe depender de él en runtime (se preserva la
@@ -343,7 +348,7 @@ test("Ningún archivo runtime salvo el propio shim importa el path legacy", () =
 });
 
 // 9
-test("server/db-public-professionals.ts importa el barrel canónico del dominio", () => {
+test("el repository canónico de infrastructure importa el barrel del dominio, no el shim legacy", () => {
   const resolvedTargets = listImportSpecifiers(readText(runtimeConsumerFile)).map(
     (specifier) => resolveSpecifier(runtimeConsumerFile, specifier),
   );
