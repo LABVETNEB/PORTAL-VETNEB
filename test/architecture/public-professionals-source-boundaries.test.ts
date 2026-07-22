@@ -128,6 +128,22 @@ function extractPluginBody(source: string): string {
   return source.slice(start);
 }
 
+const retiredPublicProfessionalsPaths = [
+  ["server", "db-public-professionals.ts"].join("/"),
+  ["server", "lib", "public-professionals-rate-limit.ts"].join("/"),
+  ["server", "lib", "professional-bank-eligibility.ts"].join("/"),
+] as const;
+
+test("M24 mantiene retirados los tres paths legacy de Public Professionals", () => {
+  for (const retiredPath of retiredPublicProfessionalsPaths) {
+    assert.equal(
+      existsSync(resolve(SOURCE_ROOT, retiredPath)),
+      false,
+      `${retiredPath} debe permanecer eliminado después del cierre M24`,
+    );
+  }
+});
+
 test("router público conserva sólo HTTP y dependencias cross-cutting", () => {
   const source = readSource(
     "server/routes/public-professionals.fastify.ts",
@@ -139,7 +155,7 @@ test("router público conserva sólo HTTP y dependencias cross-cutting", () => {
 
   assert.ok(
     !staticImportBlock.includes("db-public-professionals"),
-    "la ruta no debe consumir el shim DB",
+    "la ruta no debe importar el path DB retirado",
   );
 
   assert.ok(
@@ -151,7 +167,7 @@ test("router público conserva sólo HTTP y dependencias cross-cutting", () => {
     !staticImportBlock.includes(
       "../lib/public-professionals-rate-limit.ts",
     ),
-    "la ruta no debe consumir el shim de rate limit",
+    "la ruta no debe importar el path de rate limit retirado",
   );
 
   assert.ok(
@@ -203,7 +219,7 @@ test("query service aísla los defaults de DB y storage", () => {
 
   assert.ok(
     !loader.includes("db-public-professionals"),
-    "no debe consumir el shim DB",
+    "no debe importar el path DB retirado",
   );
 });
 

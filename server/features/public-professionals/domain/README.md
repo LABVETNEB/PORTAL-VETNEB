@@ -66,13 +66,14 @@ importar el barrel, nunca el archivo interno (garantizado por el guard).
 
 Verificado por
 `test/architecture/public-professionals-domain-boundary-guard.test.ts`, que
-además exige cero imports en el módulo canónico, consumo por barrel y que el path
-legacy quede como shim sólo-re-export.
+además exige cero imports en el módulo canónico, consumo por barrel, ausencia del
+path legacy y cero imports resueltos hacia él.
 
-## Shim legacy temporal
+## Path legacy retirado
 
-`server/lib/professional-bank-eligibility.ts` re-exporta este dominio por
-compatibilidad temporal (M21 → expira en M24). Sin consumidores runtime tras M21.
+M24 eliminó `server/lib/professional-bank-eligibility.ts` después de confirmar
+cero consumidores runtime. El guard fija su ausencia permanente y evita que el
+shim sea recreado.
 
 ## Qué NO hacer
 

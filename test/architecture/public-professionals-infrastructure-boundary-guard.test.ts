@@ -451,9 +451,8 @@ test("El repository conserva cero transacciones (invariante R0)", () => {
   );
 });
 
-// M23: las constantes de rate limit viven en infrastructure. El path legacy
-// permanece únicamente como shim hasta el cierre M24.
-test("El rate limit público vive en infrastructure con shim legacy mínimo", () => {
+// M24: las constantes de rate limit viven únicamente en infrastructure.
+test("El rate limit público vive únicamente en infrastructure", () => {
   const source = readText(rateLimitFile);
 
   for (const name of [
@@ -476,116 +475,45 @@ test("El rate limit público vive en infrastructure con shim legacy mínimo", ()
     "el wrapper de rate limit no debe importar el store ni transporte HTTP",
   );
 
-  const shimLines = stripComments(
-    readText(legacyRateLimitShimFile),
-  )
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  assert.deepEqual(
-    shimLines,
-    [
-      'export * from "../features/public-professionals/infrastructure/public-professionals-rate-limit.ts";',
-    ],
-    "el shim de rate limit debe ser un único re-export",
-  );
-
-  assert.deepEqual(
-    resolvedSpecifiers(legacyRateLimitShimFile),
-    [rateLimitFile],
-    "el shim de rate limit debe resolver al archivo canónico",
+  assert.equal(
+    existsSync(join(repoRoot, legacyRateLimitShimFile)),
+    false,
+    `${legacyRateLimitShimFile} debe permanecer eliminado después del cierre M24`,
   );
 });
-// 13: el shim legacy es sólo el re-export exacto hacia el barrel canónico.
-test("El shim legacy server/db-public-professionals.ts es un único re-export hacia el barrel, sin lógica", () => {
+// 13: M24 retira el shim DB y bloquea su recreación.
+test("M24 retira el path legacy server/db-public-professionals.ts", () => {
   assert.equal(
     existsSync(join(repoRoot, legacyShimFile)),
-    true,
-    `${legacyShimFile} debe existir como shim temporal durante M22`,
-  );
-
-  const codeLines = stripComments(readText(legacyShimFile))
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  assert.deepEqual(
-    codeLines,
-    ['export * from "./features/public-professionals/infrastructure/index.ts";'],
-    "el shim debe contener exactamente un re-export y ninguna lógica",
-  );
-
-  assert.deepEqual(
-    resolvedSpecifiers(legacyShimFile),
-    [barrelFile],
-    "el único re-export del shim debe resolver al barrel canónico de infrastructure",
+    false,
+    `${legacyShimFile} debe permanecer eliminado después del cierre M24`,
   );
 });
+// 14: ningún archivo runtime puede resolver hacia los paths retirados.
+test("M24 impide imports runtime hacia los paths legacy retirados", () => {
+  const retiredPaths = new Set([
+    legacyShimFile,
+    legacyRateLimitShimFile,
+  ]);
+  const violations: string[] = [];
 
-// 14: M23 reapunta los consumidores operativos a las fronteras canónicas.
-test("M23 elimina consumidores operativos de los shims legacy", () => {
-  const publicRouteFile = routeFiles[0];
-  const clinicRouteFile = routeFiles[1];
+  for (const file of walkTsFiles("server")) {
+    for (const specifier of listImportSpecifiers(readText(file))) {
+      const resolved = resolveSpecifier(file, specifier);
 
-  const publicTargets = resolvedSpecifiers(publicRouteFile);
-  const clinicTargets = resolvedSpecifiers(clinicRouteFile);
-  const serviceTargets = resolvedSpecifiers(queryServiceFile);
-
-  assert.ok(
-    publicTargets.includes(queryServiceFile),
-    `${publicRouteFile} debe consumir el query service`,
-  );
-
-  assert.ok(
-    publicTargets.includes(rateLimitFile),
-    `${publicRouteFile} debe consumir el rate limit canónico`,
-  );
-
-  assert.ok(
-    clinicTargets.includes(barrelFile),
-    `${clinicRouteFile} debe consumir el barrel canónico`,
-  );
-
-  assert.ok(
-    serviceTargets.includes(barrelFile),
-    `${queryServiceFile} debe consumir el barrel canónico`,
-  );
-
-  for (const item of [
-    { consumer: publicRouteFile, targets: publicTargets },
-    { consumer: clinicRouteFile, targets: clinicTargets },
-    { consumer: queryServiceFile, targets: serviceTargets },
-  ]) {
-    assert.equal(
-      item.targets.includes(legacyShimFile),
-      false,
-      `${item.consumer} no debe consumir el shim DB`,
-    );
-
-    assert.equal(
-      item.targets.includes(legacyRateLimitShimFile),
-      false,
-      `${item.consumer} no debe consumir el shim de rate limit`,
-    );
-
-    assert.equal(
-      item.targets.includes(mappingFile),
-      false,
-      `${item.consumer} no debe importar el mapping interno`,
-    );
-
-    assert.equal(
-      item.targets.includes(repositoryFile),
-      false,
-      `${item.consumer} no debe importar el repository interno`,
-    );
+      if (retiredPaths.has(resolved)) {
+        violations.push(
+          `${file}: import al path legacy retirado ("${specifier}" -> ${resolved})`,
+        );
+      }
+    }
   }
+
+  assert.deepEqual(violations, []);
 });
 
-// 15: M23 usa un query service directo proporcional. Los shims permanecen
-// temporalmente hasta el censo y retiro final de M24.
-test("M23 usa query service directo sin capa application y conserva shims", () => {
+// 16: M24 conserva el query service directo y la topología proporcional.
+test("M24 conserva query service directo, sin application ni shims", () => {
   assert.equal(
     existsSync(join(repoRoot, queryServiceFile)),
     true,
@@ -595,22 +523,22 @@ test("M23 usa query service directo sin capa application y conserva shims", () =
   assert.equal(
     existsSync(join(repoRoot, `${featureDir}/application`)),
     false,
-    "M23 no debe crear una capa application",
+    "Public Professionals no debe crear una capa application",
   );
 
   assert.equal(
     existsSync(join(repoRoot, legacyShimFile)),
-    true,
-    "el shim DB permanece hasta M24",
+    false,
+    "el path DB legacy debe permanecer eliminado",
   );
 
   assert.equal(
     existsSync(join(repoRoot, legacyRateLimitShimFile)),
-    true,
-    "el shim de rate limit permanece hasta M24",
+    false,
+    "el path legacy de rate limit debe permanecer eliminado",
   );
 });
-// 16: el parser de imports del guard reconoce las cuatro formas de specifier.
+// 17: el parser de imports del guard reconoce las cuatro formas de specifier.
 test("El parser de imports del guard reconoce las cuatro formas de specifier", () => {
   assert.deepEqual(
     listImportSpecifiers(

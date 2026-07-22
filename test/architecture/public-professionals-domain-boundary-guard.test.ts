@@ -10,18 +10,15 @@ const domainDir = `${featureDir}/domain`;
 const domainIndexFile = `${domainDir}/index.ts`;
 const canonicalModuleFile = `${domainDir}/professional-bank-eligibility.ts`;
 
-// Path legacy conservado sólo como shim temporal (M21 → expira en M24). Se
-// construye por concatenación (no como literal fijo) para que el propio archivo
-// del guard no sea un falso positivo bajo ningún escaneo, y para comparar contra
-// specifiers de import ya resueltos, nunca contra texto libre.
+// Path legacy retirado en M24. Se construye por concatenación para que el propio
+// guard no sea un falso positivo y para comparar contra specifiers de import ya
+// resueltos, incluso cuando el archivo de destino ya no existe.
 const legacyShimFile = ["server", "lib", "professional-bank-eligibility.ts"].join(
   "/",
 );
 
-// Tras M22 la persistencia vive en `infrastructure/`; el consumidor runtime real
-// del barrel de dominio es el repository canónico, no el shim legacy
-// `server/db-public-professionals.ts` (que quedó como único re-export hacia el
-// barrel de infraestructura y ya no importa el dominio directamente).
+// El consumidor runtime real del barrel de dominio es el repository canónico de
+// infrastructure. Ningún consumidor debe volver a resolver al path retirado.
 const runtimeConsumerFile =
   "server/features/public-professionals/infrastructure/public-professionals-repository.ts";
 
@@ -102,11 +99,6 @@ function resolveSpecifier(file: string, specifier: string) {
     : toRepoRelativePath(specifier);
 }
 
-function stripComments(source: string) {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/(^|[^:])\/\/.*$/gm, "$1");
-}
 
 // Reglas de frontera de la capa domain (ADR ARCH-2): domain sólo importa el
 // shared kernel como tipos y utilidades puras relativas del propio contexto.
@@ -325,20 +317,16 @@ test("Los consumidores runtime de server/** importan el dominio por el barrel, n
 });
 
 // 8
-test("Ningún archivo runtime salvo el propio shim importa el path legacy", () => {
+test("Ningún archivo runtime importa el path legacy retirado", () => {
   const violations: string[] = [];
 
   for (const file of walkFiles("server")) {
-    if (file === legacyShimFile) {
-      continue;
-    }
-
     for (const specifier of listImportSpecifiers(readText(file))) {
       const resolved = resolveSpecifier(file, specifier);
 
       if (resolved === legacyShimFile) {
         violations.push(
-          `${file}: import al shim legacy ("${specifier}" -> ${resolved})`,
+          `${file}: import al path legacy retirado ("${specifier}" -> ${resolved})`,
         );
       }
     }
@@ -348,7 +336,7 @@ test("Ningún archivo runtime salvo el propio shim importa el path legacy", () =
 });
 
 // 9
-test("el repository canónico de infrastructure importa el barrel del dominio, no el shim legacy", () => {
+test("el repository canónico de infrastructure importa el barrel del dominio, no el path legacy retirado", () => {
   const resolvedTargets = listImportSpecifiers(readText(runtimeConsumerFile)).map(
     (specifier) => resolveSpecifier(runtimeConsumerFile, specifier),
   );
@@ -365,27 +353,11 @@ test("el repository canónico de infrastructure importa el barrel del dominio, n
 });
 
 // 10 + 11
-test("El shim legacy es sólo el re-export exacto hacia el barrel, sin lógica", () => {
-  const shimSource = readText(legacyShimFile);
-  const codeLines = stripComments(shimSource)
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  assert.deepEqual(
-    codeLines,
-    ['export * from "../features/public-professionals/domain/index.ts";'],
-    "el shim debe contener exactamente un re-export y ninguna lógica",
-  );
-
-  const resolvedTargets = listImportSpecifiers(shimSource).map((specifier) =>
-    resolveSpecifier(legacyShimFile, specifier),
-  );
-
-  assert.deepEqual(
-    resolvedTargets,
-    [domainIndexFile],
-    "el único re-export del shim debe resolver al barrel canónico",
+test("M24 retira el path legacy de elegibilidad y bloquea su recreación", () => {
+  assert.equal(
+    existsSync(join(repoRoot, legacyShimFile)),
+    false,
+    `${legacyShimFile} debe permanecer eliminado después del cierre M24`,
   );
 });
 

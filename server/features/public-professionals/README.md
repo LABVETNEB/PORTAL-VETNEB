@@ -4,10 +4,10 @@
 > de elegibilidad vive en `domain/` (M21) y la persistencia + mapping en
 > `infrastructure/` (M22).
 > **Origen:** [ARCH-1](../../../docs/audit/repository-domain-architecture-audit.md) · [ARCH-2](../../../docs/architecture/backend-boundary-adr.md) · [ARCH-3](../../../docs/architecture/shared-lib-boundary-inventory.md).
-> **ID:** **M22 (Fase E — persistencia a `infrastructure/`)**.
+> **ID:** **M24 (Fase E — closeout de Public Professionals)**.
 >
-> **Estado:** M21 y M22 mergeados. **M23 listo para integración** (no mergeado).
-> **Fase E abierta. M24 no iniciado.**
+> **Estado:** M21, M22 y M23 mergeados. **M24 cierra Fase E.**
+> **Fase E cerrada:** tres paths legacy retirados y guards endurecidos.
 
 Este directorio es la **frontera** del contexto Public Professionals: el
 directorio público de profesionales del portal (perfil público de clínica,
@@ -61,8 +61,8 @@ infrastructure/index.ts
   wiring del rate limit.
 - **La ruta clínica** consume directamente el barrel canónico de
   infrastructure.
-- Los paths legacy permanecen como shims mínimos hasta M24, pero ya no tienen
-  consumidores operativos en M23.
+- **M24** retiró los tres paths legacy después de comprobar cero consumidores
+  operativos; los guards impiden su recreación y cualquier import resuelto hacia ellos.
 ## 3. Qué materializa M23
 
 - Adelgaza `server/routes/public-professionals.fastify.ts`.
@@ -75,16 +75,21 @@ infrastructure/index.ts
 - Conserva los seams inyectables utilizados por los tests.
 - No modifica paths, métodos, payloads, status codes, CORS, logging, SQL, auth,
   schema ni migraciones.
-## 4. Shims legacy temporales
+## 4. Closeout M24
 
-Permanecen hasta el cierre M24:
+El censo final confirmó cero consumidores operativos y permitió retirar:
 
 - `server/db-public-professionals.ts`
 - `server/lib/public-professionals-rate-limit.ts`
 - `server/lib/professional-bank-eligibility.ts`
 
-Los tres son re-exports mínimos. M23 elimina sus consumidores operativos; M24
-realizará el censo final y su retiro.
+Las superficies canónicas permanecen en `domain/index.ts`,
+`infrastructure/index.ts` e
+`infrastructure/public-professionals-rate-limit.ts`.
+
+Los guards de dominio, infrastructure y source boundaries fijan la ausencia de
+los paths retirados y bloquean imports futuros hacia ellos. No se modificaron
+rutas, SQL, payloads, status codes, rate limits ni comportamiento observable.
 ## 5. Reglas de dependencia
 
 La dependencia **siempre apunta hacia adentro**. `domain/` es puro: no conoce
@@ -109,8 +114,8 @@ Verificado por
   frontera y documentación.
 - **M22 — mergeado** — persistencia y mapping movidos a
   `infrastructure/`, barrel canónico y shim DB mínimo.
-- **M23 — listo para integración** — query service directo, ruta pública thin, rate-limit wrapper canónico, rutas reapuntadas y contratos preservados. Ver [Nota de implementación — M23](../../../docs/implementation/m23-public-professionals-thin-route.md).
-- **M24 (no iniciado)** — cierre de Fase E, censo final y retiro de los tres shims legacy.
+- **M23 — mergeado** — query service directo, ruta pública thin, rate-limit wrapper canónico, rutas reapuntadas y contratos preservados. Ver [Nota de implementación — M23](../../../docs/implementation/m23-public-professionals-thin-route.md).
+- **M24 — cierre de Fase E** — censo final, retiro de los tres paths legacy, guards invertidos a ausencia permanente y documentación vigente alineada. Ver [Nota de implementación — M24](../../../docs/implementation/m24-public-professionals-closeout.md).
 
 ## 7. Documentos rectores
 
@@ -119,3 +124,5 @@ Verificado por
 - [ARCH-3 — Shared / Lib Boundary Inventory](../../../docs/architecture/shared-lib-boundary-inventory.md) — inventario a nivel de archivo del terreno a migrar.
 - [Nota de implementación — M21](../../../docs/implementation/m21-public-professionals-domain.md) — mueve la regla de elegibilidad a `domain/` con shim temporal.
 - [Nota de implementación — M22](../../../docs/implementation/m22-public-professionals-infrastructure.md) — mueve la persistencia + mapping a `infrastructure/` con shim legacy.
+- [Nota de implementación — M23](../../../docs/implementation/m23-public-professionals-thin-route.md) — adelgaza la ruta pública y reapunta consumidores a las fronteras canónicas.
+- [Nota de implementación — M24](../../../docs/implementation/m24-public-professionals-closeout.md) — retira los tres paths legacy y cierra Fase E.
