@@ -19,16 +19,26 @@ import {
 import type {
   AdminClinicCreateInput,
   AdminClinicCreateResult,
-  AdminClinicsSnapshot,
   AdminClinicSummary,
   AdminClinicDeleteInput,
   AdminClinicUpdateInput,
-} from "../db-admin-clinics.ts";
+} from "../features/clinics/admin-clinics-command-service.ts";
+import {
+  classifyAdminClinicsPostgresError,
+  createAdminClinicCommand,
+  deleteAdminClinicCommand,
+  updateAdminClinicCommand,
+} from "../features/clinics/admin-clinics-command-service.ts";
+import type {
+  AdminClinicsSnapshot,
+} from "../features/clinics/admin-clinics-query-service.ts";
+import {
+  listAdminClinicsQuery,
+} from "../features/clinics/admin-clinics-query-service.ts";
 import {
   parseClinicCreateInput,
   parseClinicUpdateInput,
   parseClinicDeleteConfirmation,
-  confirmClinicNameMatches,
 } from "../features/clinics/domain/index.ts";
 
 type AdminSessionRecord = {
@@ -104,7 +114,7 @@ export type AdminClinicsNativeRoutesOptions = {
   now?: () => number;
 };
 
-type NativeAdminClinicsDeps = Required<
+type NativeAdminClinicsCoreDeps = Required<
   Pick<
     AdminClinicsNativeRoutesOptions,
     | "deleteAdminSession"
@@ -112,24 +122,30 @@ type NativeAdminClinicsDeps = Required<
     | "updateAdminSessionLastAccess"
     | "hashSessionToken"
     | "hashPassword"
+    | "writeAuditLog"
+  >
+>;
+
+type NativeAdminClinicsDeps = NativeAdminClinicsCoreDeps &
+  Pick<
+    AdminClinicsNativeRoutesOptions,
     | "listAdminClinics"
     | "createAdminClinicWithUser"
     | "getAdminClinicById"
     | "updateAdminClinic"
     | "deleteAdminClinic"
-    | "writeAuditLog"
-  >
->;
+  >;
 
-let defaultDepsPromise: Promise<NativeAdminClinicsDeps> | undefined;
+let defaultDepsPromise:
+  | Promise<NativeAdminClinicsCoreDeps>
+  | undefined;
 
-async function loadDefaultDeps(): Promise<NativeAdminClinicsDeps> {
+async function loadDefaultDeps(): Promise<NativeAdminClinicsCoreDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const audit = await import("../lib/audit.ts");
-      const adminClinics = await import("../db-admin-clinics.ts");
 
       return {
         deleteAdminSession: db.deleteAdminSession,
@@ -137,11 +153,6 @@ async function loadDefaultDeps(): Promise<NativeAdminClinicsDeps> {
         updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
         hashSessionToken: authSecurity.hashSessionToken,
         hashPassword: authSecurity.hashPassword,
-        listAdminClinics: adminClinics.listAdminClinics,
-        createAdminClinicWithUser: adminClinics.createAdminClinicWithUser,
-        getAdminClinicById: adminClinics.getAdminClinicById,
-        updateAdminClinic: adminClinics.updateAdminClinic,
-        deleteAdminClinic: adminClinics.deleteAdminClinic,
         writeAuditLog: audit.writeAuditLog as (
           req: unknown,
           input: AuditWriteInput,
@@ -219,53 +230,6 @@ function createAuditRequestLike(
   };
 }
 
-function isUniqueViolation(error: unknown) {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "23505"
-  );
-}
-
-function hasPostgresErrorCode(error: unknown, code: string) {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === code
-  );
-}
-
-function getSanitizedDbErrorDetails(error: unknown) {
-  if (typeof error !== "object" || error === null) {
-    return {
-      errorName: "UnknownError",
-      errorCode: "unknown",
-      constraintName: null,
-      tableName: null,
-      columnName: null,
-    };
-  }
-
-  const err = error as {
-    name?: unknown;
-    code?: unknown;
-    constraint_name?: unknown;
-    table_name?: unknown;
-    column_name?: unknown;
-  };
-
-  return {
-    errorName: typeof err.name === "string" ? err.name : "UnknownError",
-    errorCode: typeof err.code === "string" ? err.code : "unknown",
-    constraintName:
-      typeof err.constraint_name === "string" ? err.constraint_name : null,
-    tableName: typeof err.table_name === "string" ? err.table_name : null,
-    columnName: typeof err.column_name === "string" ? err.column_name : null,
-  };
-}
-
 function getErrorName(error: unknown) {
   if (error instanceof Error) {
     return error.name || "Error";
@@ -306,11 +270,6 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       !!options.updateAdminSessionLastAccess &&
       !!options.hashSessionToken &&
       !!options.hashPassword &&
-      !!options.listAdminClinics &&
-      !!options.createAdminClinicWithUser &&
-      !!options.getAdminClinicById &&
-      !!options.updateAdminClinic &&
-      !!options.deleteAdminClinic &&
       !!options.writeAuditLog;
     const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
@@ -326,17 +285,11 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       hashSessionToken:
         options.hashSessionToken ?? defaultDeps!.hashSessionToken,
       hashPassword: options.hashPassword ?? defaultDeps!.hashPassword,
-      listAdminClinics:
-        options.listAdminClinics ?? defaultDeps!.listAdminClinics,
-      createAdminClinicWithUser:
-        options.createAdminClinicWithUser ??
-        defaultDeps!.createAdminClinicWithUser,
-      getAdminClinicById:
-        options.getAdminClinicById ?? defaultDeps!.getAdminClinicById,
-      updateAdminClinic:
-        options.updateAdminClinic ?? defaultDeps!.updateAdminClinic,
-      deleteAdminClinic:
-        options.deleteAdminClinic ?? defaultDeps!.deleteAdminClinic,
+      listAdminClinics: options.listAdminClinics,
+      createAdminClinicWithUser: options.createAdminClinicWithUser,
+      getAdminClinicById: options.getAdminClinicById,
+      updateAdminClinic: options.updateAdminClinic,
+      deleteAdminClinic: options.deleteAdminClinic,
       writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
     };
   }
@@ -405,7 +358,18 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
 
       return reply
         .code(200)
-        .send(await deps.listAdminClinics({ limit, offset, ...(search ? { search } : {}) }));
+        .send(
+          await listAdminClinicsQuery(
+            {
+              limit,
+              offset,
+              ...(search ? { search } : {}),
+            },
+            {
+              listAdminClinics: deps.listAdminClinics,
+            },
+          ),
+        );
     },
   );
 
@@ -436,16 +400,22 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       }
 
       try {
-        const passwordHash = await deps.hashPassword(parsed.data.password);
-        const result = await deps.createAdminClinicWithUser({
-          clinicName: parsed.data.clinicName,
-          contactEmail: parsed.data.contactEmail,
-          contactPhone: parsed.data.contactPhone,
-          username: parsed.data.username,
-          passwordHash,
-          role: parsed.data.role,
-          now: new Date(now()),
-        });
+        const result = await createAdminClinicCommand(
+          {
+            clinicName: parsed.data.clinicName,
+            contactEmail: parsed.data.contactEmail,
+            contactPhone: parsed.data.contactPhone,
+            username: parsed.data.username,
+            password: parsed.data.password,
+            role: parsed.data.role,
+            now: new Date(now()),
+          },
+          {
+            hashPassword: deps.hashPassword,
+            createAdminClinicWithUser:
+              deps.createAdminClinicWithUser,
+          },
+        );
 
         if (!result.ok && result.reason === "username_conflict") {
           return reply.code(409).send({
@@ -491,18 +461,21 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
           },
         });
       } catch (error) {
-        if (isUniqueViolation(error)) {
+        const classified =
+          classifyAdminClinicsPostgresError(error);
+
+        if (classified.kind === "username_conflict") {
           return reply.code(409).send({
             success: false,
             error: "El usuario de acceso ya existe.",
           });
         }
 
-        if (hasPostgresErrorCode(error, "23502")) {
+        if (classified.kind === "schema_mismatch") {
           console.error("[ADMIN_CLINICS_CREATE_SCHEMA_MISMATCH]", {
             requestPath: request.url,
             adminUserId: admin.id,
-            ...getSanitizedDbErrorDetails(error),
+            ...classified.metadata,
           });
 
           return reply.code(500).send({
@@ -553,13 +526,18 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const clinic = await deps.updateAdminClinic({
-      clinicId,
-      clinicName: parsed.data.clinicName,
-      contactEmail: parsed.data.contactEmail,
-      contactPhone: parsed.data.contactPhone,
-      now: new Date(now()),
-    });
+    const clinic = await updateAdminClinicCommand(
+      {
+        clinicId,
+        clinicName: parsed.data.clinicName,
+        contactEmail: parsed.data.contactEmail,
+        contactPhone: parsed.data.contactPhone,
+        now: new Date(now()),
+      },
+      {
+        updateAdminClinic: deps.updateAdminClinic,
+      },
+    );
 
     if (!clinic) {
       return reply.code(404).send({
@@ -625,34 +603,29 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const clinic = await deps.getAdminClinicById(clinicId);
-
-    if (!clinic) {
-      return reply.code(404).send({
-        success: false,
-        error: "Clínica no encontrada.",
-      });
-    }
-
-    if (!confirmClinicNameMatches(parsedDelete.confirmClinicName, clinic.clinicName)) {
-      return reply.code(400).send({
-        success: false,
-        error:
-          "La confirmación no coincide con el nombre exacto de la clínica.",
-      });
-    }
-
-    let deletedClinic: AdminClinicSummary | null;
+    let deletionResult;
 
     try {
-      deletedClinic = await deps.deleteAdminClinic({ clinicId });
+      deletionResult = await deleteAdminClinicCommand(
+        {
+          clinicId,
+          confirmClinicName: parsedDelete.confirmClinicName,
+        },
+        {
+          getAdminClinicById: deps.getAdminClinicById,
+          deleteAdminClinic: deps.deleteAdminClinic,
+        },
+      );
     } catch (error) {
-      if (hasPostgresErrorCode(error, "23503")) {
+      const classified =
+        classifyAdminClinicsPostgresError(error);
+
+      if (classified.kind === "active_dependency") {
         console.error("[ADMIN_CLINICS_DELETE_DEPENDENCY_BLOCK]", {
           requestPath: request.url,
           clinicId,
           adminUserId: admin.id,
-          ...getSanitizedDbErrorDetails(error),
+          ...classified.metadata,
         });
 
         return reply.code(409).send({
@@ -665,12 +638,22 @@ export const adminClinicsNativeRoutes: FastifyPluginAsync<
       throw error;
     }
 
-    if (!deletedClinic) {
-      return reply.code(404).send({
+    if (!deletionResult.ok) {
+      if (deletionResult.reason === "not_found") {
+        return reply.code(404).send({
+          success: false,
+          error: "Clínica no encontrada.",
+        });
+      }
+
+      return reply.code(400).send({
         success: false,
-        error: "Clínica no encontrada.",
+        error:
+          "La confirmación no coincide con el nombre exacto de la clínica.",
       });
     }
+
+    const deletedClinic = deletionResult.clinic;
 
     await safeWriteAuditLog(deps, request, admin, {
       event: AUDIT_EVENTS.CLINIC_DELETED,

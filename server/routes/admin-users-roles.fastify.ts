@@ -24,7 +24,10 @@ import type {
 import type {
   AdminClinicUserCredentialsUpdateInput,
   AdminClinicUserCredentialsUpdateResult,
-} from "../db-admin-clinics.ts";
+} from "../features/clinics/admin-clinics-command-service.ts";
+import {
+  updateAdminClinicUserCredentialsCommand,
+} from "../features/clinics/admin-clinics-command-service.ts";
 
 type AdminClinicUserRole = Exclude<AdminRoleUserRole, "admin">;
 
@@ -96,7 +99,7 @@ export type AdminUsersRolesNativeRoutesOptions = {
   now?: () => number;
 };
 
-type NativeAdminUsersRolesDeps = Required<
+type NativeAdminUsersRolesCoreDeps = Required<
   Pick<
     AdminUsersRolesNativeRoutesOptions,
     | "deleteAdminSession"
@@ -105,22 +108,29 @@ type NativeAdminUsersRolesDeps = Required<
     | "hashSessionToken"
     | "getAdminUsersRolesSnapshot"
     | "changeClinicUserRole"
-    | "updateAdminClinicUserCredentials"
     | "hashPassword"
     | "writeAuditLog"
   >
 >;
 
-let defaultDepsPromise: Promise<NativeAdminUsersRolesDeps> | undefined;
+type NativeAdminUsersRolesDeps =
+  NativeAdminUsersRolesCoreDeps &
+    Pick<
+      AdminUsersRolesNativeRoutesOptions,
+      "updateAdminClinicUserCredentials"
+    >;
 
-async function loadDefaultDeps(): Promise<NativeAdminUsersRolesDeps> {
+let defaultDepsPromise:
+  | Promise<NativeAdminUsersRolesCoreDeps>
+  | undefined;
+
+async function loadDefaultDeps(): Promise<NativeAdminUsersRolesCoreDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
       const audit = await import("../lib/audit.ts");
       const usersRoles = await import("../db-admin-users-roles.ts");
-      const adminClinics = await import("../db-admin-clinics.ts");
 
       return {
         deleteAdminSession: db.deleteAdminSession,
@@ -129,8 +139,6 @@ async function loadDefaultDeps(): Promise<NativeAdminUsersRolesDeps> {
         hashSessionToken: authSecurity.hashSessionToken,
         getAdminUsersRolesSnapshot: usersRoles.getAdminUsersRolesSnapshot,
         changeClinicUserRole: usersRoles.changeClinicUserRole,
-        updateAdminClinicUserCredentials:
-          adminClinics.updateAdminClinicUserCredentials,
         hashPassword: authSecurity.hashPassword,
         writeAuditLog: audit.writeAuditLog as (
           req: unknown,
@@ -376,7 +384,6 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
       !!options.hashSessionToken &&
       !!options.getAdminUsersRolesSnapshot &&
       !!options.changeClinicUserRole &&
-      !!options.updateAdminClinicUserCredentials &&
       !!options.hashPassword &&
       !!options.writeAuditLog;
 
@@ -399,8 +406,7 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
       changeClinicUserRole:
         options.changeClinicUserRole ?? defaultDeps!.changeClinicUserRole,
       updateAdminClinicUserCredentials:
-        options.updateAdminClinicUserCredentials ??
-        defaultDeps!.updateAdminClinicUserCredentials,
+        options.updateAdminClinicUserCredentials,
       hashPassword: options.hashPassword ?? defaultDeps!.hashPassword,
       writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
     };
@@ -588,15 +594,20 @@ export const adminUsersRolesNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const passwordHash = parsed.data.password
-      ? await deps.hashPassword(parsed.data.password)
-      : undefined;
-    const result = await deps.updateAdminClinicUserCredentials({
-      clinicUserId,
-      username: parsed.data.username,
-      passwordHash,
-      now: new Date(now()),
-    });
+    const result =
+      await updateAdminClinicUserCredentialsCommand(
+        {
+          clinicUserId,
+          username: parsed.data.username,
+          password: parsed.data.password,
+          now: new Date(now()),
+        },
+        {
+          hashPassword: deps.hashPassword,
+          updateAdminClinicUserCredentials:
+            deps.updateAdminClinicUserCredentials,
+        },
+      );
 
     if (!result.ok && result.reason === "not_found") {
       return reply.code(404).send({
