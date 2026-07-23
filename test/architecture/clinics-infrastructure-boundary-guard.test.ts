@@ -18,6 +18,18 @@ const queryServiceFile =
   featureDir + "/admin-clinics-query-service.ts";
 const commandServiceFile =
   featureDir + "/admin-clinics-command-service.ts";
+const publicProfileQueryServiceFile =
+  featureDir + "/clinic-public-profile-query-service.ts";
+const publicProfileCommandServiceFile =
+  featureDir + "/clinic-public-profile-command-service.ts";
+const publicProfileRouteFile =
+  "server/routes/clinic-public-profile.fastify.ts";
+const publicProfessionalsBarrelFile =
+  "server/features/public-professionals/infrastructure/index.ts";
+const publicProfessionalsMappingFile =
+  "server/features/public-professionals/infrastructure/public-professionals-mapping.ts";
+const publicProfessionalsRepositoryFile =
+  "server/features/public-professionals/infrastructure/public-professionals-repository.ts";
 const applicationDir = featureDir + "/application";
 
 const routeConsumers = [
@@ -550,3 +562,197 @@ test(
     );
   },
 );
+
+test("M28 agrega servicios directos de perfil público sin application", () => {
+  assert.equal(
+    existsSync(
+      join(repoRoot, publicProfileQueryServiceFile),
+    ),
+    true,
+  );
+  assert.equal(
+    existsSync(
+      join(repoRoot, publicProfileCommandServiceFile),
+    ),
+    true,
+  );
+  assert.equal(
+    existsSync(join(repoRoot, applicationDir)),
+    false,
+  );
+});
+
+test("Los servicios M28 consumen sólo el barrel público de Public Professionals", () => {
+  for (const serviceFile of [
+    publicProfileQueryServiceFile,
+    publicProfileCommandServiceFile,
+  ]) {
+    const source = readText(serviceFile);
+    const targets = listImportSpecifiers(source).map(
+      (specifier) =>
+        resolveSpecifier(serviceFile, specifier),
+    );
+
+    assert.ok(
+      targets.includes(
+        publicProfessionalsBarrelFile,
+      ),
+      serviceFile,
+    );
+    assert.equal(
+      targets.includes(
+        publicProfessionalsMappingFile,
+      ),
+      false,
+      serviceFile,
+    );
+    assert.equal(
+      targets.includes(
+        publicProfessionalsRepositoryFile,
+      ),
+      false,
+      serviceFile,
+    );
+
+    for (const forbidden of [
+      "FastifyRequest",
+      "FastifyReply",
+      "enforceTrustedOrigin",
+      "getAllowedOrigins",
+      "getClinicPermissions",
+      "buildRequestLogLine",
+      "createRuntimeTimer",
+      "writeAuditLog",
+    ]) {
+      assert.equal(
+        source.includes(forbidden),
+        false,
+        `${serviceFile}: ${forbidden}`,
+      );
+    }
+  }
+});
+
+test("La ruta M28 consume servicios Clinics y no infraestructura Public Professionals", () => {
+  const source = readText(publicProfileRouteFile);
+  const targets = listImportSpecifiers(source).map(
+    (specifier) =>
+      resolveSpecifier(
+        publicProfileRouteFile,
+        specifier,
+      ),
+  );
+
+  assert.ok(
+    targets.includes(publicProfileQueryServiceFile),
+  );
+  assert.ok(
+    targets.includes(publicProfileCommandServiceFile),
+  );
+  assert.equal(
+    targets.includes(publicProfessionalsBarrelFile),
+    false,
+  );
+  assert.equal(
+    targets.includes(publicProfessionalsMappingFile),
+    false,
+  );
+  assert.equal(
+    targets.includes(
+      publicProfessionalsRepositoryFile,
+    ),
+    false,
+  );
+  assert.equal(
+    targets.includes("server/lib/supabase.ts"),
+    false,
+  );
+});
+
+test("Los servicios M28 no se importan entre sí ni crean ciclos con la ruta", () => {
+  const queryTargets = listImportSpecifiers(
+    readText(publicProfileQueryServiceFile),
+  ).map((specifier) =>
+    resolveSpecifier(
+      publicProfileQueryServiceFile,
+      specifier,
+    ),
+  );
+  const commandTargets = listImportSpecifiers(
+    readText(publicProfileCommandServiceFile),
+  ).map((specifier) =>
+    resolveSpecifier(
+      publicProfileCommandServiceFile,
+      specifier,
+    ),
+  );
+
+  assert.equal(
+    queryTargets.includes(
+      publicProfileCommandServiceFile,
+    ),
+    false,
+  );
+  assert.equal(
+    commandTargets.includes(
+      publicProfileQueryServiceFile,
+    ),
+    false,
+  );
+  assert.equal(
+    queryTargets.includes(publicProfileRouteFile),
+    false,
+  );
+  assert.equal(
+    commandTargets.includes(publicProfileRouteFile),
+    false,
+  );
+});
+
+test("M28 preserva Options públicas y el registro en fastify-app", () => {
+  const routeSource = readText(publicProfileRouteFile);
+  const optionsStart = routeSource.indexOf(
+    "export type ClinicPublicProfileNativeRoutesOptions = {",
+  );
+  const optionsEnd = routeSource.indexOf(
+    "\n};",
+    optionsStart,
+  );
+  const optionsSource = routeSource.slice(
+    optionsStart,
+    optionsEnd,
+  );
+
+  assert.ok(optionsStart >= 0);
+
+  for (const property of [
+    "deleteActiveSession",
+    "getActiveSessionByToken",
+    "getClinicUserById",
+    "updateSessionLastAccess",
+    "hashSessionToken",
+    "getClinicById",
+    "getClinicPublicProfileByClinicId",
+    "buildClinicPublicProfileResponse",
+    "evaluateClinicPublicProfilePublication",
+    "minPublicProfileQualityScore",
+    "patchClinicPublicProfile",
+    "removeClinicPublicAvatar",
+    "syncClinicPublicSearch",
+    "createSignedStorageUrl",
+    "uploadClinicAvatar",
+    "deleteStorageObject",
+    "now",
+  ]) {
+    assert.ok(
+      optionsSource.includes(`${property}?:`),
+      property,
+    );
+  }
+
+  const appSource = readText("server/fastify-app.ts");
+  assert.match(
+    appSource,
+    /app\.register\(clinicPublicProfileNativeRoutes,\s*\{\s*prefix: "\/api\/clinic\/profile"/s,
+  );
+});

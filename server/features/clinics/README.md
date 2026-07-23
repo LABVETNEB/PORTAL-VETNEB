@@ -2,15 +2,16 @@
 # Clinics · bounded context
 
 Contexto Clinics del backend. Abierto en M25, con persistencia canónica
-materializada en M26 y administración adelgazada en M27.
+materializada en M26, administración adelgazada en M27 y perfil público
+adelgazado en M28.
 
-## Estado por capas (M27)
+## Estado por capas (M28)
 
 | Capa | Estado | Contenido |
 |---|---|---|
-| domain/ | con código | Validación y normalización puras. |
+| domain/ | con código | Validación y normalización puras de administración y perfil público. |
 | infrastructure/ | con código | Repository Drizzle, SQL legacy, serialización y dos transacciones. |
-| servicios directos | con código | Query y command services mínimos, sin capa application. |
+| servicios directos | con código | Servicios admin y de perfil público, sin capa application. |
 | application/ | ausente | No se necesita para el corte actual. |
 | routes/ | externas al contexto | Conservan exclusivamente responsabilidades HTTP y operativas. |
 
@@ -26,22 +27,33 @@ admin-users-roles.fastify.ts
             └─ admin-clinics-repository.ts
                  ├─ Drizzle / SQL / serialización
                  └─ 2 transacciones exactas
+
+clinic-public-profile.fastify.ts
+  ├─ HTTP / CORS / auth / permisos / multipart / timing / logging
+  └─ clinic-public-profile-{query,command}-service.ts
+       ├─ domain/index.ts (PATCH, mapa y avatar)
+       ├─ carga lazy de Public Professionals infrastructure/index.ts
+       └─ storage compartido inyectable (lib/supabase.ts por default lazy)
 ~~~
 
 Los servicios coordinan consultas y comandos administrativos sin Fastify,
-auth, CORS ni auditoría. Las rutas preservan los seams de inyección usados por
-tests y la implementación persiste en una única copia canónica.
+auth, CORS ni auditoría. Los servicios de perfil público preservan el orden de
+lectura, publicación, persistencia, sync, storage y mapping; consumen
+exclusivamente el barrel canónico de Public Professionals. Las rutas preservan
+los seams de inyección usados por tests y la implementación persiste en una
+única copia canónica.
 
 ## Programa
 
 - M25: dominio y validaciones — cerrado.
 - M26: repository y persistencia — cerrado.
 - M27: adelgazar rutas admin y retirar el shim — cerrado.
-- M28: adelgazar perfil público.
+- M28: adelgazar perfil público — implementado.
 - M29: cierre y verificación cross-tenant.
 
 ## Fuera de alcance
 
-M27 no modifica endpoints, payloads, status codes, CORS, auth, auditoría,
-permisos, perfil público, schema, migraciones, dependencias, lockfiles,
-frontend, scripts ni CI.
+M28 no modifica endpoints, payloads, status codes, CORS, auth, permisos,
+persistencia canónica de Public Professionals, schema, migraciones,
+dependencias, lockfiles, frontend, scripts ni CI. M29 y su certificación
+cross-tenant permanecen fuera de alcance.

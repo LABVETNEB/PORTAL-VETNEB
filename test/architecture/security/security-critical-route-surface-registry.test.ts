@@ -376,14 +376,21 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
           "deps.createStudyTrackingCase",
         ],
       },
-      {
-        path: "server/routes/clinic-public-profile.fastify.ts",
-        markers: [
-          "requireClinicManagementPermission",
-          "deps.patchClinicPublicProfile",
-          "deps.uploadClinicAvatar",
-        ],
-      },
+       {
+         path: "server/routes/clinic-public-profile.fastify.ts",
+         markers: [
+           "requireClinicManagementPermission",
+           "patchClinicPublicProfileCommand",
+           "runAvatarUpload",
+         ],
+       },
+       {
+         path: "server/features/clinics/clinic-public-profile-command-service.ts",
+         markers: [
+           "const patchClinicPublicProfile = await resolveDep(",
+           "const uploadClinicAvatar = await resolveDep(",
+         ],
+       },
     ],
     guardrailTests: [
       {

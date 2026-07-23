@@ -9,10 +9,16 @@ const featureDir = "server/features/clinics";
 const domainDir = `${featureDir}/domain`;
 const domainIndexFile = `${domainDir}/index.ts`;
 const canonicalModuleFile = `${domainDir}/clinic-management-validation.ts`;
+const publicProfileValidationFile =
+  `${domainDir}/clinic-public-profile-validation.ts`;
 const applicationDir = `${featureDir}/application`;
 
 // Ruta admin que consume el dominio (único consumidor runtime en M25).
 const routeConsumerFile = "server/routes/admin-clinics.fastify.ts";
+const publicProfileRouteFile =
+  "server/routes/clinic-public-profile.fastify.ts";
+const publicProfileCommandServiceFile =
+  `${featureDir}/clinic-public-profile-command-service.ts`;
 
 // Las 8 funciones extraídas del inline de la ruta hacia el dominio. El guard
 // verifica que no vuelvan a definirse dentro de la ruta.
@@ -25,6 +31,20 @@ const MIGRATED_FUNCTION_NAMES = [
   "parseCreateClinicBody",
   "parseClinicUpdateBody",
   "parseClinicDeleteBody",
+];
+
+const PUBLIC_PROFILE_MIGRATED_FUNCTION_NAMES = [
+  "normalizeNullableString",
+  "parseOptionalBoolean",
+  "hasPotentialHtml",
+  "getNormalizedMapLink",
+  "getFileExtension",
+  "parsePngDimensions",
+  "parseJpegDimensions",
+  "parseWebpDimensions",
+  "getImageDimensions",
+  "validateAvatarFile",
+  "buildPatchInput",
 ];
 
 function readText(relativePath: string) {
@@ -250,6 +270,13 @@ test("Clinics domain existe, contiene el módulo canónico y el barrel, con cód
     true,
     `${canonicalModuleFile} debe existir`,
   );
+  assert.equal(
+    existsSync(
+      join(repoRoot, publicProfileValidationFile),
+    ),
+    true,
+    `${publicProfileValidationFile} debe existir`,
+  );
 
   const canonicalSource = readText(canonicalModuleFile);
 
@@ -292,6 +319,27 @@ test("Clinics domain existe, contiene el módulo canónico y el barrel, con cód
     assert.ok(
       runtimeExportPattern.test(sanitized),
       `el módulo canónico debe exportar la función runtime ${runtimeExport}`,
+    );
+  }
+
+  const publicProfileSource = readText(
+    publicProfileValidationFile,
+  );
+  assert.ok(
+    publicProfileSource.length > 5_000,
+    "la validación de perfil público debe contener código real",
+  );
+
+  for (const runtimeExport of [
+    "parseClinicPublicProfilePatch",
+    "isClinicPublicAvatarMimeType",
+    "validateClinicPublicAvatar",
+  ]) {
+    assert.match(
+      publicProfileSource,
+      new RegExp(
+        `\\bexport\\s+function\\s+${runtimeExport}\\s*\\(`,
+      ),
     );
   }
 });
@@ -366,13 +414,18 @@ test("Clinics domain sólo importa dependencias relativas internas del propio co
 
 // 5
 test("El módulo canónico de validaciones tiene cero imports", () => {
-  const specifiers = listImportSpecifiers(readText(canonicalModuleFile));
+  for (const file of [
+    canonicalModuleFile,
+    publicProfileValidationFile,
+  ]) {
+    const specifiers = listImportSpecifiers(readText(file));
 
-  assert.deepEqual(
-    specifiers,
-    [],
-    `${canonicalModuleFile} debe ser 100% puro (cero imports)`,
-  );
+    assert.deepEqual(
+      specifiers,
+      [],
+      `${file} debe ser 100% puro (cero imports)`,
+    );
+  }
 });
 
 // 6
@@ -386,6 +439,12 @@ test("El barrel de dominio re-exporta el módulo canónico", () => {
     resolvedTargets.includes(canonicalModuleFile),
     `${domainIndexFile} debe re-exportar ${canonicalModuleFile}`,
   );
+  assert.ok(
+    resolvedTargets.includes(
+      publicProfileValidationFile,
+    ),
+    `${domainIndexFile} debe re-exportar ${publicProfileValidationFile}`,
+  );
 
   for (const publicExport of [
     "parseClinicUserRole",
@@ -393,10 +452,38 @@ test("El barrel de dominio re-exporta el módulo canónico", () => {
     "parseClinicUpdateInput",
     "parseClinicDeleteConfirmation",
     "confirmClinicNameMatches",
+    "parseClinicPublicProfilePatch",
+    "isClinicPublicAvatarMimeType",
+    "validateClinicPublicAvatar",
   ]) {
     assert.ok(
       barrelSource.includes(publicExport),
       `el barrel debe exportar ${publicExport}`,
+    );
+  }
+});
+
+test("La ruta y command service de perfil público consumen sólo el barrel Clinics domain", () => {
+  for (const consumerFile of [
+    publicProfileRouteFile,
+    publicProfileCommandServiceFile,
+  ]) {
+    const resolvedTargets = listImportSpecifiers(
+      readText(consumerFile),
+    ).map((specifier) =>
+      resolveSpecifier(consumerFile, specifier),
+    );
+
+    assert.ok(
+      resolvedTargets.includes(domainIndexFile),
+      `${consumerFile} debe importar ${domainIndexFile}`,
+    );
+    assert.equal(
+      resolvedTargets.includes(
+        publicProfileValidationFile,
+      ),
+      false,
+      `${consumerFile} no debe importar el módulo interno`,
     );
   }
 });
@@ -453,6 +540,23 @@ test("Las 8 funciones migradas no vuelven a definirse inline en la ruta admin", 
   for (const fnName of MIGRATED_FUNCTION_NAMES) {
     if (definesSymbolInline(routeSource, fnName)) {
       violations.push(`${routeConsumerFile}: redefine inline ${fnName}`);
+    }
+  }
+
+  assert.deepEqual(violations, []);
+});
+
+test("Las validaciones M28 no vuelven a definirse inline en la ruta de perfil público", () => {
+  const routeSource = readText(
+    publicProfileRouteFile,
+  );
+  const violations: string[] = [];
+
+  for (const fnName of PUBLIC_PROFILE_MIGRATED_FUNCTION_NAMES) {
+    if (definesSymbolInline(routeSource, fnName)) {
+      violations.push(
+        `${publicProfileRouteFile}: redefine inline ${fnName}`,
+      );
     }
   }
 

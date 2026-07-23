@@ -297,6 +297,7 @@ test(
 test(
   "clinicPublicProfileNativeRoutes bloquea PATCH / sin management permission",
   async () => {
+    let patchCalls = 0;
     const app = await createTestApp({
       getClinicUserById: async () => ({
         id: 9,
@@ -305,6 +306,10 @@ test(
         authProId: null,
         role: "clinic_staff",
       }),
+      patchClinicPublicProfile: async () => {
+        patchCalls += 1;
+        return createProfile();
+      },
     });
 
     try {
@@ -322,6 +327,7 @@ test(
       });
 
       assert.equal(response.statusCode, 403);
+      assert.equal(patchCalls, 0);
       assert.deepEqual(JSON.parse(response.body), {
         success: false,
         error: "No autorizado para administrar recursos de la clinica",
@@ -702,6 +708,599 @@ test(
           searchText: "clinica centro cardiologia rosario",
         },
       });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes aplica trusted-origin antes de auth y datos",
+  async () => {
+    let authCalls = 0;
+    let dataCalls = 0;
+    const app = await createTestApp({
+      getActiveSessionByToken: async () => {
+        authCalls += 1;
+        return null;
+      },
+      getClinicById: async () => {
+        dataCalls += 1;
+        return createClinic();
+      },
+      getClinicPublicProfileByClinicId: async () => {
+        dataCalls += 1;
+        return null;
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/clinic/profile",
+        headers: {
+          origin: "https://evil.example",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          displayName: "Otro nombre",
+        },
+      });
+
+      assert.equal(response.statusCode, 403);
+      assert.equal(authCalls, 0);
+      assert.equal(dataCalls, 0);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes completa auth antes de acceso a datos",
+  async () => {
+    let clinicCalls = 0;
+    let profileCalls = 0;
+    const app = await createTestApp({
+      getClinicById: async () => {
+        clinicCalls += 1;
+        return createClinic();
+      },
+      getClinicPublicProfileByClinicId: async () => {
+        profileCalls += 1;
+        return null;
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/clinic/profile",
+        headers: {
+          origin: "http://localhost:3000",
+          "content-type": "application/json",
+        },
+        payload: {
+          displayName: "Otro nombre",
+        },
+      });
+
+      assert.equal(response.statusCode, 401);
+      assert.equal(clinicCalls, 0);
+      assert.equal(profileCalls, 0);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes deriva clinicId sólo de sesión e ignora body/query tenant",
+  async () => {
+    const receivedClinicIds: number[] = [];
+    let patchInput: Record<string, unknown> | undefined;
+    const app = await createTestApp({
+      getClinicById: async (clinicId: number) => {
+        receivedClinicIds.push(clinicId);
+        return createClinic();
+      },
+      getClinicPublicProfileByClinicId: async (
+        clinicId: number,
+      ) => {
+        receivedClinicIds.push(clinicId);
+        return {
+          clinic: createClinic(),
+          profile: createProfile(),
+          search: createSearch(),
+        };
+      },
+      patchClinicPublicProfile: async (
+        clinicId: number,
+        input: Record<string, unknown>,
+      ) => {
+        receivedClinicIds.push(clinicId);
+        patchInput = input;
+        return createProfile(input);
+      },
+      syncClinicPublicSearch: async (
+        clinicId: number,
+      ) => {
+        receivedClinicIds.push(clinicId);
+        return createSearch();
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/clinic/profile?clinicId=999",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          clinicId: 999,
+          displayName: "Nombre seguro",
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(receivedClinicIds, [
+        3,
+        3,
+        3,
+        3,
+      ]);
+      assert.equal(
+        Object.hasOwn(patchInput ?? {}, "clinicId"),
+        false,
+      );
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes permite PATCH privado incompleto",
+  async () => {
+    let patchCalls = 0;
+    const app = await createTestApp({
+      evaluateClinicPublicProfilePublication: () => ({
+        isPublic: false,
+        hasRequiredPublicFields: false,
+        hasQualitySupplement: false,
+        qualityScore: 0,
+        isSearchEligible: false,
+        missingRequiredFields: [
+          "displayName",
+          "specialtyText",
+          "locality",
+          "country",
+        ],
+        missingRecommendedFields: [
+          "avatar",
+          "aboutText",
+          "servicesText",
+          "email",
+          "phone",
+        ],
+        publicationErrors: ["perfil incompleto"],
+      }),
+      patchClinicPublicProfile: async () => {
+        patchCalls += 1;
+        return createProfile({
+          displayName: "X",
+          isPublic: false,
+        });
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/clinic/profile",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          displayName: "X",
+          isPublic: false,
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(patchCalls, 1);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes rechaza PATCH público inválido antes de escribir",
+  async () => {
+    let patchCalls = 0;
+    const app = await createTestApp({
+      evaluateClinicPublicProfilePublication: () => ({
+        isPublic: true,
+        hasRequiredPublicFields: true,
+        hasQualitySupplement: true,
+        qualityScore: 74,
+        isSearchEligible: false,
+        missingRequiredFields: [],
+        missingRecommendedFields: ["avatar"],
+        publicationErrors: [
+          "El perfil todavía no alcanza la calidad mínima para publicarse. Puntaje actual: 74/75.",
+        ],
+      }),
+      minPublicProfileQualityScore: 75,
+      patchClinicPublicProfile: async () => {
+        patchCalls += 1;
+        return createProfile();
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/clinic/profile",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          isPublic: true,
+        },
+      });
+
+      assert.equal(response.statusCode, 400);
+      assert.equal(patchCalls, 0);
+      assert.deepEqual(JSON.parse(response.body), {
+        success: false,
+        error:
+          "El perfil todavía no alcanza la calidad mínima para publicarse. Puntaje actual: 74/75.",
+        publication: {
+          hasRequiredPublicFields: true,
+          hasQualitySupplement: true,
+          qualityScore: 74,
+          minimumQualityScore: 75,
+          isSearchEligible: false,
+          missingRequiredFields: [],
+          missingRecommendedFields: ["avatar"],
+          publicationErrors: [
+            "El perfil todavía no alcanza la calidad mínima para publicarse. Puntaje actual: 74/75.",
+          ],
+        },
+      });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes preserva orden completo de PATCH",
+  async () => {
+    const calls: string[] = [];
+    const app = await createTestApp({
+      getClinicById: async () => {
+        calls.push("clinic");
+        return createClinic();
+      },
+      getClinicPublicProfileByClinicId: async () => {
+        calls.push("profile");
+        return {
+          clinic: createClinic(),
+          profile: createProfile(),
+          search: createSearch(),
+        };
+      },
+      evaluateClinicPublicProfilePublication: () => {
+        calls.push("preview");
+        return {
+          isPublic: true,
+          hasRequiredPublicFields: true,
+          hasQualitySupplement: true,
+          qualityScore: 75,
+          isSearchEligible: true,
+          missingRequiredFields: [],
+          missingRecommendedFields: [],
+          publicationErrors: [],
+        };
+      },
+      patchClinicPublicProfile: async () => {
+        calls.push("patch");
+        return createProfile();
+      },
+      syncClinicPublicSearch: async () => {
+        calls.push("sync");
+        return createSearch();
+      },
+      createSignedStorageUrl: async () => {
+        calls.push("sign");
+        return "signed";
+      },
+      buildClinicPublicProfileResponse: () => {
+        calls.push("response");
+        return {};
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/clinic/profile",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          isPublic: true,
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(calls, [
+        "clinic",
+        "profile",
+        "preview",
+        "patch",
+        "sync",
+        "sign",
+        "response",
+      ]);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes preserva orden completo de upload/reemplazo",
+  async () => {
+    const calls: string[] = [];
+    const multipart = buildMultipartAvatarPayload();
+    const app = await createTestApp({
+      getClinicById: async () => {
+        calls.push("clinic");
+        return createClinic();
+      },
+      getClinicPublicProfileByClinicId: async () => {
+        calls.push("profile");
+        return {
+          clinic: createClinic(),
+          profile: createProfile(),
+          search: createSearch(),
+        };
+      },
+      uploadClinicAvatar: async () => {
+        calls.push("upload");
+        return "avatars/3/new.png";
+      },
+      patchClinicPublicProfile: async () => {
+        calls.push("patch");
+        return createProfile({
+          avatarStoragePath: "avatars/3/new.png",
+        });
+      },
+      syncClinicPublicSearch: async () => {
+        calls.push("sync");
+        return createSearch();
+      },
+      deleteStorageObject: async () => {
+        calls.push("delete");
+      },
+      createSignedStorageUrl: async () => {
+        calls.push("sign");
+        return "signed";
+      },
+      buildClinicPublicProfileResponse: () => {
+        calls.push("response");
+        return {};
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/clinic/profile/avatar",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": `multipart/form-data; boundary=${multipart.boundary}`,
+        },
+        payload: multipart.payload,
+      });
+
+      assert.equal(response.statusCode, 201);
+      assert.deepEqual(calls, [
+        "clinic",
+        "profile",
+        "upload",
+        "patch",
+        "sync",
+        "delete",
+        "sign",
+        "response",
+      ]);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes preserva orden completo de delete",
+  async () => {
+    const calls: string[] = [];
+    const app = await createTestApp({
+      getClinicById: async () => {
+        calls.push("clinic");
+        return createClinic();
+      },
+      getClinicPublicProfileByClinicId: async () => {
+        calls.push("profile");
+        return {
+          clinic: createClinic(),
+          profile: createProfile(),
+          search: createSearch(),
+        };
+      },
+      evaluateClinicPublicProfilePublication: () => {
+        calls.push("preview");
+        return {
+          isPublic: true,
+          hasRequiredPublicFields: true,
+          hasQualitySupplement: true,
+          qualityScore: 75,
+          isSearchEligible: true,
+          missingRequiredFields: [],
+          missingRecommendedFields: [],
+          publicationErrors: [],
+        };
+      },
+      removeClinicPublicAvatar: async () => {
+        calls.push("remove");
+        return {
+          previousAvatarStoragePath:
+            "avatars/3/avatar.png",
+          profile: createProfile({
+            avatarStoragePath: null,
+          }),
+        };
+      },
+      syncClinicPublicSearch: async () => {
+        calls.push("sync");
+        return createSearch();
+      },
+      deleteStorageObject: async () => {
+        calls.push("delete");
+      },
+      buildClinicPublicProfileResponse: () => {
+        calls.push("response");
+        return {};
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "DELETE",
+        url: "/api/clinic/profile/avatar",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(calls, [
+        "clinic",
+        "profile",
+        "preview",
+        "remove",
+        "sync",
+        "delete",
+        "response",
+      ]);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes conserva fallo parcial patch → sync",
+  async () => {
+    const calls: string[] = [];
+    const app = await createTestApp({
+      patchClinicPublicProfile: async () => {
+        calls.push("patch");
+        return createProfile();
+      },
+      syncClinicPublicSearch: async () => {
+        calls.push("sync");
+        throw new Error("sync failed");
+      },
+      createSignedStorageUrl: async () => {
+        calls.push("sign");
+        return "unused";
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/clinic/profile",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type": "application/json",
+        },
+        payload: {
+          displayName: "Nombre",
+        },
+      });
+
+      assert.equal(response.statusCode, 500);
+      assert.deepEqual(calls, ["patch", "sync"]);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes conserva fallo parcial remove → sync → storage",
+  async () => {
+    const calls: string[] = [];
+    const app = await createTestApp({
+      removeClinicPublicAvatar: async () => {
+        calls.push("remove");
+        return {
+          previousAvatarStoragePath:
+            "avatars/3/avatar.png",
+          profile: createProfile({
+            avatarStoragePath: null,
+          }),
+        };
+      },
+      syncClinicPublicSearch: async () => {
+        calls.push("sync");
+        return createSearch();
+      },
+      deleteStorageObject: async () => {
+        calls.push("delete");
+        throw new Error("storage failed");
+      },
+      buildClinicPublicProfileResponse: () => {
+        calls.push("response");
+        return {};
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "DELETE",
+        url: "/api/clinic/profile/avatar",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+        },
+      });
+
+      assert.equal(response.statusCode, 500);
+      assert.deepEqual(calls, [
+        "remove",
+        "sync",
+        "delete",
+      ]);
     } finally {
       await app.close();
     }
