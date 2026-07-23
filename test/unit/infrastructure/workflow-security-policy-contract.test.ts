@@ -27,7 +27,7 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
   [
     ".github/workflows/backend-ci.yml",
     [
-      "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
       "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271",
       "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
     ],
@@ -35,7 +35,7 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
   [
     ".github/workflows/frontend-ci.yml",
     [
-      "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
       "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271",
       "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
       "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
@@ -44,15 +44,15 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
   [
     ".github/workflows/pr-governance.yml",
     [
-      "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
       "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
     ],
   ],
   [
     ".github/workflows/qga-governance.yml",
     [
-      "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
-      "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
       "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271",
       "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
       "actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1",
@@ -61,7 +61,7 @@ const pinnedActionReferences = new Map<string, readonly string[]>([
   [
     ".github/workflows/visual-regression-manual.yml",
     [
-      "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
       "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
       "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
       "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
@@ -79,11 +79,11 @@ const mutableActionReferences = [
 
 const canonicalWorkflowDigests = new Map<string, string>([
   [".github/workflows/app-version-force-update.yml", "25c69fb58364b709395f0ee920560845a83941eeb86efdd759a69af5f880d701"],
-  [".github/workflows/backend-ci.yml", "f40ad6d2859e9ba594c83126f9ba1e87e0a1f031193396bb98feea2f0e40f882"],
-  [".github/workflows/frontend-ci.yml", "ab34aea3f70558eec441d8969187587a406e0f4c0fab04d3a5d6e583cd554607"],
-  [".github/workflows/pr-governance.yml", "11a3f1b9a0afa6e935709deac50d38bccea2ca074599b6f272e05ca380ddff80"],
-  [".github/workflows/qga-governance.yml", "89abf7907ed702b5f7de82f3b0f0cc174e8cdf2e990f9dd0f61cea49a65de2ee"],
-  [".github/workflows/visual-regression-manual.yml", "3344160f3c37da9067ba744ca317a27168799839157c95301e8ac3905754faf0"],
+  [".github/workflows/backend-ci.yml", "aa70fb1e91bc4527819f778b65e19f24e4a2a9a4311033f968323014d3e5e629"],
+  [".github/workflows/frontend-ci.yml", "58258646ff64fcf4a71433f879a41bac59cbcdef306d5bab92417f3f08699476"],
+  [".github/workflows/pr-governance.yml", "4e0bf177a8581c9dd655f1ca6aa1510a823cdd976c885c4ba50b41129e4157d7"],
+  [".github/workflows/qga-governance.yml", "88ed322d67eda6fbec0a7ed0fa106625a43263a4d6998d6eceb24aeee389b393"],
+  [".github/workflows/visual-regression-manual.yml", "86784fe26f1f15e2ae6fb60ee8c26ef050f311bcebab72a2e1732739e035fee9"],
 ]);
 
 function readWorkflow(workflowPath: string): string {

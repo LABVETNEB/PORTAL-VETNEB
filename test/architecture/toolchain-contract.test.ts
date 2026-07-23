@@ -125,7 +125,7 @@ test("Backend CI uses the pinned pnpm and Node toolchain", () => {
     workflow,
     "concurrency:\n  group: backend-ci-${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true",
   );
-  assertContains(workflow, "uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7");
+  assertContains(workflow, "uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7");
   assertContains(workflow, "uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9");
   assertContains(workflow, "uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7");
   assertNotContains(workflow, "uses: actions/checkout@v7");
