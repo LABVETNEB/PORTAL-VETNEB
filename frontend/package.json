@@ -27,7 +27,7 @@
     "e2e:verify-catalog": "node --experimental-strip-types --experimental-specifier-resolution=node --test ../test/architecture/e2e-suite-catalog-completeness.test.ts"
   },
   "dependencies": {
-    "@radix-ui/react-dialog": "^1.1.17",
+    "@radix-ui/react-dialog": "^1.1.21",
     "@radix-ui/react-separator": "^1.1.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.17",
