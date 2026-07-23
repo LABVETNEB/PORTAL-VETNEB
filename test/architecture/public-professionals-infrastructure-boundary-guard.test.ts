@@ -568,3 +568,27 @@ test("El parser de imports del guard reconoce las cuatro formas de specifier", (
     true,
   );
 });
+
+test("Public Professionals infrastructure no depende del contexto Clinics", () => {
+  const violations: string[] = [];
+
+  for (const file of walkTsFiles(infrastructureDir)) {
+    for (const specifier of listImportSpecifiers(
+      readText(file),
+    )) {
+      const resolved = resolveSpecifier(file, specifier);
+
+      if (
+        resolved.startsWith(
+          "server/features/clinics/",
+        )
+      ) {
+        violations.push(
+          `${file}: ${specifier} -> ${resolved}`,
+        );
+      }
+    }
+  }
+
+  assert.deepEqual(violations, []);
+});

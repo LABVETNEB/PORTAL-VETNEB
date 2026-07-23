@@ -100,10 +100,7 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     path: "/",
     authGuard: "authenticateClinicUser",
     permissionGuard: "requireClinicManagementPermission",
-    protectedCalls: [
-      "deps.patchClinicPublicProfile",
-      "deps.syncClinicPublicSearch",
-    ],
+    protectedCalls: ["patchClinicPublicProfileCommand"],
   },
   {
     file: "server/routes/clinic-public-profile.fastify.ts",
@@ -113,10 +110,7 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     permissionGuard: "requireClinicManagementPermission",
     protectedCalls: [
       "runAvatarUpload",
-      "deps.uploadClinicAvatar",
-      "deps.patchClinicPublicProfile",
-      "deps.syncClinicPublicSearch",
-      "deps.deleteStorageObject",
+      "uploadClinicPublicAvatarCommand",
     ],
   },
   {
@@ -125,11 +119,7 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     path: "/avatar",
     authGuard: "authenticateClinicUser",
     permissionGuard: "requireClinicManagementPermission",
-    protectedCalls: [
-      "deps.removeClinicPublicAvatar",
-      "deps.syncClinicPublicSearch",
-      "deps.deleteStorageObject",
-    ],
+    protectedCalls: ["deleteClinicPublicAvatarCommand"],
   },
 ];
 
