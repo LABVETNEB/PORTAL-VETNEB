@@ -6,7 +6,7 @@ const PASSWORD_HASH_OPTIONS = {
   memoryCost: 19456,
   timeCost: 2,
   parallelism: 1,
-};
+} as const;
 
 export function hashLegacyPassword(password: string): string {
   return crypto.createHash("sha256").update(password).digest("hex");
