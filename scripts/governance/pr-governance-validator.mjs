@@ -29,6 +29,13 @@ export const CATEGORY_ORDER = [
 
 const REQUIRED_SECTIONS = ["Summary", "Scope", "Validation", "Rollback"];
 const SUPPORTING_CATEGORIES = new Set(["documentation", "tests"]);
+const TRUSTED_DEPENDABOT_LOGIN = "dependabot[bot]";
+const TRUSTED_DEPENDABOT_BRANCH_PREFIX = "dependabot/";
+const DEPENDABOT_ALLOWED_PATH_PATTERNS = [
+  /(^|\/)package\.json$/i,
+  /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|npm-shrinkwrap\.json)$/i,
+  /^\.github\/workflows\/[^/]+\.ya?ml$/i,
+];
 const SCOPE_LABEL_TO_CATEGORY = new Map([
   ["backend runtime", "backend"],
   ["frontend runtime", "frontend"],
@@ -178,6 +185,77 @@ export function derivePrimaryCategories(inputCategories) {
   if (categories.includes("tests")) return ["tests"];
   if (categories.includes("documentation")) return ["documentation"];
   return categories;
+}
+
+export function isTrustedDependabotPullRequest(event) {
+  const pullRequest = event?.pull_request;
+  const authorLogin = pullRequest?.user?.login ?? "";
+  const headRef = pullRequest?.head?.ref ?? "";
+  const headRepository = pullRequest?.head?.repo?.full_name ?? "";
+  const baseRepository = pullRequest?.base?.repo?.full_name ?? "";
+
+  return (
+    authorLogin === TRUSTED_DEPENDABOT_LOGIN &&
+    headRef.startsWith(TRUSTED_DEPENDABOT_BRANCH_PREFIX) &&
+    Boolean(headRepository) &&
+    headRepository === baseRepository
+  );
+}
+
+export function evaluateDependabotAutomationContract({ event, entries }) {
+  const failures = [];
+  const details = [];
+
+  if (!isTrustedDependabotPullRequest(event)) {
+    failures.push(
+      "Automated metadata inference requires a same-repository pull request authored by dependabot[bot] from a dependabot/* branch.",
+    );
+
+    return {
+      failures,
+      details,
+      primary: [],
+    };
+  }
+
+  const unsupportedEntries = entries.filter(
+    (entry) =>
+      entry.status !== "M" ||
+      !DEPENDABOT_ALLOWED_PATH_PATTERNS.some((pattern) =>
+        pattern.test(normalizePath(entry.path)),
+      ),
+  );
+
+  if (unsupportedEntries.length > 0) {
+    failures.push(
+      `Trusted Dependabot metadata inference only permits modified package manifests, lockfiles, or GitHub Actions workflows. Unsupported change(s): ${unsupportedEntries
+        .map((entry) => entry.display ?? entry.path)
+        .join("; ")}.`,
+    );
+  }
+
+  const primary = derivePrimaryCategories(
+    entries.map((entry) => classifyPath(entry.path)),
+  );
+
+  if (primary.length === 0) {
+    failures.push(
+      "Cannot derive a governed scope for the trusted Dependabot pull request.",
+    );
+  }
+
+  details.push(
+    `Trusted Dependabot author: ${TRUSTED_DEPENDABOT_LOGIN}.`,
+    `Trusted branch prefix: ${TRUSTED_DEPENDABOT_BRANCH_PREFIX}.`,
+    `Automatically inferred primary categories: ${primary.join(", ") || "(none)"}.`,
+    "Automated metadata inference does not skip diff, sensitive-path, secret, Markdown, or quality-gate validation.",
+  );
+
+  return {
+    failures,
+    details,
+    primary,
+  };
 }
 
 function parseScopeCheckboxes(scopeText) {
@@ -567,19 +645,68 @@ export function main() {
       }
 
       if (EVENT_NAME === "pull_request") {
-        const body = event.pull_request?.body ?? "";
-        const missing = REQUIRED_SECTIONS.filter((section) => !sectionPresent(body, section));
-        if (!body.trim()) fail("metadata", "PR body is required and cannot be empty.");
-        else if (missing.length > 0) fail("metadata", `Missing required section(s): ${missing.join(", ")}.`);
-        else pass("metadata", "Required PR body sections are present.");
+        if (isTrustedDependabotPullRequest(event)) {
+          pass(
+            "metadata",
+            "Trusted Dependabot pull request detected; generated PR body metadata accepted.",
+          );
 
-        const scope = evaluateScopeContract({
-          body,
-          categories: entries.map((entry) => classifyPath(entry.path)),
-        });
-        scope.details.forEach((message) => detail("scope", message));
-        scope.failures.forEach((message) => fail("scope", message));
-        if (scope.failures.length === 0) pass("scope", "Declared scope matches changed files.");
+          const automation = evaluateDependabotAutomationContract({
+            event,
+            entries,
+          });
+
+          automation.details.forEach((message) =>
+            detail("scope", message),
+          );
+          automation.failures.forEach((message) =>
+            fail("scope", message),
+          );
+
+          if (automation.failures.length === 0) {
+            pass(
+              "scope",
+              "Trusted Dependabot scope was inferred from the validated changed-file manifest.",
+            );
+          }
+        } else {
+          const body = event.pull_request?.body ?? "";
+          const missing = REQUIRED_SECTIONS.filter(
+            (section) => !sectionPresent(body, section),
+          );
+
+          if (!body.trim()) {
+            fail("metadata", "PR body is required and cannot be empty.");
+          } else if (missing.length > 0) {
+            fail(
+              "metadata",
+              `Missing required section(s): ${missing.join(", ")}.`,
+            );
+          } else {
+            pass("metadata", "Required PR body sections are present.");
+          }
+
+          const scope = evaluateScopeContract({
+            body,
+            categories: entries.map((entry) =>
+              classifyPath(entry.path),
+            ),
+          });
+
+          scope.details.forEach((message) =>
+            detail("scope", message),
+          );
+          scope.failures.forEach((message) =>
+            fail("scope", message),
+          );
+
+          if (scope.failures.length === 0) {
+            pass(
+              "scope",
+              "Declared scope matches changed files.",
+            );
+          }
+        }
       } else {
         results.metadata = "N/A";
         if (results.scope !== "FAIL") results.scope = "N/A";
