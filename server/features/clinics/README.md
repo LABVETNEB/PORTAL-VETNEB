@@ -1,17 +1,18 @@
 
 # Clinics · bounded context
 
-Contexto Clinics del backend. Abierto en M25 y con persistencia canónica
-materializada en M26.
+Contexto Clinics del backend. Abierto en M25, con persistencia canónica
+materializada en M26 y administración adelgazada en M27.
 
-## Estado por capas (M26)
+## Estado por capas (M27)
 
 | Capa | Estado | Contenido |
 |---|---|---|
 | domain/ | con código | Validación y normalización puras. |
 | infrastructure/ | con código | Repository Drizzle, SQL legacy, serialización y dos transacciones. |
-| application/ | ausente | Diferido; no se anticipa capa. |
-| routes/ | ausente | Las rutas permanecen en server/routes hasta M27. |
+| servicios directos | con código | Query y command services mínimos, sin capa application. |
+| application/ | ausente | No se necesita para el corte actual. |
+| routes/ | externas al contexto | Conservan exclusivamente responsabilidades HTTP y operativas. |
 
 ## Topología actual
 
@@ -20,27 +21,27 @@ admin-clinics.fastify.ts
 admin-users-roles.fastify.ts
   ├─ HTTP / CORS / auth / auditoría / error mapping
   ├─ features/clinics/domain
-  └─ db-admin-clinics.ts
-       └─ shim
-            └─ features/clinics/infrastructure/index.ts
-                 └─ admin-clinics-repository.ts
-                      ├─ Drizzle / SQL / serialización
-                      └─ 2 transacciones exactas
+  └─ features/clinics/admin-clinics-{query,command}-service.ts
+       └─ carga lazy de features/clinics/infrastructure/index.ts
+            └─ admin-clinics-repository.ts
+                 ├─ Drizzle / SQL / serialización
+                 └─ 2 transacciones exactas
 ~~~
 
-Las rutas conservan temporalmente el path legacy. La implementación real
-existe en una única copia canónica dentro de infrastructure.
+Los servicios coordinan consultas y comandos administrativos sin Fastify,
+auth, CORS ni auditoría. Las rutas preservan los seams de inyección usados por
+tests y la implementación persiste en una única copia canónica.
 
 ## Programa
 
 - M25: dominio y validaciones — cerrado.
-- M26: repository y persistencia — este milestone.
-- M27: adelgazar rutas admin y retirar el shim.
+- M26: repository y persistencia — cerrado.
+- M27: adelgazar rutas admin y retirar el shim — cerrado.
 - M28: adelgazar perfil público.
 - M29: cierre y verificación cross-tenant.
 
 ## Fuera de alcance
 
-M26 no modifica endpoints, payloads, status codes, CORS, auth, auditoría,
+M27 no modifica endpoints, payloads, status codes, CORS, auth, auditoría,
 permisos, perfil público, schema, migraciones, dependencias, lockfiles,
 frontend, scripts ni CI.

@@ -29,5 +29,5 @@ Supabase, middlewares ni una capa application.
 - Cascada transaccional de eliminación en el mismo orden.
 - Superficie pública histórica.
 
-server/db-admin-clinics.ts permanece como shim temporal de un único re-export.
-Las rutas serán reapuntadas y el shim será retirado en M27.
+M27 retiró server/db-admin-clinics.ts. Los servicios directos del contexto
+cargan este barrel de forma lazy; las rutas no importan infrastructure.

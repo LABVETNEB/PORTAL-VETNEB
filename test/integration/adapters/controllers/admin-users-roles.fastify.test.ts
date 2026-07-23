@@ -32,7 +32,7 @@ type AdminClinicUserRoleChangeResult = import(
   "../../../../server/db-admin-users-roles.ts"
 ).AdminClinicUserRoleChangeResult;
 type AdminClinicUserCredentialsUpdateResult = import(
-  "../../../../server/db-admin-clinics.ts"
+  "../../../../server/features/clinics/admin-clinics-command-service.ts"
 ).AdminClinicUserCredentialsUpdateResult;
 const STAGING_ORIGIN = "https://portal-vetneb-frontend-staging.onrender.com";
 

@@ -18,9 +18,8 @@ type HeavySurface = {
 
 const HEAVY_SURFACES: readonly HeavySurface[] = [
   {
-    // M26: Clinics canonical persistence lives in the context
-    // infrastructure layer; server/db-admin-clinics.ts is a compatibility
-    // shim. This contract measures the real implementation.
+    // M27: Clinics canonical persistence remains in the context
+    // infrastructure layer after the compatibility shim was retired.
     file: "server/features/clinics/infrastructure/admin-clinics-repository.ts",
     markers: ["normalizeListPagination", ".limit(limit)", ".offset(offset)"],
   },

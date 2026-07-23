@@ -19,10 +19,10 @@ type AdminClinicsNativeRoutesOptions = import(
   "../../../../server/routes/admin-clinics.fastify.ts"
 ).AdminClinicsNativeRoutesOptions;
 type AdminClinicCreateResult = import(
-  "../../../../server/db-admin-clinics.ts"
+  "../../../../server/features/clinics/admin-clinics-command-service.ts"
 ).AdminClinicCreateResult;
 type AdminClinicSummary = import(
-  "../../../../server/db-admin-clinics.ts"
+  "../../../../server/features/clinics/admin-clinics-query-service.ts"
 ).AdminClinicSummary;
 
 const demoClinic: AdminClinicSummary = {

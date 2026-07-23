@@ -14,6 +14,10 @@ const repositoryFile =
 const barrelFile = infrastructureDir + "/index.ts";
 const legacyShimFile =
   ["server", "db-admin-clinics.ts"].join("/");
+const queryServiceFile =
+  featureDir + "/admin-clinics-query-service.ts";
+const commandServiceFile =
+  featureDir + "/admin-clinics-command-service.ts";
 const applicationDir = featureDir + "/application";
 
 const routeConsumers = [
@@ -172,7 +176,7 @@ test(
 );
 
 test(
-  "El barrel y el shim son re-exports mínimos",
+  "El barrel permanece canónico y el shim fue retirado",
   () => {
     const barrelLines = stripComments(
       readText(barrelFile),
@@ -185,24 +189,10 @@ test(
       'export * from "./admin-clinics-repository.ts";',
     ]);
 
-    const shimLines = stripComments(
-      readText(legacyShimFile),
-    )
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    assert.deepEqual(shimLines, [
-      'export * from "./features/clinics/infrastructure/index.ts";',
-    ]);
-
-    const targets = listImportSpecifiers(
-      readText(legacyShimFile),
-    ).map((specifier) =>
-      resolveSpecifier(legacyShimFile, specifier),
+    assert.equal(
+      existsSync(join(repoRoot, legacyShimFile)),
+      false,
     );
-
-    assert.deepEqual(targets, [barrelFile]);
   },
 );
 
@@ -413,9 +403,62 @@ test(
   },
 );
 
+test("Los servicios directos Clinics existen sin application", () => {
+  assert.equal(existsSync(join(repoRoot, queryServiceFile)), true);
+  assert.equal(existsSync(join(repoRoot, commandServiceFile)), true);
+  assert.equal(existsSync(join(repoRoot, applicationDir)), false);
+});
+
 test(
-  "Las rutas siguen consumiendo el shim durante M26",
+  "Los servicios consumen infrastructure canónica sin transporte, auditoría, CORS ni auth",
   () => {
+    for (const serviceFile of [
+      queryServiceFile,
+      commandServiceFile,
+    ]) {
+      const source = readText(serviceFile);
+      const targets = listImportSpecifiers(source).map(
+        (specifier) =>
+          resolveSpecifier(serviceFile, specifier),
+      );
+
+      assert.ok(targets.includes(barrelFile), serviceFile);
+      assert.equal(targets.includes(legacyShimFile), false);
+      assert.equal(targets.includes(repositoryFile), false);
+
+      for (const forbidden of [
+        "Fastify",
+        "AUDIT_EVENTS",
+        "writeAuditLog",
+        "getAllowedOrigins",
+        "enforceTrustedOrigin",
+        "authenticateFastifyAdmin",
+        "auth-security",
+      ]) {
+        assert.equal(
+          source.includes(forbidden),
+          false,
+          `${serviceFile}: ${forbidden}`,
+        );
+      }
+    }
+  },
+);
+
+test(
+  "Las rutas consumen servicios, nunca infrastructure ni el shim",
+  () => {
+    const expectedServices = new Map([
+      [
+        "server/routes/admin-clinics.fastify.ts",
+        [queryServiceFile, commandServiceFile],
+      ],
+      [
+        "server/routes/admin-users-roles.fastify.ts",
+        [commandServiceFile],
+      ],
+    ]);
+
     for (const routeFile of routeConsumers) {
       const targets = listImportSpecifiers(
         readText(routeFile),
@@ -423,13 +466,58 @@ test(
         resolveSpecifier(routeFile, specifier),
       );
 
-      assert.ok(
-        targets.includes(legacyShimFile),
+      for (const serviceFile of expectedServices.get(routeFile) ?? []) {
+        assert.ok(
+          targets.includes(serviceFile),
+          `${routeFile}: ${serviceFile}`,
+        );
+      }
+
+      assert.equal(targets.includes(legacyShimFile), false);
+      assert.equal(targets.includes(repositoryFile), false);
+      assert.equal(targets.includes(barrelFile), false);
+    }
+  },
+);
+
+test(
+  "Las rutas no vuelven a llamar inline los métodos DB Clinics",
+  () => {
+    const directCallPattern =
+      /\bdeps\.(?:listAdminClinics|createAdminClinicWithUser|getAdminClinicById|updateAdminClinic|deleteAdminClinic|updateAdminClinicUserCredentials)\s*\(/g;
+
+    for (const routeFile of routeConsumers) {
+      assert.deepEqual(
+        readText(routeFile).match(directCallPattern) ?? [],
+        [],
+        routeFile,
       );
-      assert.equal(
-        targets.includes(repositoryFile),
-        false,
-      );
+    }
+  },
+);
+
+test(
+  "admin-users-roles delega sólo el comando Clinics de credenciales",
+  () => {
+    const source = readText(
+      "server/routes/admin-users-roles.fastify.ts",
+    );
+
+    assert.equal(
+      source.match(
+        /\bupdateAdminClinicUserCredentialsCommand\s*\(/g,
+      )?.length ?? 0,
+      1,
+    );
+
+    for (const unrelatedCommand of [
+      "createAdminClinicCommand",
+      "updateAdminClinicCommand",
+      "deleteAdminClinicCommand",
+      "listAdminClinicsQuery",
+      "getAdminClinicQuery",
+    ]) {
+      assert.equal(source.includes(unrelatedCommand), false);
     }
   },
 );
@@ -454,7 +542,7 @@ test(
 );
 
 test(
-  "M26 no anticipa application",
+  "M27 no crea application",
   () => {
     assert.equal(
       existsSync(join(repoRoot, applicationDir)),
