@@ -51,7 +51,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^10.7.0",
-    "eslint-config-next": "^16.2.9",
+    "eslint-config-next": "^16.2.11",
     "pngjs": "^7.0.0",
     "postcss": "^8.5.19",
     "tailwindcss": "^4.3.1",
