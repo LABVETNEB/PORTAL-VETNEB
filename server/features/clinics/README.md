@@ -1,42 +1,46 @@
+
 # Clinics · bounded context
 
-> Contexto **Clinics** del backend. Abierto en **M25** (Fase F del programa de
-> modularización). Ver el contrato de fronteras en
-> [ARCH-2](../../../docs/architecture/backend-boundary-adr.md) y el estado del
-> programa en
-> [audit](../../../docs/audit/backend-enterprise-modularization-program-audit.md).
+Contexto Clinics del backend. Abierto en M25 y con persistencia canónica
+materializada en M26.
 
-## Estado por capas (M25)
+## Estado por capas (M26)
 
 | Capa | Estado | Contenido |
 |---|---|---|
-| `domain/` | **con código** | Reglas puras de validación/normalización de administración de clínicas. |
-| `application/` | ausente | Diferido; no se anticipa capa (guard lo prohíbe). |
-| `infrastructure/` | ausente | Persistencia sigue en `server/db-admin-clinics.ts` hasta **M26**. |
-| `routes/` | ausente | La ruta admin sigue en `server/routes/admin-clinics.fastify.ts` (no-thin hasta **M27**). |
+| domain/ | con código | Validación y normalización puras. |
+| infrastructure/ | con código | Repository Drizzle, SQL legacy, serialización y dos transacciones. |
+| application/ | ausente | Diferido; no se anticipa capa. |
+| routes/ | ausente | Las rutas permanecen en server/routes hasta M27. |
 
-## Topología actual de la administración de clínicas
+## Topología actual
 
-```
+~~~text
 admin-clinics.fastify.ts
-  ├─ HTTP / Fastify / CORS / auth / trusted-origin / auditoría / error mapping
-  ├─ features/clinics/domain  → validación y normalización semántica
-  └─ db-admin-clinics.ts (legacy)  → persistencia (tx, SQL, serialización)
-```
+admin-users-roles.fastify.ts
+  ├─ HTTP / CORS / auth / auditoría / error mapping
+  ├─ features/clinics/domain
+  └─ db-admin-clinics.ts
+       └─ shim
+            └─ features/clinics/infrastructure/index.ts
+                 └─ admin-clinics-repository.ts
+                      ├─ Drizzle / SQL / serialización
+                      └─ 2 transacciones exactas
+~~~
 
-La ruta convierte el resultado del dominio en las respuestas HTTP existentes; el
-dominio no conoce transporte ni persistencia.
+Las rutas conservan temporalmente el path legacy. La implementación real
+existe en una única copia canónica dentro de infrastructure.
 
-## Alcance del contexto en el programa
+## Programa
 
-- **M25** · domain / validaciones reales (este milestone).
-- **M26** · repositorio (mover `db-admin-clinics.ts` a `infrastructure/`, tx exactas).
-- **M27** · adelgazar ruta admin (consultas + comandos).
-- **M28** · adelgazar perfil público (`clinic-public-profile.fastify.ts`, disclosure).
-- **M29** · cierre + cross-tenant.
+- M25: dominio y validaciones — cerrado.
+- M26: repository y persistencia — este milestone.
+- M27: adelgazar rutas admin y retirar el shim.
+- M28: adelgazar perfil público.
+- M29: cierre y verificación cross-tenant.
 
-## Qué NO vive aquí (todavía)
+## Fuera de alcance
 
-Perfil público de clínica, avatar/uploads, `mapLink`, sync de búsqueda pública,
-auditoría de clínica y permisos: pertenecen a otras superficies/milestones y no
-se tocan en M25.
+M26 no modifica endpoints, payloads, status codes, CORS, auth, auditoría,
+permisos, perfil público, schema, migraciones, dependencias, lockfiles,
+frontend, scripts ni CI.

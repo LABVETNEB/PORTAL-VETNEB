@@ -1,0 +1,464 @@
+
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
+
+const featureDir = "server/features/clinics";
+const infrastructureDir = featureDir + "/infrastructure";
+const repositoryFile =
+  infrastructureDir + "/admin-clinics-repository.ts";
+const barrelFile = infrastructureDir + "/index.ts";
+const legacyShimFile =
+  ["server", "db-admin-clinics.ts"].join("/");
+const applicationDir = featureDir + "/application";
+
+const routeConsumers = [
+  "server/routes/admin-clinics.fastify.ts",
+  "server/routes/admin-users-roles.fastify.ts",
+] as const;
+
+const publicTypeExports = [
+  "AdminClinicUserSummary",
+  "AdminClinicSummary",
+  "AdminClinicManagementSummary",
+  "AdminClinicsSnapshot",
+  "AdminClinicCreateInput",
+  "AdminClinicUpdateInput",
+  "AdminClinicUserCredentialsUpdateInput",
+  "AdminClinicDeleteInput",
+  "AdminClinicCreateResult",
+  "AdminClinicUserCredentialsUpdateResult",
+] as const;
+
+const publicFunctionExports = [
+  "listAdminClinics",
+  "createAdminClinicWithUser",
+  "updateAdminClinic",
+  "getAdminClinicById",
+  "deleteAdminClinic",
+  "updateAdminClinicUserCredentials",
+] as const;
+
+function readText(relativePath: string): string {
+  return readFileSync(
+    join(repoRoot, relativePath),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+}
+
+function normalizePath(value: string): string {
+  return value.replaceAll("\\", "/");
+}
+
+function listImportSpecifiers(source: string): string[] {
+  return Array.from(
+    source.matchAll(
+      /\bfrom\s+["']([^"']+)["']|\brequire\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s*\(\s*["']([^"']+)["']\s*\)|\bimport\s+["']([^"']+)["']/g,
+    ),
+    (match) =>
+      match[1] ??
+      match[2] ??
+      match[3] ??
+      match[4] ??
+      "",
+  );
+}
+
+function resolveSpecifier(
+  file: string,
+  specifier: string,
+): string {
+  if (!specifier.startsWith(".")) {
+    return normalizePath(specifier);
+  }
+
+  const resolved = normalizePath(
+    relative(
+      repoRoot,
+      join(repoRoot, dirname(file), specifier),
+    ),
+  );
+
+  if (resolved.endsWith(".ts")) {
+    return resolved;
+  }
+
+  const tsFile = resolved + ".ts";
+
+  if (existsSync(join(repoRoot, tsFile))) {
+    return tsFile;
+  }
+
+  const indexFile = resolved + "/index.ts";
+
+  if (existsSync(join(repoRoot, indexFile))) {
+    return indexFile;
+  }
+
+  return resolved;
+}
+
+function stripComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+}
+
+test(
+  "Clinics infrastructure contiene repository y barrel reales",
+  () => {
+    assert.equal(
+      existsSync(join(repoRoot, infrastructureDir)),
+      true,
+    );
+    assert.equal(
+      existsSync(join(repoRoot, repositoryFile)),
+      true,
+    );
+    assert.equal(
+      existsSync(join(repoRoot, barrelFile)),
+      true,
+    );
+
+    const source = readText(repositoryFile);
+
+    assert.ok(source.length > 15_000);
+    assert.match(
+      source,
+      /export async function listAdminClinics\(/,
+    );
+    assert.match(
+      source,
+      /export async function createAdminClinicWithUser\(/,
+    );
+    assert.match(
+      source,
+      /export async function deleteAdminClinic\(/,
+    );
+  },
+);
+
+test(
+  "El repository conserva la superficie pública R0",
+  () => {
+    const source = stripComments(
+      readText(repositoryFile),
+    );
+
+    for (const name of publicTypeExports) {
+      assert.match(
+        source,
+        new RegExp(
+          "\\bexport\\s+type\\s+" + name + "\\b",
+        ),
+      );
+    }
+
+    for (const name of publicFunctionExports) {
+      assert.match(
+        source,
+        new RegExp(
+          "\\bexport\\s+async\\s+function\\s+" +
+            name +
+            "\\s*\\(",
+        ),
+      );
+    }
+  },
+);
+
+test(
+  "El barrel y el shim son re-exports mínimos",
+  () => {
+    const barrelLines = stripComments(
+      readText(barrelFile),
+    )
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    assert.deepEqual(barrelLines, [
+      'export * from "./admin-clinics-repository.ts";',
+    ]);
+
+    const shimLines = stripComments(
+      readText(legacyShimFile),
+    )
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    assert.deepEqual(shimLines, [
+      'export * from "./features/clinics/infrastructure/index.ts";',
+    ]);
+
+    const targets = listImportSpecifiers(
+      readText(legacyShimFile),
+    ).map((specifier) =>
+      resolveSpecifier(legacyShimFile, specifier),
+    );
+
+    assert.deepEqual(targets, [barrelFile]);
+  },
+);
+
+test(
+  "El repository sólo importa persistencia autorizada",
+  () => {
+    const allowed = new Set([
+      "server/db.ts",
+      "drizzle/schema.ts",
+      "server/lib/list-pagination.ts",
+    ]);
+
+    const violations: string[] = [];
+
+    for (
+      const specifier of listImportSpecifiers(
+        readText(repositoryFile),
+      )
+    ) {
+      if (
+        specifier === "drizzle-orm" ||
+        specifier.startsWith("drizzle-orm/")
+      ) {
+        continue;
+      }
+
+      const resolved = resolveSpecifier(
+        repositoryFile,
+        specifier,
+      );
+
+      if (!allowed.has(resolved)) {
+        violations.push(
+          specifier + " -> " + resolved,
+        );
+      }
+    }
+
+    assert.deepEqual(violations, []);
+  },
+);
+
+test(
+  "Infrastructure no depende de transporte ni auth",
+  () => {
+    const source = readText(repositoryFile);
+
+    const targets = listImportSpecifiers(source).map(
+      (specifier) =>
+        resolveSpecifier(repositoryFile, specifier),
+    );
+
+    const forbidden = targets.filter(
+      (target) =>
+        target === "fastify" ||
+        target.startsWith("server/routes/") ||
+        target.includes("/application/") ||
+        target.startsWith("server/middlewares/") ||
+        /(^|\/)(auth|cors|audit|email|supabase)([./-]|$)/i.test(
+          target,
+        ) ||
+        target.startsWith("frontend/"),
+    );
+
+    assert.deepEqual(forbidden, []);
+
+    for (const symbol of [
+      "FastifyRequest",
+      "FastifyReply",
+      "authenticateFastifyAdmin",
+      "enforceTrustedOrigin",
+      "writeAuditLog",
+    ]) {
+      assert.equal(
+        source.includes(symbol),
+        false,
+      );
+    }
+  },
+);
+
+test(
+  "El repository conserva dos transacciones exactas",
+  () => {
+    const source = readText(repositoryFile);
+
+    assert.equal(
+      source.match(/\.transaction\s*\(/g)?.length ?? 0,
+      2,
+    );
+
+    const createStart = source.indexOf(
+      "export async function createAdminClinicWithUser(",
+    );
+    const updateStart = source.indexOf(
+      "export async function updateAdminClinic(",
+    );
+    const deleteStart = source.indexOf(
+      "export async function deleteAdminClinic(",
+    );
+    const credentialsStart = source.indexOf(
+      "export async function updateAdminClinicUserCredentials(",
+    );
+
+    assert.ok(createStart >= 0);
+    assert.ok(updateStart > createStart);
+    assert.ok(deleteStart > updateStart);
+    assert.ok(credentialsStart > deleteStart);
+
+    const createSource = source.slice(
+      createStart,
+      updateStart,
+    );
+    const deleteSource = source.slice(
+      deleteStart,
+      credentialsStart,
+    );
+
+    assert.equal(
+      createSource.match(/\.transaction\s*\(/g)?.length ??
+        0,
+      1,
+    );
+    assert.equal(
+      deleteSource.match(/\.transaction\s*\(/g)?.length ??
+        0,
+      1,
+    );
+  },
+);
+
+test(
+  "Se conservan SQL legacy, ISO y asociación clínica-usuario",
+  () => {
+    const source = readText(repositoryFile);
+
+    for (const marker of [
+      "column_name = 'clinic_id'",
+      "pg_get_serial_sequence",
+      'insert into "clinics"',
+      '"clinic_id"',
+      "buildLegacyClinicExternalId(reservedClinicId)",
+      "now.toISOString()",
+      "::timestamptz",
+      "toIsoDate(row.createdAt)",
+      "toIsoDate(row.updatedAt)",
+      "clinicId: clinic.clinicId",
+      "passwordHash: input.passwordHash",
+      "role: input.role",
+    ]) {
+      assert.ok(
+        source.includes(marker),
+        marker,
+      );
+    }
+  },
+);
+
+test(
+  "La cascada delete conserva el orden crítico",
+  () => {
+    const source = readText(repositoryFile);
+    const deleteStart = source.indexOf(
+      "export async function deleteAdminClinic(",
+    );
+    const deleteSource = source.slice(deleteStart);
+
+    const markers = [
+      ".delete(reportAccessTokens)",
+      ".delete(reportAccessTokens)",
+      ".delete(particularSessions)",
+      ".delete(activeSessions)",
+      ".delete(studyTrackingNotifications)",
+      ".delete(routeEvents)",
+      ".delete(routeStops)",
+      ".delete(routeStops)",
+      ".delete(visitLocations)",
+      ".delete(timeWindows)",
+      ".delete(studyTrackingCases)",
+      ".delete(slaInstances)",
+      ".delete(slaPolicies)",
+      ".delete(routePlans)",
+      ".delete(fieldVisits)",
+      ".delete(particularTokens)",
+      ".delete(reports)",
+      ".delete(clinicPublicSearch)",
+      ".delete(clinicPublicProfiles)",
+      ".delete(clinicUsers)",
+      'update "audit_log" set "clinic_id" = null',
+      ".delete(clinics)",
+    ];
+
+    let cursor = -1;
+
+    for (const marker of markers) {
+      const current = deleteSource.indexOf(
+        marker,
+        cursor + 1,
+      );
+
+      assert.ok(
+        current > cursor,
+        marker,
+      );
+
+      cursor = current;
+    }
+  },
+);
+
+test(
+  "Las rutas siguen consumiendo el shim durante M26",
+  () => {
+    for (const routeFile of routeConsumers) {
+      const targets = listImportSpecifiers(
+        readText(routeFile),
+      ).map((specifier) =>
+        resolveSpecifier(routeFile, specifier),
+      );
+
+      assert.ok(
+        targets.includes(legacyShimFile),
+      );
+      assert.equal(
+        targets.includes(repositoryFile),
+        false,
+      );
+    }
+  },
+);
+
+test(
+  "Los contratos source-only leen el repository canónico",
+  () => {
+    const source = readText(
+      "test/unit/contracts/admin/admin-clinics-db-contract.test.ts",
+    );
+
+    assert.ok(
+      source.includes(repositoryFile),
+    );
+    assert.equal(
+      source.includes(
+        'read("server/db-admin-clinics.ts")',
+      ),
+      false,
+    );
+  },
+);
+
+test(
+  "M26 no anticipa application",
+  () => {
+    assert.equal(
+      existsSync(join(repoRoot, applicationDir)),
+      false,
+    );
+  },
+);
