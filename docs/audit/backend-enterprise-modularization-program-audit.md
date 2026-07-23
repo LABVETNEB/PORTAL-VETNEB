@@ -1008,6 +1008,27 @@ mapping (SQL-drift alineado) · **M23** thin ruta + rate limit wiring · **M24**
 **M27** thin admin (consultas+comandos) · **M28** thin perfil público (disclosure verde) ·
 **M29** cierre + cross-tenant.
 
+> **Status M25 — apertura de Fase F con este cambio.** Se estableció el dominio
+> Clinics (`server/features/clinics/domain/`): `clinic-management-validation.ts`
+> (reglas puras, cero imports, con `ClinicUserRole` propio sin depender de
+> `drizzle/schema`) + barrel canónico. Las validaciones administrativas reales
+> (create/update/delete de clínicas) se extrajeron 1:1 desde
+> `server/routes/admin-clinics.fastify.ts` (987 → 695 LOC) hacia el dominio; la
+> ruta las consume por el barrel y se retiraron las 8 funciones inline migradas.
+>
+> Sin cambios de comportamiento: endpoints, status codes, payloads, mensajes en
+> español, precedencia de errores, trimming, defaults, CORS, trusted origin,
+> auth, auditoría, mapping de errores DB, transacciones y SQL permanecen
+> idénticos. La **persistencia sigue en `server/db-admin-clinics.ts` hasta M26**;
+> la **ruta admin sigue no-thin hasta M27**; el **perfil público sigue diferido
+> a M28**; el **cierre/cross-tenant sigue diferido a M29**. No se creó capa
+> `application` (guard lo prohíbe). Un guard dedicado
+> (`test/architecture/clinics-domain-boundary-guard.test.ts`) fija la pureza del
+> dominio y el consumo por barrel.
+>
+> Detalle:
+> [`docs/implementation/m25-clinics-domain-validations.md`](../implementation/m25-clinics-domain-validations.md).
+
 **Fase G — Study Tracking (5):** **M30** domain moves · **M31** UCs + puerto email + repo ·
 **M32** thin `study-tracking` + `particular-study-tracking` · **M32b** thin
 `admin-study-tracking` · **M35** cierre.
