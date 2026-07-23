@@ -7,7 +7,7 @@ import test from "node:test";
 const REPO_ROOT = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 
 type ExpectedFailure = {
-  status: 403 | 404;
+  status: 200 | 403 | 404;
   noDisclosure: boolean;
   reason: string;
 };
@@ -356,6 +356,32 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
+  {
+    id: "CTIDOR-016",
+    actor: "clinic_a_session",
+    resource: "clinics_public_profile",
+    operation:
+      "foreign clinicId and avatar paths in query or body must not replace the authenticated clinic for GET PATCH POST avatar or DELETE avatar",
+    requiredOwnerKey: "session.clinicUser.clinicId",
+    expectedFailure: {
+      status: 200,
+      noDisclosure: true,
+      reason:
+        "foreign_tenant_selector_ignored_authenticated_clinic_returned",
+    },
+    protectedSurface:
+      "server/routes/clinic-public-profile.fastify.ts",
+    runtimeEvidence: [
+      "staging four-operation probe with clinic A session and clinic B selectors",
+      "verify profile rows search rows signed URLs and storage actions remain clinic A scoped",
+    ],
+    requiredTestEvidence: [
+      "test/integration/adapters/controllers/clinic-public-profile.fastify.test.ts",
+      "test/unit/clinics/clinic-public-profile-query-service.test.ts",
+      "test/unit/clinics/clinic-public-profile-command-service.test.ts",
+    ],
+    productionReadinessStatus: "pending_runtime_staging_evidence",
+  },
 ] as const;
 
 function readSource(relativePath: string): string {
@@ -376,7 +402,7 @@ test("cross-tenant IDOR contract matrix has unique IDs", () => {
   const ids = CROSS_TENANT_IDOR_CONTRACTS.map((contract) => contract.id);
 
   assert.deepEqual(ids, uniqueValues(ids));
-  assert.equal(ids.length >= 15, true);
+  assert.equal(ids.length >= 16, true);
 
   for (const id of ids) {
     assert.match(id, /^CTIDOR-\d{3}$/);
@@ -393,16 +419,29 @@ test("every cross-tenant IDOR contract includes actor resource operation and pro
   }
 });
 
-test("every cross-tenant IDOR contract uses explicit expected failure semantics", () => {
+test("every cross-tenant IDOR contract uses explicit isolation semantics", () => {
   for (const contract of CROSS_TENANT_IDOR_CONTRACTS) {
     const { expectedFailure } = contract;
     assert.ok(
+      expectedFailure.status === 200 ||
       expectedFailure.status === 403 ||
         expectedFailure.status === 404,
-      `${contract.id} expected failure status must be 403 or 404`,
+      `${contract.id} expected isolation status must be 200, 403 or 404`,
     );
     assert.equal(expectedFailure.noDisclosure, true, `${contract.id} must avoid disclosure`);
     assertHasText(expectedFailure.reason, `${contract.id} expected failure reason`);
+
+    if (expectedFailure.status === 200) {
+      assert.equal(
+        contract.id,
+        "CTIDOR-016",
+        `${contract.id} may return 200 only when foreign selectors are ignored`,
+      );
+      assert.equal(
+        expectedFailure.reason,
+        "foreign_tenant_selector_ignored_authenticated_clinic_returned",
+      );
+    }
   }
 });
 
@@ -469,11 +508,68 @@ test("cross-tenant IDOR matrix covers critical production attack surfaces", () =
       name: "admin linking",
       covered: resources.some((value) => value.includes("admin_linking")) || operations.some((value) => value.includes("admin")),
     },
+    {
+      name: "clinics public profile",
+      covered: resources.some((value) => value.includes("clinics_public_profile")),
+    },
   ] as const;
 
   for (const check of coverageChecks) {
     assert.equal(check.covered, true, `missing cross-tenant IDOR coverage: ${check.name}`);
   }
+});
+
+test("Clinics contract links executable GET PATCH POST and DELETE tenant evidence", () => {
+  const contract = CROSS_TENANT_IDOR_CONTRACTS.find(
+    (candidate) => candidate.id === "CTIDOR-016",
+  );
+
+  assert.ok(contract);
+  assert.equal(
+    contract.protectedSurface,
+    "server/routes/clinic-public-profile.fastify.ts",
+  );
+  assert.deepEqual(contract.requiredTestEvidence, [
+    "test/integration/adapters/controllers/clinic-public-profile.fastify.test.ts",
+    "test/unit/clinics/clinic-public-profile-query-service.test.ts",
+    "test/unit/clinics/clinic-public-profile-command-service.test.ts",
+  ]);
+
+  const integration = readSource(
+    "test/integration/adapters/controllers/clinic-public-profile.fastify.test.ts",
+  );
+  const queryService = readSource(
+    "test/unit/clinics/clinic-public-profile-query-service.test.ts",
+  );
+  const commandService = readSource(
+    "test/unit/clinics/clinic-public-profile-command-service.test.ts",
+  );
+
+  for (const marker of [
+    "mantiene GET en la cl\u00ednica de sesi\u00f3n ante selectores tenant extranjeros",
+    "mantiene PATCH en la cl\u00ednica de sesi\u00f3n sin persistir ni publicar input extranjero",
+    "mantiene POST avatar en la cl\u00ednica de sesi\u00f3n y deriva todos los paths",
+    "mantiene DELETE avatar en la cl\u00ednica de sesi\u00f3n sin borrar path extranjero",
+  ]) {
+    assert.equal(
+      integration.includes(marker),
+      true,
+      `Clinics integration evidence must contain: ${marker}`,
+    );
+  }
+
+  assert.equal(
+    queryService.includes(
+      "query limita snapshot y firma al tenant recibido sin aceptar selectores alternativos",
+    ),
+    true,
+  );
+  assert.equal(
+    commandService.includes(
+      "commands a\u00edslan persistencia publicaci\u00f3n b\u00fasqueda firma y storage de selectores extranjeros",
+    ),
+    true,
+  );
 });
 
 test("cross-tenant IDOR contract file does not contain dangerous inline secrets or real credentials", () => {

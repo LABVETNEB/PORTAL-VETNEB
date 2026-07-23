@@ -148,11 +148,19 @@ function buildMultipartAvatarPayload(options?: {
   fileName?: string;
   mimeType?: string;
   fileContent?: Buffer;
+  fields?: Record<string, string>;
 }) {
   const boundary = "----vetneb-boundary";
   const fileName = options?.fileName ?? "avatar.png";
   const mimeType = options?.mimeType ?? "image/png";
   const fileContent = options?.fileContent ?? buildAvatarPngBuffer(256, 256);
+  const fields = Object.entries(options?.fields ?? {}).map(
+    ([name, value]) =>
+      Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`,
+        "utf8",
+      ),
+  );
   const header = Buffer.from(
     `--${boundary}\r\nContent-Disposition: form-data; name="avatar"; filename="${fileName}"\r\nContent-Type: ${mimeType}\r\n\r\n`,
     "utf8",
@@ -161,7 +169,7 @@ function buildMultipartAvatarPayload(options?: {
 
   return {
     boundary,
-    payload: Buffer.concat([header, fileContent, footer]),
+    payload: Buffer.concat([...fields, header, fileContent, footer]),
   };
 }
 
@@ -207,6 +215,48 @@ test(
           searchText: "clinica centro cardiologia rosario",
         },
       });
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes mantiene GET en la clínica de sesión ante selectores tenant extranjeros",
+  async () => {
+    const snapshotClinicIds: number[] = [];
+    const signedPaths: string[] = [];
+    const app = await createTestApp({
+      getClinicPublicProfileByClinicId: async (clinicId: number) => {
+        snapshotClinicIds.push(clinicId);
+        return {
+          clinic: createClinic(),
+          profile: createProfile(),
+          search: createSearch(),
+        };
+      },
+      createSignedStorageUrl: async (storagePath: string) => {
+        signedPaths.push(storagePath);
+        return `signed:${storagePath}`;
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url:
+          "/api/clinic/profile?clinicId=999" +
+          "&avatarStoragePath=avatars%2F999%2Fforeign.png",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+        },
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(snapshotClinicIds, [3]);
+      assert.deepEqual(signedPaths, ["avatars/3/avatar.png"]);
+      assert.equal(response.body.includes("avatars/999"), false);
     } finally {
       await app.close();
     }
@@ -796,45 +846,267 @@ test(
 );
 
 test(
-  "clinicPublicProfileNativeRoutes deriva clinicId sólo de sesión e ignora body/query tenant",
+  "clinicPublicProfileNativeRoutes mantiene PATCH en la clínica de sesión sin persistir ni publicar input extranjero",
   async () => {
-    const receivedClinicIds: number[] = [];
+    const clinicLookupIds: number[] = [];
+    const snapshotClinicIds: number[] = [];
+    const patchClinicIds: number[] = [];
+    const syncClinicIds: number[] = [];
+    const signedPaths: string[] = [];
+    const publicationAvatarPaths: unknown[] = [];
     let patchInput: Record<string, unknown> | undefined;
     const app = await createTestApp({
       getClinicById: async (clinicId: number) => {
-        receivedClinicIds.push(clinicId);
+        clinicLookupIds.push(clinicId);
         return createClinic();
       },
       getClinicPublicProfileByClinicId: async (
         clinicId: number,
       ) => {
-        receivedClinicIds.push(clinicId);
+        snapshotClinicIds.push(clinicId);
         return {
           clinic: createClinic(),
           profile: createProfile(),
           search: createSearch(),
         };
       },
+      evaluateClinicPublicProfilePublication: (input: {
+        profile: Record<string, unknown>;
+      }) => {
+        publicationAvatarPaths.push(
+          input.profile.avatarStoragePath,
+        );
+        return {
+          isPublic: false,
+          hasRequiredPublicFields: true,
+          hasQualitySupplement: true,
+          qualityScore: 80,
+          isSearchEligible: true,
+          missingRequiredFields: [],
+          missingRecommendedFields: [],
+          publicationErrors: [],
+        };
+      },
       patchClinicPublicProfile: async (
         clinicId: number,
         input: Record<string, unknown>,
       ) => {
-        receivedClinicIds.push(clinicId);
+        patchClinicIds.push(clinicId);
         patchInput = input;
         return createProfile(input);
       },
       syncClinicPublicSearch: async (
         clinicId: number,
       ) => {
-        receivedClinicIds.push(clinicId);
+        syncClinicIds.push(clinicId);
         return createSearch();
+      },
+      createSignedStorageUrl: async (storagePath: string) => {
+        signedPaths.push(storagePath);
+        return `signed:${storagePath}`;
+      },
+    });
+
+    try {
+      const response = await app.inject(
+        {
+          method: "PATCH",
+          url:
+            "/api/clinic/profile?clinicId=999" +
+            "&avatarStoragePath=avatars%2F999%2Fforeign.png",
+          headers: {
+            origin: "http://localhost:3000",
+            cookie: `${ENV.cookieName}=session-token`,
+            "content-type": "application/json",
+          },
+          payload: {
+            clinicId: 999,
+            avatarStoragePath:
+              "avatars/999/foreign.png",
+            storagePath: "avatars/999/foreign.png",
+            displayName: "Nombre seguro",
+          },
+        },
+      );
+
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(clinicLookupIds, [3]);
+      assert.deepEqual(snapshotClinicIds, [3]);
+      assert.deepEqual(patchClinicIds, [3]);
+      assert.deepEqual(syncClinicIds, [3]);
+      assert.deepEqual(
+        publicationAvatarPaths,
+        ["avatars/3/avatar.png"],
+      );
+      assert.deepEqual(signedPaths, ["avatars/3/avatar.png"]);
+      assert.equal(Object.hasOwn(patchInput ?? {}, "clinicId"), false);
+      assert.equal(
+        Object.hasOwn(
+          patchInput ?? {},
+          "avatarStoragePath",
+        ),
+        false,
+      );
+      assert.equal(
+        Object.hasOwn(patchInput ?? {}, "storagePath"),
+        false,
+      );
+      assert.equal(response.body.includes("avatars/999"), false);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes mantiene POST avatar en la clínica de sesión y deriva todos los paths",
+  async () => {
+    const clinicLookupIds: number[] = [];
+    const snapshotClinicIds: number[] = [];
+    const uploadClinicIds: number[] = [];
+    const patchCalls: Array<{
+      clinicId: number;
+      input: Record<string, unknown>;
+    }> = [];
+    const syncClinicIds: number[] = [];
+    const deletedPaths: string[] = [];
+    const signedPaths: string[] = [];
+    const multipart = buildMultipartAvatarPayload({
+      fields: {
+        clinicId: "999",
+        avatarStoragePath: "avatars/999/foreign.png",
+        storagePath: "avatars/999/foreign.png",
+      },
+    });
+    const app = await createTestApp({
+      getClinicById: async (clinicId: number) => {
+        clinicLookupIds.push(clinicId);
+        return createClinic();
+      },
+      getClinicPublicProfileByClinicId: async (clinicId: number) => {
+        snapshotClinicIds.push(clinicId);
+        return {
+          clinic: createClinic(),
+          profile: createProfile(),
+          search: createSearch(),
+        };
+      },
+      uploadClinicAvatar: async (input: {
+        clinicId: number;
+      }) => {
+        uploadClinicIds.push(input.clinicId);
+        return "avatars/3/avatar-session.png";
+      },
+      patchClinicPublicProfile: async (
+        clinicId: number,
+        input: Record<string, unknown>,
+      ) => {
+        patchCalls.push({ clinicId, input });
+        return createProfile(input);
+      },
+      syncClinicPublicSearch: async (clinicId: number) => {
+        syncClinicIds.push(clinicId);
+        return createSearch();
+      },
+      deleteStorageObject: async (storagePath: string) => {
+        deletedPaths.push(storagePath);
+      },
+      createSignedStorageUrl: async (storagePath: string) => {
+        signedPaths.push(storagePath);
+        return `signed:${storagePath}`;
       },
     });
 
     try {
       const response = await app.inject({
-        method: "PATCH",
-        url: "/api/clinic/profile?clinicId=999",
+        method: "POST",
+        url:
+          "/api/clinic/profile/avatar?clinicId=999" +
+          "&avatarStoragePath=avatars%2F999%2Fforeign.png",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.cookieName}=session-token`,
+          "content-type":
+            `multipart/form-data; boundary=${multipart.boundary}`,
+        },
+        payload: multipart.payload,
+      });
+
+      assert.equal(response.statusCode, 201);
+      assert.deepEqual(clinicLookupIds, [3]);
+      assert.deepEqual(snapshotClinicIds, [3]);
+      assert.deepEqual(uploadClinicIds, [3]);
+      assert.deepEqual(patchCalls, [
+        {
+          clinicId: 3,
+          input: {
+            avatarStoragePath:
+              "avatars/3/avatar-session.png",
+          },
+        },
+      ]);
+      assert.deepEqual(syncClinicIds, [3]);
+      assert.deepEqual(
+        deletedPaths,
+        ["avatars/3/avatar.png"],
+      );
+      assert.deepEqual(
+        signedPaths,
+        ["avatars/3/avatar-session.png"],
+      );
+      assert.equal(response.body.includes("avatars/999"), false);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "clinicPublicProfileNativeRoutes mantiene DELETE avatar en la clínica de sesión sin borrar path extranjero",
+  async () => {
+    const clinicLookupIds: number[] = [];
+    const snapshotClinicIds: number[] = [];
+    const removeClinicIds: number[] = [];
+    const syncClinicIds: number[] = [];
+    const deletedPaths: string[] = [];
+    const app = await createTestApp({
+      getClinicById: async (clinicId: number) => {
+        clinicLookupIds.push(clinicId);
+        return createClinic();
+      },
+      getClinicPublicProfileByClinicId: async (clinicId: number) => {
+        snapshotClinicIds.push(clinicId);
+        return {
+          clinic: createClinic(),
+          profile: createProfile(),
+          search: createSearch(),
+        };
+      },
+      removeClinicPublicAvatar: async (clinicId: number) => {
+        removeClinicIds.push(clinicId);
+        return {
+          previousAvatarStoragePath:
+            "avatars/3/avatar.png",
+          profile: createProfile({
+            avatarStoragePath: null,
+          }),
+        };
+      },
+      syncClinicPublicSearch: async (clinicId: number) => {
+        syncClinicIds.push(clinicId);
+        return createSearch();
+      },
+      deleteStorageObject: async (storagePath: string) => {
+        deletedPaths.push(storagePath);
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "DELETE",
+        url:
+          "/api/clinic/profile/avatar?clinicId=999" +
+          "&avatarStoragePath=avatars%2F999%2Fforeign.png",
         headers: {
           origin: "http://localhost:3000",
           cookie: `${ENV.cookieName}=session-token`,
@@ -842,21 +1114,22 @@ test(
         },
         payload: {
           clinicId: 999,
-          displayName: "Nombre seguro",
+          avatarStoragePath:
+            "avatars/999/foreign.png",
+          storagePath: "avatars/999/foreign.png",
         },
       });
 
       assert.equal(response.statusCode, 200);
-      assert.deepEqual(receivedClinicIds, [
-        3,
-        3,
-        3,
-        3,
-      ]);
-      assert.equal(
-        Object.hasOwn(patchInput ?? {}, "clinicId"),
-        false,
+      assert.deepEqual(clinicLookupIds, [3]);
+      assert.deepEqual(snapshotClinicIds, [3]);
+      assert.deepEqual(removeClinicIds, [3]);
+      assert.deepEqual(syncClinicIds, [3]);
+      assert.deepEqual(
+        deletedPaths,
+        ["avatars/3/avatar.png"],
       );
+      assert.equal(response.body.includes("avatars/999"), false);
     } finally {
       await app.close();
     }

@@ -116,6 +116,42 @@ test("query found respeta get → signed URL → mapper y conserva clinicId", as
   });
 });
 
+test("query limita snapshot y firma al tenant recibido sin aceptar selectores alternativos", async () => {
+  const snapshotClinicIds: number[] = [];
+  const signedPaths: string[] = [];
+
+  const result = await getClinicPublicProfileQuery(
+    37,
+    createOverrides({
+      getClinicPublicProfileByClinicId: async (
+        clinicId,
+      ) => {
+        snapshotClinicIds.push(clinicId);
+        return {
+          clinic,
+          profile,
+          search,
+        };
+      },
+      createSignedStorageUrl: async (storagePath) => {
+        signedPaths.push(storagePath);
+        return `signed:${storagePath}`;
+      },
+    }),
+  );
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(snapshotClinicIds, [37]);
+  assert.deepEqual(
+    signedPaths,
+    ["avatars/37/profile.png"],
+  );
+  assert.equal(
+    JSON.stringify(result).includes("avatars/999"),
+    false,
+  );
+});
+
 test("query acepta perfil ausente y llama al mapper canónico con null", async () => {
   let signedCalls = 0;
   let mapperInput: unknown;

@@ -234,6 +234,153 @@ test("PATCH respeta profile → preview → patch → sync → signed URL → re
   });
 });
 
+test("commands aíslan persistencia publicación búsqueda firma y storage de selectores extranjeros", async () => {
+  const clinicIds: number[] = [];
+  const publicationAvatarPaths: unknown[] = [];
+  const patchInputs: unknown[] = [];
+  const uploadedPaths: string[] = [];
+  const signedPaths: string[] = [];
+  const deletedPaths: string[] = [];
+  const overrides = createOverrides({
+    getClinicPublicProfileByClinicId: async (
+      clinicId,
+    ) => {
+      clinicIds.push(clinicId);
+      return {
+        clinic,
+        profile,
+        search,
+      };
+    },
+    evaluateClinicPublicProfilePublication:
+      (input) => {
+        publicationAvatarPaths.push(
+          input.profile.avatarStoragePath,
+        );
+        return publication;
+      },
+    patchClinicPublicProfile: async (
+      clinicId,
+      input,
+    ) => {
+      clinicIds.push(clinicId);
+      patchInputs.push(input);
+      return {
+        ...profile,
+        ...input,
+      };
+    },
+    removeClinicPublicAvatar: async (
+      clinicId,
+    ) => {
+      clinicIds.push(clinicId);
+      return {
+        previousAvatarStoragePath:
+          profile.avatarStoragePath,
+        profile: {
+          ...profile,
+          avatarStoragePath: null,
+        },
+      };
+    },
+    syncClinicPublicSearch: async (clinicId) => {
+      clinicIds.push(clinicId);
+      return search;
+    },
+    uploadClinicAvatar: async (input) => {
+      clinicIds.push(input.clinicId);
+      uploadedPaths.push(
+        `avatars/${input.clinicId}/generated.png`,
+      );
+      return `avatars/${input.clinicId}/generated.png`;
+    },
+    createSignedStorageUrl: async (storagePath) => {
+      signedPaths.push(storagePath);
+      return `signed:${storagePath}`;
+    },
+    deleteStorageObject: async (storagePath) => {
+      deletedPaths.push(storagePath);
+    },
+  });
+  const requestDerivedFile = {
+    ...avatarFile,
+    clinicId: 999,
+    avatarStoragePath: "avatars/999/foreign.png",
+    storagePath: "avatars/999/foreign.png",
+  };
+  const requestDerivedDeleteInput = {
+    clinicId: 37,
+    clinic,
+    requestedClinicId: 999,
+    avatarStoragePath: "avatars/999/foreign.png",
+    storagePath: "avatars/999/foreign.png",
+  };
+
+  await patchClinicPublicProfileCommand(
+    {
+      clinicId: 37,
+      clinic,
+      body: {
+        clinicId: 999,
+        avatarStoragePath: "avatars/999/foreign.png",
+        storagePath: "avatars/999/foreign.png",
+        displayName: "Nombre seguro",
+      },
+    },
+    overrides,
+  );
+  await uploadClinicPublicAvatarCommand(
+    {
+      clinicId: 37,
+      clinic,
+      file: requestDerivedFile,
+    },
+    overrides,
+  );
+  await deleteClinicPublicAvatarCommand(
+    requestDerivedDeleteInput,
+    overrides,
+  );
+
+  assert.deepEqual(
+    new Set(clinicIds),
+    new Set([37]),
+  );
+  assert.deepEqual(
+    publicationAvatarPaths,
+    [
+      "avatars/37/previous.png",
+      null,
+    ],
+  );
+  assert.deepEqual(uploadedPaths, [
+    "avatars/37/generated.png",
+  ]);
+  assert.deepEqual(signedPaths, [
+    "avatars/37/previous.png",
+    "avatars/37/generated.png",
+  ]);
+  assert.deepEqual(deletedPaths, [
+    "avatars/37/previous.png",
+    "avatars/37/previous.png",
+  ]);
+  assert.equal(
+    JSON.stringify(patchInputs).includes("999"),
+    false,
+  );
+  assert.equal(
+    JSON.stringify({
+      clinicIds,
+      publicationAvatarPaths,
+      patchInputs,
+      uploadedPaths,
+      signedPaths,
+      deletedPaths,
+    }).includes("avatars/999"),
+    false,
+  );
+});
+
 test("PATCH privado incompleto se guarda aunque preview tenga publicationErrors", async () => {
   let patchCalls = 0;
 
