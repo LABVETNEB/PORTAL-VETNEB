@@ -103,7 +103,7 @@ test("Frontend CI define toolchain y cache de pnpm esperados", () => {
   const source = readWorkflow();
 
   assertContains(source, "timeout-minutes: 20");
-  assertContains(source, "uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7");
+  assertContains(source, "uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7");
   assertContains(source, "uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9");
   assertContains(source, "uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7");
   assertContains(source, "uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7");
