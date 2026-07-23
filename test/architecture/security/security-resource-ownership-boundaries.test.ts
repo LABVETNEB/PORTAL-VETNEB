@@ -29,6 +29,16 @@ const RESOURCE_OWNERSHIP_BOUNDARIES = {
     clinicScope: "auth.clinicId",
     particularScope: "particular.tokenId",
   },
+  clinicPublicProfile: {
+    ownerKey: "clinicId",
+    clinicScope: "session.clinicUser.clinicId",
+    foreignInputPolicy: "ignored",
+  },
+  adminClinics: {
+    scope: "admin_global",
+    authRealm: "admin_session",
+    clinicSessionAccess: false,
+  },
 } as const;
 
 function listFilesRecursive(relativeDir: string): string[] {
@@ -109,6 +119,16 @@ test("resource ownership matrix documents protected owner keys", () => {
       ownerKeys: ["clinicId", "reportId", "particularTokenId", "studyTrackingCaseId"],
       clinicScope: "auth.clinicId",
       particularScope: "particular.tokenId",
+    },
+    clinicPublicProfile: {
+      ownerKey: "clinicId",
+      clinicScope: "session.clinicUser.clinicId",
+      foreignInputPolicy: "ignored",
+    },
+    adminClinics: {
+      scope: "admin_global",
+      authRealm: "admin_session",
+      clinicSessionAccess: false,
     },
   });
 });
@@ -292,6 +312,52 @@ test("critical ownership tests remain explicit and runtime-backed", () => {
   );
 });
 
+test("Clinics public profile is session-scoped while Admin Clinics stays admin-global", () => {
+  const clinicPublicProfile = readSource(
+    "server/routes/clinic-public-profile.fastify.ts",
+  );
+  const adminClinics = readSource(
+    "server/routes/admin-clinics.fastify.ts",
+  );
+
+  assertMatches(
+    clinicPublicProfile,
+    /getClinicPublicProfileQuery\(\s*auth\.clinicId/s,
+    "Clinics GET ownership",
+  );
+  assertMatches(
+    clinicPublicProfile,
+    /patchClinicPublicProfileCommand\(\s*\{\s*clinicId: auth\.clinicId/s,
+    "Clinics PATCH ownership",
+  );
+  assertMatches(
+    clinicPublicProfile,
+    /uploadClinicPublicAvatarCommand\(\s*\{\s*clinicId: auth\.clinicId/s,
+    "Clinics POST avatar ownership",
+  );
+  assertMatches(
+    clinicPublicProfile,
+    /deleteClinicPublicAvatarCommand\(\s*\{\s*clinicId: auth\.clinicId/s,
+    "Clinics DELETE avatar ownership",
+  );
+
+  assertContains(
+    adminClinics,
+    "authenticateFastifyAdmin",
+    "Admin Clinics global administrative authentication",
+  );
+  assertContains(
+    adminClinics,
+    "adminAuth",
+    "Admin Clinics global administrative audit identity",
+  );
+  assert.equal(
+    adminClinics.includes("authenticateClinicUser"),
+    false,
+    "Admin Clinics must not be represented as a clinic-session surface",
+  );
+});
+
 test("resource ownership guardrail references cross-tenant IDOR contract registry", () => {
   const crossTenantIdorContract = readSource("test/architecture/security/security-cross-tenant-idor-contract.test.ts");
 
@@ -304,6 +370,11 @@ test("resource ownership guardrail references cross-tenant IDOR contract registr
     crossTenantIdorContract,
     "CTIDOR-001",
     "cross-tenant IDOR guardrail matrix",
+  );
+  assertContains(
+    crossTenantIdorContract,
+    "CTIDOR-016",
+    "Clinics cross-tenant IDOR guardrail matrix",
   );
   assertContains(
     crossTenantIdorContract,
