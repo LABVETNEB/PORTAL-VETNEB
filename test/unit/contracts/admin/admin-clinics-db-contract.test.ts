@@ -11,7 +11,7 @@ function read(relativePath: string): string {
 }
 
 test("admin clinics create soporta clinic_id legacy requerido en DB real", () => {
-  const source = read("server/db-admin-clinics.ts");
+  const source = read("server/features/clinics/infrastructure/admin-clinics-repository.ts");
 
   assert.ok(source.includes("column_name = 'clinic_id'"));
   assert.ok(source.includes("buildLegacyClinicExternalId"));
@@ -21,7 +21,7 @@ test("admin clinics create soporta clinic_id legacy requerido en DB real", () =>
 });
 
 test("admin clinics delete limpia report_access_tokens antes de borrar clinics", () => {
-  const source = read("server/db-admin-clinics.ts");
+  const source = read("server/features/clinics/infrastructure/admin-clinics-repository.ts");
 
   const deleteReportAccessTokensIndex = source.indexOf(
     ".delete(reportAccessTokens)",
@@ -33,7 +33,7 @@ test("admin clinics delete limpia report_access_tokens antes de borrar clinics",
 });
 
 test("branch legacy usa toISOString() para timestamps, no Date crudo en raw SQL", () => {
-  const source = read("server/db-admin-clinics.ts");
+  const source = read("server/features/clinics/infrastructure/admin-clinics-repository.ts");
 
   // La corrección debe estar presente: ISO string + cast explícito de timestamptz
   const isoOccurrences = (source.match(/now\.toISOString\(\)/g) ?? []).length;
@@ -62,7 +62,7 @@ test("branch legacy usa toISOString() para timestamps, no Date crudo en raw SQL"
 });
 
 test("buildLegacyClinicExternalId genera clinic-{id} y se usa con el id reservado", () => {
-  const source = read("server/db-admin-clinics.ts");
+  const source = read("server/features/clinics/infrastructure/admin-clinics-repository.ts");
 
   // La función genera el formato clinic-{id}
   assert.ok(
@@ -84,7 +84,7 @@ test("buildLegacyClinicExternalId genera clinic-{id} y se usa con el id reservad
 });
 
 test("serializeClinic serializa createdAt y updatedAt como ISO string, no expone passwordHash", () => {
-  const source = read("server/db-admin-clinics.ts");
+  const source = read("server/features/clinics/infrastructure/admin-clinics-repository.ts");
 
   const serializeClinicStart = source.indexOf("function serializeClinic(");
   const serializeClinicEnd = source.indexOf("function serializeClinicUser(");
@@ -119,7 +119,7 @@ test("serializeClinic serializa createdAt y updatedAt como ISO string, no expone
 });
 
 test("serializeClinicUser no expone passwordHash, authProId ni campos sensibles", () => {
-  const source = read("server/db-admin-clinics.ts");
+  const source = read("server/features/clinics/infrastructure/admin-clinics-repository.ts");
 
   const serializeUserStart = source.indexOf("function serializeClinicUser(");
   const serializeUserEnd = source.indexOf("async function getClinicUserRow(");
@@ -205,7 +205,7 @@ test("journal de migraciones conserva 0026 y 0029 antes de metadata login", () =
 });
 
 test("toIsoDate acepta Date o string devuelto por raw SQL postgres-js", () => {
-  const source = read("server/db-admin-clinics.ts");
+  const source = read("server/features/clinics/infrastructure/admin-clinics-repository.ts");
 
   const toIsoDateStart = source.indexOf("function toIsoDate(");
   const toIsoDateEnd = source.indexOf("function serializeClinic(");
@@ -227,12 +227,12 @@ test("toIsoDate acepta Date o string devuelto por raw SQL postgres-js", () => {
 
 /* ============================================================================
  * Contrato global: clínica registrada debe poder iniciar sesión por username
- * o por contact_email. Tests source-only sobre server/db-admin-clinics.ts y
+ * o por contact_email. Tests source-only sobre el repository canónico de Clinics y
  * server/db.ts. No tocan DB, no exponen secretos, no validan frontend.
  * ========================================================================== */
 
 test("createAdminClinicWithUser persiste contact_email aplicando trim al input", () => {
-  const source = read("server/db-admin-clinics.ts");
+  const source = read("server/features/clinics/infrastructure/admin-clinics-repository.ts");
 
   const fnStart = source.indexOf(
     "export async function createAdminClinicWithUser(",
@@ -257,7 +257,7 @@ test("createAdminClinicWithUser persiste contact_email aplicando trim al input",
 });
 
 test("createAdminClinicWithUser asocia el clinic_user creado al clinic recién insertado vía clinicId", () => {
-  const source = read("server/db-admin-clinics.ts");
+  const source = read("server/features/clinics/infrastructure/admin-clinics-repository.ts");
 
   const fnStart = source.indexOf(
     "export async function createAdminClinicWithUser(",
@@ -280,7 +280,7 @@ test("createAdminClinicWithUser asocia el clinic_user creado al clinic recién i
 });
 
 test("createAdminClinicWithUser persiste username trim y role del input en clinic_user", () => {
-  const source = read("server/db-admin-clinics.ts");
+  const source = read("server/features/clinics/infrastructure/admin-clinics-repository.ts");
 
   const fnStart = source.indexOf(
     "export async function createAdminClinicWithUser(",
