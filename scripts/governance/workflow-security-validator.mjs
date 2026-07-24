@@ -495,7 +495,7 @@ export function evaluateWorkflowSecurity({ rootDir = process.cwd(), workflowPath
     validateWorkflowDocument({ document, workflow, report });
   }
 
-  report.details.push(`Parsed ${workflows.length} workflow file(s) with js-yaml 5.2.1.`);
+  report.details.push(`Parsed ${workflows.length} workflow file(s) with js-yaml 5.2.2.`);
   report.details.push(
     `Applied maxDepth=${MAX_YAML_DEPTH}, maxTotalMergeKeys=${MAX_TOTAL_MERGE_KEYS} and maxAliases=0.`,
   );
