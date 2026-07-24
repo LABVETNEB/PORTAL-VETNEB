@@ -12,11 +12,7 @@ const domainIndexFile = `${featureDir}/domain/index.ts`;
 const routeFactories = new Map<string, readonly string[]>([
   [
     "server/routes/study-tracking.fastify.ts",
-    [
-      "createClinicStudyTrackingQueryUseCases",
-      "createClinicStudyTrackingCommandUseCases",
-      "createStudyTrackingSideEffectUseCases",
-    ],
+    ["createClinicStudyTrackingOperations"],
   ],
   [
     "server/routes/admin-study-tracking.fastify.ts",
@@ -28,10 +24,7 @@ const routeFactories = new Map<string, readonly string[]>([
   ],
   [
     "server/routes/particular-study-tracking.fastify.ts",
-    [
-      "createParticularStudyTrackingQueryUseCases",
-      "createParticularStudyTrackingCommandUseCases",
-    ],
+    ["createParticularStudyTrackingOperations"],
   ],
 ]);
 
@@ -113,12 +106,15 @@ function resolveSpecifier(file: string, specifier: string): string {
   return existsSync(join(repoRoot, indexFile)) ? indexFile : resolved;
 }
 
-test("M31 crea application, ports y barrel canónicos", () => {
+test("M32 conserva application canónica y agrega operaciones por realm", () => {
   const expectedFiles = [
     `${applicationDir}/index.ts`,
+    `${applicationDir}/clinic-study-tracking-operations.ts`,
+    `${applicationDir}/particular-study-tracking-operations.ts`,
     `${applicationDir}/study-tracking-query-use-cases.ts`,
     `${applicationDir}/study-tracking-command-use-cases.ts`,
     `${applicationDir}/study-tracking-side-effect-use-cases.ts`,
+    `${applicationDir}/ports/clinic-study-tracking-reference-repository.ts`,
     `${applicationDir}/ports/study-tracking-query-repository.ts`,
     `${applicationDir}/ports/study-tracking-command-repository.ts`,
     `${applicationDir}/ports/study-tracking-notification-port.ts`,
@@ -214,8 +210,43 @@ test("las rutas consumen sólo el barrel application y componen cada factory una
   }
 });
 
+test("las operaciones por realm componen los use cases M31 una sola vez", () => {
+  const expectedFactories = new Map<string, readonly string[]>([
+    [
+      `${applicationDir}/clinic-study-tracking-operations.ts`,
+      [
+        "createClinicStudyTrackingQueryUseCases",
+        "createClinicStudyTrackingCommandUseCases",
+        "createStudyTrackingSideEffectUseCases",
+      ],
+    ],
+    [
+      `${applicationDir}/particular-study-tracking-operations.ts`,
+      [
+        "createParticularStudyTrackingQueryUseCases",
+        "createParticularStudyTrackingCommandUseCases",
+      ],
+    ],
+  ]);
+
+  for (const [file, factories] of expectedFactories) {
+    const source = readText(file);
+
+    for (const factory of factories) {
+      assert.equal(
+        source.match(new RegExp(`\\b${factory}\\s*\\(`, "g"))?.length ?? 0,
+        1,
+        `${file}: ${factory}`,
+      );
+    }
+  }
+});
+
 test("email y auditoría se portan sólo en clínica y admin", () => {
   const clinicSource = readText("server/routes/study-tracking.fastify.ts");
+  const clinicOperationsSource = readText(
+    `${applicationDir}/clinic-study-tracking-operations.ts`,
+  );
   const adminSource = readText("server/routes/admin-study-tracking.fastify.ts");
   const particularSource = readText(
     "server/routes/particular-study-tracking.fastify.ts",
@@ -229,6 +260,15 @@ test("email y auditoría se portan sólo en clínica y admin", () => {
     assert.match(source, /audit:\s*\{\s*writeAuditLog:/s);
   }
 
+  assert.match(
+    clinicOperationsSource,
+    /createStudyTrackingSideEffectUseCases/,
+  );
+  assert.match(
+    clinicOperationsSource,
+    /sendSpecialStainRequiredEmail/,
+  );
+  assert.match(clinicOperationsSource, /writeAuditLog/);
   assert.equal(
     particularSource.includes("createStudyTrackingSideEffectUseCases"),
     false,

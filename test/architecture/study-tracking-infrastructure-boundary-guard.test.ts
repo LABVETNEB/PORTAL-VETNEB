@@ -9,11 +9,16 @@ const infrastructureDir = `${featureDir}/infrastructure`;
 const repositoryFile = `${infrastructureDir}/study-tracking-repository.ts`;
 const infrastructureIndexFile = `${infrastructureDir}/index.ts`;
 const legacyShimFile = "server/db-study-tracking.ts";
+const routeCompositionFile =
+  "server/features/study-tracking/study-tracking-route-composition.ts";
 
-const runtimeConsumers = [
+const thinRouteConsumers = [
   "server/routes/study-tracking.fastify.ts",
-  "server/routes/admin-study-tracking.fastify.ts",
   "server/routes/particular-study-tracking.fastify.ts",
+] as const;
+
+const legacyRuntimeConsumers = [
+  "server/routes/admin-study-tracking.fastify.ts",
   "server/routes/admin-reports.fastify.ts",
   "server/routes/admin-particular-tokens.fastify.ts",
   "server/routes/particular-tokens.fastify.ts",
@@ -172,8 +177,36 @@ test("queries, filtros, paginación y timestamps permanecen anclados", () => {
   }
 });
 
-test("los consumidores runtime atraviesan el shim y no internals", () => {
-  for (const file of runtimeConsumers) {
+test("las rutas M32 atraviesan una composición feature-level sin tocar persistence", () => {
+  for (const file of thinRouteConsumers) {
+    const targets = listImportSpecifiers(readText(file)).map((specifier) =>
+      resolveSpecifier(file, specifier)
+    );
+
+    assert.ok(targets.includes(routeCompositionFile), file);
+    assert.equal(targets.includes(legacyShimFile), false, file);
+    assert.equal(targets.includes(repositoryFile), false, file);
+    assert.equal(targets.includes(infrastructureIndexFile), false, file);
+  }
+
+  const compositionTargets = listImportSpecifiers(
+    readText(routeCompositionFile),
+  ).map((specifier) => resolveSpecifier(routeCompositionFile, specifier));
+
+  assert.deepEqual([...new Set(compositionTargets)], [
+    infrastructureIndexFile,
+  ]);
+  assert.equal(readText(routeCompositionFile).includes("drizzle-orm"), false);
+  assert.equal(
+    /\b(?:select|insert|update|delete)\s*\(/.test(
+      readText(routeCompositionFile),
+    ),
+    false,
+  );
+});
+
+test("los consumidores no migrados conservan el shim M31", () => {
+  for (const file of legacyRuntimeConsumers) {
     const targets = listImportSpecifiers(readText(file)).map((specifier) =>
       resolveSpecifier(file, specifier)
     );

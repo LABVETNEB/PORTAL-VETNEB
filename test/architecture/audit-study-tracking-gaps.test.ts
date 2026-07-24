@@ -66,16 +66,31 @@ test("audit registry declara eventos dedicados para study tracking", () => {
 });
 
 test("clinic study tracking audita creación de caso y notificación especial", () => {
-  const source = readSource("server/routes/study-tracking.fastify.ts");
+  const routeSource = readSource("server/routes/study-tracking.fastify.ts");
+  const applicationSource = readSource(
+    "server/features/study-tracking/application/clinic-study-tracking-operations.ts",
+  );
 
   assertContainsAll(
-    source,
+    routeSource,
     [
       "writeAuditLog?:",
       "writeAuditLog: audit.writeAuditLog",
       "createAuditRequestLike",
-      "event: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED",
-      "event: AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED",
+      "caseCreated: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED",
+      "notificationCreated:",
+      "AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED",
+      "auditRequest: createAuditRequestLike(request, auth)",
+    ],
+    "clinic study tracking route audit wiring",
+  );
+
+  assertContainsAll(
+    applicationSource,
+    [
+      "await sideEffects.writeAuditLog(input.auditRequest, {",
+      "event: deps.auditEvents.caseCreated",
+      "event: deps.auditEvents.notificationCreated",
       "createdVia: \"clinic\"",
       "trackingCaseId: finalCase.id",
       "notificationId: studyTrackingNotification.id",
@@ -84,11 +99,11 @@ test("clinic study tracking audita creación de caso y notificación especial", 
   );
 
   assertContainsInOrder(
-    source,
+    applicationSource,
     [
-      "const created = await deps.createStudyTrackingCase({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, auth), {",
-      "event: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED",
+      "const created = await commands.createStudyTrackingCase({",
+      "await sideEffects.writeAuditLog(input.auditRequest, {",
+      "event: deps.auditEvents.caseCreated",
     ],
     "clinic case created audit order",
   );

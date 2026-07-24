@@ -10,8 +10,7 @@ import type {
   StudyTrackingNotification,
 } from "../../drizzle/schema.ts";
 import {
-  createParticularStudyTrackingCommandUseCases,
-  createParticularStudyTrackingQueryUseCases,
+  createParticularStudyTrackingOperations,
 } from "../features/study-tracking/application/index.ts";
 import {
   enforceTrustedOriginRequired as enforceTrustedOrigin,
@@ -110,38 +109,24 @@ type NativeParticularStudyTrackingDeps = Required<
   >
 >;
 
-let defaultDepsPromise:
-  | Promise<NativeParticularStudyTrackingDeps>
-  | undefined;
-
 async function loadDefaultDeps(): Promise<NativeParticularStudyTrackingDeps> {
-  if (!defaultDepsPromise) {
-    defaultDepsPromise = (async () => {
-      const dbParticular = await import("../db-particular.ts");
-      const dbStudyTracking = await import("../db-study-tracking.ts");
-      const authSecurity = await import("../lib/auth-security.ts");
+  const dbParticular = await import("../db-particular.ts");
+  const authSecurity = await import("../lib/auth-security.ts");
+  const { loadParticularStudyTrackingPersistence } = await import(
+    "../features/study-tracking/study-tracking-route-composition.ts"
+  );
+  const persistence = await loadParticularStudyTrackingPersistence();
 
-      return {
-        deleteParticularSession: dbParticular.deleteParticularSession,
-        getParticularSessionByToken:
-          dbParticular.getParticularSessionByToken,
-        getParticularTokenById: dbParticular.getParticularTokenById,
-        updateParticularSessionLastAccess:
-          dbParticular.updateParticularSessionLastAccess,
-        hashSessionToken: authSecurity.hashSessionToken,
-        getParticularStudyTrackingCase:
-          dbStudyTracking.getParticularStudyTrackingCase,
-        listStudyTrackingNotifications:
-          dbStudyTracking.listStudyTrackingNotifications,
-        markStudyTrackingNotificationReadScoped:
-          dbStudyTracking.markStudyTrackingNotificationReadScoped,
-        markAllStudyTrackingNotificationsReadScoped:
-          dbStudyTracking.markAllStudyTrackingNotificationsReadScoped,
-      };
-    })();
-  }
-
-  return defaultDepsPromise;
+  return {
+    deleteParticularSession: dbParticular.deleteParticularSession,
+    getParticularSessionByToken:
+      dbParticular.getParticularSessionByToken,
+    getParticularTokenById: dbParticular.getParticularTokenById,
+    updateParticularSessionLastAccess:
+      dbParticular.updateParticularSessionLastAccess,
+    hashSessionToken: authSecurity.hashSessionToken,
+    ...persistence,
+  };
 }
 
 function hasAllInjectedDeps(
@@ -160,9 +145,9 @@ function hasAllInjectedDeps(
   );
 }
 
-async function resolveDeps(
+async function resolveParticularStudyTrackingRuntime(
   options: ParticularStudyTrackingNativeRoutesOptions,
-): Promise<NativeParticularStudyTrackingDeps> {
+) {
   const defaultDeps = hasAllInjectedDeps(options)
     ? undefined
     : await loadDefaultDeps();
@@ -194,23 +179,25 @@ async function resolveDeps(
       defaultDeps!.markAllStudyTrackingNotificationsReadScoped,
   };
 
-  const queryUseCases = createParticularStudyTrackingQueryUseCases({
-    getParticularStudyTrackingCase:
-      nativeDeps.getParticularStudyTrackingCase,
-    listStudyTrackingNotifications:
-      nativeDeps.listStudyTrackingNotifications,
-  });
-  const commandUseCases = createParticularStudyTrackingCommandUseCases({
-    markStudyTrackingNotificationReadScoped:
-      nativeDeps.markStudyTrackingNotificationReadScoped,
-    markAllStudyTrackingNotificationsReadScoped:
-      nativeDeps.markAllStudyTrackingNotificationsReadScoped,
-  });
-
   return {
-    ...nativeDeps,
-    ...queryUseCases,
-    ...commandUseCases,
+    deps: nativeDeps,
+    operations: createParticularStudyTrackingOperations({
+      queryRepository: nativeDeps,
+      commandRepository: nativeDeps,
+    }),
+  };
+}
+
+function createParticularStudyTrackingRuntimeResolver(
+  options: ParticularStudyTrackingNativeRoutesOptions,
+) {
+  let runtimePromise:
+    | ReturnType<typeof resolveParticularStudyTrackingRuntime>
+    | undefined;
+
+  return () => {
+    runtimePromise ??= resolveParticularStudyTrackingRuntime(options);
+    return runtimePromise;
   };
 }
 
@@ -386,6 +373,8 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
 > = async (app, options) => {
   const now = options.now ?? (() => Date.now());
   const allowedOrigins = new Set(getAllowedOrigins());
+  const resolveRuntime =
+    createParticularStudyTrackingRuntimeResolver(options);
 
   app.addHook("onRequest", async (request, reply) => {
     (request as ParticularStudyTrackingFastifyRequest)[REQUEST_TIMER_KEY] =
@@ -446,7 +435,7 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
   app.options("/notifications/read-all", optionsHandler);
 
   app.get("/me", async (request, reply) => {
-    const deps = await resolveDeps(options);
+    const { deps, operations } = await resolveRuntime();
     const particular = await authenticateParticularUser(
       request,
       reply,
@@ -458,7 +447,7 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const trackingCase = await deps.getParticularStudyTrackingCase(
+    const trackingCase = await operations.getParticularStudyTrackingForToken(
       particular.tokenId,
     );
 
@@ -482,7 +471,7 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
       offset?: unknown;
     };
   }>("/notifications", async (request, reply) => {
-    const deps = await resolveDeps(options);
+    const { deps, operations } = await resolveRuntime();
     const particular = await authenticateParticularUser(
       request,
       reply,
@@ -498,12 +487,13 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
     const limit = parsePositiveInt(request.query.limit, 50, 100);
     const offset = parseOffset(request.query.offset, 0);
 
-    const notifications = await deps.listStudyTrackingNotifications({
-      particularTokenId: particular.tokenId,
-      unreadOnly,
-      limit,
-      offset,
-    });
+    const notifications =
+      await operations.listParticularStudyTrackingNotifications({
+        particularTokenId: particular.tokenId,
+        unreadOnly,
+        limit,
+        offset,
+      });
 
     return reply.code(200).send({
       success: true,
@@ -527,7 +517,7 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const deps = await resolveDeps(options);
+    const { deps, operations } = await resolveRuntime();
     const particular = await authenticateParticularUser(
       request,
       reply,
@@ -548,10 +538,11 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const notification = await deps.markStudyTrackingNotificationReadScoped({
-      id: notificationId,
-      particularTokenId: particular.tokenId,
-    });
+    const notification =
+      await operations.acknowledgeParticularStudyTrackingNotification({
+        notificationId,
+        particularTokenId: particular.tokenId,
+      });
 
     if (!notification) {
       return reply.code(404).send({
@@ -571,7 +562,7 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const deps = await resolveDeps(options);
+    const { deps, operations } = await resolveRuntime();
     const particular = await authenticateParticularUser(
       request,
       reply,
@@ -583,9 +574,10 @@ export const particularStudyTrackingNativeRoutes: FastifyPluginAsync<
       return reply;
     }
 
-    const result = await deps.markAllStudyTrackingNotificationsReadScoped({
-      particularTokenId: particular.tokenId,
-    });
+    const result =
+      await operations.acknowledgeAllParticularStudyTrackingNotifications(
+        particular.tokenId,
+      );
 
     return reply.code(200).send({
       success: true,

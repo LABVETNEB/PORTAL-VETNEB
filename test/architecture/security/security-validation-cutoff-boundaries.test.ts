@@ -282,6 +282,9 @@ test("admin report upload validates clinicId before storage upload upsert signed
 
 test("clinic study tracking create validates body before linked lookups writes notifications and audit", () => {
   const source = readSource("server/routes/study-tracking.fastify.ts");
+  const applicationSource = readSource(
+    "server/features/study-tracking/application/clinic-study-tracking-operations.ts",
+  );
   const createRoute = sliceFrom(
     source,
     'app.post<{\n    Body: {\n      reportId?: unknown;',
@@ -294,16 +297,24 @@ test("clinic study tracking create validates body before linked lookups writes n
       "const parsed = clinicCreateStudyTrackingSchema.safeParse(request.body);",
       "if (!parsed.success) {",
       "return reply.code(400).send({",
-      "const clinic = await deps.getClinicById(auth.clinicId);",
-      'if (typeof parsed.data.reportId === "number") {',
-      "const report = await deps.getClinicScopedReportById(",
-      'if (typeof parsed.data.particularTokenId === "number") {',
-      "const particularToken = await deps.getParticularTokenById(",
-      "const delivery = applyEstimatedDeliveryRules({",
-      "const created = await deps.createStudyTrackingCase({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, auth), {",
+      "const result = await clinicOperations.createClinicStudyTrackingCase({",
     ],
-    "clinic study tracking create validation cut-off",
+    "clinic study tracking route validation cut-off",
+  );
+
+  assertContainsInOrder(
+    applicationSource,
+    [
+      "const clinic = await deps.referenceRepository.getClinicById(",
+      'if (typeof input.data.reportId === "number") {',
+      "await deps.referenceRepository.getClinicScopedReportById(",
+      'if (typeof input.data.particularTokenId === "number") {',
+      "await deps.referenceRepository.getParticularTokenById(",
+      "const delivery = applyEstimatedDeliveryRules({",
+      "const created = await commands.createStudyTrackingCase({",
+      "await sideEffects.writeAuditLog(input.auditRequest, {",
+    ],
+    "clinic study tracking application validation cut-off",
   );
 });
 
