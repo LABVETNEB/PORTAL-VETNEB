@@ -25,9 +25,9 @@ const SECURITY_OVERRIDE_LINES = [
   '  "fast-uri@>=4.0.0 <4.1.1": "4.1.1"',
   '  "find-my-way@<=9.6.0": "9.7.0"',
   '  "sharp@<0.35.0": "0.35.3"',
-  '  "postcss@<8.5.10": "8.5.14"',
+  '  "postcss@<=8.5.17": "8.5.19"',
   '  "ws@>=8.0.0 <8.20.1": "8.20.1"',
-  '  js-yaml: "5.2.1"',
+  '  "js-yaml@<=5.2.1": "5.2.2"',
 ] as const;
 
 function readTextFile(...segments: string[]): string {
