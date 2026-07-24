@@ -161,30 +161,23 @@ test("los seis consumidores runtime usan únicamente el barrel canónico", () =>
   assert.deepEqual(violations, []);
 });
 
-test("los shims legacy son reexports mínimos de una línea al barrel", () => {
+test("M35 retira los shims legacy de dominio sin consumidores", () => {
   for (const file of legacyShimFiles) {
-    assert.equal(existsSync(join(repoRoot, file)), true, `${file} debe existir`);
-    assert.equal(
-      readText(file).trim(),
-      'export * from "../features/study-tracking/domain/index.ts";',
-      `${file} sólo puede reexportar el barrel canónico`,
-    );
+    assert.equal(existsSync(join(repoRoot, file)), false, `${file} debe estar ausente`);
   }
 });
 
-test("ningún consumidor runtime usa los shims legacy", () => {
+test("ningún consumidor global usa los shims legacy retirados", () => {
   const violations: string[] = [];
 
-  for (const file of walkTsFiles("server")) {
-    if (legacyShimFiles.includes(file as (typeof legacyShimFiles)[number])) {
-      continue;
-    }
+  for (const root of ["server", "test"] as const) {
+    for (const file of walkTsFiles(root)) {
+      for (const { specifier } of listImportReferences(readText(file))) {
+        const target = resolveSpecifier(file, specifier);
 
-    for (const { specifier } of listImportReferences(readText(file))) {
-      const target = resolveSpecifier(file, specifier);
-
-      if (legacyShimFiles.includes(target as (typeof legacyShimFiles)[number])) {
-        violations.push(`${file}: import legacy "${specifier}" -> ${target}`);
+        if (legacyShimFiles.includes(target as (typeof legacyShimFiles)[number])) {
+          violations.push(`${file}: import legacy "${specifier}" -> ${target}`);
+        }
       }
     }
   }

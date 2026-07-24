@@ -141,6 +141,14 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
           "M32 clinic y particular permanecen byte-identical durante M32b",
         ],
       },
+      {
+        path: "test/architecture/study-tracking-phase-closeout.test.ts",
+        markers: [
+          "M35 congela el inventario exacto de Study Tracking",
+          "M35 conserva el shim DB de una linea con allowlist externa exacta",
+          "los tres realms quedan separados con evidencia runtime",
+        ],
+      },
     ],
     runtimeAnchors: [
       {
@@ -512,6 +520,7 @@ test("study tracking suite registers canonical guardrail files", () => {
     "study-tracking-application-boundary-guard.test.ts",
     "study-tracking-infrastructure-boundary-guard.test.ts",
     "study-tracking-clinic-particular-thin-routes.test.ts",
+    "study-tracking-phase-closeout.test.ts",
     "study-tracking.fastify.test.ts",
     "admin-study-tracking.fastify.test.ts",
     "particular-study-tracking.fastify.test.ts",

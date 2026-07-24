@@ -145,6 +145,49 @@ test("particularStudyTrackingNativeRoutes expone GET /me con seguimiento del tok
   }
 });
 
+test("particularStudyTrackingNativeRoutes ignora selectores de input y usa el token autenticado", async () => {
+  const calls: number[] = [];
+  const app = await createTestApp({
+    getParticularStudyTrackingCase: async (particularTokenId: number) => {
+      calls.push(particularTokenId);
+      return createTrackingCaseFixture();
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/particular/study-tracking/me?particularTokenId=999&clinicId=999",
+      headers: {
+        cookie: `${ENV.particularCookieName}=particular-session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(calls, [7]);
+  } finally {
+    await app.close();
+  }
+});
+
+test("particularStudyTrackingNativeRoutes no acepta sesiones admin o clínica como particular", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/particular/study-tracking/me",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session; ${ENV.cookieName}=clinic-session`,
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+  } finally {
+    await app.close();
+  }
+});
+
 test("particularStudyTrackingNativeRoutes no permite modificar labReceivedAt", async () => {
   const app = await createTestApp();
 

@@ -382,6 +382,32 @@ const CROSS_TENANT_IDOR_CONTRACTS: readonly CrossTenantIdorContract[] = [
     ],
     productionReadinessStatus: "pending_runtime_staging_evidence",
   },
+  {
+    id: "CTIDOR-017",
+    actor: "clinic_or_particular_session",
+    resource: "study_tracking_cases_and_notifications",
+    operation:
+      "clinic and particular actors must derive scope from their authenticated realm and must not read or acknowledge foreign tracking resources",
+    requiredOwnerKey: "auth.clinicId_or_particularTokenId",
+    expectedFailure: {
+      status: 404,
+      noDisclosure: true,
+      reason: "hidden_cross_tenant_study_tracking_resource",
+    },
+    protectedSurface: "server/routes/study-tracking.fastify.ts",
+    runtimeEvidence: [
+      "staging clinic and particular probes with foreign tracking and notification identifiers",
+      "verify foreign selectors never replace the authenticated clinic or particular token",
+    ],
+    requiredTestEvidence: [
+      "test/integration/adapters/controllers/study-tracking.fastify.test.ts",
+      "test/integration/adapters/controllers/particular-study-tracking.fastify.test.ts",
+      "test/integration/adapters/controllers/admin-study-tracking.fastify.test.ts",
+      "test/unit/application/study-tracking/clinic-study-tracking-operations.test.ts",
+      "test/unit/application/study-tracking/particular-study-tracking-operations.test.ts",
+    ],
+    productionReadinessStatus: "pending_runtime_staging_evidence",
+  },
 ] as const;
 
 function readSource(relativePath: string): string {
@@ -402,7 +428,7 @@ test("cross-tenant IDOR contract matrix has unique IDs", () => {
   const ids = CROSS_TENANT_IDOR_CONTRACTS.map((contract) => contract.id);
 
   assert.deepEqual(ids, uniqueValues(ids));
-  assert.equal(ids.length >= 16, true);
+  assert.equal(ids.length >= 17, true);
 
   for (const id of ids) {
     assert.match(id, /^CTIDOR-\d{3}$/);
@@ -567,6 +593,62 @@ test("Clinics contract links executable GET PATCH POST and DELETE tenant evidenc
   assert.equal(
     commandService.includes(
       "commands a\u00edslan persistencia publicaci\u00f3n b\u00fasqueda firma y storage de selectores extranjeros",
+    ),
+    true,
+  );
+});
+
+test("Study Tracking contract links executable tenant and cross-realm evidence", () => {
+  const contract = CROSS_TENANT_IDOR_CONTRACTS.find(
+    (candidate) => candidate.id === "CTIDOR-017",
+  );
+
+  assert.ok(contract);
+  assert.deepEqual(contract.requiredTestEvidence, [
+    "test/integration/adapters/controllers/study-tracking.fastify.test.ts",
+    "test/integration/adapters/controllers/particular-study-tracking.fastify.test.ts",
+    "test/integration/adapters/controllers/admin-study-tracking.fastify.test.ts",
+    "test/unit/application/study-tracking/clinic-study-tracking-operations.test.ts",
+    "test/unit/application/study-tracking/particular-study-tracking-operations.test.ts",
+  ]);
+
+  const clinicIntegration = readSource(contract.requiredTestEvidence[0]);
+  const particularIntegration = readSource(contract.requiredTestEvidence[1]);
+  const adminIntegration = readSource(contract.requiredTestEvidence[2]);
+  const clinicOperations = readSource(contract.requiredTestEvidence[3]);
+  const particularOperations = readSource(contract.requiredTestEvidence[4]);
+
+  for (const marker of [
+    "responde 404 gen\u00e9rico en PATCH /notifications/:notificationId/read cross-clinic",
+    "ignora clinicId de input y usa la cl\u00ednica autenticada",
+    "no acepta sesiones admin o particular como cl\u00ednica",
+  ]) {
+    assert.equal(clinicIntegration.includes(marker), true, marker);
+  }
+
+  for (const marker of [
+    "responde 404 gen\u00e9rico en PATCH /notifications/:notificationId/read cross-token",
+    "ignora selectores de input y usa el token autenticado",
+    "no acepta sesiones admin o cl\u00ednica como particular",
+  ]) {
+    assert.equal(particularIntegration.includes(marker), true, marker);
+  }
+
+  assert.equal(
+    adminIntegration.includes(
+      "no acepta sesiones cl\u00ednica o particular como admin",
+    ),
+    true,
+  );
+  assert.equal(
+    clinicOperations.includes(
+      "clinic operations aplican scope y preservan identidad en lecturas y acuses",
+    ),
+    true,
+  );
+  assert.equal(
+    particularOperations.includes(
+      "particular operations derivan todo el scope del token autenticado",
     ),
     true,
   );

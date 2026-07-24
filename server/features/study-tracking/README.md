@@ -1,9 +1,8 @@
 # Study Tracking
 
-Contexto backend abierto en M30 y expandido en M31/M32/M32b como parte de la
-Fase G.
+Bounded context backend cerrado en M35 después de M30, M31, M32 y M32b.
 
-## Estado en M32b
+## Arquitectura final
 
 - `domain/` contiene las reglas existentes de seguimiento de estudios y la
   coordinación pura, con persistencia inyectada, para asegurar el caso asociado
@@ -20,12 +19,18 @@ Fase G.
 - Las rutas clínica, particular y admin ya no importan el shim de persistencia.
   Una composición feature-level mínima selecciona las operaciones canónicas
   sin agregar queries ni lógica.
-- Los otros cuatro consumidores runtime continúan usando el shim.
 - `server/lib/study-tracking.ts` y
-  `server/lib/token-study-tracking.ts` permanecen como shims temporales de una
-  línea. Expiran en M35, después del censo final de Fase G.
-- `server/db-study-tracking.ts` permanece como shim temporal para consumidores
-  que se migrarán con las rutas de sus contextos.
+  `server/lib/token-study-tracking.ts` fueron retirados en M35: el censo
+  textual y AST confirmó cero consumidores ejecutables.
+- `server/db-study-tracking.ts` permanece como shim externo controlado de una
+  línea. Las tres rutas propias no lo consumen y su allowlist residual exacta
+  es:
+
+| Consumidor | Owner | Retiro |
+| --- | --- | --- |
+| `server/routes/admin-particular-tokens.fastify.ts` | Particular Access | M33 |
+| `server/routes/particular-tokens.fastify.ts` | Particular Access | M33 |
+| `server/routes/admin-reports.fastify.ts` | Reports | M36 |
 
 M32 adelgazó únicamente `study-tracking.fastify.ts` y
 `particular-study-tracking.fastify.ts`. M32b adelgaza exclusivamente
@@ -35,5 +40,6 @@ casos, notificaciones, email y auditoría a
 filtro clinic-scoped opcional, CORS, payloads, SQL, schema y migraciones no
 cambian.
 
-M31 está cerrado y M32 quedó cerrado en el PR #1566. M32b está implementado.
-M33 y milestones posteriores no fueron iniciados.
+M30, M31, M32, M32b y M35 están cerrados. Fase G queda cerrada con evidencia
+local ejecutable, runtime de las tres rutas intacto y readiness de staging
+pendiente. No se afirma RLS. El próximo milestone es M33 y no fue iniciado.
