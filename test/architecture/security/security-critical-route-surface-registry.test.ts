@@ -373,7 +373,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         path: "server/routes/study-tracking.fastify.ts",
         markers: [
           "requireStudyTrackingManagementPermission",
-          "deps.createStudyTrackingCase",
+          "clinicOperations.createClinicStudyTrackingCase",
         ],
       },
        {

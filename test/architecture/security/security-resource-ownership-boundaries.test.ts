@@ -139,6 +139,9 @@ test("clinic-owned resources reject cross-clinic reports tokens and tracking cas
   const reportAccessTokens = readSource("server/routes/report-access-tokens.fastify.ts");
   const particularTokens = readSource("server/routes/particular-tokens.fastify.ts");
   const studyTracking = readSource("server/routes/study-tracking.fastify.ts");
+  const studyTrackingApplication = readSource(
+    "server/features/study-tracking/application/clinic-study-tracking-operations.ts",
+  );
 
   assertContains(reports, "getReadClinicScope", "clinic reports query scope");
   assertContains(reports, "scope.clinicId", "clinic reports query scope");
@@ -163,11 +166,11 @@ test("clinic-owned resources reject cross-clinic reports tokens and tracking cas
     "clinic particular token detail ownership",
   );
 
-  assertContains(studyTracking, "getClinicScopedReportById", "clinic study tracking report ownership");
-  assertContains(studyTracking, "particularToken.clinicId !== auth.clinicId", "clinic study tracking token ownership");
+  assertContains(studyTrackingApplication, "getClinicScopedReportById", "clinic study tracking report ownership");
+  assertContains(studyTrackingApplication, "particularToken.clinicId !== input.actor.clinicId", "clinic study tracking token ownership");
   assertMatches(
-    studyTracking,
-    /getClinicScopedStudyTrackingCase\(\s*trackingCaseId,\s*auth\.clinicId/s,
+    studyTrackingApplication,
+    /getClinicScopedStudyTrackingCase\(\s*input\.trackingCaseId,\s*input\.clinicId/s,
     "clinic study tracking case ownership",
   );
   assertContains(studyTracking, "clinicId: auth.clinicId", "clinic study tracking list ownership");
@@ -225,6 +228,9 @@ test("admin-owned linking validates target clinic before binding resources", () 
 test("particular and public surfaces derive ownership from authenticated or raw tokens", () => {
   const particularAudit = readSource("server/routes/particular-audit.fastify.ts");
   const particularStudyTracking = readSource("server/routes/particular-study-tracking.fastify.ts");
+  const particularStudyTrackingApplication = readSource(
+    "server/features/study-tracking/application/particular-study-tracking-operations.ts",
+  );
   const publicReportAccess = readSource("server/routes/public-report-access.fastify.ts");
 
   assertContains(
@@ -240,13 +246,23 @@ test("particular and public surfaces derive ownership from authenticated or raw 
   );
   assertMatches(
     particularStudyTracking,
-    /getParticularStudyTrackingCase\(\s*particular\.tokenId/s,
+    /getParticularStudyTrackingForToken\(\s*particular\.tokenId/s,
     "particular study tracking case ownership",
   );
   assertContains(
     particularStudyTracking,
     "particularTokenId: particular.tokenId",
     "particular study tracking notifications ownership",
+  );
+  assertContains(
+    particularStudyTrackingApplication,
+    "queries.getParticularStudyTrackingCase(particularTokenId)",
+    "particular application case ownership",
+  );
+  assertContains(
+    particularStudyTrackingApplication,
+    "particularTokenId: input.particularTokenId",
+    "particular application notification ownership",
   );
 
   assertContains(

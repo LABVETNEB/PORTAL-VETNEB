@@ -12,6 +12,18 @@ export {
   createParticularStudyTrackingCommandUseCases,
 } from "./study-tracking-command-use-cases.ts";
 export { createStudyTrackingSideEffectUseCases } from "./study-tracking-side-effect-use-cases.ts";
+export {
+  createClinicStudyTrackingOperations,
+  type ClinicStudyTrackingCaseListParams,
+  type ClinicStudyTrackingNotificationListParams,
+  type CreateClinicStudyTrackingCaseData,
+  type CreateClinicStudyTrackingCaseInput,
+  type CreateClinicStudyTrackingCaseResult,
+} from "./clinic-study-tracking-operations.ts";
+export {
+  createParticularStudyTrackingOperations,
+  type ParticularStudyTrackingNotificationListParams,
+} from "./particular-study-tracking-operations.ts";
 export type {
   AdminStudyTrackingQueryRepository,
   ClinicStudyTrackingQueryRepository,
@@ -24,3 +36,4 @@ export type {
 } from "./ports/study-tracking-command-repository.ts";
 export type { StudyTrackingAuditPort } from "./ports/study-tracking-audit-port.ts";
 export type { StudyTrackingNotificationPort } from "./ports/study-tracking-notification-port.ts";
+export type { ClinicStudyTrackingReferenceRepository } from "./ports/clinic-study-tracking-reference-repository.ts";

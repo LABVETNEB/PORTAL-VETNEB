@@ -58,14 +58,18 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     method: "patch",
     path: "/notifications/:notificationId/read",
     authGuard: "authenticateClinicUser",
-    protectedCalls: ["deps.markStudyTrackingNotificationReadScoped"],
+    protectedCalls: [
+      "clinicOperations.acknowledgeClinicStudyTrackingNotification",
+    ],
   },
   {
     file: "server/routes/study-tracking.fastify.ts",
     method: "patch",
     path: "/notifications/read-all",
     authGuard: "authenticateClinicUser",
-    protectedCalls: ["deps.markAllStudyTrackingNotificationsReadScoped"],
+    protectedCalls: [
+      "clinicOperations.acknowledgeAllClinicStudyTrackingNotifications",
+    ],
   },
   {
     file: "server/routes/study-tracking.fastify.ts",
@@ -73,26 +77,25 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     path: "/",
     authGuard: "authenticateClinicUser",
     permissionGuard: "requireStudyTrackingManagementPermission",
-    protectedCalls: [
-      "deps.createStudyTrackingCase",
-      "deps.updateParticularTokenReport",
-      "deps.createStudyTrackingNotification",
-      "deps.updateStudyTrackingCase",
-    ],
+    protectedCalls: ["clinicOperations.createClinicStudyTrackingCase"],
   },
   {
     file: "server/routes/particular-study-tracking.fastify.ts",
     method: "patch",
     path: "/notifications/:notificationId/read",
     authGuard: "authenticateParticularUser",
-    protectedCalls: ["deps.markStudyTrackingNotificationReadScoped"],
+    protectedCalls: [
+      "operations.acknowledgeParticularStudyTrackingNotification",
+    ],
   },
   {
     file: "server/routes/particular-study-tracking.fastify.ts",
     method: "patch",
     path: "/notifications/read-all",
     authGuard: "authenticateParticularUser",
-    protectedCalls: ["deps.markAllStudyTrackingNotificationsReadScoped"],
+    protectedCalls: [
+      "operations.acknowledgeAllParticularStudyTrackingNotifications",
+    ],
   },
   {
     file: "server/routes/clinic-public-profile.fastify.ts",

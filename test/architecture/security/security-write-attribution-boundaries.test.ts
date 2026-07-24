@@ -139,6 +139,9 @@ test("clinic writes persist clinic attribution and audit through clinic context"
   const reportAccessTokens = readSource("server/routes/report-access-tokens.fastify.ts");
   const particularTokens = readSource("server/routes/particular-tokens.fastify.ts");
   const studyTracking = readSource("server/routes/study-tracking.fastify.ts");
+  const studyTrackingApplication = readSource(
+    "server/features/study-tracking/application/clinic-study-tracking-operations.ts",
+  );
   const reportsStatus = readSource("server/routes/reports-status.fastify.ts");
 
   assertContains(reportAccessTokens, "createdByClinicUserId: auth.id", "clinic report access token create attribution");
@@ -152,10 +155,10 @@ test("clinic writes persist clinic attribution and audit through clinic context"
   assertContains(particularTokens, "createdByAdminId: null", "clinic particular token create attribution");
   assertContains(particularTokens, "createdByClinicUserId: auth.id", "clinic particular token create attribution");
 
-  assertContains(studyTracking, "createdByAdminId: null", "clinic study tracking create attribution");
-  assertContains(studyTracking, "createdByClinicUserId: auth.id", "clinic study tracking create attribution");
+  assertContains(studyTrackingApplication, "createdByAdminId: null", "clinic study tracking create attribution");
+  assertContains(studyTrackingApplication, "createdByClinicUserId: input.actor.clinicUserId", "clinic study tracking create attribution");
   assertContains(studyTracking, "createAuditRequestLike(request, auth)", "clinic study tracking audit actor");
-  assertContains(studyTracking, 'createdVia: "clinic"', "clinic study tracking audit metadata");
+  assertContains(studyTrackingApplication, 'createdVia: "clinic"', "clinic study tracking audit metadata");
 
   assertContains(reportsStatus, "changedByClinicUserId: auth.id", "clinic report status attribution");
   assertContains(reportsStatus, "changedByAdminUserId: null", "clinic report status attribution");

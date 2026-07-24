@@ -93,16 +93,19 @@ test("admin routes keep explicit clinic relationships before linking reports tok
 
 test("clinic routes force authenticated clinic relationships and reject cross clinic links", () => {
   const studyTracking = readSource("server/routes/study-tracking.fastify.ts");
+  const studyTrackingApplication = readSource(
+    "server/features/study-tracking/application/clinic-study-tracking-operations.ts",
+  );
   const particularTokens = readSource("server/routes/particular-tokens.fastify.ts");
   const reportAccessTokens = readSource("server/routes/report-access-tokens.fastify.ts");
   const clinicAudit = readSource("server/routes/clinic-audit.fastify.ts");
 
   assertContains(studyTracking, "clinicId: auth.clinicId", "clinic study tracking");
-  assertContains(studyTracking, "getClinicScopedReportById", "clinic study tracking");
-  assertContains(studyTracking, "particularToken.clinicId !== auth.clinicId", "clinic study tracking");
+  assertContains(studyTrackingApplication, "getClinicScopedReportById", "clinic study tracking");
+  assertContains(studyTrackingApplication, "particularToken.clinicId !== input.actor.clinicId", "clinic study tracking");
   assertMatches(
-    studyTracking,
-    /getClinicScopedStudyTrackingCase\(\s*trackingCaseId,\s*auth\.clinicId/s,
+    studyTrackingApplication,
+    /getClinicScopedStudyTrackingCase\(\s*input\.trackingCaseId,\s*input\.clinicId/s,
     "clinic study tracking detail",
   );
 
@@ -148,7 +151,7 @@ test("particular routes force authenticated particular token relationships", () 
 
   assertMatches(
     particularStudyTracking,
-    /getParticularStudyTrackingCase\(\s*particular\.tokenId/s,
+    /getParticularStudyTrackingForToken\(\s*particular\.tokenId/s,
     "particular study tracking detail",
   );
   assertContains(

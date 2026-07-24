@@ -86,6 +86,22 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
         ],
       },
       {
+        path: "test/unit/application/study-tracking/clinic-study-tracking-operations.test.ts",
+        markers: [
+          "createClinicStudyTrackingOperations",
+          "clinic create con",
+          "clinic create propaga por identidad errores de repositorio",
+        ],
+      },
+      {
+        path: "test/unit/application/study-tracking/particular-study-tracking-operations.test.ts",
+        markers: [
+          "createParticularStudyTrackingOperations",
+          "particular operations derivan todo el scope del token autenticado",
+          "particular operations preservan null, undefined",
+        ],
+      },
+      {
         path: "test/architecture/study-tracking-application-boundary-guard.test.ts",
         markers: [
           "const applicationDir",
@@ -101,6 +117,14 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
           "application no depende de infrastructure concreta",
         ],
       },
+      {
+        path: "test/architecture/study-tracking-clinic-particular-thin-routes.test.ts",
+        markers: [
+          "M32 conserva exactamente Options y endpoints",
+          "M32 routes delegan",
+          "M32 deja admin byte-identical y no inicia M32b",
+        ],
+      },
     ],
     runtimeAnchors: [
       {
@@ -110,6 +134,9 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
           "createAdminStudyTrackingCommandUseCases",
           "createParticularStudyTrackingCommandUseCases",
           "createStudyTrackingSideEffectUseCases",
+          "createClinicStudyTrackingOperations",
+          "createParticularStudyTrackingOperations",
+          "ClinicStudyTrackingReferenceRepository",
           "StudyTrackingNotificationPort",
           "StudyTrackingAuditPort",
         ],
@@ -151,13 +178,22 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
           "export const studyTrackingNativeRoutes",
           "requireStudyTrackingManagementPermission",
           "clinicCreateStudyTrackingSchema.safeParse",
-          "applyEstimatedDeliveryRules",
-          "await deps.createStudyTrackingCase({",
-          "await deps.updateParticularTokenReport(",
-          "await deps.createStudyTrackingNotification({",
-          "await notifySpecialStainByEmail(finalCase, deps)",
+          "createClinicStudyTrackingOperations",
+          "clinicOperations.createClinicStudyTrackingCase",
           "AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED",
           "AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED",
+        ],
+      },
+      {
+        path: "server/features/study-tracking/application/clinic-study-tracking-operations.ts",
+        markers: [
+          "applyEstimatedDeliveryRules",
+          "commands.createStudyTrackingCase",
+          "updateParticularTokenReport",
+          "commands.createStudyTrackingNotification",
+          "notifySpecialStainByEmail",
+          "deps.auditEvents.caseCreated",
+          "deps.auditEvents.notificationCreated",
           "createdVia: \"clinic\"",
         ],
       },
@@ -233,13 +269,22 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
           "\"/notifications\"",
           "\"/notifications/:notificationId/read\"",
           "\"/notifications/read-all\"",
-          "getParticularStudyTrackingCase",
-          "listStudyTrackingNotifications",
-          "markStudyTrackingNotificationReadScoped",
-          "markAllStudyTrackingNotificationsReadScoped",
+          "getParticularStudyTrackingForToken",
+          "listParticularStudyTrackingNotifications",
+          "acknowledgeParticularStudyTrackingNotification",
+          "acknowledgeAllParticularStudyTrackingNotifications",
           "particularTokenId: particular.tokenId",
           "serializeStudyTrackingCase",
           "serializeStudyTrackingNotification",
+        ],
+      },
+      {
+        path: "server/features/study-tracking/application/particular-study-tracking-operations.ts",
+        markers: [
+          "queries.getParticularStudyTrackingCase(particularTokenId)",
+          "queries.listStudyTrackingNotifications(input)",
+          "commands.markStudyTrackingNotificationReadScoped",
+          "commands.markAllStudyTrackingNotificationsReadScoped",
         ],
       },
     ],
@@ -280,7 +325,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
         ],
       },
       {
-        path: "server/routes/study-tracking.fastify.ts",
+        path: "server/features/study-tracking/application/clinic-study-tracking-operations.ts",
         markers: ["sendSpecialStainRequiredEmail", "notifySpecialStainByEmail"],
       },
       {
@@ -355,6 +400,10 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
       },
       {
         path: "server/routes/study-tracking.fastify.ts",
+        markers: ["writeAuditLog", "AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED"],
+      },
+      {
+        path: "server/features/study-tracking/application/clinic-study-tracking-operations.ts",
         markers: ["writeAuditLog", "createdVia: \"clinic\""],
       },
       {
@@ -424,8 +473,11 @@ test("study tracking suite registers canonical guardrail files", () => {
     "study-tracking-query-use-cases.test.ts",
     "study-tracking-command-use-cases.test.ts",
     "study-tracking-side-effect-use-cases.test.ts",
+    "clinic-study-tracking-operations.test.ts",
+    "particular-study-tracking-operations.test.ts",
     "study-tracking-application-boundary-guard.test.ts",
     "study-tracking-infrastructure-boundary-guard.test.ts",
+    "study-tracking-clinic-particular-thin-routes.test.ts",
     "study-tracking.fastify.test.ts",
     "admin-study-tracking.fastify.test.ts",
     "particular-study-tracking.fastify.test.ts",
@@ -498,10 +550,10 @@ test("study tracking suite keeps particular surface token-scoped sin create/dele
     "\"/notifications\"",
     "\"/notifications/:notificationId/read\"",
     "\"/notifications/read-all\"",
-    "getParticularStudyTrackingCase",
-    "listStudyTrackingNotifications",
-    "markStudyTrackingNotificationReadScoped",
-    "markAllStudyTrackingNotificationsReadScoped",
+    "getParticularStudyTrackingForToken",
+    "listParticularStudyTrackingNotifications",
+    "acknowledgeParticularStudyTrackingNotification",
+    "acknowledgeAllParticularStudyTrackingNotifications",
   ]) {
     assertContains(source, requiredMarker, "particular study tracking read surface");
   }
