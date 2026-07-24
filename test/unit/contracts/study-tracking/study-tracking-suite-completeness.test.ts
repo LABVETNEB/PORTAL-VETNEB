@@ -57,6 +57,75 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
     ],
   },
   {
+    slug: "study-tracking-application-infrastructure",
+    purpose:
+      "Study tracking application use cases, real side-effect ports and canonical persistence keep their boundaries and one-delegation contracts explicit.",
+    testFiles: [
+      {
+        path: "test/unit/application/study-tracking/study-tracking-query-use-cases.test.ts",
+        markers: [
+          "createClinicStudyTrackingQueryUseCases",
+          "createAdminStudyTrackingQueryUseCases",
+          "createParticularStudyTrackingQueryUseCases",
+        ],
+      },
+      {
+        path: "test/unit/application/study-tracking/study-tracking-command-use-cases.test.ts",
+        markers: [
+          "createClinicStudyTrackingCommandUseCases",
+          "createAdminStudyTrackingCommandUseCases",
+          "createParticularStudyTrackingCommandUseCases",
+        ],
+      },
+      {
+        path: "test/unit/application/study-tracking/study-tracking-side-effect-use-cases.test.ts",
+        markers: [
+          "createStudyTrackingSideEffectUseCases",
+          "sendSpecialStainRequiredEmail",
+          "writeAuditLog",
+        ],
+      },
+      {
+        path: "test/architecture/study-tracking-application-boundary-guard.test.ts",
+        markers: [
+          "const applicationDir",
+          "createStudyTrackingSideEffectUseCases",
+          "fuera de application nadie importa archivos internos",
+        ],
+      },
+      {
+        path: "test/architecture/study-tracking-infrastructure-boundary-guard.test.ts",
+        markers: [
+          "study-tracking-repository.ts",
+          "server/db-study-tracking.ts",
+          "application no depende de infrastructure concreta",
+        ],
+      },
+    ],
+    runtimeAnchors: [
+      {
+        path: "server/features/study-tracking/application/index.ts",
+        markers: [
+          "createClinicStudyTrackingQueryUseCases",
+          "createAdminStudyTrackingCommandUseCases",
+          "createParticularStudyTrackingCommandUseCases",
+          "createStudyTrackingSideEffectUseCases",
+          "StudyTrackingNotificationPort",
+          "StudyTrackingAuditPort",
+        ],
+      },
+      {
+        path: "server/features/study-tracking/infrastructure/study-tracking-repository.ts",
+        markers: [
+          "export async function createStudyTrackingCase",
+          "export async function listStudyTrackingCases",
+          "export async function listStudyTrackingNotifications",
+          "export async function markStudyTrackingNotificationReadScoped",
+        ],
+      },
+    ],
+  },
+  {
     slug: "clinic-study-tracking-routes",
     purpose:
       "Clinic study tracking routes keep authenticated clinic scope, management permission, links, notifications, email and audit writes.",
@@ -329,6 +398,7 @@ test("study tracking suite completeness registry keeps canonical order", () => {
 
   assert.deepEqual(slugs, [
     "study-tracking-domain-helpers",
+    "study-tracking-application-infrastructure",
     "clinic-study-tracking-routes",
     "admin-study-tracking-routes",
     "particular-study-tracking-read-surface",
@@ -351,6 +421,11 @@ test("study tracking suite registers canonical guardrail files", () => {
 
   for (const requiredFile of [
     "study-tracking.test.ts",
+    "study-tracking-query-use-cases.test.ts",
+    "study-tracking-command-use-cases.test.ts",
+    "study-tracking-side-effect-use-cases.test.ts",
+    "study-tracking-application-boundary-guard.test.ts",
+    "study-tracking-infrastructure-boundary-guard.test.ts",
     "study-tracking.fastify.test.ts",
     "admin-study-tracking.fastify.test.ts",
     "particular-study-tracking.fastify.test.ts",

@@ -308,7 +308,23 @@ test("token-study-tracking conserva persistencia inyectada y dependencia domain 
   assert.doesNotMatch(source, /from\s+["'][^"']*db-study-tracking/);
 });
 
-test("M30 no crea application ni infrastructure", () => {
-  assert.equal(existsSync(join(repoRoot, applicationDir)), false);
-  assert.equal(existsSync(join(repoRoot, infrastructureDir)), false);
+test("M31 agrega application e infrastructure sin contaminar domain", () => {
+  assert.equal(existsSync(join(repoRoot, applicationDir)), true);
+  assert.equal(existsSync(join(repoRoot, infrastructureDir)), true);
+
+  for (const file of walkTsFiles(domainDir)) {
+    const targets = listImportReferences(readText(file)).map(({ specifier }) =>
+      resolveSpecifier(file, specifier)
+    );
+
+    assert.equal(
+      targets.some(
+        (target) =>
+          target.startsWith(`${applicationDir}/`) ||
+          target.startsWith(`${infrastructureDir}/`),
+      ),
+      false,
+      file,
+    );
+  }
 });
