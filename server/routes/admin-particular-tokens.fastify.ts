@@ -37,7 +37,7 @@ import {
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
 import { getSafeEmailTransportErrorMetadata } from "../lib/email.ts";
-import { ensureStudyTrackingCaseForToken } from "../lib/token-study-tracking.ts";
+import { ensureStudyTrackingCaseForToken } from "../features/study-tracking/domain/index.ts";
 
 type AdminUserRecord = {
   id: number;

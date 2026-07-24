@@ -36,7 +36,7 @@ import {
 } from "../lib/runtime-timing.ts";
 import { shouldRefreshSessionLastAccess } from "../lib/session-last-access.ts";
 import { getSafeEmailTransportErrorMetadata } from "../lib/email.ts";
-import { ensureStudyTrackingCaseForToken } from "../lib/token-study-tracking.ts";
+import { ensureStudyTrackingCaseForToken } from "../features/study-tracking/domain/index.ts";
 
 type ClinicUserRecord = {
   id: number;
