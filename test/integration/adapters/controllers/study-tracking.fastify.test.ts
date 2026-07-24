@@ -17,7 +17,7 @@ const {
   calculateEstimatedDeliveryAt,
   getBusinessDayWeight,
   isArgentinaNationalHoliday,
-} = await import("../../../../server/lib/study-tracking.ts");
+} = await import("../../../../server/features/study-tracking/domain/index.ts");
 
 function createTrackingCaseFixture(overrides: Record<string, unknown> = {}) {
   return {

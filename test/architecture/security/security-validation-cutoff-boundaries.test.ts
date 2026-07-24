@@ -408,7 +408,7 @@ test("numeric id helpers reject invalid identifiers instead of defaulting sensit
   for (const file of [
     "server/lib/report-access-token.ts",
     "server/lib/particular-token.ts",
-    "server/lib/study-tracking.ts",
+    "server/features/study-tracking/domain/study-tracking.ts",
   ] as const) {
     const source = readSource(file);
     const parseEntityId = extractFunctionBlock(

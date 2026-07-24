@@ -32,7 +32,7 @@ import {
   serializeStudyTrackingNotification,
   shouldCreateSpecialStainNotification,
   updateStudyTrackingSchema,
-} from "../lib/study-tracking.ts";
+} from "../features/study-tracking/domain/index.ts";
 import {
   buildRequestLogLine,
   sanitizeUrlForLogs,

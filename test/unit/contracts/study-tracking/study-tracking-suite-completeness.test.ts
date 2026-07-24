@@ -40,7 +40,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
     ],
     runtimeAnchors: [
       {
-        path: "server/lib/study-tracking.ts",
+        path: "server/features/study-tracking/domain/study-tracking.ts",
         markers: [
           "export const STUDY_TRACKING_STAGES",
           "export const adminCreateStudyTrackingSchema",

@@ -28,7 +28,7 @@ import {
   parsePositiveInt,
   serializeStudyTrackingCase,
   serializeStudyTrackingNotification,
-} from "../lib/study-tracking.ts";
+} from "../features/study-tracking/domain/index.ts";
 import {
   getClinicPermissions,
   normalizeClinicUserRole,
