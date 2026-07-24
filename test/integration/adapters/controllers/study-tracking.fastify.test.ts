@@ -554,3 +554,48 @@ test("studyTrackingNativeRoutes expone GET /:trackingCaseId con detalle", async 
     await app.close();
   }
 });
+
+test("studyTrackingNativeRoutes ignora clinicId de input y usa la clínica autenticada", async () => {
+  const calls: Array<Record<string, unknown>> = [];
+  const app = await createTestApp({
+    listStudyTrackingCases: async (params: Record<string, unknown>) => {
+      calls.push(params);
+      return [createTrackingCaseFixture()];
+    },
+  });
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/study-tracking?clinicId=999&limit=5&offset=2",
+      headers: {
+        cookie: `${ENV.cookieName}=session-token`,
+      },
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.clinicId, 3);
+    assert.equal(JSON.stringify(calls).includes("999"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("studyTrackingNativeRoutes no acepta sesiones admin o particular como clínica", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/study-tracking",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session; ${ENV.particularCookieName}=particular-session`,
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+  } finally {
+    await app.close();
+  }
+});

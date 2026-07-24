@@ -205,6 +205,24 @@ test("adminStudyTrackingNativeRoutes preserva OPTIONS y CORS en toda la superfic
   }
 });
 
+test("adminStudyTrackingNativeRoutes no acepta sesiones clínica o particular como admin", async () => {
+  const app = await createTestApp();
+
+  try {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/study-tracking",
+      headers: {
+        cookie: `${ENV.cookieName}=clinic-session; ${ENV.particularCookieName}=particular-session`,
+      },
+    });
+
+    assert.equal(response.statusCode, 401);
+  } finally {
+    await app.close();
+  }
+});
+
 test("adminStudyTrackingNativeRoutes conserva auth ausente inválida y expirada con clear-cookie", async () => {
   const missingApp = await createTestApp();
   const invalidApp = await createTestApp({
