@@ -20,8 +20,6 @@ const thinRouteConsumers = [
 
 const legacyRuntimeConsumers = [
   "server/routes/admin-reports.fastify.ts",
-  "server/routes/admin-particular-tokens.fastify.ts",
-  "server/routes/particular-tokens.fastify.ts",
 ] as const;
 
 const publicFunctions = [
@@ -205,7 +203,7 @@ test("las rutas M32/M32b atraviesan una composición feature-level sin tocar per
   );
 });
 
-test("los consumidores no migrados conservan el shim M31", () => {
+test("el consumidor residual Reports conserva el shim M31", () => {
   for (const file of legacyRuntimeConsumers) {
     const targets = listImportSpecifiers(readText(file)).map((specifier) =>
       resolveSpecifier(file, specifier)

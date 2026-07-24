@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ParticularToken, Report } from "../../drizzle/schema.ts";
+import { hasLinkedParticularReport } from "../features/particular-access/domain/index.ts";
 import { serializeSafeReport } from "./reports.ts";
 
 const requiredText = (max: number, label: string) =>
@@ -118,7 +119,7 @@ export function serializeParticularToken(token: ParticularToken) {
     updatedAt: token.updatedAt,
     createdByAdminId: token.createdByAdminId,
     createdByClinicUserId: token.createdByClinicUserId,
-    hasLinkedReport: typeof token.reportId === "number",
+    hasLinkedReport: hasLinkedParticularReport(token.reportId),
   };
 }
 

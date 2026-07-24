@@ -116,6 +116,9 @@ test("write attribution matrix documents admin clinic particular and public toke
 test("admin writes persist admin attribution and audit through admin context", () => {
   const adminReportAccessTokens = readSource("server/routes/admin-report-access-tokens.fastify.ts");
   const adminParticularTokens = readSource("server/routes/admin-particular-tokens.fastify.ts");
+  const adminParticularTokensApplication = readSource(
+    "server/features/particular-access/application/admin-particular-access-operations.ts",
+  );
   const adminStudyTracking = readSource("server/routes/admin-study-tracking.fastify.ts");
   const adminStudyTrackingApplication = readSource(
     "server/features/study-tracking/application/admin-study-tracking-operations.ts",
@@ -129,8 +132,8 @@ test("admin writes persist admin attribution and audit through admin context", (
   assertContains(adminReportAccessTokens, 'createdVia: "admin"', "admin report access token audit metadata");
   assertContains(adminReportAccessTokens, 'revokedVia: "admin"', "admin report access token audit metadata");
 
-  assertContains(adminParticularTokens, "createdByAdminId: admin.id", "admin particular token create attribution");
-  assertContains(adminParticularTokens, "createdByClinicUserId: null", "admin particular token create attribution");
+  assertContains(adminParticularTokensApplication, "createdByAdminId: adminId", "admin particular token create attribution");
+  assertContains(adminParticularTokensApplication, "createdByClinicUserId: null", "admin particular token create attribution");
 
   assertContains(adminStudyTrackingApplication, "createdByAdminId: input.actor.adminId", "admin study tracking create attribution");
   assertContains(adminStudyTrackingApplication, "createdByClinicUserId: null", "admin study tracking create attribution");
@@ -141,6 +144,9 @@ test("admin writes persist admin attribution and audit through admin context", (
 test("clinic writes persist clinic attribution and audit through clinic context", () => {
   const reportAccessTokens = readSource("server/routes/report-access-tokens.fastify.ts");
   const particularTokens = readSource("server/routes/particular-tokens.fastify.ts");
+  const particularTokensApplication = readSource(
+    "server/features/particular-access/application/clinic-particular-access-operations.ts",
+  );
   const studyTracking = readSource("server/routes/study-tracking.fastify.ts");
   const studyTrackingApplication = readSource(
     "server/features/study-tracking/application/clinic-study-tracking-operations.ts",
@@ -155,8 +161,8 @@ test("clinic writes persist clinic attribution and audit through clinic context"
   assertContains(reportAccessTokens, 'createdVia: "clinic"', "clinic report access token audit metadata");
   assertContains(reportAccessTokens, 'revokedVia: "clinic"', "clinic report access token audit metadata");
 
-  assertContains(particularTokens, "createdByAdminId: null", "clinic particular token create attribution");
-  assertContains(particularTokens, "createdByClinicUserId: auth.id", "clinic particular token create attribution");
+  assertContains(particularTokensApplication, "createdByAdminId: null", "clinic particular token create attribution");
+  assertContains(particularTokensApplication, "createdByClinicUserId: actor.clinicUserId", "clinic particular token create attribution");
 
   assertContains(studyTrackingApplication, "createdByAdminId: null", "clinic study tracking create attribution");
   assertContains(studyTrackingApplication, "createdByClinicUserId: input.actor.clinicUserId", "clinic study tracking create attribution");

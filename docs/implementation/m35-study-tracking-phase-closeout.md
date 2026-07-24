@@ -53,11 +53,10 @@ Allowlist residual exacta:
 
 | Consumidor | Owner | Milestone de retiro |
 | --- | --- | --- |
-| `server/routes/admin-particular-tokens.fastify.ts` | Particular Access | M33 |
-| `server/routes/particular-tokens.fastify.ts` | Particular Access | M33 |
 | `server/routes/admin-reports.fastify.ts` | Reports | M36 |
 
-No existe un cuarto consumidor. Las tres rutas propias de Study Tracking tienen
+M33 retiró los dos consumidores Particular Access registrados al cierre M35.
+No existe un segundo consumidor residual. Las tres rutas propias de Study Tracking tienen
 cero imports del shim y cero imports directos de infrastructure.
 
 La afirmación de cierre es: cero imports legacy dentro de las superficies
@@ -244,7 +243,8 @@ workflows y configuración productiva.
 
 ## Riesgos, rollback y readiness
 
-- Riesgo residual: el shim DB sigue siendo dependencia externa hasta M33/M36.
+- Riesgo residual: tras M33, el shim DB sigue siendo dependencia externa de
+  Reports hasta M36.
   Mitigación: contenido exacto y allowlist default-deny.
 - Riesgo residual: aislamiento multi-tenant depende de aplicación, no de RLS.
   Mitigación: integración por realm, operations unitarias, ownership y
@@ -281,6 +281,6 @@ porque el diff no modifica esos dominios.
 
 ## Estado final
 
-Fase G queda cerrada por evidencia local ejecutable. El cierre remoto se
-completa con el PR M35 y sus checks. El siguiente milestone es M33, no iniciado.
-M35 no afirma merge.
+Fase G quedó cerrada por evidencia local ejecutable. M33 actualiza únicamente
+la allowlist residual: Particular Access ya no consume el shim y Reports/M36
+permanece pendiente. M35 no afirma merge.

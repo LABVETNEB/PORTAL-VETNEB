@@ -9,8 +9,8 @@ Bounded context backend cerrado en M35 después de M30, M31, M32 y M32b.
   a un token particular.
 - La API pública del dominio es
   `server/features/study-tracking/domain/index.ts`.
-- `application/` conserva los casos de uso M31 y agrega operaciones cohesivas
-  de alto nivel para las superficies clínica, particular y admin.
+- `application/` conserva los casos de uso M31, agrega operaciones cohesivas
+  por realm y expone la operación token-scoped consumida por Particular Access.
 - Los únicos side effects formalizados son email de tinción especial y
   auditoría, mediante puertos. La operación clínica coordina su política y
   orden observable; la ruta sólo aporta dependencias concretas y contexto.
@@ -23,13 +23,12 @@ Bounded context backend cerrado en M35 después de M30, M31, M32 y M32b.
   `server/lib/token-study-tracking.ts` fueron retirados en M35: el censo
   textual y AST confirmó cero consumidores ejecutables.
 - `server/db-study-tracking.ts` permanece como shim externo controlado de una
-  línea. Las tres rutas propias no lo consumen y su allowlist residual exacta
+  línea. Las tres rutas propias no lo consumen y, tras M33, su allowlist
+  residual exacta
   es:
 
 | Consumidor | Owner | Retiro |
 | --- | --- | --- |
-| `server/routes/admin-particular-tokens.fastify.ts` | Particular Access | M33 |
-| `server/routes/particular-tokens.fastify.ts` | Particular Access | M33 |
 | `server/routes/admin-reports.fastify.ts` | Reports | M36 |
 
 M32 adelgazó únicamente `study-tracking.fastify.ts` y
@@ -40,6 +39,6 @@ casos, notificaciones, email y auditoría a
 filtro clinic-scoped opcional, CORS, payloads, SQL, schema y migraciones no
 cambian.
 
-M30, M31, M32, M32b y M35 están cerrados. Fase G queda cerrada con evidencia
-local ejecutable, runtime de las tres rutas intacto y readiness de staging
-pendiente. No se afirma RLS. El próximo milestone es M33 y no fue iniciado.
+M30, M31, M32, M32b y M35 están cerrados. M33 retiró los dos consumidores de
+Particular Access mediante composition y el barrel application canónico. No se
+afirma RLS; Reports continúa pendiente para M36.

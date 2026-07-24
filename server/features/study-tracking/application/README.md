@@ -18,6 +18,9 @@ nivel:
   acknowledgements, validación de referencias globales, creación y
   actualización con actor admin, vínculo token/informe, notificaciones, email
   best-effort y auditoría en el orden observable existente.
+- `createTokenStudyTrackingOperations`: seam token-scoped agregado en M33 para
+  que Particular Access coordine el caso asociado mediante el barrel
+  application, sin consumir el shim DB desde sus rutas.
 
 Los puertos query, command, notification y audit de M31 se reutilizan. Los
 puertos de referencias son deliberadamente distintos:

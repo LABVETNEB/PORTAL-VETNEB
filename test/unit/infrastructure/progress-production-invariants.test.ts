@@ -282,7 +282,8 @@ test("auth session invariants: persistent Max-Age on login and explicit Max-Age=
 });
 
 test("particular token invariants: hard delete, legacy revoke hard-delete, cascade invalidation and safe UI", () => {
-  const dbParticularFile = "server/db-particular.ts";
+  const dbParticularFile =
+    "server/features/particular-access/infrastructure/particular-access-repository.ts";
   const dbParticularSource = read(dbParticularFile);
 
   const deleteFnSection = sectionBetween(
@@ -296,6 +297,14 @@ test("particular token invariants: hard delete, legacy revoke hard-delete, casca
 
   const adminTokenRouteFile = "server/routes/admin-particular-tokens.fastify.ts";
   const adminTokenRouteSource = read(adminTokenRouteFile);
+  const adminTokenApplicationFile =
+    "server/features/particular-access/application/admin-particular-access-operations.ts";
+  const adminTokenApplicationSource = read(adminTokenApplicationFile);
+  assertIncludes(
+    adminTokenApplicationSource,
+    "const deleted = await deps.deleteParticularToken(tokenId);",
+    adminTokenApplicationFile,
+  );
 
   const deleteRouteSection = sectionBetween(
     adminTokenRouteSource,
@@ -305,12 +314,12 @@ test("particular token invariants: hard delete, legacy revoke hard-delete, casca
   );
   assertIncludes(
     deleteRouteSection,
-    "const deleted = await deps.deleteParticularToken(tokenId);",
+    "const result = await adminOperations.deleteToken(tokenId);",
     `${adminTokenRouteFile}:DELETE`,
   );
   assertIncludes(
     deleteRouteSection,
-    "deletedTokenId: tokenId,",
+    "deletedTokenId: result.deletedTokenId,",
     `${adminTokenRouteFile}:DELETE`,
   );
   assertNotIncludes(deleteRouteSection, "tokenHash", `${adminTokenRouteFile}:DELETE`);
@@ -324,12 +333,12 @@ test("particular token invariants: hard delete, legacy revoke hard-delete, casca
   );
   assertIncludes(
     revokeRouteSection,
-    "const deleted = await deps.deleteParticularToken(tokenId);",
+    "const result = await adminOperations.deleteToken(tokenId);",
     `${adminTokenRouteFile}:PATCH /revoke`,
   );
   assertIncludes(
     revokeRouteSection,
-    "deletedTokenId: tokenId,",
+    "deletedTokenId: result.deletedTokenId,",
     `${adminTokenRouteFile}:PATCH /revoke`,
   );
   assertNotIncludes(

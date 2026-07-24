@@ -110,6 +110,14 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
         ],
       },
       {
+        path: "test/unit/application/study-tracking/token-study-tracking-operations.test.ts",
+        markers: [
+          "createTokenStudyTrackingOperations",
+          "delega el token sin alterar scope",
+          "preserva identidad del error",
+        ],
+      },
+      {
         path: "test/architecture/study-tracking-admin-thin-route.test.ts",
         markers: [
           "M32b conserva exactamente Options y endpoint registry admin",
@@ -144,7 +152,7 @@ const STUDY_TRACKING_SUITE: readonly StudyTrackingSuiteEntry[] = [
       {
         path: "test/architecture/study-tracking-phase-closeout.test.ts",
         markers: [
-          "M35 congela el inventario exacto de Study Tracking",
+          "M33 extiende el inventario canonico de Study Tracking",
           "M35 conserva el shim DB de una linea con allowlist externa exacta",
           "los tres realms quedan separados con evidencia runtime",
         ],

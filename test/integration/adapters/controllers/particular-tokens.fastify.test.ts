@@ -599,3 +599,139 @@ test(
     }
   },
 );
+
+test(
+  "particularTokensNativeRoutes unifica token ajeno e inexistente en GET y PATCH",
+  async () => {
+    let updateCalls = 0;
+    const createApp = () =>
+      createTestApp({
+        getClinicScopedParticularToken: async (
+          tokenId: number,
+          clinicId: number,
+        ) => {
+          assert.equal(clinicId, 3);
+          assert.ok(tokenId === 7 || tokenId === 999);
+          return null;
+        },
+        updateParticularTokenReport: async () => {
+          updateCalls += 1;
+          return createParticularTokenFixture();
+        },
+      });
+    const app = await createApp();
+
+    try {
+      const headers = {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.cookieName}=session-token`,
+        "content-type": "application/json",
+      };
+      const [foreignGet, missingGet, foreignPatch, missingPatch] =
+        await Promise.all([
+          app.inject({
+            method: "GET",
+            url: "/api/particular-tokens/7",
+            headers,
+          }),
+          app.inject({
+            method: "GET",
+            url: "/api/particular-tokens/999",
+            headers,
+          }),
+          app.inject({
+            method: "PATCH",
+            url: "/api/particular-tokens/7/report",
+            headers,
+            payload: { reportId: null },
+          }),
+          app.inject({
+            method: "PATCH",
+            url: "/api/particular-tokens/999/report",
+            headers,
+            payload: { reportId: null },
+          }),
+        ]);
+      const expectedBody = {
+        success: false,
+        error: "Token particular no encontrado",
+      };
+
+      for (const response of [
+        foreignGet,
+        missingGet,
+        foreignPatch,
+        missingPatch,
+      ]) {
+        assert.equal(response.statusCode, 404);
+        assert.deepEqual(JSON.parse(response.body), expectedBody);
+        assert.equal(response.body.includes("clinicId"), false);
+        assert.equal(response.body.includes("tokenHash"), false);
+        assert.equal(response.body.includes("stack"), false);
+        assert.equal(response.body.includes("sql"), false);
+      }
+      assert.equal(foreignGet.body, missingGet.body);
+      assert.equal(foreignPatch.body, missingPatch.body);
+      assert.equal(updateCalls, 0);
+    } finally {
+      await app.close();
+    }
+  },
+);
+
+test(
+  "particularTokensNativeRoutes ignora clinicId de body y query frente a la sesión",
+  async () => {
+    const persistedClinicIds: number[] = [];
+    const listClinicIds: number[] = [];
+    const app = await createTestApp({
+      createParticularToken: async (input: { clinicId: number }) => {
+        persistedClinicIds.push(input.clinicId);
+        return createParticularTokenFixture({ clinicId: input.clinicId });
+      },
+      listParticularTokens: async (params: { clinicId: number }) => {
+        listClinicIds.push(params.clinicId);
+        return [];
+      },
+    });
+
+    try {
+      const headers = {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.cookieName}=session-token`,
+        "content-type": "application/json",
+      };
+      const createResponse = await app.inject({
+        method: "POST",
+        url: "/api/particular-tokens?clinicId=99",
+        headers,
+        payload: {
+          clinicId: 99,
+          recipientEmail: "tutor@example.com",
+          tutorLastName: "Gomez",
+          petName: "Luna",
+          petAge: "8 años",
+          petBreed: "Caniche",
+          petSex: "Hembra",
+          petSpecies: "Canina",
+          sampleLocation: "Pabellón auricular",
+          sampleEvolution: "15 días",
+          extractionDate: "2026-04-20",
+          shippingDate: "2026-04-21",
+        },
+      });
+      const listResponse = await app.inject({
+        method: "GET",
+        url: "/api/particular-tokens?clinicId=99",
+        headers,
+      });
+
+      assert.equal(createResponse.statusCode, 201);
+      assert.equal(listResponse.statusCode, 200);
+      assert.deepEqual(persistedClinicIds, [3]);
+      assert.deepEqual(listClinicIds, [3]);
+    } finally {
+      await app.close();
+    }
+  },
+);

@@ -111,6 +111,7 @@ test("M32 conserva application canónica y agrega operaciones por realm", () => 
     `${applicationDir}/study-tracking-query-use-cases.ts`,
     `${applicationDir}/study-tracking-command-use-cases.ts`,
     `${applicationDir}/study-tracking-side-effect-use-cases.ts`,
+    `${applicationDir}/token-study-tracking-operations.ts`,
     `${applicationDir}/ports/admin-study-tracking-reference-repository.ts`,
     `${applicationDir}/ports/clinic-study-tracking-reference-repository.ts`,
     `${applicationDir}/ports/study-tracking-query-repository.ts`,
@@ -232,6 +233,10 @@ test("las operaciones por realm componen los use cases M31 una sola vez", () => 
         "createParticularStudyTrackingQueryUseCases",
         "createParticularStudyTrackingCommandUseCases",
       ],
+    ],
+    [
+      `${applicationDir}/token-study-tracking-operations.ts`,
+      ["ensureStudyTrackingCaseForToken"],
     ],
   ]);
 

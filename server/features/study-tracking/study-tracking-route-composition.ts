@@ -53,3 +53,18 @@ export async function loadAdminStudyTrackingPersistence() {
       repository.markAllStudyTrackingNotificationsRead,
   };
 }
+
+export async function loadParticularAccessStudyTrackingPersistence() {
+  const repository = await import("./infrastructure/index.ts");
+
+  return {
+    getParticularStudyTrackingCase:
+      repository.getParticularStudyTrackingCase,
+    getStudyTrackingCaseByReportId:
+      repository.getStudyTrackingCaseByReportId,
+    createStudyTrackingCase: repository.createStudyTrackingCase,
+    updateStudyTrackingCase: repository.updateStudyTrackingCase,
+    createStudyTrackingNotification:
+      repository.createStudyTrackingNotification,
+  };
+}
