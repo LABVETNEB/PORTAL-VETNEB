@@ -64,6 +64,9 @@ test("admin routes keep explicit clinic relationships before linking reports tok
   const adminParticularTokens = readSource("server/routes/admin-particular-tokens.fastify.ts");
   const adminReportAccessTokens = readSource("server/routes/admin-report-access-tokens.fastify.ts");
   const adminStudyTracking = readSource("server/routes/admin-study-tracking.fastify.ts");
+  const adminStudyTrackingApplication = readSource(
+    "server/features/study-tracking/application/admin-study-tracking-operations.ts",
+  );
 
   assertContains(adminParticularTokens, "clinicId?: unknown", "admin particular tokens");
   assertContains(adminParticularTokens, "getClinicById(parsed.data.clinicId)", "admin particular tokens");
@@ -79,12 +82,12 @@ test("admin routes keep explicit clinic relationships before linking reports tok
   assertContains(adminReportAccessTokens, "report.clinicId !== parsed.data.clinicId", "admin report access tokens");
 
   assertContains(adminStudyTracking, "clinicId?: unknown", "admin study tracking");
-  assertContains(adminStudyTracking, "getClinicById(parsed.data.clinicId)", "admin study tracking");
-  assertContains(adminStudyTracking, "report.clinicId !== parsed.data.clinicId", "admin study tracking");
-  assertContains(adminStudyTracking, "particularToken.clinicId !== parsed.data.clinicId", "admin study tracking");
-  assertContains(adminStudyTracking, "clinicId: parsed.data.clinicId", "admin study tracking");
-  assertContains(adminStudyTracking, "createdByAdminId: admin.id", "admin study tracking");
-  assertContains(adminStudyTracking, "createdByClinicUserId: null", "admin study tracking");
+  assertContains(adminStudyTrackingApplication, "getClinicById(", "admin study tracking");
+  assertContains(adminStudyTrackingApplication, "report.clinicId !== input.data.clinicId", "admin study tracking");
+  assertContains(adminStudyTrackingApplication, "particularToken.clinicId !== input.data.clinicId", "admin study tracking");
+  assertContains(adminStudyTrackingApplication, "clinicId: input.data.clinicId", "admin study tracking");
+  assertContains(adminStudyTrackingApplication, "createdByAdminId: input.actor.adminId", "admin study tracking");
+  assertContains(adminStudyTrackingApplication, "createdByClinicUserId: null", "admin study tracking");
 
   assertNotContains(adminParticularTokens, "clinicId: auth.clinicId", "admin particular tokens");
   assertNotContains(adminReportAccessTokens, "clinicId: auth.clinicId", "admin report access tokens");

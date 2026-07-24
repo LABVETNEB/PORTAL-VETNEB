@@ -9,7 +9,6 @@ const repoRoot = process.cwd();
 const clinicRoute = "server/routes/study-tracking.fastify.ts";
 const particularRoute =
   "server/routes/particular-study-tracking.fastify.ts";
-const adminRoute = "server/routes/admin-study-tracking.fastify.ts";
 
 function readSource(relativePath: string): string {
   return readFileSync(resolve(repoRoot, relativePath), "utf8").replace(
@@ -253,20 +252,17 @@ test("M32 routes no importan shim ni infrastructure y particular resuelve lazy p
   );
 });
 
-test("M32 deja admin byte-identical y no inicia M32b", () => {
-  const adminBytes = readFileSync(resolve(repoRoot, adminRoute));
-  const digest = createHash("sha256").update(adminBytes).digest("hex");
-  const adminSource = adminBytes.toString("utf8");
-
+test("M32 clinic y particular permanecen byte-identical durante M32b", () => {
   assert.equal(
-    digest,
-    "74ffd1c81ea673020439f3cdc1b49dc9edc8ab613b3c5ae7f306cdac70b948cc",
+    createHash("sha256")
+      .update(readFileSync(resolve(repoRoot, clinicRoute)))
+      .digest("hex"),
+    "2ce07bd8abb818b39bc2369095f71e19b5b1bd2a1dcba38f7848acaf349507b1",
   );
-  assert.match(adminSource, /createAdminStudyTrackingQueryUseCases/);
-  assert.match(adminSource, /createAdminStudyTrackingCommandUseCases/);
-  assert.match(adminSource, /createStudyTrackingSideEffectUseCases/);
   assert.equal(
-    adminSource.includes("createAdminStudyTrackingOperations"),
-    false,
+    createHash("sha256")
+      .update(readFileSync(resolve(repoRoot, particularRoute)))
+      .digest("hex"),
+    "ed7d3f4a949af488a9dab5a9a89ccc9e89d19399ddde7230a25a3189a32591fb",
   );
 });

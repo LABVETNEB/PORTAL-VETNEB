@@ -14,11 +14,11 @@ const routeCompositionFile =
 
 const thinRouteConsumers = [
   "server/routes/study-tracking.fastify.ts",
+  "server/routes/admin-study-tracking.fastify.ts",
   "server/routes/particular-study-tracking.fastify.ts",
 ] as const;
 
 const legacyRuntimeConsumers = [
-  "server/routes/admin-study-tracking.fastify.ts",
   "server/routes/admin-reports.fastify.ts",
   "server/routes/admin-particular-tokens.fastify.ts",
   "server/routes/particular-tokens.fastify.ts",
@@ -177,7 +177,7 @@ test("queries, filtros, paginación y timestamps permanecen anclados", () => {
   }
 });
 
-test("las rutas M32 atraviesan una composición feature-level sin tocar persistence", () => {
+test("las rutas M32/M32b atraviesan una composición feature-level sin tocar persistence", () => {
   for (const file of thinRouteConsumers) {
     const targets = listImportSpecifiers(readText(file)).map((specifier) =>
       resolveSpecifier(file, specifier)

@@ -150,6 +150,113 @@ async function createTestApp(overrides: Record<string, unknown> = {}) {
   return app;
 }
 
+test("adminStudyTrackingNativeRoutes preserva OPTIONS y CORS en toda la superficie", async () => {
+  const app = await createTestApp();
+  const urls = [
+    "/api/admin/study-tracking",
+    "/api/admin/study-tracking/notifications",
+    "/api/admin/study-tracking/notifications/21/read",
+    "/api/admin/study-tracking/notifications/read-all",
+    "/api/admin/study-tracking/11",
+  ];
+
+  try {
+    for (const url of urls) {
+      const allowed = await app.inject({
+        method: "OPTIONS",
+        url,
+        headers: {
+          origin: "http://localhost:3000",
+          "access-control-request-method": "PATCH",
+          "access-control-request-headers": "content-type",
+        },
+      });
+
+      assert.equal(allowed.statusCode, 204, url);
+      assert.equal(
+        allowed.headers["access-control-allow-origin"],
+        "http://localhost:3000",
+        url,
+      );
+      assert.equal(
+        allowed.headers["access-control-allow-credentials"],
+        "true",
+        url,
+      );
+
+      const forbidden = await app.inject({
+        method: "OPTIONS",
+        url,
+        headers: {
+          origin: "https://evil.example",
+          "access-control-request-method": "PATCH",
+        },
+      });
+
+      assert.equal(forbidden.statusCode, 403, url);
+      assert.equal(forbidden.headers["access-control-allow-origin"], undefined);
+      assert.deepEqual(JSON.parse(forbidden.body), {
+        success: false,
+        error: "Origen no permitido",
+      });
+    }
+  } finally {
+    await app.close();
+  }
+});
+
+test("adminStudyTrackingNativeRoutes conserva auth ausente inválida y expirada con clear-cookie", async () => {
+  const missingApp = await createTestApp();
+  const invalidApp = await createTestApp({
+    getAdminSessionByToken: async () => null,
+  });
+  const deletedSessions: string[] = [];
+  const expiredApp = await createTestApp({
+    getAdminSessionByToken: async () => ({
+      adminUserId: 1,
+      expiresAt: new Date("2026-04-23T00:00:00.000Z"),
+      lastAccess: new Date("2026-04-22T00:00:00.000Z"),
+    }),
+    deleteAdminSession: async (tokenHash: string) => {
+      deletedSessions.push(tokenHash);
+    },
+  });
+
+  try {
+    const missing = await missingApp.inject({
+      method: "GET",
+      url: "/api/admin/study-tracking/notifications",
+    });
+    const invalid = await invalidApp.inject({
+      method: "GET",
+      url: "/api/admin/study-tracking/notifications",
+      headers: {
+        cookie: `${ENV.adminCookieName}=invalid-session-token`,
+      },
+    });
+    const expired = await expiredApp.inject({
+      method: "GET",
+      url: "/api/admin/study-tracking/notifications",
+      headers: {
+        cookie: `${ENV.adminCookieName}=expired-session-token`,
+      },
+    });
+
+    assert.equal(missing.statusCode, 401);
+    assert.equal(JSON.parse(missing.body).error, "Admin no autenticado");
+    assert.equal(invalid.statusCode, 401);
+    assert.equal(JSON.parse(invalid.body).error, "Sesión admin inválida");
+    assert.equal(expired.statusCode, 401);
+    assert.equal(JSON.parse(expired.body).error, "Sesión admin expirada");
+    assert.deepEqual(deletedSessions, ["hash:expired-session-token"]);
+    assert.match(String(expired.headers["set-cookie"]), /Max-Age=0/);
+  } finally {
+    await missingApp.close();
+    await invalidApp.close();
+    await expiredApp.close();
+  }
+});
+
 test("adminStudyTrackingNativeRoutes expone GET /notifications con filtros admin", async () => {
   const listCalls: Array<Record<string, unknown>> = [];
   const app = await createTestApp({
@@ -369,6 +476,68 @@ test("adminStudyTrackingNativeRoutes crea POST / con admin, vínculos y notifica
   }
 });
 
+test("adminStudyTrackingNativeRoutes mapea faltantes y ownership inválido al crear", async () => {
+  const validPayload = {
+    clinicId: 3,
+    reportId: 55,
+    particularTokenId: 7,
+    labReceivedAt: "2026-04-22T00:00:00.000Z",
+  };
+  const scenarios = [
+    {
+      overrides: { getClinicById: async () => null },
+      statusCode: 404,
+      error: "Clínica no encontrada",
+    },
+    {
+      overrides: { getReportById: async () => null },
+      statusCode: 404,
+      error: "Informe no encontrado",
+    },
+    {
+      overrides: {
+        getReportById: async () => ({ id: 55, clinicId: 9 }),
+      },
+      statusCode: 400,
+      error: "El informe no pertenece a la clínica indicada",
+    },
+    {
+      overrides: { getParticularTokenById: async () => null },
+      statusCode: 404,
+      error: "Token particular no encontrado",
+    },
+    {
+      overrides: {
+        getParticularTokenById: async () => ({ id: 7, clinicId: 9 }),
+      },
+      statusCode: 400,
+      error: "El token particular no pertenece a la clínica indicada",
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    const app = await createTestApp(scenario.overrides);
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/admin/study-tracking",
+        headers: {
+          origin: "http://localhost:3000",
+          cookie: `${ENV.adminCookieName}=admin-session-token`,
+          "content-type": "application/json",
+        },
+        payload: validPayload,
+      });
+
+      assert.equal(response.statusCode, scenario.statusCode);
+      assert.equal(JSON.parse(response.body).error, scenario.error);
+    } finally {
+      await app.close();
+    }
+  }
+});
+
 test("adminStudyTrackingNativeRoutes bloquea POST / con origin no permitido", async () => {
   const app = await createTestApp();
 
@@ -440,6 +609,7 @@ test("adminStudyTrackingNativeRoutes expone GET / con lista admin-scoped", async
 
 test("adminStudyTrackingNativeRoutes expone GET /:trackingCaseId con detalle global o clinic-scoped", async () => {
   const scopedCalls: Array<Record<string, unknown>> = [];
+  const globalCalls: number[] = [];
   const app = await createTestApp({
     getClinicScopedStudyTrackingCase: async (
       trackingCaseId: number,
@@ -448,26 +618,108 @@ test("adminStudyTrackingNativeRoutes expone GET /:trackingCaseId con detalle glo
       scopedCalls.push({ trackingCaseId, clinicId });
       return createTrackingCaseFixture();
     },
+    getStudyTrackingCaseById: async (trackingCaseId: number) => {
+      globalCalls.push(trackingCaseId);
+      return createTrackingCaseFixture();
+    },
   });
 
   try {
-    const response = await app.inject({
+    const scopedResponse = await app.inject({
       method: "GET",
       url: "/api/admin/study-tracking/11?clinicId=3",
       headers: {
         cookie: `${ENV.adminCookieName}=admin-session-token`,
       },
     });
+    const globalResponse = await app.inject({
+      method: "GET",
+      url: "/api/admin/study-tracking/11",
+      headers: {
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+      },
+    });
 
-    assert.equal(response.statusCode, 200);
+    assert.equal(scopedResponse.statusCode, 200);
+    assert.equal(globalResponse.statusCode, 200);
     assert.deepEqual(scopedCalls, [{ trackingCaseId: 11, clinicId: 3 }]);
+    assert.deepEqual(globalCalls, [11]);
 
-    const body = JSON.parse(response.body);
+    const body = JSON.parse(scopedResponse.body);
     assert.equal(body.success, true);
     assert.equal(body.trackingCase.id, 11);
     assert.equal(body.trackingCase.clinicId, 3);
   } finally {
     await app.close();
+  }
+});
+
+test("adminStudyTrackingNativeRoutes conserva 404 antes de Zod y clinicId body sobre query en PATCH", async () => {
+  const notFoundLookups: Array<Record<string, unknown>> = [];
+  const notFoundUpdates: Array<Record<string, unknown>> = [];
+  const notFoundApp = await createTestApp({
+    getClinicScopedStudyTrackingCase: async (
+      trackingCaseId: number,
+      clinicId: number,
+    ) => {
+      notFoundLookups.push({ trackingCaseId, clinicId });
+      return null;
+    },
+    updateStudyTrackingCase: async (
+      trackingCaseId: number,
+      input: Record<string, unknown>,
+    ) => {
+      notFoundUpdates.push({ trackingCaseId, input });
+      return createTrackingCaseFixture();
+    },
+  });
+  const invalidUpdates: Array<Record<string, unknown>> = [];
+  const invalidApp = await createTestApp({
+    getStudyTrackingCaseById: async () => createTrackingCaseFixture(),
+    updateStudyTrackingCase: async (
+      trackingCaseId: number,
+      input: Record<string, unknown>,
+    ) => {
+      invalidUpdates.push({ trackingCaseId, input });
+      return createTrackingCaseFixture();
+    },
+  });
+
+  try {
+    const notFound = await notFoundApp.inject({
+      method: "PATCH",
+      url: "/api/admin/study-tracking/11?clinicId=3",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        clinicId: 4,
+        currentStage: "invalid-stage",
+      },
+    });
+    const invalid = await invalidApp.inject({
+      method: "PATCH",
+      url: "/api/admin/study-tracking/11",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${ENV.adminCookieName}=admin-session-token`,
+        "content-type": "application/json",
+      },
+      payload: {
+        currentStage: "invalid-stage",
+      },
+    });
+
+    assert.equal(notFound.statusCode, 404);
+    assert.deepEqual(notFoundLookups, [{ trackingCaseId: 11, clinicId: 4 }]);
+    assert.deepEqual(notFoundUpdates, []);
+    assert.equal(invalid.statusCode, 400);
+    assert.deepEqual(invalidUpdates, []);
+  } finally {
+    await notFoundApp.close();
+    await invalidApp.close();
   }
 });
 

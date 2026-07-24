@@ -318,6 +318,65 @@ test("clinic study tracking create validates body before linked lookups writes n
   );
 });
 
+test("admin study tracking preserves create validation and PATCH lookup-before-body precedence", () => {
+  const source = readSource("server/routes/admin-study-tracking.fastify.ts");
+  const applicationSource = readSource(
+    "server/features/study-tracking/application/admin-study-tracking-operations.ts",
+  );
+  const createRoute = sliceFrom(
+    source,
+    'app.post<{\n    Body: Record<string, unknown>;',
+    "admin study tracking create route",
+  );
+  const updateRoute = sliceFrom(
+    source,
+    'app.patch<{\n    Params: {\n      trackingCaseId: string;',
+    "admin study tracking update route",
+  );
+
+  assertContainsInOrder(
+    createRoute,
+    [
+      "const parsed = adminCreateStudyTrackingSchema.safeParse(request.body ?? {});",
+      "if (!parsed.success) {",
+      "return reply.code(400).send({",
+      "const result = await adminOperations.createAdminStudyTrackingCase({",
+    ],
+    "admin study tracking create validation cut-off",
+  );
+
+  assertContainsInOrder(
+    updateRoute,
+    [
+      "const body = request.body ?? {};",
+      "parseEntityId(body.clinicId) ?? parseEntityId(request.query.clinicId);",
+      "await adminOperations.resolveAdminStudyTrackingCase({",
+      "if (!current) {",
+      "return reply.code(404).send({",
+      "const parsed = updateStudyTrackingSchema.safeParse(body);",
+      "if (!parsed.success) {",
+      "return reply.code(400).send({",
+      "const result = await adminOperations.updateAdminStudyTrackingCase({",
+    ],
+    "admin study tracking PATCH lookup-before-body precedence",
+  );
+
+  assertContainsInOrder(
+    applicationSource,
+    [
+      "const clinic = await deps.referenceRepository.getClinicById(",
+      'if (typeof input.data.reportId === "number") {',
+      "await deps.referenceRepository.getReportById(",
+      'if (typeof input.data.particularTokenId === "number") {',
+      "await deps.referenceRepository.getParticularTokenById(",
+      "const delivery = applyEstimatedDeliveryRules({",
+      "const created = await commands.createStudyTrackingCase({",
+      "await sideEffects.writeAuditLog(input.auditRequest, {",
+    ],
+    "admin study tracking application validation cut-off",
+  );
+});
+
 test("logistics heuristic route validates fieldVisitIds bound before planning execution", () => {
   const source = readSource("server/routes/logistics-route-plans.fastify.ts");
   const heuristicRoute = sliceFrom(

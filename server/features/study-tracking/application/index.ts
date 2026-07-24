@@ -13,6 +13,17 @@ export {
 } from "./study-tracking-command-use-cases.ts";
 export { createStudyTrackingSideEffectUseCases } from "./study-tracking-side-effect-use-cases.ts";
 export {
+  createAdminStudyTrackingOperations,
+  type AdminStudyTrackingCaseListParams,
+  type AdminStudyTrackingNotificationListParams,
+  type CreateAdminStudyTrackingCaseData,
+  type CreateAdminStudyTrackingCaseInput,
+  type CreateAdminStudyTrackingCaseResult,
+  type UpdateAdminStudyTrackingCaseData,
+  type UpdateAdminStudyTrackingCaseInput,
+  type UpdateAdminStudyTrackingCaseResult,
+} from "./admin-study-tracking-operations.ts";
+export {
   createClinicStudyTrackingOperations,
   type ClinicStudyTrackingCaseListParams,
   type ClinicStudyTrackingNotificationListParams,
@@ -36,4 +47,5 @@ export type {
 } from "./ports/study-tracking-command-repository.ts";
 export type { StudyTrackingAuditPort } from "./ports/study-tracking-audit-port.ts";
 export type { StudyTrackingNotificationPort } from "./ports/study-tracking-notification-port.ts";
+export type { AdminStudyTrackingReferenceRepository } from "./ports/admin-study-tracking-reference-repository.ts";
 export type { ClinicStudyTrackingReferenceRepository } from "./ports/clinic-study-tracking-reference-repository.ts";
