@@ -180,6 +180,9 @@ test("admin-owned linking validates target clinic before binding resources", () 
   const adminReportAccessTokens = readSource("server/routes/admin-report-access-tokens.fastify.ts");
   const adminParticularTokens = readSource("server/routes/admin-particular-tokens.fastify.ts");
   const adminStudyTracking = readSource("server/routes/admin-study-tracking.fastify.ts");
+  const adminStudyTrackingApplication = readSource(
+    "server/features/study-tracking/application/admin-study-tracking-operations.ts",
+  );
 
   assertContains(
     adminReportAccessTokens,
@@ -199,28 +202,28 @@ test("admin-owned linking validates target clinic before binding resources", () 
   );
 
   assertContains(
-    adminStudyTracking,
-    "report.clinicId !== parsed.data.clinicId",
+    adminStudyTrackingApplication,
+    "report.clinicId !== input.data.clinicId",
     "admin study tracking create report ownership",
   );
   assertContains(
-    adminStudyTracking,
-    "particularToken.clinicId !== parsed.data.clinicId",
+    adminStudyTrackingApplication,
+    "particularToken.clinicId !== input.data.clinicId",
     "admin study tracking create token ownership",
   );
   assertContains(
-    adminStudyTracking,
-    "report.clinicId !== current.clinicId",
+    adminStudyTrackingApplication,
+    "report.clinicId !== input.current.clinicId",
     "admin study tracking update report ownership",
   );
   assertContains(
-    adminStudyTracking,
-    "particularToken.clinicId !== current.clinicId",
+    adminStudyTrackingApplication,
+    "particularToken.clinicId !== input.current.clinicId",
     "admin study tracking update token ownership",
   );
   assertMatches(
-    adminStudyTracking,
-    /getClinicScopedStudyTrackingCase\(trackingCaseId,\s*clinicId\)/s,
+    adminStudyTrackingApplication,
+    /queries\.getClinicScopedStudyTrackingCase\(\s*input\.trackingCaseId,\s*input\.clinicId/s,
     "admin study tracking optional clinic-scoped lookup",
   );
 });

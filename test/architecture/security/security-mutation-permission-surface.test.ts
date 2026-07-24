@@ -80,6 +80,38 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     protectedCalls: ["clinicOperations.createClinicStudyTrackingCase"],
   },
   {
+    file: "server/routes/admin-study-tracking.fastify.ts",
+    method: "patch",
+    path: "/notifications/:notificationId/read",
+    authGuard: "authenticateAdminUser",
+    protectedCalls: [
+      "adminOperations.acknowledgeAdminStudyTrackingNotification",
+    ],
+  },
+  {
+    file: "server/routes/admin-study-tracking.fastify.ts",
+    method: "patch",
+    path: "/notifications/read-all",
+    authGuard: "authenticateAdminUser",
+    protectedCalls: [
+      "adminOperations.acknowledgeAllAdminStudyTrackingNotifications",
+    ],
+  },
+  {
+    file: "server/routes/admin-study-tracking.fastify.ts",
+    method: "post",
+    path: "/",
+    authGuard: "authenticateAdminUser",
+    protectedCalls: ["adminOperations.createAdminStudyTrackingCase"],
+  },
+  {
+    file: "server/routes/admin-study-tracking.fastify.ts",
+    method: "patch",
+    path: "/:trackingCaseId",
+    authGuard: "authenticateAdminUser",
+    protectedCalls: ["adminOperations.updateAdminStudyTrackingCase"],
+  },
+  {
     file: "server/routes/particular-study-tracking.fastify.ts",
     method: "patch",
     path: "/notifications/:notificationId/read",
@@ -147,24 +179,22 @@ function routeStartRegex(route: Pick<SensitiveMutationRoute, "method" | "path">)
 
 function extractRouteBlock(route: SensitiveMutationRoute): string {
   const source = readSource(route.file);
-  const match = routeStartRegex(route).exec(source);
+  const routeStarts = [
+    ...source.matchAll(/\bapp\.(?:get|post|patch|delete|options)(?:<|\()/g),
+  ].map((match) => match.index);
+  const block = routeStarts
+    .map((start, index) =>
+      source.slice(start, routeStarts[index + 1] ?? source.length),
+    )
+    .find((candidate) => routeStartRegex(route).test(candidate));
 
   assert.notEqual(
-    match,
-    null,
+    block,
+    undefined,
     `${route.file} debe declarar ${route.method.toUpperCase()} ${route.path}`,
   );
 
-  const start = match!.index;
-  const afterStart = source.slice(start + match![0].length);
-  const nextRouteMatch = /\n\s+app\.(?:get|post|patch|delete|options)(?:<[\s\S]*?>)?\(/.exec(
-    afterStart,
-  );
-  const end = nextRouteMatch
-    ? start + match![0].length + nextRouteMatch.index
-    : source.length;
-
-  return source.slice(start, end);
+  return block!;
 }
 
 function assertContains(haystack: string, needle: string, context: string): void {

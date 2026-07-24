@@ -11,11 +11,7 @@ import type {
   StudyTrackingNotification,
 } from "../../drizzle/schema.ts";
 import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
-import {
-  createAdminStudyTrackingCommandUseCases,
-  createAdminStudyTrackingQueryUseCases,
-  createStudyTrackingSideEffectUseCases,
-} from "../features/study-tracking/application/index.ts";
+import { createAdminStudyTrackingOperations } from "../features/study-tracking/application/index.ts";
 import { ENV } from "../lib/env.ts";
 import {
   getAllowedOrigins,
@@ -26,8 +22,6 @@ import {
 import { authenticateFastifyAdmin } from "../lib/fastify-admin-auth.ts";
 import {
   adminCreateStudyTrackingSchema,
-  applyEstimatedDeliveryRules,
-  applyStageTimestampDefaults,
   buildValidationError,
   parseBooleanQuery,
   parseEntityId,
@@ -35,7 +29,6 @@ import {
   parsePositiveInt,
   serializeStudyTrackingCase,
   serializeStudyTrackingNotification,
-  shouldCreateSpecialStainNotification,
   updateStudyTrackingSchema,
 } from "../features/study-tracking/domain/index.ts";
 import {
@@ -69,36 +62,6 @@ type ClinicRecord = {
   name: string;
   contactEmail?: string | null;
 };
-
-type StudyTrackingEmailInput = Pick<
-  StudyTrackingCase,
-  | "id"
-  | "clinicId"
-  | "receptionAt"
-  | "estimatedDeliveryAt"
-  | "currentStage"
-  | "paymentUrl"
-  | "adminContactEmail"
-  | "adminContactPhone"
-  | "notes"
->;
-
-function getStudyTrackingStageLabel(value: unknown): string {
-  switch (value) {
-    case "reception":
-      return "Recepción";
-    case "processing":
-      return "Procesamiento";
-    case "evaluation":
-      return "Evaluación";
-    case "report_development":
-      return "Desarrollo de informe";
-    case "delivered":
-      return "Entregado";
-    default:
-      return String(value);
-  }
-}
 
 export type AdminStudyTrackingNativeRoutesOptions = {
   deleteAdminSession?: (tokenHash: string) => Promise<void>;
@@ -230,52 +193,47 @@ type NativeAdminStudyTrackingDeps = Required<
   >
 >;
 
-let defaultDepsPromise: Promise<NativeAdminStudyTrackingDeps> | undefined;
-
 async function loadDefaultDeps(): Promise<NativeAdminStudyTrackingDeps> {
-  if (!defaultDepsPromise) {
-    defaultDepsPromise = (async () => {
-      const db = await import("../db.ts");
-      const authSecurity = await import("../lib/auth-security.ts");
-      const dbStudyTracking = await import("../db-study-tracking.ts");
-      const dbParticular = await import("../db-particular.ts");
-      const email = await import("../lib/email.ts");
-      const audit = await import("../lib/audit.ts");
+  const db = await import("../db.ts");
+  const authSecurity = await import("../lib/auth-security.ts");
+  const dbParticular = await import("../db-particular.ts");
+  const email = await import("../lib/email.ts");
+  const audit = await import("../lib/audit.ts");
+  const { loadAdminStudyTrackingPersistence } = await import(
+    "../features/study-tracking/study-tracking-route-composition.ts"
+  );
+  const persistence = await loadAdminStudyTrackingPersistence();
 
-      return {
-        deleteAdminSession: db.deleteAdminSession,
-        getAdminSessionByToken: db.getAdminSessionByToken,
-        getAdminUserById: db.getAdminUserById,
-        updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
-        hashSessionToken: authSecurity.hashSessionToken,
-        getClinicById: db.getClinicById,
-        getReportById: db.getReportById,
-        getParticularTokenById: dbParticular.getParticularTokenById,
-        updateParticularTokenReport: dbParticular.updateParticularTokenReport,
-        createStudyTrackingCase: dbStudyTracking.createStudyTrackingCase,
-        updateStudyTrackingCase: dbStudyTracking.updateStudyTrackingCase,
-        getClinicScopedStudyTrackingCase:
-          dbStudyTracking.getClinicScopedStudyTrackingCase,
-        getStudyTrackingCaseById: dbStudyTracking.getStudyTrackingCaseById,
-        listStudyTrackingCases: dbStudyTracking.listStudyTrackingCases,
-        createStudyTrackingNotification:
-          dbStudyTracking.createStudyTrackingNotification,
-        listStudyTrackingNotifications:
-          dbStudyTracking.listStudyTrackingNotifications,
-        markStudyTrackingNotificationRead:
-          dbStudyTracking.markStudyTrackingNotificationRead,
-        markAllStudyTrackingNotificationsRead:
-          dbStudyTracking.markAllStudyTrackingNotificationsRead,
-        sendSpecialStainRequiredEmail: email.sendSpecialStainRequiredEmail,
-        writeAuditLog: audit.writeAuditLog as (
-          req: unknown,
-          input: AuditWriteInput,
-        ) => Promise<void>,
-      };
-    })();
-  }
-
-  return defaultDepsPromise;
+  return {
+    deleteAdminSession: db.deleteAdminSession,
+    getAdminSessionByToken: db.getAdminSessionByToken,
+    getAdminUserById: db.getAdminUserById,
+    updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
+    hashSessionToken: authSecurity.hashSessionToken,
+    getClinicById: db.getClinicById,
+    getReportById: db.getReportById,
+    getParticularTokenById: dbParticular.getParticularTokenById,
+    updateParticularTokenReport: dbParticular.updateParticularTokenReport,
+    createStudyTrackingCase: persistence.createStudyTrackingCase,
+    updateStudyTrackingCase: persistence.updateStudyTrackingCase,
+    getClinicScopedStudyTrackingCase:
+      persistence.getClinicScopedStudyTrackingCase,
+    getStudyTrackingCaseById: persistence.getStudyTrackingCaseById,
+    listStudyTrackingCases: persistence.listStudyTrackingCases,
+    createStudyTrackingNotification:
+      persistence.createStudyTrackingNotification,
+    listStudyTrackingNotifications:
+      persistence.listStudyTrackingNotifications,
+    markStudyTrackingNotificationRead:
+      persistence.markStudyTrackingNotificationRead,
+    markAllStudyTrackingNotificationsRead:
+      persistence.markAllStudyTrackingNotificationsRead,
+    sendSpecialStainRequiredEmail: email.sendSpecialStainRequiredEmail,
+    writeAuditLog: audit.writeAuditLog as (
+      req: unknown,
+      input: AuditWriteInput,
+    ) => Promise<void>,
+  };
 }
 
 function applyCorsHeaders(
@@ -325,48 +283,6 @@ function createAuditRequestLike(
       username: admin.username,
     },
   };
-}
-
-async function notifySpecialStainByEmail(
-  trackingCase: StudyTrackingEmailInput,
-  deps: NativeAdminStudyTrackingDeps,
-) {
-  const clinic = await deps.getClinicById(trackingCase.clinicId);
-
-  if (!clinic) {
-    console.warn("[EMAIL] special_stain_required skipped: clinic not found", {
-      trackingCaseId: trackingCase.id,
-      clinicId: trackingCase.clinicId,
-    });
-    return;
-  }
-
-  try {
-    await deps.sendSpecialStainRequiredEmail({
-      to: [clinic.contactEmail, trackingCase.adminContactEmail],
-      clinicName: clinic.name,
-      trackingCaseId: trackingCase.id,
-      receptionAt: trackingCase.receptionAt,
-      estimatedDeliveryAt: trackingCase.estimatedDeliveryAt,
-      currentStage: trackingCase.currentStage,
-      paymentUrl: trackingCase.paymentUrl,
-      adminContactEmail: trackingCase.adminContactEmail,
-      adminContactPhone: trackingCase.adminContactPhone,
-      notes: trackingCase.notes,
-    });
-  } catch (error) {
-    const errorCode =
-      error && typeof error === "object" && "code" in error
-        ? String((error as { code?: unknown }).code ?? "")
-        : undefined;
-
-    console.error("[EMAIL] special_stain_required failed", {
-      trackingCaseId: trackingCase.id,
-      clinicId: trackingCase.clinicId,
-      errorName: error instanceof Error ? error.name : "unknown_error",
-      errorCode: errorCode && errorCode.trim().length > 0 ? errorCode : undefined,
-    });
-  }
 }
 
 export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
@@ -444,25 +360,34 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
   };
 
-  const queryUseCases = createAdminStudyTrackingQueryUseCases({
-    getClinicScopedStudyTrackingCase:
-      nativeDeps.getClinicScopedStudyTrackingCase,
-    getStudyTrackingCaseById: nativeDeps.getStudyTrackingCaseById,
-    listStudyTrackingCases: nativeDeps.listStudyTrackingCases,
-    listStudyTrackingNotifications:
-      nativeDeps.listStudyTrackingNotifications,
-  });
-  const commandUseCases = createAdminStudyTrackingCommandUseCases({
-    createStudyTrackingCase: nativeDeps.createStudyTrackingCase,
-    updateStudyTrackingCase: nativeDeps.updateStudyTrackingCase,
-    createStudyTrackingNotification:
-      nativeDeps.createStudyTrackingNotification,
-    markStudyTrackingNotificationRead:
-      nativeDeps.markStudyTrackingNotificationRead,
-    markAllStudyTrackingNotificationsRead:
-      nativeDeps.markAllStudyTrackingNotificationsRead,
-  });
-  const sideEffectUseCases = createStudyTrackingSideEffectUseCases({
+  const now = options.now ?? (() => Date.now());
+  const createDate = options.createDate ?? (() => new Date());
+  const adminOperations = createAdminStudyTrackingOperations({
+    queryRepository: {
+      getClinicScopedStudyTrackingCase:
+        nativeDeps.getClinicScopedStudyTrackingCase,
+      getStudyTrackingCaseById: nativeDeps.getStudyTrackingCaseById,
+      listStudyTrackingCases: nativeDeps.listStudyTrackingCases,
+      listStudyTrackingNotifications:
+        nativeDeps.listStudyTrackingNotifications,
+    },
+    commandRepository: {
+      createStudyTrackingCase: nativeDeps.createStudyTrackingCase,
+      updateStudyTrackingCase: nativeDeps.updateStudyTrackingCase,
+      createStudyTrackingNotification:
+        nativeDeps.createStudyTrackingNotification,
+      markStudyTrackingNotificationRead:
+        nativeDeps.markStudyTrackingNotificationRead,
+      markAllStudyTrackingNotificationsRead:
+        nativeDeps.markAllStudyTrackingNotificationsRead,
+    },
+    referenceRepository: {
+      getClinicById: nativeDeps.getClinicById,
+      getReportById: nativeDeps.getReportById,
+      getParticularTokenById: nativeDeps.getParticularTokenById,
+      updateParticularTokenReport:
+        nativeDeps.updateParticularTokenReport,
+    },
     notification: {
       sendSpecialStainRequiredEmail:
         nativeDeps.sendSpecialStainRequiredEmail,
@@ -470,16 +395,16 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     audit: {
       writeAuditLog: nativeDeps.writeAuditLog,
     },
+    auditEvents: {
+      caseCreated: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED,
+      caseUpdated: AUDIT_EVENTS.STUDY_TRACKING_CASE_UPDATED,
+      notificationCreated:
+        AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED,
+    },
+    createDate,
   });
-  const deps: NativeAdminStudyTrackingDeps = {
-    ...nativeDeps,
-    ...queryUseCases,
-    ...commandUseCases,
-    ...sideEffectUseCases,
-  };
+  const deps: NativeAdminStudyTrackingDeps = nativeDeps;
 
-  const now = options.now ?? (() => Date.now());
-  const createDate = options.createDate ?? (() => new Date());
   const allowedOrigins = new Set(getAllowedOrigins());
 
   app.addHook("onRequest", async (request, reply) => {
@@ -565,12 +490,13 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     const limit = parsePositiveInt(request.query.limit, 50, 100);
     const offset = parseOffset(request.query.offset, 0);
 
-    const notifications = await deps.listStudyTrackingNotifications({
-      clinicId,
-      unreadOnly,
-      limit,
-      offset,
-    });
+    const notifications =
+      await adminOperations.listAdminStudyTrackingNotifications({
+        clinicId,
+        unreadOnly,
+        limit,
+        offset,
+      });
 
     return reply.code(200).send({
       success: true,
@@ -614,9 +540,10 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const notification = await deps.markStudyTrackingNotificationRead(
-      notificationId,
-    );
+    const notification =
+      await adminOperations.acknowledgeAdminStudyTrackingNotification(
+        notificationId,
+      );
 
     if (!notification) {
       return reply.code(404).send({
@@ -647,9 +574,10 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     }
 
     const clinicId = parseEntityId(request.query.clinicId);
-    const result = await deps.markAllStudyTrackingNotificationsRead({
-      clinicId,
-    });
+    const result =
+      await adminOperations.acknowledgeAllAdminStudyTrackingNotifications({
+        clinicId,
+      });
 
     return reply.code(200).send({
       success: true,
@@ -679,159 +607,53 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const clinic = await deps.getClinicById(parsed.data.clinicId);
+    const result = await adminOperations.createAdminStudyTrackingCase({
+      actor: {
+        adminId: admin.id,
+      },
+      data: parsed.data,
+      auditRequest: createAuditRequestLike(request, admin),
+    });
 
-    if (!clinic) {
+    if (result.status === "clinic_not_found") {
       return reply.code(404).send({
         success: false,
         error: "Clínica no encontrada",
       });
     }
 
-    if (typeof parsed.data.reportId === "number") {
-      const report = await deps.getReportById(parsed.data.reportId);
-
-      if (!report) {
-        return reply.code(404).send({
-          success: false,
-          error: "Informe no encontrado",
-        });
-      }
-
-      if (report.clinicId !== parsed.data.clinicId) {
-        return reply.code(400).send({
-          success: false,
-          error: "El informe no pertenece a la clínica indicada",
-        });
-      }
-    }
-
-    if (typeof parsed.data.particularTokenId === "number") {
-      const particularToken = await deps.getParticularTokenById(
-        parsed.data.particularTokenId,
-      );
-
-      if (!particularToken) {
-        return reply.code(404).send({
-          success: false,
-          error: "Token particular no encontrado",
-        });
-      }
-
-      if (particularToken.clinicId !== parsed.data.clinicId) {
-        return reply.code(400).send({
-          success: false,
-          error: "El token particular no pertenece a la clínica indicada",
-        });
-      }
-    }
-
-    const delivery = applyEstimatedDeliveryRules({
-      labReceivedAt: parsed.data.labReceivedAt,
-      manualEstimatedDeliveryAt: parsed.data.estimatedDeliveryAt,
-    });
-
-    const created = await deps.createStudyTrackingCase({
-      clinicId: parsed.data.clinicId,
-      reportId: parsed.data.reportId ?? null,
-      particularTokenId: parsed.data.particularTokenId ?? null,
-      createdByAdminId: admin.id,
-      createdByClinicUserId: null,
-      receptionAt: parsed.data.labReceivedAt,
-      estimatedDeliveryAt: delivery.estimatedDeliveryAt,
-      estimatedDeliveryAutoCalculatedAt:
-        delivery.estimatedDeliveryAutoCalculatedAt,
-      estimatedDeliveryWasManuallyAdjusted:
-        delivery.estimatedDeliveryWasManuallyAdjusted,
-      currentStage: parsed.data.currentStage,
-      processingAt: parsed.data.processingAt ?? null,
-      evaluationAt: parsed.data.evaluationAt ?? null,
-      reportDevelopmentAt: parsed.data.reportDevelopmentAt ?? null,
-      deliveredAt: parsed.data.deliveredAt ?? null,
-      specialStainRequired: parsed.data.specialStainRequired,
-      specialStainNotifiedAt: null,
-      paymentUrl: parsed.data.paymentUrl ?? null,
-      adminContactEmail: parsed.data.adminContactEmail ?? null,
-      adminContactPhone: parsed.data.adminContactPhone ?? null,
-      notes: parsed.data.notes ?? null,
-    });
-
-    if (
-      typeof created.particularTokenId === "number" &&
-      typeof created.reportId === "number"
-    ) {
-      await deps.updateParticularTokenReport(
-        created.particularTokenId,
-        created.reportId,
-      );
-    }
-
-    let finalCase = created;
-
-    let studyTrackingNotification: StudyTrackingNotification | null = null;
-
-    if (created.specialStainRequired) {
-      const notifiedAt = createDate();
-
-      studyTrackingNotification = await deps.createStudyTrackingNotification({
-        studyTrackingCaseId: created.id,
-        clinicId: created.clinicId,
-        reportId: created.reportId ?? null,
-        particularTokenId: created.particularTokenId ?? null,
-        type: "special_stain_required",
-        title: "Se requiere tinción especial",
-        message:
-          "El estudio ingresó a evaluación y requiere tinción especial para continuar.",
-        isRead: false,
-        readAt: null,
+    if (result.status === "report_not_found") {
+      return reply.code(404).send({
+        success: false,
+        error: "Informe no encontrado",
       });
-
-      finalCase =
-        (await deps.updateStudyTrackingCase(created.id, {
-          specialStainNotifiedAt: notifiedAt,
-        })) ?? created;
-
-      await notifySpecialStainByEmail(finalCase, deps);
     }
 
-    await deps.writeAuditLog(createAuditRequestLike(request, admin), {
-      event: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED,
-      clinicId: finalCase.clinicId,
-      reportId: finalCase.reportId ?? null,
-      metadata: {
-        trackingCaseId: finalCase.id,
-        particularTokenId: finalCase.particularTokenId ?? null,
-        currentStage: finalCase.currentStage,
-        specialStainRequired: finalCase.specialStainRequired,
-        specialStainNotifiedAt: finalCase.specialStainNotifiedAt ?? null,
-        estimatedDeliveryAt: finalCase.estimatedDeliveryAt,
-        labReceivedAt: finalCase.receptionAt,
-        estimatedDeliveryWasManuallyAdjusted:
-          finalCase.estimatedDeliveryWasManuallyAdjusted,
-        createdVia: "admin",
-      },
-    });
+    if (result.status === "report_clinic_mismatch") {
+      return reply.code(400).send({
+        success: false,
+        error: "El informe no pertenece a la clínica indicada",
+      });
+    }
 
-    if (studyTrackingNotification) {
-      await deps.writeAuditLog(createAuditRequestLike(request, admin), {
-        event: AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED,
-        clinicId: studyTrackingNotification.clinicId,
-        reportId: studyTrackingNotification.reportId ?? null,
-        metadata: {
-          trackingCaseId: studyTrackingNotification.studyTrackingCaseId,
-          notificationId: studyTrackingNotification.id,
-          particularTokenId: studyTrackingNotification.particularTokenId ?? null,
-          type: studyTrackingNotification.type,
-          title: studyTrackingNotification.title,
-          createdVia: "admin",
-        },
+    if (result.status === "particular_token_not_found") {
+      return reply.code(404).send({
+        success: false,
+        error: "Token particular no encontrado",
+      });
+    }
+
+    if (result.status === "particular_token_clinic_mismatch") {
+      return reply.code(400).send({
+        success: false,
+        error: "El token particular no pertenece a la clínica indicada",
       });
     }
 
     return reply.code(201).send({
       success: true,
       message: "Seguimiento creado correctamente",
-      trackingCase: serializeStudyTrackingCase(finalCase),
+      trackingCase: serializeStudyTrackingCase(result.trackingCase),
     });
   });
 
@@ -856,13 +678,14 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
     const limit = parsePositiveInt(request.query.limit, 50, 100);
     const offset = parseOffset(request.query.offset, 0);
 
-    const trackingCases = await deps.listStudyTrackingCases({
-      clinicId,
-      reportId,
-      particularTokenId,
-      limit,
-      offset,
-    });
+    const trackingCases =
+      await adminOperations.listAdminStudyTrackingCases({
+        clinicId,
+        reportId,
+        particularTokenId,
+        limit,
+        offset,
+      });
 
     return reply.code(200).send({
       success: true,
@@ -902,9 +725,10 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
 
     const clinicId = parseEntityId(request.query.clinicId);
     const trackingCase =
-      typeof clinicId === "number"
-        ? await deps.getClinicScopedStudyTrackingCase(trackingCaseId, clinicId)
-        : await deps.getStudyTrackingCaseById(trackingCaseId);
+      await adminOperations.resolveAdminStudyTrackingCase({
+        trackingCaseId,
+        clinicId,
+      });
 
     if (!trackingCase) {
       return reply.code(404).send({
@@ -952,9 +776,10 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       parseEntityId(body.clinicId) ?? parseEntityId(request.query.clinicId);
 
     const current =
-      typeof clinicId === "number"
-        ? await deps.getClinicScopedStudyTrackingCase(trackingCaseId, clinicId)
-        : await deps.getStudyTrackingCaseById(trackingCaseId);
+      await adminOperations.resolveAdminStudyTrackingCase({
+        trackingCaseId,
+        clinicId,
+      });
 
     if (!current) {
       return reply.code(404).send({
@@ -972,273 +797,52 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    if (typeof parsed.data.reportId === "number") {
-      const report = await deps.getReportById(parsed.data.reportId);
-
-      if (!report) {
-        return reply.code(404).send({
-          success: false,
-          error: "Informe no encontrado",
-        });
-      }
-
-      if (report.clinicId !== current.clinicId) {
-        return reply.code(400).send({
-          success: false,
-          error: "El informe no pertenece a la clínica del seguimiento",
-        });
-      }
-    }
-
-    if (typeof parsed.data.particularTokenId === "number") {
-      const particularToken = await deps.getParticularTokenById(
-        parsed.data.particularTokenId,
-      );
-
-      if (!particularToken) {
-        return reply.code(404).send({
-          success: false,
-          error: "Token particular no encontrado",
-        });
-      }
-
-      if (particularToken.clinicId !== current.clinicId) {
-        return reply.code(400).send({
-          success: false,
-          error: "El token particular no pertenece a la clínica del seguimiento",
-        });
-      }
-    }
-
-    const nextLabReceivedAt = parsed.data.labReceivedAt ?? current.receptionAt;
-    const deliveryRecalculationNeeded =
-      parsed.data.labReceivedAt instanceof Date ||
-      parsed.data.estimatedDeliveryAt instanceof Date;
-
-    const delivery = deliveryRecalculationNeeded
-      ? applyEstimatedDeliveryRules({
-          labReceivedAt: nextLabReceivedAt,
-          manualEstimatedDeliveryAt:
-            parsed.data.estimatedDeliveryAt instanceof Date
-              ? parsed.data.estimatedDeliveryAt
-              : undefined,
-        })
-      : null;
-
-    const stageDefaults = applyStageTimestampDefaults(current, {
-      currentStage: parsed.data.currentStage,
-      processingAt:
-        typeof parsed.data.processingAt === "undefined"
-          ? undefined
-          : parsed.data.processingAt,
-      evaluationAt:
-        typeof parsed.data.evaluationAt === "undefined"
-          ? undefined
-          : parsed.data.evaluationAt,
-      reportDevelopmentAt:
-        typeof parsed.data.reportDevelopmentAt === "undefined"
-          ? undefined
-          : parsed.data.reportDevelopmentAt,
-      deliveredAt:
-        typeof parsed.data.deliveredAt === "undefined"
-          ? undefined
-          : parsed.data.deliveredAt,
-    });
-    const stageChanged =
-      typeof parsed.data.currentStage !== "undefined" &&
-      parsed.data.currentStage !== current.currentStage;
-    let updateNotification: StudyTrackingNotification | null = null;
-    let specialStainResolvedNotification: StudyTrackingNotification | null = null;
-    let stageChangeNotification: StudyTrackingNotification | null = null;
-
-    const updated = await deps.updateStudyTrackingCase(trackingCaseId, {
-      reportId:
-        typeof parsed.data.reportId === "undefined"
-          ? undefined
-          : parsed.data.reportId,
-      particularTokenId:
-        typeof parsed.data.particularTokenId === "undefined"
-          ? undefined
-          : parsed.data.particularTokenId,
-      receptionAt: parsed.data.labReceivedAt,
-      estimatedDeliveryAt: delivery?.estimatedDeliveryAt,
-      estimatedDeliveryAutoCalculatedAt:
-        delivery?.estimatedDeliveryAutoCalculatedAt,
-      estimatedDeliveryWasManuallyAdjusted:
-        delivery?.estimatedDeliveryWasManuallyAdjusted,
-      currentStage: parsed.data.currentStage,
-      processingAt:
-        typeof stageDefaults.processingAt === "undefined"
-          ? undefined
-          : stageDefaults.processingAt,
-      evaluationAt:
-        typeof stageDefaults.evaluationAt === "undefined"
-          ? undefined
-          : stageDefaults.evaluationAt,
-      reportDevelopmentAt:
-        typeof stageDefaults.reportDevelopmentAt === "undefined"
-          ? undefined
-          : stageDefaults.reportDevelopmentAt,
-      deliveredAt:
-        typeof stageDefaults.deliveredAt === "undefined"
-          ? undefined
-          : stageDefaults.deliveredAt,
-      specialStainRequired: parsed.data.specialStainRequired,
-      paymentUrl: parsed.data.paymentUrl,
-      adminContactEmail: parsed.data.adminContactEmail,
-      adminContactPhone: parsed.data.adminContactPhone,
-      notes: parsed.data.notes,
+    const result = await adminOperations.updateAdminStudyTrackingCase({
+      trackingCaseId,
+      current,
+      data: parsed.data,
+      auditRequest: createAuditRequestLike(request, admin),
     });
 
-    if (!updated) {
+    if (result.status === "report_not_found") {
+      return reply.code(404).send({
+        success: false,
+        error: "Informe no encontrado",
+      });
+    }
+
+    if (result.status === "report_clinic_mismatch") {
+      return reply.code(400).send({
+        success: false,
+        error: "El informe no pertenece a la clínica del seguimiento",
+      });
+    }
+
+    if (result.status === "particular_token_not_found") {
+      return reply.code(404).send({
+        success: false,
+        error: "Token particular no encontrado",
+      });
+    }
+
+    if (result.status === "particular_token_clinic_mismatch") {
+      return reply.code(400).send({
+        success: false,
+        error: "El token particular no pertenece a la clínica del seguimiento",
+      });
+    }
+
+    if (result.status === "tracking_case_not_found") {
       return reply.code(404).send({
         success: false,
         error: "Seguimiento no encontrado",
       });
     }
 
-    if (
-      typeof updated.particularTokenId === "number" &&
-      typeof updated.reportId === "number"
-    ) {
-      await deps.updateParticularTokenReport(
-        updated.particularTokenId,
-        updated.reportId,
-      );
-    }
-
-    let finalCase = updated;
-
-    if (
-      shouldCreateSpecialStainNotification({
-        previousRequired: current.specialStainRequired,
-        nextRequired: updated.specialStainRequired,
-        notifiedAt: updated.specialStainNotifiedAt,
-      })
-    ) {
-      const notifiedAt = createDate();
-
-      updateNotification = await deps.createStudyTrackingNotification({
-        studyTrackingCaseId: updated.id,
-        clinicId: updated.clinicId,
-        reportId: updated.reportId ?? null,
-        particularTokenId: updated.particularTokenId ?? null,
-        type: "special_stain_required",
-        title: "Se requiere tinción especial",
-        message:
-          "El estudio requiere tinción especial. Revisá el seguimiento para continuar la gestión.",
-        isRead: false,
-        readAt: null,
-      });
-
-      finalCase =
-        (await deps.updateStudyTrackingCase(updated.id, {
-          specialStainNotifiedAt: notifiedAt,
-        })) ?? updated;
-
-      await notifySpecialStainByEmail(finalCase, deps);
-    }
-
-    if (current.specialStainRequired && !updated.specialStainRequired) {
-      specialStainResolvedNotification =
-        await deps.createStudyTrackingNotification({
-          studyTrackingCaseId: updated.id,
-          clinicId: updated.clinicId,
-          reportId: updated.reportId ?? null,
-          particularTokenId: updated.particularTokenId ?? null,
-          type: "special_stain_resolved",
-          title: "Tinción especial resuelta",
-          message: "La solicitud de tinción especial fue resuelta.",
-          isRead: false,
-          readAt: null,
-        });
-    }
-
-    if (stageChanged) {
-      stageChangeNotification = await deps.createStudyTrackingNotification({
-        studyTrackingCaseId: finalCase.id,
-        clinicId: finalCase.clinicId,
-        reportId: finalCase.reportId ?? null,
-        particularTokenId: finalCase.particularTokenId ?? null,
-        type: "stage_changed",
-        title: "Estado de estudio actualizado",
-        message: `El estudio cambió de estado: ${getStudyTrackingStageLabel(current.currentStage)} → ${getStudyTrackingStageLabel(finalCase.currentStage)}.`,
-        isRead: false,
-        readAt: null,
-      });
-    }
-
-    await deps.writeAuditLog(createAuditRequestLike(request, admin), {
-      event: AUDIT_EVENTS.STUDY_TRACKING_CASE_UPDATED,
-      clinicId: finalCase.clinicId,
-      reportId: finalCase.reportId ?? null,
-      metadata: {
-        trackingCaseId: finalCase.id,
-        particularTokenId: finalCase.particularTokenId ?? null,
-        fromStage: current.currentStage,
-        toStage: finalCase.currentStage,
-        specialStainRequired: finalCase.specialStainRequired,
-        specialStainNotifiedAt: finalCase.specialStainNotifiedAt ?? null,
-        labReceivedAt: finalCase.receptionAt,
-        updatedVia: "admin",
-      },
-    });
-
-    if (updateNotification) {
-      await deps.writeAuditLog(createAuditRequestLike(request, admin), {
-        event: AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED,
-        clinicId: updateNotification.clinicId,
-        reportId: updateNotification.reportId ?? null,
-        metadata: {
-          trackingCaseId: updateNotification.studyTrackingCaseId,
-          notificationId: updateNotification.id,
-          particularTokenId: updateNotification.particularTokenId ?? null,
-          type: updateNotification.type,
-          title: updateNotification.title,
-          createdVia: "admin",
-        },
-      });
-    }
-
-    if (stageChangeNotification) {
-      await deps.writeAuditLog(createAuditRequestLike(request, admin), {
-        event: AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED,
-        clinicId: stageChangeNotification.clinicId,
-        reportId: stageChangeNotification.reportId ?? null,
-        metadata: {
-          trackingCaseId: stageChangeNotification.studyTrackingCaseId,
-          notificationId: stageChangeNotification.id,
-          particularTokenId: stageChangeNotification.particularTokenId ?? null,
-          type: stageChangeNotification.type,
-          title: stageChangeNotification.title,
-          fromStage: current.currentStage,
-          toStage: finalCase.currentStage,
-          createdVia: "admin",
-        },
-      });
-    }
-
-    if (specialStainResolvedNotification) {
-      await deps.writeAuditLog(createAuditRequestLike(request, admin), {
-        event: AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED,
-        clinicId: specialStainResolvedNotification.clinicId,
-        reportId: specialStainResolvedNotification.reportId ?? null,
-        metadata: {
-          trackingCaseId: specialStainResolvedNotification.studyTrackingCaseId,
-          notificationId: specialStainResolvedNotification.id,
-          particularTokenId:
-            specialStainResolvedNotification.particularTokenId ?? null,
-          type: specialStainResolvedNotification.type,
-          title: specialStainResolvedNotification.title,
-          createdVia: "admin",
-        },
-      });
-    }
-
     return reply.code(200).send({
       success: true,
       message: "Seguimiento actualizado correctamente",
-      trackingCase: serializeStudyTrackingCase(finalCase),
+      trackingCase: serializeStudyTrackingCase(result.trackingCase),
     });
   });
 };

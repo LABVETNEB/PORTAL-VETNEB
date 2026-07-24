@@ -117,6 +117,9 @@ test("admin writes persist admin attribution and audit through admin context", (
   const adminReportAccessTokens = readSource("server/routes/admin-report-access-tokens.fastify.ts");
   const adminParticularTokens = readSource("server/routes/admin-particular-tokens.fastify.ts");
   const adminStudyTracking = readSource("server/routes/admin-study-tracking.fastify.ts");
+  const adminStudyTrackingApplication = readSource(
+    "server/features/study-tracking/application/admin-study-tracking-operations.ts",
+  );
 
   assertContains(adminReportAccessTokens, "createdByClinicUserId: null", "admin report access token create attribution");
   assertContains(adminReportAccessTokens, "createdByAdminUserId: admin.id", "admin report access token create attribution");
@@ -129,10 +132,10 @@ test("admin writes persist admin attribution and audit through admin context", (
   assertContains(adminParticularTokens, "createdByAdminId: admin.id", "admin particular token create attribution");
   assertContains(adminParticularTokens, "createdByClinicUserId: null", "admin particular token create attribution");
 
-  assertContains(adminStudyTracking, "createdByAdminId: admin.id", "admin study tracking create attribution");
-  assertContains(adminStudyTracking, "createdByClinicUserId: null", "admin study tracking create attribution");
+  assertContains(adminStudyTrackingApplication, "createdByAdminId: input.actor.adminId", "admin study tracking create attribution");
+  assertContains(adminStudyTrackingApplication, "createdByClinicUserId: null", "admin study tracking create attribution");
   assertContains(adminStudyTracking, "createAuditRequestLike(request, admin)", "admin study tracking audit actor");
-  assertContains(adminStudyTracking, 'createdVia: "admin"', "admin study tracking audit metadata");
+  assertContains(adminStudyTrackingApplication, 'createdVia: "admin"', "admin study tracking audit metadata");
 });
 
 test("clinic writes persist clinic attribution and audit through clinic context", () => {

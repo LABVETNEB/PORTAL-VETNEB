@@ -110,17 +110,34 @@ test("clinic study tracking audita creación de caso y notificación especial", 
 });
 
 test("admin study tracking audita creación, actualización y notificación especial", () => {
-  const source = readSource("server/routes/admin-study-tracking.fastify.ts");
+  const routeSource = readSource(
+    "server/routes/admin-study-tracking.fastify.ts",
+  );
+  const applicationSource = readSource(
+    "server/features/study-tracking/application/admin-study-tracking-operations.ts",
+  );
 
   assertContainsAll(
-    source,
+    routeSource,
     [
       "writeAuditLog?:",
       "writeAuditLog: audit.writeAuditLog",
       "createAuditRequestLike",
-      "event: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED",
-      "event: AUDIT_EVENTS.STUDY_TRACKING_CASE_UPDATED",
-      "event: AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED",
+      "caseCreated: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED",
+      "caseUpdated: AUDIT_EVENTS.STUDY_TRACKING_CASE_UPDATED",
+      "AUDIT_EVENTS.STUDY_TRACKING_NOTIFICATION_CREATED",
+      "auditRequest: createAuditRequestLike(request, admin)",
+    ],
+    "admin study tracking route audit wiring",
+  );
+
+  assertContainsAll(
+    applicationSource,
+    [
+      "await sideEffects.writeAuditLog(input.auditRequest, {",
+      "event: deps.auditEvents.caseCreated",
+      "event: deps.auditEvents.caseUpdated",
+      "event: deps.auditEvents.notificationCreated",
       "createdVia: \"admin\"",
       "updatedVia: \"admin\"",
     ],
@@ -128,21 +145,21 @@ test("admin study tracking audita creación, actualización y notificación espe
   );
 
   assertContainsInOrder(
-    source,
+    applicationSource,
     [
-      "const created = await deps.createStudyTrackingCase({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
-      "event: AUDIT_EVENTS.STUDY_TRACKING_CASE_CREATED",
+      "const created = await commands.createStudyTrackingCase({",
+      "await sideEffects.writeAuditLog(input.auditRequest, {",
+      "event: deps.auditEvents.caseCreated",
     ],
     "admin case created audit order",
   );
 
   assertContainsInOrder(
-    source,
+    applicationSource,
     [
-      "const updated = await deps.updateStudyTrackingCase(",
-      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
-      "event: AUDIT_EVENTS.STUDY_TRACKING_CASE_UPDATED",
+      "const updated = await commands.updateStudyTrackingCase(",
+      "await sideEffects.writeAuditLog(input.auditRequest, {",
+      "event: deps.auditEvents.caseUpdated",
     ],
     "admin case updated audit order",
   );
