@@ -138,6 +138,9 @@ test("clinic-owned resources reject cross-clinic reports tokens and tracking cas
   const reportsStatus = readSource("server/routes/reports-status.fastify.ts");
   const reportAccessTokens = readSource("server/routes/report-access-tokens.fastify.ts");
   const particularTokens = readSource("server/routes/particular-tokens.fastify.ts");
+  const particularTokensApplication = readSource(
+    "server/features/particular-access/application/clinic-particular-access-operations.ts",
+  );
   const studyTracking = readSource("server/routes/study-tracking.fastify.ts");
   const studyTrackingApplication = readSource(
     "server/features/study-tracking/application/clinic-study-tracking-operations.ts",
@@ -162,8 +165,13 @@ test("clinic-owned resources reject cross-clinic reports tokens and tracking cas
   assertContains(particularTokens, "getClinicScopedReportById", "clinic particular token report ownership");
   assertMatches(
     particularTokens,
-    /getClinicScopedParticularToken\(\s*tokenId,\s*auth\.clinicId/s,
+    /clinicOperations\.getToken\(\s*tokenId,\s*auth\.clinicId/s,
     "clinic particular token detail ownership",
+  );
+  assertMatches(
+    particularTokensApplication,
+    /getClinicScopedParticularToken\(\s*tokenId,\s*clinicId/s,
+    "clinic particular token application ownership",
   );
 
   assertContains(studyTrackingApplication, "getClinicScopedReportById", "clinic study tracking report ownership");
@@ -179,6 +187,9 @@ test("clinic-owned resources reject cross-clinic reports tokens and tracking cas
 test("admin-owned linking validates target clinic before binding resources", () => {
   const adminReportAccessTokens = readSource("server/routes/admin-report-access-tokens.fastify.ts");
   const adminParticularTokens = readSource("server/routes/admin-particular-tokens.fastify.ts");
+  const adminParticularTokensApplication = readSource(
+    "server/features/particular-access/application/admin-particular-access-operations.ts",
+  );
   const adminStudyTracking = readSource("server/routes/admin-study-tracking.fastify.ts");
   const adminStudyTrackingApplication = readSource(
     "server/features/study-tracking/application/admin-study-tracking-operations.ts",
@@ -191,13 +202,13 @@ test("admin-owned linking validates target clinic before binding resources", () 
   );
 
   assertContains(
-    adminParticularTokens,
-    "report.clinicId !== parsed.data.clinicId",
+    adminParticularTokensApplication,
+    "belongsToClinic(report.clinicId, data.clinicId)",
     "admin particular token create report ownership",
   );
   assertContains(
-    adminParticularTokens,
-    "report.clinicId !== token.clinicId",
+    adminParticularTokensApplication,
+    "belongsToClinic(report.clinicId, token.clinicId)",
     "admin particular token relink report ownership",
   );
 

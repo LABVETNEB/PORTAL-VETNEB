@@ -22,8 +22,6 @@ const runtimeConsumers = [
   "server/routes/admin-study-tracking.fastify.ts",
   "server/routes/particular-study-tracking.fastify.ts",
   "server/routes/admin-reports.fastify.ts",
-  "server/routes/admin-particular-tokens.fastify.ts",
-  "server/routes/particular-tokens.fastify.ts",
 ] as const;
 
 type ImportReference = {
@@ -139,7 +137,7 @@ test("el barrel público reexporta los dos módulos canónicos", () => {
   );
 });
 
-test("los seis consumidores runtime usan únicamente el barrel canónico", () => {
+test("los cuatro consumidores runtime usan únicamente el barrel canónico", () => {
   const violations: string[] = [];
 
   for (const file of runtimeConsumers) {

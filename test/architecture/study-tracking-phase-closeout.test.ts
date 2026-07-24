@@ -43,6 +43,7 @@ const expectedFeatureFiles = [
   `${featureDir}/application/study-tracking-command-use-cases.ts`,
   `${featureDir}/application/study-tracking-query-use-cases.ts`,
   `${featureDir}/application/study-tracking-side-effect-use-cases.ts`,
+  `${featureDir}/application/token-study-tracking-operations.ts`,
   `${featureDir}/domain/README.md`,
   `${featureDir}/domain/index.ts`,
   `${featureDir}/domain/study-tracking.ts`,
@@ -54,14 +55,6 @@ const expectedFeatureFiles = [
 ].sort();
 
 const residualDbConsumers = new Map<string, { owner: string; milestone: string }>([
-  [
-    "server/routes/admin-particular-tokens.fastify.ts",
-    { owner: "Particular Access", milestone: "M33" },
-  ],
-  [
-    "server/routes/particular-tokens.fastify.ts",
-    { owner: "Particular Access", milestone: "M33" },
-  ],
   [
     "server/routes/admin-reports.fastify.ts",
     { owner: "Reports", milestone: "M36" },
@@ -156,9 +149,9 @@ function digest(relativePath: string): string {
     .digest("hex");
 }
 
-test("M35 congela el inventario exacto de Study Tracking y no inicia M33", () => {
+test("M33 extiende el inventario canonico de Study Tracking sin iniciar M34", () => {
   assert.deepEqual(walkFiles(featureDir).sort(), expectedFeatureFiles);
-  assert.equal(existsSync(resolve(repoRoot, "server/features/particular-access")), false);
+  assert.equal(existsSync(resolve(repoRoot, "server/features/particular-access")), true);
   assert.equal(existsSync(resolve(repoRoot, "server/features/report-access")), false);
 });
 
@@ -238,6 +231,7 @@ test("composition sigue siendo el único seam route a infrastructure", () => {
       "loadClinicStudyTrackingPersistence",
       "loadParticularStudyTrackingPersistence",
       "loadAdminStudyTrackingPersistence",
+      "loadParticularAccessStudyTrackingPersistence",
     ],
   );
   assert.equal(/\b(?:select|insert|update|delete)\s*\(/.test(source), false);
@@ -300,6 +294,12 @@ test("todas las factories application públicas conservan consumidor y test", ()
       source: `${featureDir}/application/particular-study-tracking-operations.ts`,
       consumer: routes.particular,
       test: "test/unit/application/study-tracking/particular-study-tracking-operations.test.ts",
+    },
+    {
+      factory: "createTokenStudyTrackingOperations",
+      source: `${featureDir}/application/token-study-tracking-operations.ts`,
+      consumer: "server/features/particular-access/application/admin-particular-access-operations.ts",
+      test: "test/unit/application/study-tracking/token-study-tracking-operations.test.ts",
     },
     {
       factory: "createAdminStudyTrackingOperations",

@@ -37,7 +37,11 @@ import {
   type RuntimeTimer,
 } from "../lib/runtime-timing.ts";
 import { getSafeEmailTransportErrorMetadata } from "../lib/email.ts";
-import { ensureStudyTrackingCaseForToken } from "../features/study-tracking/domain/index.ts";
+import {
+  createAdminParticularAccessOperations,
+  type ParticularAccessIssue,
+} from "../features/particular-access/application/index.ts";
+import { loadAdminParticularAccessRouteDeps } from "../features/particular-access/particular-access-route-composition.ts";
 
 type AdminUserRecord = {
   id: number;
@@ -184,39 +188,7 @@ let defaultDepsPromise: Promise<NativeAdminParticularTokensDeps> | undefined;
 
 async function loadDefaultDeps(): Promise<NativeAdminParticularTokensDeps> {
   if (!defaultDepsPromise) {
-    defaultDepsPromise = (async () => {
-      const db = await import("../db.ts");
-      const authSecurity = await import("../lib/auth-security.ts");
-      const dbParticular = await import("../db-particular.ts");
-      const dbStudyTracking = await import("../db-study-tracking.ts");
-      const email = await import("../lib/email.ts");
-
-      return {
-        deleteAdminSession: db.deleteAdminSession,
-        getAdminSessionByToken: db.getAdminSessionByToken,
-        getAdminUserById: db.getAdminUserById,
-        updateAdminSessionLastAccess: db.updateAdminSessionLastAccess,
-        generateSessionToken: authSecurity.generateSessionToken,
-        hashSessionToken: authSecurity.hashSessionToken,
-        getClinicById: db.getClinicById,
-        getReportById: db.getReportById,
-        createParticularToken: dbParticular.createParticularToken,
-        getParticularTokenById: dbParticular.getParticularTokenById,
-        listParticularTokens: dbParticular.listParticularTokens,
-        updateParticularTokenReport: dbParticular.updateParticularTokenReport,
-        revokeParticularToken: dbParticular.revokeParticularToken,
-        deleteParticularToken: dbParticular.deleteParticularToken,
-        sendParticularTokenEmail: email.sendParticularTokenEmail,
-        getParticularStudyTrackingCase:
-          dbStudyTracking.getParticularStudyTrackingCase,
-        getStudyTrackingCaseByReportId:
-          dbStudyTracking.getStudyTrackingCaseByReportId,
-        createStudyTrackingCase: dbStudyTracking.createStudyTrackingCase,
-        updateStudyTrackingCase: dbStudyTracking.updateStudyTrackingCase,
-        createStudyTrackingNotification:
-          dbStudyTracking.createStudyTrackingNotification,
-      };
-    })();
+    defaultDepsPromise = loadAdminParticularAccessRouteDeps();
   }
 
   return defaultDepsPromise;
@@ -243,21 +215,6 @@ function getSafeErrorName(error: unknown) {
     ? error.name
     : "unknown_error";
 }
-
-async function revokeParticularTokenAfterEmailFailure(
-  deps: NativeAdminParticularTokensDeps,
-  tokenId: number,
-) {
-  try {
-    await deps.revokeParticularToken(tokenId);
-  } catch (error) {
-    console.error("[EMAIL] particular_token cleanup failed", {
-      tokenId,
-      errorName: getSafeErrorName(error),
-    });
-  }
-}
-
 
 async function authenticateAdminUser(
   request: FastifyRequest,
@@ -351,33 +308,43 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
 
   const now = options.now ?? (() => Date.now());
   const allowedOrigins = new Set(getAllowedOrigins());
+  const adminOperations = createAdminParticularAccessOperations({
+    ...deps,
+    studyTracking: {
+      getParticularStudyTrackingCase: deps.getParticularStudyTrackingCase,
+      getStudyTrackingCaseByReportId: deps.getStudyTrackingCaseByReportId,
+      createStudyTrackingCase: deps.createStudyTrackingCase,
+      updateStudyTrackingCase: deps.updateStudyTrackingCase,
+    },
+    now,
+  });
 
-  async function ensureTrackingForToken(
-    token: ParticularToken,
-    createdByAdminId: number | null,
-  ): Promise<StudyTrackingCase | null> {
-    try {
-      return await ensureStudyTrackingCaseForToken(
-        {
-          getParticularStudyTrackingCase: deps.getParticularStudyTrackingCase,
-          getStudyTrackingCaseByReportId: deps.getStudyTrackingCaseByReportId,
-          createStudyTrackingCase: deps.createStudyTrackingCase,
-          updateStudyTrackingCase: deps.updateStudyTrackingCase,
-        },
-        {
-          token,
-          createdByAdminId,
-          createdByClinicUserId: token.createdByClinicUserId ?? null,
-          now: new Date(now()),
-        },
-      );
-    } catch (error) {
+  function logApplicationIssues(issues: ParticularAccessIssue[]) {
+    for (const issue of issues) {
+      if (issue.kind === "tracking") {
       console.error("[TRACKING] ensure-by-token failed", {
-        tokenId: token.id,
-        clinicId: token.clinicId,
-        errorName: getSafeErrorName(error),
+          tokenId: issue.tokenId,
+          clinicId: issue.clinicId,
+          errorName: getSafeErrorName(issue.error),
+        });
+      } else {
+        console.error("[TRACKING] notification token_created failed", {
+          tokenId: issue.tokenId,
+          trackingCaseId: issue.trackingCaseId,
+          errorName: getSafeErrorName(issue.error),
+        });
+      }
+    }
+  }
+
+  function logCleanupError(
+    result: { tokenId: number; cleanupError?: unknown },
+  ) {
+    if (result.cleanupError !== undefined) {
+      console.error("[EMAIL] particular_token cleanup failed", {
+        tokenId: result.tokenId,
+        errorName: getSafeErrorName(result.cleanupError),
       });
-      return null;
     }
   }
 
@@ -476,85 +443,53 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const clinic = await deps.getClinicById(parsed.data.clinicId);
+    const result = await adminOperations.createToken(
+      {
+        ...parsed.data,
+        reportId:
+          typeof parsed.data.reportId === "number" ? parsed.data.reportId : null,
+        detailsLesion: parsed.data.detailsLesion ?? null,
+      },
+      admin.id,
+    );
 
-    if (!clinic) {
+    if (result.kind === "clinic_not_found") {
       return reply.code(404).send({
         success: false,
         error: "Clínica no encontrada",
       });
     }
 
-    if (typeof parsed.data.reportId === "number") {
-      const report = await deps.getReportById(parsed.data.reportId);
-
-      if (!report) {
-        return reply.code(404).send({
-          success: false,
-          error: "Informe no encontrado",
-        });
-      }
-
-      if (report.clinicId !== parsed.data.clinicId) {
-        return reply.code(400).send({
-          success: false,
-          error: "El informe no pertenece a la clínica indicada",
-        });
-      }
+    if (result.kind === "report_not_found") {
+      return reply.code(404).send({
+        success: false,
+        error: "Informe no encontrado",
+      });
     }
 
-    const rawToken = deps.generateSessionToken();
-    const tokenHash = deps.hashSessionToken(rawToken);
-
-    const particularToken = await deps.createParticularToken({
-      clinicId: parsed.data.clinicId,
-      reportId:
-        typeof parsed.data.reportId === "number" ? parsed.data.reportId : null,
-      createdByAdminId: admin.id,
-      createdByClinicUserId: null,
-      tokenHash,
-      tokenLast4: rawToken.slice(-4),
-      tutorLastName: parsed.data.tutorLastName,
-      petName: parsed.data.petName,
-      petAge: parsed.data.petAge,
-      petBreed: parsed.data.petBreed,
-      petSex: parsed.data.petSex,
-      petSpecies: parsed.data.petSpecies,
-      sampleLocation: parsed.data.sampleLocation,
-      sampleEvolution: parsed.data.sampleEvolution,
-      detailsLesion: parsed.data.detailsLesion ?? null,
-      extractionDate: parsed.data.extractionDate,
-      shippingDate: parsed.data.shippingDate,
-      isActive: true,
-      lastLoginAt: null,
-    });
-
-    try {
-      const emailResult = await deps.sendParticularTokenEmail({
-        to: parsed.data.recipientEmail,
-        token: rawToken,
-        tutorLastName: parsed.data.tutorLastName,
-        petName: parsed.data.petName,
+    if (result.kind === "report_wrong_clinic") {
+      return reply.code(400).send({
+        success: false,
+        error: "El informe no pertenece a la clínica indicada",
       });
+    }
 
-      if (!emailResult.sent) {
-        await revokeParticularTokenAfterEmailFailure(deps, particularToken.id);
+    if (result.kind === "email_unavailable") {
+      logCleanupError(result);
+      return reply.code(503).send({
+        success: false,
+        reason: result.reason,
+        error:
+          "No se pudo enviar el email del token particular. El token fue desactivado; reintentá la generación cuando el servicio de email esté disponible.",
+      });
+    }
 
-        return reply.code(503).send({
-          success: false,
-          reason: emailResult.reason,
-          error:
-            "No se pudo enviar el email del token particular. El token fue desactivado; reintentá la generación cuando el servicio de email esté disponible.",
-        });
-      }
-    } catch (error) {
-      await revokeParticularTokenAfterEmailFailure(deps, particularToken.id);
-
+    if (result.kind === "email_failed") {
+      logCleanupError(result);
       console.error("[EMAIL] particular_token failed", {
-        tokenId: particularToken.id,
-        ...getSafeEmailTransportErrorMetadata(error),
+        tokenId: result.tokenId,
+        ...getSafeEmailTransportErrorMetadata(result.error),
       });
-
       return reply.code(502).send({
         success: false,
         reason: "email_delivery_failed",
@@ -563,36 +498,13 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const trackingCase = await ensureTrackingForToken(particularToken, admin.id);
-
-    if (trackingCase) {
-      try {
-        await deps.createStudyTrackingNotification({
-          studyTrackingCaseId: trackingCase.id,
-          clinicId: particularToken.clinicId,
-          reportId:
-            particularToken.reportId ?? trackingCase.reportId ?? null,
-          particularTokenId: particularToken.id,
-          type: "token_created",
-          title: "Token particular generado",
-          message: `Se generó un token particular para ${particularToken.petName}.`,
-          isRead: false,
-          readAt: null,
-        });
-      } catch (error) {
-        console.error("[TRACKING] notification token_created failed", {
-          tokenId: particularToken.id,
-          trackingCaseId: trackingCase.id,
-          errorName: getSafeErrorName(error),
-        });
-      }
-    }
+    logApplicationIssues(result.issues);
 
     return reply.code(201).send({
       success: true,
       message: "Token particular creado correctamente",
-      token: rawToken,
-      particularToken: serializeParticularToken(particularToken),
+      token: result.rawToken,
+      particularToken: serializeParticularToken(result.particularToken),
     });
   });
 
@@ -613,20 +525,20 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
     const limit = parsePositiveInt(request.query.limit, 50, 100);
     const offset = parseOffset(request.query.offset, 0);
 
-    const tokens = await deps.listParticularTokens({
+    const result = await adminOperations.listTokens({
       clinicId,
       limit,
       offset,
+      adminId: admin.id,
     });
-
-    await Promise.all(
-      tokens.map((token) => ensureTrackingForToken(token, admin.id)),
-    );
+    logApplicationIssues(result.issues);
 
     return reply.code(200).send({
       success: true,
-      count: tokens.length,
-      particularTokens: tokens.map((token) => serializeParticularToken(token)),
+      count: result.tokens.length,
+      particularTokens: result.tokens.map((token) =>
+        serializeParticularToken(token),
+      ),
       pagination: {
         limit,
         offset,
@@ -657,25 +569,23 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const token = await deps.getParticularTokenById(tokenId);
+    const result = await adminOperations.getToken(tokenId, admin.id);
 
-    if (!token) {
+    if (result.kind === "not_found") {
       return reply.code(404).send({
         success: false,
         error: "Token particular no encontrado",
       });
     }
 
-    await ensureTrackingForToken(token, admin.id);
-
-    const report =
-      typeof token.reportId === "number"
-        ? await deps.getReportById(token.reportId)
-        : null;
+    logApplicationIssues(result.issues);
 
     return reply.code(200).send({
       success: true,
-      particularToken: serializeParticularTokenDetail(token, report),
+      particularToken: serializeParticularTokenDetail(
+        result.token,
+        result.report,
+      ),
     });
   });
 
@@ -715,46 +625,34 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const token = await deps.getParticularTokenById(tokenId);
+    const result = await adminOperations.updateTokenReport(
+      tokenId,
+      parsed.data.reportId,
+      admin.id,
+    );
 
-    if (!token) {
+    if (result.kind === "token_not_found") {
       return reply.code(404).send({
         success: false,
         error: "Token particular no encontrado",
       });
     }
 
-    if (typeof parsed.data.reportId === "number") {
-      const report = await deps.getReportById(parsed.data.reportId);
-
-      if (!report) {
-        return reply.code(404).send({
-          success: false,
-          error: "Informe no encontrado",
-        });
-      }
-
-      if (report.clinicId !== token.clinicId) {
-        return reply.code(400).send({
-          success: false,
-          error: "El informe no pertenece a la clínica del token",
-        });
-      }
+    if (result.kind === "report_not_found") {
+      return reply.code(404).send({
+        success: false,
+        error: "Informe no encontrado",
+      });
     }
 
-    const updated = await deps.updateParticularTokenReport(
-      tokenId,
-      parsed.data.reportId,
-    );
-
-    if (updated) {
-      await ensureTrackingForToken(updated, admin.id);
+    if (result.kind === "report_wrong_clinic") {
+      return reply.code(400).send({
+        success: false,
+        error: "El informe no pertenece a la clínica del token",
+      });
     }
 
-    const report =
-      updated && typeof updated.reportId === "number"
-        ? await deps.getReportById(updated.reportId)
-        : null;
+    logApplicationIssues(result.issues);
 
     return reply.code(200).send({
       success: true,
@@ -762,8 +660,8 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
         typeof parsed.data.reportId === "number"
           ? "Informe vinculado al token correctamente"
           : "Informe desvinculado del token correctamente",
-      particularToken: updated
-        ? serializeParticularTokenDetail(updated, report)
+      particularToken: result.updated
+        ? serializeParticularTokenDetail(result.updated, result.report)
         : null,
     });
   });
@@ -792,18 +690,9 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const existing = await deps.getParticularTokenById(tokenId);
+    const result = await adminOperations.deleteToken(tokenId);
 
-    if (!existing) {
-      return reply.code(404).send({
-        success: false,
-        error: "Token particular no encontrado",
-      });
-    }
-
-    const deleted = await deps.deleteParticularToken(tokenId);
-
-    if (!deleted) {
+    if (result.kind === "not_found") {
       return reply.code(404).send({
         success: false,
         error: "Token particular no encontrado",
@@ -813,7 +702,7 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
     return reply.code(200).send({
       success: true,
       message: "Token particular eliminado correctamente",
-      deletedTokenId: tokenId,
+      deletedTokenId: result.deletedTokenId,
     });
   });
 
@@ -841,18 +730,9 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const existing = await deps.getParticularTokenById(tokenId);
+    const result = await adminOperations.deleteToken(tokenId);
 
-    if (!existing) {
-      return reply.code(404).send({
-        success: false,
-        error: "Token particular no encontrado",
-      });
-    }
-
-    const deleted = await deps.deleteParticularToken(tokenId);
-
-    if (!deleted) {
+    if (result.kind === "not_found") {
       return reply.code(404).send({
         success: false,
         error: "Token particular no encontrado",
@@ -862,7 +742,7 @@ export const adminParticularTokensNativeRoutes: FastifyPluginAsync<
     return reply.code(200).send({
       success: true,
       message: "Token particular eliminado correctamente",
-      deletedTokenId: tokenId,
+      deletedTokenId: result.deletedTokenId,
     });
   });
 };

@@ -13,6 +13,11 @@ export {
 } from "./study-tracking-command-use-cases.ts";
 export { createStudyTrackingSideEffectUseCases } from "./study-tracking-side-effect-use-cases.ts";
 export {
+  createTokenStudyTrackingOperations,
+  type EnsureTokenStudyTrackingInput,
+  type TokenStudyTrackingOperationsDeps,
+} from "./token-study-tracking-operations.ts";
+export {
   createAdminStudyTrackingOperations,
   type AdminStudyTrackingCaseListParams,
   type AdminStudyTrackingNotificationListParams,

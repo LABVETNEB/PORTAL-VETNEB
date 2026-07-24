@@ -366,7 +366,7 @@ const CRITICAL_ROUTE_SURFACE_REGISTRY: readonly CriticalSurface[] = [
         path: "server/routes/particular-tokens.fastify.ts",
         markers: [
           "requireParticularTokenManagementPermission",
-          "deps.createParticularToken",
+          "clinicOperations.createToken",
         ],
       },
       {
