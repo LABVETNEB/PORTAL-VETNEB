@@ -12,6 +12,11 @@ import type {
 } from "../../drizzle/schema.ts";
 import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
 import {
+  createClinicStudyTrackingCommandUseCases,
+  createClinicStudyTrackingQueryUseCases,
+  createStudyTrackingSideEffectUseCases,
+} from "../features/study-tracking/application/index.ts";
+import {
   enforceTrustedOriginRequired as enforceTrustedOrigin,
   getAllowedOriginForCors,
   getAllowedOrigins,
@@ -548,7 +553,7 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
-  const deps: NativeStudyTrackingDeps = {
+  const nativeDeps: NativeStudyTrackingDeps = {
     deleteActiveSession:
       options.deleteActiveSession ?? defaultDeps!.deleteActiveSession,
     getActiveSessionByToken:
@@ -598,6 +603,39 @@ export const studyTrackingNativeRoutes: FastifyPluginAsync<
       options.sendSpecialStainRequiredEmail ??
       defaultDeps!.sendSpecialStainRequiredEmail,
     writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
+  };
+
+  const queryUseCases = createClinicStudyTrackingQueryUseCases({
+    getClinicScopedStudyTrackingCase:
+      nativeDeps.getClinicScopedStudyTrackingCase,
+    listStudyTrackingCases: nativeDeps.listStudyTrackingCases,
+    listStudyTrackingNotifications:
+      nativeDeps.listStudyTrackingNotifications,
+  });
+  const commandUseCases = createClinicStudyTrackingCommandUseCases({
+    createStudyTrackingCase: nativeDeps.createStudyTrackingCase,
+    updateStudyTrackingCase: nativeDeps.updateStudyTrackingCase,
+    createStudyTrackingNotification:
+      nativeDeps.createStudyTrackingNotification,
+    markStudyTrackingNotificationReadScoped:
+      nativeDeps.markStudyTrackingNotificationReadScoped,
+    markAllStudyTrackingNotificationsReadScoped:
+      nativeDeps.markAllStudyTrackingNotificationsReadScoped,
+  });
+  const sideEffectUseCases = createStudyTrackingSideEffectUseCases({
+    notification: {
+      sendSpecialStainRequiredEmail:
+        nativeDeps.sendSpecialStainRequiredEmail,
+    },
+    audit: {
+      writeAuditLog: nativeDeps.writeAuditLog,
+    },
+  });
+  const deps: NativeStudyTrackingDeps = {
+    ...nativeDeps,
+    ...queryUseCases,
+    ...commandUseCases,
+    ...sideEffectUseCases,
   };
 
   const now = options.now ?? (() => Date.now());

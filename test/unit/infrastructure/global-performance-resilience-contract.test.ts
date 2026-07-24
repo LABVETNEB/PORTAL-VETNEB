@@ -48,7 +48,9 @@ const HEAVY_SURFACES: readonly HeavySurface[] = [
     markers: ["normalizeListPagination", ".limit(limit)", ".offset(offset)"],
   },
   {
-    file: "server/db-study-tracking.ts",
+    // M31: Study Tracking persistence moved behind its context infrastructure
+    // barrel; the legacy path is now only a compatibility re-export.
+    file: "server/features/study-tracking/infrastructure/study-tracking-repository.ts",
     markers: ["normalizeListPagination", ".limit(limit)", ".offset(offset)"],
   },
   {

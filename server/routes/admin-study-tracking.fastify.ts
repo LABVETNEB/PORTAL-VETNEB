@@ -11,6 +11,11 @@ import type {
   StudyTrackingNotification,
 } from "../../drizzle/schema.ts";
 import { AUDIT_EVENTS, type AuditWriteInput } from "../lib/audit.ts";
+import {
+  createAdminStudyTrackingCommandUseCases,
+  createAdminStudyTrackingQueryUseCases,
+  createStudyTrackingSideEffectUseCases,
+} from "../features/study-tracking/application/index.ts";
 import { ENV } from "../lib/env.ts";
 import {
   getAllowedOrigins,
@@ -391,7 +396,7 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
 
   const defaultDeps = hasAllInjectedDeps ? undefined : await loadDefaultDeps();
 
-  const deps: NativeAdminStudyTrackingDeps = {
+  const nativeDeps: NativeAdminStudyTrackingDeps = {
     deleteAdminSession:
       options.deleteAdminSession ?? defaultDeps!.deleteAdminSession,
     getAdminSessionByToken:
@@ -437,6 +442,40 @@ export const adminStudyTrackingNativeRoutes: FastifyPluginAsync<
       options.sendSpecialStainRequiredEmail ??
       defaultDeps!.sendSpecialStainRequiredEmail,
     writeAuditLog: options.writeAuditLog ?? defaultDeps!.writeAuditLog,
+  };
+
+  const queryUseCases = createAdminStudyTrackingQueryUseCases({
+    getClinicScopedStudyTrackingCase:
+      nativeDeps.getClinicScopedStudyTrackingCase,
+    getStudyTrackingCaseById: nativeDeps.getStudyTrackingCaseById,
+    listStudyTrackingCases: nativeDeps.listStudyTrackingCases,
+    listStudyTrackingNotifications:
+      nativeDeps.listStudyTrackingNotifications,
+  });
+  const commandUseCases = createAdminStudyTrackingCommandUseCases({
+    createStudyTrackingCase: nativeDeps.createStudyTrackingCase,
+    updateStudyTrackingCase: nativeDeps.updateStudyTrackingCase,
+    createStudyTrackingNotification:
+      nativeDeps.createStudyTrackingNotification,
+    markStudyTrackingNotificationRead:
+      nativeDeps.markStudyTrackingNotificationRead,
+    markAllStudyTrackingNotificationsRead:
+      nativeDeps.markAllStudyTrackingNotificationsRead,
+  });
+  const sideEffectUseCases = createStudyTrackingSideEffectUseCases({
+    notification: {
+      sendSpecialStainRequiredEmail:
+        nativeDeps.sendSpecialStainRequiredEmail,
+    },
+    audit: {
+      writeAuditLog: nativeDeps.writeAuditLog,
+    },
+  });
+  const deps: NativeAdminStudyTrackingDeps = {
+    ...nativeDeps,
+    ...queryUseCases,
+    ...commandUseCases,
+    ...sideEffectUseCases,
   };
 
   const now = options.now ?? (() => Date.now());

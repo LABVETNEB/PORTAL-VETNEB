@@ -10,6 +10,10 @@ import type {
   StudyTrackingNotification,
 } from "../../drizzle/schema.ts";
 import {
+  createParticularStudyTrackingCommandUseCases,
+  createParticularStudyTrackingQueryUseCases,
+} from "../features/study-tracking/application/index.ts";
+import {
   enforceTrustedOriginRequired as enforceTrustedOrigin,
   getAllowedOriginForCors,
   getAllowedOrigins,
@@ -163,7 +167,7 @@ async function resolveDeps(
     ? undefined
     : await loadDefaultDeps();
 
-  return {
+  const nativeDeps: NativeParticularStudyTrackingDeps = {
     deleteParticularSession:
       options.deleteParticularSession ?? defaultDeps!.deleteParticularSession,
     getParticularSessionByToken:
@@ -188,6 +192,25 @@ async function resolveDeps(
     markAllStudyTrackingNotificationsReadScoped:
       options.markAllStudyTrackingNotificationsReadScoped ??
       defaultDeps!.markAllStudyTrackingNotificationsReadScoped,
+  };
+
+  const queryUseCases = createParticularStudyTrackingQueryUseCases({
+    getParticularStudyTrackingCase:
+      nativeDeps.getParticularStudyTrackingCase,
+    listStudyTrackingNotifications:
+      nativeDeps.listStudyTrackingNotifications,
+  });
+  const commandUseCases = createParticularStudyTrackingCommandUseCases({
+    markStudyTrackingNotificationReadScoped:
+      nativeDeps.markStudyTrackingNotificationReadScoped,
+    markAllStudyTrackingNotificationsReadScoped:
+      nativeDeps.markAllStudyTrackingNotificationsReadScoped,
+  });
+
+  return {
+    ...nativeDeps,
+    ...queryUseCases,
+    ...commandUseCases,
   };
 }
 
