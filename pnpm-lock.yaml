@@ -13,9 +13,9 @@ overrides:
   fast-uri@>=4.0.0 <4.1.1: 4.1.1
   find-my-way@<=9.6.0: 9.7.0
   sharp@<0.35.0: 0.35.3
-  postcss@<8.5.10: 8.5.14
+  postcss@<=8.5.17: 8.5.19
   ws@>=8.0.0 <8.20.1: 8.20.1
-  js-yaml: 5.2.1
+  js-yaml@<=5.2.1: 5.2.2
 
 importers:
 
@@ -65,8 +65,8 @@ importers:
         specifier: 0.28.1
         version: 0.28.1
       js-yaml:
-        specifier: 5.2.1
-        version: 5.2.1
+        specifier: 5.2.2
+        version: 5.2.2
       tsx:
         specifier: ^4.23.1
         version: 4.23.1
@@ -2314,8 +2314,8 @@ packages:
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
-  js-yaml@5.2.1:
-    resolution: {integrity: sha512-zfLtNfQqxVqq3uaTqSkh4x4hZw3KHobGUA0fJUj4wawW8bsQLTVqpHdXSIzidh7o+4lEW36tANuAGdaFx6Zgnw==}
+  js-yaml@5.2.2:
+    resolution: {integrity: sha512-dayzUzKkJ1MkuUtZglSebU43utNXH0OWQByK9rKOOuYIO8M5TV1y+n8ALMdG0rdzBnfNkOmZEqrURepb0ejqBw==}
     hasBin: true
 
   jsesc@3.1.0:
@@ -2524,11 +2524,6 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
-  nanoid@3.3.16:
-    resolution: {integrity: sha512-bzlKTyNJ7+LdGIIwy8ijFpIqEQIvafahV7eYykJ8Cvh42EdJeODoJ6gUJXpQJvej1BddH8OqTXZNE/KfbWAu8Q==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-
   napi-postinstall@0.3.4:
     resolution: {integrity: sha512-PHI5f1O0EP5xJ9gQmFGMS6IZcrVvTjpXjz7Na41gTE7eE2hK11lg04CECCYEEjdc17EV4DO+fkGEtt7TpTaTiQ==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
@@ -2713,10 +2708,6 @@ packages:
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
     engines: {node: '>= 0.4'}
-
-  postcss@8.5.14:
-    resolution: {integrity: sha512-SoSL4+OSEtR99LHFZQiJLkT59C5B1amGO1NzTwj7TT1qCUgUO6hxOvzkOYxD+vMrXBM3XJIKzokoERdqQq/Zmg==}
-    engines: {node: ^10 || ^12 || >=14}
 
   postcss@8.5.19:
     resolution: {integrity: sha512-Mz8SaolMd8nB+G13WkORcxQKHZ/NE4xXevtkJHVuG+guo9/wYKlIMTKAqGdEmYOXR2ijPjTYNHssizdaVSUNdQ==}
@@ -5302,7 +5293,7 @@ snapshots:
 
   js-tokens@4.0.0: {}
 
-  js-yaml@5.2.1:
+  js-yaml@5.2.2:
     dependencies:
       argparse: 2.0.1
 
@@ -5485,8 +5476,6 @@ snapshots:
 
   nanoid@3.3.12: {}
 
-  nanoid@3.3.16: {}
-
   napi-postinstall@0.3.4: {}
 
   natural-compare@1.4.0: {}
@@ -5497,7 +5486,7 @@ snapshots:
       '@swc/helpers': 0.5.15
       baseline-browser-mapping: 2.11.0
       caniuse-lite: 1.0.30001806
-      postcss: 8.5.14
+      postcss: 8.5.19
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
       styled-jsx: 5.1.6(@babel/core@7.29.7)(react@19.2.8)
@@ -5684,12 +5673,6 @@ snapshots:
   pngjs@7.0.0: {}
 
   possible-typed-array-names@1.1.0: {}
-
-  postcss@8.5.14:
-    dependencies:
-      nanoid: 3.3.16
-      picocolors: 1.1.1
-      source-map-js: 1.2.1
 
   postcss@8.5.19:
     dependencies:
