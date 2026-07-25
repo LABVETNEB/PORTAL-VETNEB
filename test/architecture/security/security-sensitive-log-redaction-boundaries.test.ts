@@ -36,6 +36,9 @@ const TOKEN_ROUTE_FILES = [
   "server/routes/admin-report-access-tokens.fastify.ts",
   "server/routes/particular-tokens.fastify.ts",
   "server/routes/admin-particular-tokens.fastify.ts",
+  "server/features/report-access/application/public-report-access-operations.ts",
+  "server/features/report-access/application/clinic-report-access-operations.ts",
+  "server/features/report-access/application/admin-report-access-operations.ts",
 ] as const;
 
 const AUDIT_FILES = [
@@ -134,9 +137,9 @@ test("token routes avoid raw token leakage in audit metadata and logs", () => {
   }
 
   for (const file of [
-    "server/routes/public-report-access.fastify.ts",
-    "server/routes/report-access-tokens.fastify.ts",
-    "server/routes/admin-report-access-tokens.fastify.ts",
+    "server/features/report-access/application/public-report-access-operations.ts",
+    "server/features/report-access/application/clinic-report-access-operations.ts",
+    "server/features/report-access/application/admin-report-access-operations.ts",
   ] as const) {
     const source = readSource(file);
 
@@ -144,11 +147,14 @@ test("token routes avoid raw token leakage in audit metadata and logs", () => {
   }
 
   const publicReportAccess = readSource("server/routes/public-report-access.fastify.ts");
+  const publicReportAccessApplication = readSource(
+    "server/features/report-access/application/public-report-access-operations.ts",
+  );
 
   assertContains(publicReportAccess, "buildPublicReportAccessTokenActor", "public report access actor redaction boundary");
-  assertContains(publicReportAccess, "targetReportAccessTokenId", "public report access target id boundary");
-  assertContains(publicReportAccess, "record.token.id", "public report access uses token id");
-  assertNotContains(publicReportAccess, "record.token.raw", "public report access must not expose raw token");
+  assertContains(publicReportAccessApplication, "targetReportAccessTokenId", "public report access target id boundary");
+  assertContains(publicReportAccessApplication, "record.token.id", "public report access uses token id");
+  assertNotContains(publicReportAccessApplication, "record.token.raw", "public report access must not expose raw token");
 });
 
 test("audit helpers export structured identifiers without raw secrets", () => {

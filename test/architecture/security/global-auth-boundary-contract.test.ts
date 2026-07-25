@@ -112,14 +112,17 @@ test("public route families do not accept browser session authenticators", () =>
   }
 
   const publicReportAccess = read("server/routes/public-report-access.fastify.ts");
+  const publicReportAccessApplication = read(
+    "server/features/report-access/application/public-report-access-operations.ts",
+  );
   assertContains(
     publicReportAccess,
     "reportAccessTokenRawTokenSchema.safeParse",
     "public report access token validation",
   );
   assertContains(
-    publicReportAccess,
-    "hashSessionToken(parsed.data)",
+    publicReportAccessApplication,
+    "hashSessionToken(rawToken)",
     "public report access token hashing",
   );
 });

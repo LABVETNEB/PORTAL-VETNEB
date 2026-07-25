@@ -259,7 +259,7 @@ const STORAGE_SUITE: readonly StorageSuiteEntry[] = [
     ],
     runtimeAnchors: [
       {
-        path: "server/routes/public-report-access.fastify.ts",
+        path: "server/features/report-access/application/public-report-access-operations.ts",
         markers: [
           "createSignedReportUrl",
           "createSignedReportDownloadUrl",

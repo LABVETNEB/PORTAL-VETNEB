@@ -214,24 +214,24 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         markers: ["AUDIT_EVENTS.REPORT_STATUS_CHANGED", "writeAuditLog"],
       },
       {
-        path: "server/routes/report-access-tokens.fastify.ts",
+        path: "server/features/report-access/application/clinic-report-access-operations.ts",
         markers: [
-          "AUDIT_EVENTS.REPORT_ACCESS_TOKEN_CREATED",
-          "AUDIT_EVENTS.REPORT_ACCESS_TOKEN_REVOKED",
+          'event: "report_access_token.created"',
+          'event: "report_access_token.revoked"',
           "writeAuditLog",
         ],
       },
       {
-        path: "server/routes/admin-report-access-tokens.fastify.ts",
+        path: "server/features/report-access/application/admin-report-access-operations.ts",
         markers: [
-          "AUDIT_EVENTS.REPORT_ACCESS_TOKEN_CREATED",
-          "AUDIT_EVENTS.REPORT_ACCESS_TOKEN_REVOKED",
+          'event: "report_access_token.created"',
+          'event: "report_access_token.revoked"',
           "writeAuditLog",
         ],
       },
       {
-        path: "server/routes/public-report-access.fastify.ts",
-        markers: ["AUDIT_EVENTS.REPORT_PUBLIC_ACCESSED", "writeAuditLog"],
+        path: "server/features/report-access/application/public-report-access-operations.ts",
+        markers: ['event: "report.public_accessed"', "writeAuditLog"],
       },
       {
         path: "server/routes/admin-reports.fastify.ts",
@@ -473,7 +473,7 @@ const AUDIT_SUITE: readonly AuditSuiteEntry[] = [
         markers: ["createWriteAuditLog", "AUDIT_LOG_WRITE_ERROR"],
       },
       {
-        path: "server/routes/public-report-access.fastify.ts",
+        path: "server/features/report-access/application/public-report-access-operations.ts",
         markers: ["recordReportAccessTokenAccess", "writeAuditLog"],
       },
     ],

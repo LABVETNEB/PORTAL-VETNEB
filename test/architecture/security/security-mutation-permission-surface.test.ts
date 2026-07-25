@@ -27,7 +27,7 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     path: "/",
     authGuard: "authenticateClinicUser",
     permissionGuard: "requireReportAccessTokenManagementPermission",
-    protectedCalls: ["deps.createReportAccessToken", "deps.writeAuditLog"],
+    protectedCalls: ["reportAccess.createToken"],
   },
   {
     file: "server/routes/report-access-tokens.fastify.ts",
@@ -35,7 +35,7 @@ const SENSITIVE_MUTATION_ROUTES: readonly SensitiveMutationRoute[] = [
     path: "/:tokenId/revoke",
     authGuard: "authenticateClinicUser",
     permissionGuard: "requireReportAccessTokenManagementPermission",
-    protectedCalls: ["deps.revokeReportAccessToken", "deps.writeAuditLog"],
+    protectedCalls: ["reportAccess.revokeToken"],
   },
   {
     file: "server/routes/particular-tokens.fastify.ts",

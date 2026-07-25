@@ -108,36 +108,39 @@ test("access lifecycle matrix documents public token revoke session and rate-lim
 
 test("public report access enforces token lifecycle before signed URLs and audit", () => {
   const publicReportAccess = readSource("server/routes/public-report-access.fastify.ts");
+  const publicReportAccessApplication = readSource(
+    "server/features/report-access/application/public-report-access-operations.ts",
+  );
 
-  assertContains(publicReportAccess, "recordReportAccessTokenAccess", "public report token access mutation");
-  assertContains(publicReportAccess, "accessCount: updatedToken?.accessCount ?? record.token.accessCount + 1", "public report access count lifecycle");
-  assertContains(publicReportAccess, "lastAccessAt: updatedToken?.lastAccessAt ?? new Date(currentTime)", "public report last access lifecycle");
+  assertContains(publicReportAccessApplication, "recordReportAccessTokenAccess", "public report token access mutation");
+  assertContains(publicReportAccessApplication, "updatedToken?.accessCount ?? record.token.accessCount + 1", "public report access count lifecycle");
+  assertContains(publicReportAccessApplication, "updatedToken?.lastAccessAt ?? new Date(currentTime)", "public report last access lifecycle");
 
-  assertContains(publicReportAccess, "createSignedReportUrl", "public report access preview URL");
-  assertContains(publicReportAccess, "createSignedReportDownloadUrl", "public report access download URL");
+  assertContains(publicReportAccessApplication, "createSignedReportUrl", "public report access preview URL");
+  assertContains(publicReportAccessApplication, "createSignedReportDownloadUrl", "public report access download URL");
 
-  assertContains(publicReportAccess, "AUDIT_EVENTS.REPORT_PUBLIC_ACCESSED", "public report access audit event");
-  assertContains(publicReportAccess, "buildPublicReportAccessTokenActor(record.token.id)", "public report access audit actor");
-  assertContains(publicReportAccess, "targetReportAccessTokenId: record.token.id", "public report access audit target");
+  assertContains(publicReportAccessApplication, 'event: "report.public_accessed"', "public report access audit event");
+  assertContains(publicReportAccessApplication, "deps.buildPublicActor(record.token.id)", "public report access audit actor");
+  assertContains(publicReportAccessApplication, "targetReportAccessTokenId: record.token.id", "public report access audit target");
 
   assertContains(publicReportAccess, "PUBLIC_REPORT_ACCESS_RATE_LIMIT_ERROR_MESSAGE", "public report access rate limit");
 });
 
 test("report access token revocation records lifecycle actor and audit event", () => {
-  const reportAccessTokens = readSource("server/routes/report-access-tokens.fastify.ts");
-  const adminReportAccessTokens = readSource("server/routes/admin-report-access-tokens.fastify.ts");
+  const reportAccessTokens = readSource("server/features/report-access/application/clinic-report-access-operations.ts");
+  const adminReportAccessTokens = readSource("server/features/report-access/application/admin-report-access-operations.ts");
 
-  assertContains(reportAccessTokens, "revokedByClinicUserId: auth.id", "clinic revoke actor");
+  assertContains(reportAccessTokens, "revokedByClinicUserId: actor.clinicUserId", "clinic revoke actor");
   assertContains(reportAccessTokens, "revokedByAdminUserId: null", "clinic revoke admin null");
-  assertContains(reportAccessTokens, "AUDIT_EVENTS.REPORT_ACCESS_TOKEN_REVOKED", "clinic revoke audit event");
+  assertContains(reportAccessTokens, 'event: "report_access_token.revoked"', "clinic revoke audit event");
   assertContains(reportAccessTokens, 'revokedVia: "clinic"', "clinic revoke audit metadata");
-  assertContains(reportAccessTokens, "revokedAt: revoked.revokedAt", "clinic revoke timestamp metadata");
+  assertContains(reportAccessTokens, "revokedAt: token.revokedAt", "clinic revoke timestamp metadata");
 
   assertContains(adminReportAccessTokens, "revokedByClinicUserId: null", "admin revoke clinic null");
-  assertContains(adminReportAccessTokens, "revokedByAdminUserId: admin.id", "admin revoke actor");
-  assertContains(adminReportAccessTokens, "AUDIT_EVENTS.REPORT_ACCESS_TOKEN_REVOKED", "admin revoke audit event");
+  assertContains(adminReportAccessTokens, "revokedByAdminUserId: actor.id", "admin revoke actor");
+  assertContains(adminReportAccessTokens, 'event: "report_access_token.revoked"', "admin revoke audit event");
   assertContains(adminReportAccessTokens, 'revokedVia: "admin"', "admin revoke audit metadata");
-  assertContains(adminReportAccessTokens, "revokedAt: revoked.revokedAt", "admin revoke timestamp metadata");
+  assertContains(adminReportAccessTokens, "revokedAt: token.revokedAt", "admin revoke timestamp metadata");
 });
 
 test("particular surfaces expire sessions and block inactive tokens before scoped reads", () => {
@@ -201,12 +204,12 @@ test("runtime lifecycle tests remain explicit for public report access", () => {
 
   assertContains(
     auditCriticalFlowTests,
-    "accessCount: updatedToken?.accessCount ?? record.token.accessCount + 1",
+    "updatedToken?.accessCount ?? record.token.accessCount + 1",
     "critical flow access count guard",
   );
   assertContains(
     auditCriticalFlowTests,
-    "lastAccessAt: updatedToken?.lastAccessAt ?? new Date(currentTime)",
+    "updatedToken?.lastAccessAt ?? new Date(currentTime)",
     "critical flow last access guard",
   );
 });

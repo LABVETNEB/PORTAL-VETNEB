@@ -123,14 +123,16 @@ test("report status crítico audita después de mutar estado exitosamente", () =
 });
 
 test("clinic report access token create y revoke escriben audit log con target token", () => {
-  const source = readSource("server/routes/report-access-tokens.fastify.ts");
+  const source = readSource(
+    "server/features/report-access/application/clinic-report-access-operations.ts",
+  );
 
   assertContainsInOrder(
     source,
     [
-      "const reportAccessToken = await deps.createReportAccessToken({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, auth), {",
-      "event: AUDIT_EVENTS.REPORT_ACCESS_TOKEN_CREATED",
+      "const token = await deps.createReportAccessToken({",
+      "await deps.writeAuditLog(auditRequest, {",
+      'event: "report_access_token.created"',
     ],
     "clinic report access token create audit order",
   );
@@ -138,10 +140,10 @@ test("clinic report access token create y revoke escriben audit log con target t
   assertContainsAll(
     source,
     [
-      "clinicId: reportAccessToken.clinicId",
-      "reportId: reportAccessToken.reportId",
-      "targetReportAccessTokenId: reportAccessToken.id",
-      "tokenLast4: reportAccessToken.tokenLast4",
+      "clinicId: token.clinicId",
+      "reportId: token.reportId",
+      "targetReportAccessTokenId: token.id",
+      "tokenLast4: token.tokenLast4",
       'createdVia: "clinic"',
     ],
     "clinic report access token create audit payload",
@@ -150,9 +152,9 @@ test("clinic report access token create y revoke escriben audit log con target t
   assertContainsInOrder(
     source,
     [
-      "const revoked = await deps.revokeReportAccessToken({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, auth), {",
-      "event: AUDIT_EVENTS.REPORT_ACCESS_TOKEN_REVOKED",
+      "const token = await deps.revokeReportAccessToken({",
+      "await deps.writeAuditLog(auditRequest, {",
+      'event: "report_access_token.revoked"',
     ],
     "clinic report access token revoke audit order",
   );
@@ -160,11 +162,11 @@ test("clinic report access token create y revoke escriben audit log con target t
   assertContainsAll(
     source,
     [
-      "clinicId: revoked.clinicId",
-      "reportId: revoked.reportId",
-      "targetReportAccessTokenId: revoked.id",
-      "tokenLast4: revoked.tokenLast4",
-      "revokedAt: revoked.revokedAt",
+      "clinicId: token.clinicId",
+      "reportId: token.reportId",
+      "targetReportAccessTokenId: token.id",
+      "tokenLast4: token.tokenLast4",
+      "revokedAt: token.revokedAt",
       'revokedVia: "clinic"',
     ],
     "clinic report access token revoke audit payload",
@@ -172,14 +174,16 @@ test("clinic report access token create y revoke escriben audit log con target t
 });
 
 test("admin report access token create y revoke escriben audit log con target token", () => {
-  const source = readSource("server/routes/admin-report-access-tokens.fastify.ts");
+  const source = readSource(
+    "server/features/report-access/application/admin-report-access-operations.ts",
+  );
 
   assertContainsInOrder(
     source,
     [
-      "const reportAccessToken = await deps.createReportAccessToken({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
-      "event: AUDIT_EVENTS.REPORT_ACCESS_TOKEN_CREATED",
+      "const token = await deps.createReportAccessToken({",
+      "await deps.writeAuditLog(auditRequest, {",
+      'event: "report_access_token.created"',
     ],
     "admin report access token create audit order",
   );
@@ -187,10 +191,10 @@ test("admin report access token create y revoke escriben audit log con target to
   assertContainsAll(
     source,
     [
-      "clinicId: reportAccessToken.clinicId",
-      "reportId: reportAccessToken.reportId",
-      "targetReportAccessTokenId: reportAccessToken.id",
-      "tokenLast4: reportAccessToken.tokenLast4",
+      "clinicId: token.clinicId",
+      "reportId: token.reportId",
+      "targetReportAccessTokenId: token.id",
+      "tokenLast4: token.tokenLast4",
       'createdVia: "admin"',
     ],
     "admin report access token create audit payload",
@@ -199,9 +203,9 @@ test("admin report access token create y revoke escriben audit log con target to
   assertContainsInOrder(
     source,
     [
-      "const revoked = await deps.revokeReportAccessToken({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, admin), {",
-      "event: AUDIT_EVENTS.REPORT_ACCESS_TOKEN_REVOKED",
+      "const token = await deps.revokeReportAccessToken({",
+      "await deps.writeAuditLog(auditRequest, {",
+      'event: "report_access_token.revoked"',
     ],
     "admin report access token revoke audit order",
   );
@@ -209,11 +213,11 @@ test("admin report access token create y revoke escriben audit log con target to
   assertContainsAll(
     source,
     [
-      "clinicId: revoked.clinicId",
-      "reportId: revoked.reportId",
-      "targetReportAccessTokenId: revoked.id",
-      "tokenLast4: revoked.tokenLast4",
-      "revokedAt: revoked.revokedAt",
+      "clinicId: token.clinicId",
+      "reportId: token.reportId",
+      "targetReportAccessTokenId: token.id",
+      "tokenLast4: token.tokenLast4",
+      "revokedAt: token.revokedAt",
       'revokedVia: "admin"',
     ],
     "admin report access token revoke audit payload",
@@ -221,14 +225,16 @@ test("admin report access token create y revoke escriben audit log con target to
 });
 
 test("public report access audita acceso exitoso con actor de token público", () => {
-  const source = readSource("server/routes/public-report-access.fastify.ts");
+  const source = readSource(
+    "server/features/report-access/application/public-report-access-operations.ts",
+  );
 
   assertContainsInOrder(
     source,
     [
       "const updatedToken = await deps.recordReportAccessTokenAccess(record.token.id);",
-      "await deps.writeAuditLog(request, {",
-      "event: AUDIT_EVENTS.REPORT_PUBLIC_ACCESSED",
+      "await deps.writeAuditLog(auditRequest, {",
+      'event: "report.public_accessed"',
     ],
     "public report access audit order",
   );
@@ -239,10 +245,10 @@ test("public report access audita acceso exitoso con actor de token público", (
       "clinicId: record.token.clinicId",
       "reportId: record.token.reportId",
       "targetReportAccessTokenId: record.token.id",
-      "actor: buildPublicReportAccessTokenActor(record.token.id)",
+      "actor: deps.buildPublicActor(record.token.id)",
       "tokenLast4: record.token.tokenLast4",
-      "accessCount: updatedToken?.accessCount ?? record.token.accessCount + 1",
-      "lastAccessAt: updatedToken?.lastAccessAt ?? new Date(currentTime)",
+      "updatedToken?.accessCount ?? record.token.accessCount + 1",
+      "updatedToken?.lastAccessAt ?? new Date(currentTime)",
     ],
     "public report access audit payload",
   );

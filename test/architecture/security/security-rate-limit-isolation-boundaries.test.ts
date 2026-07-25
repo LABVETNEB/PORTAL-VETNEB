@@ -439,6 +439,9 @@ test("public professionals search and detail keep independent fixed-window store
 
 test("public report access rate limit cuts off before token hashing DB signing and audit", () => {
   const source = readSource("server/routes/public-report-access.fastify.ts");
+  const application = readSource(
+    "server/features/report-access/application/public-report-access-operations.ts",
+  );
 
   assertContains(
     source,
@@ -465,15 +468,22 @@ test("public report access rate limit cuts off before token hashing DB signing a
       "error: PUBLIC_REPORT_ACCESS_RATE_LIMIT_ERROR_MESSAGE",
       "const updatedAccessEntry = await incrementRateLimitEntry(",
       "const parsed = reportAccessTokenRawTokenSchema.safeParse(request.params.token);",
-      "const tokenHash = deps.hashSessionToken(parsed.data);",
-      "const record = await deps.getReportAccessTokenWithReportByTokenHash(tokenHash);",
-      "const updatedToken = await deps.recordReportAccessTokenAccess(record.token.id);",
-      "const [previewUrl, downloadUrl] = await Promise.all([",
-      "await deps.writeAuditLog(request, {",
+      "const result = await reportAccess.access(",
     ],
     "public report access rate limit cut-off",
   );
   assertRateLimitHeaders(source, "public report access rate limit headers");
+  assertContainsInOrder(
+    application,
+    [
+      "deps.hashSessionToken(rawToken)",
+      "deps.getReportAccessTokenWithReportByTokenHash(",
+      "deps.recordReportAccessTokenAccess(record.token.id)",
+      "const [previewUrl, downloadUrl] = await Promise.all([",
+      "await deps.writeAuditLog(auditRequest, {",
+    ],
+    "public report access application effects",
+  );
 
   assertNotContains(source, "reply.header(\"set-cookie\"", "public report access");
   assertNotContains(source, "LOGIN_RATE_LIMIT", "public report access");
@@ -489,10 +499,12 @@ test("report access token mutation rate limits cut off before auth and writes", 
     {
       file: "server/routes/report-access-tokens.fastify.ts",
       authMarker: "const auth = await authenticateClinicUser(request, reply, deps, now);",
+      operationMarker: "const result = await reportAccess.createToken(",
     },
     {
       file: "server/routes/admin-report-access-tokens.fastify.ts",
       authMarker: "const admin = await authenticateAdminUser(request, reply, deps, now);",
+      operationMarker: "const result = await reportAccess.createToken(",
     },
   ] as const) {
     const source = readSource(scenario.file);
@@ -543,7 +555,7 @@ test("report access token mutation rate limits cut off before auth and writes", 
       [
         "if (!(await applyMutationRateLimit(request, reply))) {",
         scenario.authMarker,
-        "await deps.writeAuditLog(",
+        scenario.operationMarker,
       ],
       `${scenario.file} mutation limiter before audit`,
     );

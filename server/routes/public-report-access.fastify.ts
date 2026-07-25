@@ -5,10 +5,9 @@ import type {
 } from "fastify";
 import type { Report, ReportAccessToken } from "../../drizzle/schema.ts";
 
-import {
-  AUDIT_EVENTS,
-  buildPublicReportAccessTokenActor,
-} from "../lib/audit.ts";
+import { buildPublicReportAccessTokenActor } from "../lib/audit.ts";
+import { createPublicReportAccessOperations } from "../features/report-access/application/index.ts";
+import { loadReportAccessRepository } from "../features/report-access/composition/report-access-route-composition.ts";
 import { hashSessionToken as defaultHashSessionToken } from "../lib/auth-security.ts";
 import {
   PUBLIC_REPORT_ACCESS_RATE_LIMIT_ERROR_MESSAGE,
@@ -22,8 +21,6 @@ import {
   type RateLimitStore,
 } from "../lib/rate-limit-store.ts";
 import {
-  canAccessReportPublicly,
-  getReportAccessTokenState,
   reportAccessTokenRawTokenSchema,
   serializePublicReportAccess,
 } from "../lib/report-access-token.ts";
@@ -110,14 +107,14 @@ let defaultDepsPromise: Promise<NativePublicReportAccessDeps> | undefined;
 async function loadDefaultDeps(): Promise<NativePublicReportAccessDeps> {
   if (!defaultDepsPromise) {
     defaultDepsPromise = (async () => {
-      const dbReportAccess = await import("../db-report-access.ts");
+      const reportAccessRepository = await loadReportAccessRepository();
       const audit = await import("../lib/audit.ts");
 
       return {
         getReportAccessTokenWithReportByTokenHash:
-          dbReportAccess.getReportAccessTokenWithReportByTokenHash,
+          reportAccessRepository.getReportAccessTokenWithReportByTokenHash,
         recordReportAccessTokenAccess:
-          dbReportAccess.recordReportAccessTokenAccess,
+          reportAccessRepository.recordReportAccessTokenAccess,
         createSignedReportUrl: defaultCreateSignedReportUrl,
         createSignedReportDownloadUrl: defaultCreateSignedReportDownloadUrl,
         hashSessionToken: defaultHashSessionToken,
@@ -208,6 +205,10 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
   };
 
   const now = options.now ?? (() => Date.now());
+  const reportAccess = createPublicReportAccessOperations({
+    ...deps,
+    buildPublicActor: buildPublicReportAccessTokenActor,
+  });
   const publicReportAccessRateLimitWindowMs =
     options.publicReportAccessRateLimitWindowMs ??
     PUBLIC_REPORT_ACCESS_RATE_LIMIT_WINDOW_MS;
@@ -311,60 +312,35 @@ export const publicReportAccessNativeRoutes: FastifyPluginAsync<
       return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);
     }
 
-    const tokenHash = deps.hashSessionToken(parsed.data);
-    const record = await deps.getReportAccessTokenWithReportByTokenHash(tokenHash);
+    const result = await reportAccess.access(
+      parsed.data,
+      currentTime,
+      request,
+    );
 
-    if (!record || record.token.clinicId !== record.report.clinicId) {
+    if (result.kind === "not_found") {
       return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);
     }
 
-    const tokenState = getReportAccessTokenState(record.token, new Date(currentTime));
-
-    if (tokenState === "revoked" || tokenState === "expired") {
-      return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);
-    }
-
-    if (!canAccessReportPublicly(record.report.currentStatus)) {
+    if (result.kind === "unavailable") {
       return reply.code(409).send({
         success: false,
         error: "El informe todavía no está disponible para acceso público",
-        currentStatus: record.report.currentStatus,
+        currentStatus: result.currentStatus,
       });
     }
-
-    const updatedToken = await deps.recordReportAccessTokenAccess(record.token.id);
-    const [previewUrl, downloadUrl] = await Promise.all([
-      deps.createSignedReportUrl(record.report.storagePath),
-      deps.createSignedReportDownloadUrl(
-        record.report.storagePath,
-        record.report.fileName ?? undefined,
-      ),
-    ]);
-
-    await deps.writeAuditLog(request, {
-      event: AUDIT_EVENTS.REPORT_PUBLIC_ACCESSED,
-      clinicId: record.token.clinicId,
-      reportId: record.token.reportId,
-      targetReportAccessTokenId: record.token.id,
-      actor: buildPublicReportAccessTokenActor(record.token.id),
-      metadata: {
-        tokenLast4: record.token.tokenLast4,
-        accessCount: updatedToken?.accessCount ?? record.token.accessCount + 1,
-        lastAccessAt: updatedToken?.lastAccessAt ?? new Date(currentTime),
-      },
-    });
 
     return reply.code(200).send({
       success: true,
       report: serializePublicReportAccess({
-        report: record.report,
-        previewUrl,
-        downloadUrl,
+        report: result.report,
+        previewUrl: result.previewUrl,
+        downloadUrl: result.downloadUrl,
       }),
       token: {
-        accessCount: updatedToken?.accessCount ?? record.token.accessCount + 1,
-        lastAccessAt: updatedToken?.lastAccessAt ?? new Date(currentTime),
-        expiresAt: record.token.expiresAt,
+        accessCount: result.accessCount,
+        lastAccessAt: result.lastAccessAt,
+        expiresAt: result.expiresAt,
       },
     });
   });

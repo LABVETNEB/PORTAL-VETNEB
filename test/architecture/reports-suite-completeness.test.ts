@@ -224,19 +224,35 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
       {
         path: "server/routes/report-access-tokens.fastify.ts",
         markers: [
-          "createReportAccessToken",
-          "revokeReportAccessToken",
-          "AUDIT_EVENTS.REPORT_ACCESS_TOKEN_CREATED",
-          "AUDIT_EVENTS.REPORT_ACCESS_TOKEN_REVOKED",
+          "createClinicReportAccessOperations",
+          "reportAccess.createToken",
+          "reportAccess.revokeToken",
         ],
       },
       {
         path: "server/routes/admin-report-access-tokens.fastify.ts",
         markers: [
+          "createAdminReportAccessOperations",
+          "reportAccess.createToken",
+          "reportAccess.revokeToken",
+        ],
+      },
+      {
+        path: "server/features/report-access/application/clinic-report-access-operations.ts",
+        markers: [
           "createReportAccessToken",
           "revokeReportAccessToken",
-          "AUDIT_EVENTS.REPORT_ACCESS_TOKEN_CREATED",
-          "AUDIT_EVENTS.REPORT_ACCESS_TOKEN_REVOKED",
+          'event: "report_access_token.created"',
+          'event: "report_access_token.revoked"',
+        ],
+      },
+      {
+        path: "server/features/report-access/application/admin-report-access-operations.ts",
+        markers: [
+          "createReportAccessToken",
+          "revokeReportAccessToken",
+          'event: "report_access_token.created"',
+          'event: "report_access_token.revoked"',
         ],
       },
     ],
@@ -263,13 +279,19 @@ const REPORTS_SUITE: readonly ReportsSuiteEntry[] = [
         markers: [
           "publicReportAccessNativeRoutes",
           "reportAccessTokenRawTokenSchema.safeParse",
+          "reportAccess.access",
+          "serializePublicReportAccess",
+        ],
+      },
+      {
+        path: "server/features/report-access/application/public-report-access-operations.ts",
+        markers: [
           "getReportAccessTokenState",
           "canAccessReportPublicly",
           "recordReportAccessTokenAccess",
           "deps.createSignedReportUrl(record.report.storagePath)",
           "deps.createSignedReportDownloadUrl(",
-          "AUDIT_EVENTS.REPORT_PUBLIC_ACCESSED",
-          "serializePublicReportAccess",
+          'event: "report.public_accessed"',
         ],
       },
     ],

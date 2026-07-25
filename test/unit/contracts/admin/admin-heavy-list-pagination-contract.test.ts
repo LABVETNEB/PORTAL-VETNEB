@@ -47,7 +47,7 @@ test("normalizeListPagination normaliza limit y offset inválidos", () => {
 test("listadores backend compartidos normalizan paginación antes de consultar", () => {
   const files = [
     "server/features/particular-access/infrastructure/particular-access-repository.ts",
-    "server/db-report-access.ts",
+    "server/features/report-access/infrastructure/report-access-repository.ts",
     "server/features/study-tracking/infrastructure/study-tracking-repository.ts",
     "server/db-report-workflow.ts",
     "server/features/clinics/infrastructure/admin-clinics-repository.ts",

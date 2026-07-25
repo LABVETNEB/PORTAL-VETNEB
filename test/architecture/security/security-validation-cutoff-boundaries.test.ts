@@ -165,6 +165,9 @@ test("validation cut-off matrix documents the protected contract", () => {
 
 test("public report access validates raw token before hash db signing and audit", () => {
   const source = readSource("server/routes/public-report-access.fastify.ts");
+  const application = readSource(
+    "server/features/report-access/application/public-report-access-operations.ts",
+  );
 
   assertContainsInOrder(
     source,
@@ -172,11 +175,18 @@ test("public report access validates raw token before hash db signing and audit"
       "const parsed = reportAccessTokenRawTokenSchema.safeParse(request.params.token);",
       "if (!parsed.success) {",
       "return reply.code(404).send(REPORT_NOT_FOUND_RESPONSE);",
-      "const tokenHash = deps.hashSessionToken(parsed.data);",
-      "const record = await deps.getReportAccessTokenWithReportByTokenHash(tokenHash);",
+      "const result = await reportAccess.access(",
+    ],
+    "public report access token route validation cut-off",
+  );
+  assertContainsInOrder(
+    application,
+    [
+      "deps.hashSessionToken(rawToken)",
+      "deps.getReportAccessTokenWithReportByTokenHash(",
       "const updatedToken = await deps.recordReportAccessTokenAccess(record.token.id);",
       "const [previewUrl, downloadUrl] = await Promise.all([",
-      "await deps.writeAuditLog(request, {",
+      "await deps.writeAuditLog(auditRequest, {",
     ],
     "public report access token validation cut-off",
   );
@@ -211,6 +221,9 @@ test("report status validates route id and requested status before lookup mutati
 
 test("clinic report access token create validates body before report lookup token generation mutation and audit", () => {
   const source = readSource("server/routes/report-access-tokens.fastify.ts");
+  const application = readSource(
+    "server/features/report-access/application/clinic-report-access-operations.ts",
+  );
   const createRoute = sliceFrom(
     source,
     'app.post<{\n    Body: {\n      reportId?: unknown;',
@@ -223,18 +236,28 @@ test("clinic report access token create validates body before report lookup toke
       "const parsed = clinicCreateReportAccessTokenSchema.safeParse(request.body);",
       "if (!parsed.success) {",
       "return reply.code(400).send({",
+      "const result = await reportAccess.createToken(",
+    ],
+    "clinic report access token create route validation cut-off",
+  );
+  assertContainsInOrder(
+    application,
+    [
       "const report = await deps.getClinicScopedReportById(",
       "const rawToken = deps.generateSessionToken();",
       "const tokenHash = deps.hashSessionToken(rawToken);",
-      "const reportAccessToken = await deps.createReportAccessToken({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, auth), {",
+      "const token = await deps.createReportAccessToken({",
+      "await deps.writeAuditLog(auditRequest, {",
     ],
-    "clinic report access token create validation cut-off",
+    "clinic report access token create application cut-off",
   );
 });
 
 test("clinic report access token revoke validates token id before scoped lookup revoke and audit", () => {
   const source = readSource("server/routes/report-access-tokens.fastify.ts");
+  const application = readSource(
+    "server/features/report-access/application/clinic-report-access-operations.ts",
+  );
   const revokeRoute = sliceFrom(
     source,
     'app.patch<{\n    Params: {\n      tokenId: string;',
@@ -247,11 +270,18 @@ test("clinic report access token revoke validates token id before scoped lookup 
       "const tokenId = parseEntityId(request.params.tokenId);",
       'if (typeof tokenId !== "number") {',
       "return reply.code(400).send({",
-      "const existing = await deps.getClinicScopedReportAccessToken(",
-      "const revoked = await deps.revokeReportAccessToken({",
-      "await deps.writeAuditLog(createAuditRequestLike(request, auth), {",
+      "const result = await reportAccess.revokeToken(",
     ],
-    "clinic report access token revoke validation cut-off",
+    "clinic report access token revoke route validation cut-off",
+  );
+  assertContainsInOrder(
+    application,
+    [
+      "deps.getClinicScopedReportAccessToken(tokenId, actor.clinicId)",
+      "const token = await deps.revokeReportAccessToken({",
+      "await deps.writeAuditLog(auditRequest, {",
+    ],
+    "clinic report access token revoke application cut-off",
   );
 });
 

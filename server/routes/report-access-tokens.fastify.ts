@@ -5,7 +5,8 @@ import type {
 } from "fastify";
 
 import type { Report, ReportAccessToken } from "../../drizzle/schema.ts";
-import { AUDIT_EVENTS } from "../lib/audit.ts";
+import { createClinicReportAccessOperations } from "../features/report-access/application/index.ts";
+import { loadReportAccessRepository } from "../features/report-access/composition/report-access-route-composition.ts";
 import { ENV } from "../lib/env.ts";
 import {
   enforceTrustedOrigin,
@@ -183,7 +184,7 @@ async function loadDefaultDeps(): Promise<NativeReportAccessTokensDeps> {
     defaultDepsPromise = (async () => {
       const db = await import("../db.ts");
       const authSecurity = await import("../lib/auth-security.ts");
-      const dbReportAccess = await import("../db-report-access.ts");
+      const reportAccessRepository = await loadReportAccessRepository();
       const audit = await import("../lib/audit.ts");
 
       return {
@@ -197,11 +198,14 @@ async function loadDefaultDeps(): Promise<NativeReportAccessTokensDeps> {
         hashSessionToken: authSecurity.hashSessionToken,
         verifyPassword: authSecurity.verifyPassword,
         getClinicScopedReportById: db.getClinicScopedReportById,
-        createReportAccessToken: dbReportAccess.createReportAccessToken,
+        createReportAccessToken:
+          reportAccessRepository.createReportAccessToken,
         getClinicScopedReportAccessToken:
-          dbReportAccess.getClinicScopedReportAccessToken,
-        listReportAccessTokens: dbReportAccess.listReportAccessTokens,
-        revokeReportAccessToken: dbReportAccess.revokeReportAccessToken,
+          reportAccessRepository.getClinicScopedReportAccessToken,
+        listReportAccessTokens:
+          reportAccessRepository.listReportAccessTokens,
+        revokeReportAccessToken:
+          reportAccessRepository.revokeReportAccessToken,
         writeAuditLog: audit.writeAuditLog as (
           req: unknown,
           input: AuditWriteInput,
@@ -515,6 +519,7 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
   };
 
   const now = options.now ?? (() => Date.now());
+  const reportAccess = createClinicReportAccessOperations(deps);
   const mutationRateLimitWindowMs =
     options.mutationRateLimitWindowMs ??
     REPORT_ACCESS_TOKEN_MUTATION_RATE_LIMIT_WINDOW_MS;
@@ -665,51 +670,28 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const report = await deps.getClinicScopedReportById(
-      parsed.data.reportId,
-      auth.clinicId,
+    const result = await reportAccess.createToken(
+      {
+        reportId: parsed.data.reportId,
+        expiresAt: parsed.data.expiresAt ?? null,
+      },
+      { clinicId: auth.clinicId, clinicUserId: auth.id },
+      createAuditRequestLike(request, auth),
     );
 
-    if (!report) {
+    if (result.kind === "report_not_found") {
       return reply.code(404).send({
         success: false,
         error: "Informe no encontrado",
       });
     }
 
-    const rawToken = deps.generateSessionToken();
-    const tokenHash = deps.hashSessionToken(rawToken);
-
-    const reportAccessToken = await deps.createReportAccessToken({
-      clinicId: auth.clinicId,
-      reportId: report.id,
-      tokenHash,
-      tokenLast4: rawToken.slice(-4),
-      expiresAt: parsed.data.expiresAt ?? null,
-      createdByClinicUserId: auth.id,
-      createdByAdminUserId: null,
-      revokedByClinicUserId: null,
-      revokedByAdminUserId: null,
-    });
-
-    await deps.writeAuditLog(createAuditRequestLike(request, auth), {
-      event: AUDIT_EVENTS.REPORT_ACCESS_TOKEN_CREATED,
-      clinicId: reportAccessToken.clinicId,
-      reportId: reportAccessToken.reportId,
-      targetReportAccessTokenId: reportAccessToken.id,
-      metadata: {
-        tokenLast4: reportAccessToken.tokenLast4,
-        expiresAt: reportAccessToken.expiresAt,
-        createdVia: "clinic",
-      },
-    });
-
     return reply.code(201).send({
       success: true,
       message: "Token público de informe creado correctamente",
-      token: rawToken,
-      publicAccessPath: buildPublicReportAccessPath(rawToken),
-      reportAccessToken: serializeReportAccessToken(reportAccessToken),
+      token: result.rawToken,
+      publicAccessPath: buildPublicReportAccessPath(result.rawToken),
+      reportAccessToken: serializeReportAccessToken(result.token),
     });
   });
 
@@ -730,12 +712,12 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
     const limit = parsePositiveInt(request.query.limit, 50, 100);
     const offset = parseOffset(request.query.offset, 0);
 
-    const tokens = await deps.listReportAccessTokens({
-      clinicId: auth.clinicId,
+    const tokens = await reportAccess.listTokens(
+      auth.clinicId,
       reportId,
       limit,
       offset,
-    });
+    );
 
     return reply.code(200).send({
       success: true,
@@ -771,26 +753,24 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const token = await deps.getClinicScopedReportAccessToken(
+    const result = await reportAccess.getToken(
       tokenId,
       auth.clinicId,
     );
 
-    if (!token) {
+    if (result.kind === "not_found") {
       return reply.code(404).send({
         success: false,
         error: "Token público de informe no encontrado",
       });
     }
 
-    const report = await deps.getClinicScopedReportById(
-      token.reportId,
-      auth.clinicId,
-    );
-
     return reply.code(200).send({
       success: true,
-      reportAccessToken: serializeReportAccessTokenDetail(token, report),
+      reportAccessToken: serializeReportAccessTokenDetail(
+        result.token,
+        result.report,
+      ),
     });
   });
 
@@ -826,47 +806,24 @@ export const reportAccessTokensNativeRoutes: FastifyPluginAsync<
       });
     }
 
-    const existing = await deps.getClinicScopedReportAccessToken(
+    const result = await reportAccess.revokeToken(
       tokenId,
-      auth.clinicId,
+      { clinicId: auth.clinicId, clinicUserId: auth.id },
+      createAuditRequestLike(request, auth),
     );
 
-    if (!existing) {
+    if (result.kind === "not_found") {
       return reply.code(404).send({
         success: false,
         error: "Token público de informe no encontrado",
       });
     }
 
-    const revoked = await deps.revokeReportAccessToken({
-      id: tokenId,
-      revokedByClinicUserId: auth.id,
-      revokedByAdminUserId: null,
-    });
-
-    const report = revoked
-      ? await deps.getClinicScopedReportById(revoked.reportId, auth.clinicId)
-      : null;
-
-    if (revoked) {
-      await deps.writeAuditLog(createAuditRequestLike(request, auth), {
-        event: AUDIT_EVENTS.REPORT_ACCESS_TOKEN_REVOKED,
-        clinicId: revoked.clinicId,
-        reportId: revoked.reportId,
-        targetReportAccessTokenId: revoked.id,
-        metadata: {
-          tokenLast4: revoked.tokenLast4,
-          revokedAt: revoked.revokedAt,
-          revokedVia: "clinic",
-        },
-      });
-    }
-
     return reply.code(200).send({
       success: true,
       message: "Token público de informe revocado correctamente",
-      reportAccessToken: revoked
-        ? serializeReportAccessTokenDetail(revoked, report)
+      reportAccessToken: result.token
+        ? serializeReportAccessTokenDetail(result.token, result.report)
         : null,
     });
   });

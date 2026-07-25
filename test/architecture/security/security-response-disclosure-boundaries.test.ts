@@ -110,18 +110,20 @@ test("response disclosure matrix documents stable public error semantics", () =>
 
 test("public report access unifies unusable tokens as 404 and preserves 409 and 429", () => {
   const publicReportAccess = readSource("server/routes/public-report-access.fastify.ts");
+  const publicReportAccessApplication = readSource(
+    "server/features/report-access/application/public-report-access-operations.ts",
+  );
 
   assertContains(publicReportAccess, "reportAccessTokenRawTokenSchema.safeParse", "public token shape validation");
   assertContains(publicReportAccess, "REPORT_NOT_FOUND_RESPONSE", "public generic not found response");
 
-  assertContains(publicReportAccess, "getReportAccessTokenWithReportByTokenHash", "public token lookup");
+  assertContains(publicReportAccessApplication, "getReportAccessTokenWithReportByTokenHash", "public token lookup");
   assertContains(publicReportAccess, "reply.code(404).send", "public unknown token response");
 
-  assertContains(publicReportAccess, 'tokenState === "revoked"', "public revoked token response");
-  assertContains(publicReportAccess, 'tokenState === "expired"', "public expired token response");
+  assertContains(publicReportAccessApplication, 'getReportAccessTokenState(record.token, new Date(currentTime)) !== "active"', "public revoked or expired token response");
   assertNotContains(publicReportAccess, "reply.code(410).send", "public token lifecycle must not reveal prior existence");
 
-  assertContains(publicReportAccess, "canAccessReportPublicly", "public report availability gate");
+  assertContains(publicReportAccessApplication, "canAccessReportPublicly", "public report availability gate");
   assertContains(publicReportAccess, "reply.code(409).send", "public unavailable report response");
 
   assertContains(publicReportAccess, "PUBLIC_REPORT_ACCESS_RATE_LIMIT_ERROR_MESSAGE", "public report access rate limit response");

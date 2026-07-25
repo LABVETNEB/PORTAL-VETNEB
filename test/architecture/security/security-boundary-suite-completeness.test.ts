@@ -34,11 +34,19 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
     runtimeAnchors: [
       {
         path: "server/routes/admin-report-access-tokens.fastify.ts",
-        markers: ["authenticateAdminUser", "getClinicById", "getReportById"],
+        markers: ["authenticateAdminUser", "createAdminReportAccessOperations"],
       },
       {
         path: "server/routes/report-access-tokens.fastify.ts",
-        markers: ["authenticateClinicUser", "getReportById"],
+        markers: ["authenticateClinicUser", "createClinicReportAccessOperations"],
+      },
+      {
+        path: "server/features/report-access/application/admin-report-access-operations.ts",
+        markers: ["getClinicById", "getReportById"],
+      },
+      {
+        path: "server/features/report-access/application/clinic-report-access-operations.ts",
+        markers: ["getClinicScopedReportById"],
       },
       {
         path: "server/routes/particular-auth.fastify.ts",
@@ -67,11 +75,11 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
         markers: ["getAuthorizedReport", "updateReportStatus"],
       },
       {
-        path: "server/routes/report-access-tokens.fastify.ts",
+        path: "server/features/report-access/application/clinic-report-access-operations.ts",
         markers: ["getClinicScopedReportAccessToken", "revokeReportAccessToken"],
       },
       {
-        path: "server/routes/public-report-access.fastify.ts",
+        path: "server/features/report-access/application/public-report-access-operations.ts",
         markers: ["getReportAccessTokenWithReportByTokenHash", "recordReportAccessTokenAccess"],
       },
     ],
@@ -119,8 +127,8 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
     ],
     runtimeAnchors: [
       {
-        path: "server/routes/public-report-access.fastify.ts",
-        markers: ["getReportAccessTokenState", "revoked", "expired"],
+        path: "server/features/report-access/application/public-report-access-operations.ts",
+        markers: ["getReportAccessTokenState", '"active"'],
       },
       {
         path: "server/routes/particular-auth.fastify.ts",
@@ -150,7 +158,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
       },
       {
         path: "server/routes/report-access-tokens.fastify.ts",
-        markers: ["return reply.code(404).send", "getClinicScopedReportAccessToken"],
+        markers: ["return reply.code(404).send", "reportAccess.getToken"],
       },
     ],
     testAnchors: [
@@ -307,7 +315,11 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
       },
       {
         path: "server/routes/public-report-access.fastify.ts",
-        markers: ["reportAccessTokenRawTokenSchema.safeParse", "hashSessionToken"],
+        markers: ["reportAccessTokenRawTokenSchema.safeParse", "reportAccess.access"],
+      },
+      {
+        path: "server/features/report-access/application/public-report-access-operations.ts",
+        markers: ["hashSessionToken(rawToken)"],
       },
     ],
     testAnchors: [
@@ -338,7 +350,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
         markers: ["sanitizeUrlForLogs", "normalizeAuditMetadata"],
       },
       {
-        path: "server/routes/report-access-tokens.fastify.ts",
+        path: "server/features/report-access/application/clinic-report-access-operations.ts",
         markers: ["tokenHash", "rawToken"],
       },
     ],
@@ -394,7 +406,7 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
         markers: ["createWriteAuditLog", "buildAuditLogInsert", "AUDIT_LOG_WRITE_ERROR"],
       },
       {
-        path: "server/routes/public-report-access.fastify.ts",
+        path: "server/features/report-access/application/public-report-access-operations.ts",
         markers: ["recordReportAccessTokenAccess", "writeAuditLog"],
       },
     ],
@@ -448,7 +460,11 @@ const SECURITY_BOUNDARY_SUITE: readonly SecurityBoundaryGuardrail[] = [
     runtimeAnchors: [
       {
         path: "server/routes/public-report-access.fastify.ts",
-        markers: ["reportAccessTokenRawTokenSchema.safeParse", "hashSessionToken"],
+        markers: ["reportAccessTokenRawTokenSchema.safeParse", "reportAccess.access"],
+      },
+      {
+        path: "server/features/report-access/application/public-report-access-operations.ts",
+        markers: ["hashSessionToken(rawToken)"],
       },
       {
         path: "server/routes/admin-reports.fastify.ts",

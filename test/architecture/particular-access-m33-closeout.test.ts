@@ -145,11 +145,11 @@ function digest(relativePath: string): string {
     .digest("hex");
 }
 
-test("M33 fija el inventario exacto Particular Access y no inicia M34/M35b", () => {
+test("M33 fija Particular Access y M34 no inicia M35b", () => {
   assert.deepEqual(walkFiles(featureDir).sort(), expectedFeatureFiles);
   assert.equal(
     existsSync(resolve(repoRoot, "server/features/report-access")),
-    false,
+    true,
   );
   assert.equal(
     existsSync(resolve(repoRoot, "server/features/particular-access-v2")),
