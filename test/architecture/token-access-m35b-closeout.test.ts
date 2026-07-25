@@ -9,6 +9,8 @@ const evidence =
   "test/security/token-access-enumeration-disclosure-regression.test.ts";
 const closeout =
   "docs/implementation/m35b-token-access-enumeration-disclosure-closeout.md";
+const reportsM36Closeout =
+  "docs/implementation/m36-reports-domain-moves-catalog-census.md";
 
 const featureLayers = [
   {
@@ -371,8 +373,18 @@ test("M35b documenta cierre de Fase H y preserva fases siguientes", () => {
     assert.equal(source.includes(marker), true, marker);
   }
 
+  assert.equal(existsSync(resolve(root, reportsM36Closeout)), true);
+
+  for (const path of [
+    "server/features/reports/application",
+    "server/features/reports/infrastructure",
+    "server/features/reports/composition",
+  ]) {
+    assert.equal(existsSync(resolve(root, path)), false, path);
+  }
+
   const futureCloseouts = walk("docs/implementation").filter((path) =>
-    /\/(?:m36-|reports-phase-i)/i.test(path),
+    /\/(?:m(?:37|38|39|40|41)-|reports-phase-i)/i.test(path),
   );
   assert.deepEqual(futureCloseouts, []);
 });

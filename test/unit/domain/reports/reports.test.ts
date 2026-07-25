@@ -11,7 +11,7 @@ import {
   parsePositiveInt,
   parseReportId,
   parseReportStatus,
-} from "../../../../server/lib/reports.ts";
+} from "../../../../server/features/reports/domain/index.ts";
 
 test("reports helpers parsean enteros positivos con fallback y lÃ­mite mÃ¡ximo", () => {
   assert.equal(parsePositiveInt("25", 50, 100), 25);

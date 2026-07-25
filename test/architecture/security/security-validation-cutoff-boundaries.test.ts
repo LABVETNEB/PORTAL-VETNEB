@@ -529,7 +529,7 @@ test("numeric id helpers reject invalid identifiers instead of defaulting sensit
     );
   }
 
-  const reports = readSource("server/lib/reports.ts");
+  const reports = readSource("server/features/reports/domain/reports.ts");
   const parseReportId = extractFunctionBlock(
     reports,
     "export function parseReportId(value: unknown): number | undefined {",

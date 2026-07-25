@@ -3,7 +3,7 @@ import type {
   Report,
   ReportAccessToken,
 } from "../../drizzle/schema.ts";
-import { serializeSafeReport } from "./reports.ts";
+import { serializeSafeReport } from "../features/reports/domain/index.ts";
 import {
   canAccessReportPublicly,
   getReportAccessTokenState,

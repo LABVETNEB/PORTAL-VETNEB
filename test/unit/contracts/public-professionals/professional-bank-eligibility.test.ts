@@ -11,7 +11,7 @@ import {
   isHistopathologyReport,
   isProfessionalBankEligible,
 } from "../../../../server/features/public-professionals/domain/index.ts";
-import { REPORT_STUDY_TYPES } from "../../../../server/lib/report-study-types.ts";
+import { REPORT_STUDY_TYPES } from "../../../../server/features/reports/domain/index.ts";
 
 const NOW = new Date("2026-06-03T12:00:00.000Z");
 

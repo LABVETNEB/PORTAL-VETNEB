@@ -10,7 +10,7 @@ import {
   canTransitionReportStatus,
   isReportStatus,
   normalizeReportStatus,
-} from "../../../../server/lib/report-status.ts";
+} from "../../../../server/features/reports/domain/index.ts";
 
 test("isClinicUserRole reconoce únicamente roles válidos", () => {
   assert.equal(isClinicUserRole("clinic_owner"), true);

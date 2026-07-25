@@ -14,15 +14,13 @@ import {
   getRequestOrigin,
 } from "../lib/cors-headers.ts";
 import {
+  REPORT_STATUSES,
+  canTransitionReportStatus,
   normalizeOptionalNote,
   parseReportId,
   parseReportStatus,
   serializeSafeReport,
-} from "../lib/reports.ts";
-import {
-  REPORT_STATUSES,
-  canTransitionReportStatus,
-} from "../lib/report-status.ts";
+} from "../features/reports/domain/index.ts";
 import {
   getClinicPermissions,
   normalizeClinicUserRole,
